@@ -39,11 +39,22 @@ export const useSearchNavigate = () => {
     const inFlightRef = useRef(false);
 
     const goTo = useCallback(
-        async (target: string, options?: { cid?: string; sid?: string }) => {
+        async (
+            target: string,
+            options?: {
+                cid?: string;
+                sid?: string;
+                /**
+                 * Pushed on top of `target` once it is reached. A reply opens its thread over the
+                 * room, so back goes thread → room → search, the order a push tap into a reply leaves.
+                 */
+                thenTo?: string;
+            }
+        ) => {
             if (inFlightRef.current) return;
             inFlightRef.current = true;
 
-            const { cid, sid } = options ?? {};
+            const { cid, sid, thenTo } = options ?? {};
             const needsCloudSwitch = !!cid && cid !== selectedCloudId;
             // After a cloud switch the active site is whatever the target cloud's session picked,
             // which `selectedSiteId` no longer describes — so switch unconditionally in that case.
@@ -74,6 +85,7 @@ export const useSearchNavigate = () => {
                     await switchSite(sid as string);
                 }
                 navigate(target);
+                if (thenTo) navigate(thenTo);
             } catch (error) {
                 // The error used to be discarded without even a binding. When the cause is the cloud
                 // switch this is a second entry alongside the session service's — accepted, because

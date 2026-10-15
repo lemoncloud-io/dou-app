@@ -19,10 +19,17 @@ const mockLoadMore = jest.fn();
 const mockSendMessage = jest.fn();
 const mockReadInCloud = jest.fn();
 let mockRootNo = '7';
+const mockLoadUntil = jest.fn();
+// The thread's query string. Stripping `chatNo` writes back here, as the router would.
+let mockSearch = '';
+const mockSetSearchParams = jest.fn((update: (params: URLSearchParams) => URLSearchParams) => {
+    mockSearch = update(new URLSearchParams(mockSearch)).toString();
+});
 
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1', rootNo: mockRootNo }),
     useLocation: () => ({ state: mockLocationState }),
+    useSearchParams: () => [new URLSearchParams(mockSearch), mockSetSearchParams],
 }));
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: any) => (o && 'count' in o ? `${k}:${o.count}` : k) }),
@@ -183,8 +190,11 @@ jest.mock('../hooks', () => ({
             isLoadingMore: false,
             loadMore: mockLoadMore,
             canLoadMore: mockCanLoadMore,
+            loadUntil: mockLoadUntil,
         };
     },
+    // The real jump: what is under test is that the thread hands it the right surface and anchors.
+    useMessageJump: jest.requireActual('../hooks/useMessageJump').useMessageJump,
     useDmPeer: () => null,
     useReactions: () => ({ toggleReaction: jest.fn(), failedId: null }),
     // This screen's tests do not cover edit and delete. That behaviour's contract is held by
@@ -208,6 +218,9 @@ jest.mock('../hooks', () => ({
 
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { useComposerDraftStore } from '../stores/useComposerDraftStore';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { ThreadPage } from './ThreadPage';
 
 const chat = (over: Partial<DomainChat> = {}): DomainChat =>
@@ -217,6 +230,7 @@ const chat = (over: Partial<DomainChat> = {}): DomainChat =>
 // arrives, so without this stub every render would throw inside that effect.
 beforeAll(() => {
     Element.prototype.scrollTo = jest.fn();
+    Element.prototype.scrollIntoView = jest.fn();
 });
 
 beforeEach(() => {
@@ -234,6 +248,11 @@ beforeEach(() => {
     mockHasMore = false;
     mockCanLoadMore = true;
     mockLoadMore.mockReset();
+    mockLoadUntil.mockReset().mockReturnValue(false);
+    mockSearch = '';
+    mockSetSearchParams.mockClear();
+    useMessageJumpStore.setState({ target: null });
+    (toast as jest.Mock).mockClear();
     mockSendMessage.mockReset().mockResolvedValue({});
     mockReadInCloud.mockReset().mockResolvedValue(undefined);
 });
@@ -835,5 +854,153 @@ describe('ThreadPage — the composer draft', () => {
 
         expect(mockSendPicked).toHaveBeenCalledWith('hello', undefined);
         expect(drafts()).toEqual({});
+    });
+});
+
+describe('ThreadPage — an old root', () => {
+    it('widens the cache window to a root it does not hold yet', () => {
+        mockChats = [chat({ id: 'ch1:9', chatNo: 9, content: 'reply', parentId: '7' })];
+        render(<ThreadPage />);
+
+        expect(mockLoadUntil).toHaveBeenCalledWith(7);
+    });
+
+    it('leaves the window alone once the root is there', () => {
+        mockChats = [chat(), chat({ id: 'ch1:9', chatNo: 9, content: 'reply', parentId: '7' })];
+        render(<ThreadPage />);
+
+        expect(mockLoadUntil).not.toHaveBeenCalled();
+    });
+
+    it('does not reach for a root from before my membership', () => {
+        mockMyJoin = { joinedNo: 8 };
+        mockChats = [chat({ id: 'ch1:9', chatNo: 9, content: 'reply', parentId: '7' })];
+        render(<ThreadPage />);
+
+        expect(mockLoadUntil).not.toHaveBeenCalled();
+    });
+});
+
+describe('ThreadPage — opened on a reply from search', () => {
+    const replies = () => [
+        chat(),
+        chat({ id: 'ch1:8', chatNo: 8, content: 'first reply', parentId: '7' }),
+        chat({ id: 'ch1:9', chatNo: 9, content: 'second reply', parentId: '7' }),
+    ];
+
+    it('scrolls to that reply and drops the query so a reload does not jump again', () => {
+        mockSearch = 'chatNo=8';
+        mockChats = replies();
+        render(<ThreadPage />);
+
+        const target = document.querySelector('[data-chat-no="8"]');
+        expect(target).not.toBeNull();
+        expect((Element.prototype.scrollIntoView as jest.Mock).mock.contexts.at(-1)).toBe(target);
+        expect(mockSearch).toBe('');
+        expect(useMessageJumpStore.getState().target).toBeNull();
+    });
+
+    it('strips the query from a copy, leaving the params it read intact for a re-run', () => {
+        // The router hands the updater the very object the effect read. Deleting from it in place
+        // hid `chatNo` from the effect's re-run after a cleanup (StrictMode), losing the jump.
+        mockSearch = 'chatNo=8';
+        mockChats = replies();
+        render(<ThreadPage />);
+
+        const update = mockSetSearchParams.mock.calls[0][0];
+        const handed = new URLSearchParams('chatNo=8&keep=1');
+        const next = update(handed);
+
+        expect(handed.get('chatNo')).toBe('8');
+        expect(next.get('chatNo')).toBeNull();
+        expect(next.get('keep')).toBe('1');
+    });
+
+    it('does not let rows landing afterwards pull the list back to the newest reply', () => {
+        mockSearch = 'chatNo=8';
+        mockChats = replies();
+        const { rerender } = render(<ThreadPage />);
+        (Element.prototype.scrollTo as jest.Mock).mockClear();
+
+        mockChats = [...replies(), chat({ id: 'ch1:10', chatNo: 10, content: 'third reply', parentId: '7' })];
+        rerender(<ThreadPage />);
+
+        expect(Element.prototype.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('follows the newest reply again once I write one', () => {
+        mockSearch = 'chatNo=8';
+        mockChats = replies();
+        const { rerender } = render(<ThreadPage />);
+        fireEvent.click(screen.getByTestId('send'));
+        (Element.prototype.scrollTo as jest.Mock).mockClear();
+
+        mockChats = [...replies(), chat({ id: 'ch1:10', chatNo: 10, content: 'hello', parentId: '7' })];
+        rerender(<ThreadPage />);
+
+        expect(Element.prototype.scrollTo).toHaveBeenCalled();
+    });
+
+    it('opens at the newest reply after all when the jump finds nothing', () => {
+        mockSearch = 'chatNo=50';
+        mockChats = replies();
+        const { rerender } = render(<ThreadPage />);
+
+        expect(toast).toHaveBeenCalledWith({ title: 'search.messageJumpFailed' });
+        (Element.prototype.scrollTo as jest.Mock).mockClear();
+        mockChats = [...replies(), chat({ id: 'ch1:10', chatNo: 10, content: 'third reply', parentId: '7' })];
+        rerender(<ThreadPage />);
+
+        expect(Element.prototype.scrollTo).toHaveBeenCalled();
+    });
+
+    it('follows again once the reader is back at the bottom', () => {
+        mockSearch = 'chatNo=8';
+        mockChats = replies();
+        const { container, rerender } = render(<ThreadPage />);
+        // jsdom lays nothing out, so every offset is 0: the list reads as scrolled to its bottom.
+        fireEvent.scroll(container.querySelector('.overflow-y-auto') as Element);
+        (Element.prototype.scrollTo as jest.Mock).mockClear();
+
+        mockChats = [...replies(), chat({ id: 'ch1:10', chatNo: 10, content: 'third reply', parentId: '7' })];
+        rerender(<ThreadPage />);
+
+        expect(Element.prototype.scrollTo).toHaveBeenCalled();
+    });
+
+    it('starts clean on another thread when the page stays mounted', () => {
+        mockSearch = 'chatNo=8';
+        mockChats = replies();
+        const { rerender } = render(<ThreadPage />);
+
+        mockRootNo = '20';
+        mockChats = [chat({ id: 'ch1:20', chatNo: 20, content: 'other root' })];
+        rerender(<ThreadPage />);
+        (Element.prototype.scrollTo as jest.Mock).mockClear();
+        mockChats = [...mockChats, chat({ id: 'ch1:21', chatNo: 21, content: 'reply', parentId: '20' })];
+        rerender(<ThreadPage />);
+
+        expect(Element.prototype.scrollTo).toHaveBeenCalled();
+    });
+
+    it('does not spend its paging budget before the first cache read', () => {
+        mockSearch = 'chatNo=8';
+        mockIsLoading = true;
+        mockHasMore = true;
+        render(<ThreadPage />);
+
+        expect(mockLoadMore).not.toHaveBeenCalled();
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    it('keeps following the newest reply when opened without a jump', () => {
+        mockChats = replies();
+        const { rerender } = render(<ThreadPage />);
+        (Element.prototype.scrollTo as jest.Mock).mockClear();
+
+        mockChats = [...replies(), chat({ id: 'ch1:10', chatNo: 10, content: 'third reply', parentId: '7' })];
+        rerender(<ThreadPage />);
+
+        expect(Element.prototype.scrollTo).toHaveBeenCalled();
     });
 });

@@ -594,6 +594,21 @@ describe('useChats — loadUntil (점프용 캐시 윈도우 확장)', () => {
         expect(lastObserveLimit()).toBe(before);
     });
 
+    it('keeps the wider window when two widenings land in one commit', async () => {
+        // The thread page widens toward its root and the jump toward a newer reply in the same
+        // commit; the narrower ask must not undo the wider one.
+        seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        act(() => {
+            result.current.loadUntil(500);
+            result.current.loadUntil(800);
+        });
+
+        await waitFor(() => expect(lastObserveLimit()).toBe(1000 - 500 + 20));
+    });
+
     it('이미 보이는 메시지나 잘못된 번호에는 반응하지 않는다', () => {
         seedChats([chat({ id: 'newest', chatNo: 1000, ownerId: 'u1', createdAtMs: 1000 })]);
 

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 import { useGlobalSearch } from '../hooks/useGlobalSearch';
@@ -133,5 +133,53 @@ describe('SearchPage', () => {
 
         expect(screen.getByText('search.noResults')).toBeTruthy();
         expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    describe('opening a message result', () => {
+        const chatRow = (overrides: Record<string, unknown> = {}) => ({
+            cid: 'c1',
+            sid: 's1',
+            chatId: 'ch1:9',
+            channelId: 'ch1',
+            chatNo: 9,
+            content: 'lemon tart',
+            ...overrides,
+        });
+
+        const openResult = (row: ReturnType<typeof chatRow>) => {
+            const goTo = jest.fn();
+            (useSearchNavigate as jest.Mock).mockReturnValue({ goTo });
+            setSearchState({ hasResults: true });
+            (useSearchContext as jest.Mock).mockReturnValue({ ...EMPTY_ROWS, chats: [row] });
+            renderAt('/search?q=lemon');
+            fireEvent.click(screen.getByText('tart', { exact: false }));
+            return goTo;
+        };
+
+        it('jumps to a top-level message in its room', () => {
+            const goTo = openResult(chatRow());
+
+            expect(goTo).toHaveBeenCalledWith('/channels/ch1/room?chatNo=9', { cid: 'c1', sid: 's1' });
+        });
+
+        it('opens a reply on its thread, over the room, rather than jumping into a feed that never draws it', () => {
+            const goTo = openResult(chatRow({ parentId: '3' }));
+
+            expect(goTo).toHaveBeenCalledWith('/channels/ch1/room', {
+                cid: 'c1',
+                sid: 's1',
+                thenTo: '/channels/ch1/thread/3?chatNo=9',
+            });
+        });
+
+        it('opens an unsent reply on its thread without a jump', () => {
+            const goTo = openResult(chatRow({ chatNo: 0, parentId: 'ch1:3' }));
+
+            expect(goTo).toHaveBeenCalledWith('/channels/ch1/room', {
+                cid: 'c1',
+                sid: 's1',
+                thenTo: '/channels/ch1/thread/3',
+            });
+        });
     });
 });

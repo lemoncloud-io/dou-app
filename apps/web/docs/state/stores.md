@@ -29,6 +29,11 @@ the app session, and a relaunch re-earns every mark from an empty store.
 that need to trigger it live in different feature folders, so triggering it goes through a store
 that a runtime-mounted host (not a feature) subscribes to.
 
+A `useMessageJumpStore` target for a thread reply also names its thread (`threadRootNo`), because
+the room never draws a reply. `isJumpTargetFor` decides which surface takes a target — the room, or
+that one thread — and a surface that unmounts drops a target aimed at it, so it cannot replay the
+next time the same room or thread opens.
+
 ## The preference-store migration
 
 Permanent app settings are no longer one `usePreferenceStore` — they moved to `@chatic/config`'s

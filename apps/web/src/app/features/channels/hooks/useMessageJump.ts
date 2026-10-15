@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { isInJoinWindow } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
+import { isJumpTargetFor, useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import type { ClientChatView } from '../types';
 import type { LoadMoreOptions } from './useChats';
 
@@ -33,11 +33,19 @@ interface UseMessageJumpParams {
      * reached from this screen (see the effect).
      */
     joinedNo?: number;
+    /**
+     * The thread this surface shows, as its root's chatNo string; omitted for the room. A reply is
+     * rendered only on its thread page, so each surface takes only the targets aimed at it — a room
+     * that picked up a reply's target would page its whole budget for a row it never draws.
+     */
+    threadRootNo?: string;
+    /** Called when the jump gives up (either toast), so the surface can settle as if none was asked. */
+    onGiveUp?: () => void;
 }
 
 /**
- * Drives a pending `useMessageJumpStore` request for this channel: finds the target
- * message's `[data-chat-no]` DOM node and centers + flashes it.
+ * Drives a pending `useMessageJumpStore` request for this channel's room or, given `threadRootNo`,
+ * one of its threads: finds the target message's `[data-chat-no]` DOM node and centers + flashes it.
  *
  * When it isn't rendered yet the cache comes first (`loadUntil`) — the target normally arrived from
  * a cache search, so it is already stored locally and only the observe window was too narrow.
@@ -56,15 +64,20 @@ export const useMessageJump = ({
     canLoadMore = true,
     loadUntil,
     joinedNo,
+    threadRootNo,
+    onGiveUp,
 }: UseMessageJumpParams) => {
     const target = useMessageJumpStore(s => s.target);
     const clear = useMessageJumpStore(s => s.clear);
     const { t } = useTranslation();
     const progressRef = useRef<{ nonce: number; pages: number; done: boolean } | null>(null);
     const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    // Read at the moment of giving up, so a new callback each render does not re-run the jump.
+    const onGiveUpRef = useRef(onGiveUp);
+    onGiveUpRef.current = onGiveUp;
 
     useEffect(() => {
-        if (!target || target.channelId !== channelId) return;
+        if (!isJumpTargetFor(target, channelId, threadRootNo)) return;
         const container = containerRef.current;
         if (!container) return;
 
@@ -94,6 +107,7 @@ export const useMessageJump = ({
             progressRef.current.done = true;
             toast({ title: t('chat.jumpOutsideJoinWindow') });
             clear();
+            onGiveUpRef.current?.();
             return;
         }
 
@@ -132,6 +146,7 @@ export const useMessageJump = ({
             progressRef.current.done = true;
             toast({ title: t('search.messageJumpFailed') });
             clear();
+            onGiveUpRef.current?.();
         }
     }, [
         target,
@@ -146,7 +161,18 @@ export const useMessageJump = ({
         clear,
         t,
         joinedNo,
+        threadRootNo,
     ]);
+
+    // A target this surface never got to — the reader left while it was still loading — is dropped
+    // with the surface. Left in the store, it fired the next time the same room or thread opened,
+    // flashing an old message nobody had asked for this time.
+    useEffect(
+        () => () => {
+            if (isJumpTargetFor(useMessageJumpStore.getState().target, channelId, threadRootNo)) clear();
+        },
+        [channelId, threadRootNo, clear]
+    );
 
     useEffect(
         () => () => {

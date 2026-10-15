@@ -12,7 +12,7 @@ apps/web/src/app/
 ├── bridge/navigation/          6 sources, 4 tests — the whole tap path
 │   ├── pendingNavigationStore.ts    holds a pre-mount OnNavigate and replays it
 │   ├── resolvePushNavigation.ts     pure: raw path → { target, cid, sid, chatId }
-│   ├── resolveThreadTarget.ts       pure: notified chat → thread route, or null
+│   ├── resolveThreadTarget.ts       pure: notified (or searched) chat → thread route, or null
 │   ├── usePushNavigate.ts           the primitive both entry points converge on
 │   ├── useHandlePushNavigation.ts   native OnNavigate entry point
 │   └── index.ts
@@ -191,6 +191,10 @@ after** the room, so back reads thread → room → wherever the reader came fro
 load warms the cache this lookup reads. And it is **silent on every failure**, including a location
 check before and after the awaits: the reader is already on a screen that makes sense, and hijacking
 one they navigated to themselves in the meantime is worse than no hop.
+
+Search uses `resolveThreadTarget` too: a reply found by search opens on its thread, stacked over the
+room the same way (see [feature/search](../feature/search/README.md)). Its contract serves both
+doors, so a change made here for push changes where a search result opens as well.
 
 ### Cold start
 

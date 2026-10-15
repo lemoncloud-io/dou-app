@@ -67,6 +67,11 @@ export interface ChatResultRow {
     chatId: string;
     channelId: string;
     chatNo: number;
+    /**
+     * Set on a thread reply: its root, as stored. A reply is drawn on its thread page and never in
+     * the room's feed, so this is what decides where the result opens.
+     */
+    parentId?: string;
     content: string;
     createdAt?: number;
     channelName?: string;
@@ -296,6 +301,7 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                         chatId: chat.id,
                         channelId: chat.channelId,
                         chatNo: chat.chatNo,
+                        parentId: chat.parentId || undefined,
                         // The row shows this and `SearchPage` highlights the query inside it, so a
                         // Block Kit body or composer markup has to arrive flattened — a match inside
                         // a block's text or a code block's later lines is still a match the reader

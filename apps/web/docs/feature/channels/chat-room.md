@@ -547,7 +547,13 @@ list still lands at the newest message.
 
 `suppressAutoScroll` stands the bottom pin down while a message jump is positioning the view;
 `scrollToBottom` defers to a `requestAnimationFrame` that runs after every effect, so without it the
-pin always won.
+pin always won. Only a jump into the room holds it — a jump to one of its replies belongs to the
+thread page.
+
+A jump lands on `[data-chat-no]`, so **every row the feed draws carries it**, system notices
+included. A legacy notice stores its whole sentence in `content` ("…님이 들어왔습니다"), search matches
+that text, and a notice without the anchor was a hit the jump could only answer with "couldn't find
+that message" while the notice sat on screen.
 
 ## What not to do
 
