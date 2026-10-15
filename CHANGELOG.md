@@ -4,6 +4,12 @@
 
 ### Bug Fixes
 
+- (web,perf) accept an invite only once read, take the relay room from its push (ADR-0205)
+
+## [2026-10-15] - No version updates
+
+### Bug Fixes
+
 - (web/invite) accept a relay invite as the relay account, not the cloud left open
 
 ## [2026-10-15] - No version updates
