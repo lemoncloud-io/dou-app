@@ -209,8 +209,38 @@ profile map.
   altogether — so the page asks for the 50 numbers starting at the root (`fetchThrough`), which also
   brings the replies right after it. It asks by itself once per thread — a failure retried on every
   arriving message would hammer a failing socket — and not at all when a page already answered for
-  that number: then the root was deleted. Replies further into the gap than those 50 numbers stay
-  missing until history is fetched through them; the thread page draws no gap divider.
+  that number: then the root was deleted. Replies further into the gap than those 50 numbers are the
+  next point's job.
+- **A gap between replies gets the room's divider.** Every reply is newer than its root, so any
+  stretch above the root that no page has answered for (`useChats` `gaps`, the room's rule — see
+  [data-layer.md](./data-layer.md)) can hold replies the list does not show, and the reply count under
+  it would under-report without a sign. Each such gap draws `GapDivider` with the room's
+  `chat.room.gap.*` copy: above the first reply whose `chatNo` is at or past the gap's newer edge, or
+  after the last reply when the gap runs past all of them — above my own reply still waiting for its
+  number, which is the newest. Gaps that start below the root are not drawn — no reply can be there —
+  and neither is a gap holding a root no page has answered for yet, which is the root's own page's
+  job; once that page answers (the root was deleted), the rest of the gap is drawn. The divider is a
+  sibling of the reply rows, never inside a `data-chat-no` wrapper, so a jump never lands on it.
+    - **Why a divider with a budget, not a fill on open.** The feed has no "replies to this root"
+      query, so finding a reply in a gap means paging the channel through it: one request per 50
+      numbers, and a gap can be thousands of numbers wide. Filling every gap on open would spend that
+      on each thread opened, read or not. In the room a divider's own fill is what stops it: each page
+      draws its rows next to the divider and pushes it out of view. In a thread almost every row a page
+      brings is not a reply and draws nothing, so a divider in a short thread stays on screen and would
+      walk a gap of any width — a thousand requests, and a window grown by every row they brought. So
+      the thread's dividers ask by themselves for 4 pages a visit (`THREAD_GAP_AUTO_PAGES`, 200
+      numbers, shared by every divider on the page), then wait for a tap; each tap asks for a page and
+      renews the 4. The near stretch — where replies usually sit — fills without anyone asking, a wide
+      gap costs a request only when a person asks for it, and the divider stays as the sign that
+      replies may be missing.
+    - **The follow and the hold.** A divider appearing after the last reply is part of the bottom: the
+      list follows down to it like a new reply. Its pages do not move the list — a page moves the gap's
+      edge, not its height — so a reader who scrolls up while it fills stays where they are. A divider
+      filled while the reader is more than 80px above the bottom holds the newest-reply follow, as a
+      jump does, so replies it brings do not pull them away from where they are reading; the follow
+      comes back the same way, at the bottom.
+    - Holes of 10 numbers or fewer draw no divider, as in the room, and the thread does not re-check
+      blocks (`revalidateAround`), so a reply in such a hole shows once a page answers for it.
 - **A root that is still not there** shows `chat.thread.unavailable` and a "load older" button while
   there is something to load — an older page (`hasMore`), or the root's own page while no page has
   answered for its number. A press is a person asking, so it is sent at once
@@ -227,7 +257,8 @@ profile map.
   (the composer measuring itself, a reply arriving) would pull the list past the reply. It comes back
   when the reader scrolls back to the bottom, sends a reply, or the jump gives up (the thread then
   opens at its newest reply, as it does without a jump), and a move to another thread on the same
-  mounted page starts clean. The jump does not page before the first cache read: with no rows there
+  mounted page starts clean. A gap divider filled from up in the list holds it the same way (see
+  above). The jump does not page before the first cache read: with no rows there
   is no cursor, and a page that goes nowhere would still spend its budget.
 - **Widenings in one commit keep the wider one.** The root's widening and the jump's (toward a reply
   below it) can be asked for in the same commit, against the same window. `loadUntil` keeps the
@@ -263,8 +294,9 @@ see [chat-room.md](./chat-room.md).
 - The derivations are pure and tested directly: `foldReactions.test.ts` (normalisation convergence,
   last-action-wins, optimistic ordering), `buildThread.test.ts` (both encodings, reactions excluded,
   `lastReplyNo` / owner), plus component tests for the chips, the sheets and the footer.
-  `ThreadPage.test.tsx` also covers widening to an old root and opening on a reply (the jump, the
-  follow hold and every way it is released).
+  `ThreadPage.test.tsx` also covers widening to an old root, opening on a reply (the jump, the
+  follow hold and every way it is released), and a gap between replies (where the divider goes, the
+  fill, and the follow around it).
 
 ```bash
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false apps/web/src/app/features/channels

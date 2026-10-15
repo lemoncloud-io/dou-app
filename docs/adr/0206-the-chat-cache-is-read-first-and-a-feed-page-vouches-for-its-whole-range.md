@@ -77,8 +77,10 @@ of numbers, not only the rows it carries.
   first look costs a request, and a hole of up to 10 numbers draws no divider meanwhile.
 - `CacheChatView` gains the local-only `hiddenByFeed`; `ChatRepository` gains `uncoveredFeed`, and
   `refreshList` gains `markMissingHidden` and `cursorIsRow`.
-- The thread page still draws no gap divider: replies further into a gap than the page after the root
-  stay missing until history is fetched through them.
+- The thread page draws the same divider between its replies, for any gap above its root. The feed
+  has no per-thread query, so a reply deep in a gap costs one request per 50 numbers; there a filled
+  page rarely draws anything and so never pushes the divider out of view, so the thread's dividers
+  fill by themselves for a few pages a visit and then wait for a tap.
 
 ## References
 

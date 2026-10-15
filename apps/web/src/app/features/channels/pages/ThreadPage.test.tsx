@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
+import type { ChatGap } from '../hooks/useChats';
 import type { DomainChat } from '../types';
 
 let mockLocationState: unknown = null;
@@ -23,6 +24,13 @@ const mockLoadUntil = jest.fn();
 const mockFetchThrough = jest.fn();
 // Whether a page has answered for a chat number this run; by default every number has.
 const mockIsFetched = jest.fn();
+// Unfetched stretches between cached rows, and the fill the thread's dividers call.
+let mockGaps: ChatGap[] = [];
+let mockGapStatus = new Map<string, 'loading' | 'failed'>();
+// Marks the gap loading at once, as the real fill does before its page goes out.
+const mockFillGap = jest.fn((gap: ChatGap) => {
+    mockGapStatus = new Map([[`${gap.olderNo}-${gap.newerNo}`, 'loading']]);
+});
 // The thread's query string. Stripping `chatNo` writes back here, as the router would.
 let mockSearch = '';
 const mockSetSearchParams = jest.fn((update: (params: URLSearchParams) => URLSearchParams) => {
@@ -196,6 +204,9 @@ jest.mock('../hooks', () => ({
             loadUntil: mockLoadUntil,
             fetchThrough: mockFetchThrough,
             isFetched: mockIsFetched,
+            gaps: mockGaps,
+            gapStatus: mockGapStatus,
+            fillGap: mockFillGap,
         };
     },
     // The real jump: what is under test is that the thread hands it the right surface and anchors.
@@ -256,6 +267,9 @@ beforeEach(() => {
     mockLoadUntil.mockReset().mockReturnValue(false);
     mockFetchThrough.mockReset().mockResolvedValue(true);
     mockIsFetched.mockReset().mockReturnValue(true);
+    mockGaps = [];
+    mockGapStatus = new Map();
+    mockFillGap.mockClear();
     mockSearch = '';
     mockSetSearchParams.mockClear();
     useMessageJumpStore.setState({ target: null });
@@ -1051,6 +1065,163 @@ describe('ThreadPage — opened on a reply from search', () => {
         (Element.prototype.scrollTo as jest.Mock).mockClear();
 
         mockChats = [...replies(), chat({ id: 'ch1:10', chatNo: 10, content: 'third reply', parentId: '7' })];
+        rerender(<ThreadPage />);
+
+        expect(Element.prototype.scrollTo).toHaveBeenCalled();
+    });
+});
+
+describe('ThreadPage — a gap between replies', () => {
+    // Root #500, replies at #520 and #1300; the cache skips #561..#1289, where #700 may be a reply.
+    const gappedThread = () => [
+        chat({ id: 'ch1:500', chatNo: 500, content: 'root' }),
+        chat({ id: 'ch1:520', chatNo: 520, content: 'early reply', parentId: '500' }),
+        chat({ id: 'ch1:560', chatNo: 560, content: 'room message' }),
+        chat({ id: 'ch1:1290', chatNo: 1290, content: 'room message' }),
+        chat({ id: 'ch1:1300', chatNo: 1300, content: 'late reply', parentId: '500' }),
+    ];
+    const between: ChatGap = { olderNo: 560, newerNo: 1290, missing: 729 };
+
+    beforeEach(() => {
+        mockRootNo = '500';
+    });
+
+    /** The reply list in order, rows by chat number and dividers as `gap`. */
+    const listOrder = () =>
+        Array.from(document.querySelectorAll('[data-chat-no], [data-chat-gap]')).map(node =>
+            node.hasAttribute('data-chat-gap') ? 'gap' : node.getAttribute('data-chat-no')
+        );
+
+    it('draws a divider above the first reply past the gap, and none for a gap below the root', () => {
+        mockChats = gappedThread();
+        mockGaps = [{ olderNo: 100, newerNo: 500, missing: 399 }, between];
+        render(<ThreadPage />);
+
+        expect(listOrder()).toEqual(['520', 'gap', '1300']);
+    });
+
+    it('draws the divider after the last reply when the gap runs past every reply', () => {
+        mockChats = [...gappedThread(), chat({ id: 'ch1:1400', chatNo: 1400, content: 'room message' })];
+        mockGaps = [{ olderNo: 1300, newerNo: 1400, missing: 99 }];
+        render(<ThreadPage />);
+
+        expect(listOrder()).toEqual(['520', '1300', 'gap']);
+    });
+
+    it('fills the gap it stands for when tapped', () => {
+        mockChats = gappedThread();
+        mockGaps = [between];
+        render(<ThreadPage />);
+
+        fireEvent.click(screen.getByText('chat.room.gap.load'));
+
+        expect(mockFillGap).toHaveBeenCalledWith(between, expect.stringMatching(/^(newer|older)$/));
+    });
+
+    it('keeps the reader at a divider up in the list while the replies it brings land', () => {
+        mockChats = gappedThread();
+        mockGaps = [between];
+        const { container, rerender } = render(<ThreadPage />);
+        const list = container.querySelector('.overflow-y-auto') as HTMLElement;
+        // Scrolled up, 600px above the bottom.
+        Object.defineProperty(list, 'scrollHeight', { configurable: true, value: 2000 });
+        Object.defineProperty(list, 'clientHeight', { configurable: true, value: 800 });
+        list.scrollTop = 600;
+        fireEvent.click(screen.getByText('chat.room.gap.load'));
+        (Element.prototype.scrollTo as jest.Mock).mockClear();
+
+        mockChats = [...gappedThread(), chat({ id: 'ch1:700', chatNo: 700, content: 'middle reply', parentId: '500' })];
+        mockGaps = [{ olderNo: 700, newerNo: 1290, missing: 589 }];
+        rerender(<ThreadPage />);
+
+        expect(listOrder()).toEqual(['520', '700', 'gap', '1300']);
+        expect(Element.prototype.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('places a gap past every numbered reply above my reply still waiting for its number', () => {
+        mockChats = [
+            ...gappedThread(),
+            chat({ id: 'ch1:1400', chatNo: 1400, content: 'room message' }),
+            chat({ id: 'tmp-1', chatNo: 0, content: 'sending', parentId: '500', createdAtMs: 9 }),
+        ];
+        mockGaps = [{ olderNo: 1300, newerNo: 1400, missing: 99 }];
+        render(<ThreadPage />);
+
+        expect(listOrder()).toEqual(['520', '1300', 'gap', '0']);
+    });
+
+    it('draws a gap around a deleted root once its page has answered, not while it is still asked for', () => {
+        // #500 is gone and the cache skips #451..#1289 around it; #1300 is a reply.
+        mockChats = [
+            chat({ id: 'ch1:450', chatNo: 450, content: 'room message' }),
+            chat({ id: 'ch1:1290', chatNo: 1290, content: 'room message' }),
+            chat({ id: 'ch1:1300', chatNo: 1300, content: 'late reply', parentId: '500' }),
+        ];
+        mockGaps = [{ olderNo: 450, newerNo: 1290, missing: 839 }];
+        mockIsFetched.mockReturnValue(false);
+        const { rerender } = render(<ThreadPage />);
+        expect(listOrder()).toEqual(['1300']);
+
+        mockIsFetched.mockReturnValue(true);
+        rerender(<ThreadPage />);
+
+        expect(listOrder()).toEqual(['gap', '1300']);
+    });
+
+    describe('filling by itself', () => {
+        // jsdom has no IntersectionObserver; this one reports every divider on screen, in the upper half.
+        class OnScreenObserver {
+            constructor(private readonly callback: IntersectionObserverCallback) {}
+            observe = () =>
+                this.callback(
+                    [
+                        {
+                            isIntersecting: true,
+                            boundingClientRect: { top: 100, bottom: 130 },
+                            rootBounds: { height: 800 },
+                        } as unknown as IntersectionObserverEntry,
+                    ],
+                    this as unknown as IntersectionObserver
+                );
+            disconnect = () => undefined;
+        }
+        beforeEach(() => {
+            (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = OnScreenObserver;
+        });
+        afterEach(() => {
+            delete (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
+        });
+
+        /** Each page answered moves the gap's newer edge down by 50, as a newer-side fill does. */
+        const pageLands = (rerender: (ui: React.ReactElement) => void, page: number) => {
+            mockGaps = [{ olderNo: 560, newerNo: 1290 - 50 * page, missing: 729 - 50 * page }];
+            mockGapStatus = new Map();
+            mockChats = [...gappedThread(), chat({ id: `ch1:${1290 - 50 * page}`, chatNo: 1290 - 50 * page })];
+            rerender(<ThreadPage />);
+        };
+
+        it('stops asking after a few pages a visit — a thread draws almost nothing a page brings — until a tap', () => {
+            mockChats = gappedThread();
+            mockGaps = [between];
+            const { rerender } = render(<ThreadPage />);
+            for (let page = 1; page <= 6; page += 1) pageLands(rerender, page);
+
+            expect(mockFillGap).toHaveBeenCalledTimes(4);
+
+            fireEvent.click(screen.getByText('chat.room.gap.load'));
+            expect(mockFillGap).toHaveBeenCalledTimes(5);
+            pageLands(rerender, 7);
+            expect(mockFillGap).toHaveBeenCalledTimes(6);
+        });
+    });
+
+    it('keeps a divider that appears after the last reply in view', () => {
+        mockChats = gappedThread();
+        const { rerender } = render(<ThreadPage />);
+        (Element.prototype.scrollTo as jest.Mock).mockClear();
+
+        mockChats = [...gappedThread(), chat({ id: 'ch1:1400', chatNo: 1400, content: 'room message' })];
+        mockGaps = [{ olderNo: 1300, newerNo: 1400, missing: 99 }];
         rerender(<ThreadPage />);
 
         expect(Element.prototype.scrollTo).toHaveBeenCalled();

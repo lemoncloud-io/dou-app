@@ -9,7 +9,13 @@ interface GapDividerProps {
     status?: 'loading' | 'failed';
     /** A page can be sent now (the socket is verified). The divider waits for it rather than asking into nothing. */
     canFill: boolean;
-    onFill: (side: ChatGapSide) => void;
+    /**
+     * Whether it may ask by itself once on screen (default true). Off, only a tap asks — for a page
+     * where filled rows rarely render and so never push the divider out of view (the thread).
+     */
+    autoFill?: boolean;
+    /** `byTap` tells a person's tap from the divider asking by itself. */
+    onFill: (side: ChatGapSide, byTap: boolean) => void;
 }
 
 /**
@@ -28,7 +34,7 @@ const sideOf = (top: number, bottom: number, viewportHeight: number): ChatGapSid
  * at a time, the way scrolling to the top pulls in older pages. A tap does the same, and is the retry
  * after a failure, which never refires by itself.
  */
-export const GapDivider = ({ status, canFill, onFill }: GapDividerProps) => {
+export const GapDivider = ({ status, canFill, autoFill = true, onFill }: GapDividerProps) => {
     const { t } = useTranslation();
     const ref = useRef<HTMLButtonElement>(null);
     const [visibleSide, setVisibleSide] = useState<ChatGapSide | null>(null);
@@ -51,15 +57,15 @@ export const GapDivider = ({ status, canFill, onFill }: GapDividerProps) => {
     }, []);
 
     useEffect(() => {
-        if (!visibleSide || !canFill || status || askedRef.current) return;
+        if (!visibleSide || !canFill || !autoFill || status || askedRef.current) return;
         askedRef.current = true;
-        onFill(visibleSide);
-    }, [visibleSide, canFill, status, onFill]);
+        onFill(visibleSide, false);
+    }, [visibleSide, canFill, autoFill, status, onFill]);
 
     const handleClick = () => {
         if (status === 'loading' || !ref.current) return;
         const rect = ref.current.getBoundingClientRect();
-        onFill(sideOf(rect.top, rect.bottom, window.innerHeight));
+        onFill(sideOf(rect.top, rect.bottom, window.innerHeight), true);
     };
 
     return (
