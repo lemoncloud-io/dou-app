@@ -634,9 +634,13 @@ export const ChannelRoomPage = () => {
 
         useMessageJumpStore.getState().request(channelId, chatNo);
         setSearchParams(
+            // A copy, not the params this effect read: the router hands the updater that same object,
+            // so deleting from it in place hid `chatNo` from the effect's own re-run, and a re-run
+            // that follows the jump's cleanup (StrictMode's mount check) lost the request for good.
             params => {
-                params.delete('chatNo');
-                return params;
+                const next = new URLSearchParams(params);
+                next.delete('chatNo');
+                return next;
             },
             { replace: true }
         );

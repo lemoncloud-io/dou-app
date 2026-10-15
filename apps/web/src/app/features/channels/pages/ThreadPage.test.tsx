@@ -900,6 +900,22 @@ describe('ThreadPage — opened on a reply from search', () => {
         expect(useMessageJumpStore.getState().target).toBeNull();
     });
 
+    it('strips the query from a copy, leaving the params it read intact for a re-run', () => {
+        // The router hands the updater the very object the effect read. Deleting from it in place
+        // hid `chatNo` from the effect's re-run after a cleanup (StrictMode), losing the jump.
+        mockSearch = 'chatNo=8';
+        mockChats = replies();
+        render(<ThreadPage />);
+
+        const update = mockSetSearchParams.mock.calls[0][0];
+        const handed = new URLSearchParams('chatNo=8&keep=1');
+        const next = update(handed);
+
+        expect(handed.get('chatNo')).toBe('8');
+        expect(next.get('chatNo')).toBeNull();
+        expect(next.get('keep')).toBe('1');
+    });
+
     it('does not let rows landing afterwards pull the list back to the newest reply', () => {
         mockSearch = 'chatNo=8';
         mockChats = replies();

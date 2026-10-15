@@ -221,9 +221,11 @@ export const ThreadPage = () => {
         followHeldRef.current = true;
         useMessageJumpStore.getState().request(channelId, chatNo, { threadRootNo: rootNo });
         setSearchParams(
+            // A copy, for the room's reason (see its `?chatNo=` effect).
             params => {
-                params.delete('chatNo');
-                return params;
+                const next = new URLSearchParams(params);
+                next.delete('chatNo');
+                return next;
             },
             { replace: true }
         );

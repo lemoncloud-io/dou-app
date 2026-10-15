@@ -21,9 +21,13 @@ const mockUseJoinPositions = jest.fn();
 // 'uid-a'; in cloud-b the same account is 'uid-b'.
 const mockUidInCloud: Record<string, string> = { 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
 
+// The room's query string, for the `?chatNo=` jump.
+let mockSearch = '';
+const mockSetSearchParams = jest.fn();
+
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: mockChannelId }),
-    useSearchParams: () => [new URLSearchParams(), jest.fn()],
+    useSearchParams: () => [new URLSearchParams(mockSearch), mockSetSearchParams],
     useLocation: () => ({ state: null }),
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
@@ -742,6 +746,22 @@ describe('ChannelRoomPage — every row a jump can land on', () => {
         const { container } = render(<ChannelRoomPage />);
 
         expect(container.querySelector('[data-chat-no="5"]')).not.toBeNull();
+    });
+
+    it('strips ?chatNo= from a copy, leaving the params it read intact for a re-run', () => {
+        // The router hands the updater the very object the effect read. Deleting from it in place
+        // hid `chatNo` from the effect's re-run after the jump's cleanup (StrictMode), losing it.
+        mockSearch = 'chatNo=5';
+        render(<ChannelRoomPage />);
+        mockSearch = '';
+
+        const update = mockSetSearchParams.mock.calls.at(-1)[0];
+        const handed = new URLSearchParams('chatNo=5&keep=1');
+        const next = update(handed);
+
+        expect(handed.get('chatNo')).toBe('5');
+        expect(next.get('chatNo')).toBeNull();
+        expect(next.get('keep')).toBe('1');
     });
 
     it('anchors a legacy notice, whose stored sentence is what search matches', () => {
