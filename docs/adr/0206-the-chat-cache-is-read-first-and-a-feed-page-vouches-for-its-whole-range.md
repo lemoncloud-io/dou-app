@@ -37,9 +37,9 @@ of numbers, not only the rows it carries.
 3. **The screen reads the cache first and asks the server only for unanswered numbers.** Every cached
    row is shown at once. A run of more than 10 unanswered numbers between two shown rows gets a divider
    that, once on screen, fetches the page next to the reader and next to what is still unanswered.
-   Older-page paging grows over a page this run already answered for without a request. An old cached
-   block is fetched once per visit when the reader reaches it, to pick up what changed while the device
-   was away. A thread root, or a jump target, in such a stretch is fetched by the page starting at it.
+   Older-page paging grows over a page this run already answered for without a request. A block whose
+   row the reader reaches was cached before this app run is fetched once per visit, to pick up what
+   changed while the device was away; a row written this run is current and costs no request. A thread root, or a jump target, in such a stretch is fetched by the page starting at it.
 4. **A re-read page may mark a cached row it left out as deleted** (`markMissingHidden`). Only the
    fetches in (3) that re-read held history set it; the entry refresh and older-page paging do not. The
    row stays in the cache with `hidden` and `hiddenByFeed`; the cache undoes that mark when a server copy

@@ -29,6 +29,10 @@ const LOAD_MORE_RETRY_MAX_MS = 30000;
 // paging for the rest of the visit.
 const WINDOW_LAND_TIMEOUT_MS = 5000;
 
+// When this page (the app run) started. A cached row written before it may be stale — an edit or a
+// delete made while the app was closed is never replayed — and one written after it is not.
+const RUN_STARTED_AT = Date.now();
+
 // A hole in the cached numbers no larger than this is not shown as a gap. Most holes are deleted
 // messages — the feed leaves them out — and those that are not get filled when the rows around them
 // are re-checked (`revalidateAround`), so a divider there would only flash and go.
@@ -545,6 +549,11 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
     const revalidateAround = useCallback(
         (chatNo: number) => {
             if (!channelId || !chatNo || chatNo <= 0) return;
+            // Only a row the cache held before this run can be stale. One written since — by the entry
+            // page, the catch-up, live sync, a fill — is what the server said this run, whether or not
+            // a page has answered for its number; re-asking for it is a request that changes nothing.
+            const writtenAt = chatsRef.current.find(chat => chat.chatNo === chatNo)?.__cacheMeta?.lastSyncedAt;
+            if (writtenAt && writtenAt >= RUN_STARTED_AT) return;
             const low = Math.floor((chatNo - 1) / LOAD_MORE_SIZE) * LOAD_MORE_SIZE + 1;
             const high = low + LOAD_MORE_SIZE - 1;
             if (recheckedRef.current.has(low)) return;

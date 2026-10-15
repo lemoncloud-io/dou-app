@@ -827,6 +827,16 @@ describe('useChats — gaps in the cached history', () => {
             );
         });
 
+        it('leaves a row written this run alone — the catch-up or a page brought it, so it is current', async () => {
+            const fresh = { lastSyncedAt: Date.now(), expiresAt: Date.now() + 60_000 };
+            seedChats(rows(70, 80).concat(chat({ id: 'c1:75', chatNo: 75, ownerId: 'u1', __cacheMeta: fresh })));
+            const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+            await act(async () => result.current.revalidateAround(75));
+
+            expect(chatRefreshList).not.toHaveBeenCalled();
+        });
+
         it('leaves a block a page already answered for alone', async () => {
             coverage.add('c1', 51, 100);
             seedChats(rows(70, 75, 80));

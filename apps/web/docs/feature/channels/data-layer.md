@@ -211,10 +211,13 @@ is asked only for numbers it does not hold (ADR-0206).
   window counted in rows. `gapStatus` holds `loading` / `failed` per gap (`chatGapKey`).
 - **Re-checking old rows.** Cached history can be stale: an edit or a delete made while the device was
   away is never replayed. `revalidateAround(chatNo)` fetches the 50-number block holding a row the
-  reader is reading, once per visit and only when no page has answered for all of it; the cached rows
-  show meanwhile. Once per visit, not "until covered": a block reaching past the newest message is only
-  ever answered up to the head. A failed re-check is not resent for 30 seconds; both records are per
-  channel.
+  reader is reading, once per visit, when that row was written to the cache before this app run
+  (its `__cacheMeta.lastSyncedAt`) and no page has answered for all of the block; the cached rows show
+  meanwhile. A row written this run — by the entry page, the catch-up, live sync or a fill — is what
+  the server said this run, so re-asking for it would be a request that changes nothing; the room's
+  paging scenarios count every cursor request, and caught this. Once per visit, not "until covered": a
+  block reaching past the newest message is only ever answered up to the head. A failed re-check is not
+  resent for 30 seconds; both records are per channel.
 - **A number in a gap.** `fetchThrough(chatNo)` fetches the page that starts at it and runs 50 numbers
   newer. The thread page uses it for a root in a gap, and `useMessageJump` for a jump target there (a
   push tap or a reply quote; a search hit is cached by definition): older pages cannot reach either, so
