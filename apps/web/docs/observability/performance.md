@@ -37,6 +37,7 @@ holding a trace until it expires.
 | `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)             | `type` · `kind` · `outcome`                        |
 | `state_outbox`    | `stateOutboxTrace.ts`, as samples — [below](#state_outbox)                 | `op` · `outcome` · `kind`                          |
 | `socket_verify`   | `libs/app-runtime`, as samples — see its socket doc                        | `kind` · `cause` · `outcome`                       |
+| `invite_accept`   | the invite accept pipelines, per run — [below](#invite_accept)             | `lane` · `outcome` · `step` · `room`               |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
 is the only caller, and they record failures as well as successes: a switch slow enough to fail is
@@ -415,3 +416,40 @@ different rates.
 - **`outcome` other than `accepted`** should be rare. A steady share of `refused` is a write the
   server will never take — a room I left, a value it rejects — and worth reading in the logs.
   `account_changed` is a write overtaken by a sign-in to another account.
+
+## `invite_accept`
+
+The spinner after an invite's Accept: one run of either accept pipeline, from the press to the
+hand-over. `cloud_switch` and `site_switch` cover two of the cloud lane's steps, but they also take
+every other switch, nearly all onto a socket that is already up, so an accept's cold switch never
+shows even at their p95. Nothing else times the relay lane.
+
+- **Where it is taken.** `inviteAcceptTrace.ts`, started in `useInviteAccept.accept` (cloud) and in
+  each `advance` of `useRelayInviteFlow` (relay).
+- **One run is one spinner.** A run ends where the pipeline stops to ask the person for something —
+  phone verification, the place-profile form — with that as its outcome, and the step that resumes it
+  starts a new run. A form is paced by a person, and the native backend forgets a trace left open for
+  two minutes.
+- **Attributes:** `lane` (`cloud` / `relay`); `outcome` — `ok` (handed over to the room, or to home
+  with no room), `pending` (relay: accepted, but the room was not found in time), `verify`, `profile`,
+  `notice` (relay: the re-read found the invite expired, used, canceled or rejected, or the verified
+  number is not the invited one), `error`; `step`
+  on an error — for the cloud lane the pipeline step (`login-invite`, `enter-cloud`, `cache-cloud`,
+  `enter-site`, `check-profile`), for the relay lane `read-invite`, `verify` or `accept`; `room` on a
+  relay run that accepted — which way the room was found: `response` (the accept carried it),
+  `push` (its `join.sync`), `probe` (an `invite.get` re-read), `list` (the channel-list watch), or
+  `none`.
+- **Marks, in ms from the press.** Cloud: `login` (the invite login answered), `cloud` (the cloud
+  entered), `site` (the place entered), `profile_check` (the place profile looked up). Relay:
+  `invite_read` (the re-read answered), `accepted` (`invite.accept` answered), `room` (the room
+  found, or given up on). The gap between two marks is that step.
+- **No cap.** A person accepts a handful of invites, ever.
+- **Not recorded:** a run started on a hidden page, one the page was hidden during, and a relay run a
+  newer run superseded or that was abandoned (the screen unmounted, or the reader left it). Each is
+  left unstopped, which records nothing.
+
+Reading it: break down by `lane` first. On the dev server a fresh guest's cloud run reached
+`profile_check` in about 1.7 s, every step a round trip the next one needs; a relay run whose accept
+did not carry the room spends most of its time between `accepted` and `room`, about a second when the
+push found it. Break relay runs down by `room` to see whether production pushes the room as dev
+does: a run with `list` paid at least 1.5 s for tier 2 first.

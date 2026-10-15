@@ -1,6 +1,7 @@
 # ADR-0035: Entering the room after a relay 1:1 invite is accepted — `channelId` first, then a re-fetch, then the list fallback
 
-> Status: Accepted · Decided: 2026-07-30
+> Status: Accepted · Decided: 2026-07-30 · Follow-up 1 (the push fast path) taken up by
+> [ADR-0205](./0205-an-invite-is-accepted-once-read-its-relay-room-comes-from-the-push-and-its-accept-is-timed.md)
 
 ## Context
 

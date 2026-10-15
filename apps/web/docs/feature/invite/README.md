@@ -22,7 +22,7 @@ what both obey.
 - The `/invite/accept` route, which is the single destination for **every** invite link — relay and
   cloud alike.
 - The relay acceptance orchestration: re-read, phone verification, place profile, accept, and the
-  three-tier hunt for the room the accept creates.
+  three-tier hunt for the room the accept creates, raced against the room's `join.sync` push.
 - The place invite: the room invite's contact invite with no room, at `/invite/place/:placeId`, and
   the accept screen's `place` target kind.
 - The cloud acceptance pipeline: the invite login, entering the cloud with its answer, caching the
@@ -154,6 +154,13 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   three times over seven seconds.
 - **Accept stays busy for the whole pipeline**, not only while a step's own call is in flight — the
   place lookup and the profile check included — so a second press cannot start a second pipeline.
+- **Accept is not offered until the invite has been read.** The pipeline takes the cloud, the place
+  and the room from the invite lookup (`hello/invite-code`), and the invite login does not need it. A
+  press before the lookup answered — easy on a cold start from the link — used to log in, enter
+  nothing, and leave the invitee on home outside the cloud with the invite already spent. So the
+  screen holds the loading view until the lookup answers, a lookup that fails shows the notice
+  dialog (400 or 404 is `expired`, anything else `generic`; so is a lookup that can never run), and the pipeline itself refuses to start
+  without the invite.
 
 `cloudInviteAccept.integration.test.tsx` runs this pipeline through the real hooks against a fake
 server that follows the rules above: a fresh device user, a signed-in one, one whose background
@@ -227,7 +234,7 @@ then a full page load, which would take an in-memory id with it.
 | Document                                           | What it covers                                                                                                         |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | [relay-invite-sender.md](./relay-invite-sender.md) | The issue form and its three gates, SMS hand-off, re-invite detection, the retire rules, the waiting screen, list rows |
-| [relay-invite-accept.md](./relay-invite-accept.md) | The accept state machine, the notice mapping, the profile precondition, decline, and the three-tier room hunt          |
+| [relay-invite-accept.md](./relay-invite-accept.md) | The accept state machine, the notice mapping, the profile precondition, decline, and the room hunt with its push       |
 | [place-invite.md](./place-invite.md)               | The cloud place invite: the session-site rule and its gate, what the server does with no room, and what it leaves open |
 
 ## Where the backend still has gaps
@@ -239,7 +246,7 @@ The lanes are shaped around these absences, so they are stated once here:
   waiting screen. That is why the sender lane polls at all.
 - **`invite.accept` may answer without a `channelId`.** The room is created asynchronously, and when
   the field is filled is a backend question. Both lanes therefore degrade instead of assuming: the
-  recipient's three-tier resolver and the sender's `useAcceptedChannelSync` both end in "the room is
+  recipient's resolver (three tiers raced against the room push) and the sender's `useAcceptedChannelSync` both end in "the room is
   on its way, check home" rather than an error.
 - **A cloud token renewal answers for the relay user, not the invitee.** The credential guard
   renews a lapsing cloud token by re-issuing it through `delegate-cloud`, which — as above — answers

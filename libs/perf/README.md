@@ -67,6 +67,7 @@ is set against that exact string, so a typo must not open a second row that nobo
 | `socket_request`  | — a sample (see below)                    | —                                        | none yet                       |
 | `chat_send_media` | — a sample (see below)                    | —                                        | none yet                       |
 | `state_outbox`    | — a sample (see below)                    | —                                        | none yet                       |
+| `invite_accept`   | Accept pressed, or a step resuming it     | the hand-over, or a stop for input       | none yet                       |
 
 The targets are not in code. They are judged in the Firebase console, where each is configured as a
 performance alert threshold on its trace. They used to be a runtime table (`PERF_BUDGETS`) so a

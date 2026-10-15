@@ -7,7 +7,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { AccountLinkMode } from '../../../../hooks/useLinkAccount';
 import { useInviteCountdown, type InviteCountdown } from '../../hooks/useInviteCountdown';
-import { useResolveInviteChannel } from './useResolveInviteChannel';
+import { useResolveInviteChannel, type InviteChannelSource } from './useResolveInviteChannel';
 import { useRelayInviteMutations, type RelayInviteView } from '../../../../hooks';
 import { useStackNavigate } from '../../../../navigation';
 import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
@@ -15,6 +15,7 @@ import type { InviteInfo } from '../types';
 import { getSocketErrorCode } from '../../../../utils/errors';
 import { isPlaceProfileAbsent } from '../../../../utils/placeProfile';
 import { ROUTES } from '../../../../routes/paths';
+import { beginInviteAcceptTrace, type InviteAcceptTrace } from '../../../../runtime/perf';
 
 /**
  * The invite as the accept screen reads it. `expiredAt`, the inviter's avatar and the place's
@@ -269,8 +270,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
      * lapsing or having been used already is an ordinary ending, not a malfunction.
      */
     const failTerminalState = useCallback(
-        (state: string, next: RelayInviteNotice, stage: 'entry' | 'advance') => {
+        (state: string, next: RelayInviteNotice, stage: 'entry' | 'advance', trace?: InviteAcceptTrace) => {
             logger.warn('INVITE', `[useRelayInviteFlow] invite in terminal state: ${state}`, { stage });
+            // A verdict about the invite, not a failure of the accept run that found it.
+            trace?.end('notice');
             return fail(next);
         },
         [fail]
@@ -283,11 +286,20 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
      * carried the room there is nothing to wait for, so the spinner phase is skipped entirely.
      */
     const enterChannel = useCallback(
-        async (run: number, acceptedChannelId?: string) => {
+        async (run: number, trace: InviteAcceptTrace, acceptedChannelId?: string, inviterId?: string) => {
             if (!acceptedChannelId) setPhase('awaitingChannel');
 
-            const channelId = await latest.current.resolveChannel(code, { acceptedChannelId });
+            let room: InviteChannelSource = 'none';
+            const channelId = await latest.current.resolveChannel(code, {
+                acceptedChannelId,
+                inviterId,
+                onResolved: source => {
+                    room = source;
+                },
+            });
             if (isStale(run)) return;
+            trace.mark('room');
+            trace.end(channelId ? 'ok' : 'pending', { room });
 
             logger.info('INVITE', 'relay invite accepted; entering channel', { channelId, resolved: !!channelId });
             setPhase('closed');
@@ -310,6 +322,9 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         runIdRef.current += 1;
         const run = runIdRef.current;
         setPhase('submitting');
+        // One run is one spinner: from here to the room, or to the step that asks the person for
+        // something. A run superseded by a newer one is never stopped, which records nothing.
+        const trace = beginInviteAcceptTrace('relay');
 
         let view: RelayInviteInfo;
         try {
@@ -321,17 +336,19 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             logger.error('INVITE', `[useRelayInviteFlow] invite.get failed on advance (status=${status ?? '-'})`, {
                 error,
             });
+            trace.end('error', { step: 'read-invite' });
             return fail(resolveNotice(status, 'get'));
         }
         if (isStale(run)) return;
+        trace.mark('invite_read');
         setInvite(view);
 
-        if (view.state === 'expired') return failTerminalState('expired', 'expired', 'advance');
-        if (view.state === 'accepted') return failTerminalState('accepted', 'alreadyJoined', 'advance');
+        if (view.state === 'expired') return failTerminalState('expired', 'expired', 'advance', trace);
+        if (view.state === 'accepted') return failTerminalState('accepted', 'alreadyJoined', 'advance', trace);
         // Same final-state branches as the entry read — verification takes minutes, and the
         // inviter can retire the code in that window.
-        if (view.state === 'canceled') return failTerminalState('canceled', 'inviteCanceled', 'advance');
-        if (view.state === 'rejected') return failTerminalState('rejected', 'rejected', 'advance');
+        if (view.state === 'canceled') return failTerminalState('canceled', 'inviteCanceled', 'advance', trace);
+        if (view.state === 'rejected') return failTerminalState('rejected', 'rejected', 'advance', trace);
 
         // Verify, then name yourself, then accept (ADR-0089 D10, restored by ADR-0041 over
         // ADR-0039 decision 5). Verification comes first because the profile belongs to the promoted
@@ -344,7 +361,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         // backend has no unlink and answers `type-linked`), so re-verifying could never clear it:
         // the honest answer is the terminal notice.
         if (view.needVerify) {
-            if (verifiedRef.current) return fail('wrongNumber');
+            if (verifiedRef.current) {
+                trace.end('notice');
+                return fail('wrongNumber');
+            }
             // Cross-check BEFORE the proof, never after — a `link` confirm COMMITS the number to this
             // account, and the backend has no unlink (`judgeLink` answers `type-linked` forever), so a
             // wrong number linked here is permanent and takes the invite with it.
@@ -355,7 +375,11 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             // `last4` (enforced in usePhoneVerify) as the only cross-check on this path. With no
             // `last4` there is nothing to check against at all, so refuse rather than let an
             // unverifiable number be written irreversibly.
-            if (latest.current.verifyMode === 'link' && !view.last4) return fail('generic');
+            if (latest.current.verifyMode === 'link' && !view.last4) {
+                trace.end('error', { step: 'verify' });
+                return fail('generic');
+            }
+            trace.end('verify');
             return setPhase('verifying');
         }
 
@@ -375,7 +399,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             !!latest.current.sid &&
             (await isPlaceProfileAbsent(latest.current.profileRepository));
         if (isStale(run)) return;
-        if (needsProfile) return setPhase('profiling');
+        if (needsProfile) {
+            trace.end('profile');
+            return setPhase('profiling');
+        }
 
         let acceptedChannelId: string | undefined;
         try {
@@ -386,8 +413,10 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
                 logger.error('INVITE', 'invite.accept returned non-accepted state', {
                     data: { state: accepted.state },
                 });
+                trace.end('error', { step: 'accept' });
                 return fail('generic');
             }
+            trace.mark('accepted');
             setInvite(prev => ({ ...prev, ...accepted }));
             // May be absent — the room is created asynchronously (ADR-0035 tier 1).
             acceptedChannelId = accepted.channelId;
@@ -406,13 +435,15 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
                     '[useRelayInviteFlow] invite accept refused as main user; routing to verification'
                 );
                 setRefusedAsMainUser(true);
+                trace.end('verify');
                 return setPhase('verifying');
             }
             logger.error('INVITE', `[useRelayInviteFlow] invite.accept failed (status=${status ?? '-'})`, { error });
+            trace.end('error', { step: 'accept' });
             return fail(resolveNotice(status, 'accept'));
         }
 
-        await enterChannel(run, acceptedChannelId);
+        await enterChannel(run, trace, acceptedChannelId, view.inviterId);
     }, [code, fail, failTerminalState, enterChannel]);
 
     // Entry read. Unlike `advance` this stops at the accept screen — the user has not chosen yet.

@@ -1,5 +1,6 @@
 export * from './bridgeRequestTrace';
 export * from './chatSendTrace';
+export * from './inviteAcceptTrace';
 export * from './socketRequestTrace';
 export * from './stateOutboxTrace';
 export * from './roomOpenTrace';

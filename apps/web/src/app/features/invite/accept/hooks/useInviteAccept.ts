@@ -8,6 +8,7 @@ import { useEnterInvitedChannel } from './useEnterInvitedChannel';
 import { useEnterInvitedCloud } from './useEnterInvitedCloud';
 import { useEnterInvitedSite } from './useEnterInvitedSite';
 import type { InviteContext } from '../types';
+import { beginInviteAcceptTrace } from '../../../../runtime/perf';
 import { useCloudSessionCatalog } from '../../../../hooks/useCloudCatalog';
 import { withAcceptor } from '../../../../utils/invitedCloudAcceptance';
 import { isPlaceProfileAbsent } from '../../../../utils/placeProfile';
@@ -38,8 +39,12 @@ const readChannelOnce = (channel: IChannelRepository, id: string): Promise<Domai
         });
     });
 
-/** The invite-accept pipeline step that was in flight when an error was thrown. */
-type InviteAcceptStep =
+/**
+ * The invite-accept pipeline step that was in flight when an error was thrown. `read-invite` is the
+ * invite lookup the accept screen waits on before it offers Accept at all.
+ */
+export type InviteAcceptStep =
+    | 'read-invite'
     | 'login-invite'
     | 'cache-cloud'
     | 'enter-cloud'
@@ -56,13 +61,14 @@ type InviteAcceptStep =
  * so we match by HTTP-code substring — the same convention used by ErrorFallback. `delegatorId` is not
  * handled here: it is branched to the missing-delegator panel before this helper runs.
  */
-const resolveInviteErrorKey = (step: InviteAcceptStep, err: Error): string => {
+export const resolveInviteErrorKey = (step: InviteAcceptStep, err: Error): string => {
     const message = err.message;
 
     if (message.startsWith('TIMEOUT:')) return 'inviteAccept.timeout';
     if (message.includes('Network Error') || message.includes('ERR_NETWORK')) return 'inviteAccept.networkError';
 
-    if (step === 'login-invite') {
+    // The lookup and the login are asked about the same code, so a 4xx from either is the same verdict.
+    if (step === 'read-invite' || step === 'login-invite') {
         // The invite itself is bad: expired, revoked, or a malformed code.
         if (message.includes('400') || message.includes('404')) return 'inviteAccept.expired';
         // Authentication/authorization rejected the invite login.
@@ -144,6 +150,14 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
     const accept = useCallback(async () => {
         const { code, backend, relay } = params;
         if (!code || runningRef.current) return;
+        // The invite lookup has not answered. The login below would still go through — and with
+        // nothing to say which cloud, place or room it was for, every step after it no-ops and the
+        // invitee lands on home outside the cloud, with the invite already spent. The accept screen
+        // waits for the lookup before offering Accept; this holds the line for any other caller.
+        if (!info) {
+            logger.warn('INVITE', 'cloud invite accept pressed before the invite was read; ignored');
+            return;
+        }
         // Relay invites legitimately carry no backend address: registerUserWithInviteCode resolves the
         // env relay endpoint. Only a link that is neither addressed nor marked relay is unusable.
         if (!backend && !relay) {
@@ -157,10 +171,12 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
         let step: InviteAcceptStep = 'login-invite';
         runningRef.current = true;
         setIsRunning(true);
+        const trace = beginInviteAcceptTrace('cloud');
         try {
             // The answer is the invitee's own cloud token; the cloud is entered with it (see
             // `useEnterInvitedCloud` for why a re-issue cannot stand in for it).
             const inviteToken = await runInviteFlow({ code, backend });
+            trace.mark('login');
 
             // Entered BEFORE the cloud is cached. Caching it lists it, and a listed cloud is what the
             // background sockets prepare a socket for — by re-issuing through `delegate-cloud`. Once
@@ -177,6 +193,7 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             step = 'enter-cloud';
             const ownsInvitedCloud = !!info?.cloudId && ownedCloudsRef.current.some(owned => owned.id === info.cloudId);
             await enterCloud(info, ownsInvitedCloud ? undefined : inviteToken);
+            trace.mark('cloud');
 
             // Persist the invited cloud (cloudType:'invited') so it surfaces to useInvitedClouds /
             // the cloud sheet. Skipped when the invite carries no cloudId. Both id and cid are keyed
@@ -206,6 +223,7 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             const siteId = await resolveInvitedSiteId();
             if (siteId) {
                 await enterSite(siteId);
+                trace.mark('site');
             } else {
                 logger.warn('INVITE', 'cloud invite names no place; entering without the place profile step', {
                     data: { cloudId: info?.cloudId, channelId: info?.channelId },
@@ -215,15 +233,20 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             // place was active before, and asking there would name the wrong one.
             // `isPlaceProfileAbsent` fails open, so a profile-read outage never blocks the entry.
             step = 'check-profile';
-            if (siteId && (await isPlaceProfileAbsent(profile))) {
+            const needsProfile = !!siteId && (await isPlaceProfileAbsent(profile));
+            if (siteId) trace.mark('profile_check');
+            if (needsProfile) {
+                trace.end('profile');
                 setProfilePending(true);
                 return;
             }
             step = 'enter-channel';
+            trace.end('ok');
             enterChannel(info);
             logger.info('INVITE', 'cloud invite accepted; entering channel', { cloudId: info?.cloudId });
         } catch (error) {
             const err = toError(error);
+            trace.end('error', { step });
             logger.error('AUTH', `[useInviteAccept] accept failed at step=${step}`, { error: err, data: { step } });
 
             if (err.message.includes('delegatorId')) {

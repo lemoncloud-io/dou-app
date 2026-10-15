@@ -171,15 +171,34 @@ nothing is written locally.
 The room is created asynchronously, so `invite.accept` may or may not answer with its id. Rather
 than assume either way, `useResolveInviteChannel` reads what is in hand and only then falls back:
 
-| Tier | Source                                             | Cost                           |
-| ---- | -------------------------------------------------- | ------------------------------ |
-| 1    | `channelId` on the accept response                 | None — the spinner never shows |
-| 2    | `invite.get` probes at `[0, 1500]` ms              | Up to 1.5s                     |
-| 3    | `useAwaitInviteChannel` — watch for a new `dm` row | Up to 20s                      |
+| Tier | Source                                              | Cost                           |
+| ---- | --------------------------------------------------- | ------------------------------ |
+| 1    | `channelId` on the accept response                  | None — the spinner never shows |
+| 2    | `invite.get` probes at `[0, 1500]` ms               | Up to 1.5s                     |
+| 3    | `useAwaitInviteChannel` — watch for a new `dm` row  | Up to 20s                      |
+| push | the room's `join.sync`, raced against tiers 2 and 3 | About 1s after the accept      |
 
 Tier 2 is **two probes on purpose**. Each delay is paid before its probe, so a third both postpones
 the answer and postpones tier 3, which watches actual channel rows and is the more robust mechanism
 — and it polls every 3 seconds on its own, covering what a `+4s` probe would have caught.
+
+**The push is what usually answers.** On the dev server neither the accept nor any probe carried
+`channelId`, so tiers 1 and 2 never resolved and every room came from tier 3's first pull, 1.75 s
+after the accept. Tier 3 also needs an active place, and a relay link opened in a fresh browser tab
+has none — it gave up at once and the invitee went home to wait. Meanwhile the relay socket pushes
+`join.sync` for the inviter's join row in the new room about a second after the accept, carrying the
+room's id. So while the tiers run, the resolver listens on the relay slot for that push and takes the
+first one that is **the inviter's join to a room whose id names the inviter** — a 1:1 room's id is its
+two members' ids joined by `@`, and the inviter may be joined to other rooms the reader shares. When
+the push wins, the probes stop and tier 3 is never started; when it does not come, the tiers answer as
+they always did. When the push wins while tier 3 is polling, tier 3 is stopped too (its `signal`).
+When the tiers give up first — at once, with no active place — the push is still waited for until
+`ROOM_PUSH_WAIT_MS` (5 s) from the start of the hunt, and a throw inside a tier counts as a room not
+found, so the resolver keeps its never-rejects contract. The flow passes the inviter from its
+re-read; with no inviter, nothing is watched.
+
+Which way the room was found goes on the accept trace as `room` (`response`, `push`, `probe`,
+`list`, `none`) — see [performance.md](../../observability/performance.md#invite_accept).
 
 The resolver **never rejects**. Unresolved is `null`, which becomes "the room is on its way" and a
 trip home; the accept is already on the server, so the next background sync brings the room. A tier-2
