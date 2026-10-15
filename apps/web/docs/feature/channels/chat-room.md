@@ -526,7 +526,8 @@ and reconciles four behaviours in the reversed list:
   gives that the software keyboard opened.
 
 **An older page landing does not touch the offset.** Rows added at the top of a reversed list leave
-what the reader sees where it is, in Blink and WebKit alike. The hook used to restore the offset it
+what the reader sees where it is, in Blink and WebKit alike. (For a reader in history the anchor hold
+below does run on that commit, and finds nothing to correct.) The hook used to restore the offset it
 captured when it asked for the page. A reader who kept scrolling while the page was in flight was
 thrown back by exactly the distance they had scrolled, and on iOS the assignment also killed the
 fling.
@@ -554,6 +555,26 @@ A jump lands on `[data-chat-no]`, so **every row the feed draws carries it**, sy
 included. A legacy notice stores its whole sentence in `content` ("…님이 들어왔습니다"), search matches
 that text, and a notice without the anchor was a hit the jump could only answer with "couldn't find
 that message" while the notice sat on screen.
+
+### Gaps in the cached history
+
+Where the cache skips history no page has fetched (`gaps`, see
+[data-layer.md](./data-layer.md#gaps-cache-first-the-server-only-for-what-is-missing)), a `GapDivider`
+stands above the first row the feed draws on the gap's newer side. Before it, the two runs met behind
+nothing but a date divider, and nothing ever filled what was between them. It fills itself: once on
+screen, with a socket that can carry a page, it asks for one page from the side the reader came from —
+upper half of the viewport means the reader is below it, scrolling up. The parent keys it by the gap
+and by how much of it is still unanswered, so any page that lands — even one of nothing but deleted
+messages, which moves neither edge — mounts a new divider that asks again while it is still in view.
+A tap does the same, and is the only retry after a failure. Two gaps with only undrawn rows (replies,
+reactions) between them sit above the same row, and each gets its own divider.
+
+Two more things serve the cache-first rule. `useChatScroll` reports the row the reader is reading
+(`onReadingRow`) while they are away from the bottom, and the room re-checks that row's block against
+the server (`revalidateAround`). And a list change that leaves the newest row alone — an older page at
+the top, or a gap filled — goes through the same anchor hold as an arrival when the reader is in
+history. Rows added at the top move nothing, but a gap filled below a reader who jumped into old
+history pushes them up in WebKit, just as an arrival does.
 
 ## What not to do
 

@@ -38,6 +38,21 @@ export interface IChatLocalDataSource
  */
 const LAST_CHAT_FALLBACK_LOOKBACK = 30;
 
+/**
+ * How a write settles a deleted mark this device inferred (`hiddenByFeed`, see `ChatRepository`'s
+ * `markMissingHidden`). The server leaves `hidden` out of a live row, so a merge would otherwise keep
+ * an inferred mark through every page that brings the row back. A copy that does not say it is hidden
+ * undoes the mark; one that does turns it into a delete the server stands behind. A row that was
+ * hidden by a delete the server sent is left as it is either way.
+ */
+const inferredHiddenAfter = (
+    existing: DomainChat | null | undefined,
+    item: Partial<DomainChat>
+): Partial<DomainChat> => {
+    if (!existing?.hiddenByFeed || item.hiddenByFeed !== undefined) return {};
+    return item.hidden ? { hiddenByFeed: false } : { hidden: false, hiddenByFeed: false };
+};
+
 /** Stores chat pages locally and re-emits only the channel timelines touched by each write. */
 export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements IChatLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'chat'>) {
@@ -188,6 +203,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
         const merged: DomainChat = {
             ...(existing ?? ({} as DomainChat)),
             ...item,
+            ...inferredHiddenAfter(existing, item),
             id,
             cid,
             channelId: item.channelId ?? existing?.channelId ?? '',
@@ -220,6 +236,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
             return {
                 ...(existing ?? ({} as DomainChat)),
                 ...item,
+                ...inferredHiddenAfter(existing, item),
                 id: item.id!,
                 cid,
                 channelId: item.channelId ?? existing?.channelId ?? '',

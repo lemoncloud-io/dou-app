@@ -820,6 +820,11 @@
             "reactions": "Reactions",
             "reactionsDescription": "See who reacted, by emoji",
             "deletedMessage": "This message was deleted.",
+            "gap": {
+                "load": "Load messages in between",
+                "loading": "Loading messages…",
+                "retry": "Couldn't load messages. Tap to try again."
+            },
             "moreEmoji": "More emoji",
             "pickEmoji": "Pick an emoji",
             "copyCode": "Copy",

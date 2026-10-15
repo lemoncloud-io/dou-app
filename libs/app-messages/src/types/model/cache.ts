@@ -148,6 +148,12 @@ export type CacheChatView = Omit<ChatView, 'upload$$'> &
         createdAtMs: number; // Added: timestamp
         updatedAtMs: number; // Added: timestamp
         tempId?: string;
+        /**
+         * Local only: `hidden` was set by this device because a feed page answering for the row's
+         * number left it out, not by a delete the server announced. Such a mark is undone by the next
+         * server copy of the row that does not say it is hidden; a delete the server sent is not.
+         */
+        hiddenByFeed?: boolean;
     };
 
 /** Site info view */

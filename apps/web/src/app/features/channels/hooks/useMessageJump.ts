@@ -41,6 +41,14 @@ interface UseMessageJumpParams {
     threadRootNo?: string;
     /** Called when the jump gives up (either toast), so the surface can settle as if none was asked. */
     onGiveUp?: () => void;
+    /**
+     * For a target in a stretch of the conversation the cache never held (see useChats' gaps): whether
+     * a page has answered for a number this run, and a fetch of the page starting at one. Older pages
+     * cannot reach such a target — they only ask below the oldest cached row — so it is asked for by
+     * its own page, once, before paging.
+     */
+    isFetched?: (chatNo: number) => boolean;
+    fetchThrough?: (chatNo: number) => Promise<boolean>;
 }
 
 /**
@@ -66,11 +74,13 @@ export const useMessageJump = ({
     joinedNo,
     threadRootNo,
     onGiveUp,
+    isFetched,
+    fetchThrough,
 }: UseMessageJumpParams) => {
     const target = useMessageJumpStore(s => s.target);
     const clear = useMessageJumpStore(s => s.clear);
     const { t } = useTranslation();
-    const progressRef = useRef<{ nonce: number; pages: number; done: boolean } | null>(null);
+    const progressRef = useRef<{ nonce: number; pages: number; done: boolean; askedOwnPage?: boolean } | null>(null);
     const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     // Read at the moment of giving up, so a new callback each render does not re-run the jump.
     const onGiveUpRef = useRef(onGiveUp);
@@ -127,6 +137,22 @@ export const useMessageJump = ({
         // a target that genuinely isn't cached.
         if (loadUntil(target.chatNo)) return;
 
+        // Not cached, and no page has answered for its number: it sits in a gap. Its own page, once;
+        // when that fails or brings nothing, paging below is still tried. Only once rows are on
+        // screen: before the cache's first read every target looks uncached.
+        if (
+            fetchThrough &&
+            isFetched &&
+            canLoadMore &&
+            messages.length > 0 &&
+            !progressRef.current.askedOwnPage &&
+            !isFetched(target.chatNo)
+        ) {
+            progressRef.current.askedOwnPage = true;
+            fetchThrough(target.chatNo).catch(() => undefined);
+            return;
+        }
+
         // Still missing → page older until found or the budget/history runs out. Only when a page can
         // actually be sent (the effect re-runs when that changes), and as a person's request: someone
         // asked to see this message, so a failed page's retry wait — kept for the room's own prefetch —
@@ -162,6 +188,8 @@ export const useMessageJump = ({
         t,
         joinedNo,
         threadRootNo,
+        isFetched,
+        fetchThrough,
     ]);
 
     // A target this surface never got to — the reader left while it was still loading — is dropped

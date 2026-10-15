@@ -29,6 +29,33 @@ const LOAD_MORE_RETRY_MAX_MS = 30000;
 // paging for the rest of the visit.
 const WINDOW_LAND_TIMEOUT_MS = 5000;
 
+// When this page (the app run) started. A cached row written before it may be stale — an edit or a
+// delete made while the app was closed is never replayed — and one written after it is not.
+const RUN_STARTED_AT = Date.now();
+
+// A hole in the cached numbers no larger than this is not shown as a gap. Most holes are deleted
+// messages — the feed leaves them out — and those that are not get filled when the rows around them
+// are re-checked (`revalidateAround`), so a divider there would only flash and go.
+const GAP_DIVIDER_MIN_MISSING = 11;
+
+/**
+ * A stretch of the conversation between two cached rows that this run has not fetched: real history
+ * the cache never held, as opposed to the holes deleted messages leave (see `FeedCoverage`).
+ */
+export interface ChatGap {
+    /** The cached row just below the gap — the older side. */
+    olderNo: number;
+    /** The cached row just above the gap — the newer side. */
+    newerNo: number;
+    /** Chat numbers in between that no page has answered for; deleted ones among them included. */
+    missing: number;
+}
+
+/** Which side of a gap to fill from: the one the reader is coming from. */
+export type ChatGapSide = 'newer' | 'older';
+
+export const chatGapKey = (gap: Pick<ChatGap, 'olderNo' | 'newerNo'>): string => `${gap.olderNo}-${gap.newerNo}`;
+
 /** How a caller asks for an older page. */
 export interface LoadMoreOptions {
     /**
@@ -103,6 +130,13 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
     // True while a failed page waits out its retry delay. `loadMore` reads it, so the end of the wait
     // hands its callers a new `loadMore` — which is what makes the room's prefetch check run again.
     const [isBackingOff, setIsBackingOff] = useState(false);
+    // Bumped when a fetch of this hook's own proves a range, so gaps are worked out again even when the
+    // page brought no row the window did not already hold — a gap of deleted messages closes that way.
+    const [coverageVersion, setCoverageVersion] = useState(0);
+    // Gaps being filled, and gaps whose last fill failed (the divider then offers a retry).
+    const [gapStatus, setGapStatus] = useState<ReadonlyMap<string, 'loading' | 'failed'>>(new Map());
+    // Ranges asked for and not yet answered, by request cursor — one request per range at a time.
+    const rangeInFlightRef = useRef(new Set<number>());
 
     // Paging state that has to be read synchronously. The room's prefetch and a message jump can both
     // ask for a page within one frame, and a state flag would let both through before either render.
@@ -189,6 +223,8 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
         endBackoff();
         lastCursorRef.current = null;
         newestNoRef.current = 0;
+        rangeInFlightRef.current = new Set();
+        setGapStatus(new Map());
     }, [channelId, limit, releasePaging, endBackoff]);
 
     useEffect(
@@ -305,12 +341,34 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
             const generation = generationRef.current;
             loadingMoreRef.current = true;
             setIsLoadingMore(true);
+
+            // Cache first: a page below that a page already answered for in this run has its rows in the
+            // cache, so the window grows over them without asking the server again. Only when a cached
+            // row is there to show — a range of nothing but deleted messages would leave the window
+            // where it is, and the no-progress check would take that for the start of history.
+            const pageLow = Math.max(1, oldestNo - LOAD_MORE_SIZE);
+            if (chatRepository.uncoveredFeed(channelId, pageLow, oldestNo - 1).length === 0) {
+                // A failed read only means the cache cannot vouch for the page: ask the server, as before.
+                const below = await chatRepository
+                    .cacheReadList({ channelId, cursorNo: oldestNo, limit: 1 })
+                    .catch(() => null);
+                if (generation !== generationRef.current) return;
+                if ((below?.list?.[0]?.chatNo ?? 0) >= pageLow) {
+                    pendingPageRef.current = { cursorNo: oldestNo, isLast: pageLow <= (joinedNo ?? 0) + 1 };
+                    awaitingLimitRef.current = observeLimitRef.current + LOAD_MORE_SIZE;
+                    growWindow(LOAD_MORE_SIZE);
+                    clearTimeout(landTimerRef.current);
+                    landTimerRef.current = setTimeout(releasePaging, WINDOW_LAND_TIMEOUT_MS);
+                    return;
+                }
+            }
+
             try {
-                const result = await chatRepository.refreshList({
-                    channelId,
-                    cursorNo: oldestNo,
-                    limit: LOAD_MORE_SIZE,
-                });
+                // The cursor is the oldest cached row, so the channel's head is above it.
+                const result = await chatRepository.refreshList(
+                    { channelId, cursorNo: oldestNo, limit: LOAD_MORE_SIZE },
+                    { cursorIsRow: true }
+                );
                 if (generation !== generationRef.current) return;
                 endBackoff();
                 if (result.fetchedCount === 0) {
@@ -377,6 +435,161 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
         return true;
     }, []);
 
+    // Where the window skips history no page has answered for. A run of missing numbers is a gap only
+    // when enough of it is unanswered: inside a range a page answered for, a missing number is a
+    // deleted message.
+    const gaps = useMemo<ChatGap[]>(() => {
+        // Read so the gaps are worked out again when a fetch proved a range without adding a row.
+        void coverageVersion;
+        const numbers = chats
+            .map(chat => chat.chatNo)
+            .filter((chatNo): chatNo is number => !!chatNo && chatNo > 0)
+            .sort((a, b) => a - b);
+        const found: ChatGap[] = [];
+        for (let index = 1; index < numbers.length; index += 1) {
+            const olderNo = numbers[index - 1];
+            const newerNo = numbers[index];
+            if (newerNo - olderNo - 1 < GAP_DIVIDER_MIN_MISSING) continue;
+            const missing = chatRepository
+                .uncoveredFeed(channelId, olderNo + 1, newerNo - 1)
+                .reduce((sum, [low, high]) => sum + high - low + 1, 0);
+            if (missing >= GAP_DIVIDER_MIN_MISSING) found.push({ olderNo, newerNo, missing });
+        }
+        return found;
+    }, [chats, chatRepository, channelId, coverageVersion]);
+
+    /**
+     * Fetches the page below `cursorNo` — any `[cursorNo − 50, cursorNo)` is one request — and widens
+     * the window by the rows that were not cached before, so a page landing between two runs does not
+     * push the oldest run out of a window counted in rows. Rows the cache held but the page left out
+     * are marked deleted (`markMissingHidden`): this is history the reader is looking at again.
+     *
+     * Resolves false when nothing was sent: no socket yet, or the same range already in flight.
+     */
+    const fetchRange = useCallback(
+        async (cursorNo: number, { cursorIsRow = false }: { cursorIsRow?: boolean } = {}): Promise<boolean> => {
+            if (!channelId || !isVerified || rangeInFlightRef.current.has(cursorNo)) return false;
+            rangeInFlightRef.current.add(cursorNo);
+            const generation = generationRef.current;
+            let held = 0;
+            for (const chat of chatsRef.current) {
+                if (chat.chatNo && chat.chatNo < cursorNo && chat.chatNo >= cursorNo - LOAD_MORE_SIZE) held += 1;
+            }
+            try {
+                const result = await chatRepository.refreshList(
+                    { channelId, cursorNo, limit: LOAD_MORE_SIZE },
+                    { markMissingHidden: true, cursorIsRow }
+                );
+                if (generation !== generationRef.current) return false;
+                const added = result.fetchedCount - held;
+                if (added > 0) growWindow(added);
+                setCoverageVersion(version => version + 1);
+                return true;
+            } finally {
+                rangeInFlightRef.current.delete(cursorNo);
+            }
+        },
+        [chatRepository, channelId, isVerified, growWindow]
+    );
+
+    /**
+     * Fills one page of `gap` from the side the reader is coming from: from the newer side when they
+     * scroll up into it, from the older side when they scroll down into it (after a jump into old
+     * history). Either way the rows land next to what the reader is looking at, and the divider moves
+     * on by a page; it asks again while it is still in view.
+     */
+    const fillGap = useCallback(
+        async (gap: ChatGap, side: ChatGapSide) => {
+            const key = chatGapKey(gap);
+            // Next to what is still unanswered, not next to the gap's edges: a page of nothing but
+            // deleted messages proves its range without moving either edge, and asking from the edge
+            // again would fetch that same range for ever.
+            const open = chatRepository.uncoveredFeed(channelId, gap.olderNo + 1, gap.newerNo - 1);
+            if (open.length === 0) return;
+            const cursorNo =
+                side === 'newer' ? open[open.length - 1][1] + 1 : Math.min(open[0][0] + LOAD_MORE_SIZE, gap.newerNo);
+            setGapStatus(previous => new Map(previous).set(key, 'loading'));
+            const settle = (status?: 'failed') =>
+                setGapStatus(previous => {
+                    const next = new Map(previous);
+                    if (status) next.set(key, status);
+                    else next.delete(key);
+                    return next;
+                });
+            try {
+                // The gap's newer edge is a cached, numbered row: the head is at or above it.
+                await fetchRange(cursorNo, { cursorIsRow: cursorNo === gap.newerNo });
+                settle();
+            } catch {
+                settle('failed');
+            }
+        },
+        [chatRepository, channelId, fetchRange]
+    );
+
+    // Blocks re-checked this visit. A block reaching past the newest message is never answered for in
+    // full — the server counts only up to its head — so coverage alone would send it again on every
+    // scroll event.
+    const recheckedRef = useRef(new Set<number>());
+    // Blocks whose last re-check failed, and when — so a failing request is not resent on every
+    // scroll event while the reader stays on those rows.
+    const recheckFailedAtRef = useRef(new Map<number, number>());
+    // Both are about one channel's numbers; another channel's block 51–100 is a different block.
+    useEffect(() => {
+        recheckedRef.current = new Set();
+        recheckFailedAtRef.current = new Map();
+    }, [channelId]);
+
+    /**
+     * Re-checks the 50-number block holding `chatNo` once per run, when no page has answered for it
+     * yet: cached rows show at once, and this brings back what changed while the device was away —
+     * edits, deletes — and fills any hole in the block that was not a deletion. The room calls it with
+     * the row the reader is reading.
+     */
+    const revalidateAround = useCallback(
+        (chatNo: number) => {
+            if (!channelId || !chatNo || chatNo <= 0) return;
+            // Only a row the cache held before this run can be stale. One written since — by the entry
+            // page, the catch-up, live sync, a fill — is what the server said this run, whether or not
+            // a page has answered for its number; re-asking for it is a request that changes nothing.
+            const writtenAt = chatsRef.current.find(chat => chat.chatNo === chatNo)?.__cacheMeta?.lastSyncedAt;
+            if (writtenAt && writtenAt >= RUN_STARTED_AT) return;
+            const low = Math.floor((chatNo - 1) / LOAD_MORE_SIZE) * LOAD_MORE_SIZE + 1;
+            const high = low + LOAD_MORE_SIZE - 1;
+            if (recheckedRef.current.has(low)) return;
+            if (chatRepository.uncoveredFeed(channelId, low, high).length === 0) return;
+            const failedAt = recheckFailedAtRef.current.get(low);
+            if (failedAt && Date.now() - failedAt < LOAD_MORE_RETRY_MAX_MS) return;
+            fetchRange(high + 1).then(
+                sent => {
+                    if (sent) recheckedRef.current.add(low);
+                },
+                () => recheckFailedAtRef.current.set(low, Date.now())
+            );
+        },
+        [chatRepository, channelId, fetchRange]
+    );
+
+    /**
+     * Fetches the page that starts at `chatNo` and runs 50 numbers newer — the thread page's way to a
+     * root that sits in a gap, which `loadMore` cannot reach (it only ever asks below the oldest cached
+     * row). Starting at the root rather than ending at it brings the replies that follow it too.
+     */
+    const fetchThrough = useCallback(
+        (chatNo: number): Promise<boolean> => fetchRange(chatNo + LOAD_MORE_SIZE),
+        [fetchRange]
+    );
+
+    /** Whether a page has answered for `chatNo` in this run (read again after each of this hook's fetches). */
+    const isFetched = useCallback(
+        (chatNo: number): boolean => {
+            // Read so callers get a new function when the answer may have changed.
+            void coverageVersion;
+            return chatRepository.uncoveredFeed(channelId, chatNo, chatNo).length === 0;
+        },
+        [chatRepository, channelId, coverageVersion]
+    );
+
     return {
         messages,
         /**
@@ -423,5 +636,13 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
         isThreadStartLoaded: !hasMore || chats.length < pageLimit,
         loadMore,
         loadUntil,
+        /** Unfetched stretches between cached rows, oldest first — where the room draws a divider. */
+        gaps,
+        /** Fill state per gap (`chatGapKey`); absent means idle. */
+        gapStatus,
+        fillGap,
+        revalidateAround,
+        fetchThrough,
+        isFetched,
     };
 };

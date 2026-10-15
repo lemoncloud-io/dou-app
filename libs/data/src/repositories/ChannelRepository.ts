@@ -13,6 +13,7 @@ import type {
     LocalDataSourceContextOverride,
 } from '../local/data-sources';
 import type { IChannelSocketDataSource } from '../remote/socket-data-sources';
+import { forgetChannelCoverage } from './feedCoverage';
 import type { DataContext, DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
@@ -135,6 +136,8 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
      * show them. Reporting a completed leave as failed would be the bigger lie.
      */
     private async purgeChatHistory(channelId: string, requestContext: DataContext): Promise<void> {
+        // This bypasses ChatRepository, so it forgets what feed pages answered for itself.
+        forgetChannelCoverage(channelId, this.getNormalizedContext(requestContext));
         try {
             await this.chatLocalDataSource.cacheClearByChannelId(channelId, requestContext);
         } catch (error) {

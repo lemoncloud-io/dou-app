@@ -27,6 +27,30 @@ jest.mock('./useForegroundChatRefresh', () => ({ useForegroundChatRefresh: jest.
 
 const chatObserveList = jest.fn();
 const chatRefreshList = jest.fn();
+// A stand-in for the repository's record of ranges a page answered for, keyed by channel id alone.
+const coverage = (() => {
+    let ranges: Array<[string, number, number]> = [];
+    return {
+        add: (channelId: string, low: number, high: number) => ranges.push([channelId, low, high]),
+        clear: () => {
+            ranges = [];
+        },
+        uncovered: (channelId: string, low: number, high: number): Array<[number, number]> => {
+            const gaps: Array<[number, number]> = [];
+            let cursor = low;
+            for (const [, rangeLow, rangeHigh] of ranges
+                .filter(([id]) => id === channelId)
+                .sort((a, b) => a[1] - b[1])) {
+                if (rangeHigh < cursor) continue;
+                if (rangeLow > high) break;
+                if (rangeLow > cursor) gaps.push([cursor, rangeLow - 1]);
+                cursor = Math.max(cursor, rangeHigh + 1);
+            }
+            if (cursor <= high) gaps.push([cursor, high]);
+            return gaps;
+        },
+    };
+})();
 const userObserveList = jest.fn();
 
 const chat = (fields: Partial<DomainChat>): DomainChat => fields as unknown as DomainChat;
@@ -48,8 +72,13 @@ beforeEach(() => {
     seedUsers([{ id: 'u1', name: 'Alice' }]);
     // Always resolve so the entry refreshList's `.catch` chain is safe by default.
     chatRefreshList.mockResolvedValue({ fetchedCount: 0 });
+    coverage.clear();
     (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
-        chat: { observeList: chatObserveList, refreshList: chatRefreshList },
+        chat: {
+            observeList: chatObserveList,
+            refreshList: chatRefreshList,
+            uncoveredFeed: (channelId: string, low: number, high: number) => coverage.uncovered(channelId, low, high),
+        },
         user: { observeList: userObserveList },
     });
     (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
@@ -143,7 +172,10 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
             await result.current.loadMore();
         });
 
-        expect(chatRefreshList).toHaveBeenCalledWith({ channelId: 'c1', cursorNo: 5, limit: 50 });
+        expect(chatRefreshList).toHaveBeenCalledWith(
+            { channelId: 'c1', cursorNo: 5, limit: 50 },
+            { cursorIsRow: true }
+        );
         await waitFor(() => expect(result.current.hasMore).toBe(false));
     });
 
@@ -193,7 +225,10 @@ describe('useChats — 메시지 매핑/정렬/페이징', () => {
         });
 
         // The oldest (smallest) chatNo is the page boundary, regardless of array order.
-        expect(chatRefreshList).toHaveBeenCalledWith({ channelId: 'c1', cursorNo: 3, limit: 50 });
+        expect(chatRefreshList).toHaveBeenCalledWith(
+            { channelId: 'c1', cursorNo: 3, limit: 50 },
+            { cursorIsRow: true }
+        );
     });
 });
 
@@ -310,7 +345,10 @@ describe('useChats — older pages', () => {
         await act(async () => {
             await result.current.loadMore();
         });
-        expect(chatRefreshList).toHaveBeenCalledWith({ channelId: 'c1', cursorNo: 5, limit: 50 });
+        expect(chatRefreshList).toHaveBeenCalledWith(
+            { channelId: 'c1', cursorNo: 5, limit: 50 },
+            { cursorIsRow: true }
+        );
     });
 
     it('widens the window by the rows that came back, from the window as it stands', async () => {
@@ -395,7 +433,10 @@ describe('useChats — older pages', () => {
             await result.current.loadMore();
         });
 
-        expect(chatRefreshList).toHaveBeenCalledWith({ channelId: 'c1', cursorNo: 7, limit: 50 });
+        expect(chatRefreshList).toHaveBeenCalledWith(
+            { channelId: 'c1', cursorNo: 7, limit: 50 },
+            { cursorIsRow: true }
+        );
     });
 
     it('keeps the oldest row in view when new rows arrive after paging back', async () => {
@@ -688,5 +729,248 @@ describe('useChats — 재입장 이력 숨기기 (ADR-0067)', () => {
         const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
 
         expect(result.current.messages.map(message => message.id)).toEqual(['old', 'new']);
+    });
+});
+
+describe('useChats — gaps in the cached history', () => {
+    const rows = (...numbers: number[]) => numbers.map(chatNo => chat({ id: `c1:${chatNo}`, chatNo, ownerId: 'u1' }));
+    const lastObserveLimit = () => chatObserveList.mock.calls[chatObserveList.mock.calls.length - 1][0].limit;
+
+    it('reports a stretch between two cached rows that no page has answered for', () => {
+        seedChats(rows(1, 2, 5, 40, 41));
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        expect(result.current.gaps).toEqual([{ olderNo: 5, newerNo: 40, missing: 34 }]);
+    });
+
+    it('leaves out a small hole — most are deleted messages, and the re-check fills the rest', () => {
+        seedChats(rows(1, 8));
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        expect(result.current.gaps).toEqual([]);
+    });
+
+    it('leaves out a hole a page already answered for: those numbers were deleted', () => {
+        coverage.add('c1', 6, 39);
+        seedChats(rows(5, 40));
+
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        expect(result.current.gaps).toEqual([]);
+    });
+
+    it('fills from the newer side with the page just below it, and from the older side just above', async () => {
+        seedChats(rows(5, 200));
+        chatRefreshList.mockResolvedValue({ fetchedCount: 0 });
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+        const [gap] = result.current.gaps;
+
+        await act(() => result.current.fillGap(gap, 'newer'));
+        expect(chatRefreshList).toHaveBeenLastCalledWith(
+            { channelId: 'c1', cursorNo: 200, limit: 50 },
+            { markMissingHidden: true, cursorIsRow: true }
+        );
+
+        await act(() => result.current.fillGap(gap, 'older'));
+        expect(chatRefreshList).toHaveBeenLastCalledWith(
+            { channelId: 'c1', cursorNo: 56, limit: 50 },
+            { markMissingHidden: true, cursorIsRow: false }
+        );
+    });
+
+    it('widens the window by the rows a fill added, so the older run is not pushed out', async () => {
+        seedChats(rows(5, 200));
+        chatRefreshList.mockResolvedValue({ fetchedCount: 50 });
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        await act(() => result.current.fillGap(result.current.gaps[0], 'newer'));
+
+        await waitFor(() => expect(lastObserveLimit()).toBe(150));
+    });
+
+    it('marks a gap failed when its page fails, and clears it when the next one lands', async () => {
+        seedChats(rows(5, 200));
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+        const [gap] = result.current.gaps;
+
+        chatRefreshList.mockRejectedValueOnce(new Error('socket closed'));
+        await act(() => result.current.fillGap(gap, 'newer'));
+        expect(result.current.gapStatus.get('5-200')).toBe('failed');
+
+        await act(() => result.current.fillGap(gap, 'newer'));
+        expect(result.current.gapStatus.get('5-200')).toBeUndefined();
+    });
+
+    it('sends nothing before the socket can carry it', async () => {
+        (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified: false });
+        seedChats(rows(5, 200));
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        await act(() => result.current.fillGap(result.current.gaps[0], 'newer'));
+
+        expect(chatRefreshList).not.toHaveBeenCalled();
+        expect(result.current.gapStatus.size).toBe(0);
+    });
+
+    describe('re-checking old cached rows', () => {
+        it('asks once for the 50-number block holding the row being read', async () => {
+            seedChats(rows(70, 75, 80));
+            const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+            await act(async () => result.current.revalidateAround(75));
+
+            expect(chatRefreshList).toHaveBeenCalledWith(
+                { channelId: 'c1', cursorNo: 101, limit: 50 },
+                { markMissingHidden: true, cursorIsRow: false }
+            );
+        });
+
+        it('leaves a row written this run alone — the catch-up or a page brought it, so it is current', async () => {
+            const fresh = { lastSyncedAt: Date.now(), expiresAt: Date.now() + 60_000 };
+            seedChats(rows(70, 80).concat(chat({ id: 'c1:75', chatNo: 75, ownerId: 'u1', __cacheMeta: fresh })));
+            const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+            await act(async () => result.current.revalidateAround(75));
+
+            expect(chatRefreshList).not.toHaveBeenCalled();
+        });
+
+        it('leaves a block a page already answered for alone', async () => {
+            coverage.add('c1', 51, 100);
+            seedChats(rows(70, 75, 80));
+            const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+            await act(async () => result.current.revalidateAround(75));
+
+            expect(chatRefreshList).not.toHaveBeenCalled();
+        });
+
+        it('does not resend a failed re-check on every scroll event', async () => {
+            seedChats(rows(70, 75, 80));
+            chatRefreshList.mockRejectedValue(new Error('socket closed'));
+            const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+            await act(async () => result.current.revalidateAround(75));
+            await act(async () => result.current.revalidateAround(76));
+
+            expect(chatRefreshList).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('an older page this run already fetched', () => {
+        it('grows the window over the cached rows instead of asking the server again', async () => {
+            coverage.add('c1', 1351, 1400);
+            seedChats(rows(1401, 1402));
+            const cacheReadList = jest.fn().mockResolvedValue({ list: [chat({ id: 'c1:1400', chatNo: 1400 })] });
+            (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
+                chat: {
+                    observeList: chatObserveList,
+                    refreshList: chatRefreshList,
+                    cacheReadList,
+                    uncoveredFeed: (channelId: string, low: number, high: number) =>
+                        coverage.uncovered(channelId, low, high),
+                },
+                user: { observeList: userObserveList },
+            });
+            const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+            await act(() => result.current.loadMore());
+
+            expect(chatRefreshList).not.toHaveBeenCalled();
+            await waitFor(() => expect(lastObserveLimit()).toBe(150));
+        });
+
+        it('still asks the server when the cache holds nothing there (all of it deleted)', async () => {
+            coverage.add('c1', 1351, 1400);
+            seedChats(rows(1401, 1402));
+            (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
+                chat: {
+                    observeList: chatObserveList,
+                    refreshList: chatRefreshList,
+                    cacheReadList: jest.fn().mockResolvedValue({ list: [chat({ id: 'c1:90', chatNo: 90 })] }),
+                    uncoveredFeed: (channelId: string, low: number, high: number) =>
+                        coverage.uncovered(channelId, low, high),
+                },
+                user: { observeList: userObserveList },
+            });
+            const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+            await act(() => result.current.loadMore());
+
+            expect(chatRefreshList).toHaveBeenCalledWith(
+                { channelId: 'c1', cursorNo: 1401, limit: 50 },
+                { cursorIsRow: true }
+            );
+        });
+    });
+
+    it('asks next to what is still unanswered, so a page of deleted messages does not stall the gap', async () => {
+        // 150–199 was answered (all deleted): the newer side asks below 150, not below 200 again.
+        coverage.add('c1', 150, 199);
+        seedChats(rows(5, 200));
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        await act(() => result.current.fillGap(result.current.gaps[0], 'newer'));
+
+        expect(chatRefreshList).toHaveBeenLastCalledWith(
+            { channelId: 'c1', cursorNo: 150, limit: 50 },
+            { markMissingHidden: true, cursorIsRow: false }
+        );
+    });
+
+    it('re-checks a block once per visit even when the answer cannot cover it (it reaches past the head)', async () => {
+        seedChats(rows(70, 75, 80));
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        await act(async () => result.current.revalidateAround(75));
+        await act(async () => result.current.revalidateAround(76));
+
+        expect(chatRefreshList).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to the server when the cache cannot be read for an already-answered page', async () => {
+        coverage.add('c1', 1351, 1400);
+        seedChats(rows(1401, 1402));
+        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({
+            chat: {
+                observeList: chatObserveList,
+                refreshList: chatRefreshList,
+                cacheReadList: jest.fn().mockRejectedValue(new Error('storage busy')),
+                uncoveredFeed: (channelId: string, low: number, high: number) =>
+                    coverage.uncovered(channelId, low, high),
+            },
+            user: { observeList: userObserveList },
+        });
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        await act(() => result.current.loadMore());
+
+        expect(chatRefreshList).toHaveBeenCalledWith(
+            { channelId: 'c1', cursorNo: 1401, limit: 50 },
+            { cursorIsRow: true }
+        );
+    });
+
+    it('fetches the page starting at a number, for a thread root in a gap', async () => {
+        seedChats(rows(5, 900));
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        await act(() => result.current.fetchThrough(500));
+
+        expect(chatRefreshList).toHaveBeenCalledWith(
+            { channelId: 'c1', cursorNo: 550, limit: 50 },
+            { markMissingHidden: true, cursorIsRow: false }
+        );
+    });
+
+    it('tells whether a page has answered for a number', () => {
+        coverage.add('c1', 10, 20);
+        seedChats(rows(5));
+        const { result } = renderHook(() => useChats({ channelId: 'c1', limit: 100 }));
+
+        expect(result.current.isFetched(15)).toBe(true);
+        expect(result.current.isFetched(25)).toBe(false);
     });
 });

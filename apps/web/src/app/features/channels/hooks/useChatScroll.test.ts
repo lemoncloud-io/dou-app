@@ -211,11 +211,11 @@ describe('useChatScroll — asking for older pages', () => {
 
 describe('useChatScroll — a new message while reading history', () => {
     // Someone reading history; messages land below them, one `arrive` at a time.
-    const readingHistory = () => {
+    const readingHistory = (onReadingRow?: (chatNo: number) => void) => {
         const inputRef = createRef<HTMLTextAreaElement>();
         const loadMore = jest.fn();
         const readingHistoryRef = { current: false };
-        const props = { hasMore: false, isLoadingMore: false, loadMore, inputRef, readingHistoryRef };
+        const props = { hasMore: false, isLoadingMore: false, loadMore, inputRef, readingHistoryRef, onReadingRow };
         const view = renderHook(p => useChatScroll(p), { initialProps: { ...props, messages: [message('m1')] } });
         const container = document.createElement('div');
         container.scrollTo = jest.fn();
@@ -235,7 +235,13 @@ describe('useChatScroll — a new message while reading history', () => {
             view.rerender({ ...props, messages: shown });
             act(() => flushFrames());
         };
-        return { container, scrollTo, arrive, readingHistoryRef };
+        // Any other change to the list, the newest row staying the same.
+        const show = (next: ClientChatView[]) => {
+            shown = next;
+            view.rerender({ ...props, messages: shown });
+            act(() => flushFrames());
+        };
+        return { container, scrollTo, arrive, show, readingHistoryRef };
     };
 
     afterEach(() => {
@@ -382,6 +388,43 @@ describe('useChatScroll — a new message while reading history', () => {
         arrive(message('m3'));
 
         expect(container.scrollTop).toBe(-944);
+    });
+
+    it('keeps the reader on their row when rows land below them in the middle of the list (a gap filled)', () => {
+        const { container, scrollTo, show } = readingHistory();
+        const now = jest.spyOn(performance, 'now').mockReturnValue(0);
+        // Seen at 300; 72px higher once a filled page lands between the reader and the newest rows.
+        anchorIn(container, [300, 228]);
+        scrollTo(-800);
+
+        now.mockReturnValue(1000);
+        show([message('m0'), message('m1')]);
+
+        expect(container.scrollTop).toBe(-872);
+        expect(container.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('leaves a reader at the bottom alone when the list changes above them', () => {
+        const { container, scrollTo, show } = readingHistory();
+        jest.spyOn(performance, 'now').mockReturnValue(1000);
+        anchorIn(container, [300, 228]);
+        scrollTo(-20);
+
+        show([message('m0'), message('m1')]);
+
+        expect(container.scrollTop).toBe(-20);
+    });
+
+    it('reports the row being read while away from the bottom, and not at it', () => {
+        const onReadingRow = jest.fn();
+        const { container, scrollTo } = readingHistory(onReadingRow);
+        anchorIn(container, [300]);
+
+        scrollTo(-20);
+        expect(onReadingRow).not.toHaveBeenCalled();
+
+        scrollTo(-800);
+        expect(onReadingRow).toHaveBeenCalledWith(42);
     });
 
     it('tells the window whether the reader is reading history', () => {

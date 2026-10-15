@@ -820,6 +820,11 @@
             "reactions": "반응한 사람",
             "reactionsDescription": "이모지별로 반응한 사람 목록을 봅니다",
             "deletedMessage": "삭제된 메시지입니다",
+            "gap": {
+                "load": "사이 메시지 불러오기",
+                "loading": "메시지를 불러오는 중…",
+                "retry": "메시지를 불러오지 못했어요. 눌러서 다시 시도해 주세요."
+            },
             "moreEmoji": "이모지 더보기",
             "pickEmoji": "이모지 선택",
             "copyCode": "복사",

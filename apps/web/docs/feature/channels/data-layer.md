@@ -124,7 +124,9 @@ loadMore({ immediate }):                       # only while the active socket is
   oldestNo = min(chatNo > 0) over the current window
   oldestNo <= joinedNo + 1            → hasMore = false   # the first row I can be shown is in the window
   oldestNo is the last page's cursor → hasMore = false   # that page added nothing older to the window
-  refreshList({ channelId, cursorNo: oldestNo, limit: 50 })
+  [oldestNo − 50, oldestNo) answered this run, and a cached row there
+                                      → the wider axis += 50, no request   # cache first (see Gaps below)
+  refreshList({ channelId, cursorNo: oldestNo, limit: 50 }, { cursorIsRow: true })
   fetchedCount === 0 → hasMore = false
   otherwise          → the wider of pageLimit / jumpLimit += fetchedCount   # re-subscribe; the page comes back in the emit
                        once that emit lands: the cursor counts as progress, and cursorNo === 0 → hasMore = false
@@ -152,7 +154,8 @@ What each of those lines is guarding against:
   wide: adding to the narrower `pageLimit` did not widen it at all, and copying the jump's width
   into `pageLimit` would make `isThreadStartLoaded` read the jump's over-estimate as rows the cache
   could not fill. Adding what came back rather than 50 keeps the window honest if the server applies
-  a smaller page than the one asked for.
+  a smaller page than the one asked for. The cache-first step adds 50: no answer to count there,
+  and an over-estimate only shows more cached rows.
 - **`cursorNo: 0` ends paging** without the empty round trip that used to be the only way to know.
   The server documents a feed result's `cursorNo` as the next cursor, 0 meaning there is none
   (`ChatFeedResult` in `@lemoncloud/chatic-socials-api`), and the SDK's own reconnect catch-up stops
@@ -183,6 +186,56 @@ callers widen in one commit the larger ask wins. It keeps its own `jumpLimit` ax
 disturb `isThreadStartLoaded`, which reads "the cache could not fill the page" as
 "there is nothing older". The observe limit is `max(pageLimit, jumpLimit)`, and growth after a jump
 — a page, rows arriving — goes to `jumpLimit` while it is the wider one.
+
+### Gaps: cache first, the server only for what is missing
+
+The cache can hold two runs of a conversation with history missing between them — the newest page
+fetched today over rows scrolled past last week. `loadMore` cannot see that: it asks only below the
+oldest cached row, and with row 1 cached it decides there is nothing older. So the gap is handled on
+its own, and the cache keeps priority throughout — every cached row is shown at once, and the server
+is asked only for numbers it does not hold (ADR-0206).
+
+- **Finding a gap.** `gaps` lists each run of missing chat numbers between two rows in the window
+  that no page has answered for this run (`chatRepository.uncoveredFeed` — what a page proves is
+  described in
+  [libs/data's repository doc](../../../../../libs/data/docs/repositories/README.md#what-a-feed-page-proves)).
+  A missing number inside an answered range is a deleted message, not a gap. A run of up to 10
+  unanswered numbers is not listed either: most such holes are deletions, and the re-check below
+  settles them without a divider flashing in and out.
+- **Filling it.** `fillGap(gap, side)` asks for one page next to the reader, and next to what is still
+  unanswered rather than next to the gap's edges: from the newer side, the 50 numbers just below the
+  highest unanswered one; from the older side (after a jump into old history), the 50 from the lowest.
+  A page of nothing but deleted messages moves neither edge, so asking from an edge again would fetch
+  that same page for ever. Any `[X − 50, X)` is one `chat.feed` request. The window grows by the rows
+  that were not in it, so a page landing between two runs does not push the older run out of a
+  window counted in rows. `gapStatus` holds `loading` / `failed` per gap (`chatGapKey`).
+- **Re-checking old rows.** Cached history can be stale: an edit or a delete made while the device was
+  away is never replayed. `revalidateAround(chatNo)` fetches the 50-number block holding a row the
+  reader is reading, once per visit, when that row was written to the cache before this app run
+  (its `__cacheMeta.lastSyncedAt`) and no page has answered for all of the block; the cached rows show
+  meanwhile. A row written this run — by the entry page, the catch-up, live sync or a fill — is what
+  the server said this run, so re-asking for it would be a request that changes nothing; the room's
+  paging scenarios count every cursor request, and caught this. Once per visit, not "until covered": a
+  block reaching past the newest message is only ever answered up to the head. A failed re-check is not
+  resent for 30 seconds; both records are per channel.
+- **A number in a gap.** `fetchThrough(chatNo)` fetches the page that starts at it and runs 50 numbers
+  newer. The thread page uses it for a root in a gap (and draws `gaps` between its replies, filled by
+  `fillGap`), and `useMessageJump` for a jump target there (a
+  push tap or a reply quote; a search hit is cached by definition): older pages cannot reach either, so
+  each asks for its own page once before anything else. `isFetched(chatNo)` says whether a page has
+  answered for a number.
+
+`loadMore` keeps the same priority. When the page below the window was already answered for in this
+run and the cache holds a row there, the window grows over the cached rows and nothing is sent —
+re-entering a room and scrolling back through what this run already fetched costs no request. Only
+with a cached row to show: a range of nothing but deleted messages would leave the window where it
+was, and the no-progress check would read that as the start of history. A cache read that fails falls
+back to the server.
+
+The three gap fetches set `markMissingHidden`, so a cached row the page left out is marked deleted —
+reversibly (see the libs/data link above). The entry refresh (`fetchRoomFeed`) and `loadMore` do not.
+The answered ranges are memory only, and cleared with the cached rows; after a relaunch the first
+look at old history re-checks it.
 
 The two chat cursors are not interchangeable: `channel.chatNo` detects the newest message,
 `cursorNo` fetches an older page. The rule and its reasoning are canonical in
