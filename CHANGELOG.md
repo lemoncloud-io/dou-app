@@ -4,6 +4,12 @@
 
 ### Bug Fixes
 
+- (web/invite) accept a relay invite as the relay account, not the cloud left open
+
+## [2026-10-15] - No version updates
+
+### Bug Fixes
+
 - (app-runtime,desktop-web) let a verified socket overrule a latched offline flag (ADR-0204)
 
 ## [2026-10-14] - root@0.104.2, @chatic/desktop-web@0.32.2
