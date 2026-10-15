@@ -262,6 +262,28 @@ describe('useMessageJump', () => {
         expect(useMessageJumpStore.getState().target).toBeNull();
     });
 
+    it('tells the surface it gave up, and only then', () => {
+        const onGiveUp = jest.fn();
+        const found = setup(5);
+        useMessageJumpStore.getState().request('ch-1', 5);
+        const params = {
+            channelId: 'ch-1',
+            messages,
+            hasMore: false,
+            isLoadingMore: false,
+            loadMore,
+            loadUntil,
+            onGiveUp,
+        };
+
+        renderHook(() => useMessageJump({ ...params, containerRef: found }));
+        expect(onGiveUp).not.toHaveBeenCalled();
+
+        useMessageJumpStore.getState().request('ch-1', 999);
+        renderHook(() => useMessageJump({ ...params, containerRef: setup() }));
+        expect(onGiveUp).toHaveBeenCalledTimes(1);
+    });
+
     it('does not page while a page is already loading', () => {
         const containerRef = setup();
         useMessageJumpStore.getState().request('ch-1', 999);
@@ -377,6 +399,95 @@ describe('useMessageJump', () => {
 
             expect(loadMore).toHaveBeenCalled();
             expect(toast).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('a target that is a thread reply', () => {
+        it('is left alone by the room, which never draws a reply', () => {
+            const containerRef = setup();
+            useMessageJumpStore.getState().request('ch-1', 5, { threadRootNo: '3' });
+
+            renderHook(() =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore,
+                    loadUntil,
+                })
+            );
+
+            expect(loadUntil).not.toHaveBeenCalled();
+            expect(loadMore).not.toHaveBeenCalled();
+            expect(toast).not.toHaveBeenCalled();
+            expect(useMessageJumpStore.getState().target).not.toBeNull();
+        });
+
+        it('is taken by the thread it names, which scrolls to the reply', () => {
+            const containerRef = setup(5);
+            useMessageJumpStore.getState().request('ch-1', 5, { threadRootNo: '3' });
+
+            renderHook(() =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore,
+                    loadUntil,
+                    threadRootNo: '3',
+                })
+            );
+
+            expect(containerRef.current.firstElementChild?.scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+            expect(useMessageJumpStore.getState().target).toBeNull();
+        });
+
+        it('is dropped when its thread closes before reaching it, so a later open does not replay it', () => {
+            const containerRef = setup();
+            useMessageJumpStore.getState().request('ch-1', 5, { threadRootNo: '3' });
+            const params = {
+                channelId: 'ch-1',
+                containerRef,
+                messages,
+                hasMore: true,
+                isLoadingMore: false,
+                loadMore,
+                canLoadMore: false,
+                loadUntil,
+            };
+
+            // The room unmounting leaves the thread's target alone…
+            renderHook(() => useMessageJump(params)).unmount();
+            expect(useMessageJumpStore.getState().target).not.toBeNull();
+
+            // …and the thread unmounting drops it.
+            renderHook(() => useMessageJump({ ...params, threadRootNo: '3' })).unmount();
+            expect(useMessageJumpStore.getState().target).toBeNull();
+        });
+
+        it('is left alone by another thread of the same channel', () => {
+            const containerRef = setup(5);
+            useMessageJumpStore.getState().request('ch-1', 5, { threadRootNo: '3' });
+
+            renderHook(() =>
+                useMessageJump({
+                    channelId: 'ch-1',
+                    containerRef,
+                    messages,
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore,
+                    loadUntil,
+                    threadRootNo: '4',
+                })
+            );
+
+            expect(containerRef.current.firstElementChild?.scrollIntoView).not.toHaveBeenCalled();
+            expect(useMessageJumpStore.getState().target).not.toBeNull();
         });
     });
 });

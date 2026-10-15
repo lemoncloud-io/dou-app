@@ -73,7 +73,7 @@ import { deleteConfirmQuote, messagePlainText } from '../utils/messagePlainText'
 import { isSendKey } from '../utils/composerEnter';
 import { mentionViewerOf } from '../utils/mentionHighlight';
 import { buildMentionCandidates } from '../utils/mentionInput';
-import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
+import { isJumpTargetFor, useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
@@ -599,10 +599,11 @@ export const ChannelRoomPage = () => {
         markRead: readInRoomCloud,
     });
 
-    // Auto-scroll to bottom is paused while a jump to this channel is pending — if both are alive
+    // Auto-scroll to bottom is paused while a jump into this room is pending — if both are alive
     // at once, the bottom pin overwrites the jump (`suppressAutoScroll` in
-    // apps/web/docs/feature/channels/chat-room.md).
-    const isJumpPending = useMessageJumpStore(s => s.target?.channelId === stableChannelId);
+    // apps/web/docs/feature/channels/chat-room.md). A jump to one of its thread replies is the
+    // thread page's, so it does not hold the room.
+    const isJumpPending = useMessageJumpStore(s => isJumpTargetFor(s.target, stableChannelId));
 
     // Scrolling (following new messages to the bottom, holding a reader in history in place,
     // resize/focus correction, prefetching older pages) is owned by useChatScroll.
@@ -1194,6 +1195,12 @@ export const ChannelRoomPage = () => {
                                         >
                                             {reversedMessages.map((message, index) => {
                                                 if (message.isSystem) {
+                                                    // Wrapped for `data-chat-no` like every other row: a
+                                                    // legacy notice keeps its whole sentence in `content`,
+                                                    // which search matches, and a jump to a row with no
+                                                    // anchor ended in "couldn't find that message" while
+                                                    // the notice sat on screen.
+                                                    //
                                                     // New model: system messages carry no text — render the
                                                     // localized clause from `subType` with the subject's name
                                                     // (profile nick preferred) as a bold prefix.
@@ -1209,17 +1216,18 @@ export const ChannelRoomPage = () => {
                                                             // neutral about, so Figma reddens it and
                                                             // drops the pill. A group leave stays a
                                                             // plain chip.
-                                                            <SystemNotice
-                                                                key={message.id}
-                                                                tone={
-                                                                    isDmChat && message.subType === 'leave'
-                                                                        ? 'alert'
-                                                                        : 'default'
-                                                                }
-                                                            >
-                                                                <span className="font-semibold">{systemName}</span>
-                                                                {t(suffixKey)}
-                                                            </SystemNotice>
+                                                            <div key={message.id} data-chat-no={message.chatNo}>
+                                                                <SystemNotice
+                                                                    tone={
+                                                                        isDmChat && message.subType === 'leave'
+                                                                            ? 'alert'
+                                                                            : 'default'
+                                                                    }
+                                                                >
+                                                                    <span className="font-semibold">{systemName}</span>
+                                                                    {t(suffixKey)}
+                                                                </SystemNotice>
+                                                            </div>
                                                         );
                                                     }
                                                     // Legacy fallback: older rows stored the full sentence in content.
@@ -1227,18 +1235,20 @@ export const ChannelRoomPage = () => {
                                                         /^(.+?)(님이.+)$/
                                                     );
                                                     return (
-                                                        <SystemNotice key={message.id}>
-                                                            {systemMatch ? (
-                                                                <>
-                                                                    <span className="font-semibold">
-                                                                        {systemMatch[1]}
-                                                                    </span>
-                                                                    {systemMatch[2]}
-                                                                </>
-                                                            ) : (
-                                                                message.content
-                                                            )}
-                                                        </SystemNotice>
+                                                        <div key={message.id} data-chat-no={message.chatNo}>
+                                                            <SystemNotice>
+                                                                {systemMatch ? (
+                                                                    <>
+                                                                        <span className="font-semibold">
+                                                                            {systemMatch[1]}
+                                                                        </span>
+                                                                        {systemMatch[2]}
+                                                                    </>
+                                                                ) : (
+                                                                    message.content
+                                                                )}
+                                                            </SystemNotice>
+                                                        </div>
                                                     );
                                                 }
 

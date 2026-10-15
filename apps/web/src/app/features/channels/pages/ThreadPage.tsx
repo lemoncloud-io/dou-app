@@ -1,7 +1,7 @@
 import { Loader2 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
@@ -35,6 +35,7 @@ import {
     useChannelProfiles,
     useChatMutations,
     useMessageEditing,
+    useMessageJump,
     useChats,
     useReactions,
 } from '../hooks';
@@ -49,12 +50,16 @@ import { buildThread } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
+import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { toCloudId } from '../../../hooks/useCloudScope';
 
 const MAX_INPUT_LENGTH = 5000;
 
 /** px the reply list keeps clear above the composer, on top of the composer's own height. */
 const LIST_COMPOSER_GAP = 16;
+
+/** How close to the bottom the reader has to scroll for the newest-reply follow to come back. */
+const FOLLOW_RESUME_PX = 80;
 
 /**
  * The list's bottom padding for a composer `height` px tall, written straight onto the list, with the
@@ -71,8 +76,9 @@ const clearComposer = (list: HTMLElement | null, height: number) => {
  * Full-screen thread: one root message and its direct replies (ADR-0093 decision 4).
  *
  * Everything here is derived from the channel's loaded cache window (`rawChats` →
- * `buildThread`), so the reply list is best-effort (ADR-0008): an old thread may need
- * the channel history paged in before its older replies appear. Replies send with
+ * `buildThread`), so the reply list is best-effort (ADR-0008): an old thread is reached by
+ * widening the window to its root from the cache, and only a root the cache never held needs
+ * the channel history paged in before it and its older replies appear. Replies send with
  * `parentId: root.id` — the FULL `<channelId>:<chatNo>` id; the server 404s a bare
  * chatNo. Threads are flat: the action sheet here never offers "reply".
  */
@@ -154,7 +160,7 @@ export const ThreadPage = () => {
         () => ({ channelId: stableChannelId, limit: 100, joinedNo: myJoin?.joinedNo }),
         [stableChannelId, myJoin?.joinedNo]
     );
-    const { rawChats, isLoading, hasMore, isLoadingMore, loadMore, canLoadMore } = useChats(chatParams);
+    const { rawChats, isLoading, hasMore, isLoadingMore, loadMore, canLoadMore, loadUntil } = useChats(chatParams);
 
     /**
      * Is the root this URL names from before my current membership?
@@ -180,6 +186,48 @@ export const ThreadPage = () => {
     const remember = useRecentEmojiStore(s => s.remember);
 
     const thread = useMemo(() => buildThread(rawChats, rootNo ?? ''), [rawChats, rootNo]);
+    const hasRoot = !!thread.root;
+
+    // An old thread's root sits below the newest-rows window. The cache usually holds it — the
+    // reader scrolled past it once, or a search found it there — so the window is widened to reach
+    // it before anyone is asked to page the server. The root is the thread's oldest row, so a window
+    // that reaches it also holds every reply. `loadUntil` is a no-op once the window covers that far,
+    // and the effect re-runs as rows arrive because a cold cache answers after the first render.
+    useEffect(() => {
+        if (hasRoot || rootOutsideJoinWindow) return;
+        const parsed = Number(rootNo);
+        if (!Number.isInteger(parsed) || parsed <= 0) return;
+        loadUntil(parsed);
+    }, [hasRoot, rootNo, rootOutsideJoinWindow, loadUntil, rawChats]);
+
+    // A search hit on a reply opens here with `?chatNo=` — the room's convention, and stripped the
+    // same way so a reload does not jump again. The request names this thread, so the room this
+    // page sits on does not take it for its own.
+    const [searchParams, setSearchParams] = useSearchParams();
+    // The newest-reply follow (below) stays off once a jump is asked for: rows still landing — the
+    // composer measuring itself, a reply arriving — would otherwise pull the list back down past the
+    // reply that was jumped to. It comes back when the reader returns to the bottom, writes a reply,
+    // or the jump gives up, and a move to another thread on this same mounted page starts clean.
+    const followHeldRef = useRef(false);
+    useEffect(() => {
+        followHeldRef.current = false;
+    }, [rootNo]);
+    useEffect(() => {
+        const raw = searchParams.get('chatNo');
+        if (!raw || !channelId || !rootNo) return;
+        const chatNo = Number(raw);
+        if (!Number.isInteger(chatNo) || chatNo <= 0) return;
+
+        followHeldRef.current = true;
+        useMessageJumpStore.getState().request(channelId, chatNo, { threadRootNo: rootNo });
+        setSearchParams(
+            params => {
+                params.delete('chatNo');
+                return params;
+            },
+            { replace: true }
+        );
+    }, [searchParams, channelId, rootNo, setSearchParams]);
     // Photos reply to the root like text does — by its full id. Until the root is loaded there is no
     // id to reply to, and a send without one would land in the main feed, so the button stays locked.
     // Photos reply to the root's cloud first, like a text reply does (see handleSend).
@@ -306,8 +354,40 @@ export const ThreadPage = () => {
 
     // Keep the newest reply in view — a thread is a linear column, newest at the bottom.
     useEffect(() => {
+        if (followHeldRef.current) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
     }, [replies.length, composerHeight]);
+
+    // A jump that found nothing leaves no reply to stay on, so the thread opens as it always does.
+    const resumeFollow = useCallback(() => {
+        followHeldRef.current = false;
+        listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+    }, []);
+    const handleListScroll = useCallback(() => {
+        const list = listRef.current;
+        if (!followHeldRef.current || !list) return;
+        if (list.scrollHeight - list.scrollTop - list.clientHeight <= FOLLOW_RESUME_PX) {
+            followHeldRef.current = false;
+        }
+    }, []);
+
+    // Declared after the follow above so that, in the commit where the reply appears, its scroll
+    // runs last. Same budget and toasts as the room; `threadRootNo` keeps it to this thread's target.
+    useMessageJump({
+        channelId: stableChannelId,
+        containerRef: listRef,
+        messages: replies,
+        hasMore,
+        isLoadingMore,
+        loadMore,
+        // Not before the first cache read: with no rows there is no cursor, so a page "sent" then goes
+        // nowhere and still spends the budget the jump needs once the rows are in.
+        canLoadMore: canLoadMore && !isLoading,
+        loadUntil,
+        joinedNo: myJoin?.joinedNo,
+        threadRootNo: rootNo,
+        onGiveUp: resumeFollow,
+    });
 
     const formatTime = (date: Date) => {
         const hours = date.getHours();
@@ -318,6 +398,8 @@ export const ThreadPage = () => {
     };
 
     const handleSend = (raw: string) => {
+        // The reader is writing now, so the newest reply — theirs — is where the list belongs again.
+        followHeldRef.current = false;
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
         // Read at the press, and forgotten only once something is sent — see the room's handleSend.
         const mention = mentionComposer.mentionFor(trimmed);
@@ -526,34 +608,36 @@ export const ThreadPage = () => {
         );
     };
 
+    // Wrapped for `data-chat-no`, the anchor a jump looks for (useMessageJump).
     const renderRow = (message: ClientChatView) => (
-        <ChannelMessageRow
-            key={message.id}
-            message={message}
-            mentionViewer={mentionViewer}
-            showProfileAndName={!message.isOwner}
-            showTimeAndStatus
-            ownerDisplayName={message.ownerName}
-            ownerAvatar={
-                message.ownerId
-                    ? (profileMap.get(message.ownerId)?.thumbnail ?? memberById.get(message.ownerId)?.thumbnail)
-                    : undefined
-            }
-            time={formatTime(message.timestamp)}
-            read={{ show: false, isReady: false, readCount: 0, unreadCount: 0 }}
-            onLongPress={() => canOpenMessageActions(message) && setActionMessage(message)}
-            onExpand={() => setExpandedMessage({ content: messagePlainText(message.content) })}
-            onRetry={() => undefined}
-            onDelete={() => undefined}
-            reactions={message.id ? reactions.get(message.id) : undefined}
-            onToggleReaction={(emoji, isMine) => message.id && toggleReaction(message.id, emoji, isMine)}
-            reactionFailed={!!message.id && failedId === message.id}
-            nameOf={nameOfUser}
-            onAddReaction={message.chatNo ? () => handleAddReaction(message) : undefined}
-            onShowReactors={key => message.id && setReactorTarget({ messageId: message.id, key })}
-            edit={editing.editStateFor(message)}
-            onOpenProfile={openMemberProfile}
-        />
+        <div key={message.id} data-chat-no={message.chatNo}>
+            <ChannelMessageRow
+                message={message}
+                mentionViewer={mentionViewer}
+                showProfileAndName={!message.isOwner}
+                showTimeAndStatus
+                ownerDisplayName={message.ownerName}
+                ownerAvatar={
+                    message.ownerId
+                        ? (profileMap.get(message.ownerId)?.thumbnail ?? memberById.get(message.ownerId)?.thumbnail)
+                        : undefined
+                }
+                time={formatTime(message.timestamp)}
+                read={{ show: false, isReady: false, readCount: 0, unreadCount: 0 }}
+                onLongPress={() => canOpenMessageActions(message) && setActionMessage(message)}
+                onExpand={() => setExpandedMessage({ content: messagePlainText(message.content) })}
+                onRetry={() => undefined}
+                onDelete={() => undefined}
+                reactions={message.id ? reactions.get(message.id) : undefined}
+                onToggleReaction={(emoji, isMine) => message.id && toggleReaction(message.id, emoji, isMine)}
+                reactionFailed={!!message.id && failedId === message.id}
+                nameOf={nameOfUser}
+                onAddReaction={message.chatNo ? () => handleAddReaction(message) : undefined}
+                onShowReactors={key => message.id && setReactorTarget({ messageId: message.id, key })}
+                edit={editing.editStateFor(message)}
+                onOpenProfile={openMemberProfile}
+            />
+        </div>
     );
 
     return (
@@ -573,6 +657,7 @@ export const ThreadPage = () => {
 
             <div
                 ref={listRef}
+                onScroll={handleListScroll}
                 className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-none"
                 style={{ paddingTop: headerHeight + 8, paddingBottom: composerHeight + LIST_COMPOSER_GAP }}
             >

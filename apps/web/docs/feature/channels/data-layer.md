@@ -177,8 +177,10 @@ arrivals push the oldest rows out again, which keeps the window bounded however 
 open. The thread page passes no ref, so a widened thread window always keeps its oldest row.
 
 `loadUntil(targetNo)` widens the same window without any round trip — the search jump's target is
-usually already cached and only the window was too narrow. It keeps its own `jumpLimit` axis so a
-jump cannot disturb `isThreadStartLoaded`, which reads "the cache could not fill the page" as
+usually already cached and only the window was too narrow. The thread page calls it too, to reach
+an old thread's root (see [reactions-and-threads.md](./reactions-and-threads.md)), and when two
+callers widen in one commit the larger ask wins. It keeps its own `jumpLimit` axis so a jump cannot
+disturb `isThreadStartLoaded`, which reads "the cache could not fill the page" as
 "there is nothing older". The observe limit is `max(pageLimit, jumpLimit)`, and growth after a jump
 — a page, rows arriving — goes to `jumpLimit` while it is the wider one.
 

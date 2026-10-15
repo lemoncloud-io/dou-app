@@ -13,6 +13,7 @@ let mockDialogProps: Record<string, any> = {};
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1', rootNo: '7' }),
     useLocation: () => ({ state: null }),
+    useSearchParams: () => [new URLSearchParams(), jest.fn()],
 }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
@@ -101,7 +102,9 @@ jest.mock('../hooks', () => ({
         isLoadingMore: false,
         loadMore: jest.fn(),
         canLoadMore: true,
+        loadUntil: jest.fn(() => false),
     }),
+    useMessageJump: () => undefined,
     useDmPeer: () => null,
     useReactions: () => ({ toggleReaction: jest.fn(), failedId: null }),
     useMessageEditing: () => ({

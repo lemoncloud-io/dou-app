@@ -3,7 +3,8 @@ import type { DomainChat } from '@chatic/data';
 import { ROUTES } from '../../routes/paths';
 
 /**
- * The thread route a notified chat belongs to, or `null` when it belongs in the room.
+ * The thread route a notified chat belongs to, or `null` when it belongs in the room. A search hit
+ * on a reply is the same problem from another door, and is answered here too.
  *
  * Push notifications are channel-level: the link names a channel, so a tap lands on the
  * channel room. But a thread reply is an ordinary `stereo:'user'` chat, so it raises a push
@@ -20,7 +21,10 @@ import { ROUTES } from '../../routes/paths';
  * encoding (the full `<channelId>:<chatNo>` id, see `buildThread`'s contract note) in case
  * a locally-written row is what got read back.
  */
-export const resolveThreadTarget = (chat: DomainChat | null | undefined, chatId: string): string | null => {
+export const resolveThreadTarget = (
+    chat: Pick<DomainChat, 'parentId' | 'channelId'> | null | undefined,
+    chatId: string
+): string | null => {
     const parentId = chat?.parentId;
     if (!parentId) return null;
 

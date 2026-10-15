@@ -101,6 +101,21 @@ describe('useSearchNavigate', () => {
         expect(navigate).toHaveBeenCalledWith('/');
     });
 
+    it('stacks the follow-up screen on top of the target, after the switches', async () => {
+        setSelection('c1', 's1');
+        const order: string[] = [];
+        switchSite.mockImplementation(async () => order.push('site'));
+        navigate.mockImplementation((path: string) => order.push(path));
+        const { result } = renderHook(() => useSearchNavigate());
+        await result.current.goTo('/channels/ch1/room', {
+            cid: 'c1',
+            sid: 's2',
+            thenTo: '/channels/ch1/thread/3?chatNo=5',
+        });
+
+        expect(order).toEqual(['site', '/channels/ch1/room', '/channels/ch1/thread/3?chatNo=5']);
+    });
+
     it('skips the site switch when the place is already active', async () => {
         setSelection('c1', 's1');
         const { result } = renderHook(() => useSearchNavigate());

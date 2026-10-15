@@ -347,7 +347,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
 
     /**
      * Widens the observe window so a cached message at `targetNo` comes into view — the jump path
-     * (useMessageJump). This reads the CACHE only: `loadMore` fetches one 50-row page from the
+     * (useMessageJump), and the thread page reaching an old root. This reads the CACHE only: `loadMore` fetches one 50-row page from the
      * server per call, so reaching a message a few hundred rows back took more round trips than the
      * jump budget allows, and the jump gave up on a message that was sitting in the cache all along.
      *
@@ -369,7 +369,11 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
         const needed = newestNo - targetNo + JUMP_WINDOW_PADDING;
         if (needed <= observeLimitRef.current) return false;
 
-        setJumpLimit(needed);
+        // The wider ask wins. Two callers can widen within one commit — the thread page toward its
+        // root and a jump toward a reply below it — and both read the same pre-commit window, so a
+        // plain set let the narrower one land last: the jump scrolled to the reply, and the root
+        // with every older reply then loaded above it and pushed it out of place.
+        setJumpLimit(prev => Math.max(prev, needed));
         return true;
     }, []);
 

@@ -107,6 +107,25 @@ describe('useGlobalSearch', () => {
         expect(result.current.hasResults).toBe(true);
     });
 
+    // A reaction event's content is its emoji, which the feed never draws as a row.
+    it('drops reaction events from the results', async () => {
+        search.mockResolvedValue({
+            channels: [],
+            sites: [],
+            chats: [
+                { id: 'reaction', content: '👍👍', subType: 'reaction' },
+                { id: 'message', content: '👍👍 nice' },
+            ],
+        });
+
+        const { result } = renderHook(() => useGlobalSearch('👍👍'));
+        act(() => jest.advanceTimersByTime(300));
+
+        await waitFor(() => expect(result.current.isSearching).toBe(false));
+
+        expect(result.current.results.messages.map(chat => chat.id)).toEqual(['message']);
+    });
+
     // A soft delete keeps the body on the cached row and both cache sources match on it, so a
     // deleted message would otherwise still be found by its words.
     it('drops deleted messages from the results before capping them', async () => {

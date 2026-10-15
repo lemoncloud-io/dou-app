@@ -6,6 +6,7 @@ import { ChevronLeft, Cloud, MessageSquare } from 'lucide-react';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { DefaultAvatar, IconImageSolid, ImageAvatar, SearchInput, UnreadBadge } from '@chatic/web-ui-kit';
 
+import { resolveThreadTarget } from '../../../bridge/navigation/resolveThreadTarget';
 import { ROUTES } from '../../../routes/paths';
 import { HighlightText } from '../components/HighlightText';
 import { RecentSearchList } from '../components/RecentSearchList';
@@ -138,8 +139,15 @@ export const SearchPage = () => {
         // An unsent message (chatNo 0) is still a match worth showing, but there is nothing to jump
         // to — open the room without the query rather than leaving a no-op `?chatNo=0` in the URL.
         const room = ROUTES.channels.room(chat.channelId);
-        const target = chat.chatNo > 0 ? `${room}?chatNo=${chat.chatNo}` : room;
-        void goTo(target, { cid: chat.cid, sid: chat.sid });
+        const jump = chat.chatNo > 0 ? `?chatNo=${chat.chatNo}` : '';
+        // A reply is never drawn in the room's feed, so a jump there could only end in "couldn't find
+        // that message". It opens on its thread instead, stacked over the room.
+        const thread = resolveThreadTarget(chat, chat.chatId);
+        if (thread) {
+            void goTo(room, { cid: chat.cid, sid: chat.sid, thenTo: `${thread}${jump}` });
+            return;
+        }
+        void goTo(`${room}${jump}`, { cid: chat.cid, sid: chat.sid });
     };
 
     return (

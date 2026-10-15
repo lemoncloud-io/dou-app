@@ -11,8 +11,8 @@ device has already cached, and every rule below follows from that.
 
 This feature decides **what a match means and where it leads**. It decides nothing about how rows
 are stored or scanned — the global cache search source is
-[`@chatic/data`](../../../../../libs/data/README.md)'s — and nothing about the room a message result
-opens into, which is [channels](../channels/README.md).
+[`@chatic/data`](../../../../../libs/data/README.md)'s — and nothing about the room or thread a message
+result opens into, which is [channels](../channels/README.md).
 
 It also refuses to pull. A result row is a plain model and calls nothing: no observer, no sync
 registration, no fetch. That is the constraint the whole design is arranged around, because a list
@@ -80,7 +80,8 @@ author would keep running for people whose rooms are not even open.
 
 A result in another cloud needs a session switch before the route means anything. `useSearchNavigate`
 awaits the socket handshake, switches cloud, awaits the handshake **again** — `switchSite` is a
-socket call on the freshly bound connection — then switches place, then navigates.
+socket call on the freshly bound connection — then switches place, then navigates (twice, for a
+reply: see the next section).
 
 The place switch is not optional. A place result lands on home, and home renders the session's
 `selectedSiteId` rather than anything in the URL; a channel result switches too, so backing out of
@@ -93,6 +94,19 @@ that succeeded is **not rolled back** when the place switch fails. Rolling back 
 failure-prone round trip, and it would leave the session in a less certain state than stopping.
 
 A ref guards against a second result being tapped mid-switch.
+
+### A message result opens where it is drawn
+
+A message result opens the room with `?chatNo=`, which the room converts into a jump request and
+then strips from the URL so a reload does not re-jump. The scroll, the highlight and the older-page
+load belong to [channels](../channels/README.md).
+
+A thread reply is a result too, but the room's feed never draws one, so a jump there could only end
+in "couldn't find that message". A reply opens its thread instead, stacked over the room: `goTo`
+navigates to the room and then pushes the thread with `?chatNo=` (`thenTo`), so back goes thread →
+room → search, the order a push tap into a reply leaves. Both pushes land in one render, so the room
+does not mount on the way in, only on the way back. The row carries the reply's `parentId` for this,
+and `resolveThreadTarget` (the push path's) turns it into the thread route.
 
 ### The keyword lives in the URL, the recents in config
 
@@ -133,16 +147,17 @@ longer read contained what they typed. The flag is read for truthiness, since th
 delete and `chat.feed` merely omits the row, so the cached copy can stay unflagged — and searchable.
 That is the sync layer's gap, and closing it belongs there, not in this filter.
 
+**A reaction event is not a result either.** It is a chat row whose `content` is the emoji itself —
+two UTF-16 units, so it passes the minimum query length — and the feed folds it into a chip instead
+of drawing it, so opening one could only end in "couldn't find that message". It is dropped in the
+same place, before the cap.
+
 The scan itself matches the raw stored body, not the flattened one. A query that only hits markup —
 the address behind a labelled link, a backtick — still finds the message, and its row then shows the
 body without a highlight rather than printing the markup back. Words split by a marker
 (`` `yarn` deploy `` for `yarn deploy`) do not match; matching against the flattened body would be a
 change to the cache scan, not to this screen. Desktop search differs here: it matches a labelled link by
 its words, so a query on the address alone finds the message on web and not on desktop.
-
-A message result opens the room with `?chatNo=`, which the room converts into a jump request and
-then strips from the URL so a reload does not re-jump. The scroll, the highlight and the older-page
-load belong to [channels](../channels/README.md).
 
 ## What not to do
 
@@ -178,7 +193,7 @@ npx jest --config apps/web/jest.config.js features/search
 
 ## Further reading
 
-- [channels](../channels/README.md) — the room a result opens, and the message jump.
+- [channels](../channels/README.md) — the room or thread a result opens, and the message jump.
 - [home](../home/README.md) — the header button that leads here, and the cloud-name resolution this
   screen mirrors.
 - [`@chatic/data`](../../../../../libs/data/README.md) — the global cache search source, the

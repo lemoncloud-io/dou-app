@@ -723,3 +723,31 @@ describe('ChannelRoomPage — the composer draft', () => {
         expect(drafts()).toEqual({});
     });
 });
+
+describe('ChannelRoomPage — every row a jump can land on', () => {
+    const systemRow = (over: Partial<ClientChatView>): Partial<ClientChatView> => ({
+        id: 'ch1:5',
+        channelId: 'ch1',
+        chatNo: 5,
+        isSystem: true,
+        stereo: 'system',
+        ownerId: 'peer',
+        ownerName: 'peer',
+        timestamp: new Date(1),
+        ...over,
+    });
+
+    it('anchors a join notice by its chatNo', () => {
+        mockMessages = [systemRow({ subType: 'join' })];
+        const { container } = render(<ChannelRoomPage />);
+
+        expect(container.querySelector('[data-chat-no="5"]')).not.toBeNull();
+    });
+
+    it('anchors a legacy notice, whose stored sentence is what search matches', () => {
+        mockMessages = [systemRow({ content: 'peer님이 들어왔습니다.' })];
+        const { container } = render(<ChannelRoomPage />);
+
+        expect(container.querySelector('[data-chat-no="5"]')).not.toBeNull();
+    });
+});

@@ -197,11 +197,34 @@ profile map.
   [chat-room.md](./chat-room.md#opening-a-person).
 - **Sending** posts `parentId: root.id` (the full id) and then advances the read cursor with the
   returned `chatNo`, because a reply consumes a channel chatNo like any other row.
-- **A root that has paged out** shows `chat.thread.unavailable` and, while `hasMore`, a "load older"
-  button — the derivation is bounded by the loaded window, so the honest answer is to offer more of
-  it. A press is a person asking, so it is sent at once (`loadMore({ immediate: true })`) rather than
-  held behind a failed page's retry wait, and the button is disabled while the socket cannot carry
-  it (`canLoadMore`), so a press is never silently dropped.
+- **A root below the window is reached through the cache first.** The thread page reads the newest
+  100 rows, so an old thread's root is usually outside them while the cache still holds it. Until
+  the root is there, the page calls `loadUntil(rootNo)` — the room's jump widening (see
+  [data-layer.md](./data-layer.md)) — and because the root is the thread's oldest row, a window that
+  reaches it holds every reply too. No widening toward a root from before my membership: the cache
+  is windowed by the same cursor, so it cannot be there.
+- **A root that has paged out** — not in the cache either — shows `chat.thread.unavailable` and,
+  while `hasMore`, a "load older" button: the derivation is bounded by the loaded window, so the
+  honest answer is to offer more of it. A press is a person asking, so it is sent at once
+  (`loadMore({ immediate: true })`) rather than held behind a failed page's retry wait, and the
+  button is disabled while the socket cannot carry it (`canLoadMore`), so a press is never silently
+  dropped.
+- **A thread opens on one reply** when a search hit is a reply (`?chatNo=` on the thread route, the
+  room's convention). The page turns it into a jump request scoped to its root
+  (`threadRootNo` on `useMessageJumpStore`) and runs the room's `useMessageJump` over its own list,
+  so the scroll, the flash, the budget and the toasts are the room's. Each reply row carries
+  `data-chat-no` for it. The scope is what keeps the room from taking the request: the room never
+  draws a reply, so a room that took one would page its whole budget and say the message was not
+  found. While a jump is asked for, the follow-the-newest-reply scroll is held — rows still landing
+  (the composer measuring itself, a reply arriving) would pull the list past the reply. It comes back
+  when the reader scrolls back to the bottom, sends a reply, or the jump gives up (the thread then
+  opens at its newest reply, as it does without a jump), and a move to another thread on the same
+  mounted page starts clean. The jump does not page before the first cache read: with no rows there
+  is no cursor, and a page that goes nowhere would still spend its budget.
+- **Widenings in one commit keep the wider one.** The root's widening and the jump's (toward a reply
+  below it) can be asked for in the same commit, against the same window. `loadUntil` keeps the
+  larger ask; a plain set let the jump's narrower window land last, so the jump scrolled to the
+  reply and the root, with every older reply, then loaded above it and pushed it out of place.
 - The room hands the root across in navigation state (`state: { rootChat }`), because the cache's
   first emission is asynchronous even when warm and the thread would otherwise open on a spinner
   under a translucent header.
@@ -232,6 +255,8 @@ see [chat-room.md](./chat-room.md).
 - The derivations are pure and tested directly: `foldReactions.test.ts` (normalisation convergence,
   last-action-wins, optimistic ordering), `buildThread.test.ts` (both encodings, reactions excluded,
   `lastReplyNo` / owner), plus component tests for the chips, the sheets and the footer.
+  `ThreadPage.test.tsx` also covers widening to an old root and opening on a reply (the jump, the
+  follow hold and every way it is released).
 
 ```bash
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false apps/web/src/app/features/channels

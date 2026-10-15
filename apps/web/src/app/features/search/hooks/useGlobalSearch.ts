@@ -111,7 +111,14 @@ export const useGlobalSearch = (query: string) => {
                     // server and cache alike — and both cache sources match on that body, so without
                     // this a deleted message's words would still find it. Dropped before the cap,
                     // so a deleted row never takes a live result's place.
-                    messages: result.chats.filter(chat => !chat.hidden).slice(0, MAX_MESSAGE_RESULTS),
+                    //
+                    // A reaction event is not a result either. It is a chat row whose `content` is the
+                    // emoji itself — two UTF-16 units, enough to pass the minimum length — and the
+                    // feed folds it into a chip rather than drawing it, so opening one could only
+                    // end in "couldn't find that message".
+                    messages: result.chats
+                        .filter(chat => !chat.hidden && chat.subType !== 'reaction')
+                        .slice(0, MAX_MESSAGE_RESULTS),
                 });
             })
             .catch(error => {
