@@ -17,6 +17,11 @@ export interface AwaitInviteChannelOptions {
     knownChannelIds?: Iterable<string>;
     timeoutMs?: number;
     pollMs?: number;
+    /**
+     * Ends the wait early with `null`, stopping the polls. For a caller that found the room another
+     * way while this was still pulling channel deltas every few seconds.
+     */
+    signal?: AbortSignal;
 }
 
 /**
@@ -54,9 +59,10 @@ export const useAwaitInviteChannel = () => {
             knownChannelIds,
             timeoutMs = CHANNEL_WAIT_TIMEOUT_MS,
             pollMs = CHANNEL_WAIT_POLL_MS,
+            signal,
         }: AwaitInviteChannelOptions = {}): Promise<string | null> => {
             // No active place means nothing to observe; the caller falls back rather than hanging.
-            if (!sid) return null;
+            if (!sid || signal?.aborted) return null;
 
             const known = new Set(knownChannelIds ?? []);
             if (!knownChannelIds) {
@@ -71,14 +77,17 @@ export const useAwaitInviteChannel = () => {
             return new Promise<string | null>(resolve => {
                 let settled = false;
                 let unsubscribe: (() => void) | null = null;
+                const onAbort = () => finish(null);
                 const finish = (channelId: string | null) => {
                     if (settled) return;
                     settled = true;
                     clearTimeout(timer);
                     clearInterval(ticker);
                     unsubscribe?.();
+                    signal?.removeEventListener('abort', onAbort);
                     resolve(channelId);
                 };
+                signal?.addEventListener('abort', onAbort);
 
                 const timer = setTimeout(() => finish(null), timeoutMs);
 

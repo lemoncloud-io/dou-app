@@ -145,6 +145,32 @@ describe('useAwaitInviteChannel', () => {
         expect(syncChannelsMock).toHaveBeenCalledTimes(settledCalls);
     });
 
+    it('ends with null and stops polling when its signal aborts', async () => {
+        setSid();
+        const { result } = renderHook(() => useAwaitInviteChannel());
+        const abort = new AbortController();
+
+        const pending = result.current.awaitChannel({ timeoutMs: 20_000, pollMs: 3_000, signal: abort.signal });
+        await jest.advanceTimersByTimeAsync(0);
+        const pullsBefore = syncChannelsMock.mock.calls.length;
+        abort.abort();
+
+        await expect(pending).resolves.toBeNull();
+        expect(dispose).toHaveBeenCalled();
+        await jest.advanceTimersByTimeAsync(10_000);
+        expect(syncChannelsMock.mock.calls.length).toBe(pullsBefore);
+    });
+
+    it('does not start when its signal has already aborted', async () => {
+        setSid();
+        const { result } = renderHook(() => useAwaitInviteChannel());
+        const abort = new AbortController();
+        abort.abort();
+
+        await expect(result.current.awaitChannel({ signal: abort.signal })).resolves.toBeNull();
+        expect(observeListMock).not.toHaveBeenCalled();
+    });
+
     it('활성 플레이스가 없으면 구독하지 않고 즉시 null이다', async () => {
         setSid(null);
         const { result } = renderHook(() => useAwaitInviteChannel());

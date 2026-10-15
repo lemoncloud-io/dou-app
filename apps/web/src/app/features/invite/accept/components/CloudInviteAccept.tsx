@@ -5,11 +5,12 @@ import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 import { AlertDialog } from '@chatic/web-ui-kit';
 
+import { InviteAcceptLoading } from './InviteAcceptLoading';
 import { InviteAcceptScreen } from './InviteAcceptScreen';
 import { PlaceProfileCreateDialog } from '../../../../ui/components/PlaceProfileCreateDialog';
 import { useActivePlaceName, useSetMyPlaceProfile } from '../../../../hooks';
 import { useSessionLogout } from '../../../../runtime/useSessionLogout';
-import { useInviteAccept } from '../hooks';
+import { resolveInviteErrorKey, useInviteAccept } from '../hooks';
 import { resolveCloudInviteTargetKind } from '../lib/resolveCloudInviteTargetKind';
 import { useInviteCountdown } from '../../hooks/useInviteCountdown';
 import type { InviteInfo, InviteParams } from '../types';
@@ -53,7 +54,7 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
     // Invite metadata (inviter / place / expiry) to populate the screen. Widened to `InviteInfo`, which
     // declares the fields the backend denormalizes into the response but the published `MyInviteView`
     // does not yet carry — all optional, so this is the same widening `useInviteAccept` already takes.
-    const { data } = runtime.session.useInviteInfo(params.code, params.backend);
+    const { data, error: infoError, fetchStatus } = runtime.session.useInviteInfo(params.code, params.backend);
     const info: InviteInfo | undefined = data;
     const { accept, isAccepting, missingDelegator, errorKey, profilePending, finishProfile } = useInviteAccept({
         params,
@@ -122,7 +123,18 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
     }
 
     // Invite failure: a single-action notice dialog reflecting the resolved cause (red title per Figma).
-    const variant = resolveDialogVariant(errorKey);
+    // A lookup that failed outright is the same kind of verdict, and the screen has nothing to show.
+    // So is one that will never run: the query stays disabled with no address to ask (a cloud link
+    // whose backend is empty), and the loading view below would spin forever.
+    const lookupNeverRuns = !info && !infoError && fetchStatus === 'idle';
+    const readErrorKey = info
+        ? null
+        : infoError
+          ? resolveInviteErrorKey('read-invite', infoError)
+          : lookupNeverRuns
+            ? 'inviteAccept.failed'
+            : null;
+    const variant = resolveDialogVariant(errorKey ?? readErrorKey);
     if (variant) {
         return (
             <AlertDialog
@@ -135,6 +147,11 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
             />
         );
     }
+
+    // The lookup is still out. Accept is not offered until it answers: pressed now, the invite login
+    // would spend the invite with no cloud, place or room to enter, and leave the invitee on home
+    // outside the cloud. This ends either in the screen below or in the notice above.
+    if (!info) return <InviteAcceptLoading />;
 
     // Accept screen. `InviteInfo` extends the published Head types with the fields the backend
     // denormalizes into the invite response but has not shipped yet (inviter image, place

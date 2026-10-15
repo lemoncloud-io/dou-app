@@ -1,5 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 
+import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
+
 import type { InviteContext } from '../types';
 
 const mockRunInviteFlow = jest.fn();
@@ -420,5 +422,74 @@ describe('useInviteAccept — finding the invited place', () => {
         );
         expect(mockEnterChannel).toHaveBeenCalled();
         expect(result.current.errorKey).toBeNull();
+    });
+});
+
+describe('useInviteAccept — before the invite has been read', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockRunInviteFlow.mockResolvedValue({});
+    });
+
+    it('does not log in when Accept is pressed before the invite lookup answered', async () => {
+        // Pressed on a cold start before `hello/invite-code` answered, the login used to go through
+        // with nothing to enter, leaving the invitee on home outside the cloud.
+        const result = await runAccept(ctx({ info: undefined }));
+
+        expect(mockRunInviteFlow).not.toHaveBeenCalled();
+        expect(mockEnterCloud).not.toHaveBeenCalled();
+        expect(mockEnterChannel).not.toHaveBeenCalled();
+        expect(mockLoggerWarn).toHaveBeenCalledWith('INVITE', expect.stringContaining('before the invite was read'));
+        expect(result.current.isAccepting).toBe(false);
+    });
+});
+
+describe('useInviteAccept — invite_accept trace', () => {
+    const backend = { start: jest.fn(), stop: jest.fn() };
+    const stopped = () => backend.stop.mock.calls.map(([result]) => result);
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        configurePerfTraces(backend);
+        mockRunInviteFlow.mockResolvedValue({});
+        mockEnterCloud.mockResolvedValue(undefined);
+        mockEnterSite.mockResolvedValue(undefined);
+        mockCacheRead.mockResolvedValue(null);
+        mockUseSessionIdentity.mockReturnValue({ delegatorId: 'guest-1' });
+        mockOwnedClouds.mockReturnValue([]);
+    });
+
+    afterEach(() => resetPerfTraces());
+
+    it('times a run that reaches the room, with each step marked', async () => {
+        mockGetMyProfile.mockResolvedValue({ id: 'site-1@me', active: true });
+
+        await runAccept(ctx());
+
+        expect(stopped()).toHaveLength(1);
+        expect(stopped()[0]).toMatchObject({ name: 'invite_accept', attributes: { lane: 'cloud', outcome: 'ok' } });
+        expect(Object.keys(stopped()[0].metrics)).toEqual(['login', 'cloud', 'site', 'profile_check']);
+    });
+
+    it('ends the run at the profile form, which a person paces', async () => {
+        mockGetMyProfile.mockResolvedValue({ id: 'site-1@me', active: false });
+
+        await runAccept(ctx());
+
+        expect(stopped()[0].attributes).toEqual({ lane: 'cloud', outcome: 'profile' });
+    });
+
+    it('names the step a failed run stopped in', async () => {
+        mockEnterSite.mockRejectedValue(new Error('500 boom'));
+
+        await runAccept(ctx());
+
+        expect(stopped()[0].attributes).toEqual({ lane: 'cloud', step: 'enter-site', outcome: 'error' });
+    });
+
+    it('starts no trace for a press the lookup has not answered yet', async () => {
+        await runAccept(ctx({ info: undefined }));
+
+        expect(backend.start).not.toHaveBeenCalled();
     });
 });

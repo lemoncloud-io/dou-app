@@ -1,5 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
+import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
+
 import { useRelayInviteFlow } from './useRelayInviteFlow';
 
 const getInvite = jest.fn();
@@ -538,7 +540,10 @@ describe('useRelayInviteFlow — 수락 결과', () => {
         act(() => result.current.accept());
 
         await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-accepted'));
-        expect(resolveChannel).toHaveBeenCalledWith(CODE, { acceptedChannelId: 'ch-accepted' });
+        expect(resolveChannel).toHaveBeenCalledWith(
+            CODE,
+            expect.objectContaining({ acceptedChannelId: 'ch-accepted' })
+        );
     });
 
     it('수락 응답에 channelId가 없으면 1단을 비운 채로 해소를 맡긴다', async () => {
@@ -548,7 +553,18 @@ describe('useRelayInviteFlow — 수락 결과', () => {
         act(() => result.current.accept());
 
         await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-new'));
-        expect(resolveChannel).toHaveBeenCalledWith(CODE, { acceptedChannelId: undefined });
+        expect(resolveChannel).toHaveBeenCalledWith(CODE, expect.objectContaining({ acceptedChannelId: undefined }));
+    });
+
+    it('hands the inviter from the re-read to the resolver, so the room push can be watched', async () => {
+        getInvite.mockResolvedValue(view({ inviterId: 'inviter-1' }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-new'));
+        expect(resolveChannel).toHaveBeenCalledWith(CODE, expect.objectContaining({ inviterId: 'inviter-1' }));
     });
 
     it('1단으로 즉시 해소되면 채널 대기 페이즈를 거치지 않는다', async () => {
@@ -804,6 +820,79 @@ describe('useRelayInviteFlow — 거절 (실 invite.reject, ADR-0043)', () => {
         await act(async () => {
             release(view({ state: 'accepted' }));
         });
+    });
+});
+
+describe('useRelayInviteFlow — invite_accept trace', () => {
+    const backend = { start: jest.fn(), stop: jest.fn() };
+    const stopped = () => backend.stop.mock.calls.map(([record]) => record);
+
+    beforeEach(() => configurePerfTraces(backend));
+    afterEach(() => resetPerfTraces());
+
+    it('times a run from Accept to the room, with each step marked and the way the room was found', async () => {
+        resolveChannel.mockImplementation(async (_code: string, options: { onResolved?: (s: string) => void }) => {
+            options.onResolved?.('push');
+            return 'ch-new';
+        });
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(stopped()).toHaveLength(1));
+        expect(stopped()[0]).toMatchObject({
+            name: 'invite_accept',
+            attributes: { lane: 'relay', room: 'push', outcome: 'ok' },
+        });
+        expect(Object.keys(stopped()[0].metrics)).toEqual(['invite_read', 'accepted', 'room']);
+    });
+
+    it('records a room that never came as pending', async () => {
+        resolveChannel.mockResolvedValue(null);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(stopped()).toHaveLength(1));
+        expect(stopped()[0].attributes).toEqual({ lane: 'relay', room: 'none', outcome: 'pending' });
+    });
+
+    it('ends a run at verification and times the resumed run on its own', async () => {
+        getInvite.mockResolvedValue(view({ needVerify: true }));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
+        getInvite.mockResolvedValue(view({ needVerify: false }));
+        act(() => result.current.onVerified());
+
+        await waitFor(() => expect(stopped()).toHaveLength(2));
+        expect(stopped().map(record => record.attributes.outcome)).toEqual(['verify', 'ok']);
+    });
+
+    it('records a final state found on the re-read as a notice, not an error', async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        getInvite.mockResolvedValue(view({ state: 'expired' }));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(stopped()).toHaveLength(1));
+        expect(stopped()[0].attributes).toEqual({ lane: 'relay', outcome: 'notice' });
+    });
+
+    it('names the accept step when invite.accept fails', async () => {
+        acceptInvite.mockRejectedValue(socketError(409));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(stopped()).toHaveLength(1));
+        expect(stopped()[0].attributes).toEqual({ lane: 'relay', step: 'accept', outcome: 'error' });
     });
 });
 

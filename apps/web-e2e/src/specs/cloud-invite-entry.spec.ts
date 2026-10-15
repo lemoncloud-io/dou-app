@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-import { CLOUD_PLACE, CLOUD_ROOM, cloudInvitePath, installCloud } from '../fixtures/cloud';
+import { CLOUD, CLOUD_PLACE, CLOUD_ROOM, cloudInvitePath, installCloud } from '../fixtures/cloud';
 import { currentPath } from '../support/app';
 import { expect, test } from '../support/test';
 
@@ -76,4 +76,26 @@ test('an invite into a place with no profile yet asks for one, and saves it ther
 
     await expect.poll(() => currentPath(page)).toBe(`/channels/${CLOUD_ROOM.id}/room`);
     expect(cloud.profileWrites.map(write => write.site)).toEqual([CLOUD_PLACE.id]);
+});
+
+test('offers no Accept until the invite has been read, so an early press cannot spend it', async ({
+    page,
+    shell,
+    backend,
+}) => {
+    const cloud = installCloud(backend, { profileInPlace: true });
+    // Hold the invite lookup the way a slow link or a cold server does. Accept used to show while it
+    // was out, and a press then logged in with nothing to enter and left the guest outside the cloud.
+    let releaseLookup: () => void = () => undefined;
+    const lookupHeld = new Promise<void>(resolve => (releaseLookup = resolve));
+    backend.gateHttp(`GET ${CLOUD.backend}/hello/invite-code`, () => lookupHeld);
+
+    shell.push('OnNavigate', { path: cloudInvitePath('E2EFIRST'), replace: false });
+    await page.goto('/');
+    await expect(page.getByText('Checking your invitation')).toBeVisible();
+    await expect(acceptButton(page)).toHaveCount(0);
+
+    releaseLookup();
+    await acceptIntoRoom(page);
+    expect(cloud.sessionSite).toBe(CLOUD_PLACE.id);
 });
