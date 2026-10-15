@@ -4,6 +4,13 @@
 
 ### Bug Fixes
 
+- (web/channels) keep a ?chatNo jump through a re-run, not lost on entry
+- (web/search) land a search hit on thread replies and system notices, not "not found"
+
+## [2026-10-15] - No version updates
+
+### Bug Fixes
+
 - (web,perf) accept an invite only once read, take the relay room from its push (ADR-0205)
 
 ## [2026-10-15] - No version updates
