@@ -36,6 +36,7 @@ import { hasEntryPoint } from './customUiState';
 import { createDownloadTargets, savesWithoutAsking } from './downloads';
 import { startFcm, type FcmConfig } from './fcm';
 import { createLoginItem, LOGIN_ITEM_UNSUPPORTED } from './loginItem';
+import { grantsPermission } from './permissions';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
 import { startUpdater } from './updater';
 import { pushDeeplink, pushFcmMessage, pushFcmToken } from './shellEvents';
@@ -1021,10 +1022,8 @@ if (!singleInstanceLock) {
     });
 
     app.whenReady().then(() => {
-        // The renderer is REMOTE-loaded web content — deny every permission request
-        // except what the app actually uses, instead of Electron's allow-all default.
-        session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-            callback(permission === 'notifications' || permission === 'clipboard-sanitized-write');
+        session.defaultSession.setPermissionRequestHandler((_wc, permission, callback, details) => {
+            callback(grantsPermission(permission, details.requestingUrl));
         });
 
         // Images from the app's own pages save straight into Downloads, like Chrome and Slack.
