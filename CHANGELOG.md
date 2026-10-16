@@ -2,6 +2,21 @@
 
 ## [2026-10-16] - No version updates
 
+### Features
+
+- (scripts) start the app locally with one yarn local, the virtual shell by default
+- (virtual-shell) run the web as inside the mobile app, in one browser tab (ADR-0208)
+
+### Documentation
+
+- (agents,adr) make the virtual shell the default local run, with its own procedure (ADR-0208)
+
+### Refactor
+
+- (web-e2e,fake-shell) share the fake native shell's core from libs/fake-shell
+
+## [2026-10-16] - No version updates
+
 ### Other
 
 - revert: (app-runtime,web,data,logger) roll back the reclaim, switch refresh and place-list log
