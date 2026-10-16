@@ -1,13 +1,7 @@
 import { logger } from '@chatic/bridges';
 
 import { cloudStore } from '../store/stores';
-import {
-    getCloudSessionSnapshot,
-    getRelayUserId,
-    rebuildSessionIdentity,
-    sessionSignal,
-    setSelectedSiteId,
-} from '../store';
+import { getCloudSessionSnapshot, rebuildSessionIdentity, sessionSignal, setSelectedSiteId } from '../store';
 import type { CloudSessionSnapshot } from '../store';
 import { issueCloudTokens, type IssuedCloudTokens } from './cloudTokens';
 import { recordCloudIdentity } from './cloudIdentity';
@@ -102,10 +96,7 @@ class CloudSession implements ICloudSession {
             if (issuedTokens) {
                 // Into the per-cloud cache too: that copy is what this cloud's socket signs with and
                 // what a re-entry is served from, so it must name the same user as the store.
-                cloudStore.setCachedCloudTokens(cloudId, {
-                    ...issuedTokens,
-                    issuedFor: getRelayUserId() ?? undefined,
-                });
+                cloudStore.setCachedCloudTokens(cloudId, issuedTokens);
                 recordCloudIdentity(cloudId, issuedTokens.cloudToken);
             }
 

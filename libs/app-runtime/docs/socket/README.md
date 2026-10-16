@@ -188,19 +188,11 @@ interface SocketState {
     isConnected: boolean; // state === 'connected'
     isVerified: boolean; // that slot is authenticated AND connected
     connectionId: string | null;
-    activeSlot: SlotKey | null; // the slot these fields describe; null with no slot bound
 }
 ```
 
 This is the **active** slot's state, broadcast through `subscribe` and surfaced by
 `useRuntimeSocketState()`. Device registration is a sync-runtime detail and deliberately not on it.
-
-`activeSlot` is there so a move between two slots is a change even when nothing else is. Every joined
-cloud keeps a background session, so the usual cloud switch moves the pointer onto a slot that is
-verified already: transport and auth read the same before and after, and without the slot on the
-state a subscriber would never hear that the socket now serves another cloud. A consumer that has to
-re-ask for the new cloud's data keys on it — `apps/web`'s background sync waits until `activeSlot`
-names the committed cloud before it asks.
 
 `connectionId` is **always `null`** — nothing assigns it. It is a known gap, not a value to branch on.
 
@@ -475,13 +467,13 @@ it moves **and a reboot is not already happening**, since a reboot re-registers 
 
 ### Reading connection state
 
-| Hook                      | Answers                                                                              |
-| ------------------------- | ------------------------------------------------------------------------------------ |
-| `useRuntimeSocketState()` | The **active** slot's `{ state, isConnected, isVerified, connectionId, activeSlot }` |
-| `useSlotVerified(key)`    | Is _this_ slot verified, whatever is active — for gating a slot-pinned call          |
-| `useCloudVerified(cid)`   | The same, named by cloud id — a missing id is the relay                              |
-| `useVerifiedClouds()`     | Every cloud whose slot is verified — for work that spans all of them                 |
-| `useConnectivity()`       | What to tell the **user**: `online` · `reconnecting` · `offline`                     |
+| Hook                      | Answers                                                                     |
+| ------------------------- | --------------------------------------------------------------------------- |
+| `useRuntimeSocketState()` | The **active** slot's `{ state, isConnected, isVerified, connectionId }`    |
+| `useSlotVerified(key)`    | Is _this_ slot verified, whatever is active — for gating a slot-pinned call |
+| `useCloudVerified(cid)`   | The same, named by cloud id — a missing id is the relay                     |
+| `useVerifiedClouds()`     | Every cloud whose slot is verified — for work that spans all of them        |
+| `useConnectivity()`       | What to tell the **user**: `online` · `reconnecting` · `offline`            |
 
 `useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
 `deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime

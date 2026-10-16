@@ -110,12 +110,6 @@ const uidOfToken = (token: UserTokenView | null): string | null => {
 };
 
 /**
- * The relay user signed in on this device right now — the account, or the guest before a sign-in.
- * It is what a cached cloud token records as the account it was issued under (`issuedFor`).
- */
-export const getRelayUserId = (): string | null => uidOfToken(relayStore.getRelayToken());
-
-/**
  * The uid this account has in `cloudId` — the uid half of that cloud's cache partition — whether or
  * not the cloud is the committed one.
  *

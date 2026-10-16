@@ -74,11 +74,7 @@ off the store.
 token while `cid` is committed and the cache entry otherwise; `peekCachedCloudTokens(cid)` reads the
 cache with no expiry margin (the served read, `getCachedCloudTokens`, deletes what it refuses to
 serve, and a socket still signing with that token must not lose it); `dropCachedCloudTokens(cid)`
-forgets one cloud's entry and `clearCachedCloudTokens()` every cloud's. Each entry also records the
-relay user it was issued under (`issuedFor`), because the key does not: a sign-in changes the relay
-user and leaves the cache as it was. A write that names no `issuedFor` — a refresh writeback — keeps
-the one the entry had; what reads it is the owned-cloud reclaim
-([docs/auth/](../auth/README.md#an-owned-cloud-held-as-its-invitee)). The identity map —
+forgets one cloud's entry and `clearCachedCloudTokens()` every cloud's. The identity map —
 `getCloudIdentity` · `setCloudIdentity` · `getCloudIdentities` · `clearCloudIdentities` — records
 which uid this account has in each cloud and outlives the tokens. It is what a reader of another
 cloud's cache partition addresses that partition by. The recent-cloud order — `recordCloudUse` ·

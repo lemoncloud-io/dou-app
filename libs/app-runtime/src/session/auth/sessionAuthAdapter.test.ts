@@ -541,39 +541,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             });
         });
 
-        it('keeps whom the entry was issued for — a refresh renews the credential, not the user', async () => {
-            mockGetDelegationToken.mockReturnValue(delegationToken);
-            mockGetCloudToken.mockReturnValue({ id: 'u', Token: { identityToken: 'old' } });
-            mockPeekCachedCloudTokens.mockReturnValue({
-                delegationToken,
-                cloudToken: { id: 'u', Token: { identityToken: 'old' } },
-                issuedFor: 'owner-1',
-            });
-
-            await sessionAuthAdapter.commitRefreshedToken(CLOUD, view);
-
-            expect(mockSetCachedCloudTokens).toHaveBeenCalledWith(
-                CLOUD,
-                expect.objectContaining({ issuedFor: 'owner-1' })
-            );
-        });
-
-        it('a NON-committed cloud keeps whom its entry was issued for too', async () => {
-            mockGetDelegationToken.mockReturnValue({ ...delegationToken, cloudId: 'other-cloud' });
-            mockPeekCachedCloudTokens.mockReturnValue({
-                delegationToken: { ...delegationToken, cloudId: CLOUD },
-                cloudToken: { id: 'u', Token: { identityToken: 'old' } },
-                issuedFor: 'guest-1',
-            });
-
-            await sessionAuthAdapter.commitRefreshedToken(CLOUD, view);
-
-            expect(mockSetCachedCloudTokens).toHaveBeenCalledWith(
-                CLOUD,
-                expect.objectContaining({ issuedFor: 'guest-1' })
-            );
-        });
-
         it('records the uid the refreshed token names for that cloud', async () => {
             mockGetDelegationToken.mockReturnValue(delegationToken);
             mockGetCloudToken.mockReturnValue({ uid: 'uid-1', Token: { identityToken: 'old' } });

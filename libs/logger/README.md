@@ -254,7 +254,7 @@ See [docs/observations/](./docs/observations/README.md).
 | [docs/pipeline/](./docs/pipeline/README.md)         | Dispatch, the hub, and the listeners. What a listener must satisfy, wiring order, the three listeners per host            |
 | [docs/upload/](./docs/upload/README.md)             | The queue and the schedule. The two ceilings and the drop order, the store ports, backoff and give-up, **naming history** |
 | [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, the three output shapes, where an unmasked value can still escape        |
-| [docs/observations/](./docs/observations/README.md) | Structured entries. The `data.observation` discriminator, the eleven families, and the rules a producer follows           |
+| [docs/observations/](./docs/observations/README.md) | Structured entries. The `data.observation` discriminator, the ten families, and the rules a producer follows              |
 
 ## How to verify
 

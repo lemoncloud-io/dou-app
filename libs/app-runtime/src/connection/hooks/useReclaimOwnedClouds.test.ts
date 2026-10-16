@@ -8,17 +8,6 @@ let mockCommitListeners: Array<{ kinds: readonly string[]; listener: () => void 
 jest.mock('../../socket/auth/reclaimOwnedClouds', () => ({
     reclaimOwnedClouds: (...args: unknown[]) => mockReclaimOwnedClouds(...args),
 }));
-let mockBackgroundListeners: Array<() => void> = [];
-jest.mock('../../socket/backgroundClouds', () => ({
-    backgroundClouds: {
-        subscribe: (listener: () => void) => {
-            mockBackgroundListeners.push(listener);
-            return () => {
-                mockBackgroundListeners = mockBackgroundListeners.filter(l => l !== listener);
-            };
-        },
-    },
-}));
 jest.mock('../../session/store', () => ({
     sessionSignal: {
         subscribe: (kinds: readonly string[], listener: () => void) => {
@@ -38,7 +27,6 @@ describe('useReclaimOwnedClouds', () => {
     beforeEach(() => {
         jest.resetAllMocks();
         mockCommitListeners = [];
-        mockBackgroundListeners = [];
         mockReclaimOwnedClouds.mockResolvedValue([]);
     });
 
@@ -72,24 +60,6 @@ describe('useReclaimOwnedClouds', () => {
         expect(mockReclaimOwnedClouds).toHaveBeenCalledWith(['a', 'b']);
     });
 
-    it('runs again when the relay token changes — a sign-in that leaves the owned list as it was', () => {
-        renderHook(() => useReclaimOwnedClouds(['a']));
-        mockReclaimOwnedClouds.mockClear();
-
-        emit('relay:token');
-
-        expect(mockReclaimOwnedClouds).toHaveBeenCalledWith(['a']);
-    });
-
-    it("runs again when a cloud's cached tokens land — an issue answered after a sign-in announces nothing else", () => {
-        renderHook(() => useReclaimOwnedClouds(['a']));
-        mockReclaimOwnedClouds.mockClear();
-
-        mockBackgroundListeners.forEach(listener => listener());
-
-        expect(mockReclaimOwnedClouds).toHaveBeenCalledWith(['a']);
-    });
-
     it('ignores other session signals, and stops listening on unmount', () => {
         const { unmount } = renderHook(() => useReclaimOwnedClouds(['a']));
         mockReclaimOwnedClouds.mockClear();
@@ -97,8 +67,6 @@ describe('useReclaimOwnedClouds', () => {
         emit('selection');
         unmount();
         emit('cloud:token');
-        emit('relay:token');
-        mockBackgroundListeners.forEach(listener => listener());
 
         expect(mockReclaimOwnedClouds).not.toHaveBeenCalled();
     });

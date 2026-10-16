@@ -97,8 +97,6 @@ jest.mock('../store/stores', () => ({
     },
 }));
 
-const mockGetRelayUserId = jest.fn();
-
 jest.mock('../store', () => ({
     getCloudSessionSnapshot: (...args: unknown[]) => mockGetCloudSessionSnapshot(...args),
     getActiveServerContext: (...args: unknown[]) => mockGetActiveServerContext(...args),
@@ -108,7 +106,6 @@ jest.mock('../store', () => ({
     getSelectedSiteId: (...args: unknown[]) => mockGetSelectedSiteId(...args),
     clearRelaySession: (...args: unknown[]) => mockClearRelaySession(...args),
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
-    getRelayUserId: () => mockGetRelayUserId(),
     // The store announces KINDS now (ADR-0076 decision 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
@@ -302,22 +299,6 @@ describe('session/auth/cloudSession', () => {
         expect(mockSaveDelegationToken).toHaveBeenCalledWith(expect.objectContaining({ cloudId: 'cloud-new' }));
         expect(mockSaveCloudToken).toHaveBeenCalledWith(expect.objectContaining({ id: 'invitee' }));
         expect(mockSetCachedCloudTokens).toHaveBeenCalledWith('cloud-new', issuedTokens);
-    });
-
-    it('stamps the cached invite answer with the relay user that entered with it', async () => {
-        mockGetSelectedCloudId.mockReturnValue('cloud-old');
-        mockGetRelayUserId.mockReturnValue('guest-1');
-        const issuedTokens = {
-            delegationToken: { cloudId: 'cloud-new', wss: 'wss://cloud.example.com', delegationToken: '' },
-            cloudToken: { id: 'invitee', Token: { identityToken: 'invitee-token' } },
-        } as never;
-
-        await cloudSession.switchTo('cloud-new', { issuedTokens });
-
-        expect(mockSetCachedCloudTokens).toHaveBeenCalledWith(
-            'cloud-new',
-            expect.objectContaining({ issuedFor: 'guest-1' })
-        );
     });
 
     it('replaces, not merges, the token of the cloud already entered when issued tokens name another user', async () => {

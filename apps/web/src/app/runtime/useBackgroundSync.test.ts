@@ -52,16 +52,8 @@ const cachedInvites = (...states: string[]) => ({
     meta: { total: states.length, source: 'local' as const },
 });
 
-/**
- * The socket the hook sees. By default its active slot follows the session's cloud, as it does once a
- * switch has landed, so every case runs with the slot check live; a case about the moment between the
- * two pins the slot itself.
- */
-const socket: { isVerified: boolean; activeSlot?: string | null } = { isVerified: false };
-let sessionCid = 'default';
-const setVerified = (isVerified: boolean) => {
-    socket.isVerified = isVerified;
-};
+const setVerified = (isVerified: boolean) =>
+    (runtime.connection.useRuntimeSocketState as jest.Mock).mockReturnValue({ isVerified });
 // The latest registered foreground handler (useAppForeground keeps handlers fresh via ref).
 const fireForeground = async () => {
     const handler = (useAppForeground as jest.Mock).mock.calls.at(-1)?.[0];
@@ -71,7 +63,6 @@ const fireForeground = async () => {
 };
 const setSwitching = (switching: boolean) => (useIsMutating as jest.Mock).mockReturnValue(switching ? 1 : 0);
 const setSession = (cid: string, selectedSiteId: string | null, userId: string | null = 'u1') => {
-    sessionCid = cid;
     (runtime.session.useGlobalSession as jest.Mock).mockReturnValue({
         activeServer: cid === 'default' ? { kind: 'relay' } : { kind: 'cloud', cloudId: cid },
         // The uid half of the first-answer scope the sync marks (see useFirstSyncStore).
@@ -82,12 +73,6 @@ const setSession = (cid: string, selectedSiteId: string | null, userId: string |
 
 beforeEach(() => {
     jest.clearAllMocks();
-    socket.isVerified = false;
-    delete socket.activeSlot;
-    (runtime.connection.useRuntimeSocketState as jest.Mock).mockImplementation(() => ({
-        isVerified: socket.isVerified,
-        activeSlot: 'activeSlot' in socket ? socket.activeSlot : sessionCid,
-    }));
     useChannelSyncMarkStore.setState({ synced: {} });
     refreshList.mockResolvedValue(undefined);
     getSelfChannel.mockResolvedValue(undefined);
@@ -735,134 +720,5 @@ describe('useBackgroundSync — on request (pull-to-refresh)', () => {
 
         await expect(requestBackgroundRefresh()).resolves.toBeUndefined();
         expect(syncChannels).not.toHaveBeenCalled();
-    });
-});
-
-// Every joined cloud keeps a socket session in the background, so a switch usually lands on a slot
-// that is verified already: no rising edge, and the selected site is empty after a cloud switch.
-describe('useBackgroundSync — the socket coming to serve another cloud', () => {
-    const setSocket = (isVerified: boolean, activeSlot: string | null) => {
-        socket.isVerified = isVerified;
-        socket.activeSlot = activeSlot;
-    };
-    const flush = async (rerender: () => void) => {
-        await act(async () => {
-            rerender();
-        });
-    };
-
-    /** Mounted on a verified relay, with the mount's own sync already flushed and forgotten. */
-    const mountOnRelay = async () => {
-        setSession('default', 's1');
-        setSocket(true, 'default');
-        const view = renderHook(() => useBackgroundSync());
-        await act(async () => undefined);
-        jest.clearAllMocks();
-        return view;
-    };
-
-    it('asks once on mount, not again for the cloud the rising edge already asked for', async () => {
-        setSession('default', 's1');
-        setSocket(true, 'default');
-        const { rerender } = renderHook(() => useBackgroundSync());
-        await act(async () => undefined);
-        await flush(rerender);
-
-        expect(refreshList).toHaveBeenCalledTimes(1);
-    });
-
-    it('refreshes the lists once a switch onto an already-verified cloud slot settles', async () => {
-        const { rerender } = await mountOnRelay();
-
-        // Mid-switch: the cloud is committed and the pointer has moved, but the switch is in flight.
-        setSwitching(true);
-        setSession('cloud-a', null);
-        setSocket(true, 'cloud-a');
-        await flush(rerender);
-        expect(refreshList).not.toHaveBeenCalled();
-
-        setSwitching(false);
-        await flush(rerender);
-        expect(refreshList).toHaveBeenCalledTimes(1);
-        expect(syncChannels).toHaveBeenCalledTimes(1);
-
-        // Nothing new: the lists for this cloud were asked for already.
-        await flush(rerender);
-        expect(refreshList).toHaveBeenCalledTimes(1);
-    });
-
-    it('waits while the active slot still serves the outgoing cloud', async () => {
-        const { rerender } = await mountOnRelay();
-
-        // Settled and committed, but the pointer has not moved yet: the relay would answer, and its
-        // answer would be dropped as foreign.
-        setSession('cloud-a', null);
-        await flush(rerender);
-        expect(refreshList).not.toHaveBeenCalled();
-
-        setSocket(true, 'cloud-a');
-        await flush(rerender);
-        expect(refreshList).toHaveBeenCalledTimes(1);
-    });
-
-    it('asks once on a switch onto a cold slot — its rising edge already did', async () => {
-        const { rerender } = await mountOnRelay();
-
-        setSession('cloud-a', null);
-        setSocket(false, 'cloud-a');
-        await flush(rerender);
-        setSocket(true, 'cloud-a');
-        await flush(rerender);
-
-        expect(refreshList).toHaveBeenCalledTimes(1);
-        expect(syncChannels).toHaveBeenCalledTimes(1);
-    });
-
-    it('asks once on the way back to the relay, whose site returns a render before its slot', async () => {
-        setSession('cloud-a', null);
-        setSocket(true, 'cloud-a');
-        const { rerender } = renderHook(() => useBackgroundSync());
-        await act(async () => undefined);
-        jest.clearAllMocks();
-
-        // Leaving the cloud session (no switch mutation): the relay and its selected site come back
-        // first, while the active slot is still the cloud's.
-        setSession('default', 's1');
-        await flush(rerender);
-        expect(refreshList).not.toHaveBeenCalled();
-
-        // Then the pointer follows.
-        setSocket(true, 'default');
-        await flush(rerender);
-        await flush(rerender);
-
-        expect(refreshList).toHaveBeenCalledTimes(1);
-        expect(syncChannels).toHaveBeenCalledTimes(1);
-        // Back on the relay with its place selected, the self channel is loaded as on any entry.
-        expect(getSelfChannel).toHaveBeenCalledTimes(1);
-    });
-
-    it('asks again on coming back to a cloud, even when the cloud in between was never asked for', async () => {
-        const { rerender } = await mountOnRelay();
-        setSession('cloud-a', null);
-        setSocket(true, 'cloud-a');
-        await flush(rerender);
-        expect(refreshList).toHaveBeenCalledTimes(1);
-
-        // Off to cloud-b, and back before that switch ever settles: cloud-b is never asked for. As in
-        // the app, each time the session moves first and the pointer follows a render later.
-        setSwitching(true);
-        setSession('cloud-b', null);
-        await flush(rerender);
-        setSocket(true, 'cloud-b');
-        await flush(rerender);
-        setSession('cloud-a', null);
-        await flush(rerender);
-        setSocket(true, 'cloud-a');
-        await flush(rerender);
-        setSwitching(false);
-        await flush(rerender);
-
-        expect(refreshList).toHaveBeenCalledTimes(2);
     });
 });

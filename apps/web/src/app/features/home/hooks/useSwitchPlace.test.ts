@@ -3,7 +3,6 @@ import { useIsMutating } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
-import { logger } from '@chatic/logger';
 
 import { useSiteSwitch } from '../../../runtime/useSiteSwitch';
 import { useSwitchPlace } from './useSwitchPlace';
@@ -175,72 +174,5 @@ describe('useSwitchPlace — stale stored selection', () => {
         // re-runs the effect exactly as a mutation settling would.
         rerender({ places: [place('p1')], isPlacesLoading: false });
         expect(switchSiteMock).toHaveBeenCalledTimes(1);
-    });
-});
-
-// The auto-select fires and forgets. A rejection used to surface only as an anonymous unhandled
-// rejection, once per retry — the rollback empties the selection and the effect runs again.
-describe('useSwitchPlace — a rejected auto-select', () => {
-    const warn = () => (logger.warn as jest.Mock).mock.calls.filter(call => call[0] === 'PLACE');
-    const settle = () => new Promise(resolve => setTimeout(resolve, 0));
-
-    it('names the failure once per target place, however often the retry fails', async () => {
-        switchSiteMock.mockRejectedValue(new Error('403 invalid sign'));
-        setSession(null);
-        const { rerender } = renderHook(({ places }) => useSwitchPlace(places, false), {
-            initialProps: { places: [place('p1')] },
-        });
-        await settle();
-        // A fresh list reference re-runs the effect, as the rollback settling would.
-        rerender({ places: [place('p1')] });
-        await settle();
-
-        expect(switchSiteMock).toHaveBeenCalledTimes(2);
-        expect(warn()).toEqual([
-            ['PLACE', '[useSwitchPlace] auto-select failed', { error: expect.any(Error), data: { to: 'p1' } }],
-        ]);
-    });
-
-    it('names a failure again once a switch to that place has landed in between', async () => {
-        switchSiteMock.mockRejectedValueOnce(new Error('first')).mockResolvedValueOnce(undefined);
-        switchSiteMock.mockRejectedValueOnce(new Error('again'));
-        setSession(null);
-        const { rerender } = renderHook(({ places }) => useSwitchPlace(places, false), {
-            initialProps: { places: [place('p1')] },
-        });
-        await settle();
-        rerender({ places: [place('p1')] });
-        await settle();
-        rerender({ places: [place('p1')] });
-        await settle();
-
-        expect(warn()).toHaveLength(2);
-    });
-
-    it('names a failure again after an auto-select to another place has landed', async () => {
-        switchSiteMock
-            .mockRejectedValueOnce(new Error('first'))
-            .mockResolvedValueOnce(undefined)
-            .mockRejectedValueOnce(new Error('again'));
-        setSession(null);
-        const { rerender } = renderHook(({ places }) => useSwitchPlace(places, false), {
-            initialProps: { places: [place('p1')] },
-        });
-        await settle();
-        rerender({ places: [place('p2')] });
-        await settle();
-        rerender({ places: [place('p1')] });
-        await settle();
-
-        expect(warn().map(call => call[2].data)).toEqual([{ to: 'p1' }, { to: 'p1' }]);
-    });
-
-    it('stays silent when the auto-select lands', async () => {
-        setSession(null);
-        renderHook(() => useSwitchPlace([place('p1')], false));
-        await settle();
-
-        expect(switchSiteMock).toHaveBeenCalledWith('p1');
-        expect(warn()).toEqual([]);
     });
 });

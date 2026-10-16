@@ -17,7 +17,6 @@ const mockClearSelectedSite = jest.fn();
 const mockSetCloudIdentity = jest.fn();
 
 const mockRebuildSessionIdentity = jest.fn();
-const mockGetRelayUserId = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
 /** Counts `sessionSignal.batch` — a re-issue must be one observable change. */
 const mockBatch = jest.fn();
@@ -48,7 +47,6 @@ jest.mock('../store/stores', () => ({
 
 jest.mock('../store', () => ({
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
-    getRelayUserId: () => mockGetRelayUserId(),
     // The store announces KINDS now (ADR-0076 decision 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
@@ -98,31 +96,6 @@ describe('issueCloudTokens', () => {
         expect(mockDelegateCloud).toHaveBeenCalledTimes(1);
         expect(mockExchangeToken).toHaveBeenCalledTimes(1);
         expect(b).toBe(a);
-    });
-
-    it('does not join an exchange started for another relay user, and keeps the later one in the cache', async () => {
-        mockGetCachedCloudTokens.mockReturnValue(null);
-        mockGetRelayUserId.mockReturnValue('guest-1');
-        let answerGuest: (value: unknown) => void = () => undefined;
-        mockDelegateCloud.mockImplementationOnce(() => new Promise(resolve => (answerGuest = resolve)));
-        const guestIssue = issueCloudTokens('cloud-1', { allowCache: false });
-
-        // The owner signs in while the guest's exchange is still in flight, and asks again.
-        mockGetRelayUserId.mockReturnValue('owner-1');
-        mockDelegateCloud.mockResolvedValueOnce(delegation());
-        mockExchangeToken.mockResolvedValueOnce(cloudToken('owner-identity', 'owner-1'));
-        await issueCloudTokens('cloud-1', { allowCache: false });
-        // The guest's answer lands last.
-        mockExchangeToken.mockResolvedValueOnce(cloudToken('guest-identity', 'invitee-1'));
-        answerGuest(delegation());
-        await guestIssue;
-
-        expect(mockDelegateCloud).toHaveBeenCalledTimes(2);
-        expect(mockSetCachedCloudTokens).toHaveBeenCalledTimes(1);
-        expect(mockSetCachedCloudTokens).toHaveBeenCalledWith(
-            'cloud-1',
-            expect.objectContaining({ issuedFor: 'owner-1', cloudToken: cloudToken('owner-identity', 'owner-1') })
-        );
     });
 
     it('runs exchanges for different clouds side by side', async () => {
@@ -184,23 +157,6 @@ describe('issueCloudTokens', () => {
             delegationToken: delegation(),
             cloudToken: cloudToken('fresh-identity'),
         });
-    });
-
-    it('stamps the entry with the relay user the issue started under, even if a sign-in lands mid-way', async () => {
-        mockGetCachedCloudTokens.mockReturnValue(null);
-        mockGetRelayUserId.mockReturnValue('guest-1');
-        // The sign-in commits while `delegate-cloud` is still in flight.
-        mockDelegateCloud.mockImplementation(async () => {
-            mockGetRelayUserId.mockReturnValue('owner-1');
-            return delegation();
-        });
-
-        await issueCloudTokens('cloud-1', { allowCache: true });
-
-        expect(mockSetCachedCloudTokens).toHaveBeenCalledWith(
-            'cloud-1',
-            expect.objectContaining({ issuedFor: 'guest-1' })
-        );
     });
 
     it('records the uid the fresh token names for that cloud — the identity outlives the token', async () => {
@@ -283,38 +239,6 @@ describe('reissueCloudTokens', () => {
         expect(mockSaveCloudToken).toHaveBeenCalledWith({ Token: { identityToken: 'fresh-identity' } });
         expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
         expect(mockSaveSelectedCloudId).not.toHaveBeenCalled();
-    });
-
-    it('replaces, not merges, a committed entry that names another user, even with no invite entry left', async () => {
-        // The guest had its invite entry re-issued (a real JWT) before the owner signed in: only the
-        // uid each token names still tells the two users apart.
-        mockGetDelegationToken.mockReturnValue(delegation());
-        mockGetCloudToken.mockReturnValue({
-            uid: 'invitee-1',
-            Token: { identityToken: 'invitee-identity' },
-            $user: { id: 'invitee-1', userRole: 'user' },
-        } as unknown as UserTokenView);
-        mockExchangeToken.mockResolvedValue(cloudToken('owner-identity', 'owner-1'));
-
-        await reissueCloudTokens('cloud-1');
-
-        expect(mockSaveCloudToken).toHaveBeenCalledWith(cloudToken('owner-identity', 'owner-1'));
-        expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
-    });
-
-    it('merges a renewal that names the same user, and keeps the selected place', async () => {
-        mockGetDelegationToken.mockReturnValue(delegation());
-        mockGetCloudToken.mockReturnValue({
-            uid: 'owner-1',
-            Token: { identityToken: 'old-identity' },
-            name: 'kept-name',
-        } as unknown as UserTokenView);
-        mockExchangeToken.mockResolvedValue(cloudToken('fresh-identity', 'owner-1'));
-
-        await reissueCloudTokens('cloud-1');
-
-        expect(mockSaveCloudToken).toHaveBeenCalledWith(expect.objectContaining({ name: 'kept-name' }));
-        expect(mockClearSelectedSite).not.toHaveBeenCalled();
     });
 
     it('선택 상태(cid·sid·place order)는 건드리지 않는다 — 사용자는 아무 데도 이동하지 않았다', async () => {

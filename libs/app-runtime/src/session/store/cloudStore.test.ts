@@ -34,9 +34,6 @@ const tokens = (identityToken: string, expiresInMs = 60 * 60_000) =>
         cloudToken: { Token: { identityToken, credential: { Expiration: inMs(expiresInMs) } } },
     }) as never;
 
-/** A `tokens()` entry stamped with the relay user it was issued for. */
-const issuedFor = (entry: unknown, user: string) => ({ ...(entry as object), issuedFor: user }) as never;
-
 beforeEach(() => {
     mockCells.clear();
     mockSets.length = 0;
@@ -73,31 +70,6 @@ describe('cloudStore — the token cache, peeked vs. served', () => {
         cloudStore.dropCachedCloudTokens('cloud-1');
 
         expect(cloudStore.peekCachedCloudTokens('cloud-2')).not.toBeNull();
-    });
-});
-
-describe('cloudStore — whom a cached entry was issued for', () => {
-    it('writes an entry exactly as given — a write that names no issuedFor leaves none', () => {
-        cloudStore.setCachedCloudTokens('c1', issuedFor(tokens('first'), 'guest-1'));
-
-        cloudStore.setCachedCloudTokens('c1', tokens('unknown-user'));
-
-        // Inheriting the previous stamp would let a new user's entry read as the previous user's.
-        expect(cloudStore.peekCachedCloudTokens('c1')).not.toHaveProperty('issuedFor');
-    });
-
-    it('replaces issuedFor when a new issue names another user', () => {
-        cloudStore.setCachedCloudTokens('c1', issuedFor(tokens('invitee'), 'guest-1'));
-
-        cloudStore.setCachedCloudTokens('c1', issuedFor(tokens('owner'), 'owner-1'));
-
-        expect(cloudStore.peekCachedCloudTokens('c1')?.issuedFor).toBe('owner-1');
-    });
-
-    it('leaves an entry that never had one without one', () => {
-        cloudStore.setCachedCloudTokens('c1', tokens('legacy'));
-
-        expect(cloudStore.peekCachedCloudTokens('c1')).not.toHaveProperty('issuedFor');
     });
 });
 

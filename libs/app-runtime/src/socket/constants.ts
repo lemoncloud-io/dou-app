@@ -56,5 +56,4 @@ export const INITIAL_SOCKET_STATE: SocketState = Object.freeze({
     isConnected: false,
     isVerified: false,
     connectionId: null,
-    activeSlot: null,
 });

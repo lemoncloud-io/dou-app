@@ -1,7 +1,6 @@
 import { PlaceLocalDataSource } from '../local/data-sources/PlaceLocalDataSource';
 import { createPartitionedMemoryStorage } from '../local/data-sources/__mocks__/MemoryCacheStorage';
 import { PlaceRepository } from './PlaceRepository';
-import { placeListEmptyReporter } from './placeListEmptyReporter';
 import { createRepositories } from './index';
 import { ChannelRepository } from './ChannelRepository';
 import { DataContextHolder } from './types';
@@ -454,87 +453,6 @@ describe('PlaceRepository', () => {
         // Right after a switch the session may answer empty; writing or pruning would wipe real rows.
         expect(placeLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
         expect(placeLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
-    });
-
-    describe('the record of a cloud with no place', () => {
-        const info = logger.info as jest.Mock;
-        const emptyEntries = () =>
-            info.mock.calls.map(call => call[2]).filter(data => data?.observation === 'place-list-empty');
-
-        beforeEach(() => {
-            placeListEmptyReporter.reset();
-            info.mockClear();
-        });
-
-        it('records a full list answering empty twice in a row, then that a place arrived', async () => {
-            const { repository, placeSocketDataSource } = createRepository();
-            placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [] });
-
-            await repository.refreshList();
-            await repository.refreshList();
-            placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [{ id: 'place-1', name: 'A' }] });
-            await repository.refreshList();
-
-            expect(emptyEntries()).toEqual([
-                { observation: 'place-list-empty', cid: 'cloud-a', deletedRows: 0, emptyAnswers: 2 },
-                { observation: 'place-list-empty', cid: 'cloud-a', afterEmptyAnswers: 2 },
-            ]);
-        });
-
-        it('counts a list whose every place was deleted as empty', async () => {
-            const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
-            placeSocketDataSource.fetchPlace.mockResolvedValue({
-                list: [
-                    { id: 'place-1', deletedAt: 1 },
-                    { id: 'place-2', deletedAt: 2 },
-                ],
-            });
-            placeLocalDataSource.cacheReadList.mockResolvedValue({ list: [] });
-
-            await repository.refreshList();
-            await repository.refreshList();
-
-            expect(emptyEntries()).toEqual([
-                { observation: 'place-list-empty', cid: 'cloud-a', deletedRows: 2, emptyAnswers: 2 },
-            ]);
-        });
-
-        it('says nothing about the relay, whose one place does not come from this list', async () => {
-            const placeSocketDataSource = { fetchPlace: jest.fn().mockResolvedValue({ list: [] }) };
-            const repository = new PlaceRepository(
-                placeSocketDataSource as any,
-                { cacheWriteMany: jest.fn(), cacheReadList: jest.fn() } as any,
-                { getContext: () => ({ cid: 'default', uid: 'guest' }), setContext: () => undefined },
-                noChannelCleanup()
-            );
-
-            await repository.refreshList();
-            await repository.refreshList();
-
-            expect(emptyEntries()).toEqual([]);
-        });
-
-        it('says nothing about a filtered answer, which proves nothing about the places it leaves out', async () => {
-            const { repository, placeSocketDataSource } = createRepository();
-            placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [] });
-
-            await repository.refreshList({});
-            await repository.refreshList({});
-
-            expect(emptyEntries()).toEqual([]);
-        });
-
-        it('says nothing when the snapshot after a create has not listed the new place yet', async () => {
-            const { repository, placeSocketDataSource, placeLocalDataSource } = createRepository();
-            placeSocketDataSource.createPlace.mockResolvedValue({ id: 'place-3', name: 'Created' });
-            placeSocketDataSource.fetchPlace.mockResolvedValue({ list: [] });
-            placeLocalDataSource.cacheReadList.mockResolvedValue({ list: [] });
-
-            await repository.createPlace({ name: 'Created' } as any);
-            await repository.createPlace({ name: 'Created' } as any);
-
-            expect(emptyEntries()).toEqual([]);
-        });
     });
 
     it('skips the snapshot entirely while the socket still serves another cloud', async () => {
