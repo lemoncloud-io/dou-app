@@ -9,7 +9,6 @@ import type {
     PlaceUpdateInput,
 } from '../remote/socket-data-sources';
 import type { IChannelRepository } from './ChannelRepository';
-import { placeListEmptyReporter, type PlaceListScope } from './placeListEmptyReporter';
 import { isNotFoundError } from './socketError';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
@@ -122,29 +121,16 @@ export class PlaceRepository extends BaseRepository implements IPlaceRepository 
         const normalizedContext = this.getNormalizedContext(requestContext);
         const remote = await this.placeSocketDataSource.fetchPlace(query, normalizedContext);
         const listed = (remote.list || []).filter(item => !!item.id);
-        // Only a full snapshot of a CLOUD says whether the account has a place there. The relay's one
-        // place comes from the profile's embedded site, not from this list, which a guest relay
-        // session answers empty on every boot. The snapshot a create follows up with is skipped
-        // when empty too: the place it just made may not be listed yet, and that is the list
-        // lagging, not the account having no place.
-        const scope: PlaceListScope = { cid: normalizedContext.cid ?? 'default', uid: normalizedContext.uid };
-        const isFullSnapshot = query == null && scope.cid !== 'default';
-        const reportsEmpty = isFullSnapshot && protectedId == null;
         // Nothing usable came back — leave the cache entirely alone. Right after a switch the
         // session may not be ready and answer empty; writing or pruning against that would wipe
         // the real rows. A genuinely empty account settles on a later response.
-        if (listed.length === 0) {
-            if (reportsEmpty) placeListEmptyReporter.empty(scope, 0);
-            return;
-        }
+        if (listed.length === 0) return;
         // A deleted place stays in the list, stamped `deletedAt`. It is not written, and, being
         // absent from the ids below, its cached row is pruned. Server order is stamped as `order`
         // over the live rows only.
         const domainList = listed
             .filter(item => !isDeletedPlace(item))
             .map((item, index) => ({ ...item, order: index }));
-        if (isFullSnapshot && domainList.length > 0) placeListEmptyReporter.filled(scope);
-        else if (reportsEmpty && domainList.length === 0) placeListEmptyReporter.empty(scope, listed.length);
         if (domainList.length > 0) await this.placeLocalDataSource.cacheWriteMany(domainList, requestContext);
 
         // The server snapshot is authoritative for this scope: prune cached rows it no longer

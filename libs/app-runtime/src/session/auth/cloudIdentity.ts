@@ -8,7 +8,7 @@ import { cloudStore } from '../store/stores';
  * The uid a cloud token identifies — the same derivation `buildIdentityContext` uses for the active
  * token, so the identity recorded per cloud is the one the cache partitions under.
  */
-export const uidOfCloudToken = (token: UserTokenView): string | null => {
+const uidOf = (token: UserTokenView): string | null => {
     const view = token as { uid?: string; id?: string };
     return view.uid ?? view.id ?? null;
 };
@@ -23,7 +23,7 @@ export const uidOfCloudToken = (token: UserTokenView): string | null => {
  * under the socket layer, and pulling the data runtime in through it would close a cycle.
  */
 export const recordCloudIdentity = (cloudId: string, cloudToken: UserTokenView): void => {
-    const uid = uidOfCloudToken(cloudToken);
+    const uid = uidOf(cloudToken);
     if (!uid) {
         logger.warn('SESSION', '[cloudIdentity] cloud token carries no uid — identity not recorded', {
             data: { cloudId },
