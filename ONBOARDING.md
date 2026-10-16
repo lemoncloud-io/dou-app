@@ -5,6 +5,28 @@ release/signing credentials most local dev never touches. Prerequisites (Node, Y
 Android Studio, CocoaPods, Ruby) and install steps are in [README.md](./README.md#getting-started);
 this file starts where that leaves off.
 
+## First run
+
+```bash
+yarn local
+```
+
+It starts the web inside the virtual mobile shell — the app as a phone shows it, in one browser tab,
+with no simulator or mobile toolchain — and serves it at `http://localhost:5007/__shell/` (prod, on request: `:5017`); open that
+in your browser once both servers say they are ready. Before it starts anything it checks what it
+needs and, if something is missing, names it and how to get it, then stops.
+
+Beyond `apps/web/.env` (copied from its template below) it needs two files that have no template,
+because they carry real endpoints — ask a teammate for them:
+
+- `apps/web/.env.dev` — the web's dev backend (`apps/web/.env.prod` for `yarn local --env prod`);
+- `apps/mobile/.env.dev` — for the Google sign-in client, `VITE_GOOGLE_WEB_CLIENT_ID`
+  (`apps/mobile/.env.prod` for `--env prod`).
+
+The other ways to run — the web alone, the simulator — are `yarn local --mode web` and
+`yarn local --mode native` (`--platform android` for the emulator); see
+[apps/virtual-shell/README.md](./apps/virtual-shell/README.md).
+
 ## Required for local dev
 
 Copy the example environment files and fill in your values:

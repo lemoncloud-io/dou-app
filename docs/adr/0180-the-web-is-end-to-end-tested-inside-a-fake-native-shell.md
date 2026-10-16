@@ -1,6 +1,8 @@
 # ADR-0180: The web is end-to-end tested inside a fake native shell
 
 > Status: Accepted · Decided: 2026-10-08 · Implemented: `feat/web-e2e-fake-native-shell`
+> · Updated: 2026-10-16 — the fake shell's core moved to `libs/fake-shell`, shared with the virtual shell
+> ([ADR-0208](./0208-local-runs-default-to-a-virtual-mobile-shell.md)); decision unchanged
 > · Scope: `apps/web-e2e` (new), `.github/workflows/verify.yml` (`e2e` job)
 > · The module doc is [apps/web-e2e/README.md](../../apps/web-e2e/README.md)
 

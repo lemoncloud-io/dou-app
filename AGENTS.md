@@ -1,6 +1,6 @@
 # Chatic
 
-Nx monorepo: `apps/` (9), `libs/` (16).
+Nx monorepo: `apps/` (10), `libs/` (18).
 
 ## Language
 
@@ -29,16 +29,17 @@ it is in English. Names written before this was settled are left alone; new ones
 - Build, run, test, lint, deploy commands: [`README.md`](./README.md).
 - The work here runs in an order: agree what is being built, implement it, review it, then commit
   and open the PR. § Working order says what that means in this repo.
-- Five procedures live in `docs/config/skills/`. **Open the one that applies and follow it** — they
+- Six procedures live in `docs/config/skills/`. **Open the one that applies and follow it** — they
   are not background reading, and they are not summarised here:
 
-    | Procedure                                                              | Open it when                                                        |
-    | ---------------------------------------------------------------------- | ------------------------------------------------------------------- |
-    | [`dou-implement`](./docs/config/skills/dou-implement/SKILL.md)         | writing code with its comments, tests and verification              |
-    | [`dou-device-verify`](./docs/config/skills/dou-device-verify/SKILL.md) | checking a change on the iOS simulator or Android emulator (opt-in) |
-    | [`dou-review`](./docs/config/skills/dou-review/SKILL.md)               | a change is finished and not yet committed                          |
-    | [`dou-commit`](./docs/config/skills/dou-commit/SKILL.md)               | writing a commit message                                            |
-    | [`dou-pr`](./docs/config/skills/dou-pr/SKILL.md)                       | opening a pull request                                              |
+    | Procedure                                                              | Open it when                                                                   |
+    | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+    | [`dou-implement`](./docs/config/skills/dou-implement/SKILL.md)         | writing code with its comments, tests and verification                         |
+    | [`dou-shell-verify`](./docs/config/skills/dou-shell-verify/SKILL.md)   | checking a web change as it runs inside the app, without a simulator (default) |
+    | [`dou-device-verify`](./docs/config/skills/dou-device-verify/SKILL.md) | checking a change on the iOS simulator or Android emulator (opt-in)            |
+    | [`dou-review`](./docs/config/skills/dou-review/SKILL.md)               | a change is finished and not yet committed                                     |
+    | [`dou-commit`](./docs/config/skills/dou-commit/SKILL.md)               | writing a commit message                                                       |
+    | [`dou-pr`](./docs/config/skills/dou-pr/SKILL.md)                       | opening a pull request                                                         |
 
 ## Module docs
 
