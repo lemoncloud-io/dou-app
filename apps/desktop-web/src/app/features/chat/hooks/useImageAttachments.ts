@@ -20,7 +20,7 @@ export interface ComposerAttachment extends ChatImage {
     /** `attachmentKey` of the file — what the duplicate check compares. */
     key: string;
     file: File;
-    /** An image previews from `url`; a video or document has no preview (`url` is empty) and shows its name. */
+    /** An image's tile draws `url`; a video's or document's tile shows its name, and `url` opens it in the preview when the preview can draw it. */
     kind: ChatUploadKind;
     size: number;
 }
@@ -32,7 +32,7 @@ const REASONS = ['limit', 'duplicate', 'unsupported', 'too-large', 'name-too-lon
 /**
  * The composer's attachment tray: add (pick / drop / paste), remove, clear.
  *
- * Each image gets an object URL for its preview; a video or document shows its name instead. The upload itself starts only at send,
+ * Each file gets an object URL: an image's tile draws it, and the preview opens an image, a video, a PDF or a text file from it. The upload itself starts only at send,
  * on the message's own row. URLs are revoked on remove, on clear (the send clears the
  * tray; the sent row keeps its own previews), when `scopeKey` changes (another channel
  * or thread) and on unmount.
@@ -54,7 +54,7 @@ export const useImageAttachments = (scopeKey: string) => {
     }, []);
 
     const clear = useCallback(() => {
-        current.current.forEach(attachment => attachment.url && URL.revokeObjectURL(attachment.url));
+        current.current.forEach(attachment => URL.revokeObjectURL(attachment.url));
         commit([]);
     }, [commit]);
 
@@ -75,7 +75,7 @@ export const useImageAttachments = (scopeKey: string) => {
                     id: `attachment-${++nextId}`,
                     key: attachmentKey(file),
                     name: file.name,
-                    url: kind === 'image' ? URL.createObjectURL(file) : '',
+                    url: URL.createObjectURL(file),
                     file,
                     kind,
                     size: file.size,
@@ -89,7 +89,7 @@ export const useImageAttachments = (scopeKey: string) => {
     const remove = useCallback(
         (id: string) => {
             const target = current.current.find(attachment => attachment.id === id);
-            if (target?.url) URL.revokeObjectURL(target.url);
+            if (target) URL.revokeObjectURL(target.url);
             commit(current.current.filter(attachment => attachment.id !== id));
         },
         [commit]

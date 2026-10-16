@@ -29,10 +29,12 @@ describe('useImageAttachments', () => {
         });
     });
 
-    // A document has no picture, so it gets no object URL to leak; its tile shows its name.
-    it('keeps a document as a file with no preview', () => {
+    // The tray's preview opens a document from its object URL, so it gets one too, and gives it back on remove.
+    it('gives a document an object URL and revokes it on remove', () => {
         const { result } = renderHook(() => useImageAttachments('C1'));
         act(() => result.current.addFiles([file('a.pdf', 'application/pdf')]));
-        expect(result.current.attachments[0]).toMatchObject({ name: 'a.pdf', kind: 'file', url: '' });
+        expect(result.current.attachments[0]).toMatchObject({ name: 'a.pdf', kind: 'file', url: 'blob:x' });
+        act(() => result.current.remove(result.current.attachments[0].id));
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:x');
     });
 });

@@ -7,6 +7,7 @@ import { cn } from '@chatic/lib/utils';
 
 import type { ComposerAttachment } from '../../hooks';
 import { MAX_ATTACHMENTS, formatFileSize } from '../../utils';
+import { ComposerPreview, canPreviewAttachment } from './ComposerPreview';
 import { ImageSpinner } from './ImageSpinner';
 import { Hint, hoverReveal } from '../../../../shared';
 
@@ -21,7 +22,8 @@ interface ComposerAttachmentsProps {
  * The tray of picked files inside the composer (Figma "Image"): 92px tiles in one row
  * that scrolls sideways, a spinner until an image's preview has decoded, a video or
  * document named on its tile with its size, the remove "×" on hover
- * or focus ("delete button on hover"), and how many of the ten are used.
+ * or focus ("delete button on hover"), and how many of the ten are used. A tile opens
+ * its file at full size before it is sent, where `canPreviewAttachment` says it can.
  *
  * The row used to wrap, so ten images took about 40% of the window and pushed the
  * conversation out of view while you wrote the message that goes with them.
@@ -42,6 +44,9 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
     // `new Image()` in the hook, for a flag only this spinner reads.
     const [decoded, setDecoded] = useState<ReadonlySet<string>>(() => new Set());
     const markDecoded = (id: string) => setDecoded(current => (current.has(id) ? current : new Set(current).add(id)));
+    // Looked up by id, so removing the previewed file closes its preview with it.
+    const [previewId, setPreviewId] = useState<string | null>(null);
+    const previewing = attachments.find(attachment => attachment.id === previewId);
 
     useEffect(() => {
         const added = attachments.length - previousCount.current;
@@ -81,13 +86,25 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
                             const isImage = !attachment.kind || attachment.kind === 'image';
                             const isDecoding = isImage && !decoded.has(attachment.id);
                             const KindIcon = attachment.kind === 'video' ? Film : FileText;
+                            const canOpen = canPreviewAttachment(attachment);
+                            const Tile = canOpen ? 'button' : 'div';
                             return (
                                 <li
                                     key={attachment.id}
                                     aria-busy={isDecoding || undefined}
                                     className="group/att relative h-[92px] w-[92px] shrink-0"
                                 >
-                                    <div className="h-full w-full overflow-hidden rounded-2xl border border-hairline bg-muted">
+                                    <Tile
+                                        {...(canOpen && {
+                                            type: 'button' as const,
+                                            onClick: () => setPreviewId(attachment.id),
+                                            'aria-label': t('chat.file.open', { name: attachment.name }),
+                                        })}
+                                        className={cn(
+                                            'block h-full w-full overflow-hidden rounded-2xl border border-hairline bg-muted text-left',
+                                            canOpen && 'focus-ring cursor-zoom-in'
+                                        )}
+                                    >
                                         {!isImage && (
                                             <div className="flex h-full w-full flex-col justify-between p-2.5">
                                                 <KindIcon size={20} aria-hidden className="text-muted-foreground" />
@@ -117,7 +134,7 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
                                                 <ImageSpinner className="h-5 w-5 border-2" />
                                             </span>
                                         )}
-                                    </div>
+                                    </Tile>
                                     <Hint label={t('chat.attach.remove', { name: attachment.name })}>
                                         <button
                                             type="button"
@@ -146,6 +163,7 @@ export const ComposerAttachments = ({ attachments, onRemove, onEmptied }: Compos
                     </span>
                 </div>
             )}
+            {previewing && <ComposerPreview attachment={previewing} onClose={() => setPreviewId(null)} />}
         </>
     );
 };

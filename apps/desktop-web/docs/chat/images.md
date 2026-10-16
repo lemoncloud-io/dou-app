@@ -56,8 +56,16 @@ a mixed drop never said what else it left out.
 `ComposerAttachments` is one row of 92px tiles that scrolls sideways, with an `n/10` counter. The
 row used to wrap, and ten images took about 40% of the window. An image's preview shows a spinner
 until its `<img>` has decoded; the tray tracks that itself rather than decoding each file a second
-time. A video or document has no preview and no object URL: its tile shows a kind icon, its name and
-its size.
+time. A video's or document's tile shows a kind icon, its name and its size.
+
+Every picked file gets an object URL, revoked on remove, on clear and when the channel or thread
+changes. Clicking a tile opens the file at full size before it is sent (`ComposerPreview`), since the
+tile is only a 92px crop or a name: an image or a video in the image viewer's frame with the picture
+(held to the same upscale cap) or a player alone, and a PDF or text file in the feed's `FileViewer`, read from the file the page
+already holds instead of fetched. Neither has a sender, a save or a copy — there is no message yet —
+and both say the file is not sent. A document the viewer cannot draw (office, Hancom, ZIP) is a
+plain tile. A video the browser cannot decode (HEVC `.mov`) shows an empty player, as it does in the
+feed. Removing the previewed file closes its preview.
 
 The remove "×" sits on each tile's top-right corner. It surfaces on hover or focus (see
 [keyboard.md](./keyboard.md#hover-revealed-controls)). Removing a tile moves focus to the tile that
@@ -154,6 +162,10 @@ header with the sender, the time and the file name, a save button and a close bu
 decides which cards open it. Only PDF and TXT do: nothing in the page draws a DOCX, XLSX, PPTX or
 Hancom file without handing it, and its signed address, to a third party, so those stay save cards.
 A video already plays in place.
+
+A PDF or text file still in the composer opens here too, before it is sent (see
+[The tray](#the-tray)): the header names the file and says it is not sent, there is no save, and
+the bytes are read from the picked file instead of fetched.
 
 - **The bytes** are fetched when the viewer opens, the same way a save fetches them
   (`fetchFileBytes`: `https:` only, no cookies, past the HTTP cache). Closing mid-download aborts the

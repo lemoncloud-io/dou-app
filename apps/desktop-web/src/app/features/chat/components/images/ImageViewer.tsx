@@ -282,7 +282,7 @@ export const ImageViewer = ({
 };
 
 /** Caps the picture at `MAX_UPSCALE` times its own size; until it has loaded, no cap. */
-const fitStyle = (natural: { width: number; height: number } | null): CSSProperties | undefined =>
+export const fitStyle = (natural: { width: number; height: number } | null): CSSProperties | undefined =>
     natural ? { maxWidth: natural.width * MAX_UPSCALE, maxHeight: natural.height * MAX_UPSCALE } : undefined;
 
 interface ImageSetMetaProps {
