@@ -15,10 +15,13 @@ import { Hint } from '../../../../shared';
 interface FileViewerProps {
     /** A file `canPreview` opens. */
     file: ChatFile;
-    author: ImageAuthor;
+    /** The message's sender and time. Absent for a file still in the composer, not sent yet. */
+    author?: ImageAuthor;
     onClose: () => void;
-    /** The card's own save: the whole file, under its name. */
-    onSave: () => void;
+    /** The card's own save: the whole file, under its name. Absent where there is nothing to save to. */
+    onSave?: () => void;
+    /** The file's bytes, when the page already holds them (a file still in the composer). Read instead of fetching `file.url`. */
+    local?: Blob;
 }
 
 const ICON_BUTTON =
@@ -31,11 +34,14 @@ type Body =
     | { state: 'pdf'; doc: PdfDocument };
 
 /**
- * A sent document, read in the app: the sender, time and name above it, with save and close. The
+ * A document, read in the app: the sender, time and name above it, with save and close. The
  * bytes are fetched when it opens and dropped when it closes; closing mid-download stops the fetch.
  * A fetch that fails — an address past its signature, say — says so and still offers the save.
+ *
+ * A file still in the composer opens here too, before it is sent: its bytes are already in the
+ * page, so nothing is fetched, and the header says it is not sent instead of naming a sender.
  */
-export const FileViewer = ({ file, author, onClose, onSave }: FileViewerProps) => {
+export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerProps) => {
     const { t } = useTranslation();
     const name = file.name ?? t('chat.attach.previewFile');
     const [body, setBody] = useState<Body>({ state: 'loading' });
@@ -49,11 +55,11 @@ export const FileViewer = ({ file, author, onClose, onSave }: FileViewerProps) =
         let doc: PdfDocument | undefined;
         const open = async (): Promise<Body> => {
             if (preview !== 'pdf') {
-                const start = await fetchFileBytes(file.url, controller.signal, TEXT_PREVIEW_MAX_BYTES);
+                const start = local ?? (await fetchFileBytes(file.url, controller.signal, TEXT_PREVIEW_MAX_BYTES));
                 return { state: 'text', ...(await readTextPreview(start, file.size)) };
             }
             preloadPdf();
-            const blob = await fetchFileBytes(file.url, controller.signal);
+            const blob = local ?? (await fetchFileBytes(file.url, controller.signal));
             doc = await loadPdf(blob);
             return { state: 'pdf', doc };
         };
@@ -64,9 +70,9 @@ export const FileViewer = ({ file, author, onClose, onSave }: FileViewerProps) =
             controller.abort();
             doc?.destroy();
         };
-    }, [file.url, file.size, preview]);
+    }, [file.url, file.size, preview, local]);
 
-    const saveButton = (
+    const saveButton = onSave && (
         <Hint label={t('chat.file.save', { name })}>
             <button type="button" onClick={onSave} aria-label={t('chat.file.save', { name })} className={ICON_BUTTON}>
                 <Download size={20} aria-hidden />
@@ -92,15 +98,24 @@ export const FileViewer = ({ file, author, onClose, onSave }: FileViewerProps) =
                 <DialogTitle className="sr-only">{name}</DialogTitle>
                 <DialogDescription className="sr-only">{t('chat.file.viewer')}</DialogDescription>
                 <header className="flex h-[68px] shrink-0 items-center gap-3 border-b border-hairline px-6">
-                    <AuthorAvatar author={author} />
-                    <div className="flex min-w-0 flex-1 flex-col">
-                        <span className="truncate text-lead font-bold text-foreground">{author.name}</span>
-                        <span className="flex min-w-0 gap-1.5 text-caption font-medium text-description">
-                            <span className="shrink-0">{author.time}</span>
-                            <span aria-hidden>·</span>
-                            <span className="truncate">{name}</span>
-                        </span>
-                    </div>
+                    {author ? (
+                        <>
+                            <AuthorAvatar author={author} />
+                            <div className="flex min-w-0 flex-1 flex-col">
+                                <span className="truncate text-lead font-bold text-foreground">{author.name}</span>
+                                <span className="flex min-w-0 gap-1.5 text-caption font-medium text-description">
+                                    <span className="shrink-0">{author.time}</span>
+                                    <span aria-hidden>·</span>
+                                    <span className="truncate">{name}</span>
+                                </span>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex min-w-0 flex-1 flex-col">
+                            <span className="truncate text-lead font-bold text-foreground">{name}</span>
+                            <span className="text-caption font-medium text-description">{t('chat.attach.unsent')}</span>
+                        </div>
+                    )}
                     {saveButton}
                     <button
                         ref={closeRef}
@@ -126,13 +141,15 @@ export const FileViewer = ({ file, author, onClose, onSave }: FileViewerProps) =
                         <div className="m-auto flex flex-col items-center gap-3 text-center">
                             <AlertCircle size={28} aria-hidden className="text-destructive" />
                             <p className="text-callout text-foreground">{t('chat.file.openFailed')}</p>
-                            <button
-                                type="button"
-                                onClick={onSave}
-                                className="focus-ring rounded-md border border-hairline bg-background px-3 py-1.5 text-callout font-medium text-foreground hover:bg-accent"
-                            >
-                                {t('chat.file.save', { name })}
-                            </button>
+                            {onSave && (
+                                <button
+                                    type="button"
+                                    onClick={onSave}
+                                    className="focus-ring rounded-md border border-hairline bg-background px-3 py-1.5 text-callout font-medium text-foreground hover:bg-accent"
+                                >
+                                    {t('chat.file.save', { name })}
+                                </button>
+                            )}
                         </div>
                     )}
                     {body.state === 'pdf' && <PdfPages doc={body.doc} name={name} />}

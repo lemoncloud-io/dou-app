@@ -209,6 +209,7 @@ export const ko: EnTranslation = {
     'chat.attach.add': '파일 첨부',
     'chat.attach.tray': '첨부 파일',
     'chat.attach.remove': '{{name}} 제거',
+    'chat.attach.unsent': '아직 보내지 않음',
     'chat.attach.dropTitle': '여기에 파일을 놓으면 첨부돼요',
     'chat.attach.dropHint': '메시지 하나에 이미지, 동영상, 문서를 최대 {{count}}개까지 보낼 수 있어요.',
     'chat.attach.announce.added_one': '파일 {{count}}개 추가됨',

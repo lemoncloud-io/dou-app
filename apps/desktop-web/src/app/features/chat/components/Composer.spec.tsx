@@ -110,6 +110,38 @@ describe('Composer paste', () => {
         await settle();
         expect(input.textContent).not.toContain('IMG_1234.png');
     });
+
+    // The tray's preview is portalled out of the composer, but React still bubbles its paste here.
+    it('does not add files pasted inside an attachment preview', async () => {
+        const onAddFiles = vi.fn();
+        const picked = new File(['x'], 'a.png', { type: 'image/png' });
+        const attachment: ComposerAttachment = {
+            id: 'a',
+            key: 'a',
+            name: 'a.png',
+            url: 'blob:a',
+            file: picked,
+            kind: 'image',
+            size: 1,
+        };
+        render(
+            <Composer
+                onSend={() => undefined}
+                channelId="P3"
+                attachments={[attachment]}
+                onAddFiles={onAddFiles}
+                onRemoveAttachment={vi.fn()}
+            />,
+            { wrapper }
+        );
+        await settle();
+        fireEvent.click(screen.getByRole('button', { name: 'Open a.png' }));
+        const image = new File(['x'], 'b.png', { type: 'image/png' });
+        await act(async () => {
+            paste(screen.getByRole('dialog'), { files: [image], types: ['Files'] });
+        });
+        expect(onAddFiles).not.toHaveBeenCalled();
+    });
 });
 
 describe('Composer empty code block', () => {

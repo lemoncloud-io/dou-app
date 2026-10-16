@@ -188,7 +188,9 @@ const ComposerInner = ({
             // Only for a rich copy (HTML or RTF on the clipboard): a file copied in Finder
             // or Explorer carries its own name as plain text, which is not a message.
             onPasteCapture={event => {
-                if (!onAddFiles) return;
+                // React bubbles a portal's events here too: a paste inside the tray's preview
+                // dialog would add files behind it.
+                if (!onAddFiles || !event.currentTarget.contains(event.target as Node)) return;
                 const files = Array.from(event.clipboardData.files);
                 if (files.length === 0) return;
                 event.preventDefault();

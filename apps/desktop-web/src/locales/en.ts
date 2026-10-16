@@ -199,6 +199,7 @@ export const en = {
     'chat.attach.add': 'Attach files',
     'chat.attach.tray': 'Attachments',
     'chat.attach.remove': 'Remove {{name}}',
+    'chat.attach.unsent': 'Not sent yet',
     'chat.attach.dropTitle': 'Drop files here to attach them',
     'chat.attach.dropHint': 'Up to {{count}} images, videos or documents per message.',
     'chat.attach.announce.added_one': '{{count}} file added',
