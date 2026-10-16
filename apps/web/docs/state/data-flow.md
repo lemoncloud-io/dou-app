@@ -33,12 +33,12 @@ Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/d
 
 Both socket state and session/selection state come from one library, `@chatic/app-runtime`:
 
-| Value                                | Source                                                  |
-| ------------------------------------ | ------------------------------------------------------- |
-| `isVerified`, `isConnected`, `state` | `runtime.connection.useRuntimeSocketState()`            |
-| `selectedSiteId` (place)             | `runtime.session.useSessionSelection().selectedSiteId`  |
-| `selectedCloudId`                    | `runtime.session.useSessionSelection().selectedCloudId` |
-| connection mode (`relay` / `cloud`)  | `runtime.session.useGlobalSession().activeServer.kind`  |
+| Value                                              | Source                                                  |
+| -------------------------------------------------- | ------------------------------------------------------- |
+| `isVerified`, `isConnected`, `state`, `activeSlot` | `runtime.connection.useRuntimeSocketState()`            |
+| `selectedSiteId` (place)                           | `runtime.session.useSessionSelection().selectedSiteId`  |
+| `selectedCloudId`                                  | `runtime.session.useSessionSelection().selectedCloudId` |
+| connection mode (`relay` / `cloud`)                | `runtime.session.useGlobalSession().activeServer.kind`  |
 
 `isVerified` means "`auth.update` has been acknowledged for this connection." A call that goes
 through the socket gateway should wait for it, or it runs against the outgoing session.
@@ -150,7 +150,7 @@ half in the outbox, and returns once the local write is done
 
 The sync runtime replays registered targets automatically on a socket swap (reconnect / re-auth). A
 `sid`/`cid` context change alone does **not** trigger a re-fetch — that is the app's job.
-`app/runtime/useBackgroundSync.ts` owns it, with five numbered triggers in its own comments:
+`app/runtime/useBackgroundSync.ts` owns it, with six numbered triggers in its own comments:
 
 ```ts
 await Promise.all([
@@ -165,12 +165,13 @@ await Promise.all([
 ]);
 ```
 
-**Trigger 1 — `isVerified` rising edge (false → true).** Covers app entry, reconnect, and switch
-completion in one shot: a site or cloud switch commits a new token, the SDK re-authenticates, and
-the edge fires exactly when the new session verifies — never against the stale one. On this edge the
-hook also calls `loadSelfChannel()` (`channel.get-self`, relay only — cloud servers have no
-notes-to-self channel) and pre-advances a `prevSiteRef` watermark so Trigger 4 does not re-fire the
-same fetch for a cloud switch (which lands on a new `sid` too).
+**Trigger 1 — `isVerified` rising edge (false → true).** Covers app entry, reconnect, and a switch
+onto a socket that still has to sign in: the edge fires exactly when that session verifies — never
+against the stale one. On this edge the hook also calls `loadSelfChannel()` (`channel.get-self`,
+relay only — cloud servers have no notes-to-self channel) and pre-advances a `prevSiteRef` watermark
+so Trigger 4 does not re-fire the same fetch for a cloud switch (which lands on a new `sid` too).
+When the edge belongs to the socket that serves the committed cloud, it also marks that cloud as
+asked for, so Trigger 6 does not ask again.
 
 **Trigger 2 — periodic poll (60s) while verified**, skipped during an in-flight switch
 (`useIsMutating` on the switch mutation keys) so the optimistic window before the new session
@@ -185,8 +186,11 @@ a dead socket is left to Trigger 1 once the runtime's own wake recovery re-verif
 **Trigger 4 — active `sid` change**, for a site switch. A site switch calls the SDK's `auth.switch`
 on the _same_ socket and stays `authenticated`, so it produces no rising edge — without this trigger
 a site reached only by switching would never be fetched and its channel list would stay empty. Fires
-once the switch settles (verified, not mid-switch) and only when `prevSiteRef` actually changed, so
-a cloud switch (already handled by Trigger 1) is not double-fetched.
+once the switch settles (verified, not mid-switch), once the socket serves the committed cloud
+(`activeSlot`), and only when `prevSiteRef` actually changed, so a cloud switch (already handled by
+Trigger 1 or 6) is not double-fetched. The slot wait matters on the way back to the relay: leaving
+the cloud session restores the relay's selected site one render before the active slot follows, and
+firing in that render would ask once here and once more from Trigger 6.
 
 **Trigger 5 — on request**, from home's pull-to-refresh. The hook is mounted once under
 `AppRuntime`, so a screen cannot call into it; it registers a handler in
@@ -198,6 +202,23 @@ joins it instead of starting a second pass, since two passes read the same delta
 last to answer writes it. The place snapshot is awaited inside `Promise.all` rather than
 fired and forgotten: the automatic triggers ignore the returned promise either way, but a pull has
 to keep its indicator up until the place rail has been re-asked too.
+
+**Trigger 6 — the socket comes to serve another cloud while already verified.** Every joined cloud
+keeps a socket session in the background, so a cloud switch usually lands on a slot that is signed
+in already: the active slot moves, `isVerified` reads true before and after, and Trigger 1 never
+fires. A cloud switch also empties the selected site, so Trigger 4 has nothing to go on either. On a
+device that holds no places for that cloud there is then nothing to auto-select, and home stayed
+empty until the next poll, up to a minute later. This trigger reads `activeSlot` from
+`useRuntimeSocketState()`, which names the cloud the active socket serves, and runs the same pass as
+Trigger 1 — lists plus `loadSelfChannel()`. It fires once the switch has settled and that slot is the
+committed cloud's — not before, or the outgoing socket would answer and the repositories would drop
+the answer as foreign. It fires once per **arrival** at a cloud: the mark is cleared whenever the
+socket serves another cloud, so coming back asks again even when the cloud in between never got far
+enough to be marked. A cold slot's switch is already asked for by Trigger 1's edge, which marks the
+cloud, so it is not fetched twice. The effect is declared ahead of Trigger 4 in the hook: on the way
+back to the relay both become eligible in the same render, and running first lets it claim the
+fetch and advance `prevSiteRef`, so Trigger 4 stays quiet. `apps/web-e2e`'s `cloud-switch.spec.ts`
+replays a cloud whose place list is empty until the tap, and counts the relay's asks after DoU Home.
 
 **Chat feed.** The chat plan has no poll — only live push and reconnect catch-up — so a missed push
 does not self-heal. `app/features/channels/hooks/useForegroundChatRefresh.ts` complements

@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-16] - No version updates
+
+### Bug Fixes
+
+- (app-runtime) reclaim an owned cloud whose token was issued to another account (ADR-0207)
+
 ## [2026-10-15] - No version updates
 
 ### Bug Fixes
