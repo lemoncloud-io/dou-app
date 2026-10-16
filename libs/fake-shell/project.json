@@ -1,0 +1,9 @@
+{
+    "name": "@chatic/fake-shell",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/fake-shell/src",
+    "projectType": "library",
+    "tags": [],
+    "// targets": "to see all targets run: nx show project @chatic/fake-shell --web",
+    "targets": {}
+}

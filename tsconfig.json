@@ -80,6 +80,12 @@
         },
         {
             "path": "./apps/web-e2e"
+        },
+        {
+            "path": "./libs/fake-shell"
+        },
+        {
+            "path": "./apps/virtual-shell"
         }
     ]
 }

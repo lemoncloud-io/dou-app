@@ -34,6 +34,7 @@
             "@chatic/config": ["libs/config/src/index.ts"],
             "@chatic/config/*": ["libs/config/src/*"],
             "@chatic/device-utils": ["libs/device-utils/src/index.ts"],
+            "@chatic/fake-shell": ["libs/fake-shell/src/index.ts"],
             "@chatic/http": ["libs/http/src/index.ts"],
             "@chatic/lib/utils": ["libs/ui-kit/src/utils/index.ts"],
             "@chatic/logger": ["libs/logger/src/index.ts"],

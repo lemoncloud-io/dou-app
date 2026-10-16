@@ -34,7 +34,10 @@ Attach it at the end of the response. Give each unit of change its own section.
 
 - **Automated** — which tests cover the change, the command, the result.
 - **Manual** — UI behaviour, what is drawn, user flows: anything a person has to look at.
-  Where it needs the app running, say which screen and what to look for.
+  Where it needs the app running, say which screen and what to look for. A web change seen as it
+  runs inside the app, without a device, is checked in the virtual shell
+  ([`dou-shell-verify`](../../dou-shell-verify/SKILL.md)); what that shell reports as unsupported
+  stays a device line.
 - **Integration points** — the other modules, APIs or cache layers this touches, and
   whether the contract still holds.
 - **Regression risk** — other callers of the same function or type, what could break,

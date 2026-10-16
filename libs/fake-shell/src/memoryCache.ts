@@ -83,6 +83,23 @@ export class MemoryCache {
         return [...this.table(type, scope.cid, scope.uid).values()];
     }
 
+    /** Every row of a domain, in every cloud and user scope, with the scope it is stored under. */
+    entries(type: CacheType): Array<{ cid: string; uid: string; row: Row }> {
+        const prefix = `${type}|`;
+        const found: Array<{ cid: string; uid: string; row: Row }> = [];
+        for (const [key, table] of this.tables) {
+            if (!key.startsWith(prefix)) continue;
+            const [, cid, uid] = key.split('|');
+            for (const row of table.values()) found.push({ cid, uid, row });
+        }
+        return found;
+    }
+
+    /** Forgets every row, as wiping the app's data does. */
+    clear(): void {
+        this.tables.clear();
+    }
+
     private query(type: string, cid: string, uid: string, query: Record<string, unknown> = {}): Row[] {
         let rows = [...this.table(type, cid, uid).values()];
         const filters = QUERY_FILTERS[type as CacheType] ?? { exact: [] };

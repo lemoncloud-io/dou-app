@@ -1,24 +1,22 @@
 import type { Page } from '@playwright/test';
 
-import { AppBridgeHost } from '@chatic/bridges';
-import type {
-    AppMessageDataMap,
-    AppMessageType,
-    WebMessage,
-    WebMessageData,
-    WebMessageType,
-} from '@chatic/app-messages';
+import {
+    bootHandlers,
+    dispatchTarget,
+    FAKE_SHELL_APP_VERSION,
+    FAKE_SHELL_CACHE_TYPES,
+    MemoryCache,
+    ShellCore,
+    type AppInjectionParams,
+    type ShellHandler,
+    type ShellHandlerTable,
+    type ShellPlatform,
+} from '@chatic/fake-shell';
+import type { AppMessageDataMap, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
 
-import { loadAppInjection, type AppInjectionParams } from './appInjection';
-import { FAKE_SHELL_CACHE_TYPES, MemoryCache } from './memoryCache';
-import { toHostHandler, type ShellHandler, type ShellHandlerTable } from './handlerTable';
+import { loadAppInjection } from './appInjection';
 
-/**
- * Which WebView the shell imitates. They differ in one thing the web can see: react-native-webview
- * dispatches a native → web message on `window` on iOS and on `document` on Android, and the web
- * listens on both — so each browser project runs the path its platform takes.
- */
-export type ShellPlatform = 'ios' | 'android';
+export type { ShellPlatform } from '@chatic/fake-shell';
 
 export interface FakeShellOptions {
     platform: ShellPlatform;
@@ -26,8 +24,6 @@ export interface FakeShellOptions {
     configBag?: Record<string, string>;
     insets?: { top: number; bottom: number; left: number; right: number };
 }
-
-type Listener = (message: WebMessage) => void;
 
 /**
  * The shell lane a scenario starts from: onboarding already done, and the debug overlay off. The suite
@@ -52,49 +48,33 @@ const POST_BINDING = '__e2eFakeShellPost';
  *
  * The page gets what react-native-webview gives it: `window.ReactNativeWebView.postMessage` is present
  * before any page script runs (the web polls for it from module scope, so it must already be there),
- * and the app's own injection script then runs on top of it. Each message goes to the same
- * `AppBridgeHost` the mobile app uses, so matching a reply to its request, `NOT_FOUND` for a message
- * without a handler and the WebAppReady handshake are production code; what is fake is only the
- * handlers and the transport. A reply goes back as the WebView delivers it — a JSON string dispatched
- * as a `message` event.
+ * and the app's own injection script then runs on top of it. The shell itself — the mobile app's own
+ * `AppBridgeHost` with a typed handler table — is `@chatic/fake-shell`'s `ShellCore`, shared with the
+ * virtual shell; what is here is the Playwright transport: the page's posts arrive through
+ * `page.exposeFunction`, and a reply goes back as the WebView delivers it — a JSON string dispatched as
+ * a `message` event.
  */
 export class FakeShell {
     readonly cache = new MemoryCache();
-    private readonly host: AppBridgeHost;
-    private readonly log: WebMessage[] = [];
-    /** Types registered here, so a message nobody answers can be told from one answered on purpose. */
-    private readonly handled = new Set<string>(['WebAppReady']);
-    /** Requests the host answered `NOT_FOUND` — as an app build without that handler would. */
-    readonly unhandled: string[] = [];
-    /**
-     * Failures the app's injection script reported about itself. Not a finding about the web: it means
-     * this shell no longer injects what the app does, and every scenario on top of it is suspect.
-     */
-    readonly injectionErrors: string[] = [];
-    /** Replies that could not be dispatched into the page for a reason other than it going away. */
-    readonly deliveryErrors: string[] = [];
-    private readonly listeners = new Set<Listener>();
-    /** Types of the app → web messages dispatched into the page so far, and who waits on the next. */
-    private readonly dispatched: string[] = [];
-    private readonly dispatchWaiters = new Set<{ type: string; resolve: () => void }>();
+    private readonly core: ShellCore;
 
     private constructor(
         private readonly page: Page,
         private readonly options: FakeShellOptions
     ) {
-        this.host = new AppBridgeHost({
-            sendToWeb: raw => void this.deliver(raw),
+        this.core = new ShellCore({
+            transport: { deliver: raw => this.deliver(raw) },
             supportedCacheTypes: [...FAKE_SHELL_CACHE_TYPES],
         });
         this.use(this.cache.handlers());
-        this.use(defaultHandlers(options.platform));
+        this.use(bootHandlers(options.platform));
     }
 
     static async install(page: Page, options: FakeShellOptions): Promise<FakeShell> {
         const shell = new FakeShell(page, options);
         const injection = shell.injectionParams();
         const getSyncInjectionScript = await loadAppInjection();
-        await page.exposeFunction(POST_BINDING, (raw: string) => shell.receive(raw));
+        await page.exposeFunction(POST_BINDING, (raw: string) => shell.core.receive(raw));
         await page.addInitScript(
             ({ binding, injection }) => {
                 // react-native-webview injects into the main frame only.
@@ -125,130 +105,68 @@ export class FakeShell {
         return shell;
     }
 
+    /** Requests the host answered `NOT_FOUND` — as an app build without that handler would. */
+    get unhandled(): string[] {
+        return this.core.unhandled;
+    }
+
+    /** Failures the app's injection script reported about itself; see `ShellCore.injectionErrors`. */
+    get injectionErrors(): string[] {
+        return this.core.injectionErrors;
+    }
+
+    /** Replies that could not be dispatched into the page for a reason other than it going away. */
+    get deliveryErrors(): string[] {
+        return this.core.deliveryErrors;
+    }
+
     /** Adds or replaces handlers. A test changes the shell's answer by registering over the default. */
     use(handlers: ShellHandlerTable): void {
-        for (const type of Object.keys(handlers) as WebMessageType[]) {
-            this.handle(type, handlers[type] as ShellHandler<typeof type>);
-        }
+        this.core.use(handlers);
     }
 
     handle<K extends WebMessageType>(type: K, handler: ShellHandler<K>): void {
-        this.handled.add(type);
-        this.host.registerHandler(type, toHostHandler(type, handler));
+        this.core.handle(type, handler);
     }
 
     /** Pushes an app → web event, as the app does for a push tap or a resume. */
     push<K extends AppMessageType>(type: K, data: AppMessageDataMap[K]): void {
-        this.host.pushEvent({ type, success: true, data });
+        this.core.push(type, data);
     }
 
-    /**
-     * Resolves once a message of this type from the shell has been dispatched in the page — not when it
-     * was pushed, which for an event held until the handshake can be much earlier. For a scenario that
-     * must keep something else back until the page has it, as a device's timing would.
-     */
-    delivered(type: AppMessageType, { timeout = 15_000 }: { timeout?: number } = {}): Promise<void> {
-        if (this.dispatched.includes(type)) return Promise.resolve();
-        return new Promise((resolve, reject) => {
-            const waiter = {
-                type,
-                resolve: () => {
-                    clearTimeout(timer);
-                    resolve();
-                },
-            };
-            const timer = setTimeout(() => {
-                this.dispatchWaiters.delete(waiter);
-                const sent = [...new Set(this.dispatched)].join(', ') || 'nothing';
-                reject(new Error(`delivered(${type}) timed out after ${timeout}ms; the shell dispatched: ${sent}`));
-            }, timeout);
-            this.dispatchWaiters.add(waiter);
-        });
+    /** See `ShellCore.delivered`. */
+    delivered(type: AppMessageType, options?: { timeout?: number }): Promise<void> {
+        return this.core.delivered(type, options);
     }
 
     /** Every message the page has sent so far, oldest first. */
     received<K extends WebMessageType>(type: K): WebMessageData<K>[] {
-        return this.log.filter(message => message.type === type) as unknown as WebMessageData<K>[];
+        return this.core.received(type);
     }
 
-    /**
-     * Resolves with the first message of this type — one already received, or the next to arrive.
-     * Rejects after `timeout` naming what the page did send, which says more than a test timeout would.
-     */
+    /** See `ShellCore.waitFor`. */
     waitFor<K extends WebMessageType>(
         type: K,
-        predicate: (message: WebMessageData<K>) => boolean = () => true,
-        { timeout = 15_000 }: { timeout?: number } = {}
+        predicate?: (message: WebMessageData<K>) => boolean,
+        options?: { timeout?: number }
     ): Promise<WebMessageData<K>> {
-        const seen = this.received(type).find(predicate);
-        if (seen) return Promise.resolve(seen);
-        return new Promise((resolve, reject) => {
-            const settle = () => {
-                this.listeners.delete(listener);
-                clearTimeout(timer);
-            };
-            const timer = setTimeout(() => {
-                settle();
-                const sent = [...new Set(this.log.map(message => message.type))].join(', ');
-                reject(new Error(`waitFor(${type}) timed out after ${timeout}ms; the page sent: ${sent}`));
-            }, timeout);
-            const listener: Listener = message => {
-                if (message.type !== type) return;
-                try {
-                    if (!predicate(message as WebMessageData<K>)) return;
-                } catch (error) {
-                    settle();
-                    reject(error);
-                    return;
-                }
-                settle();
-                resolve(message as WebMessageData<K>);
-            };
-            this.listeners.add(listener);
-        });
+        return this.core.waitFor(type, predicate, options);
     }
 
-    private async receive(raw: string): Promise<void> {
-        let message: WebMessage | undefined;
-        try {
-            message = JSON.parse(raw) as WebMessage;
-        } catch {
-            // The host decodes it again and logs a malformed message itself.
-        }
-        if (message) {
-            this.log.push(message);
-            if (!this.handled.has(message.type)) this.unhandled.push(message.type);
-            if (message.type === 'SendLog' && message.data?.tag === 'INJECTION') {
-                this.injectionErrors.push(message.data.message ?? '');
-            }
-            // A copy: a listener that settles removes itself while the set is being walked.
-            for (const listener of [...this.listeners]) listener(message);
-        }
-        await this.host.handleMessage(raw);
-    }
-
-    private async deliver(raw: string): Promise<void> {
-        const target = this.options.platform === 'ios' ? 'window' : 'document';
+    private async deliver(raw: string): Promise<boolean> {
         try {
             await this.page.evaluate(
                 ({ data, on }) =>
                     (on === 'window' ? window : document).dispatchEvent(new MessageEvent('message', { data })),
-                { data: raw, on: target }
+                { data: raw, on: dispatchTarget(this.options.platform) }
             );
-            const type = (JSON.parse(raw) as { type: string }).type;
-            this.dispatched.push(type);
-            for (const waiter of [...this.dispatchWaiters]) {
-                if (waiter.type !== type) continue;
-                this.dispatchWaiters.delete(waiter);
-                waiter.resolve();
-            }
+            return true;
         } catch (error) {
-            // The page navigated or closed between request and reply. The real shell drops the reply
-            // in that case too (`webViewRef.current` is gone), and the web never matches it. Anything
-            // else is this shell failing to answer, and would otherwise surface only as the web's own
-            // bridge timeout.
-            if (this.page.isClosed() || /Execution context was destroyed|has been closed/.test(String(error))) return;
-            this.deliveryErrors.push(String(error));
+            // The page navigated or closed between request and reply: dropped, as the real shell does.
+            if (this.page.isClosed() || /Execution context was destroyed|has been closed/.test(String(error))) {
+                return false;
+            }
+            throw error;
         }
     }
 
@@ -269,48 +187,15 @@ export class FakeShell {
                 uniqueId: 'e2e-device:e2e-install',
                 deviceModel: ios ? 'iPhone17,1' : 'Pixel 7',
                 osVersion: ios ? '26.0' : '15',
-                appVersion: '0.28.1',
+                appVersion: FAKE_SHELL_APP_VERSION,
                 buildNumber: '1',
                 appLanguage: 'en',
                 installationId: 'e2e-device',
                 uniqueDeviceId: 'e2e-device',
                 firebaseInstallationId: '',
-                latestVersion: '0.28.1',
+                latestVersion: FAKE_SHELL_APP_VERSION,
                 shouldUpdate: false,
             },
         };
     }
 }
-
-/**
- * Answers every app build gives at boot, so a scenario starts from an app that is up to date and
- * has nothing pending. A scenario overrides what it is about.
- *
- * What is left out answers `NOT_FOUND`, which the web reads as an app built before that message —
- * the photo grid (`ListPhotos`), file transfers, push tokens, the per-channel chat preview. Each has a
- * fallback in the web for exactly that app, and a scenario that needs the message adds its handler.
- */
-const defaultHandlers = (platform: ShellPlatform): ShellHandlerTable => ({
-    // Posted and never read back: the real handlers answer nothing.
-    SendLog: () => undefined,
-    SetDebugMode: () => undefined,
-    SetBadgeCount: () => undefined,
-    // Posted too, but the real handlers do answer (`useWebViewNavigation`, `useAppStateHandler`).
-    SetCanGoBack: () => ({}),
-    DismissResumeOverlay: () => ({}),
-    FirstScreenReady: () => undefined,
-    SendBootMetrics: () => undefined,
-    StartPerfTrace: () => undefined,
-    StopPerfTrace: () => undefined,
-    CheckAppUpdate: () => ({
-        platform,
-        currentVersion: '0.28.1',
-        latestVersion: '0.28.1',
-        updateAvailable: false,
-        storeUrl: '',
-    }),
-    FetchPreference: data => ({ key: data.key, value: null }),
-    FetchBadgeBase: () => ({ base: 0 }),
-    FetchPushMarks: () => ({ marks: [] }),
-    FetchPendingReports: () => ({ reports: [] }),
-});

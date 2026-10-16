@@ -8,7 +8,7 @@
     "include": ["playwright.config.ts", "src/**/*.ts"],
     "references": [
         {
-            "path": "../../libs/bridges"
+            "path": "../../libs/fake-shell"
         },
         {
             "path": "../../libs/app-messages"
