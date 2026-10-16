@@ -35,6 +35,15 @@ const CLOUD_RECENT_LIMIT = 20;
 export interface CachedCloudTokens {
     delegationToken: CloudDelegationTokenView;
     cloudToken: UserTokenView;
+    /**
+     * The relay user this entry was issued under — the account, or the guest before a sign-in —
+     * captured when the issue started. The cache is keyed by cloud alone and a sign-in changes the
+     * relay user without touching it, so this is how an owned cloud still held as the previous user
+     * (an invitee, typically) is told apart from one issued to the account now signed in. Written as
+     * given — a refresh writeback passes the entry's own along — and absent on entries written before
+     * it existed.
+     */
+    issuedFor?: string;
 }
 
 /** What this account is inside one cloud — the half of the cache key that outlives the token. */

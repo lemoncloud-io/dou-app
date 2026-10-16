@@ -251,7 +251,12 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
             // token and it serves any re-switch back to this cloud within its own expiry margin, so
             // leaving it behind means a later re-entry can install the PRE-refresh credential and re-open
             // the 403 window this writeback just closed.
-            cloudStore.setCachedCloudTokens(cid, { delegationToken, cloudToken: merged });
+            // A refresh renews the credential, not whose it is: the entry keeps the user it was issued for.
+            cloudStore.setCachedCloudTokens(cid, {
+                delegationToken,
+                cloudToken: merged,
+                issuedFor: cloudStore.peekCachedCloudTokens(cid)?.issuedFor,
+            });
             recordCloudIdentity(cid, merged);
             // Re-derive uid / identity from the freshly written token so activeServer + UI stay in sync.
             rebuildSessionIdentity();
@@ -276,7 +281,11 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
             return;
         }
         const merged = mergeRefreshedCloudToken(cached.cloudToken, view);
-        cloudStore.setCachedCloudTokens(cid, { delegationToken: cached.delegationToken, cloudToken: merged });
+        cloudStore.setCachedCloudTokens(cid, {
+            delegationToken: cached.delegationToken,
+            cloudToken: merged,
+            issuedFor: cached.issuedFor,
+        });
         recordCloudIdentity(cid, merged);
     }
 }

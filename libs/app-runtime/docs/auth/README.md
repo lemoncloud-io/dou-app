@@ -374,7 +374,10 @@ identity, so nothing is prepared without a relay session.
 The split rests on one more rule, in `issueCloudTokens`: **a cloud's exchange runs once at a time.**
 A switch, the preparer and a renewal can ask for the same cloud together, and two exchanges would
 each write the cache, the later one winning while the earlier one's tokens may already be committed
-or registered. A second caller joins the exchange in flight instead.
+or registered. A second caller joins the exchange in flight instead — but only when it asks for the
+same relay user: an exchange the guest started is still the guest's when it lands after a sign-in,
+so a caller asking for the account starts its own, and only the latest exchange started for a cloud
+writes the cache.
 
 ## An owned cloud held as its invitee
 
@@ -388,28 +391,57 @@ signing in to the account that owns the cloud. The server is not at fault — `d
 an owner as the owner — the device has simply stopped asking it.
 
 [`reclaimOwnedClouds(ownedCloudIds)`](../../src/socket/auth/reclaimOwnedClouds.ts), driven by
-`connection.useReclaimOwnedClouds` with the app's owned catalog, re-issues every owned cloud whose
-**held** delegation half is an invite entry (`isInviteLoginEntry` in `session/auth/cloudTokens`).
-"Held" is the session store's copy while the cloud is committed and the cache's otherwise, the same
-split `getCloudTokenOf` makes. The re-issue is a renewal (`renewCloudSession`), not a cache drop,
-because the committed cloud's store and a live slot's socket both hold the invitee too, and only a
-renewal replaces all three — the socket included, since a cloud slot is never re-authenticated on its
-own.
+`connection.useReclaimOwnedClouds` with the app's owned catalog, re-issues every owned cloud the
+device holds as **someone other than the relay user signed in now**. The re-issue is a renewal
+(`renewCloudSession`), not a cache drop, because the committed cloud's store and a live slot's socket
+both hold the previous user too, and only a renewal replaces all three — the socket included, since a
+cloud slot is never re-authenticated on its own.
 
-- **Detection reads only what the device wrote.** Neither the token's role nor the cloud's owner id is
-  consulted, so the rule does not depend on how the server spells either. An empty delegation JWT
-  is written by the invite entry and by nothing else.
-- **A cloud held by a delegate-cloud issue costs nothing.** The check is a storage read; no request
-  goes out unless an invite entry is found.
-- **It runs on two triggers**, because either can come second: the owned list changing (a catalog
-  resolving after an invite entry was already held, or a sign-in to the owning account), and a
-  committed cloud token (`cloud:token` — an invite entry committed after the catalog resolved, which
-  no list change would follow). A failed renewal leaves the invitee in place and is retried on the
-  next of either. It cannot loop: a successful renewal removes the empty JWT the check looks for.
-- **Over the committed cloud, the re-issue replaces rather than merges.** `reissueCloudTokens` merges
-  a renewal into the stored view, because a re-issue may omit profile fields; over an invite entry it
-  is an identity change, and a merge would keep the invitee's `$user` and role wherever the owner's
-  answer has no field. For the same reason it drops the selected place, which was the invitee's.
+Two marks say a cloud is held as another user, and both are things the device wrote itself:
+
+- **An invite entry** — a **held** delegation half with an empty JWT (`isInviteLoginEntry` in
+  `session/auth/cloudTokens`). "Held" is the session store's copy while the cloud is committed and the
+  cache's otherwise, the same split `getCloudTokenOf` makes.
+- **An entry issued under another relay user** — the cache entry's `issuedFor`. An invite entry does
+  not stay one: the background preparer re-issues it once the cache lapses, and the credential guard
+  renews it, both through `delegate-cloud` as the relay user of the moment. While that user is the
+  guest, the answer is an ordinary issue **for the invitee** — a signed JWT, the same shape as the
+  owner's — so the empty-JWT mark is gone. What still sets it apart is the user it was issued under.
+  `issueCloudTokens` stamps the relay user it read when the exchange **started** (an answer that lands
+  after a sign-in is the previous user's), an invite login's answer is stamped with the user that
+  entered with it, and a refresh writeback keeps the stamp the entry had. An entry written before the
+  stamp existed counts as another user's and is re-issued once, which stamps it.
+
+What the rule leaves alone, and why:
+
+- **Clouds the account does not own.** An invited cloud keeps the invitee's token through a sign-in.
+  A re-issue answers for the relay user as it is now, and the server links a sign-in to the guest it
+  started from for social and phone logins only — re-issued after any other login, the invited cloud
+  would open as a user with no rooms. The invited list is not cleared either; it lives only in the
+  device's `invitecloud` cache.
+- **Detection never reads the token's role or the cloud's owner id**, so the rule does not depend on
+  how the server spells either.
+- **A cloud issued to the relay user signed in now costs nothing.** The check is a storage read; no
+  request goes out unless one of the two marks is found. With no relay user signed in, nothing is
+  reclaimed.
+
+**It runs on four triggers**, because any of them can come last: the owned list changing (a catalog
+resolving after an invitee was already held, or a sign-in to the owning account), a committed cloud
+token (`cloud:token` — an invite entry committed after the catalog resolved, which no list change
+would follow), the relay token changing (`relay:token` — a sign-in whose owned list reads the same),
+and the background store announcing — for an issue started before a sign-in and answered after it,
+which writes the previous user's token with no signal of its own (the store also announces holds,
+joined-list changes and expiries, each costing a storage read). A cloud whose renewal is already in
+flight is skipped rather than renewed twice. A failed renewal leaves the previous user in place and is
+retried on the next trigger. It cannot loop: a successful renewal stamps the entry with the user now
+signed in, which is what the check compares against.
+
+- **Over the committed cloud, the re-issue replaces rather than merges** when it names another user.
+  `reissueCloudTokens` merges a renewal into the stored view, because a re-issue may omit profile
+  fields; over another user it is an identity change, and a merge would keep that user's `$user` and
+  role wherever the owner's answer has no field. "Another user" is an invite entry, or a stored token
+  whose uid differs from the re-issued one's — the re-issued invitee carries no other mark by then.
+  For the same reason it drops the selected place, which was the other user's.
 
 ## Ending a session
 

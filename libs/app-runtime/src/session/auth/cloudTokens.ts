@@ -5,8 +5,8 @@ import { logger } from '@chatic/bridges';
 import { getRepositories } from '../../data/runtime';
 import { cloudStore } from '../store/stores';
 import { msUntilExpiration } from '../store/expiry';
-import { rebuildSessionIdentity, sessionSignal } from '../store';
-import { recordCloudIdentity } from './cloudIdentity';
+import { getRelayUserId, rebuildSessionIdentity, sessionSignal } from '../store';
+import { recordCloudIdentity, uidOfCloudToken } from './cloudIdentity';
 import type { IAuthRepository } from '@chatic/data';
 
 /**
@@ -79,18 +79,31 @@ export const tokensFromInviteLogin = (cloudId: string, entry: InviteLoginEntry):
 export const isInviteLoginEntry = (delegationToken?: CloudDelegationTokenView | null): boolean =>
     delegationToken?.delegationToken === '';
 
-/** One exchange per cloud at a time — see `issueCloudTokens`. */
-const exchangesInFlight = new Map<string, Promise<IssuedCloudTokens>>();
+/** An exchange in flight, and the relay user it was asked for. */
+interface InFlightExchange {
+    issuedFor: string | undefined;
+    promise: Promise<IssuedCloudTokens>;
+}
 
-const exchange = async (cloudId: string): Promise<IssuedCloudTokens> => {
+/** One exchange per cloud and relay user at a time — see `issueCloudTokens`. */
+const exchangesInFlight = new Map<string, InFlightExchange>();
+/** The latest exchange started for each cloud; only its answer is written to the cache. */
+const latestExchange = new Map<string, number>();
+let exchangeSeq = 0;
+
+const exchange = async (cloudId: string, issuedFor: string | undefined, seq: number): Promise<IssuedCloudTokens> => {
     const delegationToken = await authRepository().delegateCloud(cloudId);
     const cloudToken = await authRepository().exchangeToken({
         baseURL: delegationToken.backend as string,
         body: { delegationToken: delegationToken.delegationToken },
     });
 
-    cloudStore.setCachedCloudTokens(cloudId, { delegationToken, cloudToken });
-    recordCloudIdentity(cloudId, cloudToken);
+    // An exchange started later for this cloud — for the relay user signed in since — owns the cache.
+    // Written after it, this older answer would put the previous user back in the entry.
+    if (latestExchange.get(cloudId) === seq) {
+        cloudStore.setCachedCloudTokens(cloudId, { delegationToken, cloudToken, issuedFor });
+        recordCloudIdentity(cloudId, cloudToken);
+    }
     return { delegationToken, cloudToken };
 };
 
@@ -106,6 +119,12 @@ const exchange = async (cloudId: string): Promise<IssuedCloudTokens> => {
  * store or registered a socket with them. The cache and what that cloud's socket signs with would
  * then disagree. Joining is safe for every caller: an exchange in flight is as fresh as one started
  * now.
+ *
+ * **Joined only for the same relay user.** `delegate-cloud` answers for the relay user that signed
+ * the request, read here before anything awaits and stamped on the entry (`issuedFor`). An exchange
+ * the guest started is still the guest's when it lands after a sign-in, so a caller asking for the
+ * account starts its own instead of joining, and only the latest exchange for the cloud writes the
+ * cache.
  */
 export const issueCloudTokens = async (
     cloudId: string,
@@ -119,15 +138,19 @@ export const issueCloudTokens = async (
         }
     }
 
+    const issuedFor = getRelayUserId() ?? undefined;
     const running = exchangesInFlight.get(cloudId);
-    if (running) return running;
+    if (running && running.issuedFor === issuedFor) return running.promise;
 
-    const started = exchange(cloudId);
+    const seq = ++exchangeSeq;
+    latestExchange.set(cloudId, seq);
+    const started: InFlightExchange = { issuedFor, promise: exchange(cloudId, issuedFor, seq) };
     exchangesInFlight.set(cloudId, started);
     try {
-        return await started;
+        return await started.promise;
     } finally {
-        exchangesInFlight.delete(cloudId);
+        // A newer exchange may have taken the slot meanwhile; it clears its own.
+        if (exchangesInFlight.get(cloudId) === started) exchangesInFlight.delete(cloudId);
     }
 };
 
@@ -157,23 +180,30 @@ export const reissueCloudTokens = async (cloudId: string): Promise<IssuedCloudTo
     // One observable change (ADR-0076 decision 2): a renewal is not a cloud CHANGE, so observers must
     // not see a window where the delegation token moved but the cloud token had not.
     //
-    // A committed invite entry is the one case where the re-issue names a DIFFERENT user: the invitee
-    // was entered with the invite login's answer, and `delegate-cloud` answers for the relay user —
-    // the owner, when an owned cloud is being reclaimed. That is an identity change, not a renewal.
-    const replacesInvitee = isInviteLoginEntry(cloudStore.getDelegationToken());
+    // When the re-issue names a DIFFERENT user it is an identity change, not a renewal — the owned
+    // cloud reclaim does exactly that: the store holds the invitee and `delegate-cloud` answers for
+    // the relay user, the owner. Two marks say so. A committed invite entry (the invite login's own
+    // answer). Or a stored token whose uid differs from the re-issued one's: an invite entry the
+    // guest had re-issued before signing in is an ordinary issue by then, and only the uid it names
+    // still tells it apart. A same-user renewal names the same uid and merges as before.
+    const storedToken = cloudStore.getCloudToken();
+    const storedUid = storedToken ? uidOfCloudToken(storedToken) : null;
+    const issuedUid = uidOfCloudToken(issued.cloudToken);
+    const replacesAnotherUser =
+        isInviteLoginEntry(cloudStore.getDelegationToken()) || (!!storedUid && !!issuedUid && storedUid !== issuedUid);
     sessionSignal.batch(() => {
         cloudStore.saveDelegationToken(issued.delegationToken);
         // Merge, mirroring switchCloudSession's same-cloud branch: a re-issue is not guaranteed to
-        // carry every field the stored view holds (profile fields notably). Not over the invitee,
-        // though — a field the new answer omits would keep the invitee's value (its `$user`, its role).
-        const existing = replacesInvitee ? null : cloudStore.getCloudToken();
+        // carry every field the stored view holds (profile fields notably). Not over another user,
+        // though — a field the new answer omits would keep that user's value (its `$user`, its role).
+        const existing = replacesAnotherUser ? null : storedToken;
         cloudStore.saveCloudToken(
             existing ? ({ ...existing, ...issued.cloudToken } as UserTokenView) : issued.cloudToken
         );
-        // The selected place was the invitee's, and the new socket session does not start there. Kept,
-        // a later switch into it would no-op as "already there" and site-scoped writes would land on
-        // whatever site the new token names — the same reason a commit of issued tokens drops it.
-        if (replacesInvitee) cloudStore.clearSelectedSite();
+        // The selected place was the other user's, and the new socket session does not start there.
+        // Kept, a later switch into it would no-op as "already there" and site-scoped writes would land
+        // on whatever site the new token names — the same reason a commit of issued tokens drops it.
+        if (replacesAnotherUser) cloudStore.clearSelectedSite();
 
         // Re-derive uid/identity from the freshly written token, same as every other commit path.
         rebuildSessionIdentity();
