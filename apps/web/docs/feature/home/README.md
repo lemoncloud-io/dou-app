@@ -181,7 +181,9 @@ corrupt record means everything open, which is the default it always had.
 
 Tapping a place row calls `switchPlace(placeId)` → `switchSite`, which owns the optimistic apply, the
 commit and the rollback. With no place active — right after a cloud switch — `useSwitchPlace`
-auto-selects the first; with no place at all — once the list is actually known, see below — the
+auto-selects the first, from the list the background sync asks the cloud for as soon as the socket
+serves it (Trigger 6 in [data-flow](../../state/data-flow.md), for the usual case of a cloud whose
+socket was already up); with no place at all — once the list is actually known, see below — the
 Chat section is replaced by an empty state.
 
 **A stored selection whose place has been pruned falls back to the first place.** The selected
