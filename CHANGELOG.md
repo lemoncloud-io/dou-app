@@ -2,6 +2,12 @@
 
 ## [2026-10-16] - No version updates
 
+### Features
+
+- (web,mobile,app-messages) show and clear the native and web caches side by side
+
+## [2026-10-16] - No version updates
+
 ### Bug Fixes
 
 - (app-runtime) reclaim an owned cloud whose token was issued to another account (ADR-0207)
