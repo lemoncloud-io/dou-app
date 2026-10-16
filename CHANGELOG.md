@@ -2,6 +2,12 @@
 
 ## [2026-10-16] - No version updates
 
+### Other
+
+- revert: (app-runtime,web,data,logger) roll back the reclaim, switch refresh and place-list log
+
+## [2026-10-16] - No version updates
+
 ### Features
 
 - (web,mobile,app-messages) show and clear the native and web caches side by side
