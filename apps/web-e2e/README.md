@@ -42,7 +42,7 @@ messages the shell answered `NOT_FOUND`). Both are also attached to the test's r
 
 | Path                      | Holds                                                                                                                                      |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/support/fake-shell/` | The shell: transport, handler table, in-memory cache, the app's boot script                                                                |
+| `src/support/fake-shell/` | The shell's Playwright transport and its injection; the core — handler table, in-memory cache, boot answers — is `@chatic/fake-shell`      |
 | `src/fixtures/`           | The relay: the guest every scenario signs in as, HTTP routes, socket frames, rooms, invites, clouds, subscriptions (and the shell's store) |
 | `src/support/test.ts`     | `test` with `shell` and `backend` in place before the page loads                                                                           |
 | `src/support/app.ts`      | Steps scenarios share: the back button, background and foreground, the history index                                                       |
@@ -60,10 +60,12 @@ names `shell` or `backend` still runs inside the app, against the fixtures.
 
 The shell is the mobile app's own `AppBridgeHost` (`@chatic/bridges`) running in the test process, with
 a Playwright transport in place of the WebView: the page's `postMessage` reaches it through
-`page.exposeFunction`, and its replies go back as a JSON string dispatched as a `message` event. So the
-envelope rules — matching a reply to its `refId`, `NOT_FOUND` for a message without a handler, the
-WebAppReady handshake, holding events until the web is ready — are production code. What is fake is
-the handlers.
+`page.exposeFunction`, and its replies go back as a JSON string dispatched as a `message` event.
+Everything but that transport lives in [`libs/fake-shell`](../../libs/fake-shell/README.md), shared
+with the virtual shell ([`apps/virtual-shell`](../virtual-shell/README.md)), so a message contract has
+one fake to follow. Because the host is the app's own, the envelope rules — matching a reply to its
+`refId`, `NOT_FOUND` for a message without a handler, the WebAppReady handshake, holding events until
+the web is ready — are production code. What is fake is the handlers.
 
 **The handler table is typed against the contract.** A handler returns the payload of the reply
 `WEB_MESSAGE_RESPONSE_TYPE` pairs with its request (`ShellReply<K>`), and the reply's `type` is filled
@@ -91,8 +93,8 @@ reports (below).
 
 **The defaults are an up-to-date app with nothing pending**: its boot answers, and its local cache.
 Inside the app the web keeps its cache in the shell's SQLite, not IndexedDB, so the shell answers
-`FetchCacheData` and its siblings from memory (`memoryCache.ts`) with the part of the app's query
-semantics the web relies on. Everything else answers `NOT_FOUND` — the photo grid, file transfers,
+`FetchCacheData` and its siblings from memory (`MemoryCache` in `@chatic/fake-shell`) with the part
+of the app's query semantics the web relies on. Everything else answers `NOT_FOUND` — the photo grid, file transfers,
 push tokens — and the web takes the fallback it has for an older app. A scenario that is about one of
 those adds its handler.
 
@@ -107,7 +109,7 @@ the compile-time check of its arguments, and what replaces it is partial: the sc
 failure in itself through the bridge (tag `INJECTION`) and the test fixture fails the test on that
 report, which catches an argument whose absence makes the script throw — not one that is silently
 `undefined` in the text it produces. A change to the parameters in `injectionScripts.ts` therefore
-wants a look at `appInjection.ts`.
+wants a look at `AppInjectionParams` in `@chatic/fake-shell`.
 
 Its timing is moved by one step. A Playwright init script runs before the document has a root
 element — earlier than react-native-webview's "before content loaded" injection — and the app's script

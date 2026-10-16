@@ -1,0 +1,17 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // Its own subdirectory, so this program and tsconfig.lib.json never write the same .d.ts paths.
+        "outDir": "../../dist/out-tsc/fake-shell-spec",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts"],
+    "references": [
+        {
+            "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../app-messages/tsconfig.lib.json"
+        }
+    ]
+}

@@ -42,9 +42,11 @@ the upload queue ([`@chatic/logger`](../logger/README.md)); the handlers that an
 `apps/desktop/src/main/bridgeHandlers.ts`); and the injection that puts a channel on `window` in
 the first place — each shell does that for itself.
 
-`AppBridgeHost` has one host outside a shell: `apps/web-e2e` runs it in a Node test process as the
-fake native shell its browser tests talk to. That is why it must stay free of React Native and DOM
-dependencies.
+`AppBridgeHost` has two hosts outside a shell, both through
+[`libs/fake-shell`](../fake-shell/README.md): `apps/web-e2e` runs it in a Node test process as the
+fake native shell its browser tests talk to, and `apps/virtual-shell` runs it in a browser page that
+holds the web in an iframe. That is why it must stay free of React Native dependencies, and must not
+assume a DOM — the e2e host has none.
 
 ## Design principles
 
