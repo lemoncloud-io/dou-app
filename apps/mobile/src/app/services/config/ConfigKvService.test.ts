@@ -17,6 +17,7 @@ describe('ConfigKvService', () => {
             remove: jest.fn().mockResolvedValue(undefined),
             clearAll: jest.fn(),
             getAllKeys: jest.fn().mockReturnValue([]),
+            getByteLength: jest.fn().mockReturnValue(0),
         };
         service = new ConfigKvService(logger, storage);
     });

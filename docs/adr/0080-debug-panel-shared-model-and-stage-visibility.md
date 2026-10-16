@@ -28,7 +28,7 @@
 | 6 exclude `meta: true`                     | implemented           | `meta` in `types.ts` · `isHidden` in `ConfigScreen`                                  |
 | 7 no shared components · visual convention | **moot**              | nothing left to align with (delta ①). A convention doc is unnecessary too            |
 | 9 fix the `main.tsx` comment               | implemented           | `apps/web/src/main.tsx`                                                              |
-| 11 all control lives on the web            | implemented           | 22 screens live on the web                                                           |
+| 11 all control lives on the web            | implemented           | 23 screens live on the web                                                           |
 | 12 zero debug UI in the app                | implemented           | `818698ea8` — no `apps/mobile/.../features/debug`, no FAB                            |
 | 13 remove the web-address-change feature   | implemented           | `4b80a76b7` — no `EnvironmentSettingsScreen`                                         |
 | 14 the button set                          | **2/3**               | send logs now · view current settings now = present / clear cache by domain = absent |
@@ -533,7 +533,9 @@ drift, so "keep" really means "let it keep happening." Rejected.
    pairs to overlap.
 3. **Per-screen bridge commands.** Most are punched through — screens call `appBridge`'s existing commands. What's
    left is Decision 14's clear-cache-by-domain, which needs a command because it must also clear native cache. The
-   constraint **no generic execute command** still holds.
+   constraint **no generic execute command** still holds. A per-store clear has since landed on its own command
+   (`ClearNativeCache`, the Storage screen): it empties the whole native SQLite cache beside the WebView's storage, to
+   rule out a stale leftover in either. It does not replace clearing one domain to reproduce a bug, which is still absent.
 4. ~~**Disposition of the custom-zip feature.**~~ → **Ported to the web** (`4b80a76b7`). The loader lives on the web
    and the screen is `CustomZipScreen`. PROD is refused by the app.
 5. ~~**Failure display for acknowledgments.**~~ → **Attaches to a single row** (`ce5fd3a77`). `useDebugOperation.run`

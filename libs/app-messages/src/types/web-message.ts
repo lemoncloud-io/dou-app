@@ -38,10 +38,12 @@ import type {
     SaveCacheDataPayload,
     ApplyCustomZipPayload,
     ClearBootRecordsPayload,
+    ClearNativeCachePayload,
     DeleteFcmTokenPayload,
     DisableCustomZipPayload,
     FetchBootRecordsPayload,
     FetchCustomZipStatusPayload,
+    FetchNativeStorageSummaryPayload,
     SaveConfigValuePayload,
     SavePreferencePayload,
     SaveTestRecordPayload,
@@ -201,6 +203,8 @@ export type WebMessagePayloadMap = {
     ApplyCustomZip: ApplyCustomZipPayload;
     DisableCustomZip: DisableCustomZipPayload;
     FetchCustomZipStatus: FetchCustomZipStatusPayload;
+    FetchNativeStorageSummary: FetchNativeStorageSummaryPayload;
+    ClearNativeCache: ClearNativeCachePayload;
 
     // 7. Common & Others
     WebAppReady: WebAppReadyPayload;

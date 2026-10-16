@@ -74,7 +74,8 @@ The provider is a singleton, assembled once in its constructor, split into two g
   itself is initialized natively before JS runs), `bootMetricsService`, cold-start capture (`deeplinkManager`,
   `deeplinkService`, `pushEventManager`, `notificationService`), and `firebaseCrashlyticsService`.
 - **Lazy** — exposed as getters that construct and memoize on first access: `sqliteDatabase` and
-  everything built on it (the ten cache-domain data sources plus `upload`), and
+  everything built on it (the ten cache-domain data sources plus `upload`, and the debug panel's
+  `nativeStorageService`), and
   `deviceService`, `clipboardService`, `smsService`, `permissionService`, `oauthService`,
   `dynamicAppIconService`, `firebaseInstallationService`, `subscriptionIapService`,
   `preferenceService`, `configKvService`, `versionService`, `unfurlService`.
@@ -87,11 +88,12 @@ grep -c "public get " apps/mobile/src/app/services/provider.ts
 `export const x = provider.x` would read the lazy getter at module-load time and defeat the
 deferral, since that barrel is itself imported from the boot path. Consumers reach them through
 `provider.x` directly, and the SQLite-backed WebView handler hooks (`useCrudCacheHandler`,
-`useSearchCacheHandler`, `useTestRecordHandler`) read `provider.x` inside their
+`useSearchCacheHandler`, `useTestRecordHandler`, `useNativeStorageHandler`) read `provider.x` inside their
 callback bodies rather than destructuring it at the top of the hook, so rendering the hook does not
 itself trigger construction.
 
-The first SQLite-backed message the web sends — cache, search, or test-record — is what actually
+The first SQLite-backed message the web sends — cache, search, test-record, or the debug panel's
+storage inventory — is what actually
 opens the database. See [../storage/cache.md](../storage/cache.md).
 
 ## Out of scope

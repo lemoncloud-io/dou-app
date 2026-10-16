@@ -92,6 +92,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'getCloudRepositories',
         'globalCacheRefKey',
         'recoverInvitedCloudIfMissing',
+        'requestSyncCursorReset',
         'runInCloud',
         'sendChatInCloud',
         'setStateOutboxObserver',

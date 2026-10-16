@@ -116,6 +116,8 @@ const DESKTOP_UNSUPPORTED = {
     DeleteFcmToken: PHONE_TOOLING,
     FetchBootRecords: PHONE_TOOLING,
     ClearBootRecords: PHONE_TOOLING,
+    FetchNativeStorageSummary: PHONE_TOOLING,
+    ClearNativeCache: PHONE_TOOLING,
     ApplyCustomZip: PHONE_TOOLING,
     DisableCustomZip: PHONE_TOOLING,
     FetchCustomZipStatus: PHONE_TOOLING,

@@ -69,4 +69,15 @@ export class MmkvStorage implements IKeyValueStorage {
             return [];
         }
     }
+
+    public getByteLength(key: string): number {
+        try {
+            // String length, not encoded bytes: every value here is ASCII-heavy JSON, and the debug
+            // panel this feeds compares sizes against each other, never against the disk.
+            return this._mmkv.getString(key)?.length ?? 0;
+        } catch (e) {
+            this.logService.error('STORAGE', `Get length error for key: ${key}`, e as Error);
+            return 0;
+        }
+    }
 }

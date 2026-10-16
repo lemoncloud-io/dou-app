@@ -24,7 +24,7 @@ folder:
 ## Outbound: `appBridge`
 
 `appBridge` (`appBridge.ts`) wraps every `webClient.post`/`webClient.request` call the app makes —
-61 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
+63 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
 mirrors, and more). A feature calls `appBridge.openURL(url)`, never `webClient.post({ type:
 'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file.
 

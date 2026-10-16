@@ -1,7 +1,7 @@
 # @chatic/app-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 99 web→app request types, 107 app→web message types, the payload
+can cross the WebView boundary — 101 web→app request types, 109 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -82,7 +82,7 @@ mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
 the envelopes around them (`BaseMessage`, `WebDefaultMessage`, `AppDefaultMessage`,
 `AppSuccessMessage`, `AppFailureMessage`); the native handler signatures (`WebMessageHandler`,
 `WebMessageHandlerResponse`, `WebMessageHandlerMap`); the bridge failure taxonomy (`BridgeErrorCode`,
-`BridgeError`, `BridgeErrorResponse`); and 21 payload files under `model/`.
+`BridgeError`, `BridgeErrorResponse`); and 22 payload files under `model/`.
 
 **Out** — everything that runs. Transport, matching, buffering, timeouts and teardown are
 [`@chatic/bridges`](../bridges/README.md). The handlers are the shells (`apps/mobile`,
@@ -98,8 +98,8 @@ flowchart TD
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
     Model["model/ × 21<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>99 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>107 message types</i>"]:::map
+    WM["WebMessagePayloadMap<br/><i>101 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>109 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -162,13 +162,13 @@ libs/app-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (99)  + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (107) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (101) + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (109) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
-    └── model/                    22 files — 21 payload files, grouped by domain, and their barrel
+    └── model/                    23 files — 22 payload files, grouped by domain, and their barrel
 ```
 
-28 files, 3,652 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+29 files, 3,735 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -196,7 +196,8 @@ The payload files, with what is in each:
 | `unfurl.ts`            | 23    | URL metadata lookup                                                                                                                                                                |
 | `clipboard.ts`         | 10    | Copy to the native clipboard                                                                                                                                                       |
 | `haptic.ts`            | 17    | `HapticKind` and the one short haptic the web asks the shell to play                                                                                                               |
-| `index.ts`             | 21    | The barrel for the twenty-one above                                                                                                                                                |
+| `native-storage.ts`    | 66    | The debug panel's Storage screen — `FetchNativeStorageSummary` (rows and sizes per SQLite table and MMKV key), `ClearNativeCache`                                                  |
+| `index.ts`             | 22    | The barrel for the twenty-two above                                                                                                                                                |
 
 `CacheChatView.upload$$` holds two kinds of entry: the server's `UploadView` once a message is sent,
 and a `PendingUploadSlot` (`{ localStatus, localThumbUrl }`, plus `localName` / `localContentType` /
@@ -288,7 +289,7 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 99 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 101 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for

@@ -347,6 +347,23 @@ export const appBridge = {
         return webClient.request({ type: 'ClearBootRecords', data: {} });
     },
 
+    /**
+     * What the native shell persists — every SQLite cache table and every MMKV key, with sizes. The
+     * page can measure its own storage; this is the half it cannot see. A full scan of every table, so
+     * it gets more than the default wait on a device with a large chat cache.
+     */
+    fetchNativeStorageSummary(timeoutMs = 60_000): Promise<WebMessageResponse<'FetchNativeStorageSummary'>> {
+        return webClient.request({ type: 'FetchNativeStorageSummary', data: {} }, { timeoutMs });
+    },
+
+    /**
+     * Empty the native SQLite cache. The invited-cloud table goes only with `includeInvitedClouds`,
+     * because the server cannot list those clouds again.
+     */
+    clearNativeCache(includeInvitedClouds: boolean): Promise<WebMessageResponse<'ClearNativeCache'>> {
+        return webClient.request({ type: 'ClearNativeCache', data: { includeInvitedClouds } });
+    },
+
     /** Drop the FCM token so the next `fetchFcmToken` mints a fresh one — re-registration testing. */
     deleteFcmToken(): Promise<WebMessageResponse<'DeleteFcmToken'>> {
         return webClient.request({ type: 'DeleteFcmToken', data: {} });

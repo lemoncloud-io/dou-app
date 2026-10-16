@@ -27,6 +27,7 @@ import {
     useTestRecordHandler,
     useResumeOverlay,
     useCustomZipHandler,
+    useNativeStorageHandler,
     usePerfHandler,
     useUnfurlHandler,
 } from './index';
@@ -157,6 +158,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     } = usePerfHandler();
     const { handleApplyCustomZip, handleDisableCustomZip, handleFetchCustomZipStatus } = useCustomZipHandler();
     const { handleFetchUrlMetadata } = useUnfurlHandler();
+    const { handleFetchNativeStorageSummary, handleClearNativeCache } = useNativeStorageHandler();
 
     const {
         handleFetchTestRecord,
@@ -237,6 +239,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleApplyCustomZip,
         handleDisableCustomZip,
         handleFetchCustomZipStatus,
+        handleFetchNativeStorageSummary,
+        handleClearNativeCache,
         handleStartFileTransfer,
         handleCancelFileTransfer,
         handleListFileTransfers,
@@ -334,6 +338,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleApplyCustomZip,
             handleDisableCustomZip,
             handleFetchCustomZipStatus,
+            handleFetchNativeStorageSummary,
+            handleClearNativeCache,
             handleFetchTestRecord,
             handleFetchAllTestRecords,
             handleSaveTestRecord,
@@ -448,6 +454,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             ApplyCustomZip: message => handlersRef.current.handleApplyCustomZip(message),
             DisableCustomZip: message => handlersRef.current.handleDisableCustomZip(message),
             FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),
+            FetchNativeStorageSummary: message => handlersRef.current.handleFetchNativeStorageSummary(message),
+            ClearNativeCache: message => handlersRef.current.handleClearNativeCache(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
             // Registered only where the native module exists. A build without it leaves the web its

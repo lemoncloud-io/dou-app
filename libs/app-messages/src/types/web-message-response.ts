@@ -84,6 +84,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     ApplyCustomZip: 'OnApplyCustomZip',
     DisableCustomZip: 'OnDisableCustomZip',
     FetchCustomZipStatus: 'OnFetchCustomZipStatus',
+    FetchNativeStorageSummary: 'OnFetchNativeStorageSummary',
+    ClearNativeCache: 'OnClearNativeCache',
     ClearConfigValue: 'OnClearConfigValue',
     WebAppReady: 'OnWebAppReady',
     FetchAppLogBuffer: 'OnFetchAppLogBuffer',

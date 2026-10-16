@@ -1,7 +1,8 @@
 # storage — what the shell keeps on the device
 
-The WebView holds no durable state of its own. Everything that has to survive a reload, a restart,
-or a lost connection is owned by the shell, and this category describes **the engines and the domain
+The WebView keeps only its session and UI state in its own storage. The data that has to survive a
+reload, a restart, or a lost connection — the chat cache and the invited-cloud list above all — is
+owned by the shell, and this category describes **the engines and the domain
 data sources over them.**
 
 A document belongs here if it is about bytes the shell persists on behalf of the web client. The

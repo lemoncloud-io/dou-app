@@ -105,6 +105,26 @@ free: each discarded response still costs one `evaluateJavascript` call on the U
 resource cache round trips contend for, so a busy log period was amplifying cache latency for
 nothing. A new fire-and-forget message should return nothing from its handler for the same reason.
 
+## Inventory and clear for the debug panel
+
+The web debug panel's Storage screen shows this store beside the WebView's own, because a page can
+measure only its own storage and the two together are what the device keeps. Two messages serve it,
+both through `services/storage/NativeStorageService` (lazy, like the cache services — it opens
+SQLite):
+
+- `FetchNativeStorageSummary` — rows and an approximate size per `TABLES` entry, and the stored
+  length of every MMKV key. Tables are read one at a time: each read is a full scan on the connection
+  the live cache reads share, and ten at once would queue every web cache read behind them. The size sums every column's `LENGTH`, read from `PRAGMA table_info`,
+  because the tables do not share one shape (`test_records` keeps `value`, not `data`). A table a
+  failed migration never created is reported as `missing`, not skipped.
+- `ClearNativeCache` — `DELETE FROM` each table, one at a time so a missing table does not roll
+  back the others. `invite_clouds` is kept unless the request sets `includeInvitedClouds: true`
+  (anything else counts as false): the server has no list of invited clouds, so a cleared row
+  returns only when a push names that cloud. `invites` is never cleared: its `dismissedAt` is
+  written only on this device, so a clear would bring back every invite card the user closed. MMKV is never cleared here — it holds the shell's
+  settings (including `debugSettings`, which picks the WebView origin) and the unsent log and report
+  queues, none of which is a copy of server data.
+
 ## Ownership
 
 - SQL schema and table names belong to `database/sqlite`.
