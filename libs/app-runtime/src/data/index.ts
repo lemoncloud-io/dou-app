@@ -35,6 +35,9 @@ export { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedClo
 // The settings screen's "clear cache": every known cloud's partition, minus what only this device holds.
 export { clearLocalCaches } from './clearLocalCaches';
 export type { ClearLocalCachesResult } from './clearLocalCaches';
+// The same next-boot cursor retirement, for a clear that does not go through `clearLocalCaches` —
+// the debug panel's Storage screen empties the native cache and the WebView's storage wholesale.
+export { requestSyncCursorReset } from './syncCursorWatermark';
 
 // The clouds query key — apps invalidate it right after login. The rest of the REST hooks went down
 // to the app layer (ADR-0070 Decision 5); this key stays because the runtime is what invalidates it.

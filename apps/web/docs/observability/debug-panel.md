@@ -88,7 +88,7 @@ machine, the on-device checklist — is in
 
 ## Further reading
 
-- [`docs/feature/debug/`](../feature/debug/README.md) — the panel itself: the 22 screens, the
+- [`docs/feature/debug/`](../feature/debug/README.md) — the panel itself: the 23 screens, the
   unlock gate, the manifest, how to add a screen.
 - [`libs/app-messages`](../../../../libs/app-messages/README.md) — the request/reply contract every
   bridge command follows, including the web-ships-before-app rule.

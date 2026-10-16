@@ -7,7 +7,7 @@ they look only downward" — `services/` imports nothing from `webview/` or `fea
 
 ## Layout
 
-19 domains, each shaped the same way:
+20 domains, each shaped the same way:
 
 ```text
 services/<domain>/
@@ -46,7 +46,7 @@ is framed, what the reply payload looks like, or how a native screen renders —
   in its constructor. `bootMetricsService` follows right after, so its boot-timeline baseline sits as
   close to JS entry as possible.
 - **Lazy**, behind a memoized getter, for everything else: `sqliteDatabase` and the SQLite-backed
-  data sources, `cacheCrudService`, `cacheSearchService`, `testRecordService`,
+  data sources, `cacheCrudService`, `cacheSearchService`, `testRecordService`, `nativeStorageService`,
   `deviceService`, `clipboardService`, `smsService`, `permissionService`, `oauthService`,
   `dynamicAppIconService`, `firebaseInstallationService`, `subscriptionIapService`,
   `preferenceService`, `configKvService`, `versionService`, `unfurlService`. `sqliteDatabase` opens

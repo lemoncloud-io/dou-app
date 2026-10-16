@@ -61,6 +61,8 @@ import {
     TestRecordDataSource,
 } from '../data/cache';
 import { TestRecordService } from './cache/TestRecordService';
+import type { INativeStorageService } from './storage';
+import { NativeStorageService } from './storage';
 import type { IKeyValueStorage, ISqliteDatabase } from '../database';
 import { MmkvStorage, SqliteDatabase, TABLES } from '../database';
 import type { ILogUploadQueueService } from './log/uploadQueue/types';
@@ -103,6 +105,7 @@ class DependencyProvider {
     private _cacheCrudService?: ICacheCrudService;
     private _cacheSearchService?: ICacheSearchService;
     private _testRecordService?: TestRecordService;
+    private _nativeStorageService?: INativeStorageService;
     private _dataSources?: {
         channel: ChannelDataSource;
         chat: ChatDataSource;
@@ -260,6 +263,18 @@ class DependencyProvider {
             this._testRecordService = new TestRecordService(this.logService, this.dataSources.testRecord);
         }
         return this._testRecordService;
+    }
+
+    /** The debug panel's storage screen. Lazy like the cache services: it opens SQLite. */
+    public get nativeStorageService(): INativeStorageService {
+        if (!this._nativeStorageService) {
+            this._nativeStorageService = new NativeStorageService(
+                this.logService,
+                this.sqliteDatabase,
+                this.keyValueStorage
+            );
+        }
+        return this._nativeStorageService;
     }
 
     public get deviceService(): IDeviceService {

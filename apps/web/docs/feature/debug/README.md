@@ -1,6 +1,6 @@
 # debug — the developer overlay and the gate in front of it
 
-`apps/web/src/app/features/debug` is the app's only developer surface: a floating panel of **22
+`apps/web/src/app/features/debug` is the app's only developer surface: a floating panel of **23
 screens** that inspect runtime state, drive native bridge commands and read cached rows directly,
 plus the hidden gate that decides whether that panel exists at all. There is no `/debug` route —
 the panel is an overlay mounted beside the router, and the only way in is the gate.
@@ -22,7 +22,7 @@ Things that sound like they are here and are not:
 
 ## Responsibilities
 
-**In** — the unlock gate and its dialog; the panel's navigation, sizing and chrome; the 22 screens
+**In** — the unlock gate and its dialog; the panel's navigation, sizing and chrome; the 23 screens
 and their copy; the runtime metric collectors.
 
 **Out** —
@@ -140,6 +140,50 @@ consumer at all.
 
 The host also wraps the panel in its own `ErrorBoundary`. A crashing screen used to reach the
 app-wide boundary and replace the entire UI — a read-only inspector taking the app down with it.
+
+### The Storage screen shows two stores because the device keeps two
+
+Inside the app, what survives a restart is split. The WebView's own storage holds the session —
+sign-in, the per-cloud token cache, the selected cloud and place — plus `@chatic/config` and UI
+state. The chat cache and the invited-cloud list are not there: `libs/db` routes them to the shell's
+SQLite (`FetchNativeStorageSummary` / `ClearNativeCache`). Settings' "clear cache" empties only the
+chat cache, and resetting the WebView leaves the SQLite half, so a stale entry on one side survived
+whichever clear was used — a cached cloud token kept an account in the wrong session even though
+its places and channels had been cleared. The screen lists both halves with sizes
+([`lib/webStorage.ts`](../../../src/app/features/debug/lib/webStorage.ts) groups the web keys) and
+clears either or both.
+
+What each clear does, and why it stops where it does:
+
+| Clear | Removes                                                                           | Keeps                                                                   |
+| ----- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| App   | Every SQLite cache table                                                          | `invites` always; `invite_clouds` unless its box is ticked; all of MMKV |
+| Web   | localStorage, sessionStorage, every IndexedDB database, every Cache Storage entry | the unsent logs (`@chatic/web.log.*`)                                   |
+| Both  | App first, then web; a failed app half stops before the web half signs anyone out | as above                                                                |
+
+- **Invited clouds are opt-in** because the server has no list of them. A cleared row comes back
+  only when a push names that cloud, and until then the device cannot enter it. The checkbox says so,
+  and changing it disarms a clear already tapped once.
+- **Invite dismissals are never cleared** natively. `invites` carries `dismissedAt`, which only this
+  device writes; Settings' clear keeps it for the same reason. In a browser the same rows live in
+  IndexedDB and go with the web clear — the warning says so.
+- **Logs are never cleared**, on either side. MMKV holds the shell's settings and its unsent log and
+  report queues, and the web keeps its unsent log batches: no copy of server data, so wiping them
+  fixes no stale-cache bug and destroys the evidence for the one being chased.
+- **The web clear takes the sign-in with it** on purpose. A sign-in that survived would carry the
+  cached cloud tokens that are one of the things being cleared. The databases are deleted first;
+  the two storages are emptied last, synchronously, and the page leaves in the same task, so a token
+  refresh still running cannot write the session back in between.
+- Every clear takes two taps, and every successful one reloads (`/` after a web clear, the same URL
+  after an app clear), because screens and react-query still hold what they read. A failed or partial
+  clear does not reload, so the failure stays on screen. A successful one also asks the next boot to
+  retire every sync cursor saved before it (`runtime.data.requestSyncCursorReset`, the same hand-off
+  Settings' clear uses): a sync in flight during the clear can land afterwards and claim "synced up to
+  now" over an emptied store.
+
+The screen is not `requiresShell`: in a browser the web half is all there is, and still worth
+reading. An app build older than the two messages answers `NOT_FOUND`, and the native half says the
+build cannot report instead of offering a button that cannot work.
 
 ## Usage
 

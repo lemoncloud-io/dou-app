@@ -13,6 +13,8 @@ export interface IKeyValueStorage {
     remove(key: string): Promise<void>;
     clearAll(): Promise<void>;
     getAllKeys(): string[];
+    /** Length of the stored string for `key`, 0 when absent. For size reporting only — nothing is parsed. */
+    getByteLength(key: string): number;
 }
 
 export interface ISqliteDatabase {

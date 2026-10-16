@@ -22,6 +22,7 @@ const createStorage = (): IKeyValueStorage & { data: Map<string, unknown> } => {
         }),
         clearAll: jest.fn(async () => data.clear()),
         getAllKeys: jest.fn(() => [...data.keys()]),
+        getByteLength: jest.fn(() => 0),
     };
 };
 

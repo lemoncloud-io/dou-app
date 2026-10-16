@@ -206,6 +206,15 @@ export const DEBUG_SCREENS = [
         section: 'data',
         load: () => import('./screens/DBBrowserScreen').then(m => ({ default: m.DBBrowserScreen })),
     },
+    {
+        // Both halves of what the device keeps — the WebView's own storage and the native shell's —
+        // side by side, because clearing either one alone leaves the other's stale copy behind. Not
+        // `requiresShell`: in a browser the web half is the whole story and still worth reading.
+        key: 'Storage',
+        icon: 'HardDrive',
+        section: 'data',
+        load: () => import('./screens/StorageScreen').then(m => ({ default: m.StorageScreen })),
+    },
 ] as const satisfies readonly DebugScreenEntry[];
 
 export type DebugScreenKey = (typeof DEBUG_SCREENS)[number]['key'];
