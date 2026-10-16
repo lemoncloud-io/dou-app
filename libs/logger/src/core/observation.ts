@@ -40,6 +40,8 @@ export type ObservationKind =
     | 'socket-unavailable-streak'
     /** A sync cursor thrown away, forcing a full re-sync. */
     | 'sync-cursor-retired'
+    /** A cloud's full place list answered with no live place, and the answer that ended it. */
+    | 'place-list-empty'
     /** How much the unsent log queue evicted. */
     | 'queue-loss'
     /** How much of a fetched result was usable — the partial-result shape. */

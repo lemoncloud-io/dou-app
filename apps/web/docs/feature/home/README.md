@@ -186,6 +186,16 @@ serves it (Trigger 6 in [data-flow](../../state/data-flow.md), for the usual cas
 socket was already up); with no place at all — once the list is actually known, see below — the
 Chat section is replaced by an empty state.
 
+**A rejected auto-select is logged once per place.** The auto-select fires and forgets, so left
+uncaught a refused switch would reach the logs only as an anonymous `GLOBAL` unhandled rejection, once
+per attempt: the rollback empties the selection again, which re-runs the auto-select. `useSwitchPlace`
+catches it as a `PLACE` warn, `[useSwitchPlace] auto-select failed` with the target id, written once
+per target until an auto-select lands. The retry itself is untouched. The other half of "home shows a
+cloud with nothing in it" — the server listing no place for this account — is logged by `libs/data`'s
+place repository as a `place-list-empty` entry. On a healthy switch neither appears: the log reads
+`cloud switch succeeded`, then a `token refreshed` from the auto-select's `auth.switch`, and the
+entries' `sid` fills in within seconds.
+
 **A stored selection whose place has been pruned falls back to the first place.** The selected
 site id persists across launches (the native shell hands the session stores `localStorage`), so it
 can outlive its place: one deleted or left while the app was closed keeps its cached row until the
