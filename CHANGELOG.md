@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-16] - root@0.105.0, @chatic/desktop-web@0.33.0
+
+### Features
+
+- (desktop-web) preview composer attachments before sending
+
 ## [2026-10-16] - No version updates
 
 ### Features
