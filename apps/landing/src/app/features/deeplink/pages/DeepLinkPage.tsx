@@ -2,13 +2,15 @@ import { useTranslation } from 'react-i18next';
 
 import { DeepLinkUI, DeepLinkDialog } from '../components';
 import { useDeviceDetect, useDeepLinkInfo, useAppLauncher, useWebRedirect } from '../hooks';
+import { APP_MISSING_HASH, isInviteLink, shouldAutoLaunch } from '../utils';
 
 /**
  * Deep link landing page component.
  *
  * Flow:
  * - Desktop: Show desktop UI (dark theme with mobile access instructions)
- * - Mobile: Show landing page with "Open app" and "View in web" buttons
+ * - Mobile: Try the app on load (Android always, iOS inside in-app browsers), then show the
+ *   "Open app" and "View in web" buttons as the fallback
  *   - "Open app" → confirm dialog → launch app
  *   - App not installed → store confirm dialog → go to store
  *   - "View in web" → redirect to web app
@@ -18,8 +20,14 @@ export const DeepLinkPage = (): JSX.Element => {
     const deviceType = useDeviceDetect();
     const deepLinkInfo = useDeepLinkInfo();
 
+    // The marker means this load is the Android intent fallback: the app was just tried and is missing.
+    const autoLaunch =
+        isInviteLink(deepLinkInfo.deepLinkUrl) &&
+        shouldAutoLaunch(deviceType, navigator.userAgent) &&
+        window.location.hash !== APP_MISSING_HASH;
+
     const { state, dialogType, showAppConfirmDialog, confirmLaunchApp, confirmGoToStore, closeDialog } = useAppLauncher(
-        { deviceType, deepLinkInfo }
+        { deviceType, deepLinkInfo, autoLaunch }
     );
 
     // Web redirect hook - manual trigger only (no auto-redirect)

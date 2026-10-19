@@ -2,11 +2,11 @@
 
 **The public site, and the origin the mobile app's links point at.** One React + Vite SPA serving
 three unrelated jobs from `app.chatic.io`: the marketing home page, the `/policy/*` URLs an app store
-listing and the app's own My Page both cite, and the `/s/*` bounce page that sends an invite link
-into the installed app or into the web app. It has no session, no data layer and no backend call of
+listing and the app's own My Page both cite, and the `/s/*` + `/i` bounce page that sends an
+invite link into the installed app or into the web app. It has no session, no data layer and no backend call of
 its own.
 
-55 TypeScript files under `src/`, three features, five shared components, two test files.
+59 TypeScript files under `src/`, three features, five shared components, five test files.
 
 ## Purpose
 
@@ -22,7 +22,8 @@ It does **not** own:
   what a version bump does and does not trigger
 - the product itself — the web app lives at `dou.chatic.io` (`apps/web`) and is a separate build on
   a separate bucket
-- the invite code — `/s/*` reads the URL and forwards; it never resolves, validates or stores one
+- the invite code — `/s/*` and `/i` read the URL and forward; they never resolve, validate or store
+  one
 
 ### Why it is a separate app
 
@@ -48,12 +49,12 @@ grep -rho "@chatic/[a-z-]*" apps/landing/src | sort | uniq -c
 1. **No session, ever.** Nothing here reads a token, a user or a cache. A page that needs to know who
    is reading it belongs in `apps/web`.
 2. **No network call to our own backend.** The only `fetch` in the app is an orphan (see
-   [Traps](#traps)); `/s/*` redirects the browser and lets the destination do the work.
+   [Traps](#traps)); `/s/*` and `/i` redirect the browser and let the destination do the work.
 3. **Legal text is imported, never typed.** `src/app/features/policy/constants/index.ts` is a
    two-line re-export of the `@chatic/policy-content` barrel. A paragraph written into a page
    component here is a second copy of a policy, which is the failure that library exists to prevent.
 4. **The routes are public URLs with external references.** `/policy/terms`, `/policy/privacy`,
-   `/policy/child` and `/s/...` are cited by store listings, `public/sitemap.xml` and links already
+   `/policy/child`, `/s/...` and `/i?t=...` are cited by store listings, `public/sitemap.xml` and links already
    sent to people. Renaming one breaks something this repo cannot see.
 5. **The English copy names the product's objects the way the app does.** Cloud, place, chat room
    and Self Chat are the nouns the app's own English interface uses, and the four feature cards
@@ -105,17 +106,19 @@ The dashed arrow is the one the diagram cannot explain: **no file in this app im
 
 ### Routes
 
-`src/app/routes/CommonRoutes.tsx` splits on three prefixes, and each feature owns its own subtree.
+`src/app/routes/CommonRoutes.tsx` splits on `/s`, `/i` and `/policy`, sends everything else home, and
+each feature owns its own subtree.
 
-| URL               | Renders                                         |
-| ----------------- | ----------------------------------------------- |
-| `/`               | `HomePage` — hero, features, pricing, CTA       |
-| `/policy/terms`   | `TermsOfServicePage`                            |
-| `/policy/privacy` | `PrivacyPolicyPage`                             |
-| `/policy/child`   | `ChildPolicyPage`                               |
-| `/policy/*`       | redirect to `/policy/terms`                     |
-| `/s/*`            | `DeepLinkPage` — any path under `/s` reaches it |
-| anything else     | redirect to `/`                                 |
+| URL               | Renders                                           |
+| ----------------- | ------------------------------------------------- |
+| `/`               | `HomePage` — hero, features, pricing, CTA         |
+| `/policy/terms`   | `TermsOfServicePage`                              |
+| `/policy/privacy` | `PrivacyPolicyPage`                               |
+| `/policy/child`   | `ChildPolicyPage`                                 |
+| `/policy/*`       | redirect to `/policy/terms`                       |
+| `/s/*`            | `DeepLinkPage` — any path under `/s` reaches it   |
+| `/i/*`            | `DeepLinkPage` — the encoded invite link `/i?t=…` |
+| anything else     | redirect to `/`                                   |
 
 `createBrowserRouter` means every one of these is served by S3 as `index.html`; the CloudFront
 distribution has to rewrite unknown paths to it or `/policy/terms` 404s on a hard refresh.
@@ -131,7 +134,7 @@ apps/landing/
 └── src/
     ├── main.tsx                the only composition point: ThemeProvider + i18n + App
     ├── i18n/                   i18next, ko + en, detector key `@landing.language`
-    ├── app/routes/             CommonRoutes (the three-way split) and the RouterProvider
+    ├── app/routes/             CommonRoutes (the prefix split) and the RouterProvider
     ├── app/shared/             Header, Footer, StoreButton, StoreIcons, Toast, useToast
     └── app/features/
         ├── home/               5 section components, store URLs
@@ -232,11 +235,36 @@ The OS matches the URL against the `.well-known` files served from this origin a
 `io.chatic.dou` directly — this site never loads. That is the success case, and it is entirely the
 deploy script's two uploads.
 
-### 3. The same link, no app installed
+That only holds when the tap reaches the OS. SMS and most mail apps hand the URL to the system; an
+in-app browser (KakaoTalk, Naver, Instagram, Facebook, Line) loads it itself, and a browser that
+opens a URL typed or pasted into it, or one handed to it explicitly by another app ("open in
+Chrome"), does too. In those cases neither a Universal Link nor an App Link fires, the
+association files are not consulted, and the page loads here even though the app is installed —
+which is scenario 3, with the app present.
 
-The browser lands on `/s/...` → `DeepLinkPage`. `useDeviceDetect` classifies the device;
-`useAppLauncher` tries the custom scheme (`chatic://`) on iOS or an `intent://` URL with a store
-fallback on Android, then after 2.5s offers the store; `useWebRedirect` rewrites a `/s?code=...` link
+### 3. The same link, opened in a browser
+
+The browser lands on `/s/...` or `/i?t=...` → `DeepLinkPage`. `useDeviceDetect` classifies the
+device, and the page tries the app **as soon as it loads** where that is safe
+(`utils/appLaunch.ts`, `shouldAutoLaunch`):
+
+- **Android, always.** An `intent://` URL opens the app if it is installed. Its
+  `browser_fallback_url` is this same page with `#app-missing` appended, so a phone without the
+  app comes back here marked, does not try again, and is offered the store with the web as the
+  other choice. Only the marker counts as "app missing": a page still showing without it may just
+  mean the browser declined to open the app, and someone who has it gets the buttons, not an
+  install prompt.
+- **iOS, only inside an in-app browser** (matched by user agent). Safari and Chrome on iOS answer a
+  custom scheme the device cannot open with an "invalid address" alert, which an invitee without
+  the app would see on every visit, so there the page waits for the "Open app" tap.
+
+Only an invite the app can read (`/i?t=...`, `/s?code=...`) is tried automatically; a retired
+`/s/<code>` short link would open the app onto its "invalid link" screen. A launch shows the store
+dialog after 2.5s only if the page is still in the foreground — a page that went to the background
+handed the user to the app. A tapped launch on
+Android uses the Play Store as its intent fallback instead of this page, since the tap already asked
+for the app. For "Continue in browser", `useWebRedirect` decodes an `/i?t=...` link with
+`@chatic/shared`'s `decodeInviteLink` and rewrites it, or a `/s?code=...` link,
 into `https://dou.chatic.io/auth/login?code=...&provider=invite&version=2&...` — appending `relay=1`
 when the link carries no backend address, or `_backend=<url>` when it does.
 
@@ -263,19 +291,18 @@ not trigger.
     npx tsc -b apps/landing/tsconfig.app.json
     ```
 
-- **Two test files, and they are all there is.** Both sit in `src/i18n/`; every component and every
-  deep-link hook has none. The inferred `test` target runs bare `vitest` with no
-  `--passWithNoTests`, so deleting them takes the target back to having nothing to run and failing
-  on that. They are also invisible to `tsc -b`: `tsconfig.app.json` excludes `*.test.ts` and there
-  is no spec tsconfig to pick them up.
+- **Five test files, and they are all there is.** Two sit in `src/i18n/`, one covers the route
+  table, and two cover the app launch (`utils/appLaunch`, `hooks/useAppLauncher`); every component
+  and the other deep-link hooks have none. They are invisible to `tsc -b`: `tsconfig.app.json`
+  excludes `*.test.ts(x)` and there is no spec tsconfig to pick them up.
 
     ```bash
-    npx nx test @chatic/landing   # 7 tests, and verify.yml does not run them
+    npx nx test @chatic/landing   # 41 tests, and verify.yml does not run them
     ```
 
 - **`src/app/features/deeplink/utils/fingerprint.ts` is dead.** `generateFingerprint` calls out to
-  `api.ipify.org`, is exported from no barrel (`utils/index.ts` is an empty `export {}`) and is
-  called from nowhere. Deleting it removes a third-party request that the file's mere existence
+  `api.ipify.org`, is exported from no barrel (`utils/index.ts` re-exports only `appLaunch.ts`) and
+  is called from nowhere. Deleting it removes a third-party request that the file's mere existence
   suggests the site makes.
 - **Both deploy workflows filter on `apps/landing/project.json`, which does not exist.** The path
   simply never matches; every other pattern in the filter does, so this is harmless until someone
@@ -312,7 +339,7 @@ not trigger.
 ```bash
 npx tsc -b apps/landing/tsconfig.app.json     # red today, see Traps
 npx nx lint @chatic/landing                   # passes (one warning), and it is in CI
-npx nx test @chatic/landing                   # 7 tests pass, and CI does not run them
+npx nx test @chatic/landing                   # 41 tests pass, and CI does not run them
 npx nx build @chatic/landing                  # passes — the build the deploy wraps
 yarn landing:start                            # http://localhost:5004
 ```
