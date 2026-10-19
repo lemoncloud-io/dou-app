@@ -39,6 +39,29 @@ The bridge buffers `OnNavigate` until the `WebAppReady` handshake completes (see
 [../webview/README.md](../webview/README.md)), so a cold-start link or tap is delivered as soon as the web is ready —
 no manual startup delay is needed.
 
+## Which links reach the app
+
+A `https` link opens the app only when the OS sees the tap and finds the app claiming that path:
+
+| Link                    | iOS                                    | Android (`AndroidManifest.xml`)                 |
+| ----------------------- | -------------------------------------- | ----------------------------------------------- |
+| `/i?t=…`                | the association file claims every path | `android:path="/i"`, exact                      |
+| `/s?code=…`             | same                                   | `android:path="/s"`, exact                      |
+| `/s/`, `/s/{code}`      | same                                   | `android:pathPattern="/s/.*"`                   |
+| `/auth/…`               | same                                   | `android:pathPattern="/auth/.*"`                |
+| `chatic://…` (any path) | the custom scheme in `Info.plist`      | the custom-scheme filter, no host or path limit |
+
+**A query string is not part of the path Android matches.** `/s?code=…` has the path `/s`, which a
+`/s/.*` pattern does not match — that filter alone, written for the retired `/s/{code}` shape, left
+every current `/s` invite opening the browser on Android, SMS included. Query links therefore get an
+exact `android:path`, never a prefix: a prefix on `/s` or `/i` would also claim unrelated pages on
+the same host. A change to the Android filters reaches users only with an app release.
+
+**A link the OS never sees does not open the app at all**, whatever the filters say. An in-app
+browser (KakaoTalk, Instagram, …) loads the URL itself, and so does a browser given a typed, pasted
+or explicitly handed-over URL. Those links land on the landing site's bounce page, which hands them
+over through the custom scheme.
+
 ## Invite link conversion
 
 An invite link must be converted into a form the web recognizes; `convertShortUrlWithEnvsSync` does
@@ -134,6 +157,8 @@ while a real device breaks.
 
 - Does any new path/query assembly avoid RN `URL`'s `searchParams.set()` + `.search` pattern? (see
   the pitfall above)
+- Does a new link path have its Android filter — an exact `android:path` for a link whose data is in
+  the query? iOS is covered by the association file's `*`.
 - Is a new deep-link kind reflected in `resolveDeepLink` (native) and in whatever consumes `resolveInbound` on the web side?
 - Is an invite link's output a host-less relative path, with the frontend domain never recomputed
   outside `WEBVIEW_URL`?

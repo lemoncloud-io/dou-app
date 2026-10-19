@@ -62,10 +62,23 @@
                 <data android:scheme="${appScheme}" />
             </intent-filter>
 
+            <!--
+                Query invite links. Today's link is `/s?code=...`, whose path is exactly `/s` (a
+                query string is not part of the path), so it needs the exact `android:path` below;
+                `/s/.*` alone never matched it, and those links reached the app only by way of the
+                landing page, even when tapped in a text message. The pattern stays for `/s/` and the
+                retired `/s/<code>` short links, which the app answers with its invalid-link screen
+                rather than leaving the user on a web page that cannot open them either. An exact
+                match on `/s` claims nothing else on the host, for the reason the `/i` filter gives.
+            -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="${appHost}"
+                    android:path="/s" />
                 <data
                     android:scheme="https"
                     android:host="${appHost}"
@@ -86,10 +99,6 @@
                 query string is not part of the path), and a prefix match on `/i` would also claim
                 `/invite/accept` and every `/images/...` URL on the same host, pulling pages into
                 the app that were never meant to open here.
-
-                The sibling filters above show the other half of the lesson: `/s/.*` was written for
-                a link shape that no longer exists, so today's `/s?code=...` does not match it and
-                reaches the app only by way of the landing page.
 
                 iOS needs no counterpart — its association file already claims every path.
             -->
