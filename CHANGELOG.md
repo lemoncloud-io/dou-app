@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-10-19] - root@0.106.0, @chatic/web@0.73.0, @chatic/desktop-web@0.34.0
+
+### Features
+
+- (web) list a cloud 1:1 in its place's chat-room section, still without making one
+- (desktop-web) list a cloud 1:1 in its own place, not every place its peer shares
+- (data) file a cloud 1:1 under its own place, never the reader's
+
+### Documentation
+
+- (adr) a cloud 1:1 belongs to the place it was opened in (ADR-0210)
+
 ## [2026-10-19] - root@0.105.2, @chatic/web@0.72.1
 
 ### Other
