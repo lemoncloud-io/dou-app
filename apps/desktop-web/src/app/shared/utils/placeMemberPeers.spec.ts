@@ -1,24 +1,16 @@
 import type { DomainChannel } from '@chatic/data';
 import { describe, expect, it } from 'vitest';
 
-import { cloudDmPlaces } from './cloudDmPlaces';
 import { placeMemberPeers } from './placeMemberPeers';
 
 const ME = 'me';
-const PLACES = ['place-a', 'place-b'];
-
 const group = (id: string, sid: string, memberIds: string[], fields = {}): DomainChannel =>
     ({ id, name: id, cid: 'cloud-1', sid, stereo: 'private', memberIds, ...fields }) as unknown as DomainChannel;
 
 const dm = (id: string, peerId: string, sid: string): DomainChannel =>
     ({ id, cid: 'cloud-1', sid, stereo: 'dm', memberIds: [ME, peerId] }) as DomainChannel;
 
-const peersIn = (channels: DomainChannel[], placeId: string) =>
-    placeMemberPeers(channels, {
-        myUid: ME,
-        placeId,
-        dmPlaces: cloudDmPlaces(channels, { myUid: ME, placeIds: PLACES }),
-    });
+const peersIn = (channels: DomainChannel[], placeId: string) => placeMemberPeers(channels, { myUid: ME, placeId });
 
 describe('placeMemberPeers', () => {
     it("lists everyone in the place's group channels once, without me", () => {
@@ -31,10 +23,17 @@ describe('placeMemberPeers', () => {
         ]);
     });
 
-    it('leaves out people who already have a 1:1 listed in the place', () => {
-        const channels = [group('g1', 'place-a', [ME, 'p1', 'p2']), dm('dm-1', 'p1', 'place-b')];
+    it('leaves out people who already have a 1:1 in the place', () => {
+        const channels = [group('g1', 'place-a', [ME, 'p1', 'p2']), dm('place-a@me@p1', 'p1', 'place-a')];
 
         expect(peersIn(channels, 'place-a')).toEqual([{ peerId: 'p2', channelId: 'g1' }]);
+    });
+
+    // A 1:1 belongs to the place it was opened in; the one in another place is a different room.
+    it('still offers someone whose only 1:1 with me is in another place', () => {
+        const channels = [group('g1', 'place-a', [ME, 'p1']), dm('place-b@me@p1', 'p1', 'place-b')];
+
+        expect(peersIn(channels, 'place-a')).toEqual([{ peerId: 'p1', channelId: 'g1' }]);
     });
 
     it('leaves out members of other places', () => {

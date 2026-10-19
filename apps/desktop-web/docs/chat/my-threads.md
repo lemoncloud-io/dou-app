@@ -2,18 +2,18 @@
 
 The sidebar's **Threads** row opens a trailing pane listing the threads the user takes part in — a
 thread they replied in, or one whose root they wrote — most recently active first. A group channel's
-threads are listed in its place only; a 1:1's and the Self Channel's belong to the cloud and are listed
-in every place of it. A row opens that thread in the thread panel, switching channel — and, for a 1:1
-listed elsewhere, place — first.
+and a cloud 1:1's threads are listed in their place only — a 1:1 belongs to the place it was opened
+in. The Self Channel's (and the relay's 1:1s') are listed in every place of the cloud. A row opens
+that thread in the thread panel, switching channel — and, for a room another place holds, place —
+first.
 
 ## The pane
 
 - **A row** names who started the thread, the channel (`#` only for a named channel — a DM reads as
-  its person, the Self Channel as "You"). Under it: the root, then the newest reply. A loaded channel
-  is labelled the way every surface labels it; one that is not loaded — a 1:1 the active place does
-  not list — uses what was kept when the thread was last recorded, and a DM's person is resolved
-  live, so that row names no channel. The
-  time is the clock time today and the date before (`formatListTime`, shared with
+  its person, the Self Channel as "You"). Under it: the root, then the newest reply. A loaded
+  channel is labelled the way every surface labels it; one that is not loaded uses what was kept
+  when the thread was last recorded, and a DM's person is resolved live, so that row names no
+  channel. The time is the clock time today and the date before (`formatListTime`, shared with
   Mentions and Saved).
 - **Opening a row** marks it as the one opened and opens its thread, which takes the list's place in
   the trailing slot once it is there. The list is not closed first: while another channel loads, focus
@@ -38,9 +38,10 @@ Entries are keyed by cloud, channel and root chatNo. Channel ids are per-cloud s
 clouds can each have a `5`; the cloud in the key keeps their threads apart. The pane, **Mark all
 read** and the sidebar dot all read the same scope (`isThreadIn`): the active cloud, narrowed to the
 place the channel list is read for — the session's selected site, unless the cloud has no place left.
-The Default Cloud usually has none, and then lists the whole cloud's. A 1:1's `sid` is where its
-creator stood, not where it lives, so the place never narrows a 1:1's — the relay's included — or the
-Self Channel's thread. The list keeps the 100 most recently active threads across
+The Default Cloud usually has none, and then lists the whole cloud's. A cloud 1:1's `sid` is the place
+it lives in, so it narrows like a group channel's. The place never narrows the Self Channel's thread,
+which belongs to the account, nor a relay 1:1's: the relay keeps its 1:1s in its one place, which need
+not be the site a relay session has selected. The list keeps the 100 most recently active threads across
 all clouds and places — a storage bound, so a busy cloud can push a quiet one's threads out.
 
 ## How a thread gets in

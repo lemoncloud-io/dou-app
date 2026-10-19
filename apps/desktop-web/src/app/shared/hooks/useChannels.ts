@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { ACCOUNT_CHANNEL_SID, isCloudWideChannel, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, isCloudDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
-import { cloudDmPlaces, computeChannelUnread, listingPlaces, placeMemberPeers } from '../utils';
+import { computeChannelUnread, listingPlaces, placeMemberPeers, roomPlaces } from '../utils';
 import { useMentionsStore, useReadCursorStore } from '../stores';
 import { useChannelReadCursors } from './useChannelReadCursors';
 import { usePlaces } from './usePlaces';
@@ -19,11 +19,14 @@ const sortByName = (list: DomainChannel[]): DomainChannel[] =>
  * What a read with no place lists.
  *
  * - `nothing`: a place not selected yet — loading, or the site cleared mid cloud switch.
- * - `cloudDms`: a subscription cloud known to have no place at all, whose 1:1s are all it has.
+ * - `cloudDms`: a subscription cloud known to have no place at all, whose 1:1s are all it has. A
+ *   1:1 opened from a session with no place is filed under none (the server keys it by the pair),
+ *   and one filed under a place that is gone is listed by no place either, so every 1:1 whose place
+ *   is not one of the cloud's is listed here.
  * - `relay`: the Default Cloud (Home). It has no place switcher and nothing selects a site on it
  *   (only an invite join does), so for most accounts it never has a place, yet it owns rows — the
- *   Self Channel first of all, which onboarding waits on. Its 1:1s are not cloud-wide (they live in
- *   the relay's one place), so `cloudDms` would list none of them: every row of the relay is listed.
+ *   Self Channel first of all, which onboarding waits on. Its 1:1s live in the relay's one place and
+ *   are not cloud 1:1s, so `cloudDms` would list none of them: every row of the relay is listed.
  */
 type NoPlaceListing = 'nothing' | 'cloudDms' | 'relay';
 
@@ -44,20 +47,13 @@ const EMPTY_WEDGE_CEILING_MS = 4000;
  * refetch. The list is reset on place switch so the previous place's channels
  * don't flash.
  *
- * It reads the whole cloud and filters in JS, because the list for a place is not
- * the same thing as the rows whose `sid` names it. A 1:1 opened inside a
- * subscription cloud belongs to the cloud: the server stamps it with whichever
- * place its creator happened to be in, which says nothing about where either
- * participant reads it. So it is listed in the places where its peer shares a
- * group channel with me (`cloudDmPlaces`, which also holds the fallback for a peer
- * found nowhere), and never through the place filter (that half is what keeps it
- * from showing twice in the creator's place). Deciding that needs every place's
- * group channels, which only the whole-cloud read has. Relay 1:1s really do live
- * in the relay's one place and go through the place filter like any group. A per-place `observeList({ sid })`
- * could not serve this: outside the relay the cache scopes that read by `sid`,
- * so the 1:1s stamped with another place never reach it. (apps/web keeps its place
- * list and its cloud 1:1 section apart; desktop's sidebar already buckets 1:1s into
- * their own section, so one list serves both.)
+ * It reads the whole cloud and filters in JS, because the list for a place is not quite the rows
+ * whose `sid` names it. Every group channel and every cloud 1:1 is listed in its own place — the
+ * server opens a separate 1:1 per place and never moves one. My notes-to-self room is listed in
+ * every place (`roomPlaces`), and a cloud with no place lists the 1:1s no place of it holds, which
+ * needs every row. A per-place `observeList({ sid })` could serve neither: outside the relay the
+ * cache scopes that read by `sid`. (apps/web reads the same rule through `isInPlaceList`; desktop's
+ * sidebar buckets 1:1s into their own section, so one list serves both.)
  *
  * `uid` is part of the cache observer's scope key ({cid, sid, uid}) and flips only at
  * cloud-switch commit, after the optimistic `cid` pre-apply. sid alone cannot key the
@@ -115,27 +111,25 @@ export const useChannels = (
         };
     }, [channelRepository, placeId, myUid, whenNoPlace]);
 
-    const dmPlaces = useMemo(
-        () => cloudDmPlaces(cloudRows, { myUid: myUid ?? null, placeIds }),
-        [cloudRows, myUid, placeIds]
-    );
+    const filedPlaces = useMemo(() => roomPlaces(cloudRows, { placeIds }), [cloudRows, placeIds]);
     // The open place's people with no 1:1 here yet, which the sidebar lists after the 1:1s.
     const memberPeers = useMemo(
-        () => (placeId ? placeMemberPeers(cloudRows, { myUid: myUid ?? null, placeId, dmPlaces }) : []),
-        [cloudRows, myUid, placeId, dmPlaces]
+        () => (placeId ? placeMemberPeers(cloudRows, { myUid: myUid ?? null, placeId }) : []),
+        [cloudRows, myUid, placeId]
     );
     const rawChannels = useMemo(() => {
+        const cloudPlaces = new Set(placeIds);
         const listed = cloudRows.filter(c => {
             // The Self Channel belongs to the account, not a place, so every place of its cloud lists it
             // (after an invite join the relay has a place selected, and it would otherwise vanish).
-            if (placeId) return c.sid === ACCOUNT_CHANNEL_SID || listingPlaces(c, dmPlaces).includes(placeId);
+            if (placeId) return c.sid === ACCOUNT_CHANNEL_SID || listingPlaces(c, filedPlaces).includes(placeId);
             // A row with no cid came from the relay (the same fallback every relay read uses). The
             // cid check is what keeps a late row of the cloud just left out of Home's list.
             if (whenNoPlace === 'relay') return (c.cid || RELAY_CLOUD_ID) === RELAY_CLOUD_ID;
-            return isCloudWideChannel(c);
+            return isCloudDm(c) && !cloudPlaces.has(c.sid);
         });
         return sortByName(listed);
-    }, [cloudRows, dmPlaces, placeId, whenNoPlace]);
+    }, [cloudRows, filedPlaces, placeId, placeIds, whenNoPlace]);
 
     // Read boundary from my synced+observed join row, with the local cursor layered on so reading
     // clears the badge instantly. Server `unreadCount` is not trusted (it lags and never clears).
@@ -183,8 +177,9 @@ export const useChannels = (
         return () => clearTimeout(timer);
     }, [rawLoading, isVerified, rawChannels.length]);
 
-    // A 1:1 cannot be placed before my places are known, so the list is not final until they are.
+    // My notes-to-self room cannot be placed before my places are known, so the list is not final
+    // until they are.
     const isLoading = rawLoading || (!!placeId && placesLoading) || (rawChannels.length === 0 && !confidentEmpty);
 
-    return { channels, isLoading, dmPlaces, memberPeers };
+    return { channels, isLoading, filedPlaces, memberPeers };
 };

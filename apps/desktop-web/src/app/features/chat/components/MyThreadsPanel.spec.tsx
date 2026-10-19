@@ -112,20 +112,22 @@ describe('MyThreadsPanel', () => {
         expect(screen.getByText('New reply')).toBeTruthy();
     });
 
-    it("leaves another place's channel threads out, and keeps a 1:1's and the Self Channel's", () => {
+    it("leaves another place's channel and 1:1 threads out, and keeps this place's and the Self Channel's", () => {
         store(
             thread({ rootNo: '1', rootPreview: 'here' }),
             thread({ channelId: 'C9', placeId: 'P2', rootNo: '2', rootPreview: 'elsewhere' }),
             thread({ channelId: 'S1', placeId: undefined, rootNo: '3', rootPreview: 'note to self' }),
-            thread({ channelId: 'D9', placeId: 'P2', channelKind: 'dm', rootNo: '4', rootPreview: 'one to one' })
+            thread({ channelId: 'D9', placeId: 'P2', channelKind: 'dm', rootNo: '4', rootPreview: 'one to one there' }),
+            thread({ channelId: 'D1', placeId: 'P1', channelKind: 'dm', rootNo: '5', rootPreview: 'one to one here' })
         );
 
         renderPanel();
 
         expect(screen.getByText('here')).toBeTruthy();
         expect(screen.getByText('note to self')).toBeTruthy();
-        expect(screen.getByText('one to one')).toBeTruthy();
+        expect(screen.getByText('one to one here')).toBeTruthy();
         expect(screen.queryByText('elsewhere')).toBeNull();
+        expect(screen.queryByText('one to one there')).toBeNull();
     });
 
     it("lists the whole cloud's threads when no place is selected", () => {
@@ -200,7 +202,7 @@ describe('MyThreadsPanel', () => {
         const onSelect = vi.fn();
         store(thread({ channelId: 'D9', placeId: 'P2', channelKind: 'dm', rootNo: '42', rootPreview: 'go here' }));
 
-        renderPanel(onSelect);
+        renderPanel(onSelect, null);
         fireEvent.click(screen.getByRole('button', { name: /go here/ }));
 
         expect(onSelect).toHaveBeenCalledWith('D9', undefined, 'P2', '42');

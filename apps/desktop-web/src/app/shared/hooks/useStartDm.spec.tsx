@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { act, renderHook } from '@testing-library/react';
+import { createElement, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook as renderBareHook } from '@testing-library/react';
 
 let activeCloudId = 'cloud-1';
 let selectedSiteId: string | null = 'site-1';
@@ -18,6 +20,9 @@ vi.mock('@chatic/app-runtime', () => ({
         session: {
             useGlobalSession: () => ({ cloud: { cloudId: activeCloudId } }),
             useSessionSelection: () => ({ selectedSiteId }),
+            getGlobalSessionContext: () => ({ cloud: { cloudId: activeCloudId, siteId: selectedSiteId } }),
+            SWITCH_SITE_MUTATION_KEY: ['switch-site'],
+            SWITCH_CLOUD_MUTATION_KEY: ['switch-cloud'],
         },
     },
 }));
@@ -28,8 +33,42 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => k
 import { usePendingOpenStore } from '../stores';
 import { useStartDm } from './useStartDm';
 
+let queryClient = new QueryClient();
+const renderHook = <T,>(hook: () => T) =>
+    renderBareHook(hook, {
+        wrapper: ({ children }: { children: ReactNode }) =>
+            createElement(QueryClientProvider, { client: queryClient }, children),
+    });
+
+/**
+ * A switch in flight, the way the runtime's switch mutations register one. `settle` can run code
+ * inside the mutation before it finishes — where the runtime rolls a failed place switch back.
+ */
+const startSwitch = (mutationKey: string[]) => {
+    let settle: () => void = () => undefined;
+    const done = new Promise<void>(resolve => (settle = resolve));
+    let inside: () => void = () => undefined;
+    const mutation = queryClient.getMutationCache().build(queryClient, {
+        mutationKey,
+        mutationFn: async () => {
+            await done;
+            inside();
+        },
+    });
+    const running = mutation.execute(undefined);
+    return {
+        settle: async (withinSwitch: () => void = () => undefined) => {
+            inside = withinSwitch;
+            settle();
+            await running;
+        },
+    };
+};
+const startPlaceSwitch = () => startSwitch(['switch-site']);
+
 describe('useStartDm', () => {
     beforeEach(() => {
+        queryClient = new QueryClient();
         activeCloudId = 'cloud-1';
         selectedSiteId = 'site-1';
         startDm.mockReset();
@@ -94,8 +133,155 @@ describe('useStartDm', () => {
 
         expect(startDm).toHaveBeenCalledWith({ peerId: 'u-1' });
         expect(room).toEqual({ id: 'dm-1', stereo: 'dm' });
-        // An empty place is "stay where you are": the peer was picked from this place's list.
+        // A room that names no place opens with none, which is "stay where you are".
         expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: '', channelId: 'dm-1' });
+    });
+
+    it("lands the open on the room's own place", async () => {
+        startDm.mockResolvedValue({ id: 'site-1@me@u-1', stereo: 'dm', sid: 'site-1' });
+        const { result } = renderHook(() => useStartDm());
+
+        await act(async () => {
+            await result.current.startDm('u-1');
+        });
+
+        expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: 'site-1', channelId: 'site-1@me@u-1' });
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    // The server files the room under the place the session is on when it answers. Sent mid-switch
+    // the call would reach a session still on the place being left.
+    it('waits for a running place switch before it asks the server', async () => {
+        selectedSiteId = 'site-2';
+        const placeSwitch = startPlaceSwitch();
+        startDm.mockResolvedValue({ id: 'site-2@me@u-1', stereo: 'dm', sid: 'site-2' });
+        const { result } = renderHook(() => useStartDm());
+
+        let pending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            pending = result.current.startDm('u-1');
+        });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(startDm).not.toHaveBeenCalled();
+        expect(result.current.isStarting).toBe(true);
+
+        let room: unknown = 'unset';
+        await act(async () => {
+            await placeSwitch.settle();
+            room = await pending;
+        });
+
+        expect(startDm).toHaveBeenCalledWith({ peerId: 'u-1' });
+        expect(room).toMatchObject({ id: 'site-2@me@u-1' });
+        expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: 'site-2' });
+    });
+
+    // A failed switch rolls the place back, and a second one may follow: the place the person asked
+    // from is gone, so nothing is opened anywhere.
+    it('sends nothing when the place moved again while it waited', async () => {
+        selectedSiteId = 'site-2';
+        const placeSwitch = startPlaceSwitch();
+        const { result, rerender } = renderHook(() => useStartDm());
+
+        let pending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            pending = result.current.startDm('u-1');
+        });
+        selectedSiteId = 'site-1';
+        rerender();
+        let room: unknown = 'unset';
+        await act(async () => {
+            await placeSwitch.settle();
+            room = await pending;
+        });
+
+        expect(room).toBeNull();
+        expect(startDm).not.toHaveBeenCalled();
+        expect(usePendingOpenStore.getState().target).toBeNull();
+        expect(result.current.isStarting).toBe(false);
+    });
+
+    // The runtime rolls a failed switch back inside its own mutation, so the wait can end before any
+    // render has seen the rollback.
+    it('sends nothing when the switch it waited for rolled the place back', async () => {
+        selectedSiteId = 'site-2';
+        const placeSwitch = startPlaceSwitch();
+        const { result } = renderHook(() => useStartDm());
+
+        let pending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            pending = result.current.startDm('u-1');
+        });
+        let room: unknown = 'unset';
+        await act(async () => {
+            await placeSwitch.settle(() => {
+                selectedSiteId = 'site-1';
+            });
+            room = await pending;
+        });
+
+        expect(room).toBeNull();
+        expect(startDm).not.toHaveBeenCalled();
+    });
+
+    it('waits for a running cloud switch too', async () => {
+        const cloudSwitch = startSwitch(['switch-cloud']);
+        startDm.mockResolvedValue({ id: 'site-1@me@u-1', stereo: 'dm', sid: 'site-1' });
+        const { result } = renderHook(() => useStartDm());
+
+        let pending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            pending = result.current.startDm('u-1');
+        });
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(startDm).not.toHaveBeenCalled();
+
+        await act(async () => {
+            await cloudSwitch.settle();
+            await pending;
+        });
+        expect(startDm).toHaveBeenCalledWith({ peerId: 'u-1' });
+    });
+
+    it('sends nothing when the cloud moved while it waited', async () => {
+        selectedSiteId = 'site-2';
+        const placeSwitch = startPlaceSwitch();
+        const { result, rerender } = renderHook(() => useStartDm());
+
+        let pending: Promise<unknown> = Promise.resolve();
+        act(() => {
+            pending = result.current.startDm('u-1');
+        });
+        activeCloudId = 'cloud-2';
+        rerender();
+        await act(async () => {
+            await placeSwitch.settle();
+            await pending;
+        });
+
+        expect(startDm).not.toHaveBeenCalled();
+    });
+
+    // The place is fixed by the server; if it is not the one asked from, the room is opened where it
+    // lives rather than left unlisted in this place.
+    it("lands on the room's place, and says so, when it is not the place it was asked from", async () => {
+        startDm.mockResolvedValue({ id: 'site-9@me@u-1', stereo: 'dm', sid: 'site-9' });
+        const { result } = renderHook(() => useStartDm());
+
+        await act(async () => {
+            await result.current.startDm('u-1');
+        });
+
+        expect(warn).toHaveBeenCalledWith(
+            'CHANNEL',
+            expect.stringContaining('another place'),
+            expect.objectContaining({ startedAt: 'site-1', roomPlaceId: 'site-9' })
+        );
+        expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: 'site-9', channelId: 'site-9@me@u-1' });
     });
 
     it('calls the server once for a double click', async () => {
