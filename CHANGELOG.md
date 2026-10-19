@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-19] - root@0.105.1, @chatic/desktop-web@0.33.1
+
+### Bug Fixes
+
+- (desktop-web) keep a signed-in account's guest invites (ADR-0209)
+
 ## [2026-10-16] - root@0.105.0, @chatic/desktop-web@0.33.0
 
 ### Features
