@@ -218,6 +218,126 @@ describe('useRelayInviteFlow — relay 핸드셰이크 게이트', () => {
     });
 });
 
+// An SMS link that resumes the iOS app lands while the relay slot still reads verified; the socket iOS
+// dropped during the suspension closes a moment later and fails everything in flight with 499.
+describe('useRelayInviteFlow — relay socket closed under a request', () => {
+    const socketClosed = () => new Error('499 CLIENT CLOSED REQUEST - socket closed - relay.request(invite.get)');
+    const notConnected = () => new Error('503 SOCKET NOT CONNECTED - WebSocketTransport.send()');
+
+    it('reads the invite again once the relay is back, instead of showing the generic notice', async () => {
+        getInvite.mockRejectedValueOnce(socketClosed());
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        expect(getInvite).toHaveBeenCalledTimes(2);
+        // The retry waited for the relay to verify again, not just the entry's own wait.
+        expect(waitUntilSlotVerified).toHaveBeenCalledTimes(2);
+        expect(loggerError).not.toHaveBeenCalled();
+        expect(loggerWarn).toHaveBeenCalledWith(
+            'INVITE',
+            '[useRelayInviteFlow] relay socket closed during entry; retrying after reconnect',
+            expect.anything()
+        );
+    });
+
+    it('treats a request sent while the socket was down (503) the same way', async () => {
+        getInvite.mockRejectedValueOnce(notConnected());
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        expect(getInvite).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries once only: a second lost socket is the generic notice, with its retry', async () => {
+        getInvite.mockRejectedValueOnce(socketClosed()).mockRejectedValueOnce(socketClosed());
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+        expect(getInvite).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not send the read again when the relay did not come back within the wait', async () => {
+        getInvite.mockRejectedValueOnce(socketClosed());
+        waitUntilSlotVerified.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+        expect(getInvite).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry a server answer', async () => {
+        getInvite.mockRejectedValue(socketError(404));
+        const { result } = mount();
+
+        await waitFor(() => expect(result.current.notice).toBe('notFound'));
+        expect(getInvite).toHaveBeenCalledTimes(1);
+        expect(waitUntilSlotVerified).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends nothing more once the flow is gone while the retry waits for the relay', async () => {
+        getInvite.mockRejectedValueOnce(socketClosed());
+        let release: (verified: boolean) => void = () => undefined;
+        waitUntilSlotVerified.mockResolvedValueOnce(true).mockReturnValueOnce(
+            new Promise<boolean>(resolve => {
+                release = resolve;
+            })
+        );
+        const { unmount } = mount();
+        await waitFor(() => expect(waitUntilSlotVerified).toHaveBeenCalledTimes(2));
+
+        unmount();
+        await act(async () => release(true));
+
+        expect(getInvite).toHaveBeenCalledTimes(1);
+        expect(loggerError).not.toHaveBeenCalled();
+    });
+
+    it("retries advance()'s re-read the same way and goes on to accept", async () => {
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        getInvite.mockRejectedValueOnce(socketClosed());
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-new'));
+        expect(acceptInvite).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends the accept again after its answer was lost — the server answers its own accept as accepted', async () => {
+        acceptInvite.mockRejectedValueOnce(socketClosed());
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(setPendingChannel).toHaveBeenCalledWith('ch-new'));
+        expect(acceptInvite).toHaveBeenCalledTimes(2);
+        expect(result.current.notice).toBeNull();
+    });
+
+    it('ends a twice-lost accept at the generic notice', async () => {
+        acceptInvite.mockRejectedValueOnce(socketClosed()).mockRejectedValueOnce(socketClosed());
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.notice).toBe('generic'));
+        expect(acceptInvite).toHaveBeenCalledTimes(2);
+    });
+
+    it('still routes an accept refused as a guest (403) to verification without retrying it', async () => {
+        acceptInvite.mockRejectedValueOnce(socketError(403));
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+
+        act(() => result.current.accept());
+
+        await waitFor(() => expect(result.current.phase).toBe('verifying'));
+        expect(acceptInvite).toHaveBeenCalledTimes(1);
+    });
+});
+
 // ADR-0039 amended ADR-0033 D10 to remove the profile step: only verification remains.
 // Opening a deeplink does NOT imply a device session: a social-linked main user who simply has no
 // phone yet also gets `needVerify`, and `login` from that session is a 400 ("@mode[login] is for
@@ -659,7 +779,7 @@ describe('useRelayInviteFlow — 수락 결과', () => {
 
 describe('useRelayInviteFlow — 다시 시도', () => {
     it('진입 조회부터 다시 돌려서 수락 화면으로 복구한다', async () => {
-        getInvite.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED'));
+        getInvite.mockRejectedValueOnce(new Error('500 INTERNAL'));
         const { result } = mount();
         await waitFor(() => expect(result.current.notice).toBe('generic'));
 
@@ -687,7 +807,7 @@ describe('useRelayInviteFlow — 다시 시도', () => {
     it('다시 시도 직후의 닫기 신호는 홈으로 보내지 않는다', async () => {
         // AlertDialog fires onOpenChange(false) right after the confirm callback. If that gets read as
         // a dismiss, it bounces to home while the re-fetch is still in flight.
-        getInvite.mockRejectedValueOnce(new Error('503 SOCKET NOT CONNECTED'));
+        getInvite.mockRejectedValueOnce(new Error('500 INTERNAL'));
         const { result } = mount();
         await waitFor(() => expect(result.current.notice).toBe('generic'));
 

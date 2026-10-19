@@ -97,6 +97,37 @@ error instead of being swallowed as a wait.
 The page holds `InviteAcceptLoading` until `isAuthenticated`, for the same reason from the other
 direction.
 
+### A socket that closes under the request is retried once
+
+The wait cannot catch a socket that is already dead but does not know it yet. The common case is an
+SMS link that brings the iOS app back from the background. iOS dropped every socket while the
+WebView was suspended, but the close is only delivered after the resume, so for that first moment
+the relay slot still reads verified. The wait lets `invite.get` through, together with the app's own
+resume refresh. The close then arrives and fails everything in flight with
+`499 CLIENT CLOSED REQUEST - socket closed`. The relay is verified again about a second later.
+Production logs show exactly this sequence on every entry that failed this way, and the reader got
+the `generic` dialog for a socket that was already coming back.
+
+So `invite.get` (entry and `advance()`) and `invite.accept` run through `retryAfterRelayReconnect`
+(`accept/lib/`). On `499` — the socket closed with the request in flight — or `503` — sent while it
+was down — it waits for the relay slot again with the same 10 s wait, then sends the request
+**once** more. Unlike the first wait, this one is not best-effort: when it times out, the socket is
+still gone, so the original failure is reported without sending again. Anything else, and a second
+lost socket, goes to `resolveNotice` as before. A second failure means the socket did not come back,
+and the reader's own retry is the better judge of when to try again. The retry is skipped when the
+run is stale by the time the wait ends, and each retry logs a `warn` naming the stage. The cost is
+on the path where the socket never comes back: that now reaches `generic` after two waits, up to
+about 20 s, rather than one.
+
+Retrying `invite.accept` cannot accept twice. The first attempt may have reached the server with
+only its answer lost, and the server answers a second accept from the **same account** as
+`accepted`: it checks for its own earlier accept before any expiry or terminal-state check, and asks
+for the DM room again. Without the retry, that lost answer ended at `generic`. The reader's Try again
+then re-read the invite as `accepted` and showed `alreadyJoined`, and they were sent home without
+the room.
+
+A `408` is not retried: it already waited 30 s for an answer, and it stays `generic`.
+
 ### Accepting from inside a cloud
 
 A relay invite is accepted on relay. When the reader presses Accept while a cloud is open — a guest
@@ -252,6 +283,8 @@ on whatever screen that lands on — see
   its place.
 - **Do not start a `link` verification without `last4`.** The binding cannot be undone.
 - **Do not put `confirmDecline` into `submitting`.** There is no dialog branch there.
+- **Do not route a packet through `retryAfterRelayReconnect` unless sending it twice is safe.** A
+  `499` does not say whether the first attempt reached the server.
 - **Do not parse error messages.** `getSocketErrorCode` plus the stage is the whole contract.
 - **Do not let the notice dialog's own dismiss navigate during a retry** — `retry` reopens the entry
   read, and the dialog fires `onOpenChange(false)` on its way out.

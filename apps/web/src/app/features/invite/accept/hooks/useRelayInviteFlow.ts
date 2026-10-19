@@ -12,6 +12,7 @@ import { useIsAccountGuest, useRelayInviteMutations, type RelayInviteView } from
 import { useStackNavigate } from '../../../../navigation';
 import { usePendingInviteChannel } from '../../../../stores/usePendingInviteChannel';
 import type { InviteInfo } from '../types';
+import { retryAfterRelayReconnect } from '../lib/retryAfterRelayReconnect';
 import { getSocketErrorCode } from '../../../../utils/errors';
 import { isPlaceProfileAbsent } from '../../../../utils/placeProfile';
 import { ROUTES } from '../../../../routes/paths';
@@ -102,13 +103,42 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
  * Best-effort — a timeout still proceeds, so a genuinely broken socket surfaces the server's own
  * error rather than being swallowed as a wait.
  */
-const awaitRelaySocket = async (): Promise<void> => {
+const awaitRelaySocket = async (): Promise<boolean> => {
     const verified = await runtime.connection
         .getSocketManager()
         .waitUntilSlotVerified(runtime.connection.RELAY_SLOT, HANDSHAKE_WAIT_TIMEOUT_MS);
-    if (verified) return;
+    if (verified) return true;
     logger.warn('INVITE', '[useRelayInviteFlow] relay handshake not verified; proceeding best-effort');
+    return false;
 };
+
+/**
+ * Make one relay call, and make it once more if the relay socket went away under it.
+ *
+ * The handshake wait above cannot catch every dead socket. An SMS link that brings the iOS app back
+ * from the background lands while the relay slot still reads verified — iOS dropped the socket
+ * during the suspension, and the close is only delivered after the resume — so the request goes
+ * out, the close arrives a moment later and fails it with `499`, and the relay is verified again
+ * about a second after that. Without this the reader got the `generic` dialog for a socket that
+ * was already coming back.
+ *
+ * Every call routed here is safe to send twice: `invite.get` is a read, and `invite.accept` from the
+ * same account answers `accepted` again (the server checks for its own earlier accept before any
+ * expiry or terminal-state check), so a retry whose first attempt did land cannot double-accept.
+ */
+const callOnRelay = <T>(stage: 'entry' | 'advance' | 'accept', task: () => Promise<T>, isCurrent: () => boolean) =>
+    retryAfterRelayReconnect(task, {
+        waitForRelay: awaitRelaySocket,
+        shouldRetry: isCurrent,
+        onRetry: error =>
+            logger.warn(
+                'INVITE',
+                `[useRelayInviteFlow] relay socket closed during ${stage}; retrying after reconnect`,
+                {
+                    error,
+                }
+            ),
+    });
 
 export interface RelayInviteFlow {
     phase: RelayInvitePhase;
@@ -335,7 +365,11 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         let view: RelayInviteInfo;
         try {
             await awaitRelaySocket();
-            view = await latest.current.mutations.getInvite(code);
+            view = await callOnRelay(
+                'advance',
+                () => latest.current.mutations.getInvite(code),
+                () => !isStale(run)
+            );
         } catch (error) {
             if (isStale(run)) return;
             const status = getSocketErrorCode(error);
@@ -432,7 +466,11 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
 
         let acceptedChannelId: string | undefined;
         try {
-            const accepted = await latest.current.mutations.acceptInvite(code);
+            const accepted = await callOnRelay(
+                'accept',
+                () => latest.current.mutations.acceptInvite(code),
+                () => !isStale(run)
+            );
             if (isStale(run)) return;
             // `state` is the only success signal the response carries.
             if (accepted.state !== 'accepted') {
@@ -482,7 +520,11 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             try {
                 // The gate matters most here: this is the one read that races the app's cold boot.
                 await awaitRelaySocket();
-                const view = await latest.current.mutations.getInvite(code);
+                const view = await callOnRelay(
+                    'entry',
+                    () => latest.current.mutations.getInvite(code),
+                    () => !isStale(run)
+                );
                 if (isStale(run)) return;
                 setInvite(view);
                 if (view.state === 'expired') return failTerminalState('expired', 'expired', 'entry');
