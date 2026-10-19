@@ -7,6 +7,7 @@ import { logger } from '@chatic/bridges';
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
 import { useStackNavigate } from '../../navigation';
+import { pushRoomPlace } from './pushRoomPlace';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { resolveThreadTarget } from './resolveThreadTarget';
 import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
@@ -20,6 +21,25 @@ const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
  * (`getSelectedCloudId()`), so it must be interpreted here and never forwarded to session APIs.
  */
 const RELAY_ORIGIN_CID = '#';
+
+/** How long a push waits on the room's cached row before landing on the place its link names. */
+const ROOM_ROW_READ_TIMEOUT_MS = 1_000;
+
+/**
+ * The room's cached row, or `null` on a miss, a failure or a read that does not answer in time. It
+ * runs while the push holds the in-flight guard, so it must always settle.
+ */
+const readRoomRow = <T>(read: () => Promise<T | null>): Promise<T | null> =>
+    new Promise(resolve => {
+        const timer = setTimeout(() => resolve(null), ROOM_ROW_READ_TIMEOUT_MS);
+        Promise.resolve()
+            .then(read)
+            .then(
+                row => resolve(row ?? null),
+                () => resolve(null)
+            )
+            .finally(() => clearTimeout(timer));
+    });
 
 /**
  * Strips only the hash so push targets can be compared against the current location.
@@ -88,7 +108,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const { switchSite } = useSiteSwitch();
     // Cloud repository for invited-cloud recovery (see the switch block below); chat for
     // resolving whether a notified message is a thread reply (see `hopToThread`).
-    const { cloud, chat: chatRepository } = runtime.data.useRuntimeRepositories();
+    const { cloud, chat: chatRepository, channel: channelRepository } = runtime.data.useRuntimeRepositories();
     // One push navigation is processed at a time; overlapping events are dropped (see below).
     const inFlightRef = useRef(false);
 
@@ -156,14 +176,24 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             }
             inFlightRef.current = true;
 
-            const { target, cid, sid, chatId } = resolvePushNavigation(rawPath);
-            logger.info('ROUTER', `Push navigation requested: ${rawPath}`, { target, cid, sid, chatId });
+            const { target, cid, sid: pushSid, chatId } = resolvePushNavigation(rawPath);
 
             // Relay-origin push (`cid === '#'`): return to relay when a cloud is active; when relay
             // is already active there is nothing to switch — the sentinel must never hit switchCloud.
             const isRelayPush = cid === RELAY_ORIGIN_CID;
             const needsRelayReturn = isRelayPush && activeServer.kind === 'cloud';
             const needsCloudSwitch = !!cid && !isRelayPush && cid !== selectedCloudId;
+
+            // A 1:1 opens in its own place, not the one its sender wrote from (`pushRoomPlace`). Its
+            // row is read only in the cloud already open — another cloud's cache is not this one's —
+            // and a miss there falls back to the place its id names.
+            const roomChannelId = channelIdOfRoomPath(target);
+            const cachedRoom =
+                roomChannelId && !needsCloudSwitch && !needsRelayReturn
+                    ? await readRoomRow(() => channelRepository.cacheRead(roomChannelId))
+                    : null;
+            const sid = pushRoomPlace(roomChannelId, pushSid, cachedRoom);
+            logger.info('ROUTER', `Push navigation requested: ${rawPath}`, { target, cid, sid, pushSid, chatId });
             const needsSiteSwitch = !!sid && sid !== selectedSiteId;
             const needsSwitch = needsRelayReturn || needsCloudSwitch || needsSiteSwitch;
 
@@ -180,7 +210,6 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
 
             // The room traces begun by whoever called this (a tap, a banner) learn what the switch
             // cost: which kind ran, and when it was done. Marked in place — the room ends them.
-            const roomChannelId = channelIdOfRoomPath(target);
             if (needsSwitch) {
                 roomOpenTrace.putAttribute(
                     roomChannelId,
@@ -243,6 +272,7 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             logoutCloudSession,
             switchSite,
             cloud,
+            channelRepository,
         ]
     );
 };

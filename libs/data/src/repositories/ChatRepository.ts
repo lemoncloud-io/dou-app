@@ -2,7 +2,7 @@ import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
 import type { ChatQueryOptions } from '@chatic/app-messages';
 import { logger } from '@chatic/bridges';
 import type { ChatMentionBody, ChatSendPayload, DomainChat, DomainLastChat, DomainListResult } from '../domain';
-import { toMentionBody, toMentionRecord } from '../domain';
+import { channelIdOfChatId, toMentionBody, toMentionRecord } from '../domain';
 import type { IChatLocalDataSource } from '../local/data-sources';
 import type {
     ChatDeleteInput,
@@ -585,7 +585,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             tempId: provisionalId,
             cid: normalizedContext.cid ?? 'default',
             // The event belongs to the target's channel — the id is `<channelId>:<chatNo>`.
-            channelId: chatId.split(':')[0] ?? '',
+            channelId: channelIdOfChatId(chatId),
             chatNo: 0,
             stereo: 'system',
             subType: 'reaction',

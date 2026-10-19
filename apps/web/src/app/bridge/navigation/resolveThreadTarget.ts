@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import { channelIdOfChatId, type DomainChat } from '@chatic/data';
 
 import { ROUTES } from '../../routes/paths';
 
@@ -29,7 +29,7 @@ export const resolveThreadTarget = (
     if (!parentId) return null;
 
     // A chat's id is `<channelId>:<chatNo>`, so the channel is derivable from either side.
-    const channelId = chat?.channelId || chatId.split(':')[0];
+    const channelId = chat?.channelId || channelIdOfChatId(chatId);
     if (!channelId) return null;
 
     const rootNo = parentId.includes(':') ? parentId.split(':').pop() : parentId;

@@ -65,12 +65,14 @@ describe('ChannelRepository', () => {
     it('delegates read and cache helper methods to the local datasource with the runtime context', async () => {
         const { repository, channelLocalDataSource } = createRepository();
 
+        await repository.cacheRead('ch-1');
         await repository.cacheReadList({ sid: 'site-1' } as any);
         await repository.cacheWrite({ id: 'ch-1' } as any);
         await repository.cacheDelete('ch-1');
         await repository.cacheClear();
 
         // Helper methods should stay thin wrappers so hooks can rely on a consistent context-bound API.
+        expect(channelLocalDataSource.cacheRead).toHaveBeenCalledWith('ch-1', { cid: 'cloud-a', uid: 'me' });
         expect(channelLocalDataSource.cacheReadList).toHaveBeenCalledWith(
             { sid: 'site-1' },
             {
@@ -225,6 +227,27 @@ describe('ChannelRepository', () => {
             [{ id: 'U:1001', stereo: 'self', $: {} }],
             expect.anything()
         );
+    });
+
+    // A cloud 1:1's place comes from its own field or its id, never the reader's; one that names
+    // none is kept too, for a desktop cloud with no place to list.
+    it('syncChannels keeps a cloud 1:1 whose row carries no place field', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.syncChannel.mockResolvedValue({
+            list: [
+                { id: 'S1@me@u2', cid: 'cloud-a', stereo: 'dm', sid: 'S1', $: {} },
+                { id: 'me@u3', cid: 'cloud-a', stereo: 'dm', sid: '', $: {} },
+                { id: 'relay-dm', cid: 'default', stereo: 'dm', $: {} },
+            ],
+            syncedAt: 1,
+        });
+
+        await repository.syncChannels(0);
+
+        expect(channelLocalDataSource.cacheWriteMany.mock.calls[0][0].map((row: { id: string }) => row.id)).toEqual([
+            'S1@me@u2',
+            'me@u3',
+        ]);
     });
 
     it('leaveChannel — a successful self-leave empties the chat cache of that channel', async () => {
@@ -481,10 +504,7 @@ describe('ChannelRepository', () => {
         );
     });
 
-    // The room is stored like any other. It briefly had a write path of its own that blanked the
-    // place field; the server assigns one and returns it on every read, so where a 1:1 may be
-    // listed is decided when reading instead (`isInPlaceList`).
-    it('startDm stores the room through the ordinary write', async () => {
+    it('startDm stores the room under the place the server sent', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
         channelSocketDataSource.startDm.mockResolvedValue({ id: 'dm-1', sid: 'site-1', stereo: 'dm' });
 
@@ -495,21 +515,45 @@ describe('ChannelRepository', () => {
             expect.objectContaining({ cid: 'cloud-a' })
         );
         expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
-            expect.objectContaining({ id: 'dm-1' }),
+            expect.objectContaining({ id: 'dm-1', sid: 'site-1' }),
             expect.anything()
         );
         expect(result.id).toBe('dm-1');
     });
 
-    // Measured on the dev server: the answer for a room the call has just created carries no site,
-    // and the local write requires one. Failing there turned a room the server had opened into an
-    // error for the caller.
-    it('startDm returns a new room without a site and leaves its row to the next sync', async () => {
+    // The answer for a room the call has just created carries no site field; a place-keyed id names
+    // the place the server filed it under.
+    it('startDm caches a new room under the place its id names', async () => {
         const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
-        channelSocketDataSource.startDm.mockResolvedValue({ id: 'dm-new', sid: '', stereo: 'dm' });
+        channelSocketDataSource.startDm.mockResolvedValue({ id: 'site-7@me@u2', sid: '' });
+
+        const result = await repository.startDm({ peerId: 'u2' } as any);
+
+        expect(result).toMatchObject({ id: 'site-7@me@u2', sid: 'site-7', stereo: 'dm' });
+        expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'site-7@me@u2', sid: 'site-7' }),
+            expect.anything()
+        );
+    });
+
+    // The ambient place is the reader's, not the room's: it is never handed to the mapper.
+    it('startDm maps the answer without the ambient place', async () => {
+        const { repository, channelSocketDataSource } = createRepository();
+        channelSocketDataSource.startDm.mockResolvedValue({ id: 'site-7@me@u2', sid: '' });
+
+        await repository.startDm({ peerId: 'u2' } as any);
+
+        expect(channelSocketDataSource.startDm.mock.calls[0][1]).toEqual(expect.objectContaining({ sid: undefined }));
+    });
+
+    // A room that names no place — no field, and a pair key from before places keyed 1:1s — is not
+    // cached: the local write needs a place, and the next sync brings the row with one.
+    it('startDm returns a room that names no place and leaves its row to the next sync', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.startDm.mockResolvedValue({ id: 'me@u2', sid: '', stereo: 'dm' });
 
         await expect(repository.startDm({ peerId: 'u2' } as any)).resolves.toEqual(
-            expect.objectContaining({ id: 'dm-new' })
+            expect.objectContaining({ id: 'me@u2', sid: '' })
         );
         expect(channelLocalDataSource.cacheWrite).not.toHaveBeenCalled();
     });
@@ -711,6 +755,27 @@ describe('ChannelRepository — the scope an answer is written under', () => {
 
         expect(await idsIn('cloud-a')).toEqual(['dm-1']);
         expect(await idsIn('cloud-b')).toEqual([]);
+    });
+
+    // A place switch moves the context before the server answers. The room stays in the place the
+    // server filed it under, which its id names, and not the one the context moved to.
+    it('startDm files a room answered during a place switch under the place its id names', async () => {
+        const { context, repository, socket, channels } = createScopedRepository({
+            cid: 'cloud-a',
+            sid: 'site-1',
+            uid: 'me',
+            socketCid: 'cloud-a',
+        });
+        const remote = deferred<any>();
+        socket.startDm.mockReturnValue(remote.promise);
+
+        const pending = repository.startDm({ peerId: 'u2' } as any);
+        context.setContext({ cid: 'cloud-a', sid: 'site-2', uid: 'me', socketCid: 'cloud-a' });
+        remote.resolve({ id: 'site-1@me@u2', sid: '', stereo: 'dm', cid: 'cloud-a' });
+        await pending;
+
+        const [row] = await channels.forScope({ cid: 'cloud-a', uid: 'me' }).loadAll();
+        expect(row).toMatchObject({ id: 'site-1@me@u2', sid: 'site-1' });
     });
 
     it('startDm returns but does not cache an answer from a socket that served another cloud when asked', async () => {

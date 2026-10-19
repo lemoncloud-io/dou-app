@@ -24,9 +24,8 @@ export interface HomeChannelsResult {
  * exactly what it does now, minus the second observer.
  *
  * The filter stays because the cloud-wide read is not sid-isolated (see above), so rows from other
- * sites must not reach a per-site list. It also drops the rooms that are not place-scoped at all —
- * cloud 1:1s, which carry a `sid` that describes where their creator stood rather than where the
- * conversation lives. Mobile lists them nowhere on home.
+ * sites must not reach a per-site list. A cloud 1:1 passes it like a group room: it lives in the
+ * place it was opened in, so home lists it in that place's chat-room section, beside the groups.
  *
  * `isLoading` follows the shared observation's `isLoaded` rather than an emptiness test: a site with
  * no channels and a site whose read has not landed are indistinguishable from the array alone. That
@@ -36,8 +35,7 @@ export interface HomeChannelsResult {
 export const useHomeChannels = (sid: string | null): HomeChannelsResult => {
     const { channels, isLoaded } = useActiveCloudData();
 
-    // `isInPlaceList`, not a bare `sid` comparison: a 1:1 is read cloud-wide and belongs to no
-    // place's list, however its `sid` reads — see that rule for why the field cannot scope one.
+    // `isInPlaceList` is the data layer's place rule, shared with every other place-scoped read.
     const scoped = useMemo(() => (sid ? channels.filter(channel => isInPlaceList(channel, sid)) : []), [channels, sid]);
 
     return { channels: scoped, isLoading: !!sid && !isLoaded };

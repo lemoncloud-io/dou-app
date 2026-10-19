@@ -44,26 +44,42 @@ describe('useChannels', () => {
         placesState = { placeIds: ['place-a', 'place-b'], isLoading: false };
     });
 
-    it('lists a cloud 1:1 in a place where its peer shares a group channel, whichever place its creator stood in', async () => {
+    // A 1:1 lives in the place it was opened in, whichever places its peer shares with me.
+    it('lists a cloud 1:1 in its own place only, wherever its peer is', async () => {
         cacheRows = [
             { id: 'group-a', name: 'general', cid: 'cloud-1', sid: 'place-a', memberIds: ['me', 'someone'] },
             { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b', memberIds: ['me', 'peer'] },
-            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
+            { id: 'place-a@me@peer', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
         ];
 
-        const { result } = renderHook(() => useChannels('place-b'));
+        const inA = renderHook(() => useChannels('place-a'));
+        const inB = renderHook(() => useChannels('place-b'));
 
-        await waitFor(() => expect(ids(result.current.channels)).toEqual(['dm-1', 'group-b']));
-        // The whole cloud's placement, not only this place's, for callers that route to another place.
-        expect(result.current.dmPlaces.get('dm-1')).toEqual(['place-b']);
-        // Its only other member already has this 1:1, so no one is left to offer.
-        expect(result.current.memberPeers).toEqual([]);
+        await waitFor(() => expect(ids(inA.result.current.channels)).toEqual(['group-a', 'place-a@me@peer']));
+        await waitFor(() => expect(ids(inB.result.current.channels)).toEqual(['group-b']));
+        // The whole cloud's filing, not only this place's, for callers that route to another place.
+        expect(inB.result.current.filedPlaces.get('place-a@me@peer')).toEqual(['place-a']);
+        // The 1:1 with them is another place's room, so they are still offered here.
+        expect(inB.result.current.memberPeers).toEqual([{ peerId: 'peer', channelId: 'group-b' }]);
+    });
+
+    it('lists the 1:1s with one person in two places each in its own place', async () => {
+        cacheRows = [
+            { id: 'place-a@me@peer', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
+            { id: 'place-b@me@peer', cid: 'cloud-1', sid: 'place-b', stereo: 'dm', memberIds: ['me', 'peer'] },
+        ];
+
+        const inA = renderHook(() => useChannels('place-a'));
+        const inB = renderHook(() => useChannels('place-b'));
+
+        await waitFor(() => expect(ids(inA.result.current.channels)).toEqual(['place-a@me@peer']));
+        await waitFor(() => expect(ids(inB.result.current.channels)).toEqual(['place-b@me@peer']));
     });
 
     it("lists the open place's members who have no 1:1 here yet", async () => {
         cacheRows = [
             { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b', memberIds: ['me', 'peer', 'new'] },
-            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
+            { id: 'place-b@me@peer', cid: 'cloud-1', sid: 'place-b', stereo: 'dm', memberIds: ['me', 'peer'] },
         ];
 
         const { result } = renderHook(() => useChannels('place-b'));
@@ -71,19 +87,8 @@ describe('useChannels', () => {
         await waitFor(() => expect(result.current.memberPeers).toEqual([{ peerId: 'new', channelId: 'group-b' }]));
     });
 
-    it('leaves a cloud 1:1 out of a place its peer is not in', async () => {
-        cacheRows = [
-            { id: 'group-a', name: 'general', cid: 'cloud-1', sid: 'place-a', memberIds: ['me', 'peer'] },
-            { id: 'group-b', name: 'design', cid: 'cloud-1', sid: 'place-b', memberIds: ['me', 'someone'] },
-            { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm', memberIds: ['me', 'peer'] },
-        ];
-
-        const { result } = renderHook(() => useChannels('place-b'));
-
-        await waitFor(() => expect(ids(result.current.channels)).toEqual(['group-b']));
-    });
-
-    // Until my places load, no 1:1 can be placed, so the list must not read as final yet.
+    // Until my places load, my notes-to-self room cannot be placed, so the list must not read as
+    // final yet.
     it('stays loading until my places have loaded', async () => {
         placesState = { placeIds: [], isLoading: true };
         cacheRows = [
@@ -149,21 +154,24 @@ describe('useChannels', () => {
         expect(observeList).not.toHaveBeenCalled();
     });
 
-    // A subscription cloud with no place at all still owns its 1:1s.
+    // A subscription cloud with no place at all still owns its 1:1s: the ones opened while it had
+    // none (filed under no place), and the ones whose place is gone.
     it('lists only the cloud 1:1s for a cloud known to have no place', async () => {
+        placesState = { placeIds: [], isLoading: false };
         cacheRows = [
             { id: 'group-a', name: 'general', cid: 'cloud-1', sid: 'place-a' },
             { id: 'dm-1', cid: 'cloud-1', sid: 'place-a', stereo: 'dm' },
+            { id: 'me@peer', cid: 'cloud-1', sid: '', stereo: 'dm' },
             { id: 'relay-dm', cid: 'default', sid: 'relay-place', stereo: 'dm' },
         ];
 
         const { result } = renderHook(() => useChannels(undefined, { whenNoPlace: 'cloudDms' }));
 
-        await waitFor(() => expect(ids(result.current.channels)).toEqual(['dm-1']));
+        await waitFor(() => expect(ids(result.current.channels)).toEqual(['dm-1', 'me@peer']));
     });
 
     // Home has no place for most accounts: nothing selects a site on the relay but an invite join.
-    // Listing only cloud-wide rows there listed nothing, and onboarding waited on the Self Channel
+    // Listing only cloud 1:1s there listed nothing, and onboarding waited on the Self Channel
     // forever.
     it('lists the Self Channel on Home, which has no place', async () => {
         placesState = { placeIds: [], isLoading: false };

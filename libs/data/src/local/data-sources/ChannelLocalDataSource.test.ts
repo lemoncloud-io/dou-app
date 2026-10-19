@@ -142,12 +142,9 @@ describe('ChannelLocalDataSource', () => {
         });
     });
 
-    // A 1:1 briefly had a write path of its own that blanked the place field, on the premise that a
-    // cloud 1:1 belongs to no place. The server assigns one and returns it on every read, so the
-    // blank was refilled by the next sync — and an empty sid meant both "no place" and "place
-    // unknown", which is what the chain below exists to resolve. The field is stored as the server
-    // sent it now, and which rooms a place list may show is decided when reading (`isInPlaceList`).
-    describe('a 1:1 is written like any other channel', () => {
+    // A cloud 1:1 belongs to the place the server stamped on it. The active place is the reader's,
+    // and during a place switch it already names the next one, so it never fills the field.
+    describe('a cloud 1:1 keeps its own place', () => {
         it('keeps the place the row arrived with', async () => {
             const storage = createPartitionedMemoryStorage('channel');
             const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
@@ -157,25 +154,90 @@ describe('ChannelLocalDataSource', () => {
             expect((await dataSource.cacheRead('dm-1'))?.sid).toBe('site-9');
         });
 
-        it('still falls back to the cached place, then the active one', async () => {
+        it('takes the place a place-keyed id names over the active one', async () => {
+            const storage = createPartitionedMemoryStorage('channel');
+            const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
+
+            await dataSource.cacheWrite({ id: 'site-7@u1@u2', stereo: 'dm' } as any);
+
+            expect((await dataSource.cacheRead('site-7@u1@u2'))?.sid).toBe('site-7');
+        });
+
+        it('falls back to the cached place for a partial write', async () => {
             const storage = createPartitionedMemoryStorage('channel');
             const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
             await dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm', sid: 'site-9' } as any);
 
-            await dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm' } as any);
+            await dataSource.cacheWrite({ id: 'dm-1', name: 'renamed' } as any);
 
             expect((await dataSource.cacheRead('dm-1'))?.sid).toBe('site-9');
         });
 
-        it('leaves the guard in place for a row with no place anywhere', async () => {
+        // A row an older build filed under the ambient place is put back where its id says it lives.
+        it('lets the place an id names correct a cached place', async () => {
             const storage = createPartitionedMemoryStorage('channel');
-            const noSidProvider = {
-                getContext: () => ({ cid: 'cloud-a', uid: 'me' }),
+            const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
+            await storage.forScope({ cid: 'cloud-a', uid: 'me' }).save('site-7@u1@u2', {
+                id: 'site-7@u1@u2',
+                cid: 'cloud-a',
+                sid: 'site-1',
+                stereo: 'dm',
+            } as any);
+
+            await dataSource.cacheWrite({ id: 'site-7@u1@u2' } as any);
+
+            expect((await dataSource.cacheRead('site-7@u1@u2'))?.sid).toBe('site-7');
+        });
+
+        // An update or invite answer carries no stereo, so the mapper may have filled its place from
+        // the context. A pair-key room keeps the place it was cached with.
+        it("keeps a pair-key 1:1's cached place over a stereo-less answer's", async () => {
+            const storage = createPartitionedMemoryStorage('channel');
+            const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
+            await dataSource.cacheWrite({ id: 'u1@u2', stereo: 'dm', sid: 'site-9' } as any);
+
+            await dataSource.cacheWrite({ id: 'u1@u2', sid: 'site-1', name: 'renamed' } as any);
+
+            expect(await dataSource.cacheRead('u1@u2')).toMatchObject({ sid: 'site-9', name: 'renamed' });
+        });
+
+        it('is not filed under the active place by a sync', async () => {
+            const storage = createPartitionedMemoryStorage('channel');
+            const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
+
+            await dataSource.cacheWriteMany([
+                { id: 'site-7@u1@u2', stereo: 'dm' } as any,
+                { id: 'u1@u3', stereo: 'dm', $: { sid: 'site-8' } } as any,
+            ]);
+
+            expect((await dataSource.cacheRead('site-7@u1@u2'))?.sid).toBe('site-7');
+            expect((await dataSource.cacheRead('u1@u3'))?.sid).toBe('site-8');
+            expect((await dataSource.cacheReadList({ sid: 'site-1' } as any))?.list).toEqual([]);
+        });
+
+        // A room from before 1:1s were keyed by place may name none. Refusing it would fail the whole
+        // sync it arrived in; it is stored, and no place lists it.
+        it('stores a room that names no place with an empty place instead of refusing it', async () => {
+            const storage = createPartitionedMemoryStorage('channel');
+            const dataSource = new ChannelLocalDataSource(contextProvider as any, storage);
+
+            await dataSource.cacheWriteMany([{ id: 'u1@u4', stereo: 'dm' } as any, { id: 'g-1' } as any]);
+
+            expect((await dataSource.cacheRead('u1@u4'))?.sid).toBe('');
+            expect((await dataSource.cacheRead('g-1'))?.sid).toBe('site-1');
+        });
+
+        it('leaves a relay 1:1 on the ordinary chain, active place included', async () => {
+            const storage = createPartitionedMemoryStorage('channel');
+            const relayProvider = {
+                getContext: () => ({ cid: 'default', sid: '0000', uid: 'me' }),
                 setContext: () => undefined,
             };
-            const dataSource = new ChannelLocalDataSource(noSidProvider as any, storage);
+            const dataSource = new ChannelLocalDataSource(relayProvider as any, storage);
 
-            await expect(dataSource.cacheWrite({ id: 'dm-1', stereo: 'dm' } as any)).rejects.toThrow(/sid is required/);
+            await dataSource.cacheWrite({ id: 'u1@u2', stereo: 'dm' } as any);
+
+            expect((await dataSource.cacheRead('u1@u2'))?.sid).toBe('0000');
         });
     });
 

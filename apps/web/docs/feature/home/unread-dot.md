@@ -68,11 +68,12 @@ grep -rn "countUnread\|unreadOf" --include='*.ts' --include='*.tsx' apps/web/src
 
 `useChannelUnreads(channels, joins)` returns `byChannel`, `byPlace` and `total`.
 
-**A cloud 1:1 is counted in `byChannel` only.** Mobile lists no cloud 1:1 anywhere on home, so its
-unread in a place dot, the bottom nav, the cloud switcher or the app icon would be a mark nothing on
-screen can clear. Its `sid` would not pick the right place anyway — it is where the room's creator
-stood. The cost is that a message in one is learned of from its push alone. Because every count
-below runs through this function, that one rule covers all of them.
+**A cloud 1:1 counts like a group room**, under the place it lives in: home lists it in that place's
+section, so its unread in a place dot, the bottom nav, the cloud switcher or the app icon points at a
+row that clears it. A cloud 1:1 that names no place (one from before places keyed 1:1s may not) is
+counted in `byChannel` only, because no place lists it and any other mark would be one nothing on
+screen can clear. Because every count below runs through this function, that one rule covers all of
+them.
 
 There is **one** observation behind all of it. `ActiveCloudDataProvider`, mounted once in
 `AppRuntime` above both the badge runners and the router, observes every channel of the connected

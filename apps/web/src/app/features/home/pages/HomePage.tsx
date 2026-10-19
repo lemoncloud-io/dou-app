@@ -543,7 +543,8 @@ export const HomePage = () => {
                         isLoading={isChannelSectionLoading}
                         canCreate={!isChannelSectionLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
-                        // Relay only: mobile reaches a 1:1 by phone number and opens no cloud 1:1.
+                        // Relay only: mobile reaches a 1:1 by phone number. A cloud 1:1 is made on
+                        // desktop; mobile lists and opens it, and makes none.
                         showOneOnOneCreate={!isChannelSectionLoading && isDefaultCloud}
                         isPro={planTier !== 'free'}
                         sortMethod={channelSortMethod}

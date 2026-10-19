@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { isCloudWideChannel, type DomainChannel, type DomainJoin } from '@chatic/data';
+import { isCloudDm, type DomainChannel, type DomainJoin } from '@chatic/data';
 
 import { unreadOf } from '../utils/countUnread';
 
@@ -10,7 +10,7 @@ export interface ChannelUnreads {
     byChannel: Record<string, number>;
     /** unread summed per owning site id (sid); a place shows a dot when its value > 0. */
     byPlace: Record<string, number>;
-    /** sum of the per-channel unread counts that `byPlace` sums too — cloud 1:1s left out. */
+    /** sum of the per-channel unread counts — a cloud 1:1 that names no place left out. */
     total: number;
 }
 
@@ -25,9 +25,11 @@ export interface ChannelUnreads {
  *
  * A channel with neither (cursor unknown) counts 0 rather than flashing a full count.
  *
- * **A cloud 1:1 counts in `byChannel` only.** Mobile lists no cloud 1:1 anywhere on home, so a
- * count in a place dot, the bottom nav, the cloud switcher or the app icon would be a mark nothing
- * on screen can clear — and `sid`, which would pick the place, is only where its creator stood.
+ * **A cloud 1:1 counts like a group room**, under the place it lives in: home lists it in that
+ * place's list, so the place dot, the bottom nav, the cloud switcher and the app icon all point at a
+ * row that clears them. The exception is a cloud 1:1 that names no place (one from before places
+ * keyed 1:1s may not): no place lists it on mobile, so it counts in `byChannel` only — anywhere else
+ * it would be a mark nothing on screen can clear.
  */
 export const useChannelUnreads = (
     channels: DomainChannel[],
@@ -42,7 +44,8 @@ export const useChannelUnreads = (
             const unread = unreadOf(ch, joinByChannel?.get(ch.id));
 
             byChannel[ch.id] = unread;
-            if (isCloudWideChannel(ch)) continue;
+            // `#` is the server's "no place", like an empty field.
+            if ((!ch.sid || ch.sid === '#') && isCloudDm(ch)) continue;
             total += unread;
             // Bucket by owning site so a place shows a dot when any of its channels is unread.
             if (ch.sid) {

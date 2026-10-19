@@ -1,11 +1,12 @@
 # ADR-0153: Mobile neither opens nor lists a cloud 1:1
 
-> Status: Proposed — the product reason is pending (§ Context) · Decided: 2026-10-01
+> Status: Accepted for decisions 1 and 4 (reason recorded 2026-10-19, § Context); decisions 2 and 3 superseded by
+> [ADR-0210](./0210-a-cloud-1-1-belongs-to-the-place-it-was-opened-in.md) — mobile lists a cloud 1:1 in its place and counts its unread · Decided: 2026-10-01
 > · Scope: `apps/web/src/app/features/home/**` · `apps/web/src/app/features/channels/**` ·
 > `apps/web/src/app/hooks/useChannelUnreads.ts`
 > · Supersedes, for mobile only: [ADR-0113](./0113-a-cloud-1-1-has-no-invite-and-no-place.md)
 > decisions 8 and 9 and its cloud-scoped section · Desktop is unchanged and keeps
-> [ADR-0141](./0141-desktop-lists-a-cloud-1-1-in-the-places-its-peer-shares.md)
+> [ADR-0141](./0141-desktop-lists-a-cloud-1-1-in-the-places-its-peer-shares.md) (itself superseded by ADR-0210)
 > · The module doc is [dm-and-self-chat.md](../../apps/web/docs/feature/channels/dm-and-self-chat.md)
 
 ## Context
@@ -17,8 +18,8 @@ places their peer shares with me (ADR-0141) and said, in its § Desktop only, th
 single section.
 
 The product owner has decided that mobile drops the cloud 1:1. The relay 1:1 — reached by inviting
-a phone number — is a different flow and stays. **Why mobile drops it is not recorded yet**; this
-record stays Proposed until it is, and the reason is written here in place of this paragraph.
+a phone number — is a different flow and stays. **The reason, recorded 2026-10-19: making a cloud 1:1
+is a desktop feature.** How mobile shows the 1:1s desktop made is ADR-0210.
 
 ## Decision
 

@@ -55,7 +55,7 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
-            // A cloud-wide room is named from this place (`profilePlaceOf`), and my-row prompts are
+            // A room that names no place is named from this place (`profilePlaceOf`), and my-row prompts are
             // offered only when the room's place is this one.
             useSessionSelection: () => ({ selectedSiteId: selectedSiteIdValue }),
         },

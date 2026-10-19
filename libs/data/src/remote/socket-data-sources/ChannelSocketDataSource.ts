@@ -105,13 +105,11 @@ export class ChannelSocketDataSource implements IChannelSocketDataSource {
     }
 
     /**
-     * A 1:1 opened by peer id, which belongs to the CLOUD rather than to any place.
+     * A 1:1 opened by peer id, which belongs to the place the session was in when it asked.
      *
-     * Mapped like any other channel. This response carries no site of its own, so the mapper falls
-     * back to the ambient place — and the server's own answer arrives on the next read and replaces
-     * it. An earlier version blanked the field here to mean "this room has no place", which the
-     * server contradicts on every subsequent read; where a 1:1 may be listed is decided when
-     * reading instead (`isInPlaceList`).
+     * Mapped like any other channel. The repository calls this without the ambient place and takes
+     * the room's own (`dmPlaceOf`): the place a place-keyed id names, else the server's field. The
+     * ambient place is not the room's — during a place switch it already names the next one.
      */
     public async startDm(payload: ChannelStartDmInput, context: DataContext): Promise<DomainChannel> {
         const remote = await this.gateway.startDm<ChannelView>(payload);

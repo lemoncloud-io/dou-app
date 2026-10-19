@@ -1,6 +1,6 @@
 # ADR-0141: Desktop lists a cloud 1:1 in the places its peer shares with me
 
-> Status: Accepted · Decided: 2026-09-29
+> Status: Superseded by [ADR-0210](./0210-a-cloud-1-1-belongs-to-the-place-it-was-opened-in.md) — a cloud 1:1 is listed in its own place only · Decided: 2026-09-29
 > · Scope: `apps/desktop-web/src/app/shared/utils/cloudDmPlaces.ts` · `apps/desktop-web/src/app/shared/hooks/useChannels.ts`
 > · `apps/desktop-web/src/app/shared/hooks/usePlaceUnreadCounts.ts` · `apps/desktop-web/src/app/shared/stores/useKnownChannelsStore.ts`
 > · `apps/desktop-web/src/app/features/chat/**` (opening a 1:1 from a notification, a saved item or the quick switcher)

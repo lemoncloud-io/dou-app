@@ -19,6 +19,7 @@ import type {
     DomainProfile,
     DomainUser,
 } from './models';
+import { dmPlaceOf, isCloudDm } from './channelScope';
 
 /**
  * Mapper input contract: a raw API view that MAY already carry persisted
@@ -85,14 +86,20 @@ const normalizeJoinId = (id: unknown, channelId: unknown, userId: unknown): stri
  */
 export const toDomainChannel = (api: ApiInput<ChannelView, DomainChannel>, context: DataContext): DomainChannel => {
     const cid = context.cid || 'default';
+    const id = toStringSafe(api.id);
+    // A cloud 1:1 never takes the context's place: it belongs to the place the server stamped on it,
+    // which its id names when the answer carries no field (`isCloudDm`).
+    const sid = isCloudDm({ stereo: api.stereo, cid })
+        ? dmPlaceOf({ id, sid: api.sid, $: api.$ })
+        : api.sid || api.$?.sid || context.sid || '';
 
     return {
         ...api,
-        id: toStringSafe(api.id),
+        id,
         cid,
         // Channel view sid: top-level field first, then the nested `$.sid`, then context.
         // Mirrors ChannelLocalDataSource's precedence so a view's own site wins over context.
-        sid: api.sid || api.$?.sid || context.sid || '',
+        sid,
         isNotificationEnabled: toBooleanSafe(api.isNotificationEnabled, true),
     };
 };

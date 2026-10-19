@@ -128,7 +128,7 @@ jest.mock('../../../hooks', () => ({
         unreads: { byChannel: {}, byPlace: {}, total: 0 },
     }),
     useActiveCloudUnreads: () => ({ byChannel: {}, byPlace: {}, total: 0 }),
-    useHomeChannels: () => ({ channels: [], isLoading: false }),
+    useHomeChannels: () => ({ channels: homeChannels, isLoading: false }),
     useInvitedClouds: () => ({ invitedClouds: [] }),
     // Registration is the one join concern still scoped to home — a no-op here.
     useJoinSyncRegistration: jest.fn(),
@@ -160,6 +160,7 @@ jest.mock('../components', () => ({
     // its flag) so the stub says the same thing the real popover does: no handler, no entry.
     // `title` tells the two apart.
     ChannelList: ({
+        channels,
         isPro,
         onCreateGroup,
         showOneOnOneCreate,
@@ -169,6 +170,7 @@ jest.mock('../components', () => ({
         onOpenChange,
         onOpenPlaceInfo,
     }: {
+        channels?: { id: string }[];
         isPro?: boolean;
         onCreateGroup?: () => void;
         showOneOnOneCreate?: boolean;
@@ -182,6 +184,7 @@ jest.mock('../components', () => ({
             data-testid={title ? 'self-chat-list' : 'channel-list'}
             data-is-pro={String(isPro)}
             data-open={String(open)}
+            data-channel-ids={(channels ?? []).map(channel => channel.id).join(',')}
         >
             {onCreateGroup && <button data-testid="create-group" onClick={onCreateGroup} />}
             {showOneOnOneCreate && onCreateOneOnOne && (
@@ -248,6 +251,8 @@ let selectedPlaceId: string | null = 'site-1';
 let isSwitchingPlace = false;
 // The active cloud's rooms as the shared observation holds them — the Self Chat section reads it.
 let activeCloudChannels: unknown[] = [];
+// The active place's rooms, as `useHomeChannels` slices them out of that observation.
+let homeChannels: unknown[] = [];
 const useActiveCloudPlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId, switchPlace: jest.fn(), isSwitching: isSwitchingPlace }));
 const requestAddCloudMock = jest.fn();
@@ -295,6 +300,7 @@ beforeEach(() => {
     isSwitchingPlace = false;
     isProfileNudgeVisible = false;
     activeCloudChannels = [];
+    homeChannels = [];
     selectedSiteId = 'site-1';
     membership = { isValid: false };
     isMembershipLoading = false;
@@ -400,13 +406,26 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', 'cloud');
     });
 
-    // Mobile opens no cloud 1:1, so a cloud offers no 1:1 entry. The list is asserted first so the
+    // Mobile makes no cloud 1:1 (that is desktop's), so a cloud offers no 1:1 entry. The list is asserted first so the
     // test cannot pass merely because the section was not drawn.
     it('offers no 1:1 entry', () => {
         render(<HomePage />);
 
         expect(screen.getByTestId('channel-toggle')).toBeInTheDocument();
         expect(screen.queryByTestId('create-direct')).not.toBeInTheDocument();
+    });
+
+    // The place's chat-room section ("대화방") holds its group rooms and its 1:1s together; only the
+    // notes-to-self room has a section of its own.
+    it("lists the place's 1:1s in the chat-room section beside its group rooms", () => {
+        homeChannels = [
+            { id: 'g-1', stereo: 'private', cid: 'cloud-1', sid: 'site-1' },
+            { id: 'site-1@me@peer', stereo: 'dm', cid: 'cloud-1', sid: 'site-1' },
+            { id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'site-1' },
+        ];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', 'g-1,site-1@me@peer');
     });
 
     // A cloud does not make the self chat on its own and mobile cannot ask for it, so with no room
