@@ -1,5 +1,19 @@
 # Changelog
 
+## [2026-10-19] - root@0.106.2, @chatic/desktop-web@0.34.2
+
+### Bug Fixes
+
+- (ci) record the triggering merge in the dev version bump
+- (desktop-web) clear a rejected invite code's error once it is edited
+- (web,web-ui-kit) give icon buttons translated accessible names
+
+### Other
+
+- test: (desktop) pin the origin gate on the renderer IPC channels
+- test: (mobile) pin that a refused OpenURL never reaches the OS
+- ci: (deploy-dev) bump versions from the develop tip, not the queued sha
+
 ## [2026-10-19] - root@0.106.1, @chatic/desktop-web@0.34.1
 
 ### Bug Fixes
