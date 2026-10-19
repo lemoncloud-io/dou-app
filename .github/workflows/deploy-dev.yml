@@ -184,6 +184,10 @@ jobs:
             - name: Check out repository
               uses: actions/checkout@v4
               with:
+                  # The branch tip, not the triggering sha: a queued run's sha predates
+                  # the bump the previous run pushed, so bumping from it rewrites the
+                  # same CHANGELOG lines and the rebase below conflicts.
+                  ref: develop
                   fetch-depth: 0
                   token: ${{ secrets.LEMON_BOT_TOKEN }}
 
