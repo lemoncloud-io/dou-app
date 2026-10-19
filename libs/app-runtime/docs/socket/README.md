@@ -276,7 +276,7 @@ Performance sample:
 | `connected_ms` | the WebSocket opened                                                                                       |
 | `device_ms`    | `device.save:ok` arrived, which opens the auth gate (see the ordering note in the bootstrap)               |
 | `kind`         | `relay` / `cloud`                                                                                          |
-| `cause`        | `bind` (the slot's first attempt), `reconnect`, or `resume` (the foreground wake recovery's kick)          |
+| `cause`        | `bind` (the slot's first attempt), `reconnect`, or `resume` (the foreground wake recovery's kick or probe) |
 | `outcome`      | `verified`; `closed` — the socket went away first; `expired` — the controller gave up with the socket open |
 
 - **A sample, timed here.** A boot's first connections happen before the WebView knows where its
@@ -295,8 +295,9 @@ Performance sample:
 - **One observer per client.** Observing a client again replaces the previous observer, so a slot the
   binder boots again on the same client — after a failed first connect — is not recorded twice. A
   client that is already past `idle` starts counting at one, so its next attempt is a `reconnect`.
-- `recoverUnverifiedSockets` calls `noteResumeKick(key)` right before it reconnects a slot, which is
-  how its attempt reads as `resume`, and `clearResumeKick(key)` after, so an unused mark expires.
+- `recoverUnverifiedSockets` and `recoverSocketsOnResume` call `noteResumeKick(key)` right before
+  they reconnect a slot, which is how the attempt reads as `resume`, and `clearResumeKick(key)` after,
+  so an unused mark expires.
 
 ### Failed requests get a name, and a volume policy
 

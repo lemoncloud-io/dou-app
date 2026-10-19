@@ -12,9 +12,9 @@ import { expect, test } from '../support/test';
  * once it has painted and refreshes the open room for what arrived meanwhile — all without leaving
  * the screen the person was on.
  *
- * Not covered: the wake kick for a half-open socket (`useSocketWakeRecovery`). Such a socket still
- * reads as verified until the keep-alive misses its pongs, which no fixture here imitates; a socket
- * the relay closed, which is what this suite can produce, reconnects on its own without the kick.
+ * A socket can come back either way: closed by the relay (it reconnects on its own), or half-open —
+ * still up, reading verified, answering nothing — which only the wake recovery's liveness probe
+ * notices before the keep-alive does, 40–80 s later.
  */
 
 const REPLY_WHILE_AWAY = 'Running ten minutes late, sorry!';
@@ -83,6 +83,35 @@ test('a socket dropped while away is opened again, and the room catches up on th
     await expect.poll(() => onNewSocket('auth.update')).toBeGreaterThan(0);
     // The catch-up rides the new session's whole re-sync (places, profiles, rooms), so it is given the
     // suite's 15s rather than the 5s default: on a loaded runner that re-sync alone has taken longer.
+    await expect(page.getByText(REPLY_WHILE_AWAY)).toBeVisible({ timeout: 15_000 });
+    expect(onNewSocket('chat.feed')).toBeGreaterThan(0);
+    expect(await currentPath(page)).toBe(roomPath);
+});
+
+test('a socket left half-open while away is replaced within seconds, and the room catches up', async ({
+    page,
+    shell,
+    backend,
+}) => {
+    const room = dmRoom();
+    backend.useSocket(roomsSocket(backend, [room]));
+    await openDmRoom(page, shell);
+    const roomPath = await currentPath(page);
+    expect(backend.connections).toBe(1);
+
+    sendToBackground(shell);
+    room.chats.push(chatView(DM_CHANNEL.id, 2, REPLY_WHILE_AWAY));
+    room.channel.chatNo = 2;
+    // The connection stays up and still reads verified, but nothing comes back on it any more.
+    backend.silenceSockets();
+    bringToForeground(shell);
+
+    // The probe pings the slot that reads verified, hears nothing for 3 s, and recycles it. The
+    // keep-alive alone needs two missed pings, 30 s apart with 10 s each, so a second connection inside
+    // ten seconds is the probe's doing.
+    await expect.poll(() => backend.connections, { timeout: 10_000 }).toBe(2);
+    const onNewSocket = (type: string) => backend.sent(type).filter(frame => frame.connection > 1).length;
+    await expect.poll(() => onNewSocket('auth.update')).toBeGreaterThan(0);
     await expect(page.getByText(REPLY_WHILE_AWAY)).toBeVisible({ timeout: 15_000 });
     expect(onNewSocket('chat.feed')).toBeGreaterThan(0);
     expect(await currentPath(page)).toBe(roomPath);

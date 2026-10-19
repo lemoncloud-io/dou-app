@@ -273,9 +273,11 @@ firing a second). The token commits, `SocketBinder` boots the relay slot, and th
 
 ### 2. Waking up with a lapsed relay credential
 
-The app calls `recoverUnverifiedSockets()` on its own foreground signal. Only slots where
-`needsSocketKick(status)` holds get kicked — a slot that looks `verified` is left alone, because
-churning a warm connection costs more than it fixes. When the relay socket re-verifies,
+The app calls `recoverSocketsOnResume()` on its own foreground signal. Only slots where
+`needsSocketKick(status)` holds get kicked — a slot that looks `verified` (or `stale`) is not recycled outright,
+because churning a warm connection costs more than it fixes. It is sent one ping instead, and
+recycled only if that goes unanswered for 3 s: a half-open connection keeps reading verified after
+a suspension ([auth § Waking a wedged socket](./docs/auth/README.md#waking-a-wedged-socket)). When the relay socket re-verifies,
 `useSessionStalenessGuard` evaluates on that rising edge; a `stale` status runs
 `credentialRenewers.relay.renew()`, which is the SDK's own `auth.refresh()`. The refreshed view
 comes back through `onTokenRefresh`, is merged so that `identityToken`, `identityPoolId` and the

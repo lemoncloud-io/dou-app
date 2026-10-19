@@ -127,6 +127,16 @@ export const canRefreshThroughSocket = (status: AuthStatus): boolean => status =
  */
 export const needsSocketKick = (status: AuthStatus): boolean => status === 'handshaking' || status === 'expired';
 
+/**
+ * True when a bound slot should be asked for a pong on a foreground/wake signal — the slots
+ * {@link needsSocketKick} leaves alone because they read verified on this connection.
+ *
+ * After a suspension that reading can be stale: a half-open connection still holds the flags of the
+ * handshake it completed before the OS froze the page. A ping costs one frame, so this is how those
+ * slots get checked without recycling a healthy one.
+ */
+export const needsLivenessProbe = (status: AuthStatus): boolean => status === 'verified' || status === 'stale';
+
 // ---------------------------------------------------------------------------
 // Signal collection. Same file as the pure derivation, mirroring
 // `connection/hooks/useConnectivity.ts` (pure `deriveConnectivity` + its impure hook).

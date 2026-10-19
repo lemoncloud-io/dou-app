@@ -44,8 +44,9 @@ export const AppRuntime = () => {
     // Global focus-scroll for all text fields (touch only; excludes [data-no-autoscroll]).
     useAutoScrollOnFocus();
 
-    // Foreground wake kick: recycle bound-but-unverified sockets immediately on resume instead of
-    // waiting for the keep-alive loop to notice the zombie. No-op before the sockets boot.
+    // Foreground wake kick: recycle bound-but-unverified sockets immediately on resume, and ping the
+    // verified ones, recycling any that stay silent for 3 s, instead of waiting for the keep-alive
+    // loop to notice the zombie. No-op before the sockets boot.
     useSocketWakeRecovery();
 
     // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies. The

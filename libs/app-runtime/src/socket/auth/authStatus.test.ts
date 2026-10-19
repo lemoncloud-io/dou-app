@@ -1,4 +1,4 @@
-import { canRefreshThroughSocket, deriveAuthStatus, needsSocketKick } from './authStatus';
+import { canRefreshThroughSocket, deriveAuthStatus, needsLivenessProbe, needsSocketKick } from './authStatus';
 import type { AuthSignals, AuthStatus } from './authStatus';
 
 const MARGIN = 5 * 60_000;
@@ -90,6 +90,14 @@ describe('deriveAuthStatus — 기존 판정 사본과의 동등성 (이관 전 
     it('needsSocketKick 은 handshaking·expired 에서만 true', () => {
         const all: AuthStatus[] = ['absent', 'handshaking', 'verified', 'stale', 'expired'];
         expect(all.filter(needsSocketKick)).toEqual(['handshaking', 'expired']);
+    });
+
+    // The foreground probe covers exactly the bound slots the kick leaves alone, so between them every
+    // bound slot gets one of the two and none gets both.
+    it('needsLivenessProbe is true for verified and stale only, the complement of the kick', () => {
+        const all: AuthStatus[] = ['absent', 'handshaking', 'verified', 'stale', 'expired'];
+        expect(all.filter(needsLivenessProbe)).toEqual(['verified', 'stale']);
+        expect(all.filter(status => needsLivenessProbe(status) && needsSocketKick(status))).toEqual([]);
     });
 
     // useSessionStalenessGuard's two triggers (stored session expired, credential under margin) both converge on one state.
