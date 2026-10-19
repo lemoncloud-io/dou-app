@@ -40,6 +40,7 @@ import { grantsPermission } from './permissions';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
 import { startUpdater } from './updater';
 import { pushDeeplink, pushFcmMessage, pushFcmToken } from './shellEvents';
+import { fromTrustedFrame } from './ipcSenderGate';
 import { initWebUrl, isCustomUiActive, isCustomUiUrl, isTrustedUrl, resolveWebUrl } from './webUrl';
 
 // `yarn desktop:start` runs this shell UNPACKAGED, where app.getName() resolves to
@@ -332,30 +333,34 @@ const registerCustomUiIpc = (win: BrowserWindow): void => {
     ipcMain.removeHandler(CUSTOM_UI_CHANNEL); // createWindow can re-run (macOS re-activate)
     // `raw` is renderer-controlled, so it arrives as unknown and is narrowed here. Annotating
     // the parameter with the shape we hope for would assert, not check.
-    ipcMain.handle(CUSTOM_UI_CHANNEL, async (event, raw: unknown) => {
-        const senderUrl = event.senderFrame?.url;
-        if (!isTrustedUrl(senderUrl)) return customUiStatus('untrusted frame');
-        const { action, zipUrl } = asCustomUiRequest(raw);
+    ipcMain.handle(
+        CUSTOM_UI_CHANNEL,
+        fromTrustedFrame(
+            async () => customUiStatus('untrusted frame'),
+            async (senderUrl, raw: unknown) => {
+                const { action, zipUrl } = asCustomUiRequest(raw);
 
-        const refusal = customUiRefusal(action, IS_DEV_CHANNEL);
-        if (refusal !== null) return customUiStatus(refusal);
+                const refusal = customUiRefusal(action, IS_DEV_CHANNEL);
+                if (refusal !== null) return customUiStatus(refusal);
 
-        if (action === 'status') return customUiStatus();
+                if (action === 'status') return customUiStatus();
 
-        if (action === 'disable') {
-            disableCustomUi();
-            scheduleReload(win);
-            return customUiStatus();
-        }
+                if (action === 'disable') {
+                    disableCustomUi();
+                    scheduleReload(win);
+                    return customUiStatus();
+                }
 
-        if (action === 'apply') {
-            const status = await handleCustomUiApply(senderUrl, zipUrl);
-            if (!status.error) scheduleReload(win);
-            return status;
-        }
+                if (action === 'apply') {
+                    const status = await handleCustomUiApply(senderUrl, zipUrl);
+                    if (!status.error) scheduleReload(win);
+                    return status;
+                }
 
-        return customUiStatus(`unknown action: ${String(action)}`);
-    });
+                return customUiStatus(`unknown action: ${String(action)}`);
+            }
+        )
+    );
 };
 
 const loginItem = createLoginItem(app, process.platform);
@@ -372,12 +377,17 @@ const loginItem = createLoginItem(app, process.platform);
 const registerLoginItemIpc = (): void => {
     ipcMain.removeHandler(LOGIN_ITEM_CHANNEL); // createWindow can re-run (macOS re-activate)
     // `raw` is renderer-controlled, so it arrives as unknown and is narrowed here.
-    ipcMain.handle(LOGIN_ITEM_CHANNEL, (event, raw: unknown): LaunchAtLoginState => {
-        if (!isTrustedUrl(event.senderFrame?.url)) return LOGIN_ITEM_UNSUPPORTED;
-        const request = (raw ?? {}) as { action?: unknown; enabled?: unknown };
-        if (request.action === 'set') return loginItem.write(request.enabled === true);
-        return loginItem.read();
-    });
+    ipcMain.handle(
+        LOGIN_ITEM_CHANNEL,
+        fromTrustedFrame(
+            (): LaunchAtLoginState => LOGIN_ITEM_UNSUPPORTED,
+            (_senderUrl, raw: unknown): LaunchAtLoginState => {
+                const request = (raw ?? {}) as { action?: unknown; enabled?: unknown };
+                if (request.action === 'set') return loginItem.write(request.enabled === true);
+                return loginItem.read();
+            }
+        )
+    );
 };
 
 /**
@@ -760,10 +770,13 @@ const createWindow = (): BrowserWindow => {
     // first because createWindow re-runs on a macOS re-activate — otherwise every bridge
     // message would reach two AppBridgeHosts, one of them holding a destroyed window.
     ipcMain.removeAllListeners(TO_APP_CHANNEL);
-    ipcMain.on(TO_APP_CHANNEL, (event, data: string) => {
-        if (!isTrustedUrl(event.senderFrame?.url)) return;
-        host.handleMessage(data);
-    });
+    ipcMain.on(
+        TO_APP_CHANNEL,
+        fromTrustedFrame(
+            () => undefined,
+            (_senderUrl, data: string) => host.handleMessage(data)
+        )
+    );
 
     registerCustomUiIpc(win);
     registerLoginItemIpc();
