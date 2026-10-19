@@ -126,8 +126,8 @@ or for a malformed `cid`, is then structurally incapable of becoming a permanent
 
 ## Resolving which cloud a push came from
 
-`features/home/utils/resolvePushCloudId.ts` is the **single place in the app** that interprets a
-push's cloud hint. Native code stores the hint fields raw and the foreground bridge forwards them
+`features/home/utils/resolvePushCloudId.ts` is the **single place in the app** that resolves a
+push's cloud hint into the cloud to mark. Native code stores the hint fields raw and the foreground bridge forwards them
 unparsed; neither normalizes. Three runtimes cannot each own a copy of this logic and stay agreed.
 
 The resolver is a pure function with its dependencies injected (`cids`, `resolveContext`):

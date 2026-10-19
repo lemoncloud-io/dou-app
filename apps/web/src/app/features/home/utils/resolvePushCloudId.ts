@@ -1,9 +1,6 @@
 import type { GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
 
-import type { PushCloudHint } from '../../../utils/resolveInAppPushRoute';
-
-/** ADR-0045 relay sentinel — a push whose `cid` is this literal originated from the relay cloud. */
-const RELAY_ORIGIN_CID = '#';
+import { RELAY_ORIGIN_CID, type PushCloudHint } from '../../../utils/resolveInAppPushRoute';
 /** Relay mode reads as this cloud id everywhere else in the app (see useSessionSelection). */
 export const RELAY_CLOUD_ID = 'default';
 
