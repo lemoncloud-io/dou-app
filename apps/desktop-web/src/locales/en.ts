@@ -523,6 +523,7 @@ export const en = {
     'invite.send.sent': 'Invite sent to {{name}}. The link is copied.',
     'invite.send.failed': 'Could not send the invite.',
     'invite.send.failedBody': "Couldn't send the invite. Check the number and try again.",
+    'invite.send.signInRequired': 'Only a signed-in account can send invites. Sign in and try again.',
     'invite.send.missingLink': 'The invite was made but its link is missing. Try again.',
     'invite.link.title': 'Invite link ready',
     'invite.link.subtitle': 'Share this link however you like — it opens this place.',

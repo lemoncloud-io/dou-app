@@ -20,7 +20,13 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore, useSendInviteStore } from '../../channels';
 import { isDmBucket } from '../utils';
-import { lastChatNoOf, useChannelNotifyChange, useReadCursorStore, type ChannelNotifyMode } from '../../../shared';
+import {
+    isRelayGuest,
+    lastChatNoOf,
+    useChannelNotifyChange,
+    useReadCursorStore,
+    type ChannelNotifyMode,
+} from '../../../shared';
 
 type RowDialogKind = Exclude<ChannelDialogKind, 'kick' | null>;
 
@@ -62,9 +68,10 @@ export const ChannelRowMenu = ({
     const openSettings = useChannelSettingsStore(s => s.open);
     const openSendInvite = useSendInviteStore(s => s.open);
     // Sending rides the relay slot (`invite.*` is relay-pinned), so it works
-    // from any cloud — no cloud gate. DMs alone are out: a 1:1 invite is the
-    // room the recipient is already in.
-    const canInvite = !isDm;
+    // from any cloud — no cloud gate — but only for a signed-in account: the
+    // relay refuses a guest inviter. DMs are out too: a 1:1 invite is the room
+    // the recipient is already in.
+    const canInvite = !isDm && !isRelayGuest();
     // Same writer as the settings panel (local pref + announced server sync).
     const { notifyMode, notifyModes, onNotifyChange } = useChannelNotifyChange(channel, myUid);
 

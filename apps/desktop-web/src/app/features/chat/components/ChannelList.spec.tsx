@@ -29,11 +29,14 @@ const menu = vi.hoisted(() => ({
     // (dialog → mutation → onRemoved) — set to true there, stub elsewhere.
     useRealActions: false,
 }));
+// The relay user decides the invite entry: the relay issues invites to signed-in accounts only.
+const relayUser = vi.hoisted(() => ({ current: { userRole: 'user' } as { userRole: string } | null }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useSessionSelection: () => ({ selectedCloudId: 'cloud-1', selectedSiteId: 'place-1' }),
+            getRelaySessionUser: () => relayUser.current,
         },
         data: {
             useRuntimeRepositories: () => ({ join: { updateJoin: menu.serverSync } }),
@@ -647,8 +650,19 @@ describe('ChannelList row context menu (slice 05)', () => {
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
     });
 
+    // A guest is refused by the server, so it is not offered the entry at all.
+    it('hides the invite sender from a guest', () => {
+        relayUser.current = { userRole: 'guest' };
+        renderList([general]);
+
+        openRowMenu(/general/);
+
+        expect(screen.queryByRole('menuitem', { name: 'Invite by phone' })).toBeNull();
+        relayUser.current = { userRole: 'user' };
+    });
+
     // Sending rides the relay slot, so the entry shows on every non-DM row
-    // regardless of cloud.
+    // regardless of cloud, for a signed-in account.
     it('offers the invite sender on rows and opens it', () => {
         const unread = { id: 'C2', name: 'busy', unreadCount: 0, chatNo: 7 } as DomainChannel;
         renderList([general, unread]);
@@ -706,7 +720,9 @@ describe('ChannelList row context menu (slice 05)', () => {
         renderList([general]);
 
         openRowMenu(/general/);
-        fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Notifications · All messages' }), { key: 'ArrowRight' }); // open the submenu (keyboard path — deterministic in jsdom)
+        fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Notifications · All messages' }), {
+            key: 'ArrowRight',
+        }); // open the submenu (keyboard path — deterministic in jsdom)
         fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Mentions only' }));
 
         await waitFor(() => expect(useNotificationPrefsStore.getState().channelNotify['C1']).toBe('mention'));
