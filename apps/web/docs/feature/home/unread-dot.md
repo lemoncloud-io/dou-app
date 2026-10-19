@@ -127,14 +127,14 @@ or for a malformed `cid`, is then structurally incapable of becoming a permanent
 
 ## Resolving which cloud a push came from
 
-`features/home/utils/resolvePushCloudId.ts` is the **single place in the app** that interprets a
-push's cloud hint. Native code stores the hint fields raw and the foreground bridge forwards them
+`features/home/utils/resolvePushCloudId.ts` is the **single place in the app** that resolves a
+push's cloud hint into the cloud to mark. Native code stores the hint fields raw and the foreground bridge forwards them
 unparsed; neither normalizes. Three runtimes cannot each own a copy of this logic and stay agreed.
 
 The resolver is a pure function with its dependencies injected (`cids`, `resolveContext`):
 
 1. `cid === '#'` → the relay cloud, `'default'`. The sentinel is the relay's own marker.
-2. A non-empty `cid` → itself.
+2. A non-empty `cid` → itself. Both steps are `pushCloudIdOf` from `@chatic/data`.
 3. An empty `cid` → a cross-partition cache read through `resolveContext`. First by `uid`, matching my
    join row; then by `channelId`, narrowed by `sid` and `channelName`. **Each narrowing step applies
    only when it leaves a candidate**, and anything other than exactly one surviving cloud returns

@@ -1,4 +1,4 @@
-import type { DomainCloud, ICloudRepository } from '@chatic/data';
+import { RELAY_CLOUD_ID, type DomainCloud, type ICloudRepository } from '@chatic/data';
 
 import { getRepositories } from './runtime';
 import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
@@ -24,6 +24,10 @@ const rehydrateInvitedCloud = async (cloud: ICloudRepository, cloudId: string): 
  * Push safety net: when a push names a source cloud that is not in the local cache, re-derive and
  * re-cache it so cross-cloud routing can resolve it. No-op for empty cid or an already-present cloud.
  *
+ * No-op for the relay as well. It is never an invited cloud and `delegate-cloud` serves only real
+ * clouds — asked for the relay it answers 404, under either of its names. A push names the relay
+ * `'#'`, which its reader translates to `RELAY_CLOUD_ID` before it gets here.
+ *
  * The ONLY safety net left for this domain now that the web→native migration bridge is gone
  * (ADR-0053 decision 5). It is reactive — it fires when a push names a cid — so it repairs a
  * specific cloud, never the list. Closing that gap needs a server list API (ADR-0030).
@@ -32,7 +36,7 @@ export const recoverInvitedCloudIfMissing = async (
     cloud: ICloudRepository,
     cloudId: string | undefined
 ): Promise<void> => {
-    if (!cloudId) return;
+    if (!cloudId || cloudId === RELAY_CLOUD_ID) return;
     const existing = await cloud.cacheRead(cloudId);
     if (existing) return;
     try {

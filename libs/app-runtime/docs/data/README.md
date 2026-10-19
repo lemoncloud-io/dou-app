@@ -237,7 +237,7 @@ stopping stops at once. An observer that throws is logged, never passed on to th
 An invited cloud is the one domain with no server list API: if the row leaves the cache there is
 nothing to restore it from. Two functions defend it, both best-effort and both idempotent:
 
-- `recoverInvitedCloudIfMissing(cloud, cid)` — when a push names a cloud that is not in the cache, re-issue the relay delegation token and rebuild the endpoint from it. No name is written; the connection fills that in later. Since the one-time web-to-native migration was removed, this is the **only** recovery path left, and it is reactive: it repairs a cloud a push happens to name, never the list.
+- `recoverInvitedCloudIfMissing(cloud, cid)` — when a push names a cloud that is not in the cache, re-issue the relay delegation token and rebuild the endpoint from it. No name is written; the connection fills that in later. Since the one-time web-to-native migration was removed, this is the **only** recovery path left, and it is reactive: it repairs a cloud a push happens to name, never the list. It does nothing for `RELAY_CLOUD_ID`: the relay is never an invited cloud and `delegate-cloud` has no answer for it but a 404. A push names the relay `'#'`; its reader translates that before calling here.
 - `syncInvitedCloudName(cloud, cid)` — a delegation token carries no name, so the authoritative one is read with `cloud.get` once the socket verifies. This is the only source for it.
 
 A row may carry `acceptedBy`, the device users that accepted the cloud on this device, which apps/web

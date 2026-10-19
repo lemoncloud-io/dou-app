@@ -8,4 +8,5 @@ export * from './chatAttachments';
 export * from './chatImages';
 export * from './chatMedia';
 export * from './mention';
+export * from './pushCloudId';
 export * from './chatId';

@@ -1,11 +1,9 @@
-import type { GlobalCacheContext, GlobalCacheRef } from '@chatic/data';
+import { pushCloudIdOf, type GlobalCacheContext, type GlobalCacheRef } from '@chatic/data';
 
 import type { PushCloudHint } from '../../../utils/resolveInAppPushRoute';
 
-/** ADR-0045 relay sentinel — a push whose `cid` is this literal originated from the relay cloud. */
-const RELAY_ORIGIN_CID = '#';
 /** Relay mode reads as this cloud id everywhere else in the app (see useSessionSelection). */
-export const RELAY_CLOUD_ID = 'default';
+export { RELAY_CLOUD_ID } from '@chatic/data';
 
 /** Injected so the resolver stays a pure function — no hook, no module-level cache access. */
 export interface ResolvePushCloudIdDeps {
@@ -31,8 +29,8 @@ export const resolvePushCloudId = async (
     hint: PushCloudHint,
     { cids, resolveContext }: ResolvePushCloudIdDeps
 ): Promise<string | null> => {
-    if (hint.cid === RELAY_ORIGIN_CID) return RELAY_CLOUD_ID;
-    if (hint.cid) return hint.cid;
+    const stamped = pushCloudIdOf(hint.cid);
+    if (stamped) return stamped;
 
     if (!hint.uid && !hint.channelId) return null;
     if (cids.length === 0) return null;
