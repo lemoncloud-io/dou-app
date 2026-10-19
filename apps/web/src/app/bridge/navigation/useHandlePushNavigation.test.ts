@@ -17,6 +17,7 @@ import { roomOpenTrace } from '../../runtime/perf';
 // suite asserts on. The recovery itself is native-only, so it never runs here.
 const cacheRead = jest.fn();
 const getChat = jest.fn();
+const channelCacheRead = jest.fn();
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -30,7 +31,11 @@ jest.mock('@chatic/app-runtime', () => ({
             recoverInvitedCloudIfMissing: jest.fn(),
             // `chat` backs the thread-hop leg (usePushNavigate.hopToThread); the mock functions are
             // hoisted above this factory so the suite can drive them.
-            useRuntimeRepositories: jest.fn(() => ({ cloud: {}, chat: { cacheRead, getChat } })),
+            useRuntimeRepositories: jest.fn(() => ({
+                cloud: {},
+                chat: { cacheRead, getChat },
+                channel: { cacheRead: channelCacheRead },
+            })),
         },
         session: {
             useGlobalSession: jest.fn(),
@@ -104,6 +109,7 @@ beforeEach(() => {
     });
     setSelection('default', 's1');
     setActiveServerKind('relay');
+    channelCacheRead.mockResolvedValue(null);
 });
 
 describe('useHandlePushNavigation', () => {
@@ -115,6 +121,76 @@ describe('useHandlePushNavigation', () => {
 
         unmount();
         expect(unregister).toHaveBeenCalledTimes(1);
+    });
+
+    // A 1:1 belongs to the place it was opened in, and its push names the place its sender wrote
+    // from. B wrote from P1; the room lives in P2.
+    describe("a 1:1's push", () => {
+        it("switches to the room's cached place, not the place its sender was in", async () => {
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/me@peer/room', cid: null, sid: 'P1' });
+            channelCacheRead.mockResolvedValue({ id: 'me@peer', sid: 'P2', stereo: 'dm', cid: 'c1' });
+
+            await invoke();
+
+            expect(channelCacheRead).toHaveBeenCalledWith('me@peer');
+            expect(switchSite).toHaveBeenCalledWith('P2');
+            expect(switchSite).not.toHaveBeenCalledWith('P1');
+        });
+
+        it('stays put when the room is in the place already open', async () => {
+            setSelection('c1', 'P2');
+            setResolved({ target: '/channels/P2@me@peer/room', cid: null, sid: 'P1' });
+
+            await invoke();
+
+            expect(switchSite).not.toHaveBeenCalled();
+            expect(navigate).toHaveBeenCalled();
+        });
+
+        // Another cloud's cache is not this one's; the place-keyed id still names the room's place.
+        it("switches to the place its id names after a cloud switch, without reading this cloud's cache", async () => {
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/P2@me@peer/room', cid: 'c2', sid: 'P1' });
+
+            await invoke();
+
+            expect(channelCacheRead).not.toHaveBeenCalled();
+            expect(switchCloud).toHaveBeenCalledWith('c2');
+            expect(switchSite).toHaveBeenCalledWith('P2');
+        });
+
+        // The read runs under the one-at-a-time guard, so it must not be able to hold it.
+        it("lands on the push's place when the row read never answers", async () => {
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/me@peer/room', cid: null, sid: 'P1' });
+            channelCacheRead.mockReturnValue(new Promise(() => undefined));
+
+            await invoke();
+
+            expect(switchSite).toHaveBeenCalledWith('P1');
+            expect(navigate).toHaveBeenCalled();
+        });
+
+        it("keeps a relay 1:1's push on the place it names", async () => {
+            setSelection('default', 's1');
+            setResolved({ target: '/channels/me@peer/room', cid: null, sid: 'P1' });
+            channelCacheRead.mockResolvedValue({ id: 'me@peer', sid: '0000', stereo: 'dm', cid: 'default' });
+
+            await invoke();
+
+            expect(switchSite).toHaveBeenCalledWith('P1');
+        });
+
+        it("keeps a group channel's push on the place it names", async () => {
+            setSelection('c1', 's1');
+            setResolved({ target: '/channels/1000006/room', cid: null, sid: 'P1' });
+            channelCacheRead.mockResolvedValue({ id: '1000006', sid: 'P1', stereo: 'private' });
+
+            await invoke();
+
+            expect(switchSite).toHaveBeenCalledWith('P1');
+        });
     });
 
     it('waits for the handshake, then switches cloud-before-site, then navigates', async () => {
