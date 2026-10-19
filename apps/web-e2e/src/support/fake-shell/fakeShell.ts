@@ -49,8 +49,8 @@ const POST_BINDING = '__e2eFakeShellPost';
  * The page gets what react-native-webview gives it: `window.ReactNativeWebView.postMessage` is present
  * before any page script runs (the web polls for it from module scope, so it must already be there),
  * and the app's own injection script then runs on top of it. The shell itself — the mobile app's own
- * `AppBridgeHost` with a typed handler table — is `@chatic/fake-shell`'s `ShellCore`, shared with the
- * virtual shell; what is here is the Playwright transport: the page's posts arrive through
+ * `AppBridgeHost` with a typed handler table — is `@chatic/fake-shell`'s `ShellCore`; what is here is
+ * the Playwright transport: the page's posts arrive through
  * `page.exposeFunction`, and a reply goes back as the WebView delivers it — a JSON string dispatched as
  * a `message` event.
  */

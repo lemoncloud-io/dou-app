@@ -11,8 +11,7 @@ import { toHostHandler, type ShellHandler, type ShellHandlerTable } from './hand
 
 /**
  * How a shell → web message reaches the page: a JSON string dispatched as a `message` event, on
- * `window` or `document` per platform. Playwright does it with `page.evaluate`, the virtual shell
- * straight into its iframe.
+ * `window` or `document` per platform. Playwright does it with `page.evaluate`.
  *
  * Resolves `true` once dispatched and `false` when the page is gone (navigated or closed between
  * request and reply) — the real shell drops the reply in that case too, and the web never matches it.
@@ -35,7 +34,7 @@ export interface ShellCoreOptions {
     /**
      * Whether to keep what crossed the bridge for `received`, `waitFor`, `delivered` and `unhandled`.
      * On by default, for a test that reads it back. A long-lived caller that keeps its own bounded
-     * record (the virtual shell's log) turns it off, or every message of a session stays in memory.
+     * record turns it off, or every message of a session stays in memory.
      */
     retainTraffic?: boolean;
 }

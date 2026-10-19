@@ -5,7 +5,7 @@
   "scripts": {
     "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
     "prepare": "husky",
-    "local": "node scripts/local/index.js",
+    "local": "hybrid-shell local",
     "postinstall": "node -e \"const cp=require('child_process'); const run=!process.env.SKIP_MOBILE_POD&&(process.env.CI!=='true'||process.env.RUNNER_OS==='macOS'); if(run){try{cp.execSync('yarn mobile:pod',{stdio:'inherit'})}catch(e){}}\"",
     "lint": "npx nx run-many --target=lint",
     "lint:fix": "npx nx run-many --target=lint --fix",
@@ -244,6 +244,7 @@
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
     "@eslint/js": "^9.8.0",
+    "@lemoncloud/hybrid-shell": "^0.1.2",
     "@lemoncloud/lemon-boards-api": "^2.25.109",
     "@nx/eslint": "22.3.3",
     "@nx/eslint-plugin": "22.3.3",

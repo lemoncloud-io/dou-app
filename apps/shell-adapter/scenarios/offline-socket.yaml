@@ -1,0 +1,14 @@
+name: offline, the chat socket fails, and it reconnects once back online
+prod: safe
+steps:
+    - net.offline
+    - expect.status: { net: { online: false } }
+    # Coming back to the front makes the app reconnect its socket, which the offline network refuses.
+    - app.background
+    - app.foreground
+    - expect.net: { url: 'wss:', method: WS, within: 10s }
+    - net.online
+    - app.background
+    - app.foreground
+    - expect.net: { url: 'wss:', method: WS, within: 10s }
+    - expect.status: { net: { online: true }, appState: active }

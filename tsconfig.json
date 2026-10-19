@@ -85,7 +85,7 @@
             "path": "./libs/fake-shell"
         },
         {
-            "path": "./apps/virtual-shell"
+            "path": "./apps/shell-adapter"
         }
     ]
 }

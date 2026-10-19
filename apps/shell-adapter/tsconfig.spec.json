@@ -1,0 +1,19 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "../../dist/out-tsc/shell-adapter-spec",
+        "tsBuildInfoFile": "../../dist/out-tsc/shell-adapter-spec/tsconfig.spec.tsbuildinfo",
+        "lib": ["es2022", "dom"],
+        "types": ["node", "vitest/globals"],
+        "rootDir": "src"
+    },
+    "include": ["src/**/*.ts"],
+    "references": [
+        {
+            "path": "../../libs/app-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/fake-shell/tsconfig.lib.json"
+        }
+    ]
+}

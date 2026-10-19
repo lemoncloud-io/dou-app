@@ -1,6 +1,7 @@
 # ADR-0208: Local runs default to a virtual mobile shell
 
 > Status: Accepted · Decided: 2026-10-16 · Implemented: `feat/virtual-mobile-shell`
+> · Superseded in part: the shell is now a package — [ADR-0214](./0214-the-virtual-shell-is-a-package.md)
 > · Scope: `apps/virtual-shell` (new), `libs/fake-shell` (new, out of `apps/web-e2e`), `scripts/local/`
 > (`yarn local`), `docs/config/skills/dou-shell-verify/`
 > · Extends [ADR-0114](./0114-agent-procedures-in-docs-and-a-general-language-rule.md) (a sixth
@@ -8,7 +9,8 @@
 > · Related: [ADR-0180](./0180-the-web-is-end-to-end-tested-inside-a-fake-native-shell.md) (the fake
 > shell this reuses) · [ADR-0084](./0084-app-local-run-and-shell-stage-vocabulary.md) (the native
 > local run, wrapped unchanged) · [ADR-0186](./0186-the-handshake-lists-what-the-shell-answers.md)
-> · The module doc is [apps/virtual-shell/README.md](../../apps/virtual-shell/README.md)
+> · The module doc was `apps/virtual-shell/README.md`, removed with that app; its successor is
+> [apps/shell-adapter/README.md](../../apps/shell-adapter/README.md)
 
 ## Context
 
