@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-10-19] - root@0.106.1, @chatic/desktop-web@0.34.1
+
+### Bug Fixes
+
+- (desktop-web) show an invite's server reason inside the dialog
+- (desktop-web) hide phone invites from guests, show the server reason
+- (desktop-web) say why an invite send failed and log the reason
+
 ## [2026-10-19] - No version updates
 
 ### Bug Fixes
