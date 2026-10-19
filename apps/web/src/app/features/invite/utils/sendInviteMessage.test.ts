@@ -31,6 +31,27 @@ describe('sendInviteMessage', () => {
         expect(result).toBe('sms');
     });
 
+    it('returns sms for the reply an installed shell actually sends, with no data field', async () => {
+        // Shells up to 0.28.4 answer `{ type: 'OnSendSms', success: true }` — no `data`.
+        isNativeMock.mockReturnValue(true);
+        sendSmsMock.mockResolvedValue({ type: 'OnSendSms', success: true });
+
+        const result = await sendInviteMessage('01012345678', 'invite body');
+
+        expect(copyMessageToClipboardMock).not.toHaveBeenCalled();
+        expect(result).toBe('sms');
+    });
+
+    it('falls back to the clipboard when the SMS request times out', async () => {
+        isNativeMock.mockReturnValue(true);
+        sendSmsMock.mockRejectedValue({ code: 'TIMEOUT', message: 'Request timed out after 15000ms' });
+        copyMessageToClipboardMock.mockResolvedValue(true);
+
+        const result = await sendInviteMessage('01012345678', 'invite body');
+
+        expect(result).toBe('clipboard');
+    });
+
     it('네이티브지만 SMS 브릿지가 success:false면 클립보드로 폴백한다', async () => {
         isNativeMock.mockReturnValue(true);
         sendSmsMock.mockResolvedValue({ data: { success: false } });
