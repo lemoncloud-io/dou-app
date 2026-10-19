@@ -17,7 +17,8 @@ in your browser once both servers say they are ready. Before it starts anything 
 needs and, if something is missing, names it and how to get it, then stops.
 
 Beyond `apps/web/.env` (copied from its template below) it needs two files that have no template,
-because they carry real endpoints — ask a teammate for them:
+because they carry real endpoints — download them from the team secrets repository
+([below](#env-and-firebase-files--the-team-secrets-repository)):
 
 - `apps/web/.env.dev` — the web's dev backend (`apps/web/.env.prod` for `yarn local --env prod`);
 - `apps/mobile/.env.dev` — for the Google sign-in client, `VITE_GOOGLE_WEB_CLIENT_ID`
@@ -26,6 +27,20 @@ because they carry real endpoints — ask a teammate for them:
 The other ways to run — the web alone, the simulator — are `yarn local --mode web` and
 `yarn local --mode native` (`--platform android` for the emulator); see
 [apps/virtual-shell/README.md](./apps/virtual-shell/README.md).
+
+## Env and Firebase files — the team secrets repository
+
+The env and Firebase files that are not in git — every app's `.env` / `.env.dev` / `.env.prod`
+(web, mobile, admin-v2, desktop-web, testbed) and the mobile Firebase config
+(`GoogleService-Info-{Dev,Prod}.plist`, `google-services.json`) — are kept in the team's private
+secrets repository, **at the same paths as in this repo**. Clone it next to this checkout, then
+copy or link each file to the same path here; `git pull` there picks up changed values. If you
+cannot open it, ask a repository admin for read access. Values change there, by pull request —
+not by passing files around.
+
+Release and signing credentials are not in it (see
+[Optional — release and signing credentials](#optional--release-and-signing-credentials-not-needed-for-local-dev)).
+Contributors outside the team create their own from the `.example` templates below.
 
 ## Required for local dev
 
@@ -63,8 +78,11 @@ values, following `apps/desktop/.env.example`.
 
 - **`.env` / `.env.dev` / `.env.prod`** — `.env.example` is the public template for the LOCAL env
   only. `.env.dev` and `.env.prod` carry real backend endpoints and aren't covered by a template;
-  ask a teammate for values. See [apps/mobile/docs/release/local-run.md](apps/mobile/docs/release/local-run.md).
-- **Firebase config (push notifications)**:
+  download them from the team secrets repository
+  ([above](#env-and-firebase-files--the-team-secrets-repository)). See
+  [apps/mobile/docs/release/local-run.md](apps/mobile/docs/release/local-run.md).
+- **Firebase config (push notifications)** — team members download these from the same secrets
+  repository; without it, create them from the templates:
 
     ```bash
     # iOS — copy and fill with your Firebase config
