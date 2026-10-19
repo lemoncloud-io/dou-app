@@ -17,10 +17,14 @@ import type * as ConfirmDialogModule from '../../channels/components/ConfirmDial
 import type * as SendInviteStoreModule from '../../channels/stores/useSendInviteStore';
 
 const profile = vi.hoisted(() => ({ photo: undefined as string | undefined, isGuest: false }));
+const identity = vi.hoisted(() => ({ userId: 'me', delegatorId: null as string | null }));
+// The account's role, from the relay token. Inside a cloud `profile` is the cloud user's instead.
+const relayUser = vi.hoisted(() => ({ userRole: 'user' }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
-            useSessionIdentity: () => ({ userId: 'me' }),
+            useSessionIdentity: () => identity,
+            getRelaySessionUser: () => relayUser,
             useRuntimeProfile: () => profile,
             useSessionLogout: () => vi.fn(),
         },
@@ -119,6 +123,8 @@ const createTile = () => screen.queryByRole('button', { name: i18next.t('place.c
 beforeEach(() => {
     vi.clearAllMocks();
     profile.isGuest = false;
+    identity.delegatorId = null;
+    relayUser.userRole = 'user';
     placeOrder.byCloud = {};
     dnd.end = undefined;
 });
@@ -241,13 +247,23 @@ describe('PlaceRail account menu', () => {
     // A signed-in account that picks "join with invite" only hears "log out first" after
     // typing a code — the item is for guests, so it is shown to guests only.
     it('shows the join item to a guest', async () => {
+        relayUser.userRole = 'guest';
         profile.isGuest = true;
         renderRail();
         await openAccountMenu();
         expect(joinItem()).not.toBeNull();
     });
 
-    it('hides the join item from a signed-in account', async () => {
+    // A provider sign-in on desktop links the device's guest, so the account keeps the guest id the
+    // invite exchange runs under — and the server lets that session into the invited cloud.
+    it('shows the join item to a signed-in account linked to the device guest', async () => {
+        identity.delegatorId = 'guest-1';
+        renderRail();
+        await openAccountMenu();
+        expect(joinItem()).not.toBeNull();
+    });
+
+    it('hides the join item from a signed-in account with no guest to join under', async () => {
         renderRail();
         await openAccountMenu();
         expect(joinItem()).toBeNull();

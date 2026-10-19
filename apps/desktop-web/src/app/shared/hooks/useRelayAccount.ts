@@ -20,6 +20,17 @@ export interface RelayAccountUpdate {
 }
 
 /**
+ * Whether the person on this device is a guest, judged from the relay token — the account's, not the
+ * active session's. Inside a cloud the active session is that cloud's user, whose role says nothing
+ * about the account, so `useRuntimeProfile().isGuest` cannot answer this. No relay user counts as a
+ * guest, as on the account hub. Read at call time, so a click reads the token as it stands then.
+ */
+export const isRelayGuest = (): boolean => {
+    const account = runtime.session.getRelaySessionUser() as RelayAccount | null;
+    return !account || account.userRole === 'guest';
+};
+
+/**
  * The ACCOUNT profile (relay token), not the active session's. Screens asking
  * "who is this account" read this; screens asking "what may I do in this
  * cloud" keep using `useRuntimeProfile`.

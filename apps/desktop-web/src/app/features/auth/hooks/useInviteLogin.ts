@@ -69,9 +69,10 @@ export const useInviteLogin = () => {
                 await runtime.boot.startWebTransportInit();
                 // The invite exchange is signed with a guest delegatorId. Reuse the existing
                 // guest session if there is one (the in-app "Join" dialog is reachable with a
-                // session already live) — only bootstrap a guest when none exists. A real,
-                // non-guest user has no delegatorId, so accepting here would silently downgrade
-                // them to a guest; surface that instead of clobbering their identity.
+                // session already live) — only bootstrap a guest when none exists. An account
+                // signed in on top of a device guest keeps that guest's id and joins under it; one
+                // that never had a device guest has no delegatorId, so accepting here would silently
+                // downgrade it to a guest — surface that instead of clobbering its identity.
                 let delegatorId = runtime.session.getIdentityContext().delegatorId;
                 if (!delegatorId) {
                     // The identity context carries no guest flag; the active token's role is the source
