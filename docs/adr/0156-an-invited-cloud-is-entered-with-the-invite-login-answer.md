@@ -9,6 +9,8 @@
 > clouds handed to the background sockets are the ones the device user accepted, not the whole cache
 > · Amended by: [ADR-0169](./0169-an-owned-cloud-is-never-held-as-its-invitee.md) —
 > not for a cloud the account owns
+> · Amended by: [ADR-0209](./0209-a-signed-in-desktop-account-keeps-its-guests-invites.md) —
+> desktop-web no longer refuses a signed-in account that holds its device guest's id
 > · The module doc is [apps/web invite](../../apps/web/docs/feature/invite/README.md#accepting-a-cloud-invite)
 
 ## Context
@@ -65,6 +67,7 @@ cloud, so the next device user was delegated into the cloud before it accepted a
   empty user in a cloud the device user was not granted; with entry no longer re-issued, that no longer
   blocks a later acceptance.
 - **apps/web only.** desktop-web neither writes nor reads `acceptedBy`, and accepts invites through its
-  own flow; it refuses a signed-in account outright.
+  own flow; it refuses a signed-in account outright. (Since ADR-0209 only an account holding no
+  device guest id is refused.)
 - Two tabs accepting the same cloud at once can lose one `acceptedBy` entry: the write reads the row
   and replaces the field.

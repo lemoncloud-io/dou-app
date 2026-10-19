@@ -42,6 +42,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     Hint,
+    isRelayGuest,
     MobileAppPointer,
     ScrollHint,
     useAccountName,
@@ -242,7 +243,7 @@ export const PlaceRail = ({
     const { t } = useTranslation();
     const navigate = useNavigate();
     const openJoinDialog = useJoinDialogStore(s => s.open);
-    const { userId } = runtime.session.useSessionIdentity();
+    const { userId, delegatorId } = runtime.session.useSessionIdentity();
     const { photo } = runtime.session.useRuntimeProfile();
     const accountName = useAccountName();
     const logout = runtime.session.useSessionLogout();
@@ -253,6 +254,11 @@ export const PlaceRail = ({
     const [confirmingLogout, setConfirmingLogout] = useState(false);
 
     const runLogout = () => void resetAccount().finally(() => logout());
+    // Joining exchanges the code under the guest id the device registered (`delegatorId`). A
+    // sign-in on desktop links that guest rather than replacing it, so a signed-in account keeps the
+    // id and the server follows it back to the guest for the invited cloud. Only an account with no
+    // such id has nothing to join under — the exchange refuses it after the code.
+    const canJoinWithInvite = isRelayGuest() || !!delegatorId;
 
     // The place the delete confirmation is about, and whether it is showing. Two values: the place
     // is kept after the close so the title still names it while the dialog fades out.
@@ -460,9 +466,9 @@ export const PlaceRail = ({
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => navigate('/account')}>{t('rail.menu.account')}</DropdownMenuItem>
-                    {/* Guests only: the exchange refuses a signed-in account after the code
-                        is typed, so a signed-in account is never shown a code field. */}
-                    {isGuest && <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>}
+                    {canJoinWithInvite && (
+                        <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
                     {/* A tool, not an account action: its own group, away from Log out. */}

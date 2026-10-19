@@ -90,8 +90,9 @@ The pending push on another cloud is not filtered this way: it is marked on any 
 
 ## An invited cloud this device lost
 
-An invited cloud has no server-side list. Its only record is the local cache row (`cloudType:
-'invited'`) the invite flow writes, so a reinstall, a cleared cache, or a profile that never ran
+An invited cloud has no server-side list. Its durable record is the local cache row (`cloudType:
+'invited'`) the invite flow writes — the joined-clouds store beside it only bridges the moment before
+that row lands — so a reinstall, a cleared cache, or a profile that never ran
 that flow has no tile for it, and nothing can refill the list. What can be repaired is a cloud the
 app is told about by name: `runtime.data.recoverInvitedCloudIfMissing` asks the relay for a fresh
 delegation token for that cloud (`delegate-cloud`), which carries its endpoints, and writes the row

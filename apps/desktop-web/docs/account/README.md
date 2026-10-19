@@ -32,7 +32,8 @@ ask what the person may do in the current cloud read the session's profile inste
   **Join with invite** as a link at its foot, which opens the join dialog. Two cards side by side gave
   no order between them. Where no sign-in is on, or the relay user has not loaded, a plain prompt with
   the **Join** button stands in. There is no clouds entry, since a guest owns none. Notifications and
-  Policies are still offered.
+  Policies are still offered. A signed-in account that can join by invite does so from the profile
+  menu in the rail; the hub keeps the join link on the guest card only.
 
 Notifications is a link to `/settings`, where the notification controls live; the hub holds none of
 its own.
@@ -114,7 +115,9 @@ with a cascade, drops its cached row and refetches the catalog. Then:
 - **A cloud the session is not in** is released with a "released" toast, and the person lands back on the list.
 - **Releasing the cloud the session is in** leaves nothing to stand in, so the account is logged out
   instead: the account-scoped local state is cleared (`useAccountResetOnLogout`) and then the session
-  logs out. There is no toast and no redirect; the logout is the result.
+  logs out. A signed-in account keeps its invited clouds through that reset — see
+  [Invites and logout for a signed-in account](../auth/README.md#invites-and-logout-for-a-signed-in-account).
+  There is no toast and no redirect; the logout is the result.
 
 The confirmation closes when its button is pressed, since it is an alert dialog whose action closes
 it; the outcome arrives as the toast or the navigation.

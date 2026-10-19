@@ -11,8 +11,13 @@ const repos = Object.fromEntries(
         { cacheClear: vi.fn().mockResolvedValue(undefined) },
     ])
 );
+// The account's role, from the relay token — what decides whether invited clouds stay.
+const relayUser = vi.hoisted(() => ({ current: null as { userRole: string } | null }));
 vi.mock('@chatic/app-runtime', () => ({
-    runtime: { data: { useRuntimeRepositories: () => repos } },
+    runtime: {
+        data: { useRuntimeRepositories: () => repos },
+        session: { getRelaySessionUser: () => relayUser.current },
+    },
 }));
 
 // Verify via the Facade's clear, not the registry: this is the one method that sweeps both the
@@ -65,6 +70,55 @@ describe('useAccountResetOnLogout', () => {
 
         expect(removeItemSpy).toHaveBeenCalledWith('chatic-my-threads');
         removeItemSpy.mockRestore();
+    });
+
+    describe('invited clouds', () => {
+        const invited = { id: 'cloud-invited', name: 'Friends', cloudType: 'invited' };
+        const owned = { id: 'cloud-owned', name: 'Studio', cloudType: 'owner' };
+        let rows: Array<Record<string, unknown>> = [];
+        const cloudRepo = repos.cloud as Record<string, ReturnType<typeof vi.fn>>;
+
+        // A stand-in cloud cache, so the test reads what is left rather than which calls were made.
+        beforeEach(() => {
+            rows = [invited, owned];
+            cloudRepo.cacheClear.mockImplementation(async () => {
+                rows = [];
+            });
+            cloudRepo.cacheReadList = vi.fn(async () => ({ list: rows }));
+            cloudRepo.cacheDelete = vi.fn(async (id: string) => {
+                rows = rows.filter(row => row.id !== id);
+            });
+            localStorage.setItem(
+                'chatic-joined-clouds',
+                JSON.stringify({ state: { joinedClouds: { [invited.id]: invited } }, version: 0 })
+            );
+        });
+
+        // A signed-in account on desktop is the device's guest linked to a provider. The guest it falls
+        // back to still holds the invite grants, and the rail can list invited clouds from nowhere but
+        // these two records — wiping them emptied the list until a push re-cached one cloud.
+        it('keeps the invited clouds in the list after a social account logs out', async () => {
+            relayUser.current = { userRole: 'user' };
+            const { result } = renderHook(() => useAccountResetOnLogout());
+            await result.current.resetAccount();
+
+            expect(rows.map(row => row.id)).toEqual([invited.id]);
+            expect(localStorage.getItem('chatic-joined-clouds')).not.toBeNull();
+        });
+
+        // Inside a cloud the active session is the cloud user's, which is no guest even for a guest
+        // account; the relay role is the one that says the logout is a delete.
+        it.each([
+            ['a guest, whose logout is a delete', { userRole: 'guest' }],
+            ['a device with no relay user', null],
+        ])('takes the invited clouds with %s', async (_label, relay) => {
+            relayUser.current = relay;
+            const { result } = renderHook(() => useAccountResetOnLogout());
+            await result.current.resetAccount();
+
+            expect(rows).toEqual([]);
+            expect(localStorage.getItem('chatic-joined-clouds')).toBeNull();
+        });
     });
 
     it('7개 repo 캐시를 비운다 — 로그아웃 위생은 그대로 유지된다', async () => {

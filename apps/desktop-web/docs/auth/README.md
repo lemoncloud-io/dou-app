@@ -113,6 +113,30 @@ machine's clock: one running ahead of the server by more than the slack plus the
 browser reads a new account as an existing one, which loses the stop but never invents one. A notice
 not yet said when the person logs out is dropped with the rest of the account's storage.
 
+### Invites and logout for a signed-in account
+
+Because the sign-in links the Guest Session rather than replacing it, the signed-in account keeps the
+guest's id (`delegatorId`) and still stands on that guest's invite grants. Two things follow from it.
+
+- **It can join a cloud by invite** (ADR-0209). The invite exchange (`/oauth/login-invite`) does not check who
+  is calling: it links the invited cloud to the guest id it is given, and when the account later
+  switches into that cloud the relay follows the session's link back to the original guest and lets
+  it in by invite. So the profile menu offers "Join with invite" to a guest and to any account that
+  holds a guest id. An account without one — signed in without a guest on the device first — has
+  nothing to join under; the join dialog refuses it after the code (`loggedIn`), and the menu hides
+  the item from it.
+- **Its logout keeps the invited clouds.** After the reload the device registers back into the same
+  guest, which still holds the grants, so messages from those clouds keep arriving. The rail can list
+  an invited cloud only from the cloud cache's invited rows and the joined-clouds store — the relay
+  catalog never carries one, and there is no server list to rebuild them from. The account reset used
+  to wipe both, which emptied the list until a push re-cached one cloud at a time. It now keeps both
+  when a signed-in account logs out, and still clears the rest of the cloud cache (owned clouds'
+  names belong to the account). A guest's logout is a delete and takes its invited clouds with it.
+
+Both checks read the role from the relay token (`isRelayGuest`), not from `useRuntimeProfile`: inside
+a cloud the active session is that cloud's user, and its role says nothing about the account. No relay
+user counts as a guest, as on the account hub.
+
 ## Linking Google
 
 A signed-in account (not a guest) with no social account linked gets **Link Google** on the account
