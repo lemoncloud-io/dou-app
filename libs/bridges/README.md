@@ -67,6 +67,9 @@ assume a DOM — the e2e host has none.
    it goes out. Starting the clock at the call would spend a 15-second budget waiting for a channel
    that has its own 10-second deadline, and every cold-start request would time out instead of
    answering.
+   **And it counts only while the page is visible.** A hidden page is one whose replies may not
+   arrive until it shows again, so a timeout that kept counting would report a wait as a fault —
+   [scenario 7](#7-another-app-in-front-of-this-one) is the case that forced it.
 5. **The reply type is re-checked at runtime.** `@chatic/app-messages` makes the pairing a compile
    error, but the two sides are different release trains — a web build and an installed shell are not
    necessarily the same generation of that map. A successful reply whose `type` is not the expected
@@ -163,7 +166,7 @@ sequenceDiagram
     W->>W: poll every 50ms for window.ChaticMessageHandler / webkit / ReactNativeWebView
 
     alt the channel appears before bridgeReadyTimeoutMs
-        W->>W: flushBuffer() → dispatchRequest() → timeoutMs starts HERE
+        W->>W: flushBuffer() → dispatchRequest() → timeoutMs starts HERE (held while the page is hidden)
         W->>A: postMessage(JSON)
         A->>H: handleMessage(string)
         Note over H: first non-SendLog message marks the web ready<br/>and flushes the host's own event buffer
@@ -235,8 +238,8 @@ libs/bridges/src/
 └── logger/        the web→native relay, and the @chatic/logger re-export
 ```
 
-22 production files, 6 spec files, 3,561 lines. The barrel exports 15 runtime values of its own — 5
-classes and 10 constants — plus 13 interfaces, 6 type aliases, and everything `@chatic/logger`
+22 production files, 6 spec files, 4,038 lines. The barrel exports 15 runtime values of its own — 5
+classes and 10 constants — plus 14 interfaces, 6 type aliases, and everything `@chatic/logger`
 exports.
 
 Names you would not find by guessing at a filename:
@@ -263,7 +266,7 @@ Names you would not find by guessing at a filename:
 | Code                        | Built by          | When                                                                                                                                                  |
 | --------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `NATIVE_NOT_SUPPORTED`      | `WebBridgeClient` | no channel appeared before `bridgeReadyTimeoutMs`, or `window` did not exist at construction (SSR). `request` rejects; `post` logs `debug` and drops. |
-| `TIMEOUT`                   | `WebBridgeClient` | no reply within `timeoutMs` — 15s through `webClient`, 10s for a bare `WebBridgeClient`. Counted from dispatch.                                       |
+| `TIMEOUT`                   | `WebBridgeClient` | no reply within `timeoutMs` — 15s through `webClient`, 10s for a bare `WebBridgeClient`. Counted from dispatch, while the page is visible.            |
 | `RESPONSE_TYPE_MISMATCH`    | `WebBridgeClient` | a `success: true` reply arrived whose `type` is not the one the map names.                                                                            |
 | `DESTROYED`                 | `WebBridgeClient` | `destroy()` ran while the request was pending. `recoverable: false`.                                                                                  |
 | `BRIDGE_SIMULATION_FAILURE` | `WebBridgeClient` | `configureEnvironment({ forceFailure })` — test seam only.                                                                                            |
@@ -328,6 +331,10 @@ host.pushEvent({ type: 'OnReceiveNotification', success: true, data: { notificat
 type, its outcome (`ok` or the error code), how long it waited for the channel (`queuedMs`), its
 round trip from dispatch (`roundTripMs`), how many other requests were in flight when it left, and
 the length of the request and reply payloads.
+
+`roundTripMs` is wall-clock time. A request whose timeout was held while the page was hidden
+([scenario 7](#7-another-app-in-front-of-this-one)) and settles after it shows carries the whole time
+away, so a long sample from a backgrounded run is the user being elsewhere, not a slow host.
 
 ```ts
 webClient.setRequestObserver(sample => record(sample)); // one observer; a later call replaces it
@@ -463,11 +470,64 @@ lines (same level, tag and message) are folded past 5 within a 1s window, with t
 reported on the next occurrence; a stalled network otherwise produces one `postMessage` per timing-out
 request on the very thread the cache path needs.
 
+### 7. Another app in front of this one
+
+The SMS invite opens the SMS composer, and from then on the user is in another app. On Android the
+host still answers at once — `OnSendSms` is built a few milliseconds after the request — but the
+answer does not reach the page. `apps/mobile` replies through `webViewRef.postMessage`, a WebView
+command, and React Native's renderer runs WebView commands only from its frame callback, which it
+removes while the activity is paused. The page itself keeps running: its timers fire, and its own
+messages to the host still arrive. So every reply waits for the user to come back, and then they all
+land together, just before `visibilitychange` reports the page visible. Measured on an Android 16
+emulator: a reply built at +0.01 s reached the page at +58.8 s, 0.46 s after the app was brought back.
+
+A timeout that counted through that wait failed every request in it. The SMS request timed out at
+15 s, its clipboard fallback timed out at 30 s, and the invite was reported undelivered, while the
+composer it had opened sat in front of the user with the message filled in. Native cache reads in the
+same window took 15 s and up for the same reason.
+
+So the client holds its timeouts while `document.visibilityState` is `hidden`. On `visibilitychange`
+to hidden it clears each running timer and keeps what was left of its budget, measured on the
+monotonic clock so a wall-clock correction on wake cannot shrink or stretch it; on visible it re-arms
+each with that remainder, never less than 2 s, so a request whose budget had nearly run out still has
+time for the held replies to land. A request dispatched while hidden starts its countdown only when
+the page shows. Only the page can make this call: the host cannot see that its reply is stuck, and
+nothing it does sends the reply any sooner.
+
+**Any message from the host also ends the hold**, whether or not the page reads visible yet. A
+message that arrives proves the host can reach the page, so nothing held is waiting on a delivery,
+and the hold no longer rests on the visible edge alone: a visibility state that lags the app's real
+one cannot keep a lost reply from timing out once anything else comes through. On Android nothing
+arrives while the app is paused — every message rides the same stopped WebView command — so this
+changes nothing about the case above.
+
+What it costs, and what it does not cover:
+
+- A request whose host really is gone waits while the page is hidden and times out only after it
+  shows, or after the next message from the host. Periodic requests the page sends while the Android
+  app sits in the background (its timers keep running) accumulate until the user returns, then
+  settle together.
+- **Hidden is not paused.** React Native stops the frame callback on any activity pause, including
+  one where another activity only partly covers the app — the chooser shown when several SMS apps
+  exist and none is the default, a permission dialog, the share sheet. The page stays visible
+  through those, so the timeout keeps counting there, as it always did. Once the user picks an SMS
+  app, the page hides and the rest of the wait is held.
+- **Desktop never holds.** Its window turns off `backgroundThrottling`, which also keeps the Page
+  Visibility API reporting `visible` while the window is minimised or occluded, and its replies keep
+  arriving then anyway.
+- **On iOS** the whole app is suspended in the background, timers included, so little runs while it
+  is away. What the hold changes there is a timer that fell due during the suspension: it used to
+  fire on return, possibly ahead of a reply still on its way, and now gets its remainder instead.
+  Not measured on a device.
+
+`visibility` in `WebBridgeClientConfig` replaces the document as the source, which is how the specs
+hide and show the page.
+
 ## How to verify
 
 ```bash
 npx tsc -b libs/bridges/tsconfig.json --force   # lib + specs, via the two project references
-npx jest --config libs/bridges/jest.config.js   # 6 suites, 86 cases
+npx jest --config libs/bridges/jest.config.js   # 6 suites, 99 cases
 ```
 
 - Type checking must be `tsc -b`. Inside the lib, `tsc --noEmit` checks zero files and succeeds, so

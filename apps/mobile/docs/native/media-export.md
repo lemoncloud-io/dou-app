@@ -160,8 +160,8 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
   extension and `FLAG_GRANT_READ_URI_PERMISSION`, started directly — not through `createChooser`.
   Wrapped in a chooser, a format nothing opens raises no error and shows a dead-end "no app can
   perform this action" sheet; started directly it throws `ActivityNotFoundException`, which answers
-  `NO_HANDLER`. Asking the package manager first would need a `<queries>` declaration from API 30 on,
-  which the manifest does not carry. The reply is sent once the viewer is started. A ZIP opens in
+  `NO_HANDLER`. Asking the package manager first would need a `<queries>` declaration for `ACTION_VIEW`
+  from API 30 on; the manifest declares one only for `sms:`. The reply is sent once the viewer is started. A ZIP opens in
   whatever file manager the device has; a bare emulator has none, and that is the `NO_HANDLER` path,
   which offers the share sheet (Drive, Gmail, Bluetooth, Quick Share).
 - **Save a file, API 29+**: a `MediaStore.Downloads` row with `RELATIVE_PATH` `Download/DoU/`, written

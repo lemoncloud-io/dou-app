@@ -284,7 +284,7 @@ the report.
 
 | Metric      | Meaning                                                                                                                                        |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rtt_ms`    | dispatch → reply, including the handler's own work on the app side                                                                             |
+| `rtt_ms`    | dispatch → reply in wall-clock time, including the handler's own work on the app side and any time the page spent hidden before the reply came |
 | `queue_ms`  | call → dispatch: time in the readiness buffer before the channel existed. Zero after boot; absent for a request called before observing began. |
 | `in_flight` | other requests still unanswered when this one left — the contention the trace is looking for                                                   |
 | `req_chars` | encoded request length, UTF-16 code units                                                                                                      |

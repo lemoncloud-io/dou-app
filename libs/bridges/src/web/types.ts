@@ -20,6 +20,12 @@ export interface PendingRequest {
     timeoutId?: ReturnType<typeof setTimeout>;
     /** The maximum wait time (ms) specified for this request */
     timeoutMs: number;
+    /** What is left of `timeoutMs` — reduced each time the page hides with the timer armed */
+    remainingMs?: number;
+    /** When the current timeout timer was armed (`Date.now()`) */
+    armedAt?: number;
+    /** Dispatched, with its timeout on hold until the page is visible again */
+    timeoutPaused?: boolean;
     /** The original message type the web requested */
     requestType: WebMessageType;
     /** The expected response message type that native is supposed to send */
@@ -83,6 +89,22 @@ export interface WebBridgeClientConfig {
     environment?: EnvironmentConfig;
     /** The clock request samples are measured on (default: `performance.now()`, else `Date.now()`) */
     now?: () => number;
+    /**
+     * Whether the page is hidden, which holds every request timeout until it is visible again
+     * (default: `document.visibilityState`; absent outside a DOM, where nothing is ever held)
+     */
+    visibility?: PageVisibilitySource;
+}
+
+/**
+ * The page's visibility, as the client's timeouts read it. A seam so tests can hide and show the
+ * page without a DOM.
+ */
+export interface PageVisibilitySource {
+    /** Whether the page is hidden right now */
+    isHidden(): boolean;
+    /** Calls `listener` on every hidden ↔ visible change; returns the unsubscribe */
+    subscribe(listener: () => void): () => void;
 }
 
 /**
