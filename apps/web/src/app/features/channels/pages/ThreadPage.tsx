@@ -866,6 +866,7 @@ export const ThreadPage = () => {
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.thread.inputPlaceholder')}
+                    sendLabel={t('common.send')}
                     // One live field at a time — same rule as the room. Also closed when the root
                     // is outside my window: a reply needs the root's full id, so `handleSend`
                     // would drop what was typed without saying anything.
