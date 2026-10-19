@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-19] - No version updates
+
+### Bug Fixes
+
+- (shared,mobile,web) open encoded invite links with text glued after the token
+
 ## [2026-10-19] - root@0.105.1, @chatic/desktop-web@0.33.1
 
 ### Bug Fixes
