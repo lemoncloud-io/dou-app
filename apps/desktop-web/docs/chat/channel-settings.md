@@ -50,6 +50,21 @@ nothing to tell them by.
   for each page it reads, but only while the session is on the active place and no switch is in
   flight, since `profile.sync` answers for the session's place.
 
+## Invite by phone
+
+"Invite by phone" on a channel row opens `SendInviteDialog`, which issues a contact invite with
+`invite.create` and copies its link. That request rides the relay slot, so the inviter is the relay
+user, and the server issues invites to signed-in accounts only: a guest is refused with `403`. A
+place invite from the same dialog goes through `user.invite` in the cloud instead.
+
+A refused send keeps the dialog open with a sentence chosen by the status the rejection carries:
+"sign in first" for a relay guest's contact invite, "not allowed" for any other `403`, "check the
+number" for a `400`, the connection line for the client's own `408`/`499`/`503` (a timeout, a
+dropped request, no socket), and the generic line otherwise. A rejection with no status falls back
+to the wording (`classifyWireError`). The wire text
+itself is logged as `[INVITE] [SendInvite] failed` with `raw`, which is where the actual reason is
+read — View › Toggle Developer Tools opens the console in packaged builds too.
+
 ## Channel ID
 
 A service that posts notifications into a channel (a webhook) is pointed at the channel by its id.

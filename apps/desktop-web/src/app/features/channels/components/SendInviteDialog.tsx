@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { logger } from '@chatic/bridges';
+
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     Dialog,
@@ -13,10 +15,58 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { parseInvitePhone, useCopyToClipboard, useDesktopInviteMutations } from '../../../shared';
+import {
+    classifyWireError,
+    extractErrorMessage,
+    isRelayGuest,
+    parseInvitePhone,
+    socketErrorStatus,
+    useCopyToClipboard,
+    useDesktopInviteMutations,
+    type WireErrorKind,
+} from '../../../shared';
 import { useSendInviteStore } from '../stores/useSendInviteStore';
 import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
 import { useInviteLinkStore } from '../stores/useInviteLinkStore';
+
+/** Transport failures the client raises itself: a timeout, a request it dropped, no socket. */
+const TRANSPORT_STATUSES = new Set([408, 499, 503]);
+
+/**
+ * Why a send failed, by the status the rejection carries before its wording: the socket manager
+ * puts the server's code back on the Error, and the wording is not a contract. The text is read
+ * only when there is no status.
+ */
+const sendFailureKind = (error: unknown, raw: string): WireErrorKind => {
+    const status = socketErrorStatus(error);
+    if (status === 403) return 'denied';
+    if (status === 400) return 'invalid';
+    if (status !== undefined && TRANSPORT_STATUSES.has(status)) return 'network';
+    return classifyWireError(raw);
+};
+
+/**
+ * The sentence for a refused send. The server's wire text goes to the log, where it names the
+ * actual reason; the person gets the part they can act on. A contact invite rides the relay, which
+ * issues invites to signed-in accounts only, so its refusal reads as "sign in first" when the relay
+ * user is a guest (or there is no relay user, where signing in is the remedy too). The same 403
+ * also covers a banned or departed account, and a place invite is refused for reasons of its own,
+ * so every other refusal gets the plain "not allowed".
+ */
+const sendFailureKey = (error: unknown, kind: 'channel' | 'place'): string => {
+    const raw = extractErrorMessage(error);
+    logger.error('INVITE', '[SendInvite] failed', { error, raw, kind });
+    switch (sendFailureKind(error, raw)) {
+        case 'denied':
+            return kind === 'channel' && isRelayGuest() ? 'invite.send.signInRequired' : 'errors.notAllowed';
+        case 'invalid':
+            return 'invite.send.failedBody';
+        case 'network':
+            return 'errors.network';
+        default:
+            return 'errors.generic';
+    }
+};
 
 /**
  * Invite sender dialog: name + phone number into the channel it was opened
@@ -88,9 +138,9 @@ export const SendInviteDialog = () => {
                 // the link for sharing, as the web flow does.
                 useInviteLinkStore.getState().open(view.deeplink);
             }
-        } catch {
+        } catch (failure) {
             toast({ title: t('invite.send.failed'), variant: 'destructive' });
-            setError(t('invite.send.failedBody'));
+            setError(t(sendFailureKey(failure, target.kind)));
         }
     };
 
