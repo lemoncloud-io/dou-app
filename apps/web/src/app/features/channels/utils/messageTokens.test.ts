@@ -3,6 +3,58 @@ import { extractFirstUrl, toPlainPreview, toPlainText, tokenizeMessage } from '.
 const urls = (text: string, truncated = false) =>
     tokenizeMessage(text, { truncated }).flatMap(token => (token.type === 'url' ? [token.value] : []));
 
+/**
+ * The fastest of up to three runs, stopping at the first that fits `budgetMs`.
+ *
+ * The budget tests below guard against a scan gone quadratic, which costs seconds on every run (the
+ * old trimming took ~9s on a 60k-character input); the work itself takes 1–20 ms warm. A single
+ * timed run also measured whatever else the machine was doing: on a CI runner, a cold first run
+ * beside other jest workers once took 305 ms of a 300 ms budget. Load does not repeat on every
+ * attempt; a regression does.
+ */
+const fastestRunMs = (run: () => void, budgetMs: number): number => {
+    let fastest = Infinity;
+    for (let attempt = 0; attempt < 3 && fastest >= budgetMs; attempt += 1) {
+        const started = performance.now();
+        run();
+        fastest = Math.min(fastest, performance.now() - started);
+    }
+    return fastest;
+};
+
+describe('fastestRunMs', () => {
+    it('stops at the first run that fits, so one slow run does not fail the budget', () => {
+        const durations = [305, 12];
+        let calls = 0;
+        // Each run reads the clock twice: before, then after.
+        const now = jest.spyOn(performance, 'now').mockImplementation(() => {
+            const run = Math.floor(calls / 2);
+            const elapsed = calls % 2 === 0 ? 0 : (durations[run] ?? 0);
+            calls += 1;
+            return run * 1_000 + elapsed;
+        });
+
+        try {
+            expect(fastestRunMs(() => undefined, 300)).toBe(12);
+            expect(calls).toBe(4);
+        } finally {
+            now.mockRestore();
+        }
+    });
+
+    it('reports a time over budget when every run is over it', () => {
+        let calls = 0;
+        const now = jest.spyOn(performance, 'now').mockImplementation(() => (calls++ % 2 === 0 ? 0 : 3_000));
+
+        try {
+            expect(fastestRunMs(() => undefined, 300)).toBe(3_000);
+            expect(calls).toBe(6);
+        } finally {
+            now.mockRestore();
+        }
+    });
+});
+
 describe('tokenizeMessage', () => {
     it('returns nothing for empty text', () => {
         expect(tokenizeMessage('')).toEqual([]);
@@ -337,15 +389,11 @@ describe('adversarial input', () => {
     const budgetMs = 300;
 
     it('trims a long punctuation run in linear time', () => {
-        const started = Date.now();
-        toPlainPreview(`https://a${'.'.repeat(60_000)}x`);
-        expect(Date.now() - started).toBeLessThan(budgetMs);
+        expect(fastestRunMs(() => toPlainPreview(`https://a${'.'.repeat(60_000)}x`), budgetMs)).toBeLessThan(budgetMs);
     });
 
     it('trims a long alternating bracket/punctuation run in linear time', () => {
-        const started = Date.now();
-        toPlainPreview(`https://a${').'.repeat(20_000)}`);
-        expect(Date.now() - started).toBeLessThan(budgetMs);
+        expect(fastestRunMs(() => toPlainPreview(`https://a${').'.repeat(20_000)}`), budgetMs)).toBeLessThan(budgetMs);
     });
 
     // Every opening run that finds no closing one scans the rest of the message. Such runs can only
@@ -353,9 +401,7 @@ describe('adversarial input', () => {
     // a message of strictly shrinking runs is the worst case: about √(2n) scans of the remainder.
     it('rejects a long series of ever-shorter unclosed fences within budget', () => {
         const runs = Array.from({ length: 344 }, (_, index) => '`'.repeat(346 - index)).join('a');
-        const started = Date.now();
-        toPlainPreview(runs);
-        expect(Date.now() - started).toBeLessThan(budgetMs);
+        expect(fastestRunMs(() => toPlainPreview(runs), budgetMs)).toBeLessThan(budgetMs);
     });
 
     it('still trims correctly after the rewrite', () => {
@@ -555,11 +601,12 @@ describe('adversarial input — marks', () => {
     const budgetMs = 300;
 
     it('scans long runs of mark characters in linear time', () => {
-        const started = Date.now();
-        toPlainPreview('*'.repeat(60_000));
-        toPlainPreview(`**${'a*'.repeat(30_000)}`);
-        toPlainPreview('~'.repeat(60_000));
-        toPlainPreview('> \n'.repeat(20_000));
-        expect(Date.now() - started).toBeLessThan(budgetMs);
+        const scanAll = () => {
+            toPlainPreview('*'.repeat(60_000));
+            toPlainPreview(`**${'a*'.repeat(30_000)}`);
+            toPlainPreview('~'.repeat(60_000));
+            toPlainPreview('> \n'.repeat(20_000));
+        };
+        expect(fastestRunMs(scanAll, budgetMs)).toBeLessThan(budgetMs);
     });
 });
