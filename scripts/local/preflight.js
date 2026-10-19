@@ -9,10 +9,11 @@ const { PAIRS } = require('./pairs');
 /**
  * Where a missing env file comes from. `.env` is the local env and has a template; the per-backend
  * files carry real endpoints and have none — a copy of the template there would point the web at the
- * local values (or leave the Google client empty), so the line says who has them instead.
+ * local values (or leave the Google client empty), so the line says where they are kept instead.
  */
 const LOCAL_ENV_SOURCE = relative => `cp ${relative}.example ${relative}, then fill in your values`;
-const BACKEND_ENV_SOURCE = 'ask a teammate for it — it carries real endpoints, is not in git and has no template';
+const BACKEND_ENV_SOURCE =
+    'download it from the team secrets repository, where it sits at the same path (ONBOARDING.md § Env and Firebase files) — it carries real endpoints, is not in git and has no template';
 
 /**
  * What a run needs, as `{ message, fix }` problems — empty when it can go. Read-only: nothing here
