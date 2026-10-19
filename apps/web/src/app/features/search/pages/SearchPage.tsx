@@ -153,7 +153,7 @@ export const SearchPage = () => {
     return (
         <div className="flex h-full flex-col bg-background pt-safe-top">
             <div className="flex items-center gap-1 px-2 py-2">
-                <button type="button" onClick={() => navigate(-1)} aria-label="Back" className="p-2">
+                <button type="button" onClick={() => navigate(-1)} aria-label={t('common.back')} className="p-2">
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
                 <SearchInput

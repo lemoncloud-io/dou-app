@@ -9,6 +9,13 @@ describe('MessageInput', () => {
         expect(screen.getByPlaceholderText('메시지를 입력해 주세요')).toBeInTheDocument();
     });
 
+    it('names the send button with the label the host passes', () => {
+        render(<MessageInput value="hi" onChange={jest.fn()} onSend={jest.fn()} sendLabel="보내기" />);
+
+        expect(screen.getByRole('button', { name: '보내기' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
+    });
+
     it('emits the raw string on change', () => {
         const onChange = jest.fn();
         render(<MessageInput value="" onChange={onChange} />);

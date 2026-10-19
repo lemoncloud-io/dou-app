@@ -1,4 +1,5 @@
 import { ChevronLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 
@@ -27,6 +28,7 @@ interface PageHeaderProps {
 }
 
 export const PageHeader = ({ title, onBack, rightAction, hideBack = false, safeArea = true }: PageHeaderProps) => {
+    const { t } = useTranslation();
     const navigate = useNavigateWithTransition();
 
     const handleBack = () => {
@@ -46,7 +48,7 @@ export const PageHeader = ({ title, onBack, rightAction, hideBack = false, safeA
             )}
         >
             {!hideBack && (
-                <button onClick={handleBack} className="absolute left-4 p-2" aria-label="Back">
+                <button onClick={handleBack} className="absolute left-4 p-2" aria-label={t('common.back')}>
                     <ChevronLeft size={24} strokeWidth={2} className="text-foreground" />
                 </button>
             )}

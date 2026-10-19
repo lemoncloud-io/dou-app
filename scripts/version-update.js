@@ -218,13 +218,17 @@ function updatePackageVersion(projectPath, newVersion) {
     };
 }
 
+// The commit whose message and parents feed the changelog. CI checks out the branch tip, which is
+// not always the merge that triggered the run, so it passes that merge's sha in COMMIT_SHA.
+const COMMIT_REF = process.env.COMMIT_SHA || 'HEAD';
+
 function getSquashMergeCommitMessage() {
-    const result = spawnSync('git', ['log', '-1', '--pretty=%B']);
+    const result = spawnSync('git', ['log', '-1', '--pretty=%B', COMMIT_REF]);
     return result.stdout.toString().trim();
 }
 
 function getCommitParents() {
-    const out = spawnSync('git', ['log', '-1', '--pretty=%P']).stdout.toString().trim();
+    const out = spawnSync('git', ['log', '-1', '--pretty=%P', COMMIT_REF]).stdout.toString().trim();
     return out ? out.split(/\s+/) : [];
 }
 
@@ -233,7 +237,7 @@ function getMergedCommitSubjects(firstParent) {
         'log',
         '--no-merges',
         '--pretty=format:%s',
-        `${firstParent}..HEAD`,
+        `${firstParent}..${COMMIT_REF}`,
     ]).stdout.toString();
     return out
         .split('\n')
@@ -243,7 +247,7 @@ function getMergedCommitSubjects(firstParent) {
 
 // Collects the list of conventional commits regardless of how the merge was done.
 // - Regular merge commit (2+ parents): the last commit is "Merge pull request ..." and won't
-//   match, so each real commit's subject that the merge brought in (first-parent..HEAD) is
+//   match, so each real commit's subject that the merge brought in (first-parent..COMMIT_REF) is
 //   parsed individually.
 // - Squash merge / single commit: parses the last commit message (title + * bullets).
 function collectCommits() {

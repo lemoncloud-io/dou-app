@@ -27,7 +27,8 @@
         "saving": "Saving...",
         "back": "Back",
         "toastRegion": "Notifications ({hotkey})",
-        "loading": "Loading"
+        "loading": "Loading",
+        "send": "Send"
     },
     "nav": {
         "authTest": "Auth Test",

@@ -120,6 +120,18 @@ describe('useInviteLogin with an encoded link', () => {
         expect(registerUserWithInviteCode).not.toHaveBeenCalled();
     });
 
+    it('drops the failure when the caller clears it', async () => {
+        const { result } = renderHook(() => useInviteLogin(), { wrapper });
+        await act(async () => {
+            await result.current.login(encodedLink({ c: 'invt:1:abc', r: 1 }));
+        });
+        expect(result.current.error).toEqual({ kind: 'relay' });
+
+        act(() => result.current.clearError());
+
+        expect(result.current.error).toBeNull();
+    });
+
     it('refuses a link with no address rather than falling back to the relay server', async () => {
         const { result } = renderHook(() => useInviteLogin(), { wrapper });
 

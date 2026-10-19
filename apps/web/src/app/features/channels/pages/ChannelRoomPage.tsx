@@ -1500,6 +1500,7 @@ export const ChannelRoomPage = () => {
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
                     placeholder={t('chat.room.inputPlaceholder')}
+                    sendLabel={t('common.send')}
                     // Nobody left to receive it: a message sent into an empty 1:1 would carry an
                     // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 decision 5).
                     //

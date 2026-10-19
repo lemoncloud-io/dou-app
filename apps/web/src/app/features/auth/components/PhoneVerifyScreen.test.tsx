@@ -733,7 +733,7 @@ describe('PhoneVerifyScreen — 닫기/컨텍스트', () => {
 
     it('닫기는 onClose를 부른다', () => {
         const { onClose } = renderScreen();
-        fireEvent.click(screen.getByLabelText('close'));
+        fireEvent.click(screen.getByLabelText('common.close'));
         expect(onClose).toHaveBeenCalled();
     });
 

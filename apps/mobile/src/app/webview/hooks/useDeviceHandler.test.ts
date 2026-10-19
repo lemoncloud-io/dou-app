@@ -1,4 +1,5 @@
 import { renderHook } from '@testing-library/react';
+import { Linking } from 'react-native';
 
 import { useDeviceHandler } from './useDeviceHandler';
 
@@ -23,8 +24,9 @@ jest.mock('react-native', () => ({
 jest.mock('../../utils', () => ({
     toContactInfo: (c: unknown) => c,
 }));
+const mockIsOpenableUrl = jest.fn((_url: unknown) => true);
 jest.mock('../utils/urlTrust', () => ({
-    isOpenableUrl: () => true,
+    isOpenableUrl: (url: unknown) => mockIsOpenableUrl(url),
 }));
 
 const readFile = jest.fn(async () => 'aGVsbG8=');
@@ -87,5 +89,45 @@ describe('useDeviceHandler handleOpenDocument', () => {
 
         expect(res.success).toBe(false);
         expect(res.error.code).toBe('SETTINGS_ERROR');
+    });
+});
+
+const openUrl = (url: unknown) =>
+    renderHook(() => useDeviceHandler()).result.current.handleOpenURL({ type: 'OpenURL', data: { url } } as any);
+
+describe('useDeviceHandler handleOpenURL', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    // Which schemes pass is urlTrust's to say (and its own tests pin it); what this pins is that a
+    // refused URL never reaches the OS, since an intent or another app's scheme would run the
+    // payload the page chose.
+    it('refuses a URL the scheme check rejects without asking the OS to open it', async () => {
+        mockIsOpenableUrl.mockReturnValueOnce(false);
+
+        const res: any = await openUrl('intent://scan#Intent;end');
+
+        expect(mockIsOpenableUrl).toHaveBeenCalledWith('intent://scan#Intent;end');
+        expect(Linking.openURL).not.toHaveBeenCalled();
+        expect(res).toEqual({
+            type: 'OnOpenURL',
+            success: false,
+            error: { code: 'LINK_NOT_ALLOWED', message: 'This link cannot be opened.' },
+        });
+    });
+
+    it('opens an allowed URL through the OS', async () => {
+        const res: any = await openUrl('https://example.com/a');
+
+        expect(Linking.openURL).toHaveBeenCalledWith('https://example.com/a');
+        expect(res).toEqual({ type: 'OnOpenURL', success: true });
+    });
+
+    it('reports an allowed URL the OS fails to open', async () => {
+        (Linking.openURL as jest.Mock).mockRejectedValueOnce(new Error('no handler'));
+
+        const res: any = await openUrl('tel:0101234567');
+
+        expect(res.success).toBe(false);
+        expect(res.error).toEqual({ code: 'LINK_ERROR', message: 'no handler' });
     });
 });
