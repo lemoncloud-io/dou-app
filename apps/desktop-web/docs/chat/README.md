@@ -35,4 +35,5 @@ stores in `src/app/shared/`.
   escapes.
 - [webhook-messages.md](./webhook-messages.md): how a message posted by an integration looks (the
   card, the app badge and the sender's name), and how notifications, unread counts and previews treat it.
-- [notifications.md](./notifications.md): the OS banner's title for a mention, and what the title promises.
+- [notifications.md](./notifications.md): the OS banner's title for a mention, what the title promises,
+  and how a push from another cloud or the relay is shown and opened.

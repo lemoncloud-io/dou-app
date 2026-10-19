@@ -23,6 +23,16 @@ describe('pendingOpenRoute', () => {
         expect(pendingOpenRoute({ placeId: '', channelId: 'ch-1' }, here)).toBe('select');
     });
 
+    // A relay push's open names the relay (`'default'`) and no place.
+    it('switches to the relay for a relay push opened from a cloud', () => {
+        expect(pendingOpenRoute({ cloudId: 'default', placeId: '', channelId: 'ch-9' }, here)).toBe('switch-cloud');
+    });
+
+    it('opens a relay push in place while on the relay', () => {
+        const relay = { cloudId: 'default', placeId: 'default', listedIds: new Set(['ch-9']) };
+        expect(pendingOpenRoute({ cloudId: 'default', placeId: '', channelId: 'ch-9' }, relay)).toBe('select');
+    });
+
     it('waits for a room that is not listed yet instead of selecting it', () => {
         expect(pendingOpenRoute({ placeId: '', channelId: 'dm-new' }, here)).toBe('wait');
     });

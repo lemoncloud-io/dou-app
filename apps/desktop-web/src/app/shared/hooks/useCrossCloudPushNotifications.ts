@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -76,9 +77,10 @@ const presentPush = async (
     // One cache scan serves both the source-cloud resolution and the notify-mode lookup.
     const records = data.channelId || data.uid ? await readCacheRecords<PushChannelData>() : [];
     // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space
-    // the session/rail use). Fall back to the channel-cache reverse-lookup when it's absent.
+    // the session/rail use), or `'#'` for the relay itself, which reads as the Home tile's
+    // `RELAY_CLOUD_ID`. Fall back to the channel-cache reverse-lookup when it's absent.
     const sourceCloudId =
-        data.cid ||
+        pushCloudIdOf(data.cid) ||
         resolvePushCloudIdFrom(records, {
             channelId: data.channelId,
             sid: data.sid,
@@ -127,6 +129,12 @@ const presentPush = async (
 
     const activeServer = runtime.session.getGlobalSessionContext().activeServer;
     const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
+    // The relay's own live socket banners its messages too, so a push it stamped `'#'` is the same
+    // message. Only the stamp counts: a cache guess that lands on the relay is no proof.
+    const isFromOpenRelay = activeServer.kind === 'relay' && pushCloudIdOf(data.cid) === RELAY_CLOUD_ID;
+    // The Default Cloud pins its one place, so a relay push names none to switch to: whatever
+    // place the push carries would send the open off to one the relay does not list.
+    const openPlaceId = sourceCloudId === RELAY_CLOUD_ID ? '' : landingPlaceId;
 
     const focused = typeof document !== 'undefined' && document.hasFocus();
     if (!focused) {
@@ -136,6 +144,7 @@ const presentPush = async (
         // suppress the FCM duplicate ONLY when this push provably belongs to the active
         // cloud. Unresolved source (null) → show: a duplicate beats a missed cross-cloud one.
         if (sourceCloudId && activeCloudId && String(sourceCloudId) === String(activeCloudId)) return;
+        if (isFromOpenRelay) return;
         void webClient
             .request({
                 type: 'ShowNotification',
@@ -146,7 +155,7 @@ const presentPush = async (
                     title: headline(data.channelName, 'DoU'),
                     body: body ?? '',
                     channelId: data.channelId,
-                    deeplink: buildCrossCloudDeeplink(sourceCloudId, data, landingPlaceId),
+                    deeplink: buildCrossCloudDeeplink(sourceCloudId, data, openPlaceId),
                 },
             })
             // Degrade gracefully on older shells / transient bridge errors — a
@@ -172,7 +181,7 @@ const presentPush = async (
             ? () =>
                   usePendingOpenStore.getState().request({
                       cloudId: sourceCloudId ?? undefined,
-                      placeId: landingPlaceId,
+                      placeId: openPlaceId,
                       channelId: String(channelId),
                   })
             : undefined,

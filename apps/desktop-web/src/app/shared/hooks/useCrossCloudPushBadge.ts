@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
 
 import { useCloudPushBadgeStore } from '../stores';
 import { resolvePushCloudId } from '../utils';
@@ -23,13 +24,15 @@ import { resolvePushCloudId } from '../utils';
  * cloud. (A push's `data.uid` is the account id — identical across your own
  * catalog clouds — so it can NOT be reverse-mapped through a per-cloud uid store;
  * `resolvePushCloudId` only trusts uid when it resolves to exactly one cloud.)
- * `data.cid` short-circuits when a backend finally stamps it. Deeplink-only events
- * carry no channelId and resolve to nothing. No-op in a plain browser.
+ * `data.cid` short-circuits when a backend finally stamps it; a relay push's `'#'` is the
+ * Home tile, `RELAY_CLOUD_ID`, which is also what the relay counts as when it is the active
+ * server. Deeplink-only events carry no channelId and resolve to nothing. No-op in a plain
+ * browser.
  */
 export const useCrossCloudPushBadge = (): void => {
     // `cloudId` is gone from socket state in v2 — derive the active cloud from the session.
     const session = runtime.session.useGlobalSession();
-    const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : null;
+    const cloudId = session.activeServer.kind === 'cloud' ? session.activeServer.cloudId : RELAY_CLOUD_ID;
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const mark = useCloudPushBadgeStore(s => s.mark);
     const clear = useCloudPushBadgeStore(s => s.clear);
@@ -44,14 +47,15 @@ export const useCrossCloudPushBadge = (): void => {
                 // The active cloud's unread is owned by the live socket pipeline. Read the
                 // current active cloud imperatively (the effect closure is registered once).
                 const activeServer = runtime.session.getGlobalSessionContext().activeServer;
-                const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
+                const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : RELAY_CLOUD_ID;
                 if (cid === activeCloudId) return;
                 mark(cid);
             };
 
-            // A backend that stamps `data.cid` — already a usable cloud id.
-            if (data.cid) {
-                apply(data.cid);
+            // A backend that stamps `data.cid` — a usable cloud id once the relay's `'#'` is read.
+            const stamped = pushCloudIdOf(data.cid);
+            if (stamped) {
+                apply(stamped);
                 return;
             }
             // Resolve the source cloud from the channel cache (returns the relay cloud id
