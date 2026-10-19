@@ -1,19 +1,22 @@
-import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
+import { isCloudDm, type DomainChannel } from '@chatic/data';
 
 import { channelNotifyMode, isNotifyDm, type ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
 import type { MentionItem } from '../stores/useMentionsStore';
 import { channelReadNo, computeChannelUnread } from './channelUnread';
-import { listingPlaces } from './cloudDmPlaces';
+import { listingPlaces } from './roomPlaces';
 
 /**
  * Unread messages per place for one cloud's channels, plus the total that the window title and OS
  * badge show.
  *
- * A group channel counts under its own place. A cloud 1:1 counts under every place that lists it
- * (`dmPlaces`, from `cloudDmPlaces` — passed in so a read, which moves only the cursors, does not
- * rebuild it), so the dot on a place matches its Direct messages section. That makes the
- * per-place numbers overlap, which is why the total is summed per channel rather than per place:
- * one unread 1:1 listed in two places is still one conversation to read.
+ * Every channel counts under the place that lists it — a group channel and a cloud 1:1 alike, their
+ * own place — so the dot on a place matches its sidebar. My notes-to-self room is the exception: it
+ * counts under every place it is filed under (`filedPlaces`, from `roomPlaces` — passed in so a read,
+ * which moves only the cursors, does not rebuild it). That makes the per-place numbers overlap,
+ * which is why the total is summed per channel rather than per place: one unread room listed in two
+ * places is still one conversation to read. A cloud 1:1 that names no place counts in the total
+ * only, and only when the sidebar lists it — in a cloud known to have no place (`listsUnplacedDms`);
+ * anywhere else no row could clear it.
  *
  * A channel on "off" counts nowhere here. A channel on "mentions only" counts its
  * unread mentions, capped at its unread messages — the quiet chatter around them
@@ -28,16 +31,19 @@ export const placeUnreadCounts = (
     channels: readonly DomainChannel[],
     {
         myUid,
-        dmPlaces,
+        filedPlaces,
         readCursors,
         notifyPrefs,
         mentions,
+        listsUnplacedDms = false,
     }: {
         myUid: string | null;
-        dmPlaces: ReadonlyMap<string, readonly string[]>;
+        filedPlaces: ReadonlyMap<string, readonly string[]>;
         readCursors: Record<string, number>;
         notifyPrefs: ChannelNotifyPrefs;
         mentions?: Record<string, MentionItem>;
+        /** Whether the sidebar lists the cloud 1:1s no place holds: the cloud has no place at all. */
+        listsUnplacedDms?: boolean;
     }
 ): { byPlace: Record<string, number>; total: number } => {
     // One pass over the inbox per call, keyed `place|channel`: per-channel
@@ -48,12 +54,8 @@ export const placeUnreadCounts = (
         mentions &&
         channels.some(
             channel =>
-                channelNotifyMode(
-                    notifyPrefs,
-                    channel.id ?? '',
-                    channel.$join?.notify,
-                    isNotifyDm(channel)
-                ) === 'mention'
+                channelNotifyMode(notifyPrefs, channel.id ?? '', channel.$join?.notify, isNotifyDm(channel)) ===
+                'mention'
         )
     ) {
         for (const item of Object.values(mentions)) {
@@ -68,9 +70,9 @@ export const placeUnreadCounts = (
     const byPlace: Record<string, number> = {};
     let total = 0;
     for (const channel of channels) {
-        // A room with no place was never counted; a 1:1 is placed by the rule instead of its stamp.
-        const places = listingPlaces(channel, dmPlaces);
-        if (!isCloudWideChannel(channel) && places.length === 0) continue;
+        // A room with no place is not counted, except a cloud 1:1 where a cloud with no place lists it.
+        const places = listingPlaces(channel, filedPlaces);
+        if (places.length === 0 && !(listsUnplacedDms && isCloudDm(channel))) continue;
         const mode = channelNotifyMode(notifyPrefs, channel.id ?? '', channel.$join?.notify, isNotifyDm(channel));
         if (mode === 'none') continue;
         if (mode === 'mention') {

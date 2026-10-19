@@ -13,6 +13,7 @@ import {
     isOwnChat,
     messagePlainText,
     pushBody,
+    pushLandingPlace,
     readCacheRecords,
     resolveMyMentionNames,
     resolvePushCloudIdFrom,
@@ -29,6 +30,7 @@ import {
 /**
  * Deeplink for the OS banner click. When the source cloud resolves, encode the open target so
  * the click switches cloud → place → channel (buildOpenDeeplink + parsePushDeeplink + HomePage).
+ * The place is the room's (`pushLandingPlace`): a 1:1 push names the place its sender was in.
  * Otherwise fall back to the server's own `channel?channelId=` link — best-effort, opens in the
  * current cloud only.
  *
@@ -37,8 +39,8 @@ import {
  */
 const buildCrossCloudDeeplink = (
     cloudId: string | null,
-    placeId: string,
-    data: Record<string, string>
+    data: Record<string, string>,
+    placeId: string
 ): string | undefined => {
     if (cloudId && data.channelId) {
         return buildOpenDeeplink({ cloudId, placeId, channelId: data.channelId });
@@ -92,6 +94,8 @@ const presentPush = async (
     // same-cloud path flattens it: a mention lives in a Block Kit message's text,
     // not in the JSON carrying it, and the raw payload would also match on field
     // names. `body` remains the last resort when the push carries no content.
+    // The room's own place for a 1:1, the push's otherwise — read off the same cached row.
+    let landingPlaceId = data.sid ?? '';
     if (data.channelId) {
         // Same policy the same-cloud path honors — including the server's
         // join.notify leg. The push payload carries no channel record, so read
@@ -103,6 +107,11 @@ const presentPush = async (
             cloudId: sourceCloudId,
             uid: data.uid,
         });
+        landingPlaceId = pushLandingPlace(
+            { channelId: String(data.channelId), sid: data.sid },
+            cachedChannel,
+            sourceCloudId
+        );
         const joinNotify = cachedChannel?.$join?.notify as 'all' | 'mention' | 'none' | undefined;
         const mode = channelNotifyMode(prefs, String(data.channelId), joinNotify, isNotifyDm(cachedChannel));
         if (mode === 'none') return;
@@ -124,8 +133,8 @@ const presentPush = async (
     // message. Only the stamp counts: a cache guess that lands on the relay is no proof.
     const isFromOpenRelay = activeServer.kind === 'relay' && pushCloudIdOf(data.cid) === RELAY_CLOUD_ID;
     // The Default Cloud pins its one place, so a relay push names none to switch to: whatever
-    // `data.sid` it carries would send the open off to a place the relay does not list.
-    const openPlaceId = sourceCloudId === RELAY_CLOUD_ID ? '' : (data.sid ?? '');
+    // place the push carries would send the open off to one the relay does not list.
+    const openPlaceId = sourceCloudId === RELAY_CLOUD_ID ? '' : landingPlaceId;
 
     const focused = typeof document !== 'undefined' && document.hasFocus();
     if (!focused) {
@@ -146,7 +155,7 @@ const presentPush = async (
                     title: headline(data.channelName, 'DoU'),
                     body: body ?? '',
                     channelId: data.channelId,
-                    deeplink: buildCrossCloudDeeplink(sourceCloudId, openPlaceId, data),
+                    deeplink: buildCrossCloudDeeplink(sourceCloudId, data, openPlaceId),
                 },
             })
             // Degrade gracefully on older shells / transient bridge errors — a

@@ -6,7 +6,13 @@ import type {
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
 import { logger } from '@chatic/bridges';
-import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../domain';
+import {
+    dmPlaceOf,
+    isCloudDm,
+    type DomainChannel,
+    type DomainChannelListPayload,
+    type DomainListResult,
+} from '../domain';
 import type {
     IChannelLocalDataSource,
     IChatLocalDataSource,
@@ -50,7 +56,10 @@ export interface IChannelRepository extends DisposableRepository {
     syncChannels(since: number): Promise<SyncChannelsResult>;
     /** `channel.create` — `siteId` is the site the optimistic row is tagged with. */
     createChannel(payload: ChannelCreateInput, siteId: string): Promise<DomainChannel>;
-    /** Opens the 1:1 with one peer. Takes NO site: the room belongs to the cloud, not to a place. */
+    /**
+     * Opens the 1:1 with one peer. Takes NO site: the server files the room under the place the
+     * session is on when it answers, and the answer names it.
+     */
     startDm(payload: ChannelStartDmInput): Promise<DomainChannel>;
     updateChannel(payload: ChannelUpdateInput): Promise<DomainChannel>;
     inviteChannel(payload: ChatInviteInput): Promise<DomainChannel>;
@@ -88,6 +97,8 @@ export interface IChannelRepository extends DisposableRepository {
      */
     refreshOneInCloud(channelId: string, fallbackSiteId: string): Promise<DomainChannel>;
 
+    /** The cached row for `id` in the active cloud, or `null` — a one-shot read, no observer. */
+    cacheRead(id: string): Promise<DomainChannel | null>;
     cacheReadList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel> | null>;
     cacheWrite(item: Partial<DomainChannel>): Promise<void>;
     cacheDelete(id: string): Promise<void>;
@@ -185,6 +196,10 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         return this.channelLocalDataSource.observeItem(id, callback, this.getRepositoryContext());
     }
 
+    public cacheRead(id: string): Promise<DomainChannel | null> {
+        return this.channelLocalDataSource.cacheRead(id, this.getRepositoryContext());
+    }
+
     public cacheReadList(query: DomainChannelListPayload): Promise<DomainListResult<DomainChannel> | null> {
         return this.channelLocalDataSource.cacheReadList(query, this.getRepositoryContext());
     }
@@ -271,11 +286,16 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         // Sync ingests channels across all places, so map without binding to the active sid.
         const remote = await this.channelSocketDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });
 
-        // A row with no place is dropped, with one exception: the Self Channel belongs to the account,
-        // not to a place, and the relay sends it with an empty `$`. Dropping it left a new user's Home
-        // with no channel at all.
+        // A row with no place is dropped, with two exceptions. The Self Channel belongs to the account,
+        // not to a place, and the relay sends it with an empty `$`; dropping it left a new user's Home
+        // with no channel at all. A cloud 1:1 keeps the place its id names, or none: the cache never
+        // fills its place from the reader's, and a desktop cloud with no place lists the ones no place
+        // holds.
         const domainList = (remote.list || []).filter(
-            item => (!!item.$?.sid || item.stereo === 'self') && !!item.id && !this.isGuardedAfterLeave(item.id)
+            item =>
+                (!!item.$?.sid || item.stereo === 'self' || isCloudDm(item)) &&
+                !!item.id &&
+                !this.isGuardedAfterLeave(item.id)
         );
 
         if (domainList.length > 0) {
@@ -339,23 +359,25 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
      *
      * No optimistic row and no `siteId`, and the two go together. `createChannel` needs both
      * because the caller already knows where the room will live and can draw it before the server
-     * answers; here the server decides which room this is — the same pair always resolves to one —
-     * so there is nothing to draw until it does, and nowhere to draw it.
+     * answers; here the server decides which room this is — the same pair in the same place always
+     * resolves to one — so there is nothing to draw until it does, and nowhere to draw it.
      *
-     * The row is written like any other. An earlier version wrote it through a placeless path that
-     * blanked the place field, on the premise that a cloud 1:1 has none — but the server assigns
-     * one and returns it on every read, so the blank was refilled by the next sync. Which rooms a
-     * place list may show is decided when reading instead (`isInPlaceList`).
+     * The room's place is the one the server stamped on it, never the reader's. The answer is mapped
+     * without the ambient place, then takes the place its id names or, failing that, the server's
+     * field (`dmPlaceOf`). The ambient place is wrong exactly when it matters: during a place switch
+     * the context already names the next place, while the server filed the room under the place the
+     * session was in when it asked — and a 1:1 is listed in that one place only.
      */
     public async startDm(payload: ChannelStartDmInput): Promise<DomainChannel> {
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
-        const domain = await this.channelSocketDataSource.startDm(payload, normalizedContext);
+        const answer = await this.channelSocketDataSource.startDm(payload, { ...normalizedContext, sid: undefined });
+        // The call only ever yields a 1:1, so a missing stereo is filled in for the cache's sake: the
+        // write keys a cloud 1:1's place differently from a group's.
+        const domain: DomainChannel = { ...answer, stereo: answer.stereo || 'dm', sid: dmPlaceOf(answer) };
         // The caller is owed the room either way; only the cache write depends on which cloud
-        // answered, and on the answer naming a place. The answer for a room this call has just
-        // created comes back without one (later reads carry it), and the context holds none by
-        // design, so the write would throw and fail a call the server already honoured. The row is
-        // left to the next channel sync, which brings it with its place.
+        // answered, and on the room naming a place. A room that names none — neither field nor a
+        // place-keyed id — is left to the next channel sync, which brings it with its place.
         if (domain.sid && this.acceptsAnswer(requestContext, 'channel-start-dm')) {
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }

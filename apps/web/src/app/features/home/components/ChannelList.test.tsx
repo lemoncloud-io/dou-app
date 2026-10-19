@@ -284,6 +284,52 @@ describe('ChannelList self-chat row', () => {
         mockLastChatByChannel = null;
     });
 
+    // The place's chat-room section holds its group rooms and its 1:1s together: one list, one order.
+    describe('a cloud 1:1 beside group rooms', () => {
+        const rows = () => [
+            makeChannel({ id: 'g-old', stereo: 'group', memberNo: 1, name: 'Old group', cid: '1000001', sid: 'S1' }),
+            makeChannel({ id: 'S1@me@peer', stereo: 'dm', memberNo: 2, name: '', cid: '1000001', sid: 'S1' }),
+            makeChannel({ id: 'g-new', stereo: 'group', memberNo: 1, name: 'New group', cid: '1000001', sid: 'S1' }),
+        ];
+
+        beforeEach(() => {
+            mockDmPeers.clear();
+            mockDmPeers.set('S1@me@peer', { id: 'peer', profileNick: 'Peer' });
+            mockLastChatByChannel = new Map([
+                ['g-old', { content: 'old', createdAtMs: 100 }],
+                ['S1@me@peer', { content: 'dm', createdAtMs: 200 }],
+                ['g-new', { content: 'new', createdAtMs: 300 }],
+            ]);
+        });
+
+        afterEach(() => {
+            mockLastChatByChannel = null;
+            mockDmPeers.clear();
+        });
+
+        it('orders the 1:1 among the group rooms by the same latest-message rule', () => {
+            render(<ChannelList channels={rows()} sid="S1" isLoading={false} />);
+
+            expect(screen.getAllByTestId('row-title').map(el => el.textContent)).toEqual([
+                'New group',
+                'Peer',
+                'Old group',
+            ]);
+        });
+
+        it('pins a 1:1 to the top like a group room', () => {
+            render(
+                <ChannelList channels={rows()} sid="S1" isLoading={false} pinnedChannelIds={new Set(['S1@me@peer'])} />
+            );
+
+            expect(screen.getAllByTestId('row-title').map(el => el.textContent)).toEqual([
+                'Peer',
+                'New group',
+                'Old group',
+            ]);
+        });
+    });
+
     it('unread 뱃지는 channel과 join 스트림만으로 계산된다', () => {
         render(
             <ChannelList
@@ -356,7 +402,7 @@ describe('ChannelList self-chat row', () => {
 // ADR-0039: a DM row shows the person, not the channel. Name, avatar, and member count all follow from that.
 describe('ChannelList — 1:1(DM) 행', () => {
     // `cid` carries the lineage — the relay cloud vs a subscription one. Not `sid`:
-    // the server overwrites that, and it says where a room's creator stood, not which cloud it is in.
+    // it names the room's place, not which cloud it is in.
     const dmChannel = (over: any = {}) =>
         makeChannel({
             id: 'dm1',

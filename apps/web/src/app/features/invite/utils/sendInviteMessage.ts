@@ -18,7 +18,12 @@ export const sendInviteMessage = async (phone: string, body: string): Promise<In
     if (isNative()) {
         try {
             const response = await appBridge.sendSms(phone, body);
-            if (response.data?.success) return 'sms';
+            // Only an explicit `false` means the composer did not open. Shells up to 0.28.4 send no
+            // `data` at all and answer a composer that could not open with a failed reply, which
+            // rejects above — so a resolved reply from them is an opened composer. Requiring
+            // `data.success` read every one of those as a failure and copied over the user's
+            // clipboard on top of the composer it had just opened.
+            if (response.data?.success !== false) return 'sms';
         } catch (error) {
             logger.error('INVITE', 'SendSms bridge request failed, falling back to clipboard', { error });
         }

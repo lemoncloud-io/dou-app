@@ -4,13 +4,14 @@ import type { KnownChannel } from '../../../shared/stores/useKnownChannelsStore'
  * The quick switcher's "in another place" rows, from the known-channels index of this cloud.
  *
  * A group row is named by its channel. A 1:1 carries its person (`peerId`) and is named after them —
- * its room name is only what the server set, and stands in until the person's name loads. It is
- * filed under every place that lists it, so it is offered once (the filing whose name or person
- * changed last — which place the row names does not decide where it opens), and not at all
- * when the open place lists it already. My notes-to-self room (`self`) is filed the same way and
- * handled the same way. Group ids repeat across places, so that de-duplication is for those two
- * only. A row whose place is gone, or that has no
- * name at all, is left out.
+ * its room name is only what the server set, and stands in until the person's name loads. A 1:1
+ * belongs to one place, so the 1:1s with one person in two places are two rows, each with its own
+ * place. My notes-to-self room (`self`) is filed under every place, so it is offered once (the
+ * filing that changed last), and not at all when the open place lists it already. A 1:1 is handled
+ * the same way: an index persisted before 1:1s were keyed by place can still hold one room filed
+ * under several places until those filings age out, and opening it goes to its own place anyway
+ * (`openPlaceFor`). Group ids repeat across places, so that de-duplication is for those two only. A
+ * row whose place is gone, or that has no name at all, is left out.
  */
 type ElsewhereRow = { channelId: string; name: string; placeId: string; placeName: string };
 

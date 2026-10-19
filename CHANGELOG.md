@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-10-19] - root@0.105.2, @chatic/web@0.72.1
+
+### Other
+
+- test: (web) judge the message-token budget tests by their fastest run, not a single one
+
+## [2026-10-19] - No version updates
+
+### Bug Fixes
+
+- (web,web-e2e) read a relay invite again when its socket closes on resume, not fail
+
 ## [2026-10-19] - No version updates
 
 ### Bug Fixes

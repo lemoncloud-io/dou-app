@@ -70,6 +70,15 @@ describe('ChatRepository', () => {
         expect(chatLocalDataSource.cacheDelete).toHaveBeenCalledWith(provisional.id, expect.anything());
     });
 
+    it('files a reaction on a place-keyed 1:1 message under that room', async () => {
+        const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+        chatSocketDataSource.setReaction.mockResolvedValue({ id: 'S1@u1@u2:9', chatNo: 9 });
+
+        await repository.setReaction({ chatId: 'S1@u1@u2:4', emoji: '\u{1F44D}', action: 'on' } as any);
+
+        expect(chatLocalDataSource.cacheWrite.mock.calls[0][0]).toMatchObject({ channelId: 'S1@u1@u2' });
+    });
+
     it('removes the provisional reaction event when the request rejects', async () => {
         const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
         chatSocketDataSource.setReaction.mockRejectedValue(new Error('offline'));

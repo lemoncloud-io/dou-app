@@ -74,23 +74,25 @@ A **relay** 1:1 is reached by inviting a phone number. It lives in the relay's o
 it carries that place's `sid`, and it has an invite behind it — which is what the departure footer
 reads and what its re-invite CTA sends another of.
 
-A **cloud** 1:1 is opened by naming a member directly (`channel.startDm`) — on desktop; mobile no
-longer opens one. It belongs to the cloud rather than to a place, because the two participants need
-not share one; the place the server stamps on it is not used to file it (`isInPlaceList`). There is
-no invite in its history and no number to send one to.
+A **cloud** 1:1 is opened by naming a member directly (`channel.startDm`) — on desktop only; making
+one is a desktop feature. It belongs to the place it was opened in: the server opens a separate room
+per place (a new room's id is `<sid>@<uidA>@<uidB>`) and never moves one, so two people who share
+several places have one 1:1 in each. A room opened before the server worked that way keeps its
+pair-key id and the place it was stamped with. Either way its `sid` is where it is listed
+(`isInPlaceList`), like a group room's. There is no invite in its history and no number to send one to.
 
 **`cid` is the mark — the cloud the room is in.** It is the server's own answer, it arrives on every
 read, and nothing on the client derives or overwrites it. An unknown cloud reads as a subscription
 one, which is the safe direction: the relay is a single known id, so only a genuine relay room can be
 mistaken for a cloud one and never the reverse.
 
-> **This used to read `sid`, and that failed.** The idea was that a cloud 1:1 belongs to no place, so
-> a blank place field would mark it. Measured 2026-09-23: **the server assigns the room a place
-> anyway** — whichever one its creator was standing in — and returns it on every read, so a client
-> that blanks the field has it filled back in by the next sync. The room then changed lineage
-> silently, taking the footer suppression and the naming rule with it. A blank field also meant two
-> things at once ("no place" and "place not known yet"), and the write paths are built to resolve the
-> second by guessing.
+> **This used to read `sid`, and that failed.** The idea, from when a cloud 1:1 was read across the
+> whole cloud, was that it belongs to no place, so a blank place field would mark it. Measured
+> 2026-09-23: **the server assigns the room a place anyway** — whichever one its creator was standing
+> in — and returns it on every read, so a client that blanks the field has it filled back in by the
+> next sync. The room then changed lineage silently, taking the footer suppression and the naming
+> rule with it. A blank field also meant two things at once ("no place" and "place not known yet"),
+> and the write paths are built to resolve the second by guessing.
 
 **Only the invite-attached parts split.** `hasDmInviteFlow` gates the departure footer, its CTA and
 the `invite.list` poll that feeds them — nothing else. Read receipts, keeping a departed member on
@@ -103,28 +105,27 @@ answered the room says nothing rather than borrowing a sentence written for a fl
 ### `profilePlaceOf` — which place names the people in this room
 
 A profile is per-place: the same person has a different nick and photo in each one, so naming anyone
-means choosing a place first. Almost every room has already made that choice — it lives in a place,
-and `channel.sid` is it.
+means choosing a place first. Every room has already made that choice — it lives in a place, and
+`channel.sid` is it. A cloud 1:1 is no exception: it lives in the place it was opened in.
+`profilePlaceOf` returns `channel.sid`, and the three screens that draw a name in a room —
+`ChannelRoomPage`, `ThreadPage`, `ChannelSettingsPage` — all read it, or the header and the settings
+list would disagree about who the room is with.
 
-A cloud 1:1 carries a place, but it is the one its creator happened to be standing in — no answer for
-the other person, who may not be in it. So the reader's own is used instead. `profilePlaceOf` returns
-`activeSid` for those rooms and `channel.sid` for everything else, and the three screens that draw a
-name in a room — `ChannelRoomPage`, `ThreadPage`, `ChannelSettingsPage` — all read it, or the header
-and the settings list would disagree about who the room is with.
+So **the 1:1s with one person in two places can name them differently**, each by that place's
+profile, and opening a room from another place does not change its name. It used to be the other way
+round — a cloud 1:1 was one room for the whole cloud and took the reader's place — until the server
+began opening a separate 1:1 per place.
 
-Two consequences follow, and both are intended. **The same room names its peer differently when
-opened from a different place.** And **two participants who share no place see each other by
-different names** — which is exactly why the room could not have picked one place for both of them.
+A room that names no place (`''`, or the server's `#` for "no place") falls back to the reader's
+place, the only one left to look under: a 1:1 from before places keyed 1:1s may carry either. `null`
+means "nothing to look under yet", which the profile hooks read as "do not subscribe". An unresolved
+session must not collapse into an empty-string lookup that answers with nobody.
 
-`null` means "nothing to look under yet", which the profile hooks read as "do not subscribe". An
-unresolved session must not collapse into an empty-string lookup that answers with nobody.
+### Mobile lists a cloud 1:1 with its place's rooms, and makes none
 
-### Mobile neither opens nor lists a cloud 1:1
-
-Mobile has no screen for a cloud 1:1. The peer picker, the "1:1 대화하기" row on a participant's
-profile and home's cloud 1:1 section were removed; desktop keeps all of them. What remains on mobile
-is the relay 1:1, reached by phone number through the contact form. The decision, and what it
-costs, is ADR-0153.
+**Making a cloud 1:1 is a desktop feature.** Mobile shows the 1:1s desktop made, opens them and talks
+in them, but has no peer picker and no "start a 1:1" row on a participant's profile. What mobile
+starts is the relay 1:1, reached by phone number through the contact form.
 
 | Environment              | `1:1 대화` entry | Tap goes to         |
 | ------------------------ | ---------------- | ------------------- |
@@ -136,17 +137,23 @@ costs, is ADR-0153.
 still opens for either of its rows, and `canCreate` still guards the group row alone, so an invited
 cloud — which offers neither now — shows no `＋` at all.
 
-**A cloud 1:1 still exists, because desktop opens them.** Mobile simply has no list that shows one.
-`sid` is not a scope key for a 1:1: the place it carries describes where its creator stood rather
-than where the conversation lives, so `isInPlaceList` (in `libs/data`) keeps every cloud 1:1 out of a
-place's list, and no other home list takes it. A cloud 1:1 that reaches mobile some other way — a
-push tap, a search result — still opens and is drawn by every rule in this document, so those rules
-stay.
+**Home lists a cloud 1:1 in its place's section, beside the group rooms.** The section's title is
+`대화방` (`homePage.channels`). `useHomeChannels` slices the place's rooms with `isInPlaceList`, so a
+1:1 arrives with the groups and is drawn by the same `ChannelList`, under the same sort
+(`channelSortMethod`) and pins (`pinnedChannelIds`). There is no separate 1:1 section. The lists that
+read the same slice follow: the invite candidates, the place's room management (where a 1:1's bulk
+action is "leave", `removalActionFor`) and the place detail screen.
 
-**Its unread reaches no mark.** `useChannelUnreads` counts a cloud 1:1 for its own row only and
-leaves it out of the place, total and other-cloud sums, so no place dot, bottom-nav count, cloud
-switcher dot or app-icon number rests on a room home cannot show. A message in one is learned of
-from its push alone; see [unread-dot.md](../home/unread-dot.md).
+**A 1:1's unread counts like a room's.** `useChannelUnreads` counts it under its place, so the place
+dot, the bottom-nav count, the other-cloud count and the app-icon number all point at a row that
+clears them. A cloud 1:1 that names no place counts on its own row only, since no place lists it —
+see [unread-dot.md](../home/unread-dot.md).
+
+**A push lands on the room's place.** A 1:1 push names the place its sender wrote from, which need not
+be the room's. `usePushNavigate` switches to the room's own place instead — the cached row's, else
+the place a place-keyed id names, else the push's (`pushRoomPlace`) — for the native tap and the
+in-app banner alike. The native shell passes the push's place on untouched; the correction lives in
+the web, where a deploy reaches it.
 
 ### The cloud's self chat has a section of its own
 
@@ -165,8 +172,8 @@ from a place no rail lists.
 mobile does not ask for it (`channel.get-self` runs on the relay only), so a mobile-only member of a
 cloud may have none. An empty section would be a heading with nothing to do under it.
 
-The section's stored fold id is still `cloudDm` — it held the cloud 1:1s too until mobile stopped
-listing them, and renaming a stored key would reset every user's fold.
+The section's stored fold id is still `cloudDm` — it once held the cloud 1:1s too, which are now in
+their place's list, and renaming a stored key would reset every user's fold.
 
 ### A cloud 1:1 skips step 1 of the title chain
 
@@ -207,6 +214,12 @@ Four rules hold that shape together.
 inviter owns the channel, so it would return the server-set `channel.name` and ignore both the name
 I gave the room and the peer's profile. That is exactly how the home list came to disagree with the
 room header.
+
+**The chain does not change with the place rule.** A 1:1 is named from its own place's profiles now
+(`profilePlaceOf`), and a peer with no profile in that place falls through to `channel.name` or the
+unnamed-peer label — there is no cloud-profile rung on mobile. That gap is more common on new rooms,
+because the server no longer writes an alias into `join.nick` for a 1:1 the app opens. Desktop's
+chain does fall back to the cloud profile; mobile's deliberately does not.
 
 **Only values every surface can get cheaply are in the chain.** The peer's _user-record_ name is
 excluded, deliberately. It hydrates through a per-channel `syncChannelUsers` call that a list cannot

@@ -14,38 +14,57 @@ export const RELAY_CLOUD_ID = 'default';
  */
 export const ACCOUNT_CHANNEL_SID = '@account';
 
+/** The `sid` the server gives a room filed under no place. */
+export const NO_PLACE_SID = '#';
+
 /**
- * Whether a channel is read across the whole cloud rather than within one place.
+ * The place a place-keyed 1:1 id names, or `''` when the id is not one.
  *
- * **`sid` is not a scope key for a 1:1, and this is where that is written down.**
- *
- * A group room lives in a place: its `sid` is where it belongs, and a place-scoped read is the
- * right way to find it. A 1:1 does not work that way. The server still puts one in a place — the
- * creator's, at the moment they opened it — but that tag describes where one person happened to be
- * standing, not where the conversation lives. The other participant need not be in that place at
- * all, so a place-scoped read shows the room to one of them and hides it from the other.
- *
- * Measured on dev (2026-09-23): a 1:1's id is derived from the pair, so opening it again from a
- * different place returns the same room carrying the same original tag. There is no second room to
- * make per place, and no point at which the tag becomes right for both people.
- *
- * **The field is left exactly as the server sent it.** An earlier attempt had the client blank it
- * to mean "no place", which failed twice over: the next sync filled it back in, and an empty `sid`
- * could not be told apart from "place not known yet". Nothing here overwrites a value the server
- * owns — the client simply stops using it to decide what a reader can see.
- *
- * The relay is excluded because its 1:1s really do live in its one place, and are already listed
- * there; reading them cloud-wide as well would show them twice.
+ * A subscription cloud keys each new 1:1 by the place it was opened in, `<sid>@<uidA>@<uidB>`, and
+ * that place never changes. A room opened before that kept its pair key, `<uidA>@<uidB>`, which
+ * names no place — its place comes only from the field the server sends. Only exactly three
+ * non-empty parts count: `ACCOUNT_CHANNEL_SID` (`@account`) and a pair key also hold `@`.
  */
-export const isCloudWideChannel = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
-    !!channel && channel.stereo === 'dm' && channel.cid !== RELAY_CLOUD_ID;
+export const placeOfDmId = (id: string | null | undefined): string => {
+    const parts = (id ?? '').split('@');
+    return parts.length === 3 && parts.every(Boolean) ? parts[0] : '';
+};
+
+/**
+ * Whether a channel is a 1:1 in a subscription cloud — the one kind whose place must never be
+ * filled in from the place the reader happens to be in.
+ *
+ * Such a room belongs to the place the server stamped on it when it was opened, and only to that
+ * place. The ambient place is a different fact: during a place switch it already names the next
+ * place (the session context moves before `auth.switch` answers), and a room filed under it shows
+ * in the wrong place's list. So its place is the place its id names, then the server's field, and
+ * otherwise stays empty (`dmPlaceOf`). A relay 1:1 lives in the relay's one place, where the ambient
+ * value is always right, so it keeps the ordinary chain.
+ */
+export const isCloudDm = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
+    !!channel && channel.stereo === 'dm' && !!channel.cid && channel.cid !== RELAY_CLOUD_ID;
+
+/**
+ * The place a 1:1 belongs to, or `''`. Never the ambient place (see `isCloudDm`).
+ *
+ * A place-keyed id is read first: the place it names is the one the server filed the room under,
+ * and it never changes, so no field can disagree with it. Otherwise the place the server sent
+ * (`sid`, then `$.sid`). The server's `#` means "no place" and reads as `''`, like an empty field.
+ */
+export const dmPlaceOf = (channel: Partial<Pick<DomainChannel, 'id' | 'sid' | '$'>> | null | undefined): string => {
+    const fromId = placeOfDmId(channel?.id);
+    if (fromId) return fromId;
+    const sent = channel?.sid || channel?.$?.sid || '';
+    return sent === NO_PLACE_SID ? '' : sent;
+};
 
 /**
  * Whether a channel belongs in the list for `sid`.
  *
- * The place filter, plus the rule above: a room read cloud-wide is not in any place's list, however
- * its `sid` reads. Without the second half a cloud 1:1 appears twice — once under whichever place
- * its creator was in, and once in the section that exists to hold it.
+ * Every room is listed in its own place and in no other — a group room and a 1:1 alike. A 1:1 used
+ * to be read across the whole cloud instead, because the server once resolved a pair of people to
+ * a single room whatever place it was opened from, so the place it carried was only where its
+ * creator had been standing. The server now opens a separate 1:1 per place, so the place it
+ * carries is where the conversation lives.
  */
-export const isInPlaceList = (channel: Pick<DomainChannel, 'stereo' | 'cid' | 'sid'>, sid: string): boolean =>
-    channel.sid === sid && !isCloudWideChannel(channel);
+export const isInPlaceList = (channel: Pick<DomainChannel, 'sid'>, sid: string): boolean => channel.sid === sid;

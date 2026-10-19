@@ -13,7 +13,7 @@ import {
     type MyThreads,
     type ThreadReply,
 } from './myThreads';
-import { ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 
 const reply = (over: Partial<ThreadReply> = {}): ThreadReply => ({
     cid: 'c1',
@@ -173,17 +173,18 @@ describe('markCloudSeen', () => {
         expect(threadsForCloud(next, 'c2').some(isThreadUnread)).toBe(true);
     });
 
-    it("marks one place's threads seen — a 1:1's with them — and leaves another place's unread", () => {
+    it("marks one place's threads seen — its 1:1's with them — and leaves another place's unread", () => {
         let threads = recordThreadReply({}, reply({ rootNo: '1' }), { root });
         threads = recordThreadReply(threads, reply({ rootNo: '2', placeId: 'p2' }), { root });
         threads = recordThreadReply(threads, reply({ rootNo: '3', placeId: 'p2', channelKind: 'dm' }), { root });
+        threads = recordThreadReply(threads, reply({ rootNo: '4', placeId: 'p1', channelKind: 'dm' }), { root });
 
         const next = markCloudSeen(threads, 'c1', 'p1');
 
         expect(threadsForCloud(next, 'c1', 'p1').some(isThreadUnread)).toBe(false);
         expect(threadsForCloud(next, 'c1', 'p2').map(t => [t.rootNo, isThreadUnread(t)])).toEqual([
             ['2', true],
-            ['3', false],
+            ['3', true],
         ]);
     });
 
@@ -222,13 +223,36 @@ describe('threadsForCloud', () => {
         expect(threadsForCloud(threads, 'c1').map(t => t.rootNo)).toEqual(['3', '2', '1']);
     });
 
-    it("keeps a 1:1's and the Self Channel's threads in every place, whichever place they are stamped with", () => {
-        let threads = recordThreadReply({}, reply({ rootNo: '1', at: 1, placeId: 'p2', channelKind: 'dm' }), { root });
-        threads = recordThreadReply(threads, reply({ rootNo: '2', at: 2, placeId: 'p2', channelKind: 'self' }), {
+    // A cloud 1:1 lives in the place it was opened in, like a group channel.
+    it("keeps a cloud 1:1's threads in its own place and drops another place's", () => {
+        let threads = recordThreadReply({}, reply({ rootNo: '1', at: 1, placeId: 'p1', channelKind: 'dm' }), { root });
+        threads = recordThreadReply(
+            threads,
+            reply({ rootNo: '2', at: 2, channelId: 'p2@me@u1', placeId: 'p2', channelKind: 'dm' }),
+            { root }
+        );
+
+        expect(threadsForCloud(threads, 'c1', 'p1').map(t => t.rootNo)).toEqual(['1']);
+        expect(threadsForCloud(threads, 'c1', 'p2').map(t => t.rootNo)).toEqual(['2']);
+    });
+
+    it("keeps the Self Channel's threads in every place, whichever place they are stamped with", () => {
+        let threads = recordThreadReply({}, reply({ rootNo: '2', at: 2, placeId: 'p2', channelKind: 'self' }), {
             root,
         });
         threads = recordThreadReply(threads, reply({ rootNo: '3', at: 3, placeId: ACCOUNT_CHANNEL_SID }), { root });
 
-        expect(threadsForCloud(threads, 'c1', 'p1').map(t => t.rootNo)).toEqual(['3', '2', '1']);
+        expect(threadsForCloud(threads, 'c1', 'p1').map(t => t.rootNo)).toEqual(['3', '2']);
+    });
+
+    // The relay keeps its 1:1s in its one place, which need not be the site a relay session selected.
+    it("keeps a relay 1:1's threads in every place", () => {
+        const threads = recordThreadReply(
+            {},
+            reply({ cid: RELAY_CLOUD_ID, rootNo: '1', at: 1, placeId: 'relay-place', channelKind: 'dm' }),
+            { root }
+        );
+
+        expect(threadsForCloud(threads, RELAY_CLOUD_ID, 'joined-site').map(t => t.rootNo)).toEqual(['1']);
     });
 });

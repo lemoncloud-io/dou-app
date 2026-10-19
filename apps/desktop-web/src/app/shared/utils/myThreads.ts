@@ -1,4 +1,4 @@
-import { ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 
 import { bareChannelName, channelKind, type ChannelKind } from './channelLabel';
 
@@ -138,14 +138,18 @@ export const markThreadSeen = (threads: MyThreads, key: string): MyThreads => {
 };
 
 /**
- * Whether a thread belongs to a cloud and, when a place is given, to that place. Only a group channel
- * lives in a place. A 1:1 and the Self Channel belong to the cloud — their `sid` is where someone was
- * standing, not a scope key — so their threads are in every place of it, the relay's 1:1s included.
+ * Whether a thread belongs to a cloud and, when a place is given, to that place. A group channel and a
+ * cloud 1:1 live in a place — a 1:1 in the one it was opened in, which the server never changes — so
+ * their threads are in that place only. The Self Channel belongs to the account, so its threads are in
+ * every place of the cloud. So are a relay 1:1's: the relay keeps its 1:1s in its one place, which
+ * need not be the site a relay session has selected.
  */
 export const isThreadIn = (thread: MyThread, cid: string, placeId?: string): boolean => {
     if (thread.cid !== cid) return false;
     if (!placeId || !thread.placeId) return true;
-    return thread.channelKind === 'dm' || thread.channelKind === 'self' || thread.placeId === placeId;
+    if (thread.channelKind === 'self') return true;
+    if (thread.channelKind === 'dm' && thread.cid === RELAY_CLOUD_ID) return true;
+    return thread.placeId === placeId;
 };
 
 /** Marks every thread of a cloud — of one place, when given — looked at. Returns `threads` itself when none was unread. */

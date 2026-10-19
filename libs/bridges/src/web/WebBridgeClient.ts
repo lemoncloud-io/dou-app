@@ -3,7 +3,13 @@ import { logger } from '@chatic/logger';
 import type { BridgeAdapter, InboundMessageMeta } from './adapters/types';
 import type { EventMessage, RequestMessage, ResponseMessage, EnvironmentConfig, IMessageQueue } from '../common';
 import { MessageQueue } from '../common';
-import type { BridgeRequestObserver, IWebBridgeClient, PendingRequest, WebBridgeClientConfig } from './types';
+import type {
+    BridgeRequestObserver,
+    IWebBridgeClient,
+    PageVisibilitySource,
+    PendingRequest,
+    WebBridgeClientConfig,
+} from './types';
 import {
     WEB_MESSAGE_RESPONSE_TYPE,
     type AppMessageData,
@@ -14,6 +20,13 @@ import {
     type WebMessageType,
 } from '@chatic/app-messages';
 import { BRIDGE_PROTOCOL_VERSION } from '../version';
+
+/**
+ * The least a held timeout gets back when the page shows again. On Android the replies held while
+ * the app was paused land just before `visibilitychange` reports visible, but nothing promises that
+ * order, so a request whose budget had nearly run out is still given time to receive its reply.
+ */
+const RESUMED_TIMEOUT_FLOOR_MS = 2000;
 
 /**
  * The core implementation class of the bridge client that runs in the Web runtime environment.
@@ -29,6 +42,10 @@ export class WebBridgeClient implements IWebBridgeClient {
     private now: () => number;
     /** Receives a sample per settled request. Absent means nothing is measured at all. */
     private requestObserver?: BridgeRequestObserver;
+    /** Holds request timeouts while the page is hidden. Absent outside a DOM. */
+    private visibility?: PageVisibilitySource;
+    /** The callback that unsubscribes from visibility changes */
+    private unsubscribeVisibility?: () => void;
 
     /** The listener map that routes incoming native events */
     private eventListeners = new Map<string, Set<(message: any) => void>>();
@@ -58,6 +75,8 @@ export class WebBridgeClient implements IWebBridgeClient {
         this.pendingBuffer = config.pendingBuffer ?? new MessageQueue();
         this.environment = config.environment;
         this.now = config.now ?? defaultNow;
+        this.visibility = config.visibility ?? createDocumentVisibility();
+        this.unsubscribeVisibility = this.visibility?.subscribe(this.handleVisibilityChange);
 
         // Binds the listener that receives incoming messages from the adapter and stores the unsubscribe function.
         this.unsubscribeAdapter = this.adapter.onMessage(this.handleMessage);
@@ -160,20 +179,12 @@ export class WebBridgeClient implements IWebBridgeClient {
                     pending.inFlightAtDispatch = this.countInFlight();
                 }
                 // A request that had been sitting in the buffer starts its timeout wait only once it's actually dispatched.
-                pending.timeoutId = setTimeout(() => {
-                    this.pendingRequests.delete(refId);
-                    this.reportSettled(pending, 'TIMEOUT');
-                    pending.reject({
-                        code: 'TIMEOUT',
-                        message: `Request timed out after ${pending.timeoutMs}ms`,
-                        reason: 'No response was received before the configured timeout.',
-                        requestType: pending.requestType,
-                        expectedResponseType: pending.expectedResponseType,
-                        protocolVersion: this.version,
-                        webVersion: this.version,
-                        recoverable: true,
-                    });
-                }, pending.timeoutMs);
+                pending.remainingMs = pending.timeoutMs;
+                if (this.visibility?.isHidden()) {
+                    pending.timeoutPaused = true;
+                } else {
+                    this.armTimeout(refId, pending);
+                }
             }
         }
 
@@ -182,6 +193,79 @@ export class WebBridgeClient implements IWebBridgeClient {
             const pending = this.pendingRequests.get(refId);
             if (pending) pending.requestLength = length;
         }
+    }
+
+    /**
+     * [Internal] Starts (or restarts) the countdown for what is left of a dispatched request's budget.
+     */
+    private armTimeout(refId: string, pending: PendingRequest, ms = pending.remainingMs ?? pending.timeoutMs): void {
+        pending.armedAt = defaultNow();
+        pending.timeoutId = setTimeout(() => {
+            this.pendingRequests.delete(refId);
+            this.reportSettled(pending, 'TIMEOUT');
+            pending.reject({
+                code: 'TIMEOUT',
+                message: `Request timed out after ${pending.timeoutMs}ms`,
+                reason: 'No response was received before the configured timeout.',
+                requestType: pending.requestType,
+                expectedResponseType: pending.expectedResponseType,
+                protocolVersion: this.version,
+                webVersion: this.version,
+                recoverable: true,
+            });
+        }, ms);
+    }
+
+    /**
+     * [Internal] Holds every running timeout while the page is hidden and resumes them, with what
+     * was left, once it is visible.
+     *
+     * A hidden page is one whose replies may not arrive at all until it shows again. On Android the
+     * host's reply is a WebView command that React Native's renderer only runs from its frame
+     * callback, which it stops while the activity is paused: a request answered in milliseconds while
+     * another app (the SMS composer) is in front reaches the page only on return, and a timeout that
+     * kept counting reported every such request as failed. The page's own timers keep running in that
+     * state, so only the page can tell the wait apart from a real fault.
+     */
+    private handleVisibilityChange = (): void => {
+        if (this.visibility?.isHidden()) {
+            this.holdTimeouts();
+        } else {
+            this.resumeHeldTimeouts();
+        }
+    };
+
+    /**
+     * [Internal] Clears every running timer this client armed, keeping what was left of its budget.
+     */
+    private holdTimeouts(): void {
+        // The budget is measured on the monotonic clock: a wall-clock correction, common right as a
+        // device wakes, would otherwise shrink the remainder to nothing or stretch it past the budget.
+        const now = defaultNow();
+        this.pendingRequests.forEach(pending => {
+            // Only timers this client can re-arm; the timeout simulation keeps its own.
+            if (!pending.timeoutId || pending.armedAt === undefined) return;
+            clearTimeout(pending.timeoutId);
+            pending.timeoutId = undefined;
+            const left = (pending.remainingMs ?? pending.timeoutMs) - (now - pending.armedAt);
+            pending.remainingMs = Math.min(pending.timeoutMs, Math.max(0, left));
+            pending.timeoutPaused = true;
+        });
+    }
+
+    /**
+     * [Internal] Re-arms every held timer with what was left of its budget, never less than the floor.
+     */
+    private resumeHeldTimeouts(): void {
+        this.pendingRequests.forEach((pending, refId) => {
+            if (!pending.timeoutPaused) return;
+            pending.timeoutPaused = false;
+            this.armTimeout(
+                refId,
+                pending,
+                Math.max(pending.remainingMs ?? pending.timeoutMs, RESUMED_TIMEOUT_FLOOR_MS)
+            );
+        });
     }
 
     /**
@@ -262,6 +346,11 @@ export class WebBridgeClient implements IWebBridgeClient {
      * [Internal] Makes the final call on whether an actually received message is a Response or an Event.
      */
     private processReceivedMessage(message: ResponseMessage | EventMessage, meta?: InboundMessageMeta): void {
+        // A message from the host proves it can reach the page, so nothing held is waiting on a
+        // delivery any more. The visible edge is otherwise the only thing that resumes a held timer,
+        // and the hold must not outlive a page whose visibility state lags the app's real one.
+        this.resumeHeldTimeouts();
+
         const refId = message.refId;
 
         // If it has a `success` property and refId is pending in the map, it's a Response to a request
@@ -553,6 +642,8 @@ export class WebBridgeClient implements IWebBridgeClient {
             this.unsubscribeAdapter();
             this.unsubscribeAdapter = undefined;
         }
+        this.unsubscribeVisibility?.();
+        this.unsubscribeVisibility = undefined;
 
         // 3. Empty the pending buffer queue
         this.pendingBuffer.clear();
@@ -636,6 +727,18 @@ export class WebBridgeClient implements IWebBridgeClient {
         };
     }
 }
+
+/** The document's visibility where there is a DOM; absent elsewhere (SSR, a test without jsdom). */
+const createDocumentVisibility = (): PageVisibilitySource | undefined => {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return undefined;
+    return {
+        isHidden: () => document.visibilityState === 'hidden',
+        subscribe: listener => {
+            document.addEventListener('visibilitychange', listener);
+            return () => document.removeEventListener('visibilitychange', listener);
+        },
+    };
+};
 
 /** A monotonic clock where the runtime has one; wall-clock time otherwise. */
 const defaultNow = (): number =>

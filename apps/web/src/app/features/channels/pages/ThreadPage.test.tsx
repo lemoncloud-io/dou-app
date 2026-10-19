@@ -12,6 +12,8 @@ let mockChannel: Record<string, unknown> | null = { id: 'ch1', stereo: 'group' }
 let mockMyJoin: { joinedNo?: number } | null = null;
 // The room's roster, for the `@` lookup: who is active, and the names they are drawn by.
 let mockActiveMemberIds: string[] = [];
+// The place whose profiles name the thread's people, as the page asks for them.
+const mockUseChannelProfiles = jest.fn((_placeId: string | null, _memberIds: string[]) => ({ profileMap: new Map() }));
 let mockMembers: { id: string; name?: string }[] = [];
 let mockChatParams: unknown = null;
 let mockHasMore = false;
@@ -58,7 +60,7 @@ jest.mock('@chatic/app-runtime', () => ({
             useSessionIdentity: () => ({ userId: 'session-uid' }),
             // "Me" is the uid in the thread's cloud; the session uid above is another cloud's.
             useUidInCloud: (cid: string) => (cid === 'default' || cid === 'cloud-a' ? 'me' : null),
-            // Only a cloud-wide room reads this (`profilePlaceOf`); these channels are read in a place.
+            // Only a room that names no place reads this (`profilePlaceOf`); these channels name theirs.
             useSessionSelection: () => ({ selectedSiteId: 'S:active' }),
         },
         data: {
@@ -189,7 +191,7 @@ jest.mock('../hooks', () => ({
         cursorByUser: new Map(),
     }),
     useChannelMembers: () => ({ members: mockMembers }),
-    useChannelProfiles: () => ({ profileMap: new Map() }),
+    useChannelProfiles: (placeId: string | null, memberIds: string[]) => mockUseChannelProfiles(placeId, memberIds),
     useChannelTitle: () => '개발 모임방',
     useChatMutations: () => ({ sendMessage: mockSendMessage }),
     useChats: (params: unknown) => {
@@ -696,6 +698,20 @@ describe('ThreadPage — mentions', () => {
         fireEvent.change(field(), { target: { value: '@' } });
 
         expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    });
+});
+
+// A cloud 1:1 lives in the place it was opened in, so that place's profiles name its people.
+describe('ThreadPage — profile place', () => {
+    it("names a cloud 1:1 thread's people by the room's place, not the reader's", () => {
+        mockUseChannelProfiles.mockClear();
+        mockChannel = { id: 'S2@me@peer', stereo: 'dm', cid: 'cloud-a', sid: 'S2' };
+        mockChats = [chat({ cid: 'cloud-a' })];
+
+        render(<ThreadPage />);
+
+        expect(mockUseChannelProfiles).toHaveBeenCalledWith('S2', expect.anything());
+        expect(mockUseChannelProfiles).not.toHaveBeenCalledWith('S:active', expect.anything());
     });
 });
 

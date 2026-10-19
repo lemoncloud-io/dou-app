@@ -165,7 +165,8 @@ export const ChannelRoomPage = () => {
     } = useChromeInsets();
 
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
-    // The place this reader is standing in. Only a cloud-wide room needs it — see `profilePlaceOf`.
+    // The place this reader is standing in. Only a room that names no place needs it — see
+    // `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
 
     // --- Data-fetching hooks ---
@@ -232,9 +233,9 @@ export const ChannelRoomPage = () => {
         return peerId && !activeMemberIds.includes(peerId) ? [...activeMemberIds, peerId] : activeMemberIds;
     }, [channel?.stereo, channel?.memberIds, activeMemberIds, userId]);
 
-    // Not `channel.sid`: a cloud 1:1 has no place of its own, so its peer is named by the place
-    // this reader is standing in. Every surface that draws a name in this room reads the same
-    // answer, or the header and the list disagree about who the room is with.
+    // The room's own place names its people (`profilePlaceOf`), a cloud 1:1's included. Every surface
+    // that draws a name in this room reads the same answer, or the header and the list disagree about
+    // who the room is with.
     const { profileMap } = useChannelProfiles(profilePlaceOf(channel, selectedSiteId), profileTargetIds);
 
     const memberById = useMemo(() => {

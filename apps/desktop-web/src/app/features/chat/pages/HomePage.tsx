@@ -152,7 +152,7 @@ export const HomePage = () => {
     // deleted it still names that place, and its cached channels would be listed in place of the 1:1s.
     // The Threads pane and its sidebar dot are scoped by the same place as the list.
     const listedPlaceId = hasNoPlace ? undefined : (selectedSiteId ?? undefined);
-    const { channels, isLoading, dmPlaces, memberPeers } = useChannels(listedPlaceId, {
+    const { channels, isLoading, filedPlaces, memberPeers } = useChannels(listedPlaceId, {
         whenNoPlace: isDefaultMode ? 'relay' : hasNoPlace ? 'cloudDms' : 'nothing',
     });
     const selectedChannelId = useSelectedChannelStore(s => s.selectedChannelId);
@@ -297,10 +297,10 @@ export const HomePage = () => {
         // wrong place's list. During a switch the "current" place is already the one being switched to.
         if (isSwitching) return;
         recordOrigin(channelId);
-        // A 1:1 opens where it is listed, which its recorded place need not be.
+        // A 1:1 opens in its own place (`openPlaceFor`).
         const placeId = openPlaceFor(
             { placeId: requestedPlaceId ?? '', channelId, placeBound: isPlaceBound(channelId) },
-            { placeId: selectedPlaceId, dmPlaces }
+            { placeId: selectedPlaceId, filedPlaces }
         );
         if (placeId && placeId !== selectedPlaceId) {
             pendingChannelRef.current = channelId;
@@ -340,9 +340,9 @@ export const HomePage = () => {
         // Never both — the reply is not in the feed. Same exclusion jumpToSaved makes.
         pendingThreadRef.current = rootId ? { channelId, rootId } : null;
         pendingOpenAtBottomRef.current = rootId ? null : channelId;
-        // A 1:1 opens where it is listed, and the named place is only its stamp — but which places
-        // list it is unknown until the rows load (an open that remounts HomePage arrives before
-        // then). Hold it; the redirect below settles the place once the list is in.
+        // A 1:1 opens in its own place, and a notification names the place its sender was in — but
+        // the room's row is not known until the rows load (an open that remounts HomePage arrives
+        // before then). Hold it; the redirect below settles the place once the list is in.
         pendingNamedPlaceRef.current = pendingOpen.placeId;
         if (sameCloud && isLoading) {
             pendingChannelRef.current = channelId;
@@ -354,7 +354,7 @@ export const HomePage = () => {
         const placeId = sameCloud
             ? openPlaceFor(
                   { ...pendingOpen, placeBound: isPlaceBound(channelId) },
-                  { placeId: selectedPlaceId, dmPlaces }
+                  { placeId: selectedPlaceId, filedPlaces }
               )
             : pendingOpen.placeId;
         const route = pendingOpenRoute(
@@ -467,9 +467,9 @@ export const HomePage = () => {
     const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
 
     // A held or misplaced pending open (one that arrived while the list loaded, or a cross-cloud
-    // open landed in a 1:1's stamped place) moves once to where the room is listed. Not mid-switch,
-    // and not before a place is selected: the auto-select effect settles the place first, and a
-    // redirect in that gap would spend the once-per-room move on the stamp.
+    // open landed in the place a 1:1 notification named) moves once to where the room is listed. Not
+    // mid-switch, and not before a place is selected: the auto-select effect settles the place first,
+    // and a redirect in that gap would spend the once-per-room move before the place is settled.
     useEffect(() => {
         const pendingId = pendingChannelRef.current;
         if (!pendingId) {
@@ -480,7 +480,7 @@ export const HomePage = () => {
         const placeId = pendingRedirectPlace(pendingId, {
             placeId: selectedPlaceId,
             listedIds: listedChannelIds,
-            dmPlaces,
+            filedPlaces,
             redirectedId: redirectedPendingRef.current,
             namedPlaceId: pendingNamedPlaceRef.current,
             placeBound: !!pendingId && isPlaceBound(pendingId),
@@ -488,7 +488,7 @@ export const HomePage = () => {
         if (!placeId) return;
         redirectedPendingRef.current = pendingId;
         switchPlaceForOpen(placeId);
-    }, [listedChannelIds, isLoading, isSwitching, dmPlaces, selectedPlaceId, switchPlace]);
+    }, [listedChannelIds, isLoading, isSwitching, filedPlaces, selectedPlaceId, switchPlace]);
 
     useEffect(() => {
         // Honor a pending notification / saved-jump target once its channel loads; otherwise keep a

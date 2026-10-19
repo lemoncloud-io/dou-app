@@ -5,7 +5,9 @@ Date: 2026-10-13
 ## Status
 
 Accepted, for desktop-web. Narrows what [ADR-0196](./0196-the-threads-i-take-part-in-are-listed-from-what-this-device-has-seen.md)
-lists; how the list is kept and fed is unchanged.
+lists; how the list is kept and fed is unchanged. The 1:1 rule — a 1:1's threads in every place — is
+superseded by [ADR-0210](./0210-a-cloud-1-1-belongs-to-the-place-it-was-opened-in.md): a cloud 1:1 belongs to the place it was opened in, so its threads are
+listed there only.
 
 ## Context
 

@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { isCloudWideChannel, type DomainChannel, type IChannelRepository } from '@chatic/data';
+import type { DomainChannel, IChannelRepository } from '@chatic/data';
 
 import { useEnterInvitedChannel } from './useEnterInvitedChannel';
 import { useEnterInvitedCloud } from './useEnterInvitedCloud';
@@ -128,9 +128,9 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
      * does answer a room invite with the room's `siteId`, but the published invite view does not
      * declare it (only the stored model does), so it is not the only source. Missing, it falls back
      * to the invite's place card, then to the room itself: one cloud-wide channel delta, then the
-     * room's row from the cache. A cloud 1:1 belongs to no place, so it resolves to nothing. `undefined` means the place
-     * could not be named — the caller enters without switching and says so in the log, rather than
-     * silently skipping the profile step as it once did.
+     * room's row from the cache — a cloud 1:1's row included, since it lives in the place it was
+     * opened in. `undefined` means the place could not be named — the caller enters without switching
+     * and says so in the log, rather than silently skipping the profile step as it once did.
      */
     const resolveInvitedSiteId = useCallback(async (): Promise<string | undefined> => {
         if (info?.siteId) return info.siteId;
@@ -139,8 +139,7 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
         try {
             await channel.syncChannels(0);
             const row = await readChannelOnce(channel, info.channelId);
-            if (!row || isCloudWideChannel(row)) return undefined;
-            return row.sid || undefined;
+            return row?.sid || undefined;
         } catch (error) {
             logger.warn('INVITE', 'could not read the invited room to find its place', { error });
             return undefined;

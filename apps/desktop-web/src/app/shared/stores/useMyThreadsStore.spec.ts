@@ -27,13 +27,18 @@ describe('useMyThreadsStore', () => {
         expect(hasUnreadThread(threads, 'cloud-a')).toBe(false);
     });
 
-    it("lights the dot for the place whose thread has a new reply, and for a 1:1's — not for another place's", () => {
+    it("lights the dot for the place whose thread has a new reply, not for another place's", () => {
         useMyThreadsStore.getState().record(reply({ placeId: 'P2' }), { root });
         expect(hasUnreadThread(useMyThreadsStore.getState().threads, 'cloud-a', 'P2')).toBe(true);
         expect(hasUnreadThread(useMyThreadsStore.getState().threads, 'cloud-a', 'P1')).toBe(false);
+    });
 
+    // A cloud 1:1 lives in the place it was opened in, like a group channel.
+    it("lights the dot for a 1:1's own place only", () => {
         useMyThreadsStore.getState().record(reply({ channelId: 'D1', placeId: 'P2', channelKind: 'dm' }), { root });
-        expect(hasUnreadThread(useMyThreadsStore.getState().threads, 'cloud-a', 'P1')).toBe(true);
+
+        expect(hasUnreadThread(useMyThreadsStore.getState().threads, 'cloud-a', 'P2')).toBe(true);
+        expect(hasUnreadThread(useMyThreadsStore.getState().threads, 'cloud-a', 'P1')).toBe(false);
     });
 
     it("marks one place's threads seen and leaves another place's unread", () => {

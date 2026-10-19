@@ -4,7 +4,7 @@ import type { DomainChannel, DomainChannelListPayload } from '@chatic/data';
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
-import { channelsByPlace, cloudDmPlaces, placeUnreadCounts } from '../utils';
+import { channelsByPlace, placeUnreadCounts, roomPlaces } from '../utils';
 import { useKnownChannelsStore, useMentionsStore, useNotificationPrefsStore, useReadCursorStore } from '../stores';
 import { usePlaces } from './usePlaces';
 import { chatFrameChannelIdOf } from './useRefreshOnPush';
@@ -18,8 +18,8 @@ const isWindowActive = (): boolean =>
 
 /**
  * Per-place unread counts for the active cloud, keyed by place id, and their total. A 1:1 counts
- * in every place that lists it and once in the total (`placeUnreadCounts`). A muted channel counts
- * in neither.
+ * in its own place, like a group channel; my notes-to-self room in every place, and once in the
+ * total (`placeUnreadCounts`). A muted channel counts in neither.
  *
  * Fetches every channel of the active cloud into a flat in-memory list (`channel.fetchList`,
  * `hasSite: false`, with detail) and derives unread client-side — the pre-v2 desktop approach. It
@@ -48,7 +48,7 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
     const mutedChannels = useNotificationPrefsStore(s => s.mutedChannels);
     // Subscribed, so a captured mention moves the dock the moment it lands.
     const mentionItems = useMentionsStore(s => s.items);
-    const { placeIds } = usePlaces();
+    const { placeIds, isLoading: placesLoading } = usePlaces();
 
     // The list carries the cloud it was fetched for, so nothing is filed under the cloud switched to.
     const [fetched, setFetched] = useState<{ cloudId: string | null; list: DomainChannel[] }>({
@@ -117,29 +117,30 @@ export const usePlaceUnreadCounts = (): { byPlace: Record<string, number>; total
         };
     }, [schedule]);
 
-    const dmPlaces = useMemo(
-        () => cloudDmPlaces(channels, { myUid: myUid ?? null, placeIds }),
-        [channels, myUid, placeIds]
-    );
+    const filedPlaces = useMemo(() => roomPlaces(channels, { placeIds }), [channels, placeIds]);
     // The same list is the whole cloud's channel directory, so it also seeds the quick switcher's
-    // index: without it, Cmd+K only knew places opened by hand. A 1:1 is filed under the places that
-    // list it, so this runs again when my places arrive; re-filing an unchanged list writes nothing.
+    // index: without it, Cmd+K only knew places opened by hand. My notes-to-self room is filed under
+    // every place, so this runs again when my places arrive; re-filing an unchanged list writes nothing.
     useEffect(() => {
         const listCloudId = fetched.cloudId;
         if (!listCloudId || listCloudId !== cloudId) return;
         const { record } = useKnownChannelsStore.getState();
-        channelsByPlace(fetched.list, dmPlaces).forEach((list, placeId) => record(listCloudId, placeId, list, myUid));
-    }, [fetched, dmPlaces, cloudId, myUid]);
+        channelsByPlace(fetched.list, filedPlaces).forEach((list, placeId) =>
+            record(listCloudId, placeId, list, myUid)
+        );
+    }, [fetched, filedPlaces, cloudId, myUid]);
 
     return useMemo(
         () =>
             placeUnreadCounts(channels, {
                 myUid: myUid ?? null,
-                dmPlaces,
+                filedPlaces,
                 readCursors,
                 notifyPrefs: { channelNotify, mutedChannels },
                 mentions: mentionItems,
+                // The sidebar's `cloudDms` listing: only once the places are known to be none.
+                listsUnplacedDms: !placesLoading && placeIds.length === 0,
             }),
-        [channels, myUid, dmPlaces, readCursors, channelNotify, mutedChannels, mentionItems]
+        [channels, myUid, filedPlaces, readCursors, channelNotify, mutedChannels, mentionItems, placesLoading, placeIds]
     );
 };

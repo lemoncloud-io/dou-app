@@ -45,8 +45,8 @@ vi.mock('../utils', async () => ({
     resolveMyMentionNames: () => ['Me'],
 }));
 
-import { useNotificationPrefsStore, usePendingOpenStore } from '../stores';
 import { parsePushDeeplink } from '../utils';
+import { useNotificationPrefsStore, usePendingOpenStore } from '../stores';
 import { useCrossCloudPushNotifications } from './useCrossCloudPushNotifications';
 
 const push = (data: Record<string, string>) => ({
@@ -104,6 +104,52 @@ describe('useCrossCloudPushNotifications', () => {
     it('presents a push for a webhook message even when its owner id is mine', async () => {
         pushHandler?.(push({ ownerId: CLOUD_UID, stereo: 'webhook' }));
         await waitFor(() => expect(shown()).toBe(1));
+    });
+
+    // A 1:1 belongs to the place it was opened in, and its push names the place its sender wrote
+    // from. B wrote from P1; the room lives in P2.
+    describe("a 1:1's push", () => {
+        const dmPush = () => push({ channelId: 'P2@me@peer', cid: 'cloud-9', sid: 'P1' });
+
+        beforeEach(() => {
+            cacheRecords = [
+                {
+                    type: 'channel',
+                    cid: 'cloud-9',
+                    data: { id: 'P2@me@peer', sid: 'P2', stereo: 'dm', $join: { userId: CLOUD_UID } },
+                },
+            ];
+        });
+
+        afterEach(() => vi.restoreAllMocks());
+
+        it("opens the banner click on the room's place", async () => {
+            vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+            pushHandler?.(dmPush());
+
+            await waitFor(() => expect(request).toHaveBeenCalled());
+            const deeplink = request.mock.calls[0][0].data.deeplink as string;
+            expect(parsePushDeeplink(deeplink)).toMatchObject({ placeId: 'P2', channelId: 'P2@me@peer' });
+        });
+
+        it("opens the toast click on the room's place", async () => {
+            vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+            pushHandler?.(dmPush());
+
+            await waitFor(() => expect(toast).toHaveBeenCalled());
+            toast.mock.calls[0][0].onClick();
+            expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: 'P2', channelId: 'P2@me@peer' });
+        });
+
+        it("keeps a group channel's push on the place it names", async () => {
+            cacheRecords = [];
+            vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+            pushHandler?.(push({ channelId: '1000006', cid: 'cloud-9', sid: 'P1' }));
+
+            await waitFor(() => expect(toast).toHaveBeenCalled());
+            toast.mock.calls[0][0].onClick();
+            expect(usePendingOpenStore.getState().target).toMatchObject({ placeId: 'P1', channelId: '1000006' });
+        });
     });
 
     // A push carries no mention record, so the quiet-hours breakthrough cannot tell that it names

@@ -15,8 +15,8 @@ describe('useKnownChannelsStore.record', () => {
         expect(Object.keys(useKnownChannelsStore.getState().byCloud['cloud-1'])).toEqual(['place-a:ch-1']);
     });
 
-    // A 1:1 is listed only in the places its peer shares, so it is filed under each of those, with
-    // its person, since its room name is only what the server set.
+    // A 1:1 is listed in its own place, so it is filed there, with its person, since its room name
+    // is only what the server set.
     it('files a cloud 1:1 with its person under the place it was listed in', () => {
         useKnownChannelsStore
             .getState()

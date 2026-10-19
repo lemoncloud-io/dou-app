@@ -36,6 +36,18 @@ describe('useHomeChannels — 공유 관측의 사이트별 슬라이스', () =>
         expect(result.current.isLoading).toBe(false);
     });
 
+    // A cloud 1:1 lives in the place it was opened in, so it is sliced with that place's groups.
+    it("lists a cloud 1:1 with its own place's rooms and no other place's", () => {
+        const dm = (id: string, sid: string) => ({ id, sid, stereo: 'dm', cid: '1000001' }) as unknown as DomainChannel;
+        const rows = [channel('g1', 's1'), dm('s1@me@peer', 's1'), dm('s2@me@peer', 's2')];
+
+        const inS1 = renderHook(() => useHomeChannels('s1'), { wrapper: wrapper(rows) });
+        const inS2 = renderHook(() => useHomeChannels('s2'), { wrapper: wrapper(rows) });
+
+        expect(inS1.result.current.channels.map(c => c.id)).toEqual(['g1', 's1@me@peer']);
+        expect(inS2.result.current.channels.map(c => c.id)).toEqual(['s2@me@peer']);
+    });
+
     // The cloud-wide read is not isolated by sid (on the relay the sid scope is ignored entirely) —
     // that's why the filter is still here. Filtering in JS instead of opening a second observer.
     it('sid가 없으면 빈 목록이다', () => {
