@@ -178,7 +178,11 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 allowFileAccessFromFileURLs={false}
                 allowUniversalAccessFromFileURLs={false}
                 webviewDebuggingEnabled={__DEV__}
-                mixedContentMode="always"
+                // Android only. An https page loads nothing over http (localhost aside, which Chromium
+                // trusts): an http script could be swapped in transit and would run with this page's
+                // storage and bridge. Nothing the app shows needs http — link previews already drop
+                // http images — and this stays shut even if the cleartext allowlist ever grows.
+                mixedContentMode="never"
                 // The chat's media viewer plays a video in place. Without this iOS hands every
                 // `play()` to the OS full-screen player, even for a `<video playsinline>`. Playback
                 // still needs a tap: `mediaPlaybackRequiresUserAction` keeps its default.
