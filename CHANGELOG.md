@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-19] - root@0.106.3, @chatic/landing@0.5.6
+
+### Bug Fixes
+
+- (landing) route /i invites to the bounce page and open the app from it on load (ADR-0212)
+
 ## [2026-10-19] - root@0.106.2, @chatic/desktop-web@0.34.2
 
 ### Bug Fixes
