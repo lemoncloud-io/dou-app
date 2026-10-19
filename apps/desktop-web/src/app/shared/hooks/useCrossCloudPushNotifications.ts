@@ -12,6 +12,7 @@ import {
     isOwnChat,
     messagePlainText,
     pushBody,
+    pushLandingPlace,
     readCacheRecords,
     resolveMyMentionNames,
     resolvePushCloudIdFrom,
@@ -28,15 +29,20 @@ import {
 /**
  * Deeplink for the OS banner click. When the source cloud resolves, encode the open target so
  * the click switches cloud → place → channel (buildOpenDeeplink + parsePushDeeplink + HomePage).
+ * The place is the room's (`pushLandingPlace`): a 1:1 push names the place its sender was in.
  * Otherwise fall back to the server's own `channel?channelId=` link — best-effort, opens in the
  * current cloud only.
  *
  * No thread root: the server's push payload carries no `parentId`, so a cross-cloud push for a
  * reply can only open the channel until it does.
  */
-const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, string>): string | undefined => {
+const buildCrossCloudDeeplink = (
+    cloudId: string | null,
+    data: Record<string, string>,
+    placeId: string
+): string | undefined => {
     if (cloudId && data.channelId) {
-        return buildOpenDeeplink({ cloudId, placeId: data.sid ?? '', channelId: data.channelId });
+        return buildOpenDeeplink({ cloudId, placeId, channelId: data.channelId });
     }
     return data.link || (data.channelId ? `channel?channelId=${data.channelId}` : undefined);
 };
@@ -86,6 +92,8 @@ const presentPush = async (
     // same-cloud path flattens it: a mention lives in a Block Kit message's text,
     // not in the JSON carrying it, and the raw payload would also match on field
     // names. `body` remains the last resort when the push carries no content.
+    // The room's own place for a 1:1, the push's otherwise — read off the same cached row.
+    let landingPlaceId = data.sid ?? '';
     if (data.channelId) {
         // Same policy the same-cloud path honors — including the server's
         // join.notify leg. The push payload carries no channel record, so read
@@ -97,6 +105,11 @@ const presentPush = async (
             cloudId: sourceCloudId,
             uid: data.uid,
         });
+        landingPlaceId = pushLandingPlace(
+            { channelId: String(data.channelId), sid: data.sid },
+            cachedChannel,
+            sourceCloudId
+        );
         const joinNotify = cachedChannel?.$join?.notify as 'all' | 'mention' | 'none' | undefined;
         const mode = channelNotifyMode(prefs, String(data.channelId), joinNotify, isNotifyDm(cachedChannel));
         if (mode === 'none') return;
@@ -133,7 +146,7 @@ const presentPush = async (
                     title: headline(data.channelName, 'DoU'),
                     body: body ?? '',
                     channelId: data.channelId,
-                    deeplink: buildCrossCloudDeeplink(sourceCloudId, data),
+                    deeplink: buildCrossCloudDeeplink(sourceCloudId, data, landingPlaceId),
                 },
             })
             // Degrade gracefully on older shells / transient bridge errors — a
@@ -159,7 +172,7 @@ const presentPush = async (
             ? () =>
                   usePendingOpenStore.getState().request({
                       cloudId: sourceCloudId ?? undefined,
-                      placeId: data.sid ?? '',
+                      placeId: landingPlaceId,
                       channelId: String(channelId),
                   })
             : undefined,

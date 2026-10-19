@@ -1,5 +1,5 @@
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../../domain';
-import { ACCOUNT_CHANNEL_SID, createDomainListResult } from '../../domain';
+import { ACCOUNT_CHANNEL_SID, createDomainListResult, dmPlaceOf, isCloudDm, placeOfDmId } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
 import type { ScopedCacheStorage } from '../ports';
 import {
@@ -20,6 +20,23 @@ export type IChannelLocalDataSource = ILocalDataSource<
 /** A Self Channel with no place is stored under the account (see `ACCOUNT_CHANNEL_SID`). */
 const accountSid = (item: Partial<DomainChannel>): string | undefined =>
     item.stereo === 'self' ? ACCOUNT_CHANNEL_SID : undefined;
+
+/**
+ * The place a cloud 1:1 is stored under (`isCloudDm`): the place its id names, its own field, then the
+ * cached row's, and otherwise none — never the context's.
+ *
+ * An answer that carries no `stereo` (an update or invite answer) is mapped like a group row, so its
+ * `sid` may be the context's rather than the room's; for such a partial the cached row's place wins
+ * over the field. The id still comes first either way, which also puts back a row an older build
+ * filed under the ambient place.
+ */
+const cloudDmPlace = (item: Partial<DomainChannel>, existing: DomainChannel | null | undefined): string => {
+    if (item.stereo) return dmPlaceOf(item) || existing?.sid || '';
+    return placeOfDmId(item.id) || existing?.sid || dmPlaceOf(item);
+};
+
+const isCloudDmRow = (item: Partial<DomainChannel>, existing: DomainChannel | null | undefined, cid: string) =>
+    isCloudDm({ stereo: item.stereo ?? existing?.stereo, cid });
 
 export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> implements IChannelLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'channel'>) {
@@ -98,12 +115,11 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
      * That fallback chain is load-bearing: it keeps a place-scoped row from silently losing the
      * list it belongs to, and the throw catches a caller that forgot to name a site.
      *
-     * **A 1:1 does not need an exception here, and briefly had one.** The idea was that a cloud 1:1
-     * belongs to no place, so it should be written with the field blank. The server assigns the
-     * room a place regardless and returns it on every read, so the blank was refilled by the next
-     * sync — and meanwhile an empty sid meant both "no place" and "place unknown", which is exactly
-     * what this chain exists to resolve. The field is now stored as the server sent it, and which
-     * rooms a place list may show is decided when reading instead (`isInPlaceList`).
+     * **A cloud 1:1 skips the context step** (`cloudDmPlace`). It belongs to the place the server
+     * stamped on it, which a place-keyed id names and the field otherwise carries; the
+     * context names whatever place the reader is in, which during a switch is already the next one.
+     * Such a row is stored with an empty sid rather than refused — a room from before places keyed
+     * 1:1s may name none, and refusing it would fail the whole sync it arrived in.
      */
     public async cacheWrite(
         item: Partial<DomainChannel>,
@@ -114,10 +130,13 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
 
         const storage = this.storage(scope);
         const existing = await storage.load(id);
-        const sid = (item.sid || existing?.sid || scope.sid || accountSid(item)) ?? '';
         const cid = scope.cid || 'default';
+        const isDm = isCloudDmRow(item, existing, cid);
+        const sid = isDm
+            ? cloudDmPlace(item, existing)
+            : ((item.sid || existing?.sid || scope.sid || accountSid(item)) ?? '');
 
-        if (!sid) {
+        if (!sid && !isDm) {
             throw new Error('[ChannelLocalDataSource] sid is required to sync/save channel.');
         }
 
@@ -157,9 +176,12 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
         for (const item of validItems) {
             const id = item.id!;
             const existing = existingMap.get(id);
-            const sid = item.sid || item.$?.sid || existing?.sid || scope.sid || accountSid(item);
+            const isDm = isCloudDmRow(item, existing, cid);
+            const sid = isDm
+                ? cloudDmPlace(item, existing)
+                : item.sid || item.$?.sid || existing?.sid || scope.sid || accountSid(item) || '';
 
-            if (!sid) {
+            if (!sid && !isDm) {
                 throw new Error('[ChannelLocalDataSource] sid is required to sync/save channels.');
             }
 

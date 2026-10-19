@@ -1,5 +1,6 @@
 import type { DomainChat } from '@chatic/data';
 
+import { ROUTES } from '../../routes/paths';
 import { resolveThreadTarget } from './resolveThreadTarget';
 
 const chat = (fields: Partial<DomainChat>): DomainChat => fields as unknown as DomainChat;
@@ -24,6 +25,14 @@ describe('resolveThreadTarget — 푸시로 받은 chat이 답글이면 스레�
     // The id is `<channelId>:<chatNo>`, so a record that arrived without channelId still routes.
     it('chat에 channelId가 없으면 chatId에서 파싱한다', () => {
         expect(resolveThreadTarget(chat({ parentId: '7' }), 'C1:42')).toBe('/channels/C1/thread/7');
+    });
+
+    // Cut at the last colon: the chat number never holds one, a channel id might.
+    it('takes the channel from the chat id up to its last colon', () => {
+        expect(resolveThreadTarget(chat({ parentId: '7' }), 'S:one:42')).toBe(ROUTES.channels.thread('S:one', '7'));
+        expect(resolveThreadTarget(chat({ parentId: '7' }), 'S1@u1@u2:42')).toBe(
+            ROUTES.channels.thread('S1@u1@u2', '7')
+        );
     });
 
     // The optimistic encoding carries the parent's FULL id; only the chatNo half is the rootNo.

@@ -1,6 +1,7 @@
 # ADR-0127: Desktop names a 1:1 peer by their place profile, else their cloud profile
 
-> Status: Accepted · Decided: 2026-09-29 · Implemented: PR #499 (`feat/desktop-cloud-dm`)
+> Status: Accepted · Decided: 2026-09-29 · Implemented: PR #499 (`feat/desktop-cloud-dm`) · The order stands; since
+> [ADR-0210](./0210-a-cloud-1-1-belongs-to-the-place-it-was-opened-in.md) a 1:1 opens only in its own place, so the current place whose profile names the peer is the room's
 > · Scope: `apps/desktop-web/src/app/features/chat/**` · `apps/desktop-web/src/app/features/channels/components/NewDmDialog.tsx`
 > · `apps/desktop-web/src/app/shared/hooks/useAuthorNames.ts`
 > · Builds on [ADR-0113](./0113-a-cloud-1-1-has-no-invite-and-no-place.md) (a cloud 1:1 is cloud-scoped;

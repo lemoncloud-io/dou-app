@@ -25,8 +25,24 @@ describe('elsewhereChannels', () => {
         ]);
     });
 
-    // A 1:1 is filed under every place that lists it, and its room name is only what the server set.
-    it('offers a 1:1 from another place once, named after the person', () => {
+    // One person, two places: two rooms, each offered with its own place.
+    it('offers the 1:1s with one person in other places as separate rows', () => {
+        const known = {
+            'place-b:place-b@me@u-1': entry('place-b', 'place-b@me@u-1', 'room-name', 'u-1'),
+            'place-c:place-c@me@u-1': entry('place-c', 'place-c@me@u-1', 'room-name', 'u-1'),
+        };
+
+        const rows = elsewhereChannels(known, { placeId: 'place-a', placeName, listedIds: new Set(), peerName });
+
+        expect(rows.map(row => [row.channelId, row.placeId]).sort()).toEqual([
+            ['place-b@me@u-1', 'place-b'],
+            ['place-c@me@u-1', 'place-c'],
+        ]);
+    });
+
+    // An index persisted before 1:1s were keyed by place can hold one room under several places, and
+    // its room name is only what the server set.
+    it('offers a 1:1 filed under several places once, named after the person', () => {
         const known = {
             'place-b:dm-1': entry('place-b', 'dm-1', 'room-name', 'u-1'),
             'place-c:dm-1': entry('place-c', 'dm-1', 'room-name', 'u-1'),
@@ -46,7 +62,7 @@ describe('elsewhereChannels', () => {
     });
 
     // Channel ids repeat across places, so a group elsewhere is not the one listed here.
-    // My notes-to-self room is filed under every place that lists it, like a 1:1.
+    // My notes-to-self room is filed under every place.
     it('leaves out my notes-to-self room when this place lists it, and offers it once otherwise', () => {
         const self = (placeId: string) => ({ ...entry(placeId, 'U:me', '#self'), self: true });
         const known = { 'place-b:U:me': self('place-b'), 'place-c:U:me': self('place-c') };

@@ -174,10 +174,11 @@ only once the session is in the invited place.
 **Which place.** An invite is issued with nothing but a `channelId`. The server does answer a room
 invite with the room's `siteId` and `site$` (checked against the dev server), but the published
 invite view does not declare `siteId` — only the stored model does — so the pipeline does not rely
-on it alone. It takes, in order: the invite's `siteId`, its place card (`site$.id`), then the room itself —
-one cloud-wide `channel.sync` and the room's row from the cache (`sid`). A cloud 1:1 belongs to no
-place. When none of these names one, the invitee enters without the switch or the profile step and a
-warning is logged; the step used to be skipped silently whenever `siteId` was absent.
+on it alone. It takes, in order: the invite's `siteId`, its place card (`site$.id`), then the room
+itself — one cloud-wide `channel.sync` and the room's row from the cache (`sid`) — a cloud 1:1's
+included, since it lives in the place it was opened in. When none of these names one, the invitee
+enters without the switch or the profile step and a warning is logged; the step used to be skipped
+silently whenever `siteId` was absent.
 
 It cannot move earlier the way the relay lane's precondition does. The server stores a profile on
 the site the session is on and ignores any site the request names, and before the accept the

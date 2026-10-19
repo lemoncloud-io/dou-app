@@ -43,6 +43,18 @@ it: the native SMS composer inside the app, a clipboard copy otherwise — inclu
 rejects or reports it could not open. It never rejects; a clipboard failure is `false`, and the
 invite is still issued, just without an automatic hand-off.
 
+"Could not open" means an explicit `data.success: false` in the `OnSendSms` reply, and nothing else.
+App versions up to 0.28.4 send that reply with no `data` at all, and answer a composer that could not
+open with a failed reply instead, which rejects — so a resolved reply without `data` is a composer
+that opened. Reading it the other way copied over the user's clipboard on top of every composer it
+had just opened, and toasted "copied" instead of "sent".
+
+Opening the composer puts the app in the background, and on Android the reply cannot reach the page
+until the user comes back ([`libs/bridges` scenario 7](../../../../../libs/bridges/README.md#7-another-app-in-front-of-this-one)).
+The bridge holds its timeout while the page is hidden, so a user who spends a minute writing the SMS
+comes back to `'sms'`, not to a 15-second timeout followed by a clipboard request that times out too
+and reports the invite as undelivered.
+
 Each success is recorded in `useSentInviteLog`, keyed by E.164, holding the invite id and the
 recipient's name. This is a **local convenience cache, not a source of truth**: the server returns
 only `last4`, so a device that did not issue the original invite has nothing to prefill a field

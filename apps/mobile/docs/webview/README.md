@@ -38,10 +38,41 @@ React Native's `URL.origin` keeps userinfo, query and fragment while Jest's does
 `OpenURL` opens only `http`, `https`, `mailto`, `tel`, `sms` and the app schemes (`chatic`,
 `chatic-dev`); anything else answers `LINK_NOT_ALLOWED` without reaching the OS.
 
+`SendSms` opens the SMS composer through `Linking`, after a `canOpenURL('sms:…')` check. On Android
+that check needs the `<queries>` entry for `sms` in `AndroidManifest.xml`: from Android 11 package
+visibility hides any app the manifest does not query for, and without the entry the composer never
+opened — every invite fell back to the clipboard. The reply is `success: true` with
+`data: { success }` saying whether the composer opened; a failed reply is kept for a call that threw.
+
+**No reply reaches the page while the Android app is in the background.** Replies go out through
+`webViewRef.postMessage`, a WebView command that React Native's renderer runs only from its frame
+callback, which it stops while the activity is paused. A request answered while the SMS composer (or
+any other app) is in front lands when the user comes back. The web side holds its request timeouts
+while the page is hidden for exactly this reason — see
+[`libs/bridges` scenario 7](../../../../libs/bridges/README.md#7-another-app-in-front-of-this-one).
+
 The page is always served over http(s), so file-URL pages get no extra reach
-(`allowFileAccessFromFileURLs` / `allowUniversalAccessFromFileURLs` are off). `originWhitelist`,
-navigation and `mixedContentMode` are still open: narrowing them needs a device pass over sign-in,
-payment and the http-served images.
+(`allowFileAccessFromFileURLs` / `allowUniversalAccessFromFileURLs` are off).
+
+An https page loads nothing over http. On Android that is `mixedContentMode="never"`; WKWebView has
+no such prop and blocks http scripts on an https page by itself. The risk being closed is an http
+script swapped in transit: it would run as the page, with the page's storage — the session tokens
+included — and the bridge. Two layers stand in its way, and they are separate:
+
+- **The OS cleartext policy** (`network_security_config.xml`, iOS ATS) refuses plain http to every
+  host but `localhost` (and `10.0.2.2` on Android) — `net::ERR_CLEARTEXT_NOT_PERMITTED` — whatever
+  the WebView's mixed-content setting.
+- **The mixed-content rule** stops the request before it reaches the network, so the first layer is
+  not the only one: with `always`, an http script from a cleartext-allowed host ran inside the https
+  page, and a host added to that allowlist later would have reopened the hole. Measured
+  on an API 35 emulator against the dev web: a script from `http://10.0.2.2` ran with `always` and is
+  blocked with `never`. `http://localhost` still loads under `never`, because Chromium treats it as a
+  trustworthy origin; that host is the machine the app runs on.
+
+Nothing the app shows depends on http: link previews already drop http `og:image`s, and pages served
+over http themselves — the local run's `http://localhost` web — are not mixed content at all.
+`originWhitelist` and navigation are still open: narrowing them needs a device pass over sign-in and
+payment.
 
 ## Structure
 

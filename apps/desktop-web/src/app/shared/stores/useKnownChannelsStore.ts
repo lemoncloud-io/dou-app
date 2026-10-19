@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { isCloudWideChannel, type DomainChannel } from '@chatic/data';
+import { isCloudDm, type DomainChannel } from '@chatic/data';
 
 // The file, not the barrel: the utils barrel reaches back into the stores.
 import { dmCounterpartId } from '../utils/dmDisplay';
@@ -13,7 +13,7 @@ export interface KnownChannel {
     name: string;
     /** A cloud 1:1's other person; the switcher names the row after them, not the room. */
     peerId?: string;
-    /** My notes-to-self room, which — like a 1:1 — is one room filed under every place listing it. */
+    /** My notes-to-self room, which is one room filed under every place. */
     self?: true;
     /** When it was last listed, so a stale place drops out of the index first. */
     seenAt: number;
@@ -64,10 +64,10 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
                     for (const channel of channels) {
                         const channelId = channel.id;
                         if (!channelId) continue;
-                        // Callers pass a cloud 1:1 only for the places that list it. One whose
-                        // members have not arrived waits for a later record: filed without its
-                        // person it would read as a group row.
-                        const isDm = isCloudWideChannel(channel);
+                        // Callers pass a cloud 1:1 for its own place only. One whose members have
+                        // not arrived waits for a later record: filed without its person it would
+                        // read as a group row.
+                        const isDm = isCloudDm(channel);
                         const peerId = isDm ? dmCounterpartId(channel, myUid, channel.$join?.userId) : undefined;
                         if (isDm && !peerId) continue;
                         const self = channel.stereo === 'self';

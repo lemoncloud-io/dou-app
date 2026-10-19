@@ -24,6 +24,18 @@ describe('domain mappers (API View → Domain)', () => {
             expect(withoutSid.sid).toBe('site-1');
         });
 
+        // A cloud 1:1 belongs to the place the server stamped on it; the context names the reader's.
+        it('a cloud 1:1 takes the place its id names, never the context', () => {
+            expect(toDomainChannel({ id: 'site-7@u1@u2', stereo: 'dm' } as any, context).sid).toBe('site-7');
+            expect(toDomainChannel({ id: 'u1@u2', stereo: 'dm' } as any, context).sid).toBe('');
+            expect(toDomainChannel({ id: 'u1@u2', stereo: 'dm', sid: 'site-9' } as any, context).sid).toBe('site-9');
+        });
+
+        it('a relay 1:1 still falls back to the context', () => {
+            const relay = toDomainChannel({ id: 'u1@u2', stereo: 'dm' } as any, { cid: 'default', sid: '0000' });
+            expect(relay.sid).toBe('0000');
+        });
+
         it('isNotificationEnabled defaults to true', () => {
             const domain = toDomainChannel({ id: 'ch-1', updatedAt: 100 } as any, context);
             expect(domain.isNotificationEnabled).toBe(true);
@@ -65,6 +77,13 @@ describe('domain mappers (API View → Domain)', () => {
         it('normalizes joined to 1 and readNo to 0 by default', () => {
             const domain = toDomainJoin({ id: 'j1', channelId: 'ch-1', userId: 'user-1' } as any, context);
             expect(domain).toMatchObject({ id: 'j1', cid: 'cloud-a', joined: 1, readNo: 0 });
+        });
+
+        // A place-keyed 1:1 id holds `@` itself, so its join id is `<sid>@<uidA>@<uidB>@<uid>`. It is
+        // kept as the server sent it rather than re-derived.
+        it('keeps the join id of a place-keyed 1:1 as it is', () => {
+            const domain = toDomainJoin({ id: 'S1@u1@u2@u1', channelId: 'S1@u1@u2', userId: 'u1' } as any, context);
+            expect(domain).toMatchObject({ id: 'S1@u1@u2@u1', channelId: 'S1@u1@u2', userId: 'u1' });
         });
     });
 

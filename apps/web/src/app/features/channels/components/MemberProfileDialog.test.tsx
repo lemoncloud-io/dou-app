@@ -57,6 +57,22 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
         expect(toastMock).toHaveBeenCalledWith({ title: 'chat.settings.comingSoon' });
     });
 
+    // Opening a cloud 1:1 is desktop-only; mobile shows and opens 1:1s it is in, and makes none.
+    it('offers no way to start a 1:1 with the member, whoever is viewing', () => {
+        const actions = () => screen.getAllByRole('button').map(button => button.textContent);
+
+        const owner = render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick />);
+        expect(actions()).toEqual([
+            'chat.settings.friendSettings',
+            'chat.settings.removeMember',
+            'chat.settings.report',
+        ]);
+        owner.unmount();
+
+        render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick={false} />);
+        expect(actions()).toEqual(['chat.settings.report']);
+    });
+
     it('canKick: 내보내기 → 확인 → onKick 호출', async () => {
         const onKick = jest.fn();
         render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick onKick={onKick} />);

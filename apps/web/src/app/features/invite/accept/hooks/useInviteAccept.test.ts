@@ -28,11 +28,8 @@ jest.mock('@chatic/bridges', () => ({
     },
 }));
 
-// The real module opens IndexedDB on import; only the cloud-1:1 rule is needed here.
-jest.mock('@chatic/data', () => ({
-    isCloudWideChannel: (c: { stereo?: string; cid?: string } | null) =>
-        !!c && c.stereo === 'dm' && c.cid !== 'default',
-}));
+// The real module opens IndexedDB on import; the hook needs only its types.
+jest.mock('@chatic/data', () => ({}));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -389,21 +386,16 @@ describe('useInviteAccept — finding the invited place', () => {
         expect(mockGetMyProfile).toHaveBeenCalled();
     });
 
-    it('treats a cloud 1:1 as placeless: no switch, no profile step, but a warning', async () => {
-        roomRowIs({ id: 'ch-1', sid: 'site-8', stereo: 'dm', cid: 'cloud-1' });
+    // A cloud 1:1 lives in the place it was opened in, like any room.
+    it('reads the place off an invited cloud 1:1 like any room', async () => {
+        roomRowIs({ id: 'site-8@u1@u2', sid: 'site-8', stereo: 'dm', cid: 'cloud-1' });
 
         const result = await runAccept(
-            ctx({ info: { cloudId: 'cloud-1', channelId: 'ch-1' } } as Partial<InviteContext>)
+            ctx({ info: { cloudId: 'cloud-1', channelId: 'site-8@u1@u2' } } as Partial<InviteContext>)
         );
 
-        expect(mockEnterSite).not.toHaveBeenCalled();
-        expect(mockGetMyProfile).not.toHaveBeenCalled();
-        expect(mockLoggerWarn).toHaveBeenCalledWith(
-            'INVITE',
-            expect.stringContaining('names no place'),
-            expect.anything()
-        );
-        expect(mockEnterChannel).toHaveBeenCalled();
+        expect(mockEnterSite).toHaveBeenCalledWith('site-8');
+        expect(mockGetMyProfile).toHaveBeenCalled();
         expect(result.current.errorKey).toBeNull();
     });
 

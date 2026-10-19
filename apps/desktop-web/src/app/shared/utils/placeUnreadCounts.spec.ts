@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { MentionItem } from '../stores/useMentionsStore';
 import type { ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
-import { cloudDmPlaces } from './cloudDmPlaces';
+import { roomPlaces } from './roomPlaces';
 import { placeUnreadCounts } from './placeUnreadCounts';
 
 const ME = 'me';
@@ -20,7 +20,7 @@ const NO_PREFS: ChannelNotifyPrefs = { channelNotify: {}, mutedChannels: {} };
 const counts = (channels: DomainChannel[], placeIds: string[] = PLACES, notifyPrefs = NO_PREFS) =>
     placeUnreadCounts(channels, {
         myUid: ME,
-        dmPlaces: cloudDmPlaces(channels, { myUid: ME, placeIds }),
+        filedPlaces: roomPlaces(channels, { placeIds }),
         readCursors: {},
         notifyPrefs,
     });
@@ -36,18 +36,28 @@ describe('placeUnreadCounts', () => {
         expect(total).toBe(3);
     });
 
-    // The peer is in place-b and place-c, not in the place the room is stamped with.
-    it('puts an unread 1:1 on every place that lists it, and counts it once in the total', () => {
+    // The peer is in place-b and place-c too; the room lives in the place it was opened in.
+    it('counts an unread 1:1 under its own place only', () => {
         const channels = [
             group('gb', 'place-b', [ME, 'peer']),
             group('gc', 'place-c', [ME, 'peer']),
-            dm('dm-1', 'peer', 'place-a', unread3),
+            dm('place-a@me@peer', 'peer', 'place-a', unread3),
         ];
 
         const { byPlace, total } = counts(channels);
 
-        expect(byPlace).toEqual({ 'place-b': 3, 'place-c': 3 });
+        expect(byPlace).toEqual({ 'place-a': 3 });
         expect(total).toBe(3);
+    });
+
+    it('counts the 1:1s with one person in two places each under its own place', () => {
+        const unread1 = { ...unread3, chatNo: 1 };
+        const channels = [
+            dm('place-a@me@peer', 'peer', 'place-a', unread3),
+            dm('place-b@me@peer', 'peer', 'place-b', unread1),
+        ];
+
+        expect(counts(channels)).toEqual({ byPlace: { 'place-a': 3, 'place-b': 1 }, total: 4 });
     });
 
     it('leaves read channels out of the map', () => {
@@ -78,7 +88,7 @@ describe('placeUnreadCounts', () => {
     it('counts a 1:1 that was left on mentions only', () => {
         const mentionOnly = { ...unread3, $join: { ...unread3.$join, notify: 'mention' } };
 
-        expect(counts([dm('dm-1', 'peer', 'place-a', mentionOnly)], [])).toEqual({ byPlace: {}, total: 3 });
+        expect(counts([dm('dm-1', 'peer', 'place-a', mentionOnly)])).toEqual({ byPlace: { 'place-a': 3 }, total: 3 });
     });
 
     // A mode set on this device wins over the join row, in both directions.
@@ -107,7 +117,7 @@ describe('placeUnreadCounts', () => {
         expect(total).toBe(0);
     });
 
-    it('keeps a muted 1:1 off every place that lists it and out of the total', () => {
+    it('keeps a muted 1:1 off its place and out of the total', () => {
         const muted = { ...unread3, $join: { ...unread3.$join, notify: 'none' } };
         const channels = [
             group('gb', 'place-b', [ME, 'peer']),
@@ -130,9 +140,27 @@ describe('placeUnreadCounts', () => {
         expect(total).toBe(3);
     });
 
-    // Before my places load a 1:1 has no place to dot, but it is still unread.
-    it('counts a 1:1 in the total while my places are unknown', () => {
-        expect(counts([dm('dm-1', 'peer', 'place-a', unread3)], [])).toEqual({ byPlace: {}, total: 3 });
+    // A cloud with no place lists its 1:1s anyway, so a room that names none still counts somewhere.
+    it('counts a 1:1 that names no place in the total only, where a cloud with no place lists it', () => {
+        const channels = [dm('me@peer', 'peer', '', unread3)];
+        const listed = placeUnreadCounts(channels, {
+            myUid: ME,
+            filedPlaces: new Map(),
+            readCursors: {},
+            notifyPrefs: NO_PREFS,
+            listsUnplacedDms: true,
+        });
+
+        expect(listed).toEqual({ byPlace: {}, total: 3 });
+    });
+
+    // In a cloud with places no sidebar list holds it, so nothing could clear the count.
+    it('leaves a 1:1 that names no place out entirely in a cloud with places', () => {
+        expect(counts([dm('me@peer', 'peer', '', unread3)])).toEqual({ byPlace: {}, total: 0 });
+    });
+
+    it('counts a 1:1 under its own place before my places are known', () => {
+        expect(counts([dm('dm-1', 'peer', 'place-a', unread3)], [])).toEqual({ byPlace: { 'place-a': 3 }, total: 3 });
     });
 });
 
@@ -151,14 +179,10 @@ describe('placeUnreadCounts mentions-only channels', () => {
         createdAt: chatNo,
     });
 
-    const countsWith = (
-        channels: DomainChannel[],
-        mentions: MentionItem[],
-        readCursors: Record<string, number> = {}
-    ) =>
+    const countsWith = (channels: DomainChannel[], mentions: MentionItem[], readCursors: Record<string, number> = {}) =>
         placeUnreadCounts(channels, {
             myUid: ME,
-            dmPlaces: cloudDmPlaces(channels, { myUid: ME, placeIds: PLACES }),
+            filedPlaces: roomPlaces(channels, { placeIds: PLACES }),
             readCursors,
             notifyPrefs: NO_PREFS,
             mentions: Object.fromEntries(mentions.map(entry => [entry.id, entry])),

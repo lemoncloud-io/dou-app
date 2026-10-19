@@ -98,28 +98,37 @@ describe('hasDmInviteFlow', () => {
 });
 
 describe('profilePlaceOf', () => {
+    // Only the place is read; the kind and cloud are spelled out so each case says what room it is.
+    const room = (fields: { stereo: string; cid: string; sid: string }) => fields as { sid: string };
+
     it('names a place-scoped room by the place it lives in', () => {
-        expect(profilePlaceOf({ stereo: 'dm', cid: 'default', sid: 'S:relay' }, 'S:active')).toBe('S:relay');
-        expect(profilePlaceOf({ stereo: 'private', cid: '1000001', sid: 'S:room' }, 'S:active')).toBe('S:room');
+        expect(profilePlaceOf(room({ stereo: 'dm', cid: 'default', sid: 'S:relay' }), 'S:active')).toBe('S:relay');
+        expect(profilePlaceOf(room({ stereo: 'private', cid: '1000001', sid: 'S:room' }), 'S:active')).toBe('S:room');
     });
 
-    // A cloud 1:1's own `sid` is where its creator stood, which is no answer for the other person.
-    it('names a cloud 1:1 by the place the reader is standing in, not the one it carries', () => {
-        expect(profilePlaceOf({ stereo: 'dm', cid: '1000001', sid: 'S:creator-was-here' }, 'S:active')).toBe(
-            'S:active'
+    // A cloud 1:1 lives in the place it was opened in, so that place's profiles name its people.
+    it('names a cloud 1:1 by the place it lives in, not the one the reader is in', () => {
+        expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: 'S:opened-here' }), 'S:active')).toBe(
+            'S:opened-here'
         );
     });
 
-    it('answers differently for the same room seen from another place', () => {
-        const room = { stereo: 'dm', cid: '1000001', sid: 'S:creator-was-here' } as const;
-        expect(profilePlaceOf(room, 'S:one')).toBe('S:one');
-        expect(profilePlaceOf(room, 'S:two')).toBe('S:two');
+    it('answers the same for the same room seen from another place', () => {
+        const opened = room({ stereo: 'dm', cid: '1000001', sid: 'S:opened-here' });
+        expect(profilePlaceOf(opened, 'S:one')).toBe('S:opened-here');
+        expect(profilePlaceOf(opened, 'S:two')).toBe('S:opened-here');
+    });
+
+    // A 1:1 from before places keyed 1:1s may carry no place, or the server's `#`.
+    it("falls back to the reader's place for a room that names none", () => {
+        expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: '' }), 'S:active')).toBe('S:active');
+        expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: '#' }), 'S:active')).toBe('S:active');
     });
 
     // `null` is what the profile hooks read as "do not subscribe yet".
     it('answers null when neither side is known', () => {
-        expect(profilePlaceOf({ stereo: 'dm', cid: '1000001', sid: '' }, null)).toBeNull();
-        expect(profilePlaceOf({ stereo: 'dm', cid: '1000001', sid: '' }, undefined)).toBeNull();
+        expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: '' }), null)).toBeNull();
+        expect(profilePlaceOf(room({ stereo: 'dm', cid: '1000001', sid: '' }), undefined)).toBeNull();
         expect(profilePlaceOf(null, 'S:active')).toBeNull();
     });
 });

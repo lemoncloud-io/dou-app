@@ -626,3 +626,267 @@ describe('WebBridgeClient request observer', () => {
         await expect(promise).resolves.toEqual(response);
     });
 });
+
+describe('WebBridgeClient timeouts while the page is hidden', () => {
+    let hidden: boolean;
+    let notify: () => void;
+    let mockAdapter: jest.Mocked<BridgeAdapter>;
+    let reply: (message: ResponseMessage) => void;
+
+    const visibility = {
+        isHidden: () => hidden,
+        subscribe: (listener: () => void) => {
+            notify = listener;
+            return jest.fn();
+        },
+    };
+    const setHidden = (value: boolean) => {
+        hidden = value;
+        notify();
+    };
+    const sentRefIds = () => mockAdapter.postMessage.mock.calls.map(call => (call[0] as { refId: string }).refId);
+
+    const createClient = () => {
+        const client = new WebBridgeClient({ adapter: mockAdapter, timeoutMs: 15000, visibility });
+        reply = mockAdapter.onMessage.mock.calls[0][0];
+        return client;
+    };
+
+    /** Settles the promise into an inspectable state without awaiting it. */
+    const track = (promise: Promise<unknown>) => {
+        const state: { status: 'pending' | 'resolved' | 'rejected'; error?: any } = { status: 'pending' };
+        promise.then(
+            () => (state.status = 'resolved'),
+            error => {
+                state.status = 'rejected';
+                state.error = error;
+            }
+        );
+        return state;
+    };
+
+    beforeEach(() => {
+        jest.useFakeTimers();
+        hidden = false;
+        mockAdapter = { postMessage: jest.fn(), onMessage: jest.fn() } as any;
+        (window as any).ReactNativeWebView = { postMessage: jest.fn() };
+    });
+
+    afterEach(() => {
+        delete (window as any).ReactNativeWebView;
+        jest.useRealTimers();
+    });
+
+    it('does not time out a request while the page stays hidden', async () => {
+        const client = createClient();
+        const state = track(client.request({ type: 'SendSms', data: { phoneNumbers: '010', message: 'hi' } }));
+
+        jest.advanceTimersByTime(1000);
+        setHidden(true);
+        jest.advanceTimersByTime(60000);
+        await Promise.resolve();
+
+        expect(state.status).toBe('pending');
+    });
+
+    it('resolves a reply that arrives while hidden, long after the visible budget', async () => {
+        const client = createClient();
+        const promise = client.request({ type: 'SendSms', data: { phoneNumbers: '010', message: 'hi' } });
+
+        setHidden(true);
+        jest.advanceTimersByTime(60000);
+        const response = { type: 'OnSendSms' as any, refId: sentRefIds()[0], success: true, data: { success: true } };
+        reply(response);
+
+        await expect(promise).resolves.toEqual(response);
+    });
+
+    it('resumes with what was left of the budget once the page is visible again', async () => {
+        const client = createClient();
+        const state = track(client.request({ type: 'Ping', data: { payload: 'x' } }));
+
+        jest.advanceTimersByTime(10000);
+        setHidden(true);
+        jest.advanceTimersByTime(30000);
+        setHidden(false);
+
+        jest.advanceTimersByTime(4999);
+        await Promise.resolve();
+        expect(state.status).toBe('pending');
+
+        jest.advanceTimersByTime(1);
+        await Promise.resolve();
+        expect(state.status).toBe('rejected');
+        expect(state.error).toMatchObject({ code: 'TIMEOUT', message: 'Request timed out after 15000ms' });
+    });
+
+    it('gives a nearly spent budget a floor on resume, so the replies held while hidden can land', async () => {
+        const client = createClient();
+        const state = track(client.request({ type: 'Ping', data: { payload: 'x' } }));
+
+        jest.advanceTimersByTime(14900);
+        setHidden(true);
+        setHidden(false);
+
+        jest.advanceTimersByTime(1999);
+        await Promise.resolve();
+        expect(state.status).toBe('pending');
+
+        jest.advanceTimersByTime(1);
+        await Promise.resolve();
+        expect(state.status).toBe('rejected');
+    });
+
+    it('starts the countdown of a request dispatched while hidden only when the page shows', async () => {
+        hidden = true;
+        const client = createClient();
+        const state = track(client.request({ type: 'Ping', data: { payload: 'x' } }));
+        expect(mockAdapter.postMessage).toHaveBeenCalledTimes(1);
+
+        jest.advanceTimersByTime(60000);
+        setHidden(false);
+        jest.advanceTimersByTime(14999);
+        await Promise.resolve();
+        expect(state.status).toBe('pending');
+
+        jest.advanceTimersByTime(1);
+        await Promise.resolve();
+        expect(state.status).toBe('rejected');
+    });
+
+    it('keeps timing out a visible page exactly as before', async () => {
+        const client = createClient();
+        const state = track(client.request({ type: 'Ping', data: { payload: 'x' } }));
+
+        jest.advanceTimersByTime(15000);
+        await Promise.resolve();
+
+        expect(state.status).toBe('rejected');
+    });
+
+    it('adds up the visible stretches across several hide and show cycles', async () => {
+        const client = createClient();
+        const state = track(client.request({ type: 'Ping', data: { payload: 'x' } }));
+
+        jest.advanceTimersByTime(6000);
+        setHidden(true);
+        jest.advanceTimersByTime(20000);
+        setHidden(false);
+        jest.advanceTimersByTime(6000);
+        setHidden(true);
+        jest.advanceTimersByTime(20000);
+        setHidden(false);
+
+        jest.advanceTimersByTime(2999);
+        await Promise.resolve();
+        expect(state.status).toBe('pending');
+
+        jest.advanceTimersByTime(1);
+        await Promise.resolve();
+        expect(state.status).toBe('rejected');
+    });
+
+    it('ignores a repeated hidden or visible edge', async () => {
+        const client = createClient();
+        const state = track(client.request({ type: 'Ping', data: { payload: 'x' } }));
+
+        jest.advanceTimersByTime(10000);
+        setHidden(true);
+        setHidden(true);
+        jest.advanceTimersByTime(30000);
+        setHidden(false);
+        setHidden(false);
+
+        jest.advanceTimersByTime(4999);
+        await Promise.resolve();
+        expect(state.status).toBe('pending');
+
+        jest.advanceTimersByTime(1);
+        await Promise.resolve();
+        expect(state.status).toBe('rejected');
+    });
+
+    it('resumes held timers when any message from the host arrives, even with the page still hidden', async () => {
+        const client = createClient();
+        const held = track(client.request({ type: 'Ping', data: { payload: 'held' } }));
+        const answered = client.request({ type: 'Ping', data: { payload: 'answered' } });
+        const [, answeredRef] = sentRefIds();
+
+        jest.advanceTimersByTime(10000);
+        setHidden(true);
+        jest.advanceTimersByTime(60000);
+        reply({ type: 'Pong' as any, refId: answeredRef, success: true, data: { payload: 'answered' } });
+        await answered;
+
+        jest.advanceTimersByTime(4999);
+        await Promise.resolve();
+        expect(held.status).toBe('pending');
+
+        jest.advanceTimersByTime(1);
+        await Promise.resolve();
+        expect(held.status).toBe('rejected');
+    });
+
+    it('keeps the budget on the monotonic clock when the wall clock jumps', async () => {
+        const client = createClient();
+        const state = track(client.request({ type: 'Ping', data: { payload: 'x' } }));
+
+        jest.advanceTimersByTime(10000);
+        jest.setSystemTime(Date.now() + 60 * 60 * 1000);
+        setHidden(true);
+        setHidden(false);
+
+        jest.advanceTimersByTime(4999);
+        await Promise.resolve();
+        expect(state.status).toBe('pending');
+
+        jest.advanceTimersByTime(1);
+        await Promise.resolve();
+        expect(state.status).toBe('rejected');
+    });
+
+    it('rejects a held request with DESTROYED when the client is destroyed', async () => {
+        const client = createClient();
+        const state = track(client.request({ type: 'Ping', data: { payload: 'x' } }));
+
+        setHidden(true);
+        client.destroy();
+        await Promise.resolve();
+
+        expect(state.status).toBe('rejected');
+        expect(state.error).toMatchObject({ code: 'DESTROYED' });
+    });
+
+    it('stops listening to visibility on destroy', () => {
+        const unsubscribe = jest.fn();
+        const client = new WebBridgeClient({
+            adapter: mockAdapter,
+            visibility: { isHidden: () => false, subscribe: () => unsubscribe },
+        });
+
+        client.destroy();
+
+        expect(unsubscribe).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads the document visibility by default', async () => {
+        const visibilityState = jest.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+        const client = new WebBridgeClient({ adapter: mockAdapter, timeoutMs: 1000 });
+        const state = track(client.request({ type: 'Ping', data: { payload: 'x' } }));
+
+        visibilityState.mockReturnValue('hidden');
+        document.dispatchEvent(new Event('visibilitychange'));
+        jest.advanceTimersByTime(5000);
+        await Promise.resolve();
+        expect(state.status).toBe('pending');
+
+        visibilityState.mockReturnValue('visible');
+        document.dispatchEvent(new Event('visibilitychange'));
+        jest.advanceTimersByTime(2000);
+        await Promise.resolve();
+        expect(state.status).toBe('rejected');
+
+        client.destroy();
+        visibilityState.mockRestore();
+    });
+});

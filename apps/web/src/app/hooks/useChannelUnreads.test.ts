@@ -96,9 +96,9 @@ describe('useChannelUnreads — 채널 안읽음 계산', () => {
     });
 });
 
-// Mobile lists no cloud 1:1, so its unread must not reach a mark nothing on home can clear.
+// Home lists a cloud 1:1 in the place it lives in, so its unread counts there like a group room's.
 describe('useChannelUnreads — cloud 1:1', () => {
-    it('keeps a cloud 1:1 out of the place and total sums but still counts its own row', () => {
+    it('counts a cloud 1:1 in its own place and in the total', () => {
         const channels = [
             channel('group', { chatNo: 5, sid: 'S:one', stereo: 'private', cid: '1000001' }),
             channel('cloud-dm', { chatNo: 9, sid: 'S:one', stereo: 'dm', cid: '1000001' }),
@@ -108,8 +108,36 @@ describe('useChannelUnreads — cloud 1:1', () => {
         const { result } = renderHook(() => useChannelUnreads(channels, joins));
 
         expect(result.current.byChannel).toEqual({ group: 3, 'cloud-dm': 8 });
-        expect(result.current.byPlace).toEqual({ 'S:one': 3 });
+        expect(result.current.byPlace).toEqual({ 'S:one': 11 });
+        expect(result.current.total).toBe(11);
+    });
+
+    it('counts the 1:1s with one person in two places each in its own place', () => {
+        const channels = [
+            channel('S:one@me@peer', { chatNo: 3, sid: 'S:one', stereo: 'dm', cid: '1000001' }),
+            channel('S:two@me@peer', { chatNo: 2, sid: 'S:two', stereo: 'dm', cid: '1000001' }),
+        ];
+        const joins = joinMap({ 'S:one@me@peer': join({ chatNo: 1 }), 'S:two@me@peer': join({ chatNo: 1 }) });
+
+        const { result } = renderHook(() => useChannelUnreads(channels, joins));
+
+        expect(result.current.byPlace).toEqual({ 'S:one': 2, 'S:two': 1 });
         expect(result.current.total).toBe(3);
+    });
+
+    // No place lists it on mobile, so a count anywhere but its own row is a mark nothing can clear.
+    it('keeps a cloud 1:1 that names no place out of the place and total sums', () => {
+        const channels = [
+            channel('me@peer', { chatNo: 9, sid: '', stereo: 'dm', cid: '1000001' }),
+            channel('me@other', { chatNo: 2, sid: '#', stereo: 'dm', cid: '1000001' }),
+        ];
+        const joins = joinMap({ 'me@peer': join({ chatNo: 1 }), 'me@other': join({ chatNo: 1 }) });
+
+        const { result } = renderHook(() => useChannelUnreads(channels, joins));
+
+        expect(result.current.byChannel).toEqual({ 'me@peer': 8, 'me@other': 1 });
+        expect(result.current.byPlace).toEqual({});
+        expect(result.current.total).toBe(0);
     });
 
     // The relay's 1:1s live in its one place and are listed there, so they still count.

@@ -1,4 +1,4 @@
-import { RELAY_CLOUD_ID, isCloudWideChannel, type DomainChannel } from '@chatic/data';
+import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 
 /** The server's `ChannelStereo`, plus the absent case a cached row can carry. */
 type ChannelStereo = DomainChannel['stereo'];
@@ -137,8 +137,8 @@ export const dmLineageOf = (
  * place it showed in whichever one it was tagged with and in none of the others. On the relay it
  * stays in its one place, which is the only list there.
  *
- * Cloud 1:1s are in no home list on mobile at all — the place list leaves them out because they are
- * read cloud-wide (`isInPlaceList`), and this section does not take them either.
+ * A cloud 1:1 is not here: it lives in the place it was opened in, and that place's list holds it
+ * beside the group rooms (`isInPlaceList`).
  */
 export const isInCloudSelfSection = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
     channel?.stereo === 'self' && channel.cid !== RELAY_CLOUD_ID;
@@ -159,30 +159,24 @@ export const hasDmInviteFlow = (channel: Pick<DomainChannel, 'stereo' | 'cid'> |
     dmLineageOf(channel) === 'relay';
 
 /**
- * Re-exported from the data layer, where the rule lives: **`sid` is not a scope key for a 1:1**.
- * A group is read within its place; a 1:1 is read across the cloud, because the place it carries
- * describes where its creator stood rather than where the conversation lives. Screens import it
- * from here so every channel rule in this module reads from one place.
- */
-export { isCloudWideChannel };
-
-/**
  * Which place's profiles name the people in this room.
  *
  * A profile is per-place — the same person has a different nick and photo in each one — so naming
- * anybody requires choosing a place first. For a room that is read within a place, that choice is
- * already made: `channel.sid` is it.
+ * anybody requires choosing a place first. Every room lives in a place, and `channel.sid` is it: a
+ * group room's, and a cloud 1:1's too, since the server opens a separate 1:1 per place and never
+ * moves one. So the same person can be named differently in two 1:1s with them, one per place — each
+ * by that place's profile — and opening a room from another place does not change its name.
  *
- * **A cloud 1:1 is not read within a place** (see {@link isCloudWideChannel}), and the place it
- * carries is an accident of where its creator stood, so the reader's own is the only defensible
- * answer. Two consequences follow, and both are intended rather than tolerated. The same room names
- * its peer differently when opened from a different place. And two participants who share no place
- * see each other by different names — which is why no single place could have been right for both.
+ * A room that names no place (`''`, or the server's `#` for "no place") falls back to the reader's
+ * place, the only one left to look under: a 1:1 from before places keyed 1:1s may carry either.
  *
  * Returns `null` when there is nothing to look under, which is what the profile hooks read as "do
  * not subscribe yet" — an unresolved session or an unloaded row, not an answer.
  */
 export const profilePlaceOf = (
-    channel: Pick<DomainChannel, 'stereo' | 'cid' | 'sid'> | null | undefined,
+    channel: Pick<DomainChannel, 'sid'> | null | undefined,
     activeSid: string | null | undefined
-): string | null => (isCloudWideChannel(channel) ? (activeSid ?? null) : (channel?.sid ?? null));
+): string | null => {
+    if (!channel) return null;
+    return channel.sid && channel.sid !== '#' ? channel.sid : (activeSid ?? null);
+};
