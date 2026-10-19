@@ -10,8 +10,11 @@ const CLOUD_UID = 'cloud-user-9';
 let pushHandler: ((message: unknown) => void) | null = null;
 const request = vi.hoisted(() => vi.fn());
 const toast = vi.hoisted(() => vi.fn());
+const readRecords = vi.hoisted(() => vi.fn());
 // The channel cache the push is looked up in; a test fills it to give the channel a server notify mode.
 let cacheRecords: unknown[] = [];
+// The server the session is on; a test moves it into a cloud.
+let activeServer: { kind: 'relay' } | { kind: 'cloud'; cloudId: string } = { kind: 'relay' };
 
 vi.mock('@chatic/bridges', () => ({
     webClient: {
@@ -30,7 +33,7 @@ vi.mock('@chatic/app-runtime', () => ({
         session: {
             getGlobalSessionContext: () => ({
                 identity: { userId: ACCOUNT_UID },
-                activeServer: { kind: 'relay' },
+                activeServer,
             }),
         },
     },
@@ -38,11 +41,12 @@ vi.mock('@chatic/app-runtime', () => ({
 
 vi.mock('../utils', async () => ({
     ...(await vi.importActual<typeof UtilsModule>('../utils')),
-    readCacheRecords: async () => cacheRecords,
+    readCacheRecords: () => readRecords(),
     resolveMyMentionNames: () => ['Me'],
 }));
 
-import { useNotificationPrefsStore } from '../stores';
+import { useNotificationPrefsStore, usePendingOpenStore } from '../stores';
+import { parsePushDeeplink } from '../utils';
 import { useCrossCloudPushNotifications } from './useCrossCloudPushNotifications';
 
 const push = (data: Record<string, string>) => ({
@@ -60,8 +64,12 @@ const shown = () => toast.mock.calls.length + request.mock.calls.length;
 beforeEach(() => {
     vi.clearAllMocks();
     request.mockResolvedValue(undefined);
+    readRecords.mockImplementation(async () => cacheRecords);
     pushHandler = null;
     cacheRecords = [];
+    activeServer = { kind: 'relay' };
+    usePendingOpenStore.setState({ target: null });
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false);
     useNotificationPrefsStore.setState({
         desktopEnabled: true,
         mutedChannels: {},
@@ -157,6 +165,76 @@ describe('useCrossCloudPushNotifications', () => {
 
             pushHandler?.(push({ content: 'hello @Me' }));
             await waitFor(() => expect(shown()).toBe(1));
+        });
+    });
+    // A relay push names its source `'#'`, which is the Home tile (`'default'`) and not a cloud: read
+    // raw, a click switched to cloud `'#'` and failed with "cloud not found" — on the relay too.
+    describe('for a relay push', () => {
+        const relayPush = () => push({ cid: '#', sid: 'relay-site' });
+        const focus = () => vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+
+        it('opens the channel on the relay, with no place, when the toast is clicked', async () => {
+            focus();
+            activeServer = { kind: 'cloud', cloudId: 'cloud-9' };
+            pushHandler?.(relayPush());
+            await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
+
+            toast.mock.calls[0][0].onClick();
+            expect(usePendingOpenStore.getState().target).toMatchObject({
+                cloudId: 'default',
+                placeId: '',
+                channelId: 'ch-1',
+            });
+        });
+
+        it('banners with a link to the relay while another cloud is open', async () => {
+            activeServer = { kind: 'cloud', cloudId: 'cloud-9' };
+            pushHandler?.(relayPush());
+            await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+
+            expect(parsePushDeeplink(request.mock.calls[0][0].data.deeplink)).toMatchObject({
+                cloudId: 'default',
+                placeId: '',
+                channelId: 'ch-1',
+            });
+        });
+
+        /** Lets the presenter finish its cache read before asserting it stayed quiet. */
+        const settle = async () => {
+            await waitFor(() => expect(readRecords).toHaveBeenCalled());
+            await new Promise(resolve => setTimeout(resolve, 20));
+        };
+
+        // The relay's own socket banners the message already, as an active cloud's does.
+        it('does not banner a second time while the relay is open', async () => {
+            pushHandler?.(relayPush());
+            await settle();
+            expect(shown()).toBe(0);
+        });
+
+        // A cloud push with no `cid` that the channel cache happens to place on the relay is a guess,
+        // not the relay's stamp: shown, since a duplicate beats a missed one.
+        it('banners a push only guessed to be from the open relay', async () => {
+            cacheRecords = [{ type: 'channel', cid: 'default', data: { id: 'ch-1', $join: { userId: CLOUD_UID } } }];
+            pushHandler?.(push({}));
+            await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+        });
+
+        it("honours the server's mute for a relay channel", async () => {
+            activeServer = { kind: 'cloud', cloudId: 'cloud-9' };
+            cacheRecords = [{ type: 'channel', cid: 'default', data: { id: 'ch-1', $join: { notify: 'none' } } }];
+            pushHandler?.(relayPush());
+            await settle();
+            expect(shown()).toBe(0);
+        });
+
+        it("keeps a cloud push's place", async () => {
+            focus();
+            pushHandler?.(push({ cid: 'cloud-9', sid: 'place-3' }));
+            await waitFor(() => expect(toast).toHaveBeenCalledTimes(1));
+
+            toast.mock.calls[0][0].onClick();
+            expect(usePendingOpenStore.getState().target).toMatchObject({ cloudId: 'cloud-9', placeId: 'place-3' });
         });
     });
 });

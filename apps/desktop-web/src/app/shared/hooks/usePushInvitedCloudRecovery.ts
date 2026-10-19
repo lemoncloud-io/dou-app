@@ -2,11 +2,10 @@ import { useEffect } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { RELAY_CLOUD_ID } from '@chatic/data';
 
+import { pushCloudIdOf } from '../utils';
 import { useOwnedCloudIds } from './useCloudCatalog';
-
-/** Relay-origin pushes carry this instead of a cloud id — never a recovery target. */
-export const RELAY_ORIGIN_CID = '#';
 
 /**
  * In-flight recoveries, keyed by cloud. A chatty channel bursts pushes for one
@@ -37,8 +36,9 @@ export const usePushInvitedCloudRecovery = (): void => {
         if (!isNative()) return;
         return webClient.onEvent('OnReceiveNotification', message => {
             const data = (message?.data as { notification?: { data?: Record<string, string> } })?.notification?.data;
-            const cid = data?.cid;
-            if (!cid || cid === RELAY_ORIGIN_CID || owned.has(cid) || inflight.has(cid)) return;
+            const cid = pushCloudIdOf(data?.cid);
+            // The relay (a relay push's `'#'`) is never an invited cloud — there is nothing to recover.
+            if (!cid || cid === RELAY_CLOUD_ID || owned.has(cid) || inflight.has(cid)) return;
             inflight.add(cid);
             void runtime.data
                 .recoverInvitedCloudIfMissing(cloud, cid)

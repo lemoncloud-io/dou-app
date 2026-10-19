@@ -8,9 +8,8 @@ import { runtime } from '@chatic/app-runtime';
 
 import { MobileAppPointer } from '../components/MobileAppPointer';
 import { useOwnedCloudIds } from './useCloudCatalog';
-import { RELAY_ORIGIN_CID } from './usePushInvitedCloudRecovery';
 import { useSelectedChannelStore } from '../stores';
-import { classifyWireError, extractErrorMessage } from '../utils';
+import { classifyWireError, extractErrorMessage, pushCloudIdOf } from '../utils';
 
 /** Why a switch failed, in words: a 400 from a dev cloud used to read the same as a dropped network. */
 export const switchCauseKey = (error: unknown): string => {
@@ -55,7 +54,11 @@ export const useCloudSwitchFlow = () => {
     // a second switch. This covers the whole flow.
     const busyRef = useRef(false);
     const switchCloud = useCallback(
-        async (cloudId: string): Promise<void> => {
+        async (requestedCloudId: string): Promise<void> => {
+            // Push readers already turn a relay push's `'#'` into the relay's own id. This is the
+            // last stop before a delegation, so it reads the sentinel the same way rather than let
+            // one that slipped through become `delegate-cloud('#')` and a "cloud not found" toast.
+            const cloudId = pushCloudIdOf(requestedCloudId) ?? requestedCloudId;
             if (isSwitching || busyRef.current || cloudId === selectedCloudId) return;
 
             // Channel ids are cloud-scoped: drop the stale selection up front so no hook still
@@ -73,9 +76,8 @@ export const useCloudSwitchFlow = () => {
                 // first (no-op when already cached). Best-effort — a revoked grant
                 // just leaves the rail as it was, and the switch below still runs
                 // to report its own failure. Owned clouds are the catalog's record;
-                // an invited row for one would mislabel it. Relay-origin pushes
-                // carry '#' instead of a cloud id and never reach this recovery.
-                if (cloudId && cloudId !== RELAY_ORIGIN_CID && !ownedCloudIds.has(cloudId)) {
+                // an invited row for one would mislabel it. The relay returned above.
+                if (cloudId && !ownedCloudIds.has(cloudId)) {
                     try {
                         await runtime.data.recoverInvitedCloudIfMissing(cloudRepository, cloudId);
                     } catch {

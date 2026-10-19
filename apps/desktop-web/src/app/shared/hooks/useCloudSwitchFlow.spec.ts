@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const session = vi.hoisted(() => ({
     selectedCloudId: 'A',
     switchCloud: vi.fn(),
+    logoutCloudSession: vi.fn(),
     toast: vi.fn(),
 }));
 
@@ -22,7 +23,7 @@ vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useSwitchCloudSession: () => ({ switchCloud: session.switchCloud, isPending: false }),
-            useLogoutCloudSession: () => ({ logoutCloudSession: vi.fn() }),
+            useLogoutCloudSession: () => ({ logoutCloudSession: session.logoutCloudSession }),
             useSessionSelection: () => ({ selectedCloudId: session.selectedCloudId }),
         },
         data: {
@@ -89,11 +90,21 @@ describe('useCloudSwitchFlow invited-cloud recovery', () => {
         expect(session.switchCloud).toHaveBeenCalledWith('B');
     });
 
-    it('skips recovery for the relay-origin sentinel', async () => {
+    // A relay push names the relay `'#'`; switching to it is leaving the cloud, never a delegation.
+    it('reads the relay push sentinel as the relay and leaves the cloud for it', async () => {
         await switchTo('#');
 
+        expect(session.logoutCloudSession).toHaveBeenCalledTimes(1);
         expect(data.recover).not.toHaveBeenCalled();
-        expect(session.switchCloud).toHaveBeenCalledWith('#');
+        expect(session.switchCloud).not.toHaveBeenCalled();
+    });
+
+    it('does nothing for the sentinel while already on the relay', async () => {
+        session.selectedCloudId = 'default';
+        await switchTo('#');
+
+        expect(session.logoutCloudSession).not.toHaveBeenCalled();
+        expect(session.switchCloud).not.toHaveBeenCalled();
     });
 
     it('ignores a second switch while the recovery is still in flight', async () => {

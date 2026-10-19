@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { RELAY_CLOUD_ID } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -12,6 +13,7 @@ import {
     isOwnChat,
     messagePlainText,
     pushBody,
+    pushCloudIdOf,
     readCacheRecords,
     resolveMyMentionNames,
     resolvePushCloudIdFrom,
@@ -34,9 +36,13 @@ import {
  * No thread root: the server's push payload carries no `parentId`, so a cross-cloud push for a
  * reply can only open the channel until it does.
  */
-const buildCrossCloudDeeplink = (cloudId: string | null, data: Record<string, string>): string | undefined => {
+const buildCrossCloudDeeplink = (
+    cloudId: string | null,
+    placeId: string,
+    data: Record<string, string>
+): string | undefined => {
     if (cloudId && data.channelId) {
-        return buildOpenDeeplink({ cloudId, placeId: data.sid ?? '', channelId: data.channelId });
+        return buildOpenDeeplink({ cloudId, placeId, channelId: data.channelId });
     }
     return data.link || (data.channelId ? `channel?channelId=${data.channelId}` : undefined);
 };
@@ -70,9 +76,10 @@ const presentPush = async (
     // One cache scan serves both the source-cloud resolution and the notify-mode lookup.
     const records = data.channelId || data.uid ? await readCacheRecords<PushChannelData>() : [];
     // Source cloud: the backend stamps it as `data.cid` (a relay cloud id, the same space
-    // the session/rail use). Fall back to the channel-cache reverse-lookup when it's absent.
+    // the session/rail use), or `'#'` for the relay itself, which reads as the Home tile's
+    // `RELAY_CLOUD_ID`. Fall back to the channel-cache reverse-lookup when it's absent.
     const sourceCloudId =
-        data.cid ||
+        pushCloudIdOf(data.cid) ||
         resolvePushCloudIdFrom(records, {
             channelId: data.channelId,
             sid: data.sid,
@@ -114,6 +121,12 @@ const presentPush = async (
 
     const activeServer = runtime.session.getGlobalSessionContext().activeServer;
     const activeCloudId = activeServer.kind === 'cloud' ? activeServer.cloudId : null;
+    // The relay's own live socket banners its messages too, so a push it stamped `'#'` is the same
+    // message. Only the stamp counts: a cache guess that lands on the relay is no proof.
+    const isFromOpenRelay = activeServer.kind === 'relay' && pushCloudIdOf(data.cid) === RELAY_CLOUD_ID;
+    // The Default Cloud pins its one place, so a relay push names none to switch to: whatever
+    // `data.sid` it carries would send the open off to a place the relay does not list.
+    const openPlaceId = sourceCloudId === RELAY_CLOUD_ID ? '' : (data.sid ?? '');
 
     const focused = typeof document !== 'undefined' && document.hasFocus();
     if (!focused) {
@@ -123,6 +136,7 @@ const presentPush = async (
         // suppress the FCM duplicate ONLY when this push provably belongs to the active
         // cloud. Unresolved source (null) → show: a duplicate beats a missed cross-cloud one.
         if (sourceCloudId && activeCloudId && String(sourceCloudId) === String(activeCloudId)) return;
+        if (isFromOpenRelay) return;
         void webClient
             .request({
                 type: 'ShowNotification',
@@ -133,7 +147,7 @@ const presentPush = async (
                     title: headline(data.channelName, 'DoU'),
                     body: body ?? '',
                     channelId: data.channelId,
-                    deeplink: buildCrossCloudDeeplink(sourceCloudId, data),
+                    deeplink: buildCrossCloudDeeplink(sourceCloudId, openPlaceId, data),
                 },
             })
             // Degrade gracefully on older shells / transient bridge errors — a
@@ -159,7 +173,7 @@ const presentPush = async (
             ? () =>
                   usePendingOpenStore.getState().request({
                       cloudId: sourceCloudId ?? undefined,
-                      placeId: data.sid ?? '',
+                      placeId: openPlaceId,
                       channelId: String(channelId),
                   })
             : undefined,
