@@ -143,6 +143,17 @@ describe('SendInviteDialog', () => {
         );
     });
 
+    it('shows the server reason in the dialog, where the dimmed toast cannot be read', async () => {
+        createInvite.mockRejectedValueOnce(new Error('403 NOT ALLOWED - main user only @issueInvite(U1)'));
+        openDialog();
+
+        submitValid();
+
+        expect((await screen.findByRole('alert')).textContent).toContain(
+            '403 NOT ALLOWED - main user only @issueInvite(U1)'
+        );
+    });
+
     it('shows the server reason in the failure toast', async () => {
         createInvite.mockRejectedValueOnce(new Error('403 NOT ALLOWED - user is banned @issueInvite(U1)'));
         openDialog();

@@ -63,8 +63,10 @@ A refused send keeps the dialog open with a sentence chosen by the status the re
 number" for a `400`, the connection line for the client's own `408`/`499`/`503` (a timeout, a
 dropped request, no socket), and the generic line otherwise. A rejection with no status falls back
 to the wording (`classifyWireError`). The wire text
-itself is shown as the failure toast's description and logged as `[INVITE] [SendInvite] failed`
-with `raw` — View › Toggle Developer Tools opens the console in packaged builds too.
+itself is shown under that sentence in the dialog, as the failure toast's description, and in the
+log as `[INVITE] [SendInvite] failed` with `raw` — View › Toggle Developer Tools opens the console in
+packaged builds too. The dialog line is the one that can be read at the time: toasts sit under the
+dialog's dim while it is open, and the dialog stays open on a failure.
 
 ## Channel ID
 

@@ -87,7 +87,9 @@ export const SendInviteDialog = () => {
     const [, copyLink] = useCopyToClipboard();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
-    const [error, setError] = useState<string | null>(null);
+    // `detail` is the server's own words for a refused send. The toast carries them too, but it
+    // sits under the dialog's dim while the dialog is open, so they are shown here as well.
+    const [error, setError] = useState<{ text: string; detail?: string } | null>(null);
 
     const reset = () => {
         setName('');
@@ -109,7 +111,7 @@ export const SendInviteDialog = () => {
         if (isSubmitting || !target) return;
         const parsed = parseInvitePhone(phone);
         if (!name.trim() || 'error' in parsed) {
-            setError(t('invite.send.invalidPhone'));
+            setError({ text: t('invite.send.invalidPhone') });
             return;
         }
         setError(null);
@@ -121,7 +123,7 @@ export const SendInviteDialog = () => {
                     ? await createInvite({ phone: parsed.e164, name: name.trim(), channelId: target.id })
                     : await requestPlaceInvite({ phone: parsed.e164, name: name.trim() });
             if (!view.id || !view.deeplink) {
-                setError(t('invite.send.missingLink'));
+                setError({ text: t('invite.send.missingLink') });
                 return;
             }
             const recipient = name.trim();
@@ -146,7 +148,7 @@ export const SendInviteDialog = () => {
         } catch (failure) {
             const { key, raw } = describeSendFailure(failure, target.kind);
             toast({ title: t('invite.send.failed'), description: raw || undefined, variant: 'destructive' });
-            setError(t(key));
+            setError({ text: t(key), detail: raw || undefined });
         }
     };
 
@@ -181,9 +183,12 @@ export const SendInviteDialog = () => {
                         />
                     </div>
                     {error && (
-                        <p id="send-invite-error" role="alert" className="-mt-1 text-callout text-destructive">
-                            {error}
-                        </p>
+                        <div id="send-invite-error" role="alert" className="-mt-1 flex flex-col gap-1">
+                            <p className="text-callout text-destructive">{error.text}</p>
+                            {error.detail && (
+                                <p className="break-all font-mono text-caption text-muted-foreground">{error.detail}</p>
+                            )}
+                        </div>
                     )}
                     <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                         <Button
