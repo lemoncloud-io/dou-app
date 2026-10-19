@@ -34,7 +34,7 @@ holding a trace until it expires.
 | `bridge_request`  | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)             | `type` · `outcome`                                 |
 | `chat_send`       | `useChatMutations.sendMessage` — [below](#chat_send)                       | `thread` · `kind` (`text`) · `outcome`             |
 | `chat_send_media` | `libs/app-runtime` `useSendImages`, as samples — see its image-send doc    | `kind` · `count` · `size` · `thread` · `outcome`   |
-| `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)             | `type` · `kind` · `outcome`                        |
+| `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)             | `type` · `kind` · `outcome` · `close_reason`       |
 | `state_outbox`    | `stateOutboxTrace.ts`, as samples — [below](#state_outbox)                 | `op` · `outcome` · `kind`                          |
 | `socket_verify`   | `libs/app-runtime`, as samples — see its socket doc                        | `kind` · `cause` · `outcome`                       |
 | `invite_accept`   | the invite accept pipelines, per run — [below](#invite_accept)             | `lane` · `outcome` · `step` · `room`               |
@@ -343,7 +343,8 @@ screens add: `chat_room_sync`'s feed phase includes the cache write, `chat_send`
   (`observeSocketRequests`). Requests the SDK sends on its own (`device.save`, `auth.*`, a sync plan's
   catch-up) do not pass through it; `socket_verify` and `site_switch` cover the first two.
 - **Attributes:** `type` (`chat.send`, `chat.feed`…), `kind` (`relay` / `cloud`), `outcome` (`ok`, or
-  the leading status it was rejected with — `408`, `503` — else `error`). Metric: `rtt_ms`.
+  the leading status it was rejected with — `408`, `503` — else `error`), and on a `499` only,
+  `close_reason`: what closed the socket under the request (below). Metric: `rtt_ms`.
 - **Sampled like `bridge_request`, in different runs.** One run in ten, but the next tenth of the
   run-hash range (`isSocketRequestSampledRun`), so the two traces never stack their caps on one run.
 - **Ten a minute, three of a type**, three while traces are held for the report. The per-type cap
@@ -353,6 +354,58 @@ screens add: `chat_room_sync`'s feed phase includes the cache write, `chat_send`
 - **Firebase only.** The log fallback samples the first tenth of runs, and this trace the second, so
   on an app build without the perf handlers it records nothing. That is accepted: those builds are
   on their way out, and the bridge trace already covers them.
+
+### `close_reason`
+
+A 499 is chatic-sockets-lib rejecting every in-flight and queued request at once as a socket closes,
+so the outcome alone says only that some socket closed. `close_reason` names the close, as
+`libs/app-runtime` reads it from the SDK transport (its socket doc lists the values and how each is
+told apart): `pong_timeout`, `wake_recovery`, `wake_probe`, `service_restart`, `destroyed`, `server`,
+`transport`, `other`.
+
+**An attribute on the failed request, not a trace of its own.** The question is which cause makes up
+the 499 share of requests, and a request is the unit of that share: a close that rejects six requests
+counts six times here, as it did in the share, and a close with nothing in flight hurt nobody and
+counts zero. A per-close trace would count closes instead, would need its own sampling and cap
+inside the budget every trace shares, and could not be laid against the share without guessing how
+many requests each close took down. This one adds no sample — only a fourth attribute of five
+Firebase allows — and inherits the sampling and caps above unchanged. What it cannot say is how often
+a socket closes with nothing in flight; the `[SocketManager] closed` log line is where that is.
+
+### Reading `close_reason`
+
+Filter `socket_request` to `outcome` = `499`, platform iOS, foreground (the trace records nothing
+hidden), and break down by `close_reason`. Samples from builds before this attribute have none, so
+compare from the release date on. A week of sampled runs is the first useful read.
+
+- **`pong_timeout`** is a socket that stayed open with nothing coming back until the keep-alive gave
+  up, 40–80 s later. On a resume that was the half-open zombie. With the liveness probe in place it
+  should shrink: a zombie found on resume ends as `wake_probe` instead. What remains is a connection
+  that died while the app was in front.
+- **`wake_probe`** is the probe recycling a slot that read verified and did not answer within 3 s.
+  These requests were going to fail anyway, earlier and in smaller numbers than as `pong_timeout`.
+  A large `wake_probe` share with no drop in `pong_timeout` means the probe recycles healthy sockets
+  and its timeout is too tight. This trace only sees a false recycle that had a request in flight; an
+  idle slot recycled for nothing (a background cloud, typically) and the margin of the probes that did
+  answer are in the `[recoverUnverifiedSockets] probed` log line, one per resume, with each probe's
+  outcome and round trip.
+- **`wake_recovery`** is the foreground kick recycling a slot that was not verified. A request should
+  rarely be in flight on such a slot; a steady share means something sends before the slot verifies.
+- **`service_restart`** comes from the SDK's connection rotation, roughly every 100 min on a long
+  connection. It is not harmless: in chatic-sockets-lib 0.5.7 the rotation's `restart()` disconnects
+  through the reconnect controller's `stop()`, which leaves the controller stopped, so the socket stays
+  closed until something else connects it — the next foreground kick, in this app. Requests in that
+  gap fail as 503, not 499, so this value undercounts what rotation costs.
+- **`destroyed`** is the app tearing a slot down — a cloud switch, a logout. A request still in flight
+  on the outgoing cloud fails this way; a large share points at a switch that does not wait for its
+  requests.
+- **`server`** and **`transport`** are the closes the app did not make: the server ended the
+  connection, or it ended with no close frame — the network dropped or the OS killed the socket.
+  `transport` is also what any 499 reads on an SDK whose transport the runtime could not observe, so a
+  sudden jump to all-`transport` after an SDK upgrade is a broken hook, not a network event.
+
+The 503 share is a different failure — a send on a socket that is not open — and has no
+`close_reason`.
 
 ## `state_outbox`
 

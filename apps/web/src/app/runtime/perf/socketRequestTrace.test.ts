@@ -78,6 +78,17 @@ describe('observeSocketRequests', () => {
         });
     });
 
+    it('adds close_reason to a 499, which says what closed the socket under the request', () => {
+        const { record, emit } = setup(SAMPLED_RUN);
+
+        emit(sample({ type: 'chat.feed', outcome: '499', roundTripMs: 41_000, closeReason: 'pong_timeout' }));
+
+        expect(record).toHaveBeenCalledWith('socket_request', {
+            attributes: { type: 'chat.feed', kind: 'relay', outcome: '499', close_reason: 'pong_timeout' },
+            metrics: { rtt_ms: 41_000 },
+        });
+    });
+
     it('attaches nothing in a run it does not sample', () => {
         expect(setup(UNSAMPLED_RUN).manager.setRequestObserver).not.toHaveBeenCalled();
         expect(setup(BRIDGE_RUN).manager.setRequestObserver).not.toHaveBeenCalled();

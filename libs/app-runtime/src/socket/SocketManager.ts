@@ -26,6 +26,7 @@ import type {
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
 import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';
+import { type SocketCloseEvent, type SocketCloseReason, classifySocketClose } from './utils/closeReason';
 import { type ErrorCodeLedger, createErrorCodeLedger } from './utils/errorCodeLedger';
 import { getSocketErrorCode } from './utils/socketErrorCode';
 import { RELAY_SLOT, kindOf, slotKeyOf } from './utils/slotKey';
@@ -55,8 +56,24 @@ interface ClientEntry {
     connectCount: number;
     /** This slot's server error answers, so a rejected request gets its `errorCode` back. */
     errorCodes: ErrorCodeLedger;
+    /**
+     * Why this slot's socket last closed, since its last `connected`. A 499 is the SDK rejecting
+     * every request at the moment the socket closes, so this names the close behind it.
+     */
+    lastClose: SocketCloseReason | undefined;
+    /** The client went through `closing` since its last `connected` — a close it asked for. */
+    closingLocally: boolean;
+    /** When the current connection opened, on the page's monotonic clock; unset while not open. */
+    openedAt: number | undefined;
+    /** `teardownEntry` has begun: any close from here on is the app tearing the slot down. */
+    tearingDown: boolean;
     unsubscribes: Array<() => void>;
 }
+
+/** The SDK transport's close subscription, which `ClientSocketV2` does not publish (see bindCloseDiagnostics). */
+type TransportCloseSource = {
+    on?: (type: 'close', listener: (event: SocketCloseEvent | undefined) => void) => () => void;
+};
 
 /**
  * SocketManager owns ClientSocketV2 slots keyed by the cloud each serves — the relay's (always-on)
@@ -136,6 +153,10 @@ export class SocketManager implements ISocketManager {
             connState: client.state,
             connectCount: 0,
             errorCodes: createErrorCodeLedger(),
+            lastClose: undefined,
+            closingLocally: false,
+            openedAt: undefined,
+            tearingDown: false,
             unsubscribes: [],
         };
         this.entries.set(key, entry);
@@ -210,8 +231,9 @@ export class SocketManager implements ISocketManager {
             // synchronously (no silent fallback — see SocketManager.test.ts), so this is deliberately
             // not an async arrow.
             request: <T = unknown>(type: string, data?: unknown, options?: { timeoutMs?: number }): Promise<T> => {
-                const { client, errorCodes } = requireSlot(`request(${type})`);
-                const settle = this.timeRequest(kind, type);
+                const entry = requireSlot(`request(${type})`);
+                const { client, errorCodes } = entry;
+                const settle = this.timeRequest(entry, kind, type);
                 return (client.request(type as any, data as any, options) as Promise<T>).then(
                     value => {
                         settle();
@@ -440,8 +462,9 @@ export class SocketManager implements ISocketManager {
         const key = this.getActiveKey()!;
         // Captured now: the slot's ledger is the one that sees this request's answer, even if the
         // active pointer moves before it settles.
-        const errorCodes = this.entries.get(key)?.errorCodes;
-        const settle = this.timeRequest(kindOf(key), type);
+        const entry = this.entries.get(key);
+        const errorCodes = entry?.errorCodes;
+        const settle = this.timeRequest(entry, kindOf(key), type);
         try {
             const value = (await client.request(type as any, data as any, options)) as T;
             settle();
@@ -469,8 +492,13 @@ export class SocketManager implements ISocketManager {
      * A request the page was hidden during is not handed over: its round trip would include the time
      * the OS kept the page suspended. And the observer cannot change what the caller sees — one that
      * throws is logged, never turned into the request's failure.
+     *
+     * A 499 also carries the slot's last close. The SDK rejects with 499 only from inside the close
+     * itself, and the rejection reaches here a microtask later, so no newer connection can have reset
+     * it in between. With no close seen — an SDK whose transport could not be observed — it reads
+     * `transport`.
      */
-    private timeRequest(kind: SocketKind, type: string): (error?: unknown) => void {
+    private timeRequest(entry: ClientEntry | undefined, kind: SocketKind, type: string): (error?: unknown) => void {
         const observer = this.requestObserver;
         if (!observer) return () => undefined;
         const startedAt = perfNow();
@@ -480,8 +508,10 @@ export class SocketManager implements ISocketManager {
             if (settled || pageHideCount() !== hidesAtStart) return;
             settled = true;
             const outcome = args.length === 0 ? 'ok' : String(getSocketErrorCode(args[0]) ?? 'error');
+            const sample: SocketRequestSample = { type, kind, outcome, roundTripMs: Math.round(perfNow() - startedAt) };
+            if (outcome === '499') sample.closeReason = entry?.lastClose ?? 'transport';
             try {
-                observer({ type, kind, outcome, roundTripMs: Math.round(perfNow() - startedAt) });
+                observer(sample);
             } catch (error) {
                 logger.warn('SOCKET', '[SocketManager] request observer threw', { error, data: { type } });
             }
@@ -667,7 +697,15 @@ export class SocketManager implements ISocketManager {
                 if (event.next !== 'connected') {
                     entry.authenticated = false;
                 }
+                // Only a close this client asks for passes through `closing`; a remote close goes
+                // straight from `connected` to `closed`. The close listener reads this.
+                if (event.next === 'closing') {
+                    entry.closingLocally = true;
+                }
                 if (event.next === 'connected') {
+                    entry.lastClose = undefined;
+                    entry.closingLocally = false;
+                    entry.openedAt = perfNow();
                     entry.connectCount += 1;
                     // One line per (re)connect: a reconnect storm (server dropping failed-auth
                     // sockets, wake flapping) shows up as a fast-growing count for one slot.
@@ -717,6 +755,47 @@ export class SocketManager implements ISocketManager {
         entry.unsubscribes.push(entry.client.onMessage(event => entry.errorCodes.observe(event?.message)));
 
         this.bindReconnectDiagnostics(key, entry);
+        this.bindCloseDiagnostics(key, entry);
+    }
+
+    /**
+     * Records why the slot's socket closed. `onState` reports only that it did; the code and reason
+     * are on the SDK transport's own `close` event, which every close goes through — the keep-alive's
+     * `pong-timeout`, a `service-restart`, the app's `wake-recovery`, and a close by the server or
+     * the OS.
+     *
+     * **Feature-detected, like the reconnect diagnostics.** `transport` is a property of the client the
+     * SDK constructs, not of the `ClientSocketV2` interface it publishes. Without it every 499 reads
+     * `transport`, which is what this measured before. The client subscribes to the same event in its
+     * constructor, ahead of this, so by the time this runs it has already rejected the requests and
+     * moved to `closed`; their rejections reach the facade a microtask later and find the reason here.
+     */
+    private bindCloseDiagnostics(key: SlotKey, entry: ClientEntry): void {
+        const transport = (entry.client as unknown as { transport?: TransportCloseSource }).transport;
+        if (typeof transport?.on !== 'function') return;
+        entry.unsubscribes.push(
+            transport.on('close', event => {
+                const cause = entry.tearingDown ? 'destroyed' : classifySocketClose(event, entry.closingLocally);
+                entry.lastClose = cause;
+                entry.closingLocally = false;
+                const openedAt = entry.openedAt;
+                entry.openedAt = undefined;
+                // A connection attempt that never opened closes too; the reconnect diagnostics
+                // already report those, so one line per connection that actually ended.
+                if (openedAt === undefined) return;
+                logger.info('SOCKET', '[SocketManager] closed', {
+                    data: {
+                        kind: kindOf(key),
+                        cid: key,
+                        cause,
+                        code: event?.code ?? null,
+                        reason: event?.reason || null,
+                        wasClean: event?.wasClean ?? null,
+                        openForMs: Math.round(perfNow() - openedAt),
+                    },
+                });
+            })
+        );
     }
 
     /**
@@ -777,6 +856,13 @@ export class SocketManager implements ISocketManager {
         const entry = this.entries.get(key);
         if (!entry) return;
         const kind = kindOf(key);
+
+        // Before anything closes the socket: the slot runtime the notification below stops closes it
+        // itself, through its reconnect controller, before destroy() runs. Whatever is rejected from
+        // here on — as `socket closed` or `client destroyed` — is rejected because the app tore the
+        // slot down, and the close listener (until it is removed below) names it so.
+        entry.tearingDown = true;
+        entry.lastClose = 'destroyed';
 
         // Notify while the client is still alive so listeners can detach cleanly (e.g. a slot
         // runtime stopping its controllers) before destroy() tears the transport down.

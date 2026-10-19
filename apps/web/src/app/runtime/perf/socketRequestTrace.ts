@@ -54,7 +54,8 @@ interface ObserveSocketRequestsOptions {
 /**
  * Records the socket requests of a sampled run as `socket_request` samples: one request's round
  * trip, broken down in the console by `type` (`chat.send`, `chat.feed`…), `kind` (relay / cloud) and
- * `outcome` (`ok`, or the status it was rejected with).
+ * `outcome` (`ok`, or the status it was rejected with), and for a 499 by `close_reason` — what closed
+ * the socket under it.
  *
  * It is the server's answer time per request type, which the screen-level traces cannot isolate:
  * `chat_room_sync`'s feed phase includes the cache write, `chat_send` the optimistic row. A request
@@ -95,10 +96,10 @@ export const observeSocketRequests = ({
         }
         recordedInWindow += 1;
         recordedByType.set(sample.type, ofType + 1);
-        record('socket_request', {
-            attributes: { type: sample.type, kind: sample.kind, outcome: sample.outcome },
-            metrics: { rtt_ms: sample.roundTripMs },
-        });
+        const attributes: Record<string, string> = { type: sample.type, kind: sample.kind, outcome: sample.outcome };
+        // Only a 499 carries one: it is the SDK rejecting everything in flight as a socket closes.
+        if (sample.closeReason) attributes.close_reason = sample.closeReason;
+        record('socket_request', { attributes, metrics: { rtt_ms: sample.roundTripMs } });
     });
 
     return () => manager.setRequestObserver(undefined);

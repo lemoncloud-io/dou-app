@@ -46,3 +46,4 @@ export type { RequestRelaySessionRefreshDeps } from '../socket/auth/requestRelay
 // The manager handle — for a debug/lab surface that drives the socket directly.
 export { getSocketManager } from '../socket/runtime';
 export type { ISocketManager, SlotStatus, SocketRequestSample } from '../socket/types';
+export type { SocketCloseReason } from '../socket/utils/closeReason';
