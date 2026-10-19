@@ -186,7 +186,8 @@ jobs:
               with:
                   # The branch tip, not the triggering sha: a queued run's sha predates
                   # the bump the previous run pushed, so bumping from it rewrites the
-                  # same CHANGELOG lines and the rebase below conflicts.
+                  # same CHANGELOG lines and the rebase below conflicts. The commits to
+                  # record still come from the triggering sha (COMMIT_SHA below).
                   ref: develop
                   fetch-depth: 0
                   token: ${{ secrets.LEMON_BOT_TOKEN }}
@@ -222,6 +223,10 @@ jobs:
 
             - name: Update versions and changelog
               id: version-update
+              env:
+                  # Files are bumped from the branch tip (checkout above), but the changelog
+                  # records this run's own merge, not whatever landed last.
+                  COMMIT_SHA: ${{ github.sha }}
               run: |
                   set -e
                   chmod +x scripts/version-update.js
