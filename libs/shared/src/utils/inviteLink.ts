@@ -153,12 +153,62 @@ export const isEncodedInviteUrl = (url: string): boolean => {
     return !!parsed && (parsed.pathname === '/i' || parsed.pathname === '/i/');
 };
 
+/** Where reading a `t` token stopped. Named for the step that refused it, so a log can say which. */
+export type InviteLinkFailure = 'missing' | 'alphabet' | 'utf8' | 'json' | 'shape';
+
 /**
- * Opens the `t` token of an encoded invite link.
+ * Everything learned from reading one encoded link: the target when there is one, and the token's
+ * shape either way. The shape exists for diagnostics — it says what happened to a link without
+ * carrying the token itself, which holds the invite code and must not reach a log.
+ */
+export interface InviteLinkReading {
+    target: InviteLinkTarget | null;
+    /** The step that refused the token. Absent when `target` is set. */
+    failedAt?: InviteLinkFailure;
+    /** Characters in `t` as it arrived — URL-decoded, unless the platform could not decode the query. */
+    length: number;
+    /** Characters dropped from the end of `t` because they cannot belong to a base64url token. */
+    ignoredChars: number;
+}
+
+/**
+ * The token proper: base64url, plus the standard alphabet's `+` and `/` the byte decoder also takes,
+ * then optional padding. Anchored at the start, so it matches up to the first character no encoder
+ * writes and leaves the rest.
+ */
+const TOKEN_PREFIX = /^[A-Za-z0-9\-_+/]*=*/;
+
+/**
+ * The `t` value of a parsed link.
+ *
+ * React Native's `URLSearchParams` runs every value in the query through `decodeURIComponent` and
+ * throws on the first malformed escape anywhere in it — `…t=eyJ…%EC%9`, a percent-encoded character
+ * cut in half by whatever damaged the link. The browser's never throws. When it does, `t` is taken
+ * from the raw query instead: the token never contains `%`, so reading it undecoded and stopping at
+ * the first `%` (as {@link TOKEN_PREFIX} does) loses nothing.
+ */
+const readTokenParam = (parsed: URL): string => {
+    try {
+        return parsed.searchParams.get('t') ?? '';
+    } catch {
+        return /[?&]t=([^&#]*)/.exec(parsed.search)?.[1] ?? '';
+    }
+};
+
+/**
+ * Reads the `t` token of an encoded invite link, reporting the token's shape alongside the result.
  *
  * Never throws. Landing's redirect hook catches errors into a silent `setLoading(false)`, so a
- * decoder that threw would leave the user staring at a page that has quietly given up. Null is the
- * single "cannot read this" answer, and each entry point decides what to show for it.
+ * decoder that threw would leave the user staring at a page that has quietly given up. A null
+ * `target` is the single "cannot read this" answer, and each entry point decides what to show for it.
+ *
+ * **Characters after the token are ignored.** A link pasted into a chat can arrive with whatever
+ * followed it glued on — `…/i?t=eyJ…fQ입니다`, or a closing `)` or `.` — when the messenger's link
+ * detection runs past the URL. Those characters can never be part of the token: the server encodes
+ * with base64url, so nothing outside that alphabet is ever written into `t`. Reading up to the
+ * first such character recovers the link exactly as issued instead of refusing it whole. Damage
+ * inside the alphabet — a truncated token, letters glued straight on — still fails, at `utf8` or
+ * `json`, because the bytes no longer form the payload.
  *
  * Payload keys, all optional except `c`:
  * - `c` → `code`. Missing means null: an invite with no code has nothing to accept.
@@ -167,53 +217,63 @@ export const isEncodedInviteUrl = (url: string): boolean => {
  * - `a` + `s` → `backend`, but only together. Half an address composes a host that does not exist,
  *   so one without the other is treated as no address at all.
  */
-export const decodeInviteLink = (url: string): InviteLinkTarget | null => {
+export const readInviteLink = (url: string): InviteLinkReading => {
     const parsed = parseUrl(url);
-    const token = parsed?.searchParams.get('t');
-    if (!token) {
-        return null;
+    const raw = parsed ? readTokenParam(parsed) : '';
+    const token = TOKEN_PREFIX.exec(raw)?.[0] ?? '';
+    const shape = { length: raw.length, ignoredChars: raw.length - token.length };
+    const fail = (failedAt: InviteLinkFailure): InviteLinkReading => ({ target: null, failedAt, ...shape });
+
+    if (!raw) {
+        return fail('missing');
     }
 
-    const bytes = base64UrlToBytes(token);
+    const bytes = token ? base64UrlToBytes(token) : null;
     if (!bytes) {
-        return null;
+        return fail('alphabet');
     }
     const json = utf8BytesToString(bytes);
     if (json === null) {
-        return null;
+        return fail('utf8');
     }
 
     let payload: unknown;
     try {
         payload = JSON.parse(json);
     } catch {
-        return null;
+        return fail('json');
     }
     // A JSON array or scalar decodes fine and carries nothing we can use; treat it as unreadable.
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-        return null;
+        return fail('shape');
     }
 
     const { c, r, a, s } = payload as Record<string, unknown>;
 
     const code = typeof c === 'string' ? c.trim() : '';
     if (!code) {
-        return null;
+        return fail('shape');
     }
 
     if (r) {
-        return { code, relay: true };
+        return { target: { code, relay: true }, ...shape };
     }
 
     const api = typeof a === 'string' ? a.trim() : '';
     const stage = typeof s === 'string' ? s.trim() : '';
     if (!api || !stage) {
-        return { code, relay: false };
+        return { target: { code, relay: false }, ...shape };
     }
 
     return {
-        code,
-        relay: false,
-        backend: `https://${api}.execute-api.${INVITE_BACKEND_REGION}.amazonaws.com/${stage}`,
+        target: {
+            code,
+            relay: false,
+            backend: `https://${api}.execute-api.${INVITE_BACKEND_REGION}.amazonaws.com/${stage}`,
+        },
+        ...shape,
     };
 };
+
+/** Opens the `t` token of an encoded invite link — {@link readInviteLink} without the shape. */
+export const decodeInviteLink = (url: string): InviteLinkTarget | null => readInviteLink(url).target;
