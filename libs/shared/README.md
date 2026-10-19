@@ -213,7 +213,18 @@ libs/shared/src/
 └── utils/            5 single-purpose helpers + index
 ```
 
-Five things the filenames do not tell you.
+Six things the filenames do not tell you.
+
+- **`utils/inviteLink.ts` is the only decoder of the encoded invite link `/i?t=<base64url(JSON)>`.**
+  Landing, mobile, web and desktop-web all call it, because a decoder that drifted would send one link
+  to a different server than its siblings do. `readInviteLink` returns the target plus the token's
+  shape — `failedAt` (the step that refused it), `length` and `ignoredChars` — and never the token,
+  which holds the invite code; `decodeInviteLink` is the same call returning the target alone. It
+  reads `t` only up to the first character outside base64url, because a link pasted into a chat can
+  arrive with text glued onto its end (`…/i?t=eyJ…입니다`, a closing `)`) and the server never writes
+  such characters into a token. A truncated token cannot be helped this way and still fails. It never
+  throws, React Native included: that platform's query parser throws on a malformed `%` escape, and
+  the decoder then reads `t` from the raw query instead.
 
 - **`consts/index.ts` is not just re-exports.** The `ERROR_MESSAGES` table — six error kinds, each with
   a title, a description and two button labels, in English — is declared inline there. It is the

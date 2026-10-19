@@ -42,7 +42,8 @@ no manual startup delay is needed.
 ## Invite link conversion
 
 An invite link must be converted into a form the web recognizes; `convertShortUrlWithEnvsSync` does
-this. There are two input forms, and **whether `relay` is present is the discriminator**.
+this. There are two `/s` input forms, and **whether `relay` is present is the discriminator**; a
+third, encoded form (③) carries both in one token.
 
 **① Cloud form** (the link itself carries a backend address)
 
@@ -71,6 +72,27 @@ Conversion rules:
   everything else (`utm_*`, etc.) passes through unchanged.
 - **No domain is added.** The output is a host-less relative path; the final domain is applied later
   by `WEBVIEW_URL`.
+
+**③ Encoded form** (`/i?t=<base64url(JSON)>` — the same values packed into one token)
+
+- Input: `https://app-dev.chatic.io/i?t=eyJjIjoiaW52dDo5MTA0NDc6Li4uIiwiciI6MX0`
+- Output: the same relative paths as ① and ②. The token is opened by `@chatic/shared`'s
+  `readInviteLink` — the one decoder landing, the web and desktop-web use too — and its payload
+  states relay explicitly (`r`), so a missing address is never read as relay here.
+- **Characters glued onto the end of the token are ignored.** A link pasted into a chat can arrive
+  as `…/i?t=eyJ…입니다` or `…eyJ…)`, when the messenger's link detection runs past the URL. Nothing
+  outside base64url is ever written into `t`, so the decoder reads up to the first such character
+  and opens the link as issued. A truncated token still fails — its missing bytes cannot be
+  recovered — and resolves to `invalid`, which shows the "Unable to open invite link" screen.
+- **React Native's query parser throws on a malformed `%` escape** anywhere in the query (`…%EC%9`, a
+  percent-encoded character cut in half), where a browser's never does. The decoder then reads `t`
+  from the raw query; the `target` marker check treats such a query as carrying no marker; and the
+  extra parameters (`utm_*`, …) are not forwarded, since they cannot be read — the invite still opens.
+- The two damage lines carry the link's shape, never the token (it holds the invite code): an
+  unreadable link logs a warning with `failedAt` (the step that refused it), `length` and
+  `ignoredChars`; one opened only after dropping characters logs an info line with `length` and
+  `ignoredChars`. An intact link logs neither. (The `resolveDeepLink` trace line before them still
+  logs the URL, which the uploaded log redacts.)
 
 A `/s/{code}` legacy short-code link is no longer supported and resolves to `invalid` —
 `convertShortUrlWithEnvsSync` throws for it, and the old Firestore-backed short-URL lookup it used is

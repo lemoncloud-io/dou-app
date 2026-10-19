@@ -228,6 +228,73 @@ describe('convertShortUrlWithEnvsSync (인코딩 초대 링크 /i)', () => {
             path: '/?code=invt%3A1000072-2%3Ae3faf0d0&provider=invite&version=2&relay=1',
         });
     });
+
+    describe('a link that arrived damaged', () => {
+        const logger = () => ({ info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() });
+        const intact = `https://app-dev.chatic.io/i?t=${token({ c: CODE, r: 1 })}`;
+        const relayPath = '/?code=invt%3A1000072-2%3Ae3faf0d0&provider=invite&version=2&relay=1';
+
+        it('opens a link with Korean text glued on, and logs how many characters it dropped', () => {
+            const log = logger();
+
+            const result = resolveDeepLink(`${intact}입니다`, log as never);
+
+            expect(result).toEqual({ kind: 'web', path: relayPath });
+            expect(log.info).toHaveBeenCalledWith(
+                'DEEPLINK',
+                '[deeplinkUtils] encoded invite link read past trailing characters',
+                { length: expect.any(Number), ignoredChars: 3 }
+            );
+        });
+
+        it('logs the failing step of a truncated link, without the token', () => {
+            jest.spyOn(console, 'error').mockImplementation(() => undefined);
+            const log = logger();
+            const truncated = intact.slice(0, -4);
+
+            const result = resolveDeepLink(truncated, log as never);
+
+            expect(result.kind).toBe('invalid');
+            const call = log.warn.mock.calls.find(([, message]) => message.includes('unreadable'));
+            expect(call?.[2]).toEqual({ failedAt: 'json', length: expect.any(Number), ignoredChars: 0 });
+            expect(JSON.stringify(call)).not.toContain(truncated.split('t=')[1].slice(0, 10));
+        });
+
+        it('opens a link ending in a half percent-encoded character, where React Native cannot parse the query', () => {
+            const BrowserURL = globalThis.URL;
+            // React Native's URLSearchParams runs every value through decodeURIComponent and throws
+            // on a malformed escape; node's never does, so the device behaviour is stood in for here.
+            globalThis.URL = class extends BrowserURL {
+                override get searchParams(): URLSearchParams {
+                    decodeURIComponent(this.search);
+                    return super.searchParams;
+                }
+            } as typeof URL;
+            try {
+                const log = logger();
+
+                const result = resolveDeepLink(`${intact}%EC%9&utm_source=kakao`, log as never);
+
+                expect(result).toEqual({ kind: 'web', path: relayPath });
+                expect(log.info).toHaveBeenCalledWith(
+                    'DEEPLINK',
+                    '[deeplinkUtils] encoded invite link read past trailing characters',
+                    { length: expect.any(Number), ignoredChars: 5 }
+                );
+            } finally {
+                globalThis.URL = BrowserURL;
+            }
+        });
+
+        it('logs nothing about damage for an intact link', () => {
+            const log = logger();
+
+            resolveDeepLink(intact, log as never);
+
+            expect(log.warn).not.toHaveBeenCalled();
+            expect(log.info).toHaveBeenCalledTimes(1); // the resolveDeepLink trace line only
+        });
+    });
 });
 
 describe('convertShortUrlWithEnvsSync (비초대 링크)', () => {

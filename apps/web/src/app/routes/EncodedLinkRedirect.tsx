@@ -2,6 +2,7 @@ import type { JSX } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
+import { readInviteLink } from '@chatic/shared';
 
 import { buildEncodedInviteEntryParams } from '../features/invite/utils/buildEncodedInviteEntryParams';
 import { ROUTES } from './paths';
@@ -32,9 +33,16 @@ export const EncodedLinkRedirect = (): JSX.Element => {
     try {
         target = `${ROUTES.root}?${buildEncodedInviteEntryParams(search).toString()}`;
     } catch (error) {
+        // The token's shape, not the query: a bare `?t=…` escapes the logger's URL masking, and the
+        // token holds the invite code.
+        const { failedAt, length, ignoredChars } = readInviteLink(
+            `/i${search.startsWith('?') ? search : `?${search}`}`
+        );
         logger.warn('DEEPLINK', '[EncodedLinkRedirect] unreadable encoded invite link, falling back to root', {
-            search,
             error,
+            failedAt,
+            length,
+            ignoredChars,
         });
     }
 

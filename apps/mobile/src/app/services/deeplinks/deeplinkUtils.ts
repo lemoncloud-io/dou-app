@@ -1,6 +1,6 @@
 import Config from 'react-native-config';
 
-import { decodeInviteLink, isEncodedInviteUrl } from '@chatic/shared';
+import { decodeInviteLink, isEncodedInviteUrl, readInviteLink } from '@chatic/shared';
 
 import type { ILogService } from '../log';
 
@@ -246,12 +246,19 @@ export const convertShortUrlWithEnvsSync = (url: string): ConvertedUrlResult => 
             // Neither marker means a cloud invite that arrived without coordinates. It is forwarded
             // unmarked rather than guessed at — the web decides where an address-less invite lands.
 
-            // Forward anything the token did not carry (utm_*, ref, …) so attribution survives.
-            parseUrlSafe(url).searchParams.forEach((value, key) => {
-                if (key !== 't') {
-                    query.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
-                }
-            });
+            // Forward anything the token did not carry (utm_*, ref, …) so attribution survives. React
+            // Native's query parser throws on a malformed escape anywhere in the query — damage the
+            // decoder reads past — so a query it cannot parse forwards nothing rather than losing the
+            // invite: attribution is worth less than the link.
+            try {
+                parseUrlSafe(url).searchParams.forEach((value, key) => {
+                    if (key !== 't') {
+                        query.push(`${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+                    }
+                });
+            } catch {
+                // Nothing forwarded; the invite params above are complete without it.
+            }
 
             const relativeUrl = `/?${query.join('&')}`;
             console.log('[UrlConverter] Encoded invite link parsed:', url, '→', relativeUrl);
@@ -523,6 +530,41 @@ const resolveWebPath = (fullUrl: string): string => {
 };
 
 /**
+ * The `target` routing marker. React Native's query parser throws on a malformed escape anywhere in
+ * the query; a link whose query it cannot parse carries no readable marker, so it is a web link —
+ * which lets an encoded invite with damage glued onto its token still reach the decoder.
+ */
+const readNativeTarget = (urlObj: URL): string | null => {
+    try {
+        return urlObj.searchParams.get('target');
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * Logs the shape of an encoded invite link that arrived damaged — refused, or read only after
+ * dropping characters glued onto its end. The shape is all a report can carry: the token holds the
+ * invite code, so the uploaded log redacts the URL, and without the shape a refused link leaves no
+ * trace of what was wrong with it. An intact link logs nothing here.
+ */
+const logDamagedInviteLink = (fullUrl: string, logger?: ILogService): void => {
+    const normalized = normalizeSchemeForParsing(fullUrl);
+    if (!logger || !isEncodedInviteUrl(normalized)) {
+        return;
+    }
+    const { target, failedAt, length, ignoredChars } = readInviteLink(normalized);
+    if (!target) {
+        logger.warn('DEEPLINK', '[deeplinkUtils] encoded invite link unreadable', { failedAt, length, ignoredChars });
+    } else if (ignoredChars > 0) {
+        logger.info('DEEPLINK', '[deeplinkUtils] encoded invite link read past trailing characters', {
+            length,
+            ignoredChars,
+        });
+    }
+};
+
+/**
  * Resolves an inbound deep link into a routing decision. This is the single entry the deep link
  * coordinator uses; push taps share resolvePushTapPath so both converge on the OnNavigate contract.
  */
@@ -543,9 +585,11 @@ export const resolveDeepLink = (rawUrl: string, logger?: ILogService): DeepLinkR
         return { kind: 'invalid', error };
     }
 
+    logDamagedInviteLink(fullUrl, logger);
+
     try {
         const urlObj = parseUrlSafe(fullUrl);
-        const target = urlObj.searchParams.get('target');
+        const target = readNativeTarget(urlObj);
         if (target === 'native') {
             return { kind: 'native', state: buildNativeRouteState(urlObj, logger) };
         }

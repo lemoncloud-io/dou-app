@@ -20,8 +20,9 @@ until `isInitialized` is true. `routes/PrivateRoutes.tsx`, `PublicRoutes.tsx` an
 - **`publicRoutes`** — the signed-out root. It renders nothing and waits for the background guest
   login to flip `isAuthenticated`; it must not redirect to `/auth/login`, which is a shim that
   forwards back to `/` and would loop.
-- **`commonRoutes`** — reachable from both states: `/auth/*`, the `/s` share-link redirect, and
-  `/invite/accept` (deliberately not private, because an invite deeplink often lands before the
+- **`commonRoutes`** — reachable from both states: `/auth/*`, the `/s` share-link redirect, the `/i`
+  encoded-invite redirect (`EncodedLinkRedirect`, which opens the token with `@chatic/shared`'s
+  decoder and falls back to `/` when it cannot), and `/invite/accept` (deliberately not private, because an invite deeplink often lands before the
   background guest login finishes, and the signed-out `*` fallback would otherwise drop its query
   string).
 

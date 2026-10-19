@@ -1,6 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
+import { logger } from '@chatic/bridges';
+
 import { EncodedLinkRedirect } from './EncodedLinkRedirect';
 import { ROUTES } from './paths';
 
@@ -88,6 +90,29 @@ describe('EncodedLinkRedirect — /i 인코딩 초대 링크 리다이렉트', (
 
         expect(pathname).toBe(ROUTES.root);
         expect(params.toString()).toBe('');
+    });
+
+    it('opens a link with Korean text glued onto its token', async () => {
+        const { pathname, params } = await landOn(`/i?t=${token({ c: CODE, r: 1 })}입니다`);
+
+        expect(pathname).toBe(ROUTES.root);
+        expect(params.get('code')).toBe(CODE);
+        expect(params.get('relay')).toBe('1');
+    });
+
+    it('logs the shape of a refused token, never the query that carries it', async () => {
+        const warn = jest.spyOn(logger, 'warn').mockImplementation(() => undefined);
+        const truncated = token({ c: CODE, r: 1 }).slice(0, -4);
+
+        await landOn(`/i?t=${truncated}`);
+
+        expect(warn).toHaveBeenCalledWith('DEEPLINK', expect.stringContaining('unreadable encoded invite link'), {
+            error: expect.any(Error),
+            failedAt: 'json',
+            length: truncated.length,
+            ignoredChars: 0,
+        });
+        expect(JSON.stringify(warn.mock.calls)).not.toContain(truncated.slice(0, 10));
     });
 
     // Left open deliberately: where a coordinate-less payload should land — home, or a screen

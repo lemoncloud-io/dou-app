@@ -1,4 +1,4 @@
-import { decodeInviteLink, isEncodedInviteUrl } from './inviteLink';
+import { decodeInviteLink, isEncodedInviteUrl, readInviteLink } from './inviteLink';
 
 /**
  * Encodes a payload the way the server does, using Node's own base64url rather than the module
@@ -114,5 +114,112 @@ describe('decodeInviteLink — payload 해독', () => {
             relay: false,
             backend: 'https://uzjpiaey7a.execute-api.ap-northeast-2.amazonaws.com/dev',
         });
+    });
+});
+
+describe('decodeInviteLink — characters glued after the token', () => {
+    const intact = link({ c: CODE, a: 'a1b2c3d4e5', s: 'prod' });
+    const expected = decodeInviteLink(intact);
+
+    // The shapes a messenger's link detection produced on 2026-10-18 and that an emulator reproduced:
+    // each was refused whole before, though the token in front of the junk was intact.
+    it.each([
+        ['Korean text', `${intact}입니다`],
+        ['Korean text, percent-encoded', `${intact}${encodeURIComponent('입니다')}`],
+        ['a closing parenthesis', `${intact})`],
+        ['a full stop', `${intact}.`],
+        ['an exclamation mark', `${intact}!`],
+    ])('reads the token in front of %s', (_label, url) => {
+        expect(expected).not.toBeNull();
+        expect(decodeInviteLink(url)).toEqual(expected);
+    });
+
+    it('still refuses a truncated token — the missing bytes cannot be recovered', () => {
+        expect(decodeInviteLink(intact.slice(0, -1))).toBeNull();
+        expect(decodeInviteLink(intact.slice(0, -5))).toBeNull();
+    });
+
+    it('still refuses a token broken in the middle — only the part before the break is read', () => {
+        expect(decodeInviteLink(`${intact.slice(0, 60)}%20${intact.slice(60)}`)).toBeNull();
+    });
+
+    describe("on a platform whose query parser throws on a malformed escape (React Native's)", () => {
+        const BrowserURL = globalThis.URL;
+
+        // React Native's URLSearchParams runs every value through decodeURIComponent; node's never
+        // throws, so the device behaviour has to be stood in for here.
+        beforeAll(() => {
+            globalThis.URL = class extends BrowserURL {
+                override get searchParams(): URLSearchParams {
+                    decodeURIComponent(this.search);
+                    return super.searchParams;
+                }
+            } as typeof URL;
+        });
+        afterAll(() => {
+            globalThis.URL = BrowserURL;
+        });
+
+        it('reads the token in front of a percent-encoded character cut in half', () => {
+            const url = `${intact}%EC%9`;
+            expect(() => decodeURIComponent(new URL(url).search)).toThrow(URIError);
+
+            expect(decodeInviteLink(url)).toEqual(expected);
+        });
+
+        it('reads the token in front of a stray percent sign, and counts it as ignored', () => {
+            const reading = readInviteLink(`${intact}%`);
+
+            expect(reading.target).toEqual(expected);
+            expect(reading.ignoredChars).toBe(1);
+        });
+
+        it('never throws, even when the token cannot be found', () => {
+            expect(() => readInviteLink('https://app.chatic.io/i?x=%E0')).not.toThrow();
+            expect(readInviteLink('https://app.chatic.io/i?x=%E0').failedAt).toBe('missing');
+        });
+    });
+});
+
+describe('readInviteLink — the shape reported for diagnostics', () => {
+    const token = Buffer.from(JSON.stringify({ c: CODE, r: 1 })).toString('base64url');
+
+    it('reports the length and nothing ignored for an intact link', () => {
+        expect(readInviteLink(`https://app.chatic.io/i?t=${token}`)).toEqual({
+            target: { code: CODE, relay: true },
+            length: token.length,
+            ignoredChars: 0,
+        });
+    });
+
+    it('counts the characters it dropped when it reads past glued text', () => {
+        const reading = readInviteLink(`https://app.chatic.io/i?t=${token}입니다`);
+
+        expect(reading.target).toEqual({ code: CODE, relay: true });
+        expect(reading.failedAt).toBeUndefined();
+        expect(reading.length).toBe(token.length + 3);
+        expect(reading.ignoredChars).toBe(3);
+    });
+
+    it.each([
+        ['missing', 'https://app.chatic.io/i'],
+        ['missing', 'https://app.chatic.io/i?t='],
+        ['alphabet', 'https://app.chatic.io/i?t=!!!'],
+        ['utf8', `https://app.chatic.io/i?t=${Buffer.from([0xff, 0xfe, 0xfd]).toString('base64url')}`],
+        ['json', `https://app.chatic.io/i?t=${token.slice(0, -4)}`],
+        ['shape', `https://app.chatic.io/i?t=${Buffer.from('["invt:1:2"]').toString('base64url')}`],
+        ['shape', `https://app.chatic.io/i?t=${Buffer.from(JSON.stringify({ a: 'x', s: 'y' })).toString('base64url')}`],
+    ])('names %s as the failing step', (failedAt, url) => {
+        const reading = readInviteLink(url);
+
+        expect(reading.target).toBeNull();
+        expect(reading.failedAt).toBe(failedAt);
+    });
+
+    it('never carries the token or the code in its shape', () => {
+        const reading = readInviteLink(`https://app.chatic.io/i?t=${token.slice(0, -4)}`);
+
+        expect(Object.keys(reading).sort()).toEqual(['failedAt', 'ignoredChars', 'length', 'target']);
+        expect(JSON.stringify(reading)).not.toContain(token.slice(0, 10));
     });
 });
