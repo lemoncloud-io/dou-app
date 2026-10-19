@@ -124,10 +124,16 @@ processes one at a time.
 
 ### The relay sentinel
 
-The backend marks a relay-origin push with the literal `cid` `'#'`. It is not a cloud id, and it is
-**not** the session layer's internal `'default'` sentinel — different layer, different meaning. It is
-interpreted in `usePushNavigate` and never forwarded to a session API. Getting this wrong means
-calling `switchCloud('#')`.
+The backend marks a relay-origin push with the literal `cid` `'#'`. It names the relay — the server the
+session layer calls `'default'` (`RELAY_CLOUD_ID`) — but it is a payload marker, not a cloud id. Each
+push reader either branches on it (`usePushNavigate`) or translates it to `RELAY_CLOUD_ID` with
+`pushCloudIdOf` (`resolvePushCloudId`, `InvitedCloudDurabilityRunner`), and none forwards it to a session
+or relay API. Getting this wrong means calling `switchCloud('#')`, or `delegate-cloud` with `target: '#'`.
+
+The sentinel and its translation live once, in `@chatic/data` (`RELAY_ORIGIN_CID`, `pushCloudIdOf`), and
+apps/desktop-web reads its pushes through the same function. It is not renamed to `'default'` on the wire:
+apps already shipped branch on `'#'`. Nor does the app adopt `'#'` as its id: `'default'` keys stored
+caches and selections, and a `#` in a link's query would start the URL fragment.
 
 Leaving a cloud for relay does not need a re-login: relay auth underpins the cloud session through
 delegation-token exchange, so relay is still valid while a cloud is active and `logoutCloudSession()`
@@ -144,7 +150,10 @@ is enough to land back on it.
 The guard that makes row 1 and row 5 safe is structural rather than a special case:
 `needsCloudSwitch` is `!!cid && !isRelayPush && cid !== selectedCloudId`, so `'#'` has no path to
 `switchCloud` at all. The invited-cloud recovery step is narrowed the same way — `'#'` is not a cloud
-to recover.
+to recover. So is the recovery a foreground push triggers on receipt (`InvitedCloudDurabilityRunner`):
+it reads `'#'` as the relay and skips it, because `delegate-cloud` serves only real clouds and answers
+`'#'` with a 404. That runner also issues one recovery per cloud at a time, so a burst of pushes from
+one room asks the relay once.
 
 "Is a cloud active" is read from `useGlobalSession().activeServer.kind`, not from
 `selectedCloudId !== 'default'`. The former is committed session truth; the latter is a selection
@@ -279,7 +288,8 @@ silent here.
 
 - **Do not add a routing branch outside `usePushNavigate`.** It will apply to one entry point and
   not the other, and the bug report will say "works from the notification but not the banner".
-- **Do not forward `'#'` to a session API.** It is a payload marker, not a cloud id.
+- **Do not forward `'#'` to a session or relay API** (`switchCloud`, `delegate-cloud`). It is a
+  payload marker, not a cloud id.
 - **Do not navigate before awaiting the switch.** The room will not find its channel.
 - **Do not widen the replace rule past channel rooms.** That is the bug it was narrowed to fix.
 - **Do not read push fields off `data` directly.** Use the extractors in `resolveInAppPushRoute.ts`,

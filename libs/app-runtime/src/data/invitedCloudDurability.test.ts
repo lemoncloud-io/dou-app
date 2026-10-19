@@ -1,3 +1,5 @@
+import { RELAY_CLOUD_ID } from '@chatic/data';
+
 import { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedCloudDurability';
 
 jest.mock('./cacheStorageRouting', () => ({ isNativeApp: () => true }));
@@ -27,6 +29,13 @@ describe('invitedCloudDurability', () => {
         it('no-ops on an empty cid', async () => {
             const cloud = createCloud();
             await recoverInvitedCloudIfMissing(cloud as any, undefined);
+            expect(cloud.cacheRead).not.toHaveBeenCalled();
+            expect(mockIssue).not.toHaveBeenCalled();
+        });
+
+        it('no-ops for the relay, which delegate-cloud does not serve', async () => {
+            const cloud = createCloud();
+            await recoverInvitedCloudIfMissing(cloud as any, RELAY_CLOUD_ID);
             expect(cloud.cacheRead).not.toHaveBeenCalled();
             expect(mockIssue).not.toHaveBeenCalled();
         });

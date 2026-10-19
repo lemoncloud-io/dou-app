@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
+import { RELAY_ORIGIN_CID } from '@chatic/data';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
@@ -13,13 +14,6 @@ import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
-
-/**
- * The backend push payload marks relay-origin messages with this literal `cid`. It exists only in
- * the push payload spec — it is NOT the session layer's internal `'default'` sentinel
- * (`getSelectedCloudId()`), so it must be interpreted here and never forwarded to session APIs.
- */
-const RELAY_ORIGIN_CID = '#';
 
 /**
  * Strips only the hash so push targets can be compared against the current location.
