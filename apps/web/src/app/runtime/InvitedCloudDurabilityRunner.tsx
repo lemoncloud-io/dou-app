@@ -1,11 +1,11 @@
 import { useCallback, useRef } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
 import type { AppMessageData } from '@chatic/app-messages';
 
 import { useOnReceiveNotification } from '../bridge';
-import { extractPushContext, RELAY_ORIGIN_CID } from '../utils/resolveInAppPushRoute';
+import { extractPushContext } from '../utils/resolveInAppPushRoute';
 
 /**
  * Keeps invited clouds durable — they are the only cache type with no server list API to refill
@@ -39,8 +39,7 @@ export const InvitedCloudDurabilityRunner = (): null => {
             if (!data) return;
             // cid usually lives inside the `payload` JSON string, with a top-level fallback —
             // reuse the same extraction as push routing (do not read data.cid directly).
-            const { cid } = extractPushContext(data);
-            const cloudId = cid === RELAY_ORIGIN_CID ? RELAY_CLOUD_ID : cid;
+            const cloudId = pushCloudIdOf(extractPushContext(data).cid);
             if (!cloudId || cloudId === RELAY_CLOUD_ID) return;
 
             const inflight = inflightRef.current;

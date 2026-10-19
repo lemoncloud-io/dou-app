@@ -8,14 +8,6 @@ import { ROUTES } from '../routes/paths';
  */
 export type InAppPushData = Record<string, unknown>;
 
-/**
- * The `cid` the backend writes on a relay-origin push. It names the same server the app calls
- * `RELAY_CLOUD_ID` (`'default'`), but it is a payload marker, not a cloud id: every reader of a push
- * translates or branches on it, and none forwards it to a session or relay API — `delegate-cloud`
- * answers it with a 404.
- */
-export const RELAY_ORIGIN_CID = '#';
-
 // A dummy base so `URL` can parse both absolute-relative ("/a/b") and bare ("a/b?x=1") inputs.
 const PARSE_BASE = 'http://chatic.local';
 

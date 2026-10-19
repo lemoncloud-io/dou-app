@@ -126,9 +126,14 @@ processes one at a time.
 
 The backend marks a relay-origin push with the literal `cid` `'#'`. It names the relay — the server the
 session layer calls `'default'` (`RELAY_CLOUD_ID`) — but it is a payload marker, not a cloud id. Each
-push reader either branches on it (`usePushNavigate`) or translates it to `RELAY_CLOUD_ID`
-(`resolvePushCloudId`, `InvitedCloudDurabilityRunner`), and none forwards it to a session or relay
-API. Getting this wrong means calling `switchCloud('#')`, or `delegate-cloud` with `target: '#'`.
+push reader either branches on it (`usePushNavigate`) or translates it to `RELAY_CLOUD_ID` with
+`pushCloudIdOf` (`resolvePushCloudId`, `InvitedCloudDurabilityRunner`), and none forwards it to a session
+or relay API. Getting this wrong means calling `switchCloud('#')`, or `delegate-cloud` with `target: '#'`.
+
+The sentinel and its translation live once, in `@chatic/data` (`RELAY_ORIGIN_CID`, `pushCloudIdOf`), and
+apps/desktop-web reads its pushes through the same function. It is not renamed to `'default'` on the wire:
+apps already shipped branch on `'#'`. Nor does the app adopt `'#'` as its id: `'default'` keys stored
+caches and selections, and a `#` in a link's query would start the URL fragment.
 
 Leaving a cloud for relay does not need a re-login: relay auth underpins the cloud session through
 delegation-token exchange, so relay is still valid while a cloud is active and `logoutCloudSession()`
@@ -148,8 +153,7 @@ The guard that makes row 1 and row 5 safe is structural rather than a special ca
 to recover. So is the recovery a foreground push triggers on receipt (`InvitedCloudDurabilityRunner`):
 it reads `'#'` as the relay and skips it, because `delegate-cloud` serves only real clouds and answers
 `'#'` with a 404. That runner also issues one recovery per cloud at a time, so a burst of pushes from
-one room asks the relay once. `RELAY_ORIGIN_CID` in `utils/resolveInAppPushRoute.ts` is the one copy of
-the sentinel every push reader uses.
+one room asks the relay once.
 
 "Is a cloud active" is read from `useGlobalSession().activeServer.kind`, not from
 `selectedCloudId !== 'default'`. The former is committed session truth; the latter is a selection

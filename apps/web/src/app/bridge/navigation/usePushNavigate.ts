@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
+import { RELAY_ORIGIN_CID } from '@chatic/data';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
@@ -10,7 +11,6 @@ import { useStackNavigate } from '../../navigation';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { resolveThreadTarget } from './resolveThreadTarget';
 import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
-import { RELAY_ORIGIN_CID } from '../../utils/resolveInAppPushRoute';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
