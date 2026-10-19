@@ -29,7 +29,9 @@ const initial = { held: false, code: '', isSubmitting: false, error: null, done:
  */
 export const useInviteLoginPageStore = create<InviteLoginPageState>(set => ({
     ...initial,
-    setCode: code => set({ code }),
+    // A rejected code's alert is about the code that was sent; once the field is being
+    // edited it describes nothing on screen, so it goes with the first keystroke.
+    setCode: code => set({ code, error: null }),
     start: () => set({ held: true, isSubmitting: true, error: null }),
     finish: error => set({ isSubmitting: false, error, done: error === null }),
     release: () => set(initial),

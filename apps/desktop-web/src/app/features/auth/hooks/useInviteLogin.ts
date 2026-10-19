@@ -149,5 +149,8 @@ export const useInviteLogin = () => {
         [deviceId, loginGuest, switchCloud, switchSite, cloudRepository, addJoinedCloud, queryClient]
     );
 
-    return { login, isSubmitting, error };
+    /** Drops the last failure — the caller is editing the code or leaving. */
+    const clearError = useCallback(() => setError(null), []);
+
+    return { login, isSubmitting, error, clearError };
 };

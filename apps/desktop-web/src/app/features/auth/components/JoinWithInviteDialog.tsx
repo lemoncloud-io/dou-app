@@ -25,10 +25,20 @@ export const JoinWithInviteDialog = () => {
     const { t } = useTranslation();
     const isOpen = useJoinDialogStore(s => s.isOpen);
     const close = useJoinDialogStore(s => s.close);
-    const { login, isSubmitting, error } = useInviteLogin();
+    const { login, isSubmitting, error, clearError } = useInviteLogin();
     const [code, setCode] = useState('');
 
-    const reset = () => setCode('');
+    // The dialog stays mounted while closed, so the last failure is cleared on the way out too —
+    // otherwise reopening it greets the next attempt with the previous one's error.
+    const reset = () => {
+        setCode('');
+        clearError();
+    };
+
+    const handleCodeChange = (next: string) => {
+        setCode(next);
+        clearError();
+    };
 
     const handleOpenChange = (next: boolean) => {
         // Escape, the X and the backdrop are ignored while the invite is being redeemed, as in
@@ -57,7 +67,7 @@ export const JoinWithInviteDialog = () => {
                     <Input
                         autoFocus
                         value={code}
-                        onChange={e => setCode(e.target.value)}
+                        onChange={e => handleCodeChange(e.target.value)}
                         placeholder={t('auth.invite.placeholder')}
                         aria-label={t('auth.invite.placeholder')}
                         disabled={isSubmitting}
