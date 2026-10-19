@@ -2,9 +2,8 @@ import { useEffect } from 'react';
 
 import { isNative, webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
 
-import { pushCloudIdOf } from '../utils';
 import { useOwnedCloudIds } from './useCloudCatalog';
 
 /**

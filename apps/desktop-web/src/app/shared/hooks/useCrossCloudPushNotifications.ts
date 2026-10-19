@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -13,7 +13,6 @@ import {
     isOwnChat,
     messagePlainText,
     pushBody,
-    pushCloudIdOf,
     readCacheRecords,
     resolveMyMentionNames,
     resolvePushCloudIdFrom,

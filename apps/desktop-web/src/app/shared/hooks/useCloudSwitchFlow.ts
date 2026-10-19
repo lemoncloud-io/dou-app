@@ -5,11 +5,12 @@ import { logger } from '@chatic/bridges';
 import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
+import { pushCloudIdOf } from '@chatic/data';
 
 import { MobileAppPointer } from '../components/MobileAppPointer';
 import { useOwnedCloudIds } from './useCloudCatalog';
 import { useSelectedChannelStore } from '../stores';
-import { classifyWireError, extractErrorMessage, pushCloudIdOf } from '../utils';
+import { classifyWireError, extractErrorMessage } from '../utils';
 
 /** Why a switch failed, in words: a 400 from a dev cloud used to read the same as a dropped network. */
 export const switchCauseKey = (error: unknown): string => {

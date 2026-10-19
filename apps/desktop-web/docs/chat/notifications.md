@@ -32,10 +32,10 @@ from the existing `chat.mention.everyoneWord` key (`all` / `전체`).
 ## A push from the relay
 
 A push names its source cloud in `cid`. A message on the relay — the Home tile — carries `#` there
-instead of a cloud id, and every reader of the push turns it into the relay's own id, `default`
-(`pushCloudIdOf` in `src/app/shared/utils/pushCloudId.ts`), before using it. Read raw, `#` matched no cloud,
-so a click on the toast or banner switched to a cloud named `#` and failed with "cloud not found",
-even on the relay.
+instead of a cloud id, and every reader of the push turns it into the relay's own id, `default`, before
+using it: `pushCloudIdOf` from `@chatic/data`, the same function apps/web reads its pushes through.
+Read raw, `#` matched no cloud, so a click on the toast or banner switched to a cloud named `#` and
+failed with "cloud not found", even on the relay.
 
 - **Opening it.** The click lands on the relay: from another cloud it leaves that cloud, and on the
   relay it opens the channel in place. The open names no place, because the Default Cloud pins its

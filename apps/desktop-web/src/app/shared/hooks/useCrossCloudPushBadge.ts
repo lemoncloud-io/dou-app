@@ -2,10 +2,10 @@ import { useEffect } from 'react';
 
 import { webClient } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { pushCloudIdOf, RELAY_CLOUD_ID } from '@chatic/data';
 
 import { useCloudPushBadgeStore } from '../stores';
-import { pushCloudIdOf, resolvePushCloudId } from '../utils';
+import { resolvePushCloudId } from '../utils';
 
 /**
  * Cross-cloud push → rail badge. The live socket only covers the active cloud,
