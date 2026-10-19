@@ -30,6 +30,8 @@ export interface MessageInputProps {
     maxHeight?: number;
     /** Accessible label for the textarea. Host supplies a localized string. */
     label?: string;
+    /** Accessible name of the send button. Host supplies a localized string. */
+    sendLabel?: string;
     /**
      * Optional key handler on the textarea — e.g. the host wiring Enter-to-send on
      * desktop while leaving Enter as a newline on mobile.
@@ -73,6 +75,7 @@ export const MessageInput = ({
     disabled = false,
     maxHeight = 279,
     label,
+    sendLabel = 'Send',
     onKeyDown,
     inputRef,
     leadingSlot,
@@ -170,7 +173,7 @@ export const MessageInput = ({
                 // textarea is disabled too and there is no keyboard left to preserve.
                 disabled={disabled}
                 aria-disabled={!canSend}
-                aria-label="Send"
+                aria-label={sendLabel}
                 className={cn(
                     'flex size-8 shrink-0 items-center justify-center rounded-full p-[9px] transition-colors',
                     canSend ? 'bg-brand-ink' : 'bg-control-idle',

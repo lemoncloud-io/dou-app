@@ -15,13 +15,7 @@ export const PrivateLayout = (): JSX.Element => {
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden">
-                <main
-                    id="main-content"
-                    className="flex-1 overflow-auto bg-background"
-                    role="main"
-                    aria-label="Main content"
-                    tabIndex={-1}
-                >
+                <main id="main-content" className="flex-1 overflow-auto bg-background" role="main" tabIndex={-1}>
                     <div className="min-h-full flex flex-col">
                         <div className="flex-1">
                             <Outlet />

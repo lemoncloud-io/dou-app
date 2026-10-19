@@ -62,7 +62,7 @@ export const PhoneVerifyScreen = (props: PhoneVerifyScreenProps) => {
                     360px. Measured fixed at 320 / 360 / 375. */}
                 <div className="flex h-full min-w-0 flex-col pt-safe-top">
                     <div className="flex h-[60px] shrink-0 items-center justify-end px-4">
-                        <button onClick={onClose} className="-mr-1 rounded-full p-1" aria-label="close">
+                        <button onClick={onClose} className="-mr-1 rounded-full p-1" aria-label={t('common.close')}>
                             <X size={24} strokeWidth={2} />
                         </button>
                     </div>

@@ -343,6 +343,7 @@ export const InviteWaitingPage = () => {
                     disabled
                     placeholder={t('inviteWaiting.composerPlaceholder')}
                     label={t('inviteWaiting.composerPlaceholder')}
+                    sendLabel={t('common.send')}
                 />
             </div>
 
