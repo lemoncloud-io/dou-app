@@ -1,0 +1,20 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "../../dist/out-tsc/shell-adapter",
+        "tsBuildInfoFile": "../../dist/out-tsc/shell-adapter/tsconfig.app.tsbuildinfo",
+        "lib": ["es2022", "dom"],
+        "types": ["node"],
+        "rootDir": "../.."
+    },
+    "exclude": ["out-tsc", "dist", "src/**/*.spec.ts"],
+    "include": ["src/**/*.ts", "vite.shell.config.mts", "../../hybrid-shell.config.ts"],
+    "references": [
+        {
+            "path": "../../libs/app-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/fake-shell/tsconfig.lib.json"
+        }
+    ]
+}

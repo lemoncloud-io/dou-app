@@ -21,9 +21,8 @@ export interface AppInjectionModule {
  * globals it sets — device info, the `ChaticMessageHandler` relay, the config bag, the safe-area
  * variables — are part of what the web reads at boot, and a copy would drift from what the app injects.
  *
- * Each caller loads that module without a static import: the e2e suite from a computed path at run
- * time, the virtual shell through a bundler alias. A static import would make the mobile app a
- * dependency of the caller's project, `nx sync` would then add it to its TypeScript references, and
+ * The e2e suite loads that module without a static import, from a computed path at run time. A
+ * static import would make the mobile app a dependency of the caller's project, `nx sync` would then add it to its TypeScript references, and
  * typechecking that project would build the mobile app too — whose typecheck is red and left out of CI.
  * The file itself is a pure string builder with type-only imports, so loading it pulls nothing else in.
  *

@@ -26,7 +26,7 @@ because they carry real endpoints — download them from the team secrets reposi
 
 The other ways to run — the web alone, the simulator — are `yarn local --mode web` and
 `yarn local --mode native` (`--platform android` for the emulator); see
-[apps/virtual-shell/README.md](./apps/virtual-shell/README.md).
+[apps/shell-adapter/README.md](./apps/shell-adapter/README.md).
 
 ## Env and Firebase files — the team secrets repository
 

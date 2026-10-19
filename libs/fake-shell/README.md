@@ -7,10 +7,10 @@ caller supplies the transport — how a message reaches the page and how the pag
 
 Two callers, and only these two:
 
-| Caller                                                     | Transport                                                                   |
-| ---------------------------------------------------------- | --------------------------------------------------------------------------- |
-| [`apps/web-e2e`](../../apps/web-e2e/README.md)             | Playwright: `page.exposeFunction` in, `page.evaluate` dispatching the reply |
-| [`apps/virtual-shell`](../../apps/virtual-shell/README.md) | A same-origin iframe: a direct call in, a `MessageEvent` on the frame       |
+| Caller                                                     | Uses                                                                                    |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| [`apps/web-e2e`](../../apps/web-e2e/README.md)             | The core, with a Playwright transport: `page.exposeFunction` in, `page.evaluate` out    |
+| [`apps/shell-adapter`](../../apps/shell-adapter/README.md) | The handler tables only (`bootHandlers`, `MemoryCache`), as the virtual shell's answers |
 
 **Product code never imports this.** It is not in the `@chatic/bridges` barrel, which ships in the web
 and the app, and nothing outside the two callers may depend on it. No lint rule enforces that; it is
@@ -33,7 +33,7 @@ other.
 A handler returns the payload of the reply `WEB_MESSAGE_RESPONSE_TYPE` pairs with its request
 (`ShellReply<K>`); the reply's `type` is filled in from that map, never by the handler. Renaming a
 reply or changing its payload in `@chatic/app-messages` therefore breaks every table that answers it —
-the e2e fixtures and the virtual shell alike — at compile time, instead of leaving a fake that answers
+the e2e fixtures and the virtual shell's handler module alike — at compile time, instead of leaving a fake that answers
 a contract the app no longer speaks. `ShellFailure` answers `success: false` with a domain code;
 leaving a type out answers the host's own `NOT_FOUND`, which the web reads as an app built before
 that message.
@@ -68,7 +68,7 @@ the handshake and the `Ping` probe — count as handled.
 
 `guardAppInjection(module)` wraps `getSyncInjectionScript` from
 `apps/mobile/src/app/webview/utils/injectionScripts.ts`. Each caller loads that module without a
-static import — the e2e suite from a computed path at run time, the virtual shell through a Vite alias —
+static import — the e2e suite from a computed path at run time —
 because an import would make `@chatic/mobile` a dependency of the caller's project, and typechecking it
 would then build the mobile app (red, and outside CI). What that costs is the compile-time check of the
 arguments against the app's parameter type; the guard refuses a script that assigns `undefined` to a

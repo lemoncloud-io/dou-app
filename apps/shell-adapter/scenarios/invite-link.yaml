@@ -1,0 +1,12 @@
+name: an invite link opens the app on its invite screen
+prod: safe
+requires: [deeplink]
+# Run it in a shell past the app's onboarding, as a person's is: onboarding holds a link until it is done.
+steps:
+    - deeplink: 'https://app-dev.chatic.io/s?code=invt:0:virtual-shell-sample&relay'
+    - expect.event: { name: OnNavigate, source: shell→web }
+    - expect.path: { path: /invite/accept, within: 10s }
+    # A code no server knows: the app's own answer to a stale invite.
+    - expect.text: { text: This invite is not valid., within: 10s }
+    # Leave the app as it was: the notice holds the screen until it is dismissed.
+    - click: { text: OK }

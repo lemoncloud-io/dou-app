@@ -137,7 +137,7 @@ dou-app/
 ├── apps/
 │   ├── web/                 # Main web application (port 5003)
 │   ├── web-e2e/             # Playwright E2E of web inside a fake native shell
-│   ├── virtual-shell/       # The web inside a virtual mobile shell — `yarn local` (port 5007)
+│   ├── shell-adapter/       # The app's side of the virtual mobile shell — `yarn local` (port 5007)
 │   ├── admin-v2/            # Admin dashboard (port 5001)
 │   ├── landing/             # Marketing site & policy pages (port 5004)
 │   ├── desktop-web/         # Web client for the Desktop shell (port 5005)
@@ -156,7 +156,7 @@ dou-app/
 │   ├── app-runtime/         # Session, sockets, repositories, sync runtimes
 │   ├── bridges/             # WebView transport between web and native shell
 │   ├── app-messages/        # Bridge message vocabulary (web <-> native)
-│   ├── fake-shell/          # Fake native shell core shared by web-e2e and virtual-shell
+│   ├── fake-shell/          # Fake native shell core of web-e2e; its answers back the virtual shell's
 │   ├── device-utils/        # Injected device info, reader hooks
 │   ├── auth-sign/           # Lemon HMAC request signing
 │   ├── logger/              # Cross-platform logging core
@@ -238,8 +238,8 @@ credentials a fresh checkout needs — lives in **[ONBOARDING.md](./ONBOARDING.m
 ## Development
 
 ```bash
-# The app, locally — the web inside the virtual mobile shell, no simulator (apps/virtual-shell/README.md)
-yarn local                    # http://localhost:5007/__shell/ · dev (asked in a terminal); --env prod (:5017), --mode web|native
+# The app, locally — the web inside the virtual mobile shell, no simulator (apps/shell-adapter/README.md)
+yarn local                    # http://localhost:5007/__shell/ · dev; --env prod (:5017), --mode web|native
 
 # Web app
 yarn web:start                # http://localhost:5003

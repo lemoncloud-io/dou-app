@@ -61,9 +61,9 @@ names `shell` or `backend` still runs inside the app, against the fixtures.
 The shell is the mobile app's own `AppBridgeHost` (`@chatic/bridges`) running in the test process, with
 a Playwright transport in place of the WebView: the page's `postMessage` reaches it through
 `page.exposeFunction`, and its replies go back as a JSON string dispatched as a `message` event.
-Everything but that transport lives in [`libs/fake-shell`](../../libs/fake-shell/README.md), shared
-with the virtual shell ([`apps/virtual-shell`](../virtual-shell/README.md)), so a message contract has
-one fake to follow. Because the host is the app's own, the envelope rules — matching a reply to its
+Everything but that transport lives in [`libs/fake-shell`](../../libs/fake-shell/README.md), whose
+handler tables the virtual shell answers with too ([`apps/shell-adapter`](../shell-adapter/README.md)),
+so a message contract has one set of fake answers to follow. Because the host is the app's own, the envelope rules — matching a reply to its
 `refId`, `NOT_FOUND` for a message without a handler, the WebAppReady handshake, holding events until
 the web is ready — are production code. What is fake is the handlers.
 

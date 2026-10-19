@@ -1,0 +1,14 @@
+name: a room message tapped from the background opens its room
+prod: unsafe
+requires: [push.tapped]
+# A room the signed-in account is in; the self chat room's channel id works. Pass it as a run var.
+vars: { room: 'U:1002002' }
+steps:
+    - app.background
+    - push.tap:
+          - title: New message
+            data:
+                { type: chat, link: '/channels/{{room}}/room', payload: '{"cid":"#","sid":"1","channelId":"{{room}}"}' }
+    - expect.event: { name: OnNavigate, source: shell→web }
+    - expect.path: '/channels/{{room}}/room'
+    - expect.status: { appState: active }
