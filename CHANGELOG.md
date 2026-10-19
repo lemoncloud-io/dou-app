@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-19] - No version updates
+
+### Features
+
+- (local) run the virtual shell from @lemoncloud/hybrid-shell
+
 ## [2026-10-19] - root@0.106.3, @chatic/landing@0.5.6
 
 ### Bug Fixes
