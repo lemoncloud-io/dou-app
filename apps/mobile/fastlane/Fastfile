@@ -145,7 +145,7 @@ platform :ios do
       distribute_external: false
     )
 
-    upload_store_dsyms(env: env, api_key: api_key)
+    upload_archive_dsyms(env: env)
 
     keep_hermes_sourcemap(
       env: env,
@@ -153,31 +153,37 @@ platform :ios do
     )
   end
 
-  # The Xcode run script phase uploads the dSYM produced locally by this build,
-  # but App Store Connect regenerates dSYMs while processing — and it is that
-  # copy the store build actually ships with. Without fetching it back,
-  # Crashlytics has no matching UUID and every store crash arrives as a list of
-  # addresses. upload_to_testflight above already waited for processing, so the
-  # dSYMs exist by the time this runs.
-  private_lane :upload_store_dsyms do |options|
-    env = options[:env]
-    plist = env == 'prod' ? 'GoogleService-Info-Prod.plist' : 'GoogleService-Info-Dev.plist'
+  # The archive's dSYMs are the ones the store build ships with. Bitcode is off,
+  # so App Store Connect re-links nothing and generates no dSYMs of its own —
+  # fetching them back with download_dsyms only ever waited out its timeout, once
+  # for every build in the account. The Xcode run script phase uploads them too,
+  # but in the background with nothing reporting whether it finished, so the
+  # archive's zip is uploaded here, where a failure shows up in the deploy log.
+  #
+  # A failure is a warning, not a lane failure: the build is already on
+  # TestFlight, and the sourcemap step after this still has to run. The zip is
+  # left in place so the upload can be retried by hand.
+  private_lane :upload_archive_dsyms do |options|
+    plist = options[:env] == 'prod' ? 'GoogleService-Info-Prod.plist' : 'GoogleService-Info-Dev.plist'
+    dsym = lane_context[SharedValues::DSYM_OUTPUT_PATH]
 
-    download_dsyms(
-      api_key: options[:api_key],
-      app_identifier: APP_IDS[env],
-      wait_for_dsym_processing: true
-    )
-
-    # No dSYM to fetch is not a failure: a rebuild of an already-processed
-    # version returns nothing, and the local run script already covered it.
-    if lane_context[SharedValues::DSYM_PATHS].to_a.empty?
-      UI.important('No regenerated dSYMs came back from App Store Connect — keeping the build-time upload.')
+    unless dsym && File.exist?(dsym)
+      UI.important('build_app produced no dSYM zip — relying on the run script phase upload.')
       next
     end
 
-    upload_symbols_to_crashlytics(gsp_path: "ios/Firebase/#{plist}")
-    clean_build_artifacts
+    begin
+      upload_symbols_to_crashlytics(
+        dsym_path: dsym,
+        gsp_path: "ios/Firebase/#{plist}",
+        # Lanes run from apps/mobile, so fastlane's own ./Pods lookup misses it.
+        binary_path: 'ios/Pods/FirebaseCrashlytics/upload-symbols'
+      )
+      clean_build_artifacts
+    rescue StandardError => e
+      UI.important("Crashlytics dSYM upload failed: #{e.message}")
+      UI.important("Retry from apps/mobile: ios/Pods/FirebaseCrashlytics/upload-symbols -gsp ios/Firebase/#{plist} -p ios #{dsym}")
+    end
   end
 end
 

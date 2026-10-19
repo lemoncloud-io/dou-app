@@ -53,6 +53,10 @@ yarn mobile:deploy:android:prod -m "..."
   not a retry-after-failure step.
 - iOS deploy waits for build processing to finish before it can apply the changelog (can take minutes
   to tens of minutes).
+- iOS deploy then uploads the archive's dSYMs to Crashlytics. With bitcode off, the archived binary
+  is the one the store ships and App Store Connect generates no dSYMs of its own, so there is
+  nothing to fetch back from it. A failed symbol upload is logged with a retry command and does not
+  fail the deploy — the build is already on TestFlight by then.
 
 ## Android code shrinking (R8)
 
