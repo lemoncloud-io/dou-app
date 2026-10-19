@@ -143,6 +143,21 @@ describe('SendInviteDialog', () => {
         );
     });
 
+    it('shows the server reason in the failure toast', async () => {
+        createInvite.mockRejectedValueOnce(new Error('403 NOT ALLOWED - user is banned @issueInvite(U1)'));
+        openDialog();
+
+        submitValid();
+
+        await screen.findByRole('alert');
+        expect(toast).toHaveBeenCalledWith(
+            expect.objectContaining({
+                variant: 'destructive',
+                description: '403 NOT ALLOWED - user is banned @issueInvite(U1)',
+            })
+        );
+    });
+
     it('asks to check the number only when the server rejected the number', async () => {
         createInvite.mockRejectedValueOnce(new Error('400 INVALID - @phone is invalid'));
         openDialog();

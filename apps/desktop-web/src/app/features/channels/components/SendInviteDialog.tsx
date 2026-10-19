@@ -46,17 +46,22 @@ const sendFailureKind = (error: unknown, raw: string): WireErrorKind => {
 };
 
 /**
- * The sentence for a refused send. The server's wire text goes to the log, where it names the
- * actual reason; the person gets the part they can act on. A contact invite rides the relay, which
+ * The sentence for a refused send, and the server's own wire text beside it. The sentence is the
+ * part the person can act on; the wire text goes to the log and to the toast, so the actual reason
+ * can be read back without opening the console. A contact invite rides the relay, which
  * issues invites to signed-in accounts only, so its refusal reads as "sign in first" when the relay
  * user is a guest (or there is no relay user, where signing in is the remedy too). The same 403
  * also covers a banned or departed account, and a place invite is refused for reasons of its own,
  * so every other refusal gets the plain "not allowed".
  */
-const sendFailureKey = (error: unknown, kind: 'channel' | 'place'): string => {
+const describeSendFailure = (error: unknown, kind: 'channel' | 'place'): { key: string; raw: string } => {
     const raw = extractErrorMessage(error);
     logger.error('INVITE', '[SendInvite] failed', { error, raw, kind });
-    switch (sendFailureKind(error, raw)) {
+    return { key: sendFailureKeyOf(sendFailureKind(error, raw), kind), raw };
+};
+
+const sendFailureKeyOf = (failure: WireErrorKind, kind: 'channel' | 'place'): string => {
+    switch (failure) {
         case 'denied':
             return kind === 'channel' && isRelayGuest() ? 'invite.send.signInRequired' : 'errors.notAllowed';
         case 'invalid':
@@ -139,8 +144,9 @@ export const SendInviteDialog = () => {
                 useInviteLinkStore.getState().open(view.deeplink);
             }
         } catch (failure) {
-            toast({ title: t('invite.send.failed'), variant: 'destructive' });
-            setError(t(sendFailureKey(failure, target.kind)));
+            const { key, raw } = describeSendFailure(failure, target.kind);
+            toast({ title: t('invite.send.failed'), description: raw || undefined, variant: 'destructive' });
+            setError(t(key));
         }
     };
 
