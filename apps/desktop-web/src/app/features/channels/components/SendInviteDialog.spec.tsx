@@ -17,9 +17,21 @@ vi.mock('@chatic/app-runtime', () => ({
                 },
             }),
         },
-        session: { useSessionSelection: () => ({ selectedSiteId: 'site-1' }) },
+        session: {
+            useSessionSelection: () => ({ selectedSiteId: 'site-1' }),
+            getRelaySessionUser: () => relayUser.current,
+        },
     },
 }));
+
+// The relay user the invite is issued as: a contact invite rides the relay slot.
+const relayUser = vi.hoisted(() => ({ current: { userRole: 'user' } as { userRole: string } | null }));
+
+const logError = vi.hoisted(() => vi.fn());
+vi.mock('@chatic/bridges', async importOriginal => {
+    const actual = await importOriginal<{ logger: object }>();
+    return { ...actual, logger: { ...actual.logger, error: logError } };
+});
 
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
@@ -59,7 +71,14 @@ describe('SendInviteDialog', () => {
         useSendInviteStore.getState().close();
         useInviteWaitingStore.getState().close();
         useInviteLinkStore.getState().close();
+        relayUser.current = { userRole: 'user' };
     });
+
+    const submitValid = () => {
+        fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Ada' } });
+        fireEvent.change(screen.getByLabelText('Phone number'), { target: { value: '+821024792987' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Send invite' }));
+    };
 
     it('blocks an invalid phone with an inline error and sends nothing', () => {
         openDialog();
@@ -84,6 +103,103 @@ describe('SendInviteDialog', () => {
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
         // Still open: the failure is shown in place, not stranded on a closed dialog.
         expect(screen.getByRole('dialog')).toBeTruthy();
+    });
+
+    it('tells a guest that inviting needs a signed-in account, not to check the number', async () => {
+        relayUser.current = { userRole: 'guest' };
+        createInvite.mockRejectedValueOnce(new Error('403 NOT ALLOWED - main user only @issueInvite(U1)'));
+        openDialog();
+
+        submitValid();
+
+        const alert = await screen.findByRole('alert');
+        expect(alert.textContent).toContain('signed-in account');
+        expect(alert.textContent).not.toContain('Check the number');
+    });
+
+    it('does not ask a guest to sign in for a refused place invite', async () => {
+        relayUser.current = { userRole: 'guest' };
+        requestPlaceInvite.mockRejectedValueOnce(new Error('403 NOT ALLOWED - not the owner'));
+        openPlaceDialog();
+
+        submitValid();
+
+        const alert = await screen.findByRole('alert');
+        expect(alert.textContent).not.toContain('signed-in account');
+        expect(alert.textContent).not.toContain('Check the number');
+    });
+
+    it('keeps the server reason for a failed invite in the log', async () => {
+        createInvite.mockRejectedValueOnce(new Error('403 NOT ALLOWED - user is banned @issueInvite(U1)'));
+        openDialog();
+
+        submitValid();
+
+        await screen.findByRole('alert');
+        expect(logError).toHaveBeenCalledWith(
+            'INVITE',
+            expect.any(String),
+            expect.objectContaining({ raw: '403 NOT ALLOWED - user is banned @issueInvite(U1)' })
+        );
+    });
+
+    it('shows the server reason in the dialog, where the dimmed toast cannot be read', async () => {
+        createInvite.mockRejectedValueOnce(new Error('403 NOT ALLOWED - main user only @issueInvite(U1)'));
+        openDialog();
+
+        submitValid();
+
+        expect((await screen.findByRole('alert')).textContent).toContain(
+            '403 NOT ALLOWED - main user only @issueInvite(U1)'
+        );
+    });
+
+    it('shows the server reason in the failure toast', async () => {
+        createInvite.mockRejectedValueOnce(new Error('403 NOT ALLOWED - user is banned @issueInvite(U1)'));
+        openDialog();
+
+        submitValid();
+
+        await screen.findByRole('alert');
+        expect(toast).toHaveBeenCalledWith(
+            expect.objectContaining({
+                variant: 'destructive',
+                description: '403 NOT ALLOWED - user is banned @issueInvite(U1)',
+            })
+        );
+    });
+
+    it('asks to check the number only when the server rejected the number', async () => {
+        createInvite.mockRejectedValueOnce(new Error('400 INVALID - @phone is invalid'));
+        openDialog();
+
+        submitValid();
+
+        expect((await screen.findByRole('alert')).textContent).toContain('Check the number');
+    });
+
+    it.each([
+        ['no socket', '503 SOCKET NOT CONNECTED - WebSocketTransport.send()'],
+        ['a timeout', '408 REQUEST TIMEOUT - invite.create'],
+    ])('shows the connection line, not the number check, for %s', async (_label, message) => {
+        createInvite.mockRejectedValueOnce(new Error(message));
+        openDialog();
+
+        submitValid();
+
+        expect((await screen.findByRole('alert')).textContent).toContain("Couldn't reach the server");
+    });
+
+    it('reads the refusal from the carried status when the wording has none', async () => {
+        relayUser.current = { userRole: 'guest' };
+        createInvite.mockRejectedValueOnce(
+            Object.assign(new Error('main user only - invite.create:error'), { errorCode: 403 })
+        );
+        openDialog();
+
+        submitValid();
+
+        expect((await screen.findByRole('alert')).textContent).toContain('signed-in account');
     });
 
     it('copies the invite link and closes on success', async () => {

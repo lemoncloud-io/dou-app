@@ -525,6 +525,7 @@ export const ko: EnTranslation = {
     'invite.send.sent': '{{name}}님을 초대했어요. 링크가 복사됐어요.',
     'invite.send.failed': '초대를 보내지 못했어요.',
     'invite.send.failedBody': '초대를 보내지 못했어요. 번호를 확인하고 다시 시도해 주세요.',
+    'invite.send.signInRequired': '초대는 로그인한 계정에서만 보낼 수 있어요. 로그인한 뒤 다시 시도해 주세요.',
     'invite.send.missingLink': '초대는 만들어졌지만 링크가 없어요. 다시 시도해 주세요.',
     'invite.link.title': '초대 링크가 준비됐어요',
     'invite.link.subtitle': '이 링크를 원하는 방법으로 공유해 주세요 — 이 플레이스로 연결돼요.',
