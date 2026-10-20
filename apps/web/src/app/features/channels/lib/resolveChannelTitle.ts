@@ -6,9 +6,9 @@ import { dmLineageOf } from './channelStereoPolicy';
 
 export interface ResolveChannelTitleInput {
     channel: DomainChannel;
-    /** My user id — drives the owner-vs-member branch (channel.ownerId === uid). */
+    /** My user id — the self-chat and DM chains read it. */
     uid?: string;
-    /** My nick in this channel, from the subscribed join list (freshest after a rename). */
+    /** My nick in this channel, from the subscribed join list (freshest after a rename). Self and DM only. */
     joinNick?: string;
     /** My active-place profile nick — the self-chat fallback. */
     myNick?: string;
@@ -28,13 +28,16 @@ export interface ResolveChannelTitleInput {
  *   - self  → the self-chat title chain (join nick → embedded `$join` nick → profile nick → label)
  *   - dm    → the DM chain (my join nick → peer profile nick → channel.name → label; ADR-0039),
  *             with step 1 dropped for a cloud 1:1 — see the note at that branch
- *   - owner → the owner-set `channel.name` (my own join nick is ignored)
- *   - member → my per-channel join nick, falling back to `channel.name`
+ *   - group → the owner-set `channel.name`, for owner and member alike
  *
- * The DM branch returns before the owner/member split reaches it. That split is wrong for a DM: the
- * inviter owns the channel, so it would show the server-set `channel.name` and ignore both my own
- * name for the room and the peer's profile — which is exactly how the home list came to disagree
- * with the room header.
+ * A group ignores my join nick whatever my role. A push names a group by its shared name — the
+ * server builds one payload per message for every recipient, so it cannot carry each member's own
+ * name for the room — and a member who had named the room would otherwise see one title in the app
+ * and another on the lock screen. The join nick stays stored; it is just not read for a group.
+ *
+ * The DM branch returns before the group rule reaches it. That rule is wrong for a DM: the inviter
+ * owns the channel and the server sets its name, so it would ignore both my own name for the room and
+ * the peer's profile — which is exactly how the home list came to disagree with the room header.
  */
 export const resolveChannelTitle = ({
     channel,
@@ -80,7 +83,5 @@ export const resolveChannelTitle = ({
             selfUserId: uid,
         });
     }
-    const isOwner = !!uid && channel.ownerId === uid;
-    const memberNick = joinNick ?? channel.$join?.nick;
-    return isOwner ? channel.name?.trim() || unnamedLabel : memberNick?.trim() || channel.name?.trim() || unnamedLabel;
+    return channel.name?.trim() || unnamedLabel;
 };

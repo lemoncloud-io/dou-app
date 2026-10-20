@@ -10,7 +10,6 @@ jest.mock('@chatic/shared', () => ({ prepareImage: jest.fn() }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: jest.fn() }) }));
 
 const updateChannel = jest.fn().mockResolvedValue({});
-const updateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 
 // Stable channel reference — the real useChannel returns a memoized cache view, so the
 // seed effect (`useEffect([channel])`) must not re-run on every render.
@@ -18,20 +17,18 @@ let mockChannel: Record<string, unknown> = {};
 jest.mock('../hooks', () => ({
     useChannel: () => ({ channel: mockChannel }),
     useChannelMutations: () => ({ updateChannel, isPending: { update: false } }),
-    useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
 }));
 
 beforeEach(() => {
     jest.clearAllMocks();
 });
 
-describe('UpdateChannelDialog — 역할별 2모드', () => {
+describe('UpdateChannelDialog — owner only', () => {
     it('소유자: 아바타 편집 가능·서브타이틀 없음, 저장 시 updateChannel(name, thumbnail)', async () => {
         mockChannel = { name: '방', thumbnail: '', isOwner: true, $join: undefined };
         render(<UpdateChannelDialog open onOpenChange={() => undefined} channelId="c1" />);
 
         expect(screen.getByText('updateChannel.heading')).toBeInTheDocument();
-        expect(screen.queryByText('updateChannel.invitedSubtitle')).not.toBeInTheDocument();
         // Owner avatar exposes the photo-select affordance.
         expect(screen.getByLabelText('updateChannel.selectPhoto')).toBeInTheDocument();
 
@@ -42,26 +39,21 @@ describe('UpdateChannelDialog — 역할별 2모드', () => {
         fireEvent.click(screen.getByText('updateChannel.done'));
 
         await waitFor(() => expect(updateChannel).toHaveBeenCalledWith({ channelId: 'c1', name: '새 방 이름' }));
-        expect(updateJoin).not.toHaveBeenCalled();
     });
 
-    it('초대받은자: 서브타이틀·아바타 읽기전용·소유자 방 이름 캡션, 저장 시 updateJoin(nick)', async () => {
+    // A group is titled by its shared name for everyone, so a member has no name of their own to
+    // save here. The settings row does not open this dialog for one; if it is opened anyway, it shows
+    // the room as it is and saves nothing.
+    it('saves nothing for a member who reaches it anyway', () => {
         mockChannel = { name: '소유자방', thumbnail: 'data:img', isOwner: false, $join: { nick: '내닉' } };
         render(<UpdateChannelDialog open onOpenChange={() => undefined} channelId="c1" />);
 
-        expect(screen.getByText('updateChannel.invitedSubtitle')).toBeInTheDocument();
-        // No photo-select affordance for invited members.
         expect(screen.queryByLabelText('updateChannel.selectPhoto')).not.toBeInTheDocument();
-        // Caption shows the owner-set room name.
-        expect(screen.getByText('소유자방')).toBeInTheDocument();
 
-        // Placeholder shows the owner room name; field starts empty for both roles.
-        const input = screen.getByPlaceholderText('소유자방');
-        expect(input).toHaveValue('');
-        fireEvent.change(input, { target: { value: '나만의 방 이름' } });
+        fireEvent.change(screen.getByPlaceholderText('소유자방'), { target: { value: '나만의 방 이름' } });
+        const done = screen.getByText('updateChannel.done').closest('button');
+        expect(done).toBeDisabled();
         fireEvent.click(screen.getByText('updateChannel.done'));
-
-        await waitFor(() => expect(updateJoin).toHaveBeenCalledWith({ channelId: 'c1', nick: '나만의 방 이름' }));
         expect(updateChannel).not.toHaveBeenCalled();
     });
 

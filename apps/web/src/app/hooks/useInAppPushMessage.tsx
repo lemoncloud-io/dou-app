@@ -30,12 +30,14 @@ const VIEWING_CHANNEL_ROUTES = [ROUTES.channels.room(':channelId'), ROUTES.chann
 const IN_APP_PUSH_DURATION_MS = 5_000;
 
 /**
- * Headline for the banner: the channel's name when known — sender titles baked by the backend are
- * unreliable — else the push's own title. The name is shown as-is: the `#` this used to prefix is
- * a public-channel convention DoU has no equivalent of, and the payload carries no stereo, so it
- * was landing on 1:1 and self rooms too.
+ * Headline for the banner: the push's own title, else the channel's name. The title is the one the
+ * lock screen shows — the room name for a group, the sender as this reader knows them for a 1:1 —
+ * while `channelName` is the room record's name at send time, which for a 1:1 need not be the person
+ * at all. An empty title counts as none. The name is shown as-is: the `#` this used to prefix is a
+ * public-channel convention DoU has no equivalent of, and the payload carries no stereo, so it was
+ * landing on 1:1 and self rooms too.
  */
-const headline = (channelName: string | undefined, title: string | undefined): string => channelName ?? title ?? '';
+const headline = (title: string | undefined, channelName: string | undefined): string => title || channelName || '';
 
 /**
  * Presents foreground pushes (`OnReceiveNotification`) as an in-app banner, Slack/Kakao
@@ -113,7 +115,7 @@ export const useInAppPushMessage = (): void => {
             toast.custom(
                 toastId => (
                     <InAppNotificationCard
-                        title={headline(channelName, title)}
+                        title={headline(title, channelName)}
                         body={body}
                         avatarUrl={thumbnail}
                         onClick={

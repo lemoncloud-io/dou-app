@@ -1,6 +1,7 @@
 # ADR-0023: Redesign the channel detail dialogs (room info, member profile), and introduce a personal room name (join.nick)
 
-> Status: Accepted · Decided: 2026-07-20
+> Status: Superseded in part by [ADR-0218](./0218-a-group-is-titled-by-its-name-for-every-member.md) —
+> decision 1's invitee mode, and decision 2's `join.nick` merge for groups · Decided: 2026-07-20
 
 Related ADRs:
 [[0014-home-screen-figma-visual-refinement]](./0014-home-screen-figma-visual-refinement.md) (its "member nickname editing is out of scope" position — partly reversed here),

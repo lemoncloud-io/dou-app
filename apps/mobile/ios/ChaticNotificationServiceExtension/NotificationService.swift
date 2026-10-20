@@ -1,10 +1,16 @@
 import UserNotifications
 import Foundation
+import ImageIO
 
 class NotificationService: UNNotificationServiceExtension {
 
     var contentHandler: ((UNNotificationContent) -> Void)?
     var bestAttemptContent: UNMutableNotificationContent?
+    /// Guards `contentHandler`, `thumbnailTask` and the content's attachments: the thumbnail fetch and
+    /// `serviceExtensionTimeWillExpire` run on different threads and can race to deliver, and the
+    /// handler must run exactly once.
+    private let deliveryLock = NSLock()
+    private var thumbnailTask: URLSessionDownloadTask?
 
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
         self.contentHandler = contentHandler
@@ -51,14 +57,161 @@ class NotificationService: UNNotificationServiceExtension {
             // the true total on the next foreground.
             applyBadgeIncrementIfNeeded(channelId: channelId, userInfo: userInfo, content: bestAttemptContent)
 
-            contentHandler(bestAttemptContent)
+            // The copy is final before the image is even asked for, so whichever way delivery happens
+            // — fetched, failed, or cut off by the system's deadline — the banner reads translated.
+            // While the app is active the system banner is suppressed and the web draws its own, with
+            // the same image — fetching here would cost a download nobody sees.
+            guard !isAppActive(), let thumbnailURL = senderThumbnailURL(userInfo) else {
+                deliver()
+                return
+            }
+            attachSenderThumbnail(from: thumbnailURL)
         }
     }
     
     override func serviceExtensionTimeWillExpire() {
-        if let contentHandler = contentHandler, let bestAttemptContent = bestAttemptContent {
-            contentHandler(bestAttemptContent)
+        deliveryLock.lock()
+        let task = thumbnailTask
+        deliveryLock.unlock()
+        task?.cancel()
+        deliver()
+    }
+
+    /// Hands the content to the system once, with `attachment` if one is given and nothing has been
+    /// delivered yet; later calls are no-ops. Returns whether this call delivered.
+    @discardableResult
+    private func deliver(attachment: UNNotificationAttachment? = nil) -> Bool {
+        deliveryLock.lock()
+        let handler = contentHandler
+        contentHandler = nil
+        if handler != nil, let attachment = attachment {
+            bestAttemptContent?.attachments = [attachment]
         }
+        deliveryLock.unlock()
+        guard let handler = handler, let content = bestAttemptContent else { return false }
+        handler(content)
+        return true
+    }
+
+    private func isAppActive() -> Bool {
+        UserDefaults(suiteName: NotificationService.appGroupId)?.bool(forKey: NotificationService.appActiveKey) ?? false
+    }
+
+    // MARK: - Sender profile image
+
+    /// The whole budget for fetching the sender's image; past it the banner goes without one.
+    private static let thumbnailTimeout: TimeInterval = 3
+    /// Size cap on the fetched image; a bigger one is dropped.
+    private static let thumbnailMaxBytes = 1_048_576
+    /// Pixel edge the image is decoded down to. Decoding at full size could pass the extension's
+    /// small memory limit on its own, so ImageIO downsamples straight from the file.
+    private static let thumbnailEdge = 256
+    /// Largest source image, in pixels, that is decoded at all. A small file can declare a huge
+    /// image, and not every format's thumbnail path avoids a full decode; past this it is skipped.
+    private static let thumbnailMaxSourcePixels = 16_000_000
+
+    /// The payload's `thumbnail`, if it is an `https://` address — anything else (absent, `http://`,
+    /// a `data:` or `file:` URI) is ignored. The host itself is not restricted.
+    private func senderThumbnailURL(_ userInfo: [AnyHashable: Any]) -> URL? {
+        guard let raw = (flattenedPayload(userInfo)["thumbnail"] as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              raw.lowercased().hasPrefix("https://"),
+              let url = URL(string: raw),
+              url.host?.isEmpty == false else { return nil }
+        return url
+    }
+
+    /// Fetches the sender's image, crops it round and attaches it, then delivers. Every failure
+    /// delivers the banner without the image — the image must never cost the notification. The address
+    /// is never logged: a profile image URL can carry user identifiers.
+    private func attachSenderThumbnail(from url: URL) {
+        let config = URLSessionConfiguration.ephemeral
+        config.timeoutIntervalForRequest = NotificationService.thumbnailTimeout
+        config.timeoutIntervalForResource = NotificationService.thumbnailTimeout
+        let session = URLSession(configuration: config)
+
+        // A download task streams to disk, so even an oversized response never sits in the
+        // extension's memory; the size is checked on the file afterwards.
+        let task = session.downloadTask(with: url) { [weak self] location, response, error in
+            defer { session.finishTasksAndInvalidate() }
+            guard let self = self else { return }
+            guard error == nil,
+                  let location = location,
+                  (response as? HTTPURLResponse)?.statusCode == 200,
+                  let size = (try? FileManager.default.attributesOfItem(atPath: location.path))?[.size] as? Int,
+                  size <= NotificationService.thumbnailMaxBytes,
+                  let roundFile = self.writeRoundThumbnail(from: location) else {
+                self.deliver()
+                return
+            }
+            // The system moves an attachment's file away only when it is created; on any other
+            // outcome the PNG is ours to remove.
+            guard let attachment = try? UNNotificationAttachment(
+                identifier: "sender-thumbnail",
+                url: roundFile,
+                options: [UNNotificationAttachmentOptionsTypeHintKey: "public.png"]
+            ) else {
+                try? FileManager.default.removeItem(at: roundFile)
+                self.deliver()
+                return
+            }
+            self.deliver(attachment: attachment)
+        }
+        deliveryLock.lock()
+        thumbnailTask = task
+        deliveryLock.unlock()
+        task.resume()
+    }
+
+    /// Downsamples the image at `source` to `thumbnailEdge`, crops a centred circle out of it and
+    /// writes a PNG into the temporary directory, returning its URL — or nil when it is not an image.
+    private func writeRoundThumbnail(from source: URL) -> URL? {
+        guard let imageSource = CGImageSourceCreateWithURL(source as CFURL, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0, height > 0,
+              width * height <= NotificationService.thumbnailMaxSourcePixels else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: NotificationService.thumbnailEdge,
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, options as CFDictionary) else {
+            return nil
+        }
+
+        let edge = min(image.width, image.height)
+        guard edge > 0,
+              let context = CGContext(
+                  data: nil,
+                  width: edge,
+                  height: edge,
+                  bitsPerComponent: 8,
+                  bytesPerRow: 0,
+                  space: CGColorSpaceCreateDeviceRGB(),
+                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+              ) else { return nil }
+        let square = CGRect(x: 0, y: 0, width: edge, height: edge)
+        context.addEllipse(in: square)
+        context.clip()
+        context.draw(image, in: CGRect(
+            x: -CGFloat(image.width - edge) / 2,
+            y: -CGFloat(image.height - edge) / 2,
+            width: CGFloat(image.width),
+            height: CGFloat(image.height)
+        ))
+        guard let round = context.makeImage() else { return nil }
+
+        let target = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("png")
+        guard let destination = CGImageDestinationCreateWithURL(target as CFURL, "public.png" as CFString, 1, nil) else {
+            return nil
+        }
+        CGImageDestinationAddImage(destination, round, nil)
+        return CGImageDestinationFinalize(destination) ? target : nil
     }
 
     // MARK: - Badge counter (shared with the main app via App Group)
@@ -106,10 +259,10 @@ class NotificationService: UNNotificationServiceExtension {
         let channelName: String?
     }
 
-    /// Reads the mark hint fields off the APNs payload: top-level fields first, then the nested
-    /// `data`/`payload` field — a dictionary OR a JSON-encoded string, sender-dependent (the same
-    /// dual-shape ambiguity `normalizeArgs` already handles for loc-args) — overriding them.
-    private func parsePushCloudHint(_ userInfo: [AnyHashable: Any]) -> PushCloudHint {
+    /// The APNs payload's fields as one map: top-level fields first, then the nested `data`/`payload`
+    /// field — a dictionary OR a JSON-encoded string, sender-dependent (the same dual-shape ambiguity
+    /// `normalizeArgs` already handles for loc-args) — overriding them.
+    private func flattenedPayload(_ userInfo: [AnyHashable: Any]) -> [String: Any] {
         var source: [String: Any] = [:]
         for (key, value) in userInfo {
             if let key = key as? String {
@@ -125,6 +278,12 @@ class NotificationService: UNNotificationServiceExtension {
                   let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
             source.merge(parsed) { _, new in new }
         }
+        return source
+    }
+
+    /// Reads the mark hint fields off the flattened APNs payload.
+    private func parsePushCloudHint(_ userInfo: [AnyHashable: Any]) -> PushCloudHint {
+        let source = flattenedPayload(userInfo)
 
         func stringField(_ key: String) -> String? {
             guard let value = source[key] as? String, !value.isEmpty else { return nil }

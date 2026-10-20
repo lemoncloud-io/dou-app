@@ -194,6 +194,10 @@ So when `chatId` is present the room is the first stop, not the destination. `ho
 chat (cache first, `getChat` as the cold path), asks `resolveThreadTarget` whether it has a
 `parentId`, and pushes the thread route on top if it does. `null` is the common and correct answer.
 
+Both entry points supply `chatId`. The in-app banner reads it off the push data; an OS tap gets it in
+the query, merged there by the shell — natively on Android, in `resolvePushTapPath` on iOS — for every
+chat push, reply or not, since deciding is this leg's job.
+
 Three things about it are deliberate. The hop is **pushed**, never routed through
 `navigateNormalized`, which would replace the room it was just placed on top of. It is **ordered
 after** the room, so back reads thread → room → wherever the reader came from, and so the room's own
@@ -242,10 +246,18 @@ carries the verdict, never the title or body, because a push body is message con
 The thread counts as the same room seen from a different angle — and it is where your own send
 round-trip would otherwise raise a banner while you type.
 
-The headline is the channel name when known, falling back to the push title; sender titles baked by
-the backend are unreliable. The name is shown as-is, with no `#` prefix — that is a public-channel
-convention this product has no equivalent of, and the payload carries no stereo, so it was landing
-on 1:1 and self rooms too.
+The headline is the push's own title, falling back to the channel name when there is none. The title
+is what the lock screen shows: the room's name for a group, and for a 1:1 the sender as this reader
+knows them — the name they gave the peer, else the peer's profile in the room's place. `channelName`
+is the room record's name when the message was sent, which for a 1:1 need not be the person at all.
+(The headline used to prefer `channelName`, from a time when the title was the sender's account name
+rather than their name in the place.) The name is shown as-is, with no `#` prefix — that is a
+public-channel convention this product has no equivalent of, and the payload carries no stereo, so it
+was landing on 1:1 and self rooms too.
+
+The body is the copy the shell assembled, drawn as it arrives — a group's body names the sender
+(`Sunny : hi`), a reply is marked (`[Thread] …`) — and `thumbnail` in the push data, when present, is
+the avatar.
 
 A tap registers the push's id against the channel before navigating, so the room's own log entry
 joins the receipt under one correlation key. One push can cross app runs when the app was killed,

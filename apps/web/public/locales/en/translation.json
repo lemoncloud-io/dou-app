@@ -1544,10 +1544,8 @@
     "updateChannel": {
         "readOnlyTitle": "Room Info",
         "heading": "You can set the room name",
-        "invitedSubtitle": "The room name you set is shown only to you.",
         "nameFieldLabel": "Name",
         "namePlaceholder": "e.g., UIUX Study Room",
-        "invitedNamePlaceholder": "Shown as the owner-set room name",
         "nameHint": "Please enter up to 20 characters.",
         "selectPhoto": "Select photo",
         "close": "Close",

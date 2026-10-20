@@ -143,8 +143,8 @@ describe('useInAppPushMessage', () => {
         expect(toastCustom).not.toHaveBeenCalled();
     });
 
-    it('payload에 중첩된 channelName도 헤드라인으로 쓴다', () => {
-        invoke({ title: 'T', body: 'B', data: { payload: JSON.stringify({ channelName: 'general' }) } });
+    it('falls back to a channelName nested in payload when the push has no title', () => {
+        invoke({ body: 'B', data: { payload: JSON.stringify({ channelName: 'general' }) } });
 
         renderToastContent();
 
@@ -183,14 +183,45 @@ describe('useInAppPushMessage', () => {
 
     // The room name is used as-is — `#` is a public-channel convention, and attaching it to 1:1s and
     // self-chats too looked awkward.
-    it('채널명이 있으면 이름 그대로를 헤드라인으로 쓴다', () => {
-        invoke({ title: 'T', body: 'B', data: { channelId: 'abc', channelName: 'general' } });
+    it('shows a fallback channel name as-is, with no # prefix', () => {
+        invoke({ body: 'B', data: { channelId: 'abc', channelName: 'general' } });
 
         renderToastContent();
 
         expect(screen.getByText('general')).toBeTruthy();
         expect(screen.queryByText('#general')).toBeNull();
         expect(screen.getByText('B')).toBeTruthy();
+    });
+
+    // A 1:1 push's title is the sender as this reader knows them (their alias for the peer, else the
+    // peer's place nick), while `channelName` is the room record's name at send time — not necessarily
+    // the person. The title is the headline the lock screen shows, so the banner shows it too.
+    it('heads a 1:1 banner with the push title, not the room snapshot name', () => {
+        invoke({ title: 'Sunny', body: 'hi', data: { channelId: 'abc', channelName: 'Room 1000001' } });
+
+        renderToastContent();
+
+        expect(screen.getByText('Sunny')).toBeTruthy();
+        expect(screen.queryByText('Room 1000001')).toBeNull();
+    });
+
+    // A group push's title is the room name and its body names the sender, so the banner reads the
+    // same as the lock screen.
+    it('heads a group banner with the room name the push titles it with', () => {
+        invoke({ title: 'Design', body: 'Sunny : hi', data: { channelId: 'abc', channelName: 'Design' } });
+
+        renderToastContent();
+
+        expect(screen.getByText('Design')).toBeTruthy();
+        expect(screen.getByText('Sunny : hi')).toBeTruthy();
+    });
+
+    it('treats an empty title as no title', () => {
+        invoke({ title: '', body: 'B', data: { channelId: 'abc', channelName: 'general' } });
+
+        renderToastContent();
+
+        expect(screen.getByText('general')).toBeTruthy();
     });
 
     // The banner only ever shows a push that just arrived, so the time label is always the fixed string, with no computation.

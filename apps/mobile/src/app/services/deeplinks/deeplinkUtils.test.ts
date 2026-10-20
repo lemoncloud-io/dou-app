@@ -482,6 +482,61 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         expect(path).toBe('/channels/1/room?cid=top_cloud&sid=top_site');
     });
 
+    // The web opens the thread when the notified chat is a reply, and needs the chat id in the query
+    // to know which one. A chat that is not a reply leaves the reader in the room, so it rides along
+    // either way — the same as an in-app banner tap.
+    it('merges the notified chatId after cid/sid', () => {
+        const path = resolvePushTapPath({
+            link: '/channels/1000001/room',
+            payload: JSON.stringify({ cid: 'cloud_1', sid: 'site_9', chatId: '1000001:42', uid: 'u1' }),
+        });
+
+        expect(path).toBe('/channels/1000001/room?cid=cloud_1&sid=site_9&chatId=1000001%3A42');
+    });
+
+    it('merges a chatId from a payload object, and from top-level data when the payload has none', () => {
+        expect(resolvePushTapPath({ link: '/channels/1/room', payload: { chatId: 'c42' } })).toBe(
+            '/channels/1/room?chatId=c42'
+        );
+        expect(resolvePushTapPath({ link: '/channels/1/room', chatId: 'c42' })).toBe('/channels/1/room?chatId=c42');
+    });
+
+    // The push service's APNs encoding, verbatim: `payload` is a map, `cid` is the relay sentinel `#`,
+    // and the chat id carries the room id with its colon. This is what a tap hands over on iOS.
+    it('merges the context of a push exactly as the server encodes it for APNs', () => {
+        const wire = {
+            aps: { alert: { title: 'Design', body: '' }, 'mutable-content': 1, sound: 'default' },
+            id: 'push-1',
+            type: 'chat',
+            channel_id: 'dou_chat',
+            timestamp: '1760940000038',
+            title_loc_key: 'push_chat_message_title',
+            title_loc_args: ['Design'],
+            loc_key: 'push_chat_group_thread_images_body',
+            loc_args: ['Sunny', '3'],
+            link: '/channels/U:1002021/room',
+            silent: false,
+            payload: {
+                cid: '#',
+                sid: '0000',
+                channelId: 'U:1002021',
+                channelName: 'Design',
+                ownerId: 'U-sunny',
+                chatId: 'U:1002021:3',
+                content: '',
+                uid: '1002021',
+            },
+        };
+
+        expect(resolvePushTapPath(wire)).toBe('/channels/U:1002021/room?cid=%23&sid=0000&chatId=U%3A1002021%3A3');
+    });
+
+    it('keeps a chatId the link already carries', () => {
+        expect(resolvePushTapPath({ link: '/channels/1/room?chatId=explicit', payload: { chatId: 'c42' } })).toBe(
+            '/channels/1/room?chatId=explicit'
+        );
+    });
+
     it('link가 없고 clickAction만 있으면 clickAction을 사용한다', () => {
         const path = resolvePushTapPath({
             clickAction: '/channels/1/room',
