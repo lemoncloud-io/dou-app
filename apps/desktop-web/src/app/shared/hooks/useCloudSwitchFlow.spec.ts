@@ -37,7 +37,7 @@ vi.mock('./useCloudCatalog', () => ({
     useOwnedCloudIds: () => new Set(catalog.ownedClouds.map((c: { id: string }) => c.id)),
 }));
 vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn() } }));
-vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: session.toast }) }));
+vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: session.toast }));
 
 import '../../../i18n';
 
@@ -168,6 +168,15 @@ describe('useCloudSwitchFlow failure toast', () => {
     it('keeps Try again for a dropped connection', async () => {
         const { description, action } = await failWith(new Error('Failed to fetch'));
         expect(action).toBeDefined();
-        expect(description).toBe(i18next.t('cloud.switchCause.network'));
+        render(description as ReactElement);
+        expect(screen.getByText(i18next.t('cloud.switchCause.network'), { exact: false })).toBeTruthy();
+    });
+
+    // The cause is the app's reading of the failure; the server's own words go under it, so a
+    // refusal can be reported as it was given.
+    it("shows the server's own words under the cause", async () => {
+        const { description } = await failWith(new Error('403 NOT ALLOWED - cloud access'));
+        render(description as ReactElement);
+        expect(screen.getByText('403 NOT ALLOWED - cloud access')).toBeTruthy();
     });
 });

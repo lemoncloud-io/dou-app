@@ -36,7 +36,7 @@ export type PlaceFailure = 'denied' | 'network' | 'other';
 /** `action` only names the attempt in the log. */
 export const placeFailure = (error: unknown, action: 'CreatePlace' | 'EditPlace' | 'DeletePlace'): PlaceFailure => {
     const raw = extractErrorMessage(error);
-    // The wire text belongs in the log, not in the dialog.
+    // The wire text is logged here; the dialog's line is a sentence, the toast carries the text.
     logger.error('PLACE', `[${action}] failed`, { error, raw });
     switch (classifyWireError(raw)) {
         case 'denied':

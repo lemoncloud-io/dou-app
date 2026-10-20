@@ -9,7 +9,7 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Textarea } from '@chatic/ui-kit/components/ui/textarea';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { FormError, FormField } from '../../../shared';
+import { FormError, FormField, toastFailure } from '../../../shared';
 
 import { getAppVersionInfo } from '../../../shared/utils/getAppVersion';
 
@@ -70,6 +70,7 @@ export const ReportIssueDialog = ({ open, onOpenChange }: ReportIssueDialogProps
         } catch (error) {
             logger.error('FEEDBACK', 'Failed to send a problem report', { error });
             setErrorMsg(t('settings.report.failed'));
+            toastFailure(t('settings.report.failed'), error);
         } finally {
             setIsSending(false);
         }

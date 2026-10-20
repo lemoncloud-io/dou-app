@@ -9,30 +9,12 @@ import { classifyWireError, type WireErrorKind } from '../../../shared';
  *    see `isTrustedInviteBackend`), `relay` (a phone-to-phone invite this screen cannot accept),
  *    `unmarked` (an encoded link that names no server) and `loggedIn` (an account is signed in, and
  *    joining as a guest would replace it).
- *  - `server` — the API/socket rejected it; the raw text goes to the console and
- *    the dialog gets a sentence that says what to do next.
+ *  - `server` — the API/socket rejected it; the dialog gets a sentence that says what to do next,
+ *    with the raw text under it and in the failure toast.
  */
 export type InviteLoginError =
     | { kind: 'format' | 'backend' | 'relay' | 'unmarked' | 'loggedIn' }
     | { kind: 'server'; message: string };
-
-/**
- * Pull the backend's own error text out of a caught error. Covers both paths:
- *  - `throwIfApiError` rethrows `new Error(data.error)` → it's already `err.message`.
- *  - an HTTP-level throw carries the body on `err.response.data` (`{ error | message }`
- *    or a bare string).
- * Falls back to the generic `err.message`; empty string lets the UI show a default.
- */
-export const extractServerErrorMessage = (err: Error): string => {
-    const data = (err as { response?: { data?: unknown } }).response?.data;
-    if (typeof data === 'string' && data.trim()) return data.trim();
-    if (data && typeof data === 'object') {
-        const { error, message } = data as { error?: unknown; message?: unknown };
-        if (typeof error === 'string' && error.trim()) return error.trim();
-        if (typeof message === 'string' && message.trim()) return message.trim();
-    }
-    return err.message?.trim() ?? '';
-};
 
 type InviteErrorKey =
     | 'auth.invite.failed.format'
@@ -51,7 +33,7 @@ type InviteErrorKey =
  * A mistyped code used to print the server's wire text verbatim
  * (`400 INVALID - @code[invt:bogus] is invalid (not-found)`), which reads as a
  * crash and says nothing about what to do. An unrecognised failure takes the
- * generic line rather than leaking it; the raw text still reaches the console.
+ * generic line; the raw text goes under it, in the dialog and the failure toast.
  * A bare 400 means the code was not accepted, so it reads as not found.
  */
 const KEY_BY_KIND: Record<WireErrorKind, InviteErrorKey> = {

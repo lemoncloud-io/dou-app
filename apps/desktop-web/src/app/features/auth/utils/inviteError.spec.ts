@@ -20,4 +20,15 @@ describe('inviteLoginErrorText', () => {
             expect(text.length).toBeGreaterThan(0);
         }
     });
+
+    // The server answered, so the request reached it: a refusal whose wording happens to contain
+    // "timeout" (an invite past its grace window) is not a connection failure.
+    it('does not call a server refusal a connection failure', () => {
+        const t = i18n.getFixedT('en');
+        const text = inviteLoginErrorText(
+            { kind: 'server', message: '400 INVALID - grace-timeout by invite[910024]' },
+            t
+        );
+        expect(text).not.toBe(t('auth.invite.failed.network'));
+    });
 });

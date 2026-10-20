@@ -19,7 +19,7 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useUpdatePlace } from '../../../shared';
+import { useUpdatePlace, toastFailure } from '../../../shared';
 import { useEditPlaceDialogStore } from '../stores';
 import { PLACE_DESC_MAX, PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, placeFailure, type PlaceFailure } from '../utils';
 
@@ -147,6 +147,7 @@ export const EditPlaceDialog = ({ places }: EditPlaceDialogProps) => {
             const reason = placeFailure(error, 'EditPlace');
             if (session.current !== startedIn) return;
             setFailure(reason);
+            toastFailure(t(FAILURE_KEY[reason], { max: IMAGE_MAX_MB }), error);
             setSubmitting(false);
             return;
         }

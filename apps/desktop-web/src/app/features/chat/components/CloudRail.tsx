@@ -34,6 +34,7 @@ import {
     type RailCloud,
     deleteCauseKey,
     useRemoveCloud,
+    toastFailure,
 } from '../../../shared';
 import { RenameCloudDialog } from './RenameCloudDialog';
 import { SortableList } from './SortableList';
@@ -125,7 +126,9 @@ export const CloudRail = ({
             if (kind === 'owned') alreadyGone = (await deleteOwnedCloud(id)) === 'already-gone';
             else removeInvitedCloud(id);
         } catch (error) {
-            setRemoveErrorKey(deleteCauseKey(error));
+            const key = deleteCauseKey(error);
+            setRemoveErrorKey(key);
+            toastFailure(t(key), error);
             return;
         }
         // A cloud released before this delete is not an error to retry; the list has been refreshed.

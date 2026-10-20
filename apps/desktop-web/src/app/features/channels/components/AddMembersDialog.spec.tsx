@@ -89,11 +89,12 @@ describe('AddMembersDialog focus after adding', () => {
     });
 });
 
-// A rejected add used to toast the server's wire text (`403 NOT ALLOWED - …`) verbatim.
+// A rejected add used to toast the server's wire text (`403 NOT ALLOWED - …`) alone, then nothing
+// but a sentence. It now leads with the sentence and keeps the wire text under it.
 describe('AddMembersDialog when adding fails', () => {
     afterEach(() => vi.clearAllMocks());
 
-    it('toasts a sentence the person can act on, not the wire text', async () => {
+    it('toasts a sentence the person can act on, with the wire text under it', async () => {
         addMembers.mockRejectedValue(new Error('403 NOT ALLOWED - action[invite] is invalid @doPost(channels/C1)'));
         render(
             <>
@@ -104,7 +105,7 @@ describe('AddMembersDialog when adding fails', () => {
         addBob();
 
         expect(await screen.findByText("You don't have permission to do that.")).toBeTruthy();
-        expect(screen.queryByText(/NOT ALLOWED/)).toBeNull();
+        expect(screen.getByText('403 NOT ALLOWED - action[invite] is invalid @doPost(channels/C1)')).toBeTruthy();
     });
 });
 

@@ -18,7 +18,7 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useCreatePlace } from '../../../shared';
+import { useCreatePlace, toastFailure } from '../../../shared';
 import { useCreatePlaceDialogStore } from '../stores';
 import { PLACE_IMAGE_MAX_BYTES, PLACE_NAME_MAX, placeFailure, type PlaceFailure } from '../utils';
 
@@ -145,6 +145,7 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
                 const reason = placeFailure(error, 'CreatePlace');
                 if (closed()) return;
                 setFailure(reason);
+                toastFailure(t(FAILURE_KEY[reason], { max: IMAGE_MAX_MB }), error);
                 setSubmitting(false);
                 return;
             }
@@ -156,6 +157,7 @@ export const CreatePlaceDialog = ({ onEnter, onEntered }: CreatePlaceDialogProps
             logger.error('PLACE', '[CreatePlace] enter failed', { error, placeId });
             if (closed()) return;
             setFailure('enter');
+            toastFailure(t(FAILURE_KEY.enter), error);
             setSubmitting(false);
             return;
         }

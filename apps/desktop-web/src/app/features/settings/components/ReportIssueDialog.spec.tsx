@@ -70,7 +70,9 @@ describe('ReportIssueDialog', () => {
 
         expect((await screen.findByRole('alert')).textContent).toBe(i18next.t('settings.report.failed'));
         expect(onOpenChange).not.toHaveBeenCalled();
-        expect(toast).not.toHaveBeenCalled();
+        expect(toast).toHaveBeenCalledWith(
+            expect.objectContaining({ variant: 'destructive', title: i18next.t('settings.report.failed') })
+        );
         expect(title.value).toBe('Broken');
         expect(body.value).toBe('It crashes');
     });

@@ -5,9 +5,9 @@ import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { usePendingOpenStore } from '../stores';
+import { toastFailure } from '../utils';
 
 /**
  * Open (or return to) the 1:1 with another member of the active cloud, or my own notes-to-self room
@@ -143,7 +143,7 @@ export const useStartDm = () => {
                 return room;
             } catch (error) {
                 logger.error('CHANNEL', '[useStartDm] start failed', { kind, cloudId: startedIn, error });
-                toast({ variant: 'destructive', description: t('dm.start.failed') });
+                toastFailure(t('dm.start.failed'), error);
                 return null;
             } finally {
                 inFlightRef.current = false;

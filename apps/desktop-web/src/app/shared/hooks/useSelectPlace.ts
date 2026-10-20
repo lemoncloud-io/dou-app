@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { logger } from '@chatic/bridges';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
+import { toastFailure } from '../utils';
 
 /**
  * Switch the active place. The place IS the session's selected site, so this just forwards to
@@ -50,7 +51,7 @@ export const useSelectPlace = () => {
             // the same class of failure. Say it, the way the cloud rail does.
             void startSwitch(placeId).catch((e: unknown) => {
                 logger.error('SESSION', '[SelectPlace] switchFailed', { error: e });
-                toast({ title: t('place.switchFailed'), variant: 'destructive' });
+                toastFailure(t('place.switchFailed'), e);
                 onFailed?.();
             });
             return true;

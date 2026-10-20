@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { DomainChannel } from '@chatic/data';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     channelNotifyMode,
@@ -12,6 +11,7 @@ import {
     type ChannelNotifyMode,
 } from '../stores';
 import { useDesktopChannelMutations } from './useChannelMutations';
+import { toastFailure } from '../utils';
 
 /**
  * One writer for the per-channel notify mode, shared by the settings panel and the
@@ -37,8 +37,8 @@ export const useChannelNotifyChange = (channel: DomainChannel | undefined, myUid
             useNotificationPrefsStore.getState().setChannelNotify(channelId, mode);
             const joinUserId = channel?.$join?.userId ?? myUid ?? '';
             if (!joinUserId) return;
-            void setChannelNotify({ channelId, userId: joinUserId, notify: mode }).catch(() => {
-                toast({ title: t('channels.settings.notify.syncFailed'), variant: 'destructive' });
+            void setChannelNotify({ channelId, userId: joinUserId, notify: mode }).catch((error: unknown) => {
+                toastFailure(t('channels.settings.notify.syncFailed'), error);
             });
         },
         [channelId, notifyMode, channel, myUid, setChannelNotify, t]

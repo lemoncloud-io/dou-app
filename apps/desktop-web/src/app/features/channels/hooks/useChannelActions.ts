@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useComposerFocusStore, useDesktopChannelMutations } from '../../../shared';
+import { useComposerFocusStore, useDesktopChannelMutations, toastFailure } from '../../../shared';
 import { channelActionErrorKey } from '../utils';
 
 export type ChannelDialogKind = 'rename' | 'add-members' | 'delete' | 'leave' | 'kick' | null;
@@ -59,7 +59,7 @@ export const useChannelActions = (
             toast({ description: t('toast.channelDeleted') });
         } catch (e) {
             closeDialog();
-            toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
+            toastFailure(t(channelActionErrorKey(e)), e);
         }
     }, [channelId, deleteChannel, closeDialog, requestComposerFocus, onRemoved, t]);
 
@@ -73,7 +73,7 @@ export const useChannelActions = (
             toast({ description: t('toast.channelLeft') });
         } catch (e) {
             closeDialog();
-            toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
+            toastFailure(t(channelActionErrorKey(e)), e);
         }
     }, [channelId, leaveChannel, closeDialog, requestComposerFocus, onRemoved, t]);
 
@@ -88,7 +88,7 @@ export const useChannelActions = (
             const removedId = kickTarget;
             const undo = () =>
                 void inviteChannel({ channelId, userIds: [removedId] }).catch(e =>
-                    toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) })
+                    toastFailure(t(channelActionErrorKey(e)), e)
                 );
             toast({
                 description: t('toast.memberRemoved', { name: resolveMemberName?.(removedId) ?? '' }),
@@ -101,7 +101,7 @@ export const useChannelActions = (
                 ) as unknown as ToastActionElement,
             });
         } catch (e) {
-            toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
+            toastFailure(t(channelActionErrorKey(e)), e);
         } finally {
             closeDialog();
         }

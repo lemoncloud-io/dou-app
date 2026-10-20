@@ -147,7 +147,7 @@ describe('OAuthDeeplinkListener', () => {
 
         expect(session.toast).toHaveBeenCalledTimes(1);
         expect(session.toast).toHaveBeenCalledWith(
-            expect.objectContaining({ variant: 'destructive', description: i18n.t('auth.social.failed') })
+            expect.objectContaining({ variant: 'destructive', title: i18n.t('auth.social.failed') })
         );
 
         // Every start draws a new nonce.

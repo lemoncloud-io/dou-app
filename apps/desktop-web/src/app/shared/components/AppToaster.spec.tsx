@@ -32,6 +32,36 @@ describe('AppToaster', () => {
         expect(screen.queryByText('Could not add members.')).toBeNull();
     });
 
+    // Under the dialog dim an error from that dialog could not be read, so it rises above it.
+    // Radix marks an open modal by disabling pointer events on the body.
+    describe('over an open dialog', () => {
+        const viewport = () => document.querySelector('ol') as HTMLElement;
+        afterEach(() => {
+            document.body.style.pointerEvents = '';
+        });
+
+        it('lifts the toasts while an error raised in the dialog shows', () => {
+            render(<AppToaster />);
+            document.body.style.pointerEvents = 'none';
+
+            act(() => void toast({ description: 'Channel created' }));
+            expect(viewport().className).toContain('z-toast');
+
+            act(() => void toast({ variant: 'destructive', title: 'Could not join' }));
+            expect(viewport().className).toContain('z-alert');
+        });
+
+        // Radix gives a toast older than the modal no pointer events, so lifted it could not be closed.
+        it('leaves an error from before the dialog under it', () => {
+            render(<AppToaster />);
+            act(() => void toast({ variant: 'destructive', title: 'Could not send' }));
+
+            document.body.style.pointerEvents = 'none';
+            act(() => void toast({ description: 'Channel created' }));
+            expect(viewport().className).toContain('z-toast');
+        });
+    });
+
     it('still dismisses a confirmation on its own, without a close button', () => {
         render(<AppToaster />);
         act(() => void toast({ description: 'Channel created' }));

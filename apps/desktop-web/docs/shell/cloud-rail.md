@@ -141,6 +141,9 @@ its own session back on failure. The toast now says why, from the error's wire t
 | not found         | this cloud no longer exists             |
 | anything else     | the cloud did not accept the switch     |
 
+Under that line the toast shows the server's own words (`toastFailure`), so a refusal can be
+reported as it was given.
+
 The toast offers Try again only for a network failure or an unrecognised one, where a second
 attempt can land. A refused cloud refuses again, and a refusal is how a lapsed subscription shows
 up, so that toast points at the mobile app instead; a cloud that no longer exists gets neither.

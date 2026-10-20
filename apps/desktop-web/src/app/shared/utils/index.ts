@@ -25,6 +25,7 @@ export * from './parsePushDeeplink';
 export * from './getAppVersion';
 export * from './electronApi';
 export * from './errors';
+export * from './failureToast';
 export * from './platformKeys';
 export * from './formatDate';
 export * from './tileInitials';

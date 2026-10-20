@@ -244,7 +244,8 @@ Fixed: page header title 17px semibold; bubble text 16px, line-height 1.28, trac
   list and a drawer's scrim over a pane), `z-overlay` (the drop zone over a whole pane),
   `z-drawer` (a panel or drawer laid over its neighbour), `z-toast` (toasts: over every
   pane, under an open dialog), `z-popover` (fixed to the viewport, level with ui-kit's
-  dialogs and menus at 50).
+  dialogs and menus at 50), `z-alert` (the toast viewport while an error toast shows, over
+  an open dialog; see `apps/desktop-web/docs/shell/layering.md`).
 
 ## Layout
 

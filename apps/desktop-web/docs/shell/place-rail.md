@@ -81,7 +81,8 @@ Submitting does two things in order, and they can fail apart:
    the new row into the place cache before it answers, so the tile appears on the rail without a
    refetch. A failure here is shown in the dialog by kind: a refusal says the account cannot make
    places here, an unreachable server says to check the connection, and anything else asks to try
-   again.
+   again. The same sentence is raised as an error toast with the server's words under it
+   (`failure-toasts.md`).
 2. **Enter.** The dialog then switches the session into the new place and waits for the switch. Only
    when it lands does the dialog close.
 

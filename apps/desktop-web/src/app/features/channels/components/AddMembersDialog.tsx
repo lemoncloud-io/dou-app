@@ -18,6 +18,7 @@ import {
     resolveDisplay,
     useDisplayProfile,
     useSiteProfileMap,
+    toastFailure,
 } from '../../../shared';
 import { useAddMembers, useInviteCandidates, type InviteCandidate } from '../hooks';
 import { channelActionErrorKey } from '../utils';
@@ -75,7 +76,7 @@ export const AddMembersDialog = ({ open, onOpenChange, channelId }: AddMembersDi
             toast({ description: t('channels.addMembers.added', { count: selected.length }) });
             onOpenChange(false);
         } catch (e) {
-            toast({ variant: 'destructive', description: t(channelActionErrorKey(e)) });
+            toastFailure(t(channelActionErrorKey(e)), e);
         }
     };
 

@@ -3,14 +3,13 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { ToastAction, type ToastActionElement } from '@chatic/ui-kit/components/ui/toast';
-import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
 import { pushCloudIdOf } from '@chatic/data';
 
 import { MobileAppPointer } from '../components/MobileAppPointer';
 import { useOwnedCloudIds } from './useCloudCatalog';
 import { useSelectedChannelStore } from '../stores';
-import { classifyWireError, extractErrorMessage } from '../utils';
+import { classifyWireError, extractErrorMessage, toastFailure } from '../utils';
 
 /** Why a switch failed, in words: a 400 from a dev cloud used to read the same as a dropped network. */
 export const switchCauseKey = (error: unknown): string => {
@@ -45,7 +44,6 @@ export const useCloudSwitchFlow = () => {
     const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
     const ownedCloudIds = useOwnedCloudIds();
     const { t } = useTranslation();
-    const { toast } = useToast();
 
     // Try again runs the switch as it is when clicked, not as it was when it failed: by
     // then the reader may be on that cloud already, or another switch may be running.
@@ -94,9 +92,8 @@ export const useCloudSwitchFlow = () => {
                 // refuses again; a refusal is how a lapsed subscription shows up, and that is
                 // renewed in the mobile app, so the toast points there instead.
                 const canRetry = cause === 'cloud.switchCause.network' || cause === 'cloud.switchCause.other';
-                toast({
-                    title: t('cloud.switchFailed'),
-                    description:
+                toastFailure(t('cloud.switchFailed'), e, {
+                    detail:
                         cause === 'cloud.switchCause.denied'
                             ? createElement(
                                   Fragment,
@@ -105,7 +102,6 @@ export const useCloudSwitchFlow = () => {
                                   createElement(MobileAppPointer, { className: 'mt-1 text-current' })
                               )
                             : t(cause),
-                    variant: 'destructive',
                     // The kit types its action as `ReactElement<typeof ToastAction>` (the
                     // component, not its props), which no created element satisfies.
                     action: canRetry
@@ -120,7 +116,7 @@ export const useCloudSwitchFlow = () => {
                 busyRef.current = false;
             }
         },
-        [switchCloudSession, logoutCloudSession, selectedCloudId, cloudRepository, ownedCloudIds, isSwitching, t, toast]
+        [switchCloudSession, logoutCloudSession, selectedCloudId, cloudRepository, ownedCloudIds, isSwitching, t]
     );
 
     latestRef.current = switchCloud;

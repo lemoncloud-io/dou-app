@@ -19,6 +19,7 @@ import {
     CLOUD_NAME_MAX,
     useRemoveCloud,
     useRenameCloud,
+    toastFailure,
 } from '../../../shared';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 
@@ -82,8 +83,8 @@ export const CloudHubPage = () => {
         try {
             await renameCloud(cloud.id, trimmed);
             toast({ title: t('cloud.hub.renamed') });
-        } catch {
-            toast({ title: t('cloud.hub.renameFailed'), variant: 'destructive' });
+        } catch (error) {
+            toastFailure(t('cloud.hub.renameFailed'), error);
         }
     };
 
@@ -99,8 +100,8 @@ export const CloudHubPage = () => {
             }
             toast({ title: t(result === 'already-gone' ? 'cloud.hub.alreadyReleased' : 'cloud.hub.released') });
             navigate('/account/clouds', { replace: true });
-        } catch {
-            toast({ title: t('cloud.hub.releaseFailed'), variant: 'destructive' });
+        } catch (error) {
+            toastFailure(t('cloud.hub.releaseFailed'), error);
         }
     };
 

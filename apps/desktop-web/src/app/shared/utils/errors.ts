@@ -48,6 +48,43 @@ export const extractErrorMessage = (error: any): string => {
     return defaultErrorMessage();
 };
 
+/** Longer than any refusal the backend writes; past it the text is a page or a dump, not a reason. */
+const RAW_TEXT_MAX = 300;
+
+/**
+ * The failure's own words — the backend's when it answered, else the error's message — or `''`
+ * when there are none. Unlike `extractErrorMessage` it never substitutes a translated default: it
+ * is the raw text shown under a failure's sentence (toast description, dialog detail line) so the
+ * actual reason can be read without a console. A body that is markup (a proxy's error page) is
+ * dropped, and anything longer than `RAW_TEXT_MAX` is cut.
+ * Covers both paths:
+ *  - `throwIfApiError` rethrows `new Error(data.error)` → it's already `err.message`.
+ *  - an HTTP-level throw carries the body on `err.response.data` (`{ error | message }`
+ *    or a bare string).
+ */
+export const serverErrorText = (error: unknown): string => {
+    const text = rawErrorText(error);
+    if (text.startsWith('<')) return '';
+    return text.length > RAW_TEXT_MAX ? `${text.slice(0, RAW_TEXT_MAX)}…` : text;
+};
+
+const rawErrorText = (error: unknown): string => {
+    if (!error) return '';
+    const data = (error as { response?: { data?: unknown } }).response?.data;
+    if (typeof data === 'string' && data.trim()) return data.trim();
+    if (data && typeof data === 'object') {
+        const { error: wire, message } = data as { error?: unknown; message?: unknown };
+        if (typeof wire === 'string' && wire.trim()) return wire.trim();
+        if (typeof message === 'string' && message.trim()) return message.trim();
+    }
+    if (typeof error === 'string') return error.trim();
+    const message = (error as { message?: unknown }).message;
+    return typeof message === 'string' ? message.trim() : '';
+};
+
+/** Answers that mean the request reached no one who could act on it: a timeout or a gateway. */
+const UNREACHED_STATUSES = new Set([408, 502, 503, 504]);
+
 /** What a backend failure means, as far as its wire text says. */
 export type WireErrorKind = 'expired' | 'notFound' | 'conflict' | 'denied' | 'network' | 'invalid' | 'unknown';
 
@@ -69,7 +106,14 @@ export const classifyWireError = (raw: string): WireErrorKind => {
     if (/\b404\b/.test(text) || text.includes('NOT FOUND') || text.includes('NOT-FOUND')) return 'notFound';
     if (/\b409\b/.test(text) || text.includes('CONFLICT') || text.includes('ALREADY')) return 'conflict';
     if (/\b403\b/.test(text) || text.includes('NOT ALLOWED') || text.includes('FORBIDDEN')) return 'denied';
-    if (text.includes('NETWORK') || text.includes('TIMEOUT') || text.includes('FAILED TO FETCH')) return 'network';
+    // A text that leads with a status is an answer, so the request got through and its wording
+    // (`400 INVALID - grace-timeout by invite[…]`) is never a connection failure. Only the
+    // statuses that mean "nothing behind this answered in time" read as one.
+    const status = /^\s*([1-5]\d{2})\b/.exec(text)?.[1];
+    if (status && UNREACHED_STATUSES.has(Number(status))) return 'network';
+    if (!status && (text.includes('NETWORK') || text.includes('TIMEOUT') || text.includes('FAILED TO FETCH'))) {
+        return 'network';
+    }
     if (/\b400\b/.test(text) || text.includes('INVALID')) return 'invalid';
     return 'unknown';
 };

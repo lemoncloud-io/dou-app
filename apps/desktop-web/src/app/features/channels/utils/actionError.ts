@@ -8,11 +8,12 @@ import { classifyWireError, extractErrorMessage, type WireErrorKind } from '../.
  * `extractErrorMessage` returns whatever the transport carried, which for this
  * API is its own wire text — a user could be shown
  * `403 NOT ALLOWED - action[update] is invalid @doPut(channels/U:1001095)`.
- * That string is useful in a console and useless in a toast, so the raw value
- * stays on the console and the toast gets one of four sentences.
+ * That string is no sentence to lead with, so the toast's title is one of four
+ * sentences and the raw value sits under it (`toastFailure`), where whoever reports
+ * the failure can read it back.
  *
- * Unrecognised failures fall through to the generic line rather than leaking the
- * wire text: a message nobody wrote is not better than a message someone did.
+ * Unrecognised failures fall through to the generic line rather than leading with
+ * the wire text: a message nobody wrote is not better than a message someone did.
  */
 type ChannelActionErrorKey =
     | 'errors.notAllowed'
@@ -33,7 +34,7 @@ const KEY_BY_KIND: Record<WireErrorKind, ChannelActionErrorKey> = {
 
 export const channelActionErrorKey = (error: unknown): ChannelActionErrorKey => {
     const raw = extractErrorMessage(error);
-    // The wire text belongs in the log, not in a toast.
+    // The wire text is logged here; the toast shows it under the sentence.
     logger.error('CHANNEL', '[ChannelAction] failed', { error, raw });
     return KEY_BY_KIND[classifyWireError(raw)];
 };

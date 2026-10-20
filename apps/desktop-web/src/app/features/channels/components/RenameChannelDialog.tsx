@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit/components/ui/dialog';
 
-import { useDesktopChannelMutations } from '../../../shared';
+import { useDesktopChannelMutations, toastFailure } from '../../../shared';
 import { CHANNEL_NAME_MAX, CHANNEL_NAME_MIN, channelActionErrorKey } from '../utils';
 import { ChannelNameField } from './ChannelNameField';
 
@@ -53,9 +53,11 @@ export const RenameChannelDialog = ({ open, onOpenChange, channelId, currentName
             await updateChannel({ channelId, name: trimmed });
             onOpenChange(false);
         } catch (e) {
-            // A sentence the person can act on; the wire text (e.g. "403 NOT ALLOWED -
-            // action[update] is invalid …") goes to the console only.
-            setErrorMsg(t(channelActionErrorKey(e)));
+            // A sentence the person can act on in place; the wire text (e.g. "403 NOT ALLOWED -
+            // action[update] is invalid …") rides the failure toast under the same sentence.
+            const text = t(channelActionErrorKey(e));
+            setErrorMsg(text);
+            toastFailure(text, e);
         }
     };
 

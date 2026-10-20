@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -8,9 +9,9 @@ import { logger } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
 
-import { toError, useJoinedCloudsStore } from '../../../shared';
+import { serverErrorText, toError, toastFailure, useJoinedCloudsStore } from '../../../shared';
 import { fetchInviteCodeInfo } from '../apis';
-import { extractServerErrorMessage, isTrustedInviteBackend, parseInviteInput } from '../utils';
+import { inviteLoginErrorText, isTrustedInviteBackend, parseInviteInput } from '../utils';
 import type { InviteLoginError } from '../utils';
 
 /** Backends this build talks to; read per call because `config` answers undefined before boot. */
@@ -33,6 +34,7 @@ const configuredBackends = (): string[] => [
  * backend, so the desktop client doesn't need its .env pointed at the issuing deployment.
  */
 export const useInviteLogin = () => {
+    const { t } = useTranslation();
     const { deviceId } = runtime.session.useDynamicDeviceId();
     const { mutateAsync: loginGuest } = runtime.session.useLoginRelayGuestByDevice();
     const { switchCloud } = runtime.session.useSwitchCloudSession();
@@ -139,14 +141,15 @@ export const useInviteLogin = () => {
             } catch (error) {
                 const err = toError(error);
                 logger.error('AUTH', '[useInviteLogin] login failed', { error: err });
-                const failure: InviteLoginError = { kind: 'server', message: extractServerErrorMessage(err) };
+                const failure: InviteLoginError = { kind: 'server', message: serverErrorText(err) };
                 setError(failure);
+                toastFailure(inviteLoginErrorText(failure, t), err);
                 return failure;
             } finally {
                 setIsSubmitting(false);
             }
         },
-        [deviceId, loginGuest, switchCloud, switchSite, cloudRepository, addJoinedCloud, queryClient]
+        [deviceId, loginGuest, switchCloud, switchSite, cloudRepository, addJoinedCloud, queryClient, t]
     );
 
     /** Drops the last failure — the caller is editing the code or leaving. */

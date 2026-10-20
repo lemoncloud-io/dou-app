@@ -72,7 +72,7 @@ The remove button on a row depends on who the person is in that channel:
 Both go through a confirmation that names the channel; nothing destructive runs unconfirmed. The
 repository drops the channel from the cache before the server answers, so the row leaves the list at
 once and the channel leaves the selection. A refusal puts the cached row back and shows one toast
-("could not remove the channel"). The confirmation closes when its button is pressed, so the outcome
+("could not remove the channel", with the server's words under it — `docs/shell/failure-toasts.md`). The confirmation closes when its button is pressed, so the outcome
 is the row leaving or coming back with that toast.
 
 The page does not look at the person's role in the place: what a delete or leave is allowed to do is

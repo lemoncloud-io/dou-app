@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 let isSubmitting = false;
-let error: { kind: string } | null = null;
+let error: { kind: string; message?: string } | null = null;
 const clearError = vi.fn();
 
 vi.mock('../hooks/useInviteLogin', () => ({
@@ -65,5 +65,15 @@ describe('JoinWithInviteDialog', () => {
 
         expect(useJoinDialogStore.getState().isOpen).toBe(false);
         expect(clearError).toHaveBeenCalled();
+    });
+
+    // The server's refusal used to reach the console only, behind a line that blamed the connection.
+    it("shows the server's own words under the sentence", () => {
+        error = { kind: 'server', message: '400 INVALID - grace-timeout by invite[910024]' };
+        mount();
+
+        const alert = screen.getByRole('alert');
+        expect(alert.textContent).toContain('400 INVALID - grace-timeout by invite[910024]');
+        expect(alert.textContent).not.toContain("Couldn't reach the server");
     });
 });

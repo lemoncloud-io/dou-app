@@ -398,10 +398,9 @@ describe('PlaceRail place delete', () => {
 
         await waitFor(() => expect(confirmation()).toBeNull());
         expect(toast).toHaveBeenCalledTimes(1);
-        expect(toast).toHaveBeenCalledWith({
-            variant: 'destructive',
-            title: i18next.t('place.delete.failed.denied'),
-        });
+        expect(toast).toHaveBeenCalledWith(
+            expect.objectContaining({ variant: 'destructive', title: i18next.t('place.delete.failed.denied') })
+        );
     });
 
     it('withdraws the question when its place leaves the rail, as a cloud change makes it', () => {
