@@ -33,8 +33,8 @@ import {
     usePlaces,
     useProfilePanelStore,
     useSavedPanelStore,
-    useMentionsPanelStore,
-    useMyThreadsPanelStore,
+    useMentionsStore,
+    useNavStore,
     useReadCursorStore,
     useSelectPlace,
     useDeletePlace,
@@ -61,11 +61,11 @@ import {
     EditPlaceDialog,
     OnboardingDialog,
     NavRail,
+    NavSidebar,
     PlaceRail,
     SidebarHeader,
     SavedPanel,
-    MentionsPanel,
-    MyThreadsPanel,
+    NotificationsPanel,
     ThreadPanel,
 } from '../components';
 import {
@@ -103,7 +103,13 @@ const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
 };
 
 // Destinations whose screens exist; the others join the rail as their screens land.
-const NAV_ITEMS: NavDestination[] = ['home'];
+const NAV_ITEMS: NavDestination[] = ['home', 'notifications'];
+
+/**
+ * The sidebar column's width per destination: Home keeps the narrow channel list it always had, and
+ * a list of cards (Notifications) gets its own, wider default — each remembered on its own.
+ */
+const NAV_PANEL_WIDTH = { storageKey: 'chatic.navPanel.width', defaultWidth: 420 };
 
 export const HomePage = () => {
     const { clouds, activeCloudId, isCloudsError, isFetchingClouds, refetchClouds } = useClouds();
@@ -155,7 +161,6 @@ export const HomePage = () => {
     const hasNoPlace = !isDefaultMode && !placesLoading && !isSwitching && places.length === 0;
     // With no place left the session's site id is not read at all: after the cloud's last place is
     // deleted it still names that place, and its cached channels would be listed in place of the 1:1s.
-    // The Threads pane and its sidebar dot are scoped by the same place as the list.
     const listedPlaceId = hasNoPlace ? undefined : (selectedSiteId ?? undefined);
     const { channels, isLoading, filedPlaces, memberPeers } = useChannels(listedPlaceId, {
         whenNoPlace: isDefaultMode ? 'relay' : hasNoPlace ? 'cloudDms' : 'nothing',
@@ -200,8 +205,6 @@ export const HomePage = () => {
         settingsChannelId,
         profileTarget,
         savedOpen,
-        activityOpen,
-        threadsOpen,
     } = useTrailingPanelOwners(threadChannel?.id, isLoading);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThread = useThreadStore(s => s.open);
@@ -209,10 +212,9 @@ export const HomePage = () => {
     const closeProfile = useProfilePanelStore(s => s.close);
     const closeSaved = useSavedPanelStore(s => s.close);
     const openSaved = useSavedPanelStore(s => s.open);
-    const closeActivity = useMentionsPanelStore(s => s.close);
-    const openActivity = useMentionsPanelStore(s => s.open);
-    const closeThreads = useMyThreadsPanelStore(s => s.close);
-    const openThreads = useMyThreadsPanelStore(s => s.open);
+    const navActive = useNavStore(s => s.active);
+    // Select the boolean, not the items: the dot only re-renders on false↔true.
+    const hasInboxUnread = useMentionsStore(s => Object.values(s.items).some(item => !item.readAt));
     // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
     // 7×-tap toggle). Top precedence so it owns the dock while open.
     const debugEnabled = useDebugModeStore(s => s.enabled);
@@ -459,15 +461,13 @@ export const HomePage = () => {
         closeProfile();
     }, [selectedChannelId, closeSettings, closeThread, closeProfile]);
 
-    // The saved, activity and threads panes list rows from every place of the cloud, so a
-    // place switch leaves them valid — and closing them there made the same row click
-    // produce two layouts (a cross-place jump closed the pane, a same-place jump kept
-    // it). Only a cloud switch retires them: their items belong to the cloud.
+    // The saved pane lists rows from every place of the cloud, so a place switch leaves it
+    // valid — and closing it there made the same row click produce two layouts (a cross-place
+    // jump closed the pane, a same-place jump kept it). Only a cloud switch retires it: its
+    // items belong to the cloud.
     useEffect(() => {
         closeSaved();
-        closeActivity();
-        closeThreads();
-    }, [activeCloudId, closeSaved, closeActivity, closeThreads]);
+    }, [activeCloudId, closeSaved]);
 
     const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
 
@@ -641,16 +641,19 @@ export const HomePage = () => {
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const chatEmptyState = useMemo(
         () =>
-            isLoading || channels.length > 0
-                ? ({ mode: 'pick' } as const)
-                : isDefaultMode
-                  ? isGuest
-                      ? ({ mode: 'join', onAction: openJoinDialog } as const)
-                      : // A signed-in account has no invite-code path: the exchange refuses
-                        // non-guests after the code is typed, so offer no code field at all.
-                        ({ mode: 'pick' } as const)
-                  : ({ mode: 'create', onAction: openCreateChannel } as const),
-        [isLoading, channels.length, isDefaultMode, isGuest, openJoinDialog, openCreateChannel]
+            // With the inbox beside it, the empty pane is where an opened notification lands.
+            navActive === 'notifications' && !isLoading
+                ? ({ mode: 'inbox' } as const)
+                : isLoading || channels.length > 0
+                  ? ({ mode: 'pick' } as const)
+                  : isDefaultMode
+                    ? isGuest
+                        ? ({ mode: 'join', onAction: openJoinDialog } as const)
+                        : // A signed-in account has no invite-code path: the exchange refuses
+                          // non-guests after the code is typed, so offer no code field at all.
+                          ({ mode: 'pick' } as const)
+                    : ({ mode: 'create', onAction: openCreateChannel } as const),
+        [navActive, isLoading, channels.length, isDefaultMode, isGuest, openJoinDialog, openCreateChannel]
     );
 
     const jumpFromSearch = useCallback(
@@ -787,52 +790,61 @@ export const HomePage = () => {
                         />
                     </>
                 }
-                nav={<NavRail items={NAV_ITEMS} />}
+                nav={<NavRail items={NAV_ITEMS} unread={{ notifications: hasInboxUnread }} />}
+                sidebarWidth={navActive === 'home' ? undefined : NAV_PANEL_WIDTH}
                 sidebar={
-                    <>
-                        <SidebarHeader
-                            placeName={placeName}
-                            isLoading={placesLoading}
-                            isDefaultMode={isDefaultMode}
-                            query={query}
-                            onQueryChange={setQuery}
-                            onEditPlaceProfile={openEditPlaceProfile}
-                            onOpenSaved={openSaved}
-                            onOpenActivity={openActivity}
-                            cloudId={activeCloudId ?? RELAY_CLOUD_ID}
-                            placeId={listedPlaceId}
-                            onOpenThreads={openThreads}
-                        />
-                        <div className="flex-1 overflow-y-auto scrollbar-hide">
-                            <ChannelList
+                    <NavSidebar
+                        active={navActive}
+                        notifications={
+                            <NotificationsPanel
+                                cloudId={activeCloudId ?? RELAY_CLOUD_ID}
                                 channels={channels}
-                                isLoading={isLoading}
-                                selectedChannelId={selectedChannelId}
-                                query={query}
-                                // Picking a channel from the list is a deliberate move,
-                                // not a detour, so it retires any pending return point.
-                                onSelect={selectFromList}
-                                onJumpToMessage={jumpFromSearch}
-                                elsewhereChannels={elsewhereChannels}
-                                onSelectElsewhere={selectElsewhere}
-                                isDefaultMode={isDefaultMode}
-                                onCreateChannel={openCreateChannel}
-                                // The picker's pool is the people in this place's channels, so a cloud
-                                // with no place would only ever offer no one.
-                                onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
-                                memberPeers={memberPeers}
-                                onStartDm={
-                                    canStartDm && !hasNoPlace
-                                        ? peerId => {
-                                              setStartingPeerId(peerId);
-                                              void startDm(peerId);
-                                          }
-                                        : undefined
-                                }
-                                startingPeerId={isStarting ? startingPeerId : null}
+                                onSelect={jumpToSaved}
                             />
-                        </div>
-                    </>
+                        }
+                        home={
+                            <>
+                                <SidebarHeader
+                                    placeName={placeName}
+                                    isLoading={placesLoading}
+                                    isDefaultMode={isDefaultMode}
+                                    query={query}
+                                    onQueryChange={setQuery}
+                                    onEditPlaceProfile={openEditPlaceProfile}
+                                    onOpenSaved={openSaved}
+                                />
+                                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                                    <ChannelList
+                                        channels={channels}
+                                        isLoading={isLoading}
+                                        selectedChannelId={selectedChannelId}
+                                        query={query}
+                                        // Picking a channel from the list is a deliberate move,
+                                        // not a detour, so it retires any pending return point.
+                                        onSelect={selectFromList}
+                                        onJumpToMessage={jumpFromSearch}
+                                        elsewhereChannels={elsewhereChannels}
+                                        onSelectElsewhere={selectElsewhere}
+                                        isDefaultMode={isDefaultMode}
+                                        onCreateChannel={openCreateChannel}
+                                        // The picker's pool is the people in this place's channels, so a cloud
+                                        // with no place would only ever offer no one.
+                                        onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
+                                        memberPeers={memberPeers}
+                                        onStartDm={
+                                            canStartDm && !hasNoPlace
+                                                ? peerId => {
+                                                      setStartingPeerId(peerId);
+                                                      void startDm(peerId);
+                                                  }
+                                                : undefined
+                                        }
+                                        startingPeerId={isStarting ? startingPeerId : null}
+                                    />
+                                </div>
+                            </>
+                        }
+                    />
                 }
                 main={
                     <ChatPane
@@ -873,20 +885,6 @@ export const HomePage = () => {
                             channels={channels}
                             places={places}
                             currentPlaceId={selectedPlaceId ?? undefined}
-                            onSelect={jumpToSaved}
-                        />
-                    ) : activityOpen ? (
-                        <MentionsPanel
-                            channels={channels}
-                            places={places}
-                            currentPlaceId={selectedPlaceId ?? undefined}
-                            onSelect={jumpToSaved}
-                        />
-                    ) : threadsOpen ? (
-                        <MyThreadsPanel
-                            cloudId={activeCloudId ?? RELAY_CLOUD_ID}
-                            placeId={listedPlaceId}
-                            channels={channels}
                             onSelect={jumpToSaved}
                         />
                     ) : undefined

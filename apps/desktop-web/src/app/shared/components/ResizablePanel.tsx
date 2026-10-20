@@ -53,7 +53,14 @@ interface ResizablePanelProps {
  * The covered chat used to stay live under it, in the tab order and clickable, with
  * about 218px of it left showing at 1024px.
  */
-export const ResizablePanel = ({ storageKey, resizeLabel, label, className, onClose, children }: ResizablePanelProps) => {
+export const ResizablePanel = ({
+    storageKey,
+    resizeLabel,
+    label,
+    className,
+    onClose,
+    children,
+}: ResizablePanelProps) => {
     const resize = usePanelWidth({ storageKey, defaultWidth: PANEL_WIDTH });
     useEscapeClose(onClose);
     const { overlays, setClose } = useContext(PanelShellContext);
@@ -72,8 +79,8 @@ export const ResizablePanel = ({ storageKey, resizeLabel, label, className, onCl
     // shown again under a closed profile recorded the profile's close button, and the popover
     // that opened the profile went with the panel under it.
     // Only focus the panel took with it is given back. Focus already on a live element outside —
-    // the panel that replaced this one put it there, as a thread opened from the Threads list
-    // puts it on its back button — is where the reader is, and taking it back stranded them.
+    // the panel that replaced this one put it there — is where the reader is, and taking it back
+    // stranded them.
     const [opener] = useState(() =>
         typeof document === 'undefined' ? null : (document.activeElement as HTMLElement | null)
     );

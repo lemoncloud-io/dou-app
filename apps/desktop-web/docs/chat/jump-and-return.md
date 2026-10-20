@@ -26,7 +26,7 @@ only when it belongs to the channel being left.
 
 ## Who records it
 
-`HomePage` records the origin before it moves anyone. That covers search, Saved, Mentions and a
+`HomePage` records the origin before it moves anyone. That covers search, Saved, the inbox and a
 notification. A jump inside the open channel records one too (`sameChannel`), because "scroll up to
 check, then come back down" is the same round trip.
 

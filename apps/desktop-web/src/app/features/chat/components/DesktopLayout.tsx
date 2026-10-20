@@ -22,6 +22,8 @@ interface DesktopLayoutProps {
     /** The nav rail (Home, Notifications, Channels, DM), between the first rail and the sidebar. */
     nav?: ReactNode;
     sidebar: ReactNode;
+    /** Where the sidebar column's width is kept, and its first width. Defaults to the Home list's. */
+    sidebarWidth?: { storageKey: string; defaultWidth: number };
     main: ReactNode;
     /** Optional right-side panel (channel settings); collapses when null. */
     panel?: ReactNode;
@@ -101,14 +103,34 @@ const SkipLinks = ({ onSidebar }: { onSidebar: () => void }) => {
     );
 };
 
-export const DesktopLayout = ({ rail, nav, sidebar, main, panel, overlay }: DesktopLayoutProps) => {
+const HOME_SIDEBAR_WIDTH = { storageKey: 'chatic.sidebar.width', defaultWidth: 286 };
+
+/**
+ * Where the sidebar skip link lands: the list's first row, else the first control of whatever the
+ * open destination draws. The Home list stays mounted under the other destinations, hidden, so its
+ * rows are passed over then.
+ */
+const firstSidebarTarget = (sidebar: HTMLElement | null): HTMLElement | undefined => {
+    const shown = (selector: string) =>
+        Array.from(sidebar?.querySelectorAll<HTMLElement>(selector) ?? []).find(el => !el.closest('[hidden]'));
+    return shown('nav button') ?? shown('button');
+};
+
+export const DesktopLayout = ({
+    rail,
+    nav,
+    sidebar,
+    sidebarWidth: sidebarSize = HOME_SIDEBAR_WIDTH,
+    main,
+    panel,
+    overlay,
+}: DesktopLayoutProps) => {
     const { t } = useTranslation();
     const isDrawer = useViewportNarrow();
     const isCompact = useViewportNarrow(COMPACT_SHELL_WIDTH);
     const [isOpen, setIsOpen] = useState(false);
     const sidebarWidth = usePanelWidth({
-        storageKey: 'chatic.sidebar.width',
-        defaultWidth: 286,
+        ...sidebarSize,
         edge: 'right',
         minWidth: 200,
         maxWidth: 480,
@@ -213,7 +235,7 @@ export const DesktopLayout = ({ rail, nav, sidebar, main, panel, overlay }: Desk
                         <SkipLinks
                             onSidebar={() => {
                                 if (isDrawer) open();
-                                else sidebarWidth.panelRef.current?.querySelector<HTMLElement>('nav button')?.focus();
+                                else firstSidebarTarget(sidebarWidth.panelRef.current)?.focus();
                             }}
                         />
                     )}

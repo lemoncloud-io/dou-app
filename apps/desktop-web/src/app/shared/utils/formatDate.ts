@@ -59,6 +59,19 @@ export const formatShortDate = (ms: number | undefined): string => {
 export const formatLongDate = (ms: number | undefined): string =>
     valid(ms)?.toLocaleDateString(locale(), { year: 'numeric', month: 'long', day: 'numeric' }) ?? '';
 
+/** "Friday, October 16" / "10월 16일 금요일", with the year only when it is not this year. */
+export const formatDayHeading = (ms: number | undefined): string => {
+    const date = valid(ms);
+    if (!date) return '';
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    return date.toLocaleDateString(locale(), {
+        ...(sameYear ? {} : { year: 'numeric' }),
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long',
+    });
+};
+
 /**
  * When something in a list happened: the clock time today, the short date before. A list of
  * today's activity read "Oct 13" on every row, which tells the rows apart by nothing.

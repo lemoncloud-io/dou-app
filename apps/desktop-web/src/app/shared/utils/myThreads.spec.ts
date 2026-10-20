@@ -3,17 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
     MY_THREADS_MAX,
     isThreadUnread,
-    markCloudSeen,
     markThreadSeen,
     myThreadKey,
     recordThreadReply,
     threadChannel,
     threadRootNo,
-    threadsForCloud,
     type MyThreads,
     type ThreadReply,
 } from './myThreads';
-import { ACCOUNT_CHANNEL_SID, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import type { DomainChannel } from '@chatic/data';
 
 const reply = (over: Partial<ThreadReply> = {}): ThreadReply => ({
     cid: 'c1',
@@ -121,7 +119,7 @@ describe('recordThreadReply', () => {
         const one = recordThreadReply({}, reply(), { root });
         const both = recordThreadReply(one, reply({ cid: 'c2' }), { root });
         expect(Object.keys(both)).toHaveLength(2);
-        expect(threadsForCloud(both, 'c2').map(t => t.cid)).toEqual(['c2']);
+        expect(Object.values(both).map(t => t.cid)).toEqual(['c1', 'c2']);
     });
 
     it('evicts the least recently active threads past the cap', () => {
@@ -161,39 +159,6 @@ describe('markThreadSeen', () => {
     });
 });
 
-describe('markCloudSeen', () => {
-    it("marks one cloud's threads seen and leaves another cloud's unread", () => {
-        let threads = recordThreadReply({}, reply({ rootNo: '1' }), { root });
-        threads = recordThreadReply(threads, reply({ rootNo: '2' }), { root });
-        threads = recordThreadReply(threads, reply({ cid: 'c2' }), { root });
-
-        const next = markCloudSeen(threads, 'c1');
-
-        expect(threadsForCloud(next, 'c1').some(isThreadUnread)).toBe(false);
-        expect(threadsForCloud(next, 'c2').some(isThreadUnread)).toBe(true);
-    });
-
-    it("marks one place's threads seen — its 1:1's with them — and leaves another place's unread", () => {
-        let threads = recordThreadReply({}, reply({ rootNo: '1' }), { root });
-        threads = recordThreadReply(threads, reply({ rootNo: '2', placeId: 'p2' }), { root });
-        threads = recordThreadReply(threads, reply({ rootNo: '3', placeId: 'p2', channelKind: 'dm' }), { root });
-        threads = recordThreadReply(threads, reply({ rootNo: '4', placeId: 'p1', channelKind: 'dm' }), { root });
-
-        const next = markCloudSeen(threads, 'c1', 'p1');
-
-        expect(threadsForCloud(next, 'c1', 'p1').some(isThreadUnread)).toBe(false);
-        expect(threadsForCloud(next, 'c1', 'p2').map(t => [t.rootNo, isThreadUnread(t)])).toEqual([
-            ['2', true],
-            ['3', true],
-        ]);
-    });
-
-    it('returns the same object when nothing is unread', () => {
-        const threads = recordThreadReply({}, reply({ mine: true }), { root });
-        expect(markCloudSeen(threads, 'c1')).toBe(threads);
-    });
-});
-
 describe('threadChannel', () => {
     it("keeps a named channel's bare name and a DM's kind only", () => {
         expect(threadChannel({ id: 'a', name: '#general' } as DomainChannel)).toEqual({
@@ -201,58 +166,5 @@ describe('threadChannel', () => {
             channelName: 'general',
         });
         expect(threadChannel({ id: 'b', name: 'x', stereo: 'dm' } as DomainChannel)).toEqual({ channelKind: 'dm' });
-    });
-});
-
-describe('threadsForCloud', () => {
-    it('lists one cloud newest activity first', () => {
-        let threads = recordThreadReply({}, reply({ rootNo: '1', at: 1 }), { root });
-        threads = recordThreadReply(threads, reply({ rootNo: '2', at: 3 }), { root });
-        threads = recordThreadReply(threads, reply({ rootNo: '3', at: 2 }), { root });
-        expect(threadsForCloud(threads, 'c1').map(t => t.rootNo)).toEqual(['2', '3', '1']);
-    });
-
-    it("narrows a group channel's threads to one place when given, dropping another place's", () => {
-        let threads = recordThreadReply({}, reply({ rootNo: '1', at: 1 }), { root });
-        threads = recordThreadReply(threads, reply({ rootNo: '2', at: 2, placeId: 'p2' }), { root });
-        threads = recordThreadReply(threads, reply({ rootNo: '3', at: 3, placeId: 'p2', channelKind: 'channel' }), {
-            root,
-        });
-
-        expect(threadsForCloud(threads, 'c1', 'p1').map(t => t.rootNo)).toEqual(['1']);
-        expect(threadsForCloud(threads, 'c1').map(t => t.rootNo)).toEqual(['3', '2', '1']);
-    });
-
-    // A cloud 1:1 lives in the place it was opened in, like a group channel.
-    it("keeps a cloud 1:1's threads in its own place and drops another place's", () => {
-        let threads = recordThreadReply({}, reply({ rootNo: '1', at: 1, placeId: 'p1', channelKind: 'dm' }), { root });
-        threads = recordThreadReply(
-            threads,
-            reply({ rootNo: '2', at: 2, channelId: 'p2@me@u1', placeId: 'p2', channelKind: 'dm' }),
-            { root }
-        );
-
-        expect(threadsForCloud(threads, 'c1', 'p1').map(t => t.rootNo)).toEqual(['1']);
-        expect(threadsForCloud(threads, 'c1', 'p2').map(t => t.rootNo)).toEqual(['2']);
-    });
-
-    it("keeps the Self Channel's threads in every place, whichever place they are stamped with", () => {
-        let threads = recordThreadReply({}, reply({ rootNo: '2', at: 2, placeId: 'p2', channelKind: 'self' }), {
-            root,
-        });
-        threads = recordThreadReply(threads, reply({ rootNo: '3', at: 3, placeId: ACCOUNT_CHANNEL_SID }), { root });
-
-        expect(threadsForCloud(threads, 'c1', 'p1').map(t => t.rootNo)).toEqual(['3', '2']);
-    });
-
-    // The relay keeps its 1:1s in its one place, which need not be the site a relay session selected.
-    it("keeps a relay 1:1's threads in every place", () => {
-        const threads = recordThreadReply(
-            {},
-            reply({ cid: RELAY_CLOUD_ID, rootNo: '1', at: 1, placeId: 'relay-place', channelKind: 'dm' }),
-            { root }
-        );
-
-        expect(threadsForCloud(threads, RELAY_CLOUD_ID, 'joined-site').map(t => t.rootNo)).toEqual(['1']);
     });
 });

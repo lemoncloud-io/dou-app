@@ -121,6 +121,8 @@ const MAX_FOOTER_REPLIERS = 3;
 const DIVIDER_CLEAR_DELAY_MS = 1000;
 /** Fade-out duration once the linger elapses (matches the transition class below). */
 const DIVIDER_FADE_MS = 300;
+/** How long a jumped-to message stays flashed: the same 3s the inbox keeps an opened item marked. */
+const JUMP_HIGHLIGHT_MS = 3000;
 
 const isWindowActive = (): boolean =>
     typeof document === 'undefined' || (document.visibilityState === 'visible' && document.hasFocus());
@@ -582,7 +584,7 @@ export const MessageList = ({
             if (!jumpTarget.restore) {
                 setHighlightChatNo(jumpTarget.chatNo);
                 if (highlightTimer.current) clearTimeout(highlightTimer.current);
-                highlightTimer.current = setTimeout(() => setHighlightChatNo(null), 1600);
+                highlightTimer.current = setTimeout(() => setHighlightChatNo(null), JUMP_HIGHLIGHT_MS);
             }
             // Settle the pin state now. It used to wait for the scroll frame, so a page
             // landing in between still saw "at the bottom", followed the tail, and carried

@@ -50,7 +50,7 @@ vi.mock('./useChannelChatFeeds', () => ({
 import '../../../i18n';
 
 import { isThreadUnread, myThreadKey } from '../utils';
-import { useMentionsStore, useMyThreadsStore, useReadCursorStore } from '../stores';
+import { useMentionsStore, useMyThreadsStore, useNotificationsPanelStore, useReadCursorStore } from '../stores';
 import { useMyThreadsCapture } from './useMyThreadsCapture';
 
 const KEY = myThreadKey('cloud-a', 'ch-1', '3');
@@ -275,6 +275,19 @@ describe('useMyThreadsCapture backfill', () => {
         renderHook(() => useMyThreadsCapture());
         await new Promise(resolve => setTimeout(resolve, 0));
         expect(channelCacheReadList).toHaveBeenCalledTimes(1);
+    });
+
+    // The inbox's Threads tab reads this to say an empty list is not the answer yet.
+    it('marks the cloud as being scanned while the cache is read, and clears it once done', async () => {
+        let release: (value: { list: unknown[] }) => void = () => undefined;
+        channelCacheReadList.mockReturnValue(new Promise(resolve => (release = resolve)));
+        chatCacheReadList.mockResolvedValue({ list: rows });
+
+        renderHook(() => useMyThreadsCapture());
+
+        expect(useNotificationsPanelStore.getState().scanningCid).toBe('cloud-a');
+        release({ list: [cachedChannel] });
+        await waitFor(() => expect(useNotificationsPanelStore.getState().scanningCid).toBeNull());
     });
 
     it('leaves out cached threads from before my current join', async () => {

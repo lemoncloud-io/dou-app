@@ -6,6 +6,14 @@ import type { MentionKind } from './mentionMatch';
  */
 export type InboxKind = MentionKind | 'dm' | 'reply' | 'reaction';
 
+/** The Notifications panel's tabs, in display order. */
+export const INBOX_TABS = ['all', 'channel', 'dm', 'thread', 'mention'] as const;
+export type InboxTab = (typeof INBOX_TABS)[number];
+
+/** The Notifications panel's sort orders, in display order. */
+export const INBOX_SORTS = ['newest', 'oldest', 'unread'] as const;
+export type InboxSort = (typeof INBOX_SORTS)[number];
+
 /** An item stored before the inbox took other sources has no kind, and every one of those was a mention. */
 export const inboxKindOf = (item: { kind?: InboxKind }): InboxKind => item.kind ?? 'direct';
 

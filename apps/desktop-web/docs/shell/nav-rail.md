@@ -14,15 +14,17 @@ sidebar.
 A destination is drawn only once its screen exists. `HomePage` passes the list (`NAV_ITEMS`), so the rail
 never offers a tile that would open an empty column.
 
-| Destination | Sidebar                                                              |
-| ----------- | -------------------------------------------------------------------- |
-| Home        | The place's sections: Saved, Favorites, Channels, DM (`ChannelList`) |
+| Destination   | Sidebar                                                              |
+| ------------- | -------------------------------------------------------------------- |
+| Home          | The place's sections: Saved, Favorites, Channels, DM (`ChannelList`) |
+| Notifications | The inbox in tabs ([inbox.md](../chat/inbox.md#the-panel))           |
 
 ### The Home sidebar
 
 Under the place title and the channel search, a hairline, then **Saved** leads the action rows
-(`SidebarHeader`). The place's own actions follow it: edit my profile, notification snooze, Threads
-and Mentions. Threads and Mentions leave once the Notifications destination takes them over.
+(`SidebarHeader`). Edit my profile in this place follows it: the design drops that row, but nothing
+else opens the place profile editor. Mentions, threads and the snooze live in the Notifications
+destination.
 
 The sections below (`ChannelList`, `SortableSection`) are Favorites, Channels and DM. Each section has
 its title, then the fold chevron, with any "+" at the far end. Without a search filter, all three are
@@ -40,6 +42,12 @@ unread gets a red dot (`bg-badge-unread`), and its accessible name says so (`nav
 alone is not read out.
 
 ## Width
+
+The sidebar column keeps a width per destination: Home under `chatic.sidebar.width` (286px to
+start), a list of cards (Notifications) under `chatic.navPanel.width` (420px to start). Both drag
+between the same bounds. `DesktopLayout` takes the pair as `sidebarWidth`, and `usePanelWidth` swaps
+to the new key's width before the frame is painted, dropping the old one from its budget so the
+column is not counted twice.
 
 Both rails are `width.rail` (80px, `tailwind.config.js`). `AppShellSkeleton` draws the same two rails,
 and `usePanelWidth` counts them in its budget (`RAIL_WIDTH`). Change all three together, or the boot

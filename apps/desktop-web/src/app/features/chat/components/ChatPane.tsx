@@ -75,7 +75,7 @@ interface ChatPaneProps {
      * channels, `create` when this place has none, `join` on the Default Cloud,
      * which cannot create channels: there the only next step is an invite.
      */
-    emptyState?: { mode: 'pick' | 'create' | 'join'; onAction?: () => void };
+    emptyState?: { mode: 'pick' | 'create' | 'join' | 'inbox'; onAction?: () => void };
 }
 
 export const ChatPane = ({

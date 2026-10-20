@@ -7,8 +7,8 @@ import { isNotifiableChat } from './notifiableChat';
 /**
  * The threads one channel's cached page shows the user taking part in: a root of theirs with a reply,
  * or a thread with a reply of theirs. Each comes as its newest cached reply plus its root, ready for
- * the Threads list. A thread whose root is not in the page is left out — there would be nothing to
- * show for it.
+ * the my-threads record. A thread whose root is not in the page is left out — there would be no root
+ * to keep for it.
  */
 export const cachedThreads = (
     rows: DomainChat[],

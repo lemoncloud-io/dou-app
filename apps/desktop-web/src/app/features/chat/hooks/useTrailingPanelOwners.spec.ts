@@ -3,12 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 import { useChannelSettingsStore } from '../../channels';
-import {
-    useMentionsPanelStore,
-    useMyThreadsPanelStore,
-    useProfilePanelStore,
-    useSavedPanelStore,
-} from '../../../shared';
+import { useProfilePanelStore, useSavedPanelStore } from '../../../shared';
 import { useThreadStore } from '../stores';
 import { useTrailingPanelOwners } from './useTrailingPanelOwners';
 
@@ -21,8 +16,6 @@ describe('useTrailingPanelOwners', () => {
             useChannelSettingsStore.getState().close();
             useProfilePanelStore.getState().close();
             useSavedPanelStore.getState().close();
-            useMentionsPanelStore.getState().close();
-            useMyThreadsPanelStore.getState().close();
         });
     });
 
@@ -70,38 +63,22 @@ describe('useTrailingPanelOwners', () => {
             threadRootId: null,
             profileTarget: null,
             settingsChannelId: null,
-            activityOpen: false,
-            threadsOpen: false,
         });
     });
 
-    it('treats the Threads pane as one more exclusive owner', () => {
-        const { result } = renderHook(() => useTrailingPanelOwners('ch-1', false));
-        act(() => useMentionsPanelStore.getState().open());
-        act(() => useMyThreadsPanelStore.getState().open());
-
-        expect(result.current).toMatchObject({ threadsOpen: true, activityOpen: false });
-
-        act(() => useThreadStore.getState().open('root-1', 'ch-1'));
-
-        expect(result.current).toMatchObject({ threadsOpen: false, threadRootId: 'root-1' });
-    });
-
-    // A Threads row in another channel closes the list, selects that channel, and opens the thread
-    // once the channel shows — the list closing must not take the thread with it.
-    it('keeps a thread opened from the Threads list for a channel that is not showing yet', () => {
+    // An inbox reply in another channel selects that channel, and opens the thread once the channel
+    // shows — the channel switch must not take the thread with it.
+    it('keeps a thread opened from the inbox for a channel that is not showing yet', () => {
         const { result, rerender } = renderHook(
             ({ channelId, loading }: { channelId: string | undefined; loading: boolean }) =>
                 useTrailingPanelOwners(channelId, loading),
             { initialProps: { channelId: 'ch-1' as string | undefined, loading: false } }
         );
-        act(() => useMyThreadsPanelStore.getState().open());
-        act(() => useMyThreadsPanelStore.getState().close());
         rerender({ channelId: undefined, loading: true });
         act(() => useThreadStore.getState().open('root-9', 'ch-9'));
         rerender({ channelId: 'ch-9', loading: false });
 
-        expect(result.current).toMatchObject({ threadRootId: 'root-9', threadsOpen: false });
+        expect(result.current).toMatchObject({ threadRootId: 'root-9' });
     });
     describe('a thread belongs to the channel it was opened in', () => {
         const renderOwners = (initialProps: { channelId: string | undefined; loading: boolean }) =>

@@ -56,8 +56,8 @@ const DesktopNotifications = () => {
     // Capture mentions, 1:1 messages and reactions to mine across all channels into the device-local inbox;
     // replies in my threads reach it through useMyThreadsCapture below.
     useInboxCapture();
-    // Feed replies in background channels into the device-local Threads list, and hand others' replies
-    // in my threads to the inbox.
+    // Record the threads I take part in from background channels, and hand others' replies in them to
+    // the inbox.
     useMyThreadsCapture();
     // A push means new activity the v2 socket won't stream for background channels — re-pull the
     // active cloud's channels so the unread badges update at push time, not 60s later.

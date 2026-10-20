@@ -50,6 +50,7 @@ import { captureInboxReply, useInboxCapture } from './useInboxCapture';
 const channel = (joinUserId?: string, stereo?: string) => ({
     id: 'ch-1',
     cid: 'cloud-1',
+    name: '#general',
     stereo,
     $join: joinUserId ? { userId: joinUserId } : undefined,
 });
@@ -196,6 +197,17 @@ describe('useInboxCapture direct messages', () => {
         expect(item?.content).not.toBe('');
     });
 
+    // The list reads where an item happened long after its place's channels have gone out of memory.
+    it('keeps the channel name with a channel item, and marks a 1:1 item as one instead', () => {
+        feedHandler?.(feed({ id: 'ch-1:5' }));
+        feedHandler?.(feed({ id: 'ch-1:6', chatNo: 6, content: 'hi' }, CLOUD_UID, 'dm'));
+        const byId = useMentionsStore.getState().items;
+        expect(byId['ch-1:5']).toMatchObject({ channelName: 'general' });
+        expect(byId['ch-1:5'].inDm).toBeUndefined();
+        expect(byId['ch-1:6']).toMatchObject({ inDm: true });
+        expect(byId['ch-1:6'].channelName).toBeUndefined();
+    });
+
     it('skips a channel message that does not call me', () => {
         feedHandler?.(feed({ content: 'lunch?' }));
         expect(captured()).toEqual([]);
@@ -226,6 +238,13 @@ describe('useInboxCapture reactions', () => {
         expect(item).toMatchObject({ kind: 'reaction', emoji: '👍', ownerName: 'Ada', content: 'ship it', chatNo: 9 });
         // Keyed by target, emoji and person: the reaction event's own id changes with every toggle.
         expect(item.id).toBe('reaction:ch-1:4:👍:u-ada');
+    });
+
+    it('marks a reaction in a 1:1 as one, so it is listed with the DMs', async () => {
+        cache.set('ch-1:4', { id: 'ch-1:4', chatNo: 4, content: 'ship it', ownerId: CLOUD_UID });
+        feedHandler?.({ ...reaction('on'), channel: channel(CLOUD_UID, 'dm') });
+        await settle();
+        expect(captured()[0]).toMatchObject({ kind: 'reaction', inDm: true });
     });
 
     it('skips a reaction being taken back', async () => {

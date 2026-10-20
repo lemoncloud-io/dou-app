@@ -4,6 +4,7 @@ import { RELAY_CLOUD_ID, type DomainChat } from '@chatic/data';
 
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
 import {
+    bareChannelName,
     inboxKindFor,
     isNotifiableChat,
     isOwnChat,
@@ -47,6 +48,13 @@ const arrivalKind = ({ channel, chat }: ChannelChatFeed, content: string): Inbox
     });
 };
 
+/**
+ * Where the item happened, kept with it: the list names the channel long after its place's channels
+ * have left memory. A 1:1 is named by its person instead, so it keeps no room name.
+ */
+const whereOf = (channel: ChannelChatFeed['channel']): { inDm?: true; channelName?: string } =>
+    isNotifyDm(channel) ? { inDm: true } : { channelName: bareChannelName(channel.name) || undefined };
+
 const addMessage = ({ placeId, channel, chat }: ChannelChatFeed, kind: InboxKind, content: string): void => {
     // An id is the dedupe key of the inbox; a row without one cannot be stored.
     if (!chat.id || !channel.id) return;
@@ -55,6 +63,7 @@ const addMessage = ({ placeId, channel, chat }: ChannelChatFeed, kind: InboxKind
         id: chat.id,
         kind,
         channelId: channel.id,
+        ...whereOf(channel),
         chatNo: chat.chatNo,
         content: truncateMentionPreview(content),
         ownerName: chat.owner$?.name ?? '',
@@ -92,6 +101,7 @@ const captureReaction = async ({ placeId, channel, chat }: ChannelChatFeed): Pro
         kind: 'reaction',
         emoji: reaction.emoji,
         channelId: channel.id,
+        ...whereOf(channel),
         chatNo: chat.chatNo,
         content: truncateMentionPreview(messagePreview(target)),
         ownerName: chat.owner$?.name ?? '',

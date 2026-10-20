@@ -44,7 +44,7 @@ describe('locale parity', () => {
 });
 
 // One glossary: "끔" / "멘션만" for a channel, "방해 금지 시간" for the schedule,
-// "일시 중지" for snooze — and the inbox owns `activity.*` keys, not `saved.*`.
+// "일시 중지" for snooze — and the inbox owns `inbox.*` keys, not `saved.*`.
 describe('notification vocabulary', () => {
     it('names the channel levels 끔 and 멘션만 on the row', () => {
         expect(ko['sidebar.muted']).toBe('끔');
@@ -74,10 +74,9 @@ describe('notification vocabulary', () => {
 
     it('gives the inbox its own keys', () => {
         for (const bundle of [ko, en]) {
-            expect(bundle['activity.deviceLocal']).toBeTruthy();
-            expect(bundle['activity.remove']).toBeTruthy();
-            expect(bundle['activity.otherPlace']).toBeTruthy();
+            expect(bundle['inbox.deviceLocal']).toBeTruthy();
+            expect(bundle['inbox.empty']).toBeTruthy();
         }
-        expect(ko['activity.deviceLocal']).not.toContain('저장');
+        expect(ko['inbox.deviceLocal']).not.toContain('저장');
     });
 });

@@ -4,8 +4,16 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { PanelResizeHandle } from '../components/PanelResizeHandle';
 import { type PanelEdge, usePanelWidth } from './usePanelWidth';
 
-const Panel = ({ edge }: { edge?: PanelEdge }) => {
-    const resize = usePanelWidth({ storageKey: 'test.width', defaultWidth: 300, edge, minWidth: 200, maxWidth: 400 });
+const Panel = ({
+    edge,
+    storageKey = 'test.width',
+    defaultWidth = 300,
+}: {
+    edge?: PanelEdge;
+    storageKey?: string;
+    defaultWidth?: number;
+}) => {
+    const resize = usePanelWidth({ storageKey, defaultWidth, edge, minWidth: 200, maxWidth: 400 });
     return (
         <aside ref={resize.panelRef} style={{ width: resize.width }}>
             <PanelResizeHandle label="Resize" panel={resize} />
@@ -52,6 +60,23 @@ describe('usePanelWidth', () => {
         render(<Panel edge="right" />);
         fireEvent.keyDown(screen.getByRole('separator'), { key: 'ArrowRight' });
         expect(width()).toBe(316);
+    });
+
+    // The sidebar column holds a different list per nav destination, and each keeps its own width.
+    it('takes the width kept under a new key when the key changes, and its default when none is kept', () => {
+        localStorage.setItem('home.width', '250');
+        const { rerender } = render(<Panel storageKey="home.width" />);
+        expect(width()).toBe(250);
+
+        rerender(<Panel storageKey="inbox.width" defaultWidth={380} />);
+        expect(width()).toBe(380);
+
+        fireEvent.keyDown(screen.getByRole('separator'), { key: 'ArrowRight' });
+        expect(localStorage.getItem('inbox.width')).toBe('364');
+        expect(localStorage.getItem('home.width')).toBe('250');
+
+        rerender(<Panel storageKey="home.width" />);
+        expect(width()).toBe(250);
     });
 
     // One narrow window used to leave the panel at its minimum until a reload.

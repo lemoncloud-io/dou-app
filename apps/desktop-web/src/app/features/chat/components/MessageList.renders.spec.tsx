@@ -114,9 +114,11 @@ describe('MessageList row re-renders', { timeout: 30_000 }, () => {
         const target = () => container.querySelector('[data-chat-no="100"]')?.outerHTML;
         expect(target()).toMatch(/bg-primary\/10/);
 
+        // The flash holds for 3s — as long as the inbox keeps the opened item marked — then clears.
+        await act(() => new Promise(resolve => setTimeout(resolve, 2000)));
+        expect(target()).toMatch(/bg-primary\/10/);
         rowRenders.count = 0;
-        // The flash clears on a 1.6s timer.
-        await act(() => new Promise(resolve => setTimeout(resolve, 1700)));
+        await act(() => new Promise(resolve => setTimeout(resolve, 1100)));
         expect(rowRenders.count).toBe(1);
         expect(target()).not.toMatch(/bg-primary\/10/);
     });

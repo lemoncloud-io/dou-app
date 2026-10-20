@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { isMentionKind, type InboxKind } from '../utils/inboxKinds';
+import { isMentionKind, type InboxKind, type InboxSort, type InboxTab } from '../utils/inboxKinds';
 
 /**
  * A message that @-mentioned me, snapshotted at capture time. Snapshot (not a
@@ -32,6 +32,10 @@ export interface MentionItem {
     kind?: InboxKind;
     /** The emoji of a `reaction` item; its `content` is the message reacted to. */
     emoji?: string;
+    /** Set when the message was in a 1:1 — a `dm` item says so by kind, a reaction only here. */
+    inDm?: boolean;
+    /** The channel's name when the item was captured: its place's channels may not be loaded when it is read. */
+    channelName?: string;
 }
 
 /** Bound storage: keep only the newest N items. DMs, replies and reactions share the cap with mentions. */
@@ -166,20 +170,37 @@ export const useMentionsStore = create<MentionsState>()(
     )
 );
 
-interface MentionsPanelState {
-    isOpen: boolean;
-    /** The row last opened from this pane; marked when the pane opens again. */
+interface NotificationsPanelState {
+    /** The item last opened from the panel: its card stays marked as where the reader went. */
     openedId: string | null;
-    open: () => void;
-    close: () => void;
+    tab: InboxTab;
+    unreadOnly: boolean;
+    sort: InboxSort;
+    /**
+     * The cloud whose cached messages are being read for threads on its first launch. Until it is
+     * done an empty Threads tab is not final, and says so.
+     */
+    scanningCid: string | null;
     markOpened: (id: string) => void;
+    setTab: (tab: InboxTab) => void;
+    setUnreadOnly: (unreadOnly: boolean) => void;
+    setSort: (sort: InboxSort) => void;
+    setScanning: (cid: string | null) => void;
 }
 
-/** Whether the trailing Activity pane is open (HomePage enforces pane exclusivity). */
-export const useMentionsPanelStore = create<MentionsPanelState>(set => ({
-    isOpen: false,
+/**
+ * The Notifications panel's view, in memory: the panel unmounts whenever the nav leaves it, and
+ * coming back finds the same tab, filter and order.
+ */
+export const useNotificationsPanelStore = create<NotificationsPanelState>(set => ({
     openedId: null,
-    open: () => set({ isOpen: true }),
-    close: () => set({ isOpen: false }),
+    tab: 'all',
+    unreadOnly: false,
+    sort: 'newest',
+    scanningCid: null,
     markOpened: id => set({ openedId: id }),
+    setTab: tab => set({ tab }),
+    setUnreadOnly: unreadOnly => set({ unreadOnly }),
+    setSort: sort => set({ sort }),
+    setScanning: cid => set({ scanningCid: cid }),
 }));

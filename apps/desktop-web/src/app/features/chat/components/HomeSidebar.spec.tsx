@@ -26,10 +26,6 @@ const renderHeader = (props: Partial<ComponentProps<typeof SidebarHeader>> = {})
                 onQueryChange={vi.fn()}
                 onEditPlaceProfile={vi.fn()}
                 onOpenSaved={vi.fn()}
-                onOpenActivity={vi.fn()}
-                cloudId="cloud-1"
-                placeId="place-1"
-                onOpenThreads={vi.fn()}
                 {...props}
             />
         </MemoryRouter>
@@ -40,6 +36,12 @@ describe('Home sidebar header', () => {
         renderHeader();
         const labels = screen.getAllByRole('button').map(button => button.textContent);
         expect(labels[0]).toBe(i18next.t('saved.title'));
+    });
+
+    // Mentions, threads and the snooze moved to the Notifications destination of the nav rail.
+    it('holds no Mentions, Threads or snooze rows', () => {
+        renderHeader();
+        expect(screen.queryByRole('button', { name: /Mentions|Threads|Pause notifications/ })).toBeNull();
     });
 
     it('opens Saved from its entry', () => {

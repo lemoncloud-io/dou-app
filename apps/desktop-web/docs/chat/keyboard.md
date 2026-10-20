@@ -40,7 +40,7 @@ has no toolbar; a deleted row never has one.
 
 ## Hover-revealed controls
 
-A control that waits for hover (an image's save bar, the tray's "×", a Mentions or Saved row's
+A control that waits for hover (an image's save bar, the tray's "×", a Saved row's
 actions) uses `hoverReveal(scope)` (`shared/utils/hoverReveal.ts`) under a `group/<scope>` parent:
 
 - It is hidden only where the device can hover. On touch it is always shown.

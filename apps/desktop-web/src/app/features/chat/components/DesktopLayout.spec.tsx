@@ -191,3 +191,36 @@ describe('DesktopLayout compact window', () => {
         expect(screen.queryByRole('dialog', { hidden: true })).toBeNull();
     });
 });
+
+describe('DesktopLayout sidebar skip link', () => {
+    beforeEach(() => localStorage.clear());
+    afterEach(cleanup);
+
+    // The Home list stays mounted, hidden, under the other destinations: its rows are not a target then.
+    it('lands on the open destination, passing over the hidden Home list', () => {
+        Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
+        render(
+            <DesktopLayout
+                rail={<span />}
+                sidebar={
+                    <>
+                        <div hidden>
+                            <nav>
+                                <button type="button">hidden row</button>
+                            </nav>
+                        </div>
+                        <section>
+                            <button type="button">inbox control</button>
+                        </section>
+                    </>
+                }
+                main={<span />}
+            />,
+            { wrapper }
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: i18next.t('shell.skip.sidebar') }));
+
+        expect(document.activeElement?.textContent).toBe('inbox control');
+    });
+});
