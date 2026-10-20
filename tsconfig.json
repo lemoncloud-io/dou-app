@@ -82,6 +82,9 @@
             "path": "./apps/web-e2e"
         },
         {
+            "path": "./apps/desktop-web-e2e"
+        },
+        {
             "path": "./libs/fake-shell"
         },
         {
