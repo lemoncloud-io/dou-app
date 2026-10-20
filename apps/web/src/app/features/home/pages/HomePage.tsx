@@ -206,7 +206,7 @@ export const HomePage = () => {
     // The place's own rooms. A subscription cloud's notes-to-self room carries a place too, but it
     // belongs to the account and leads the 1:1 section instead. `channels` keeps it for the syncs.
     const placeRooms = useMemo(() => channels.filter(channel => !isInCloudSelfSection(channel)), [channels]);
-    // A cloud lists its place's rooms in two sections — 1:1s and groups — split by the room's kind
+    // A cloud lists its place's rooms in two sections — groups, then 1:1s — split by the room's kind
     // alone (`stereo`), the same rule every other 1:1 decision reads; a two-member group stays a
     // group. The relay keeps one list: its 1:1s are reached by phone number and its only other room
     // is the self chat, so a split there would only move one row.
@@ -558,38 +558,6 @@ export const HomePage = () => {
                     />
                 )}
 
-                {/* A cloud's 1:1 section: my notes-to-self room on top, then the place's 1:1s. The
-                    self room belongs to the account rather than to any place, so it is listed here
-                    whichever place is open; the relay keeps its self chat and its 1:1s in its one
-                    list, so this section is a cloud's only.
-
-                    Drawn whenever a place is open — its ＋ is how a 1:1 is started — and, with no
-                    place, only while there is a self room to show.
-
-                    The same `ChannelList` as the group rooms, deliberately — every row rule (the
-                    title chain, the avatar, unread, the last-message preview) is decided there, and
-                    a second row component would be a second place for them to drift. The stored
-                    fold id is still `cloudDm`: the section that id first named is this one again. */}
-                {!isDefaultCloud && (selectedPlaceId || cloudSelfChannels.length > 0) && (
-                    <ChannelList
-                        channels={dmSectionRooms}
-                        leadsWithSelf
-                        joinByChannel={myJoins}
-                        sid={selectedPlaceId ?? selectedSiteId ?? ''}
-                        isLoading={isChannelSectionLoading || isCloudSelfLoading}
-                        title={t('cloudDm.section.title')}
-                        emptyLabel={t('cloudDm.section.empty')}
-                        sortMethod={channelSortMethod}
-                        pinnedChannelIds={pinnedChannelIds}
-                        onTogglePin={togglePinned}
-                        onCreate={canStartCloudDm ? handleStartCloudDm : undefined}
-                        createLabel={t('cloudDm.start')}
-                        sentInvites={[]}
-                        open={homeSections.isOpen('cloudDm')}
-                        onOpenChange={open => homeSections.setOpen('cloudDm', open)}
-                    />
-                )}
-
                 {selectedPlaceId ? (
                     // Relay: the place's one list. A cloud: its group rooms, under their own heading.
                     <ChannelList
@@ -598,7 +566,7 @@ export const HomePage = () => {
                         // A cloud with rooms in its 1:1 section says only that no group exists yet. The
                         // place's own empty state — create one, or rooms arrive by invitation and you
                         // may leave — is about a place with no room at all, which would contradict
-                        // the 1:1s right above it.
+                        // the 1:1s right below it.
                         emptyLabel={
                             !isDefaultCloud && dmSectionRooms.length > 0 ? t('homePage.groupChatsEmpty') : undefined
                         }
@@ -608,7 +576,7 @@ export const HomePage = () => {
                         canCreate={!isChannelSectionLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
                         // Relay only: there a 1:1 is reached by phone number. A cloud starts its
-                        // 1:1s from the ＋ of the 1:1 section above.
+                        // 1:1s from the ＋ of the 1:1 section below.
                         showOneOnOneCreate={!isChannelSectionLoading && isDefaultCloud}
                         isPro={planTier !== 'free'}
                         sortMethod={channelSortMethod}
@@ -645,6 +613,38 @@ export const HomePage = () => {
                         <Loader2 aria-hidden className="size-7 animate-spin" />
                         <p className="text-sm">{t('homePage.loadingCloud')}</p>
                     </div>
+                )}
+
+                {/* A cloud's 1:1 section: my notes-to-self room on top, then the place's 1:1s. The
+                    self room belongs to the account rather than to any place, so it is listed here
+                    whichever place is open; the relay keeps its self chat and its 1:1s in its one
+                    list, so this section is a cloud's only.
+
+                    Drawn whenever a place is open — its ＋ is how a 1:1 is started — and, with no
+                    place, only while there is a self room to show.
+
+                    The same `ChannelList` as the group rooms, deliberately — every row rule (the
+                    title chain, the avatar, unread, the last-message preview) is decided there, and
+                    a second row component would be a second place for them to drift. The stored
+                    fold id is still `cloudDm`: the section that id first named is this one again. */}
+                {!isDefaultCloud && (selectedPlaceId || cloudSelfChannels.length > 0) && (
+                    <ChannelList
+                        channels={dmSectionRooms}
+                        leadsWithSelf
+                        joinByChannel={myJoins}
+                        sid={selectedPlaceId ?? selectedSiteId ?? ''}
+                        isLoading={isChannelSectionLoading || isCloudSelfLoading}
+                        title={t('cloudDm.section.title')}
+                        emptyLabel={t('cloudDm.section.empty')}
+                        sortMethod={channelSortMethod}
+                        pinnedChannelIds={pinnedChannelIds}
+                        onTogglePin={togglePinned}
+                        onCreate={canStartCloudDm ? handleStartCloudDm : undefined}
+                        createLabel={t('cloudDm.start')}
+                        sentInvites={[]}
+                        open={homeSections.isOpen('cloudDm')}
+                        onOpenChange={open => homeSections.setOpen('cloudDm', open)}
+                    />
                 )}
 
                 <BottomNavSpacer />

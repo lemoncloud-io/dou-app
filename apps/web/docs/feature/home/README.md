@@ -52,7 +52,7 @@ What it owns of each is the entry point and nothing behind it.
 ## Scope
 
 **In** — the header and its profile dropdown; the cloud promo banner; the missing-profile banner; the
-Place section; the room sections (the relay's one list; a cloud's 1:1 and group sections, in that
+Place section; the room sections (the relay's one list; a cloud's group and 1:1 sections, in that
 order below Places) with their previews, unread badges and create entries (a popover, or the 1:1
 section's direct ＋); the rows'
 swipe actions (pin, mute, leave or delete); pull-to-refresh on the body; the cloud-switcher sheet;
@@ -286,7 +286,7 @@ sync home already registers, which catches a row up whenever the channel delta m
 
 ## Row swipe actions
 
-Every room row in the room sections — the relay's list, a cloud's 1:1 and group sections — slides sideways to reveal actions
+Every room row in the room sections — the relay's list, a cloud's group and 1:1 sections — slides sideways to reveal actions
 behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing else.
 
 | Swipe | Actions                                                                   |
