@@ -13,7 +13,8 @@ stores in `src/app/shared/`.
 - [composer-links.md](./composer-links.md) — a URL typed into the composer shows as a link, and
   why the composer and the message view cannot disagree about what a link is.
 - [feed-windowing.md](./feed-windowing.md): which feed rows are mounted, how the reading position
-  holds while rows are measured, and how a jump reaches a row outside the window.
+  holds while rows are measured, how a jump reaches a row outside the window, and how older history is
+  paged past deleted messages.
 - [jump-and-return.md](./jump-and-return.md): a jump to one message, and the "Back to …" that returns
   the reader to where they were reading.
 - [read-receipts.md](./read-receipts.md): the "Seen by" line under a message, what it counts and which

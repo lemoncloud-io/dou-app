@@ -961,6 +961,75 @@ describe('MessageList first page failed', () => {
     });
 });
 
+// A newest page of deleted messages, or of replies whose roots were deleted, leaves the feed with
+// nothing to show and nothing to scroll: no scroll would ever ask for the history below it.
+describe('MessageList with nothing shown and older history', () => {
+    afterEach(cleanup);
+
+    const renderEmpty = (props: { onLoadOlder: () => void; isLoadingOlder?: boolean; loadOlderFailed?: boolean }) =>
+        render(
+            <MessageList
+                messages={[]}
+                isLoading={false}
+                viewer={VIEWER}
+                intro={<p>Write the first message</p>}
+                hasMore
+                {...props}
+            />,
+            { wrapper }
+        );
+
+    it('pulls the older page by itself and shows loading, not the intro', () => {
+        const onLoadOlder = vi.fn();
+        renderEmpty({ onLoadOlder });
+
+        expect(onLoadOlder).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('status')).toBeTruthy();
+        expect(screen.queryByText('Write the first message')).toBeNull();
+    });
+
+    it('does not pull while the first page is still loading', () => {
+        const onLoadOlder = vi.fn();
+        render(<MessageList messages={[]} isLoading viewer={VIEWER} hasMore onLoadOlder={onLoadOlder} />, { wrapper });
+
+        expect(onLoadOlder).not.toHaveBeenCalled();
+    });
+
+    it('does not ask again while a page is out', () => {
+        const onLoadOlder = vi.fn();
+        renderEmpty({ onLoadOlder, isLoadingOlder: true });
+
+        expect(onLoadOlder).not.toHaveBeenCalled();
+    });
+
+    it('says a failed page did not load, and retries it through onLoadOlder', () => {
+        const onLoadOlder = vi.fn();
+        renderEmpty({ onLoadOlder, loadOlderFailed: true });
+
+        // A failed page is not asked for again until the reader retries it.
+        expect(onLoadOlder).not.toHaveBeenCalled();
+        expect(screen.getByRole('alert').textContent).toContain('Could not load messages.');
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onLoadOlder).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the intro once the history has run out', () => {
+        render(
+            <MessageList
+                messages={[]}
+                isLoading={false}
+                viewer={VIEWER}
+                intro={<p>Write the first message</p>}
+                onLoadOlder={vi.fn()}
+                hasMore={false}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('Write the first message')).toBeTruthy();
+    });
+});
+
 describe('MessageList webhook sender', () => {
     const webhookCard = (chatNo: number, ownerId: string, owner?: { name: string }): DomainChat =>
         ({
