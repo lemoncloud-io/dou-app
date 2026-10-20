@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-20] - root@0.107.0, @chatic/web@0.74.0
+
+### Features
+
+- (web) split a cloud's home into 1:1 and group sections, and start a 1:1 (ADR-0216)
+
 ## [2026-10-20] - No version updates
 
 ### Bug Fixes
