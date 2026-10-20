@@ -127,4 +127,13 @@ describe('SavedPage', () => {
         expect(screen.getByText('Nothing saved yet')).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Files' }).hasAttribute('disabled')).toBe(true);
     });
+
+    it("does not name another place's message after this place's same-id channel or DM", () => {
+        seed(item('away', { placeId: 'P2', channelId: 'D1' }));
+        renderPage();
+
+        const [card] = cards();
+        expect(within(card).getByText('Channel')).toBeTruthy();
+        expect(card.textContent).not.toContain('# general');
+    });
 });

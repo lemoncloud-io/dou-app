@@ -44,7 +44,9 @@ const seed = (...items: MentionItem[]) =>
 const CHANNELS = [{ id: 'C1', name: 'general' }] as DomainChannel[];
 
 const renderPanel = (onSelect = vi.fn()) =>
-    render(<NotificationsPanel cloudId="cloud-1" channels={CHANNELS} onSelect={onSelect} />, { wrapper });
+    render(<NotificationsPanel cloudId="cloud-1" channels={CHANNELS} currentPlaceId="P1" onSelect={onSelect} />, {
+        wrapper,
+    });
 
 /** Watches the panel's 3-second wait among the timers the kit's own components set. */
 const lingerTimer = () => {
@@ -238,6 +240,14 @@ describe('NotificationsPanel opening an item', () => {
 
         expect(listed()).toEqual([]);
         expect(wait.cleared()).toBe(true);
+    });
+    it("names another place's channel by the name kept with it, not this place's same-id channel", () => {
+        seed(item('away', { placeId: 'P2', channelName: 'roadmap' }));
+        renderPanel();
+
+        const card = screen.getByRole('button', { name: /away body/ });
+        expect(card.textContent).toContain('roadmap');
+        expect(card.textContent).not.toContain('general');
     });
 });
 

@@ -54,6 +54,8 @@ interface NotificationsPanelProps {
     cloudId: string;
     /** Loaded channels (active place) — name the cards' channels before the name kept with the item. */
     channels: DomainChannel[];
+    /** The place `channels` belong to: channel ids repeat across places, so only its items use them. */
+    currentPlaceId?: string;
     /** Jump to the message: select its place and channel, then scroll to it or open its thread (4th arg). */
     onSelect: (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => void;
 }
@@ -69,7 +71,7 @@ interface NotificationsPanelProps {
  * In selection mode a click selects instead. The selection is of the cards listed, so changing the
  * tab or the filter drops it; marking the whole tab read is undone from its toast.
  */
-export const NotificationsPanel = ({ cloudId, channels, onSelect }: NotificationsPanelProps) => {
+export const NotificationsPanel = ({ cloudId, channels, currentPlaceId, onSelect }: NotificationsPanelProps) => {
     const { t } = useTranslation();
     const itemsById = useMentionsStore(s => s.items);
     const threads = useMyThreadsStore(s => s.threads);
@@ -101,6 +103,7 @@ export const NotificationsPanel = ({ cloudId, channels, onSelect }: Notification
         () => new Map(channels.map(channel => [channel.id ?? '', bareChannelName(channel.name)])),
         [channels]
     );
+    const isHere = (item: MentionItem): boolean => !item.placeId || item.placeId === currentPlaceId;
     const isEmpty = items.length === 0;
     const today = dayOf(Date.now());
 
@@ -371,7 +374,7 @@ export const NotificationsPanel = ({ cloudId, channels, onSelect }: Notification
                                     <NotificationCard
                                         key={item.id}
                                         item={item}
-                                        channelName={channelNames.get(item.channelId) || item.channelName}
+                                        channelName={(isHere(item) && channelNames.get(item.channelId)) || item.channelName}
                                         rootPreview={rootPreviewOf(item)}
                                         isCurrent={item.id === openedId}
                                         selected={isSelecting ? selected.has(item.id) : undefined}

@@ -841,6 +841,7 @@ export const HomePage = () => {
                             <NotificationsPanel
                                 cloudId={activeCloudId ?? RELAY_CLOUD_ID}
                                 channels={channels}
+                                currentPlaceId={selectedPlaceId ?? undefined}
                                 onSelect={jumpToSaved}
                             />
                         }

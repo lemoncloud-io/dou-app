@@ -165,14 +165,17 @@ export const SavedPage = ({ channels, places, currentPlaceId, onSelect }: SavedP
     const sorted = useMemo(() => Object.values(items).sort((a, b) => b.savedAt - a.savedAt), [items]);
     const shown = sorted.filter(item => isInFilter(item, filter));
     const channelById = useMemo(() => new Map(channels.map(channel => [channel.id ?? '', channel])), [channels]);
+    // Channel ids repeat across places: only a message saved here can be named from this place's list.
+    const channelOf = (item: SavedItem): DomainChannel | undefined =>
+        !item.placeId || item.placeId === currentPlaceId ? channelById.get(item.channelId) : undefined;
 
     const sourceOf = (item: SavedItem): SavedCardProps['source'] => {
         if (item.parentId) return 'thread';
-        const channel = channelById.get(item.channelId);
+        const channel = channelOf(item);
         return channel && isDmBucket(channel) ? 'dm' : 'channel';
     };
     const whereOf = (item: SavedItem, source: SavedCardProps['source']): string | undefined => {
-        const channelName = source === 'dm' ? undefined : channelById.get(item.channelId)?.name;
+        const channelName = source === 'dm' ? undefined : channelOf(item)?.name;
         const elsewhere =
             item.placeId && item.placeId !== currentPlaceId
                 ? (places.find(place => place.id === item.placeId)?.name ?? t('saved.otherPlace'))
