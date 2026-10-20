@@ -40,7 +40,7 @@ const clearAllButInvitedClouds = async (cloud: ICloudRepository): Promise<void> 
  *
  * Logout is a full reload (window.location.replace), so in-memory state disappears, but persisted
  * localStorage stores survive — in particular `chatic-joined-clouds` would keep exposing the previous
- * account's clouds in CloudRail (useClouds merges it in), so it is cleared unless a
+ * account's clouds in the cloud switcher (useClouds merges it in), so it is cleared unless a
  * signed-in account is logging out (below).
  *
  * The v2 engine has no global logout-callback registration point (`registerLogoutCallback` was

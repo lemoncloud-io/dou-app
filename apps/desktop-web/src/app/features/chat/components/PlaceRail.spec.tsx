@@ -12,33 +12,11 @@ import type * as DndCore from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
 import type * as ChaticShared from '@chatic/shared';
 
-import type * as SharedModule from '../../../shared';
 import type * as ConfirmDialogModule from '../../channels/components/ConfirmDialog';
 import type * as SendInviteStoreModule from '../../channels/stores/useSendInviteStore';
 
-const profile = vi.hoisted(() => ({ photo: undefined as string | undefined, isGuest: false }));
-const identity = vi.hoisted(() => ({ userId: 'me', delegatorId: null as string | null }));
-// The account's role, from the relay token. Inside a cloud `profile` is the cloud user's instead.
-const relayUser = vi.hoisted(() => ({ userRole: 'user' }));
-vi.mock('@chatic/app-runtime', () => ({
-    runtime: {
-        session: {
-            useSessionIdentity: () => identity,
-            getRelaySessionUser: () => relayUser,
-            useRuntimeProfile: () => profile,
-            useSessionLogout: () => vi.fn(),
-        },
-    },
-}));
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
-vi.mock('../../../shared', async () => ({
-    ...(await vi.importActual<typeof SharedModule>('../../../shared')),
-    useAccountName: () => 'Me',
-    useAccountResetOnLogout: () => ({ resetAccount: vi.fn() }),
-    useDisplayProfile: () => ({ name: 'Me', thumbnail: undefined }),
-}));
-vi.mock('../../auth', () => ({ useJoinDialogStore: () => vi.fn() }));
 // The real confirmation, taken from its own file: the barrel beside it pulls in the channel screens.
 // The real invite store likewise: the menu opens the sender through it.
 vi.mock('../../channels', async () => ({
@@ -122,9 +100,6 @@ const createTile = () => screen.queryByRole('button', { name: i18next.t('place.c
 
 beforeEach(() => {
     vi.clearAllMocks();
-    profile.isGuest = false;
-    identity.delegatorId = null;
-    relayUser.userRole = 'user';
     placeOrder.byCloud = {};
     dnd.end = undefined;
 });
@@ -230,100 +205,6 @@ describe('PlaceRail place menu', () => {
         fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('place.settings.open') }));
 
         expect(navProbe.path).toBe('/places/place-1/settings');
-    });
-});
-
-describe('PlaceRail account menu', () => {
-    // Enter on the trigger, not a click: Radix opens a dropdown from pointerdown,
-    // and jsdom has no PointerEvent — the MessageList spec documents the same path.
-    const openAccountMenu = async () => {
-        fireEvent.keyDown(screen.getByRole('button', { name: i18next.t('rail.menu.accountMenu', { name: 'Me' }) }), {
-            key: 'Enter',
-        });
-        await screen.findByRole('menu');
-    };
-    const joinItem = () => screen.queryByRole('menuitem', { name: i18next.t('rail.menu.join') });
-
-    // A signed-in account that picks "join with invite" only hears "log out first" after
-    // typing a code — the item is for guests, so it is shown to guests only.
-    it('shows the join item to a guest', async () => {
-        relayUser.userRole = 'guest';
-        profile.isGuest = true;
-        renderRail();
-        await openAccountMenu();
-        expect(joinItem()).not.toBeNull();
-    });
-
-    // A provider sign-in on desktop links the device's guest, so the account keeps the guest id the
-    // invite exchange runs under — and the server lets that session into the invited cloud.
-    it('shows the join item to a signed-in account linked to the device guest', async () => {
-        identity.delegatorId = 'guest-1';
-        renderRail();
-        await openAccountMenu();
-        expect(joinItem()).not.toBeNull();
-    });
-
-    it('hides the join item from a signed-in account with no guest to join under', async () => {
-        renderRail();
-        await openAccountMenu();
-        expect(joinItem()).toBeNull();
-    });
-
-    // The menu acts as someone, somewhere: its header names the account and its kind.
-    it('heads the menu with the account name and kind', async () => {
-        profile.isGuest = true;
-        renderRail();
-        await openAccountMenu();
-
-        expect(screen.getByText('Me')).toBeTruthy();
-        expect(screen.getByText(i18next.t('profile.guestName'))).toBeTruthy();
-    });
-
-    it('groups profile with account, ahead of settings and log out', async () => {
-        renderRail();
-        await openAccountMenu();
-
-        const items = screen.getAllByRole('menuitem').map(item => item.textContent);
-        expect(items).toContain(i18next.t('rail.menu.account'));
-        const order = [i18next.t('rail.menu.profile'), i18next.t('rail.menu.account')];
-        expect(items.indexOf(order[0])).toBeLessThan(items.indexOf(order[1]));
-        expect(items.indexOf(order[1])).toBeLessThan(items.indexOf(i18next.t('rail.menu.settings')));
-        expect(items.indexOf(i18next.t('rail.menu.settings'))).toBeLessThan(
-            items.indexOf(i18next.t('rail.menu.logout'))
-        );
-    });
-
-    it('opens the Account hub from its menu item', async () => {
-        renderRail();
-        await openAccountMenu();
-
-        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('rail.menu.account') }));
-
-        expect(navProbe.path).toBe('/account');
-    });
-
-    // A guest logout is a delete: the confirm offers the way to keep the
-    // account first, and names the destructive choice for what it is.
-    it('offers connecting an account before deleting a guest on logout', async () => {
-        profile.isGuest = true;
-        navProbe.path = '/';
-        renderRail();
-        await openAccountMenu();
-
-        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('rail.menu.logout') }));
-        fireEvent.click(await screen.findByRole('button', { name: i18next.t('rail.menu.logoutGuest.connect') }));
-
-        expect(navProbe.path).toBe('/account');
-    });
-
-    it('names the guest logout confirm for the delete that it is', async () => {
-        profile.isGuest = true;
-        renderRail();
-        await openAccountMenu();
-
-        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('rail.menu.logout') }));
-
-        expect(await screen.findByRole('button', { name: i18next.t('rail.menu.logoutGuest.confirm') })).toBeTruthy();
     });
 });
 

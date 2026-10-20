@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react';
 
 /**
  * Width below which the three fixed columns (rails + sidebar + message column)
- * no longer fit. Two 68px rails, a 200px sidebar floor and the 420px chat floor
- * add up to 756px, so the shell has to give something up before that.
+ * no longer fit. Two 80px rails, a 200px sidebar floor and the 420px chat floor
+ * add up to 780px, so the shell has to give something up before that.
  */
 export const NARROW_SHELL_WIDTH = 860;
 
 /**
- * Width below which the rails cannot stay docked either. Two 68px rails take 136px, and the
+ * Width below which the rails cannot stay docked either. Two 80px rails take 160px, and the
  * conversation needs about 300px for its header actions and the composer's format row, so under
  * this the rails ride in the drawer with the sidebar. The window's own floor is wider than this;
  * it is reached by zooming in.

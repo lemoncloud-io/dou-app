@@ -48,17 +48,19 @@ import {
     isSelfChannel,
     useChannelLabels,
     type MessageJumpOrigin,
+    type NavDestination,
     useUnreadStore,
     useCloudProfiles,
 } from '../../../shared';
 import {
     ChannelList,
     ChatPane,
-    CloudRail,
+    CloudSwitcher,
     CreatePlaceDialog,
     DesktopLayout,
     EditPlaceDialog,
     OnboardingDialog,
+    NavRail,
     PlaceRail,
     SidebarHeader,
     SavedPanel,
@@ -99,6 +101,9 @@ const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
     await runtime.connection.getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
     doSwitch();
 };
+
+// Destinations whose screens exist; the others join the rail as their screens land.
+const NAV_ITEMS: NavDestination[] = ['home'];
 
 export const HomePage = () => {
     const { clouds, activeCloudId, isCloudsError, isFetchingClouds, refetchClouds } = useClouds();
@@ -748,40 +753,41 @@ export const HomePage = () => {
         <>
             <DesktopLayout
                 rail={
-                    <CloudRail
-                        clouds={clouds}
-                        activeCloudId={activeCloudId}
-                        hasUnread={cloudHasUnread}
-                        badgedClouds={badgedClouds}
-                        // Switching from the rail is a deliberate move, like picking a
-                        // channel from the list, so it retires any return point.
-                        onSelectCloud={cloudId => {
-                            clearJumpOrigin();
-                            void switchCloud(cloudId);
-                        }}
-                        isSwitching={railLocked}
-                        isCatalogError={isCloudsError}
-                        isRetryingCatalog={isFetchingClouds}
-                        onRetryCatalog={() => void refetchClouds()}
-                    />
+                    <>
+                        <CloudSwitcher
+                            clouds={clouds}
+                            activeCloudId={activeCloudId}
+                            hasUnread={cloudHasUnread}
+                            badgedClouds={badgedClouds}
+                            // Switching from the rail is a deliberate move, like picking a
+                            // channel from the list, so it retires any return point.
+                            onSelectCloud={cloudId => {
+                                clearJumpOrigin();
+                                void switchCloud(cloudId);
+                            }}
+                            isSwitching={railLocked}
+                            isCatalogError={isCloudsError}
+                            isRetryingCatalog={isFetchingClouds}
+                            onRetryCatalog={() => void refetchClouds()}
+                        />
+                        <PlaceRail
+                            places={places}
+                            selectedPlaceId={selectedPlaceId}
+                            unreadByPlace={unreadByPlace}
+                            isDefaultMode={isDefaultMode}
+                            isSwitching={isSwitching}
+                            onSelectPlace={placeId => {
+                                clearJumpOrigin();
+                                switchPlace(placeId);
+                            }}
+                            canManagePlaces={mayManagePlacesHere}
+                            onCreatePlace={() => setCreatePlaceOpen(true)}
+                            onEditPlace={openEditPlace}
+                            onDeletePlace={deletePlace}
+                        />
+                    </>
                 }
-                rail2={
-                    <PlaceRail
-                        places={places}
-                        selectedPlaceId={selectedPlaceId}
-                        unreadByPlace={unreadByPlace}
-                        isDefaultMode={isDefaultMode}
-                        isSwitching={isSwitching}
-                        onSelectPlace={placeId => {
-                            clearJumpOrigin();
-                            switchPlace(placeId);
-                        }}
-                        canManagePlaces={mayManagePlacesHere}
-                        onCreatePlace={() => setCreatePlaceOpen(true)}
-                        onEditPlace={openEditPlace}
-                        onDeletePlace={deletePlace}
-                    />
-                }
+                nav={<NavRail items={NAV_ITEMS} />}
                 sidebar={
                     <>
                         <SidebarHeader

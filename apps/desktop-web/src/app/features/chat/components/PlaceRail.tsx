@@ -3,52 +3,27 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Home, MailPlus, Pencil, Plus, SlidersHorizontal, Trash2, User } from 'lucide-react';
+import { Home, MailPlus, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-react';
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { applyChannelOrder, usePlaceOrder } from '@chatic/shared';
-import { runtime } from '@chatic/app-runtime';
 
 import { ConfirmDialog, useSendInviteStore } from '../../channels';
-import { useJoinDialogStore } from '../../auth';
 import { isAtPlaceLimit, isManagedPlace, PLACE_MAX, placeFailure, type PlaceFailure } from '../utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
-import { Button } from '@chatic/ui-kit/components/ui/button';
 import {
     ContextMenu,
     ContextMenuContent,
     ContextMenuItem,
     ContextMenuTrigger,
 } from '@chatic/ui-kit/components/ui/context-menu';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from '@chatic/ui-kit/components/ui/dropdown-menu';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogTitle,
-} from '@chatic/ui-kit/components/ui/alert-dialog';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     Hint,
-    isRelayGuest,
     MobileAppPointer,
     ScrollHint,
-    useAccountName,
-    useAccountResetOnLogout,
     useDebugModeStore,
-    useDisplayProfile,
     useScrollOverflow,
     toastFailure,
 } from '../../../shared';
@@ -58,7 +33,7 @@ interface PlaceRailProps {
     places: DomainPlace[];
     selectedPlaceId: string | null;
     unreadByPlace: Record<string, number>;
-    /** Default Cloud (Guest Session): no joinable places — render the profile only. */
+    /** Default Cloud (Guest Session): no joinable places — render the Home tile only. */
     isDefaultMode: boolean;
     /** A cloud/place switch is in flight — disable the tiles to block a second switch. */
     isSwitching?: boolean;
@@ -149,9 +124,8 @@ interface PlaceTileProps {
     menu?: ReactNode;
 }
 
-/** One place, Figma Workspace Rail style: a 48px icon box with the name under it.
- *  Active = the box fills with the rail's muted tone; color stays reserved for the
- *  cloud rail and thumbnails. */
+/** One place: a 48px icon box with the name under it. The active place fills with the
+ *  brand lime, as the design draws it; the others stay on the rail until hovered. */
 const PlaceTile = ({
     id,
     name,
@@ -181,7 +155,7 @@ const PlaceTile = ({
                     <span
                         className={cn(
                             'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-callout font-semibold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
-                            isActive ? 'bg-rail-muted' : 'bg-transparent group-hover:bg-rail-muted/70'
+                            isActive ? 'bg-primary text-primary-foreground' : 'bg-transparent group-hover:bg-border'
                         )}
                     >
                         {thumbnail ? (
@@ -192,7 +166,7 @@ const PlaceTile = ({
                             tileInitial(name)
                         )}
                     </span>
-                    {/* A dot, as on the cloud tiles and channel rows. A count here summed
+                    {/* A dot, as on the cloud switcher and channel rows. A count here summed
                     messages across rows that only dot, so "12" pointed at nothing a
                     row inside would admit to. */}
                     {unread > 0 && (
@@ -215,7 +189,7 @@ const PlaceTile = ({
     return (
         <ContextMenu>
             <ContextMenuTrigger asChild>
-                {/* Plain wrapper, as on the cloud tiles: composing the Radix trigger onto Hint's
+                {/* Plain wrapper, as on the channel rows: composing the Radix trigger onto Hint's
                     own trigger drops onContextMenu. */}
                 <div className="contents">{tile}</div>
             </ContextMenuTrigger>
@@ -225,9 +199,8 @@ const PlaceTile = ({
 };
 
 /**
- * Second rail. Each icon is a place (a site within the active cloud); selecting
- * one runs the place switch. The signed-in user's menu is pinned to the bottom
- * (moved off the cloud rail so the profile lives with the place context).
+ * The place tiles. Each icon is a place (a site within the active cloud); selecting
+ * one runs the place switch. The signed-in user's menu lives on the nav rail.
  */
 export const PlaceRail = ({
     places,
@@ -242,24 +215,6 @@ export const PlaceRail = ({
     onDeletePlace,
 }: PlaceRailProps) => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
-    const openJoinDialog = useJoinDialogStore(s => s.open);
-    const { userId, delegatorId } = runtime.session.useSessionIdentity();
-    const { photo } = runtime.session.useRuntimeProfile();
-    const accountName = useAccountName();
-    const logout = runtime.session.useSessionLogout();
-    const { resetAccount } = useAccountResetOnLogout();
-    // A guest account lives on this device and nothing can sign back into it, so
-    // logging out of one is a delete. A main account can always come back.
-    const { isGuest } = runtime.session.useRuntimeProfile();
-    const [confirmingLogout, setConfirmingLogout] = useState(false);
-
-    const runLogout = () => void resetAccount().finally(() => logout());
-    // Joining exchanges the code under the guest id the device registered (`delegatorId`). A
-    // sign-in on desktop links that guest rather than replacing it, so a signed-in account keeps the
-    // id and the server follows it back to the guest for the invited cloud. Only an account with no
-    // such id has nothing to join under — the exchange refuses it after the code.
-    const canJoinWithInvite = isRelayGuest() || !!delegatorId;
 
     // The place the delete confirmation is about, and whether it is showing. Two values: the place
     // is kept after the close so the title still names it while the dialog fades out.
@@ -303,16 +258,10 @@ export const PlaceRail = ({
         }
     };
 
-    // Self Display Profile: show my Place nick/photo here when set for this place.
-    const { name: selfName, thumbnail: userPhoto } = useDisplayProfile(userId ?? '', accountName, photo);
-    const userInitial = selfName.charAt(0).toUpperCase();
-
     // Hidden gesture: tap the rail divider 7× (within 1.5s between taps) to toggle
     // developer debug mode. When on, the Debug menu (which opens the debug overlay)
     // appears even in packaged/prod builds; tapping 7× again turns it off.
-    const debugEnabled = useDebugModeStore(s => s.enabled);
     const toggleDebug = useDebugModeStore(s => s.toggle);
-    const openDebugPanel = useDebugModeStore(s => s.setOverlayOpen);
     const tapRef = useRef({ count: 0, last: 0 });
     const placeScroll = useScrollOverflow<HTMLDivElement>();
 
@@ -348,7 +297,17 @@ export const PlaceRail = ({
     };
 
     return (
-        <div className="flex h-full w-full flex-col items-center">
+        <div className="flex min-h-0 w-full flex-1 flex-col items-center">
+            {/* Divides the cloud switcher above from the places. */}
+            <button
+                type="button"
+                aria-hidden
+                tabIndex={-1}
+                onClick={onSecretTap}
+                className="flex w-full shrink-0 cursor-default justify-center py-5"
+            >
+                <span className="h-px w-8 bg-hairline" />
+            </button>
             {/* overflow-y:auto clips overflow-x too — the pt/px give the -top/-right unread
                 badge room inside the clip box instead of slicing it. */}
             <div className="relative flex min-h-0 w-full flex-1 flex-col">
@@ -428,91 +387,6 @@ export const PlaceRail = ({
                 {placeScroll.below && <ScrollHint edge="bottom" surface="rail-elevated" />}
             </div>
 
-            <button
-                type="button"
-                aria-hidden
-                tabIndex={-1}
-                onClick={onSecretTap}
-                className="my-1 flex w-full shrink-0 cursor-default justify-center py-1"
-            >
-                <span className="h-px w-9 bg-hairline" />
-            </button>
-
-            <DropdownMenu>
-                <DropdownMenuTrigger
-                    aria-label={selfName ? t('rail.menu.accountMenu', { name: selfName }) : t('rail.menu.profile')}
-                    className="group relative transition-transform duration-150 ease-tactile tactile focus-ring rounded-full"
-                >
-                    {/* Figma "1-person Profile": the navy disc and green presence dot are
-                        fixed in both themes — see --profile-disc / --presence-online. */}
-                    <Avatar className="h-12 w-12 rounded-full">
-                        {userPhoto && <AvatarImage src={userPhoto} alt={selfName} className="rounded-full" />}
-                        <AvatarFallback className="rounded-full bg-profile-disc text-heading font-semibold text-profile-disc-foreground">
-                            {userInitial || <User size={17} aria-hidden />}
-                        </AvatarFallback>
-                    </Avatar>
-                    {/* presence dot — signals "you, signed in" so the slot reads intentional, not empty */}
-                    <span className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-rail-elevated bg-presence-online" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="end" sideOffset={6}>
-                    {/* Who acts here: the account name and its kind. */}
-                    <DropdownMenuLabel className="flex flex-col gap-0.5">
-                        <span className="truncate text-callout font-medium text-foreground">
-                            {selfName || t('rail.menu.profile')}
-                        </span>
-                        <span className="text-caption text-muted-foreground">
-                            {isGuest ? t('profile.guestName') : t('account.title')}
-                        </span>
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate('/profile')}>{t('rail.menu.profile')}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => navigate('/account')}>{t('rail.menu.account')}</DropdownMenuItem>
-                    {canJoinWithInvite && (
-                        <DropdownMenuItem onClick={openJoinDialog}>{t('rail.menu.join')}</DropdownMenuItem>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate('/settings')}>{t('rail.menu.settings')}</DropdownMenuItem>
-                    {/* A tool, not an account action: its own group, away from Log out. */}
-                    {(import.meta.env.DEV || debugEnabled) && (
-                        <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => openDebugPanel(true)}>
-                                {t('rail.menu.debug')}
-                            </DropdownMenuItem>
-                        </>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => (isGuest ? setConfirmingLogout(true) : runLogout())}>
-                        {t('rail.menu.logout')}
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-            {/* A guest logout is a delete: the safe way out (connect the account)
-                comes first, and the destructive choice is named for what it is. */}
-            <AlertDialog open={confirmingLogout} onOpenChange={setConfirmingLogout}>
-                <AlertDialogContent className="sm:max-w-sm">
-                    <AlertDialogTitle>{t('rail.menu.logoutGuest.title')}</AlertDialogTitle>
-                    <AlertDialogDescription>{t('rail.menu.logoutGuest.description')}</AlertDialogDescription>
-                    <AlertDialogFooter className="gap-2 pt-2 sm:space-x-0">
-                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                setConfirmingLogout(false);
-                                navigate('/account');
-                            }}
-                        >
-                            {t('rail.menu.logoutGuest.connect')}
-                        </Button>
-                        <AlertDialogAction
-                            onClick={runLogout}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            {t('rail.menu.logoutGuest.confirm')}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
             <ConfirmDialog
                 open={confirmingDelete}
                 // The confirm button closes the dialog as part of its click. While a delete runs

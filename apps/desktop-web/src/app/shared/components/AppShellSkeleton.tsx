@@ -4,20 +4,27 @@ import { Skeleton } from './Skeleton';
 
 /**
  * Full Slack-style shell placeholder shown during app boot / route suspense for
- * authenticated sessions. Mirrors DesktopLayout (rail · sidebar · main) so the
+ * authenticated sessions. Mirrors DesktopLayout (rails · sidebar · main) so the
  * real UI fades in over the same skeleton instead of after a blank screen.
  */
 export const AppShellSkeleton = () => {
     const { t } = useTranslation();
     return (
         <div className="flex h-full bg-background" role="status" aria-label={t('common.loading')}>
-            {/* cloud rail */}
+            {/* cloud and place rail */}
             <div className="flex w-rail shrink-0 flex-col items-center gap-3 bg-rail pt-6">
                 {Array.from({ length: 4 }).map((_, i) => (
                     <div
                         key={i}
                         className="h-12 w-12 animate-pulse rounded-[14px] bg-background motion-reduce:animate-none"
                     />
+                ))}
+            </div>
+
+            {/* nav rail */}
+            <div className="flex w-rail shrink-0 flex-col items-center gap-4 bg-rail-elevated pt-6">
+                {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-11 w-11 animate-pulse rounded-xl bg-rail motion-reduce:animate-none" />
                 ))}
             </div>
 

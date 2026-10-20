@@ -1,82 +1,86 @@
-# Cloud rail
+# Cloud switcher
 
-The leftmost column: one 48px tile per cloud (`CloudRail`, `features/chat/components/CloudRail.tsx`).
-The Home tile is the Default Cloud. The active tile is black in both themes (`--tile-active`) with a
-lime ring and a lime initial.
+The top of the left rail (`CloudSwitcher`, `features/chat/components/CloudSwitcher.tsx`): the active
+cloud's 48px tile with a chevron under it. The tile is black in both themes (`--tile-active`) with a
+lime initial. Pressing it opens a menu that lists every cloud, Home (the Default Cloud) first, each
+with a small chip of its initial. Picking a row switches to that cloud. The place tiles sit under it,
+past a divider ([place-rail.md](./place-rail.md)).
+
+The clouds used to be a rail of their own, one tile each. The design folds them into one rail with the
+places, so the tiles became rows and their right-click menus became items in the switcher's menu.
 
 ## Names
 
-A tile is named with `cloudLabel` (see [`../chat/room-names.md`](../chat/room-names.md)). A cloud with
+A cloud is named with `cloudLabel` (see [`../chat/room-names.md`](../chat/room-names.md)). A cloud with
 no name, or with the server's generated setup name (`#cloud/<n>/<n>`), reads "Untitled cloud". A
 cloud that cannot be opened as it is says why in its label, before a click on it fails: "(setup
 failed)", "(setting up)", "(suspended)" or "(expired)". The Home
-tile's name is a UI string (`cloud.home`), so it reads "홈" in Korean rather than a literal "Home".
+row's name is a UI string (`cloud.home`), so it reads "홈" in Korean rather than a literal "Home".
 
-`cloudTiles` (`shared/utils/tileInitials.ts`) turns the names into tile text. A tile shows one
-letter, and only tiles that would read the same take more: first the name's trailing number, then
+`cloudTiles` (`shared/utils/tileInitials.ts`) turns the names into the initials on the tile and the
+chips. One shows one letter, and only clouds that would read the same take more: first the name's trailing number, then
 its second letter, so "test-lemon" and "test-lemon2" read "Te" and "T2", and "Team" and "Tokyo" read
 "Te" and "To". An untitled cloud has no letters of its own and reads "?"; when there are several,
-they are numbered in both the tile ("?1", "?2") and the label ("Untitled cloud 2"). Before this,
-two untitled tiles both read the fallback label's first two syllables.
+they are numbered in both the chip ("?1", "?2") and the label ("Untitled cloud 2"). Before this,
+two untitled clouds both read the fallback label's first two syllables.
 
 ## A cloud that cannot be opened
 
-A tile whose cloud is not `active` has a dashed edge and muted ink at full opacity. It used to sit
-at 50% opacity, which took its initial well under text contrast.
+A row whose cloud is not `active` has a chip with a dashed edge and muted ink at full opacity. A
+selectable row is never drawn at half opacity: that took the old tile's initial well under text
+contrast.
 
 A suspended or expired cloud is one its subscription no longer keeps open (`isLapsedCloud`). Only a
 subscription reopens it, and desktop sells none: subscriptions and new clouds are in the DoU mobile
-app. So its hint says that under the name, and a click does not try to switch. It shows a toast
+app. So its row says that under the name, and picking it does not try to switch. It shows a toast
 with the same line and the App Store and Google Play links (`MobileAppPointer`) instead. A switch
 into it used to be refused and then offer Try again, which could never work.
 
 ## Renaming a cloud
 
-The tile's context menu (right-click or the Menu key) offers "Rename cloud" only on the cloud you
-own and are in right now (`canRename`), never on Home, an invited cloud, a lapsed one, or an owned
-cloud you are not in. `cloud.update` goes out on the active slot's socket, so renaming another tile
+The switcher's menu offers "Rename cloud" only while you are in a cloud you own (`canRename`), and it
+renames that cloud — never Home, an invited cloud, a lapsed one, or an owned cloud you are not in.
+`cloud.update` goes out on the active slot's socket, so renaming another cloud
 would send its id down this cloud's connection and write its row into this cloud's cache; apps/web
 likewise edits only the active cloud. Names are 2 to 30 characters, as on web. It opens
 `RenameCloudDialog`, a one-line field shaped like `RenameChannelDialog`. `useRenameCloud`
 (`shared/hooks/useRenameCloud.ts`) writes through `CloudRepository.updateCloud`, which also rewrites
-the cached cloud row, and patches the new name into the relay catalog query the owned tiles read.
-The tile and its label change at once, without waiting for the broker list to catch up.
+the cached cloud row, and patches the new name into the relay catalog query the owned rows read.
+The tile, the row and its label change at once, without waiting for the broker list to catch up.
 
-A tile's name has two sources, and for an owned cloud the local one wins. The relay catalog lists
+A cloud's name has two sources, and for an owned cloud the local one wins. The relay catalog lists
 the cloud with a name that can lag a rename by a while, so after a reload it may still show the old
 one. A rename also writes the new name into the local cloud cache (one global partition, kept across
-reloads), which `useClouds` observes: when that row carries a name, the tile uses it instead of the
+reloads), which `useClouds` observes: when that row carries a name, the switcher uses it instead of the
 catalog's. With no cached name the catalog's name stands, and an invited cloud keeps reading only
 its own cache row. The cache row is overwritten when `cloud.get` runs for that cloud, which the
 app does only to refresh an invited cloud's name.
 
 ## Order
 
-The tiles can be dragged into any order (`SortableList`, the same drag the sidebar's channel rows
-use). Home is the way back from every cloud, so it stays first and is not one of the tiles that
-move; the reload tile stays last. A press that moves less than 5px is still a click, and the click
-that ends a drag selects nothing. No drag starts while a switch is in flight.
+The menu lists the clouds in the order this device stored when they were tiles that could be dragged.
+Home is the way back from every cloud, so it is listed first whatever was stored, and the reload item
+comes after the clouds. A dropdown row does not drag, so the order can no longer be changed on the
+desktop; the stored order is still honoured.
 
 The order is a preference of this device, not of the account: it is stored in the local config
 record `ui.railOrder` (`useCloudOrder`, `@chatic/shared`) and nothing is sent to the server, so
 another device and the mobile app keep their own. A cloud the stored order does not name yet is
-drawn after the ones it does. A stored id whose cloud is not on the rail is skipped but kept: the
-rail can be showing part of its list (see the reload tile below), and a drag in that state must
-not cost the missing clouds their place. Each one stays after the cloud it followed. Logging out
+listed after the ones it does. A stored id whose cloud is not listed is skipped but kept: the list
+can be partial (see the reload item below). Logging out
 clears the record with the rest of the account's preferences.
 
-Only the rail reads the order. The account pages and the cloud sessions kept in the background
-list the clouds as the sources give them. An untitled cloud keeps its number when its tile is
-moved: the numbers are given in the sources' order, not the rail's.
-
-Reordering has no keyboard path yet.
+Only the switcher reads the order. The account pages and the cloud sessions kept in the background
+list the clouds as the sources give them. An untitled cloud keeps its number whatever the stored
+order: the numbers are given in the sources' order.
 
 ## Unread
 
-The active cloud's dot comes from the live socket. Another cloud's dot is a pending cross-cloud push
-(`useCrossCloudPushBadge`), the only signal the client has for it, and it carries no count. The Home
-tile takes part like any cloud: a relay push names its source `#`, which `pushCloudIdOf` reads as the
-Home tile's `default`, so a relay message dots Home while another cloud is open, and the dot clears
+The switcher tile carries a dot when any cloud has one, and its accessible name says so
+(`cloud.switcher.unread`); each row in the menu carries its own. The active cloud's dot comes from
+the live socket. Another cloud's dot is a pending cross-cloud push
+(`useCrossCloudPushBadge`), the only signal the client has for it, and it carries no count. Home takes part like any cloud: a relay push names its source `#`, which `pushCloudIdOf` reads as the
+Home's `default`, so a relay message dots Home while another cloud is open, and the dot clears
 once the relay is open and verified.
 
 A muted channel — notify mode "off" — does not light the active cloud's dot, its place's
@@ -96,11 +100,11 @@ The pending push on another cloud is not filtered this way: it is marked on any 
 An invited cloud has no server-side list. Its durable record is the local cache row (`cloudType:
 'invited'`) the invite flow writes — the joined-clouds store beside it only bridges the moment before
 that row lands — so a reinstall, a cleared cache, or a profile that never ran
-that flow has no tile for it, and nothing can refill the list. What can be repaired is a cloud the
+that flow has no row for it, and nothing can refill the list. What can be repaired is a cloud the
 app is told about by name: `runtime.data.recoverInvitedCloudIfMissing` asks the relay for a fresh
 delegation token for that cloud (`delegate-cloud`), which carries its endpoints, and writes the row
 back. It does nothing when the row is already there, and a revoked grant just leaves the rail as it
-was. The row comes back without a name, so the tile reads as the cloud's id until the cloud is
+was. The row comes back without a name, so the row reads as the cloud's id until the cloud is
 entered and its name is fetched over its own socket.
 
 Three places name a cloud, and each one recovers it:
@@ -154,15 +158,16 @@ It used to say only "Couldn't switch cloud".
 
 ## Removing a cloud, and a failed delete
 
-A tile's menu removes it. An invited cloud is only forgotten on this device. An owned cloud is
+The switcher's **Remove cloud** item opens a list of the clouds that can be removed; picking one asks
+first. An invited cloud is only forgotten on this device. An owned cloud is
 deleted on the backend (`useRemoveCloud`, `releaseCloud` with `cascade`) after a confirm dialog.
 
-An owned cloud that cannot be opened as it is has no delete in its menu (`canDelete`). The delete
+An owned cloud that cannot be opened as it is is not in that list (`canDelete`). The delete
 releases the cloud on the server with everything in it, and these are the clouds the user cannot enter
-to see what they would lose. The set is the states the tile labels (`STATUS_KEY`): `reserved` and
+to see what they would lose. The set is the states the row labels (`STATUS_KEY`): `reserved` and
 `init` (still being set up), `error`, `suspended` and `expired`. Any other status, or none, keeps the
-delete. When nothing is left in a tile's menu (Home, or such a cloud) no menu is rendered, so the
-right-click opens nothing. An invited cloud keeps its local removal in every state, since forgetting
+delete. Home is never in the list, and when no cloud can be removed the item is not drawn. An invited
+cloud keeps its local removal in every state, since forgetting
 it on this device loses nothing on the server.
 
 A delete that fails keeps the dialog open and says why inside it (`deleteCauseKey`, over
@@ -181,31 +186,31 @@ switch wording for `expired` ("you no longer have access") would be wrong for so
 so `isCloudAlreadyGone` takes both out of the failures (an `expired` counts only with the 409, since an
 expired token reads as `expired` too, and a 404 only when it names the cloud; both others are reported): the hook still forgets the cache row and
 refreshes the list, the dialog closes, and a toast says the cloud had already ended. A cloud whose
-subscription lapsed is also `expired` on the backend, so its tile can stay on the rail, labelled
-"(expired)", after this toast; that tile is the list as the backend has it, and it has no delete to
-offer (see above). The toast is for a tile that looked open but had been released in the meantime.
+subscription lapsed is also `expired` on the backend, so its row can stay in the switcher, labelled
+"(expired)", after this toast; that row is the list as the backend has it, and it cannot be removed
+(see above). The toast is for a cloud that looked open but had been released in the meantime.
 
 ## When the cloud list cannot be loaded
 
 Owned clouds come from the relay catalog (`useCloudSessionCatalog`); invited ones do not. When that
 read fails, `isCloudsError` is true, and the owned clouds used to drop off the rail with nothing to
-say they had not loaded. The rail now ends with a dashed reload tile (the look of a cloud that cannot
-be opened), whose label says the list could not be loaded and some clouds may be missing. It
-retries the read (`refetchClouds`), and stays on the rail, spinning, while the retry runs: the
+say they had not loaded. The switcher's menu then ends the cloud list with a reload item that says the
+list could not be loaded. It retries the read (`refetchClouds`) and keeps the menu open, and it stays,
+disabled and spinning, while the retry runs: the
 failure is reported until a read succeeds, not only while no read is in flight.
 
-A failed read is also read again without the tile being pressed, once each time the relay socket
+A failed read is also read again without the item being pressed, once each time the relay socket
 is verified. The read goes out as soon as a stored session exists, which at start-up or after sleep can
 be before that socket has finished its handshake. The catalog is relay-signed HTTP, the signing
 credential lives about an hour, and a lapsed one is renewed only through the relay socket — so a read
 sent in that window fails on a session that is healthy a few seconds later, and the rail would keep
-a reload tile that one press clears. `useCloudSessionCatalog` re-reads when the socket verifies
+a reload item that one press clears. `useCloudSessionCatalog` re-reads when the socket verifies
 after a failure, or when a read fails with the socket already verified. If that re-read fails too,
-the tile stays until it is pressed or the socket verifies again (after a drop or a wake); the hook
+the item stays until it is pressed or the socket verifies again (after a drop or a wake); the hook
 does not retry on a timer. One case adds a read: a component that mounts while the failure stands
 reads on mount as every consumer does, and when that fails it is a new failure to that component, so
 it is re-read once as well. That is bounded by the number of mounts, not a loop.
 
-The tiles stay as they are. react-query keeps the last good list when a refresh fails, so a cloud
-that was shown keeps showing, and the reload tile says the list may be out of date. Only a first
-read that fails leaves the owned clouds out, and then the reload tile is the only sign.
+The rows stay as they are. react-query keeps the last good list when a refresh fails, so a cloud
+that was shown keeps showing, and the reload item says the list may be out of date. Only a first
+read that fails leaves the owned clouds out, and then the reload item is the only sign.

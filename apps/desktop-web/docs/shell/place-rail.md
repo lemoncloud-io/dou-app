@@ -1,6 +1,8 @@
 # Place rail
 
-The second rail lists the places of the active cloud (`PlaceRail`). A place is a site inside a
+The lower part of the left rail, under the cloud switcher and a divider, lists the places of the
+active cloud (`PlaceRail`). The active place's tile fills with the brand lime (`bg-primary`); the
+others stay on the rail until hovered. A place is a site inside a
 cloud; selecting a tile moves the socket session into it (`useSelectPlace`), and the sidebar then
 lists that place's channels. On Home, and for a guest, the rail shows a single Home tile: the
 default cloud has no places to choose between.
@@ -10,9 +12,10 @@ current. Nothing on the rail fetches.
 
 ## Order
 
-The place tiles can be dragged into any order, as the cloud tiles can (see
-[`cloud-rail.md`](./cloud-rail.md) § Order for the drag itself and for why the order is this
-device's own). The **New place** tile stays after the list and is not one of the tiles that move,
+The place tiles can be dragged into any order (`SortableList`, the same drag the sidebar's channel
+rows use). A press that moves less than 5px is still a click, and the click that ends a drag selects
+nothing. No drag starts while a switch is in flight. The order is this device's own, as the cloud
+order is (see [`cloud-rail.md`](./cloud-rail.md) § Order). The **New place** tile stays after the list and is not one of the tiles that move,
 and Home's single tile has nothing to be ordered against.
 
 The order is kept per cloud, in the same local record (`ui.railOrder`, `usePlaceOrder`): a place

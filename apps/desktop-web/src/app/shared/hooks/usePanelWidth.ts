@@ -8,12 +8,12 @@ const KEYBOARD_STEP = 16;
 /**
  * The message column never gets narrower than this. The rails, the sidebar and a
  * trailing panel were each clamped against a constant, and nothing clamped the
- * sum: 136 + 480 + 720 = 1336px of chrome, so at a 1280px window the
+ * sum: rails + 480 + 720 = well over 1280px of chrome, so at a 1280px window the
  * conversation could be squeezed to nothing with no floor at any width.
  */
 export const MIN_CHAT_WIDTH = 420;
-/** Rails: 56px cloud + 80px place. Fixed, so they are part of the budget. */
-const RAIL_WIDTH = 136;
+/** Rails: the 80px cloud-and-place rail + the 80px nav rail. Fixed, so they are part of the budget. */
+const RAIL_WIDTH = 160;
 
 /**
  * Live width of every mounted panel, keyed by storage key. Clamping each panel

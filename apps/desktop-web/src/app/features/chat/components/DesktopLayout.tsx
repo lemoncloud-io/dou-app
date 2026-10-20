@@ -19,8 +19,8 @@ import {
 
 interface DesktopLayoutProps {
     rail: ReactNode;
-    /** Optional second rail (places) between the cloud rail and the sidebar. */
-    rail2?: ReactNode;
+    /** The nav rail (Home, Notifications, Channels, DM), between the first rail and the sidebar. */
+    nav?: ReactNode;
     sidebar: ReactNode;
     main: ReactNode;
     /** Optional right-side panel (channel settings); collapses when null. */
@@ -56,8 +56,8 @@ export const useShellSidebar = () => useContext(ShellSidebarContext);
 
 /**
  * Slack-style shell:
- *   [ cloud rail ] [ place rail ] [ channel sidebar ] [ flexible main pane ] [ optional panel ]
- * The place rail and trailing panel are collapsible — each rendered only when
+ *   [ cloud + place rail ] [ nav rail ] [ sidebar ] [ flexible main pane ] [ optional panel ]
+ * The nav rail and trailing panel are collapsible — each rendered only when
  * provided. The channel sidebar drags from its right edge, like the trailing
  * panels drag from their left. Colors come from theme tokens (--rail/--sidebar)
  * so light/dark hold up.
@@ -101,7 +101,7 @@ const SkipLinks = ({ onSidebar }: { onSidebar: () => void }) => {
     );
 };
 
-export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: DesktopLayoutProps) => {
+export const DesktopLayout = ({ rail, nav, sidebar, main, panel, overlay }: DesktopLayoutProps) => {
     const { t } = useTranslation();
     const isDrawer = useViewportNarrow();
     const isCompact = useViewportNarrow(COMPACT_SHELL_WIDTH);
@@ -165,7 +165,7 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
     const drawerOpen = isDrawer && isOpen;
     // The drawer opens beside the rails, not over them: switching cloud or place
     // is exactly what someone reaching for the channel list may want next.
-    const drawerLeft = rail2 ? 'left-[calc(theme(width.rail)*2)]' : 'left-[theme(width.rail)]';
+    const drawerLeft = nav ? 'left-[calc(theme(width.rail)*2)]' : 'left-[theme(width.rail)]';
 
     useEffect(() => {
         if (drawerOpen) sidebarWidth.panelRef.current?.focus();
@@ -174,17 +174,17 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
     const rails = (
         <>
             <nav
-                aria-label={t('shell.clouds')}
-                className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-[18px] text-rail-foreground"
+                aria-label={t('shell.rail')}
+                className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-6 text-rail-foreground"
             >
                 {rail}
             </nav>
-            {rail2 && (
+            {nav && (
                 <nav
-                    aria-label={t('shell.places')}
+                    aria-label={t('shell.nav')}
                     className="flex w-rail shrink-0 flex-col items-center bg-rail-elevated px-1 pb-5 pt-6 text-rail-foreground"
                 >
-                    {rail2}
+                    {nav}
                 </nav>
             )}
         </>

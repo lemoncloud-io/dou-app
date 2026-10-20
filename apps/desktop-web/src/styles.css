@@ -89,7 +89,7 @@
         --accent: 180 5% 96%; /* #F4F5F5 hover */
         --accent-foreground: 0 0% 10%;
 
-        /* Shell: light cloud rail, white place rail + sidebar, separated by hairlines. */
+        /* Shell: light cloud-and-place rail, white nav rail + sidebar, separated by hairlines. */
         --rail: 0 0% 96%; /* #F5F5F5 Icon Rail */
         --rail-foreground: 220 5% 24%; /* #3A3C40 BK_800 */
         --rail-muted: 0 0% 96%; /* #F5F5F5 active place tile */

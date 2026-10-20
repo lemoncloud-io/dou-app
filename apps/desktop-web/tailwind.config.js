@@ -230,7 +230,7 @@ module.exports = {
             width: {
                 // Cloud and place rails — DesktopLayout and AppShellSkeleton share it so the
                 // boot skeleton cannot drift from the shell it stands in for.
-                rail: '68px',
+                rail: '80px',
             },
             spacing: {
                 'safe-top': 'var(--safe-top, 0px)',
