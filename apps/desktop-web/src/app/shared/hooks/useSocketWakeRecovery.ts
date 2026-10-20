@@ -9,13 +9,18 @@ const RECOVER_THROTTLE_MS = 5_000;
 
 /**
  * Kick socket recovery the instant the app returns to the foreground or the network
- * comes back. After a short sleep the live WS silently dies, so we force-close it on wake:
- * disconnect() bypasses the SDK reconnect controller's manualStop flag, so the resulting
- * `closed` transition triggers auto-reconnect + re-auth for instant recovery (the SDK now
- * owns reconnect — SocketManager no longer exposes a manual recover()). Only fires while the
- * socket is actually unverified; a genuinely expired token still fails re-auth and falls
- * through to useSocketWedgeReload's reload. Electron only (a plain browser tab manages its
- * own lifecycle and must never be poked like this).
+ * comes back, instead of waiting for the SDK keep-alive to notice a socket that died
+ * during sleep. Electron only (a plain browser tab manages its own lifecycle and must
+ * never be poked like this).
+ *
+ * The kick is the runtime's `recoverUnverifiedSockets`, the same pass admin-v2 uses: per
+ * bound slot that is not verified — relay and every cloud, not only the active one — it
+ * closes the socket, re-seeds a terminally expired controller, and connects again. The
+ * connect is what matters. A bare `disconnect()` routes into the SDK reconnect controller's
+ * `stop()`, which leaves the controller stopped, so the socket stayed closed until
+ * `useSocketWedgeReload` reloaded the renderer 25 s later. Verified slots are skipped by the
+ * pass itself, so a kick on a healthy app costs nothing. A genuinely expired token still
+ * fails re-auth and falls through to that reload.
  */
 export const useSocketWakeRecovery = (): void => {
     const lastKickRef = useRef(0);
@@ -26,14 +31,11 @@ export const useSocketWakeRecovery = (): void => {
         const kick = () => {
             // Ignore blur/hide edges — only recover when the app is actually in front.
             if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
-            const manager = runtime.connection.getSocketManager();
-            if (manager.getSnapshot().isVerified) return; // already healthy — nothing to do
 
             const now = Date.now();
             if (now - lastKickRef.current < RECOVER_THROTTLE_MS) return;
             lastKickRef.current = now;
-            // Force-close the zombie socket; the SDK reconnect controller then re-establishes + re-auths.
-            void manager.disconnect().catch(() => undefined);
+            void runtime.connection.recoverUnverifiedSockets();
         };
 
         window.addEventListener('focus', kick);
