@@ -22,6 +22,8 @@ describe('ROUTES — 상수 경로', () => {
 
     it('channels 경로와 상수 root를 노출한다', () => {
         expect(ROUTES.channels.root).toBe('/channels');
+        // One segment under /channels, so it can never be read as a `:channelId/...` route.
+        expect(ROUTES.channels.startDm).toBe('/channels/start-dm');
     });
 
     it('invite 연락처 초대 경로를 노출한다(ADR-0089 Track B)', () => {

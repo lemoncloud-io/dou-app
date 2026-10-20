@@ -1,4 +1,7 @@
+import type { DomainChannel } from '@chatic/data';
+
 import {
+    canStartDmFromProfile,
     channelKindOf,
     dmLineageOf,
     hasDmInviteFlow,
@@ -138,12 +141,56 @@ describe('isInCloudSelfSection', () => {
         expect(isInCloudSelfSection({ stereo: 'self', cid: '1000001' })).toBe(true);
     });
 
-    // A cloud 1:1 is listed nowhere on mobile home; the relay has one place, and its list holds the rest.
+    // A cloud 1:1 is listed in its place's 1:1 section; the relay has one place, and its list holds the rest.
     it('leaves out a cloud 1:1, the relay 1:1 and self chat, and every group', () => {
         expect(isInCloudSelfSection({ stereo: 'dm', cid: '1000001' })).toBe(false);
         expect(isInCloudSelfSection({ stereo: 'dm', cid: 'default' })).toBe(false);
         expect(isInCloudSelfSection({ stereo: 'self', cid: 'default' })).toBe(false);
         expect(isInCloudSelfSection({ stereo: 'private', cid: '1000001' })).toBe(false);
         expect(isInCloudSelfSection(undefined)).toBe(false);
+    });
+});
+
+describe('canStartDmFromProfile', () => {
+    const groupRoom: Pick<DomainChannel, 'stereo' | 'cid' | 'sid'> = {
+        stereo: 'private',
+        cid: '1000001',
+        sid: 'site-1',
+    };
+    const isMe = (id: string) => id === 'me';
+    const base = { room: groupRoom, sessionCloudId: '1000001', sessionPlaceId: 'site-1', memberId: 'peer', isMe };
+
+    it("offers it for another member of a cloud group room in the session's place", () => {
+        expect(canStartDmFromProfile(base)).toBe(true);
+        expect(canStartDmFromProfile({ ...base, room: { ...groupRoom, stereo: 'public' } })).toBe(true);
+    });
+
+    // The relay reaches a 1:1 by phone number, which a profile does not have.
+    it('withholds it in a relay room', () => {
+        expect(canStartDmFromProfile({ ...base, room: { ...groupRoom, cid: 'default' } })).toBe(false);
+        expect(canStartDmFromProfile({ ...base, room: { ...groupRoom, cid: '' } })).toBe(false);
+    });
+
+    // A place id is unique only within its cloud; a room of the cloud being left can still be open.
+    it('withholds it in a room of another cloud, even under the same place id', () => {
+        expect(canStartDmFromProfile({ ...base, sessionCloudId: '1000002' })).toBe(false);
+        expect(canStartDmFromProfile({ ...base, sessionCloudId: null })).toBe(false);
+    });
+
+    it('withholds it inside a 1:1 or a self chat', () => {
+        expect(canStartDmFromProfile({ ...base, room: { ...groupRoom, stereo: 'dm' } })).toBe(false);
+        expect(canStartDmFromProfile({ ...base, room: { ...groupRoom, stereo: 'self' } })).toBe(false);
+    });
+
+    // The 1:1 would be filed under the session's place, not the room's.
+    it('withholds it in a room of another place than the session is on', () => {
+        expect(canStartDmFromProfile({ ...base, sessionPlaceId: 'site-2' })).toBe(false);
+        expect(canStartDmFromProfile({ ...base, sessionPlaceId: null })).toBe(false);
+    });
+
+    it('withholds it for me, a missing member, or a room not loaded yet', () => {
+        expect(canStartDmFromProfile({ ...base, memberId: 'me' })).toBe(false);
+        expect(canStartDmFromProfile({ ...base, memberId: '' })).toBe(false);
+        expect(canStartDmFromProfile({ ...base, room: null })).toBe(false);
     });
 });

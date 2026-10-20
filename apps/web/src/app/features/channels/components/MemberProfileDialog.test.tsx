@@ -57,8 +57,8 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
         expect(toastMock).toHaveBeenCalledWith({ title: 'chat.settings.comingSoon' });
     });
 
-    // Opening a cloud 1:1 is desktop-only; mobile shows and opens 1:1s it is in, and makes none.
-    it('offers no way to start a 1:1 with the member, whoever is viewing', () => {
+    // The host decides where a 1:1 can start; without its handler no row offers it.
+    it('offers no way to start a 1:1 when the host gives no handler, whoever is viewing', () => {
         const actions = () => screen.getAllByRole('button').map(button => button.textContent);
 
         const owner = render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick />);
@@ -71,6 +71,32 @@ describe('MemberProfileDialog — 뷰어/대상 분기', () => {
 
         render(<MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick={false} />);
         expect(actions()).toEqual(['chat.settings.report']);
+    });
+
+    it('puts the start-1:1 row first when the host gives a handler, and runs it on tap', () => {
+        const onStartDm = jest.fn();
+        render(
+            <MemberProfileDialog open onOpenChange={() => undefined} member={member} canKick onStartDm={onStartDm} />
+        );
+
+        const actions = screen.getAllByRole('button').map(button => button.textContent);
+        expect(actions).toEqual([
+            'cloudDm.startFromProfile',
+            'chat.settings.friendSettings',
+            'chat.settings.removeMember',
+            'chat.settings.report',
+        ]);
+        fireEvent.click(screen.getByText('cloudDm.startFromProfile'));
+        expect(onStartDm).toHaveBeenCalledTimes(1);
+    });
+
+    // A host that forgets to withhold the handler on my own profile still cannot offer a room with me.
+    it('never offers a 1:1 on my own profile, even with a handler', () => {
+        render(
+            <MemberProfileDialog open onOpenChange={() => undefined} member={member} isSelf onStartDm={jest.fn()} />
+        );
+
+        expect(screen.queryByText('cloudDm.startFromProfile')).not.toBeInTheDocument();
     });
 
     it('canKick: 내보내기 → 확인 → onKick 호출', async () => {

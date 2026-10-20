@@ -39,6 +39,9 @@ const mockSetSearchParams = jest.fn((update: (params: URLSearchParams) => URLSea
     mockSearch = update(new URLSearchParams(mockSearch)).toString();
 });
 
+// The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
+const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
+
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1', rootNo: mockRootNo }),
     useLocation: () => ({ state: mockLocationState }),
@@ -182,6 +185,7 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     }),
 }));
 jest.mock('../hooks', () => ({
+    useStartDm: () => mockUseStartDm(),
     useChannel: () => ({ channel: mockChannel }),
     // The room and the thread are two screens of the same channel, so they share the same single join observation.
     useChannelJoins: () => ({

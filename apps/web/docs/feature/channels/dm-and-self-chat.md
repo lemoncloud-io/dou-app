@@ -74,8 +74,8 @@ A **relay** 1:1 is reached by inviting a phone number. It lives in the relay's o
 it carries that place's `sid`, and it has an invite behind it — which is what the departure footer
 reads and what its re-invite CTA sends another of.
 
-A **cloud** 1:1 is opened by naming a member directly (`channel.startDm`) — on desktop only; making
-one is a desktop feature. It belongs to the place it was opened in: the server opens a separate room
+A **cloud** 1:1 is opened by naming a member directly (`channel.startDm`) — from desktop, or from
+mobile's member picker and a member's profile. It belongs to the place it was opened in: the server opens a separate room
 per place (a new room's id is `<sid>@<uidA>@<uidB>`) and never moves one, so two people who share
 several places have one 1:1 in each. A room opened before the server worked that way keeps its
 pair-key id and the place it was stamped with. Either way its `sid` is where it is listed
@@ -121,28 +121,62 @@ place, the only one left to look under: a 1:1 from before places keyed 1:1s may 
 means "nothing to look under yet", which the profile hooks read as "do not subscribe". An unresolved
 session must not collapse into an empty-string lookup that answers with nobody.
 
-### Mobile lists a cloud 1:1 with its place's rooms, and makes none
+### Mobile lists a cloud's 1:1s in a section of their own, and starts them too
 
-**Making a cloud 1:1 is a desktop feature.** Mobile shows the 1:1s desktop made, opens them and talks
-in them, but has no peer picker and no "start a 1:1" row on a participant's profile. What mobile
-starts is the relay 1:1, reached by phone number through the contact form.
+**A cloud's home has two room sections: `1:1 대화` and `그룹 대화`.** `useHomeChannels` slices the
+place's rooms with `isInPlaceList`, and `HomePage` splits that slice by kind — `channelKindOf(stereo)`,
+the same rule every other 1:1 decision reads, so a group with two members stays a group. Both sections
+are the same `ChannelList`, under the place's sort (`channelSortMethod`) and pins (`pinnedChannelIds`).
+The relay does not split: its 1:1s are reached by phone number, its only other room is the self chat,
+and a second section would only move one row — so it keeps its one list under the default `대화방`
+heading. The lists that
+read the same slice are unchanged: the invite candidates, the place's room management (where a 1:1's
+bulk action is "leave", `removalActionFor`) and the place detail screen.
 
-| Environment              | `1:1 대화` entry | Tap goes to         |
-| ------------------------ | ---------------- | ------------------- |
-| Relay                    | yes              | `ContactInvitePage` |
-| A cloud I own            | no               | —                   |
-| A cloud I was invited to | no               | —                   |
+**Mobile starts a cloud 1:1 from two places, and both open the same hook.**
 
-`showOneOnOneCreate` is what draws the entry and `HomePage` passes it on relay only. The popover
-still opens for either of its rows, and `canCreate` still guards the group row alone, so an invited
-cloud — which offers neither now — shows no `＋` at all.
+| Entry                                     | Who sees it                                    | Goes to                                    |
+| ----------------------------------------- | ---------------------------------------------- | ------------------------------------------ |
+| The ＋ on the `1:1 대화` section          | any member of a cloud place — owner or invited | `CloudDmPickerPage` (`/channels/start-dm`) |
+| `1:1 대화하기` on a member's profile      | see `canStartDmFromProfile` below              | the room, directly                         |
+| `1:1 대화` in the relay list's ＋ popover | relay only                                     | `ContactInvitePage`                        |
 
-**Home lists a cloud 1:1 in its place's section, beside the group rooms.** The section's title is
-`대화방` (`homePage.channels`). `useHomeChannels` slices the place's rooms with `isInPlaceList`, so a
-1:1 arrives with the groups and is drawn by the same `ChannelList`, under the same sort
-(`channelSortMethod`) and pins (`pinnedChannelIds`). There is no separate 1:1 section. The lists that
-read the same slice follow: the invite candidates, the place's room management (where a 1:1's bulk
-action is "leave", `removalActionFor`) and the place detail screen.
+A 1:1 is between two people, not a room the place's owner hands out, so an invited member gets the
+section's ＋ while the group section offers them nothing to create. The section's ＋ runs straight
+into the picker (`ChannelList`'s `onCreate`): it is the section's only action, and a popover with one
+row is a tap spent on nothing. It waits for a selected place and a settled room list, because the
+picker lists that place's members and the room will be filed under it.
+
+**The picker lists the members of the place the session is on** (`usePlaceMembers`, `place.list-user`),
+minus me — the list the place's member screen shows, and the one desktop's picker reads. A 1:1 belongs
+to the place it was opened in, so a candidate from anywhere else would open a room here with someone
+who is not in it. One tap opens the room; there is no multi-select and no confirm step, because the
+server resolves a pair to one room per place and asking again just returns it, and the room
+replaces the picker in history, so back from it returns home. Names come from `resolveUserName` under
+that place's profiles. When the list cannot be had the screen shows an error and a retry, and never a
+stand-in such as the union of my rooms' rosters — as the place member screen does, and unlike
+desktop's picker: a roster spans places, and a wrong candidate opens a room here with someone outside
+it. The route is reachable only where a cloud 1:1 can open; reached anywhere else (the relay, no
+place) it goes home. No design exists for the screen yet, so it is built
+from web-ui-kit primitives.
+
+**`canStartDmFromProfile` decides where a profile offers the row.** A cloud room (the relay's 1:1 needs
+a phone number a profile does not have), a group room (inside a 1:1 the peer is already the
+conversation), in the place the session is on (from a room of another place, opened by search or a
+push, the 1:1 would land in a place the person was not looking at — one the peer may not belong to),
+and never me. The cloud is compared as well as the place: a place id is unique only within its cloud,
+and during a cloud switch a room of the cloud being left can still be on screen. The room, thread and settings screens pass the row only then; the dialog checks `isSelf`
+again so a host that forgets cannot offer a room with myself.
+
+**`useStartDm` is the one way in, and it waits for a switch.** A 1:1 is filed under the place the
+session is on when the server answers, for good. So a call made while a place or cloud switch is
+running waits for it to settle before it goes out, and if the session ended up somewhere else — a
+failed switch rolls back, a second one may follow — it sends nothing, because the place the person
+asked from is gone. Desktop's hook holds the same wait. A double tap sends one request. On success it
+goes to the room — unless the screen that asked was left in the meantime, when the room is still
+made but nobody is pulled into it; a room that names no place (an older pair-keyed 1:1) is not cached, so it asks for
+the background sync at once rather than leaving home without the row until the next poll. A failure
+is said once, by the hook, as a toast.
 
 **A 1:1's unread counts like a room's.** `useChannelUnreads` counts it under its place, so the place
 dot, the bottom-nav count, the other-cloud count and the app-icon number all point at a row that
@@ -155,25 +189,26 @@ the place a place-keyed id names, else the push's (`pushRoomPlace`) — for the 
 in-app banner alike. The native shell passes the push's place on untouched; the correction lives in
 the web, where a deploy reaches it.
 
-### The cloud's self chat has a section of its own
+### The cloud's self chat leads the 1:1 section
 
-**The self chat has a section of its own, not a place's rooms.** It belongs to the account rather
-than to a place, so under a place it showed in whichever one it was tagged with and in none of the
-others. `useCloudSelfChannels` reads the cloud-wide observation for the room `isInCloudSelfSection`
-names, and the section is `ChannelList` itself — same row, a different title and source — so the
-title chain, the avatar, unread and the preview cannot drift into a second copy. `HomePage` drops the
-room from the place list with the same rule, keeping it in the place's join and chat sync
-registration. On relay nothing moves: its self chat shares its one place, which is the only list
-there. A self chat the cache filed under the account (`ACCOUNT_CHANNEL_SID`, when the server named
-no place) passes the active cloud's reachable-place filter, which would otherwise drop it as a row
-from a place no rail lists.
+**The self chat belongs to the account rather than to a place**, so under a place it showed in
+whichever one it was tagged with and in none of the others. `useCloudSelfChannels` reads the
+cloud-wide observation for the room `isInCloudSelfSection` names, and `HomePage` puts it at the top of
+the `1:1 대화` section (`leadsWithSelf`), whichever place is open — the place it is tagged with drops
+it from its own slice by the same rule, while keeping it in the place's join and chat sync
+registration. A pin could not move a leading room, so it offers no pin swipe. On relay nothing moves:
+its self chat shares its one place, which is the only list there. A self chat the cache filed under
+the account (`ACCOUNT_CHANNEL_SID`, when the server named no place) passes the active cloud's
+reachable-place filter, which would otherwise drop it as a row from a place no rail lists.
 
-**The section is drawn only once the room is there.** A cloud does not make the room on its own, and
-mobile does not ask for it (`channel.get-self` runs on the relay only), so a mobile-only member of a
-cloud may have none. An empty section would be a heading with nothing to do under it.
+**With no place open, the section shows only while there is a self room.** There is nobody to pick
+then, so it has no ＋, and with no self room either it would be a heading with nothing under it. A
+cloud does not make the self room on its own, and mobile does not ask for it (`channel.get-self` runs
+on the relay only), so a mobile-only member of a cloud may have none.
 
-The section's stored fold id is still `cloudDm` — it once held the cloud 1:1s too, which are now in
-their place's list, and renaming a stored key would reset every user's fold.
+The section's stored fold id is `cloudDm`. It first named a 1:1 section like this one, then for a
+while the self chat alone, while mobile listed no cloud 1:1; renaming a stored key would reset every
+user's fold.
 
 ### A cloud 1:1 skips step 1 of the title chain
 

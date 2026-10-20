@@ -40,8 +40,9 @@ import {
     useMessageJump,
     useChats,
     useReactions,
+    useStartDm,
 } from '../hooks';
-import { channelKindOf, profilePlaceOf } from '../lib';
+import { canStartDmFromProfile, channelKindOf, profilePlaceOf } from '../lib';
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
@@ -141,6 +142,8 @@ export const ThreadPage = () => {
     // below is against ids that cloud minted, and during a switch the session uid is another cloud's.
     const threadCid = toCloudId(channel?.cid || selectedCloudId);
     const userId = runtime.session.useUidInCloud(threadCid);
+    // A member's profile can open a 1:1 with them, as in the room.
+    const { startDm, isAvailable: canStartDm } = useStartDm();
     // One join subscription for the screen — the roster rows and the active-member set are two
     // readings of it (see useChannelJoins). A thread and its room are two views of one channel, so
     // they compose the same way. `myJoin` is read for its `joinedNo` only — the title it used to
@@ -886,6 +889,21 @@ export const ThreadPage = () => {
                     member={profileTarget}
                     memberIsOwner={profileTarget.id === channel?.ownerId}
                     canKick={false}
+                    onStartDm={
+                        canStartDm &&
+                        canStartDmFromProfile({
+                            room: channel,
+                            sessionCloudId: selectedCloudId,
+                            sessionPlaceId: selectedSiteId,
+                            memberId: profileTarget.id,
+                            isMe: id => id === userId || id === sessionUid,
+                        })
+                            ? () => {
+                                  setProfileOpen(false);
+                                  void startDm(profileTarget.id);
+                              }
+                            : undefined
+                    }
                 />
             )}
 

@@ -52,7 +52,9 @@ What it owns of each is the entry point and nothing behind it.
 ## Scope
 
 **In** — the header and its profile dropdown; the cloud promo banner; the missing-profile banner; the
-Place section; the Chat section with its previews, unread badges and creation popover; the rows'
+Place section; the room sections (the relay's one list; a cloud's 1:1 and group sections, in that
+order below Places) with their previews, unread badges and create entries (a popover, or the 1:1
+section's direct ＋); the rows'
 swipe actions (pin, mute, leave or delete); pull-to-refresh on the body; the cloud-switcher sheet;
 the place and cloud unread marks; the three app-global runners that home exports.
 
@@ -120,9 +122,12 @@ no answer is not "no cloud". The Chat section still fills normally, because plac
 invisibly — and until that resolves, the section holds the loading state described under
 [Switching](#switching), which on relay is the only thing in the body.
 
-The two section titles are the **product** nouns, not the domain's: `플레이스` / `Places` and `대화방` /
-`Chat Rooms` (the place's group rooms and its 1:1s together). `채널` is what `DomainChannel` and
-`ChannelRepository` are called in code and it stays there; the screen says the word a user would.
+The section titles are the **product** nouns, not the domain's: `플레이스` / `Places`, and on the relay
+one room list, `대화방` / `Chat Rooms` (its 1:1s and its self chat together). A cloud splits its place's
+rooms into `1:1 대화` / `1:1 Chats` (the self chat on top, then the place's 1:1s) and `그룹 대화` /
+`Group Chats` — see [dm-and-self-chat.md](../channels/dm-and-self-chat.md) § Mobile lists a cloud's
+1:1s in a section of their own. `채널` is what `DomainChannel` and `ChannelRepository` are called in
+code and it stays there; the screen says the word a user would.
 
 **Cloud** (anything else). The header is `kind="cloud"`: a `CloudAvatar` built from the cloud's
 initials, since `CloudView` carries no image field, beside the cloud name — read from the local cache
@@ -159,16 +164,16 @@ is a known gap, not an intended rule.
 
 ## Folded sections
 
-Places, Chat Rooms and the Self Chat section each fold independently, and the fold is
-remembered. `useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config key
-(`persist: 'local'`), and `HomePage` passes each list a controlled `open`/`onOpenChange` under its own
-id — `places`, `channels`, `cloudDm`. The place rooms and the notes-to-self room are the same
-`ChannelList`, so the id is what keeps folding one from folding the other. The last id predates the
-section losing its cloud 1:1s and keeps its name because it is a stored key.
+Places, the room list (a cloud's group rooms) and a cloud's 1:1 section each fold independently,
+and the fold is remembered. `useHomeSections` reads and writes the `ui.homeSectionsCollapsed` config
+key (`persist: 'local'`), and `HomePage` passes each list a controlled `open`/`onOpenChange` under its
+own id — `places`, `channels`, `cloudDm`. The group and 1:1 sections are the same `ChannelList`, so
+the id is what keeps folding one from folding the other. `cloudDm` held the self chat alone for a
+while, when mobile listed no cloud 1:1; it is a stored key, so it kept its name.
 
 It is not left to `CollapsibleSection`'s own state because that state lives only as long as the
 section is mounted, and in ordinary use it is not: a reload, leaving home and coming back, and a
-switch between relay and a cloud (which mounts or drops the Place and Self Chat sections) each start
+switch between relay and a cloud (which mounts or drops the Place and 1:1 sections) each start
 it over. So does a cold cloud switch, where the Chat section gives way to the loading state until a
 place is selected. The skeleton-to-list swap inside the Place section is not one of these — both
 render the same section, so React keeps it — but both branches still forward `open`.
@@ -281,7 +286,7 @@ sync home already registers, which catches a row up whenever the channel delta m
 
 ## Row swipe actions
 
-Every room row in the Chat section, and in the Self Chat section, slides sideways to reveal actions
+Every room row in the room sections — the relay's list, a cloud's 1:1 and group sections — slides sideways to reveal actions
 behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing else.
 
 | Swipe | Actions                                                                   |
@@ -301,9 +306,9 @@ behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing els
   "Mentions only" draws an @ glyph beside its name instead, since a mention still rings; a 1:1 stored
   as `mention` draws nothing, as it is delivered as all messages (`notifyLevelOf`).
 - **Pin** is the place's client-side pin list (`usePinnedChannels`, scoped to cloud and place). A pin
-  moves the row, often out from under the finger, so it is confirmed with a toast. The Self Chat
-  section has no pin list behind it, so its row has no right swipe — and with no left side either, a
-  cloud's self chat does not swipe at all.
+  moves the row, often out from under the finger, so it is confirmed with a toast. A cloud's self
+  chat leads the 1:1 section whatever is pinned, so a pin could not move it and its row has no right
+  swipe — and with no left side either, it does not swipe at all.
 - **A self chat** in a place's list (relay) has a pin and no left side — its settings offer neither
   notifications nor an exit. Someone else's self chat, which is only ever a row left over from the
   previous account, has no actions at all. Sent-invite rows do not swipe.

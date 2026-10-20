@@ -18,6 +18,7 @@ export * from './useChatMutations';
 export * from './useReactions';
 export * from './useUserMutations';
 export * from './useCreateChannel';
+export * from './useStartDm';
 export * from './useCreateInviteBatch';
 export * from './useUrlMetadata';
 export * from './useInviteCandidates';

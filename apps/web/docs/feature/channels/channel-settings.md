@@ -166,11 +166,16 @@ two round trips and only one can ever be open.
 
 Rows depend on the viewer's role and on the target:
 
-| Viewer / target              | Rows                                        |
-| ---------------------------- | ------------------------------------------- |
-| me                           | profile settings → `PlaceProfileEditDialog` |
-| owner → another member       | friend settings · remove · report           |
-| anyone else → another member | report                                      |
+| Viewer / target              | Rows                                                 |
+| ---------------------------- | ---------------------------------------------------- |
+| me                           | profile settings → `PlaceProfileEditDialog`          |
+| owner → another member       | (`1:1 대화하기`) · friend settings · remove · report |
+| anyone else → another member | (`1:1 대화하기`) · report                            |
+
+`1:1 대화하기` leads the rows only where a cloud 1:1 can open from here: the host passes `onStartDm`
+when `canStartDmFromProfile` holds — a cloud group room in the session's cloud and place, another
+member — and the dialog drops it on my own profile regardless. The rule is
+[dm-and-self-chat.md](./dm-and-self-chat.md)'s.
 
 Remove re-confirms through `ConfirmDialog` before calling the kick. **Friend settings and report are
 UI-only**: neither has a backend, so both acknowledge with a toast. They are rows rather than hidden

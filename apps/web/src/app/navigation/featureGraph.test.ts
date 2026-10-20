@@ -25,6 +25,8 @@ describe('readFeatureGraph', () => {
         // Shaped exactly like a graph and deliberately not one: a second invite must not delete
         // the first one's entry.
         ['/invite/INV1/waiting'],
+        // The 1:1 picker shares the channel prefix and is about no channel.
+        ['/channels/start-dm'],
     ])('gives %s no graph', pathname => {
         expect(readFeatureGraph(pathname)).toBeNull();
     });
@@ -54,6 +56,15 @@ describe('isSiblingGraphEntry', () => {
 
     it('is false leaving a graph for a screen that has none', () => {
         expect(isSiblingGraphEntry('/channels/A/room', '/mypage')).toBe(false);
+    });
+
+    // Leaving the picker for the room it opened is not "another channel": the picker replaces itself.
+    it('is false from the 1:1 picker into a room', () => {
+        expect(isSiblingGraphEntry('/channels/start-dm', '/channels/B/room')).toBe(false);
+    });
+
+    it('still reads a channel whose id merely starts with the picker segment', () => {
+        expect(readFeatureGraph('/channels/start-dm-x/room')).toEqual({ feature: 'channels', instance: 'start-dm-x' });
     });
 
     it('is true for another place, the second instance-scoped graph', () => {

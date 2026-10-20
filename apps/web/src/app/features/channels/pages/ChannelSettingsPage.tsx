@@ -30,8 +30,10 @@ import {
     useDmInviteState,
     useDmPeer,
     useJoinMutations,
+    useStartDm,
 } from '../hooks';
 import {
+    canStartDmFromProfile,
     channelKindOf,
     dmLineageOf,
     hasDmInviteFlow,
@@ -39,6 +41,7 @@ import {
     removalActionFor,
     resolveChannelAvatar,
 } from '../lib';
+import { toCloudId } from '../../../hooks/useCloudScope';
 import { NOTIFY_LEVEL_LABEL_KEY, type NotifyLevel, notifyLevelOf, notifyLevelsFor } from '../utils/notifyLevel';
 import { type DisplayNameSources, resolveUserName } from '../utils/displayName';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
@@ -71,9 +74,14 @@ export const ChannelSettingsPage = () => {
     // Issuing a relay invite takes a main user, so a device user never gets the re-invite CTA.
     const { isGuest } = runtime.session.useRuntimeProfile();
     // Settings names the same people the room does, from the same place — see `profilePlaceOf`.
-    const { selectedSiteId } = runtime.session.useSessionSelection();
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
+    // A member's profile can open a 1:1 with them — see `canStartDmFromProfile` for where.
+    const { startDm, isAvailable: canStartDm } = useStartDm();
 
     const { channel, isError } = useChannel(channelId ?? null);
+    // My uid in the room's own cloud, which can differ from the session's. The start-1:1 row checks
+    // both, so it is never offered on my own row.
+    const uidInRoomCloud = runtime.session.useUidInCloud(toCloudId(channel?.cid || selectedCloudId));
     const activePlaceName = useActivePlaceName();
 
     // One join subscription for the screen: the member rows' read-state and my own row (the
@@ -565,6 +573,23 @@ export const ChannelSettingsPage = () => {
                 onKick={handleKickMember}
                 isKicking={isPending.leave}
                 onOpenProfileSettings={() => openDialog('profileSettings')}
+                onStartDm={
+                    canStartDm &&
+                    selectedMember &&
+                    canStartDmFromProfile({
+                        room: channel,
+                        sessionCloudId: selectedCloudId,
+                        sessionPlaceId: selectedSiteId,
+                        memberId: selectedMember.id,
+                        isMe: id => id === userId || id === uidInRoomCloud,
+                    })
+                        ? () => {
+                              const peerId = selectedMember.id;
+                              closeDialog();
+                              void startDm(peerId);
+                          }
+                        : undefined
+                }
             />
             <PlaceProfileEditDialog
                 open={activeDialog === 'profileSettings'}

@@ -221,8 +221,10 @@ reads louder.
 A sender's avatar and the name above it open that person's profile full-screen. This is
 `MemberProfileDialog`, the same sheet the settings member list opens
 ([channel-settings.md](./channel-settings.md)). In a 1:1 the header opens the peer the same way.
-In the room the sheet can only **view and report**: `canKick` is always false, because removing
-someone belongs on the settings screen, where you can see the member list it changes. The owner
+In the room the sheet can **view, report and start a 1:1** — the last only where
+`canStartDmFromProfile` allows ([dm-and-self-chat.md](./dm-and-self-chat.md)). `canKick` is always
+false, because removing someone belongs on the settings screen, where you can see the member list it
+changes. The owner
 badge reads `channel.ownerId`, as it does in settings.
 
 The sheet shows the person exactly as the tapped element showed them. `ChannelMessageRow`'s

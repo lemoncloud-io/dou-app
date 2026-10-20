@@ -10,6 +10,9 @@ import type { DomainChat } from '../types';
 let mockChats: DomainChat[] = [];
 let mockDialogProps: Record<string, any> = {};
 
+// The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
+const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
+
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1', rootNo: '7' }),
     useLocation: () => ({ state: null }),
@@ -87,6 +90,7 @@ jest.mock('../../../ui/hooks/useChromeInsets', () => ({
     }),
 }));
 jest.mock('../hooks', () => ({
+    useStartDm: () => mockUseStartDm(),
     useChannel: () => ({ channel: { id: 'ch1', stereo: 'group', ownerId: 'owner' } }),
     useChannelJoins: () => ({ joins: [], myJoin: null, activeMemberIds: [], cursorByUser: new Map() }),
     useChannelMembers: () => ({ members: [] }),

@@ -36,7 +36,7 @@ import {
     useUserPermissions,
 } from '../../../hooks';
 import { useCloudSelfChannels } from '../../channels/hooks';
-import { isInCloudSelfSection } from '../../channels/lib';
+import { channelKindOf, isInCloudSelfSection } from '../../channels/lib';
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { DEFAULT_CHANNEL_SORT } from '../../../stores/preferenceKeys';
 import { BottomNavSpacer } from '../../../ui/components';
@@ -95,8 +95,7 @@ export const HomePage = () => {
     const { invitedClouds } = useInvitedClouds();
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const isDefaultCloud = selectedCloudId === 'default';
-    // The cloud's self chat belongs to the account, not a place, so it gets a section of its own
-    // below the place's rooms.
+    // The cloud's self chat belongs to the account, not a place; it leads the cloud's 1:1 section.
     const { channels: cloudSelfChannels, isLoading: isCloudSelfLoading } = useCloudSelfChannels();
     // Connected to an invited cloud → drives the place-type caption.
     const isInvitedCloud = !isDefaultCloud && invitedClouds.some(cloud => cloud.id === selectedCloudId);
@@ -205,9 +204,20 @@ export const HomePage = () => {
     // state ("채팅방이 없어요") on the way into every place. Skeletons cover the gap instead.
     const isChannelSectionLoading = isChannelsLoading || isSwitching;
     // The place's own rooms. A subscription cloud's notes-to-self room carries a place too, but it
-    // belongs to the account and is listed in a section of its own below. `channels` keeps it for the
-    // syncs.
+    // belongs to the account and leads the 1:1 section instead. `channels` keeps it for the syncs.
     const placeRooms = useMemo(() => channels.filter(channel => !isInCloudSelfSection(channel)), [channels]);
+    // A cloud lists its place's rooms in two sections — 1:1s and groups — split by the room's kind
+    // alone (`stereo`), the same rule every other 1:1 decision reads; a two-member group stays a
+    // group. The relay keeps one list: its 1:1s are reached by phone number and its only other room
+    // is the self chat, so a split there would only move one row.
+    const { placeDms, placeGroups } = useMemo(() => {
+        const dms: typeof placeRooms = [];
+        const groups: typeof placeRooms = [];
+        for (const channel of placeRooms) (channelKindOf(channel.stereo) === 'dm' ? dms : groups).push(channel);
+        return { placeDms: dms, placeGroups: groups };
+    }, [placeRooms]);
+    // The cloud's 1:1 section: my notes-to-self room on top, then the place's 1:1s.
+    const dmSectionRooms = useMemo(() => [...cloudSelfChannels, ...placeDms], [cloudSelfChannels, placeDms]);
     // Sent relay invites (ADR-0089 Track B) — 1:1 DM invites only make sense on the default
     // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
@@ -388,14 +398,27 @@ export const HomePage = () => {
         }
     };
     /**
-     * Starting a 1:1 is a relay act on mobile: the only way to reach a person there is their phone
-     * number, so it goes to the contact form and on to the SMS handoff. Mobile does not open a cloud
-     * 1:1, so the entry is not offered inside a cloud at all.
+     * Starting a relay 1:1: the only way to reach a person there is their phone number, so it goes to
+     * the contact form and on to the SMS handoff.
      *
      * `navigateFromMenu`, because this is a dropdown item: the menu is given time to leave before
      * the page transition starts (ADR-0110).
      */
     const handleCreateOneOnOne = () => navigateFromMenu(ROUTES.invite.contact);
+    /**
+     * Starting a cloud 1:1: pick one member of the active place. Any member may — owner or invited —
+     * since a 1:1 is between two people, not a room the place's owner hands out. It needs a place to
+     * be filed under, and the picker's list is that place's members, so it waits for one.
+     */
+    // Held while the place on screen and the session's place disagree — a switch still moving — as the
+    // place invite is: the picker lists the session's place, which is not the one being looked at.
+    const canStartCloudDm =
+        !isDefaultCloud &&
+        hasActivePlace &&
+        !!selectedPlaceId &&
+        selectedPlaceId === selectedSiteId &&
+        !isChannelSectionLoading;
+    const handleStartCloudDm = () => navigate(ROUTES.channels.startDm);
 
     // Search is not implemented yet (ADR-0013): the button is a visible placeholder.
     const handleSearch = () => navigate(ROUTES.search.root);
@@ -535,16 +558,57 @@ export const HomePage = () => {
                     />
                 )}
 
-                {selectedPlaceId ? (
+                {/* A cloud's 1:1 section: my notes-to-self room on top, then the place's 1:1s. The
+                    self room belongs to the account rather than to any place, so it is listed here
+                    whichever place is open; the relay keeps its self chat and its 1:1s in its one
+                    list, so this section is a cloud's only.
+
+                    Drawn whenever a place is open — its ＋ is how a 1:1 is started — and, with no
+                    place, only while there is a self room to show.
+
+                    The same `ChannelList` as the group rooms, deliberately — every row rule (the
+                    title chain, the avatar, unread, the last-message preview) is decided there, and
+                    a second row component would be a second place for them to drift. The stored
+                    fold id is still `cloudDm`: the section that id first named is this one again. */}
+                {!isDefaultCloud && (selectedPlaceId || cloudSelfChannels.length > 0) && (
                     <ChannelList
-                        channels={placeRooms}
+                        channels={dmSectionRooms}
+                        leadsWithSelf
+                        joinByChannel={myJoins}
+                        sid={selectedPlaceId ?? selectedSiteId ?? ''}
+                        isLoading={isChannelSectionLoading || isCloudSelfLoading}
+                        title={t('cloudDm.section.title')}
+                        emptyLabel={t('cloudDm.section.empty')}
+                        sortMethod={channelSortMethod}
+                        pinnedChannelIds={pinnedChannelIds}
+                        onTogglePin={togglePinned}
+                        onCreate={canStartCloudDm ? handleStartCloudDm : undefined}
+                        createLabel={t('cloudDm.start')}
+                        sentInvites={[]}
+                        open={homeSections.isOpen('cloudDm')}
+                        onOpenChange={open => homeSections.setOpen('cloudDm', open)}
+                    />
+                )}
+
+                {selectedPlaceId ? (
+                    // Relay: the place's one list. A cloud: its group rooms, under their own heading.
+                    <ChannelList
+                        channels={isDefaultCloud ? placeRooms : placeGroups}
+                        title={isDefaultCloud ? undefined : t('homePage.groupChats')}
+                        // A cloud with rooms in its 1:1 section says only that no group exists yet. The
+                        // place's own empty state — create one, or rooms arrive by invitation and you
+                        // may leave — is about a place with no room at all, which would contradict
+                        // the 1:1s right above it.
+                        emptyLabel={
+                            !isDefaultCloud && dmSectionRooms.length > 0 ? t('homePage.groupChatsEmpty') : undefined
+                        }
                         joinByChannel={myJoins}
                         sid={selectedPlaceId}
                         isLoading={isChannelSectionLoading}
                         canCreate={!isChannelSectionLoading && (isDefaultCloud || isCloudOwner)}
                         isDefaultCloud={isDefaultCloud}
-                        // Relay only: mobile reaches a 1:1 by phone number. A cloud 1:1 is made on
-                        // desktop; mobile lists and opens it, and makes none.
+                        // Relay only: there a 1:1 is reached by phone number. A cloud starts its
+                        // 1:1s from the ＋ of the 1:1 section above.
                         showOneOnOneCreate={!isChannelSectionLoading && isDefaultCloud}
                         isPro={planTier !== 'free'}
                         sortMethod={channelSortMethod}
@@ -581,34 +645,6 @@ export const HomePage = () => {
                         <Loader2 aria-hidden className="size-7 animate-spin" />
                         <p className="text-sm">{t('homePage.loadingCloud')}</p>
                     </div>
-                )}
-
-                {/* The cloud's self chat, which belongs to the account rather than to any place and
-                    so appears in none of the lists above. Relay is excluded: its self chat DOES live
-                    in its one place and is already in the list, so a second section would double it.
-                    Cloud 1:1s are not listed on mobile at all.
-
-                    Drawn only once the room is there. A cloud does not make it on its own and mobile
-                    has no way to ask for it, so an empty section would be a heading with nothing to
-                    do under it — and the ＋ that used to fill this section is gone.
-
-                    The same `ChannelList` as the place's rooms, deliberately — every row rule (the
-                    title chain, the avatar, unread, the last-message preview) is decided there, and
-                    a second row component would be a second place for them to drift. */}
-                {!isDefaultCloud && cloudSelfChannels.length > 0 && (
-                    <ChannelList
-                        channels={cloudSelfChannels}
-                        leadsWithSelf
-                        joinByChannel={myJoins}
-                        sid={selectedSiteId ?? ''}
-                        isLoading={isCloudSelfLoading}
-                        title={t('cloudSelf.section.title')}
-                        emptyLabel={t('cloudSelf.section.empty')}
-                        sortMethod={channelSortMethod}
-                        sentInvites={[]}
-                        open={homeSections.isOpen('cloudDm')}
-                        onOpenChange={open => homeSections.setOpen('cloudDm', open)}
-                    />
                 )}
 
                 <BottomNavSpacer />

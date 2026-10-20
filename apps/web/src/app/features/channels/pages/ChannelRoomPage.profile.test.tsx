@@ -17,6 +17,11 @@ const mockNavigate = jest.fn();
 let mockHeaderProps: Record<string, any> = {};
 let mockDialogProps: Record<string, any> = {};
 
+// The profile's start-1:1 entry is gated by this hook; it is off unless a test turns it on.
+const mockStartDm = jest.fn();
+let mockStartDmAvailable = false;
+const mockUseStartDm = () => ({ startDm: mockStartDm, isStarting: false, isAvailable: mockStartDmAvailable });
+
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1' }),
     useSearchParams: () => [new URLSearchParams(), jest.fn()],
@@ -119,6 +124,7 @@ jest.mock('../lib', () => ({
     resolveChannelAvatar: () => ({ src: undefined }),
 }));
 jest.mock('../hooks', () => ({
+    useStartDm: () => mockUseStartDm(),
     useRoomOpenTrace: () => undefined,
     useRoomSyncTrace: () => undefined,
     useChannel: () => ({ channel: mockChannel, isLoading: false, isError: false, isForbidden: false }),
@@ -194,6 +200,8 @@ beforeEach(() => {
     mockNavigate.mockReset();
     mockHeaderProps = {};
     mockDialogProps = {};
+    mockStartDm.mockReset();
+    mockStartDmAvailable = false;
 });
 
 describe('ChannelRoomPage — opening a sender from their message', () => {
@@ -239,6 +247,54 @@ describe('ChannelRoomPage — opening a sender from their message', () => {
         expect(screen.queryByTestId('profile-dialog')).not.toBeInTheDocument();
         // Still naming them while it slides away, rather than blanking mid-animation.
         expect(mockDialogProps.member).toEqual({ id: 'peer', name: 'peer name', avatar: undefined });
+    });
+});
+
+// The profile offers a 1:1 only where one can open; `canStartDmFromProfile` holds the full rule.
+describe('ChannelRoomPage — starting a 1:1 from a profile', () => {
+    beforeEach(() => {
+        mockStartDmAvailable = true;
+        mockMessages = [row({})];
+    });
+
+    it("offers it in a cloud group room of the session's place, and opens it on tap", () => {
+        mockChannel = { ...mockChannel, sid: 'S:active' };
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('sender-m1'));
+        act(() => mockDialogProps.onStartDm());
+
+        expect(mockStartDm).toHaveBeenCalledWith('peer');
+        expect(screen.queryByTestId('profile-dialog')).not.toBeInTheDocument();
+    });
+
+    it('withholds it in a room of another place', () => {
+        mockChannel = { ...mockChannel, sid: 'S:other' };
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('sender-m1'));
+
+        expect(screen.getByTestId('profile-dialog')).toBeInTheDocument();
+        expect(mockDialogProps.onStartDm).toBeUndefined();
+    });
+
+    it('withholds it in a room of another cloud under the same place id', () => {
+        mockChannel = { ...mockChannel, cid: 'cloud-b', sid: 'S:active' };
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('sender-m1'));
+
+        expect(mockDialogProps.onStartDm).toBeUndefined();
+    });
+
+    it('withholds it where the hook says no 1:1 can open', () => {
+        mockStartDmAvailable = false;
+        mockChannel = { ...mockChannel, sid: 'S:active' };
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('sender-m1'));
+
+        expect(mockDialogProps.onStartDm).toBeUndefined();
     });
 });
 

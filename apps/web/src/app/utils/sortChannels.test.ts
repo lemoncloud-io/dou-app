@@ -190,7 +190,7 @@ describe('sortChannels', () => {
     describe('leadsWithSelf', () => {
         const self = { ...channel('self', 50), stereo: 'self' } as DomainChannel;
 
-        // Home's Self Chat section opens with that room, as desktop's Direct messages do.
+        // A cloud's 1:1 section on home opens with that room, as desktop's Direct messages do.
         it('puts the notes-to-self room first, above a pin', () => {
             const result = sortChannels({
                 channels: [...channels, self],

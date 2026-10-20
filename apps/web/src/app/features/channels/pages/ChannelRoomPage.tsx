@@ -41,7 +41,7 @@ import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
 import { RoomSkeleton } from '../components/RoomSkeleton';
 import { StackInRow } from '../components/StackInRow';
-import { channelKindOf, hasDmInviteFlow, profilePlaceOf, resolveChannelAvatar } from '../lib';
+import { canStartDmFromProfile, channelKindOf, hasDmInviteFlow, profilePlaceOf, resolveChannelAvatar } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import { pickDmPeerId } from '../utils/dmPeer';
 import { isChannelMember, isNotMyChannel, isSomeoneElsesSelfChat } from '../utils/membership';
@@ -63,6 +63,7 @@ import {
     useReadMarker,
     useRoomOpenTrace,
     useRoomSyncTrace,
+    useStartDm,
 } from '../hooks';
 import type { ClientChatView } from '../types';
 import { GapDivider } from '../components/GapDivider';
@@ -200,6 +201,8 @@ export const ChannelRoomPage = () => {
     // (`<channelId>@<uid>`), so none of them can take the session's uid: a mismatch there registers
     // somebody else's cursor, or reads me as a stranger in my own room and bounces me out of it.
     const userId = runtime.session.useUidInCloud(roomCid);
+    // A member's profile can open a 1:1 with them — see `canStartDmFromProfile` for where.
+    const { startDm, isAvailable: canStartDm } = useStartDm();
 
     // ONE join-cache subscription for this screen. My row (nick / notify / the read baseline), every
     // member's read cursor and the active-membership set are all readings of the same rows, and each
@@ -1525,6 +1528,21 @@ export const ChannelRoomPage = () => {
                     member={profileTarget}
                     memberIsOwner={profileTarget.id === channel?.ownerId}
                     canKick={false}
+                    onStartDm={
+                        canStartDm &&
+                        canStartDmFromProfile({
+                            room: channel,
+                            sessionCloudId: selectedCloudId,
+                            sessionPlaceId: selectedSiteId,
+                            memberId: profileTarget.id,
+                            isMe: id => id === userId || id === sessionUid,
+                        })
+                            ? () => {
+                                  setProfileOpen(false);
+                                  void startDm(profileTarget.id);
+                              }
+                            : undefined
+                    }
                 />
             )}
 

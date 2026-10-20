@@ -1,7 +1,9 @@
 # ADR-0153: Mobile neither opens nor lists a cloud 1:1
 
-> Status: Accepted for decisions 1 and 4 (reason recorded 2026-10-19, § Context); decisions 2 and 3 superseded by
-> [ADR-0210](./0210-a-cloud-1-1-belongs-to-the-place-it-was-opened-in.md) — mobile lists a cloud 1:1 in its place and counts its unread · Decided: 2026-10-01
+> Status: Superseded — decisions 2 and 3 by
+> [ADR-0210](./0210-a-cloud-1-1-belongs-to-the-place-it-was-opened-in.md) (mobile lists a cloud 1:1 in its place and counts its unread),
+> decisions 1 and 4 by [ADR-0216](./0216-mobile-gives-a-cloud-1-1-its-own-section-and-starts-one.md) (mobile starts a cloud 1:1,
+> and the self chat leads the 1:1 section) · Decided: 2026-10-01
 > · Scope: `apps/web/src/app/features/home/**` · `apps/web/src/app/features/channels/**` ·
 > `apps/web/src/app/hooks/useChannelUnreads.ts`
 > · Supersedes, for mobile only: [ADR-0113](./0113-a-cloud-1-1-has-no-invite-and-no-place.md)

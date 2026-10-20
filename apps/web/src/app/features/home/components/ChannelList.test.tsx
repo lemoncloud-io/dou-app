@@ -791,6 +791,18 @@ describe('ChannelList 생성 메뉴', () => {
         expect(screen.getByTestId('tier-badge')).toHaveTextContent('pro');
     });
 
+    // A section with one action (a cloud's 1:1 section) runs it from the ＋ itself, no one-row popover.
+    it('runs onCreate straight from the ＋ and drops the popover entries', () => {
+        const onCreate = jest.fn();
+        renderMenu({ isDefaultCloud: false, isPro: true, onCreate, createLabel: 'cloudDm.start' });
+
+        fireEvent.click(screen.getByRole('button', { name: 'cloudDm.start' }));
+
+        expect(onCreate).toHaveBeenCalledTimes(1);
+        expect(screen.queryByText('channelList.createGroup')).not.toBeInTheDocument();
+        expect(screen.queryByText('channelList.createDirect')).not.toBeInTheDocument();
+    });
+
     it('구독한 클라우드에선 뱃지 없이 그룹 방 만들기만 보인다', () => {
         renderMenu({ isDefaultCloud: false, isPro: true });
 
@@ -1013,6 +1025,40 @@ describe('ChannelList swipe actions', () => {
         expect(screen.getByRole('button', { name: 'channelList.swipe.pin' })).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'channelList.swipe.mute' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'channelList.swipe.leave' })).not.toBeInTheDocument();
+    });
+
+    // A cloud's 1:1 section leads with the self room; a pin there could not move it, so none is offered.
+    it('offers no pin on a self room that leads the list, while its 1:1s keep theirs', () => {
+        render(
+            <ChannelList
+                channels={[
+                    makeChannel({ id: 'U:me', stereo: 'self', ownerId: 'me', memberNo: 1 }),
+                    makeChannel({ id: 'd1', stereo: 'dm', ownerId: 'me', memberNo: 2 }),
+                ]}
+                isLoading={false}
+                sid="s1"
+                leadsWithSelf
+                onTogglePin={jest.fn()}
+            />
+        );
+
+        expect(screen.getAllByRole('button', { name: 'channelList.swipe.pin' })).toHaveLength(1);
+    });
+
+    // An older build could pin the self room; leading the list, it could never be unpinned here.
+    it('draws no pin glyph on a leading self room, even with a stored pin', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'U:me', stereo: 'self', ownerId: 'me', memberNo: 1 })]}
+                isLoading={false}
+                sid="s1"
+                leadsWithSelf
+                pinnedChannelIds={new Set(['U:me'])}
+                onTogglePin={jest.fn()}
+            />
+        );
+
+        expect(screen.queryByLabelText('channelList.pinned')).not.toBeInTheDocument();
     });
 
     it("gives someone else's self chat no actions at all", () => {

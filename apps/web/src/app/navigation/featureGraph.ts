@@ -37,7 +37,9 @@ export interface FeatureGraphNode {
  * first one's entry while the reader is still using it.
  */
 const GRAPH_PATTERNS: readonly { feature: string; pattern: RegExp }[] = [
-    { feature: 'channels', pattern: /^\/channels\/([^/]+)(?:\/|$)/ },
+    // `/channels/start-dm` (the 1:1 picker) shares the prefix but is about no channel, so it is no
+    // instance of the graph: read as one, it would be "another channel" and put away on entering a room.
+    { feature: 'channels', pattern: /^\/channels\/(?!start-dm(?:\/|$))([^/]+)(?:\/|$)/ },
     { feature: 'place', pattern: /^\/place\/([^/]+)(?:\/|$)/ },
 ];
 
