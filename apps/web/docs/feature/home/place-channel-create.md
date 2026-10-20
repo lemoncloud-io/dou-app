@@ -51,9 +51,10 @@ The channel section's `＋` opens for **either** of its two rows, which is not t
 guards the `그룹 방 만들기` row alone; that row additionally appears **only while unpaid** on the
 relay, because a group room lives in a cloud of one's own and for a subscriber the relay entry would
 lead nowhere. `1:1 대화` has its own condition, `showOneOnOneCreate`, and shows on relay only: the tap
-goes to the phone-number contact form, and mobile makes no cloud 1:1 — that is desktop's. An invited
-cloud therefore has neither row and no `＋`. See [dm-and-self-chat.md](../channels/dm-and-self-chat.md)
-§ Mobile lists a cloud 1:1 with its place's rooms, and makes none.
+goes to the phone-number contact form. A cloud starts its 1:1s from the `1:1 대화` section's own `＋`
+instead, which any member of the place gets — so an invited member has no `＋` on the group section
+but does on the 1:1 section. See [dm-and-self-chat.md](../channels/dm-and-self-chat.md) § Mobile lists
+a cloud's 1:1s in a section of their own, and starts them too.
 
 ### What each tap does
 

@@ -105,7 +105,7 @@ export const removalActionFor = (kind: ChannelKind, isChannelOwner: boolean): Ch
  * `stereo` cannot tell these apart — both are `'dm'` — and they are not the same room. A relay 1:1
  * is reached by inviting a phone number, so it has an invite behind it and can be re-opened by
  * sending another one. A cloud 1:1 is opened by naming a member directly (`channel.startDm` —
- * desktop offers it, mobile no longer does), so there is no invite in its history and no number to
+ * desktop and mobile both offer it), so there is no invite in its history and no number to
  * send one to.
  */
 export type DmLineage = 'relay' | 'cloud';
@@ -132,13 +132,13 @@ export const dmLineageOf = (
 };
 
 /**
- * Whether home lists a room in the Self Chat section rather than under a place: the
+ * Whether home lists a room atop a cloud's 1:1 section rather than under a place: the
  * notes-to-self room of a subscription cloud. It belongs to the account, not to a place, so under a
  * place it showed in whichever one it was tagged with and in none of the others. On the relay it
  * stays in its one place, which is the only list there.
  *
- * A cloud 1:1 is not here: it lives in the place it was opened in, and that place's list holds it
- * beside the group rooms (`isInPlaceList`).
+ * A cloud 1:1 is not here: it lives in the place it was opened in, and that place's slice holds it
+ * (`isInPlaceList`) until home sorts it into the 1:1 section by kind.
  */
 export const isInCloudSelfSection = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
     channel?.stereo === 'self' && channel.cid !== RELAY_CLOUD_ID;
@@ -179,4 +179,40 @@ export const profilePlaceOf = (
 ): string | null => {
     if (!channel) return null;
     return channel.sid && channel.sid !== '#' ? channel.sid : (activeSid ?? null);
+};
+
+/**
+ * Whether a member's profile, opened from inside a room, offers to start a 1:1 with them. Each
+ * condition closes a way of offering a room that cannot be opened, or that would open somewhere the
+ * person did not mean:
+ *
+ * - **A subscription cloud's room.** On the relay a 1:1 is reached by phone number, and a profile has
+ *   no number to send.
+ * - **A group room.** Inside a 1:1 the peer is already the conversation, and a self chat has nobody
+ *   else in it.
+ * - **The room is in the cloud and the place the session is on.** A 1:1 is filed under the session's
+ *   place for good, so from a room of another place (opened from search or a push) it would land in a
+ *   place the person was not looking at — one the peer may not even belong to. The cloud is compared
+ *   too: a place id is unique only within its cloud, and during a cloud switch a room of the cloud
+ *   being left can still be on screen.
+ * - **Not me** — `channel.start-dm` refuses my own id.
+ */
+export const canStartDmFromProfile = ({
+    room,
+    sessionCloudId,
+    sessionPlaceId,
+    memberId,
+    isMe,
+}: {
+    room: Pick<DomainChannel, 'stereo' | 'cid' | 'sid'> | null | undefined;
+    sessionCloudId: string | null | undefined;
+    sessionPlaceId: string | null | undefined;
+    memberId: string | null | undefined;
+    isMe: (id: string) => boolean;
+}): boolean => {
+    if (!room || !room.cid || room.cid === RELAY_CLOUD_ID) return false;
+    if (channelKindOf(room.stereo) !== 'group') return false;
+    if (room.cid !== sessionCloudId) return false;
+    if (!sessionPlaceId || room.sid !== sessionPlaceId) return false;
+    return !!memberId && !isMe(memberId);
 };

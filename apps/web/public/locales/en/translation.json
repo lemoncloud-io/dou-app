@@ -553,6 +553,8 @@
     "homePage": {
         "places": "Places",
         "channels": "Chat Rooms",
+        "groupChats": "Group Chats",
+        "groupChatsEmpty": "No group chats yet",
         "noCloudsError": "No clouds available to configure",
         "selectCloud": "Select a cloud",
         "cannotCreatePlace": "Can't create place in this cloud",
@@ -654,11 +656,24 @@
             "confirm": "Leave"
         }
     },
-    "cloudSelf": {
+    "cloudDm": {
         "section": {
-            "title": "Self Chat",
-            "empty": "No self chat yet"
-        }
+            "title": "1:1 Chats",
+            "empty": "No 1:1 chats yet"
+        },
+        "picker": {
+            "title": "Start a 1:1",
+            "searchPlaceholder": "Search by name",
+            "loading": "Loading members...",
+            "loadFailed": "Could not load the members",
+            "retry": "Try again",
+            "empty": "Nobody to talk to yet",
+            "emptyHint": "You can start a 1:1 with any member of this place.",
+            "noMatch": "No matches",
+            "failed": "Could not open the 1:1"
+        },
+        "start": "Start a 1:1",
+        "startFromProfile": "Start a 1:1"
     },
     "channelList": {
         "noDescription": "No description",

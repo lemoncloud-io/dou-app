@@ -129,7 +129,7 @@ jest.mock('../../../hooks', () => ({
     }),
     useActiveCloudUnreads: () => ({ byChannel: {}, byPlace: {}, total: 0 }),
     useHomeChannels: () => ({ channels: homeChannels, isLoading: false }),
-    useInvitedClouds: () => ({ invitedClouds: [] }),
+    useInvitedClouds: () => ({ invitedClouds }),
     // Registration is the one join concern still scoped to home — a no-op here.
     useJoinSyncRegistration: jest.fn(),
     // Same for the active site's chat sync (message freshness) — a no-op here.
@@ -155,16 +155,20 @@ jest.mock('../components', () => ({
     // Mirrors the create-group entry back out: the popover is the list's, but what the tap does
     // (upsell vs create dialog) is decided here, in the page.
     //
-    // The page renders this twice on a cloud — the place's rooms, and the Self Chat section,
-    // which is a list and not a create surface. The buttons follow their handlers (and the 1:1 one
-    // its flag) so the stub says the same thing the real popover does: no handler, no entry.
-    // `title` tells the two apart.
+    // The page renders this twice on a cloud — the 1:1 section and the group rooms. The buttons
+    // follow their handlers (and the 1:1 one its flag) so the stub says the same thing the real
+    // popover does: no handler, no entry. `title` tells the two apart: the 1:1 section is
+    // `dm-list`, and the relay's one list and a cloud's group rooms are both `channel-list`.
     ChannelList: ({
         channels,
         isPro,
         onCreateGroup,
         showOneOnOneCreate,
         onCreateOneOnOne,
+        onCreate,
+        leadsWithSelf,
+        canCreate,
+        emptyLabel,
         title,
         open,
         onOpenChange,
@@ -175,13 +179,21 @@ jest.mock('../components', () => ({
         onCreateGroup?: () => void;
         showOneOnOneCreate?: boolean;
         onCreateOneOnOne?: () => void;
+        onCreate?: () => void;
+        leadsWithSelf?: boolean;
+        canCreate?: boolean;
+        emptyLabel?: string;
         title?: string;
         open?: boolean;
         onOpenChange?: (open: boolean) => void;
         onOpenPlaceInfo?: () => void;
     }) => (
         <div
-            data-testid={title ? 'self-chat-list' : 'channel-list'}
+            data-testid={title === 'cloudDm.section.title' ? 'dm-list' : 'channel-list'}
+            data-title={title ?? ''}
+            data-leads-with-self={String(!!leadsWithSelf)}
+            data-can-create={String(!!canCreate)}
+            data-empty-label={emptyLabel ?? ''}
             data-is-pro={String(isPro)}
             data-open={String(open)}
             data-channel-ids={(channels ?? []).map(channel => channel.id).join(',')}
@@ -190,7 +202,11 @@ jest.mock('../components', () => ({
             {showOneOnOneCreate && onCreateOneOnOne && (
                 <button data-testid="create-direct" onClick={onCreateOneOnOne} />
             )}
-            <button data-testid={title ? 'self-chat-toggle' : 'channel-toggle'} onClick={() => onOpenChange?.(!open)} />
+            {onCreate && <button data-testid="start-dm" onClick={onCreate} />}
+            <button
+                data-testid={title === 'cloudDm.section.title' ? 'dm-toggle' : 'channel-toggle'}
+                onClick={() => onOpenChange?.(!open)}
+            />
             {onOpenPlaceInfo && <button data-testid="open-place-info" onClick={onOpenPlaceInfo} />}
         </div>
     ),
@@ -249,10 +265,13 @@ let places: { id: string; stereo: string; isOwner?: boolean }[] = [{ id: 'site-1
 let isPlacesLoading = false;
 let selectedPlaceId: string | null = 'site-1';
 let isSwitchingPlace = false;
-// The active cloud's rooms as the shared observation holds them — the Self Chat section reads it.
+// The active cloud's rooms as the shared observation holds them — the self chat atop the 1:1
+// section is read from it.
 let activeCloudChannels: unknown[] = [];
 // The active place's rooms, as `useHomeChannels` slices them out of that observation.
 let homeChannels: unknown[] = [];
+// Clouds I am a guest in. The active cloud listed here makes me an invited member, not its owner.
+let invitedClouds: { id: string }[] = [];
 const useActiveCloudPlaces = jest.fn(() => ({ places, isLoading: isPlacesLoading }));
 const useSwitchPlace = jest.fn(() => ({ selectedPlaceId, switchPlace: jest.fn(), isSwitching: isSwitchingPlace }));
 const requestAddCloudMock = jest.fn();
@@ -301,6 +320,7 @@ beforeEach(() => {
     isProfileNudgeVisible = false;
     activeCloudChannels = [];
     homeChannels = [];
+    invitedClouds = [];
     selectedSiteId = 'site-1';
     membership = { isValid: false };
     isMembershipLoading = false;
@@ -378,6 +398,19 @@ describe('HomePage — relay mode', () => {
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.guide);
     });
 
+    // The relay keeps one list: its 1:1s and its self chat stay beside each other, untitled.
+    it('keeps one untitled list with every room in it and no 1:1 section', () => {
+        homeChannels = [
+            { id: 'r-dm', stereo: 'dm', cid: 'default', sid: '0000' },
+            { id: 'r-self', stereo: 'self', cid: 'default', sid: '0000' },
+        ];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', 'r-dm,r-self');
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-title', '');
+        expect(screen.queryByTestId('dm-list')).not.toBeInTheDocument();
+    });
+
     // On relay a 1:1 is reached by phone number, so the entry stays and goes to the contact form.
     it('offers the 1:1 entry and sends it to the contact invite form', () => {
         render(<HomePage />);
@@ -406,41 +439,100 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('header')).toHaveAttribute('data-kind', 'cloud');
     });
 
-    // Mobile makes no cloud 1:1 (that is desktop's), so a cloud offers no 1:1 entry. The list is asserted first so the
-    // test cannot pass merely because the section was not drawn.
-    it('offers no 1:1 entry', () => {
+    // A cloud splits the place's rooms by kind: 1:1s in their own section, groups under theirs.
+    it("splits the place's rooms into a 1:1 section and a group section", () => {
+        homeChannels = [
+            { id: 'g-1', stereo: 'private', cid: 'cloud-1', sid: 'site-1' },
+            { id: 'site-1@me@peer', stereo: 'dm', cid: 'cloud-1', sid: 'site-1' },
+            { id: 'g-2', stereo: 'public', cid: 'cloud-1', sid: 'site-1' },
+        ];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-channel-ids', 'site-1@me@peer');
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', 'g-1,g-2');
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-title', 'homePage.groupChats');
+    });
+
+    // The cloud's notes-to-self room belongs to the account, not the place: it leads the 1:1
+    // section, and the place's copy of it (it carries a place too) is listed in neither section.
+    it('lists the self chat atop the 1:1 section, and not among the groups', () => {
+        const self = { id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'site-1' };
+        activeCloudChannels = [self];
+        homeChannels = [{ id: 'site-1@me@peer', stereo: 'dm', cid: 'cloud-1', sid: 'site-1' }, self];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-channel-ids', 'self,site-1@me@peer');
+        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-leads-with-self', 'true');
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', '');
+    });
+
+    // The section's ＋ is how a cloud 1:1 starts, so it is drawn with no 1:1 and no self chat yet.
+    it('draws the 1:1 section with its start entry before any 1:1 exists', () => {
+        render(<HomePage />);
+
+        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-channel-ids', '');
+        fireEvent.click(screen.getByTestId('start-dm'));
+
+        expect(navigateMock).toHaveBeenCalledWith(ROUTES.channels.startDm);
+    });
+
+    // A 1:1 is between two people, not a room the place's owner hands out: an invited member may
+    // start one too, where the group section offers them no create entry.
+    it('offers an invited member the 1:1 start but not group creation', () => {
+        invitedClouds = [{ id: 'cloud-1' }];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('start-dm')).toBeInTheDocument();
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-can-create', 'false');
+    });
+
+    // The group list keeps the relay's phone-number entry off: a cloud 1:1 starts from its own section.
+    it('offers no relay 1:1 entry in a cloud', () => {
         render(<HomePage />);
 
         expect(screen.getByTestId('channel-toggle')).toBeInTheDocument();
         expect(screen.queryByTestId('create-direct')).not.toBeInTheDocument();
     });
 
-    // The place's chat-room section ("대화방") holds its group rooms and its 1:1s together; only the
-    // notes-to-self room has a section of its own.
-    it("lists the place's 1:1s in the chat-room section beside its group rooms", () => {
-        homeChannels = [
-            { id: 'g-1', stereo: 'private', cid: 'cloud-1', sid: 'site-1' },
-            { id: 'site-1@me@peer', stereo: 'dm', cid: 'cloud-1', sid: 'site-1' },
-            { id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'site-1' },
-        ];
+    // The picker lists the session's place; while home shows another one, a switch is still moving.
+    it('holds the 1:1 start while the shown place and the session place disagree', () => {
+        selectedSiteId = 'site-2';
         render(<HomePage />);
 
-        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-channel-ids', 'g-1,site-1@me@peer');
+        expect(screen.getByTestId('dm-list')).toBeInTheDocument();
+        expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
     });
 
-    // A cloud does not make the self chat on its own and mobile cannot ask for it, so with no room
-    // there is no section — a heading with nothing under it.
-    it('draws no Self Chat section until the room is there', () => {
+    // With 1:1s above it, an empty group section says only that; the place's own empty state (create
+    // one / rooms arrive by invitation, leave the place) is for a place with no room at all.
+    it('says only that no group exists yet when the 1:1 section has rooms', () => {
+        homeChannels = [{ id: 'site-1@me@peer', stereo: 'dm', cid: 'cloud-1', sid: 'site-1' }];
         render(<HomePage />);
 
-        expect(screen.queryByTestId('self-chat-list')).not.toBeInTheDocument();
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-empty-label', 'homePage.groupChatsEmpty');
     });
 
-    it('draws the Self Chat section once the room is there', () => {
-        activeCloudChannels = [{ id: 'self', stereo: 'self', cid: 'cloud-1', sid: 'S:one' }];
+    it("keeps the place's own empty state when the place has no room at all", () => {
         render(<HomePage />);
 
-        expect(screen.getByTestId('self-chat-list')).toBeInTheDocument();
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-empty-label', '');
+    });
+
+    it('keeps the relay list on its own empty state', () => {
+        selectedCloudId = 'default';
+        homeChannels = [{ id: 'r-dm', stereo: 'dm', cid: 'default', sid: 'site-1' }];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('channel-list')).toHaveAttribute('data-empty-label', '');
+    });
+
+    // While the place's rooms are still loading the picker has no place to read members from.
+    it('holds the 1:1 start while a place switch is in flight', () => {
+        isSwitchingPlace = true;
+        render(<HomePage />);
+
+        expect(screen.getByTestId('dm-list')).toBeInTheDocument();
+        expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
     });
 
     // The empty room list's "you can leave this place" link opens the active place's information
@@ -456,7 +548,7 @@ describe('HomePage — cloud mode', () => {
 
 // The fold of each section comes from the stored record, not from the section itself — that is
 // what lets it survive leaving home. Each of the three sections must read and write its own id:
-// the place rooms and the notes-to-self room are the same component, so a shared id would fold both.
+// the 1:1 and group sections are the same component, so a shared id would fold both.
 describe('HomePage — section folds', () => {
     beforeEach(() => {
         selectedCloudId = 'cloud-1';
@@ -469,7 +561,7 @@ describe('HomePage — section folds', () => {
 
         expect(screen.getByTestId('place-list')).toHaveAttribute('data-open', 'true');
         expect(screen.getByTestId('channel-list')).toHaveAttribute('data-open', 'false');
-        expect(screen.getByTestId('self-chat-list')).toHaveAttribute('data-open', 'true');
+        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-open', 'true');
     });
 
     it('writes a toggle under the id of the section that was toggled', () => {
@@ -477,7 +569,7 @@ describe('HomePage — section folds', () => {
 
         fireEvent.click(screen.getByTestId('place-toggle'));
         fireEvent.click(screen.getByTestId('channel-toggle'));
-        fireEvent.click(screen.getByTestId('self-chat-toggle'));
+        fireEvent.click(screen.getByTestId('dm-toggle'));
 
         expect(setSectionOpenMock.mock.calls).toEqual([
             ['places', false],
@@ -532,7 +624,15 @@ describe('HomePage — no place selected yet', () => {
 
         expect(screen.getByTestId('empty-state')).toBeInTheDocument();
         expect(screen.queryByTestId('channel-list')).not.toBeInTheDocument();
-        expect(screen.getByTestId('self-chat-list')).toBeInTheDocument();
+        expect(screen.getByTestId('dm-list')).toHaveAttribute('data-channel-ids', 'self');
+        // With no place there is nobody to pick, so the section lists and starts nothing.
+        expect(screen.queryByTestId('start-dm')).not.toBeInTheDocument();
+    });
+
+    it('draws no 1:1 section on a cloud with no place and no self chat', () => {
+        render(<HomePage />);
+
+        expect(screen.queryByTestId('dm-list')).not.toBeInTheDocument();
     });
 
     it('shows neither once a place is selected — the channel list owns the slot', () => {

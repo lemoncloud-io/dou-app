@@ -64,7 +64,8 @@ This feature does **not** own:
 ## Scope
 
 **In** — the room and its message stream, the full-screen thread, reactions, the settings screen and
-its dialogs, the channel invite screens, and the hooks and pure derivations behind them.
+its dialogs, the channel invite screens, the cloud 1:1 picker, and the hooks and pure derivations
+behind them.
 
 **Out** — the home list and its badges (`home`), relay invite issue and accept (`invite`), push
 navigation (`notifications`), place profiles beyond opening their editor (`place` / `home`), and
@@ -109,17 +110,17 @@ handshake lists both messages ([image-export.md](./image-export.md)).
 
 ## Documents
 
-| File                                                   | What it covers                                                                                                                          |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| [data-layer.md](./data-layer.md)                       | the 40 hooks: observing, sync registration, paging, read cursors, the writes                                                            |
-| [image-send.md](./image-send.md)                       | Photos, videos and documents: the attach panel and pickers, the send, the tiles, cards and viewer, the image cache, retry and leftovers |
-| [photo-edit.md](./photo-edit.md)                       | Editing picked photos before the send, from the grid or above the composer: the editor, its edit, reading, drawing at the send, limits  |
-| [image-export.md](./image-export.md)                   | Save and share in the viewer: when the buttons show, the bottom bar, save all, retries, waits and toasts                                |
-| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll                                             |
-| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                                                    |
-| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list, the notification level sheet and the four dialogs                                                 |
-| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite                                                  |
-| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                                                              |
+| File                                                   | What it covers                                                                                                                                               |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [data-layer.md](./data-layer.md)                       | the 40 hooks: observing, sync registration, paging, read cursors, the writes                                                                                 |
+| [image-send.md](./image-send.md)                       | Photos, videos and documents: the attach panel and pickers, the send, the tiles, cards and viewer, the image cache, retry and leftovers                      |
+| [photo-edit.md](./photo-edit.md)                       | Editing picked photos before the send, from the grid or above the composer: the editor, its edit, reading, drawing at the send, limits                       |
+| [image-export.md](./image-export.md)                   | Save and share in the viewer: when the buttons show, the bottom bar, save all, retries, waits and toasts                                                     |
+| [chat-room.md](./chat-room.md)                         | the room screen: header, stream, message row, system notices, attachments, composer, scroll                                                                  |
+| [reactions-and-threads.md](./reactions-and-threads.md) | the fold, the toggle, gestures, the emoji picker, thread derivation, the thread page                                                                         |
+| [channel-settings.md](./channel-settings.md)           | the settings screen, the member list, the notification level sheet and the four dialogs                                                                      |
+| [dm-and-self-chat.md](./dm-and-self-chat.md)           | per-stereo identity: title chain, avatar rule, the DM peer, peer absence and re-invite; listing and starting a cloud 1:1 (picker, profile row, `useStartDm`) |
+| [invite.md](./invite.md)                               | the two invite screens: place candidates, device contacts, the invite link                                                                                   |
 
 ## How to verify
 

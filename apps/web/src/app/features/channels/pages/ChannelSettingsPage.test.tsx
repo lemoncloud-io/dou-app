@@ -35,6 +35,9 @@ let mockIsGuest = false;
 /** What `useDmInviteState` reports — the friend sheet's "대화방 나감" line and the re-invite prefill. */
 let dmInviteStateValue: any;
 
+// The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
+const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
+
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1' }),
     useLocation: () => ({ state: null }),
@@ -57,7 +60,8 @@ jest.mock('@chatic/app-runtime', () => ({
             useRuntimeProfile: () => ({ isGuest: mockIsGuest }),
             // A room that names no place is named from this place (`profilePlaceOf`), and my-row prompts are
             // offered only when the room's place is this one.
-            useSessionSelection: () => ({ selectedSiteId: selectedSiteIdValue }),
+            useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: selectedSiteIdValue }),
+            useUidInCloud: () => 'me',
         },
     },
 }));
@@ -224,6 +228,7 @@ beforeEach(() => {
 });
 
 jest.mock('../hooks', () => ({
+    useStartDm: () => mockUseStartDm(),
     useChannel: () => channelValue,
     useChannelMembers: () => membersValue,
     useChannelMutations: () => ({ leaveChannel, deleteChannel, isPending: { delete: false, leave: false } }),

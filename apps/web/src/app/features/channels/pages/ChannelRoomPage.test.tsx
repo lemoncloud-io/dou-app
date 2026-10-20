@@ -28,6 +28,9 @@ const mockUidInCloud: Record<string, string> = { 'cloud-a': 'uid-a', 'cloud-b': 
 let mockSearch = '';
 const mockSetSearchParams = jest.fn();
 
+// The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
+const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
+
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: mockChannelId }),
     useSearchParams: () => [new URLSearchParams(mockSearch), mockSetSearchParams],
@@ -179,6 +182,7 @@ jest.mock('../lib', () => ({
     resolveChannelAvatar: () => ({ src: undefined }),
 }));
 jest.mock('../hooks', () => ({
+    useStartDm: () => mockUseStartDm(),
     useRoomOpenTrace: () => undefined,
     useRoomSyncTrace: () => undefined,
     useChannel: () => ({ channel: mockChannel, isLoading: false, isError: false, isForbidden: false }),

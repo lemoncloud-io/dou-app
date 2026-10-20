@@ -1,6 +1,8 @@
 # ADR-0210: A cloud 1:1 belongs to the place it was opened in
 
-> Status: Accepted · Decided: 2026-10-19 · Implemented: `feat/place-scoped-dm`
+> Status: Accepted; decision 5 superseded by
+> [ADR-0216](./0216-mobile-gives-a-cloud-1-1-its-own-section-and-starts-one.md) — mobile lists a cloud's 1:1s in a section of
+> their own and starts them · Decided: 2026-10-19 · Implemented: `feat/place-scoped-dm`
 > · Scope: `libs/data/src/domain/channelScope.ts` and the 1:1 place chain in `libs/data` ·
 > `apps/desktop-web/src/app/shared/**` · `apps/desktop-web/src/app/features/chat/**` ·
 > `apps/web/src/app/hooks/**` · `apps/web/src/app/features/home/**` ·
@@ -10,7 +12,8 @@
 > [ADR-0153](./0153-mobile-neither-opens-nor-lists-a-cloud-1-1.md) decisions 2 and 3 · the 1:1 rule of
 > [ADR-0198](./0198-the-threads-list-is-the-active-places-and-a-1-1s-threads-are-the-clouds.md)
 > · Keeps [ADR-0127](./0127-desktop-names-a-1-1-peer-by-place-profile-else-cloud-profile.md) (its
-> reasoning now reads the room's place) and ADR-0153 decision 1 (mobile makes no cloud 1:1)
+> reasoning now reads the room's place) and ADR-0153 decision 1 (mobile makes no cloud 1:1; itself
+> superseded by ADR-0216)
 > · The module docs are [direct-messages.md](../../apps/desktop-web/docs/chat/direct-messages.md) and
 > [dm-and-self-chat.md](../../apps/web/docs/feature/channels/dm-and-self-chat.md)
 

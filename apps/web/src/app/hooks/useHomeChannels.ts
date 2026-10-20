@@ -25,7 +25,7 @@ export interface HomeChannelsResult {
  *
  * The filter stays because the cloud-wide read is not sid-isolated (see above), so rows from other
  * sites must not reach a per-site list. A cloud 1:1 passes it like a group room: it lives in the
- * place it was opened in, so home lists it in that place's chat-room section, beside the groups.
+ * place it was opened in, so this slice holds it, and home sorts it into the 1:1 section by kind.
  *
  * `isLoading` follows the shared observation's `isLoaded` rather than an emptiness test: a site with
  * no channels and a site whose read has not landed are indistinguishable from the array alone. That

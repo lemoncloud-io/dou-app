@@ -77,8 +77,9 @@ elsewhere.
 `useStartDm` is the one call site, behind two entry points: the "+" on the Direct messages section
 (opens `NewDmDialog`) and the Message action on another person's profile card or panel. The server
 (`channel.startDm({ peerId })`) resolves the pair to a single room per place, so asking again in the
-same place returns the room that exists — there is no "already have one?" branch. Mobile makes no
-cloud 1:1; starting one is a desktop feature.
+same place returns the room that exists — there is no "already have one?" branch. Mobile starts one
+too, from its 1:1 section's ＋ and a member's profile, with the same switch wait
+([dm-and-self-chat.md](../../../web/docs/feature/channels/dm-and-self-chat.md)).
 
 - **It waits for a place switch.** The server files the room under the place the session is on when
   it answers, for good, so a call made while a place switch runs is held until the switch settles
