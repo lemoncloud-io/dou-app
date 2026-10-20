@@ -4,6 +4,7 @@ import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import { logger } from '@chatic/bridges';
 
 import { SocketManager } from './SocketManager';
+import { clearResumeKick, noteResumeKick } from './auth/socketVerifyTrace';
 import { socketFailureReporter } from './socketFailureReporter';
 import type { SocketBindingConfig } from './types';
 import { RELAY_SLOT, slotKeyOf } from './utils/slotKey';
@@ -1423,6 +1424,8 @@ describe('SocketManager close reasons', () => {
                   }
                 : {}),
         } as never);
+        // The client reads the state the fake moves it through, as the SDK's does.
+        Object.defineProperty(client, 'state', { configurable: true, get: () => state });
         mockedCreate.mockReturnValue(client);
         const manager = new SocketManager();
         manager.ensure(onRelay(CONFIG));
@@ -1436,7 +1439,7 @@ describe('SocketManager close reasons', () => {
             setState('closed');
             closeListeners.forEach(listener => listener(event));
         };
-        return { manager, observer, close, setState };
+        return { manager, client, observer, close, setState };
     };
 
     const closeUnderRequest = async (
@@ -1571,6 +1574,93 @@ describe('SocketManager close reasons', () => {
                 code: 1006,
                 wasClean: false,
             }),
+        });
+    });
+
+    describe('after an SDK restart', () => {
+        const RESTART = { code: 1012, reason: 'service-restart', wasClean: true };
+        const nextTask = () => new Promise(resolve => setTimeout(resolve, 0));
+
+        it('reconnects a slot the restart left closed, once the restart has run', async () => {
+            const { client, close } = bindClosable();
+
+            close(RESTART, { local: true });
+            // Not inside the close: the SDK's restart is still unwinding at that point.
+            expect(client.connect).not.toHaveBeenCalled();
+            await nextTask();
+
+            expect(client.connect).toHaveBeenCalledTimes(1);
+            expect(logger.info).toHaveBeenCalledWith(
+                'SOCKET',
+                '[SocketManager] reopening a socket the SDK restart left closed',
+                { data: { kind: 'relay', cid: 'default' } }
+            );
+        });
+
+        it('leaves a slot alone that is already reconnecting by then', async () => {
+            const { client, close, setState } = bindClosable();
+
+            close(RESTART, { local: true });
+            setState('connecting');
+            await nextTask();
+
+            expect(client.connect).not.toHaveBeenCalled();
+        });
+
+        it('does not reopen a slot torn down meanwhile', async () => {
+            const { manager, client, close } = bindClosable();
+
+            close(RESTART, { local: true });
+            manager.destroy(RELAY);
+            await nextTask();
+
+            expect(client.connect).not.toHaveBeenCalled();
+        });
+
+        it('leaves a slot to the wake recovery while it is reconnecting it', async () => {
+            const { client, close } = bindClosable();
+            noteResumeKick(RELAY);
+
+            close(RESTART, { local: true });
+            await nextTask();
+            clearResumeKick(RELAY);
+
+            expect(client.connect).not.toHaveBeenCalled();
+        });
+
+        it('does not reopen after a server that closed with the same reason', async () => {
+            const { client, close } = bindClosable();
+
+            close(RESTART);
+            await nextTask();
+
+            expect(client.connect).not.toHaveBeenCalled();
+        });
+
+        it('reopens nothing after any other close', async () => {
+            const { client, close } = bindClosable();
+
+            close({ code: 1000, reason: 'wake-recovery', wasClean: true }, { local: true });
+            await nextTask();
+            close({ code: 1006, reason: '', wasClean: false });
+            await nextTask();
+
+            expect(client.connect).not.toHaveBeenCalled();
+        });
+
+        it('logs a reopen that fails, and does not throw', async () => {
+            const { client, close } = bindClosable();
+            client.connect.mockRejectedValueOnce(new Error('offline'));
+
+            close(RESTART, { local: true });
+            await nextTask();
+            await nextTask();
+
+            expect(logger.warn).toHaveBeenCalledWith(
+                'SOCKET',
+                '[SocketManager] reopen after restart failed',
+                expect.objectContaining({ data: { kind: 'relay', cid: 'default' } })
+            );
         });
     });
 });

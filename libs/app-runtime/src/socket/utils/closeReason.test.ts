@@ -13,10 +13,14 @@ jest.mock('@chatic/bridges', () => ({
  * and reconnect are off so nothing but the test touches the socket; the keep-alive is shortened so a
  * pong-timeout happens within the test.
  */
+const CONNECTING = 0;
 const OPEN = 1;
+const CLOSED = 3;
 let currentSocket: (SocketLike & { emit(type: string, event?: unknown): void }) | undefined;
-/** Per test: the reconnect controller is off unless a case turns it on. */
+/** Per test: the reconnect controller is off unless a case turns it on; the keep-alive is short. */
 let reconnectOption: false | Record<string, unknown> = false;
+const SHORT_KEEP_ALIVE = { intervalMs: 20, timeoutMs: 10, maxMissedPongs: 1 };
+let keepAliveOption: false | Record<string, unknown> = SHORT_KEEP_ALIVE;
 jest.mock('@lemoncloud/chatic-sockets-lib', () => {
     const actual = jest.requireActual('@lemoncloud/chatic-sockets-lib');
     return {
@@ -27,15 +31,21 @@ jest.mock('@lemoncloud/chatic-sockets-lib', () => {
                 socketFactory: () => currentSocket,
                 auth: false,
                 reconnect: reconnectOption,
-                keepAlive: { intervalMs: 20, timeoutMs: 10, maxMissedPongs: 1 },
+                keepAlive: keepAliveOption,
             }),
     };
 });
 
 const makeSocket = () => {
     const listeners = new Map<string, Set<(event?: unknown) => void>>();
+    // Starts CONNECTING, as a real WebSocket does. One created already OPEN is taken as open the
+    // moment the transport subscribes, before the transport has stored its connect attempt, and that
+    // attempt is then never cleared — every later connect() returns it instead of opening a socket.
+    let readyState = CONNECTING;
     const socket: SocketLike & { emit(type: string, event?: unknown): void } = {
-        readyState: OPEN,
+        get readyState() {
+            return readyState;
+        },
         send: () => undefined,
         close: () => undefined,
         addEventListener: (type, listener) => {
@@ -46,7 +56,11 @@ const makeSocket = () => {
         removeEventListener: (type, listener) => {
             listeners.get(type)?.delete(listener);
         },
-        emit: (type, event) => listeners.get(type)?.forEach(listener => listener(event)),
+        emit: (type, event) => {
+            if (type === 'open') readyState = OPEN;
+            if (type === 'close') readyState = CLOSED;
+            listeners.get(type)?.forEach(listener => listener(event));
+        },
     };
     return socket;
 };
@@ -101,6 +115,7 @@ describe('close reasons against chatic-sockets-lib', () => {
     afterEach(() => {
         currentSocket = undefined;
         reconnectOption = false;
+        keepAliveOption = SHORT_KEEP_ALIVE;
     });
 
     it('names a 499 from the wake kick after its reason', async () => {
@@ -168,5 +183,52 @@ describe('close reasons against chatic-sockets-lib', () => {
         await request;
 
         expect(samples).toEqual([expect.objectContaining({ outcome: '499', closeReason: 'destroyed' })]);
+    });
+});
+
+/**
+ * The connection rotation calls the reconnect controller's `restart()`. In chatic-sockets-lib 0.5.7
+ * that closes the socket through the controller's own `stop()` and never connects again, so
+ * SocketManager reopens it. This pins both halves against the real client: a restart is named
+ * `service_restart`, the socket is still closed when `restart()` returns, and the slot comes back.
+ * An SDK release that fixes the restart makes this fail — `restart()` then waits for an `open` this
+ * test never sends — and that failure is the signal to retire `reopenAfterRestart`.
+ */
+describe('a restart against chatic-sockets-lib', () => {
+    afterEach(() => {
+        currentSocket = undefined;
+        reconnectOption = false;
+        keepAliveOption = SHORT_KEEP_ALIVE;
+    });
+
+    it('reopens the socket the restart closed', async () => {
+        reconnectOption = { minDelayMs: 60_000 };
+        keepAliveOption = false;
+        currentSocket = makeSocket();
+        const manager = new SocketManager();
+        const client = manager.ensure({ url: 'wss://example.test/socket', deviceId: 'device-1', cid: 'default' });
+        const connecting = client.connect();
+        currentSocket.emit('open');
+        await connecting;
+        const samples: SocketRequestSample[] = [];
+        manager.setRequestObserver(sample => samples.push(sample));
+
+        const request = manager.request('chat.feed').catch(() => undefined);
+        // The next connection gets a socket of its own.
+        const first = currentSocket;
+        currentSocket = makeSocket();
+        await client.reconnect?.restart();
+        await request;
+        expect(samples).toEqual([expect.objectContaining({ outcome: '499', closeReason: 'service_restart' })]);
+        expect(client.state).toBe('closed');
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(client.state).toBe('connecting');
+        currentSocket.emit('open');
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(client.state).toBe('connected');
+        expect(currentSocket).not.toBe(first);
+        manager.destroy();
     });
 });
