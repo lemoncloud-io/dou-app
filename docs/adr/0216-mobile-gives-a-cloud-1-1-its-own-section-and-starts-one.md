@@ -28,11 +28,12 @@ under the place the session is on when the server answers, and never moves.
 
 ## Decision
 
-### 1. A cloud's home splits the place's rooms into `1:1 대화` and `그룹 대화`
+### 1. A cloud's home splits the place's rooms into `그룹 대화` and `1:1 대화`
 
 The split reads the room's kind (`channelKindOf(stereo)`) and nothing else, the rule every other 1:1
 decision reads, so a group with two members stays a group. Both sections are the same `ChannelList`
-under the place's sort and pins. The relay keeps its one list under the default `대화방` heading: its 1:1s are reached by phone
+under the place's sort and pins, the group section first and the 1:1 section below it (product
+owner, 2026-10-20). The relay keeps its one list under the default `대화방` heading: its 1:1s are reached by phone
 number, and its only other room is the self chat, so a split there would move one row.
 
 ### 2. The cloud's self chat leads the 1:1 section
