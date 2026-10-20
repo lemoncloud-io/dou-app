@@ -181,8 +181,8 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
      * Per the push spec, these live inside the `payload` JSON, separate from `link`, while the web
      * reads them from the navigation query: cid/sid to switch session, chatId to open the thread when
      * the chat is a reply (a chat that is not one leaves the reader in the room). Existing query values
-     * on the link are never overridden. Returns the original link untouched on empty input or malformed
-     * payload JSON.
+     * on the link are never overridden (see [mergeLinkQuery]). Returns the original link untouched on
+     * empty input or malformed payload JSON.
      */
     private fun mergeContextIntoLink(clickAction: String, payload: String): String {
         if (clickAction.isEmpty() || payload.isEmpty()) return clickAction
@@ -191,14 +191,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             val context = LINK_CONTEXT_KEYS.mapNotNull { key ->
                 json.optString(key).takeIf { it.isNotEmpty() }?.let { key to it }
             }
-            if (context.isEmpty()) return clickAction
-
-            val uri = android.net.Uri.parse(clickAction)
-            val builder = uri.buildUpon()
-            for ((key, value) in context) {
-                if (uri.getQueryParameter(key) == null) builder.appendQueryParameter(key, value)
-            }
-            builder.build().toString()
+            mergeLinkQuery(clickAction, context)
         } catch (e: Exception) {
             NativeLogger.log("error", TAG, "Failed to merge push context into click action: $clickAction", e)
             clickAction
@@ -760,3 +753,36 @@ internal class PushThumbnailCache<T>(private val maxEntries: Int) {
         while (entries.size > maxEntries) entries.remove(entries.keys.first())
     }
 }
+
+/**
+ * Appends [params] to [link]'s query, skipping any name the query already has, and keeps a `#fragment`
+ * last.
+ *
+ * Built on the string rather than `android.net.Uri`: a link is a relative path such as
+ * `/channels/U:1002021/room`, and `Uri.parse` takes everything before the first `:` as a scheme, so a
+ * room id containing one made the link an opaque URI whose query cannot be read — the merge threw and
+ * the tap lost its context. The JS shell's `resolvePushTapPath` builds the query the same way.
+ */
+internal fun mergeLinkQuery(link: String, params: List<Pair<String, String>>): String {
+    if (params.isEmpty()) return link
+    val hashAt = link.indexOf('#')
+    val beforeHash = if (hashAt >= 0) link.substring(0, hashAt) else link
+    val hash = if (hashAt >= 0) link.substring(hashAt) else ""
+    val queryAt = beforeHash.indexOf('?')
+    val path = if (queryAt >= 0) beforeHash.substring(0, queryAt) else beforeHash
+    val query = if (queryAt >= 0) beforeHash.substring(queryAt + 1) else ""
+
+    val present = query.split('&').filter { it.isNotEmpty() }
+        .map { java.net.URLDecoder.decode(it.substringBefore('='), "UTF-8") }
+        .toSet()
+    val added = params.filter { (name, _) -> name !in present }
+        .map { (name, value) -> "$name=${encodeQueryComponent(value)}" }
+    if (added.isEmpty()) return link
+
+    val merged = (listOf(query).filter { it.isNotEmpty() } + added).joinToString("&")
+    return "$path?$merged$hash"
+}
+
+/** `encodeURIComponent`'s encoding: a space is `%20`, not the form encoding's `+`. */
+private fun encodeQueryComponent(value: String): String =
+    java.net.URLEncoder.encode(value, "UTF-8").replace("+", "%20")

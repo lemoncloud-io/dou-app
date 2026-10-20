@@ -221,6 +221,9 @@ soon as the web handshake completes, with no extra startup delay.
 the chat to open — from the navigation query (see the web's `resolvePushNavigation`). With no link it
 returns `null` and the tap only foregrounds the app. Android merges the same three natively (see
 [Android delivery](#android-delivery)), so `resolvePushTapPath`'s own merge mainly serves the iOS path.
+Both build the query on the string, never through a URI parser: a link is a relative path, and a room
+id may contain `:` (`/channels/U:1002021/room`), which Android's `Uri.parse` reads as the end of a
+scheme — the merge then failed and the tap arrived with no context at all.
 
 `chatId` is what takes a tap on a thread reply into the thread: the web lands on the room, reads the
 chat, and pushes the thread on top when it has a parent — so back goes thread → room. A chat that is
