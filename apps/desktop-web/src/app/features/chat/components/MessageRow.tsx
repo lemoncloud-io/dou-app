@@ -35,6 +35,7 @@ import {
     hasMyReaction,
     isEdited,
     isSendingImages,
+    savedAttachmentOf,
     threadRootId,
     type MessageGroup,
     type ReactionTally,
@@ -850,7 +851,7 @@ export const MessageRow = memo(
                                                                         id: key,
                                                                         channelId: message.channelId ?? '',
                                                                         chatNo: message.chatNo,
-                                                                        // The saved pane shows only this, so a
+                                                                        // The saved card leads with this, so a
                                                                         // file-only message needs a line of its own.
                                                                         content: plain || messagePreview(message),
                                                                         ownerName: group.ownerName,
@@ -859,6 +860,11 @@ export const MessageRow = memo(
                                                                         ownerId: group.ownerId,
                                                                         placeId: currentPlaceId(),
                                                                         parentId: message.parentId,
+                                                                        sentAt:
+                                                                            message.createdAt ??
+                                                                            message.createdAtMs ??
+                                                                            undefined,
+                                                                        attachment: savedAttachmentOf(message),
                                                                     })
                                                                 }
                                                             >

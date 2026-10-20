@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 
 import { Bookmark, Search, UserPen } from 'lucide-react';
 
+import { cn } from '@chatic/lib/utils';
+
 import { Skeleton } from '../../../shared';
 import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
@@ -16,18 +18,26 @@ interface SidebarHeaderProps {
     onQueryChange: (value: string) => void;
     /** Open the place-profile editor for the active place (per-place identity lives here). */
     onEditPlaceProfile: () => void;
-    /** Open the device-local Saved-items trailing pane. */
+    /** Open the device-local Saved items page in the main pane. */
     onOpenSaved: () => void;
+    /** The Saved items page holds the main pane: its row is the current one. */
+    isSavedOpen?: boolean;
 }
 
 interface ActionRowProps {
     icon: ReactNode;
     label: string;
     onClick: () => void;
+    isActive?: boolean;
 }
 
-const ActionRow = ({ icon, label, onClick }: ActionRowProps) => (
-    <button type="button" onClick={onClick} className={SIDEBAR_ACTION_ROW}>
+const ActionRow = ({ icon, label, onClick, isActive }: ActionRowProps) => (
+    <button
+        type="button"
+        onClick={onClick}
+        aria-current={isActive ? 'page' : undefined}
+        className={cn(SIDEBAR_ACTION_ROW, 'px-1.5', isActive && 'bg-primary/[0.16] text-foreground')}
+    >
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md">{icon}</span>
         <span className="truncate">{label}</span>
     </button>
@@ -46,6 +56,7 @@ export const SidebarHeader = ({
     onQueryChange,
     onEditPlaceProfile,
     onOpenSaved,
+    isSavedOpen,
 }: SidebarHeaderProps) => {
     const { t } = useTranslation();
     const showPlaceSkeleton = isLoading && !placeName && !isDefaultMode;
@@ -75,7 +86,12 @@ export const SidebarHeader = ({
             <div aria-hidden className="mt-3 h-px w-full shrink-0 bg-hairline" />
             <div className="flex flex-col gap-2 py-2">
                 {/* Saved leads (Figma Home); editing my profile here has no other way in. */}
-                <ActionRow icon={<Bookmark size={18} aria-hidden />} label={t('saved.title')} onClick={onOpenSaved} />
+                <ActionRow
+                    icon={<Bookmark size={18} aria-hidden />}
+                    label={t('saved.title')}
+                    onClick={onOpenSaved}
+                    isActive={isSavedOpen}
+                />
                 {!isDefaultMode && (
                     <ActionRow
                         icon={<UserPen size={18} aria-hidden />}

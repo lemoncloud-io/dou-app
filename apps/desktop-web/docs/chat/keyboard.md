@@ -34,14 +34,13 @@ passes `onOpenThread`), and the "More" menu (the row has text, it is a settled r
 or it is mine to edit or delete). A file or photo sent without text gets "More" in the main feed and
 the thread panel alike, for Save for later: someone else's holds that one item, since there is no
 text to copy or edit and the row is not mine to delete; mine adds it to Edit and Delete. Its saved
-snapshot reads as the sidebar previews it ("File", "Photo", "3 files"), because the Saved pane shows
-only that text. A row still in flight or failed has no reactions, Reply or Save, so without text it
+snapshot reads as the sidebar previews it ("File", "Photo", "3 files"), the line a saved item keeps
+for a message with no text ([saved.md](./saved.md)). A row still in flight or failed has no reactions, Reply or Save, so without text it
 has no toolbar; a deleted row never has one.
 
 ## Hover-revealed controls
 
-A control that waits for hover (an image's save bar, the tray's "×", a Saved row's
-actions) uses `hoverReveal(scope)` (`shared/utils/hoverReveal.ts`) under a `group/<scope>` parent:
+A control that waits for hover (an image's save bar, the tray's "×") uses `hoverReveal(scope)` (`shared/utils/hoverReveal.ts`) under a `group/<scope>` parent:
 
 - It is hidden only where the device can hover. On touch it is always shown.
 - It shows while the pointer is over its group, or while focus is anywhere inside the group.

@@ -29,6 +29,8 @@ stores in `src/app/shared/`.
   replies in my threads, reactions to mine), one item per message, and who reads which kind.
 - [lists.md](./lists.md): the Channels and DM destinations' lists — what a row shows, who a DM row
   names, their order, and the one cache observation their previews come from.
+- [saved.md](./saved.md): Save for later — what a saved item keeps, the Saved items page and its
+  filters, and what closes it.
 - [my-threads.md](./my-threads.md): the device's record of my threads, which the inbox's Threads tab
   reads — which threads it holds, the three ways one gets in, and what it cannot know.
 - [threads.md](./threads.md): how the thread panel gets a root and replies that are older than the loaded

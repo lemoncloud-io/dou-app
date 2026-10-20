@@ -1,13 +1,15 @@
 # Trailing panels
 
-The thread, Saved, channel settings, profile and debug panels all sit on the right of the
+The thread, channel settings, profile and debug panels all sit on the right of the
 chat, one at a time. `HomePage` picks which one is open and passes it to `DesktopLayout` as `panel`.
 Each panel is built on `ResizablePanel` (`shared/components/ResizablePanel.tsx`).
 
 ## One owner, except the profile
 
-`useTrailingPanelOwners` (`features/chat/hooks/`) holds the rule. Thread, settings and Saved are
-exclusive: opening one closes the others, and the last one opened wins. Mentions and the threads
+`useTrailingPanelOwners` (`features/chat/hooks/`) holds the rule. Thread, settings and the Saved items
+page are exclusive: opening one closes the others, and the last one opened wins. Saved is not a panel
+any more — it takes the main pane ([saved.md](../chat/saved.md)) — but a thread or settings pane
+beside it would belong to a conversation no longer on screen. Mentions and the threads
 list are not trailing panels any more: the inbox is the nav rail's Notifications destination, in the
 sidebar column ([inbox.md](../chat/inbox.md#the-panel)), so it stays beside a thread it opens.
 

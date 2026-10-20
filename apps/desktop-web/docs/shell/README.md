@@ -7,7 +7,7 @@ trailing panels, and how they share the window at each width. `DesktopLayout`
 
 ## Documents
 
-- [trailing-panels.md](./trailing-panels.md): the thread, Mentions, Saved, settings, profile and debug
+- [trailing-panels.md](./trailing-panels.md): the thread, settings, profile and debug
   panels. Their width, and how they cover the chat below 1280px.
 - [nav-rail.md](./nav-rail.md): the Home, Notifications, Channels and DM destinations, and the account
   menu under them.

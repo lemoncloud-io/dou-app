@@ -32,7 +32,7 @@ import {
     usePendingOpenStore,
     usePlaces,
     useProfilePanelStore,
-    useSavedPanelStore,
+    useSavedPageStore,
     useMentionsStore,
     useNavStore,
     useReadCursorStore,
@@ -64,7 +64,7 @@ import {
     NavSidebar,
     PlaceRail,
     SidebarHeader,
-    SavedPanel,
+    SavedPage,
     NotificationsPanel,
     ChannelListPanel,
     DmListPanel,
@@ -214,8 +214,8 @@ export const HomePage = () => {
     const openThread = useThreadStore(s => s.open);
     const closeThread = useThreadStore(s => s.close);
     const closeProfile = useProfilePanelStore(s => s.close);
-    const closeSaved = useSavedPanelStore(s => s.close);
-    const openSaved = useSavedPanelStore(s => s.open);
+    const closeSaved = useSavedPageStore(s => s.close);
+    const openSaved = useSavedPageStore(s => s.open);
     const navActive = useNavStore(s => s.active);
     // Select the boolean, not the items: the dot only re-renders on false↔true.
     const hasInboxUnread = useMentionsStore(s => Object.values(s.items).some(item => !item.readAt));
@@ -309,6 +309,8 @@ export const HomePage = () => {
         // re-arm the landing, drop the place the first one waits for, and send its channel to the
         // wrong place's list. During a switch the "current" place is already the one being switched to.
         if (isSwitching) return;
+        // Every open lands in the conversation — the room already selected included.
+        closeSaved();
         recordOrigin(channelId);
         // A 1:1 opens in its own place (`openPlaceFor`).
         const placeId = openPlaceFor(
@@ -399,6 +401,8 @@ export const HomePage = () => {
             pendingChannelRef.current = channelId;
             armPendingExpiry();
         } else {
+            // The room may be the one already selected, which no selection change would close for.
+            closeSaved();
             selectChannel(channelId);
             if (rootId) openThreadNowOrDefer(channelId, rootId);
             else {
@@ -460,17 +464,16 @@ export const HomePage = () => {
     }, [activeCloudId, selectedPlaceId, places, rememberPlace]);
 
     // The settings + thread panels belong to one channel — close both on switch.
-    // The profile panel follows for a clean pane handoff.
+    // The profile panel follows for a clean pane handoff, and the Saved page gives the main
+    // pane back to the conversation now selected.
     useEffect(() => {
         closeSettings();
         closeThread();
         closeProfile();
-    }, [selectedChannelId, closeSettings, closeThread, closeProfile]);
+        closeSaved();
+    }, [selectedChannelId, closeSettings, closeThread, closeProfile, closeSaved]);
 
-    // The saved pane lists rows from every place of the cloud, so a place switch leaves it
-    // valid — and closing it there made the same row click produce two layouts (a cross-place
-    // jump closed the pane, a same-place jump kept it). Only a cloud switch retires it: its
-    // items belong to the cloud.
+    // A cloud switch retires the Saved page too: its items belong to the cloud.
     useEffect(() => {
         closeSaved();
     }, [activeCloudId, closeSaved]);
@@ -573,9 +576,11 @@ export const HomePage = () => {
     const selectFromList = useCallback(
         (id: string) => {
             useMessageJumpStore.getState().clearOrigin();
+            // The list's own room too: picking it is how the reader leaves the Saved page for it.
+            closeSaved();
             selectChannel(id);
         },
-        [selectChannel]
+        [selectChannel, closeSaved]
     );
     useNextUnreadShortcut(channels, selectedChannelId, selectFromList);
     const jumpToSavedRef = useRef(jumpToSaved);
@@ -843,6 +848,7 @@ export const HomePage = () => {
                                     onQueryChange={setQuery}
                                     onEditPlaceProfile={openEditPlaceProfile}
                                     onOpenSaved={openSaved}
+                                    isSavedOpen={savedOpen}
                                 />
                                 <div className="flex-1 overflow-y-auto scrollbar-hide">
                                     <ChannelList
@@ -878,14 +884,23 @@ export const HomePage = () => {
                     />
                 }
                 main={
-                    <ChatPane
-                        channel={selectedChannel}
-                        members={members}
-                        membersLoading={membersLoading}
-                        readCountOf={readCountOf}
-                        jumpReturn={jumpReturn}
-                        emptyState={chatEmptyState}
-                    />
+                    savedOpen ? (
+                        <SavedPage
+                            channels={channels}
+                            places={places}
+                            currentPlaceId={selectedPlaceId ?? undefined}
+                            onSelect={jumpToSaved}
+                        />
+                    ) : (
+                        <ChatPane
+                            channel={selectedChannel}
+                            members={members}
+                            membersLoading={membersLoading}
+                            readCountOf={readCountOf}
+                            jumpReturn={jumpReturn}
+                            emptyState={chatEmptyState}
+                        />
+                    )
                 }
                 panel={
                     showDebugPanel ? (
@@ -910,13 +925,6 @@ export const HomePage = () => {
                             membersError={membersError}
                             membersSyncError={membersSyncError}
                             onRetryMembers={retryMembers}
-                        />
-                    ) : savedOpen ? (
-                        <SavedPanel
-                            channels={channels}
-                            places={places}
-                            currentPlaceId={selectedPlaceId ?? undefined}
-                            onSelect={jumpToSaved}
                         />
                     ) : undefined
                 }

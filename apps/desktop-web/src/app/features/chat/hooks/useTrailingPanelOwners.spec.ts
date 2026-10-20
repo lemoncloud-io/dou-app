@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 
 import { useChannelSettingsStore } from '../../channels';
-import { useProfilePanelStore, useSavedPanelStore } from '../../../shared';
+import { useProfilePanelStore, useSavedPageStore } from '../../../shared';
 import { useThreadStore } from '../stores';
 import { useTrailingPanelOwners } from './useTrailingPanelOwners';
 
@@ -15,7 +15,7 @@ describe('useTrailingPanelOwners', () => {
             useThreadStore.getState().close();
             useChannelSettingsStore.getState().close();
             useProfilePanelStore.getState().close();
-            useSavedPanelStore.getState().close();
+            useSavedPageStore.getState().close();
         });
     });
 
@@ -56,7 +56,7 @@ describe('useTrailingPanelOwners', () => {
         const { result } = renderHook(() => useTrailingPanelOwners('ch-1', false));
         act(() => useThreadStore.getState().open('root-1', 'ch-1'));
         act(() => useProfilePanelStore.getState().open(person));
-        act(() => useSavedPanelStore.getState().open());
+        act(() => useSavedPageStore.getState().open());
 
         expect(result.current).toMatchObject({
             savedOpen: true,

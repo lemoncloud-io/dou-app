@@ -432,8 +432,9 @@ describe('MessageList', () => {
         expect(items).not.toContain('Copy');
     });
 
-    // The saved pane shows the snapshot's text and nothing else, so a file saved as its empty
-    // `content` would sit there as a blank row. It reads the way the sidebar previews it.
+    // The saved card leads with the snapshot's text, so a file saved as its empty `content` would
+    // have no line of its own. It reads the way the sidebar previews it, and keeps what it carried
+    // for the Saved page's Files filter.
     it('saves a file-only message under what it carries, not its empty text', () => {
         useSavedItemsStore.setState({ items: {} });
         render(
@@ -447,7 +448,11 @@ describe('MessageList', () => {
         );
         clickRowMenuItem('Save for later');
 
-        expect(useSavedItemsStore.getState().items['C1:1']).toMatchObject({ content: 'File', ownerName: 'Ada' });
+        expect(useSavedItemsStore.getState().items['C1:1']).toMatchObject({
+            content: 'File',
+            ownerName: 'Ada',
+            attachment: { kind: 'file', count: 1 },
+        });
     });
 
     it('saves a text message under its text', () => {

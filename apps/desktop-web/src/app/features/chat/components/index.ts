@@ -25,7 +25,7 @@ export * from './EmojiPicker';
 export * from './MentionAutocomplete';
 export * from './QuickSwitcher';
 export * from './LinkPreviewCard';
-export * from './SavedPanel';
+export * from './SavedPage';
 export * from './notifications/NotificationsPanel';
 export * from './lists/ChannelListPanel';
 export * from './lists/DmListPanel';

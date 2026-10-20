@@ -31,6 +31,7 @@ import {
     type MentionItem,
 } from '../../../../shared';
 import { ConfirmDialog } from '../../../channels';
+import { FILTER_CHIP, filterChipTone } from '../filterChip';
 import { NotificationSnoozeButton } from '../NotificationSnoozeButton';
 import { NotificationCard, SOURCE_ICON } from './NotificationCard';
 import { SelectionBar } from './SelectionBar';
@@ -47,9 +48,6 @@ const DAY = 86_400_000;
 
 /** Each tab but All leads with the icon its cards' source chip carries; Mentions with the `@`. */
 const TAB_ICON: Partial<Record<InboxTab, LucideIcon>> = { ...SOURCE_ICON, mention: AtSign };
-
-const CHIP =
-    'focus-ring tactile flex h-8 items-center gap-1.5 rounded-full border px-3 text-micro font-medium transition-colors ease-tactile disabled:pointer-events-none disabled:opacity-50';
 
 interface NotificationsPanelProps {
     /** The active cloud: names the threads a reply answers, and whether its thread scan is still running. */
@@ -294,12 +292,7 @@ export const NotificationsPanel = ({ cloudId, channels, onSelect }: Notification
                         clearSelection();
                         setUnreadOnly(!unreadOnly);
                     }}
-                    className={cn(
-                        CHIP,
-                        unreadOnly
-                            ? 'border-foreground bg-foreground text-background'
-                            : 'border-hairline text-foreground hover:bg-accent'
-                    )}
+                    className={cn(FILTER_CHIP, filterChipTone(unreadOnly))}
                 >
                     <CheckCheck size={14} aria-hidden />
                     {t('inbox.unreadOnly')}
@@ -309,7 +302,7 @@ export const NotificationsPanel = ({ cloudId, channels, onSelect }: Notification
                         <button
                             type="button"
                             className={cn(
-                                CHIP,
+                                FILTER_CHIP,
                                 'border-hairline text-foreground hover:bg-accent data-[state=open]:border-foreground'
                             )}
                         >
