@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-20] - root@0.108.1, @chatic/desktop-web@0.34.3
+
+### Bug Fixes
+
+- (desktop-web) keep composer attachments after leaving the room
+
 ## [2026-10-20] - root@0.108.0, @chatic/web@0.75.0
 
 ### Features
