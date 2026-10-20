@@ -419,12 +419,18 @@ describe('ChannelSettingsPage', () => {
         expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'true');
     });
 
-    it('멤버도 방 이름을 탭하면 같은 정보 다이얼로그가 열린다', () => {
+    // A group is titled by its shared name for everyone — the name its push carries — and only the
+    // owner sets that, so a member's row has nothing to edit. The row stays (it is the title) and
+    // stops being a button, as a cloud 1:1's does.
+    it("makes a group member's room-name row not a button", () => {
         channelValue = MEMBER_CHANNEL;
         render(<ChannelSettingsPage />);
 
-        fireEvent.click(screen.getByText('방'));
-        expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'true');
+        const title = screen.getByText('방');
+        expect(title.closest('button')).toBeNull();
+
+        fireEvent.click(title);
+        expect(screen.getByTestId('update')).toHaveAttribute('data-open', 'false');
     });
 
     // The goal itself: no member gets a pending-invite badge. Since the join counter represents

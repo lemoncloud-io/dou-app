@@ -289,6 +289,8 @@ export const ChannelSettingsPage = () => {
     // A cloud 1:1 does not read `join.nick` for its title (see resolveChannelTitle), so the
     // editor below is closed for it — see the row's own note.
     const isCloudDm = dmLineageOf(channel) === 'cloud';
+    // The editor the room-name row opens, or none — see the row's own note.
+    const nameEditor: DialogType = isSelfChat || isDmChat ? (isCloudDm ? null : 'joinNick') : isOwner ? 'update' : null;
     // What "remove this room" means here, from the one place that answers it for every surface —
     // the place-level bulk remove reads the same function, so the two cannot drift again.
     const removal = removalActionFor(channelKindOf(channel?.stereo), isOwner);
@@ -406,21 +408,22 @@ export const ChannelSettingsPage = () => {
             {/* Content — scrolls when the member list grows past the viewport. */}
             <div className="flex flex-1 flex-col overflow-y-auto pb-safe-bottom">
                 {/* Room name — tap opens the name/info dialog. Self-chat and DM edit MY join nick
-                    (JoinNickDialog, private to me); groups edit channel.name (UpdateChannelDialog,
-                    read-only for non-owner members). DM naming is open again — the join nick is the
-                    top of its title chain, so with no way to write it that tier would be dead
-                    (ADR-0039, reversing ADR-0032).
+                    (JoinNickDialog, private to me); a group's owner edits channel.name
+                    (UpdateChannelDialog). DM naming is open again — the join nick is the top of its
+                    title chain, so with no way to write it that tier would be dead (ADR-0039,
+                    reversing ADR-0032).
 
-                    A CLOUD 1:1 is the one case where that tier really is dead: its title skips the
-                    join nick, because the server seeds that field and nothing in the value says
-                    whether a person wrote it. So the row stays, and stops being a button — an
-                    editor that saves a name no screen will ever show is worse than no editor. It
-                    opens again when the field can be trusted. */}
+                    Where no name I could write would ever be shown, the row stays and stops being a
+                    button — an editor that saves a name no screen will ever show is worse than no
+                    editor. Two cases. A CLOUD 1:1's title skips the join nick, because the server
+                    seeds that field and nothing in the value says whether a person wrote it; it opens
+                    again when the field can be trusted. And a group member: a group is titled by its
+                    shared name for everyone, matching its push, and only the owner sets that. */}
                 <ListRow
                     leading={roomAvatar}
                     title={roomTitle}
-                    trailing={isCloudDm ? undefined : <ChevronRight className="size-5 text-muted-foreground" />}
-                    onClick={isCloudDm ? undefined : () => openDialog(isSelfChat || isDmChat ? 'joinNick' : 'update')}
+                    trailing={nameEditor ? <ChevronRight className="size-5 text-muted-foreground" /> : undefined}
+                    onClick={nameEditor ? () => openDialog(nameEditor) : undefined}
                 />
 
                 {isSelfChat ? (

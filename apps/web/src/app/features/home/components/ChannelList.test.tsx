@@ -374,7 +374,9 @@ describe('ChannelList self-chat row', () => {
         expect(screen.queryByText('내별명')).not.toBeInTheDocument();
     });
 
-    it('멤버인 채널은 join.nick을 제목으로 쓴다', () => {
+    // A group is titled by its shared name for every member — the name its push carries — so a
+    // member's own join.nick for the room is not shown.
+    it('titles a group I am a member of by channel.name, not my join.nick', () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'g1', stereo: 'group', name: '공지방', ownerId: 'other' })]}
@@ -383,8 +385,8 @@ describe('ChannelList self-chat row', () => {
             />
         );
 
-        expect(screen.getByText('내별명')).toBeInTheDocument();
-        expect(screen.queryByText('공지방')).not.toBeInTheDocument();
+        expect(screen.getByText('공지방')).toBeInTheDocument();
+        expect(screen.queryByText('내별명')).not.toBeInTheDocument();
     });
 
     it('멤버인데 join.nick이 없으면 channel.name으로 폴백한다', () => {

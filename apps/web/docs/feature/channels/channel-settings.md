@@ -13,26 +13,31 @@ the screen: its sections, its writes, and the dialogs.
 ## Layout
 
 Six dialogs sit beside the page — the member row and its profile sheet, the room-name dialog
-(groups), the join-nick dialog (self and DM), a confirm, and my own place-profile editor — plus
+(a group's owner), the join-nick dialog (self and DM), a confirm, and my own place-profile editor — plus
 `NotifyModeSheet`, the notification level picker.
 `PlaceProfileCreateDialog` is the one that is not local: it lives in `ui/components`, because
 creating a place profile is not a channel concern and this screen only opens it.
 
 ## The sections
 
-| Section         | Group                                   | 1:1                             | Self chat                 |
-| --------------- | --------------------------------------- | ------------------------------- | ------------------------- |
-| Room name row   | `UpdateChannelDialog`                   | `JoinNickDialog` (`dm`)         | `JoinNickDialog` (`self`) |
-| Chat settings   | notification level: all · mention · off | notification level: all · off   | —                         |
-| Room members    | add-friend row (owner) + member list    | member list, departed peer kept | member list (me alone)    |
-| Destructive row | owner: delete · member: leave           | leave, for both sides           | —                         |
+| Section         | Group                                               | 1:1                             | Self chat                 |
+| --------------- | --------------------------------------------------- | ------------------------------- | ------------------------- |
+| Room name row   | owner: `UpdateChannelDialog` · member: not a button | `JoinNickDialog` (`dm`)         | `JoinNickDialog` (`self`) |
+| Chat settings   | notification level: all · mention · off             | notification level: all · off   | —                         |
+| Room members    | add-friend row (owner) + member list                | member list, departed peer kept | member list (me alone)    |
+| Destructive row | owner: delete · member: leave                       | leave, for both sides           | —                         |
 
-Four rules behind that table:
+Five rules behind that table:
 
 - **A DM has no delete and no add-friend.** Re-inviting needs the room to still exist, so letting
   the inviter erase it would take away the only way back; and a 1:1 is a fixed pairing, so there is
   nobody to add. The ownership branch used everywhere else does not apply here.
 - **A self chat has nothing to notify, leave or delete.** Its only member is me.
+- **A group member's room-name row opens nothing.** A group is titled by its shared name for everyone
+  — the name its push carries — and only the owner sets it, so there is no name of the member's own
+  to edit. The row stays as the title, without the chevron, as a cloud 1:1's does. (Until the server
+  starts titling group pushes with the room name, a group push is still titled with the sender; the
+  app does not wait for it.)
 - **A 1:1 has no "Mentions only".** The server delivers every message of a 1:1 stored as `mention`,
   so the level would behave exactly like "All messages" — see
   [the notification level](#the-notification-level).
@@ -136,13 +141,15 @@ streams in and a mid-hydration snapshot would count every member as roster-only.
 
 ### `UpdateChannelDialog` — the room's shared name
 
-Two modes, derived from the observed `channel.isOwner`, so the page passes no mode prop:
+Owner-only: edit the room name and photo, write with `channel.update`. The avatar offers the picker;
+images are resized to base64 and capped at 10MB.
 
-- **Owner** — edit the room name and photo, write with `channel.update`. The avatar offers the
-  picker; images are resized to base64 and capped at 10MB.
-- **Invited member** — the avatar is read-only (the owner's photo) with the owner's room name as a
-  caption, and the name field writes **my `join.nick`**, labelled as shown only to me. This matches
-  what the API allows: `join.update` takes `nick` and `notify`, and no thumbnail.
+It once had a second mode, for an invited member, whose name field saved **my `join.nick`** as a
+personal name for the room, shown only to me. That mode is gone, because a group no longer reads that
+name anywhere: the server builds one push per message for every recipient, so a group's push can only
+carry the shared name, and a member who had named the room saw one title in the app and another on the
+lock screen. Names already saved stay on the server, unread. The settings row no longer opens this
+dialog for a member; were it opened anyway, the save button stays disabled.
 
 The name is capped at 20 characters with a counter, and the confirm button activates only on a
 non-empty, changed value. Transient state is seeded once per open: the observed channel can re-emit

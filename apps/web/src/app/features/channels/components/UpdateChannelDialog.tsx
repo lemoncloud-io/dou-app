@@ -10,7 +10,7 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 // Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
 // `import.meta` the CommonJS test transform cannot parse (directory-structure.md §6).
 import { KeyboardSafeAreaSpacer } from '../../../ui/layouts/KeyboardSafeAreaSpacer';
-import { useChannel, useChannelMutations, useJoinMutations } from '../hooks';
+import { useChannel, useChannelMutations } from '../hooks';
 
 interface UpdateChannelDialogProps {
     open: boolean;
@@ -22,13 +22,6 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 const NAME_MAX = 20;
 
 /**
- * Room info dialog. Two role-based modes (ADR-0023):
- * - Owner: edit the shared room name + photo → `channel.update`.
- * - Invited member: the avatar is read-only (owner's photo); the name field sets
- *   MY personal room name (`join.update` nick), shown only to me. Ownership is
- *   derived from the observed channel, so no mode prop is needed.
- */
-/**
  * The screen shows the same "too large" message for a codec failure as for an oversized file, so
  * the two are indistinguishable to the user and were indistinguishable to us. Size and type are
  * what separate them; the file's contents are never recorded (ADR-0099).
@@ -39,17 +32,23 @@ const logImageEncodeFailure = (error: unknown, file: File): void =>
         data: { sizeBytes: file.size, type: file.type },
     });
 
+/**
+ * Room info dialog — the owner edits the room's shared name and photo (`channel.update`).
+ *
+ * Owner-only. A member once had a mode here that saved a personal name for the room (`join.nick`),
+ * but a group's title is its shared name for everyone now — the name its push carries, since a push
+ * is built once for every recipient — so that name would be shown nowhere. The settings row does not
+ * open this dialog for a member; were it opened anyway, it saves nothing.
+ */
 export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateChannelDialogProps) => {
     const { t } = useTranslation();
     const { channel } = useChannel(channelId ?? null);
-    const { updateChannel, isPending: channelPending } = useChannelMutations();
-    const { updateJoin, isPending: joinPending } = useJoinMutations();
+    const { updateChannel, isPending } = useChannelMutations();
     const { toast } = useToast();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const isOwner = !!channel?.isOwner;
-    const ownerRoomName = channel?.name ?? '';
-    const myNick = channel?.$join?.nick ?? '';
+    const roomName = channel?.name ?? '';
 
     const [name, setName] = useState('');
     const [thumbnail, setThumbnail] = useState('');
@@ -58,8 +57,8 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
 
     // Seed transient state once per open (false→true). The observed channel can re-emit while the
     // dialog is open (background sync); re-seeding then would clobber in-progress edits, so we latch.
-    // The name field starts empty for both roles — the current room name is surfaced as the
-    // placeholder instead (see namePlaceholder), so typing overwrites it rather than editing in place.
+    // The name field starts empty — the current room name is surfaced as the placeholder instead
+    // (see namePlaceholder), so typing overwrites it rather than editing in place.
     useEffect(() => {
         if (open && channel && !seededRef.current) {
             seededRef.current = true;
@@ -69,17 +68,16 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
         } else if (!open) {
             seededRef.current = false;
         }
-    }, [open, channel, isOwner, ownerRoomName, myNick]);
+    }, [open, channel]);
 
     const trimmed = name.trim();
     // The field starts empty (current name shown as placeholder), so an empty value means
     // "keep the current name" — it only counts as a change once something new is typed.
-    const isNameDirty = trimmed.length > 0 && trimmed !== (isOwner ? ownerRoomName : myNick);
-    // Owner edits name + photo; invited edits only their nick (no thumbnail on join.update).
-    const isImageDirty = isOwner && thumbnail !== (channel?.thumbnail ?? '');
+    const isNameDirty = trimmed.length > 0 && trimmed !== roomName;
+    const isImageDirty = thumbnail !== (channel?.thumbnail ?? '');
     const isDirty = isNameDirty || isImageDirty;
-    const pending = isOwner ? channelPending.update : joinPending.update;
-    const canSubmit = name.length <= NAME_MAX && isDirty && !pending;
+    const pending = isPending.update;
+    const canSubmit = isOwner && name.length <= NAME_MAX && isDirty && !pending;
 
     const handleImageClick = () => fileInputRef.current?.click();
 
@@ -107,18 +105,11 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
     const handleSubmit = async () => {
         if (!channelId || !canSubmit) return;
         try {
-            if (isOwner) {
-                await updateChannel({
-                    channelId,
-                    ...(isNameDirty && { name: trimmed }),
-                    ...(isImageDirty && { thumbnail }),
-                } as never);
-            } else {
-                // A state write: done locally now, sent when the socket can carry it. Only a refusal
-                // comes back later, after the dialog has closed.
-                const { delivered } = await updateJoin({ channelId, nick: trimmed } as never);
-                delivered.catch(() => toast({ title: t('updateChannel.error'), variant: 'destructive' }));
-            }
+            await updateChannel({
+                channelId,
+                ...(isNameDirty && { name: trimmed }),
+                ...(isImageDirty && { thumbnail }),
+            } as never);
             toast({ title: t('updateChannel.success') });
             onOpenChange(false);
         } catch (error) {
@@ -127,10 +118,8 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
         }
     };
 
-    // Common placeholder = the current room name (channel.name) for both roles. Falls back to a
-    // role-appropriate hint only when the room has no name yet.
-    const namePlaceholder =
-        ownerRoomName || (isOwner ? t('updateChannel.namePlaceholder') : t('updateChannel.invitedNamePlaceholder'));
+    // Placeholder = the current room name (channel.name), or a hint when the room has no name yet.
+    const namePlaceholder = roomName || t('updateChannel.namePlaceholder');
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -163,7 +152,7 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                     />
 
                     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-                        {/* Heading + invited-only subtitle */}
+                        {/* Heading */}
                         <div className="flex flex-col gap-2 px-4 py-4">
                             <Text
                                 as="h1"
@@ -171,14 +160,9 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                             >
                                 {t('updateChannel.heading')}
                             </Text>
-                            {!isOwner && (
-                                <Text className="break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
-                                    {t('updateChannel.invitedSubtitle')}
-                                </Text>
-                            )}
                         </div>
 
-                        {/* Avatar — editable (owner) or read-only owner photo + caption (invited) */}
+                        {/* Avatar — the room photo, editable */}
                         <div className="flex flex-col items-center gap-1.5 py-6">
                             <ProfileAvatar
                                 src={thumbnail || undefined}
@@ -186,17 +170,12 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                                 onSelect={isOwner ? handleImageClick : undefined}
                                 selectLabel={t('updateChannel.selectPhoto')}
                             />
-                            {!isOwner && ownerRoomName && (
-                                <Text className="text-[14px] font-medium leading-[1.45] text-placeholder">
-                                    {ownerRoomName}
-                                </Text>
-                            )}
                             {imageSizeError && (
                                 <Text className="text-[12px] text-destructive">{t('placeEdit.imageSizeError')}</Text>
                             )}
                         </div>
 
-                        {/* Name (owner: room name / invited: personal nick), 1–20 with counter */}
+                        {/* Room name, 1–20 with counter */}
                         <TextField
                             label={t('updateChannel.nameFieldLabel')}
                             value={name}

@@ -194,18 +194,34 @@ describe('resolveChannelTitle', () => {
         });
     });
 
-    describe('그룹 채널 — 내가 참여자', () => {
-        it('내 join nick을 우선한다', () => {
+    // A group's title is its name for everyone. A member's own name for the room (`join.nick`) is
+    // left out: a push carries one title per message, so it can only name the room by its shared name,
+    // and the app reads the same so the header and the banner agree.
+    describe('group channel — I am a member', () => {
+        it('ignores my join nick and uses channel.name', () => {
             const title = resolveChannelTitle({
                 channel: channel({ name: '오너가 정한 이름', ownerId: 'someone-else' }),
                 uid: 'me',
                 joinNick: '내가 정한 이름',
                 ...labels,
             });
-            expect(title).toBe('내가 정한 이름');
+            expect(title).toBe('오너가 정한 이름');
         });
 
-        it('join nick이 없으면 channel.name으로 폴백한다', () => {
+        it('ignores the embedded $join.nick too', () => {
+            const title = resolveChannelTitle({
+                channel: channel({
+                    name: '오너가 정한 이름',
+                    ownerId: 'someone-else',
+                    $join: { nick: '임베드닉' },
+                } as Partial<DomainChannel>),
+                uid: 'me',
+                ...labels,
+            });
+            expect(title).toBe('오너가 정한 이름');
+        });
+
+        it('uses channel.name when I have no join nick', () => {
             const title = resolveChannelTitle({
                 channel: channel({ name: '오너가 정한 이름', ownerId: 'someone-else' }),
                 uid: 'me',
@@ -214,13 +230,23 @@ describe('resolveChannelTitle', () => {
             expect(title).toBe('오너가 정한 이름');
         });
 
-        it('uid를 모르면 오너로 취급하지 않는다', () => {
+        it('falls to the unnamed label when the room has no name, join nick or not', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ name: '  ', ownerId: 'someone-else' }),
+                uid: 'me',
+                joinNick: '내가 정한 이름',
+                ...labels,
+            });
+            expect(title).toBe('이름 없는 채팅방');
+        });
+
+        it('reads the same without my uid', () => {
             const title = resolveChannelTitle({
                 channel: channel({ name: '채널 이름', ownerId: 'me' }),
                 joinNick: '내별명',
                 ...labels,
             });
-            expect(title).toBe('내별명');
+            expect(title).toBe('채널 이름');
         });
     });
 });

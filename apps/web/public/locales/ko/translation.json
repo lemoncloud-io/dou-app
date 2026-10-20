@@ -1544,10 +1544,8 @@
     "updateChannel": {
         "readOnlyTitle": "방 정보",
         "heading": "방 이름을 설정할 수 있어요",
-        "invitedSubtitle": "설정한 방 이름은 나에게만 표시됩니다.",
         "nameFieldLabel": "이름",
         "namePlaceholder": "예: UIUX 스터디 방",
-        "invitedNamePlaceholder": "소유자가 설정한 방 이름으로 노출",
         "nameHint": "20글자 이내로 입력해 주세요.",
         "selectPhoto": "사진 선택",
         "close": "닫기",
