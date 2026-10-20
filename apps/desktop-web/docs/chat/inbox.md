@@ -68,6 +68,13 @@ sidebar column. What it lists is one pure function, `inboxView`.
   so the opened one stays, marked, for 3 seconds (`OPENED_LINGER_MS`) and then leaves. The jumped-to
   message flashes for the same 3 seconds. Changing the tab or the filter lets the card go at once,
   and unmounting clears the wait.
+- **Selection.** The header's select button turns the cards into checkboxes and the header into a
+  selection bar: a select-all box (mixed while only some are chosen), its menu (select unread, clear,
+  mark all as read), the count, then mark as read and delete. The selection is of the cards listed,
+  so changing the tab or the filter drops it. Delete asks first and removes the items from this
+  device only. Mark all as read covers every unread item of the open tab, listed or not, ends the
+  mode, and its toast's Undo clears the read mark of exactly the items it marked — an item deleted
+  meanwhile stays gone, and one read before keeps its own time.
 - **Empty.** A bell, "No new notifications", and that the list is this device's. On the Threads tab,
   while the first launch is still reading the cache for threads (`scanningCid`), it says so instead.
 - With Notifications open and no conversation chosen, the main pane says a notification opens its

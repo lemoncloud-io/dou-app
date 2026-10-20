@@ -56,7 +56,10 @@ interface MentionsState {
     items: Record<string, MentionItem>;
     add: (item: Omit<MentionItem, 'readAt'>) => void;
     markRead: (id: string) => void;
-    markAllRead: () => void;
+    /** Stamp the given unread items read; returns the ids it changed, which is what an undo restores. */
+    markManyRead: (ids: readonly string[]) => string[];
+    /** Undo a mark: clear the read stamp of those of `ids` still stored. */
+    markUnread: (ids: readonly string[]) => void;
     /**
      * Stamp every unread item of a channel at or below `chatNo` read — the
      * inbox follows the same read-cursor boundary as the row and the dock, so
@@ -66,7 +69,7 @@ interface MentionsState {
      * match any place.
      */
     markChannelRead: (channelId: string, chatNo: number, placeId?: string) => void;
-    remove: (id: string) => void;
+    removeMany: (ids: readonly string[]) => void;
 }
 
 /** Count of unread mentions — drives the sidebar Activity dot. Other kinds do not count. */
@@ -112,7 +115,7 @@ export const countUnreadMentionsIn = (
  */
 export const useMentionsStore = create<MentionsState>()(
     persist(
-        set => ({
+        (set, get) => ({
             items: {},
             add: item =>
                 set(state => {
@@ -133,13 +136,22 @@ export const useMentionsStore = create<MentionsState>()(
                     if (!target || target.readAt) return state;
                     return { items: { ...state.items, [id]: { ...target, readAt: Date.now() } } };
                 }),
-            markAllRead: () =>
+            markManyRead: ids => {
+                const { items } = get();
+                const changed = ids.filter(id => items[id] && !items[id].readAt);
+                if (changed.length === 0) return changed;
+                const now = Date.now();
+                const next = { ...items };
+                for (const id of changed) next[id] = { ...items[id], readAt: now };
+                set({ items: next });
+                return changed;
+            },
+            markUnread: ids =>
                 set(state => {
-                    const now = Date.now();
-                    const next: Record<string, MentionItem> = {};
-                    for (const [id, item] of Object.entries(state.items)) {
-                        next[id] = item.readAt ? item : { ...item, readAt: now };
-                    }
+                    const present = ids.filter(id => state.items[id]?.readAt);
+                    if (present.length === 0) return state;
+                    const next = { ...state.items };
+                    for (const id of present) next[id] = { ...state.items[id], readAt: undefined };
                     return { items: next };
                 }),
             markChannelRead: (channelId, chatNo, placeId) =>
@@ -159,10 +171,10 @@ export const useMentionsStore = create<MentionsState>()(
                     }
                     return touched ? { items: next } : state;
                 }),
-            remove: id =>
+            removeMany: ids =>
                 set(state => {
                     const next = { ...state.items };
-                    delete next[id];
+                    for (const id of ids) delete next[id];
                     return { items: next };
                 }),
         }),

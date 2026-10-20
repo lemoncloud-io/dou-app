@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AtSign, Bell, Check, CheckCheck, ChevronDown, ListFilter, type LucideIcon } from 'lucide-react';
+import { AtSign, Bell, Check, CheckCheck, ChevronDown, ListChecks, ListFilter, type LucideIcon } from 'lucide-react';
 
 import type { DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
@@ -14,6 +14,8 @@ import {
     DropdownMenuTrigger,
 } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@chatic/ui-kit/components/ui/tabs';
+import { ToastAction } from '@chatic/ui-kit/components/ui/toast';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     INBOX_SORTS,
@@ -28,9 +30,11 @@ import {
     type InboxTab,
     type MentionItem,
 } from '../../../../shared';
+import { ConfirmDialog } from '../../../channels';
 import { NotificationSnoozeButton } from '../NotificationSnoozeButton';
 import { NotificationCard, SOURCE_ICON } from './NotificationCard';
-import { dayOf, inboxTabCounts, inboxView } from './inboxView';
+import { SelectionBar } from './SelectionBar';
+import { dayOf, inboxTabCounts, inboxView, isInTab } from './inboxView';
 
 /**
  * How long an item opened under the unread filter stays in the list, marked as the one opened,
@@ -63,6 +67,9 @@ interface NotificationsPanelProps {
  * Opening an item jumps to its message and marks it read. Under the unread filter that would drop
  * the card from under the pointer, so the opened one stays for `OPENED_LINGER_MS`, marked, then
  * leaves; changing the tab or the filter lets it go at once.
+ *
+ * In selection mode a click selects instead. The selection is of the cards listed, so changing the
+ * tab or the filter drops it; marking the whole tab read is undone from its toast.
  */
 export const NotificationsPanel = ({ cloudId, channels, onSelect }: NotificationsPanelProps) => {
     const { t } = useTranslation();
@@ -99,6 +106,55 @@ export const NotificationsPanel = ({ cloudId, channels, onSelect }: Notification
     const isEmpty = items.length === 0;
     const today = dayOf(Date.now());
 
+    const [selecting, setSelecting] = useState(false);
+    const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set());
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
+    // Deleting the last item ends the mode: there is nothing left to select.
+    const isSelecting = selecting && !isEmpty;
+    // Ended for good, not paused: the next item captured opens rather than toggles.
+    useEffect(() => {
+        if (isEmpty) setSelecting(false);
+    }, [isEmpty]);
+    // The bar unmounts on the way out, so focus goes back to the button that opened it, or to the
+    // title when deleting the last item disabled that button.
+    const selectButtonRef = useRef<HTMLButtonElement>(null);
+    const titleRef = useRef<HTMLHeadingElement>(null);
+    const wasSelecting = useRef(false);
+    useEffect(() => {
+        if (wasSelecting.current && !isSelecting) (isEmpty ? titleRef : selectButtonRef).current?.focus();
+        wasSelecting.current = isSelecting;
+    }, [isSelecting, isEmpty]);
+    const listed = useMemo(() => groups.flatMap(group => group.items), [groups]);
+    const chosen = useMemo(() => listed.filter(item => selected.has(item.id)).map(item => item.id), [listed, selected]);
+    const allState = chosen.length === 0 ? false : chosen.length === listed.length ? true : 'mixed';
+    const tabUnreadIds = useMemo(
+        () => items.filter(item => !item.readAt && isInTab(item, tab)).map(item => item.id),
+        [items, tab]
+    );
+    const toggle = useCallback(
+        (id: string) =>
+            setSelected(prev => {
+                const next = new Set(prev);
+                if (!next.delete(id)) next.add(id);
+                return next;
+            }),
+        []
+    );
+    const clearSelection = () => setSelected(new Set());
+    const markAllRead = () => {
+        const changed = useMentionsStore.getState().markManyRead(tabUnreadIds);
+        setSelecting(false);
+        clearSelection();
+        toast({
+            description: t('inbox.allRead', { count: changed.length }),
+            action: (
+                <ToastAction altText={t('inbox.undo')} onClick={() => useMentionsStore.getState().markUnread(changed)}>
+                    {t('inbox.undo')}
+                </ToastAction>
+            ),
+        });
+    };
+
     // Stable for the memo'd cards: the host's onSelect is a fresh closure each render.
     const onSelectRef = useRef(onSelect);
     onSelectRef.current = onSelect;
@@ -131,13 +187,73 @@ export const NotificationsPanel = ({ cloudId, channels, onSelect }: Notification
     return (
         <section aria-label={t('inbox.title')} className="flex min-h-0 flex-1 flex-col">
             <header className="flex h-[4.25rem] shrink-0 items-center justify-between gap-2 px-4">
-                <h2 className="truncate text-headline font-bold text-sidebar-foreground">{t('inbox.title')}</h2>
-                <NotificationSnoozeButton variant="icon" />
+                {isSelecting ? (
+                    <SelectionBar
+                        count={chosen.length}
+                        allState={allState}
+                        onToggleAll={() =>
+                            setSelected(allState === true ? new Set() : new Set(listed.map(item => item.id)))
+                        }
+                        onSelectUnread={() =>
+                            setSelected(new Set(listed.filter(item => !item.readAt).map(item => item.id)))
+                        }
+                        onClear={clearSelection}
+                        onMarkAllRead={tabUnreadIds.length > 0 ? markAllRead : undefined}
+                        onMarkRead={() => {
+                            useMentionsStore.getState().markManyRead(chosen);
+                            clearSelection();
+                        }}
+                        onDelete={() => setConfirmingDelete(true)}
+                        onClose={() => {
+                            setSelecting(false);
+                            clearSelection();
+                        }}
+                    />
+                ) : (
+                    <>
+                        <h2
+                            ref={titleRef}
+                            tabIndex={-1}
+                            className="truncate text-headline font-bold text-sidebar-foreground"
+                        >
+                            {t('inbox.title')}
+                        </h2>
+                        <span className="flex shrink-0 items-center gap-0.5">
+                            <button
+                                ref={selectButtonRef}
+                                type="button"
+                                aria-label={t('inbox.select.start')}
+                                disabled={isEmpty}
+                                onClick={() => {
+                                    release();
+                                    setSelecting(true);
+                                }}
+                                className="focus-ring flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                            >
+                                <ListChecks size={18} aria-hidden />
+                            </button>
+                            <NotificationSnoozeButton variant="icon" />
+                        </span>
+                    </>
+                )}
             </header>
+            <ConfirmDialog
+                open={confirmingDelete}
+                onOpenChange={setConfirmingDelete}
+                title={t('inbox.select.deleteTitle', { count: chosen.length })}
+                description={t('inbox.select.deleteHint')}
+                confirmLabel={t('inbox.select.delete')}
+                onConfirm={() => {
+                    useMentionsStore.getState().removeMany(chosen);
+                    clearSelection();
+                    setConfirmingDelete(false);
+                }}
+            />
             <Tabs
                 value={tab}
                 onValueChange={value => {
                     release();
+                    clearSelection();
                     setTab(value as InboxTab);
                 }}
             >
@@ -175,6 +291,7 @@ export const NotificationsPanel = ({ cloudId, channels, onSelect }: Notification
                     disabled={isEmpty}
                     onClick={() => {
                         release();
+                        clearSelection();
                         setUnreadOnly(!unreadOnly);
                     }}
                     className={cn(
@@ -264,7 +381,8 @@ export const NotificationsPanel = ({ cloudId, channels, onSelect }: Notification
                                         channelName={channelNames.get(item.channelId) || item.channelName}
                                         rootPreview={rootPreviewOf(item)}
                                         isCurrent={item.id === openedId}
-                                        onOpen={openItem}
+                                        selected={isSelecting ? selected.has(item.id) : undefined}
+                                        onOpen={isSelecting ? toggle : openItem}
                                     />
                                 ))}
                             </ul>
