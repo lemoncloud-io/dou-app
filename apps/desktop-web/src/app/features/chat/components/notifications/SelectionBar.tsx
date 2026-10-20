@@ -15,7 +15,7 @@ import {
 import { SelectMark } from './NotificationCard';
 
 const ACTION =
-    'focus-ring tactile flex h-8 shrink-0 items-center gap-1 rounded-lg px-2 text-caption font-medium transition-colors ease-tactile disabled:pointer-events-none disabled:opacity-50';
+    'focus-ring tactile flex h-8 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-caption font-medium transition-colors ease-tactile disabled:pointer-events-none disabled:opacity-50';
 
 interface SelectionBarProps {
     /** How many of the listed cards are selected. */
@@ -55,52 +55,55 @@ export const SelectionBar = ({
     useEffect(() => allRef.current?.focus(), []);
     return (
         <div className="flex min-w-0 flex-1 items-center gap-1">
-            <button
-                ref={allRef}
-                type="button"
-                role="checkbox"
-                aria-checked={allState}
-                aria-label={t('inbox.select.all')}
-                onClick={onToggleAll}
-                className="focus-ring flex h-8 w-8 items-center justify-center rounded-lg"
-            >
-                <SelectMark state={allState} />
-            </button>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <button
-                        type="button"
-                        aria-label={t('inbox.select.options')}
-                        className="focus-ring -ml-1 flex h-8 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
-                    >
-                        <ChevronDown size={14} aria-hidden />
-                    </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56 shadow-overlay">
-                    <DropdownMenuItem className={MENU_ITEM} onSelect={onSelectUnread}>
-                        {t('inbox.select.unread')}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className={MENU_ITEM} onSelect={onClear} disabled={count === 0}>
-                        {t('inbox.select.none')}
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className={MENU_ITEM} onSelect={onMarkAllRead} disabled={!onMarkAllRead}>
-                        {t('inbox.markAllRead')}
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
+            {/* The select-all box and its options read as one control. */}
+            <span className="flex h-8 shrink-0 items-center rounded-lg border border-input-border">
+                <button
+                    ref={allRef}
+                    type="button"
+                    role="checkbox"
+                    aria-checked={allState}
+                    aria-label={t('inbox.select.all')}
+                    onClick={onToggleAll}
+                    className="focus-ring flex h-full w-8 items-center justify-center rounded-l-lg"
+                >
+                    <SelectMark state={allState} />
+                </button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            type="button"
+                            aria-label={t('inbox.select.options')}
+                            className="focus-ring flex h-full w-6 items-center justify-center rounded-r-lg text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                        >
+                            <ChevronDown size={14} aria-hidden />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-56 shadow-overlay">
+                        <DropdownMenuItem className={MENU_ITEM} onSelect={onSelectUnread}>
+                            {t('inbox.select.unread')}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className={MENU_ITEM} onSelect={onClear} disabled={count === 0}>
+                            {t('inbox.select.none')}
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className={MENU_ITEM} onSelect={onMarkAllRead} disabled={!onMarkAllRead}>
+                            {t('inbox.markAllRead')}
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </span>
             <span
                 aria-live="polite"
-                className="ml-1 truncate text-callout font-semibold tabular-nums text-sidebar-foreground"
+                className="ml-1.5 truncate text-callout font-semibold tabular-nums text-sidebar-foreground"
             >
                 {t('inbox.select.count', { count })}
             </span>
-            <span className="ml-auto flex shrink-0 items-center gap-0.5">
+            <span className="ml-auto flex shrink-0 items-center gap-1">
                 <button
                     type="button"
                     disabled={count === 0}
                     onClick={onMarkRead}
-                    className={cn(ACTION, 'text-foreground hover:bg-accent')}
+                    className={cn(ACTION, 'border-input-border text-foreground hover:bg-accent')}
                 >
                     <CheckCheck size={14} aria-hidden />
                     {t('inbox.select.markRead')}
@@ -109,7 +112,7 @@ export const SelectionBar = ({
                     type="button"
                     disabled={count === 0}
                     onClick={onDelete}
-                    className={cn(ACTION, 'text-destructive hover:bg-destructive/10')}
+                    className={cn(ACTION, 'border-destructive/40 text-destructive hover:bg-destructive/10')}
                 >
                     <Trash2 size={14} aria-hidden />
                     {t('inbox.select.delete')}

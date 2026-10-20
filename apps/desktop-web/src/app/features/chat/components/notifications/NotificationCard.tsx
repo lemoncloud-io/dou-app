@@ -22,7 +22,7 @@ export const SelectMark = ({ state }: { state: boolean | 'mixed' }) => (
         aria-hidden
         className={cn(
             'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ease-tactile',
-            state ? 'border-primary bg-primary text-primary-foreground' : 'border-input-border bg-background'
+            state ? 'border-foreground bg-foreground text-background' : 'border-input-border bg-background'
         )}
     >
         {state === 'mixed' ? <Minus size={14} strokeWidth={3} /> : state && <Check size={14} strokeWidth={3} />}
@@ -73,8 +73,8 @@ interface NotificationCardProps {
 /**
  * One inbox item: who, when and whether it is unread; where it happened and why it is here; then
  * what was said. An unread item sits on a raised card and a read one on the panel itself, so the
- * unread ones stand out without a count; the card opened last, or a selected one, carries the
- * accent border.
+ * unread ones stand out without a count; the card opened last carries the accent border. In
+ * selection mode the box sits beside the card, and a selected row is tinted around both.
  */
 export const NotificationCard = memo(
     ({ item, channelName, rootPreview, isCurrent, selected, onOpen }: NotificationCardProps) => {
@@ -89,7 +89,17 @@ export const NotificationCard = memo(
         const body = kind === 'reaction' ? t('inbox.mine', { text: item.content }) : item.content;
         const unread = !item.readAt;
         const selecting = selected !== undefined;
-        const accented = selecting ? selected : isCurrent;
+        const card = cn(
+            'flex min-w-0 flex-1 items-start gap-3 rounded-xl border px-3 py-3 transition-colors ease-tactile',
+            selected
+                ? 'border-transparent'
+                : !selecting && isCurrent
+                  ? 'border-primary bg-elevated'
+                  : unread
+                    ? 'border-hairline bg-elevated shadow-raised'
+                    : 'border-transparent',
+            !selected && !(!selecting && isCurrent) && 'group-hover:bg-accent/60'
+        );
 
         return (
             <li>
@@ -100,70 +110,71 @@ export const NotificationCard = memo(
                     aria-current={(!selecting && isCurrent) || undefined}
                     onClick={() => onOpen(item.id)}
                     className={cn(
-                        'focus-ring flex w-full items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors ease-tactile',
-                        accented
-                            ? 'border-primary bg-elevated'
-                            : unread
-                              ? 'border-hairline bg-elevated shadow-raised hover:bg-accent/60'
-                              : 'border-transparent hover:bg-accent/60'
+                        'focus-ring group flex w-full items-center gap-2.5 rounded-xl text-left transition-colors ease-tactile',
+                        selected && 'bg-primary/[0.08]'
                     )}
                 >
                     {selecting && (
-                        <span className="mt-2.5">
+                        <span className="pl-1">
                             <SelectMark state={selected} />
                         </span>
                     )}
-                    <span className="relative shrink-0">
-                        <Avatar className="h-10 w-10">
-                            {item.avatar && <AvatarImage src={item.avatar} alt="" />}
-                            <AvatarFallback
-                                className="text-callout font-semibold"
-                                style={avatarStyle(item.colorSeed ?? item.ownerName)}
-                            >
-                                {item.ownerName.charAt(0).toUpperCase() || '?'}
-                            </AvatarFallback>
-                        </Avatar>
-                        {/* A reaction is not something the person wrote: the badge says so before the text does. */}
-                        {kind === 'reaction' && (
-                            <span
-                                aria-hidden
-                                className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border border-hairline bg-background text-foreground"
-                            >
-                                <SmilePlus size={10} />
-                            </span>
-                        )}
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-1">
-                        <span className="flex items-center gap-2">
-                            <span className="truncate text-callout font-semibold text-foreground">
-                                {item.ownerName}
-                            </span>
-                            <span className="ml-auto shrink-0 text-micro tabular-nums text-muted-foreground">
-                                {formatListTime(item.createdAt)}
-                            </span>
-                            {unread && (
-                                <>
-                                    <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-badge-unread" />
-                                    <span className="sr-only">{t('inbox.unreadDot')}</span>
-                                </>
+                    <span className={card}>
+                        <span className="relative shrink-0">
+                            <Avatar className="h-10 w-10">
+                                {item.avatar && <AvatarImage src={item.avatar} alt="" />}
+                                <AvatarFallback
+                                    className="text-callout font-semibold"
+                                    style={avatarStyle(item.colorSeed ?? item.ownerName)}
+                                >
+                                    {item.ownerName.charAt(0).toUpperCase() || '?'}
+                                </AvatarFallback>
+                            </Avatar>
+                            {/* A reaction is not something the person wrote: the badge says so before the text does. */}
+                            {kind === 'reaction' && (
+                                <span
+                                    aria-hidden
+                                    className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border border-hairline bg-background text-foreground"
+                                >
+                                    <SmilePlus size={10} />
+                                </span>
                             )}
                         </span>
-                        <span className="flex min-w-0 items-center gap-1.5 text-micro text-muted-foreground">
-                            <span className="flex shrink-0 items-center gap-0.5 rounded-md border border-hairline px-1.5 py-px font-medium text-foreground">
-                                <SourceIcon size={11} aria-hidden />
-                                {t(`inbox.source.${source}`)}
+                        <span className="flex min-w-0 flex-1 flex-col gap-1">
+                            <span className="flex items-center gap-2">
+                                <span className="truncate text-callout font-semibold text-foreground">
+                                    {item.ownerName}
+                                </span>
+                                <span className="ml-auto shrink-0 text-micro tabular-nums text-muted-foreground">
+                                    {formatListTime(item.createdAt)}
+                                </span>
+                                {unread && (
+                                    <>
+                                        <span
+                                            aria-hidden
+                                            className="h-1.5 w-1.5 shrink-0 rounded-full bg-badge-unread"
+                                        />
+                                        <span className="sr-only">{t('inbox.unreadDot')}</span>
+                                    </>
+                                )}
                             </span>
-                            {where && <span className="truncate text-foreground">{where}</span>}
-                            <span aria-hidden>·</span>
-                            <span className="truncate">{why}</span>
-                        </span>
-                        {rootPreview && (
-                            <span className="line-clamp-2 border-l-2 border-hairline pl-2 text-micro text-muted-foreground">
-                                {t('inbox.original', { text: rootPreview })}
+                            <span className="flex min-w-0 items-center gap-1.5 text-micro text-muted-foreground">
+                                <span className="flex shrink-0 items-center gap-0.5 rounded-md border border-hairline px-1.5 py-px font-medium text-foreground">
+                                    <SourceIcon size={11} aria-hidden />
+                                    {t(`inbox.source.${source}`)}
+                                </span>
+                                {where && <span className="truncate text-foreground">{where}</span>}
+                                <span aria-hidden>·</span>
+                                <span className="truncate">{why}</span>
                             </span>
-                        )}
-                        <span className="line-clamp-2 whitespace-pre-wrap break-words text-callout text-foreground">
-                            <MentionBody text={body} accent={isMentionKind(item)} />
+                            {rootPreview && (
+                                <span className="line-clamp-2 border-l-2 border-hairline pl-2 text-micro text-muted-foreground">
+                                    {t('inbox.original', { text: rootPreview })}
+                                </span>
+                            )}
+                            <span className="line-clamp-2 whitespace-pre-wrap break-words text-callout text-foreground">
+                                <MentionBody text={body} accent={isMentionKind(item)} />
+                            </span>
                         </span>
                     </span>
                 </button>
