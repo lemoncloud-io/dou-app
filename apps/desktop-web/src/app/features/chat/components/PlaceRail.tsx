@@ -154,7 +154,9 @@ const PlaceTile = ({
                 <span className="relative">
                     <span
                         className={cn(
-                            'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl text-callout font-semibold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
+                            'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl font-bold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
+                            // The cloud tile's scale (Figma): one glyph large, two a step down.
+                            Array.from(tileInitial(name)).length > 1 ? 'text-lead' : 'text-headline',
                             isActive ? 'bg-primary text-primary-foreground' : 'bg-transparent group-hover:bg-border'
                         )}
                     >
@@ -175,9 +177,8 @@ const PlaceTile = ({
                 </span>
                 <span
                     className={cn(
-                        'max-w-full truncate text-callout font-medium leading-tight transition-colors',
-                        // A faded label measured under AA; the quieter tone is a token that clears it.
-                        isActive ? 'text-rail-foreground' : 'text-muted-foreground group-hover:text-rail-foreground'
+                        // Every label reads in the rail's ink (Figma); the tile's fill marks the open place.
+                        'max-w-full truncate text-callout font-medium leading-tight text-rail-foreground'
                     )}
                 >
                     {name}
