@@ -15,3 +15,4 @@ export * from './useTrailingPanelOwners';
 export * from './useThreadRoot';
 export * from './useHeldChannel';
 export * from './useLastChats';
+export * from './useDmIdentities';

@@ -14,13 +14,10 @@ import {
     Skeleton,
     avatarStyle,
     bareChannelName,
-    dmCounterpartId,
     isSelfChannel,
     lastChatNoOf,
     MobileAppPointer,
-    resolveDisplay,
     messagePreview,
-    useCloudProfiles,
     migrateLegacyFavorites,
     channelNotifyMode,
     channelReadNo,
@@ -31,11 +28,10 @@ import {
     useNotificationPrefsStore,
     useReadCursorStore,
     useSelectedChannelStore,
-    useSiteProfileMap,
 } from '../../../shared';
 import { SearchDialog } from '../../search';
 import { ChannelActionDialogs, useChannelActions } from '../../channels';
-import { useHydrateDmPeers, useLastChat } from '../hooks';
+import { useDmIdentities, useLastChat } from '../hooks';
 import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
 import { isDmBucket, sidebarMoveChord, unreadIndicator } from '../utils';
 import { ChannelRowMenu } from './ChannelRowMenu';
@@ -241,46 +237,6 @@ const ChannelRow = memo(function ChannelRow({
     );
 });
 
-/**
- * How long the Direct messages section waits for its people's names. A cold cloud has none cached,
- * and `useHydrateDmPeers` has to reach the server first, which took 5-10s when this was measured.
- * Past this the rows fall back to the room name: a person whose record never arrives (a deleted
- * account) must not hold the section forever.
- */
-export const DM_NAME_WAIT_MS = 10_000;
-
-/**
- * Whether the Direct messages section is still waiting for names, per place (`scope`).
- *
- * - `holdSection` — the place's first names have not all arrived. The whole section is drawn as
- *   placeholder rows, so it is sorted once, by name, instead of re-sorting under the pointer as each
- *   name lands.
- * - `waitForName` — an unnamed row is drawn as a placeholder rather than as the raw id. After the
- *   first settle this is per row: a 1:1 that appears later waits on its own name without folding the
- *   whole section back.
- *
- * Both give up after `DM_NAME_WAIT_MS`. The wait restarts only once every name has arrived, so a
- * person who never resolves does not hold every later row too.
- */
-const useDmNameWait = (hasUnnamedPeer: boolean, scope: string) => {
-    const [settledScope, setSettledScope] = useState<string | null>(null);
-    const [gaveUpScope, setGaveUpScope] = useState<string | null>(null);
-    useEffect(() => {
-        if (!hasUnnamedPeer) {
-            setSettledScope(scope);
-            setGaveUpScope(null);
-            return;
-        }
-        const timer = setTimeout(() => {
-            setSettledScope(scope);
-            setGaveUpScope(scope);
-        }, DM_NAME_WAIT_MS);
-        return () => clearTimeout(timer);
-    }, [hasUnnamedPeer, scope]);
-    const waitForName = hasUnnamedPeer && gaveUpScope !== scope;
-    return { holdSection: waitForName && settledScope !== scope, waitForName };
-};
-
 /** A Direct messages row whose person has no name yet: the row's shape, never the raw id. */
 const PendingPersonRow = () => (
     <div aria-hidden className="flex h-9 items-center gap-2 p-2">
@@ -293,12 +249,6 @@ const PendingPersonRow = () => (
 const CHANNEL_GLYPH = <Hash size={16} aria-hidden />;
 
 const Divider = () => <div aria-hidden className="h-px w-full shrink-0 bg-hairline" />;
-
-/**
- * My id in a notes-to-self room: its join row names my id in this cloud, which is what place and
- * cloud profiles are keyed by — the session id can differ from it.
- */
-const selfIdOf = (channel: DomainChannel): string => channel.$join?.userId ?? channel.memberIds?.[0] ?? '';
 
 /** A person's avatar as the Direct messages rows draw it: their photo, else a colored initial. */
 const personAvatar = (seed: string, display: { name: string; thumbnail?: string }): ReactNode => (
@@ -393,7 +343,6 @@ export const ChannelList = ({
     const myUid = runtime.session.useSessionIdentity().userId;
     // A folded 1:1 section hides the Home pointer with its rows.
     const isDmCollapsed = useSidebarSectionsStore(s => !!s.collapsed.dm);
-    const placeProfiles = useSiteProfileMap();
     // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
     // scoped to the active place — `pinnedIds` array order is the Favorites display order.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
@@ -454,67 +403,15 @@ export const ChannelList = ({
         return split;
     }, [channels]);
 
-    // DM rows show the other party: this place's profile where they set one, else their cloud
-    // profile from the user cache — field by field, so a place nick with no place photo keeps the
-    // cloud photo.
-    // People with no 1:1 yet are named the same way, so they share the lookup.
+    // DM rows show the other party; people with no 1:1 yet are named the same way.
     const canStartDm = !!onStartDm;
     const members = useMemo(() => (canStartDm ? (memberPeers ?? []) : []), [canStartDm, memberPeers]);
-    const counterpartIds = useMemo(
-        () => [
-            ...dms
-                .map(c => (isSelfChannel(c) ? selfIdOf(c) : dmCounterpartId(c, myUid, c.$join?.userId)))
-                .filter((id): id is string => !!id),
-            ...members.map(member => member.peerId),
-        ],
-        [dms, myUid, members]
-    );
-    const counterpartProfiles = useCloudProfiles(counterpartIds);
-    // Rows this place's profiles don't name read the user cache, which only an opened room fills.
-    const unnamedPeers = useMemo(
-        () =>
-            dms
-                .flatMap(c => {
-                    const peerId = dmCounterpartId(c, myUid, c.$join?.userId);
-                    return c.id && peerId && !placeProfiles[peerId]?.nick?.trim() ? [{ channelId: c.id, peerId }] : [];
-                })
-                .concat(members.filter(member => !placeProfiles[member.peerId]?.nick?.trim())),
-        [dms, myUid, members, placeProfiles]
-    );
-    useHydrateDmPeers(unnamedPeers);
-    // A person is named once this place's profile or their cloud profile gives a name.
-    const isNamed = (peerId: string): boolean =>
-        !!placeProfiles[peerId]?.nick?.trim() || !!counterpartProfiles.get(peerId)?.name;
-    // Only the 1:1s' people count: a person with no 1:1 yet is left out until named anyway.
-    const hasUnnamedDmPeer = dms.some(c => {
-        const peerId = dmCounterpartId(c, myUid, c.$join?.userId);
-        return !!peerId && !isSelfChannel(c) && !isNamed(peerId);
-    });
-    const { holdSection: holdDmSection, waitForName } = useDmNameWait(hasUnnamedDmPeer, pinScope ?? '');
+    const { identityOf, memberDisplay, holdSection: holdDmSection } = useDmIdentities(dms, members, pinScope ?? '');
 
     /** Display identity for a DM/self row: label + avatar in place of the # glyph. */
     const dmIdentity = (channel: DomainChannel): { label: string; icon: ReactNode; pending: boolean } => {
-        if (isSelfChannel(channel)) {
-            // Drawn like the picker's "me" row: my place photo, else my cloud one. The label stays.
-            const selfId = selfIdOf(channel);
-            const display = resolveDisplay(
-                selfId ? placeProfiles[selfId] : undefined,
-                counterpartProfiles.get(selfId)?.name ?? t('dm.you'),
-                counterpartProfiles.get(selfId)?.thumbnail
-            );
-            return { label: t('dm.you'), icon: personAvatar(selfId || (myUid ?? 'me'), display), pending: false };
-        }
-        const counterpartId = dmCounterpartId(channel, myUid, channel.$join?.userId) ?? '';
-        const display = resolveDisplay(
-            counterpartId ? placeProfiles[counterpartId] : undefined,
-            counterpartProfiles.get(counterpartId)?.name ?? channel.name ?? counterpartId,
-            counterpartProfiles.get(counterpartId)?.thumbnail
-        );
-        return {
-            label: display.name || (channel.name ?? channel.id ?? ''),
-            icon: personAvatar(counterpartId, display),
-            pending: waitForName && !!counterpartId && !isNamed(counterpartId),
-        };
+        const { label, seed, display, pending } = identityOf(channel);
+        return { label, icon: personAvatar(seed, display), pending };
     };
 
     const matchesQuery = (channel: DomainChannel, label: string): boolean => {
@@ -585,8 +482,7 @@ export const ChannelList = ({
     const q = query.trim().toLowerCase();
     const memberRows = members
         .flatMap(({ peerId }) => {
-            const cloud = counterpartProfiles.get(peerId);
-            const display = resolveDisplay(placeProfiles[peerId], cloud?.name ?? '', cloud?.thumbnail);
+            const display = memberDisplay(peerId);
             if (!display.name || display.name === peerId) return [];
             return !q || display.name.toLowerCase().includes(q) ? [{ peerId, display }] : [];
         })

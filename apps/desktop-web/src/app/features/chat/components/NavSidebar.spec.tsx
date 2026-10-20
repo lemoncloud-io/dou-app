@@ -24,6 +24,7 @@ describe('NavSidebar', () => {
                 home={<HomeList />}
                 notifications={<p>inbox</p>}
                 channels={<p>rooms</p>}
+                dm={<p>people</p>}
             />
         );
 
@@ -37,7 +38,13 @@ describe('NavSidebar', () => {
         mounted.mockClear();
         unmounted.mockClear();
         const { rerender } = render(
-            <NavSidebar active="home" home={<HomeList />} notifications={<p>inbox</p>} channels={<p>rooms</p>} />
+            <NavSidebar
+                active="home"
+                home={<HomeList />}
+                notifications={<p>inbox</p>}
+                channels={<p>rooms</p>}
+                dm={<p>people</p>}
+            />
         );
 
         rerender(
@@ -46,13 +53,22 @@ describe('NavSidebar', () => {
                 home={<HomeList />}
                 notifications={<p>inbox</p>}
                 channels={<p>rooms</p>}
+                dm={<p>people</p>}
             />
         );
 
         expect(unmounted).not.toHaveBeenCalled();
         expect(screen.getByText('home').closest('[hidden]')).toBeTruthy();
 
-        rerender(<NavSidebar active="home" home={<HomeList />} notifications={<p>inbox</p>} channels={<p>rooms</p>} />);
+        rerender(
+            <NavSidebar
+                active="home"
+                home={<HomeList />}
+                notifications={<p>inbox</p>}
+                channels={<p>rooms</p>}
+                dm={<p>people</p>}
+            />
+        );
 
         expect(mounted).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('navigation', { name: 'Channels' })).toBeTruthy();

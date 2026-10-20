@@ -67,6 +67,7 @@ import {
     SavedPanel,
     NotificationsPanel,
     ChannelListPanel,
+    DmListPanel,
     ThreadPanel,
 } from '../components';
 import {
@@ -80,6 +81,7 @@ import {
 } from '../hooks';
 import {
     elsewhereChannels as elsewhereChannelRows,
+    hasUnreadDm,
     hasUnreadRoom,
     landingTarget,
     openPlaceFor,
@@ -105,7 +107,7 @@ const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
 };
 
 // Destinations whose screens exist; the others join the rail as their screens land.
-const NAV_ITEMS: NavDestination[] = ['home', 'notifications', 'channels'];
+const NAV_ITEMS: NavDestination[] = ['home', 'notifications', 'channels', 'dm'];
 
 /**
  * The sidebar column's width per destination: Home keeps the narrow channel list it always had, and
@@ -218,6 +220,7 @@ export const HomePage = () => {
     // Select the boolean, not the items: the dot only re-renders on false↔true.
     const hasInboxUnread = useMentionsStore(s => Object.values(s.items).some(item => !item.readAt));
     const hasChannelUnread = hasUnreadRoom(channels);
+    const hasDmUnread = hasUnreadDm(channels);
     // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
     // 7×-tap toggle). Top precedence so it owns the dock while open.
     const debugEnabled = useDebugModeStore(s => s.enabled);
@@ -794,7 +797,10 @@ export const HomePage = () => {
                     </>
                 }
                 nav={
-                    <NavRail items={NAV_ITEMS} unread={{ notifications: hasInboxUnread, channels: hasChannelUnread }} />
+                    <NavRail
+                        items={NAV_ITEMS}
+                        unread={{ notifications: hasInboxUnread, channels: hasChannelUnread, dm: hasDmUnread }}
+                    />
                 }
                 sidebarWidth={navActive === 'home' ? undefined : NAV_PANEL_WIDTH}
                 sidebar={
@@ -814,6 +820,16 @@ export const HomePage = () => {
                                 onSelect={selectFromList}
                                 // The same rule as Home's list: the default cloud takes no new channels.
                                 onCreateChannel={isDefaultMode ? undefined : openCreateChannel}
+                                isLoading={isLoading}
+                            />
+                        }
+                        dm={
+                            <DmListPanel
+                                channels={channels}
+                                selectedChannelId={selectedChannelId}
+                                onSelect={selectFromList}
+                                // The same rule as Home's DM section.
+                                onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
                                 isLoading={isLoading}
                             />
                         }

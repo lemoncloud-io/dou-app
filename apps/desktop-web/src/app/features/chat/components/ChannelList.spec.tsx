@@ -93,11 +93,15 @@ const hydrate = vi.hoisted(() => ({
     profiles: {} as Record<string, { nick?: string; thumbnail?: string }>,
     cloud: new Map<string, { name?: string; thumbnail?: string }>(),
 }));
-vi.mock('../hooks', () => ({
-    useLastChat: () => lastChat,
+vi.mock('../hooks/useHydrateDmPeers', () => ({
     useHydrateDmPeers: (peers: unknown[]) => {
         hydrate.peers = peers;
     },
+}));
+// The 1:1 naming is the real hook: only its server hydration above is stubbed.
+vi.mock('../hooks', async () => ({
+    useLastChat: () => lastChat,
+    ...(await vi.importActual<typeof DmIdentities>('../hooks/useDmIdentities')),
 }));
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useCloudProfiles: () => hydrate.cloud }));
 // Radix only mounts an avatar image once it has loaded, which never happens in jsdom; render the
@@ -131,9 +135,11 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
 import '../../../../i18n';
 import i18next from 'i18next';
 
-import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
+import { useDmNameWaitStore, useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
 import { useMentionsStore, useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
-import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList, DM_NAME_WAIT_MS } from './ChannelList';
+import type * as DmIdentities from '../hooks/useDmIdentities';
+import { DM_NAME_WAIT_MS } from '../hooks/useDmIdentities';
+import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList } from './ChannelList';
 import { ShortcutsDialog } from './ShortcutsDialog';
 
 Element.prototype.scrollIntoView = vi.fn();
@@ -171,6 +177,9 @@ const previewOnHover = (): string => {
         vi.useRealTimers();
     }
 };
+
+// A place's wait for names is kept across mounts; each test starts with none.
+beforeEach(() => useDmNameWaitStore.setState({ settled: {}, gaveUp: {} }));
 
 describe('ChannelList preview line', () => {
     it('shows the last message, flattened out of its markdown', () => {
