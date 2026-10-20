@@ -2,6 +2,12 @@
 
 ## [2026-10-20] - No version updates
 
+### Bug Fixes
+
+- (app-runtime) reopen a socket the SDK rotation left closed (ADR-0215)
+
+## [2026-10-20] - No version updates
+
 ### Features
 
 - (app-runtime,web) name the close behind a 499 in socket_request
