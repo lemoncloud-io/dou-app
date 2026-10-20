@@ -3,8 +3,9 @@
 The top of the left rail (`CloudSwitcher`, `features/chat/components/CloudSwitcher.tsx`): the active
 cloud's 48px tile with a chevron under it. The tile is black in both themes (`--tile-active`) with a
 lime initial. Pressing it opens a menu that lists every cloud, Home (the Default Cloud) first, each
-with a small chip of its initial. Picking a row switches to that cloud. The place tiles sit under it,
-past a divider ([place-rail.md](./place-rail.md)).
+with a small chip of its initial. Picking a row switches to that cloud. When the session names no
+cloud, the tile shows Home, the same reading `HomePage` gives it. The place tiles sit under it, past a
+divider ([place-rail.md](./place-rail.md)).
 
 The clouds used to be a rail of their own, one tile each. The design folds them into one rail with the
 places, so the tiles became rows and their right-click menus became items in the switcher's menu.

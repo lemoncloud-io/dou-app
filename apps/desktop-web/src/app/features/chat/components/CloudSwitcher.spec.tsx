@@ -80,6 +80,13 @@ describe('CloudSwitcher trigger', () => {
         expect(trigger().getAttribute('aria-label')).toBe(i18next.t('cloud.switcher.open', { name: 'Studio' }));
     });
 
+    // The session reports no cloud while it sits on Home; the shell reads that as Home, and so
+    // must the tile, or it shows "?" and "no cloud".
+    it('reads no active cloud as Home, as the shell does', () => {
+        renderSwitcher({ activeCloudId: null });
+        expect(trigger().getAttribute('aria-label')).toBe(i18next.t('cloud.switcher.open', { name: 'Home' }));
+    });
+
     it('says when a cloud has something unread, the active one or another', () => {
         renderSwitcher({ badgedClouds: { guest: true } });
         expect(trigger().getAttribute('aria-label')).toBe(i18next.t('cloud.switcher.unread', { name: 'Home' }));

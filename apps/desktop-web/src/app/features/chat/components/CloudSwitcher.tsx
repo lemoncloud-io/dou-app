@@ -120,7 +120,7 @@ const CloudInitial = ({
  */
 export const CloudSwitcher = ({
     clouds,
-    activeCloudId,
+    activeCloudId: sessionCloudId,
     hasUnread,
     badgedClouds,
     onSelectCloud,
@@ -130,6 +130,9 @@ export const CloudSwitcher = ({
     onRetryCatalog,
 }: CloudSwitcherProps) => {
     const { t } = useTranslation();
+    // The session names no cloud while it sits on Home; HomePage reads that as Home, and the tile
+    // has to agree or it shows no cloud at all.
+    const activeCloudId = sessionCloudId ?? 'default';
 
     // Cloud removal: invited clouds are forgotten locally, owned clouds are
     // deleted on the backend — both gated behind a confirm dialog.
