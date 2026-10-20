@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-20] - No version updates
+
+### Features
+
+- (app-runtime,web) name the close behind a 499 in socket_request
+
+### Bug Fixes
+
+- (app-runtime,web) ping a socket that reads verified on resume (ADR-0213)
+
 ## [2026-10-19] - No version updates
 
 ### Features
