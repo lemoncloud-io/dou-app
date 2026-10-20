@@ -63,6 +63,12 @@ export const clearResumeKick = (key: SlotKey): void => {
     resumeKicks.delete(key);
 };
 
+/**
+ * Whether the wake recovery is in the middle of reconnecting `key`: marked before its disconnect,
+ * cleared once its own connect has run. `SocketManager` leaves such a slot to it.
+ */
+export const hasResumeKick = (key: SlotKey): boolean => resumeKicks.has(key);
+
 const takeBudget = (at: number): boolean => {
     if (at - windowStart >= MINUTE_MS) {
         windowStart = at;

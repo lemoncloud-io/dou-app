@@ -392,10 +392,11 @@ compare from the release date on. A week of sampled runs is the first useful rea
 - **`wake_recovery`** is the foreground kick recycling a slot that was not verified. A request should
   rarely be in flight on such a slot; a steady share means something sends before the slot verifies.
 - **`service_restart`** comes from the SDK's connection rotation, roughly every 100 min on a long
-  connection. It is not harmless: in chatic-sockets-lib 0.5.7 the rotation's `restart()` disconnects
-  through the reconnect controller's `stop()`, which leaves the controller stopped, so the socket stays
-  closed until something else connects it — the next foreground kick, in this app. Requests in that
-  gap fail as 503, not 499, so this value undercounts what rotation costs.
+  connection. Requests in flight across it fail as 499 and are its cost. In chatic-sockets-lib 0.5.7
+  the rotation also left the socket closed until the next foreground kick, and every request in that
+  gap failed as 503; `SocketManager` now reopens it on the next tick (`libs/app-runtime` socket doc).
+  A 503 share that falls after that release, on long foreground sessions above all, is that gap
+  closing.
 - **`destroyed`** is the app tearing a slot down — a cloud switch, a logout. A request still in flight
   on the outgoing cloud fails this way; a large share points at a switch that does not wait for its
   requests.

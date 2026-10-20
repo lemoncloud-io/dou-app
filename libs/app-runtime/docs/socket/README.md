@@ -17,7 +17,7 @@ covered here because the two halves only make sense together.
 
 ```text
 socket/                              45 source files, 37 tests
-├── SocketManager.ts   992 lines   the class. Nothing else is exported from this file
+├── SocketManager.ts   1036 lines   the class. Nothing else is exported from this file
 ├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · SocketRequestSample · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
@@ -249,10 +249,21 @@ and keeps the last one on the slot's entry, named by `classifySocketClose` (`uti
   through the reconnect controller with no reason. So `teardownEntry` marks the slot first, and every
   close from then on — in the 499 and in the log — reads `destroyed`, whether the request was
   rejected as `socket closed` or `client destroyed`.
-- **A rotation leaves the slot closed.** In chatic-sockets-lib 0.5.7 the rotation's `restart()`
-  disconnects through the reconnect controller's `stop()`, which stops the controller, and its own
-  reconnect then returns without connecting. Nothing in this package reopens the slot until the next
-  foreground kick or a rebind; requests meanwhile fail as 503. Known, not fixed here.
+- **A rotation would leave the slot closed, so the manager reopens it.** The SDK's connection
+  rotation (about every 100 min) calls the reconnect controller's `restart()`. In chatic-sockets-lib
+  0.5.7 that disconnects through `client.disconnect`, which routes into the controller's own `stop()`
+  and stops it, and the reconnect `restart()` tries next then returns without connecting. Left alone,
+  the slot stays closed until the next foreground kick or a rebind, and every request in between
+  fails as 503. So on a `service_restart` close this client made itself, `reopenAfterRestart` looks
+  again on the next macrotask — after `restart()` has run to its end — and calls `connect()` if the
+  same slot is still bound and still `closed`, and the wake recovery is not reconnecting it at that
+  moment (`hasResumeKick`: the kick may be re-seeding an expired controller on the closed socket). A
+  server close that carries the same reason is left to the reconnect controller and its backoff.
+  `connect()` re-arms the controller, and the bootstrap gate keeps the new connection's
+  `device.save:ok` → `auth.update` order, as for the foreground kick. An SDK whose restart reconnects
+  by itself leaves the socket `connecting` by then, and the check does nothing; the real-client test in
+  `utils/closeReason.test.ts` fails on that SDK release, which is the moment to remove it. The
+  reconnect reads as `reconnect` in `socket_verify`. The alternatives weighed are in ADR-0215.
 - **`disconnect during connecting` is not a request outcome.** That 499 rejects a `connect()`, not a
   request, and a connecting socket has no requests in flight (a send before `open` is a 503).
 - **Feature-detected.** `transport` is a property of the client the SDK constructs, not of the
@@ -574,7 +585,8 @@ skips one failed attempt at most, but here it could log the user out over a dead
 - Six listener sets live on the manager. When adding one, decide first whether it is active-scoped or slot-scoped — and remember that a slot notification must precede the active one for the same mutation.
 - `getSocketManager()` is a lazy process singleton with no reset seam. A test that needs a fresh manager constructs `new SocketManager()` directly.
 - `utils/annotateSocketError.ts` has no test of its own; its behaviour is asserted through the facade in `SocketManager.test.ts`.
-- Close reasons are tested twice: `SocketManager.test.ts` drives each cause through a fake client that closes in the SDK's order, and `utils/closeReason.test.ts` builds the real client through the real manager, so the SDK behaviour they rest on is pinned.
+- Close reasons are tested twice: `SocketManager.test.ts` drives each cause through a fake client that closes in the SDK's order, and `utils/closeReason.test.ts` builds the real client through the real manager, so the SDK behaviour they rest on is pinned — including a real `restart()` that leaves the socket closed until the manager reopens it.
+- The fake WebSocket those real-client tests use starts `CONNECTING` and turns `OPEN` on its `open` event, as a browser's does. One created already `OPEN` is taken as open while the transport is still storing its connect attempt, and the attempt is never cleared: every later `connect()` returns it without opening a socket.
 - `authUpdateAbsence.test.ts` sits in this folder but guards the whole package: it walks `src/**`, strips comments and fails if any code builds the string `'auth.update'`.
 
 ## Further reading

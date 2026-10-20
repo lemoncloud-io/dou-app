@@ -24,6 +24,7 @@ import type {
     SocketStateListener,
 } from './types';
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
+import { hasResumeKick } from './auth/socketVerifyTrace';
 import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';
 import { type SocketCloseEvent, type SocketCloseReason, classifySocketClose } from './utils/closeReason';
@@ -775,9 +776,13 @@ export class SocketManager implements ISocketManager {
         if (typeof transport?.on !== 'function') return;
         entry.unsubscribes.push(
             transport.on('close', event => {
-                const cause = entry.tearingDown ? 'destroyed' : classifySocketClose(event, entry.closingLocally);
+                const local = entry.closingLocally;
+                const cause = entry.tearingDown ? 'destroyed' : classifySocketClose(event, local);
                 entry.lastClose = cause;
                 entry.closingLocally = false;
+                // Only the SDK's own restart, which closes locally: a server that closed with the same
+                // reason would have every client reopen at once, outside the reconnect backoff.
+                if (cause === 'service_restart' && local) this.reopenAfterRestart(key, entry);
                 const openedAt = entry.openedAt;
                 entry.openedAt = undefined;
                 // A connection attempt that never opened closes too; the reconnect diagnostics
@@ -796,6 +801,38 @@ export class SocketManager implements ISocketManager {
                 });
             })
         );
+    }
+
+    /**
+     * Reconnects a slot that the SDK's own restart closed and then left closed.
+     *
+     * The connection rotation (about every 100 min) calls the reconnect controller's `restart()`. In
+     * chatic-sockets-lib 0.5.7 that closes the socket through `client.disconnect`, which routes into
+     * the controller's `stop()` — stopping the controller — so the reconnect `restart()` attempts next
+     * returns without connecting. Nothing else would reopen the slot until the next foreground kick or
+     * rebind, and every request in between fails as 503.
+     *
+     * The check runs on the next macrotask, after `restart()` has run to its end, and acts only when
+     * the socket is still `closed` on the same, still-bound slot. An SDK whose restart reconnects by
+     * itself leaves it `connecting` by then, and this does nothing. Nor does it act while the wake
+     * recovery is reconnecting the slot: an overdue rotation and the resume pass can fire together,
+     * and the kick may be re-seeding an expired controller on the closed socket, which a connect from
+     * here would race past. `connect()` also re-arms the
+     * controller, and the bootstrap gate keeps the new connection's `device.save:ok` → `auth.update`
+     * order, as it does for the foreground kick.
+     */
+    private reopenAfterRestart(key: SlotKey, entry: ClientEntry): void {
+        const { client } = entry;
+        setTimeout(() => {
+            if (entry.tearingDown || this.entries.get(key) !== entry || client.state !== 'closed') return;
+            if (hasResumeKick(key)) return;
+            const data = { kind: kindOf(key), cid: key };
+            logger.info('SOCKET', '[SocketManager] reopening a socket the SDK restart left closed', { data });
+            client.connect().catch(error => {
+                // connect() re-armed the reconnect controller on its way out, so retries continue.
+                logger.warn('SOCKET', '[SocketManager] reopen after restart failed', { error, data });
+            });
+        }, 0);
     }
 
     /**
