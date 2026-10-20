@@ -37,7 +37,7 @@ yarn local
 
 No arguments means the shell against **dev**; it does not ask. Run it the way your environment runs a
 long-lived server (a background process, a launch configuration) — it does not return. It prints
-`hybrid-shell: shell at http://127.0.0.1:5007/__shell/` once the shell serves, and
+`hybrid-shell: shell at http://localhost:5007/__shell/` once the shell serves, and
 `the web answers at …` once the web is up. If it stops at once, it printed what is missing and where to
 get it; that is for the person to fix — do not create env files or stop the process holding a port.
 
@@ -128,6 +128,7 @@ hybrid-shell docs.
 | origin refused       | The same message with status 200, or a failed `OPTIONS`                                     | Real CORS: the API refuses the shell's origin                                                             | `curl -sI -X OPTIONS -H 'Origin: <shell page origin>' -H 'Access-Control-Request-Method: GET' <api url>` and its `Access-Control-Allow-Origin` line | Yes: the adapter's proxy rewrite, or the API's allow list |
 | not injected         | `status().handshake` stays `pending`, `handshakeLate` is `true`, the app's globals are gone | CSP blocking the runtime's `eval` (pitfall 17), or a wrong app name or preset (pitfall 16)                | The frame response's `Content-Security-Policy` header; the warning at the top of the panel                                                          | The shell's side: does its proxy strip the header         |
 | unsupported request  | `unsupported in virtual shell: <method>`                                                    | No answer for that method: outside the imitation                                                          | `status().capabilities`; the adapter's handlers module                                                                                              | No. An adapter item, not an app defect                    |
+| unanswered request   | `no answer in the virtual shell: <method>`; an `unanswered` line in the `bridge` log        | No handler answers that method, and nobody answered its card within 5 seconds                             | `logs({ source: ['bridge'], type: 'unanswered' })`; the adapter's handlers module                                                                   | No. An adapter item: a handler, or `'unsupported'`        |
 | permission bypassed  | A permission is `denied`, yet a photo or the location still works                           | The web uses a browser API, not the bridge (pitfall 19)                                                   | The `bridge` log has no `requestPermission` or picker request for that action                                                                       | No. Outside the shell; a note on the app's design at most |
 | event without effect | An event was sent and the screen did not change                                             | The cold-start queue (pitfall 14), an event sent before the listener, or the app does not take that event | The event is in the `bridge` log, direction `shell→web`, and the `web` log shows no reaction; the app's events in `status().capabilities`           | No if the app does not take the event; yes if it does     |
 

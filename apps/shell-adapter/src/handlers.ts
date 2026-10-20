@@ -80,6 +80,13 @@ const shellHandlers: Handlers<DouMethods> = {
         return { result: credential };
     },
     OAuthLogout: () => ({ success: true }),
+    // The shell draws the badge the app sets, but keeps no count to read back.
+    FetchBadgeCount: 'unsupported',
+    // The memory cache keeps no per-channel preview; `NOT_FOUND` sends the web to a window per channel,
+    // as an older app does (`MemoryCache`). Without it the home list waits on the panel's card.
+    FetchLastChatsData: () => {
+        throw failure('NOT_FOUND', 'no per-channel preview in the virtual shell');
+    },
 };
 
 /**
