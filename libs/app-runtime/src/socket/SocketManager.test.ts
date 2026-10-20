@@ -1383,3 +1383,194 @@ describe('SocketManager slot statuses', () => {
         expect(new SocketManager().getSlotStatuses()).toEqual([]);
     });
 });
+
+describe('SocketManager close reasons', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+        jest.clearAllMocks();
+    });
+
+    /**
+     * A client whose request stays open until `close` ends it the way chatic-sockets-lib does: the
+     * client's own close handler rejects every pending request and moves to `closed`, and only then
+     * do later subscribers to the transport's `close` event run. A local close passes through
+     * `closing` first; a remote one does not.
+     */
+    const bindClosable = ({ withTransport = true } = {}) => {
+        const stateListeners: Array<(event: { prev: string; next: string }) => void> = [];
+        const closeListeners: Array<(event: unknown) => void> = [];
+        const pending: Array<(error: Error) => void> = [];
+        let state = 'connected';
+        const setState = (next: string) => {
+            const prev = state;
+            state = next;
+            stateListeners.forEach(listener => listener({ prev, next }));
+        };
+        const client = makeClient({
+            onState: jest.fn(listener => {
+                stateListeners.push(listener as never);
+                return jest.fn();
+            }),
+            request: jest.fn(() => new Promise((_resolve, reject) => pending.push(reject))),
+            ...(withTransport
+                ? {
+                      transport: {
+                          on: jest.fn((_type: string, listener: (event: unknown) => void) => {
+                              closeListeners.push(listener);
+                              return jest.fn();
+                          }),
+                      },
+                  }
+                : {}),
+        } as never);
+        mockedCreate.mockReturnValue(client);
+        const manager = new SocketManager();
+        manager.ensure(onRelay(CONFIG));
+        const observer = jest.fn();
+        manager.setRequestObserver(observer);
+        setState('connected');
+
+        const close = (event: { code?: number; reason?: string; wasClean?: boolean }, { local = false } = {}) => {
+            if (local) setState('closing');
+            pending.splice(0).forEach(reject => reject(new Error('499 CLIENT CLOSED REQUEST - socket closed')));
+            setState('closed');
+            closeListeners.forEach(listener => listener(event));
+        };
+        return { manager, observer, close, setState };
+    };
+
+    const closeUnderRequest = async (
+        event: { code?: number; reason?: string; wasClean?: boolean },
+        options: { local?: boolean } = {}
+    ) => {
+        const { manager, observer, close } = bindClosable();
+        const request = manager.request('chat.feed').catch(() => undefined);
+        close(event, options);
+        await request;
+        return observer.mock.calls[0][0];
+    };
+
+    it.each([
+        [
+            'the keep-alive missed its pongs',
+            { code: 1001, reason: 'pong-timeout', wasClean: true },
+            true,
+            'pong_timeout',
+        ],
+        [
+            'the wake kick recycled the slot',
+            { code: 1000, reason: 'wake-recovery', wasClean: true },
+            true,
+            'wake_recovery',
+        ],
+        ['the wake probe got no answer', { code: 1000, reason: 'wake-probe', wasClean: true }, true, 'wake_probe'],
+        [
+            'the controller restarted',
+            { code: 1012, reason: 'service-restart', wasClean: true },
+            true,
+            'service_restart',
+        ],
+        ['the client closed with no reason', { wasClean: true }, true, 'other'],
+        ['the server sent a close frame', { code: 1000, reason: '', wasClean: true }, false, 'server'],
+        ['the connection dropped without one', { code: 1006, reason: '', wasClean: false }, false, 'transport'],
+    ])('names a 499 after %s', async (_label, event, local, expected) => {
+        const sample = await closeUnderRequest(event, { local });
+
+        expect(sample).toEqual(expect.objectContaining({ type: 'chat.feed', outcome: '499', closeReason: expected }));
+    });
+
+    it('names a request rejected by the slot teardown as destroyed', async () => {
+        const { manager, observer } = bindClosable();
+        const client = manager.getClient(RELAY) as jest.Mocked<ClientSocketV2>;
+        const pendingRejects: Array<(error: Error) => void> = [];
+        client.request.mockImplementation(
+            () => new Promise((_resolve, reject) => pendingRejects.push(reject)) as never
+        );
+        client.destroy.mockImplementation(() =>
+            pendingRejects.forEach(reject => reject(new Error('499 CLIENT CLOSED REQUEST - client destroyed')))
+        );
+
+        const request = manager.request('chat.feed').catch(() => undefined);
+        manager.destroy(RELAY);
+        await request;
+
+        expect(observer).toHaveBeenCalledWith(expect.objectContaining({ outcome: '499', closeReason: 'destroyed' }));
+    });
+
+    it('names a close made by a slot runtime stopping on teardown as destroyed, in the log too', async () => {
+        const { manager, observer, close } = bindClosable();
+        // SyncManager stops the slot's runtime on the teardown notification, and that closes the
+        // socket through its reconnect controller — before destroy() and with no reason.
+        manager.subscribeSlotClients((_key, client) => {
+            if (!client) close({ wasClean: true }, { local: true });
+        });
+        (logger.info as jest.Mock).mockClear();
+
+        const request = manager.request('chat.feed').catch(() => undefined);
+        manager.destroy(RELAY);
+        await request;
+
+        expect(observer).toHaveBeenCalledWith(expect.objectContaining({ outcome: '499', closeReason: 'destroyed' }));
+        const closed = (logger.info as jest.Mock).mock.calls.filter(
+            ([, message]) => message === '[SocketManager] closed'
+        );
+        expect(closed).toHaveLength(1);
+        expect(closed[0][2].data.cause).toBe('destroyed');
+    });
+
+    it('reads transport when the client exposes no transport to observe', async () => {
+        const { manager, observer, close } = bindClosable({ withTransport: false });
+
+        const request = manager.request('chat.feed').catch(() => undefined);
+        close({ code: 1000, reason: 'wake-recovery', wasClean: true }, { local: true });
+        await request;
+
+        expect(observer).toHaveBeenCalledWith(expect.objectContaining({ outcome: '499', closeReason: 'transport' }));
+    });
+
+    it('forgets the last close once the slot connects again', async () => {
+        const { manager, observer, close, setState } = bindClosable();
+        close({ code: 1000, reason: 'wake-recovery', wasClean: true }, { local: true });
+        setState('connecting');
+        setState('connected');
+        const client = manager.getClient(RELAY) as jest.Mocked<ClientSocketV2>;
+        client.request.mockRejectedValueOnce(new Error('499 CLIENT CLOSED REQUEST - socket closed'));
+
+        await manager.request('chat.feed').catch(() => undefined);
+
+        expect(observer).toHaveBeenCalledWith(expect.objectContaining({ outcome: '499', closeReason: 'transport' }));
+    });
+
+    it('carries no close reason on any other outcome', async () => {
+        const { manager, observer } = bindClosable();
+        const client = manager.getClient(RELAY) as jest.Mocked<ClientSocketV2>;
+        client.request.mockRejectedValueOnce(new Error('408 REQUEST TIMEOUT - chat.feed'));
+
+        await manager.request('chat.feed').catch(() => undefined);
+
+        expect(observer.mock.calls[0][0]).not.toHaveProperty('closeReason');
+    });
+
+    it('logs one line per connection that ended, with its cause', async () => {
+        const { close, setState } = bindClosable();
+
+        close({ code: 1006, reason: '', wasClean: false });
+        // A reconnect attempt that never opened closes too, and is not logged again.
+        setState('connecting');
+        close({ code: 1006, reason: '', wasClean: false });
+
+        const closed = (logger.info as jest.Mock).mock.calls.filter(
+            ([, message]) => message === '[SocketManager] closed'
+        );
+        expect(closed).toHaveLength(1);
+        expect(closed[0][2]).toEqual({
+            data: expect.objectContaining({
+                kind: 'relay',
+                cid: 'default',
+                cause: 'transport',
+                code: 1006,
+                wasClean: false,
+            }),
+        });
+    });
+});

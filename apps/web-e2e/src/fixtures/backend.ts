@@ -61,6 +61,8 @@ export class FakeBackend {
     /** Per socket endpoint, its handlers by frame type. */
     private readonly socketTables = new Map<string, Map<string, SocketHandler>>();
     private readonly openSockets = new Map<WebSocketRoute, string>();
+    /** Connections that read every frame and answer none (`silenceSockets`). */
+    private readonly silentSockets = new Set<WebSocketRoute>();
     private readonly connectionCounts = new Map<string, number>();
     /** The device id the page registered with — the guest's name everywhere the relay echoes it. */
     deviceId = '';
@@ -163,6 +165,18 @@ export class FakeBackend {
         await Promise.all(relay.map(([ws]) => ws.close({ code: 1001, reason: 'e2e: dropped by the relay' })));
     }
 
+    /**
+     * Leaves every open relay socket half-open: the connection stays up and the page's frames still
+     * arrive, but nothing is answered on it again — no `:ok`, no pong. That is what the page finds when
+     * the OS suspended it and the network path died under a socket that never saw a close. A socket the
+     * page opens afterwards is answered as usual.
+     */
+    silenceSockets(): void {
+        for (const [ws, endpoint] of this.openSockets) {
+            if (endpoint === E2E_ENDPOINTS.socket) this.silentSockets.add(ws);
+        }
+    }
+
     private async answerHttp(route: Route): Promise<void> {
         const request = route.request();
         const url = new URL(request.url());
@@ -201,7 +215,10 @@ export class FakeBackend {
         const connection = (this.connectionCounts.get(endpoint) ?? 0) + 1;
         this.connectionCounts.set(endpoint, connection);
         this.openSockets.set(ws, endpoint);
-        ws.onClose(() => this.openSockets.delete(ws));
+        ws.onClose(() => {
+            this.openSockets.delete(ws);
+            this.silentSockets.delete(ws);
+        });
         ws.onMessage(raw => {
             let frame: SocketFrame;
             try {
@@ -210,6 +227,7 @@ export class FakeBackend {
                 return;
             }
             this.allFrames.push({ ...frame, endpoint, connection });
+            if (this.silentSockets.has(ws)) return;
             const meta = { ts: Date.now() };
             const reply = (body: Record<string, unknown>) => ws.send(JSON.stringify({ mid: frame.mid, meta, ...body }));
             const handler = table.get(frame.type);

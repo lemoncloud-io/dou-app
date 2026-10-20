@@ -216,7 +216,7 @@ A loop whose slot is rebuilt mid-request drops that request's result instead of 
 loop's.
 
 `refreshBackgroundClouds` and `subscribeBackgroundDeltas` are the app-facing pieces. apps/web calls
-the first from its foreground wake kick, beside `recoverUnverifiedSockets`, inside the same throttle,
+the first from its foreground wake kick, beside `recoverSocketsOnResume`, inside the same throttle,
 and with a cloud id when a push names a cloud off screen. desktop-web does neither yet: its own
 background sync has no foreground trigger either, and a desktop window is not suspended the way a
 WebView is.

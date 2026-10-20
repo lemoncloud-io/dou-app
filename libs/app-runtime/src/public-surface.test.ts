@@ -74,6 +74,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'RuntimeAuthHost',
         'RuntimeConnectionHost',
         'getSocketManager',
+        'recoverSocketsOnResume',
         'recoverUnverifiedSockets',
         'useBackgroundClouds',
         'useCloudVerified',

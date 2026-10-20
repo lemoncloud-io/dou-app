@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         connection: {
-            recoverUnverifiedSockets: jest.fn().mockResolvedValue(undefined),
+            recoverSocketsOnResume: jest.fn().mockResolvedValue(undefined),
         },
         sync: {
             refreshBackgroundClouds: jest.fn(),
@@ -24,7 +24,7 @@ import { runtime } from '@chatic/app-runtime';
 
 import { useSocketWakeRecovery } from './useSocketWakeRecovery';
 
-const mockRecover = runtime.connection.recoverUnverifiedSockets as jest.Mock;
+const mockRecover = runtime.connection.recoverSocketsOnResume as jest.Mock;
 const mockRefreshBackground = runtime.sync.refreshBackgroundClouds as jest.Mock;
 
 const emitForeground = () => foregroundHandlers.forEach(handler => handler());
@@ -44,7 +44,7 @@ describe('useSocketWakeRecovery — 포그라운드 웨이크 킥', () => {
         dateNowSpy.mockRestore();
     });
 
-    it('포그라운드 신호에서 recoverUnverifiedSockets를 호출한다', () => {
+    it('runs the resume pass (kick + liveness probe) on a foreground signal', () => {
         renderHook(() => useSocketWakeRecovery());
 
         emitForeground();

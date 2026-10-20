@@ -244,7 +244,7 @@ one cloud's timer and foreground trigger collapse onto one exchange.
 the single entry point for "make the relay credential fresh". It reads the snapshot, returns `false`
 unless `canRefreshThroughSocket(status)`, and otherwise awaits `auth.refresh()`. It takes no
 `SocketKind` — relay is in the name. **There is no HTTP fallback**; `false` means "get a socket
-back", and the caller's answer is `recoverUnverifiedSockets`. A `Coalescer` shares an attempt in
+back", and the caller's answer is a foreground wake pass (`recoverSocketsOnResume`, or `recoverUnverifiedSockets` in admin-v2). A `Coalescer` shares an attempt in
 flight and memoizes a settled answer for 3 seconds; the SDK's own single-flight covers the rest.
 One memoized answer is dropped early: a "the socket is still handshaking" `false` stops answering once
 the relay slot reports verified. That is the moment the staleness guard asks, and a returning
@@ -261,7 +261,7 @@ two answers:
 2. **Is it still `expired` after two 30-second rounds?** A stuck signature persists by definition; an exhausted backoff does not. `'handshaking'` is deliberately **not** counted as resolved — the point is to see the slot actually recover, not to see it try.
 
 The window schedules nothing and kicks nothing. It buys time for the recovery paths that already
-exist — the first resume after a reconnect, a foreground `recoverUnverifiedSockets` — to be observed,
+exist — the first resume after a reconnect, a foreground `recoverSocketsOnResume` — to be observed,
 and repeated `expired` reports join one verdict through a `Coalescer`. Only then does it call
 `relaySession.clearAndRedirect()`.
 
@@ -451,6 +451,36 @@ marks the slot with `noteResumeKick` before disconnecting and clears the mark af
 `socket_verify` records that attempt as a `resume` and no later one inherits it. Concurrent calls
 share one pass through a `Coalescer`.
 
+[`recoverSocketsOnResume(deps?)`](../../src/socket/auth/recoverUnverifiedSockets.ts) is the same pass
+plus a **liveness probe** for the slots it leaves alone (`needsLivenessProbe` — `verified` and
+`stale`), and it is what apps/web calls. After a suspension a half-open connection keeps the flags of
+the handshake it completed before, so it reads verified while nothing reaches the server; left to the
+SDK keep-alive it closes 40–80 s later, and every refetch sent on that foreground fails with it.
+
+- **One `system.ping` per verified slot, 3 s timeout** (`RESUME_PROBE_TIMEOUT_MS`). All probes are
+  sent before the first kick and run side by side, so the pass waits one timeout, not one per slot.
+  The app's own throttle (5 s) and the shared `Coalescer` keep it to one ping per slot per foreground.
+- **Only silence recycles.** A slot is recycled when its ping timed out (408), no frame at all arrived
+  from it during the wait, and the slot still holds the same client reading `connected`. A refusal is
+  an answer; a 499 or 503 means the socket already closed and its reconnect controller has it.
+- **The recycle is the kick's**: `noteResumeKick`, disconnect, connect, `clearResumeKick` — with close
+  code 1000 and reason `wake-probe` instead of `wake-recovery`, so `socket_request` can tell a probe's
+  recycle from a kick's ([socket § closeReason](../socket/README.md#why-a-socket-closed-closereason)).
+  A verified slot's controller is not `expired`, so nothing is re-seeded.
+- **Nothing waits for the probe.** The app's foreground refetches go out at once. On a zombie they fail
+  when the probe recycles the slot, about 3 s in, and the re-verify edge the screens already listen to
+  fetches again. Waiting would add a round trip to every healthy resume to save one failed request on
+  a rare one. The trade-off and the alternatives are in ADR-0213.
+- **One log line per pass**, `[recoverUnverifiedSockets] probed`, with each probe's `kind`, `cid`,
+  `outcome` (`answered`, `heard`, `closed`, `refused`, `recycled`) and round trip. A false recycle of
+  an idle slot rejects no request, so `socket_request` never sees it; this line is where the timeout
+  is judged.
+- **A failed re-seed still reconnects.** The disconnect stopped the SDK reconnect controller and only
+  `connect()` re-arms it, so an error from `getAuthRegistration` is logged and the reconnect runs
+  anyway rather than leaving the slot closed.
+
+`recoverUnverifiedSockets` keeps its narrower behaviour for the callers that use it (admin-v2).
+
 ## What not to do
 
 - **Do not add a second `auth.update` or refresh sender.** The absence tests will fail, and the reason they exist is in "Who owns what".
@@ -466,7 +496,7 @@ share one pass through a `Coalescer`.
 ## Notes for implementers and tests
 
 - Eighteen of the twenty-one source files here have a matching `*.test.ts`; `reauthDelegate.ts`, `types.ts` and `index.ts` do not. The command is what answers whether they pass.
-- Everything takes its dependencies as an argument with a lazily resolved default — `AuthSignalDeps`, `RecoverUnverifiedSocketsDeps`, `RequestRelaySessionRefreshDeps`, `RelayExpiryDeps`. A test injects; it does not reset a module. The two that do need a reset seam expose one: `resetRelayRefreshCoalescing()` and `resetRevokedSessionHandling()`.
+- Everything takes its dependencies as an argument with a lazily resolved default — `AuthSignalDeps`, `RecoverUnverifiedSocketsDeps` (shared by both wake passes), `RequestRelaySessionRefreshDeps`, `RelayExpiryDeps`. A test injects; it does not reset a module. The two that do need a reset seam expose one: `resetRelayRefreshCoalescing()` and `resetRevokedSessionHandling()`.
 - `deriveAuthStatus` is pure and its test is a truth table. If you change a branch, change the table — it is the drawing above in executable form.
 - The terminal-expiry confirmation uses real waits. Inject `wait` and `readStatus` through `RelayExpiryDeps` rather than reaching for fake timers across a `Coalescer`.
 - Six of the nineteen files are deliberately off `socket/auth/index.ts`: `authStatus.ts`, `renewers.ts`, `authIdRegistry.ts`, `reauthDelegate.ts`, `revokedSession.ts` and `reclaimOwnedClouds.ts` (its one caller is the connection hook). In-package callers import them by concrete path, which is what keeps the barrel free of the cycle `sessionDelegate → renewers → renewCloudSession → sessionDelegate`. `reauthDelegate.ts` exists only to hold the seed-and-sign half of the delegate outside that ring.

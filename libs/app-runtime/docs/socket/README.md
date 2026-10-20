@@ -16,14 +16,14 @@ covered here because the two halves only make sense together.
 ## Layout
 
 ```text
-socket/                              43 source files, 35 tests
-├── SocketManager.ts   913 lines   the class. Nothing else is exported from this file
+socket/                              45 source files, 37 tests
+├── SocketManager.ts   992 lines   the class. Nothing else is exported from this file
 ├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · SocketRequestSample · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
 ├── socketFailureReporter.ts       classifies and reports rejected requests
 ├── backgroundClouds.ts            the app's cloud list · holds · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
-├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode · errorCodeLedger
+├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode · errorCodeLedger · closeReason (classifySocketClose · APP_CLOSE_REASON · SocketCloseReason)
 ├── auth/          21 files        → docs/auth/
 └── sync/          11 files        → docs/sync/
 
@@ -214,6 +214,56 @@ monotonic clock. With no observer, a request reads no clock. The web sets one to
 Requests the SDK sends on its own — `device.save`, `auth.update`, `auth.switch`, a sync plan's
 catch-up — do not pass through the manager and are not seen.
 
+A request rejected with **499** also carries `closeReason`: why the socket closed under it. The SDK
+rejects every in-flight and queued request with 499 at the moment a socket closes, so this is what
+splits the 499 share by cause. See the next section.
+
+### Why a socket closed: `closeReason`
+
+`onState` says only that a slot moved to `closed`. The code and the reason are on the SDK transport's
+own `close` event, which every close goes through, so `bindCloseDiagnostics` subscribes to it per slot
+and keeps the last one on the slot's entry, named by `classifySocketClose` (`utils/closeReason.ts`):
+
+| `closeReason`     | What closed it                                                                                        |
+| ----------------- | ----------------------------------------------------------------------------------------------------- |
+| `pong_timeout`    | the SDK keep-alive: a ping every 30 s, closed after two missed 10 s timeouts                          |
+| `wake_recovery`   | the foreground kick recycling a slot that was not verified                                            |
+| `wake_probe`      | the foreground liveness probe recycling a slot that read verified but did not answer                  |
+| `service_restart` | the SDK reconnect controller's `restart()`, which its connection rotation calls (about every 100 min) |
+| `destroyed`       | the app tore the slot down — a cloud switch, a logout, a rebind                                       |
+| `server`          | the far end closed with a close frame                                                                 |
+| `transport`       | the connection ended without one (network lost, the OS killed the socket), or no close was seen       |
+| `other`           | this client closed it for a reason not above                                                          |
+
+- **Local or remote.** The transport emits the same event for both. A known reason string names the
+  close outright. For the rest, a close this client asked for passes through `closing` first and a
+  remote one goes straight from `connected` to `closed`, so the slot remembers whether it saw
+  `closing`.
+- **The order is what makes it right.** The client subscribes to the transport's `close` in its
+  constructor, ahead of the manager, and rejects its requests there; the manager's listener then
+  records the reason, and the rejections reach the facade's `catch` a microtask later. No newer
+  connection can reset the reason in between, so a 499 always finds the close that caused it. A new
+  `connected` clears it.
+- **A teardown is named by the manager.** The socket of a slot being torn down closes before
+  `client.destroy()`: the teardown notification stops the slot's sync runtime, and that disconnects
+  through the reconnect controller with no reason. So `teardownEntry` marks the slot first, and every
+  close from then on — in the 499 and in the log — reads `destroyed`, whether the request was
+  rejected as `socket closed` or `client destroyed`.
+- **A rotation leaves the slot closed.** In chatic-sockets-lib 0.5.7 the rotation's `restart()`
+  disconnects through the reconnect controller's `stop()`, which stops the controller, and its own
+  reconnect then returns without connecting. Nothing in this package reopens the slot until the next
+  foreground kick or a rebind; requests meanwhile fail as 503. Known, not fixed here.
+- **`disconnect during connecting` is not a request outcome.** That 499 rejects a `connect()`, not a
+  request, and a connecting socket has no requests in flight (a send before `open` is a 503).
+- **Feature-detected.** `transport` is a property of the client the SDK constructs, not of the
+  `ClientSocketV2` interface it publishes — the same standing as the reconnect diagnostics. Without
+  it every 499 reads `transport`, which is all this could say before. `closeReason.test.ts` drives the
+  real client over a fake socket, so an SDK upgrade that changes the event, its order or the
+  `closing` state fails a test rather than quietly turning every cause into `transport`.
+- **One log line per connection that ended**, `[SocketManager] closed`, with the cause, code, reason,
+  `wasClean` and how long it had been open. A reconnect attempt that never opened is not logged again
+  here; the reconnect diagnostics already report it.
+
 ### How long a slot takes to verify: `socket_verify`
 
 `bootstrapSocketConnection` attaches `observeSocketVerify` (`auth/socketVerifyTrace.ts`) to every slot
@@ -226,7 +276,7 @@ Performance sample:
 | `connected_ms` | the WebSocket opened                                                                                       |
 | `device_ms`    | `device.save:ok` arrived, which opens the auth gate (see the ordering note in the bootstrap)               |
 | `kind`         | `relay` / `cloud`                                                                                          |
-| `cause`        | `bind` (the slot's first attempt), `reconnect`, or `resume` (the foreground wake recovery's kick)          |
+| `cause`        | `bind` (the slot's first attempt), `reconnect`, or `resume` (the foreground wake recovery's kick or probe) |
 | `outcome`      | `verified`; `closed` — the socket went away first; `expired` — the controller gave up with the socket open |
 
 - **A sample, timed here.** A boot's first connections happen before the WebView knows where its
@@ -245,8 +295,9 @@ Performance sample:
 - **One observer per client.** Observing a client again replaces the previous observer, so a slot the
   binder boots again on the same client — after a failed first connect — is not recorded twice. A
   client that is already past `idle` starts counting at one, so its next attempt is a `reconnect`.
-- `recoverUnverifiedSockets` calls `noteResumeKick(key)` right before it reconnects a slot, which is
-  how its attempt reads as `resume`, and `clearResumeKick(key)` after, so an unused mark expires.
+- `recoverUnverifiedSockets` and `recoverSocketsOnResume` call `noteResumeKick(key)` right before
+  they reconnect a slot, which is how the attempt reads as `resume`, and `clearResumeKick(key)` after,
+  so an unused mark expires.
 
 ### Failed requests get a name, and a volume policy
 
@@ -523,6 +574,7 @@ skips one failed attempt at most, but here it could log the user out over a dead
 - Six listener sets live on the manager. When adding one, decide first whether it is active-scoped or slot-scoped — and remember that a slot notification must precede the active one for the same mutation.
 - `getSocketManager()` is a lazy process singleton with no reset seam. A test that needs a fresh manager constructs `new SocketManager()` directly.
 - `utils/annotateSocketError.ts` has no test of its own; its behaviour is asserted through the facade in `SocketManager.test.ts`.
+- Close reasons are tested twice: `SocketManager.test.ts` drives each cause through a fake client that closes in the SDK's order, and `utils/closeReason.test.ts` builds the real client through the real manager, so the SDK behaviour they rest on is pinned.
 - `authUpdateAbsence.test.ts` sits in this folder but guards the whole package: it walks `src/**`, strips comments and fails if any code builds the string `'auth.update'`.
 
 ## Further reading

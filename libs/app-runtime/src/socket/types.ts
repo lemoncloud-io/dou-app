@@ -7,6 +7,8 @@ import type {
     SocketMessage,
 } from '@lemoncloud/chatic-sockets-lib';
 
+import type { SocketCloseReason } from './utils/closeReason';
+
 /**
  * Which server a socket slot serves — relay (always-on) or a cloud (active-only). An ATTRIBUTE of a
  * slot, derived from its key (`kindOf`), never the key itself: relay and cloud authenticate, renew and
@@ -106,6 +108,12 @@ export interface SocketRequestSample {
     outcome: string;
     /** Call → settle, on the page's monotonic clock. */
     roundTripMs: number;
+    /**
+     * Set only when `outcome` is `499`: why the socket closed under the request. The SDK rejects every
+     * in-flight and queued request with 499 at the moment a socket closes, so this splits that share
+     * by cause.
+     */
+    closeReason?: SocketCloseReason;
 }
 
 /**
