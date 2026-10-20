@@ -5,8 +5,15 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Shader
 import android.media.RingtoneManager
 import android.os.Build
+import android.os.SystemClock
 import io.chatic.dou.module.NativeLogger
 import androidx.core.app.NotificationCompat
 import com.facebook.react.ReactApplication
@@ -18,7 +25,12 @@ import io.chatic.dou.MainActivity
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class ChaticFirebaseMessagingService : FirebaseMessagingService() {
 
@@ -30,6 +42,30 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
 
         /** Generic body for a push whose template came without the args it names. Never sent by the server. */
         private const val PUSH_BODY_FALLBACK_KEY = "push_chat_fallback_body"
+
+        /**
+         * Payload fields folded into the tap link's query. `cid`/`sid` are the session context the web
+         * switches to; `chatId` lets it open the thread when the notified chat is a reply.
+         */
+        private val LINK_CONTEXT_KEYS = listOf("cid", "sid", "chatId")
+
+        /** The whole budget for fetching a sender's profile image; past it the banner goes without one. */
+        private const val THUMBNAIL_TIMEOUT_MS = 3_000L
+
+        /** Pixel edge the profile image is decoded down to — a large icon never needs more. */
+        private const val THUMBNAIL_EDGE_PX = 256
+
+        /** Fetches run here so [THUMBNAIL_TIMEOUT_MS] bounds the whole fetch, not each socket read. */
+        private val thumbnailExecutor = Executors.newCachedThreadPool()
+
+        /**
+         * How long a fetched image — or a failure — is reused for the same address. Messages are
+         * handled one at a time, so a burst from one sender behind a slow image host would otherwise
+         * wait out the budget once per message.
+         */
+        private const val THUMBNAIL_CACHE_MS = 60_000L
+
+        private val thumbnailCache = PushThumbnailCache<Bitmap>(maxEntries = 16)
     }
 
     override fun onNewToken(token: String) {
@@ -60,9 +96,10 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         val payload = data["data"] ?: data["payload"] ?: ""
         val silent = data["silent"]?.toBoolean() ?: false
 
-        // Fold cid/sid from the payload into the link's query so a tapped notification carries
-        // cloud/site context to the web. RN Linking only surfaces the intent URI (not the payload
-        // extra), so for Android data-only pushes this native merge is the only place it can happen.
+        // Fold cid/sid/chatId from the payload into the link's query so a tapped notification carries
+        // cloud/site context, and the notified chat, to the web. RN Linking only surfaces the intent
+        // URI (not the payload extra), so for Android data-only pushes this native merge is the only
+        // place it can happen.
         val navClickAction = mergeContextIntoLink(clickAction, payload).ifEmpty { rootTapLinkFor(type) }
 
         // 1. Resolve and translate title & body dynamically
@@ -130,36 +167,133 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
                     clickAction = navClickAction,
                     payload = payload,
                     i18nJson = i18nJson,
-                    badgeCount = badgeCount
+                    badgeCount = badgeCount,
+                    largeIcon = loadSenderThumbnail(payload)
                 )
             }
         }
     }
 
     /**
-     * Merges cloud/site context (cid/sid) from the push payload into the click-through link's query.
+     * Merges the [LINK_CONTEXT_KEYS] (cid/sid/chatId) from the push payload into the click-through
+     * link's query.
      *
-     * Per the push spec, cid/sid live inside the `payload` JSON, separate from `link`, while the web
-     * reads them from the navigation query. Existing query values on the link are never overridden.
-     * Returns the original link untouched on empty input or malformed payload JSON.
+     * Per the push spec, these live inside the `payload` JSON, separate from `link`, while the web
+     * reads them from the navigation query: cid/sid to switch session, chatId to open the thread when
+     * the chat is a reply (a chat that is not one leaves the reader in the room). Existing query values
+     * on the link are never overridden. Returns the original link untouched on empty input or malformed
+     * payload JSON.
      */
     private fun mergeContextIntoLink(clickAction: String, payload: String): String {
         if (clickAction.isEmpty() || payload.isEmpty()) return clickAction
         return try {
             val json = JSONObject(payload)
-            val cid = json.optString("cid").takeIf { it.isNotEmpty() }
-            val sid = json.optString("sid").takeIf { it.isNotEmpty() }
-            if (cid == null && sid == null) return clickAction
+            val context = LINK_CONTEXT_KEYS.mapNotNull { key ->
+                json.optString(key).takeIf { it.isNotEmpty() }?.let { key to it }
+            }
+            if (context.isEmpty()) return clickAction
 
             val uri = android.net.Uri.parse(clickAction)
             val builder = uri.buildUpon()
-            if (cid != null && uri.getQueryParameter("cid") == null) builder.appendQueryParameter("cid", cid)
-            if (sid != null && uri.getQueryParameter("sid") == null) builder.appendQueryParameter("sid", sid)
+            for ((key, value) in context) {
+                if (uri.getQueryParameter(key) == null) builder.appendQueryParameter(key, value)
+            }
             builder.build().toString()
         } catch (e: Exception) {
-            NativeLogger.log("error", TAG, "Failed to merge cid/sid into click action: $clickAction", e)
+            NativeLogger.log("error", TAG, "Failed to merge push context into click action: $clickAction", e)
             clickAction
         }
+    }
+
+    /**
+     * The sender's profile image as a round large icon, or null to show the banner without one.
+     *
+     * Only an `https://` `thumbnail` in the payload is fetched — anything else (absent, `http://`, a
+     * `data:` or `file:` URI) is ignored; the host itself is not restricted. The fetch is synchronous because `onMessageReceived` already runs off the main thread, and it is
+     * bounded as a whole by [THUMBNAIL_TIMEOUT_MS] and in size by [PUSH_THUMBNAIL_MAX_BYTES], and its
+     * result — a failure included — is reused for the same address for a while. Every
+     * failure is the same outcome — no image — because the image must never cost the notification.
+     *
+     * The address is never logged: a profile image URL can carry user identifiers.
+     */
+    private fun loadSenderThumbnail(payload: String): Bitmap? {
+        val raw = try {
+            if (payload.isEmpty()) null else JSONObject(payload).optString("thumbnail")
+        } catch (e: Exception) {
+            null
+        }
+        val url = acceptedThumbnailUrl(raw) ?: return null
+        thumbnailCache.get(url, SystemClock.elapsedRealtime())?.let { return it.value }
+
+        val icon = fetchRoundIcon(url)
+        thumbnailCache.put(url, icon, SystemClock.elapsedRealtime() + THUMBNAIL_CACHE_MS)
+        return icon
+    }
+
+    /** One fetch and decode of [url], bounded as [loadSenderThumbnail] describes. */
+    private fun fetchRoundIcon(url: String): Bitmap? {
+        val connectionRef = java.util.concurrent.atomic.AtomicReference<HttpURLConnection?>()
+        val task = thumbnailExecutor.submit<ByteArray?> {
+            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
+                connectTimeout = THUMBNAIL_TIMEOUT_MS.toInt()
+                readTimeout = THUMBNAIL_TIMEOUT_MS.toInt()
+            }
+            connectionRef.set(connection)
+            try {
+                if (connection.responseCode != HttpURLConnection.HTTP_OK) return@submit null
+                // A declared length past the cap is refused before a byte is read.
+                if (connection.contentLengthLong > PUSH_THUMBNAIL_MAX_BYTES) return@submit null
+                connection.inputStream.use { readCapped(it, PUSH_THUMBNAIL_MAX_BYTES) }
+            } finally {
+                connection.disconnect()
+            }
+        }
+        val bytes = try {
+            task.get(THUMBNAIL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        } catch (e: Exception) {
+            task.cancel(true)
+            connectionRef.get()?.disconnect()
+            NativeLogger.log("debug", TAG, "Push thumbnail skipped: ${e.javaClass.simpleName}")
+            null
+        } ?: return null
+
+        return try {
+            decodeRoundIcon(bytes)
+        } catch (e: Exception) {
+            NativeLogger.log("debug", TAG, "Push thumbnail undecodable: ${e.javaClass.simpleName}")
+            null
+        }
+    }
+
+    /**
+     * Decodes [bytes] sampled down toward [THUMBNAIL_EDGE_PX] and draws a centred circle of it into a
+     * [THUMBNAIL_EDGE_PX] square — a fixed size, so the icon handed to `notify()` stays small whatever
+     * the source was.
+     */
+    private fun decodeRoundIcon(bytes: ByteArray): Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = thumbnailSampleSize(bounds.outWidth, bounds.outHeight, THUMBNAIL_EDGE_PX)
+        }
+        val source = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return null
+
+        val edge = THUMBNAIL_EDGE_PX.toFloat()
+        val scale = edge / minOf(source.width, source.height)
+        val round = Bitmap.createBitmap(THUMBNAIL_EDGE_PX, THUMBNAIL_EDGE_PX, Bitmap.Config.ARGB_8888)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            shader = BitmapShader(source, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
+                val matrix = android.graphics.Matrix()
+                matrix.setScale(scale, scale)
+                matrix.postTranslate((edge - source.width * scale) / 2f, (edge - source.height * scale) / 2f)
+                setLocalMatrix(matrix)
+            }
+        }
+        Canvas(round).drawCircle(edge / 2f, edge / 2f, edge / 2f, paint)
+        source.recycle()
+        return round
     }
 
     /**
@@ -384,7 +518,8 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         clickAction: String,
         payload: String,
         i18nJson: JSONObject,
-        badgeCount: Int? = null
+        badgeCount: Int? = null,
+        largeIcon: Bitmap? = null
     ) {
         // Ensure the notification channel is created
         createNotificationChannel(this, channelId, i18nJson)
@@ -423,6 +558,13 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
             .setContentText(body)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+
+        // The sender's face. Title and body stay the plain assembled copy — not MessagingStyle, which
+        // would redraw the sender and room its own way and make this banner read differently from the
+        // iOS one and the in-app one.
+        if (largeIcon != null) {
+            notificationBuilder.setLargeIcon(largeIcon)
+        }
 
         // Drive the launcher app-icon badge count where the launcher supports numeric badges.
         // Badge fidelity is launcher-dependent on Android (same limitation as notifee): launchers
@@ -546,4 +688,75 @@ internal fun formatPushTemplate(template: String, args: List<String>, fallback: 
         result = result.replace("{$i}", args[i])
     }
     return if (unfilled) result.trim() else result
+}
+
+/** Size cap on a push profile image; a bigger one is dropped, not truncated. */
+internal const val PUSH_THUMBNAIL_MAX_BYTES = 1_048_576
+
+/**
+ * The payload's `thumbnail` if it is an address this service will fetch, else null. Only `https://`
+ * qualifies: no plain HTTP, no `file:`, and a `data:` URI (what the server's profile images are today)
+ * is not an address at all. The host is not restricted.
+ */
+internal fun acceptedThumbnailUrl(raw: String?): String? {
+    val value = raw?.trim().orEmpty()
+    return if (value.startsWith("https://", ignoreCase = true) && value.length > "https://".length) value else null
+}
+
+/**
+ * Reads [input] to the end, or returns null as soon as it passes [maxBytes] — so an oversized image is
+ * never held whole, whatever length the server declared.
+ */
+internal fun readCapped(input: InputStream, maxBytes: Int): ByteArray? {
+    val out = java.io.ByteArrayOutputStream()
+    val buffer = ByteArray(8 * 1024)
+    while (true) {
+        val read = input.read(buffer)
+        if (read < 0) return out.toByteArray()
+        if (out.size() + read > maxBytes) return null
+        out.write(buffer, 0, read)
+    }
+}
+
+/**
+ * The power-of-two `inSampleSize` that keeps the decoded image's shorter edge at or above [targetEdge],
+ * and its longer edge within four times that — so a very wide or tall image is not decoded at full size
+ * just because its short edge is already small.
+ */
+internal fun thumbnailSampleSize(width: Int, height: Int, targetEdge: Int): Int {
+    var sample = 1
+    while (minOf(width, height) / (sample * 2) >= targetEdge || maxOf(width, height) / sample > targetEdge * 4) {
+        sample *= 2
+    }
+    return sample
+}
+
+/**
+ * Remembers a fetched profile image — or that the fetch failed — per address until an expiry. A null
+ * value is a remembered failure, which is the point: a slow or broken image host is waited on once,
+ * not once per message. Bounded by [maxEntries]; the oldest entry goes first.
+ */
+internal class PushThumbnailCache<T>(private val maxEntries: Int) {
+    class Hit<T>(val value: T?)
+
+    private class Entry<T>(val value: T?, val expiresAt: Long)
+
+    private val entries = LinkedHashMap<String, Entry<T>>()
+
+    @Synchronized
+    fun get(key: String, now: Long): Hit<T>? {
+        val entry = entries[key] ?: return null
+        if (now >= entry.expiresAt) {
+            entries.remove(key)
+            return null
+        }
+        return Hit(entry.value)
+    }
+
+    @Synchronized
+    fun put(key: String, value: T?, expiresAt: Long) {
+        entries.remove(key)
+        entries[key] = Entry(value, expiresAt)
+        while (entries.size > maxEntries) entries.remove(entries.keys.first())
+    }
 }

@@ -342,10 +342,11 @@ export interface PushNavigationData {
     clickAction?: unknown;
     /** App-level push type (`chat`, `cloud`, ...). Decides the destination when there is no link. */
     type?: unknown;
-    /** Metadata object (or its JSON string) holding cid/sid per the push payload spec. */
+    /** Metadata object (or its JSON string) holding cid/sid/chatId per the push payload spec. */
     payload?: unknown;
     cid?: unknown;
     sid?: unknown;
+    chatId?: unknown;
     [key: string]: unknown;
 }
 
@@ -353,10 +354,19 @@ const asString = (value: unknown): string | undefined =>
     typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 
 /**
- * Resolves cloud/site context from the push data. cid/sid live inside `payload` per spec, but we
- * also honor top-level `cid`/`sid` as a fallback for senders that flatten them onto `data`.
+ * The payload fields a tap carries into the web's navigation query: `cid`/`sid` are the cloud/site
+ * context to switch to, `chatId` the notified chat — the web opens its thread when it is a reply and
+ * stays in the room otherwise.
  */
-const extractPushContext = (data: PushNavigationData): { cid?: string; sid?: string } => {
+const PUSH_CONTEXT_KEYS = ['cid', 'sid', 'chatId'] as const;
+
+type PushContext = Partial<Record<(typeof PUSH_CONTEXT_KEYS)[number], string>>;
+
+/**
+ * Resolves the tap context from the push data. These live inside `payload` per spec, but we also
+ * honor top-level fields as a fallback for senders that flatten them onto `data`.
+ */
+const extractPushContext = (data: PushNavigationData): PushContext => {
     let source: Record<string, unknown> = data;
 
     const { payload } = data;
@@ -370,7 +380,7 @@ const extractPushContext = (data: PushNavigationData): { cid?: string; sid?: str
         source = { ...data, ...(payload as Record<string, unknown>) };
     }
 
-    return { cid: asString(source.cid), sid: asString(source.sid) };
+    return Object.fromEntries(PUSH_CONTEXT_KEYS.map(key => [key, asString(source[key])])) as PushContext;
 };
 
 /** Drop a leading custom scheme (chatic://, chatic-dev://) so only path/query is parsed. */
@@ -387,7 +397,7 @@ const PUSH_ROOT_PATH = '/';
 
 /**
  * Returns the WEBVIEW_URL-relative path (pathname+search+hash) for a push notification tap, with
- * cid/sid merged into the query. Shared with the deep link path so push taps and deep links
+ * cid/sid/chatId merged into the query. Shared with the deep link path so push taps and deep links
  * converge on one OnNavigate contract.
  *
  * A push with no link resolves to the root for the types that omit `link` BY CONTRACT (cloud
@@ -406,7 +416,7 @@ export const resolvePushTapPath = (data: PushNavigationData | undefined | null):
         return type && ROOTED_PUSH_TYPES.has(type) ? PUSH_ROOT_PATH : null;
     }
 
-    const { cid, sid } = extractPushContext(data);
+    const context = extractPushContext(data);
 
     let url: URL;
     try {
@@ -415,19 +425,19 @@ export const resolvePushTapPath = (data: PushNavigationData | undefined | null):
         return null;
     }
 
-    // Reading pathname/search/hash is safe, but cid/sid must be merged by string-building rather than
-    // `searchParams.set()`. React Native's URL derives `.search` from the raw string and ignores
-    // URLSearchParams mutations, so a set-then-read would silently drop cid/sid on device (Node/Jest
+    // Reading pathname/search/hash is safe, but the context must be merged by string-building rather
+    // than `searchParams.set()`. React Native's URL derives `.search` from the raw string and ignores
+    // URLSearchParams mutations, so a set-then-read would silently drop it on device (Node/Jest
     // hides this because it reflects the mutation). `searchParams.has()` is still fine — it only reads.
     const existingQuery = url.search.startsWith('?') ? url.search.slice(1) : url.search;
     const query = existingQuery ? [existingQuery] : [];
 
     // Merge context without overriding values the link already carries explicitly.
-    if (cid && !url.searchParams.has('cid')) {
-        query.push(`cid=${encodeURIComponent(cid)}`);
-    }
-    if (sid && !url.searchParams.has('sid')) {
-        query.push(`sid=${encodeURIComponent(sid)}`);
+    for (const key of PUSH_CONTEXT_KEYS) {
+        const value = context[key];
+        if (value && !url.searchParams.has(key)) {
+            query.push(`${key}=${encodeURIComponent(value)}`);
+        }
     }
 
     const search = query.length ? `?${query.join('&')}` : '';

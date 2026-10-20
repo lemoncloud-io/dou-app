@@ -28,13 +28,18 @@ Options:
   --cid <id>           Cloud id in custom payload (default: "cloud_test_id")
   --sid <id>           Site id in custom payload (default: "site_test_id")
   --uid <id>           User id in custom payload (default: "user_test_id")
-  --title <text>       Sender name / Title argument (default: "John Doe")
+  --title <text>       Title argument (default: "John Doe") — the sender for a 1:1, the room
+                       name for a group
   --body <text>        Message content / Body argument (default: "Are you attending today's meeting?")
   --loc-key <key>      Body translation key (default: "push_chat_message_body")
                        e.g. push_chat_image_body, push_chat_images_body, push_chat_files_body
   --loc-args <json>    Body args as a JSON array of strings (default: [<--body>]), e.g. '["3"]'.
                        "none" leaves loc_args out entirely — what the server sends for a
                        message with no text
+  --thumbnail <url>    Sender profile image in the custom payload (default: none). Only an
+                       https:// address is fetched by the device; anything else is ignored
+  --chat-id <id>       Chat id in custom payload (default: none); a reply's id makes a tap
+                       open its thread
   --silent             Send as a silent background push (NO banner — wakes app only; see notes)
   --loc-args-array     (iOS only) Send loc_args/title_loc_args as a native JSON array
                        (reproduces the real backend) instead of a JSON-encoded string
@@ -82,6 +87,11 @@ Sample Commands:
   # 7. Attachment bodies - three photos, then an attachment-only message as the server sends it today
   node scripts/send-test-push.js ios apns_token_here --loc-args-array --loc-key push_chat_images_body --loc-args '["3"]'
   node scripts/send-test-push.js android fcm_token_here --loc-args none
+
+  # 8. Room shapes - a group reply with the sender's image, titled with the room name
+  node scripts/send-test-push.js ios apns_token_here --loc-args-array --title "Design" \
+    --loc-key push_chat_group_thread_message_body --loc-args '["Sunny","On it"]' \
+    --thumbnail https://example.com/sunny.png --chat-id <reply chat id>
 `);
 }
 
@@ -122,6 +132,10 @@ const bodyArg = getOptionValue('--body', "Are you attending today's meeting?");
 const cid = getOptionValue('--cid', '1000001');
 const sid = getOptionValue('--sid', '10024');
 const uid = getOptionValue('--uid', 'user_test_id');
+// Left out unless given: a made-up id would send every test tap on a failing chat lookup.
+const chatId = getOptionValue('--chat-id', undefined);
+// Left out of the payload unless given, the way the server leaves it out for a sender with no image.
+const thumbnail = getOptionValue('--thumbnail', undefined);
 const isSilent = args.includes('--silent');
 const isProd = args.includes('--prod');
 // The production backend delivers loc-args to APNs as a native JSON array
@@ -264,8 +278,9 @@ async function sendAndroidPush() {
                     sid,
                     uid,
                     channelId: roomId,
-                    chatId: 'msg_test_id',
+                    chatId,
                     content: bodyArg,
+                    thumbnail,
                 }),
             },
         };
@@ -354,8 +369,9 @@ function sendIosPush() {
                 sid,
                 uid,
                 channelId: roomId,
-                chatId: 'msg_test_id',
+                chatId,
                 content: bodyArg,
+                thumbnail,
             },
         };
 

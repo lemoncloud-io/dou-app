@@ -98,6 +98,45 @@ describe('푸시 번역 키 4벌 동기화', () => {
         }
     });
 
+    // The server picks the room shape through the body key too: `push_chat_<shape>_<kind>_body`, one per
+    // shape and body kind. A shape missing a kind shows its key name on the banner the first time
+    // that combination is sent.
+    const BODY_KINDS = ['message', 'image', 'images', 'video', 'videos', 'file', 'files', 'attachments'] as const;
+    const ROOM_SHAPES = ['thread', 'group', 'group_thread'] as const;
+    const shapeKey = (shape: string, kind: string): string => `push_chat_${shape}_${kind}_body`;
+
+    it.each(LANGS)('%s: every room shape has every body kind', lang => {
+        const expected = ROOM_SHAPES.flatMap(shape => BODY_KINDS.map(kind => shapeKey(shape, kind)));
+        expect(expected).toHaveLength(24);
+        for (const [name, source] of Object.entries(allSets(lang))) {
+            expect({ [name]: expected.filter(key => !(key in source)) }).toEqual({ [name]: [] });
+        }
+    });
+
+    // A shape key is the plain key's copy with a marker in front, so the attachment wording now lives
+    // in four places. Containing the plain copy is what keeps an edit to one from leaving the other
+    // three behind. A group shape puts the sender at {0}, so the plain copy's own args move up one.
+    it.each(LANGS)('%s: a room shape key wraps the plain key copy', lang => {
+        for (const [name, source] of Object.entries(allSets(lang))) {
+            for (const shape of ROOM_SHAPES) {
+                const grouped = shape.startsWith('group');
+                for (const kind of BODY_KINDS) {
+                    const plain = String(source[`push_chat_${kind}_body`]);
+                    const wrapped = grouped ? plain.replace('{0}', '{1}') : plain;
+                    const key = shapeKey(shape, kind);
+                    expect({ [`${name}.${key}`]: source[key] }).toEqual({
+                        [`${name}.${key}`]: expect.stringContaining(wrapped),
+                    });
+                    if (grouped) {
+                        expect({ [`${name}.${key}`]: String(source[key]).indexOf('{0}') }).not.toEqual({
+                            [`${name}.${key}`]: -1,
+                        });
+                    }
+                }
+            }
+        }
+    });
+
     it.each(LANGS)('%s: singular attachment bodies and the fallback carry no placeholder', lang => {
         for (const [name, source] of Object.entries(allSets(lang))) {
             for (const key of ARGLESS_BODY_KEYS) {

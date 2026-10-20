@@ -16,10 +16,10 @@ path for the web to read.
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/app/services/deeplinks/DeepLinkManager.ts`           | Captures raw OS URLs — cold-start (`getInitialURL`, plus an iOS native-module fallback for a buffered universal link, plus a short wait for a late `url` event) and warm-start subscription |
 | `src/app/services/deeplinks/DeeplinkService.ts`           | The single resolver: `resolveInbound(url)` (`web`/`native`/`invalid`) and `resolvePushTap(data)`                                                                                            |
-| `src/app/services/deeplinks/deeplinkUtils.ts`             | Pure helpers: validation, invite conversion (`convertShortUrlWithEnvsSync`), path reduction (`resolveDeepLink`), cid/sid merge (`resolvePushTapPath`)                                       |
+| `src/app/services/deeplinks/deeplinkUtils.ts`             | Pure helpers: validation, invite conversion (`convertShortUrlWithEnvsSync`), path reduction (`resolveDeepLink`), cid/sid/chatId merge (`resolvePushTapPath`)                                |
 | `src/app/webview/hooks/useDeepLinkNavigation.ts`          | Single owner of inbound navigation: OS links, invite links and push taps → `OnNavigate` (web) / `navigationRef` (native) / the error screen                                                 |
 | `src/app/features/core/navigation/navigationRef.ts`       | Shared navigation ref for applying `target=native` routes (see [../push/README.md](../push/README.md))                                                                                      |
-| `apps/web/.../bridge/navigation/resolvePushNavigation.ts` | (web) Extracts and strips `cid`/`sid` from the `OnNavigate` path and switches cloud/site                                                                                                    |
+| `apps/web/.../bridge/navigation/resolvePushNavigation.ts` | (web) Extracts and strips `cid`/`sid`/`chatId` from the `OnNavigate` path, switches cloud/site, then opens the thread for a reply                                                           |
 
 ## Structure
 
@@ -129,6 +129,9 @@ The `path` handed to the web via `OnNavigate` follows these rules:
 - **`cid`/`sid`** travel as query parameters. The web (`resolvePushNavigation`) reads them, switches
   cloud/site, then strips them and routes on what remains — they are session context, not route
   parameters.
+- **`chatId`** rides a push tap's query the same way: the web strips it, lands on the room, and pushes
+  the thread on top when that chat is a reply. A chat that is not one leaves the reader in the room,
+  so the shell merges it for every chat push and never judges whether it is a reply.
 - Both the deep-link path and the push-tap path go through `DeeplinkService` (via
   `useDeepLinkNavigation`) and converge on this same contract.
 
@@ -136,8 +139,10 @@ For a push tap specifically, `resolvePushTapPath` also decides what a **linkless
 push whose `type` is one of `ROOTED_PUSH_TYPES` (currently just `cloud`, whose payload carries no
 `link` by contract) resolves to `/`; every other linkless payload resolves to `null` and only
 foregrounds the app — a chat push with no link is treated as a malformed payload, not a request to
-navigate away from wherever the user already is. When a link does exist, `cid`/`sid` are merged into
-its query only if the link does not already carry them explicitly.
+navigate away from wherever the user already is. When a link does exist, `cid`/`sid`/`chatId` are
+merged into its query only if the link does not already carry them explicitly. Android merges the
+same three natively (`ChaticFirebaseMessagingService.mergeContextIntoLink`), since its background tap
+reaches the web through the intent URI rather than through this function.
 
 ## ⚠️ React Native URL pitfall (regression risk)
 
@@ -162,6 +167,7 @@ while a real device breaks.
 - Is a new deep-link kind reflected in `resolveDeepLink` (native) and in whatever consumes `resolveInbound` on the web side?
 - Is an invite link's output a host-less relative path, with the frontend domain never recomputed
   outside `WEBVIEW_URL`?
-- Is `OnNavigate`'s `path` shaped `pathname+search+hash`, with `cid`/`sid` carried in the query?
-- Does it still match the web's `resolvePushNavigation` contract (read `cid`/`sid` from the query,
+- Is `OnNavigate`'s `path` shaped `pathname+search+hash`, with `cid`/`sid` (and a push tap's `chatId`)
+  carried in the query?
+- Does it still match the web's `resolvePushNavigation` contract (read `cid`/`sid`/`chatId` from the query,
   then strip them)?

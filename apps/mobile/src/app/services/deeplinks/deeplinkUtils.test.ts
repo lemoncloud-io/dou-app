@@ -482,6 +482,31 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         expect(path).toBe('/channels/1/room?cid=top_cloud&sid=top_site');
     });
 
+    // The web opens the thread when the notified chat is a reply, and needs the chat id in the query
+    // to know which one. A chat that is not a reply leaves the reader in the room, so it rides along
+    // either way — the same as an in-app banner tap.
+    it('merges the notified chatId after cid/sid', () => {
+        const path = resolvePushTapPath({
+            link: '/channels/1000001/room',
+            payload: JSON.stringify({ cid: 'cloud_1', sid: 'site_9', chatId: '1000001:42', uid: 'u1' }),
+        });
+
+        expect(path).toBe('/channels/1000001/room?cid=cloud_1&sid=site_9&chatId=1000001%3A42');
+    });
+
+    it('merges a chatId from a payload object, and from top-level data when the payload has none', () => {
+        expect(resolvePushTapPath({ link: '/channels/1/room', payload: { chatId: 'c42' } })).toBe(
+            '/channels/1/room?chatId=c42'
+        );
+        expect(resolvePushTapPath({ link: '/channels/1/room', chatId: 'c42' })).toBe('/channels/1/room?chatId=c42');
+    });
+
+    it('keeps a chatId the link already carries', () => {
+        expect(resolvePushTapPath({ link: '/channels/1/room?chatId=explicit', payload: { chatId: 'c42' } })).toBe(
+            '/channels/1/room?chatId=explicit'
+        );
+    });
+
     it('link가 없고 clickAction만 있으면 clickAction을 사용한다', () => {
         const path = resolvePushTapPath({
             clickAction: '/channels/1/room',

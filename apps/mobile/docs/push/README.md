@@ -17,22 +17,22 @@ suspended then), and the web re-aggregates the true count on the next foreground
 
 ## Files
 
-| File                                                               | Role                                                                                                                                                                                                 |
-| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/app/App.tsx`                                                  | creates the Android notification channels at mount                                                                                                                                                   |
-| `src/app/services/notification/NotificationService.ts`             | permission, token, APNs registration, channel creation, badge, FCM/APNs listeners                                                                                                                    |
-| `src/app/utils/i18n/formatPushCopy.ts`                             | builds a banner's title/body from `loc_key`/`loc_args` for the iOS foreground path — see [Chat message body](#chat-message-body)                                                                     |
-| `src/app/services/notification/PushEventManager.ts`                | in-memory foreground-event broker between OS/native events and the WebView bridge                                                                                                                    |
-| `src/app/webview/hooks/useFcmHandler.ts`                           | WebView bridge handler for token, badge and push-mark requests, and the foreground push relay (`OnReceiveNotification`)                                                                              |
-| `src/app/webview/hooks/useDeepLinkNavigation.ts`                   | single owner of inbound navigation: notification taps + OS deep links → `OnNavigate` (paths built by `resolvePushTapPath` / `resolveDeepLink` in `deeplinkUtils`)                                    |
-| `src/app/bridge/BadgeSyncBridge.ts`                                | Android-only mirror of the web's true badge total, so a background push increments from it                                                                                                           |
-| `src/app/bridge/PushMarksBridge.ts`                                | drains the cross-cloud push-mark records a background push wrote natively                                                                                                                            |
-| `src/app/bridge/SharedLanguageBridge.ts`                           | copies the web's language choice to where the two push services read it — see [../system/language.md](../system/language.md)                                                                         |
-| `android/.../push/ChaticFirebaseMessagingService.kt`               | Android FCM receiver: localizes copy in the pinned language else the device's, emits the foreground event, writes the badge/push-mark, merges `cid`/`sid` into the tap link                          |
-| `android/.../push/BadgeStore.kt`, `PushMarkStore.kt`               | the shared-preferences badge counter and the push-mark ring buffer (cap 100), same file                                                                                                              |
-| `android/.../push/LanguagePreferenceStore.kt`                      | the language choice the messaging service reads (its own `chatic_language` file)                                                                                                                     |
-| `ios/Chatic/AppDelegate.swift`                                     | wires APNs callbacks to `RNCPushNotificationIOS`; suppresses the foreground system banner; hands the badge base to the App Group before backgrounding                                                |
-| `ios/ChaticNotificationServiceExtension/NotificationService.swift` | localizes background/killed banners from `assets/locales/{lang}.json` (pinned language, else the device's); increments the shared badge and appends a push-mark record while the app is backgrounded |
+| File                                                               | Role                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/app/App.tsx`                                                  | creates the Android notification channels at mount                                                                                                                                                                                |
+| `src/app/services/notification/NotificationService.ts`             | permission, token, APNs registration, channel creation, badge, FCM/APNs listeners                                                                                                                                                 |
+| `src/app/utils/i18n/formatPushCopy.ts`                             | builds a banner's title/body from `loc_key`/`loc_args` for the iOS foreground path — see [Chat message body](#chat-message-body)                                                                                                  |
+| `src/app/services/notification/PushEventManager.ts`                | in-memory foreground-event broker between OS/native events and the WebView bridge                                                                                                                                                 |
+| `src/app/webview/hooks/useFcmHandler.ts`                           | WebView bridge handler for token, badge and push-mark requests, and the foreground push relay (`OnReceiveNotification`)                                                                                                           |
+| `src/app/webview/hooks/useDeepLinkNavigation.ts`                   | single owner of inbound navigation: notification taps + OS deep links → `OnNavigate` (paths built by `resolvePushTapPath` / `resolveDeepLink` in `deeplinkUtils`)                                                                 |
+| `src/app/bridge/BadgeSyncBridge.ts`                                | Android-only mirror of the web's true badge total, so a background push increments from it                                                                                                                                        |
+| `src/app/bridge/PushMarksBridge.ts`                                | drains the cross-cloud push-mark records a background push wrote natively                                                                                                                                                         |
+| `src/app/bridge/SharedLanguageBridge.ts`                           | copies the web's language choice to where the two push services read it — see [../system/language.md](../system/language.md)                                                                                                      |
+| `android/.../push/ChaticFirebaseMessagingService.kt`               | Android FCM receiver: localizes copy in the pinned language else the device's, emits the foreground event, writes the badge/push-mark, merges `cid`/`sid`/`chatId` into the tap link, fetches the sender's image                  |
+| `android/.../push/BadgeStore.kt`, `PushMarkStore.kt`               | the shared-preferences badge counter and the push-mark ring buffer (cap 100), same file                                                                                                                                           |
+| `android/.../push/LanguagePreferenceStore.kt`                      | the language choice the messaging service reads (its own `chatic_language` file)                                                                                                                                                  |
+| `ios/Chatic/AppDelegate.swift`                                     | wires APNs callbacks to `RNCPushNotificationIOS`; suppresses the foreground system banner; hands the badge base to the App Group before backgrounding                                                                             |
+| `ios/ChaticNotificationServiceExtension/NotificationService.swift` | localizes background/killed banners from `assets/locales/{lang}.json` (pinned language, else the device's); attaches the sender's image; increments the shared badge and appends a push-mark record while the app is backgrounded |
 
 There is no native push diagnostics screen any more — `NotificationTestScreen.tsx` was removed with
 the rest of the native debug UI (ADR-0080); the equivalent is the web debug panel's `Push` screen
@@ -70,18 +70,18 @@ flowchart TD
 
 `ChaticFirebaseMessagingService` receives a data message and reads these fields:
 
-| Payload field                    | Meaning                                                                                                     |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `id` / `messageId`               | notification identifier                                                                                     |
-| `type`                           | app-level notification type                                                                                 |
-| `channel_id` / `channelId`       | Android notification channel, defaults to `dou_chat`                                                        |
-| `link` / `clickAction`           | the URL the tap routes to                                                                                   |
-| `title_loc_key`, `titleLocKey`   | localized title key                                                                                         |
-| `title_loc_args`, `titleLocArgs` | localized title args                                                                                        |
-| `loc_key`, `bodyLocKey`          | localized body key                                                                                          |
-| `loc_args`, `bodyLocArgs`        | localized body args                                                                                         |
-| `data` / `payload`               | custom JSON metadata (`cid`/`sid` included); forwarded as the foreground event and merged into the tap link |
-| `silent`                         | skips the native banner while the app is background/killed                                                  |
+| Payload field                    | Meaning                                                                                                                           |
+| -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `id` / `messageId`               | notification identifier                                                                                                           |
+| `type`                           | app-level notification type                                                                                                       |
+| `channel_id` / `channelId`       | Android notification channel, defaults to `dou_chat`                                                                              |
+| `link` / `clickAction`           | the URL the tap routes to                                                                                                         |
+| `title_loc_key`, `titleLocKey`   | localized title key                                                                                                               |
+| `title_loc_args`, `titleLocArgs` | localized title args                                                                                                              |
+| `loc_key`, `bodyLocKey`          | localized body key                                                                                                                |
+| `loc_args`, `bodyLocArgs`        | localized body args                                                                                                               |
+| `data` / `payload`               | custom JSON metadata (`cid`/`sid`/`chatId`, `thumbnail`); forwarded as the foreground event, its context merged into the tap link |
+| `silent`                         | skips the native banner while the app is background/killed                                                                        |
 
 ```mermaid
 sequenceDiagram
@@ -102,7 +102,7 @@ sequenceDiagram
     else app background/killed and silent
         Native->>Native: skip native banner
     else app background/killed and not silent
-        Native->>Native: merge cid/sid into link, bump badge/push-mark, display native notification
+        Native->>Native: merge cid/sid/chatId into link, bump badge/push-mark, fetch sender image, display native notification
     end
 ```
 
@@ -217,10 +217,15 @@ round-trip. `AppBridgeHost` buffers the event until `WebAppReady`, so a cold-sta
 soon as the web handshake completes, with no extra startup delay.
 
 `resolvePushTapPath` reads the notification's `link` (falling back to `clickAction`) and merges the
-`cid`/`sid` from `payload` into its query, because the web reads cloud/site context from the
-navigation query (see the web's `resolvePushNavigation`). With no link it returns `null` and the tap
-only foregrounds the app. Android merges `cid`/`sid` natively (see [Android delivery](#android-delivery)),
-so `resolvePushTapPath`'s own merge mainly serves the iOS path.
+`cid`/`sid`/`chatId` from `payload` into its query, because the web reads cloud/site context — and
+the chat to open — from the navigation query (see the web's `resolvePushNavigation`). With no link it
+returns `null` and the tap only foregrounds the app. Android merges the same three natively (see
+[Android delivery](#android-delivery)), so `resolvePushTapPath`'s own merge mainly serves the iOS path.
+
+`chatId` is what takes a tap on a thread reply into the thread: the web lands on the room, reads the
+chat, and pushes the thread on top when it has a parent — so back goes thread → room. A chat that is
+not a reply leaves the reader in the room. The shell merges it for every chat push without asking which
+it is; the in-app banner's tap already passed it, so all three taps now behave the same.
 
 The route from tap to `useDeepLinkNavigation` differs per platform: Android warm/background taps
 arrive through FCM's `onNotificationOpenedApp`, iOS warm/background taps through the
@@ -240,8 +245,8 @@ sequenceDiagram
 
     OS->>Service: onNotificationOpenedApp or getInitialNotification
     Service->>Handler: RemoteMessage
-    Handler->>Resolve: link + payload(cid/sid)
-    Resolve-->>Handler: /path?cid=..&sid=.. (or null)
+    Handler->>Resolve: link + payload(cid/sid/chatId)
+    Resolve-->>Handler: /path?cid=..&sid=..&chatId=.. (or null)
     Handler->>Bridge: pushEvent(OnNavigate, { path })
     Bridge->>Bridge: buffer until WebAppReady, then flush to WebView
 ```
@@ -284,6 +289,35 @@ and the guard below turns it into `새 메시지` / `New message`. The channel l
 nouns (`사진 3장` against `사진 3장을 보냈습니다`) — see the web's home feature docs — so a change to one
 side's copy is a change to both.
 
+### Room shapes
+
+The body key also says what kind of room the message came from, so the banner can mark a thread
+reply and name the sender in a group. The server inserts the shape into the key above — a 1:1 room's
+own messages keep the keys above unchanged — and a group puts the sender's name in front of the args:
+
+| Room              | Reply | `loc_key`                            | `loc_args`              | ko / en (text)                               |
+| ----------------- | ----- | ------------------------------------ | ----------------------- | -------------------------------------------- |
+| 1:1               | no    | `push_chat_<kind>_body` — as above   | as above                | `hi` / `hi`                                  |
+| 1:1               | yes   | `push_chat_thread_<kind>_body`       | as above                | `[스레드] hi` / `[Thread] hi`                |
+| group (not a 1:1) | no    | `push_chat_group_<kind>_body`        | `[sender, ...as above]` | `Sunny : hi` / `Sunny: hi`                   |
+| group             | yes   | `push_chat_group_thread_<kind>_body` | `[sender, ...as above]` | `[스레드] Sunny : hi` / `[Thread] Sunny: hi` |
+
+`<kind>` is one of the eight above (`message`, `image`, `images`, `video`, `videos`, `file`, `files`,
+`attachments`), so there are 24 shape keys. A message with neither text nor attachments stays
+`push_chat_message_body` with no args whatever the room. A group push's title arg is the room's name,
+where a 1:1's is the sender.
+
+"Reply" means the chat has a parent. A 1:1 has no thread audience on the server side — everyone in it
+is in every thread — but a reply there still reads `[Thread]`, because the key follows the chat, not
+the audience.
+
+**None of the assemblers changed for this.** Each looks the key up and fills `{0}`, `{1}` in order, so
+the shape is all copy. A group key that gets only the sender is a hole like any other and shows the
+fallback, never `Sunny : `. Each shape key is the plain key's copy with a marker in front, so the
+attachment wording now lives in four keys per kind — `localeParity.test.ts` fails when a shape key stops
+containing its plain key's copy. The same rollout order applies: a build without the shape keys shows
+the key name, so the server sends them only once a build that has them has spread.
+
 ### Unfilled placeholders
 
 All three assemblers — `formatPushTemplate` in `ChaticFirebaseMessagingService.kt` (Android, every app state),
@@ -296,12 +330,59 @@ the same rule when a template names a `{n}` that the args do not reach:
   to the platform: the extension keeps the `alert` title, and Android leaves the title line blank (the notification header still names the app).
 
 The hole is judged on the template, not on the substituted text, so a message that itself contains
-`{0}` is shown verbatim. **A key that is not found is left alone** — the key name staying visible is
-the signal that a payload outran the installed build, and hiding it would hide the rollout mistake.
+`{0}` is shown verbatim. One limit remains with the two-arg group keys: args are substituted in order,
+so a sender name that itself contains `{1}` would have the message put in its place. All three
+assemblers share it, and fixing it means changing all three together.
+
+**A key that is not found is left alone** — the key name staying visible is the signal that a payload
+outran the installed build, and hiding it would hide the rollout mistake.
 
 To send these payloads without the server, `scripts/send-test-push.js` takes `--loc-key` and
 `--loc-args` (`'["3"]'`, or `none` to leave the field out the way the server does for a message with
-no text); add `--loc-args-array` on iOS for the backend's array shape.
+no text); add `--loc-args-array` on iOS for the backend's array shape. `--thumbnail` adds the sender's
+image and `--chat-id` the chat a tap opens.
+
+### Sender profile image
+
+A chat push may carry the sender's place-profile image as `thumbnail` in its `data` — an `https://`
+address. The device fetches it for the banner; the three paths draw it differently:
+
+| Path                       | Where the image goes                                                                                                                                                       |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Android, background/killed | `ChaticFirebaseMessagingService` fetches it in `onMessageReceived` and sets it as the round large icon                                                                     |
+| iOS, background/killed     | the extension fetches it after translating and attaches it — iOS draws an attachment as a thumbnail on the right                                                           |
+| either, foreground         | nothing native: the web's in-app banner already draws `thumbnail` as the avatar. The iOS extension runs in the foreground too, and skips the fetch while the app is active |
+
+The rules are the same on both platforms:
+
+- **Only `https://` is fetched.** Anything else — absent, `http://`, a `data:` or `file:` URI — is
+  ignored. The host itself is not restricted.
+- **3 seconds and 1 MB.** Past either, or on any failure, the banner goes out without an image. The
+  image never delays a banner beyond that budget and never stops one. Android stops reading at 1 MB;
+  iOS streams the download to disk and checks the size afterwards, so an oversized image never sits in
+  the extension's memory.
+- **Remembered for a minute on Android.** The service handles messages one at a time, so a burst from
+  one sender behind a slow image host would wait the budget out once per message; the result for an
+  address — a failure included — is reused for 60 seconds instead.
+- **Cropped round into 256 px.** Android samples the decode down by powers of two and draws into a
+  fixed 256 px circle. The iOS extension has a small memory limit, so ImageIO downsamples to 256 px
+  straight from the file, and a source declaring more than 16 megapixels is not decoded at all.
+- **Never logged.** The address can carry user identifiers.
+- **A silent push fetches nothing** — it shows no banner.
+
+On iOS the copy is final before the fetch starts, so when the system's deadline cuts the extension off
+(`serviceExtensionTimeWillExpire`) the banner still reads translated, just without the image. The
+handler is guarded so the fetch and the deadline cannot both deliver.
+
+Android draws the large icon on the right on recent versions. The title and body stay the plain
+assembled copy on purpose: `MessagingStyle` would draw the image on the left but redraw the sender and
+room its own way, and the three paths would stop saying the same thing. iOS could put the image on the
+left too, as a communication notification, but that needs a capability on the app's provisioning
+profile and the OS then redraws the title, so the attachment is used instead.
+
+**The server sends no image yet.** A place profile's image is stored as base64, which is not an address
+and is far over a push's size limit; the image reaches real pushes once profiles move to addresses.
+Until then this path is exercised with `send-test-push.js --thumbnail`.
 
 ## Cloud activation push
 
@@ -341,7 +422,8 @@ sets in sync: it diffs the native three against the shell locale's flat `push_*`
 empty values, and checks that the activation title still has a `{0}` slot (a missing arg makes the
 fallback title a literal `cloud`). For the chat bodies it checks that the four plural keys keep their
 `{0}` and that the three singular keys and the fallback carry no `{` at all — a placeholder there would
-send every such push to the fallback.
+send every such push to the fallback. For the [room shapes](#room-shapes) it checks that all 24 keys
+exist, and that each one contains its plain key's copy (with the args moved up one in a group).
 
 **The Extension target's bundled resources are outside that test's reach.** If
 `ios/ChaticNotificationServiceExtension/*.json` is missing from the Extension target's Copy Bundle
@@ -398,16 +480,18 @@ title alone says which cloud (hence no body).
   be mounted yet when the OS/native callback fires.
 - Background/killed silent Android pushes currently skip the native banner and are not persisted to a
   JS offline queue.
-- `cid`/`sid` reach the web only through the `OnNavigate` path query, never a separate channel: Android
-  merges them into the link URI natively, iOS merges them in `resolvePushTapPath`. The web strips them
-  in `resolvePushNavigation`.
+- `cid`/`sid`/`chatId` reach the web only through the `OnNavigate` path query, never a separate channel:
+  Android merges them into the link URI natively, iOS merges them in `resolvePushTapPath`. The web
+  strips them in `resolvePushNavigation`.
+- A sender image is fetched only from `https://`, within 3 seconds and 1 MB, and never logged; a failure
+  shows the banner without it.
 
 ## Change checklist
 
 - Does the change touch Android native delivery, iOS APNs delivery, or the JS bridge delivery — or more than one?
 - Does Android foreground delivery still emit `onForegroundPushReceived` with the fields `useFcmHandler` expects?
 - Does the tap payload still carry `link` (or `clickAction`)?
-- Do `cid`/`sid` still reach the web — merged into the link query on Android, via `resolvePushPath` on iOS?
+- Do `cid`/`sid`/`chatId` still reach the web — merged into the link query on Android, via `resolvePushTapPath` on iOS?
 - Do `NotificationService.createNotificationChannel` and `ChaticFirebaseMessagingService.createNotificationChannel` still agree on channel behavior?
 - If payload localization changed, does the iOS Notification Service Extension still resolve `loc_args` (both native-array and JSON-string shapes) from `assets/locales`, and is that JSON bundled into the Extension target?
 - Is the foreground system banner still suppressed on both platforms as intended?
