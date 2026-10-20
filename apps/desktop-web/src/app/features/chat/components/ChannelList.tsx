@@ -551,33 +551,6 @@ export const ChannelList = ({
         );
     }
 
-    if (channels.length === 0) {
-        return (
-            <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
-                {dialogs}
-                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-hairline bg-well text-title font-normal text-muted-foreground shadow-well">
-                    #
-                </span>
-                <span className="text-callout text-foreground">{t('chat.noChannels')}</span>
-                <span className="text-caption text-muted-foreground">
-                    {t(isDefaultMode ? 'chat.noChannelsHintDefault' : 'chat.noChannelsHint')}
-                </span>
-                {/* No rows at all means no sections either, so the empty state carries the create
-                    action itself. */}
-                {!isDefaultMode && onCreateChannel && (
-                    <button
-                        type="button"
-                        onClick={onCreateChannel}
-                        className="focus-ring tactile mt-1 flex items-center gap-1.5 rounded-lg bg-muted px-3 py-2 text-callout font-medium text-foreground transition-colors hover:bg-accent"
-                    >
-                        <Plus size={16} aria-hidden />
-                        {t('rail.addChannel')}
-                    </button>
-                )}
-            </div>
-        );
-    }
-
     // Filter AFTER identity resolution so a DM matches its display name too, then apply the
     // stored order BY ID (applyChannelOrder takes ids — review-03 P0): stored ids first (in
     // stored order), unknown/new ids in name order behind. Map back to rows right after.
@@ -619,7 +592,9 @@ export const ChannelList = ({
         })
         .sort((a, b) => a.display.name.localeCompare(b.display.name));
 
-    if (visibleRegular.length + visibleDms.length + memberRows.length === 0) {
+    // A filtered view is a subset — dragging it would write a partial order, so rows lock.
+    const isFiltering = query.trim().length > 0;
+    if (isFiltering && visibleRegular.length + visibleDms.length + memberRows.length === 0) {
         // The dialogs mount on every other branch (see above): a filter matching nothing
         // must not take ⌘K / message search down with it — that is exactly when the
         // reader reaches for them.
@@ -631,15 +606,11 @@ export const ChannelList = ({
         );
     }
 
-    // A filtered view is a subset — dragging it would write a partial order, so rows lock.
-    const isFiltering = query.trim().length > 0;
-    // An empty section still has to hold its "+", or the first 1:1 has nowhere to start from. A
-    // filter that matches no 1:1 hides it, like every other section.
-    const showDmSection =
-        visibleDms.length > 0 || memberRows.length > 0 || ((!!onCreateDm || isDefaultMode) && !isFiltering);
-    // Same for channels: a place whose only room is the notes-to-self one has rows, so the empty
-    // state above never shows, and its first channel would have nowhere to start from either.
-    const showChannelSection = visibleRegular.length > 0 || (!isDefaultMode && !!onCreateChannel && !isFiltering);
+    // Unfiltered, every section keeps its heading, and an empty one says what goes there (Figma
+    // Home): the first channel or 1:1 needs a section and its "+" to start from. A filter shows only
+    // the sections it matched.
+    const showDmSection = visibleDms.length > 0 || memberRows.length > 0 || !isFiltering;
+    const showChannelSection = visibleRegular.length > 0 || !isFiltering;
     // Home has no "+": a 1:1 there starts from a phone number, which only the mobile app does. An
     // empty section says so rather than leaving a heading with nothing under it and no way in.
     const showHomeDmPointer = isDefaultMode && visibleDms.length === 0 && !isFiltering && !isDmCollapsed;
@@ -852,11 +823,12 @@ export const ChannelList = ({
         <nav aria-label={t('sidebar.channels')} onKeyDown={onKeyDown} className="flex flex-col gap-4 px-4 pb-6 pt-3">
             {dialogs}
             <Divider />
-            {favoriteRows.length > 0 && (
+            {(favoriteRows.length > 0 || !isFiltering) && (
                 <>
                     <SortableSection
                         id="fav"
                         title={t('sidebar.favorites')}
+                        emptyLabel={t('sidebar.empty.favorites')}
                         items={favoriteRows.map(fav => row(fav.channel, fav.label, fav.icon, 'fav', true, fav.pending))}
                         dragDisabled={isFiltering}
                         onReorder={onReorderFavorites}
@@ -869,6 +841,7 @@ export const ChannelList = ({
                     <SortableSection
                         id="ch"
                         title={t('sidebar.channels')}
+                        emptyLabel={t('sidebar.empty.channels')}
                         items={visibleRegular.map(channel =>
                             row(channel, bareChannelName(channel.name) || (channel.id ?? ''), CHANNEL_GLYPH, 'ch')
                         )}
@@ -889,6 +862,8 @@ export const ChannelList = ({
                 <SortableSection
                     id="dm"
                     title={t('sidebar.dms')}
+                    // Home's empty 1:1 section carries the mobile-app pointer instead.
+                    emptyLabel={isDefaultMode ? undefined : t('sidebar.empty.dms')}
                     items={dmSectionItems}
                     dragDisabled={isFiltering || holdDmSection}
                     onReorder={makeSectionReorder('dm')}

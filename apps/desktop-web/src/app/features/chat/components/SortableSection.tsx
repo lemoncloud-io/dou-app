@@ -20,6 +20,8 @@ interface SortableSectionProps {
     /** Trailing control in the header row (the Channels "+"). */
     action?: ReactNode;
     items: SectionItem[];
+    /** Line drawn under the heading while the section has no rows (hidden while folded). */
+    emptyLabel?: string;
     /** Rows are not draggable while the section is folded or the list is filtered —
      *  a reordered subset would write a partial order. */
     dragDisabled?: boolean;
@@ -28,15 +30,24 @@ interface SortableSectionProps {
 }
 
 /**
- * Collapsible, drag-reorderable sidebar section (Figma: chevron · 16px semibold title ·
- * optional action). One `DndContext` per section, so a cross-section drop is impossible by
+ * Collapsible, drag-reorderable sidebar section (Figma: 16px semibold title · trailing chevron ·
+ * optional action at the far end). An empty section says so in one line rather than leaving a
+ * bare heading. One `DndContext` per section, so a cross-section drop is impossible by
  * construction (decided: cross-section drop would imply favorite semantics).
  *
  * Folding hides the quiet rows, not the ones asking for attention: like Slack, the open
  * channel and anything unread stay listed, so folding a busy section never hides that
  * something arrived. The fold is remembered across launches.
  */
-export const SortableSection = ({ id, title, action, items, dragDisabled, onReorder }: SortableSectionProps) => {
+export const SortableSection = ({
+    id,
+    title,
+    action,
+    items,
+    emptyLabel,
+    dragDisabled,
+    onReorder,
+}: SortableSectionProps) => {
     const isCollapsed = useSidebarSectionsStore(s => !!s.collapsed[id]);
     const toggle = useSidebarSectionsStore(s => s.toggle);
     const visible = isCollapsed ? items.filter(item => item.keepWhenCollapsed) : items;
@@ -50,6 +61,7 @@ export const SortableSection = ({ id, title, action, items, dragDisabled, onReor
                     aria-expanded={!isCollapsed}
                     className="focus-ring flex min-w-0 flex-1 items-center gap-2 rounded-md text-left"
                 >
+                    <h3 className="truncate text-lead font-semibold text-sidebar-foreground">{title}</h3>
                     <ChevronDown
                         size={18}
                         aria-hidden
@@ -58,7 +70,6 @@ export const SortableSection = ({ id, title, action, items, dragDisabled, onReor
                             isCollapsed && '-rotate-90'
                         )}
                     />
-                    <h3 className="truncate text-lead font-semibold text-sidebar-foreground">{title}</h3>
                 </button>
                 {action}
             </div>
@@ -69,6 +80,9 @@ export const SortableSection = ({ id, title, action, items, dragDisabled, onReor
                     className="flex flex-col gap-2"
                     onReorder={onReorder}
                 />
+            )}
+            {!isCollapsed && items.length === 0 && emptyLabel && (
+                <p className="px-2 pb-1 text-caption text-label">{emptyLabel}</p>
             )}
         </section>
     );

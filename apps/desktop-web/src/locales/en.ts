@@ -354,9 +354,6 @@ export const en = {
     'chat.empty.join.title': 'Nothing to read yet',
     'chat.empty.join.hint': 'Join a cloud with the invite code someone shared with you.',
     'chat.empty.join.action': 'Join with invite',
-    'chat.noChannels': 'No channels yet',
-    'chat.noChannelsHint': 'Create one to get started.',
-    'chat.noChannelsHintDefault': "Channels you're invited to will appear here.",
     'chat.loading': 'Loading...',
     'chat.today': 'Today',
     'chat.yesterday': 'Yesterday',
@@ -465,6 +462,9 @@ export const en = {
     'sidebar.markReadFailed': 'Could not mark as read.',
     'sidebar.notifications': 'Notifications',
     'sidebar.noMatches': 'No channels match your search',
+    'sidebar.empty.favorites': 'Favorites will appear here.',
+    'sidebar.empty.channels': "No channels you've been invited to yet.",
+    'sidebar.empty.dms': 'No direct messages yet.',
     // Screen-reader text for the sidebar unread markers. The channel dot
     // carries no number, so without these the badge is colour-only.
     // Sidebar tombstone. Shorter than the feed's sentence on purpose — this slot

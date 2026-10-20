@@ -235,7 +235,7 @@ describe('ChannelList channel section "+"', () => {
         expect(onCreateChannel).toHaveBeenCalledTimes(1);
     });
 
-    it('draws no empty channel section on Home, where channels cannot be made', () => {
+    it('offers no "+" on Home, where channels cannot be made', () => {
         renderWith({ onCreateChannel: vi.fn(), isDefaultMode: true });
         expect(addChannel()).toBeNull();
     });
@@ -948,10 +948,13 @@ describe('ChannelList Direct messages "+"', () => {
         expect(onCreateDm).toHaveBeenCalledTimes(1);
     });
 
-    it('hides the empty section where a 1:1 cannot be started', () => {
+    // Every section keeps its heading while empty (Figma Home); where a 1:1 cannot be started
+    // it says so in a line and offers no "+".
+    it('keeps the empty section without a "+" where a 1:1 cannot be started', () => {
         renderWith({});
 
-        expect(screen.queryByRole('button', { name: 'Direct messages' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Direct messages' })).toBeTruthy();
+        expect(screen.getByText(i18next.t('sidebar.empty.dms'))).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'New message' })).toBeNull();
     });
 
@@ -1415,25 +1418,50 @@ describe('ChannelList place members without a 1:1', () => {
     });
 });
 
-describe('ChannelList empty state', () => {
-    // The Home cloud's hint promised messages under "No channels yet": the wrong noun for a
-    // list of channels.
-    it('says where channels come from when the Home cloud has none', () => {
-        render(
-            <ChannelList
-                channels={[]}
-                isLoading={false}
-                selectedChannelId={null}
-                query=""
-                onSelect={vi.fn()}
-                isDefaultMode
-            />,
-            { wrapper }
-        );
+describe('ChannelList empty sections', () => {
+    beforeEach(() => useSidebarSectionsStore.setState({ collapsed: {} }));
 
-        expect(screen.getByText('No channels yet')).toBeTruthy();
-        expect(screen.getByText("Channels you're invited to will appear here.")).toBeTruthy();
-        expect(screen.queryByText(/messages/i)).toBeNull();
+    const emptyList = (props: Partial<ComponentProps<typeof ChannelList>> = {}) => (
+        <ChannelList
+            channels={[]}
+            isLoading={false}
+            selectedChannelId={null}
+            query=""
+            onSelect={vi.fn()}
+            isDefaultMode={false}
+            {...props}
+        />
+    );
+
+    // A place with nothing in it keeps its three headings, each saying what will go there, so the
+    // first channel or 1:1 has a section (and its "+") to start from.
+    it('keeps every section with a line saying it is empty', () => {
+        render(emptyList({ onCreateChannel: vi.fn(), onCreateDm: vi.fn() }), { wrapper });
+
+        for (const key of ['sidebar.favorites', 'sidebar.channels', 'sidebar.dms']) {
+            expect(screen.getByRole('heading', { name: i18next.t(key) })).toBeTruthy();
+        }
+        expect(screen.getByText(i18next.t('sidebar.empty.favorites'))).toBeTruthy();
+        expect(screen.getByText(i18next.t('sidebar.empty.channels'))).toBeTruthy();
+        expect(screen.getByText(i18next.t('sidebar.empty.dms'))).toBeTruthy();
+        expect(screen.getByRole('button', { name: i18next.t('rail.addChannel') })).toBeTruthy();
+    });
+
+    // On the Home cloud the Channels line is the hint that channels arrive by invitation, and the
+    // 1:1 section carries the mobile-app pointer instead of a second empty line.
+    it('says on the Home cloud that channels come by invitation', () => {
+        render(emptyList({ isDefaultMode: true }), { wrapper });
+
+        expect(screen.getByText(i18next.t('sidebar.empty.channels'))).toBeTruthy();
+        expect(screen.queryByText(i18next.t('sidebar.empty.dms'))).toBeNull();
+        expect(screen.queryByText(i18next.t('mobileApp.homeDm'), { exact: false })).toBeTruthy();
+    });
+
+    it('still says nothing matched when a search empties every section', () => {
+        render(emptyList({ channels: [CHANNEL], query: 'zzz' }), { wrapper });
+
+        expect(screen.getByText(i18next.t('sidebar.noMatches'))).toBeTruthy();
+        expect(screen.queryByText(i18next.t('sidebar.empty.favorites'))).toBeNull();
     });
 });
 

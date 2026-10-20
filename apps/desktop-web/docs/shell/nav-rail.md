@@ -18,6 +18,20 @@ never offers a tile that would open an empty column.
 | ----------- | -------------------------------------------------------------------- |
 | Home        | The place's sections: Saved, Favorites, Channels, DM (`ChannelList`) |
 
+### The Home sidebar
+
+Under the place title and the channel search, a hairline, then **Saved** leads the action rows
+(`SidebarHeader`). The place's own actions follow it: edit my profile, notification snooze, Threads
+and Mentions. Threads and Mentions leave once the Notifications destination takes them over.
+
+The sections below (`ChannelList`, `SortableSection`) are Favorites, Channels and DM. Each section has
+its title, then the fold chevron, with any "+" at the far end. Without a search filter, all three are
+always drawn. An empty section says what goes there in one line (`sidebar.empty.*`), so a place with
+no rooms shows three headings, not a blank column. The 1:1 section on the Home cloud is the exception:
+it shows the mobile-app pointer instead
+([direct-messages.md](../chat/direct-messages.md)). A search shows only the sections it matched, and
+"no matches" when it matched none. A folded section hides its empty line too.
+
 ## The tiles
 
 A tile is a 44px icon box with its label under it. The open one has a tinted fill (`bg-primary/[0.24]`),

@@ -56,8 +56,8 @@ const ActionRow = ({ icon, label, onClick, hasDot, dotLabel }: ActionRowProps) =
 
 /**
  * Sidebar top (Figma Channel List Panel): the active place as a static title (the
- * place rail owns switching), a pill channel search, and the per-place actions as
- * labelled rows — edit my profile, notifications, activity, saved.
+ * place rail owns switching), a pill channel search, then Saved and the per-place actions as
+ * labelled rows — edit my profile, notifications, threads, activity.
  */
 export const SidebarHeader = ({
     placeName,
@@ -100,7 +100,11 @@ export const SidebarHeader = ({
                     />
                 </label>
             </div>
+            <div aria-hidden className="mt-3 h-px w-full shrink-0 bg-hairline" />
             <div className="flex flex-col gap-2 py-2">
+                {/* Saved leads (Figma Home); the rest are the place's own actions until the nav
+                    rail's Notifications destination takes Mentions and Threads over. */}
+                <ActionRow icon={<Bookmark size={18} aria-hidden />} label={t('saved.title')} onClick={onOpenSaved} />
                 {!isDefaultMode && (
                     <ActionRow
                         icon={<UserPen size={18} aria-hidden />}
@@ -123,7 +127,6 @@ export const SidebarHeader = ({
                     hasDot={hasMentionUnread}
                     dotLabel={t('activity.unread')}
                 />
-                <ActionRow icon={<Bookmark size={18} aria-hidden />} label={t('saved.title')} onClick={onOpenSaved} />
             </div>
         </div>
     );
