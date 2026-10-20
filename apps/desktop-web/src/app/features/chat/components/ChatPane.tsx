@@ -178,8 +178,8 @@ export const ChatPane = ({
 
     const mentionables = useMentionables(members, viewer, channel);
 
-    // The image tray belongs to the open channel: switching channels drops it (and its
-    // object URLs) the way a thread switch does in ThreadPanel.
+    // The image tray belongs to the open channel: switching channels shows that channel's own
+    // tray, and the one left behind waits for the way back, as the typed draft does.
     const tray = useImageAttachments(channelId ?? '');
     const { isDragging, dropHandlers } = useFileDrop(tray.addFiles);
     // The channel's own cloud, so a cloud switch while a send is in flight cannot move it to the next

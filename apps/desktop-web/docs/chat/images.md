@@ -58,8 +58,13 @@ row used to wrap, and ten images took about 40% of the window. An image's previe
 until its `<img>` has decoded; the tray tracks that itself rather than decoding each file a second
 time. A video's or document's tile shows a kind icon, its name and its size.
 
-Every picked file gets an object URL, revoked on remove, on clear and when the channel or thread
-changes. Clicking a tile opens the file at full size before it is sent (`ComposerPreview`), since the
+Each channel and each thread has its own tray, kept outside the pane, so switching channels or
+leaving for another page and coming back finds the files where they were — as the typed draft is
+kept. It is in memory only (a page `File` cannot be stored), so it lasts as long as the window.
+Every picked file gets an object URL, revoked on remove and on clear (a send clears the tray); the
+URL stays alive while its tray waits in another conversation, or the tile would come back blank.
+
+Clicking a tile opens the file at full size before it is sent (`ComposerPreview`), since the
 tile is only a 92px crop or a name: an image or a video in the image viewer's frame with the picture
 (held to the same upscale cap) or a player alone, and a PDF or text file in the feed's `FileViewer`, read from the file the page
 already holds instead of fetched. Neither has a sender, a save or a copy — there is no message yet —
