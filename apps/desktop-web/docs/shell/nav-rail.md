@@ -55,5 +55,5 @@ The avatar at the bottom of the rail (`AccountMenu`) opens profile, account, joi
 and accounts linked to the device guest), settings, the debug overlay when debug mode is on, and log
 out. Logging out of a guest is a delete, so it asks first and offers to connect an account instead.
 
-The hidden debug-mode gesture (seven taps on the divider under the place tiles) stays with the place
+The hidden debug-mode gesture (seven taps on the divider between the cloud switcher and the place tiles) stays with the place
 tiles. Only the menu moved.

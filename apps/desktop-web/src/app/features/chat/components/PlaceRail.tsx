@@ -172,7 +172,7 @@ const PlaceTile = ({
                     messages across rows that only dot, so "12" pointed at nothing a
                     row inside would admit to. */}
                     {unread > 0 && (
-                        <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail-elevated bg-badge-unread" />
+                        <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread" />
                     )}
                 </span>
                 <span
@@ -312,7 +312,7 @@ export const PlaceRail = ({
             {/* overflow-y:auto clips overflow-x too — the pt/px give the -top/-right unread
                 badge room inside the clip box instead of slicing it. */}
             <div className="relative flex min-h-0 w-full flex-1 flex-col">
-                {placeScroll.above && <ScrollHint edge="top" surface="rail-elevated" />}
+                {placeScroll.above && <ScrollHint edge="top" surface="rail" />}
                 <div
                     ref={placeScroll.ref}
                     className="-mt-2 flex w-full flex-1 flex-col items-stretch gap-4 overflow-y-auto scrollbar-hide px-1 pt-2"
@@ -385,7 +385,7 @@ export const PlaceRail = ({
                         </>
                     )}
                 </div>
-                {placeScroll.below && <ScrollHint edge="bottom" surface="rail-elevated" />}
+                {placeScroll.below && <ScrollHint edge="bottom" surface="rail" />}
             </div>
 
             <ConfirmDialog
