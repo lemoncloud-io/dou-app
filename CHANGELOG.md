@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-20] - root@0.108.2, @chatic/desktop-web@0.34.4
+
+### Bug Fixes
+
+- (desktop-web) stop re-sending a place switch the server refused
+
 ## [2026-10-20] - root@0.108.1, @chatic/desktop-web@0.34.3
 
 ### Bug Fixes
