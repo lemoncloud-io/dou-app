@@ -501,6 +501,36 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
         expect(resolvePushTapPath({ link: '/channels/1/room', chatId: 'c42' })).toBe('/channels/1/room?chatId=c42');
     });
 
+    // The push service's APNs encoding, verbatim: `payload` is a map, `cid` is the relay sentinel `#`,
+    // and the chat id carries the room id with its colon. This is what a tap hands over on iOS.
+    it('merges the context of a push exactly as the server encodes it for APNs', () => {
+        const wire = {
+            aps: { alert: { title: 'Design', body: '' }, 'mutable-content': 1, sound: 'default' },
+            id: 'push-1',
+            type: 'chat',
+            channel_id: 'dou_chat',
+            timestamp: '1760940000038',
+            title_loc_key: 'push_chat_message_title',
+            title_loc_args: ['Design'],
+            loc_key: 'push_chat_group_thread_images_body',
+            loc_args: ['Sunny', '3'],
+            link: '/channels/U:1002021/room',
+            silent: false,
+            payload: {
+                cid: '#',
+                sid: '0000',
+                channelId: 'U:1002021',
+                channelName: 'Design',
+                ownerId: 'U-sunny',
+                chatId: 'U:1002021:3',
+                content: '',
+                uid: '1002021',
+            },
+        };
+
+        expect(resolvePushTapPath(wire)).toBe('/channels/U:1002021/room?cid=%23&sid=0000&chatId=U%3A1002021%3A3');
+    });
+
     it('keeps a chatId the link already carries', () => {
         expect(resolvePushTapPath({ link: '/channels/1/room?chatId=explicit', payload: { chatId: 'c42' } })).toBe(
             '/channels/1/room?chatId=explicit'
