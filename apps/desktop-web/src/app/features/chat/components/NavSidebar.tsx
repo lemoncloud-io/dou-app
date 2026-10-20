@@ -7,6 +7,7 @@ interface NavSidebarProps {
     /** The Home sidebar: the place's header and channel list. */
     home: ReactNode;
     notifications: ReactNode;
+    channels: ReactNode;
 }
 
 /**
@@ -16,7 +17,7 @@ interface NavSidebarProps {
  * the next-unread shortcut walks and holds the quick switcher and message search; unmounted, the
  * shortcut would walk an order frozen at the last Home render and ⌘K would stop answering.
  */
-export const NavSidebar = ({ active, home, notifications }: NavSidebarProps) => {
+export const NavSidebar = ({ active, home, notifications, channels }: NavSidebarProps) => {
     const isHome = active === 'home';
     return (
         <>
@@ -24,6 +25,7 @@ export const NavSidebar = ({ active, home, notifications }: NavSidebarProps) => 
                 {home}
             </div>
             {active === 'notifications' && notifications}
+            {active === 'channels' && channels}
         </>
     );
 };

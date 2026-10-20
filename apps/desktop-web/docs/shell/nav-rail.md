@@ -18,6 +18,7 @@ never offers a tile that would open an empty column.
 | ------------- | -------------------------------------------------------------------- |
 | Home          | The place's sections: Saved, Favorites, Channels, DM (`ChannelList`) |
 | Notifications | The inbox in tabs ([inbox.md](../chat/inbox.md#the-panel))           |
+| Channels      | The place's channels by activity ([lists.md](../chat/lists.md))      |
 
 ### The Home sidebar
 
@@ -44,7 +45,7 @@ alone is not read out.
 ## Width
 
 The sidebar column keeps a width per destination: Home under `chatic.sidebar.width` (286px to
-start), a list of cards (Notifications) under `chatic.navPanel.width` (420px to start). Both drag
+start), a list (Notifications, Channels) under `chatic.navPanel.width` (420px to start). Both drag
 between the same bounds. `DesktopLayout` takes the pair as `sidebarWidth`, and `usePanelWidth` swaps
 to the new key's width before the frame is painted, dropping the old one from its budget so the
 column is not counted twice.

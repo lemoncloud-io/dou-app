@@ -66,6 +66,7 @@ import {
     SidebarHeader,
     SavedPanel,
     NotificationsPanel,
+    ChannelListPanel,
     ThreadPanel,
 } from '../components';
 import {
@@ -79,6 +80,7 @@ import {
 } from '../hooks';
 import {
     elsewhereChannels as elsewhereChannelRows,
+    hasUnreadRoom,
     landingTarget,
     openPlaceFor,
     pendingOpenRoute,
@@ -103,7 +105,7 @@ const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
 };
 
 // Destinations whose screens exist; the others join the rail as their screens land.
-const NAV_ITEMS: NavDestination[] = ['home', 'notifications'];
+const NAV_ITEMS: NavDestination[] = ['home', 'notifications', 'channels'];
 
 /**
  * The sidebar column's width per destination: Home keeps the narrow channel list it always had, and
@@ -215,6 +217,7 @@ export const HomePage = () => {
     const navActive = useNavStore(s => s.active);
     // Select the boolean, not the items: the dot only re-renders on false↔true.
     const hasInboxUnread = useMentionsStore(s => Object.values(s.items).some(item => !item.readAt));
+    const hasChannelUnread = hasUnreadRoom(channels);
     // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
     // 7×-tap toggle). Top precedence so it owns the dock while open.
     const debugEnabled = useDebugModeStore(s => s.enabled);
@@ -790,7 +793,9 @@ export const HomePage = () => {
                         />
                     </>
                 }
-                nav={<NavRail items={NAV_ITEMS} unread={{ notifications: hasInboxUnread }} />}
+                nav={
+                    <NavRail items={NAV_ITEMS} unread={{ notifications: hasInboxUnread, channels: hasChannelUnread }} />
+                }
                 sidebarWidth={navActive === 'home' ? undefined : NAV_PANEL_WIDTH}
                 sidebar={
                     <NavSidebar
@@ -800,6 +805,16 @@ export const HomePage = () => {
                                 cloudId={activeCloudId ?? RELAY_CLOUD_ID}
                                 channels={channels}
                                 onSelect={jumpToSaved}
+                            />
+                        }
+                        channels={
+                            <ChannelListPanel
+                                channels={channels}
+                                selectedChannelId={selectedChannelId}
+                                onSelect={selectFromList}
+                                // The same rule as Home's list: the default cloud takes no new channels.
+                                onCreateChannel={isDefaultMode ? undefined : openCreateChannel}
+                                isLoading={isLoading}
                             />
                         }
                         home={

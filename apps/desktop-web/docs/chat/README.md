@@ -27,6 +27,8 @@ stores in `src/app/shared/`.
   row it waits on, and tips that match what the account has.
 - [inbox.md](./inbox.md): the device-local inbox — the five kinds it captures (mentions, 1:1 messages,
   replies in my threads, reactions to mine), one item per message, and who reads which kind.
+- [lists.md](./lists.md): the Channels destination's list — what a row shows, its order, and the one
+  cache observation its previews come from.
 - [my-threads.md](./my-threads.md): the device's record of my threads, which the inbox's Threads tab
   reads — which threads it holds, the three ways one gets in, and what it cannot know.
 - [threads.md](./threads.md): how the thread panel gets a root and replies that are older than the loaded

@@ -9,3 +9,7 @@ import { isDmChannel, isSelfChannel } from '../../../shared';
  * drift apart.
  */
 export const isDmBucket = (channel: DomainChannel): boolean => isDmChannel(channel) || isSelfChannel(channel);
+
+/** Whether a channel, not a DM or the notes-to-self room, holds unread messages: the Channels tile's dot. */
+export const hasUnreadRoom = (channels: DomainChannel[]): boolean =>
+    channels.some(channel => !isDmBucket(channel) && (channel.unreadCount ?? 0) > 0);

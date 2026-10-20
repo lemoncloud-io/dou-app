@@ -18,7 +18,14 @@ const HomeList = () => {
 
 describe('NavSidebar', () => {
     it('shows the open destination', () => {
-        render(<NavSidebar active="notifications" home={<HomeList />} notifications={<p>inbox</p>} />);
+        render(
+            <NavSidebar
+                active="notifications"
+                home={<HomeList />}
+                notifications={<p>inbox</p>}
+                channels={<p>rooms</p>}
+            />
+        );
 
         expect(screen.getByText('inbox')).toBeTruthy();
         expect(screen.queryByRole('navigation', { name: 'Channels' })).toBeNull();
@@ -29,14 +36,23 @@ describe('NavSidebar', () => {
     it('keeps the Home list mounted, out of sight, while another destination is open', () => {
         mounted.mockClear();
         unmounted.mockClear();
-        const { rerender } = render(<NavSidebar active="home" home={<HomeList />} notifications={<p>inbox</p>} />);
+        const { rerender } = render(
+            <NavSidebar active="home" home={<HomeList />} notifications={<p>inbox</p>} channels={<p>rooms</p>} />
+        );
 
-        rerender(<NavSidebar active="notifications" home={<HomeList />} notifications={<p>inbox</p>} />);
+        rerender(
+            <NavSidebar
+                active="notifications"
+                home={<HomeList />}
+                notifications={<p>inbox</p>}
+                channels={<p>rooms</p>}
+            />
+        );
 
         expect(unmounted).not.toHaveBeenCalled();
         expect(screen.getByText('home').closest('[hidden]')).toBeTruthy();
 
-        rerender(<NavSidebar active="home" home={<HomeList />} notifications={<p>inbox</p>} />);
+        rerender(<NavSidebar active="home" home={<HomeList />} notifications={<p>inbox</p>} channels={<p>rooms</p>} />);
 
         expect(mounted).toHaveBeenCalledTimes(1);
         expect(screen.getByRole('navigation', { name: 'Channels' })).toBeTruthy();
