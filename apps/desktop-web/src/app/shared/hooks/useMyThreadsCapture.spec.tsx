@@ -20,6 +20,9 @@ vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             getGlobalSessionContext: () => ({ identity: { userId: ACCOUNT_UID } }),
+            // The inbox reads my names to tell a reply that is also a mention.
+            getIdentityContext: () => ({ userId: ACCOUNT_UID }),
+            getActiveSessionUser: () => null,
             useGlobalSession: () => ({ cloud: { cloudId } }),
         },
         // Bound to the cloud each read names; the selected cloud's graph is never read.
@@ -47,7 +50,7 @@ vi.mock('./useChannelChatFeeds', () => ({
 import '../../../i18n';
 
 import { isThreadUnread, myThreadKey } from '../utils';
-import { useMyThreadsStore } from '../stores';
+import { useMentionsStore, useMyThreadsStore, useReadCursorStore } from '../stores';
 import { useMyThreadsCapture } from './useMyThreadsCapture';
 
 const KEY = myThreadKey('cloud-a', 'ch-1', '3');
@@ -86,11 +89,36 @@ beforeEach(() => {
     chatCacheReadList.mockReset().mockResolvedValue({ list: [] });
     channelCacheReadList.mockReset().mockResolvedValue({ list: [] });
     useMyThreadsStore.setState({ threads: {}, backfilled: {} });
+    useMentionsStore.setState({ items: {} });
+    useReadCursorStore.setState({ cursors: {} });
 });
+
+const inboxKinds = () => Object.values(useMentionsStore.getState().items).map(item => [item.id, item.kind]);
 
 describe('useMyThreadsCapture', () => {
     beforeEach(() => {
         renderHook(() => useMyThreadsCapture());
+    });
+
+    it("puts someone else's reply in a thread of mine into the inbox", async () => {
+        cacheRead.mockResolvedValue(rootBy(CLOUD_UID));
+        feedHandler?.(feed({}));
+        await waitFor(() => expect(inboxKinds()).toEqual([['ch-1:5', 'reply']]));
+    });
+
+    it("leaves someone else's thread out of the inbox", async () => {
+        cacheRead.mockResolvedValue(rootBy('someone-else'));
+        feedHandler?.(feed({}));
+        await waitFor(() => expect(cacheRead).toHaveBeenCalled());
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(inboxKinds()).toEqual([]);
+    });
+
+    it('leaves my own reply out of the inbox', async () => {
+        cacheRead.mockResolvedValue(rootBy(CLOUD_UID));
+        feedHandler?.(feed({ ownerId: CLOUD_UID, owner$: { id: CLOUD_UID } }));
+        await waitFor(() => expect(held()).toBeDefined());
+        expect(inboxKinds()).toEqual([]);
     });
 
     it('adds a thread whose root is mine when someone replies, as a new reply', async () => {
@@ -193,6 +221,7 @@ describe('useMyThreadsCapture', () => {
         await new Promise(resolve => setTimeout(resolve, 0));
 
         expect(held()).toBeUndefined();
+        expect(inboxKinds()).toEqual([]);
         expect(warn).toHaveBeenCalledWith('CHAT', expect.stringContaining('capture failed'), expect.anything());
 
         feedHandler?.(feed({ id: 'ch-1:6', chatNo: 6 }));

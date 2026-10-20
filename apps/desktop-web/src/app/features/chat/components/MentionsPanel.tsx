@@ -11,6 +11,7 @@ import {
     Hint,
     avatarStyle,
     hoverReveal,
+    isMentionKind,
     unreadMentionCount,
     ResizablePanel,
     useMentionsPanelStore,
@@ -52,73 +53,78 @@ const MentionRow = memo(
     ({ item, channelName, removeTarget, isCurrent, onOpen, onRemove, openRef }: MentionRowProps) => {
         const { t } = useTranslation();
         return (
-    <li
-        className={cn(
-            'group/mention relative flex rounded-md border shadow-raised transition-colors ease-tactile hover:bg-accent/60',
-            isCurrent ? 'border-primary-ink/40 bg-accent' : 'border-hairline bg-elevated'
-        )}
-    >
-        <button
-            ref={openRef}
-            type="button"
-            aria-current={isCurrent || undefined}
-            onClick={() => onOpen(item.id)}
-            className="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-md p-2.5 text-left"
-        >
-            {/* Unread marker — a dot in the left gutter until the mention is opened. */}
-            <span aria-hidden className="mt-3 w-1.5 shrink-0">
-                {!item.readAt && <span className="block h-1.5 w-1.5 rounded-full bg-primary" />}
-            </span>
-            <Avatar className="mt-0.5 h-9 w-9 shrink-0">
-                {item.avatar && <AvatarImage src={item.avatar} alt={item.ownerName} />}
-                <AvatarFallback
-                    className="text-callout font-semibold"
-                    style={avatarStyle(item.colorSeed ?? item.ownerName)}
-                >
-                    {item.ownerName.charAt(0).toUpperCase() || '?'}
-                </AvatarFallback>
-            </Avatar>
-            <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="flex items-center gap-1.5 pr-7 text-caption text-muted-foreground">
-                    <span className={cn('truncate text-foreground', !item.readAt ? 'font-semibold' : 'font-medium')}>
-                        {item.ownerName}
-                    </span>
-                    {channelName && (
-                        <>
-                            <Hash size={10} aria-hidden className="shrink-0" />
-                            <span className="truncate">{channelName}</span>
-                        </>
-                    )}
-                    <span className="ml-auto shrink-0 tabular-nums">{formatMentionAt(item.createdAt)}</span>
-                </span>
-                <span className="line-clamp-2 whitespace-pre-wrap break-words pr-5 text-callout text-muted-foreground">
-                    {item.content}
-                </span>
-            </span>
-        </button>
-        {/* Jump affordance — surfaces on row hover. */}
-        <ChevronRight
-            size={16}
-            aria-hidden
-            className={cn(
-                'pointer-events-none absolute bottom-2 right-2 text-muted-foreground',
-                hoverReveal('mention')
-            )}
-        />
-        <Hint label={t('activity.remove')}>
-            <button
-                type="button"
-                onClick={() => onRemove(item.id)}
-                aria-label={t('activity.removeLabel', { target: removeTarget })}
+            <li
                 className={cn(
-                    'focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground',
-                    hoverReveal('mention')
+                    'group/mention relative flex rounded-md border shadow-raised transition-colors ease-tactile hover:bg-accent/60',
+                    isCurrent ? 'border-primary-ink/40 bg-accent' : 'border-hairline bg-elevated'
                 )}
             >
-                <X size={13} />
-            </button>
-        </Hint>
-    </li>
+                <button
+                    ref={openRef}
+                    type="button"
+                    aria-current={isCurrent || undefined}
+                    onClick={() => onOpen(item.id)}
+                    className="focus-ring flex min-w-0 flex-1 items-start gap-2.5 rounded-md p-2.5 text-left"
+                >
+                    {/* Unread marker — a dot in the left gutter until the mention is opened. */}
+                    <span aria-hidden className="mt-3 w-1.5 shrink-0">
+                        {!item.readAt && <span className="block h-1.5 w-1.5 rounded-full bg-primary" />}
+                    </span>
+                    <Avatar className="mt-0.5 h-9 w-9 shrink-0">
+                        {item.avatar && <AvatarImage src={item.avatar} alt={item.ownerName} />}
+                        <AvatarFallback
+                            className="text-callout font-semibold"
+                            style={avatarStyle(item.colorSeed ?? item.ownerName)}
+                        >
+                            {item.ownerName.charAt(0).toUpperCase() || '?'}
+                        </AvatarFallback>
+                    </Avatar>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="flex items-center gap-1.5 pr-7 text-caption text-muted-foreground">
+                            <span
+                                className={cn(
+                                    'truncate text-foreground',
+                                    !item.readAt ? 'font-semibold' : 'font-medium'
+                                )}
+                            >
+                                {item.ownerName}
+                            </span>
+                            {channelName && (
+                                <>
+                                    <Hash size={10} aria-hidden className="shrink-0" />
+                                    <span className="truncate">{channelName}</span>
+                                </>
+                            )}
+                            <span className="ml-auto shrink-0 tabular-nums">{formatMentionAt(item.createdAt)}</span>
+                        </span>
+                        <span className="line-clamp-2 whitespace-pre-wrap break-words pr-5 text-callout text-muted-foreground">
+                            {item.content}
+                        </span>
+                    </span>
+                </button>
+                {/* Jump affordance — surfaces on row hover. */}
+                <ChevronRight
+                    size={16}
+                    aria-hidden
+                    className={cn(
+                        'pointer-events-none absolute bottom-2 right-2 text-muted-foreground',
+                        hoverReveal('mention')
+                    )}
+                />
+                <Hint label={t('activity.remove')}>
+                    <button
+                        type="button"
+                        onClick={() => onRemove(item.id)}
+                        aria-label={t('activity.removeLabel', { target: removeTarget })}
+                        className={cn(
+                            'focus-ring tactile absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground',
+                            hoverReveal('mention')
+                        )}
+                    >
+                        <X size={13} />
+                    </button>
+                </Hint>
+            </li>
         );
     }
 );
@@ -154,7 +160,10 @@ export const MentionsPanel = ({ channels, places, currentPlaceId, onSelect }: Me
     // rest keep recency order. Items captured before placeId existed fall under
     // the catch-all "Other workspace" group (key '').
     const groups = useMemo(() => {
-        const sorted = Object.values(items).sort((a, b) => b.createdAt - a.createdAt);
+        // This pane lists mentions; the inbox's other kinds wait for the Notifications panel.
+        const sorted = Object.values(items)
+            .filter(isMentionKind)
+            .sort((a, b) => b.createdAt - a.createdAt);
         const byPlace = new Map<string, MentionItem[]>();
         for (const item of sorted) {
             const key = item.placeId ?? '';

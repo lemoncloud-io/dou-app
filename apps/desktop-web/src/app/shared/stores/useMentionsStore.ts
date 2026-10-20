@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { isMentionKind, type InboxKind } from '../utils/inboxKinds';
+
 /**
  * A message that @-mentioned me, snapshotted at capture time. Snapshot (not a
  * live ref) because the source row pages out of the chat cache; the Activity
@@ -23,10 +25,17 @@ export interface MentionItem {
     createdAt: number;
     /** Epoch ms when read; absent = unread (drives the Activity badge). */
     readAt?: number;
+    /**
+     * Why the item is here (`inboxKinds.ts`). Absent on items stored before the inbox took DMs,
+     * replies and reactions; those read as `direct`.
+     */
+    kind?: InboxKind;
+    /** The emoji of a `reaction` item; its `content` is the message reacted to. */
+    emoji?: string;
 }
 
-/** Bound storage: keep only the newest N mentions. */
-const MAX_ITEMS = 200;
+/** Bound storage: keep only the newest N items. DMs, replies and reactions share the cap with mentions. */
+const MAX_ITEMS = 500;
 
 /**
  * What the inbox keeps of a message: the two-line preview, not the body. Full
@@ -56,9 +65,9 @@ interface MentionsState {
     remove: (id: string) => void;
 }
 
-/** Count of unread mentions — drives the sidebar Activity dot. */
+/** Count of unread mentions — drives the sidebar Activity dot. Other kinds do not count. */
 export const unreadMentionCount = (items: Record<string, MentionItem>): number =>
-    Object.values(items).reduce((count, item) => (item.readAt ? count : count + 1), 0);
+    Object.values(items).reduce((count, item) => (item.readAt || !isMentionKind(item) ? count : count + 1), 0);
 
 /**
  * Whether a channel holds a mention I have not got to: one not opened from the inbox, and past
@@ -68,6 +77,7 @@ export const unreadMentionCount = (items: Record<string, MentionItem>): number =
  * every place's mentions, so the id alone would also match another place's channel.
  */
 const isUnreadMentionIn = (item: MentionItem, channel: { id: string; placeId?: string }, readNo: number): boolean =>
+    isMentionKind(item) &&
     item.channelId === channel.id &&
     item.placeId === channel.placeId &&
     !item.readAt &&
@@ -88,7 +98,8 @@ export const countUnreadMentionsIn = (
     items: Record<string, MentionItem>,
     channel: { id: string; placeId?: string },
     readNo: number
-): number => Object.values(items).reduce((count, item) => (isUnreadMentionIn(item, channel, readNo) ? count + 1 : count), 0);
+): number =>
+    Object.values(items).reduce((count, item) => (isUnreadMentionIn(item, channel, readNo) ? count + 1 : count), 0);
 
 /**
  * Device-local mentions inbox ("Activity"). No server mention model exists, so
@@ -134,14 +145,8 @@ export const useMentionsStore = create<MentionsState>()(
                     const now = Date.now();
                     const next: Record<string, MentionItem> = {};
                     for (const [id, item] of Object.entries(state.items)) {
-                        const samePlace =
-                            placeId == null || item.placeId == null || item.placeId === placeId;
-                        if (
-                            !item.readAt &&
-                            item.channelId === channelId &&
-                            samePlace &&
-                            (item.chatNo ?? 0) <= chatNo
-                        ) {
+                        const samePlace = placeId == null || item.placeId == null || item.placeId === placeId;
+                        if (!item.readAt && item.channelId === channelId && samePlace && (item.chatNo ?? 0) <= chatNo) {
                             next[id] = { ...item, readAt: now };
                             touched = true;
                         } else {

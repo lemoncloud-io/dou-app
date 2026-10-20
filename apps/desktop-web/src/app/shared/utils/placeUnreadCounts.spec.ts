@@ -197,6 +197,17 @@ describe('placeUnreadCounts mentions-only channels', () => {
         });
     });
 
+    // The inbox also holds 1:1 messages, replies and reactions; a mentions-only channel counts mentions only.
+    it('adds nothing for an inbox item that is not a mention', () => {
+        const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
+        const others = (['dm', 'reply', 'reaction'] as const).map(kind => ({
+            ...mention(`g:${kind}`, 'g', 'place-a', 1),
+            kind,
+        }));
+
+        expect(countsWith(channels, others)).toEqual({ byPlace: {}, total: 0 });
+    });
+
     it('caps the addition at the channel unread', () => {
         const channels = [group('g', 'place-a', [ME], { ...unread1, ...mentionMode })];
         const mentions = [

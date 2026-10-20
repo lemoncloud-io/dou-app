@@ -3,6 +3,7 @@ import { isCloudDm, type DomainChannel } from '@chatic/data';
 import { channelNotifyMode, isNotifyDm, type ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
 import type { MentionItem } from '../stores/useMentionsStore';
 import { channelReadNo, computeChannelUnread } from './channelUnread';
+import { isMentionKind } from './inboxKinds';
 import { listingPlaces } from './roomPlaces';
 
 /**
@@ -59,7 +60,7 @@ export const placeUnreadCounts = (
         )
     ) {
         for (const item of Object.values(mentions)) {
-            if (item.readAt || item.placeId === undefined) continue;
+            if (item.readAt || item.placeId === undefined || !isMentionKind(item)) continue;
             const key = `${item.placeId}|${item.channelId}`;
             const bucket = mentionChatNos.get(key);
             const chatNo = item.chatNo ?? 0;

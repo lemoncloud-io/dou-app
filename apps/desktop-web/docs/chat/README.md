@@ -25,6 +25,8 @@ stores in `src/app/shared/`.
   previews in the sidebar and notifications.
 - [onboarding.md](./onboarding.md): the first-run welcome, shown once per account, the Self Channel
   row it waits on, and tips that match what the account has.
+- [inbox.md](./inbox.md): the device-local inbox — the five kinds it captures (mentions, 1:1 messages,
+  replies in my threads, reactions to mine), one item per message, and who reads which kind.
 - [my-threads.md](./my-threads.md): the sidebar Threads list — which threads it holds, the three ways
   one gets in, and what a device-local list cannot know.
 - [threads.md](./threads.md): how the thread panel gets a root and replies that are older than the loaded

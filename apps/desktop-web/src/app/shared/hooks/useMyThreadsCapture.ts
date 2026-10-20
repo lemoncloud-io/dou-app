@@ -5,6 +5,7 @@ import { runtime } from '@chatic/app-runtime';
 import { RELAY_CLOUD_ID, isInJoinWindow, type DomainChannel, type DomainChat } from '@chatic/data';
 
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
+import { captureInboxReply } from './useInboxCapture';
 import {
     cachedThreads,
     isNotifiableChat,
@@ -122,7 +123,7 @@ export const useMyThreadsCapture = (): void => {
     };
 
     useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
-        // Reactions carry the message they react to as `parentId`; they are not replies.
+        // A reaction is an event about another message (its target is `reaction$.chatId`), not a reply.
         if (!chat.parentId || !channel.id || chat.subType === 'reaction' || !isNotifiableChat(chat)) return;
 
         const cid = channel.cid || RELAY_CLOUD_ID;
@@ -146,8 +147,11 @@ export const useMyThreadsCapture = (): void => {
             mine: isMine(chat),
         };
 
+        // Someone else's reply in a thread of mine is also news for the inbox.
+        const feed = { placeId, channel, chat };
         if (useMyThreadsStore.getState().threads[key]) {
             record(reply);
+            if (!reply.mine) captureInboxReply(feed);
             return;
         }
         if (pending.current.has(key)) {
@@ -171,6 +175,8 @@ export const useMyThreadsCapture = (): void => {
                 const threadRoot = { preview: messagePreview(root), ownerName: root.owner$?.name ?? '' };
                 record(reply, { root: threadRoot });
                 if (myLaterReply && myLaterReply !== reply) record(myLaterReply, { root: threadRoot });
+                // After the thread is recorded, so the list keeps the thread whatever the inbox does.
+                if (!reply.mine) captureInboxReply(feed);
             })
             .catch(error => {
                 // Not remembered as foreign: the next reply asks again, once the root may be readable.

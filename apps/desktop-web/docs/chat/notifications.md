@@ -65,8 +65,10 @@ further), so a mention counted here is one the row also marks unread.
 Limits, all from the mentions inbox living on this device: a mention that
 arrived while the app was closed is never captured and lights nothing here; a
 mention crowded out by a newer message (the feed hands each channel's latest
-only) is missed the same way; and past the inbox's 200-entry cap an unread
-mention can fall out and shrink a channel's share.
+only) is missed the same way; and past the inbox's 500-entry cap, which mentions
+share with the inbox's other kinds ([inbox.md](./inbox.md)), an unread mention
+can fall out and shrink a channel's share. Only mention items count here: a 1:1
+message, a reply or a reaction in the inbox adds nothing.
 
 ## Quiet-hours breakthrough
 
