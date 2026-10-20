@@ -54,6 +54,9 @@ export default defineShell<DouMethods, DouEvents>({
     requests: {
         'auth.login': 'OAuthLogin',
         'badge.set': 'SetBadgeCount',
+        // Named so the shell refuses it outright (pitfall 1): a request no handler answers asks the
+        // panel, and a person typing a token there would register a fake device.
+        'push.token': 'FetchFcmToken',
     },
     handlers: () => import('./apps/shell-adapter/src/handlers'),
     auth: { preset: 'oauth-popup', provider: 'google', clientIdEnv: 'VITE_GOOGLE_WEB_CLIENT_ID' },
