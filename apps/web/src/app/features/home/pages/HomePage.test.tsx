@@ -453,6 +453,14 @@ describe('HomePage — cloud mode', () => {
         expect(screen.getByTestId('channel-list')).toHaveAttribute('data-title', 'homePage.groupChats');
     });
 
+    it('draws the group section above the 1:1 section', () => {
+        render(<HomePage />);
+
+        const groups = screen.getByTestId('channel-list');
+        const dms = screen.getByTestId('dm-list');
+        expect(groups.compareDocumentPosition(dms) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     // The cloud's notes-to-self room belongs to the account, not the place: it leads the 1:1
     // section, and the place's copy of it (it carries a place too) is listed in neither section.
     it('lists the self chat atop the 1:1 section, and not among the groups', () => {

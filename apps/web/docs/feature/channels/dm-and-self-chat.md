@@ -123,7 +123,7 @@ session must not collapse into an empty-string lookup that answers with nobody.
 
 ### Mobile lists a cloud's 1:1s in a section of their own, and starts them too
 
-**A cloud's home has two room sections: `1:1 대화` and `그룹 대화`.** `useHomeChannels` slices the
+**A cloud's home has two room sections: `그룹 대화`, then `1:1 대화` below it.** `useHomeChannels` slices the
 place's rooms with `isInPlaceList`, and `HomePage` splits that slice by kind — `channelKindOf(stereo)`,
 the same rule every other 1:1 decision reads, so a group with two members stays a group. Both sections
 are the same `ChannelList`, under the place's sort (`channelSortMethod`) and pins (`pinnedChannelIds`).
