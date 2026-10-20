@@ -7,7 +7,7 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import type { LinkedAccountsView, LinkVerifiedView } from '@lemoncloud/chatic-backend-api';
 
-import { socketErrorStatus, toError } from '../../../shared';
+import { socketErrorStatus, toError, toastFailure } from '../../../shared';
 import { useOAuthAttemptStore, type LinkFailure } from '../stores/useOAuthAttemptStore';
 import {
     buildAuthorizeUrl,
@@ -184,7 +184,7 @@ export const useSocialLogin = () => {
                 await signOutGuest();
             } catch (error) {
                 logger.error('AUTH', '[useSocialLogin] signing out the guest of a cancelled login failed', { error });
-                toast({ variant: 'destructive', description: t('auth.social.cancelFailed') });
+                toastFailure(t('auth.social.cancelFailed'), error);
             } finally {
                 clear();
             }
@@ -280,7 +280,7 @@ export const useSocialLogin = () => {
                 logger.error('AUTH', '[useSocialLogin] code exchange failed', { error: err });
                 setIsError(true);
                 // A login the person started must not fail silently.
-                if (notifyFailure) toast({ variant: 'destructive', description: t('auth.social.failed') });
+                if (notifyFailure) toastFailure(t('auth.social.failed'), err);
                 completingRef.current = false; // allow a retry with a fresh code
                 return false;
             } finally {

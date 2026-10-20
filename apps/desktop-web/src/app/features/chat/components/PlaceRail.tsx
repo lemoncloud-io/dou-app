@@ -50,6 +50,7 @@ import {
     useDebugModeStore,
     useDisplayProfile,
     useScrollOverflow,
+    toastFailure,
 } from '../../../shared';
 import { SortableList } from './SortableList';
 
@@ -294,7 +295,7 @@ export const PlaceRail = ({
             toast({ title: t('toast.placeDeleted') });
         } catch (error) {
             // The place is still there: the row is only dropped once the server has agreed.
-            toast({ variant: 'destructive', title: t(DELETE_FAILURE_KEY[placeFailure(error, 'DeletePlace')]) });
+            toastFailure(t(DELETE_FAILURE_KEY[placeFailure(error, 'DeletePlace')]), error);
         } finally {
             deleting.current = false;
             setIsDeleting(false);

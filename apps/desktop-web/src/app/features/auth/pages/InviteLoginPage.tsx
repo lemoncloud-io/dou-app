@@ -67,9 +67,12 @@ export const InviteLoginPage = () => {
                 />
                 {/* role="alert" so a rejected code is announced, not just drawn. */}
                 {error && (
-                    <p id="invite-code-error" role="alert" className="-mt-2 text-callout text-destructive">
-                        {inviteLoginErrorText(error, t)}
-                    </p>
+                    <div id="invite-code-error" role="alert" className="-mt-2 flex flex-col gap-1">
+                        <p className="text-callout text-destructive">{inviteLoginErrorText(error, t)}</p>
+                        {error.kind === 'server' && error.message && (
+                            <p className="break-all font-mono text-caption text-muted-foreground">{error.message}</p>
+                        )}
+                    </div>
                 )}
                 <Button type="submit" size="lg" disabled={isSubmitting || !code.trim()}>
                     {isSubmitting ? t('auth.invite.preparing') : t('auth.invite.submit')}

@@ -9,6 +9,7 @@ import type { ChatMentionBody, DomainChat } from '@chatic/data';
 
 import { useChatMutations } from '../../../shared/hooks/useChatMutations';
 import { isUnsentImageMessage } from '../utils';
+import { toastFailure } from '../../../shared';
 
 export interface ComposerSendTarget {
     /** The room's own cloud — the channel row's `cid` (the relay's for a relay channel). */
@@ -43,7 +44,7 @@ export const useComposerSend = ({ cid, channelId, parentId }: ComposerSendTarget
         discard: discardImages,
     } = runtime.data.useSendImages({ cid, channelId, ...(parentId ? { parentId } : {}), put: xhrPut });
 
-    const failed = useCallback(() => toast({ variant: 'destructive', description: t('toast.messageFailed') }), [t]);
+    const failed = useCallback((error: unknown) => toastFailure(t('toast.messageFailed'), error), [t]);
 
     const send = useCallback(
         (content: string, files: readonly File[], mention?: ChatMentionBody) => {

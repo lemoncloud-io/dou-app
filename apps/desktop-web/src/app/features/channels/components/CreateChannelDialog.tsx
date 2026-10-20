@@ -6,7 +6,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { Dialog, DialogContent, DialogTitle, DialogFooter } from '@chatic/ui-kit/components/ui/dialog';
 
-import { MobileAppPointer, radioGroupOptions, useDesktopChannelMutations } from '../../../shared';
+import { MobileAppPointer, radioGroupOptions, useDesktopChannelMutations, toastFailure } from '../../../shared';
 import { useCreateChannelDialogStore } from '../stores';
 import { createChannelFailure, isValidChannelName, type CreateChannelFailure } from '../utils';
 import { ChannelNameField } from './ChannelNameField';
@@ -75,7 +75,9 @@ export const CreateChannelDialog = ({ onCreated }: CreateChannelDialogProps) => 
             close();
             toast({ description: t('toast.channelCreated') });
         } catch (error) {
-            setFailure(createChannelFailure(error));
+            const reason = createChannelFailure(error);
+            setFailure(reason);
+            toastFailure(t(FAILURE_KEY[reason]), error);
         }
     };
 

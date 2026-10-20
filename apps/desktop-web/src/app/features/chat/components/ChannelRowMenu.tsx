@@ -16,7 +16,6 @@ import {
     ContextMenuSubTrigger,
     ContextMenuTrigger,
 } from '@chatic/ui-kit/components/ui/context-menu';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { type ChannelDialogKind, isChannelOwner, useChannelSettingsStore, useSendInviteStore } from '../../channels';
 import { isDmBucket } from '../utils';
@@ -26,6 +25,7 @@ import {
     useChannelNotifyChange,
     useReadCursorStore,
     type ChannelNotifyMode,
+    toastFailure,
 } from '../../../shared';
 
 type RowDialogKind = Exclude<ChannelDialogKind, 'kick' | null>;
@@ -85,8 +85,8 @@ export const ChannelRowMenu = ({
             .getCloudRepositories(channel.cid || RELAY_CLOUD_ID)
             .join.readChat({ channelId: id, chatNo: lastChatNo })
             .then(receipt => receipt.delivered)
-            .catch(() => {
-                toast({ title: t('sidebar.markReadFailed'), variant: 'destructive' });
+            .catch((error: unknown) => {
+                toastFailure(t('sidebar.markReadFailed'), error);
             });
     };
 

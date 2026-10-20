@@ -5,7 +5,6 @@ import { CheckCheck, ChevronLeft, LogOut, Star, Trash2 } from 'lucide-react';
 
 import { placeScopeKey, usePinnedChannels } from '@chatic/shared';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { runtime } from '@chatic/app-runtime';
 import { RELAY_CLOUD_ID } from '@chatic/data';
@@ -16,6 +15,7 @@ import {
     useChannels,
     useDesktopChannelMutations,
     useReadCursorStore,
+    toastFailure,
 } from '../../../shared';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 import { isChannelOwner } from '../../channels/utils/isChannelOwner';
@@ -78,9 +78,8 @@ export const PlaceChannelsPage = () => {
         // until the server has it, so a rejection is only a read refused for good (the room
         // left or gone); a read still waiting on the socket stays pending and says nothing.
         void Promise.allSettled(writes).then(results => {
-            if (results.some(result => result.status === 'rejected')) {
-                toast({ title: t('sidebar.markReadFailed'), variant: 'destructive' });
-            }
+            const refused = results.find(result => result.status === 'rejected');
+            if (refused) toastFailure(t('sidebar.markReadFailed'), refused.reason);
         });
     };
 
@@ -92,8 +91,8 @@ export const PlaceChannelsPage = () => {
             else await leaveChannel({ channelId: confirmTarget.id });
             setSelectedIds(prev => prev.filter(candidate => candidate !== confirmTarget.id));
             setConfirmTarget(null);
-        } catch {
-            toast({ title: t('place.manage.removeFailed'), variant: 'destructive' });
+        } catch (error) {
+            toastFailure(t('place.manage.removeFailed'), error);
         } finally {
             setIsRemoving(false);
         }

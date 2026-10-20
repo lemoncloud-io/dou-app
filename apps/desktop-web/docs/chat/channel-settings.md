@@ -65,8 +65,8 @@ dropped request, no socket), and the generic line otherwise. A rejection with no
 to the wording (`classifyWireError`). The wire text
 itself is shown under that sentence in the dialog, as the failure toast's description, and in the
 log as `[INVITE] [SendInvite] failed` with `raw` — View › Toggle Developer Tools opens the console in
-packaged builds too. The dialog line is the one that can be read at the time: toasts sit under the
-dialog's dim while it is open, and the dialog stays open on a failure.
+packaged builds too. The dialog stays open on a failure, and the error toast rises over its dim
+(`docs/shell/layering.md`).
 
 ## Channel ID
 

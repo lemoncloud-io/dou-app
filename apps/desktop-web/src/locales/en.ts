@@ -753,8 +753,8 @@ export const en = {
     'toast.undo': 'Undo',
     'toast.undoRemove': 'Add them back to the channel',
 
-    // Failure copy for channel actions. The transport's own wire text goes
-    // to the console; these are what a person is shown. See
+    // Failure copy for channel actions. These lead; the transport's own wire
+    // text is shown under them in the failure toast. See
     // features/channels/utils/actionError.ts.
     'errors.notAllowed': "You don't have permission to do that.",
     'errors.notFound': 'That channel is no longer available.',

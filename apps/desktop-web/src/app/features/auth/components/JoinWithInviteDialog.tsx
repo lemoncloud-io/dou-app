@@ -75,9 +75,16 @@ export const JoinWithInviteDialog = () => {
                         aria-describedby={error ? 'join-invite-error' : undefined}
                     />
                     {error && (
-                        <p id="join-invite-error" role="alert" className="-mt-1 text-callout text-destructive">
-                            {inviteLoginErrorText(error, t)}
-                        </p>
+                        <div id="join-invite-error" role="alert" className="-mt-1 flex flex-col gap-1">
+                            <p className="text-callout text-destructive">{inviteLoginErrorText(error, t)}</p>
+                            {/* The server's own words: the toast carries them too, but this is
+                                where the person is looking. */}
+                            {error.kind === 'server' && error.message && (
+                                <p className="break-all font-mono text-caption text-muted-foreground">
+                                    {error.message}
+                                </p>
+                            )}
+                        </div>
                     )}
                     <DialogFooter className="gap-2 pt-2 sm:space-x-0">
                         <Button

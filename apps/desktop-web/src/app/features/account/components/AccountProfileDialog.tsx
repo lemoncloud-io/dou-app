@@ -16,7 +16,7 @@ import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
-import { useRelayAccount, type RelayAccount, FormError, FormField } from '../../../shared';
+import { useRelayAccount, type RelayAccount, FormError, FormField, toastFailure } from '../../../shared';
 
 /** The longest account name the form accepts, matching the web edit page. */
 export const ACCOUNT_NAME_MAX = 30;
@@ -101,9 +101,9 @@ export const AccountProfileDialog = ({ open, onOpenChange, initial }: AccountPro
             await updateAccount({ name: trimmed, ...(photoChanged ? { photo } : {}) });
             toast({ title: t('account.profile.saved') });
             onOpenChange(false);
-        } catch {
+        } catch (error) {
             setFailure(t('account.profile.saveFailed'));
-            toast({ title: t('account.profile.saveFailed'), variant: 'destructive' });
+            toastFailure(t('account.profile.saveFailed'), error);
         } finally {
             setSubmitting(false);
         }

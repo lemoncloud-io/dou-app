@@ -13,6 +13,7 @@ import {
     extractErrorMessage,
     useRenameCloud,
     type WireErrorKind,
+    toastFailure,
 } from '../../../shared';
 
 const CLOUD_NAME_MIN = 2;
@@ -26,7 +27,7 @@ const ERROR_KEY_BY_KIND: Partial<Record<WireErrorKind, string>> = {
     network: 'errors.network',
 };
 
-/** The wire text goes to the log; the person gets a sentence they can act on. */
+/** The person gets a sentence they can act on; the wire text goes to the log and under it in the toast. */
 const renameErrorKey = (error: unknown): string => {
     const raw = extractErrorMessage(error);
     logger.error('CLOUD', '[CloudRename] failed', { error, raw });
@@ -73,7 +74,9 @@ export const RenameCloudDialog = ({ open, onOpenChange, cloudId, currentName }: 
             await renameCloud(cloudId, trimmed);
             onOpenChange(false);
         } catch (error) {
-            setErrorMsg(t(renameErrorKey(error)));
+            const text = t(renameErrorKey(error));
+            setErrorMsg(text);
+            toastFailure(text, error);
         }
     };
 

@@ -74,9 +74,7 @@ describe('useComposerSend', () => {
     });
 
     it('carries the picked mention on a thread reply, with its parent', () => {
-        const { result } = renderHook(() =>
-            useComposerSend({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'ch-1:7' })
-        );
+        const { result } = renderHook(() => useComposerSend({ cid: 'cloud-a', channelId: 'ch-1', parentId: 'ch-1:7' }));
 
         act(() => result.current.send('@Ada hello', [], { userIds: ['u-ada'] }));
 
@@ -122,7 +120,9 @@ describe('useComposerSend', () => {
 
         await act(async () => result.current.send('caption', picked()));
 
-        expect(toast).toHaveBeenCalledWith({ variant: 'destructive', description: 'toast.messageFailed' });
+        expect(toast).toHaveBeenCalledWith(
+            expect.objectContaining({ variant: 'destructive', title: 'toast.messageFailed' })
+        );
         expect(sendMessage).toHaveBeenCalledTimes(1);
     });
 
@@ -132,7 +132,9 @@ describe('useComposerSend', () => {
 
         await act(async () => result.current.send('hello', []));
 
-        expect(toast).toHaveBeenCalledWith({ variant: 'destructive', description: 'toast.messageFailed' });
+        expect(toast).toHaveBeenCalledWith(
+            expect.objectContaining({ variant: 'destructive', title: 'toast.messageFailed' })
+        );
     });
 
     describe('a failed message', () => {

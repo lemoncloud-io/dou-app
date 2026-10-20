@@ -125,6 +125,10 @@ guest's id (`delegatorId`) and still stands on that guest's invite grants. Two t
   holds a guest id. An account without one — signed in without a guest on the device first — has
   nothing to join under; the join dialog refuses it after the code (`loggedIn`), and the menu hides
   the item from it.
+- **A refused invite says why.** The join dialog and the invite page show a sentence by the
+  refusal's kind and, under it, the server's own words (`400 INVALID - grace-timeout by invite[…]`
+  for an invite past its window); the same pair goes into an error toast that rises over the
+  dialog. See `docs/shell/failure-toasts.md`.
 - **Its logout keeps the invited clouds.** After the reload the device registers back into the same
   guest, which still holds the grants, so messages from those clouds keep arriving. The rail can list
   an invited cloud only from the cloud cache's invited rows and the joined-clouds store — the relay

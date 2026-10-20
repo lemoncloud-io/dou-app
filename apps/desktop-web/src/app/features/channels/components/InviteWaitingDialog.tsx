@@ -19,6 +19,7 @@ import {
     useDesktopInviteMutations,
     useInviteCountdown,
     useSelectedChannelStore,
+    toastFailure,
 } from '../../../shared';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
@@ -142,7 +143,7 @@ export const InviteWaitingDialog = () => {
             setConfirmingCancel(false);
             toast({ title: t('invite.waiting.canceled') });
             closeWaiting();
-        } catch {
+        } catch (error) {
             // Accepted or canceled in the meantime: re-ask and let the states
             // above tell the truth instead of erroring on a race.
             const rows = await refetchRows();
@@ -150,7 +151,7 @@ export const InviteWaitingDialog = () => {
             if (current?.state === 'accepted' || current?.state === 'canceled' || !current) {
                 setConfirmingCancel(false);
             } else {
-                toast({ title: t('invite.waiting.cancelFailed'), variant: 'destructive' });
+                toastFailure(t('invite.waiting.cancelFailed'), error);
             }
         } finally {
             setIsCanceling(false);
@@ -179,10 +180,10 @@ export const InviteWaitingDialog = () => {
                     }
                     try {
                         await cancelInvite(code);
-                    } catch {
+                    } catch (error) {
                         const rows = await refetchRows();
                         if (rows.find(item => item.id === invite.id)?.state === 'accepted') return;
-                        toast({ title: t('invite.waiting.reissueFailed'), variant: 'destructive' });
+                        toastFailure(t('invite.waiting.reissueFailed'), error);
                         return;
                     }
                 } else if (code) {
@@ -208,8 +209,8 @@ export const InviteWaitingDialog = () => {
                 deeplink: next.deeplink ?? '',
                 channelId,
             });
-        } catch {
-            toast({ title: t('invite.waiting.reissueFailed'), variant: 'destructive' });
+        } catch (error) {
+            toastFailure(t('invite.waiting.reissueFailed'), error);
         } finally {
             setIsReissuing(false);
         }

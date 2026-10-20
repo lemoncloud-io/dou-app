@@ -87,8 +87,8 @@ export const SendInviteDialog = () => {
     const [, copyLink] = useCopyToClipboard();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
-    // `detail` is the server's own words for a refused send. The toast carries them too, but it
-    // sits under the dialog's dim while the dialog is open, so they are shown here as well.
+    // `detail` is the server's own words for a refused send. The toast carries them too; they are
+    // shown here as well because this is where the person is looking.
     const [error, setError] = useState<{ text: string; detail?: string } | null>(null);
 
     const reset = () => {

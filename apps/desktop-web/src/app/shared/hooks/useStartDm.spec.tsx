@@ -418,7 +418,7 @@ describe('useStartDm', () => {
             });
 
             expect(room).toBeNull();
-            expect(toast).toHaveBeenCalledWith(expect.objectContaining({ description: 'dm.start.failed' }));
+            expect(toast).toHaveBeenCalledWith(expect.objectContaining({ title: 'dm.start.failed' }));
             expect(usePendingOpenStore.getState().target).toBeNull();
         });
 

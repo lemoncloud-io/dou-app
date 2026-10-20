@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, CheckCircle2, Info, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -41,6 +41,23 @@ export const AppToaster = () => {
     const { t } = useTranslation();
     useEffect(() => setToastLimit(3), []);
     const { toasts } = useToast();
+    // An error raised while a modal dialog is open is that dialog's failure, so it has to clear the
+    // dim. Radix disables pointer events on the body while a modal is open, which is the signal read
+    // here, once per toast. An error from before the dialog stays under it: Radix gives an older
+    // toast no pointer events while the modal is open, so lifted it would cover the dialog's title
+    // with a close button that cannot be pressed.
+    const seenIds = useRef(new Set<string>());
+    const [dialogErrorIds, setDialogErrorIds] = useState<ReadonlySet<string>>(() => new Set());
+    useEffect(() => {
+        const modalOpen = document.body.style.pointerEvents === 'none';
+        const live = new Set(toasts.map(toast => toast.id));
+        const lifted = toasts.filter(
+            toast => !seenIds.current.has(toast.id) && toast.variant === 'destructive' && modalOpen
+        );
+        seenIds.current = live;
+        setDialogErrorIds(prev => new Set([...[...prev].filter(id => live.has(id)), ...lifted.map(toast => toast.id)]));
+    }, [toasts]);
+    const showsError = toasts.some(toast => toast.open !== false && dialogErrorIds.has(toast.id));
 
     return (
         <ToastProvider duration={TOAST_DURATION_MS} swipeDirection="up">
@@ -63,7 +80,12 @@ export const AppToaster = () => {
                         {description && (
                             // Alone, the description is the whole message, so it takes the
                             // title's weight of colour; under a title it stays secondary.
-                            <ToastDescription className="line-clamp-2 text-caption tracking-normal first:text-callout first:text-toast-foreground">
+                            <ToastDescription
+                                className={cn(
+                                    variant === 'destructive' ? 'line-clamp-4' : 'line-clamp-2',
+                                    'text-caption tracking-normal first:text-callout first:text-toast-foreground'
+                                )}
+                            >
                                 {description}
                             </ToastDescription>
                         )}
@@ -86,9 +108,14 @@ export const AppToaster = () => {
                 working in: a "channel created" toast from the previous step sat on top of the
                 next dialog's title. No position avoids that in a short window, where a dialog
                 fills the height, so the toast goes under the dim instead of beside it. It is
-                still announced by its live region. */}
+                still announced by its live region. An error raised while the dialog is open is
+                the exception: it is that dialog's failure, so while one shows the viewport rises
+                to `z-alert`, over the dim. */}
             {/* Radix names the region in English unless told; `{hotkey}` is its own placeholder. */}
-            <ToastViewport className="absolute top-3 z-toast" label={t('common.toastRegion')} />
+            <ToastViewport
+                className={cn('absolute top-3', showsError ? 'z-alert' : 'z-toast')}
+                label={t('common.toastRegion')}
+            />
         </ToastProvider>
     );
 };

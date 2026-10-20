@@ -101,11 +101,12 @@ describe('useSocialLogin.start', () => {
         await act(() => result.current.start('google'));
 
         const record = takeOAuthLoginStart();
-        expect(record?.nonce).toMatch(/^[0-9a-f]{32}$/);
-        expect(record!.startedAt).toBeGreaterThanOrEqual(before);
-        expect(record!.startedAt).toBeLessThan(before + OAUTH_LOGIN_START_TTL_MS);
+        if (!record) throw new Error('no login start was recorded');
+        expect(record.nonce).toMatch(/^[0-9a-f]{32}$/);
+        expect(record.startedAt).toBeGreaterThanOrEqual(before);
+        expect(record.startedAt).toBeLessThan(before + OAUTH_LOGIN_START_TTL_MS);
         const redirect = new URL(String(open.mock.calls[0][0])).searchParams.get('redirect') ?? '';
-        expect(new URL(redirect).searchParams.get('nonce')).toBe(record!.nonce);
+        expect(new URL(redirect).searchParams.get('nonce')).toBe(record.nonce);
     });
 
     it('replaces an earlier start, so only the latest login can be completed', async () => {
@@ -565,7 +566,7 @@ describe('useSocialLogin.start', () => {
 
             expect(store().attempt).toBeNull();
             expect(session.toast).toHaveBeenCalledWith(
-                expect.objectContaining({ variant: 'destructive', description: i18n.t('auth.social.cancelFailed') })
+                expect.objectContaining({ variant: 'destructive', title: i18n.t('auth.social.cancelFailed') })
             );
         });
 

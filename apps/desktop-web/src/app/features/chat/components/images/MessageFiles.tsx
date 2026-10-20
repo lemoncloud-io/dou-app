@@ -4,13 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, Download, FileText, Film } from 'lucide-react';
 
 import type { DomainChat } from '@chatic/data';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { canPreview, downloadImage, formatFileSize, toChatFiles, type ChatFile } from '../../utils';
 import { FileViewer } from './FileViewer';
 import { ImageSpinner } from './ImageSpinner';
 import type { ImageAuthor } from './ImageViewer';
-import { Hint } from '../../../../shared';
+import { Hint, toastFailure } from '../../../../shared';
 
 interface MessageFilesProps {
     /** The message the files belong to — they are read from its `upload$$`. */
@@ -49,8 +48,8 @@ const FileItem = ({ file, author }: { file: ChatFile; author: ImageAuthor }) => 
     const canOpen = canPreview(file) !== null;
     const [isViewing, setIsViewing] = useState(false);
     const save = () =>
-        void downloadImage({ url: file.url, name: saveName }).catch(() =>
-            toast({ variant: 'destructive', description: t('chat.file.saveFailed') })
+        void downloadImage({ url: file.url, name: saveName }).catch((error: unknown) =>
+            toastFailure(t('chat.file.saveFailed'), error)
         );
 
     return (

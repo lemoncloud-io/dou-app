@@ -159,7 +159,10 @@ describe('EditPlaceDialog', () => {
         await waitFor(() => expect(screen.getByRole('alert').textContent).toBe(i18next.t('place.edit.failed.denied')));
         expect(openId()).toBe('place-1');
         expect(nameField().value).toBe('Studio');
-        expect(toast).not.toHaveBeenCalled();
+        // The toast clears the dialog's dim, so the server's words reach the person too.
+        expect(toast).toHaveBeenCalledWith(
+            expect.objectContaining({ variant: 'destructive', title: i18next.t('place.edit.failed.denied') })
+        );
     });
 
     it('sends one request when the save is submitted twice', async () => {

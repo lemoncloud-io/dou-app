@@ -19,7 +19,7 @@ const LIMIT_TEXT = /\bLIMIT|EXCEED|QUOTA/i;
 
 export const createChannelFailure = (error: unknown): CreateChannelFailure => {
     const raw = extractErrorMessage(error);
-    // The wire text belongs in the log, not in the dialog.
+    // The wire text is logged here; the dialog's line is a sentence, the toast carries the text.
     logger.error('CHANNEL', '[CreateChannel] failed', { error, raw });
     if (LIMIT_TEXT.test(raw)) return 'limit';
     switch (classifyWireError(raw)) {

@@ -24,6 +24,7 @@ import {
     useCurrentPlace,
     useMyProfile,
     useSiteProfilesStore,
+    toastFailure,
 } from '../../../shared';
 import { PlaceChip } from './PlaceChip';
 import { useEditPlaceProfileDialogStore } from '../stores';
@@ -101,8 +102,8 @@ export const EditPlaceProfileDialog = () => {
             // A record field has nothing to fall back to, so a failure is an error, not a gap.
             if (!avatar) throw new Error('Failed to prepare avatar image');
             setThumbnail(avatar);
-        } catch {
-            toast({ variant: 'destructive', description: t('profile.place.imageFailed') });
+        } catch (error) {
+            toastFailure(t('profile.place.imageFailed'), error);
         }
     };
 

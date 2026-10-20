@@ -17,7 +17,7 @@ import { extendTailwindMerge } from 'tailwind-merge';
 const twMerge = extendTailwindMerge({
     extend: {
         classGroups: {
-            z: [{ z: ['raised', 'float', 'overlay', 'drawer', 'toast', 'popover'] }],
+            z: [{ z: ['raised', 'float', 'overlay', 'drawer', 'toast', 'popover', 'alert'] }],
             animate: [
                 {
                     animate: [
