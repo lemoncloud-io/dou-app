@@ -24,7 +24,7 @@ stores in `src/app/shared/`.
 - [images.md](./images.md): adding images, the tray, tiles and their states, the viewer, and image
   previews in the sidebar and notifications.
 - [onboarding.md](./onboarding.md): the first-run welcome, shown once per account, the Self Channel
-  row it waits on, and tips that match what the account has.
+  row it waits on, tips that match what the account has, and the welcome page of an empty place.
 - [inbox.md](./inbox.md): the device-local inbox — the five kinds it captures (mentions, 1:1 messages,
   replies in my threads, reactions to mine), one item per message, and who reads which kind.
 - [lists.md](./lists.md): the Channels and DM destinations' lists — what a row shows, who a DM row

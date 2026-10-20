@@ -14,6 +14,7 @@ import {
     useChannelMembers,
     useChannelSettingsStore,
     useCreateChannelDialogStore,
+    useSendInviteStore,
 } from '../../channels';
 import { DebugPanel } from '../../debug';
 import { EditPlaceProfileDialog, useEditPlaceProfileDialogStore } from '../../profile';
@@ -69,6 +70,7 @@ import {
     ChannelListPanel,
     DmListPanel,
     ThreadPanel,
+    WelcomePage,
 } from '../components';
 import {
     useHydrateDmPeers,
@@ -77,6 +79,7 @@ import {
     useNextUnreadShortcut,
     usePendingLanding,
     useReadCounts,
+    usePlaceWelcome,
     useTrailingPanelOwners,
 } from '../hooks';
 import {
@@ -216,6 +219,9 @@ export const HomePage = () => {
     const closeProfile = useProfilePanelStore(s => s.close);
     const closeSaved = useSavedPageStore(s => s.close);
     const openSaved = useSavedPageStore(s => s.open);
+    // Whether the reader opened a room in this place, rather than the landing selecting one: an
+    // empty place's welcome gives way only to the former. Reset per place below.
+    const [roomOpenedHere, setRoomOpenedHere] = useState(false);
     const navActive = useNavStore(s => s.active);
     // Select the boolean, not the items: the dot only re-renders on false↔true.
     const hasInboxUnread = useMentionsStore(s => Object.values(s.items).some(item => !item.readAt));
@@ -311,6 +317,7 @@ export const HomePage = () => {
         if (isSwitching) return;
         // Every open lands in the conversation — the room already selected included.
         closeSaved();
+        setRoomOpenedHere(true);
         recordOrigin(channelId);
         // A 1:1 opens in its own place (`openPlaceFor`).
         const placeId = openPlaceFor(
@@ -403,6 +410,7 @@ export const HomePage = () => {
         } else {
             // The room may be the one already selected, which no selection change would close for.
             closeSaved();
+            setRoomOpenedHere(true);
             selectChannel(channelId);
             if (rootId) openThreadNowOrDefer(channelId, rootId);
             else {
@@ -478,6 +486,10 @@ export const HomePage = () => {
         closeSaved();
     }, [activeCloudId, closeSaved]);
 
+    useEffect(() => {
+        setRoomOpenedHere(false);
+    }, [activeCloudId, selectedPlaceId]);
+
     const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
 
     // A held or misplaced pending open (one that arrived while the list loaded, or a cross-cloud
@@ -519,6 +531,8 @@ export const HomePage = () => {
         selectChannel(landing.channelId);
         if (landing.kind === 'pending') {
             const pending = landing.channelId;
+            // A deferred open is the reader's too, landing after the place switch reset the mark.
+            setRoomOpenedHere(true);
             pendingChannelRef.current = null;
             awaitedPlaceRef.current = null;
             redirectedPendingRef.current = null;
@@ -578,6 +592,7 @@ export const HomePage = () => {
             useMessageJumpStore.getState().clearOrigin();
             // The list's own room too: picking it is how the reader leaves the Saved page for it.
             closeSaved();
+            setRoomOpenedHere(true);
             selectChannel(id);
         },
         [selectChannel, closeSaved]
@@ -700,6 +715,7 @@ export const HomePage = () => {
             }
             return;
         }
+        setRoomOpenedHere(true);
         selectChannel(channelId);
         if (anchorChatNo != null) {
             requestMessageJump(channelId, anchorChatNo, { restore: true });
@@ -726,6 +742,16 @@ export const HomePage = () => {
     // The place rail owns switching; the sidebar header shows only the active name.
     const selectedPlace = places.find(place => place.id === selectedPlaceId);
     const placeName = selectedPlace?.name?.trim() || selectedPlace?.id || '';
+    const welcome = usePlaceWelcome({
+        channels,
+        placeId: hasNoPlace ? undefined : (selectedPlaceId ?? undefined),
+        isLoading: isLoading || isSwitching,
+        isDefaultMode,
+    });
+    const openPlaceInvite = useSendInviteStore(s => s.openPlace);
+    // Home's empty place greets the reader. The landing selects my notes-to-self room, which every
+    // place lists, so only a room the reader opened themselves takes the pane from the welcome.
+    const showWelcome = welcome.show && navActive === 'home' && (!selectedChannel || !roomOpenedHere);
     const cloudHasUnread = useUnreadStore(s => s.total) > 0;
 
     // One member subscription per open channel, shared by the chat pane (author
@@ -890,6 +916,16 @@ export const HomePage = () => {
                             places={places}
                             currentPlaceId={selectedPlaceId ?? undefined}
                             onSelect={jumpToSaved}
+                        />
+                    ) : showWelcome ? (
+                        <WelcomePage
+                            placeName={placeName}
+                            signals={welcome.signals}
+                            onCreateChannel={openCreateChannel}
+                            onInvite={selectedPlaceId ? () => openPlaceInvite(selectedPlaceId, placeName) : undefined}
+                            onStartDm={canStartDm ? () => setIsNewDmOpen(true) : undefined}
+                            onEditProfile={openEditPlaceProfile}
+                            onLater={welcome.later}
                         />
                     ) : (
                         <ChatPane

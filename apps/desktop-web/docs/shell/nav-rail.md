@@ -25,7 +25,8 @@ never offers a tile that would open an empty column.
 
 Under the place title and the channel search, a hairline, then **Saved** leads the action rows
 (`SidebarHeader`). It opens the Saved items page in the main pane and stays marked while the page is
-there ([saved.md](../chat/saved.md)). Edit my profile in this place follows it: the design drops that row, but nothing
+there ([saved.md](../chat/saved.md)). In a place with no conversation yet, Home's main pane is the welcome page
+([onboarding.md](../chat/onboarding.md#the-place-welcome-page)). Edit my profile in this place follows it: the design drops that row, but nothing
 else opens the place profile editor. Mentions, threads and the snooze live in the Notifications
 destination.
 

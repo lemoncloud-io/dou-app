@@ -21,3 +21,4 @@ export * from './useUpdateStore';
 export * from './useKnownChannelsStore';
 export * from './createOpenStateStore';
 export * from './useNavStore';
+export * from './useWelcomeStore';

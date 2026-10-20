@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
@@ -23,6 +24,8 @@ import {
     socketErrorStatus,
     useCopyToClipboard,
     useDesktopInviteMutations,
+    useWelcomeStore,
+    welcomeKey,
     type WireErrorKind,
 } from '../../../shared';
 import { useSendInviteStore } from '../stores/useSendInviteStore';
@@ -85,6 +88,8 @@ export const SendInviteDialog = () => {
     const close = useSendInviteStore(s => s.close);
     const { createInvite, requestPlaceInvite, isMutating: isSubmitting } = useDesktopInviteMutations();
     const [, copyLink] = useCopyToClipboard();
+    const myUid = runtime.session.useSessionIdentity().userId;
+    const { selectedSiteId } = runtime.session.useSessionSelection();
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
     // `detail` is the server's own words for a refused send. The toast carries them too; they are
@@ -128,6 +133,9 @@ export const SendInviteDialog = () => {
             }
             const recipient = name.trim();
             copyLink(view.deeplink);
+            // The place's welcome counts its invite step done; the server lists no sent invites back.
+            const placeId = target.kind === 'place' ? target.id : selectedSiteId;
+            if (myUid && placeId) useWelcomeStore.getState().markInvited(welcomeKey(myUid, placeId));
             toast({ title: t('invite.send.sent', { name: recipient }) });
             const sent = { phone: parsed.e164, name: recipient, deeplink: view.deeplink };
             reset();
