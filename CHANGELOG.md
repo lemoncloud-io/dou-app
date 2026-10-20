@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-10-20] - root@0.108.0, @chatic/web@0.75.0
+
+### Features
+
+- (web) title a group by its name for every member, not my join nick (ADR-0218)
+- (mobile,web) mark a chat push by room shape and show the sender's face (ADR-0217)
+
+### Bug Fixes
+
+- (mobile) keep a push tap's context when the room id has a colon
+
+### Other
+
+- test: (mobile) pin the tap path against the push service's APNs encoding
+
 ## [2026-10-20] - No version updates
 
 ### Bug Fixes
