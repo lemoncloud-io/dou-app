@@ -4,6 +4,12 @@
 
 ### Bug Fixes
 
+- (desktop-web,ui-kit) show the server's words in failure toasts
+
+## [2026-10-20] - No version updates
+
+### Bug Fixes
+
 - (web/home) list a cloud's group section above its 1:1 section, not below
 
 ## [2026-10-20] - root@0.107.0, @chatic/web@0.74.0
