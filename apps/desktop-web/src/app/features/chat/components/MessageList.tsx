@@ -648,11 +648,16 @@ export const MessageList = ({
     // replies, which the main feed hides, leaving only a handful of top-level rows.
     // Pull older pages until the feed overflows (giving a manual scroll handle) or
     // history runs out (hasMore guards termination; isLoadingOlder serialises).
+    // A feed with nothing to show fits too, though it renders no scroller: a newest page whose messages
+    // were all deleted, or that held only replies to deleted roots, leaves the room blank with history
+    // below it.
+    // A failed page stops the pull until its retry, instead of asking again on every settle. A feed
+    // still loading its first page is empty for that reason only: no pull then.
     useEffect(() => {
+        if (isLoading || !hasMore || isLoadingOlder || loadOlderFailed || !onLoadOlder) return;
         const el = scrollRef.current;
-        if (!el || !hasMore || isLoadingOlder || !onLoadOlder) return;
-        if (el.scrollHeight <= el.clientHeight + LOAD_OLDER_PX) onLoadOlder();
-    }, [rows, hasMore, isLoadingOlder, onLoadOlder]);
+        if (el ? el.scrollHeight <= el.clientHeight + LOAD_OLDER_PX : messages.length === 0) onLoadOlder();
+    }, [rows, messages.length, isLoading, hasMore, isLoadingOlder, loadOlderFailed, onLoadOlder]);
 
     // Read the live viewport once mounted (the anchor window covers first paint).
     useEffect(() => {
@@ -709,7 +714,9 @@ export const MessageList = ({
     const scrollToBottom = () =>
         bottomRef.current?.scrollIntoView({ block: 'end', behavior: reducedMotion ? 'auto' : 'smooth' });
 
-    if (isLoading) {
+    // Nothing shown yet, but older history to pull: still loading, not an empty room.
+    const pagingIntoEmpty = messages.length === 0 && !!hasMore && !!onLoadOlder;
+    if (isLoading || (pagingIntoEmpty && !loadOlderFailed)) {
         return (
             <div
                 role="status"
@@ -730,14 +737,16 @@ export const MessageList = ({
         );
     }
 
-    if (messages.length === 0 && loadFailed) {
+    if (messages.length === 0 && (loadFailed || (pagingIntoEmpty && loadOlderFailed))) {
+        // The first page, or the older page an empty feed was pulling: retry whichever failed.
+        const retry = loadFailed ? onRetryLoad : onLoadOlder;
         return (
             <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
                 <p className="text-callout text-foreground">{t('chat.loadFailed')}</p>
-                {onRetryLoad && (
+                {retry && (
                     <button
                         type="button"
-                        onClick={onRetryLoad}
+                        onClick={retry}
                         className="focus-ring tactile rounded-lg bg-muted px-3 py-2 text-callout font-medium text-foreground transition-colors hover:bg-accent"
                     >
                         {t('chat.retry')}

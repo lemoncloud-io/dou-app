@@ -36,3 +36,25 @@ yet. The feed scrolls to the target's estimated offset instead, waits 60 ms for 
 and mount it, and tries again — up to 12 times. Once the node exists, the normal landing in
 [jump-and-return.md](./jump-and-return.md) takes over. A target that is not loaded at all pages older
 first, as before.
+
+## Paging older history past deleted messages
+
+The feed asks for an older page with a cursor: the lowest message number it already holds. The server
+counts a page down by message numbers, leaves deleted messages out, and names the lowest number it
+counted as the next cursor (0 once it reached the start of the room). So a page can come back with no
+rows and a cursor below it, because every message in that range was deleted. That is not the start of
+the history.
+
+- `useChats` keeps the cursor the server named for the open room. The next page starts from whichever
+  is lower: that cursor or the oldest row held. Pages of nothing but deleted messages are stepped
+  over inside the same `loadOlder` call, which ends only when a page brings rows or the history ends.
+  A caller that saw nothing land — the thread panel's pager, a reader parked at the top of the feed —
+  would not ask again, so the call does not hand back in between. Cursor 0 ends the history, whether
+  the page that named it had rows or not, and so does a cursor that does not move down.
+- With no row held, the first older page counts down from the channel's last message number. A room
+  with neither (nobody has written in it) has no history to page, and shows its intro.
+- A feed with nothing to show fits the viewport like any short feed, so the auto-fill pulls the next
+  older page by itself, and the feed shows loading instead of the "first message" intro until a row
+  shows or the history ends. That is the case when the newest page held nothing (all its messages were
+  deleted), and when it held only replies to deleted thread roots and system rows, which the room's
+  feed hides. A failed page stops the pull and shows the room's load error with a retry.

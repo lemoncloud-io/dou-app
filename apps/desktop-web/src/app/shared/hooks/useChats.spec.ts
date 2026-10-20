@@ -317,6 +317,25 @@ describe('useChats loadOlder', () => {
         expect(result.current.loadOlderFailed).toBe(true);
     });
 
+    // The server counts a page by message numbers and leaves the deleted ones out, so a stretch of
+    // deleted messages comes back as an empty page that still names the next cursor. Only a cursor of
+    // 0 is the start of history.
+    it('pages on past a page of nothing but deleted messages', async () => {
+        refreshList
+            .mockResolvedValueOnce({ fetchedCount: 0, cursorNo: 10 })
+            .mockResolvedValueOnce({ fetchedCount: 4, cursorNo: 0 });
+        const { result } = renderHook(() => useChats('C-deleted'));
+
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+
+        expect(refreshList).toHaveBeenNthCalledWith(1, { channelId: 'C-deleted', cursorNo: 60, limit: 50 });
+        expect(refreshList).toHaveBeenNthCalledWith(2, { channelId: 'C-deleted', cursorNo: 10, limit: 50 });
+        // The second page ran down to the start: nothing older is left to ask for.
+        expect(result.current.hasMore).toBe(false);
+    });
+
     it('clears the older-page failure when the next page lands', async () => {
         refreshList.mockRejectedValueOnce(new Error('network')).mockResolvedValue({ fetchedCount: 50 });
         const { result } = renderHook(() => useChats('C-fail-then-ok'));
@@ -337,6 +356,101 @@ describe('useChats loadOlder', () => {
             await result.current.loadOlder();
         });
         expect(result.current.loadOlderFailed).toBe(false);
+    });
+});
+
+// A room whose newest page is all deleted messages shows nothing, so the page below has to be asked for
+// from the channel's head number; and the server's next cursor can sit below the oldest row shown.
+describe('useChats paging with nothing shown', () => {
+    beforeEach(() => {
+        state.rows = [];
+        state.prime = 'ready';
+        refreshList.mockReset();
+    });
+
+    it('counts down from the channel head when no row is shown', async () => {
+        // 121 down to 71 was all deleted. (The head also asks for the newest page, with no cursor.)
+        refreshList.mockImplementation(async (query: { cursorNo?: number }) =>
+            query.cursorNo === 121 ? { fetchedCount: 0, cursorNo: 71 } : { fetchedCount: 3, cursorNo: 20 }
+        );
+        const { result } = renderHook(() => useChats('C-head', 120));
+
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+
+        const cursors = refreshList.mock.calls.map(([query]) => (query as { cursorNo?: number }).cursorNo);
+        expect(cursors.filter(Boolean)).toEqual([121, 71]);
+        expect(result.current.hasMore).toBe(true);
+    });
+
+    it('walks every page of deleted messages in one call, so a caller that saw nothing land is not stranded', async () => {
+        // 300 deleted messages: six empty pages, then rows.
+        refreshList.mockImplementation(async (query: { cursorNo?: number }) => {
+            const cursor = query.cursorNo ?? 0;
+            return cursor > 50 ? { fetchedCount: 0, cursorNo: cursor - 50 } : { fetchedCount: 2, cursorNo: 0 };
+        });
+        const { result } = renderHook(() => useChats('C-long-gap', 349));
+
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+
+        const cursors = refreshList.mock.calls.map(([query]) => (query as { cursorNo?: number }).cursorNo);
+        expect(cursors.filter(Boolean)).toEqual([350, 300, 250, 200, 150, 100, 50]);
+        expect(result.current.hasMore).toBe(false);
+    });
+
+    it('stops on a cursor that does not move down', async () => {
+        refreshList.mockImplementation(async (query: { cursorNo?: number }) =>
+            query.cursorNo ? { fetchedCount: 0, cursorNo: query.cursorNo } : { fetchedCount: 0 }
+        );
+        const { result } = renderHook(() => useChats('C-stuck', 40));
+
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+
+        expect(refreshList.mock.calls.filter(([query]) => (query as { cursorNo?: number }).cursorNo)).toHaveLength(1);
+        expect(result.current.hasMore).toBe(false);
+    });
+
+    it('ends the history when every message down to the start was deleted', async () => {
+        refreshList.mockResolvedValue({ fetchedCount: 0, cursorNo: 0 });
+        const { result } = renderHook(() => useChats('C-all-gone', 3));
+
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+
+        expect(result.current.hasMore).toBe(false);
+    });
+
+    it('has no history to page in a room nobody has written in', () => {
+        const { result } = renderHook(() => useChats('C-new'));
+
+        expect(result.current.hasMore).toBe(false);
+    });
+
+    it('starts the next page from the cursor the server named, not the oldest row shown', async () => {
+        // 30 to 49 were deleted: the server counted down to 30, and the oldest row it returned is 50.
+        refreshList.mockResolvedValue({ fetchedCount: 2, cursorNo: 30 });
+        state.rows = [{ id: 'C-floor:80', channelId: 'C-floor', chatNo: 80 }];
+        const { result } = renderHook(() => useChats('C-floor'));
+
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+        state.rows = [
+            { id: 'C-floor:50', channelId: 'C-floor', chatNo: 50 },
+            { id: 'C-floor:80', channelId: 'C-floor', chatNo: 80 },
+        ];
+        act(() => state.emit(state.rows));
+        await act(async () => {
+            await result.current.loadOlder();
+        });
+
+        expect(refreshList).toHaveBeenNthCalledWith(2, { channelId: 'C-floor', cursorNo: 30, limit: 50 });
     });
 });
 

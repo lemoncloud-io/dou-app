@@ -63,7 +63,7 @@ shows "Loading thread…" for that stretch, and asks once when it ends.
 
 A root fetched from outside the window leaves every message between it and the window's oldest one
 unloaded, and the replies among them. The panel pages the feed back (`loadOlder`, 50 messages per
-page) until the window reaches the root's number or there is nothing older.
+page; a stretch of deleted messages is walked past within the same call) until the window reaches the root's number or there is nothing older.
 
 It does not do that without limit. One batch is `REPLY_PAGES_PER_BATCH` pages. When a batch ends
 before the root, the panel stops and puts a "Load earlier replies" row right under the root. Each
