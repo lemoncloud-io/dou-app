@@ -116,9 +116,29 @@ Useful reads: `s.logs({ since: mark, source: ['web→shell', 'shell→web'] })` 
 and its reply share a `refId`), `s.logs({ source: ['unsupported'] })` for what the shell could not
 answer, `s.logs({ source: ['net'] })` for requests and what the network rules did to them.
 
-## 4. Report
+## 4. Classify what you see
 
-Split it in two, so nobody reads an imitation as the real thing:
+Before reporting a symptom as a defect, find its row below and run the check. Report it under the
+row's name. Only a symptom no row covers is a new defect. Pitfall numbers are those in the
+hybrid-shell docs.
+
+| Row                  | Symptom (console, panel)                                                                    | First suspect                                                                                             | Check                                                                                                                                               | Defect?                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| signed-out call      | `No 'Access-Control-Allow-Origin'` with status 401 or 403                                   | A call that needs a session, made before sign-in (pitfall 18)                                             | The status of the same path in the `net` log; the same screen after a person signs in                                                               | No. A person signs in, then the screen is checked again   |
+| origin refused       | The same message with status 200, or a failed `OPTIONS`                                     | Real CORS: the API refuses the shell's origin                                                             | `curl -sI -X OPTIONS -H 'Origin: <shell page origin>' -H 'Access-Control-Request-Method: GET' <api url>` and its `Access-Control-Allow-Origin` line | Yes: the adapter's proxy rewrite, or the API's allow list |
+| not injected         | `status().handshake` stays `pending`, `handshakeLate` is `true`, the app's globals are gone | CSP blocking the runtime's `eval` (pitfall 17), or a wrong app name or preset (pitfall 16)                | The frame response's `Content-Security-Policy` header; the warning at the top of the panel                                                          | The shell's side: does its proxy strip the header         |
+| unsupported request  | `unsupported in virtual shell: <method>`                                                    | No answer for that method: outside the imitation                                                          | `status().capabilities`; the adapter's handlers module                                                                                              | No. An adapter item, not an app defect                    |
+| permission bypassed  | A permission is `denied`, yet a photo or the location still works                           | The web uses a browser API, not the bridge (pitfall 19)                                                   | The `bridge` log has no `requestPermission` or picker request for that action                                                                       | No. Outside the shell; a note on the app's design at most |
+| event without effect | An event was sent and the screen did not change                                             | The cold-start queue (pitfall 14), an event sent before the listener, or the app does not take that event | The event is in the `bridge` log, direction `shell→web`, and the `web` log shows no reaction; the app's events in `status().capabilities`           | No if the app does not take the event; yes if it does     |
+
+## 5. Report
+
+Report each finding as **row name · evidence (log entry `seq`) · defect or not**.
+
+- **Re-check after a person signs in:** a check that needs a session stays here until a person
+  has signed in in this shell and it has been run again. It counts as neither passed nor failed.
+
+Split the rest in two, so nobody reads an imitation as the real thing:
 
 - **Checked in the virtual shell** — each step or scenario, what you saw (path, screen, the message
   exchanged), and `status().env`.
