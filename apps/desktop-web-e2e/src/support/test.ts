@@ -1,30 +1,55 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 import { test as base, type Browser, type Page } from '@playwright/test';
 
 import { createChannel, deleteChannel, openPlace, openSelfRoom, switchCloud } from './app';
-import { MAIN_ACCOUNT, PEER_ACCOUNT, SANDBOX, sessionFile, storageFile, type Account } from './env';
+import { AUTH_DIR, MAIN_ACCOUNT, SANDBOX, sessionFile, storageFile, type Role } from './env';
+import { installShell } from './shell';
 
-/** A page signed in as `role`, in a context of its own, with the session the setup project saved. */
-export const openAs = async (browser: Browser, role: Account['role']): Promise<Page> => {
+/**
+ * Keeps what a scenario needs to start signed in as `role`. In a browser the app keeps its session in
+ * `sessionStorage`, which Playwright's storage state does not carry, so that is saved beside it and put
+ * back by `openAs` before the page loads.
+ */
+export const saveSession = async (page: Page, role: Role) => {
+    mkdirSync(AUTH_DIR, { recursive: true });
+    await page.context().storageState({ path: storageFile(role) });
+    writeFileSync(sessionFile(role), await page.evaluate(() => JSON.stringify(sessionStorage)));
+};
+
+/**
+ * A page signed in as `role`, in a context of its own, with the session saved for it. With `shell`
+ * the page runs as if inside the desktop shell (see `installShell`).
+ */
+export const openAs = async (browser: Browser, role: Role, { shell = false } = {}): Promise<Page> => {
     const context = await browser.newContext({ storageState: storageFile(role) });
+    const session = readFileSync(sessionFile(role), 'utf8');
     // Restored before any app script runs, and only into an empty store: a reload keeps what the
     // app has written since.
-    await context.addInitScript(
-        saved => {
-            try {
-                if (sessionStorage.length) return;
-                for (const [key, value] of Object.entries(JSON.parse(saved) as Record<string, string>)) {
-                    sessionStorage.setItem(key, value);
-                }
-            } catch {
-                // A sandboxed frame (a file preview) has no storage of its own to restore.
+    await context.addInitScript(saved => {
+        try {
+            if (sessionStorage.length) return;
+            for (const [key, value] of Object.entries(JSON.parse(saved) as Record<string, string>)) {
+                sessionStorage.setItem(key, value);
             }
-        },
-        readFileSync(sessionFile(role), 'utf8')
-    );
+        } catch {
+            // A sandboxed frame (a file preview) has no storage of its own to restore.
+        }
+    }, session);
+    if (shell) await installShell(context, session);
     return context.newPage();
 };
+
+/** On `/`, with the shell drawn. */
+export const ready = async (page: Page) => {
+    await page.goto('/');
+    await page.getByRole('navigation', { name: 'Navigation' }).waitFor({ timeout: 30_000 });
+};
+
+interface Options {
+    /** Run `app` as if inside the desktop shell, so the banners it raises can be read (`banners()`). */
+    shell: boolean;
+}
 
 interface Fixtures {
     /** The main account, on `/`, with the shell drawn. */
@@ -36,19 +61,13 @@ interface Fixtures {
      * room of deleted messages does to the feed.
      */
     room: string;
-    /** The peer account, on `/`, with the shell drawn. Skips the scenario when no peer is configured. */
-    peer: Page;
 }
 
-const ready = async (page: Page) => {
-    await page.goto('/');
-    await page.getByRole('navigation', { name: 'Navigation' }).waitFor({ timeout: 30_000 });
-};
-
-export const test = base.extend<Fixtures>({
-    app: async ({ browser }, use, testInfo) => {
+export const test = base.extend<Fixtures & Options>({
+    shell: [false, { option: true }],
+    app: async ({ browser, shell }, use, testInfo) => {
         testInfo.skip(!MAIN_ACCOUNT || !existsSync(sessionFile('main')), 'the main account is not signed in');
-        const page = await openAs(browser, 'main');
+        const page = await openAs(browser, 'main', { shell });
         await ready(page);
         await use(page);
         await page.context().close();
@@ -66,13 +85,6 @@ export const test = base.extend<Fixtures>({
         await createChannel(app, name);
         await use(name);
         await deleteChannel(app, name);
-    },
-    peer: async ({ browser }, use, testInfo) => {
-        testInfo.skip(!PEER_ACCOUNT || !existsSync(sessionFile('peer')), 'no peer account is configured');
-        const page = await openAs(browser, 'peer');
-        await ready(page);
-        await use(page);
-        await page.context().close();
     },
 });
 

@@ -31,19 +31,19 @@ A failure leaves a trace and a screenshot in `dist/.playwright/apps/desktop-web-
 
 ## Settings
 
-| Variable                                              | Needed by                                                                                       |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `DESKTOP_E2E_EMAIL`, `DESKTOP_E2E_PASSWORD`           | every scenario: the account they run as                                                         |
-| `DESKTOP_E2E_PEER_EMAIL`, `DESKTOP_E2E_PEER_PASSWORD` | signed in by the setup, for scenarios that need a second person (none yet, below)               |
-| `DESKTOP_E2E_CLOUD`                                   | the channel and welcome-page scenarios: a workspace cloud of the main account                   |
-| `DESKTOP_E2E_PLACE`                                   | the channel and message scenarios: a place in that cloud where channels may be made and deleted |
-| `DESKTOP_E2E_EMPTY_PLACE`                             | the welcome-page scenario: a place in that cloud with no channel or DM yet                      |
+| Variable                                    | Needed by                                                                                       |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `DESKTOP_E2E_EMAIL`, `DESKTOP_E2E_PASSWORD` | every scenario: the account they run as                                                         |
+| `DESKTOP_E2E_CLOUD`                         | the channel and welcome-page scenarios: a workspace cloud of the main account                   |
+| `DESKTOP_E2E_PLACE`                         | the channel and message scenarios: a place in that cloud where channels may be made and deleted |
+| `DESKTOP_E2E_EMPTY_PLACE`                   | the welcome-page scenario: a place in that cloud with no channel or DM yet                      |
+| `DESKTOP_E2E_INVITE_PHONE`                  | the two-person scenarios: the number the other person is invited by (a placeholder does)        |
 
 A scenario whose setting is missing is skipped, not failed.
 
 ## How a scenario starts
 
-The `sign-in` project signs each account in once. In a browser the app keeps its session in
+The `sign-in` project signs the account in once. In a browser the app keeps its session in
 `sessionStorage` (the desktop shell would give it `localStorage`), which Playwright's storage state
 does not carry, so the setup saves it beside the storage state under
 `dist/.playwright/apps/desktop-web-e2e/.auth/`, and the `test` fixture (`src/support/test.ts`) puts it
@@ -58,13 +58,14 @@ account between clouds at once would read each other's state.
 
 ## The scenarios
 
-| File                    | Covers                                                                                                                                      |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shell.spec.ts`         | the nav rail's four destinations and account menu; each destination swaps the sidebar and keeps the room; the cloud dropdown                |
-| `home.spec.ts`          | the Home sidebar's sections and folding; the empty Saved page; the welcome page and Later; searching the DM list                            |
-| `messaging.spec.ts`     | text, edit and delete; a reaction; a thread reply; Save for later through the Saved page and back; the DM row's preview                     |
-| `channels.spec.ts`      | create a channel, send to it, find it first in the Channels list, search it, delete it                                                      |
-| `notifications.spec.ts` | the empty inbox; day groups, tabs, the unread filter and sort; opening an unread item; selection, mark read, delete; mark all read and undo |
+| File                    | Covers                                                                                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shell.spec.ts`         | the nav rail's four destinations and account menu; each destination swaps the sidebar and keeps the room; the cloud dropdown                                                                      |
+| `home.spec.ts`          | the Home sidebar's sections and folding; the empty Saved page; the welcome page and Later; searching the DM list                                                                                  |
+| `messaging.spec.ts`     | text, edit and delete; a reaction; a thread reply; Save for later through the Saved page and back; the DM row's preview                                                                           |
+| `channels.spec.ts`      | create a channel, send to it, find it first in the Channels list, search it, delete it                                                                                                            |
+| `notifications.spec.ts` | the empty inbox; day groups, tabs, the unread filter and sort; opening an unread item; selection, mark read, delete; mark all read and undo                                                       |
+| `people.spec.ts`        | inviting someone by phone and joining with the link the server answers with; a 1:1 both ways; their DM, reaction, thread reply and channel mention reaching Notifications and the desktop banners |
 
 Text a scenario writes starts with `e2e ` and ends in a time-based tag (`marker()` in
 `src/support/app.ts`), so it can find its own message among real history. The message scenarios write
@@ -78,12 +79,30 @@ runs. Its scenarios put items into the app's inbox store themselves — through 
 the dev server serves at its source path — instead of waiting for someone to mention the account. The
 items point at the notes-to-self room so that opening one has a real room to go to.
 
+## Two people
+
+`people.spec.ts` brings in the other person itself, the way a user would. The main account invites
+someone into the sandbox place by phone; the link comes back on the socket (`user.invite:ok`) and the
+scenario checks the dialog shows the same one. A browser context that has never signed in joins with
+that link through **I have an invite** — a guest of the place on a device of its own — and gives
+itself a name unique to the run, so the main account can tell it from earlier runs' guests. The
+guest's session is saved like the main account's (`saveSession`) and the later scenarios open it with
+`openAs(browser, 'peer')`. They run in order (`mode: 'serial'`) and skip when the invite did not.
+
+The app raises desktop banners only inside the desktop shell, which it recognises by the bridge global
+the shell's preload exposes. These scenarios run the main account with a stand-in for that bridge
+(`installShell` in `src/support/shell.ts`, turned on with `test.use({ shell: true })`): it records
+every `ShowNotification` request (`banners()`) and answers any other request as a shell without that
+handler would. Inside the shell the app keeps its session in `localStorage`, so the stand-in puts the
+saved session there too.
+
 ## Limits
 
-- **No second person yet.** A DM, a mention, a reply or a reaction from someone else needs both
-  accounts in one place, and the two dev accounts share none. Making one means inviting the peer
-  into a place, which changes that place for good, so it was left out. The peer is signed in already;
-  a scenario that needs it uses the `peer` fixture and skips when no peer is configured.
+- **Every run adds a guest to the sandbox place.** The invite is part of what is tested, so each run
+  invites and admits a new one, and nothing removes them afterwards. Their 1:1 with the main account
+  keeps what the run wrote in it; the scenario channel is deleted as usual.
+- **A banner is titled by the sender's account name.** It comes from the name on the message
+  (`owner$.name`), not the name the person set in the place, so it can differ from the sidebar.
 - **A room whose newest messages are all deleted looks empty.** The desktop feed asks for older
   history only from the oldest message it shows, and only when scrolled to the top; when the newest
   page holds nothing but deleted messages there is neither, and the room reads as having no messages
@@ -93,8 +112,9 @@ items point at the notes-to-self room so that opening one has a real room to go 
 - **Live data moves.** Someone else using the same dev account while the suite runs can rename it or
   change its rooms. The scenarios look things up by role and name and only rely on what they made.
 - **Chromium only.** The desktop app is Electron, which is Chromium; there is no second engine to run.
-- **Not the shell.** This is the renderer in a browser. Electron's menus, IPC, notifications and
-  window chrome are not here.
+- **Not the shell.** This is the renderer in a browser. Electron's menus, IPC and window chrome are
+  not here, and the banners are checked at the bridge (what the app asks the shell to show), not as
+  OS notifications.
 
 ## Adding a scenario
 

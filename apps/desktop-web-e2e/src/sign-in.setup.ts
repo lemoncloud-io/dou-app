@@ -1,13 +1,10 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
-
 import { expect, test as setup, type Page } from '@playwright/test';
 
-import { AUTH_DIR, MAIN_ACCOUNT, PEER_ACCOUNT, sessionFile, storageFile, type Account } from './support/env';
+import { MAIN_ACCOUNT, type Account } from './support/env';
+import { saveSession } from './support/test';
 
 /**
- * Signs each account in once and keeps what a scenario needs to start signed in. In a browser the app
- * keeps its session in `sessionStorage`, which Playwright's storage state does not carry, so that is
- * saved beside it and put back by the `test` fixture before the page loads.
+ * Signs the account in once and keeps what a scenario needs to start signed in (`saveSession`).
  */
 const signIn = async (page: Page, account: Account) => {
     await page.goto('/auth/debug');
@@ -22,9 +19,7 @@ const signIn = async (page: Page, account: Account) => {
     if (await tour.isVisible()) await tour.getByRole('button', { name: 'Close' }).click();
     await expect(shell).toBeVisible();
 
-    mkdirSync(AUTH_DIR, { recursive: true });
-    await page.context().storageState({ path: storageFile(account.role) });
-    writeFileSync(sessionFile(account.role), await page.evaluate(() => JSON.stringify(sessionStorage)));
+    await saveSession(page, account.role);
 };
 
 setup('sign in the main account', async ({ page }) => {
@@ -32,9 +27,4 @@ setup('sign in the main account', async ({ page }) => {
         return setup.skip(true, 'DESKTOP_E2E_EMAIL / DESKTOP_E2E_PASSWORD are not set (see .env.example)');
     }
     await signIn(page, MAIN_ACCOUNT);
-});
-
-setup('sign in the peer account', async ({ page }) => {
-    if (!PEER_ACCOUNT) return setup.skip(true, 'DESKTOP_E2E_PEER_EMAIL / DESKTOP_E2E_PEER_PASSWORD are not set');
-    await signIn(page, PEER_ACCOUNT);
 });

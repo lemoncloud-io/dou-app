@@ -15,11 +15,17 @@ export const E2E_BASE_URL = `http://localhost:${E2E_PORT}`;
 export const AUTH_DIR = join(__dirname, '../../../../dist/.playwright/apps/desktop-web-e2e/.auth');
 
 export interface Account {
-    /** `main` runs every scenario; `peer` is the other person in the two-person ones. */
-    role: 'main' | 'peer';
+    role: 'main';
     email: string;
     password: string;
 }
+
+/**
+ * Whose saved session a context starts from: `main`, the account every scenario runs as, or `peer`,
+ * the other person in the two-person scenarios — a guest the people scenario invites into the sandbox
+ * place and signs in on a device of its own.
+ */
+export type Role = 'main' | 'peer';
 
 const account = (role: Account['role'], prefix: string): Account | undefined => {
     const email = process.env[`${prefix}_EMAIL`];
@@ -28,10 +34,15 @@ const account = (role: Account['role'], prefix: string): Account | undefined => 
 };
 
 export const MAIN_ACCOUNT = account('main', 'DESKTOP_E2E');
-export const PEER_ACCOUNT = account('peer', 'DESKTOP_E2E_PEER');
 
-export const storageFile = (role: Account['role']) => join(AUTH_DIR, `${role}.storage.json`);
-export const sessionFile = (role: Account['role']) => join(AUTH_DIR, `${role}.session.json`);
+/**
+ * The phone number the people scenario invites the other person by. The invite is never delivered to
+ * it: the scenario reads the link from the server's answer, so a placeholder number does.
+ */
+export const INVITE_PHONE = process.env['DESKTOP_E2E_INVITE_PHONE'];
+
+export const storageFile = (role: Role) => join(AUTH_DIR, `${role}.storage.json`);
+export const sessionFile = (role: Role) => join(AUTH_DIR, `${role}.session.json`);
 
 /**
  * Where the scenarios that change a place may do so — names in the main account's own clouds, given
