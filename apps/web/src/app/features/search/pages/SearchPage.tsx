@@ -141,13 +141,10 @@ export const SearchPage = () => {
         const room = ROUTES.channels.room(chat.channelId);
         const jump = chat.chatNo > 0 ? `?chatNo=${chat.chatNo}` : '';
         // A reply is never drawn in the room's feed, so a jump there could only end in "couldn't find
-        // that message". It opens on its thread instead, stacked over the room.
+        // that message". It opens straight on its thread, with no room under it: back from the thread
+        // returns to these results, the screen the reader came from.
         const thread = resolveThreadTarget(chat, chat.chatId);
-        if (thread) {
-            void goTo(room, { cid: chat.cid, sid: chat.sid, thenTo: `${thread}${jump}` });
-            return;
-        }
-        void goTo(`${room}${jump}`, { cid: chat.cid, sid: chat.sid });
+        void goTo(`${thread ?? room}${jump}`, { cid: chat.cid, sid: chat.sid });
     };
 
     return (

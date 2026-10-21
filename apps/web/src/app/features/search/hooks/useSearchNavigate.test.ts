@@ -101,19 +101,15 @@ describe('useSearchNavigate', () => {
         expect(navigate).toHaveBeenCalledWith('/');
     });
 
-    it('stacks the follow-up screen on top of the target, after the switches', async () => {
+    it('navigates once, after the switches, so back returns to the screen that called it', async () => {
         setSelection('c1', 's1');
         const order: string[] = [];
         switchSite.mockImplementation(async () => order.push('site'));
         navigate.mockImplementation((path: string) => order.push(path));
         const { result } = renderHook(() => useSearchNavigate());
-        await result.current.goTo('/channels/ch1/room', {
-            cid: 'c1',
-            sid: 's2',
-            thenTo: '/channels/ch1/thread/3?chatNo=5',
-        });
+        await result.current.goTo('/channels/ch1/thread/3?chatNo=5', { cid: 'c1', sid: 's2' });
 
-        expect(order).toEqual(['site', '/channels/ch1/room', '/channels/ch1/thread/3?chatNo=5']);
+        expect(order).toEqual(['site', '/channels/ch1/thread/3?chatNo=5']);
     });
 
     it('skips the site switch when the place is already active', async () => {

@@ -102,11 +102,16 @@ then strips from the URL so a reload does not re-jump. The scroll, the highlight
 load belong to [channels](../channels/README.md).
 
 A thread reply is a result too, but the room's feed never draws one, so a jump there could only end
-in "couldn't find that message". A reply opens its thread instead, stacked over the room: `goTo`
-navigates to the room and then pushes the thread with `?chatNo=` (`thenTo`), so back goes thread →
-room → search, the order a push tap into a reply leaves. Both pushes land in one render, so the room
-does not mount on the way in, only on the way back. The row carries the reply's `parentId` for this,
-and `resolveThreadTarget` (the push path's) turns it into the thread route.
+in "couldn't find that message". A reply opens straight on its thread instead, with `?chatNo=` on the
+thread route and **no room under it**, so back goes thread → search. The reader came from a result
+list, and back is expected to return to that list with its keyword, not to a room they never opened.
+This is where search differs from a push tap into a reply, which stacks the thread over the room. The
+row carries the reply's `parentId` for this, and `resolveThreadTarget` (the push path's) turns it into
+the thread route.
+
+Because the room is never mounted on this path, reading a reply from search does not mark the room
+read: the thread page only moves the read cursor when a reply is sent. The room's unread count clears
+when the room itself is opened.
 
 ### The keyword lives in the URL, the recents in config
 
