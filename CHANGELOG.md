@@ -1,5 +1,36 @@
 # Changelog
 
+## [2026-10-21] - root@0.109.1, @chatic/desktop-web@0.34.5
+
+### Features
+
+- (desktop) add nav rail and fold cloud and place rails into one
+- (desktop) restyle the Home sidebar after the nav rail design
+- (desktop) capture DMs, thread replies and reactions into the inbox
+- (desktop) add the Notifications nav panel over the inbox
+- (desktop) add selection, delete and mark-all-read to Notifications
+- (desktop) add the Channels nav list with previews and recency order
+- (desktop) add the DM nav list with peer names and recency order
+- (desktop) move Saved items into a main-pane page with filters
+- (desktop) welcome an empty place with a getting-started checklist
+
+### Bug Fixes
+
+- (desktop) show Home on the cloud switcher when no cloud is set
+- (desktop) blend the place tiles into the rail they now sit on
+- (desktop) match the Notifications selection mode to the design
+- (desktop) name other-place inbox and saved items by their channel
+- (desktop-web) page older history past deleted messages
+- (desktop-web) create a channel only once a place switch lands
+- (desktop-web) keep the room opened while a removal is answered
+
+### Other
+
+- style: (desktop) draw place initials at the cloud tile's scale
+- test: (desktop-web-e2e) add a live e2e suite for the nav rail screens
+- test: (desktop-web-e2e) cover two people, from invite to banner
+- test: (desktop-web-e2e) cover files, repeated deletes, unread and other places
+
 ## [2026-10-21] - root@0.109.0, @chatic/web@0.76.0
 
 ### Features
