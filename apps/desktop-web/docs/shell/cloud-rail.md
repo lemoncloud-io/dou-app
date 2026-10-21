@@ -220,3 +220,14 @@ it is re-read once as well. That is bounded by the number of mounts, not a loop.
 The rows stay as they are. react-query keeps the last good list when a refresh fails, so a cloud
 that was shown keeps showing, and the reload item says the list may be out of date. Only a first
 read that fails leaves the owned clouds out, and then the reload item is the only sign.
+
+## Seeing what a row was made from
+
+A row combines three sources: the relay catalog (status, and a name that can lag), the local
+cloud cache (a name that wins over the catalog's), and the invite-joined clouds. When a row reads
+wrong on someone's machine — an untitled cloud, a suspended one they believe they paid for — the
+debug panel's **Clouds** tab shows the catalog, the cache and the joined clouds raw, next to the
+rail entries they produced, and **Copy JSON** puts all of it on the clipboard in one paste (cloud
+emails included). That answers which
+source the row came from: a `suspended` status in the catalog is the server's state, not the app's,
+and an empty or `#cloud/<n>/<n>` name there is why the row says untitled.

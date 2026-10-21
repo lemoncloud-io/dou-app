@@ -6,15 +6,17 @@ import { useDebugModeStore, ResizablePanel } from '../../../shared';
 import { DebugAuthPage } from './DebugAuthPage';
 import { DebugBadgeCountPage } from './DebugBadgeCountPage';
 import { DebugChatPage } from './DebugChatPage';
+import { DebugCloudsPage } from './DebugCloudsPage';
 import { DebugCustomUiPage } from './DebugCustomUiPage';
 import { DebugImagesPage } from './DebugImagesPage';
 import { DebugStatePage } from './DebugStatePage';
 import { DebugSyncPage } from './DebugSyncPage';
 
-type TabId = 'state' | 'sync' | 'chat' | 'images' | 'badge' | 'customUi' | 'auth';
+type TabId = 'state' | 'clouds' | 'sync' | 'chat' | 'images' | 'badge' | 'customUi' | 'auth';
 
 const TABS: { id: TabId; label: string }[] = [
     { id: 'state', label: 'State' },
+    { id: 'clouds', label: 'Clouds' },
     { id: 'sync', label: 'Socket / Cache' },
     { id: 'chat', label: 'Cache stream' },
     { id: 'images', label: 'Images' },
@@ -27,6 +29,7 @@ const TABS: { id: TabId; label: string }[] = [
 
 const PAGES: Record<TabId, () => JSX.Element> = {
     state: DebugStatePage,
+    clouds: DebugCloudsPage,
     sync: DebugSyncPage,
     chat: DebugChatPage,
     images: DebugImagesPage,
