@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-21] - root@0.109.2, @chatic/desktop-web@0.34.6
+
+### Bug Fixes
+
+- (desktop-web) keep the cloud tile dot to clouds the menu lists
+
 ## [2026-10-21] - No version updates
 
 ### Bug Fixes
