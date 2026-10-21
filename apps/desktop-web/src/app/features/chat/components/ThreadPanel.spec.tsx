@@ -59,11 +59,9 @@ vi.mock('../hooks', async () => ({
 // The composer is a rich-text editor with its own runtime needs; this file is about
 // what the panel renders above it — and what it does with a reply the composer hands up.
 let composerOnSend: ((content: string, files: File[], mention?: { userIds?: string[] }) => void) | undefined;
-let composerHoldsFocus: boolean | undefined;
 vi.mock('./Composer', () => ({
-    Composer: ({ onSend, holdFocus }: { onSend: typeof composerOnSend & {}; holdFocus?: boolean }) => {
+    Composer: ({ onSend }: { onSend: typeof composerOnSend & {} }) => {
         composerOnSend = onSend;
-        composerHoldsFocus = holdFocus;
         return null;
     },
 }));
@@ -72,7 +70,7 @@ import '../../../../i18n';
 
 import { ThreadPanel } from './ThreadPanel';
 import { useThreadStore } from '../stores';
-import { isThreadUnread, useMyThreadsPanelStore, useMyThreadsStore } from '../../../shared';
+import { isThreadUnread, useMyThreadsStore } from '../../../shared';
 import { WEBHOOK_BLOCKS_ERROR_REPORT, WEBHOOK_SEND_ERROR_REPORT } from '@chatic/block-kit';
 
 Element.prototype.scrollIntoView = vi.fn();
@@ -114,7 +112,6 @@ describe('ThreadPanel', () => {
         hasMore = false;
         useComposerSend.mockClear();
         composerOnSend = undefined;
-        useMyThreadsPanelStore.setState({ openedKey: null, backKey: null, focusOpened: false });
     });
 
     describe('a root older than the loaded window', () => {
@@ -431,32 +428,6 @@ describe('ThreadPanel', () => {
             lastReplyOwnerName: 'Me',
         });
         expect(isThreadUnread(thread)).toBe(false);
-    });
-
-    it('opened from the Threads list, leads back to it and starts focus there, not in the composer', async () => {
-        useMyThreadsPanelStore.getState().markOpened('default:C1:1');
-        messages = [chat(1, { content: 'root' })];
-
-        render(<ThreadPanel channel={CHANNEL} rootId="1" members={[]} />, { wrapper });
-        await waitFor(() => expect(composerOnSend).toBeDefined());
-
-        const back = screen.getByRole('button', { name: 'Back to threads' });
-        expect(document.activeElement).toBe(back);
-        expect(composerHoldsFocus).toBe(true);
-        fireEvent.click(back);
-        expect(useMyThreadsPanelStore.getState()).toMatchObject({ isOpen: true, focusOpened: true });
-    });
-
-    it('opened from anywhere else — even a thread once opened from the list — offers no way back', async () => {
-        useMyThreadsPanelStore.getState().markOpened('default:C1:1');
-        useMyThreadsPanelStore.getState().close();
-        messages = [chat(1, { content: 'root' })];
-
-        render(<ThreadPanel channel={CHANNEL} rootId="1" members={[]} />, { wrapper });
-        await waitFor(() => expect(composerOnSend).toBeDefined());
-
-        expect(screen.queryByRole('button', { name: 'Back to threads' })).toBeNull();
-        expect(composerHoldsFocus).toBe(false);
     });
 
     it('marks the thread seen when it opens', () => {

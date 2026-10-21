@@ -8,6 +8,7 @@ export * from './displayName';
 export * from './displayProfile';
 export * from './linkMatch';
 export * from './mentionMatch';
+export * from './inboxKinds';
 export * from './myNames';
 export * from './dnd';
 export * from './stripMarkdown';

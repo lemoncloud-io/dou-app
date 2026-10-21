@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { isMentionKind, type InboxKind, type InboxSort, type InboxTab } from '../utils/inboxKinds';
+
 /**
  * A message that @-mentioned me, snapshotted at capture time. Snapshot (not a
  * live ref) because the source row pages out of the chat cache; the Activity
@@ -23,10 +25,21 @@ export interface MentionItem {
     createdAt: number;
     /** Epoch ms when read; absent = unread (drives the Activity badge). */
     readAt?: number;
+    /**
+     * Why the item is here (`inboxKinds.ts`). Absent on items stored before the inbox took DMs,
+     * replies and reactions; those read as `direct`.
+     */
+    kind?: InboxKind;
+    /** The emoji of a `reaction` item; its `content` is the message reacted to. */
+    emoji?: string;
+    /** Set when the message was in a 1:1 — a `dm` item says so by kind, a reaction only here. */
+    inDm?: boolean;
+    /** The channel's name when the item was captured: its place's channels may not be loaded when it is read. */
+    channelName?: string;
 }
 
-/** Bound storage: keep only the newest N mentions. */
-const MAX_ITEMS = 200;
+/** Bound storage: keep only the newest N items. DMs, replies and reactions share the cap with mentions. */
+const MAX_ITEMS = 500;
 
 /**
  * What the inbox keeps of a message: the two-line preview, not the body. Full
@@ -43,7 +56,10 @@ interface MentionsState {
     items: Record<string, MentionItem>;
     add: (item: Omit<MentionItem, 'readAt'>) => void;
     markRead: (id: string) => void;
-    markAllRead: () => void;
+    /** Stamp the given unread items read; returns the ids it changed, which is what an undo restores. */
+    markManyRead: (ids: readonly string[]) => string[];
+    /** Undo a mark: clear the read stamp of those of `ids` still stored. */
+    markUnread: (ids: readonly string[]) => void;
     /**
      * Stamp every unread item of a channel at or below `chatNo` read — the
      * inbox follows the same read-cursor boundary as the row and the dock, so
@@ -53,12 +69,12 @@ interface MentionsState {
      * match any place.
      */
     markChannelRead: (channelId: string, chatNo: number, placeId?: string) => void;
-    remove: (id: string) => void;
+    removeMany: (ids: readonly string[]) => void;
 }
 
-/** Count of unread mentions — drives the sidebar Activity dot. */
+/** Count of unread mentions — drives the sidebar Activity dot. Other kinds do not count. */
 export const unreadMentionCount = (items: Record<string, MentionItem>): number =>
-    Object.values(items).reduce((count, item) => (item.readAt ? count : count + 1), 0);
+    Object.values(items).reduce((count, item) => (item.readAt || !isMentionKind(item) ? count : count + 1), 0);
 
 /**
  * Whether a channel holds a mention I have not got to: one not opened from the inbox, and past
@@ -68,6 +84,7 @@ export const unreadMentionCount = (items: Record<string, MentionItem>): number =
  * every place's mentions, so the id alone would also match another place's channel.
  */
 const isUnreadMentionIn = (item: MentionItem, channel: { id: string; placeId?: string }, readNo: number): boolean =>
+    isMentionKind(item) &&
     item.channelId === channel.id &&
     item.placeId === channel.placeId &&
     !item.readAt &&
@@ -88,7 +105,8 @@ export const countUnreadMentionsIn = (
     items: Record<string, MentionItem>,
     channel: { id: string; placeId?: string },
     readNo: number
-): number => Object.values(items).reduce((count, item) => (isUnreadMentionIn(item, channel, readNo) ? count + 1 : count), 0);
+): number =>
+    Object.values(items).reduce((count, item) => (isUnreadMentionIn(item, channel, readNo) ? count + 1 : count), 0);
 
 /**
  * Device-local mentions inbox ("Activity"). No server mention model exists, so
@@ -97,7 +115,7 @@ export const countUnreadMentionsIn = (
  */
 export const useMentionsStore = create<MentionsState>()(
     persist(
-        set => ({
+        (set, get) => ({
             items: {},
             add: item =>
                 set(state => {
@@ -118,13 +136,22 @@ export const useMentionsStore = create<MentionsState>()(
                     if (!target || target.readAt) return state;
                     return { items: { ...state.items, [id]: { ...target, readAt: Date.now() } } };
                 }),
-            markAllRead: () =>
+            markManyRead: ids => {
+                const { items } = get();
+                const changed = ids.filter(id => items[id] && !items[id].readAt);
+                if (changed.length === 0) return changed;
+                const now = Date.now();
+                const next = { ...items };
+                for (const id of changed) next[id] = { ...items[id], readAt: now };
+                set({ items: next });
+                return changed;
+            },
+            markUnread: ids =>
                 set(state => {
-                    const now = Date.now();
-                    const next: Record<string, MentionItem> = {};
-                    for (const [id, item] of Object.entries(state.items)) {
-                        next[id] = item.readAt ? item : { ...item, readAt: now };
-                    }
+                    const present = ids.filter(id => state.items[id]?.readAt);
+                    if (present.length === 0) return state;
+                    const next = { ...state.items };
+                    for (const id of present) next[id] = { ...state.items[id], readAt: undefined };
                     return { items: next };
                 }),
             markChannelRead: (channelId, chatNo, placeId) =>
@@ -134,14 +161,8 @@ export const useMentionsStore = create<MentionsState>()(
                     const now = Date.now();
                     const next: Record<string, MentionItem> = {};
                     for (const [id, item] of Object.entries(state.items)) {
-                        const samePlace =
-                            placeId == null || item.placeId == null || item.placeId === placeId;
-                        if (
-                            !item.readAt &&
-                            item.channelId === channelId &&
-                            samePlace &&
-                            (item.chatNo ?? 0) <= chatNo
-                        ) {
+                        const samePlace = placeId == null || item.placeId == null || item.placeId === placeId;
+                        if (!item.readAt && item.channelId === channelId && samePlace && (item.chatNo ?? 0) <= chatNo) {
                             next[id] = { ...item, readAt: now };
                             touched = true;
                         } else {
@@ -150,10 +171,10 @@ export const useMentionsStore = create<MentionsState>()(
                     }
                     return touched ? { items: next } : state;
                 }),
-            remove: id =>
+            removeMany: ids =>
                 set(state => {
                     const next = { ...state.items };
-                    delete next[id];
+                    for (const id of ids) delete next[id];
                     return { items: next };
                 }),
         }),
@@ -161,20 +182,37 @@ export const useMentionsStore = create<MentionsState>()(
     )
 );
 
-interface MentionsPanelState {
-    isOpen: boolean;
-    /** The row last opened from this pane; marked when the pane opens again. */
+interface NotificationsPanelState {
+    /** The item last opened from the panel: its card stays marked as where the reader went. */
     openedId: string | null;
-    open: () => void;
-    close: () => void;
+    tab: InboxTab;
+    unreadOnly: boolean;
+    sort: InboxSort;
+    /**
+     * The cloud whose cached messages are being read for threads on its first launch. Until it is
+     * done an empty Threads tab is not final, and says so.
+     */
+    scanningCid: string | null;
     markOpened: (id: string) => void;
+    setTab: (tab: InboxTab) => void;
+    setUnreadOnly: (unreadOnly: boolean) => void;
+    setSort: (sort: InboxSort) => void;
+    setScanning: (cid: string | null) => void;
 }
 
-/** Whether the trailing Activity pane is open (HomePage enforces pane exclusivity). */
-export const useMentionsPanelStore = create<MentionsPanelState>(set => ({
-    isOpen: false,
+/**
+ * The Notifications panel's view, in memory: the panel unmounts whenever the nav leaves it, and
+ * coming back finds the same tab, filter and order.
+ */
+export const useNotificationsPanelStore = create<NotificationsPanelState>(set => ({
     openedId: null,
-    open: () => set({ isOpen: true }),
-    close: () => set({ isOpen: false }),
+    tab: 'all',
+    unreadOnly: false,
+    sort: 'newest',
+    scanningCid: null,
     markOpened: id => set({ openedId: id }),
+    setTab: tab => set({ tab }),
+    setUnreadOnly: unreadOnly => set({ unreadOnly }),
+    setSort: sort => set({ sort }),
+    setScanning: cid => set({ scanningCid: cid }),
 }));

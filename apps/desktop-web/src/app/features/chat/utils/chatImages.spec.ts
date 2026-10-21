@@ -6,6 +6,7 @@ import {
     MAX_ATTACHMENTS,
     attachmentKey,
     layoutImageGrid,
+    savedAttachmentOf,
     toChatFiles,
     toChatImages,
     validateAttachments,
@@ -337,5 +338,21 @@ describe('toChatImages', () => {
     it('has nothing for a message without uploads', () => {
         expect(toChatImages('row-1', undefined)).toEqual([]);
         expect(toChatImages('row-1', [])).toEqual([]);
+    });
+});
+
+describe('savedAttachmentOf', () => {
+    it('keeps the kinds, the count and the first attachment by name and size', () => {
+        const slots = [
+            { id: 'up-1', status: 'stored', stereo: 'image', name: 'logo.png', contentSize: 2048 },
+            { id: 'up-2', status: 'stored', stereo: 'file', name: 'spec.pdf' },
+        ] as NonNullable<DomainChat['upload$$']>;
+
+        expect(savedAttachmentOf({ upload$$: slots })).toEqual({ kind: 'mixed', count: 2, name: 'logo.png', size: 2048 });
+    });
+
+    it('keeps only the count when the message names none, and nothing when nothing is attached', () => {
+        expect(savedAttachmentOf({ uploadIds: ['u1', 'u2'] })).toEqual({ kind: 'image', count: 2 });
+        expect(savedAttachmentOf({})).toBeUndefined();
     });
 });

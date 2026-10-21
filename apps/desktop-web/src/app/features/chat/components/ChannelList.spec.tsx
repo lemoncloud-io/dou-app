@@ -93,11 +93,15 @@ const hydrate = vi.hoisted(() => ({
     profiles: {} as Record<string, { nick?: string; thumbnail?: string }>,
     cloud: new Map<string, { name?: string; thumbnail?: string }>(),
 }));
-vi.mock('../hooks', () => ({
-    useLastChat: () => lastChat,
+vi.mock('../hooks/useHydrateDmPeers', () => ({
     useHydrateDmPeers: (peers: unknown[]) => {
         hydrate.peers = peers;
     },
+}));
+// The 1:1 naming is the real hook: only its server hydration above is stubbed.
+vi.mock('../hooks', async () => ({
+    useLastChat: () => lastChat,
+    ...(await vi.importActual<typeof DmIdentities>('../hooks/useDmIdentities')),
 }));
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useCloudProfiles: () => hydrate.cloud }));
 // Radix only mounts an avatar image once it has loaded, which never happens in jsdom; render the
@@ -131,9 +135,11 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
 import '../../../../i18n';
 import i18next from 'i18next';
 
-import { useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
+import { useDmNameWaitStore, useSidebarOrderStore, useSidebarSectionsStore } from '../stores';
 import { useMentionsStore, useNotificationPrefsStore, useSelectedChannelStore } from '../../../shared';
-import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList, DM_NAME_WAIT_MS } from './ChannelList';
+import type * as DmIdentities from '../hooks/useDmIdentities';
+import { DM_NAME_WAIT_MS } from '../hooks/useDmIdentities';
+import { CHANNEL_ROW_HINT_DELAY_MS, ChannelList } from './ChannelList';
 import { ShortcutsDialog } from './ShortcutsDialog';
 
 Element.prototype.scrollIntoView = vi.fn();
@@ -171,6 +177,9 @@ const previewOnHover = (): string => {
         vi.useRealTimers();
     }
 };
+
+// A place's wait for names is kept across mounts; each test starts with none.
+beforeEach(() => useDmNameWaitStore.setState({ settled: {}, gaveUp: {} }));
 
 describe('ChannelList preview line', () => {
     it('shows the last message, flattened out of its markdown', () => {
@@ -235,7 +244,7 @@ describe('ChannelList channel section "+"', () => {
         expect(onCreateChannel).toHaveBeenCalledTimes(1);
     });
 
-    it('draws no empty channel section on Home, where channels cannot be made', () => {
+    it('offers no "+" on Home, where channels cannot be made', () => {
         renderWith({ onCreateChannel: vi.fn(), isDefaultMode: true });
         expect(addChannel()).toBeNull();
     });
@@ -948,10 +957,13 @@ describe('ChannelList Direct messages "+"', () => {
         expect(onCreateDm).toHaveBeenCalledTimes(1);
     });
 
-    it('hides the empty section where a 1:1 cannot be started', () => {
+    // Every section keeps its heading while empty (Figma Home); where a 1:1 cannot be started
+    // it says so in a line and offers no "+".
+    it('keeps the empty section without a "+" where a 1:1 cannot be started', () => {
         renderWith({});
 
-        expect(screen.queryByRole('button', { name: 'Direct messages' })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Direct messages' })).toBeTruthy();
+        expect(screen.getByText(i18next.t('sidebar.empty.dms'))).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'New message' })).toBeNull();
     });
 
@@ -1415,25 +1427,50 @@ describe('ChannelList place members without a 1:1', () => {
     });
 });
 
-describe('ChannelList empty state', () => {
-    // The Home cloud's hint promised messages under "No channels yet": the wrong noun for a
-    // list of channels.
-    it('says where channels come from when the Home cloud has none', () => {
-        render(
-            <ChannelList
-                channels={[]}
-                isLoading={false}
-                selectedChannelId={null}
-                query=""
-                onSelect={vi.fn()}
-                isDefaultMode
-            />,
-            { wrapper }
-        );
+describe('ChannelList empty sections', () => {
+    beforeEach(() => useSidebarSectionsStore.setState({ collapsed: {} }));
 
-        expect(screen.getByText('No channels yet')).toBeTruthy();
-        expect(screen.getByText("Channels you're invited to will appear here.")).toBeTruthy();
-        expect(screen.queryByText(/messages/i)).toBeNull();
+    const emptyList = (props: Partial<ComponentProps<typeof ChannelList>> = {}) => (
+        <ChannelList
+            channels={[]}
+            isLoading={false}
+            selectedChannelId={null}
+            query=""
+            onSelect={vi.fn()}
+            isDefaultMode={false}
+            {...props}
+        />
+    );
+
+    // A place with nothing in it keeps its three headings, each saying what will go there, so the
+    // first channel or 1:1 has a section (and its "+") to start from.
+    it('keeps every section with a line saying it is empty', () => {
+        render(emptyList({ onCreateChannel: vi.fn(), onCreateDm: vi.fn() }), { wrapper });
+
+        for (const key of ['sidebar.favorites', 'sidebar.channels', 'sidebar.dms']) {
+            expect(screen.getByRole('heading', { name: i18next.t(key) })).toBeTruthy();
+        }
+        expect(screen.getByText(i18next.t('sidebar.empty.favorites'))).toBeTruthy();
+        expect(screen.getByText(i18next.t('sidebar.empty.channels'))).toBeTruthy();
+        expect(screen.getByText(i18next.t('sidebar.empty.dms'))).toBeTruthy();
+        expect(screen.getByRole('button', { name: i18next.t('rail.addChannel') })).toBeTruthy();
+    });
+
+    // On the Home cloud the Channels line is the hint that channels arrive by invitation, and the
+    // 1:1 section carries the mobile-app pointer instead of a second empty line.
+    it('says on the Home cloud that channels come by invitation', () => {
+        render(emptyList({ isDefaultMode: true }), { wrapper });
+
+        expect(screen.getByText(i18next.t('sidebar.empty.channels'))).toBeTruthy();
+        expect(screen.queryByText(i18next.t('sidebar.empty.dms'))).toBeNull();
+        expect(screen.queryByText(i18next.t('mobileApp.homeDm'), { exact: false })).toBeTruthy();
+    });
+
+    it('still says nothing matched when a search empties every section', () => {
+        render(emptyList({ channels: [CHANNEL], query: 'zzz' }), { wrapper });
+
+        expect(screen.getByText(i18next.t('sidebar.noMatches'))).toBeTruthy();
+        expect(screen.queryByText(i18next.t('sidebar.empty.favorites'))).toBeNull();
     });
 });
 

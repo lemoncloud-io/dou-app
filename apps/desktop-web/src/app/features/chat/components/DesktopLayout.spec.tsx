@@ -122,15 +122,15 @@ describe('DesktopLayout compact window', () => {
 
     const renderShellAt = (width: number) => {
         Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
-        render(<DesktopLayout rail={<span />} rail2={<span />} sidebar={<span />} main={<OpenSidebar />} />, {
+        render(<DesktopLayout rail={<span />} nav={<span />} sidebar={<span />} main={<OpenSidebar />} />, {
             wrapper,
         });
     };
 
     const rails = () => screen.queryAllByRole('navigation', { hidden: true });
 
-    // Docked at 320px the two rails left the conversation 136px: its header actions drew over
-    // each other and the composer's format row ran out of its box.
+    // Docked at 320px the two rails leave the conversation too narrow: its header actions drew over
+    // each other and the composer's format row ran out of its box. The nav rail rides along.
     it('takes the rails off the conversation and brings them back with the drawer', () => {
         renderShellAt(320);
         const drawer = screen.getByRole('dialog', { hidden: true });
@@ -141,6 +141,20 @@ describe('DesktopLayout compact window', () => {
         // reader is offered, and the tiles have to be in it.
         expect(rails()).toHaveLength(2);
         expect(rails().every(rail => drawer.contains(rail))).toBe(true);
+    });
+
+    // Between compact and docked the rails stay put and the drawer opens beside both of them, so
+    // picking a place or a destination stays one click away while the list is open.
+    it('opens the drawer beside the cloud and nav rails', () => {
+        renderShellAt(640);
+        fireEvent.click(screen.getByRole('button', { name: 'open' }));
+        const drawer = screen.getByRole('dialog');
+        expect(drawer.className).toContain('left-[calc(theme(width.rail)*2)]');
+        expect(rails().every(rail => !drawer.contains(rail))).toBe(true);
+        expect(rails().map(rail => rail.getAttribute('aria-label'))).toEqual([
+            i18next.t('shell.rail'),
+            i18next.t('shell.nav'),
+        ]);
     });
 
     // The opener is in the chat, which is inert while the drawer is open: focusing it before
@@ -175,5 +189,38 @@ describe('DesktopLayout compact window', () => {
         renderShellAt(640);
         expect(rails()).toHaveLength(2);
         expect(screen.queryByRole('dialog', { hidden: true })).toBeNull();
+    });
+});
+
+describe('DesktopLayout sidebar skip link', () => {
+    beforeEach(() => localStorage.clear());
+    afterEach(cleanup);
+
+    // The Home list stays mounted, hidden, under the other destinations: its rows are not a target then.
+    it('lands on the open destination, passing over the hidden Home list', () => {
+        Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
+        render(
+            <DesktopLayout
+                rail={<span />}
+                sidebar={
+                    <>
+                        <div hidden>
+                            <nav>
+                                <button type="button">hidden row</button>
+                            </nav>
+                        </div>
+                        <section>
+                            <button type="button">inbox control</button>
+                        </section>
+                    </>
+                }
+                main={<span />}
+            />,
+            { wrapper }
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: i18next.t('shell.skip.sidebar') }));
+
+        expect(document.activeElement?.textContent).toBe('inbox control');
     });
 });

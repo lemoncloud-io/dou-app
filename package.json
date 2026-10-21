@@ -115,6 +115,8 @@
     "desktop:package:win:prod": "yarn workspace @chatic/desktop package:win:prod",
     "!desktop-web": "------------- Desktop Web scripts -------------",
     "desktop-web:start": "npx nx serve desktop-web --port 5005",
+    "desktop-web:e2e": "npx nx run desktop-web-e2e:e2e",
+    "desktop-web:e2e:headed": "npx playwright test -c apps/desktop-web-e2e/playwright.config.ts --headed",
     "desktop-web:build:dev": "yarn clean:cache && npx nx build --configuration=dev desktop-web",
     "desktop-web:build:prod": "yarn clean:cache && npx nx build --configuration=prod desktop-web",
     "desktop-web:deploy:dev": "(rm -rf ./dist/apps/desktop-web || true) && yarn desktop-web:build:dev && ./scripts/deploy-desktop-web.sh dev",

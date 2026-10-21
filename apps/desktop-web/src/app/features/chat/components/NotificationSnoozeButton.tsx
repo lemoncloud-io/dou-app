@@ -25,12 +25,20 @@ import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
 const MINUTE = 60_000;
 
+interface NotificationSnoozeButtonProps {
+    /**
+     * `row` is a labelled sidebar row; `icon` a bare bell for a panel header, its state read out as
+     * its name and shown as a tooltip-free muted bell.
+     */
+    variant?: 'row' | 'icon';
+}
+
 /**
- * Sidebar action row to snooze notifications (global do-not-disturb). Self-contained:
- * reads/writes the notification-prefs store directly, no prop drilling. The row
- * reads the current state (off / snoozed until / quiet hours) with a muted bell.
+ * Snooze notifications (global do-not-disturb). Self-contained: reads/writes the notification-prefs
+ * store directly, no prop drilling. The control reads the current state (off / snoozed until /
+ * quiet hours) with a muted bell.
  */
-export const NotificationSnoozeButton = () => {
+export const NotificationSnoozeButton = ({ variant = 'row' }: NotificationSnoozeButtonProps) => {
     const { t } = useTranslation();
     const navigate = useNavigate();
     const snoozeUntil = useNotificationPrefsStore(s => s.snoozeUntil);
@@ -70,22 +78,31 @@ export const NotificationSnoozeButton = () => {
     }, [snoozeUntil, boundary, setSnooze]);
 
     const label = t(labelKey, snoozed && snoozeUntil ? { time: formatClockTime(snoozeUntil) } : undefined);
+    const bell = active ? (
+        <BellOff size={18} aria-hidden className="text-primary-ink" />
+    ) : (
+        <Bell size={18} aria-hidden />
+    );
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <button type="button" className={SIDEBAR_ACTION_ROW}>
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md">
-                        {active ? (
-                            <BellOff size={18} aria-hidden className="text-primary-ink" />
-                        ) : (
-                            <Bell size={18} aria-hidden />
-                        )}
-                    </span>
-                    <span className="truncate">{label}</span>
-                </button>
+                {variant === 'icon' ? (
+                    <button
+                        type="button"
+                        aria-label={label}
+                        className="focus-ring tactile flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors ease-tactile hover:bg-accent hover:text-foreground"
+                    >
+                        {bell}
+                    </button>
+                ) : (
+                    <button type="button" className={SIDEBAR_ACTION_ROW}>
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md">{bell}</span>
+                        <span className="truncate">{label}</span>
+                    </button>
+                )}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-56 shadow-overlay">
+            <DropdownMenuContent align={variant === 'icon' ? 'end' : 'start'} className="w-56 shadow-overlay">
                 <DropdownMenuLabel className="text-muted-foreground">{label}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => snoozeFor(30)} className="cursor-pointer py-2">

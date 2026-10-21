@@ -17,7 +17,7 @@ export * from './liveReadRegistry';
 export * from './useDesktopNotifications';
 export * from './useSocketWakeRecovery';
 export * from './useSocketWedgeReload';
-export * from './useMentionCapture';
+export * from './useInboxCapture';
 export * from './useDeviceTokenRegistration';
 export * from './useCrossCloudPushNotifications';
 export * from './useCloudSwitchFlow';

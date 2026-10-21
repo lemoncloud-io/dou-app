@@ -66,6 +66,7 @@ vi.mock('../../channels', () => ({
     useChannelSettingsStore: (select: (s: { close: () => void; channelId: null }) => unknown) =>
         select({ close: vi.fn(), channelId: null }),
     useCreateChannelDialogStore: (select: (s: { open: () => void }) => unknown) => select({ open: vi.fn() }),
+    useSendInviteStore: (select: (s: { openPlace: () => void }) => unknown) => select({ openPlace: vi.fn() }),
 }));
 
 vi.mock('../../debug', () => ({ DebugPanel: () => null }));
@@ -79,17 +80,21 @@ vi.mock('../components', () => {
     return {
         ChannelList: Null,
         ChatPane: Null,
-        CloudRail: Null,
+        CloudSwitcher: Null,
         CreatePlaceDialog: Null,
         DesktopLayout: Null,
         EditPlaceDialog: Null,
         OnboardingDialog: Null,
+        NavRail: Null,
+        NavSidebar: Null,
         PlaceRail: Null,
         SidebarHeader: Null,
-        SavedPanel: Null,
-        MentionsPanel: Null,
-        MyThreadsPanel: Null,
+        SavedPage: Null,
+        NotificationsPanel: Null,
+        ChannelListPanel: Null,
+        DmListPanel: Null,
         ThreadPanel: Null,
+        WelcomePage: Null,
     };
 });
 

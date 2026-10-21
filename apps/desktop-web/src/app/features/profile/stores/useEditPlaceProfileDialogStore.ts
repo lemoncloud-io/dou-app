@@ -8,7 +8,7 @@ interface EditPlaceProfileDialogState {
 
 /**
  * Global UI state: whether the "edit my place profile" dialog is showing. Lives
- * in Zustand because the trigger (CloudRail menu) and the dialog (rendered in
+ * in Zustand because the trigger (a rail menu) and the dialog (rendered in
  * HomePage) sit in different parts of the tree.
  */
 export const useEditPlaceProfileDialogStore = create<EditPlaceProfileDialogState>(set => ({

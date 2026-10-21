@@ -5,6 +5,11 @@ interface SelectedChannelState {
     selectedChannelId: string | null;
     selectChannel: (channelId: string) => void;
     clearChannel: () => void;
+    /**
+     * Clears `channelId` if it is still the open channel. A removal answers about a second after its
+     * confirm, and the room the reader opened in the meantime stays.
+     */
+    clearIfOpen: (channelId: string | null) => void;
 }
 
 /**
@@ -23,6 +28,8 @@ export const useSelectedChannelStore = create<SelectedChannelState>()(
             selectedChannelId: null,
             selectChannel: channelId => set({ selectedChannelId: channelId }),
             clearChannel: () => set({ selectedChannelId: null }),
+            clearIfOpen: channelId =>
+                set(s => (channelId && s.selectedChannelId === channelId ? { selectedChannelId: null } : s)),
         }),
         { name: 'chatic-selected-channel' }
     )

@@ -5,6 +5,7 @@ import { runtime } from '@chatic/app-runtime';
 import { RELAY_CLOUD_ID, isInJoinWindow, type DomainChannel, type DomainChat } from '@chatic/data';
 
 import { useChannelChatFeeds, type ChannelChatFeed } from './useChannelChatFeeds';
+import { captureInboxReply } from './useInboxCapture';
 import {
     cachedThreads,
     isNotifiableChat,
@@ -15,7 +16,7 @@ import {
     threadRootNo,
     type ThreadReply,
 } from '../utils';
-import { useMyThreadsPanelStore, useMyThreadsStore } from '../stores';
+import { useMyThreadsStore, useNotificationsPanelStore } from '../stores';
 
 /** Newest cached messages read per channel on the first launch — enough for recent threads. */
 const BACKFILL_PAGE = 200;
@@ -32,7 +33,7 @@ const isMineIn = (channel: Pick<DomainChannel, '$join'>) => {
 };
 
 /**
- * Feed thread replies from background channels into the device-local Threads list.
+ * Record the threads I take part in from background channels' replies, on this device.
  *
  * Rides the same channel-watermark feed as the mentions inbox: chat content streams only for the open
  * room, so a background channel shows up as its newest message (`lastChat$`) and a burst of replies
@@ -51,7 +52,7 @@ export const useMyThreadsCapture = (): void => {
     const backfill = useMyThreadsStore(s => s.backfill);
     const cloudId = runtime.session.useGlobalSession().cloud.cloudId || RELAY_CLOUD_ID;
 
-    const setScanning = useMyThreadsPanelStore(s => s.setScanning);
+    const setScanning = useNotificationsPanelStore(s => s.setScanning);
 
     useEffect(() => {
         if (useMyThreadsStore.getState().backfilled[cloudId]) return;
@@ -60,7 +61,7 @@ export const useMyThreadsCapture = (): void => {
         // Tells the pane its empty list is not the answer yet.
         setScanning(cloudId);
         const done = () => {
-            if (useMyThreadsPanelStore.getState().scanningCid === cloudId) setScanning(null);
+            if (useNotificationsPanelStore.getState().scanningCid === cloudId) setScanning(null);
         };
         void (async () => {
             const channels =
@@ -122,7 +123,7 @@ export const useMyThreadsCapture = (): void => {
     };
 
     useChannelChatFeeds(({ placeId, channel, chat }: ChannelChatFeed) => {
-        // Reactions carry the message they react to as `parentId`; they are not replies.
+        // A reaction is an event about another message (its target is `reaction$.chatId`), not a reply.
         if (!chat.parentId || !channel.id || chat.subType === 'reaction' || !isNotifiableChat(chat)) return;
 
         const cid = channel.cid || RELAY_CLOUD_ID;
@@ -146,8 +147,11 @@ export const useMyThreadsCapture = (): void => {
             mine: isMine(chat),
         };
 
+        // Someone else's reply in a thread of mine is also news for the inbox.
+        const feed = { placeId, channel, chat };
         if (useMyThreadsStore.getState().threads[key]) {
             record(reply);
+            if (!reply.mine) captureInboxReply(feed);
             return;
         }
         if (pending.current.has(key)) {
@@ -171,6 +175,8 @@ export const useMyThreadsCapture = (): void => {
                 const threadRoot = { preview: messagePreview(root), ownerName: root.owner$?.name ?? '' };
                 record(reply, { root: threadRoot });
                 if (myLaterReply && myLaterReply !== reply) record(myLaterReply, { root: threadRoot });
+                // After the thread is recorded, so the list keeps the thread whatever the inbox does.
+                if (!reply.mine) captureInboxReply(feed);
             })
             .catch(error => {
                 // Not remembered as foreign: the next reply asks again, once the root may be readable.

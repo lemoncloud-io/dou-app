@@ -19,6 +19,7 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         session: {
             useSessionSelection: () => ({ selectedSiteId: 'site-1' }),
+            useSessionIdentity: () => ({ userId: 'me' }),
             getRelaySessionUser: () => relayUser.current,
         },
     },
@@ -50,6 +51,7 @@ import '../../../../i18n';
 import { useSendInviteStore } from '../stores/useSendInviteStore';
 import { useInviteWaitingStore } from '../stores/useInviteWaitingStore';
 import { useInviteLinkStore } from '../stores/useInviteLinkStore';
+import { useWelcomeStore, welcomeKey } from '../../../shared';
 import { SendInviteDialog } from './SendInviteDialog';
 
 const openDialog = (channelId = 'C1', channelName = 'general') => {
@@ -72,6 +74,7 @@ describe('SendInviteDialog', () => {
         useInviteWaitingStore.getState().close();
         useInviteLinkStore.getState().close();
         relayUser.current = { userRole: 'user' };
+        useWelcomeStore.setState({ invited: {} });
     });
 
     const submitValid = () => {
@@ -103,6 +106,8 @@ describe('SendInviteDialog', () => {
         expect(toast).toHaveBeenCalledWith(expect.objectContaining({ variant: 'destructive' }));
         // Still open: the failure is shown in place, not stranded on a closed dialog.
         expect(screen.getByRole('dialog')).toBeTruthy();
+        // A failed send is no invite: the welcome's step stays open.
+        expect(useWelcomeStore.getState().invited).toEqual({});
     });
 
     it('tells a guest that inviting needs a signed-in account, not to check the number', async () => {
@@ -222,6 +227,8 @@ describe('SendInviteDialog', () => {
         expect(useSendInviteStore.getState().target).toBeNull();
         // The send lands on the waiting dialog with the recipient's memory.
         expect(useInviteWaitingStore.getState().inviteId).toBe('inv-1');
+        // The open place's welcome counts the invite step done.
+        expect(useWelcomeStore.getState().invited).toEqual({ [welcomeKey('me', 'site-1')]: true });
         act(() => useInviteWaitingStore.getState().close());
     });
 
@@ -242,6 +249,7 @@ describe('SendInviteDialog', () => {
         expect(copy).toHaveBeenCalledWith('https://dou.example/p/xyz');
         expect(useInviteLinkStore.getState().link).toBe('https://dou.example/p/xyz');
         expect(useInviteWaitingStore.getState().inviteId).toBeNull();
+        expect(useWelcomeStore.getState().invited).toEqual({ [welcomeKey('me', 'P1')]: true });
         act(() => useInviteLinkStore.getState().close());
     });
 

@@ -34,14 +34,13 @@ passes `onOpenThread`), and the "More" menu (the row has text, it is a settled r
 or it is mine to edit or delete). A file or photo sent without text gets "More" in the main feed and
 the thread panel alike, for Save for later: someone else's holds that one item, since there is no
 text to copy or edit and the row is not mine to delete; mine adds it to Edit and Delete. Its saved
-snapshot reads as the sidebar previews it ("File", "Photo", "3 files"), because the Saved pane shows
-only that text. A row still in flight or failed has no reactions, Reply or Save, so without text it
+snapshot reads as the sidebar previews it ("File", "Photo", "3 files"), the line a saved item keeps
+for a message with no text ([saved.md](./saved.md)). A row still in flight or failed has no reactions, Reply or Save, so without text it
 has no toolbar; a deleted row never has one.
 
 ## Hover-revealed controls
 
-A control that waits for hover (an image's save bar, the tray's "×", a Mentions or Saved row's
-actions) uses `hoverReveal(scope)` (`shared/utils/hoverReveal.ts`) under a `group/<scope>` parent:
+A control that waits for hover (an image's save bar, the tray's "×") uses `hoverReveal(scope)` (`shared/utils/hoverReveal.ts`) under a `group/<scope>` parent:
 
 - It is hidden only where the device can hover. On touch it is always shown.
 - It shows while the pointer is over its group, or while focus is anywhere inside the group.
@@ -76,8 +75,11 @@ it opened is on screen. The grouped timestamp in a message's left gutter shows o
   one-shot request in `useComposerFocusStore`, keyed by the removed channel, and `ChatPane` spends it
   on the first room it shows that is not that one — its composer takes focus. With no room left, the
   empty state's create/join button takes it. Either way the request is used once, so a later plain
-  channel switch does not move focus. The one exception is a removal from a sidebar row in the
-  open drawer: `<main>` is `inert` behind the drawer, so the focus call does nothing, the request is
+  channel switch does not move focus. The request is made when the server answers, about a second
+  after the confirm, and the row leaves the list before that, so the reader may already be in the
+  next room with its More menu open. The composer does not take focus from an open menu or dialog
+  (nor from a field being typed in), or the menu would close under the pointer; a dialog that is
+  closing gives way. The one exception is a removal from a sidebar row in the open drawer: `<main>` is `inert` behind the drawer, so the focus call does nothing, the request is
   still spent, and focus stays where the drawer leaves it.
 - **A failed place-profile save** puts focus back on the nickname field: the save disabled the field
   and both buttons, so the control that held focus went dead.

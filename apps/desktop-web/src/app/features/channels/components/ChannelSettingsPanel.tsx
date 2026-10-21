@@ -65,7 +65,8 @@ export const ChannelSettingsPanel = ({
     const close = useChannelSettingsStore(s => s.close);
     const focus = useChannelSettingsStore(s => s.focus);
     const membersHeadingRef = useRef<HTMLHeadingElement>(null);
-    const clearChannel = useSelectedChannelStore(s => s.clearChannel);
+    const closeIfOpenFor = useChannelSettingsStore(s => s.closeIfOpenFor);
+    const clearIfOpen = useSelectedChannelStore(s => s.clearIfOpen);
     const [idCopied, copyId] = useCopyToClipboard();
 
     const channelId = channel?.id ?? null;
@@ -91,9 +92,11 @@ export const ChannelSettingsPanel = ({
     const noMatches = memberQuery.trim().length > 0 && filteredMembers.length === 0;
 
     const actions = useChannelActions(channelId, {
+        // The removal answers about a second after its confirm; by then the reader may have opened
+        // another room or its settings, which stay.
         onRemoved: () => {
-            close();
-            clearChannel();
+            closeIfOpenFor(channelId);
+            clearIfOpen(channelId);
         },
         resolveMemberName: userId => members.find(m => m.id === userId)?.name ?? '',
     });

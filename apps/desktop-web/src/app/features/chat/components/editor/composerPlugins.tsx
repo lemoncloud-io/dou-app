@@ -363,16 +363,16 @@ export const FormatShortcutsPlugin = () => {
 
 /**
  * Load the channel's saved draft (the wire string) on
- * switch, then focus with the caret at the end — unless `takeFocus` is off.
+ * switch, then focus with the caret at the end.
  */
-export const ChannelDraftPlugin = ({ channelId, takeFocus = true }: { channelId: string; takeFocus?: boolean }) => {
+export const ChannelDraftPlugin = ({ channelId }: { channelId: string }) => {
     const [editor] = useLexicalComposerContext();
     useEffect(() => {
         const draft = useComposerDraftStore.getState().drafts[channelId] ?? '';
-        // A channel switch can land after a panel opened for it — a thread from the Threads list — has
-        // put focus inside; the room's box does not pull it back out.
+        // A channel switch can land after a panel opened for it — a thread from the inbox — has put
+        // focus inside; the room's box does not pull it back out.
         const panel = document.activeElement?.closest('[data-trailing-panel]');
-        const focus = takeFocus && !(panel && !panel.contains(editor.getRootElement()));
+        const focus = !(panel && !panel.contains(editor.getRootElement()));
         editor.update(() => {
             $importWireMarkdown(draft);
             // A selection in an editable root pulls DOM focus with it, so none is placed when focus stays put.
@@ -380,7 +380,6 @@ export const ChannelDraftPlugin = ({ channelId, takeFocus = true }: { channelId:
             else $setSelection(null);
         });
         if (focus) editor.focus();
-        // `takeFocus` is read on mount and on a channel switch only — a later change is no reason to reload the draft.
     }, [editor, channelId]);
     return null;
 };

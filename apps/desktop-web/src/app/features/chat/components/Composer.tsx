@@ -69,11 +69,6 @@ export interface ComposerProps {
      */
     autoFocus?: boolean;
     /**
-     * Take no focus at all, not even the draft restore's on a channel switch: the panel around the
-     * box has put focus somewhere on purpose — a thread opened from the Threads list, on its way back.
-     */
-    holdFocus?: boolean;
-    /**
      * Tighter padding and gaps, for the thread panel. At its 360px default the room's spacing
      * left the reply box about 160px, and the placeholder wrapped onto a second line.
      */
@@ -90,7 +85,6 @@ const ComposerInner = ({
     onRemoveAttachment,
     capturesTyping,
     autoFocus,
-    holdFocus,
     compact,
 }: ComposerProps) => {
     const { t } = useTranslation();
@@ -161,16 +155,25 @@ const ComposerInner = ({
 
     // A panel that opened took no focus, so a keyboard user stayed in the feed behind it with
     // no way in short of tabbing through every message. Per thread (channelId carries the root),
-    // and never out of a field the reader is typing in: a thread can open seconds after the
-    // click that asked for it, once its channel has loaded.
+    // and never out of a field the reader is typing in, nor out of a menu or dialog they have
+    // open: a thread can open seconds after the click that asked for it, once its channel has
+    // loaded, and the request a channel removal leaves lands when the server answers, by which
+    // time the reader may have opened the next room's menu — which focus leaving would close.
     useEffect(() => {
-        if (!autoFocus || holdFocus) return;
+        if (!autoFocus) return;
         const active = document.activeElement;
-        const typingElsewhere =
+        const busyElsewhere =
             active instanceof HTMLElement &&
-            (active.isContentEditable || active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement);
-        if (!typingElsewhere) focusInput();
-    }, [autoFocus, holdFocus, channelId, focusInput]);
+            (active.isContentEditable ||
+                active instanceof HTMLInputElement ||
+                active instanceof HTMLTextAreaElement ||
+                // Open ones only: a dialog fading out still holds focus for its exit animation, and
+                // the image viewer's Reply closes it as it opens the thread whose box should take it.
+                !!active.closest(
+                    '[role="menu"][data-state="open"], [role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]'
+                ));
+        if (!busyElsewhere) focusInput();
+    }, [autoFocus, channelId, focusInput]);
 
     const insertEmoji = (emoji: string) => {
         editor.update(() => {
@@ -280,7 +283,7 @@ const ComposerInner = ({
             <ComposerAutoLinkPlugin />
             <SubmitPlugin onSubmit={submit} />
             <FormatShortcutsPlugin />
-            <ChannelDraftPlugin channelId={channelId} takeFocus={!holdFocus} />
+            <ChannelDraftPlugin channelId={channelId} />
         </div>
     );
 };

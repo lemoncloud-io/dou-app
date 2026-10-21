@@ -4,7 +4,6 @@ import { cn } from '@chatic/lib/utils';
 
 const FADE = {
     rail: { top: 'bg-gradient-to-b from-rail', bottom: 'bg-gradient-to-t from-rail' },
-    'rail-elevated': { top: 'bg-gradient-to-b from-rail-elevated', bottom: 'bg-gradient-to-t from-rail-elevated' },
 } as const;
 
 interface ScrollHintProps {

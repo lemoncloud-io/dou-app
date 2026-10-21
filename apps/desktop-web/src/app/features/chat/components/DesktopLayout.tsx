@@ -19,9 +19,11 @@ import {
 
 interface DesktopLayoutProps {
     rail: ReactNode;
-    /** Optional second rail (places) between the cloud rail and the sidebar. */
-    rail2?: ReactNode;
+    /** The nav rail (Home, Notifications, Channels, DM), between the first rail and the sidebar. */
+    nav?: ReactNode;
     sidebar: ReactNode;
+    /** Where the sidebar column's width is kept, and its first width. Defaults to the Home list's. */
+    sidebarWidth?: { storageKey: string; defaultWidth: number };
     main: ReactNode;
     /** Optional right-side panel (channel settings); collapses when null. */
     panel?: ReactNode;
@@ -56,8 +58,8 @@ export const useShellSidebar = () => useContext(ShellSidebarContext);
 
 /**
  * Slack-style shell:
- *   [ cloud rail ] [ place rail ] [ channel sidebar ] [ flexible main pane ] [ optional panel ]
- * The place rail and trailing panel are collapsible — each rendered only when
+ *   [ cloud + place rail ] [ nav rail ] [ sidebar ] [ flexible main pane ] [ optional panel ]
+ * The nav rail and trailing panel are collapsible — each rendered only when
  * provided. The channel sidebar drags from its right edge, like the trailing
  * panels drag from their left. Colors come from theme tokens (--rail/--sidebar)
  * so light/dark hold up.
@@ -101,14 +103,34 @@ const SkipLinks = ({ onSidebar }: { onSidebar: () => void }) => {
     );
 };
 
-export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: DesktopLayoutProps) => {
+const HOME_SIDEBAR_WIDTH = { storageKey: 'chatic.sidebar.width', defaultWidth: 286 };
+
+/**
+ * Where the sidebar skip link lands: the list's first row, else the first control of whatever the
+ * open destination draws. The Home list stays mounted under the other destinations, hidden, so its
+ * rows are passed over then.
+ */
+const firstSidebarTarget = (sidebar: HTMLElement | null): HTMLElement | undefined => {
+    const shown = (selector: string) =>
+        Array.from(sidebar?.querySelectorAll<HTMLElement>(selector) ?? []).find(el => !el.closest('[hidden]'));
+    return shown('nav button') ?? shown('button');
+};
+
+export const DesktopLayout = ({
+    rail,
+    nav,
+    sidebar,
+    sidebarWidth: sidebarSize = HOME_SIDEBAR_WIDTH,
+    main,
+    panel,
+    overlay,
+}: DesktopLayoutProps) => {
     const { t } = useTranslation();
     const isDrawer = useViewportNarrow();
     const isCompact = useViewportNarrow(COMPACT_SHELL_WIDTH);
     const [isOpen, setIsOpen] = useState(false);
     const sidebarWidth = usePanelWidth({
-        storageKey: 'chatic.sidebar.width',
-        defaultWidth: 286,
+        ...sidebarSize,
         edge: 'right',
         minWidth: 200,
         maxWidth: 480,
@@ -165,7 +187,7 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
     const drawerOpen = isDrawer && isOpen;
     // The drawer opens beside the rails, not over them: switching cloud or place
     // is exactly what someone reaching for the channel list may want next.
-    const drawerLeft = rail2 ? 'left-[calc(theme(width.rail)*2)]' : 'left-[theme(width.rail)]';
+    const drawerLeft = nav ? 'left-[calc(theme(width.rail)*2)]' : 'left-[theme(width.rail)]';
 
     useEffect(() => {
         if (drawerOpen) sidebarWidth.panelRef.current?.focus();
@@ -174,17 +196,17 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
     const rails = (
         <>
             <nav
-                aria-label={t('shell.clouds')}
-                className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-[18px] text-rail-foreground"
+                aria-label={t('shell.rail')}
+                className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-6 text-rail-foreground"
             >
                 {rail}
             </nav>
-            {rail2 && (
+            {nav && (
                 <nav
-                    aria-label={t('shell.places')}
+                    aria-label={t('shell.nav')}
                     className="flex w-rail shrink-0 flex-col items-center bg-rail-elevated px-1 pb-5 pt-6 text-rail-foreground"
                 >
-                    {rail2}
+                    {nav}
                 </nav>
             )}
         </>
@@ -213,7 +235,7 @@ export const DesktopLayout = ({ rail, rail2, sidebar, main, panel, overlay }: De
                         <SkipLinks
                             onSidebar={() => {
                                 if (isDrawer) open();
-                                else sidebarWidth.panelRef.current?.querySelector<HTMLElement>('nav button')?.focus();
+                                else firstSidebarTarget(sidebarWidth.panelRef.current)?.focus();
                             }}
                         />
                     )}

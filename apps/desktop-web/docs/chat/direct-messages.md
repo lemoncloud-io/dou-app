@@ -248,3 +248,6 @@ drawn under an id now:
   person whose record never arrives cannot hold the section for good.
 
 People with no 1:1 yet do not hold the section: they are left out until named anyway.
+
+The naming and the wait live in `useDmIdentities`; the DM nav list ([lists.md](./lists.md)) uses the
+same hook, so the two never name a person differently.

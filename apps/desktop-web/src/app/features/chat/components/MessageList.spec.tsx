@@ -432,8 +432,9 @@ describe('MessageList', () => {
         expect(items).not.toContain('Copy');
     });
 
-    // The saved pane shows the snapshot's text and nothing else, so a file saved as its empty
-    // `content` would sit there as a blank row. It reads the way the sidebar previews it.
+    // The saved card leads with the snapshot's text, so a file saved as its empty `content` would
+    // have no line of its own. It reads the way the sidebar previews it, and keeps what it carried
+    // for the Saved page's Files filter.
     it('saves a file-only message under what it carries, not its empty text', () => {
         useSavedItemsStore.setState({ items: {} });
         render(
@@ -447,7 +448,11 @@ describe('MessageList', () => {
         );
         clickRowMenuItem('Save for later');
 
-        expect(useSavedItemsStore.getState().items['C1:1']).toMatchObject({ content: 'File', ownerName: 'Ada' });
+        expect(useSavedItemsStore.getState().items['C1:1']).toMatchObject({
+            content: 'File',
+            ownerName: 'Ada',
+            attachment: { kind: 'file', count: 1 },
+        });
     });
 
     it('saves a text message under its text', () => {
@@ -958,6 +963,75 @@ describe('MessageList first page failed', () => {
         expect(screen.queryByText('Write the first message')).toBeNull();
         fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
         expect(onRetryLoad).toHaveBeenCalledTimes(1);
+    });
+});
+
+// A newest page of deleted messages, or of replies whose roots were deleted, leaves the feed with
+// nothing to show and nothing to scroll: no scroll would ever ask for the history below it.
+describe('MessageList with nothing shown and older history', () => {
+    afterEach(cleanup);
+
+    const renderEmpty = (props: { onLoadOlder: () => void; isLoadingOlder?: boolean; loadOlderFailed?: boolean }) =>
+        render(
+            <MessageList
+                messages={[]}
+                isLoading={false}
+                viewer={VIEWER}
+                intro={<p>Write the first message</p>}
+                hasMore
+                {...props}
+            />,
+            { wrapper }
+        );
+
+    it('pulls the older page by itself and shows loading, not the intro', () => {
+        const onLoadOlder = vi.fn();
+        renderEmpty({ onLoadOlder });
+
+        expect(onLoadOlder).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole('status')).toBeTruthy();
+        expect(screen.queryByText('Write the first message')).toBeNull();
+    });
+
+    it('does not pull while the first page is still loading', () => {
+        const onLoadOlder = vi.fn();
+        render(<MessageList messages={[]} isLoading viewer={VIEWER} hasMore onLoadOlder={onLoadOlder} />, { wrapper });
+
+        expect(onLoadOlder).not.toHaveBeenCalled();
+    });
+
+    it('does not ask again while a page is out', () => {
+        const onLoadOlder = vi.fn();
+        renderEmpty({ onLoadOlder, isLoadingOlder: true });
+
+        expect(onLoadOlder).not.toHaveBeenCalled();
+    });
+
+    it('says a failed page did not load, and retries it through onLoadOlder', () => {
+        const onLoadOlder = vi.fn();
+        renderEmpty({ onLoadOlder, loadOlderFailed: true });
+
+        // A failed page is not asked for again until the reader retries it.
+        expect(onLoadOlder).not.toHaveBeenCalled();
+        expect(screen.getByRole('alert').textContent).toContain('Could not load messages.');
+        fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+        expect(onLoadOlder).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the intro once the history has run out', () => {
+        render(
+            <MessageList
+                messages={[]}
+                isLoading={false}
+                viewer={VIEWER}
+                intro={<p>Write the first message</p>}
+                onLoadOlder={vi.fn()}
+                hasMore={false}
+            />,
+            { wrapper }
+        );
+
+        expect(screen.getByText('Write the first message')).toBeTruthy();
     });
 });
 

@@ -45,6 +45,37 @@ describe('Composer autoFocus', () => {
         expect(document.activeElement).toBe(field);
         field.remove();
     });
+
+    // A channel removal asks for focus when the server answers, about a second after the confirm;
+    // by then the reader can have opened the next room's More menu, and taking focus closed it.
+    const focusInside = (role: string, state: 'open' | 'closed') => {
+        const box = document.createElement('div');
+        box.setAttribute('role', role);
+        box.setAttribute('data-state', state);
+        const control = document.createElement('button');
+        box.appendChild(control);
+        document.body.appendChild(box);
+        control.focus();
+        return { control, remove: () => box.remove() };
+    };
+
+    it.each(['menu', 'dialog', 'alertdialog'])('does not take focus from an open %s', async role => {
+        const { control, remove } = focusInside(role, 'open');
+        render(<Composer onSend={() => undefined} channelId="C4" autoFocus />, { wrapper });
+        await settle();
+        expect(document.activeElement).toBe(control);
+        remove();
+    });
+
+    // The image viewer's Reply closes the viewer as it opens the thread; the viewer keeps focus
+    // while it fades out, and the thread's box still takes it.
+    it('takes focus from a dialog that is closing', async () => {
+        const { remove } = focusInside('dialog', 'closed');
+        const { container } = render(<Composer onSend={() => undefined} channelId="C5" autoFocus />, { wrapper });
+        await settle();
+        expect(document.activeElement).toBe(container.querySelector('[data-composer-input]'));
+        remove();
+    });
 });
 
 describe('Composer format row', () => {

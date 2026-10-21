@@ -102,8 +102,15 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
     // flight for: a request still out for the channel the hook just left must not block the new one.
     const pageLimitRef = useRef(pageLimit);
     pageLimitRef.current = pageLimit;
+    // Read by `loadOlder` without making it a dependency, like the cursor rows above.
+    const latestChatNoRef = useRef(latestChatNo);
+    latestChatNoRef.current = latestChatNo;
     const readBackLimitRef = useRef(0);
     const askingRef = useRef<string | null>(null);
+    // The next cursor the server named for this scope: the lowest message number its last older page
+    // counted. Lower than the oldest row shown when the numbers in between were all deleted, and the only
+    // cursor there is when no row is shown at all.
+    const floorRef = useRef<{ scope: string | null; no: number }>({ scope: null, no: 0 });
 
     // Adjust state synchronously on channel switch (React's "derive state from
     // props" pattern) so the new channel paints in the same render. Restore the
@@ -236,6 +243,12 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         for (const chat of chatsRef.current) {
             if (chat.chatNo != null && chat.chatNo > 0 && chat.chatNo < oldestNo) oldestNo = chat.chatNo;
         }
+        if (floorRef.current.scope === scopeKey && floorRef.current.no > 0) {
+            oldestNo = Math.min(oldestNo, floorRef.current.no);
+        }
+        // Nothing shown and no cursor named yet: count down from the channel's head. A room whose newest
+        // messages are all deleted is in this state, with history below them.
+        if (!Number.isFinite(oldestNo) && latestChatNoRef.current) oldestNo = latestChatNoRef.current + 1;
         if (!Number.isFinite(oldestNo)) return true;
 
         const reqChannel = channelId;
@@ -244,16 +257,34 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         setLoadOlderFailed(false);
         setIsLoadingOlder(true);
         try {
-            const result = await chatRepository.refreshList({
-                channelId: reqChannel,
-                cursorNo: oldestNo,
-                limit: LOAD_MORE_SIZE,
-            });
-            // Channel switched while the request was in flight — drop the result.
-            if (reqChannel !== channelIdRef.current) return true;
-            if (result.fetchedCount === 0) setHasMore(false);
-            else setPageLimit(prev => prev + LOAD_MORE_SIZE);
-            return true;
+            // One call runs until a page brings rows or the history ends: a caller that saw nothing
+            // land (the thread panel's pager, a reader parked at the top) would not ask again.
+            let cursorNo = oldestNo;
+            for (;;) {
+                const result = await chatRepository.refreshList({
+                    channelId: reqChannel,
+                    cursorNo,
+                    limit: LOAD_MORE_SIZE,
+                });
+                // Channel switched while the request was in flight — drop the result.
+                if (reqChannel !== channelIdRef.current) return true;
+                // The server counts a page by message numbers and leaves deleted ones out, then names
+                // the lowest number it counted as the next cursor — 0 once it reached the start.
+                const next = result.cursorNo ?? 0;
+                if (next > 0) floorRef.current = { scope: reqScope, no: next };
+                if (result.fetchedCount > 0) {
+                    setPageLimit(prev => prev + LOAD_MORE_SIZE);
+                    if (result.cursorNo === 0) setHasMore(false);
+                    return true;
+                }
+                // An empty page with a cursor below it was all deleted messages: step over it. A cursor
+                // that does not move down would never end, so it ends the history too.
+                if (next <= 0 || next >= cursorNo) {
+                    setHasMore(false);
+                    return true;
+                }
+                cursorNo = next;
+            }
         } catch {
             // Leave hasMore set so a later scroll retries. A failure that comes back
             // after the pane moved on is not this room's to show.
@@ -265,6 +296,10 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         }
     }, [chatRepository, channelId, scopeKey, isLoadingOlder, hasMore]);
 
+    // Nothing to page from — no sent row and no head number on the channel (a room nobody has written in
+    // yet) — reads as the start of the history, so the feed shows the room's intro instead of waiting.
+    const canPage = !!latestChatNo || chats.some(chat => !!chat.chatNo && chat.chatNo > 0);
+
     return {
         messages,
         isLoading: feedLoading,
@@ -272,7 +307,7 @@ export const useChats = (channelId: string | null, latestChatNo?: number, option
         retryLoad,
         loadOlder,
         loadOlderFailed,
-        hasMore,
+        hasMore: hasMore && canPage,
         isLoadingOlder,
     };
 };

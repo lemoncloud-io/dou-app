@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 
 const MIN_WIDTH = 280;
@@ -8,12 +8,12 @@ const KEYBOARD_STEP = 16;
 /**
  * The message column never gets narrower than this. The rails, the sidebar and a
  * trailing panel were each clamped against a constant, and nothing clamped the
- * sum: 136 + 480 + 720 = 1336px of chrome, so at a 1280px window the
+ * sum: rails + 480 + 720 = well over 1280px of chrome, so at a 1280px window the
  * conversation could be squeezed to nothing with no floor at any width.
  */
 export const MIN_CHAT_WIDTH = 420;
-/** Rails: 56px cloud + 80px place. Fixed, so they are part of the budget. */
-const RAIL_WIDTH = 136;
+/** Rails: the 80px cloud-and-place rail + the 80px nav rail. Fixed, so they are part of the budget. */
+const RAIL_WIDTH = 160;
 
 /**
  * Live width of every mounted panel, keyed by storage key. Clamping each panel
@@ -30,6 +30,12 @@ const otherPanelsWidth = (self: string): number => {
         if (key !== self) sum += w;
     });
     return sum;
+};
+
+/** The width kept under `key`, else `fallback`. */
+const readPreferred = (key: string, fallback: number): number => {
+    const stored = Number(localStorage.getItem(key));
+    return Number.isFinite(stored) && stored > 0 ? stored : fallback;
 };
 
 /** The panel edge the drag handle sits on — the one facing the chat pane. */
@@ -77,10 +83,7 @@ export const usePanelWidth = ({
     // left-edge handle, rightward for a right-edge one.
     const grow = edge === 'left' ? 1 : -1;
     // The width the user chose, as opposed to the width the window allows now.
-    const [preferred] = useState(() => {
-        const stored = Number(localStorage.getItem(storageKey));
-        return Number.isFinite(stored) && stored > 0 ? stored : defaultWidth;
-    });
+    const [preferred] = useState(() => readPreferred(storageKey, defaultWidth));
     const preferredRef = useRef(preferred);
     const [width, setWidth] = useState(() => clampWidth(preferred));
     const widthRef = useRef(width);
@@ -121,6 +124,19 @@ export const usePanelWidth = ({
         },
         [clampWidth, grow, persist]
     );
+
+    // A panel whose content changes under it (the sidebar column, per nav destination) keeps a width
+    // per content: a new key brings its own kept width, or its default, before the frame is painted.
+    const keyRef = useRef(storageKey);
+    useLayoutEffect(() => {
+        if (keyRef.current === storageKey) return;
+        // The old key's width is this same panel's: it must not count as another panel's in the budget.
+        liveWidths.delete(keyRef.current);
+        keyRef.current = storageKey;
+        preferredRef.current = readPreferred(storageKey, defaultWidth);
+        widthRef.current = clampWidth(preferredRef.current);
+        setWidth(widthRef.current);
+    }, [storageKey, defaultWidth, clampWidth]);
 
     // Unmounting mid-drag must tear the window listeners (and body style) down.
     useEffect(() => () => endDragRef.current?.(), []);

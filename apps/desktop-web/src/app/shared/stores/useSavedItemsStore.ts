@@ -1,6 +1,17 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import type { ChatAttachmentKind } from '@chatic/data';
+
+/** What a saved message carried, snapshotted with it: the Files filter and the card's file tile read it. */
+export interface SavedAttachment {
+    kind: ChatAttachmentKind;
+    count: number;
+    /** The first file's name and size, where the message had a named one. */
+    name?: string;
+    size?: number;
+}
+
 /**
  * A bookmarked message, snapshotted at save time. Snapshot (not a live ref)
  * because the source row can page out of the chat cache; the saved list must
@@ -21,6 +32,10 @@ export interface SavedItem {
     placeId?: string;
     /** Root chatNo string when this message is a thread reply; absent = top-level. */
     parentId?: string;
+    /** When the message was sent; absent on items saved before it was kept. */
+    sentAt?: number;
+    /** Absent when the message carried nothing, or was saved before attachments were kept. */
+    attachment?: SavedAttachment;
     savedAt: number;
 }
 
@@ -57,17 +72,17 @@ export const useSavedItemsStore = create<SavedItemsState>()(
     )
 );
 
-interface SavedPanelState {
+interface SavedPageState {
     isOpen: boolean;
-    /** The row last opened from this pane; marked when the pane opens again. */
+    /** The card last opened from the page; marked when the page opens again. */
     openedId: string | null;
     open: () => void;
     close: () => void;
     markOpened: (id: string) => void;
 }
 
-/** Whether the trailing Saved-items pane is open (HomePage enforces pane exclusivity). */
-export const useSavedPanelStore = create<SavedPanelState>(set => ({
+/** Whether the Saved items page holds the main pane (HomePage closes it when a conversation opens). */
+export const useSavedPageStore = create<SavedPageState>(set => ({
     isOpen: false,
     openedId: null,
     open: () => set({ isOpen: true }),

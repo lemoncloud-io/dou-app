@@ -1,4 +1,4 @@
-import { ACCOUNT_CHANNEL_SID, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/data';
 
 import { bareChannelName, channelKind, type ChannelKind } from './channelLabel';
 
@@ -136,35 +136,3 @@ export const markThreadSeen = (threads: MyThreads, key: string): MyThreads => {
     if (!thread || !isThreadUnread(thread)) return threads;
     return { ...threads, [key]: { ...thread, seenReplyNo: thread.lastReplyNo } };
 };
-
-/**
- * Whether a thread belongs to a cloud and, when a place is given, to that place. A group channel and a
- * cloud 1:1 live in a place — a 1:1 in the one it was opened in, which the server never changes — so
- * their threads are in that place only. The Self Channel belongs to the account, so its threads are in
- * every place of the cloud. So are a relay 1:1's: the relay keeps its 1:1s in its one place, which
- * need not be the site a relay session has selected.
- */
-export const isThreadIn = (thread: MyThread, cid: string, placeId?: string): boolean => {
-    if (thread.cid !== cid) return false;
-    if (!placeId || !thread.placeId) return true;
-    if (thread.channelKind === 'self') return true;
-    if (thread.channelKind === 'dm' && thread.cid === RELAY_CLOUD_ID) return true;
-    return thread.placeId === placeId;
-};
-
-/** Marks every thread of a cloud — of one place, when given — looked at. Returns `threads` itself when none was unread. */
-export const markCloudSeen = (threads: MyThreads, cid: string, placeId?: string): MyThreads => {
-    let next: MyThreads | null = null;
-    for (const [key, thread] of Object.entries(threads)) {
-        if (!isThreadIn(thread, cid, placeId) || !isThreadUnread(thread)) continue;
-        next ??= { ...threads };
-        next[key] = { ...thread, seenReplyNo: thread.lastReplyNo };
-    }
-    return next ?? threads;
-};
-
-/** One cloud's threads — one place's, when given — most recently active first. */
-export const threadsForCloud = (threads: MyThreads, cid: string, placeId?: string): MyThread[] =>
-    Object.values(threads)
-        .filter(thread => isThreadIn(thread, cid, placeId))
-        .sort((a, b) => b.lastActivityAt - a.lastActivityAt);

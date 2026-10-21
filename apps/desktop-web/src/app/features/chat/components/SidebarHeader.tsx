@@ -1,10 +1,11 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AtSign, Bookmark, MessagesSquare, Search, UserPen } from 'lucide-react';
+import { Bookmark, Search, UserPen } from 'lucide-react';
 
-import { Skeleton, hasUnreadThread, unreadMentionCount, useMentionsStore, useMyThreadsStore } from '../../../shared';
-import { NotificationSnoozeButton } from './NotificationSnoozeButton';
+import { cn } from '@chatic/lib/utils';
+
+import { Skeleton } from '../../../shared';
 import { SIDEBAR_ACTION_ROW } from './sidebarStyles';
 
 interface SidebarHeaderProps {
@@ -17,47 +18,35 @@ interface SidebarHeaderProps {
     onQueryChange: (value: string) => void;
     /** Open the place-profile editor for the active place (per-place identity lives here). */
     onEditPlaceProfile: () => void;
-    /** Open the device-local Saved-items trailing pane. */
+    /** Open the device-local Saved items page in the main pane. */
     onOpenSaved: () => void;
-    /** Open the device-local mentions inbox (Activity) trailing pane. */
-    onOpenActivity: () => void;
-    /** The active cloud and place — scope the Threads dot to the threads the pane lists. */
-    cloudId: string;
-    placeId?: string;
-    /** Open the device-local Threads trailing pane. */
-    onOpenThreads: () => void;
+    /** The Saved items page holds the main pane: its row is the current one. */
+    isSavedOpen?: boolean;
 }
 
 interface ActionRowProps {
     icon: ReactNode;
     label: string;
     onClick: () => void;
-    /** Small lime dot on the icon — something inside is unread. */
-    hasDot?: boolean;
-    /** What the dot means, read after the label — the dot itself is not announced. */
-    dotLabel?: string;
+    isActive?: boolean;
 }
 
-const ActionRow = ({ icon, label, onClick, hasDot, dotLabel }: ActionRowProps) => (
-    <button type="button" onClick={onClick} className={SIDEBAR_ACTION_ROW}>
-        <span className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-md">
-            {icon}
-            {hasDot && (
-                <span
-                    aria-hidden
-                    className="absolute right-0 top-0 h-2 w-2 rounded-full bg-primary ring-2 ring-sidebar"
-                />
-            )}
-        </span>
+const ActionRow = ({ icon, label, onClick, isActive }: ActionRowProps) => (
+    <button
+        type="button"
+        onClick={onClick}
+        aria-current={isActive ? 'page' : undefined}
+        className={cn(SIDEBAR_ACTION_ROW, 'px-1.5', isActive && 'bg-primary/[0.16] text-foreground')}
+    >
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md">{icon}</span>
         <span className="truncate">{label}</span>
-        {hasDot && dotLabel && <span className="sr-only">, {dotLabel}</span>}
     </button>
 );
 
 /**
  * Sidebar top (Figma Channel List Panel): the active place as a static title (the
- * place rail owns switching), a pill channel search, and the per-place actions as
- * labelled rows — edit my profile, notifications, activity, saved.
+ * place rail owns switching), a pill channel search, then Saved and editing my profile in this
+ * place as labelled rows. Mentions, threads and the snooze live in the Notifications destination.
  */
 export const SidebarHeader = ({
     placeName,
@@ -67,15 +56,9 @@ export const SidebarHeader = ({
     onQueryChange,
     onEditPlaceProfile,
     onOpenSaved,
-    onOpenActivity,
-    cloudId,
-    placeId,
-    onOpenThreads,
+    isSavedOpen,
 }: SidebarHeaderProps) => {
     const { t } = useTranslation();
-    // Select the boolean, not the count — the dot only re-renders on false↔true.
-    const hasMentionUnread = useMentionsStore(s => unreadMentionCount(s.items) > 0);
-    const hasThreadUnread = useMyThreadsStore(s => hasUnreadThread(s.threads, cloudId, placeId));
     const showPlaceSkeleton = isLoading && !placeName && !isDefaultMode;
 
     return (
@@ -100,7 +83,15 @@ export const SidebarHeader = ({
                     />
                 </label>
             </div>
+            <div aria-hidden className="mt-3 h-px w-full shrink-0 bg-hairline" />
             <div className="flex flex-col gap-2 py-2">
+                {/* Saved leads (Figma Home); editing my profile here has no other way in. */}
+                <ActionRow
+                    icon={<Bookmark size={18} aria-hidden />}
+                    label={t('saved.title')}
+                    onClick={onOpenSaved}
+                    isActive={isSavedOpen}
+                />
                 {!isDefaultMode && (
                     <ActionRow
                         icon={<UserPen size={18} aria-hidden />}
@@ -108,22 +99,6 @@ export const SidebarHeader = ({
                         onClick={onEditPlaceProfile}
                     />
                 )}
-                <NotificationSnoozeButton />
-                <ActionRow
-                    icon={<MessagesSquare size={18} aria-hidden />}
-                    label={t('myThreads.title')}
-                    onClick={onOpenThreads}
-                    hasDot={hasThreadUnread}
-                    dotLabel={t('myThreads.unread')}
-                />
-                <ActionRow
-                    icon={<AtSign size={18} aria-hidden />}
-                    label={t('activity.title')}
-                    onClick={onOpenActivity}
-                    hasDot={hasMentionUnread}
-                    dotLabel={t('activity.unread')}
-                />
-                <ActionRow icon={<Bookmark size={18} aria-hidden />} label={t('saved.title')} onClick={onOpenSaved} />
             </div>
         </div>
     );

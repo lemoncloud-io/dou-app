@@ -1,9 +1,11 @@
 import {
     CHAT_ATTACHMENT_MAX_BYTES,
     chatAttachmentFormat,
+    chatAttachmentSummary,
     isChatAttachmentNameTooLong,
     isPendingUploadSlot,
     uploadSlotKind,
+    type ChatAttachmentKind,
     type DomainChat,
 } from '@chatic/data';
 
@@ -148,6 +150,22 @@ export const MAX_ATTACHMENTS = 10;
 
 /** Tiles a message draws before the last one turns into a "+n" counter. */
 export const MAX_VISIBLE_TILES = 4;
+
+/**
+ * What a message carries, as a saved item keeps it: the kinds and count, and the first attachment's
+ * name and size where it has them. `undefined` when nothing is attached.
+ */
+export const savedAttachmentOf = (
+    message: Pick<DomainChat, 'upload$$' | 'uploadIds'>
+): { kind: ChatAttachmentKind; count: number; name?: string; size?: number } | undefined => {
+    const summary = chatAttachmentSummary(message);
+    if (!summary) return undefined;
+    const first = message.upload$$?.[0];
+    if (!first) return summary;
+    const name = isPendingUploadSlot(first) ? first.localName : first.name;
+    const size = isPendingUploadSlot(first) ? first.localSize : first.contentSize;
+    return { ...summary, ...(name ? { name } : {}), ...(size !== undefined ? { size } : {}) };
+};
 
 /** A size as a person reads it: "820 B", "1.5 KB", "12.3 MB". */
 export const formatFileSize = (bytes: number): string => {

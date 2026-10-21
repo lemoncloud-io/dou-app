@@ -1,8 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { act, renderHook } from '@testing-library/react';
+import { createElement, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { act, renderHook as renderBareHook } from '@testing-library/react';
 
 import type { DomainChannel } from '@chatic/data';
+
+// The channel-write hook it uses reads the app's switch mutations, so it needs the query client.
+const renderHook = <T,>(hook: () => T) =>
+    renderBareHook(hook, {
+        wrapper: ({ children }: { children: ReactNode }) =>
+            createElement(QueryClientProvider, { client: new QueryClient() }, children),
+    });
 
 const updateJoin = vi.fn(async () => ({}));
 

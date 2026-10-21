@@ -14,6 +14,7 @@ import {
     useChannelMembers,
     useChannelSettingsStore,
     useCreateChannelDialogStore,
+    useSendInviteStore,
 } from '../../channels';
 import { DebugPanel } from '../../debug';
 import { EditPlaceProfileDialog, useEditPlaceProfileDialogStore } from '../../profile';
@@ -32,9 +33,9 @@ import {
     usePendingOpenStore,
     usePlaces,
     useProfilePanelStore,
-    useSavedPanelStore,
-    useMentionsPanelStore,
-    useMyThreadsPanelStore,
+    useSavedPageStore,
+    useMentionsStore,
+    useNavStore,
     useReadCursorStore,
     useSelectPlace,
     useDeletePlace,
@@ -48,23 +49,28 @@ import {
     isSelfChannel,
     useChannelLabels,
     type MessageJumpOrigin,
+    type NavDestination,
     useUnreadStore,
     useCloudProfiles,
 } from '../../../shared';
 import {
     ChannelList,
     ChatPane,
-    CloudRail,
+    CloudSwitcher,
     CreatePlaceDialog,
     DesktopLayout,
     EditPlaceDialog,
     OnboardingDialog,
+    NavRail,
+    NavSidebar,
     PlaceRail,
     SidebarHeader,
-    SavedPanel,
-    MentionsPanel,
-    MyThreadsPanel,
+    SavedPage,
+    NotificationsPanel,
+    ChannelListPanel,
+    DmListPanel,
     ThreadPanel,
+    WelcomePage,
 } from '../components';
 import {
     useHydrateDmPeers,
@@ -73,10 +79,13 @@ import {
     useNextUnreadShortcut,
     usePendingLanding,
     useReadCounts,
+    usePlaceWelcome,
     useTrailingPanelOwners,
 } from '../hooks';
 import {
     elsewhereChannels as elsewhereChannelRows,
+    hasUnreadDm,
+    hasUnreadRoom,
     landingTarget,
     openPlaceFor,
     pendingOpenRoute,
@@ -99,6 +108,15 @@ const switchAfterHandshake = async (doSwitch: () => void): Promise<void> => {
     await runtime.connection.getSocketManager().waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
     doSwitch();
 };
+
+// Destinations whose screens exist; the others join the rail as their screens land.
+const NAV_ITEMS: NavDestination[] = ['home', 'notifications', 'channels', 'dm'];
+
+/**
+ * The sidebar column's width per destination: Home keeps the narrow channel list it always had, and
+ * a list of cards (Notifications) gets its own, wider default — each remembered on its own.
+ */
+const NAV_PANEL_WIDTH = { storageKey: 'chatic.navPanel.width', defaultWidth: 420 };
 
 export const HomePage = () => {
     const { clouds, activeCloudId, isCloudsError, isFetchingClouds, refetchClouds } = useClouds();
@@ -150,7 +168,6 @@ export const HomePage = () => {
     const hasNoPlace = !isDefaultMode && !placesLoading && !isSwitching && places.length === 0;
     // With no place left the session's site id is not read at all: after the cloud's last place is
     // deleted it still names that place, and its cached channels would be listed in place of the 1:1s.
-    // The Threads pane and its sidebar dot are scoped by the same place as the list.
     const listedPlaceId = hasNoPlace ? undefined : (selectedSiteId ?? undefined);
     const { channels, isLoading, filedPlaces, memberPeers } = useChannels(listedPlaceId, {
         whenNoPlace: isDefaultMode ? 'relay' : hasNoPlace ? 'cloudDms' : 'nothing',
@@ -195,19 +212,21 @@ export const HomePage = () => {
         settingsChannelId,
         profileTarget,
         savedOpen,
-        activityOpen,
-        threadsOpen,
     } = useTrailingPanelOwners(threadChannel?.id, isLoading);
     const closeSettings = useChannelSettingsStore(s => s.close);
     const openThread = useThreadStore(s => s.open);
     const closeThread = useThreadStore(s => s.close);
     const closeProfile = useProfilePanelStore(s => s.close);
-    const closeSaved = useSavedPanelStore(s => s.close);
-    const openSaved = useSavedPanelStore(s => s.open);
-    const closeActivity = useMentionsPanelStore(s => s.close);
-    const openActivity = useMentionsPanelStore(s => s.open);
-    const closeThreads = useMyThreadsPanelStore(s => s.close);
-    const openThreads = useMyThreadsPanelStore(s => s.open);
+    const closeSaved = useSavedPageStore(s => s.close);
+    const openSaved = useSavedPageStore(s => s.open);
+    // Whether the reader opened a room in this place, rather than the landing selecting one: an
+    // empty place's welcome gives way only to the former. Reset per place below.
+    const [roomOpenedHere, setRoomOpenedHere] = useState(false);
+    const navActive = useNavStore(s => s.active);
+    // Select the boolean, not the items: the dot only re-renders on false↔true.
+    const hasInboxUnread = useMentionsStore(s => Object.values(s.items).some(item => !item.readAt));
+    const hasChannelUnread = hasUnreadRoom(channels);
+    const hasDmUnread = hasUnreadDm(channels);
     // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
     // 7×-tap toggle). Top precedence so it owns the dock while open.
     const debugEnabled = useDebugModeStore(s => s.enabled);
@@ -296,6 +315,9 @@ export const HomePage = () => {
         // re-arm the landing, drop the place the first one waits for, and send its channel to the
         // wrong place's list. During a switch the "current" place is already the one being switched to.
         if (isSwitching) return;
+        // Every open lands in the conversation — the room already selected included.
+        closeSaved();
+        setRoomOpenedHere(true);
         recordOrigin(channelId);
         // A 1:1 opens in its own place (`openPlaceFor`).
         const placeId = openPlaceFor(
@@ -386,6 +408,9 @@ export const HomePage = () => {
             pendingChannelRef.current = channelId;
             armPendingExpiry();
         } else {
+            // The room may be the one already selected, which no selection change would close for.
+            closeSaved();
+            setRoomOpenedHere(true);
             selectChannel(channelId);
             if (rootId) openThreadNowOrDefer(channelId, rootId);
             else {
@@ -462,22 +487,23 @@ export const HomePage = () => {
     }, [activeCloudId, selectedPlaceId, places, rememberPlace]);
 
     // The settings + thread panels belong to one channel — close both on switch.
-    // The profile panel follows for a clean pane handoff.
+    // The profile panel follows for a clean pane handoff, and the Saved page gives the main
+    // pane back to the conversation now selected.
     useEffect(() => {
         closeSettings();
         closeThread();
         closeProfile();
-    }, [selectedChannelId, closeSettings, closeThread, closeProfile]);
+        closeSaved();
+    }, [selectedChannelId, closeSettings, closeThread, closeProfile, closeSaved]);
 
-    // The saved, activity and threads panes list rows from every place of the cloud, so a
-    // place switch leaves them valid — and closing them there made the same row click
-    // produce two layouts (a cross-place jump closed the pane, a same-place jump kept
-    // it). Only a cloud switch retires them: their items belong to the cloud.
+    // A cloud switch retires the Saved page too: its items belong to the cloud.
     useEffect(() => {
         closeSaved();
-        closeActivity();
-        closeThreads();
-    }, [activeCloudId, closeSaved, closeActivity, closeThreads]);
+    }, [activeCloudId, closeSaved]);
+
+    useEffect(() => {
+        setRoomOpenedHere(false);
+    }, [activeCloudId, selectedPlaceId]);
 
     const listedChannelIds = useMemo(() => new Set(channels.map(channel => channel.id ?? '')), [channels]);
 
@@ -520,6 +546,8 @@ export const HomePage = () => {
         selectChannel(landing.channelId);
         if (landing.kind === 'pending') {
             const pending = landing.channelId;
+            // A deferred open is the reader's too, landing after the place switch reset the mark.
+            setRoomOpenedHere(true);
             pendingChannelRef.current = null;
             awaitedPlaceRef.current = null;
             redirectedPendingRef.current = null;
@@ -577,9 +605,12 @@ export const HomePage = () => {
     const selectFromList = useCallback(
         (id: string) => {
             useMessageJumpStore.getState().clearOrigin();
+            // The list's own room too: picking it is how the reader leaves the Saved page for it.
+            closeSaved();
+            setRoomOpenedHere(true);
             selectChannel(id);
         },
-        [selectChannel]
+        [selectChannel, closeSaved]
     );
     useNextUnreadShortcut(channels, selectedChannelId, selectFromList);
     const jumpToSavedRef = useRef(jumpToSaved);
@@ -651,16 +682,19 @@ export const HomePage = () => {
     const openJoinDialog = useJoinDialogStore(s => s.open);
     const chatEmptyState = useMemo(
         () =>
-            isLoading || channels.length > 0
-                ? ({ mode: 'pick' } as const)
-                : isDefaultMode
-                  ? isGuest
-                      ? ({ mode: 'join', onAction: openJoinDialog } as const)
-                      : // A signed-in account has no invite-code path: the exchange refuses
-                        // non-guests after the code is typed, so offer no code field at all.
-                        ({ mode: 'pick' } as const)
-                  : ({ mode: 'create', onAction: openCreateChannel } as const),
-        [isLoading, channels.length, isDefaultMode, isGuest, openJoinDialog, openCreateChannel]
+            // With the inbox beside it, the empty pane is where an opened notification lands.
+            navActive === 'notifications' && !isLoading
+                ? ({ mode: 'inbox' } as const)
+                : isLoading || channels.length > 0
+                  ? ({ mode: 'pick' } as const)
+                  : isDefaultMode
+                    ? isGuest
+                        ? ({ mode: 'join', onAction: openJoinDialog } as const)
+                        : // A signed-in account has no invite-code path: the exchange refuses
+                          // non-guests after the code is typed, so offer no code field at all.
+                          ({ mode: 'pick' } as const)
+                    : ({ mode: 'create', onAction: openCreateChannel } as const),
+        [navActive, isLoading, channels.length, isDefaultMode, isGuest, openJoinDialog, openCreateChannel]
     );
 
     const jumpFromSearch = useCallback(
@@ -696,6 +730,7 @@ export const HomePage = () => {
             }
             return;
         }
+        setRoomOpenedHere(true);
         selectChannel(channelId);
         if (anchorChatNo != null) {
             requestMessageJump(channelId, anchorChatNo, { restore: true });
@@ -722,6 +757,16 @@ export const HomePage = () => {
     // The place rail owns switching; the sidebar header shows only the active name.
     const selectedPlace = places.find(place => place.id === selectedPlaceId);
     const placeName = selectedPlace?.name?.trim() || selectedPlace?.id || '';
+    const welcome = usePlaceWelcome({
+        channels,
+        placeId: hasNoPlace ? undefined : (selectedPlaceId ?? undefined),
+        isLoading: isLoading || isSwitching,
+        isDefaultMode,
+    });
+    const openPlaceInvite = useSendInviteStore(s => s.openPlace);
+    // Home's empty place greets the reader. The landing selects my notes-to-self room, which every
+    // place lists, so only a room the reader opened themselves takes the pane from the welcome.
+    const showWelcome = welcome.show && navActive === 'home' && (!selectedChannel || !roomOpenedHere);
     const cloudHasUnread = useUnreadStore(s => s.total) > 0;
 
     // One member subscription per open channel, shared by the chat pane (author
@@ -763,95 +808,151 @@ export const HomePage = () => {
         <>
             <DesktopLayout
                 rail={
-                    <CloudRail
-                        clouds={clouds}
-                        activeCloudId={activeCloudId}
-                        hasUnread={cloudHasUnread}
-                        badgedClouds={badgedClouds}
-                        // Switching from the rail is a deliberate move, like picking a
-                        // channel from the list, so it retires any return point.
-                        onSelectCloud={cloudId => {
-                            clearJumpOrigin();
-                            void switchCloud(cloudId);
-                        }}
-                        isSwitching={railLocked}
-                        isCatalogError={isCloudsError}
-                        isRetryingCatalog={isFetchingClouds}
-                        onRetryCatalog={() => void refetchClouds()}
-                    />
-                }
-                rail2={
-                    <PlaceRail
-                        places={places}
-                        selectedPlaceId={selectedPlaceId}
-                        unreadByPlace={unreadByPlace}
-                        isDefaultMode={isDefaultMode}
-                        isSwitching={isSwitching}
-                        onSelectPlace={placeId => {
-                            clearJumpOrigin();
-                            switchPlace(placeId);
-                        }}
-                        canManagePlaces={mayManagePlacesHere}
-                        onCreatePlace={() => setCreatePlaceOpen(true)}
-                        onEditPlace={openEditPlace}
-                        onDeletePlace={deletePlace}
-                    />
-                }
-                sidebar={
                     <>
-                        <SidebarHeader
-                            placeName={placeName}
-                            isLoading={placesLoading}
-                            isDefaultMode={isDefaultMode}
-                            query={query}
-                            onQueryChange={setQuery}
-                            onEditPlaceProfile={openEditPlaceProfile}
-                            onOpenSaved={openSaved}
-                            onOpenActivity={openActivity}
-                            cloudId={activeCloudId ?? RELAY_CLOUD_ID}
-                            placeId={listedPlaceId}
-                            onOpenThreads={openThreads}
+                        <CloudSwitcher
+                            clouds={clouds}
+                            activeCloudId={activeCloudId}
+                            hasUnread={cloudHasUnread}
+                            badgedClouds={badgedClouds}
+                            // Switching from the rail is a deliberate move, like picking a
+                            // channel from the list, so it retires any return point.
+                            onSelectCloud={cloudId => {
+                                clearJumpOrigin();
+                                void switchCloud(cloudId);
+                            }}
+                            isSwitching={railLocked}
+                            isCatalogError={isCloudsError}
+                            isRetryingCatalog={isFetchingClouds}
+                            onRetryCatalog={() => void refetchClouds()}
                         />
-                        <div className="flex-1 overflow-y-auto scrollbar-hide">
-                            <ChannelList
-                                channels={channels}
-                                isLoading={isLoading}
-                                selectedChannelId={selectedChannelId}
-                                query={query}
-                                // Picking a channel from the list is a deliberate move,
-                                // not a detour, so it retires any pending return point.
-                                onSelect={selectFromList}
-                                onJumpToMessage={jumpFromSearch}
-                                elsewhereChannels={elsewhereChannels}
-                                onSelectElsewhere={selectElsewhere}
-                                isDefaultMode={isDefaultMode}
-                                onCreateChannel={openCreateChannel}
-                                // The picker's pool is the people in this place's channels, so a cloud
-                                // with no place would only ever offer no one.
-                                onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
-                                memberPeers={memberPeers}
-                                onStartDm={
-                                    canStartDm && !hasNoPlace
-                                        ? peerId => {
-                                              setStartingPeerId(peerId);
-                                              void startDm(peerId);
-                                          }
-                                        : undefined
-                                }
-                                startingPeerId={isStarting ? startingPeerId : null}
-                            />
-                        </div>
+                        <PlaceRail
+                            places={places}
+                            selectedPlaceId={selectedPlaceId}
+                            unreadByPlace={unreadByPlace}
+                            isDefaultMode={isDefaultMode}
+                            isSwitching={isSwitching}
+                            onSelectPlace={placeId => {
+                                clearJumpOrigin();
+                                switchPlace(placeId);
+                            }}
+                            canManagePlaces={mayManagePlacesHere}
+                            onCreatePlace={() => setCreatePlaceOpen(true)}
+                            onEditPlace={openEditPlace}
+                            onDeletePlace={deletePlace}
+                        />
                     </>
                 }
-                main={
-                    <ChatPane
-                        channel={selectedChannel}
-                        members={members}
-                        membersLoading={membersLoading}
-                        readCountOf={readCountOf}
-                        jumpReturn={jumpReturn}
-                        emptyState={chatEmptyState}
+                nav={
+                    <NavRail
+                        items={NAV_ITEMS}
+                        unread={{ notifications: hasInboxUnread, channels: hasChannelUnread, dm: hasDmUnread }}
                     />
+                }
+                sidebarWidth={navActive === 'home' ? undefined : NAV_PANEL_WIDTH}
+                sidebar={
+                    <NavSidebar
+                        active={navActive}
+                        notifications={
+                            <NotificationsPanel
+                                cloudId={activeCloudId ?? RELAY_CLOUD_ID}
+                                channels={channels}
+                                currentPlaceId={selectedPlaceId ?? undefined}
+                                onSelect={jumpToSaved}
+                            />
+                        }
+                        channels={
+                            <ChannelListPanel
+                                channels={channels}
+                                selectedChannelId={selectedChannelId}
+                                onSelect={selectFromList}
+                                // The same rule as Home's list: the default cloud takes no new channels.
+                                onCreateChannel={isDefaultMode ? undefined : openCreateChannel}
+                                isLoading={isLoading}
+                            />
+                        }
+                        dm={
+                            <DmListPanel
+                                channels={channels}
+                                selectedChannelId={selectedChannelId}
+                                onSelect={selectFromList}
+                                // The same rule as Home's DM section.
+                                onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
+                                isLoading={isLoading}
+                            />
+                        }
+                        home={
+                            <>
+                                <SidebarHeader
+                                    placeName={placeName}
+                                    isLoading={placesLoading}
+                                    isDefaultMode={isDefaultMode}
+                                    query={query}
+                                    onQueryChange={setQuery}
+                                    onEditPlaceProfile={openEditPlaceProfile}
+                                    onOpenSaved={openSaved}
+                                    isSavedOpen={savedOpen}
+                                />
+                                <div className="flex-1 overflow-y-auto scrollbar-hide">
+                                    <ChannelList
+                                        channels={channels}
+                                        isLoading={isLoading}
+                                        selectedChannelId={selectedChannelId}
+                                        query={query}
+                                        // Picking a channel from the list is a deliberate move,
+                                        // not a detour, so it retires any pending return point.
+                                        onSelect={selectFromList}
+                                        onJumpToMessage={jumpFromSearch}
+                                        elsewhereChannels={elsewhereChannels}
+                                        onSelectElsewhere={selectElsewhere}
+                                        isDefaultMode={isDefaultMode}
+                                        onCreateChannel={openCreateChannel}
+                                        // The picker's pool is the people in this place's channels, so a cloud
+                                        // with no place would only ever offer no one.
+                                        onCreateDm={canStartDm && !hasNoPlace ? () => setIsNewDmOpen(true) : undefined}
+                                        memberPeers={memberPeers}
+                                        onStartDm={
+                                            canStartDm && !hasNoPlace
+                                                ? peerId => {
+                                                      setStartingPeerId(peerId);
+                                                      void startDm(peerId);
+                                                  }
+                                                : undefined
+                                        }
+                                        startingPeerId={isStarting ? startingPeerId : null}
+                                    />
+                                </div>
+                            </>
+                        }
+                    />
+                }
+                main={
+                    savedOpen ? (
+                        <SavedPage
+                            channels={channels}
+                            places={places}
+                            currentPlaceId={selectedPlaceId ?? undefined}
+                            onSelect={jumpToSaved}
+                        />
+                    ) : showWelcome ? (
+                        <WelcomePage
+                            placeName={placeName}
+                            signals={welcome.signals}
+                            onCreateChannel={openCreateChannel}
+                            onInvite={selectedPlaceId ? () => openPlaceInvite(selectedPlaceId, placeName) : undefined}
+                            onStartDm={canStartDm ? () => setIsNewDmOpen(true) : undefined}
+                            onEditProfile={openEditPlaceProfile}
+                            onLater={welcome.later}
+                        />
+                    ) : (
+                        <ChatPane
+                            channel={selectedChannel}
+                            members={members}
+                            membersLoading={membersLoading}
+                            readCountOf={readCountOf}
+                            jumpReturn={jumpReturn}
+                            emptyState={chatEmptyState}
+                        />
+                    )
                 }
                 panel={
                     showDebugPanel ? (
@@ -876,27 +977,6 @@ export const HomePage = () => {
                             membersError={membersError}
                             membersSyncError={membersSyncError}
                             onRetryMembers={retryMembers}
-                        />
-                    ) : savedOpen ? (
-                        <SavedPanel
-                            channels={channels}
-                            places={places}
-                            currentPlaceId={selectedPlaceId ?? undefined}
-                            onSelect={jumpToSaved}
-                        />
-                    ) : activityOpen ? (
-                        <MentionsPanel
-                            channels={channels}
-                            places={places}
-                            currentPlaceId={selectedPlaceId ?? undefined}
-                            onSelect={jumpToSaved}
-                        />
-                    ) : threadsOpen ? (
-                        <MyThreadsPanel
-                            cloudId={activeCloudId ?? RELAY_CLOUD_ID}
-                            placeId={listedPlaceId}
-                            channels={channels}
-                            onSelect={jumpToSaved}
                         />
                     ) : undefined
                 }

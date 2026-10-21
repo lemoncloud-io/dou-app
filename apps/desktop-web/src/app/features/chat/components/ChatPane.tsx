@@ -75,7 +75,7 @@ interface ChatPaneProps {
      * channels, `create` when this place has none, `join` on the Default Cloud,
      * which cannot create channels: there the only next step is an invite.
      */
-    emptyState?: { mode: 'pick' | 'create' | 'join'; onAction?: () => void };
+    emptyState?: { mode: 'pick' | 'create' | 'join' | 'inbox'; onAction?: () => void };
 }
 
 export const ChatPane = ({
@@ -99,9 +99,10 @@ export const ChatPane = ({
         useChats(channelId, channel ? lastChatNoOf(channel) : undefined);
     const handleLoadOlder = useCallback(() => void loadOlder(), [loadOlder]);
     const openSettings = useChannelSettingsStore(s => s.open);
-    const clearChannel = useSelectedChannelStore(s => s.clearChannel);
-    // One instance for the header menu and the intro, so both open the same dialogs.
-    const channelActions = useChannelActions(channelId, { onRemoved: clearChannel });
+    const clearIfOpen = useSelectedChannelStore(s => s.clearIfOpen);
+    // One instance for the header menu and the intro, so both open the same dialogs. A removal
+    // answers about a second after its confirm, so it closes the room only if it is still open.
+    const channelActions = useChannelActions(channelId, { onRemoved: () => clearIfOpen(channelId) });
     const openSearch = useSearchDialogStore(s => s.setOpen);
     // Favorites live on the shared `ui.pinnedChannels` record (the same one apps/web writes),
     // scoped to the active place. A null scope (cloud/place not settled) leaves the star a no-op

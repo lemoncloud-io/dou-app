@@ -22,7 +22,10 @@ Top to bottom:
   off a crossed bell.
 - **Channel ID**, group channels only (below).
 - **Leaving and deleting**: Leave for everyone, Delete for the owner. Either one closes the panel and
-  clears the selected room.
+  clears the selected room once the server answers — about a second after the confirm, while the row
+  has already left the list. Both apply only if that channel's panel and room are still the open ones
+  (`closeIfOpenFor`, `clearIfOpen`), so a room or panel the reader opened in the meantime stays. The
+  header menu and the sidebar row menu clear the room on the same rule.
 
 ## Add members
 

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
     countUnreadMentionsIn,
     hasUnreadMentionIn,
+    unreadMentionCount,
     useMentionsStore,
     type MentionItem,
 } from './useMentionsStore';
@@ -116,5 +117,26 @@ describe('markChannelRead', () => {
         useMentionsStore.setState({ items: inbox(item({ id: 'C1:5', placeId: 'place-2' })) });
         useMentionsStore.getState().markChannelRead('C1', 9, 'place-1');
         expect(useMentionsStore.getState().items['C1:5']?.readAt).toBeUndefined();
+    });
+});
+
+// The inbox also holds 1:1 messages, replies and reactions; the mention-only readers must not see them.
+describe('mention-only readers', () => {
+    const others = inbox(
+        item({ id: 'dm', kind: 'dm' }),
+        item({ id: 'reply', kind: 'reply' }),
+        item({ id: 'reaction', kind: 'reaction' })
+    );
+
+    it('count only mentions as unread mentions, including items stored before kinds existed', () => {
+        expect(unreadMentionCount(others)).toBe(0);
+        expect(
+            unreadMentionCount({ ...others, ...inbox(item({ id: 'old' }), item({ id: 'all', kind: 'everyone' })) })
+        ).toBe(2);
+    });
+
+    it('put no @ on a channel for a DM, a reply or a reaction', () => {
+        expect(hasUnreadMentionIn(others, C1, 0)).toBe(false);
+        expect(countUnreadMentionsIn(others, C1, 0)).toBe(0);
     });
 });

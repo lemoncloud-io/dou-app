@@ -1,0 +1,17 @@
+{
+    "name": "desktop-web-e2e",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "application",
+    "sourceRoot": "apps/desktop-web-e2e/src",
+    "tags": [],
+    "implicitDependencies": ["desktop-web"],
+    "targets": {
+        "e2e": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "apps/desktop-web-e2e",
+                "command": "playwright test"
+            }
+        }
+    }
+}

@@ -1,21 +1,18 @@
 import { useEffect } from 'react';
 
 import { useChannelSettingsStore } from '../../channels';
-import {
-    useMentionsPanelStore,
-    useMyThreadsPanelStore,
-    useProfilePanelStore,
-    useSavedPanelStore,
-} from '../../../shared';
+import { useProfilePanelStore, useSavedPageStore } from '../../../shared';
 import { useThreadStore } from '../stores';
 
 /**
- * The trailing pane's owners (thread, settings, profile, saved, activity, threads list) and the rule that keeps
- * them from sharing it. The host renders the profile above the rest, so this returns the raw state
- * and leaves the choice of panel to it.
+ * The trailing pane's owners (thread, settings, profile) and the rule that keeps them from sharing
+ * it. The host renders the profile above the rest, so this returns the raw state and leaves the choice
+ * of panel to it.
  *
- * Thread, settings, saved, activity and the threads list are exclusive: opening any of them closes the others and the
- * profile, and the last one opened wins (each effect fires on its own opener only).
+ * Thread, settings and the Saved items page are exclusive: opening any of them closes the others and
+ * the profile, and the last one opened wins (each effect fires on its own opener only). The Saved page
+ * is not a trailing pane — it takes the main pane — but a thread or settings pane beside it would
+ * belong to a conversation no longer on screen.
  *
  * The profile is the exception. It opens from inside another panel (a mention in a thread, a member
  * in the settings list) to check who someone is, so it stacks on that panel instead of replacing
@@ -45,12 +42,8 @@ export const useTrailingPanelOwners = (shownChannelId: string | undefined, listL
     const closeSettings = useChannelSettingsStore(s => s.close);
     const profileTarget = useProfilePanelStore(s => s.target);
     const closeProfile = useProfilePanelStore(s => s.close);
-    const savedOpen = useSavedPanelStore(s => s.isOpen);
-    const closeSaved = useSavedPanelStore(s => s.close);
-    const activityOpen = useMentionsPanelStore(s => s.isOpen);
-    const closeActivity = useMentionsPanelStore(s => s.close);
-    const threadsOpen = useMyThreadsPanelStore(s => s.isOpen);
-    const closeThreads = useMyThreadsPanelStore(s => s.close);
+    const savedOpen = useSavedPageStore(s => s.isOpen);
+    const closeSaved = useSavedPageStore(s => s.close);
 
     useEffect(() => {
         if (openRootId && !threadHere && !awaitingList) closeThread();
@@ -60,46 +53,22 @@ export const useTrailingPanelOwners = (shownChannelId: string | undefined, listL
             closeSettings();
             closeProfile();
             closeSaved();
-            closeActivity();
-            closeThreads();
         }
-    }, [threadRootId, closeSettings, closeProfile, closeSaved, closeActivity, closeThreads]);
+    }, [threadRootId, closeSettings, closeProfile, closeSaved]);
     useEffect(() => {
         if (settingsChannelId) {
             closeThread();
             closeProfile();
             closeSaved();
-            closeActivity();
-            closeThreads();
         }
-    }, [settingsChannelId, closeThread, closeProfile, closeSaved, closeActivity, closeThreads]);
+    }, [settingsChannelId, closeThread, closeProfile, closeSaved]);
     useEffect(() => {
         if (savedOpen) {
             closeThread();
             closeSettings();
             closeProfile();
-            closeActivity();
-            closeThreads();
         }
-    }, [savedOpen, closeThread, closeSettings, closeProfile, closeActivity, closeThreads]);
-    useEffect(() => {
-        if (activityOpen) {
-            closeThread();
-            closeSettings();
-            closeProfile();
-            closeSaved();
-            closeThreads();
-        }
-    }, [activityOpen, closeThread, closeSettings, closeProfile, closeSaved, closeThreads]);
-    useEffect(() => {
-        if (threadsOpen) {
-            closeThread();
-            closeSettings();
-            closeProfile();
-            closeSaved();
-            closeActivity();
-        }
-    }, [threadsOpen, closeThread, closeSettings, closeProfile, closeSaved, closeActivity]);
+    }, [savedOpen, closeThread, closeSettings, closeProfile]);
 
-    return { threadRootId, settingsChannelId, profileTarget, savedOpen, activityOpen, threadsOpen };
+    return { threadRootId, settingsChannelId, profileTarget, savedOpen };
 };
