@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
@@ -82,11 +83,13 @@ import { PlaceChannelsPage } from './PlaceChannelsPage';
 
 const renderAt = () =>
     render(
-        <MemoryRouter initialEntries={['/places/p1/channels']}>
-            <Routes>
-                <Route path="/places/:placeId/channels" element={<PlaceChannelsPage />} />
-            </Routes>
-        </MemoryRouter>
+        <QueryClientProvider client={new QueryClient()}>
+            <MemoryRouter initialEntries={['/places/p1/channels']}>
+                <Routes>
+                    <Route path="/places/:placeId/channels" element={<PlaceChannelsPage />} />
+                </Routes>
+            </MemoryRouter>
+        </QueryClientProvider>
     );
 
 const toggleRow = (name: string) => {

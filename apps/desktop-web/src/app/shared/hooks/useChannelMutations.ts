@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import type {
     ChannelCreateInput,
@@ -12,6 +13,8 @@ import type { JoinNotify } from '@lemoncloud/chatic-socials-api';
 
 import type { DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
+
+import { liveSelection, switchesSettled } from './switchesSettled';
 
 /**
  * Desktop channel-write hook. Wraps the engine's channel repository for every
@@ -29,7 +32,7 @@ export const useDesktopChannelMutations = () => {
     const { channel: channelRepository, join: joinRepository } = runtime.data.useRuntimeRepositories();
     // Tags the optimistic row created below; the repository used to take it off the ambient data
     // context, which disagrees with the session during a site switch (ADR-0085).
-    const { selectedSiteId } = runtime.session.useSessionSelection();
+    const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const [isMutating, setIsMutating] = useState(false);
 
     const run = useCallback(<T>(op: () => Promise<T>): Promise<T> => {
@@ -37,12 +40,29 @@ export const useDesktopChannelMutations = () => {
         return op().finally(() => setIsMutating(false));
     }, []);
 
+    const queryClient = useQueryClient();
+    const startRef = useRef({ cloudId: selectedCloudId, placeId: selectedSiteId });
+    startRef.current = { cloudId: selectedCloudId, placeId: selectedSiteId };
+
+    // The create names no place: the server files the channel under the place the session is in. A
+    // switch shows the new place before the session has moved, so a create sent in that window went
+    // into the place being left, where the list it was made from never showed it. It waits for the
+    // switch to settle, then goes out only if the session landed where it was asked from.
     const createChannel = useCallback(
         (payload: ChannelCreateInput): Promise<DomainChannel> => {
             if (!payload.stereo) return Promise.reject(new Error('stereo is required'));
-            return run(() => channelRepository.createChannel(payload, selectedSiteId ?? ''));
+            const startedAt = startRef.current;
+            return run(async () => {
+                await switchesSettled(queryClient);
+                const now = liveSelection();
+                // The selection reads a missing cloud as the default one; the live read leaves it empty.
+                if ((now.cloudId ?? 'default') !== startedAt.cloudId || now.placeId !== startedAt.placeId) {
+                    throw new Error('[createChannel] the place changed before the channel was created');
+                }
+                return channelRepository.createChannel(payload, startedAt.placeId ?? '');
+            });
         },
-        [channelRepository, run, selectedSiteId]
+        [channelRepository, run, queryClient]
     );
 
     const updateChannel = useCallback(

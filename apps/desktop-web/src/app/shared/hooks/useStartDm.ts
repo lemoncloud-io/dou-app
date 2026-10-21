@@ -1,12 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 
 import { usePendingOpenStore } from '../stores';
+import { liveSelection, switchesSettled } from './switchesSettled';
 import { toastFailure } from '../utils';
 
 /**
@@ -53,37 +54,6 @@ const syncCloudChannels = async (
         // The background poll still lists the room; only the immediate landing is lost.
         logger.warn('CHANNEL', '[useStartDm] channel sync after start failed', { error });
     }
-};
-
-/**
- * Resolves once no place or cloud switch is running. Read from the mutation cache rather than a
- * render, so a caller that unmounts mid-wait (a dialog closing on its own click) still sends once it
- * settles.
- */
-const switchesSettled = (queryClient: QueryClient): Promise<void> =>
-    new Promise(resolve => {
-        const running = () =>
-            queryClient.isMutating({ mutationKey: runtime.session.SWITCH_SITE_MUTATION_KEY }) +
-            queryClient.isMutating({ mutationKey: runtime.session.SWITCH_CLOUD_MUTATION_KEY });
-        if (running() === 0) {
-            resolve();
-            return;
-        }
-        const unsubscribe = queryClient.getMutationCache().subscribe(() => {
-            if (running() > 0) return;
-            unsubscribe();
-            resolve();
-        });
-    });
-
-/**
- * The selected cloud and place as the session holds them right now. Read live, not from a render: a
- * failed switch rolls the place back inside its own mutation, and the wait above can resolve before
- * React has rendered the rollback.
- */
-const liveSelection = (): { cloudId: string | null; placeId: string | null } => {
-    const { cloud } = runtime.session.getGlobalSessionContext();
-    return { cloudId: cloud.cloudId, placeId: cloud.siteId };
 };
 
 export const useStartDm = () => {
