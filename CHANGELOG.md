@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-21] - root@0.109.0, @chatic/web@0.76.0
+
+### Features
+
+- (web) give every text field one return-key rule, not one per screen (ADR-0220)
+
 ## [2026-10-21] - No version updates
 
 ### Bug Fixes
