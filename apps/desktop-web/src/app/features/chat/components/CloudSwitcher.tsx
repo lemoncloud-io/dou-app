@@ -199,7 +199,9 @@ export const CloudSwitcher = ({
     const active = clouds.find(cloud => cloud.id === activeCloudId);
     const activeTile = active ? tileByCloud.get(active.id) : undefined;
     const activeName = activeTile?.label ?? t('cloud.empty');
-    const anyUnread = hasUnread || Object.keys(badgedClouds ?? {}).some(id => id !== activeCloudId);
+    // Only the rows the menu lists: a push flag for a cloud with no row (one that was removed, or an
+    // id the backend stamped that is not ours) can never be opened, so it would hold the dot forever.
+    const anyUnread = hasUnread || ordered.some(cloud => cloud.id !== activeCloudId && !!badgedClouds?.[cloud.id]);
     const renamable = active && canRename(active, activeCloudId) ? active : null;
     const removable = ordered.filter(canDelete);
 

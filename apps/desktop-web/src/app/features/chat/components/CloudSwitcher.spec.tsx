@@ -92,6 +92,13 @@ describe('CloudSwitcher trigger', () => {
         expect(trigger().getAttribute('aria-label')).toBe(i18next.t('cloud.switcher.unread', { name: 'Home' }));
     });
 
+    // A push flag for a cloud the menu does not list has no row to open, so nothing could ever clear
+    // the dot it raises.
+    it('shows no unread for a flagged cloud that is not in the list', () => {
+        renderSwitcher({ badgedClouds: { removed: true } });
+        expect(trigger().getAttribute('aria-label')).toBe(i18next.t('cloud.switcher.open', { name: 'Home' }));
+    });
+
     it('is locked while a switch is in flight', () => {
         renderSwitcher({ isSwitching: true });
         expect((trigger() as HTMLButtonElement).disabled).toBe(true);
