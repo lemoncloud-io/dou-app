@@ -84,6 +84,11 @@ the live socket. Another cloud's dot is a pending cross-cloud push
 Home's `default`, so a relay message dots Home while another cloud is open, and the dot clears
 once the relay is open and verified.
 
+The tile counts only the rows the menu lists. A push flag clears when its cloud is opened, and the
+flags are kept across relaunches, so a flag for a cloud with no row — one since removed, or an id a
+push named that is not one of the reader's clouds — could never be cleared and would keep the tile
+dotted with every row clean. The dock badge filters the same way.
+
 A muted channel — notify mode "off" — does not light the active cloud's dot, its place's
 dot, the window title or the OS badge (`placeUnreadCounts`). A "mentions only" channel lights
 those four with its unread mentions, capped at its unread messages; the rule lives in
