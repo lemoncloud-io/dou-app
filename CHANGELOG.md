@@ -1,5 +1,29 @@
 # Changelog
 
+## [2026-10-21] - root@0.109.0, @chatic/web@0.76.0
+
+### Features
+
+- (web) give every text field one return-key rule, not one per screen (ADR-0220)
+
+## [2026-10-21] - No version updates
+
+### Bug Fixes
+
+- (web/search) open a reply hit on its thread alone, so back returns to search
+
+## [2026-10-20] - root@0.108.2, @chatic/desktop-web@0.34.4
+
+### Bug Fixes
+
+- (desktop-web) stop re-sending a place switch the server refused
+
+## [2026-10-20] - root@0.108.1, @chatic/desktop-web@0.34.3
+
+### Bug Fixes
+
+- (desktop-web) keep composer attachments after leaving the room
+
 ## [2026-10-20] - root@0.108.0, @chatic/web@0.75.0
 
 ### Features

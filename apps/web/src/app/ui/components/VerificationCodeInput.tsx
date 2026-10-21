@@ -54,7 +54,8 @@ export const VerificationCodeInput = ({ value, onChange, hasError = false }: Ver
     };
 
     return (
-        <div className="flex items-center justify-center gap-[10px]">
+        // The cells are one code, so return on any of them finishes the code rather than stepping a cell.
+        <div data-return-key-unit className="flex items-center justify-center gap-[10px]">
             {digits.map((digit, index) => {
                 const isFilled = digit !== '';
                 const isFocusTarget = index === value.length;

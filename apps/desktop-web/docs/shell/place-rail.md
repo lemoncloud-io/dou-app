@@ -27,6 +27,14 @@ Only the rail reads the order. The place the session enters when its own is gone
 (`placeToEnter`) is still the one last open in that cloud, and failing that the first one the
 cache lists, not the first tile.
 
+That move tries each place once. A switch the server refuses leaves the session where it was —
+still outside every listed place — so the home page remembers the places it has already tried and
+moves on to the next one instead of sending the same switch again. Once the session settles in a
+listed place the memory is dropped, and so it is when the socket comes back after dropping, or the
+cloud or account changes — a switch sent over a dead socket fails without saying anything about the
+place, so the move also waits while the socket is down. When every place has been refused it stops
+there, after one failure toast per place; a tile click still tries again.
+
 ## While a switch is running
 
 A switch shows the new place at once: the session's place id is applied before the socket session

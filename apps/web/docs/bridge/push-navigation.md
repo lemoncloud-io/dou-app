@@ -205,9 +205,11 @@ load warms the cache this lookup reads. And it is **silent on every failure**, i
 check before and after the awaits: the reader is already on a screen that makes sense, and hijacking
 one they navigated to themselves in the meantime is worse than no hop.
 
-Search uses `resolveThreadTarget` too: a reply found by search opens on its thread, stacked over the
-room the same way (see [feature/search](../feature/search/README.md)). Its contract serves both
-doors, so a change made here for push changes where a search result opens as well.
+Search uses `resolveThreadTarget` too: a reply found by search opens on its thread, but straight from
+the results, with no room pushed under it, so back returns to search (see
+[feature/search](../feature/search/README.md)). The route contract serves both doors, so a change
+made here for push changes where a search result opens as well; push's room-then-thread stacking does
+not apply to search.
 
 ### Cold start
 

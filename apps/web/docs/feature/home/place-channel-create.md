@@ -3,7 +3,9 @@
 Two full-screen overlays, raised from the two `＋` entries on home: one creates a **place** (a site)
 and one creates a **group room** (a channel with `stereo: 'private'`). They share a shape — title,
 circular avatar with an optional photo, a 1–20 character name field, one floating submit — and
-differ in three things: the copy, the API they call, and where they send you afterwards.
+differ in three things: the copy, the API they call, and where they send you afterwards. The name
+field's done key closes the keyboard and does not create; the floating button does (see
+[shell/return-key](../../shell/return-key.md)).
 
 Creating a place profile is a different subject and lives in [place-profile](./place-profile.md);
 this document is about creating the place or the room itself.

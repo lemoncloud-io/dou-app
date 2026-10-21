@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
+import { create } from 'zustand';
 
 import type { TFunction } from 'i18next';
 
@@ -29,13 +30,34 @@ let nextId = 0;
 
 const REASONS = ['limit', 'duplicate', 'unsupported', 'too-large', 'name-too-long'] as const;
 
+const NO_ATTACHMENTS: ComposerAttachment[] = [];
+
 /**
- * The composer's attachment tray: add (pick / drop / paste), remove, clear.
+ * Every conversation's tray, outside the pane that shows it, so leaving the channel or the page and
+ * coming back finds the files where they were — the same way the typed text survives in
+ * `useComposerDraftStore`. In memory only: a page `File` cannot be stored, so the tray lasts as long
+ * as the window does.
+ */
+const useTrayStore = create<{ trays: Record<string, ComposerAttachment[]> }>(() => ({ trays: {} }));
+
+const trayOf = (scopeKey: string): ComposerAttachment[] => useTrayStore.getState().trays[scopeKey] ?? NO_ATTACHMENTS;
+
+const setTray = (scopeKey: string, next: ComposerAttachment[]) =>
+    useTrayStore.setState(state => {
+        if (next.length > 0) return { trays: { ...state.trays, [scopeKey]: next } };
+        if (!(scopeKey in state.trays)) return state;
+        const { [scopeKey]: _dropped, ...rest } = state.trays;
+        return { trays: rest };
+    });
+
+/**
+ * The composer's attachment tray for one conversation (`scopeKey`: a channel, or a channel's
+ * thread): add (pick / drop / paste), remove, clear.
  *
  * Each file gets an object URL: an image's tile draws it, and the preview opens an image, a video, a PDF or a text file from it. The upload itself starts only at send,
- * on the message's own row. URLs are revoked on remove, on clear (the send clears the
- * tray; the sent row keeps its own previews), when `scopeKey` changes (another channel
- * or thread) and on unmount.
+ * on the message's own row. URLs are revoked on remove and on clear (the send clears the tray; the
+ * sent row keeps its own previews) — not when the composer moves to another conversation or
+ * unmounts, since the tray waits there for the way back.
  *
  * Files a batch could not take are reported in a toast that counts them by reason.
  * It was a blocking dialog, one reason per drop: the rest of what was left out went
@@ -43,27 +65,20 @@ const REASONS = ['limit', 'duplicate', 'unsupported', 'too-large', 'name-too-lon
  */
 export const useImageAttachments = (scopeKey: string) => {
     const { t } = useTranslation();
-    const [attachments, setAttachments] = useState<ComposerAttachment[]>([]);
-    // Mirror for the callbacks below, so `addFiles` validates against the tray as it is
-    // right now even when two drops land before a render.
-    const current = useRef<ComposerAttachment[]>([]);
-
-    const commit = useCallback((next: ComposerAttachment[]) => {
-        current.current = next;
-        setAttachments(next);
-    }, []);
+    const attachments = useTrayStore(state => state.trays[scopeKey] ?? NO_ATTACHMENTS);
 
     const clear = useCallback(() => {
-        current.current.forEach(attachment => URL.revokeObjectURL(attachment.url));
-        commit([]);
-    }, [commit]);
-
-    useEffect(() => clear, [scopeKey, clear]);
+        trayOf(scopeKey).forEach(attachment => URL.revokeObjectURL(attachment.url));
+        setTray(scopeKey, []);
+    }, [scopeKey]);
 
     const addFiles = useCallback(
         (files: readonly File[]) => {
+            // Read from the store, not the render, so two drops landing before a render are both
+            // checked against the tray as it is right now.
+            const tray = trayOf(scopeKey);
             const { accepted, rejected } = validateAttachments(
-                current.current.map(attachment => attachment.key),
+                tray.map(attachment => attachment.key),
                 files
             );
             reportRejections(rejected, t);
@@ -81,18 +96,22 @@ export const useImageAttachments = (scopeKey: string) => {
                     size: file.size,
                 };
             });
-            commit([...current.current, ...added]);
+            setTray(scopeKey, [...tray, ...added]);
         },
-        [commit, t]
+        [scopeKey, t]
     );
 
     const remove = useCallback(
         (id: string) => {
-            const target = current.current.find(attachment => attachment.id === id);
+            const tray = trayOf(scopeKey);
+            const target = tray.find(attachment => attachment.id === id);
             if (target) URL.revokeObjectURL(target.url);
-            commit(current.current.filter(attachment => attachment.id !== id));
+            setTray(
+                scopeKey,
+                tray.filter(attachment => attachment.id !== id)
+            );
         },
-        [commit]
+        [scopeKey]
     );
 
     return { attachments, addFiles, remove, clear };

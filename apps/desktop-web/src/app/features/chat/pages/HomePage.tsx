@@ -422,6 +422,15 @@ export const HomePage = () => {
         // Re-fire only on a new notification (nonce), not on selectedPlaceId churn.
     }, [pendingOpen?.nonce]);
 
+    // Places the auto-select below has already tried, skipped until the selection settles. A refused
+    // switch rolls the selection back to the same unlisted site, so without it every failed switch
+    // started the next one. A failure over a dead socket says nothing about the place, so a socket
+    // that comes back — or another cloud or account — starts it over.
+    const autoEnteredRef = useRef(new Set<string>());
+    useEffect(() => {
+        autoEnteredRef.current.clear();
+    }, [isVerified, activeCloudId, myUid]);
+
     // Default Cloud pins the derived 'default' place (Self Channel) — nothing to select.
     // Otherwise select the first place whenever the session's selected site isn't in the
     // loaded list — covers initial load (sid null), a cloud switch, or an invite-join where
@@ -433,13 +442,18 @@ export const HomePage = () => {
         // transient mismatch here would fire switchPlace() against a stale / other-cloud
         // place and thrash the channel list. Only act when idle.
         if (isSwitching) return;
+        // A switch sent while the socket is down can only fail; the socket coming back re-runs this.
+        if (!isVerified) return;
+        if (selectedPlaceId && places.some(p => p.id === selectedPlaceId)) autoEnteredRef.current.clear();
         // A cross-cloud notification switch wants a SPECIFIC place — land it once the new
         // cloud's places load, ahead of the first-place fallback below.
         const wantedPlace = pendingPlaceRef.current;
         if (wantedPlace) {
             if (places.some(p => p.id === wantedPlace)) {
                 pendingPlaceRef.current = null;
-                if (wantedPlace !== selectedPlaceId) switchPlace(wantedPlace);
+                if (wantedPlace !== selectedPlaceId && switchPlace(wantedPlace)) {
+                    autoEnteredRef.current.add(wantedPlace);
+                }
                 return;
             }
             // Places loaded but the target isn't among them (stale/left) — drop it and
@@ -447,12 +461,13 @@ export const HomePage = () => {
             if (places.length > 0) pendingPlaceRef.current = null;
         }
         const remembered = activeCloudId ? useLastChannelStore.getState().placeByCloud[activeCloudId] : undefined;
-        const targetId = placeToEnter(places, selectedPlaceId, remembered);
+        const untried = places.filter(p => !autoEnteredRef.current.has(p.id));
+        const targetId = placeToEnter(untried, selectedPlaceId, remembered);
         // switchPlace → switchSite gives the place its per-place token + socket
         // re-auth; otherwise the channel fetch hits an unauthed site and the shell stays
         // stuck on the empty state after a cloud-account login.
-        if (targetId) switchPlace(targetId);
-    }, [isDefaultMode, isSwitching, places, selectedPlaceId, switchPlace, activeCloudId]);
+        if (targetId && switchPlace(targetId)) autoEnteredRef.current.add(targetId);
+    }, [isDefaultMode, isSwitching, isVerified, places, selectedPlaceId, switchPlace, activeCloudId]);
 
     // Keep an index of this cloud's channels per place, built from the places you
     // open. It is what lets the quick switcher offer a channel that lives in
