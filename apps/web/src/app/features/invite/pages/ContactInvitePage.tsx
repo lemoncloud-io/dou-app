@@ -19,7 +19,6 @@ import {
     useSentInviteLog,
     type AccountLinkMode,
 } from '../../../hooks';
-import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { CountrySelect } from '../../../ui/components/CountrySelect';
 import { PageHeader } from '../../../ui/components';
 // Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
@@ -97,8 +96,6 @@ export const ContactInvitePage = () => {
     const setMyPlaceProfile = useSetMyPlaceProfile();
     const { toast } = useToast();
     const navigate = useNavigateWithTransition();
-    const fieldsRef = useRef<HTMLDivElement>(null);
-    useFormKeyboardFlow(fieldsRef);
     /** Verification is offered at most once per visit, so a 403 that verification cannot fix (a
      *  withdrawn/suspended account) explains itself instead of reopening the sheet forever. */
     const verifyOfferedRef = useRef(false);
@@ -402,7 +399,7 @@ export const ContactInvitePage = () => {
                         </div>
                     </div>
 
-                    <div ref={fieldsRef} className="flex flex-col gap-6 pb-6 pt-8">
+                    <div className="flex flex-col gap-6 pb-6 pt-8">
                         <TextField
                             label={t('contactInvite.nameLabel')}
                             required

@@ -69,7 +69,7 @@ There is no `hooks/`, no `types/` and no `utils/` to open, and `constants/` hold
 (`MIN_PASSWORD_LENGTH`). The mutations are the runtime's, the bodies are typed in `libs/http`, and
 the shared helpers moved out when a second feature needed them — the code length and timer, the
 email check and the countdown formatter live in `app/utils/verification.ts`, and
-`VerificationCodeInput`, `KeyboardAwareLayout` and `useFormKeyboardFlow` in `app/ui`. The
+`VerificationCodeInput` and `KeyboardAwareLayout` in `app/ui`. The
 subscription feature's `EmailVerifyDialog` is that second consumer.
 
 ## Screens

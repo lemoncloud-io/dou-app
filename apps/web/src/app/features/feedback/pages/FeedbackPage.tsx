@@ -150,7 +150,6 @@ export const FeedbackPage = () => {
                         onChange={value => setTitle(value.slice(0, MAX_INPUT_LENGTH))}
                         placeholder={t('feedback.titlePlaceholder')}
                         disabled={isSubmitting}
-                        enterKeyHint="next"
                     />
 
                     <Textarea

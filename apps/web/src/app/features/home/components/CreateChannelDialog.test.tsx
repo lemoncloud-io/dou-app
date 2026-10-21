@@ -104,18 +104,13 @@ describe('CreateChannelDialog', () => {
         expect(photo()).toHaveStyle({ width: '86px', height: '86px' });
     });
 
-    it('키보드의 완료 키(Enter)로도 방을 만든다 — 이름이 없으면 아무 일도 없다', async () => {
-        createChannelMock.mockResolvedValue({ id: 'ch-1' });
+    it('leaves the keyboard done key to close the keyboard — only the button creates the room', () => {
         render(<CreateChannelDialog open onOpenChange={jest.fn()} />);
-
-        fireEvent.keyDown(nameField(), { key: 'Enter' });
-        expect(createChannelMock).not.toHaveBeenCalled();
 
         type('여름 여행');
         fireEvent.keyDown(nameField(), { key: 'Enter' });
 
-        await waitFor(() => expect(createChannelMock).toHaveBeenCalledTimes(1));
-        expect(navigateMock).toHaveBeenCalledWith('/channels/ch-1/room');
+        expect(createChannelMock).not.toHaveBeenCalled();
     });
 
     it('입력이 있으면 닫기 시 이탈 확인 모달을 띄우고, 나가기를 누르면 닫는다', async () => {

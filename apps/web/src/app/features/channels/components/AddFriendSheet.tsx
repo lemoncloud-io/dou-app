@@ -1,9 +1,8 @@
 import { Loader2, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import { useFormKeyboardFlow } from '../../../ui/hooks';
 import { Sheet, SheetContent } from '@chatic/ui-kit/components/ui/sheet';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -87,8 +86,6 @@ export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, h
     // a region-less locale (`ko`) must not turn the default case into "pick a country first".
     const [country, setCountry] = useState<PhoneCountry>(() => resolveDefaultCountry() ?? 'KR');
     const [phoneError, setPhoneError] = useState('');
-    const fieldsRef = useRef<HTMLDivElement>(null);
-    useFormKeyboardFlow(fieldsRef);
     const [isPending, setIsPending] = useState(false);
 
     const handlePhoneChange = (value: string) => {
@@ -181,7 +178,7 @@ export const AddFriendSheet = ({ open, onOpenChange, requestLink, onLinkReady, h
                 </div>
 
                 <div className="flex-1 overflow-y-auto overscroll-none">
-                    <div ref={fieldsRef} className="flex flex-col gap-[26px] px-4">
+                    <div className="flex flex-col gap-[26px] px-4">
                         <div className="flex flex-col gap-[2px]">
                             <span className="text-[20px] font-semibold leading-[1.35] tracking-[-0.025em] text-foreground">
                                 {heading?.[0] ?? t('addFriend.subtitle1')}
