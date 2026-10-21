@@ -666,6 +666,128 @@ describe('ChannelRepository', () => {
         expect(channelSocketDataSource.getChannel).not.toHaveBeenCalled();
         expect(channelLocalDataSource.cacheRead).not.toHaveBeenCalled();
     });
+
+    describe('a list fetched before a create or delete, answering after it', () => {
+        // `channel.mine` and `channel.sync` describe the server as it was when they were asked. One
+        // asked just before a mutation and answering just after it is out of date about that one room.
+
+        it('deleteChannel — a snapshot that still lists the deleted channel does not bring it back', async () => {
+            const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+            channelSocketDataSource.deleteChannel.mockResolvedValue({ id: 'ch-gone' });
+            await repository.deleteChannel({ channelId: 'ch-gone' } as any);
+
+            channelSocketDataSource.fetchChannel.mockResolvedValue({
+                list: [
+                    { id: 'ch-gone', sid: 'site-1' },
+                    { id: 'ch-kept', sid: 'site-1' },
+                ],
+            });
+            channelSocketDataSource.syncChannel.mockResolvedValue({
+                list: [{ id: 'ch-gone', sid: 'site-1', $: { sid: 'site-1' } }],
+                syncedAt: 1,
+            });
+            await repository.refreshList({ sid: 'site-1' } as any);
+            await repository.syncChannels(0);
+
+            expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledTimes(1);
+            expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(
+                [{ id: 'ch-kept', sid: 'site-1' }],
+                expect.anything()
+            );
+        });
+
+        it('deleteChannel — a failed delete puts the row back and lets the next snapshot carry it', async () => {
+            const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+            const existing = { id: 'ch-1', sid: 'site-1' };
+            channelLocalDataSource.cacheRead.mockResolvedValue(existing);
+            channelSocketDataSource.deleteChannel.mockRejectedValue(new Error('denied'));
+
+            await expect(repository.deleteChannel({ channelId: 'ch-1' } as any)).rejects.toThrow('denied');
+            expect(channelLocalDataSource.cacheWrite).toHaveBeenCalledWith(existing, expect.anything());
+
+            channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [existing] });
+            await repository.refreshList({ sid: 'site-1' } as any);
+            expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith([existing], expect.anything());
+        });
+
+        it('createChannel — a snapshot that does not list the new channel yet does not prune it', async () => {
+            const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+            channelSocketDataSource.createChannel.mockResolvedValue({ id: 'ch-new', sid: 'site-1' });
+            await repository.createChannel({ name: 'new' } as any, 'site-1');
+
+            channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [{ id: 'ch-old', sid: 'site-1' }] });
+            channelSocketDataSource.syncChannel.mockResolvedValue({ list: [], ids: ['ch-old'], syncedAt: 1 });
+            channelLocalDataSource.cacheReadList.mockResolvedValue({
+                list: [
+                    { id: 'ch-old', sid: 'site-1' },
+                    { id: 'ch-new', sid: 'site-1' },
+                    { id: 'ch-gone', sid: 'site-1' },
+                ],
+            });
+            await repository.refreshList({ sid: 'site-1' } as any);
+            await expect(repository.syncChannels(0)).resolves.toEqual({ syncedAt: 1, removedCount: 1 });
+
+            expect(channelLocalDataSource.cacheDeleteMany.mock.calls).toEqual([
+                [['ch-gone'], expect.anything()],
+                [['ch-gone'], expect.anything()],
+            ]);
+        });
+
+        it('startDm — a snapshot that does not list the new 1:1 yet does not prune it', async () => {
+            const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+            channelSocketDataSource.startDm.mockResolvedValue({ id: 'site-1@me@u2', sid: 'site-1', stereo: 'dm' });
+            await repository.startDm({ peerId: 'u2' } as any);
+
+            channelSocketDataSource.syncChannel.mockResolvedValue({ list: [], ids: ['ch-old'], syncedAt: 1 });
+            channelLocalDataSource.cacheReadList.mockResolvedValue({
+                list: [
+                    { id: 'ch-old', sid: 'site-1' },
+                    { id: 'site-1@me@u2', sid: 'site-1' },
+                ],
+            });
+            await repository.syncChannels(0);
+
+            expect(channelLocalDataSource.cacheDeleteMany).not.toHaveBeenCalled();
+        });
+
+        it('a new channel is spared only for that window — a later snapshot without it prunes it', async () => {
+            const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+            const now = Date.now();
+            const clock = jest.spyOn(Date, 'now').mockReturnValue(now);
+            channelSocketDataSource.createChannel.mockResolvedValue({ id: 'ch-new', sid: 'site-1' });
+            await repository.createChannel({ name: 'new' } as any, 'site-1');
+
+            channelSocketDataSource.syncChannel.mockResolvedValue({ list: [], ids: ['ch-old'], syncedAt: 1 });
+            channelLocalDataSource.cacheReadList.mockResolvedValue({
+                list: [
+                    { id: 'ch-old', sid: 'site-1' },
+                    { id: 'ch-new', sid: 'site-1' },
+                ],
+            });
+            try {
+                clock.mockReturnValue(now + 10_001);
+                await repository.syncChannels(0);
+
+                expect(channelLocalDataSource.cacheDeleteMany).toHaveBeenCalledWith(['ch-new'], expect.anything());
+            } finally {
+                clock.mockRestore();
+            }
+        });
+
+        it('startDm — re-opening a 1:1 left moments ago lets the next snapshot write it again', async () => {
+            const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+            const room = { id: 'site-1@me@u2', sid: 'site-1', stereo: 'dm' };
+            channelSocketDataSource.leaveChannel.mockResolvedValue({ id: room.id });
+            await repository.leaveChannel({ channelId: room.id } as any);
+            channelSocketDataSource.startDm.mockResolvedValue(room);
+            await repository.startDm({ peerId: 'u2' } as any);
+
+            channelSocketDataSource.fetchChannel.mockResolvedValue({ list: [room] });
+            await repository.refreshList({ sid: 'site-1' } as any);
+
+            expect(channelLocalDataSource.cacheWriteMany).toHaveBeenCalledWith([room], expect.anything());
+        });
+    });
 });
 
 /**

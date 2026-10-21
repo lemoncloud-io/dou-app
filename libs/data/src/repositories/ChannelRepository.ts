@@ -108,8 +108,8 @@ export interface IChannelRepository extends DisposableRepository {
 /**
  * How long a just-left channel stays barred from re-entering the cache.
  *
- * The guard exists for ONE race: a `refreshList`/`syncChannels` request issued before the leave
- * answers after it, and its snapshot still contains the channel I just removed. That window is the
+ * The guard exists for ONE race: a `refreshList`/`syncChannels` request issued before a leave or a
+ * delete answers after it, and its snapshot still contains the channel I just removed. That window is the
  * lifetime of one in-flight request, so the guard is bounded by it.
  *
  * It must NOT outlive that. Held forever (as it was), the id also blocks the channel from coming
@@ -119,10 +119,30 @@ export interface IChannelRepository extends DisposableRepository {
  */
 const LEFT_CHANNEL_GUARD_MS = 10_000;
 
+/**
+ * The same race the other way round: a list asked for just before I create or open a room answers
+ * after it, and does not have the room yet. Its prune would delete the row the create just wrote, and
+ * the room stays off the list until the next reload. The new id is spared from the prune for as long
+ * as the leave guard bars a left one, and for the same reason no longer: a room removed on the server
+ * meanwhile goes on the next sync after the window.
+ */
+const NEW_CHANNEL_GUARD_MS = LEFT_CHANNEL_GUARD_MS;
+
+/** Whether `id`'s guard in `guards` is still standing; a lapsed entry is dropped on the way. */
+const isGuarded = (guards: Map<string, number>, id: string): boolean => {
+    const until = guards.get(id);
+    if (until === undefined) return false;
+    if (Date.now() < until) return true;
+    guards.delete(id);
+    return false;
+};
+
 /** Orchestrates channel list/detail caching and derived state updates for the active context. */
 export class ChannelRepository extends BaseRepository implements IChannelRepository {
     /** channelId → the moment its leave guard lapses (see {@link LEFT_CHANNEL_GUARD_MS}). */
     private readonly leftChannelGuards = new Map<string, number>();
+    /** channelId → the moment its new-room guard lapses (see {@link NEW_CHANNEL_GUARD_MS}). */
+    private readonly newChannelGuards = new Map<string, number>();
 
     constructor(
         private readonly channelSocketDataSource: IChannelSocketDataSource,
@@ -175,11 +195,19 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
 
     /** Whether the leave guard on this channel is still standing; lapsed entries are dropped here. */
     private isGuardedAfterLeave(channelId: string): boolean {
-        const until = this.leftChannelGuards.get(channelId);
-        if (until === undefined) return false;
-        if (Date.now() < until) return true;
-        this.leftChannelGuards.delete(channelId);
-        return false;
+        return isGuarded(this.leftChannelGuards, channelId);
+    }
+
+    /** Marks a room this device just created or opened, so a list older than it does not prune it. */
+    private markChannelNew(channelId: string): void {
+        this.newChannelGuards.set(channelId, Date.now() + NEW_CHANNEL_GUARD_MS);
+    }
+
+    /** The ids of `cached` a server list without them may delete: absent from it and not just made. */
+    private staleIdsOf(cached: DomainChannel[] | undefined, serverIds: Set<string>): string[] {
+        return (cached || [])
+            .map(item => item.id)
+            .filter((id): id is string => !!id && !serverIds.has(id) && !isGuarded(this.newChannelGuards, id));
     }
 
     public observeList(
@@ -258,9 +286,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
 
         const serverIds = new Set(domainList.map(item => item.id));
         const localResult = await this.channelLocalDataSource.cacheReadList(query, requestContext);
-        const staleIds = (localResult?.list || [])
-            .map(item => item.id)
-            .filter((id): id is string => !!id && !serverIds.has(id));
+        const staleIds = this.staleIdsOf(localResult?.list, serverIds);
         // The answer describes ONE site — whichever the socket session is on: `channel.mine`
         // ignores the payload's sid. Asking for another site's list therefore returns a set that
         // shares no ids with it, and pruning against that would delete every cached channel of the
@@ -305,9 +331,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         if (remote.ids) {
             const activeIds = new Set(remote.ids);
             const localResult = await this.channelLocalDataSource.cacheReadList({}, requestContext);
-            const staleIds = (localResult?.list || [])
-                .map(item => item.id)
-                .filter((id): id is string => !!id && !activeIds.has(id));
+            const staleIds = this.staleIdsOf(localResult?.list, activeIds);
             if (staleIds.length > 0) {
                 await this.channelLocalDataSource.cacheDeleteMany(staleIds, requestContext);
                 removedCount = staleIds.length;
@@ -345,6 +369,7 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
                 ...normalizedContext,
                 sid,
             });
+            if (domain.id) this.markChannelNew(domain.id);
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
             await this.channelLocalDataSource.cacheDelete(tempId, requestContext);
             return domain;
@@ -379,6 +404,11 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         // answered, and on the room naming a place. A room that names none — neither field nor a
         // place-keyed id — is left to the next channel sync, which brings it with its place.
         if (domain.sid && this.acceptsAnswer(requestContext, 'channel-start-dm')) {
+            if (domain.id) {
+                // Re-opening a 1:1 left moments ago brings it back, so its leave guard stands down.
+                this.leftChannelGuards.delete(domain.id);
+                this.markChannelNew(domain.id);
+            }
             await this.channelLocalDataSource.cacheWrite(domain, requestContext);
         }
         return domain;
@@ -520,13 +550,15 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         const requestContext = this.getRequestContext();
         const normalizedContext = this.getNormalizedContext(requestContext);
         const existing = channelId ? await this.channelLocalDataSource.cacheRead(channelId, requestContext) : null;
+        // A deleted room is barred like a left one: a list asked for before the delete still has it.
         if (channelId) {
-            await this.channelLocalDataSource.cacheDelete(channelId, requestContext);
+            await this.markChannelLeft(channelId, requestContext);
         }
 
         try {
             return await this.channelSocketDataSource.deleteChannel(payload, normalizedContext);
         } catch (error) {
+            if (channelId) this.leftChannelGuards.delete(channelId);
             if (existing) {
                 await this.channelLocalDataSource.cacheWrite(existing, requestContext);
             }
