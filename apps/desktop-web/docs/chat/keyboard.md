@@ -75,8 +75,11 @@ it opened is on screen. The grouped timestamp in a message's left gutter shows o
   one-shot request in `useComposerFocusStore`, keyed by the removed channel, and `ChatPane` spends it
   on the first room it shows that is not that one — its composer takes focus. With no room left, the
   empty state's create/join button takes it. Either way the request is used once, so a later plain
-  channel switch does not move focus. The one exception is a removal from a sidebar row in the
-  open drawer: `<main>` is `inert` behind the drawer, so the focus call does nothing, the request is
+  channel switch does not move focus. The request is made when the server answers, about a second
+  after the confirm, and the row leaves the list before that, so the reader may already be in the
+  next room with its More menu open. The composer does not take focus from an open menu or dialog
+  (nor from a field being typed in), or the menu would close under the pointer; a dialog that is
+  closing gives way. The one exception is a removal from a sidebar row in the open drawer: `<main>` is `inert` behind the drawer, so the focus call does nothing, the request is
   still spent, and focus stays where the drawer leaves it.
 - **A failed place-profile save** puts focus back on the nickname field: the save disabled the field
   and both buttons, so the control that held focus went dead.

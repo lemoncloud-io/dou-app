@@ -385,12 +385,12 @@ export const ChannelList = ({
     // alternative would mount a dialog per channel). menuTargetId is set when a
     // menu opens; delete/leave run against that row.
     const [menuTargetId, setMenuTargetId] = useState<string | null>(null);
-    const clearChannel = useSelectedChannelStore(s => s.clearChannel);
+    const clearIfOpen = useSelectedChannelStore(s => s.clearIfOpen);
     const menuActions = useChannelActions(menuTargetId, {
         onRemoved: () => {
             // Leave/delete from a row only clears the selection when that row
-            // is the open channel.
-            if (menuTargetId && menuTargetId === selectedChannelId) clearChannel();
+            // is the open channel — when the server answers, not when the menu opened.
+            clearIfOpen(menuTargetId);
         },
     });
 
