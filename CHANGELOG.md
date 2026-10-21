@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-21] - No version updates
+
+### Bug Fixes
+
+- (web/search) open a reply hit on its thread alone, so back returns to search
+
 ## [2026-10-20] - root@0.108.2, @chatic/desktop-web@0.34.4
 
 ### Bug Fixes
