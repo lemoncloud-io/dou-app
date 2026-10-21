@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-21] - No version updates
+
+### Bug Fixes
+
+- (data) stop a list fetched before a create or delete from undoing it
+
 ## [2026-10-21] - root@0.109.1, @chatic/desktop-web@0.34.5
 
 ### Features
