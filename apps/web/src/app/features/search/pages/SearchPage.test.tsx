@@ -162,24 +162,17 @@ describe('SearchPage', () => {
             expect(goTo).toHaveBeenCalledWith('/channels/ch1/room?chatNo=9', { cid: 'c1', sid: 's1' });
         });
 
-        it('opens a reply on its thread, over the room, rather than jumping into a feed that never draws it', () => {
+        it('opens a reply straight on its thread, with no room under it, so back returns to search', () => {
             const goTo = openResult(chatRow({ parentId: '3' }));
 
-            expect(goTo).toHaveBeenCalledWith('/channels/ch1/room', {
-                cid: 'c1',
-                sid: 's1',
-                thenTo: '/channels/ch1/thread/3?chatNo=9',
-            });
+            expect(goTo).toHaveBeenCalledTimes(1);
+            expect(goTo).toHaveBeenCalledWith('/channels/ch1/thread/3?chatNo=9', { cid: 'c1', sid: 's1' });
         });
 
         it('opens an unsent reply on its thread without a jump', () => {
             const goTo = openResult(chatRow({ chatNo: 0, parentId: 'ch1:3' }));
 
-            expect(goTo).toHaveBeenCalledWith('/channels/ch1/room', {
-                cid: 'c1',
-                sid: 's1',
-                thenTo: '/channels/ch1/thread/3',
-            });
+            expect(goTo).toHaveBeenCalledWith('/channels/ch1/thread/3', { cid: 'c1', sid: 's1' });
         });
     });
 });

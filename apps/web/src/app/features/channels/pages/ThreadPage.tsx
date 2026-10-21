@@ -256,8 +256,8 @@ export const ThreadPage = () => {
     ]);
 
     // A search hit on a reply opens here with `?chatNo=` — the room's convention, and stripped the
-    // same way so a reload does not jump again. The request names this thread, so the room this
-    // page sits on does not take it for its own.
+    // same way so a reload does not jump again. The request names this thread, so a room under it
+    // (where a push tap leaves one) does not take it for its own.
     const [searchParams, setSearchParams] = useSearchParams();
     // The newest-reply follow (below) stays off once a jump is asked for: rows still landing — the
     // composer measuring itself, a reply arriving — would otherwise pull the list back down past the
