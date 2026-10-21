@@ -264,15 +264,6 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                                 error={isOverLimit ? t('createChannel.nameHint') : undefined}
                                 onFocus={() => setEditing(true)}
                                 onBlur={() => setEditing(false)}
-                                // The docked CTA still sits behind the keyboard on a device that
-                                // reports no keyboard height, so the keyboard's own done key has to
-                                // be able to finish the form.
-                                enterKeyHint="done"
-                                onKeyDown={event => {
-                                    if (event.key !== 'Enter') return;
-                                    event.preventDefault();
-                                    void handleSubmit();
-                                }}
                             />
                         </div>
 

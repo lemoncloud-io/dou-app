@@ -23,7 +23,7 @@ in each library's own README, linked from the [app README](./README.md).
 | Category                                    | Answers                                                                                              |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | [feature/](./feature)                       | One folder per feature in `src/app/features/` — what each screen contracts, and what it does not own |
-| [shell/](./shell/README.md)                 | The frame screens are rendered into — layout chrome, routing, and theme                              |
+| [shell/](./shell/README.md)                 | The frame screens are rendered into — layout chrome, routing, theme, boot cover, and the return key  |
 | [state/](./state/README.md)                 | How data reaches a screen — global stores, and observe / refresh / sync                              |
 | [bridge/](./bridge/README.md)               | The single seam to the native shell — messages, device tokens, and push navigation                   |
 | [observability/](./observability/README.md) | Looking into a running app — the logger hub, performance traces and the in-app debug overlay         |

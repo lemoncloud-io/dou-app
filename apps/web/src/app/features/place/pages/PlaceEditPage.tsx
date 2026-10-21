@@ -260,14 +260,6 @@ export const PlaceEditPage = () => {
                     maxLength={MAX_NAME_LENGTH}
                     placeholder={t('placeEdit.namePlaceholder')}
                     description={t('placeEdit.nameDescription')}
-                    enterKeyHint="done"
-                    onKeyDown={e => {
-                        // "Done" key dismisses the keyboard; ignore Enter while an IME is composing.
-                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                            e.preventDefault();
-                            e.currentTarget.blur();
-                        }
-                    }}
                 />
 
                 {/* `Textarea` deliberately ships no counter and no hard cap — its doc comment sends

@@ -209,17 +209,12 @@ describe('CreatePlaceDialog', () => {
         });
     });
 
-    it('키보드의 완료 키(Enter)로도 플레이스를 만든다 — 이름이 없으면 아무 일도 없다', async () => {
-        createPlaceMock.mockResolvedValue({ id: 'pl-1' });
+    it('leaves the keyboard done key to close the keyboard — only the button creates the place', () => {
         render(<CreatePlaceDialog open onOpenChange={jest.fn()} />);
-
-        fireEvent.keyDown(nameField(), { key: 'Enter' });
-        expect(createPlaceMock).not.toHaveBeenCalled();
 
         type('책모임');
         fireEvent.keyDown(nameField(), { key: 'Enter' });
 
-        await waitFor(() => expect(createPlaceMock).toHaveBeenCalledTimes(1));
-        expect(switchSiteMock).toHaveBeenCalledWith('pl-1');
+        expect(createPlaceMock).not.toHaveBeenCalled();
     });
 });

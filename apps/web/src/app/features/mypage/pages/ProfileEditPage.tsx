@@ -145,14 +145,6 @@ export const ProfileEditPage = () => {
                     onChange={value => setName(value.slice(0, MAX_NAME_LENGTH))}
                     maxLength={MAX_NAME_LENGTH}
                     description={t('profileEdit.nameHint')}
-                    enterKeyHint="done"
-                    onKeyDown={e => {
-                        // "Done" key dismisses the keyboard; ignore Enter while an IME is composing.
-                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                            e.preventDefault();
-                            e.currentTarget.blur();
-                        }
-                    }}
                 />
 
                 <input
