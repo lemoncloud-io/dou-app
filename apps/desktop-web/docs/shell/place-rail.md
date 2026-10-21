@@ -27,6 +27,21 @@ Only the rail reads the order. The place the session enters when its own is gone
 (`placeToEnter`) is still the one last open in that cloud, and failing that the first one the
 cache lists, not the first tile.
 
+## While a switch is running
+
+A switch shows the new place at once: the session's place id is applied before the socket session
+has moved, so the sidebar already lists the new place's channels. Until the switch lands, the server
+still answers for the place being left, and a write that names no place is filed there. A channel
+made in **New channel** in that window went into the place being left: it did not stay in the list it
+was made from, and so it did not open.
+
+Writes the server files under the session's place therefore wait for every place or cloud switch to
+settle before they go out (`switchesSettled`), and go out only if the session landed in the place they
+were asked from (`liveSelection`); otherwise the write is refused. Starting a 1:1 (`useStartDm`) and
+creating a channel (`useDesktopChannelMutations`) do this. The wait sits in the hook, so no button has
+to be locked during a switch: the dialog reads "Creating..." until the switch lands and the channel
+is made.
+
 ## Making a place
 
 After the last place tile there is a **New place** tile, when the account can make one here.
