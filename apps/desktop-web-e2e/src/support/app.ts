@@ -18,8 +18,19 @@ export const go = async (page: Page, destination: Destination) => {
     await expect(navTile(page, destination)).toHaveAttribute('aria-current', 'page');
 };
 
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 /** The Home sidebar's list of favorites, channels and DMs. */
 export const homeList = (page: Page) => page.getByRole('navigation', { name: 'Channels' });
+
+/**
+ * A channel's row in the Home list, by its name. The row's name runs straight on into what it shows
+ * beside the channel's ("Unread", a mention), so it is matched by how it starts. A hyphen may not
+ * follow, so a scenario's `name-1` and `name-2` are told from `name`; names here are unique tags, so
+ * that is the only kind of longer name that starts the same way.
+ */
+export const channelRow = (page: Page, name: string) =>
+    homeList(page).getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}(?!-)`) });
 
 /** The sidebar panel a nav destination other than Home opens, by its title. */
 export const panel = (page: Page, title: 'Notifications' | 'Channels' | 'Direct messages') =>
@@ -34,15 +45,18 @@ export const switchCloud = async (page: Page, name: string) => {
     await expect(current).toHaveAccessibleName(`Switch cloud: ${name}`, { timeout: 30_000 });
 };
 
+/** A place's tile in the left rail. Its name gains ", unread messages" while the place holds some. */
+export const placeTile = (page: Page, name: string) =>
+    page
+        .getByRole('navigation', { name: 'Clouds and places' })
+        .getByRole('button', { name: new RegExp(`^${escapeRegExp(name)}(, unread messages)?$`) });
+
 /**
  * Opens a place and waits for it to land. Until it has, the landing still to come takes the main pane
  * back from anything opened in the meantime.
  */
 export const openPlace = async (page: Page, name: string) => {
-    await page
-        .getByRole('navigation', { name: 'Clouds and places' })
-        .getByRole('button', { name, exact: true })
-        .click();
+    await placeTile(page, name).click();
     // Landed: the sidebar is titled with the place, and the main pane holds a room or the welcome page.
     await expect(page.getByRole('complementary').getByRole('heading', { level: 2, name })).toBeVisible();
     await expect(
@@ -130,8 +144,13 @@ export const deleteMessage = async (page: Page, target: Locator) => {
 /** Deletes a channel of the open place by name: open it from Home, then settings, Delete channel, confirm. */
 export const deleteChannel = async (page: Page, name: string) => {
     await go(page, 'Home');
-    const row = homeList(page).getByRole('button', { name, exact: true });
-    if (!(await row.isVisible())) return;
+    const row = channelRow(page, name);
+    // Give the list a moment to arrive: a row not drawn yet is not a channel already gone.
+    const listed = await row.waitFor({ timeout: 10_000 }).then(
+        () => true,
+        () => false
+    );
+    if (!listed) return;
     await row.click();
     await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toContainText(name);
     await page.getByRole('main').getByRole('button', { name: 'More', exact: true }).click();
@@ -157,9 +176,35 @@ export const createChannel = async (page: Page, name: string) => {
     await dialog.getByRole('textbox', { name: 'Channel name' }).fill(name);
     await dialog.getByRole('button', { name: 'Create channel' }).click();
     await expect(dialog).toBeHidden();
-    const listed = homeList(page).getByRole('button', { name, exact: true });
+    const listed = channelRow(page, name);
     await expect(listed).toBeVisible();
     const header = page.getByRole('main').getByRole('heading', { level: 1 });
     if (!(await header.textContent())?.includes(name)) await listed.click();
     await expect(header).toContainText(name);
+};
+
+/**
+ * A small image and a short document named after `tag`, so a scenario finds its own upload. Made here
+ * so the suite carries no binary files.
+ */
+export const sampleFiles = (tag: string) => [
+    { name: `e2e-${tag}.png`, mimeType: 'image/png', buffer: Buffer.from(SQUARE_PNG, 'base64') },
+    { name: `e2e-${tag}.pdf`, mimeType: 'application/pdf', buffer: Buffer.from(EMPTY_PDF) },
+];
+
+/** A 64×64 lime square. */
+const SQUARE_PNG =
+    'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAe0lEQVR4nO3PUQkAIBTAwBfB/inMZQpD+HEIgwW4zT7r64YLGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLWhACxrQgga0oAEtaEALGtCCBrSgAS1oQAsa0IIGtKABLXjsAtXtoYfgUoOoAAAAAElFTkSuQmCC';
+const EMPTY_PDF =
+    '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n';
+
+/**
+ * Puts files in the composer's tray, as the "+" button's picker would. The picker's input is hidden and
+ * has no role, so it is the one control found by its tag.
+ */
+export const attach = async (page: Page, files: ReturnType<typeof sampleFiles>) => {
+    await page.getByRole('main').locator('input[type=file]').setInputFiles(files);
+    await expect(page.getByRole('main').getByRole('list', { name: 'Attachments' }).getByRole('listitem')).toHaveCount(
+        files.length
+    );
 };

@@ -1,6 +1,9 @@
 import type { Locator, Page } from '@playwright/test';
 
 import {
+    attach,
+    channelRow,
+    composer,
     deleteMessage,
     feed,
     go,
@@ -11,6 +14,7 @@ import {
     openSelfRoom,
     panel,
     pressMessageButton,
+    sampleFiles,
     send,
 } from '../support/app';
 import { expect, test } from '../support/test';
@@ -39,6 +43,10 @@ test.describe('messages', () => {
         await expect(after).toContainText('(edited)');
 
         await deleteMessage(app, after);
+        // The confirmation leaves nothing over the app: the rest of it still takes a click.
+        await expect(app.locator('body')).not.toHaveCSS('pointer-events', 'none');
+        await go(app, 'Channels');
+        await go(app, 'Home');
     });
 
     test('reacts to a message and takes the reaction back', async ({ app, room }) => {
@@ -102,6 +110,46 @@ test.describe('messages', () => {
             .getByRole('button', { name: room === 'You' ? /You$/ : room })
             .click();
         await tidy(app, room, message(app, text));
+    });
+});
+
+test.describe('files', () => {
+    test('sends an image and a document, and finds the message under Files on the Saved page', async ({
+        app,
+        room,
+    }) => {
+        const tag = Date.now().toString(36);
+        const [image, doc] = sampleFiles(tag);
+        await attach(app, [image, doc]);
+        await composer(app).click();
+        await app.keyboard.press('Enter');
+
+        // Delivered and uploaded: numbered, the image can be saved, the document has its card.
+        const sent = feed(app)
+            .getByRole('article')
+            .filter({ has: app.getByRole('button', { name: `Open ${image.name}` }) });
+        await expect(sent.getByRole('button', { name: 'Save image' })).toBeVisible({ timeout: 30_000 });
+        await expect(sent.getByRole('button', { name: `Save ${doc.name}` })).toBeVisible();
+        await expect(sent.and(app.locator('[data-chat-no]:not([data-chat-no="0"])'))).toBeVisible();
+        await expect(app.getByRole('main').getByRole('list', { name: 'Attachments' })).toBeHidden();
+
+        await messageAction(app, sent, 'Save for later');
+        await go(app, 'Home');
+        await app.getByRole('button', { name: 'Saved items' }).click();
+        const saved = app.getByRole('region', { name: 'Saved items' });
+        // The card names the first file.
+        const card = saved.getByRole('article').filter({ hasText: image.name });
+        await expect(card).toBeVisible();
+        await saved.getByRole('button', { name: 'Files' }).click();
+        await expect(card).toBeVisible();
+        await saved.getByRole('button', { name: 'Messages' }).click();
+        await expect(card).toBeHidden();
+        await saved.getByRole('button', { name: 'All' }).click();
+        await card.getByRole('button', { name: 'Remove' }).click();
+        await expect(card).toBeHidden();
+
+        await (room === 'You' ? homeList(app).getByRole('button', { name: /You$/ }) : channelRow(app, room)).click();
+        if (room === 'You') await deleteMessage(app, sent);
     });
 });
 

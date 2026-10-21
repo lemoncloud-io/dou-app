@@ -1,5 +1,16 @@
 import { SANDBOX } from '../support/env';
-import { deleteChannel, go, homeList, marker, openPlace, panel, send, switchCloud } from '../support/app';
+import {
+    channelRow,
+    createChannel,
+    deleteChannel,
+    go,
+    homeList,
+    marker,
+    openPlace,
+    panel,
+    send,
+    switchCloud,
+} from '../support/app';
 import { expect, test } from '../support/test';
 
 /**
@@ -28,7 +39,7 @@ test.describe('channels', () => {
             // room that was open stays open instead, and the rest of the scenario is still worth
             // running — it opens the channel from the list then.
             const header = app.getByRole('main').getByRole('heading', { level: 1 });
-            const listed = homeList(app).getByRole('button', { name, exact: true });
+            const listed = channelRow(app, name);
             await expect(listed).toBeVisible();
             await expect.soft(header, 'a created channel opens').toContainText(name);
             if (!(await header.textContent())?.includes(name)) await listed.click();
@@ -59,5 +70,32 @@ test.describe('channels', () => {
         }
         await go(app, 'Channels');
         await expect(panel(app, 'Channels').getByRole('listitem').filter({ hasText: name })).toHaveCount(0);
+    });
+
+    test('deletes several channels one after another in one sitting', async ({ app }) => {
+        const { cloud, place } = SANDBOX;
+        if (!cloud || !place) return test.skip(true, 'DESKTOP_E2E_CLOUD / DESKTOP_E2E_PLACE are not set');
+        await switchCloud(app, cloud);
+        await openPlace(app, place);
+
+        const tag = Date.now().toString(36);
+        const names = [1, 2, 3].map(n => `e2e-${tag}-${n}`);
+        try {
+            for (const name of names) await createChannel(app, name);
+            // Each delete starts while the previous one's list update is still landing.
+            for (const name of names) {
+                await deleteChannel(app, name);
+                await expect(channelRow(app, name)).toBeHidden();
+            }
+            await go(app, 'Channels');
+            await expect(
+                panel(app, 'Channels')
+                    .getByRole('listitem')
+                    .filter({ hasText: `e2e-${tag}-` })
+            ).toHaveCount(0);
+        } finally {
+            // Whatever a failure left behind; a channel already gone is passed over.
+            for (const name of names) await deleteChannel(app, name);
+        }
     });
 });

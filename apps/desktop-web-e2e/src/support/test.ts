@@ -82,9 +82,13 @@ export const test = base.extend<Fixtures & Options>({
         const name = `e2e-${Date.now().toString(36)}`;
         await switchCloud(app, cloud);
         await openPlace(app, place);
-        await createChannel(app, name);
-        await use(name);
-        await deleteChannel(app, name);
+        // Deleted even when the create did not come back as expected, so a failed start leaves no channel.
+        try {
+            await createChannel(app, name);
+            await use(name);
+        } finally {
+            await deleteChannel(app, name);
+        }
     },
 });
 

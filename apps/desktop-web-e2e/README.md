@@ -31,13 +31,13 @@ A failure leaves a trace and a screenshot in `dist/.playwright/apps/desktop-web-
 
 ## Settings
 
-| Variable                                    | Needed by                                                                                       |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `DESKTOP_E2E_EMAIL`, `DESKTOP_E2E_PASSWORD` | every scenario: the account they run as                                                         |
-| `DESKTOP_E2E_CLOUD`                         | the channel and welcome-page scenarios: a workspace cloud of the main account                   |
-| `DESKTOP_E2E_PLACE`                         | the channel and message scenarios: a place in that cloud where channels may be made and deleted |
-| `DESKTOP_E2E_EMPTY_PLACE`                   | the welcome-page scenario: a place in that cloud with no channel or DM yet                      |
-| `DESKTOP_E2E_INVITE_PHONE`                  | the two-person scenarios: the number the other person is invited by (a placeholder does)        |
+| Variable                                    | Needed by                                                                                                                                             |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DESKTOP_E2E_EMAIL`, `DESKTOP_E2E_PASSWORD` | every scenario: the account they run as                                                                                                               |
+| `DESKTOP_E2E_CLOUD`                         | the channel and welcome-page scenarios: a workspace cloud of the main account                                                                         |
+| `DESKTOP_E2E_PLACE`                         | the channel and message scenarios: a place in that cloud where channels may be made and deleted                                                       |
+| `DESKTOP_E2E_EMPTY_PLACE`                   | the welcome-page scenario: a place in that cloud with no channel or DM yet; the two-person scenarios stand in it to read another place's notification |
+| `DESKTOP_E2E_INVITE_PHONE`                  | the two-person scenarios: the number the other person is invited by (a placeholder does)                                                              |
 
 A scenario whose setting is missing is skipped, not failed.
 
@@ -58,19 +58,20 @@ account between clouds at once would read each other's state.
 
 ## The scenarios
 
-| File                    | Covers                                                                                                                                                                                            |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shell.spec.ts`         | the nav rail's four destinations and account menu; each destination swaps the sidebar and keeps the room; the cloud dropdown                                                                      |
-| `home.spec.ts`          | the Home sidebar's sections and folding; the empty Saved page; the welcome page and Later; searching the DM list                                                                                  |
-| `messaging.spec.ts`     | text, edit and delete; a reaction; a thread reply; Save for later through the Saved page and back; the DM row's preview                                                                           |
-| `channels.spec.ts`      | create a channel, send to it, find it first in the Channels list, search it, delete it                                                                                                            |
-| `notifications.spec.ts` | the empty inbox; day groups, tabs, the unread filter and sort; opening an unread item; selection, mark read, delete; mark all read and undo                                                       |
-| `people.spec.ts`        | inviting someone by phone and joining with the link the server answers with; a 1:1 both ways; their DM, reaction, thread reply and channel mention reaching Notifications and the desktop banners |
+| File                    | Covers                                                                                                                                                                                                                                                                                                                       |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shell.spec.ts`         | the nav rail's four destinations and account menu; each destination swaps the sidebar and keeps the room; the cloud dropdown                                                                                                                                                                                                 |
+| `home.spec.ts`          | the Home sidebar's sections and folding; the empty Saved page; the welcome page and Later; searching the DM list                                                                                                                                                                                                             |
+| `messaging.spec.ts`     | text, edit and delete, and the app still taking clicks after the delete; a reaction; a thread reply; Save for later through the Saved page and back; an image and a document sent and found under Files; the DM row's preview                                                                                                |
+| `channels.spec.ts`      | create a channel, send to it, find it first in the Channels list, search it, delete it; create three and delete them one after another                                                                                                                                                                                       |
+| `notifications.spec.ts` | the empty inbox; day groups, tabs, the unread filter and sort; opening an unread item; selection, mark read, delete; mark all read and undo                                                                                                                                                                                  |
+| `people.spec.ts`        | inviting someone by phone and joining with the link the server answers with; a 1:1 both ways; their DM, reaction, thread reply and channel mention reaching Notifications and the desktop banners; their messages marking rows and nav tiles unread until opened; a notification from another place opening in its own place |
 
 Text a scenario writes starts with `e2e ` and ends in a time-based tag (`marker()` in
 `src/support/app.ts`), so it can find its own message among real history. The message scenarios write
 in a channel the `room` fixture makes for each of them in the sandbox place and deletes afterwards,
-messages and all; the channel scenario deletes its own channel even when it fails. Only the DM-row
+messages and all, files included; the channel scenarios delete their own channels even when they fail.
+The files are made in `src/support/app.ts` (`sampleFiles`), so the suite carries no binary fixtures. Only the DM-row
 preview writes in the default cloud's notes-to-self room — the one 1:1 every account has — and it
 deletes its message again. Without a sandbox place the message scenarios fall back to that room too.
 
@@ -109,6 +110,13 @@ saved session there too.
   at all. Sending and deleting in one room run after run gets there, which is why the message
   scenarios work in a channel of their own. The DM-row preview still deletes one message per run in
   the notes-to-self room.
+- **A channel made right after another is deleted can be missing from the list.** About one create
+  in ten that follows a delete closely: the channel exists on the server and a reload shows it, but
+  the list drops it, so a scenario that makes a channel (the `room` fixture, the channel scenarios)
+  fails where it waits for the row. The cause is in the shared data layer: a channel-list refresh
+  answered before the create prunes the new row when it lands. It is a real defect, left visible.
+  The scenario's clean-up cannot find that channel either, so it stays in the sandbox place: delete
+  leftover `e2e-` channels there by hand.
 - **Live data moves.** Someone else using the same dev account while the suite runs can rename it or
   change its rooms. The scenarios look things up by role and name and only rely on what they made.
 - **Chromium only.** The desktop app is Electron, which is Chromium; there is no second engine to run.
