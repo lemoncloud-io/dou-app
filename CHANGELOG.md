@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-21] - root@0.110.0, @chatic/desktop-web@0.35.0
+
+### Features
+
+- (desktop-web) show the sources behind each cloud row in debug mode
+
 ## [2026-10-21] - root@0.109.2, @chatic/desktop-web@0.34.6
 
 ### Bug Fixes
