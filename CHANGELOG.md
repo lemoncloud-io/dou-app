@@ -4,6 +4,12 @@
 
 ### Features
 
+- (perf,web,mobile) record traces on the log pipeline beside firebase, not instead (ADR-0222)
+
+## [2026-10-22] - No version updates
+
+### Features
+
 - (app-runtime) put a failed request's status on the log entry, not only in its data
 - (logger,http,app-messages) carry statistics on the log pipeline, off by default
 
