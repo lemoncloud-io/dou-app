@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-22] - No version updates
+
+### Features
+
+- (app-runtime) put a failed request's status on the log entry, not only in its data
+- (logger,http,app-messages) carry statistics on the log pipeline, off by default
+
 ## [2026-10-22] - root@0.110.1, @chatic/web@0.76.1
 
 ### Bug Fixes
