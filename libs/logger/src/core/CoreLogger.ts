@@ -13,6 +13,20 @@ const isLogErrorOptions = (value: unknown): value is LogErrorOptions => {
     return 'error' in value || 'data' in value;
 };
 
+/** An HTTP status is an integer in 100..599; anything else is not one, and is dropped. */
+const toHttpStatus = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 100 && value <= 599 ? value : undefined;
+
+/**
+ * An error code is carried as a string. SDKs hand back numbers too (`409`), and a number is kept
+ * rather than dropped — the server stores the field as a keyword either way.
+ */
+const toErrorCode = (value: unknown): string | undefined => {
+    if (typeof value === 'string') return value || undefined;
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+    return undefined;
+};
+
 /**
  * Splits the third argument into `{ error, data }`.
  *
@@ -119,10 +133,13 @@ export class CoreLogger implements Logger {
     ): void {
         const normalized = normalizeErrorOptions(options, level === 'error');
 
-        this.dispatch(level, tag, message, normalized.data, normalized.error);
+        this.dispatch(level, tag, message, normalized);
     }
 
-    private dispatch(level: LogLevel, tag: string, message: string, data?: unknown, error?: unknown): void {
+    private dispatch(level: LogLevel, tag: string, message: string, options: LogErrorOptions): void {
+        const httpStatus = toHttpStatus(options.httpStatus);
+        const errorCode = toErrorCode(options.errorCode);
+
         // Context is spread first so the entry's own fields always win, and the id
         // is issued here (not at flush) so it survives retries of the same entry.
         this.ingest({
@@ -131,8 +148,11 @@ export class CoreLogger implements Logger {
             level,
             tag,
             message,
-            data,
-            error,
+            data: options.data,
+            error: options.error,
+            // Only when set, so an entry that never had them gains no `undefined` keys.
+            ...(httpStatus !== undefined ? { httpStatus } : {}),
+            ...(errorCode !== undefined ? { errorCode } : {}),
             timestamp: Date.now(),
         });
     }

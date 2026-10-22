@@ -32,7 +32,7 @@ injects, and the timer is injectable so every rule below is testable without wai
 ## The queue
 
 ```ts
-const queue = createLogUploadQueue({ capacity, maxBytes, acceptDebug, onDrop });
+const queue = createLogUploadQueue({ capacity, maxBytes, acceptDebug, onDrop, statCapacity, statMaxBytes, onStatDrop });
 ```
 
 | Name          | Default | What it bounds                          |
@@ -40,6 +40,9 @@ const queue = createLogUploadQueue({ capacity, maxBytes, acceptDebug, onDrop });
 | `capacity`    |     500 | entries held before backpressure starts |
 | `maxBytes`    |   512KB | serialized bytes, on top of the count   |
 | `acceptDebug` | `false` | whether `debug` is stored at all        |
+
+`statCapacity`, `statMaxBytes` and `onStatDrop` belong to the statistics share — see
+[Two shares](#two-shares-logs-and-statistics). The table above is the log share, unchanged.
 
 **Two axes, because either alone leaves a hole.** A count-only limit is cheap but says nothing about
 size, so a handful of entries carrying large `data` can eat far more than intended — and on the web
@@ -68,6 +71,32 @@ a hub publish, and the upload path may not log at all. A reader elsewhere picks 
 and carries it out on an entry that _is_ written — see
 [docs/observations/](../observations/README.md#queue-loss).
 
+### Two shares: logs and statistics
+
+Statistics (`trace` · `sample` · `event`, see [docs/entries/](../entries/README.md#kinds)) ride the
+same queue, but each kind of record is capped inside its own share and evicted only by its own
+kind.
+
+|               | Log share                                     | Statistics share                                                                                     |
+| ------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Ceilings      | `capacity` 500 · `maxBytes` 512KB — unchanged | `statCapacity` · `statMaxBytes`: web 500 · 256KB (the default), app 300 · 160KB (`APP_STAT_QUEUE_*`) |
+| Drop order    | `debug → info → warn → error`, oldest first   | `sample → trace → event`, oldest first                                                               |
+| Loss reported | `onDrop`, `droppedCount()`                    | `onStatDrop`, `droppedStatCount()`                                                                   |
+
+**Neither share evicts the other.** With one shared budget the devices that log the most — the slow
+ones — would lose their measurements first and every percentile would read better than the truth;
+the other way round, a burst of measurements would push out the `warn`/`error` lines the queue is
+for. The shares are arithmetic over the one array: storage, batching and order are unchanged, a
+batch mixes both kinds oldest first, and with no statistics in the queue the log share behaves
+exactly as before. An entry with no `kind` is a log. The statistics ceilings are design values, to
+be replaced by measured ones.
+
+The statistics share adds to the store's footprint: on the web the queue can now hold up to 768KB
+of `localStorage` (512KB of logs plus 256KB of statistics) instead of 512KB.
+
+`clearStats()` empties the statistics share and leaves the logs — the statistics kill switch. It is
+not counted as a drop. `headroom()` is the log share's room, `statHeadroom()` the statistics share's.
+
 ### What each method is for
 
 | Method                     | Note                                                                                     |
@@ -76,10 +105,10 @@ and carries it out on an entry that _is_ written — see
 | `nextBatch(limit)`         | A **slice**. Nothing leaves the queue here                                               |
 | `remove(sent)`             | By `id`, with an identity fallback so an id-less entry is still removable                |
 | `snapshot()` / `restore()` | The persistence pair. `restore` re-applies the level policy and **mints a missing `id`** |
-| `droppedCount()`           | Cumulative evictions this run                                                            |
+| `droppedCount()`           | Cumulative log-share evictions this run (`droppedStatCount()` for the other share)       |
 | `clear()`                  | The opt-out and the monitor's explicit discard                                           |
 | `pushAll(entries)`         | A bulk drain that also de-duplicates against queued ids                                  |
-| `headroom()`               | Slots left before eviction, for a destructive producer to ask before it drains           |
+| `headroom()`               | Log-share slots left before eviction, for a destructive producer to ask before it drains |
 | `sendableSize()`           | How many entries a batch would carry right now                                           |
 
 `restore` minting an id is not a nicety. `id` is both the server's dedup key and the key the host
@@ -136,15 +165,16 @@ every method is a one-liner, because the queue already has the semantics the por
 ## The schedule
 
 ```ts
-createLogUploadScheduler({ store, send, isEnabled, onGiveUp, onSettled, ... });
+createLogUploadScheduler({ store, send, isEnabled, onGiveUp, onSettled, selectTelemetry, ... });
 ```
 
-| Name          | Default         | Meaning                                         |
-| ------------- | --------------- | ----------------------------------------------- |
-| `batchSize`   | 50              | entries per `peek`                              |
-| `intervalMs`  | 60,000          | the tick                                        |
-| `backoffMs`   | `[5s, 30s, 2m]` | delay after the 1st, 2nd, 3rd+ failure          |
-| `maxAttempts` | 5               | attempts for **one batch** before it is dropped |
+| Name              | Default         | Meaning                                            |
+| ----------------- | --------------- | -------------------------------------------------- |
+| `batchSize`       | 50              | entries per `peek`                                 |
+| `intervalMs`      | 60,000          | the tick                                           |
+| `backoffMs`       | `[5s, 30s, 2m]` | delay after the 1st, 2nd, 3rd+ failure             |
+| `maxAttempts`     | 5               | attempts for **one batch** before it is dropped    |
+| `selectTelemetry` | none            | which statistics in a drawn batch are sent — below |
 
 **The interval is the only trigger.** There is no `notify`, and the scheduler does not observe
 dispatched entries at all — which is what makes "the hub's subscribers are the listeners, and only
@@ -161,8 +191,9 @@ One cycle, in order:
 1. **Not running, or already in flight?** Return. The in-flight flag is held for the _whole_ cycle, not just the send: `peek` is non-destructive by contract, so two overlapping flushes would draw the same batch and send it twice.
 2. **`isEnabled()` false?** Re-arm and return — keep accumulating, just do not send.
 3. **`peek` threw?** Treat it as an empty cycle. Nothing was lost, because nothing was released.
-4. **Empty batch?** Skip the request entirely. An idle device would otherwise call the collector once per interval forever. The `peek` round trip itself still happens every cycle — a cached size cannot stand in for it, because in a hybrid run the app's store receives native-origin entries the web never saw.
-5. **`send(batch)`** answers an `UploadOutcome`.
+4. **`selectTelemetry`, when given**, sees only the statistics in the batch and returns the ones to send (re-stamped copies allowed, matched by `id`). The rest are acknowledged at once, unsent. See below.
+5. **Empty batch?** Skip the request entirely. An idle device would otherwise call the collector once per interval forever. The `peek` round trip itself still happens every cycle — a cached size cannot stand in for it, because in a hybrid run the app's store receives native-origin entries the web never saw.
+6. **`send(batch)`** answers an `UploadOutcome`.
 
 | Outcome     | Means                                               | Then                              |
 | ----------- | --------------------------------------------------- | --------------------------------- |
@@ -186,6 +217,16 @@ A failing `ack` is swallowed. The source still holds the entries, so the next cy
 resends them — at-least-once, which the server's id upsert absorbs. Throwing instead would abort the
 cycle without arming the next timer and stall the pipeline for good, trading a duplicate request for
 permanent silence.
+
+**`selectTelemetry` is how statistics are judged on the way out.** Two cases need it. A native
+statistic (`boot`) is recorded before anything in the process knows the sampling policy, so it is
+queued unjudged and the web uploader decides when it draws it; and the statistics kill switch has to
+empty what is already queued. Both are "acknowledge without sending", and both are limited to
+statistics by construction: the selector is never handed a log, so no policy bug can hold one back.
+A selector that throws sends the batch as drawn. A batch the selector empties entirely is
+acknowledged and the cycle draws again — up to ten times — so logs queued behind a run of unsampled
+statistics are not held back an interval per batch. `TelemetrySampler.selectForUpload` is the
+implementation — [docs/sampling/](../sampling/README.md).
 
 `onSettled` fires after every cycle that mutated the store. The owner persists there: removing a
 batch happens inside the scheduler, so without the hook the on-disk copy would still list entries the
@@ -231,3 +272,4 @@ vocabulary in their filenames.
 - [docs/pipeline/](../pipeline/README.md) — the listener that fills the queue, and why the uploader is not one
 - [docs/redaction/](../redaction/README.md) — what `send` puts on the wire
 - [docs/observations/](../observations/README.md) — how the queue's own losses get reported
+- [docs/sampling/](../sampling/README.md) — the selector that judges statistics as a batch is drawn

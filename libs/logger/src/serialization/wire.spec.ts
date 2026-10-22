@@ -22,6 +22,8 @@ describe('toWireLogEntry', () => {
 
         expect(wire).toEqual({
             id: 'e-1',
+            // Derived from the tag on the way out — the one key the wire adds to every entry.
+            area: 'test',
             runId: 'run-1',
             sid: 's-1',
             uid: 'u-1',
@@ -73,7 +75,7 @@ describe('toWireLogEntry', () => {
     it('설정되지 않은 필드는 아예 싣지 않는다', () => {
         const wire = toWireLogEntry(base);
 
-        expect(Object.keys(wire).sort()).toEqual(['id', 'level', 'message', 'tag', 'timestamp']);
+        expect(Object.keys(wire).sort()).toEqual(['area', 'id', 'level', 'message', 'tag', 'timestamp']);
     });
 
     it('계약에 없는 필드는 옮기지 않는다 — 서버가 뭐든 그대로 저장하기 때문', () => {
@@ -167,5 +169,98 @@ describe('toWireLogEntry — 자격증명 마스킹', () => {
         expect(wire.data).toContain('"hasPassword":false');
         expect(wire.data).toContain('"errorCode":409');
         expect(wire.data).not.toContain('[REDACTED]');
+    });
+});
+
+describe('toWireLogEntry — area, kind and structured fields', () => {
+    it('derives area from the part before the first dot', () => {
+        expect(toWireLogEntry({ ...base, tag: 'socket.reconnect_failed' }).area).toBe('socket');
+    });
+
+    it('lower-cases a dot-less legacy tag into its area, so old and new tags share one', () => {
+        expect(toWireLogEntry({ ...base, tag: 'SOCKET' }).area).toBe('socket');
+    });
+
+    it('leaves kind off a log, whether it was omitted or written as log', () => {
+        expect(toWireLogEntry(base)).not.toHaveProperty('kind');
+        expect(toWireLogEntry({ ...base, kind: 'log' })).not.toHaveProperty('kind');
+    });
+
+    it('sends the structured fields of a statistic as numbers and objects, not strings', () => {
+        const wire = toWireLogEntry({
+            ...base,
+            tag: 'perf.chat_room_open',
+            kind: 'trace',
+            durationMs: 381,
+            attrs: { entry: 'list', cache: 'miss' },
+            metrics: { mount: 327, message_count: 0 },
+            sr: 0.2,
+            pv: 7,
+            seq: 12,
+        });
+
+        expect(wire).toMatchObject({
+            area: 'perf',
+            kind: 'trace',
+            durationMs: 381,
+            attrs: { entry: 'list', cache: 'miss' },
+            metrics: { mount: 327, message_count: 0 },
+            sr: 0.2,
+            pv: 7,
+            seq: 12,
+        });
+        expect(typeof wire.durationMs).toBe('number');
+        expect(typeof wire.metrics?.mount).toBe('number');
+    });
+
+    it('drops the structured fields from a log entry that carries them by accident', () => {
+        const wire = toWireLogEntry({
+            ...base,
+            durationMs: 5,
+            attrs: { a: 'b' },
+            metrics: { m: 1 },
+            sr: 1,
+            pv: 1,
+            seq: 1,
+        });
+
+        for (const key of ['durationMs', 'attrs', 'metrics', 'sr', 'pv', 'seq']) expect(wire).not.toHaveProperty(key);
+    });
+
+    it('drops values of the wrong shape instead of storing them', () => {
+        const wire = toWireLogEntry({
+            ...base,
+            kind: 'sample',
+            durationMs: Number.NaN,
+            attrs: { ok: 'yes', '1bad': 'x', long: 'v'.repeat(150), num: 3 as unknown as string },
+            metrics: { whole: 3, frac: 1.5, inf: Number.POSITIVE_INFINITY, text: '4' as unknown as number },
+            sr: 1.5,
+            pv: 0.5,
+            seq: -1,
+        });
+
+        expect(wire).not.toHaveProperty('durationMs');
+        expect(wire.attrs).toEqual({ ok: 'yes', long: 'v'.repeat(100) });
+        expect(wire.metrics).toEqual({ whole: 3, frac: 2 });
+        expect(wire).not.toHaveProperty('sr');
+        expect(wire).not.toHaveProperty('pv');
+        expect(wire.seq).toBe(-1);
+    });
+
+    it('caps attrs at 16 and metrics at 32', () => {
+        const attrs = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`a${i}`, 'v']));
+        const metrics = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`m${i}`, i]));
+        const wire = toWireLogEntry({ ...base, kind: 'event', attrs, metrics });
+
+        expect(Object.keys(wire.attrs ?? {})).toHaveLength(16);
+        expect(Object.keys(wire.metrics ?? {})).toHaveLength(32);
+    });
+
+    it('carries httpStatus as a number and errorCode as a string on a log', () => {
+        const wire = toWireLogEntry({ ...base, level: 'error', httpStatus: 401, errorCode: 'TOKEN_EXPIRED' });
+
+        expect(wire.httpStatus).toBe(401);
+        expect(wire.errorCode).toBe('TOKEN_EXPIRED');
+        expect(wire).not.toHaveProperty('kind');
     });
 });

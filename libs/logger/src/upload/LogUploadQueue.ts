@@ -1,6 +1,7 @@
+import { isTelemetryEntry } from '../core/kind';
 import { createLogId } from '../core/logId';
 
-import type { LogEntry, LogLevel } from '../core/types';
+import type { LogEntry, LogLevel, TelemetryKind } from '../core/types';
 
 /**
  * The queue of entries not yet accepted by the server, and the package's only
@@ -15,6 +16,14 @@ import type { LogEntry, LogLevel } from '../core/types';
  * Pure by design — persistence and scheduling live outside. The queue only
  * decides what is in it, what a batch contains, and what to drop under
  * pressure.
+ *
+ * **One queue, two shares.** Statistics (`trace` · `sample` · `event`) ride the same queue as logs,
+ * but each kind of record is capped inside its own share and evicted only by its own kind. Left to
+ * one shared budget, the devices that log the most — the slow ones — would lose their measurements
+ * first, and every percentile would read better than the truth; the other way round, a burst of
+ * measurements would push out the `warn`/`error` lines the queue exists to keep. The log share keeps
+ * exactly the ceilings and drop order it always had. Shares are arithmetic over the one array:
+ * storage, batching and order are unchanged, and a batch mixes both kinds oldest first.
  */
 
 /** Entries kept before backpressure starts dropping. */
@@ -31,6 +40,18 @@ export const DEFAULT_QUEUE_CAPACITY = 500;
  * The count does the everyday work; this is the ceiling behind it.
  */
 export const DEFAULT_QUEUE_MAX_BYTES = 512 * 1024;
+
+/**
+ * The statistics share — its own ceilings, never charged against the log share above.
+ *
+ * The web default. The app keeps a smaller one ({@link APP_STAT_QUEUE_CAPACITY}) because MMKV holds
+ * its queue in memory as one value. Both are design values still to be measured against real runs.
+ */
+export const DEFAULT_STAT_QUEUE_CAPACITY = 500;
+export const DEFAULT_STAT_QUEUE_MAX_BYTES = 256 * 1024;
+/** The statistics share in the mobile app's queue. */
+export const APP_STAT_QUEUE_CAPACITY = 300;
+export const APP_STAT_QUEUE_MAX_BYTES = 160 * 1024;
 
 export interface LogUploadQueueOptions {
     capacity?: number;
@@ -49,8 +70,18 @@ export interface LogUploadQueueOptions {
      * means.
      */
     acceptDebug?: boolean;
-    /** Called when backpressure drops entries, so the owner can log one summary. */
+    /** Called when backpressure drops log entries, so the owner can log one summary. */
     onDrop?: (dropped: LogEntry[]) => void;
+    /** Entries kept in the statistics share before it starts dropping. */
+    statCapacity?: number;
+    /** Bytes kept in the statistics share before it starts dropping. */
+    statMaxBytes?: number;
+    /**
+     * Called when the statistics share drops entries. Separate from `onDrop` because the owner's
+     * answer differs: a lost log becomes one summary log line, a lost statistic becomes a count on
+     * the next `telemetry_dropped` sample — writing it as a log would spend the other share on it.
+     */
+    onStatDrop?: (dropped: LogEntry[]) => void;
 }
 
 /**
@@ -64,6 +95,17 @@ export interface LogUploadQueueOptions {
  */
 const DROP_PRIORITY: LogLevel[] = ['debug', 'info', 'warn', 'error'];
 
+/**
+ * Drop order inside the statistics share: `sample` first, then `trace`, then `event`, oldest first
+ * within a kind. Samples arrive in the largest numbers and each one matters least; events are what
+ * usage counts are built from, and losing one undercounts with nothing to correct it.
+ */
+const STAT_DROP_PRIORITY: TelemetryKind[] = ['sample', 'trace', 'event'];
+
+/** Unknown kinds (a newer runtime's) are dropped first, rather than escaping the ceiling. */
+const statRank = (entry: LogEntry): TelemetryKind =>
+    STAT_DROP_PRIORITY.includes(entry.kind as TelemetryKind) ? (entry.kind as TelemetryKind) : 'sample';
+
 /** Charged to an entry that cannot be measured, so it still counts against the budget. */
 const UNMEASURABLE_ENTRY_BYTES = 1024;
 
@@ -72,6 +114,9 @@ export class LogUploadQueue {
     private readonly maxBytes: number;
     private readonly acceptDebug: boolean;
     private readonly onDrop?: (dropped: LogEntry[]) => void;
+    private readonly statCapacity: number;
+    private readonly statMaxBytes: number;
+    private readonly onStatDrop?: (dropped: LogEntry[]) => void;
     private entries: LogEntry[] = [];
     /**
      * Entries this queue has evicted under backpressure, cumulative for the run.
@@ -84,8 +129,12 @@ export class LogUploadQueue {
      *
      * Never reset. A running total is what lets a reader that arrives late, or
      * whose own entry gets dropped, still report the truth.
+     *
+     * Log share only, as it always was; the statistics share counts its own below.
      */
     private droppedEntries = 0;
+    /** Entries the statistics share has evicted, cumulative for the run. Never reset, for the same reason. */
+    private droppedStatEntries = 0;
     /**
      * Measured size per entry, so the byte total costs one serialization per
      * entry rather than one per check. Weak so a dropped entry's measurement
@@ -98,6 +147,9 @@ export class LogUploadQueue {
         this.maxBytes = options.maxBytes ?? DEFAULT_QUEUE_MAX_BYTES;
         this.acceptDebug = options.acceptDebug ?? false;
         this.onDrop = options.onDrop;
+        this.statCapacity = options.statCapacity ?? DEFAULT_STAT_QUEUE_CAPACITY;
+        this.statMaxBytes = options.statMaxBytes ?? DEFAULT_STAT_QUEUE_MAX_BYTES;
+        this.onStatDrop = options.onStatDrop;
     }
 
     /** Appends an entry, dropping under backpressure when over capacity. */
@@ -188,24 +240,50 @@ export class LogUploadQueue {
         return this.entries.length;
     }
 
-    /** Entries lost to backpressure so far this run. */
+    /** Statistics entries held right now. */
+    public statSize(): number {
+        return this.entries.filter(isTelemetryEntry).length;
+    }
+
+    /** Log entries lost to backpressure so far this run. */
     public droppedCount(): number {
         return this.droppedEntries;
     }
 
+    /** Statistics entries lost to backpressure so far this run. */
+    public droppedStatCount(): number {
+        return this.droppedStatEntries;
+    }
+
     /**
-     * Slots left before backpressure starts dropping.
+     * Slots left in the log share before backpressure starts dropping.
      *
      * A destructive producer (the native bridge `poll`) must ask before it
      * drains: entries it hands over beyond this are evicted here while already
      * being gone from its own buffer, which destroys them outright.
+     *
+     * The log share's, because that is what such a producer has always handed over; statistics
+     * held here do not use up its room.
      */
     public headroom(): number {
-        return Math.max(0, this.capacity - this.entries.length);
+        return Math.max(0, this.capacity - (this.entries.length - this.statSize()));
+    }
+
+    /** Slots left in the statistics share. */
+    public statHeadroom(): number {
+        return Math.max(0, this.statCapacity - this.statSize());
     }
 
     public clear(): void {
         this.entries = [];
+    }
+
+    /**
+     * Discards every statistics entry and leaves the logs alone — the statistics kill switch. Not
+     * counted as a drop: nothing was squeezed out, the policy withdrew them.
+     */
+    public clearStats(): void {
+        this.entries = this.entries.filter(entry => !isTelemetryEntry(entry));
     }
 
     /**
@@ -233,41 +311,68 @@ export class LogUploadQueue {
         return size;
     }
 
-    private totalBytes(): number {
-        return this.entries.reduce((sum, entry) => sum + this.sizeOf(entry), 0);
+    private bytesOf(members: LogEntry[]): number {
+        return members.reduce((sum, entry) => sum + this.sizeOf(entry), 0);
     }
 
-    private enforceCapacity(): void {
-        let bytes = this.totalBytes();
-        if (this.entries.length <= this.capacity && bytes <= this.maxBytes) return;
-
-        const overflow = this.entries.length - this.capacity;
+    /**
+     * Marks what one share must lose to fit both of its ceilings.
+     *
+     * Each share runs this over its own members only, which is the whole guarantee that neither
+     * share evicts the other. For the log share it is the same walk the queue has always made.
+     */
+    private overflowOf<K>(
+        members: LogEntry[],
+        capacity: number,
+        maxBytes: number,
+        order: K[],
+        rank: (entry: LogEntry) => K | undefined
+    ): Set<LogEntry> {
         const doomed = new Set<LogEntry>();
+        let bytes = this.bytesOf(members);
+        if (members.length <= capacity && bytes <= maxBytes) return doomed;
+
+        const overflow = members.length - capacity;
 
         // Both axes have to come back under, so a pass stops only when the count
         // fits AND the bytes do. `over()` is re-read as entries are marked
         // because dropping one large entry can satisfy the byte axis on its own.
-        const over = () => doomed.size < overflow || bytes > this.maxBytes;
+        const over = () => doomed.size < overflow || bytes > maxBytes;
 
-        // Walk levels cheapest-to-lose first; within a level the oldest go.
-        for (const level of DROP_PRIORITY) {
+        // Walk the ranks cheapest-to-lose first; within a rank the oldest go.
+        for (const key of order) {
             if (!over()) break;
-            for (const entry of this.entries) {
+            for (const entry of members) {
                 if (!over()) break;
-                if (entry.level !== level || doomed.has(entry)) continue;
+                if (rank(entry) !== key || doomed.has(entry)) continue;
                 doomed.add(entry);
                 bytes -= this.sizeOf(entry);
             }
         }
 
-        const dropped = this.entries.filter(entry => doomed.has(entry));
-        this.entries = this.entries.filter(entry => !doomed.has(entry));
+        return doomed;
+    }
 
-        this.droppedEntries += dropped.length;
+    private enforceCapacity(): void {
+        const logs: LogEntry[] = [];
+        const stats: LogEntry[] = [];
+        for (const entry of this.entries) (isTelemetryEntry(entry) ? stats : logs).push(entry);
+
+        const doomedLogs = this.overflowOf(logs, this.capacity, this.maxBytes, DROP_PRIORITY, entry => entry.level);
+        const doomedStats = this.overflowOf(stats, this.statCapacity, this.statMaxBytes, STAT_DROP_PRIORITY, statRank);
+        if (!doomedLogs.size && !doomedStats.size) return;
+
+        const droppedLogs = logs.filter(entry => doomedLogs.has(entry));
+        const droppedStats = stats.filter(entry => doomedStats.has(entry));
+        this.entries = this.entries.filter(entry => !doomedLogs.has(entry) && !doomedStats.has(entry));
+
+        this.droppedEntries += droppedLogs.length;
+        this.droppedStatEntries += droppedStats.length;
 
         // One summary per drop event — the queue's own failures must never
         // become a log storm of their own.
-        if (dropped.length) this.onDrop?.(dropped);
+        if (droppedLogs.length) this.onDrop?.(droppedLogs);
+        if (droppedStats.length) this.onStatDrop?.(droppedStats);
     }
 }
 
