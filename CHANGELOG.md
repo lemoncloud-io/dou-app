@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-22] - No version updates
+
+### Bug Fixes
+
+- (app-runtime,data,web,desktop-web) read and rename clouds on the relay (ADR-0221)
+
 ## [2026-10-21] - root@0.110.0, @chatic/desktop-web@0.35.0
 
 ### Features
