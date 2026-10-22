@@ -138,6 +138,11 @@ The network log sink redacts and truncates **key by key**. That is not stylistic
 where the library deliberately omits it, and a present-but-undefined key reads differently
 downstream.
 
+On a failure the sink also lifts the status onto the log entry's own `httpStatus`, and a transport
+code (`ERR_NETWORK`) onto `errorCode`, so the server can filter on them — inside `data` they arrive
+as part of a capped string. `data` still carries both. `errorCode` is left off when it only restates
+the status, which is what `@chatic/http` reports whenever a response came back.
+
 ## Usage
 
 Apps do not call into this folder. `data/factories/httpFactory.ts` builds its data sources over the
