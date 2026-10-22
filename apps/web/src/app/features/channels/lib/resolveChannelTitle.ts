@@ -2,7 +2,7 @@ import type { DomainChannel } from '@chatic/data';
 
 import { resolveDmTitle } from '../utils/dmTitle';
 import { resolveSelfChatTitle } from '../utils/selfChatTitle';
-import { dmLineageOf } from './channelStereoPolicy';
+import { dmLineageOf, resolveDmPeerName } from './channelStereoPolicy';
 
 export interface ResolveChannelTitleInput {
     channel: DomainChannel;
@@ -14,6 +14,11 @@ export interface ResolveChannelTitleInput {
     myNick?: string;
     /** The DM peer's place-profile nick (from `useDmPeers`) — ignored for non-DM channels. */
     peerNick?: string;
+    /**
+     * The DM peer's cloud-profile name (`DmPeer.cloudName`) — read for a cloud 1:1 only, below the
+     * place-profile nick. Ignored for every other channel.
+     */
+    peerCloudName?: string;
     /** Localized "self-chat" label. */
     selfLabel: string;
     /** Localized fallback for a channel with no name. */
@@ -26,8 +31,9 @@ export interface ResolveChannelTitleInput {
  * Display title for a channel row, shared by the home list and the chat-room management list so
  * the two can't drift apart:
  *   - self  → the self-chat title chain (join nick → embedded `$join` nick → profile nick → label)
- *   - dm    → the DM chain (my join nick → peer profile nick → channel.name → label; ADR-0039),
- *             with step 1 dropped for a cloud 1:1 — see the note at that branch
+ *   - dm    → the DM chain (my join nick → peer profile nick → channel.name → label).
+ *             A cloud 1:1 drops step 1 and adds the peer's cloud-profile name after their place
+ *             profile — see the notes at that branch
  *   - group → the owner-set `channel.name`, for owner and member alike
  *
  * A group ignores my join nick whatever my role. A push names a group by its shared name — the
@@ -45,6 +51,7 @@ export const resolveChannelTitle = ({
     joinNick,
     myNick,
     peerNick,
+    peerCloudName,
     selfLabel,
     unnamedLabel,
     dmUnnamedLabel,
@@ -74,10 +81,17 @@ export const resolveChannelTitle = ({
          * server to stop seeding the field, or to say whether a value was user-set; until then the
          * client cannot tell, and guessing from the string is what failed.
          */
-        const trustJoinNick = dmLineageOf(channel) !== 'cloud';
+        const isCloud = dmLineageOf(channel) === 'cloud';
         return resolveDmTitle({
-            joinNick: trustJoinNick ? (joinNick ?? channel.$join?.nick) : undefined,
-            peerNick,
+            joinNick: isCloud ? undefined : (joinNick ?? channel.$join?.nick),
+            // **A cloud 1:1 names a peer with no place profile by their cloud profile.** A member
+            // need not set up a profile in every place of a cloud, and the server no longer writes an
+            // alias into `join.nick` for a room the app opens — so the chain fell to the "대화 상대"
+            // label for exactly the people the 1:1 picker had just listed by name. The picker, the
+            // room's messages and its member list all read the user record already; the title was the
+            // one surface that did not. Desktop names a 1:1 peer the same way. The rule lives in
+            // `resolveDmPeerName`, which the room's intro reads too.
+            peerNick: resolveDmPeerName(channel, { profileNick: peerNick, cloudName: peerCloudName }),
             channelName: channel.name,
             unnamedLabel: dmUnnamedLabel,
             selfUserId: uid,

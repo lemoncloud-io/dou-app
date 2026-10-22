@@ -41,7 +41,14 @@ import { ReactionDetailSheet } from '../components/ReactionDetailSheet';
 import { RoomIntro } from '../components/RoomIntro';
 import { RoomSkeleton } from '../components/RoomSkeleton';
 import { StackInRow } from '../components/StackInRow';
-import { canStartDmFromProfile, channelKindOf, hasDmInviteFlow, profilePlaceOf, resolveChannelAvatar } from '../lib';
+import {
+    canStartDmFromProfile,
+    channelKindOf,
+    hasDmInviteFlow,
+    profilePlaceOf,
+    resolveChannelAvatar,
+    resolveDmPeerName,
+} from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import { pickDmPeerId } from '../utils/dmPeer';
 import { isChannelMember, isNotMyChannel, isSomeoneElsesSelfChat } from '../utils/membership';
@@ -306,7 +313,8 @@ export const ChannelRoomPage = () => {
     // The header participant stack is group-only; self / 1:1 DM headers stay single-line.
     const isGroupChat = channelKind === 'group';
     // DM peer (the other participant) for the header title/avatar — resolved from the roster, nick
-    // from the site profile only. Null for non-DM channels.
+    // from the site profile, `cloudName` from their member record (a cloud 1:1's title and intro
+    // read it). Null for non-DM channels.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
 
     // The `@` lookup is a group room's alone: a 1:1 always notifies and has one person to call, and a
@@ -363,7 +371,11 @@ export const ChannelRoomPage = () => {
     // immediately or the header disagrees with every other surface.
     // One title chain for every surface (see useChannelTitle): the header must read exactly what
     // the home list row reads, so neither the branch nor the fallback label lives here.
-    const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
+    const roomTitle = useChannelTitle(channel, {
+        joinNick: myJoin?.nick,
+        peerNick: dmPeer?.profileNick,
+        peerCloudName: dmPeer?.cloudName,
+    });
     // Whether there is still somebody on the other side, and where their invite stands (ADR-0068).
     // `present` for every room with no invite behind it — a group, a self chat, and a cloud 1:1 —
     // and the invite read stands itself down there, so none of them costs anything here.
@@ -1084,7 +1096,7 @@ export const ChannelRoomPage = () => {
     const roomIntro = (
         <RoomIntro
             variant={isSelfChat ? 'self' : isDmChat ? 'dm' : 'group'}
-            peerNick={dmPeer?.profileNick}
+            peerNick={resolveDmPeerName(channel, dmPeer)}
             isGroupOwner={isGroupChat && channel?.ownerId === userId}
             onInvite={
                 !isGuest && isCloudActive

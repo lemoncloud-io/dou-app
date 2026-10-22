@@ -8,6 +8,7 @@ import {
     isInCloudSelfSection,
     profilePlaceOf,
     removalActionFor,
+    resolveDmPeerName,
     showsMemberCount,
 } from './channelStereoPolicy';
 
@@ -192,5 +193,28 @@ describe('canStartDmFromProfile', () => {
         expect(canStartDmFromProfile({ ...base, memberId: 'me' })).toBe(false);
         expect(canStartDmFromProfile({ ...base, memberId: '' })).toBe(false);
         expect(canStartDmFromProfile({ ...base, room: null })).toBe(false);
+    });
+});
+
+describe('resolveDmPeerName', () => {
+    const cloudDm = { stereo: 'dm', cid: '1000001' } as DomainChannel;
+    const relayDm = { stereo: 'dm', cid: 'default' } as DomainChannel;
+
+    it('prefers the place-profile nick on either lineage', () => {
+        expect(resolveDmPeerName(cloudDm, { profileNick: 'webB', cloudName: '레인' })).toBe('webB');
+        expect(resolveDmPeerName(relayDm, { profileNick: '토끼', cloudName: '레인' })).toBe('토끼');
+    });
+
+    it("falls back to a cloud 1:1 peer's cloud-profile name", () => {
+        expect(resolveDmPeerName(cloudDm, { cloudName: '임마' })).toBe('임마');
+    });
+
+    it('gives a relay 1:1 no name without a place profile, so the intro stays name-free', () => {
+        expect(resolveDmPeerName(relayDm, { cloudName: '임마' })).toBeUndefined();
+    });
+
+    it('gives no name when there is no peer or every name is blank', () => {
+        expect(resolveDmPeerName(cloudDm, null)).toBeUndefined();
+        expect(resolveDmPeerName(cloudDm, { profileNick: '  ', cloudName: ' ' })).toBeUndefined();
     });
 });

@@ -9,11 +9,13 @@ import { logger } from '@chatic/bridges';
 import { unreadOf } from '../../../utils/countUnread';
 import {
     channelKindOf,
+    dmLineageOf,
     resolveChannelAvatar,
     resolveChannelTitle,
     showsMemberCount,
     type ChannelAvatarGlyph,
 } from '../../channels/lib';
+import { usePeerCloudNames, type CloudDmPeerRef } from '../../channels/hooks/usePeerCloudNames';
 import { pickDmPeerId } from '../../channels/utils/dmPeer';
 import { lastChatPreview } from '../../channels/utils/lastChatPreview';
 import { messageSearchText } from '../../channels/utils/messagePlainText';
@@ -202,6 +204,21 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
     const profileRefs = useMemo(() => [...senderRefs, ...peerRefs], [senderRefs, peerRefs]);
     const senderProfiles = useSenderProfiles(profileRefs);
 
+    // A cloud 1:1 whose peer has no profile in its place is named by their cloud profile, as on home —
+    // the search is scoped to the selected cloud, the one whose user cache this reads.
+    const cloudPeerRows = useMemo<CloudDmPeerRef[]>(
+        () =>
+            results.channels.flatMap(channel => {
+                if (dmLineageOf(channel) !== 'cloud') return [];
+                const peerId = pickDmPeerId(channel.memberIds ?? [], uid);
+                if (!peerId) return [];
+                const profileNick = channel.sid ? senderProfiles.get(`${channel.sid}@${peerId}`)?.nick : undefined;
+                return [{ channelId: channel.id, cid: channel.cid, peerId, profileNick }];
+            }),
+        [results.channels, uid, senderProfiles]
+    );
+    const peerCloudNames = usePeerCloudNames(cloudPeerRows);
+
     return useMemo(() => {
         const placeName = (cid: string, sid?: string) =>
             sid ? context.sitesByRef[runtime.data.globalCacheRefKey(cid, sid)]?.name : undefined;
@@ -234,6 +251,7 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                     uid: uid ?? undefined,
                     joinNick,
                     peerNick: peer?.nick,
+                    peerCloudName: peerId ? peerCloudNames.get(peerId) : undefined,
                     selfLabel: t('channelList.selfChannel'),
                     unnamedLabel: t('channelList.unnamedChannel'),
                     dmUnnamedLabel: t('chat.dm.unnamedPeer'),
@@ -317,5 +335,5 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
                     };
                 }),
         };
-    }, [results, context, senderProfiles, t, uid]);
+    }, [results, context, senderProfiles, peerCloudNames, t, uid]);
 };

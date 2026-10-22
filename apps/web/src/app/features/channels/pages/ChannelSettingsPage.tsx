@@ -224,7 +224,11 @@ export const ChannelSettingsPage = () => {
     // room title are resolved here; the plain type flags derived from them stay past the return.
     const dmPeer = useDmPeer(channel, members, profileMap, userId);
     // The same chain the room header and the home list use — settings must not invent a third one.
-    const roomTitle = useChannelTitle(channel, { joinNick: myJoin?.nick, peerNick: dmPeer?.profileNick });
+    const roomTitle = useChannelTitle(channel, {
+        joinNick: myJoin?.nick,
+        peerNick: dmPeer?.profileNick,
+        peerCloudName: dmPeer?.cloudName,
+    });
     // The same derivation the room's footer runs, so the friend sheet's "대화방 나감" line and its
     // re-invite prefill cannot disagree with what the room just said. It reads the same lineage the
     // room does, for the same reason: a cloud 1:1 has no invite to prefill and no number to send one

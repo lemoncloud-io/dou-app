@@ -148,6 +148,7 @@ const ChannelItem = ({
         joinNick,
         myNick,
         peerNick: dmPeer?.profileNick,
+        peerCloudName: dmPeer?.cloudName,
         selfLabel: t('channelList.selfChannel'),
         unnamedLabel: t('channelList.unnamedChannel'),
         dmUnnamedLabel: t('chat.dm.unnamedPeer'),

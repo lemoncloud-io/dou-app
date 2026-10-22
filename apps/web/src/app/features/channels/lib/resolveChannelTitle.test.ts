@@ -160,6 +160,40 @@ describe('resolveChannelTitle', () => {
             ).toBe('대화 상대');
         });
 
+        // A member need not set up a profile in every place, and a new cloud 1:1 carries no
+        // `join.nick` — so without the cloud profile this read as the label while the picker that
+        // opened the room had just named the person.
+        it('names a peer with no place profile by their cloud-profile name', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'dm', cid: '1000001' }),
+                uid: 'me',
+                peerCloudName: '임마',
+                ...labels,
+            });
+            expect(title).toBe('임마');
+        });
+
+        it('keeps the place-profile nick above the cloud-profile name', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'dm', cid: '1000001' }),
+                uid: 'me',
+                peerNick: 'webB',
+                peerCloudName: '레인',
+                ...labels,
+            });
+            expect(title).toBe('webB');
+        });
+
+        it('keeps the cloud-profile name above channel.name', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'dm', cid: '1000001', name: '서버 이름' }),
+                uid: 'me',
+                peerCloudName: '임마',
+                ...labels,
+            });
+            expect(title).toBe('임마');
+        });
+
         // The relay side types that name on the invite form, so it is a real choice and survives.
         it('중계 1:1의 join nick은 그대로 이긴다 — 비목표 보호', () => {
             const title = resolveChannelTitle({
@@ -170,6 +204,29 @@ describe('resolveChannelTitle', () => {
                 ...labels,
             });
             expect(title).toBe('토끼친구');
+        });
+    });
+
+    describe('cloud-profile name outside a cloud 1:1', () => {
+        // A relay record is mostly a phone placeholder, and a relay 1:1 is named at the invite form.
+        it('is not read for a relay 1:1', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'dm', cid: 'default', sid: 'S:relay' }),
+                uid: 'me',
+                peerCloudName: '임마',
+                ...labels,
+            });
+            expect(title).toBe('대화 상대');
+        });
+
+        it('is not read for a group room', () => {
+            const title = resolveChannelTitle({
+                channel: channel({ stereo: 'private', cid: '1000001' }),
+                uid: 'me',
+                peerCloudName: '임마',
+                ...labels,
+            });
+            expect(title).toBe('이름 없는 채팅방');
         });
     });
 
