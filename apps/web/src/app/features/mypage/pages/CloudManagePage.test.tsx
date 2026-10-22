@@ -21,6 +21,7 @@ jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }
 // The app barrel behind `PageHeader` drags the runtime in; the header is a title here.
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
+jest.mock('../../../hooks/useCachedCloudNames', () => ({ useCachedCloudNames: () => ({}) }));
 jest.mock('../../../hooks/useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds, isPendingClouds: false }),
 }));

@@ -41,17 +41,17 @@ into it used to be refused and then offer Try again, which could never work.
 
 The switcher's menu offers "Rename cloud" only while you are in a cloud you own (`canRename`), and it
 renames that cloud — never Home, an invited cloud, a lapsed one, or an owned cloud you are not in.
-`cloud.update` goes out on the active slot's socket, so renaming another cloud
-would send its id down this cloud's connection and write its row into this cloud's cache; apps/web
-likewise edits only the active cloud. Names are 2 to 30 characters, as on web. It opens
-`RenameCloudDialog`, a one-line field shaped like `RenameChannelDialog`. `useRenameCloud`
+The menu acts on the cloud you are in; any other owned cloud is renamed from its account hub
+(`CloudHubPage`). Both send `cloud.update` to the relay, which owns the cloud's catalog row, so
+the rename does not depend on which cloud is active. Names are 2 to 20 characters (web takes 1 to
+20). It opens `RenameCloudDialog`, a one-line field shaped like `RenameChannelDialog`. `useRenameCloud`
 (`shared/hooks/useRenameCloud.ts`) writes through `CloudRepository.updateCloud`, which also rewrites
 the cached cloud row, and patches the new name into the relay catalog query the owned rows read.
 The tile, the row and its label change at once, without waiting for the broker list to catch up.
 
 A cloud's name has two sources, and for an owned cloud the local one wins. The relay catalog lists
-the cloud with a name that can lag a rename by a while, so after a reload it may still show the old
-one. A rename also writes the new name into the local cloud cache (one global partition, kept across
+the cloud with a name that can lag a rename for a moment, so a read made straight after it may still
+show the old one. A rename also writes the new name into the local cloud cache (one global partition, kept across
 reloads), which `useClouds` observes: when that row carries a name, the switcher uses it instead of the
 catalog's. With no cached name the catalog's name stands, and an invited cloud keeps reading only
 its own cache row. The cache row is overwritten when `cloud.get` runs for that cloud, which the

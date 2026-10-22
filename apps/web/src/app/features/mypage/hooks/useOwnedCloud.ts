@@ -1,6 +1,6 @@
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
-import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
+import { useOwnedClouds } from './useOwnedClouds';
 
 export interface OwnedCloudLookup {
     /** The catalog row, or undefined while the catalog is pending or when the id is not mine. */
@@ -10,7 +10,7 @@ export interface OwnedCloudLookup {
 }
 
 /**
- * One owned cloud by id, from the relay catalog.
+ * One owned cloud by id, from the relay catalog (named as `useOwnedClouds` names it).
  *
  * The catalog lists owned clouds only (`view: 'mine'`), so presence in it IS the ownership check —
  * the same signal `useActiveCloudOwnership` reads for the active cloud, applied to the cloud a
@@ -18,7 +18,7 @@ export interface OwnedCloudLookup {
  * cloud the user does not own (or a stale link) and should leave.
  */
 export const useOwnedCloud = (cloudId: string | undefined): OwnedCloudLookup => {
-    const { clouds, hasCloudCatalog } = useCloudSessionCatalog();
+    const { clouds, hasCloudCatalog } = useOwnedClouds();
     return {
         cloud: cloudId ? clouds.find(cloud => cloud.id === cloudId) : undefined,
         isResolved: hasCloudCatalog,

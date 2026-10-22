@@ -269,7 +269,7 @@ describe('CloudSwitcher rename', () => {
         expect((screen.getByLabelText(i18next.t('cloud.rename.nameLabel')) as HTMLInputElement).value).toBe('Studio');
     });
 
-    // cloud.update rides the active socket, so only the active cloud can be renamed.
+    // The menu acts on the cloud you are in, so only the active cloud is offered for rename.
     it.each([
         ['an owned cloud that is not active', 'default'],
         ['a lapsed owned cloud', 'lapsed'],

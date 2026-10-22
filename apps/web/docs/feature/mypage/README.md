@@ -128,21 +128,25 @@ figure, the current plan card — is composed from [subscription](../subscriptio
 (`CloudManageBanner`, `CurrentPlanCard`, `useCloudManageScene`, `useCloudQuota`); this feature
 derives nothing about the membership itself. A row's badge comes from `resolveCloudRowState` in
 `app/utils`, and its name from `cloudDisplayName` beside it — the same two home's switcher draws,
-so a cloud never reads one way in the sheet and another here. The add button raises `stores/useAddCloudRequest` like home does, and is away
+so a cloud never reads one way in the sheet and another here. The rows come from `useOwnedClouds`,
+which lets a locally cached name win over the catalog's, as home's header does: the catalog re-reads
+on every mount, and the relay can still answer with the old name for a moment after a rename, which
+is exactly when closing the profile screen remounts these screens. The add button raises `stores/useAddCloudRequest` like home does, and is away
 while a banner is up — that is the state in which the server would refuse the cloud, and the
 banner is what explains it.
 
 A row opens the cloud's hub, which fans out into three screens that follow the `place` vocabulary:
 `edit` writes, `detail` reads (the word `info` is not used — it reads as both), `places` lists.
 
-**Two of them switch into the cloud first.** The rename is the cloud's own socket action
-(`cloud.update`), and the place list is the cloud's own cache, filled by its own sync — the relay
-holds the catalog row and nothing below it. So `CloudEditPage` and `CloudPlacesPage` call
+**Only the places screen switches into the cloud.** The place list is the cloud's own cache, filled
+by its own sync — the relay holds the catalog row and nothing below it. So `CloudPlacesPage` calls
 `useEnsureCloudSession`, which switches the whole app into the cloud on entry (once per cloud id,
 with a retry on failure) and keeps the user there afterwards; `CloudSessionGate` holds the body until
-it is live. The hub disables those two rows for a cloud that has no session to switch to — one
-still provisioning, one that failed, one the relay holds — and keeps the information screen, which
-is where that state is explained and where the cloud is released.
+it is live. The rename does not switch: `cloud.update` is sent to the relay whichever cloud is
+active, because the name it changes is that catalog row, so `CloudEditPage` edits from wherever the
+session already is. The hub still disables both rows for a cloud that is not ready to be entered —
+one still provisioning, one that failed, one the relay holds — and keeps the information screen,
+which is where that state is explained and where the cloud is released.
 
 **Releasing lives on the information screen, nowhere else.** It is irreversible and cascades, so it
 sits at the foot of the read-only facts behind a confirm, not on a list row. Releasing the ACTIVE
@@ -221,8 +225,8 @@ because they have no nav.
 
 The feature exports its route table, which the router mounts under `/mypage/*`. Screens read state
 through hooks and never touch a core object: `useIsAccountGuest` for the hub's branch, `useMyUser`
-for the account profile, `useCloudSessionCatalog` / `useClouds` for owned clouds (`useOwnedCloud`
-narrows that to the cloud a URL names), `useEnsureCloudSession` to make that cloud the live session,
+for the account profile, `useOwnedClouds` for owned clouds (the catalog with cached names over it;
+`useOwnedCloud` narrows that to the cloud a URL names), `useEnsureCloudSession` to make that cloud the live session (the places screen),
 `useActiveCloudPlaces` for its places, `runtime.session.useSessionSelection` and `useRuntimeProfile`
 for the session, `useDevicePushMute` for the mute toggle, `useLanguagePreference` for the language
 sheet and `useClearLocalCaches` for the clear-cache row.
@@ -242,11 +246,11 @@ sheet and `useClearLocalCaches` for the clear-cache row.
 
 ## Notes for implementers and tests
 
-- **Fourteen specs cover this feature**, and they cover the hooks and the pure parts rather than the
+- **Sixteen specs cover this feature**, and they cover the hooks and the pure parts rather than the
   screens: `useAppIcon`, `useClearLocalCaches`, `useDevicePushMute`, `useEnsureCloudSession`,
-  `useLanguagePreference`, `useSocialLinks`, `useUpdateProfile`, `cloudStatusWord`, plus
-  `AccountLinkSection`, `CloudManageRow`, `CloudManagePage`, `CloudHubPage`, `CloudDetailPage` and `LoginPage`. The
-  pages themselves are checked in the browser preview.
+  `useLanguagePreference`, `useOwnedClouds`, `useSocialLinks`, `useUpdateProfile`, `cloudStatusWord`, plus
+  `AccountLinkSection`, `CloudManageRow`, `CloudManagePage`, `CloudHubPage`, `CloudEditPage`,
+  `CloudDetailPage` and `LoginPage`. The other pages are checked in the browser preview.
 
     ```bash
     npx jest --config apps/web/jest.config.js features/mypage

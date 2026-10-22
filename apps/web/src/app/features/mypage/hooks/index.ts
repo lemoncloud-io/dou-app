@@ -7,3 +7,4 @@ export * from './useLanguagePreference';
 export * from './useClearLocalCaches';
 export * from './useEnsureCloudSession';
 export * from './useOwnedCloud';
+export * from './useOwnedClouds';

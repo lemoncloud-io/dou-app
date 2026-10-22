@@ -16,11 +16,11 @@ export interface EnsureCloudSession {
 /**
  * Makes the cloud a management screen is about the ACTIVE session, switching into it if it is not.
  *
- * Cloud management addresses a cloud by URL, but two of its screens can only work through that
- * cloud's own session: the rename goes over its socket (`cloud.update`), and the place list is
- * that cloud's cache, filled by that cloud's sync. The relay has neither — it holds the catalog
- * row and nothing below it — so a screen that needs more switches first, the same way an invite
- * does, and keeps the user there afterwards. The switch is the whole app's switch, not a private
+ * Cloud management addresses a cloud by URL, but its place list can only work through that cloud's
+ * own session: the list is that cloud's cache, filled by that cloud's sync. The relay holds the
+ * catalog row and nothing below it, so a screen that needs more switches first, the same way an
+ * invite does, and keeps the user there afterwards. (The rename needs no switch: it changes the
+ * catalog row, and goes to the relay.) The switch is the whole app's switch, not a private
  * one for the screen: leaving the screen does not switch back.
  *
  * One attempt per cloud id. `isCloudActive` can read false for a beat while the switch commits,

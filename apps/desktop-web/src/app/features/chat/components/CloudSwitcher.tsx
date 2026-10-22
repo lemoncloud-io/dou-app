@@ -41,9 +41,9 @@ import {
 import { RenameCloudDialog } from './RenameCloudDialog';
 
 /**
- * Only the active, open cloud of yours can be renamed here: `cloud.update` goes out on the active
- * slot's socket, so renaming another cloud would send its id down this cloud's connection and
- * write its row into this cloud's cache. A lapsed cloud cannot be opened, let alone edited.
+ * The menu acts on the cloud you are in, so it renames only the active, open cloud of yours. Any
+ * other owned cloud is renamed from its account hub. A lapsed cloud cannot be opened, let alone
+ * edited.
  */
 const canRename = (cloud: RailCloud, activeCloudId: string | null): boolean =>
     cloud.kind === 'owned' && cloud.id === activeCloudId && !isLapsedCloud(cloud);

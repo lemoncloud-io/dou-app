@@ -41,7 +41,7 @@ Design points:
 
 - **Join** takes `join.update` from the first-class `JoinGateway` and folds in `chat.read`. Nothing in the app reads a single join or joins a channel through this layer, so `join.get` and `channel.join` are left out.
 - **Place** adds `UserGateway.mySite` for listing on top of `PlaceGateway`'s `create` / `update` / `delete` / `leave` / `get`. `get` is read for one question only — whether a place has been deleted (404). `leave` is `place.leave`, one action for two callers: with `id` alone I leave the place, with a `userId` as well the place owner removes that member. The Site domain was unified into Place, and the physical cache slot reuses the existing `site` ([scope and cache slots](../local/README.md#scope-and-cache-slots)).
-- **Cloud** exposes `get` / `update` only. `cloud.create` and `cloud.delete` are not in the bundle — a cloud is made and released over HTTP.
+- **Cloud** exposes `get` / `update` only. `cloud.create` and `cloud.delete` are not in the bundle — a cloud is made and released over HTTP. Both are pinned to the relay → [routing](#routing--where-a-call-is-sent).
 - **User** includes the account profile (`user.profile`). The site (place) profile is a separate domain, owned entirely by `ProfileSocketDomainGateway`.
 - **User** also takes `place.list-user`, as `listPlaceUser`. The bundle a call joins is decided by what it answers, not by its wire module: the place's members are users, as `channel.list-user`'s are, so both sit here rather than under Place (which in turn takes `user.mySite` because that answers places).
 - **Auth**'s `linkAccount` is the unified account-proof packet: phone/email/social × link/login × send/resend/verify/confirm in one. Three things are left out of it, all deliberately → [where absence is the contract](#where-absence-is-the-contract).
@@ -87,10 +87,11 @@ Most gateways are bound to a single active slot. There are two exceptions.
 **① The composition root pins the slot.** `socketFactory` binds them to the relay client at construction
 time. These are domains that must not follow the active cloud.
 
-| Pinned                    | Slot    | Why                                                                                                              |
-| ------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------- |
-| `auth.linkAccount`        | `relay` | The main user the identity packet resolves to lives in the central backend behind the relay (ADR-0089, ADR-0042) |
-| the whole `invite` bundle | `relay` | 1:1 DM invite codes are issued and redeemed on the relay (ADR-0089)                                              |
+| Pinned                    | Slot    | Why                                                                                                                                                                                 |
+| ------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth.linkAccount`        | `relay` | The main user the identity packet resolves to lives in the central backend behind the relay (ADR-0089, ADR-0042)                                                                    |
+| the whole `invite` bundle | `relay` | 1:1 DM invite codes are issued and redeemed on the relay (ADR-0089)                                                                                                                 |
+| the whole `cloud` bundle  | `relay` | A cloud's name lives on its catalog row, which the relay's backend owns. A cloud server's own copy of that row is never synced with it, so neither `get` nor `update` is sent there |
 
 **② `RoutedGateway` lets the destination be chosen at call time.** Only `device` uses this. The same
 gateway is bound once per slot, and the data source picks the destination.
@@ -124,7 +125,7 @@ The wiring itself belongs to
 | `UserSocketDataSource`       | `fetchUsers()` (`channel.listUser`), `fetchPlaceUsers()` (`place.listUser` — one page, `photo` moved to `thumbnail`), `syncChannelUsers()` (`channel.syncUsers`), `getMyProfile()` (`user.profile`), `updateProfile()` (`user.update`), `requestInvite()` (`user.invite`), `inviteBatch()` |
 | `InviteSocketDataSource`     | `listInvites()`, `createInvite()`, `getInvite()`, `acceptInvite()`, `cancelInvite()`, `rejectInvite()`                                                                                                                                                                                     |
 | `DeviceSocketDataSource`     | `saveDevice()` · `readDevice()` · `syncDevice()` (`active` slot), `updateRemoteDevice()` (pinned to `relay`)                                                                                                                                                                               |
-| `CloudSocketDataSource`      | `getCloud()`, `updateCloud()`                                                                                                                                                                                                                                                              |
+| `CloudSocketDataSource`      | `getCloud()`, `updateCloud()` (both pinned to `relay`)                                                                                                                                                                                                                                     |
 | `ProfileSocketDataSource`    | `get()`, `getMine()`, `set()`, `sync()`                                                                                                                                                                                                                                                    |
 | `ConnectionSocketDataSource` | `findConnection()` → `request('find-connection', payload)`                                                                                                                                                                                                                                 |
 

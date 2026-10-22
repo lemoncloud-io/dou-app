@@ -1,9 +1,10 @@
 /**
  * Destination policy for the relay-owned gateways.
  *
- * The 1:1 invite domain and the account-proof packet live in the central backend behind the relay
- * server, so they must reach the relay slot even while a cloud slot is active. The policy is fixed
- * here, at composition time — callers get no route argument to forget. Same guarantee the
+ * The 1:1 invite domain, the account-proof packet and the cloud row (its read and its rename) live
+ * in the central backend behind the relay server, so they must reach the relay slot even while a
+ * cloud slot is active. The policy is fixed here, at composition time — callers get no route
+ * argument to forget. Same guarantee the
  * device.update-remote wiring makes; see docs/socket.
  *
  * Driven through the data sources rather than the gateway bundle: the factory deliberately does not
@@ -88,6 +89,28 @@ describe('createSocketDataSources — relay-pinned gateways', () => {
         expectRelayOnly('auth.link-account');
     });
 
+    it('sends cloud.update over the relay slot — the relay owns the catalog row being renamed', async () => {
+        const { socketDataSources } = createSocketDataSources();
+
+        await socketDataSources.cloud.updateCloud({ id: 'cloud-a', name: 'Renamed' } as any, { cid: 'cloud-a' });
+
+        expectRelayOnly('cloud.update');
+        expect(relayRequest).toHaveBeenCalledWith(
+            'cloud.update',
+            expect.objectContaining({ id: 'cloud-a' }),
+            undefined
+        );
+    });
+
+    it('sends cloud.get over the relay slot — the cloud server copy of the row is never read', async () => {
+        const { socketDataSources } = createSocketDataSources();
+
+        await socketDataSources.cloud.getCloud({ id: 'cloud-a' } as any, { cid: 'cloud-a' });
+
+        expectRelayOnly('cloud.get');
+        expect(relayRequest).toHaveBeenCalledWith('cloud.get', expect.objectContaining({ id: 'cloud-a' }), undefined);
+    });
+
     it('exposes no auth.update sender at all — the handshake belongs to the SDK AuthController', () => {
         const { socketDataSources } = createSocketDataSources();
 
@@ -137,6 +160,18 @@ describe('createSocketDataSources — bound to one slot', () => {
         await socketDataSources.invite.listInvites({ state: 'pending' });
 
         expectRelayOnlyFor('invite.list');
+        expect(slotRequest).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['getCloud', 'cloud.get', { id: 'cloud-a' }],
+        ['updateCloud', 'cloud.update', { id: 'cloud-a', name: 'Renamed' }],
+    ])('still sends %s to the relay slot, not the cloud it was given', async (method, type, input) => {
+        const { socketDataSources } = createSocketDataSources(slotClient);
+
+        await (socketDataSources.cloud as any)[method](input, { cid: 'cloud-a' });
+
+        expectRelayOnlyFor(type);
         expect(slotRequest).not.toHaveBeenCalled();
     });
 });
