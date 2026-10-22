@@ -246,7 +246,7 @@
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
     "@eslint/js": "^9.8.0",
-    "@lemoncloud/hybrid-shell": "^0.2.3",
+    "@lemoncloud/hybrid-shell": "^0.4.5",
     "@lemoncloud/lemon-boards-api": "^2.25.109",
     "@nx/eslint": "22.3.3",
     "@nx/eslint-plugin": "22.3.3",
