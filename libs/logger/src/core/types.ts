@@ -45,7 +45,46 @@ export interface LogContext {
     osVersion?: string;
     /** Device model name. */
     model?: string;
+    /**
+     * Usage session id. Shorter-lived than `runId`: a run can sit in the background for days, so a
+     * return after more than 30 minutes away starts a new session. Usage analysis groups by this;
+     * sampling still follows `runId`.
+     */
+    sessionId?: string;
+    /** `ios` · `android` · `web` — the device family, regardless of whether the web runs in the app. */
+    platform?: LogPlatform;
+    /** `app` inside the mobile app's WebView or native code, `browser` for the standalone web. */
+    host?: LogHost;
+    /** Connection type at the time — the browser's `effectiveType` or the native connection type. */
+    network?: string;
+    /** UI locale. */
+    locale?: string;
 }
+
+/**
+ * Open like `LogTag`, for the same reason: the context crosses the bridge from a runtime built at
+ * another time, and a value this build does not know must survive the hop rather than fail a type.
+ */
+export type LogPlatform = 'ios' | 'android' | 'web' | (string & {});
+
+export type LogHost = 'app' | 'browser' | (string & {});
+
+/**
+ * What an entry records.
+ *
+ * `log` is every entry this pipeline has always carried, and it is the default: an entry with no
+ * `kind` is a log, and a log entry leaves `kind` off the wire so the server's log list (which reads
+ * "no kind, or `log`") keeps working unchanged. The other three are statistics riding the same
+ * queue, uploader and endpoint:
+ *
+ * - `trace` — a span with a start and an end (`durationMs`).
+ * - `sample` — one value that arrived already finished (a web vital, a bridge round trip).
+ * - `event` — a user action or a lifecycle moment, counted rather than timed.
+ */
+export type LogKind = 'log' | 'trace' | 'sample' | 'event';
+
+/** The three statistics kinds. */
+export type TelemetryKind = Exclude<LogKind, 'log'>;
 
 /**
  * Supplies the current context at dispatch time. Registered by the host app
@@ -71,6 +110,33 @@ export interface LogEntry extends LogContext {
     timestamp: number;
     /** Origin runtime, set only when the entry crossed a runtime boundary. */
     source?: LogOrigin;
+    /** What the entry records. Absent means `log` — see {@link LogKind}. */
+    kind?: LogKind;
+    /**
+     * HTTP status of a failed request, as a number. Top-level rather than inside `message` or the
+     * capped `error` string so the server can find "every 401" with one filter.
+     */
+    httpStatus?: number;
+    /** The error code a server, an SDK or a native module returned, verbatim. */
+    errorCode?: string;
+
+    // ── Statistics only (`kind` other than `log`). The wire drops these from a log entry. ──
+
+    /** A trace's length in milliseconds. */
+    durationMs?: number;
+    /**
+     * Dimensions, from the statistics catalogue only. At most 16; keys `[A-Za-z][A-Za-z0-9_]{0,39}`,
+     * values at most 100 characters. Unlike `data`, this reaches the server as an object.
+     */
+    attrs?: Record<string, string>;
+    /** Integer measurements, from the statistics catalogue only. At most 32. Sent as numbers. */
+    metrics?: Record<string, number>;
+    /** The sampling rate this entry was kept at, `0..1`. The server weighs it as `1 / sr`. */
+    sr?: number;
+    /** Version of the sampling policy that decided it. `0` is the built-in default. */
+    pv?: number;
+    /** Increases monotonically within a run, so two entries in the same millisecond keep their order. */
+    seq?: number;
 }
 
 /** A sink that receives every published log entry. */
@@ -93,6 +159,15 @@ export type LogListener = (entry: LogEntry) => void;
 export interface LogErrorOptions {
     error?: unknown;
     data?: unknown;
+    /**
+     * Lifted onto the entry's own `httpStatus` / `errorCode`.
+     *
+     * Read only from an object that already has `error` or `data`. A bare payload such as
+     * `logger.warn(tag, msg, { errorCode })` stays `data`, as it always has — treating these two keys
+     * as the options shape on their own would move a call site's payload out of `data` silently.
+     */
+    httpStatus?: number;
+    errorCode?: string;
 }
 
 export interface Logger {

@@ -136,7 +136,8 @@ describe('발생 시점 컨텍스트와 id는 저장을 건너 살아남는다',
     it('없는 필드는 키 자체를 만들지 않는다 — 저장된 레코드가 원본보다 넓어지면 안 된다', () => {
         const [out] = serializeLogs([entry()]);
 
-        expect(Object.keys(out).sort()).toEqual(['level', 'message', 'tag', 'timestamp']);
+        // `area` is the one key every record gains: the wire derives it from the tag.
+        expect(Object.keys(out).sort()).toEqual(['area', 'level', 'message', 'tag', 'timestamp']);
     });
 });
 

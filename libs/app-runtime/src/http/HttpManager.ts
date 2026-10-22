@@ -62,7 +62,13 @@ const createNetworkLogSink = (): HttpLogSink => {
         warn: (tag, message, fields) => logger.warn(tag, message, redactFields(fields)),
         error: (tag, message, fields) => {
             const { error, ...rest } = fields;
-            logger.error(tag, message, { error, data: redactFields(rest) });
+            // The status and the transport's code also ride as the entry's own `httpStatus` /
+            // `errorCode`, so the server can filter "every 401" — inside `data` they arrive as part of
+            // a capped string. `data` keeps them too; this only adds. `fields.errorCode` restates the
+            // status whenever a response came back, so it is lifted only when it says something the
+            // status does not (`ERR_NETWORK`, `ECONNABORTED`).
+            const errorCode = rest.errorCode !== String(rest.status) ? rest.errorCode : undefined;
+            logger.error(tag, message, { error, data: redactFields(rest), httpStatus: rest.status, errorCode });
         },
     };
 };

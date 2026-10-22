@@ -16,8 +16,10 @@ the catalogue's rows are written in.
 
 ```text
 core/
-  types.ts        LogEntry · LogContext · LogLevel · LogOrigin · LogErrorOptions · Logger · LogListener
+  types.ts        LogEntry · LogContext · LogLevel · LogOrigin · LogKind · LogErrorOptions · Logger · LogListener
   tags.ts         KNOWN_LOG_TAGS (41) · LogTag · isKnownLogTag
+  areas.ts        LOG_AREAS · logAreaOf · isKnownLogArea
+  kind.ts         isTelemetryEntry
   logContext.ts   LOG_CONTEXT_FIELDS · pickLogContext
   logId.ts        createLogId
   observation.ts  ObservationKind · ObservationData — see docs/observations/
@@ -36,6 +38,16 @@ interface LogEntry extends LogContext {
     error?: unknown;
     timestamp: number;
     source?: LogOrigin; // 'web' | 'native'
+    kind?: LogKind; // 'log' (default) | 'trace' | 'sample' | 'event'
+    httpStatus?: number;
+    errorCode?: string;
+    // statistics only — see "Kinds" below
+    durationMs?: number;
+    attrs?: Record<string, string>;
+    metrics?: Record<string, number>;
+    sr?: number;
+    pv?: number;
+    seq?: number;
 }
 ```
 
@@ -57,25 +69,69 @@ not reachable; it probes `crypto.randomUUID`, then `crypto.getRandomValues`, the
 because React Native's Hermes and older WebViews ship neither of the first two reliably, and some
 WebViews expose `randomUUID` but reject it outside a secure context.
 
+**Not across the bridge yet.** In a hybrid run the web relays each entry to the app as `AppLogInfo`
+(`libs/bridges`' codec), which today carries the context fields and the original entry fields only —
+`kind`, `httpStatus`, `errorCode` and the statistics fields are lost on that hop. Until the codec
+carries them, they reach the server only from the standalone web and from entries born natively.
+
 **`source` is a label, never a branch.** It is set only when an entry crossed a runtime boundary, so
 its absence means "born here". Nothing in the pipeline switches on it.
 
+**`httpStatus` and `errorCode` are top-level so the server can filter on them.** Inside `message`
+or the 2,000-character `error` string, "every 401" is not a query anyone can run. `httpStatus` is a
+number (an integer in 100..599, or it is dropped); `errorCode` is whatever code a server, an SDK or a
+native module returned, carried as a string. Neither is masked. A call site sets them through the
+third argument — see below.
+
+## Kinds
+
+Logs and statistics share one entry type, one hub, one queue and one endpoint; `kind` tells them
+apart.
+
+| `kind`          | What it records                                       | Carries                          |
+| --------------- | ----------------------------------------------------- | -------------------------------- |
+| `log` or absent | Everything this pipeline has always carried           | the fields above                 |
+| `trace`         | A span with a start and an end                        | `durationMs`, `attrs`, `metrics` |
+| `sample`        | One value that arrived already finished (a web vital) | `attrs`, `metrics`               |
+| `event`         | A user action or lifecycle moment, counted not timed  | `attrs`, `metrics`               |
+
+**A log never writes `kind`.** The server's log list reads "no `kind`, or `log`", and the wire leaves
+`kind` off a log, so the server's log list is unaffected by statistics. What a log entry gains on the
+wire is `area` (always, derived from the tag — below) and `httpStatus`/`errorCode` when set.
+
+**Statistics keep their numbers as numbers.** `data` turns into a capped string on the wire, which
+the server cannot look inside; that is fine for a log and useless for a value meant to be
+aggregated. So a statistic carries `durationMs`, `attrs` and `metrics` as top-level fields and the
+wire sends them as a number and objects. The wire drops them from a log entry that has them by
+accident, and checks their shape once more: at most 16 attributes (keys `[A-Za-z][A-Za-z0-9_]{0,39}`,
+values up to 100 characters), at most 32 integer metrics, `sr` within `0..1`.
+
+`sr` is the sampling rate the entry was kept at (the server weighs it `1 / sr`), `pv` the policy
+version that decided, `seq` an order within the run for entries in the same millisecond. A statistic
+is always `info`, its tag is `perf.<name>` or `usage.<name>`, and it is built only by
+`TelemetryRecorder` — see [docs/sampling/](../sampling/README.md).
+
 ## Occurrence-time context
 
-Ten fields ride on every entry, captured when the entry is dispatched.
+Fifteen fields ride on every entry, logs and statistics alike, captured when the entry is dispatched.
 
-| Field        | What it is                                                                 |
-| ------------ | -------------------------------------------------------------------------- |
-| `runId`      | App-run (process) identifier — the primary axis for exploring stored logs  |
-| `uid`        | User id, guest or signed-in                                                |
-| `cid`        | Cloud id                                                                   |
-| `sid`        | Site id                                                                    |
-| `appVersion` | Native app version                                                         |
-| `webVersion` | Web bundle version — deployed independently of the app, so a separate axis |
-| `route`      | The screen at the time of the log                                          |
-| `os`         | Device OS                                                                  |
-| `osVersion`  | Device OS version                                                          |
-| `model`      | Device model name                                                          |
+| Field        | What it is                                                                                                                   |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `runId`      | App-run (process) identifier — the primary axis for exploring stored logs                                                    |
+| `uid`        | User id, guest or signed-in                                                                                                  |
+| `cid`        | Cloud id                                                                                                                     |
+| `sid`        | Site id                                                                                                                      |
+| `appVersion` | Native app version                                                                                                           |
+| `webVersion` | Web bundle version — deployed independently of the app, so a separate axis                                                   |
+| `route`      | The screen at the time of the log — the actual path, not a route template                                                    |
+| `os`         | Device OS                                                                                                                    |
+| `osVersion`  | Device OS version                                                                                                            |
+| `model`      | Device model name                                                                                                            |
+| `sessionId`  | Usage session — a return after more than 30 minutes in the background starts a new one. A host contract: nothing sets it yet |
+| `platform`   | `ios` · `android` · `web`                                                                                                    |
+| `host`       | `app` (WebView or native) · `browser` (the standalone web)                                                                   |
+| `network`    | Connection type at the time                                                                                                  |
+| `locale`     | UI locale                                                                                                                    |
 
 **They are stamped at dispatch and never at send.** A queue that survives a logout, a cloud switch
 or an app update and drains days later would otherwise label every entry it holds with the values
@@ -130,6 +186,30 @@ split between `CLOUD` and `APP` both survived until somebody diffed the catalogu
 `string & {}` rather than plain `string` keeps the literals from being widened away, so the editor
 still suggests them.
 
+### Areas
+
+The catalogue is moving from area tags (`SOCKET`) to event tags — one tag per event, written
+`<area>.<event>` (`socket.reconnect_failed`). A call site writes the tag only. The area is cut off it
+in one place, the wire mapper, and sent as its own field `area`, because the server matches fields
+exactly and could not otherwise select "every socket log" once tags name events.
+
+`logAreaOf` reads old and new tags by one rule, since both stay on the wire for a long time:
+
+| Tag                       | `area`                                |
+| ------------------------- | ------------------------------------- |
+| `socket.reconnect_failed` | `socket` — before the first dot       |
+| `SOCKET`                  | `socket` — the whole tag, lower-cased |
+
+So a per-area query spans the switch-over. `LOG_AREAS` mirrors the catalogue's area list (the 41
+legacy tags, lower-cased, plus `session` and `config`); like `KNOWN_LOG_TAGS` it is never a runtime
+gate. It lists the areas a **log** may use. Statistics bring two areas of their own through their
+tags: `perf` (also a log area) and `usage`, which is not on the list because no log is written there. The root `eslint.config.mjs` reads it to warn — never to fail the build — about a
+`logger.<level>` call whose literal tag is area-only, or whose area is not on the list.
+`KNOWN_LOG_TAGS` itself still lists the area tags: the catalogue's event names are not settled yet,
+and the constant follows the catalogue, never the other way round.
+
+### The legacy tag list
+
 `KNOWN_LOG_TAGS` holds 41 tags, grouped as the catalogue groups them.
 
 | Group               | Tags                                                                                                                                                      |
@@ -161,6 +241,8 @@ Every level takes the same third argument, and it means the same thing at each.
 interface LogErrorOptions {
     error?: unknown;
     data?: unknown;
+    httpStatus?: number; // lifted onto entry.httpStatus
+    errorCode?: string; // lifted onto entry.errorCode
 }
 ```
 
@@ -179,6 +261,12 @@ accepts the same shape, silently, and then stores it whole. `logger.warn(tag, ms
 put the fields at `data.data.…` and left `entry.error` empty: the admin console showed no error, and
 `data.observation` was one level deeper than any reader looks. 42 call sites wrote it that way,
 which is the answer to whether the signature or the callers were wrong.
+
+`httpStatus` and `errorCode` are read only from an object that already has `error` or `data`.
+`logger.warn(tag, msg, { errorCode })` keeps that object as `data`, exactly as before — treating the
+two keys as the options shape on their own would silently move existing payloads out of `data`. An
+`httpStatus` that is not an integer in 100..599 is dropped; a numeric `errorCode` is kept as a
+string.
 
 Normalizing costs nothing a caller wanted. No site in the tree passes a payload whose own field is
 named `data` or `error`, and one that did would now surface it as the entry's field of that name —
@@ -204,3 +292,4 @@ The rules below are the catalogue's, enforced here because this is where they ar
 - [docs/pipeline/](../pipeline/README.md) — what happens to an entry after `logger.*` returns
 - [docs/observations/](../observations/README.md) — the structured `data` shape and its discriminator
 - [docs/redaction/](../redaction/README.md) — what is stripped from an entry on the way out
+- [docs/sampling/](../sampling/README.md) — how a statistics entry is decided and built

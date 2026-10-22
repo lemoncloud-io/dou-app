@@ -5,7 +5,10 @@ Kotlin and Swift — becomes one `LogEntry`, is published to one hub, and is rea
 subscribed. The package owns the entry contract, the engine that stamps and broadcasts it, the
 masking applied on the way out, the queue of entries the server has not accepted yet, and the schedule
 that empties it. Performance measurement lives in [`@chatic/perf`](../perf/README.md); when a trace
-falls back to the log pipeline it arrives here as an ordinary `info`/`PERF` entry.
+falls back to the log pipeline it arrives here as an ordinary `info`/`PERF` entry. The same pipeline
+can also carry **statistics** — entries of `kind` `trace`, `sample` or `event`, tagged `perf.<name>` or
+`usage.<name>`, sampled by a server policy and built by `TelemetryRecorder` — but nothing produces
+them yet, and the built-in policy keeps them off ([docs/sampling/](./docs/sampling/README.md)).
 
 This document covers the **overview and structure** only. The per-layer detail is canonical under
 [`docs/`](#documents).
@@ -36,13 +39,13 @@ so a call site can be checked against it — see [docs/entries/](./docs/entries/
 ## Design principles
 
 1. **The core imports nothing.** `package.json` declares `dependencies: {}` and no file imports a workspace package or a third-party one. `createLogId` re-implements UUID v4 by hand rather than pull `uuid` in. Platform behaviour arrives as a listener or as an implementation of a port.
-2. **Occurrence time and occurrence context are stamped at dispatch, never at send.** A queue drained days later would otherwise label every entry with the session, cloud, user and version current at _upload_ time. Ten context fields ride on the entry itself so they survive the bridge and any copy.
+2. **Occurrence time and occurrence context are stamped at dispatch, never at send.** A queue drained days later would otherwise label every entry with the session, cloud, user and version current at _upload_ time. Fifteen context fields ride on the entry itself so they survive the bridge and any copy.
 3. **An entry that crossed a runtime boundary is not restamped.** `ingestLogEntry` publishes as-is. The single exception is `id`, backfilled only when absent, because an entry without one can be uploaded but never acknowledged.
 4. **The hub is the only way to see an entry.** There is no ring buffer and no console fallback. A listener sees what is published after it subscribes and nothing else, which makes wiring order part of the contract.
 5. **Reading the store never empties it.** `peek` hands back the same entries until `ack` releases them. A destructive read loses exactly the entries of a process that died mid-send.
 6. **The uploader is not a subscriber.** It holds a `LogStoreReader` and runs on its own interval. Nothing about a dispatched entry — not its level, not the queue's size — can bring a send forward.
 7. **Batching happens at the server boundary and nowhere else.** Dispatch, hub delivery, the web→app bridge hop and `push` are all one entry at a time. The only boundary worth paying to batch is the one that leaves the process.
-8. **The store is capped on two axes, and drops the cheapest level first.** A count alone says nothing about size; bytes alone cost a serialization per push. `debug` leads the drop order, which is what lets it be stored at all.
+8. **The store is capped on two axes, and drops the cheapest level first.** A count alone says nothing about size; bytes alone cost a serialization per push. `debug` leads the drop order, which is what lets it be stored at all. Statistics are capped in a share of their own and never evict a log, nor a log them.
 9. **The logging path never logs itself.** A listener runs inside `publish`, so calling `logger` there re-enters immediately; the upload path calling `logger` closes a failure loop. Both use `console`.
 10. **Stateful collaborators are classes, ports are interfaces, stateless policy is a function.** Every class takes its dependencies as constructor arguments, so any of them can be built standalone in a test.
 11. **Dependencies point inward, to `core/`.** Nothing outside `runtime.ts` reaches for a process-wide instance, which is what keeps the module graph acyclic.
@@ -53,7 +56,8 @@ so a call site can be checked against it — see [docs/entries/](./docs/entries/
 **In** — the `LogEntry` / `LogContext` / `Logger` contract, the tag catalogue mirror, the hub and the
 logging engine, the console sink, masking by field name and by value shape, the serialization
 surfaces (report string, bridge structure, server wire), the unsent queue with its ports and
-scheduler, and the structured-observation discriminator and the foreign-drop aggregator.
+scheduler, the statistics sampling policy and record builder, and the structured-observation
+discriminator and the foreign-drop aggregator.
 
 **Out** — the HTTP call that uploads a batch (`libs/data`'s report repository), queue persistence
 and host wiring (`apps/web`, `apps/mobile`), the web→native relay and the `AppLogInfo` codec
@@ -79,6 +83,7 @@ flowchart TD
     Sinks["sinks/<br/><i>ConsoleLogSink</i>"]:::out
     Upload["upload/<br/><i>queue · store ports · scheduler</i>"]:::out
     Obs["observation/<br/><i>foreign-drop aggregator</i>"]:::out
+    Smp["sampling/<br/><i>policy · verdict · recorder</i>"]:::out
 
     Ser["serialization/<br/><i>wire · report · bridge shapes</i>"]:::pol
     Red["redaction/<br/><i>by name · by shape</i>"]:::pol
@@ -90,6 +95,7 @@ flowchart TD
     Upload --> Core
     Obs --> Core
     Obs --> RT
+    Smp --> Core
     Ser --> Core
     Ser --> Red
     Red --> Core
@@ -127,18 +133,19 @@ sequenceDiagram
 
 ```text
 libs/logger/src/
-├── index.ts          public barrel (8 lines of export *)
+├── index.ts          public barrel (9 lines of export *)
 ├── runtime.ts        the composition root: logger · logHub · ingestLogEntry
-├── core/             8 files — the contract (LogEntry · LogContext · Logger · LogTag ·
-│                     ObservationKind) and the engine (LogHub · CoreLogger · logId · logContext)
+├── core/             10 files — the contract (LogEntry · LogContext · Logger · LogTag · LogKind ·
+│                     ObservationKind · areas) and the engine (LogHub · CoreLogger · logId · logContext)
 ├── sinks/            2 files — the LogSink contract and ConsoleLogSink
 ├── redaction/        4 files — what counts as a secret, by name and by value shape
 ├── serialization/    6 files — the three output shapes and the shared truncation rule
 ├── upload/           6 files — the queue, the LogStore ports, the scheduler and its policy
+├── sampling/         6 files — the statistics policy, the per-run verdict, the catalogue check, the recorder
 └── observation/      2 files — the foreign-drop aggregator
 ```
 
-30 source files, 16 spec files, 2,168 lines of non-test code.
+38 source files, 23 spec files, 3,257 lines of non-test code.
 
 Three names are not where their filename suggests. `LogSink` lives in `sinks/ConsoleLogSink.ts` —
 there is no `LogSink.ts` to open. `LogStoreReader`, `LogStoreWriter` and `toLogListener` all live in
@@ -248,13 +255,14 @@ See [docs/observations/](./docs/observations/README.md).
 
 ## Documents
 
-| Folder                                              | What it covers                                                                                                            |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| [docs/entries/](./docs/entries/README.md)           | The entry contract. `LogEntry`, the ten context fields, the four levels, the 41-tag catalogue, the third argument         |
-| [docs/pipeline/](./docs/pipeline/README.md)         | Dispatch, the hub, and the listeners. What a listener must satisfy, wiring order, the three listeners per host            |
-| [docs/upload/](./docs/upload/README.md)             | The queue and the schedule. The two ceilings and the drop order, the store ports, backoff and give-up, **naming history** |
-| [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, the three output shapes, where an unmasked value can still escape        |
-| [docs/observations/](./docs/observations/README.md) | Structured entries. The `data.observation` discriminator, the ten families, and the rules a producer follows              |
+| Folder                                              | What it covers                                                                                                             |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [docs/entries/](./docs/entries/README.md)           | The entry contract. `LogEntry`, its kinds, the fifteen context fields, the four levels, tags and areas, the third argument |
+| [docs/pipeline/](./docs/pipeline/README.md)         | Dispatch, the hub, and the listeners. What a listener must satisfy, wiring order, the three listeners per host             |
+| [docs/upload/](./docs/upload/README.md)             | The queue and the schedule. The two ceilings and the drop order, the store ports, backoff and give-up, **naming history**  |
+| [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, the three output shapes, where an unmasked value can still escape         |
+| [docs/sampling/](./docs/sampling/README.md)         | Statistics. The sampling policy and the per-run verdict, the closed catalogue, the recorder                                |
+| [docs/observations/](./docs/observations/README.md) | Structured entries. The `data.observation` discriminator, the ten families, and the rules a producer follows               |
 
 ## How to verify
 
@@ -267,6 +275,6 @@ npx jest --config libs/logger/jest.config.js
 - Type checking must be `tsc -b`. Inside `libs/logger`, `tsc --noEmit` checks zero files and succeeds.
 - **The two type checks are separate on purpose.** `tsconfig.lib.json` excludes `*.spec.ts`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles and a fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime. `npx tsc -b libs/logger/tsconfig.json` runs both, because `tsconfig.json` references both projects.
 - `tsconfig.spec.json` must not set `module: "commonjs"`. The base sets `moduleResolution: bundler`, which rejects it with TS5095 — the config then cannot compile at all, which is how these tests went years without a check.
-- Every directory has specs except the barrels: 3 in `core`, 4 in `redaction`, 3 in `serialization`, 3 in `upload`, 1 each in `sinks` and `observation`, plus `runtime.spec.ts`. The commands above are what answers whether they pass, not this sentence.
+- Every directory has specs except the barrels: 5 in `core`, 4 in `redaction`, 3 in `serialization`, 5 in `upload`, 3 in `sampling`, 1 each in `sinks` and `observation`, plus `runtime.spec.ts`. The commands above are what answers whether they pass, not this sentence.
 - Downstream: a changed barrel identifier reaches `libs/bridges`, `libs/data`, `libs/http` and `libs/app-runtime` directly, and through `libs/bridges`' re-export it reaches `apps/web`, `apps/desktop-web` and `apps/mobile` as well (`apps/desktop` aliases the package in its electron-vite config). `.github/workflows/verify.yml` type checks every one of those except `desktop-web` and `@chatic/mobile`, so those two are the ones to run by hand.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again. The lib and spec projects emit to different directories (`dist/out-tsc` and `dist/out-tsc/logger-spec`) so they cannot overwrite each other's declarations.

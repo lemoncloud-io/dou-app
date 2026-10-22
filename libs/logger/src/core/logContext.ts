@@ -26,6 +26,11 @@ const LOG_CONTEXT_FIELD_MAP: Record<keyof LogContext, true> = {
     os: true,
     osVersion: true,
     model: true,
+    sessionId: true,
+    platform: true,
+    host: true,
+    network: true,
+    locale: true,
 };
 
 /** Every `LogContext` field name, in declaration order. */

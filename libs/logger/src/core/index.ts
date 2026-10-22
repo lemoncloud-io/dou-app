@@ -1,5 +1,7 @@
 export * from './types';
 export * from './tags';
+export * from './areas';
+export * from './kind';
 export * from './observation';
 export * from './logContext';
 export * from './logId';

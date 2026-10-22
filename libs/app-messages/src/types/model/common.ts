@@ -27,6 +27,16 @@ export type AppLogInfo = {
     os?: string;
     osVersion?: string;
     model?: string;
+    /** Usage session id — shorter-lived than runId. */
+    sessionId?: string;
+    /** `ios` · `android` · `web`. */
+    platform?: string;
+    /** `app` (WebView or native) · `browser` (standalone web). */
+    host?: string;
+    /** Connection type at the time. */
+    network?: string;
+    /** UI locale. */
+    locale?: string;
     tag: string; // Log identifying tag
     message?: string; // Log message
     data?: unknown; // Attached data

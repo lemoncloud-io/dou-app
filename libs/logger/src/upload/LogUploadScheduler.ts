@@ -1,6 +1,11 @@
 import { DEFAULT_BACKOFF_MS, DEFAULT_BATCH_SIZE, DEFAULT_INTERVAL_MS, DEFAULT_MAX_ATTEMPTS } from './uploadPolicy';
 
+import { isTelemetryEntry } from '../core/kind';
+
 import type { TimerHandle, UploadOutcome } from './uploadPolicy';
+
+/** How many times one cycle draws again past batches the statistics selector left out entirely. */
+const MAX_SKIP_ROUNDS = 10;
 import type { LogStoreReader } from './LogStore';
 import type { LogEntry } from '../core/types';
 
@@ -29,6 +34,20 @@ export interface LogUploadSchedulerOptions {
      * already taken — and a reload would resurrect them.
      */
     onSettled?: () => void;
+    /**
+     * Decides, as a batch is drawn, which statistics entries in it are sent.
+     *
+     * Receives only the statistics entries of the batch — never a log, so nothing here can hold a
+     * log back — and returns the ones to send, matched by `id`. A returned entry may be a re-stamped
+     * copy (a native statistic judged here gains its `sr`/`pv`), and it replaces the original in the
+     * batch. Every statistics entry it leaves out is acknowledged without being sent: that is how a
+     * run that was not sampled clears the native statistics it recorded before it knew, and how the
+     * statistics kill switch empties what is already queued.
+     *
+     * A selector that throws sends the batch as drawn — losing the logs in the same batch to a bug
+     * in a statistics policy would be the worse failure.
+     */
+    selectTelemetry?: (entries: LogEntry[]) => LogEntry[];
     schedule?: (run: () => void, ms: number) => TimerHandle;
     cancel?: (handle: TimerHandle) => void;
 }
@@ -65,6 +84,7 @@ export class LogUploadScheduler {
     private readonly isEnabled?: () => boolean;
     private readonly onGiveUp?: (entries: LogEntry[], attempts: number) => void;
     private readonly onSettled?: () => void;
+    private readonly selectTelemetry?: (entries: LogEntry[]) => LogEntry[];
     private readonly scheduleTimer: (run: () => void, ms: number) => TimerHandle;
     private readonly cancelTimer: (handle: TimerHandle) => void;
 
@@ -83,6 +103,7 @@ export class LogUploadScheduler {
         this.isEnabled = options.isEnabled;
         this.onGiveUp = options.onGiveUp;
         this.onSettled = options.onSettled;
+        this.selectTelemetry = options.selectTelemetry;
         this.scheduleTimer = options.schedule ?? ((run, ms) => setTimeout(run, ms));
         this.cancelTimer = options.cancel ?? (handle => clearTimeout(handle));
     }
@@ -140,6 +161,41 @@ export class LogUploadScheduler {
         }
     }
 
+    /**
+     * Applies `selectTelemetry` to a drawn batch: returns what to send, and what to acknowledge
+     * without sending.
+     */
+    private select(drawn: LogEntry[]): { send: LogEntry[]; skip: LogEntry[] } {
+        if (!this.selectTelemetry) return { send: drawn, skip: [] };
+
+        const telemetry = drawn.filter(isTelemetryEntry);
+        if (!telemetry.length) return { send: drawn, skip: [] };
+
+        let chosen: LogEntry[];
+        try {
+            chosen = this.selectTelemetry(telemetry);
+        } catch {
+            return { send: drawn, skip: [] };
+        }
+
+        const byId = new Map<string, LogEntry>();
+        const chosenIdentity = new Set<LogEntry>();
+        for (const entry of chosen) {
+            if (entry.id) byId.set(entry.id, entry);
+            else chosenIdentity.add(entry);
+        }
+
+        const send: LogEntry[] = [];
+        const skip: LogEntry[] = [];
+        for (const entry of drawn) {
+            if (!isTelemetryEntry(entry)) send.push(entry);
+            else if (entry.id && byId.has(entry.id)) send.push(byId.get(entry.id) as LogEntry);
+            else if (!entry.id && chosenIdentity.has(entry)) send.push(entry);
+            else skip.push(entry);
+        }
+        return { send, skip };
+    }
+
     private async settle(outcome: 'done' | 'retry', batch: LogEntry[]): Promise<void> {
         if (outcome === 'done') {
             this.attempts = 0;
@@ -186,15 +242,36 @@ export class LogUploadScheduler {
         // the bandwidth and the doubled attempt count are still ours to pay.
         this.inFlight = true;
         try {
-            let batch: LogEntry[];
-            try {
-                batch = await this.store.peek(this.batchSize);
-            } catch {
-                // The store is unreachable this cycle (a bridge round trip that
-                // timed out, say). Nothing is lost — it never released anything —
-                // so treat it like an empty cycle and come back on the timer.
-                this.armTimer(this.intervalMs);
-                return;
+            let batch: LogEntry[] = [];
+            let skipped = 0;
+            // A batch made entirely of statistics the selector leaves out sends nothing, and the logs
+            // queued behind it would otherwise wait a whole interval per batch-worth of them. So the
+            // cycle draws again — a bounded number of times, because a release that keeps failing
+            // hands back the same entries and must not spin.
+            for (let round = 0; round < MAX_SKIP_ROUNDS; round += 1) {
+                let drawn: LogEntry[];
+                try {
+                    drawn = await this.store.peek(this.batchSize);
+                } catch {
+                    // The store is unreachable this cycle (a bridge round trip that
+                    // timed out, say). Nothing is lost — it never released anything —
+                    // so treat it like an empty cycle and come back on the timer.
+                    this.armTimer(this.intervalMs);
+                    if (skipped) this.onSettled?.();
+                    return;
+                }
+
+                const selected = this.select(drawn);
+                batch = selected.send;
+
+                // Not sent and never to be: released now, before the request, so a failed send cannot
+                // keep them in the store. A failed release only means they are judged again next cycle.
+                if (selected.skip.length) {
+                    await this.release(selected.skip);
+                    skipped += selected.skip.length;
+                }
+
+                if (batch.length || !selected.skip.length) break;
             }
 
             // Nothing to send: skip the request entirely rather than posting an
@@ -202,6 +279,7 @@ export class LogUploadScheduler {
             // per interval forever.
             if (!batch.length) {
                 this.armTimer(this.intervalMs);
+                if (skipped) this.onSettled?.();
                 return;
             }
 

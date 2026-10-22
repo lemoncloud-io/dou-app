@@ -26,7 +26,7 @@ logger without touching process state.
 
 `CoreLogger` has one job and no store.
 
-1. Normalize the third argument into `{ error, data }` (see [docs/entries/](../entries/README.md#the-third-argument)).
+1. Normalize the third argument into `{ error, data }`, lifting `httpStatus`/`errorCode` onto the entry when the options shape carries them (see [docs/entries/](../entries/README.md#the-third-argument)).
 2. Read the registered context provider, defensively — a provider that throws yields an empty context rather than an exception.
 3. Stamp `id` and `timestamp`.
 4. `hub.publish(entry)`.

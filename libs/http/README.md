@@ -61,7 +61,10 @@ signature ([`@chatic/auth-sign`](../auth-sign/README.md)); the socket transport
 
 **In** — the request path (`client.ts`), the lemon adapter, error classification and credential
 attribution/recovery, the structured network log and the `bypass` contract, the sealed transport's
-construction and boot, and the wire vocabulary for 5 domains.
+construction and boot, and the wire vocabulary for 5 domains — plus `TelemetryPolicyHttpGateway`,
+the port the statistics sampling policy is read through. The server has no route for it yet, so its
+only implementation is a static stand-in that answers "statistics off"
+(`createStaticTelemetryPolicyHttpGateway`); the HTTP one replaces it behind the same port.
 
 **Out** — `HttpRuntimePorts` implementations (`libs/app-runtime/src/http/`), view→domain mapping and
 cache writes (`@chatic/data`), `calcSignature` (`@chatic/auth-sign`), and the socket axis entirely.
@@ -163,14 +166,14 @@ libs/http/src/
 ├── ports.ts                     HttpRoute + HttpRuntimePorts — the whole injection surface
 ├── adapters/lemonWebCore.ts     the 3-method lemon builder surface + LemonHttpExecutor
 ├── transport/lemonTransport.ts  SDK construction, the sealed boot, read-only session probes
-├── gateways/                    5 domain gateways + types.ts + index.ts
+├── gateways/                    5 domain gateways + the telemetry-policy port + types.ts + index.ts
 ├── error/                       classify · credentialStale · attribution · recovery (4 files)
 ├── log/networkLog.ts            withNetworkLog + the HttpLogSink contract
 ├── policy/                      bypass.ts · retry.ts
 └── utils/browserNetwork.ts      isBrowserOffline — the only place this lib reads `navigator`
 ```
 
-20 production files, 14 spec files. Names you cannot guess from a filename:
+21 production files, 15 spec files. Names you cannot guess from a filename:
 
 - **`HttpClientImpl` has no file of its own.** It is private to `client.ts`, and `createHttpClient`
   is the only thing that constructs it.

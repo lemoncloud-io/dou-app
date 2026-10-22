@@ -168,7 +168,7 @@ libs/app-messages/src/
     └── model/                    23 files — 22 payload files, grouped by domain, and their barrel
 ```
 
-29 files, 3,735 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+29 files, 3,745 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -177,7 +177,7 @@ The payload files, with what is in each:
 | ---------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `system.ts`            | 514   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                                                                                             |
 | `cache.ts`             | 480   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages                                                                           |
-| `common.ts`            | 225   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`                                                                                                 |
+| `common.ts`            | 235   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`                                                                                                 |
 | `file-transfer.ts`     | 188   | The native file-transfer contract — start (upload or download), cancel, list, ack, temp file, state event                                                                          |
 | `media-export.ts`      | 143   | A downloaded file to the photo library, the share sheet, the OS preview or the device's downloads — `SaveToPhotoLibrary`, `ShareFile`, `OpenFile`, `SaveFile`, codes               |
 | `attachment-picker.ts` | 215   | What the shell picks and keeps — `PickAttachments`, `PrepareVideo` (conversion and poster), `ReadAttachment` (one kept photo's bytes), `ReadVideoFrame` (a received video's frame) |

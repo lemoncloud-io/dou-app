@@ -9,6 +9,7 @@
  * - `serialization/` — turning entries into report / wire payloads
  * - `upload/`        — the server-bound queue, its source port and the send schedule
  * - `observation/`   — aggregators for events too frequent to log one by one
+ * - `sampling/`      — the statistics policy, the per-run verdict and the record builder
  * - `runtime.ts`     — the one composition root: the process-wide singleton
  *
  * There is exactly one store: the unsent upload queue. The package used to keep
@@ -30,4 +31,5 @@ export * from './redaction';
 export * from './serialization';
 export * from './upload';
 export * from './observation';
+export * from './sampling';
 export * from './runtime';

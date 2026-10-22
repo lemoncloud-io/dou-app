@@ -21,6 +21,7 @@ jest.mock('@chatic/config', () => ({
     },
 }));
 const mockedLoggerDebug = logger.debug as jest.Mock;
+const mockedLoggerError = logger.error as jest.Mock;
 
 /**
  * The manager no longer takes a cloud credential port — the SigV4 executor it fed went with the
@@ -60,5 +61,37 @@ describe('createHttpManager — network log sink', () => {
         expect(mockedLoggerDebug).toHaveBeenCalledTimes(1);
         const [tag] = mockedLoggerDebug.mock.calls[0];
         expect(tag).toBe('NET');
+    });
+});
+
+describe('createHttpManager — network log sink, failures', () => {
+    const fail = (error: unknown) => execute.mockRejectedValueOnce(error);
+
+    it('lifts the HTTP status onto the entry as httpStatus and keeps it in data', async () => {
+        fail(Object.assign(new Error('unauthorized'), { response: { status: 401, data: { error: 'expired' } } }));
+        const client = createHttpManager(lemonSurface as never);
+
+        await expect(
+            client.executeSignedRelayRequest({ method: 'GET', baseURL: 'https://relay.test/x' })
+        ).rejects.toThrow();
+
+        const [tag, , options] = mockedLoggerError.mock.calls[0];
+        expect(tag).toBe('NET');
+        expect(options.httpStatus).toBe(401);
+        expect(options.errorCode).toBeUndefined();
+        expect(options.data).toMatchObject({ outcome: 'error', status: 401 });
+    });
+
+    it('lifts a transport code as errorCode when no response came back', async () => {
+        fail(Object.assign(new Error('Network Error'), { code: 'ERR_NETWORK' }));
+        const client = createHttpManager(lemonSurface as never);
+
+        await expect(
+            client.executeSignedRelayRequest({ method: 'GET', baseURL: 'https://relay.test/x' })
+        ).rejects.toThrow();
+
+        const [, , options] = mockedLoggerError.mock.calls[0];
+        expect(options.httpStatus).toBeUndefined();
+        expect(options.errorCode).toBe('ERR_NETWORK');
     });
 });
