@@ -32,7 +32,9 @@ export const resetPerfTraces = (): void => {
 };
 
 /** Starts a trace now, on the monotonic clock. */
-export const startPerfTrace = (name: PerfTraceName): PerfTrace => {
+export const startPerfTrace = (name: PerfTraceName): PerfTrace => openTrace(name, false);
+
+const openTrace = (name: PerfTraceName, sample: boolean): PerfTrace => {
     const startedAt = perfNow();
     return createPerfTrace({
         backend,
@@ -40,6 +42,7 @@ export const startPerfTrace = (name: PerfTraceName): PerfTrace => {
         name,
         elapsed: () => perfNow() - startedAt,
         announce: true,
+        sample,
     });
 };
 
@@ -71,7 +74,7 @@ export const recordPerfSample = (
     name: PerfTraceName,
     sample: { attributes?: Record<string, string>; metrics: Record<string, number> }
 ): void => {
-    const trace = startPerfTrace(name);
+    const trace = openTrace(name, true);
     for (const [key, value] of Object.entries(sample.attributes ?? {})) trace.putAttribute(key, value);
     for (const [key, value] of Object.entries(sample.metrics)) trace.putMetric(key, value);
     trace.stop();

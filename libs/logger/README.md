@@ -4,9 +4,9 @@
 Kotlin and Swift — becomes one `LogEntry`, is published to one hub, and is read by whoever
 subscribed. The package owns the entry contract, the engine that stamps and broadcasts it, the
 masking applied on the way out, the queue of entries the server has not accepted yet, and the schedule
-that empties it. Performance measurement lives in [`@chatic/perf`](../perf/README.md); when a trace
-falls back to the log pipeline it arrives here as an ordinary `info`/`PERF` entry. The same pipeline
-can also carry **statistics** — entries of `kind` `trace`, `sample` or `event`, tagged `perf.<name>` or
+that empties it. Performance measurement lives in [`@chatic/perf`](../perf/README.md), whose pipeline
+backend records each trace here as a `perf.<name>` statistics entry through `TelemetryRecorder`. The
+pipeline carries **statistics** — entries of `kind` `trace`, `sample` or `event`, tagged `perf.<name>` or
 `usage.<name>`, sampled by a server policy and built by `TelemetryRecorder` — but nothing produces
 them yet, and the built-in policy keeps them off ([docs/sampling/](./docs/sampling/README.md)).
 

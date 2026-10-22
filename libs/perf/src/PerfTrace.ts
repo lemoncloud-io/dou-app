@@ -1,5 +1,6 @@
 import {
     MAX_PERF_ATTRIBUTES,
+    MAX_PERF_METRICS,
     isValidPerfAttributeKey,
     isValidPerfMetricName,
     normalizePerfAttributeValue,
@@ -66,6 +67,10 @@ export interface CreatePerfTraceOptions {
      * started — it only needs its stop delivered.
      */
     announce: boolean;
+    /** Built by `recordPerfSample`: a finished value, not a span. Carried to the backends on the stop. */
+    sample?: boolean;
+    /** Wall clock for `endedAt`. Defaults to `Date.now`. */
+    now?: () => number;
 }
 
 class Trace implements PerfTrace {
@@ -77,7 +82,9 @@ class Trace implements PerfTrace {
         private readonly backend: PerfTraceBackend,
         public readonly id: string,
         public readonly name: PerfTraceName,
-        private readonly elapsed: () => number
+        private readonly elapsed: () => number,
+        private readonly sample: boolean,
+        private readonly now: () => number
     ) {}
 
     public putAttribute(key: string, value: string): void {
@@ -94,6 +101,8 @@ class Trace implements PerfTrace {
         if (this.stopped || !isValidPerfMetricName(key)) return;
         const normalized = normalizePerfMetricValue(value);
         if (normalized == null) return;
+        // Same rule as attributes: an existing metric is overwritten, a new one past the cap dropped.
+        if (!(key in this.metrics) && Object.keys(this.metrics).length >= MAX_PERF_METRICS) return;
         this.metrics[key] = normalized;
     }
 
@@ -119,11 +128,21 @@ class Trace implements PerfTrace {
             durationMs: Math.max(0, Math.round(this.elapsed())),
             attributes: { ...this.attributes },
             metrics: { ...this.metrics },
+            ...(this.sample ? { sample: true } : {}),
+            endedAt: this.now(),
         });
     }
 }
 
-export const createPerfTrace = ({ backend, id, name, elapsed, announce }: CreatePerfTraceOptions): PerfTrace => {
+export const createPerfTrace = ({
+    backend,
+    id,
+    name,
+    elapsed,
+    announce,
+    sample = false,
+    now = Date.now,
+}: CreatePerfTraceOptions): PerfTrace => {
     if (announce) backend.start({ id, name });
-    return new Trace(backend, id, name, elapsed);
+    return new Trace(backend, id, name, elapsed, sample, now);
 };

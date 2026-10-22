@@ -12,11 +12,15 @@ only when the WebAppReady reply arrives:
 
 - The reply's `supportedWebMessages` lists both `StartPerfTrace` and `StopPerfTrace`. Every trace,
   including those held since boot, goes over the bridge, and the native shell records it with
-  Firebase Performance.
-- The reply does not list them, which means an app build from before the handlers. Traces go to the
-  log pipeline as `info`/`PERF` entries, sampled one run in ten.
-- There is no reply, which means a plain browser tab. The log backend has no injected run id, so it
-  records nothing.
+  Firebase Performance — cut down to exactly the traces, attributes and metrics Firebase has always
+  received (`@chatic/perf`'s catalogue). The same trace also goes to the log pipeline.
+- The reply does not list them (an app build from before the handlers), or there is no reply (a
+  plain browser tab). Traces go to the log pipeline alone.
+
+On the log pipeline a trace is a statistics entry (`kind: 'trace'` or `'sample'`, numbers as
+structured fields), recorded through the recorder `setPerfTelemetryRecorder` hands in, which applies
+the server's sampling policy. Nothing sets that recorder yet, so for now the pipeline records
+nothing; the `info`/`PERF` log lines older builds of this page wrote are gone.
 
 Asking rather than assuming is the web-deploys-first rule: this bundle can be newer than the app
 it runs in. Both messages are required, because a start with nowhere to stop leaves the native side
@@ -156,9 +160,10 @@ When the app goes to the background, a trace still waiting in the slot is droppe
 not reached a room yet), and one in its grace window is closed as `left`. The native side also refuses
 a stop that arrives after its two-minute window, as a backstop for the same case.
 
-**Attributes are at Firebase's cap of five.** A switched push carries all five (`entry`, `start`,
-`switch`, `cache`, `outcome`), and `outcome` is written last, so any attribute added to this trace
-would silently displace it. Adding one means removing one.
+**Firebase receives exactly these five attributes**, its cap: a switched push carries all five
+(`entry`, `start`, `switch`, `cache`, `outcome`). The list is pinned in `@chatic/perf`'s catalogue.
+The handle itself takes up to sixteen, so a sixth attribute added to this trace reaches the log
+pipeline only — Firebase's five do not change unless someone changes that list on purpose.
 
 ### Where it ends, and why not earlier
 
@@ -294,7 +299,7 @@ the report.
 
 Three limits keep it from distorting what it measures:
 
-- **One run in ten.** The same `isSampledRun` decision as the log fallback. Each sample is itself two
+- **One run in ten.** The `isSampledRun` decision on the injected run id. Each sample is itself two
   bridge posts (the trace's start and stop), so measuring every run would add traffic to exactly the
   thing being measured.
 - **Ten samples a minute.** Firebase Performance shares one rate limit across all of a device's
@@ -351,9 +356,8 @@ screens add: `chat_room_sync`'s feed phase includes the cache write, `chat_send`
   keeps a rare type such as `chat.send` visible next to `chat.feed`.
 - **Hidden time is never in a sample.** `SocketManager` hands over no request the page was hidden
   during, and the web records none from a hidden page.
-- **Firebase only.** The log fallback samples the first tenth of runs, and this trace the second, so
-  on an app build without the perf handlers it records nothing. That is accepted: those builds are
-  on their way out, and the bridge trace already covers them.
+- **The second tenth of runs.** It hashes the run id the same way as `bridge_request` but takes the
+  next bucket, so the two are never sampled in the same run.
 
 ### `close_reason`
 

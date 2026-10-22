@@ -1,14 +1,21 @@
 /**
- * Firebase Performance's per-trace limits, enforced once, before any backend sees a value.
+ * The per-trace limits, enforced once, before any backend sees a value.
  *
- * The React Native SDK throws on an out-of-limit attribute or metric name, and the native SDK
- * drops what gets past it — either way the trace ships without the value someone was counting
- * on. The log fallback has no such limits at all. Enforcing the stricter rule here is what makes a
- * trace carry the same fields whichever backend it ends up on.
+ * The shapes are Firebase Performance's: the React Native SDK throws on an out-of-limit attribute
+ * or metric name, and the native SDK drops what gets past it. Enforcing the stricter shape here is
+ * what makes a trace carry well-formed fields whichever backend it ends up on.
+ *
+ * The **counts** are the log pipeline's, which is wider than Firebase: 16 attributes, 32 metrics.
+ * Firebase's cap of five attributes is applied by its own backend instead, from the per-trace list
+ * in `catalog.ts` — a trace can carry dimensions the pipeline aggregates on without one of them
+ * pushing a dimension Firebase already reports off the trace.
  */
 
-/** Custom attributes per trace. A sixth is dropped by the SDK. */
-export const MAX_PERF_ATTRIBUTES = 5;
+/** Attributes per trace. Firebase receives at most five of them — see `firebaseResultOf` in `catalog.ts`. */
+export const MAX_PERF_ATTRIBUTES = 16;
+
+/** Metrics per trace — Firebase's own limit, and the log pipeline's. */
+export const MAX_PERF_METRICS = 32;
 
 const MAX_ATTRIBUTE_VALUE_LENGTH = 100;
 

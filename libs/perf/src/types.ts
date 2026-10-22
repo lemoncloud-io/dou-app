@@ -20,7 +20,11 @@ export type PerfTraceName =
     | 'socket_request'
     | 'chat_send_media'
     | 'state_outbox'
-    | 'invite_accept';
+    | 'invite_accept'
+    // Recorded on the log pipeline only — Firebase never receives these (see `catalog.ts`).
+    | 'long_tasks'
+    | 'api_request'
+    | 'screen_render';
 
 /** What a backend learns when a trace starts. */
 export interface PerfTraceStart {
@@ -35,6 +39,18 @@ export interface PerfTraceStart {
 
 /** What a backend receives when a trace stops. */
 export interface PerfTraceResult extends PerfTraceStart {
+    /**
+     * A value that arrived already finished (`recordPerfSample`) rather than a timed span. Firebase
+     * sees a zero-length trace either way; the log pipeline records it as a `sample`, whose
+     * duration means nothing.
+     */
+    sample?: boolean;
+    /**
+     * Wall-clock epoch ms of the stop. A backend can receive a stop late — the deferring backend
+     * replays held stops once the destination is known — and the pipeline stamps a record with when
+     * it happened, not when it was delivered.
+     */
+    endedAt?: number;
     /**
      * Elapsed ms as the handle measured it. A backend that times the trace itself (Firebase)
      * ignores this; a backend that only sees the end (the log fallback) has nothing else.
