@@ -31,6 +31,7 @@ const LOG_CONTEXT_FIELD_MAP: Record<keyof LogContext, true> = {
     host: true,
     network: true,
     locale: true,
+    routeTemplate: true,
 };
 
 /** Every `LogContext` field name, in declaration order. */

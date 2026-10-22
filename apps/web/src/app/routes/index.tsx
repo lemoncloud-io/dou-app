@@ -12,6 +12,7 @@ import { privateRoutes } from './PrivateRoutes';
 import { publicRoutes } from './PublicRoutes';
 import { ROUTES } from './paths';
 import { observeRouterRoutes } from '../navigation';
+import { observeScreenViews } from '../runtime/telemetry';
 import { bootSplash } from '../runtime/bootSplash';
 
 export const Router = () => {
@@ -53,6 +54,8 @@ export const Router = () => {
     // and the reconstructed history stack (what the back button will do). Both are fed from one
     // subscription here; see `stackObserver` for why this is the only place that can do it.
     useEffect(() => observeRouterRoutes(router), [router]);
+    // Screen statistics (screen_view, per-screen long tasks) follow the same router.
+    useEffect(() => observeScreenViews(router), [router]);
 
     if (!isInitialized) {
         logger.warn('ROUTER', 'Router blocked: isInitialized is false, rendering null');

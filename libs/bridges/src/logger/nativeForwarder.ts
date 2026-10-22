@@ -1,4 +1,6 @@
 import type { WebMessageData } from '@chatic/app-messages';
+import { isTelemetryEntry } from '@chatic/logger';
+
 import type { LogEntry, LogListener } from '@chatic/logger';
 
 import { NativeBridgeAdapter } from '../web/adapters';
@@ -106,6 +108,15 @@ export const createNativeForwarder = (): LogListener => {
         // that timeline missing exactly the trace a developer is following. The
         // volume is the same volume, but there are no users to spend it on.
         if (entry.level === 'debug' && !appConsoleEnabled()) return;
+
+        // A statistic is never folded. Folding exists for a log line repeating in a burst, where the
+        // count says what the lines would; a burst of samples is a burst of different measurements,
+        // and the fifth one would otherwise be gone. Statistics are sampled and capped where they are
+        // made, so they cannot storm the bridge the way an error loop can.
+        if (isTelemetryEntry(entry)) {
+            send(entry);
+            return;
+        }
 
         // Burst control. `debug` being gated removes the steady high-volume
         // source, but not the spiky one: when the network stalls, every request

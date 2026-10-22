@@ -39,7 +39,7 @@ so a call site can be checked against it — see [docs/entries/](./docs/entries/
 ## Design principles
 
 1. **The core imports nothing.** `package.json` declares `dependencies: {}` and no file imports a workspace package or a third-party one. `createLogId` re-implements UUID v4 by hand rather than pull `uuid` in. Platform behaviour arrives as a listener or as an implementation of a port.
-2. **Occurrence time and occurrence context are stamped at dispatch, never at send.** A queue drained days later would otherwise label every entry with the session, cloud, user and version current at _upload_ time. Fifteen context fields ride on the entry itself so they survive the bridge and any copy.
+2. **Occurrence time and occurrence context are stamped at dispatch, never at send.** A queue drained days later would otherwise label every entry with the session, cloud, user and version current at _upload_ time. Sixteen context fields ride on the entry itself so they survive the bridge and any copy.
 3. **An entry that crossed a runtime boundary is not restamped.** `ingestLogEntry` publishes as-is. The single exception is `id`, backfilled only when absent, because an entry without one can be uploaded but never acknowledged.
 4. **The hub is the only way to see an entry.** There is no ring buffer and no console fallback. A listener sees what is published after it subscribes and nothing else, which makes wiring order part of the contract.
 5. **Reading the store never empties it.** `peek` hands back the same entries until `ack` releases them. A destructive read loses exactly the entries of a process that died mid-send.
@@ -213,7 +213,7 @@ source; in a standalone tab the web's own queue is both. Which one the uploader 
 `logger.warn('SYNC', …)` reaches `CoreLogger.dispatch`, which normalizes the third argument, reads
 the context provider, and stamps `id` and `timestamp`. `logHub.publish` hands the same object to
 every listener in turn: the console sink prints it, the store listener pushes it into
-`LogUploadQueue`. Sixty seconds later the scheduler peeks a batch of 50, `toWireLogBatch` masks and
+`LogUploadQueue`. Sixty seconds later the scheduler peeks a batch (100 as the web wires it; the scheduler default is 50), `toWireLogBatch` masks and
 caps it, and a 2xx answer releases exactly those entries. Nothing else empties the queue.
 
 ### 2. The same line inside the app's WebView
@@ -257,7 +257,7 @@ See [docs/observations/](./docs/observations/README.md).
 
 | Folder                                              | What it covers                                                                                                             |
 | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [docs/entries/](./docs/entries/README.md)           | The entry contract. `LogEntry`, its kinds, the fifteen context fields, the four levels, tags and areas, the third argument |
+| [docs/entries/](./docs/entries/README.md)           | The entry contract. `LogEntry`, its kinds, the sixteen context fields, the four levels, tags and areas, the third argument |
 | [docs/pipeline/](./docs/pipeline/README.md)         | Dispatch, the hub, and the listeners. What a listener must satisfy, wiring order, the three listeners per host             |
 | [docs/upload/](./docs/upload/README.md)             | The queue and the schedule. The two ceilings and the drop order, the store ports, backoff and give-up, **naming history**  |
 | [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, the three output shapes, where an unmasked value can still escape         |

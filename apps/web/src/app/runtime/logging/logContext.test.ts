@@ -145,3 +145,27 @@ describe('reportRunIdJoin — 조인이 깨진 실행을 말한다', () => {
         expect(warn).not.toHaveBeenCalled();
     });
 });
+
+describe('readLogContext — statistics context', () => {
+    it('adds the route template next to the actual path, and nothing for a path no route defines', () => {
+        recordRoute('/channels/U:1002053/room');
+        expect(readLogContext()).toMatchObject({
+            route: '/channels/U:1002053/room',
+            routeTemplate: '/channels/:id/room',
+        });
+
+        recordRoute('/nowhere/at/all');
+        expect(readLogContext().routeTemplate).toBeUndefined();
+    });
+
+    it('marks a standalone tab as the web platform in a browser host', () => {
+        expect(readLogContext()).toMatchObject({ platform: 'web', host: 'browser' });
+    });
+
+    it('takes the injected platform inside the app', () => {
+        (window as Record<string, unknown>).ReactNativeWebView = { postMessage: jest.fn() };
+        (window as Record<string, unknown>).CHATIC_APP_PLATFORM = 'ios';
+
+        expect(readLogContext()).toMatchObject({ platform: 'ios', host: 'app' });
+    });
+});

@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { isNative, logger, setupBridgeLogger, webClient } from '@chatic/bridges';
+import { isNative, setupBridgeLogger, webClient } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { setStorageAdapter } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
@@ -19,7 +19,7 @@ import { clearComposerDrafts } from './app/features/channels/stores/useComposerD
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
-import { attachLogContext, readInjectedRunId, reportRunIdJoin } from './app/runtime/logging/logContext';
+import { attachLogContext, readInjectedRunId, readLogContext, reportRunIdJoin } from './app/runtime/logging/logContext';
 import { startLogUploader } from './app/runtime/logging/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
@@ -30,6 +30,7 @@ import {
     observeSocketRequests,
     observeStateOutbox,
 } from './app/runtime/perf';
+import { startTelemetry } from './app/runtime/telemetry';
 import { attachWebCrashSentinel } from './app/runtime/webCrashSentinel';
 import { bootSplash } from './app/runtime/bootSplash';
 // Concrete path, not the `app/utils` barrel: this module reads `import.meta.env`,
@@ -140,7 +141,17 @@ initLongTasks();
 //
 // Only ordering that matters: this precedes `initWebVitals` below, whose
 // FCP/LCP are recorded through it.
-const webPerfTraces = configureWebPerfTraces({ logger, runId: readInjectedRunId() });
+// Statistics (performance traces, usage events) go through the same pipeline as logs, decided by
+// a sampling policy read here, once, for the whole run. Before the vitals and the first traces, so
+// they are recorded under it; with the default policy nothing is recorded at all. The development
+// override lets a policy be tried before the server serves one; a production build ignores it.
+startTelemetry({
+    context: readLogContext,
+    allowPolicyOverride: import.meta.env.DEV,
+    onReject: import.meta.env.DEV ? rejection => console.warn('[telemetry] refused', rejection) : undefined,
+});
+
+const webPerfTraces = configureWebPerfTraces();
 
 // Times every bridge request of a sampled run, from here on so the boot burst — the WebAppReady
 // handshake included — is in it. Samples are held with the other traces until the report says

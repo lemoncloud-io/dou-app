@@ -1,6 +1,6 @@
 import { pickLogContext, safeSerializable } from '@chatic/logger';
 
-import type { AppLogInfo } from '@chatic/app-messages';
+import type { AppLogInfo, AppLogStructuredFields } from '@chatic/app-messages';
 import type { LogContext, LogEntry } from '@chatic/logger';
 
 /**
@@ -34,8 +34,49 @@ export type AppLogInfoLogContext = Pick<AppLogInfo, keyof LogContext>;
  * Masking still happens — at the boundaries that persist or transmit (the MMKV
  * adapters' `serializeLogs`, and `toWireLogEntry` on the way to the server).
  */
+/**
+ * The structured fields both directions copy, typed against both sides: `satisfies` fails to compile
+ * if a key here is not on `AppLogInfo`, and the `LogEntry` reads below fail if it is not on the entry.
+ */
+const STRUCTURED_FIELDS = [
+    'kind',
+    'httpStatus',
+    'errorCode',
+    'durationMs',
+    'attrs',
+    'metrics',
+    'sr',
+    'pv',
+    'seq',
+] as const satisfies readonly (keyof AppLogStructuredFields & keyof LogEntry)[];
+
+/**
+ * Copies the structured fields that are set, and nothing else.
+ *
+ * They cross as they are — numbers stay numbers, `attrs`/`metrics` stay objects — because a statistic
+ * that lost its `kind` here would arrive in the app's store as a plain log: counted in the log share,
+ * past the sampling verdict, with its numbers gone. The shapes are checked again by the wire mapper
+ * on the way to the server.
+ */
+const KNOWN_KINDS: readonly unknown[] = ['log', 'trace', 'sample', 'event'];
+
+const pickStructured = (
+    source: Partial<Record<(typeof STRUCTURED_FIELDS)[number], unknown>>
+): AppLogStructuredFields => {
+    const picked: Record<string, unknown> = {};
+    for (const field of STRUCTURED_FIELDS) {
+        if (source[field] !== undefined) picked[field] = source[field];
+    }
+    // A kind this build does not know (a newer peer's, or junk) is dropped, which makes the entry a
+    // log: carried on as an unknown statistic it would be judged and uploaded under a kind the
+    // server may refuse, taking the logs in the same batch with it.
+    if (picked.kind !== undefined && !KNOWN_KINDS.includes(picked.kind)) delete picked.kind;
+    return picked as AppLogStructuredFields;
+};
+
 export const toAppLogInfo = (entry: LogEntry): AppLogInfo => ({
     ...pickLogContext(entry),
+    ...pickStructured(entry),
     id: entry.id,
     level: entry.level,
     tag: entry.tag,
@@ -64,6 +105,7 @@ export const toAppLogInfo = (entry: LogEntry): AppLogInfo => ({
  */
 export const toLogEntry = (info: AppLogInfo): LogEntry => ({
     ...pickLogContext(info),
+    ...(pickStructured(info) as Partial<LogEntry>),
     ...(info.id !== undefined ? { id: info.id } : {}),
     level: info.level ?? 'info',
     tag: info.tag ?? 'APP',

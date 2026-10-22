@@ -59,6 +59,13 @@ export interface LogContext {
     network?: string;
     /** UI locale. */
     locale?: string;
+    /**
+     * The route **template** the screen matched — `/channels/:id/room`, never the path with its ids.
+     * `route` keeps the actual path for reading one run; this is the axis statistics are grouped by,
+     * which an id in the path would split into one group per room. Absent when no route definition
+     * matched, rather than filled with the actual path.
+     */
+    routeTemplate?: string;
 }
 
 /**

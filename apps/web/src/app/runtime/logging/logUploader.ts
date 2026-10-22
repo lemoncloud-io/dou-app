@@ -9,6 +9,7 @@ import {
 import { runtime } from '@chatic/app-runtime';
 
 import { clearNativeLogQueue, createNativeUploadSource, isNativeUploadQueueUnsupported } from './nativeUploadSource';
+import { noteStatisticsDropped, selectTelemetryForUpload } from '../telemetry/telemetryRuntime';
 import { registerLogQueueView } from './logQueueView';
 import { createLogUploadStore, resolveTabId } from './logUploadStore';
 import { createLogUploadSwitch, isLogCollectionEnabled } from './logUploadSwitch';
@@ -31,6 +32,12 @@ import type { LogEntry, LogStoreReader } from '@chatic/bridges';
  * window only ever costs entries in a hard crash.
  */
 const PERSIST_DEBOUNCE_MS = 1_000;
+
+/**
+ * Entries per upload request. Twice the logger's default, because statistics now share the requests
+ * with logs; still a small body (entries average about 1.25KB on the server).
+ */
+export const UPLOAD_BATCH_SIZE = 100;
 
 export interface LogUploaderOptions {
     /** Kill switch, read before each send. Defaults to the env + per-device switch. */
@@ -72,6 +79,8 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
 
             console.warn(`[logUploader] dropped ${dropped.length} queued entries under backpressure`);
         },
+        // Statistics have a share of their own; what it loses is counted onto a later sample.
+        onStatDrop: noteStatisticsDropped,
     });
 
     let persistTimer: ReturnType<typeof setTimeout> | undefined;
@@ -167,6 +176,10 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
         store: logStore,
         isEnabled: options.isEnabled ?? createLogUploadSwitch(),
         send: entries => runtime.report.uploadLogBatch(entries),
+        batchSize: UPLOAD_BATCH_SIZE,
+        // Statistics are judged as they are drawn: the native ones (made before the policy was known)
+        // get their verdict here, and with statistics switched off every queued one is let go unsent.
+        selectTelemetry: selectTelemetryForUpload,
         // The scheduler removes accepted (and abandoned) batches itself, so the
         // on-disk copy has to be rewritten after each cycle — otherwise a
         // reload brings back entries the server already took. Harmless in hybrid

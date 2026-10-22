@@ -55,6 +55,10 @@ is watched on.
   on the device, but it is not a sample of how long boot takes.
 - **Every run is recorded.** The log-pipeline metric this replaced was sampled one run in ten,
   because it competed with diagnostic logs for the upload queue. Firebase traces do not.
+- **The same trace also goes to the log pipeline**, as a `perf.boot` statistics entry in this app's
+  upload queue (and `first_screen` as a `perf.first_screen` sample). Native code does not read the
+  sampling policy, so the entry is written unjudged; the web judges it by its run id when it draws it
+  for upload, and an unsampled run's entry is let go unsent. With the default policy that is every run.
 
 The `Boot record persisted (…)` log line is unchanged. It is a sentence for whoever scans the log
 monitor, and the trace does not replace it.

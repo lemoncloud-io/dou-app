@@ -253,7 +253,9 @@ Names you would not find by guessing at a filename:
 - `EnvironmentConfig` and `BridgeFailureConfig` — the simulation knobs — are in `common/types.ts`.
 - `AppBridgeHostConfig` is in `AppBridgeHost.ts`; `IAppBridgeHost` has its own file.
 - `toAppLogInfo` and `toLogEntry` are both in `logger/appLogInfoCodec.ts`, deliberately neighbours so
-  the context tuple cannot be listed differently per direction. `AppLogInfoLogContext` is in the same
+  the context tuple cannot be listed differently per direction. Both also copy the structured fields
+  (`kind`, the statistics fields, `httpStatus`, `errorCode`) from one `STRUCTURED_FIELDS` list, typed
+  with `satisfies` against both `AppLogInfo` and `LogEntry`. `AppLogInfoLogContext` is in the same
   file and is an assertion, not a type anyone uses: `Pick<AppLogInfo, keyof LogContext>` fails to
   compile the moment the two drift, which is the only place that can be caught.
 - **There is no `errors.ts`.** Every error this lib produces is a `BridgeError` literal built inline —
@@ -467,7 +469,10 @@ Two gates sit in front of that send. `debug` crosses only when the shell injecte
 the hop would buy nothing and cost the most, `debug` being the highest-volume level. And identical
 lines (same level, tag and message) are folded past 5 within a 1s window, with the swallowed count
 reported on the next occurrence; a stalled network otherwise produces one `postMessage` per timing-out
-request on the very thread the cache path needs.
+request on the very thread the cache path needs. **A statistic is never folded**: a burst of samples
+is a burst of different measurements, and folding would drop the very values being collected.
+Statistics are sampled and capped where they are made, so they cannot storm the bridge the way an
+error loop can.
 
 ### 7. Another app in front of this one
 
