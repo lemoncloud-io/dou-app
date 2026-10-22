@@ -12,6 +12,8 @@ interface UseChannelTitleInput {
     joinNick?: string | null;
     /** The DM peer's place-profile nick (`useDmPeer`); ignored for non-DM channels. */
     peerNick?: string | null;
+    /** The DM peer's cloud-profile name (`useDmPeer`); read for a cloud 1:1 only. */
+    peerCloudName?: string | null;
 }
 
 /**
@@ -25,7 +27,7 @@ interface UseChannelTitleInput {
  */
 export const useChannelTitle = (
     channel: DomainChannel | null | undefined,
-    { joinNick, peerNick }: UseChannelTitleInput = {}
+    { joinNick, peerNick, peerCloudName }: UseChannelTitleInput = {}
 ): string => {
     const { t } = useTranslation();
     const { profile } = useMyProfile();
@@ -40,6 +42,7 @@ export const useChannelTitle = (
         joinNick: joinNick ?? undefined,
         myNick: profile?.nick,
         peerNick: peerNick ?? undefined,
+        peerCloudName: peerCloudName ?? undefined,
         selfLabel: t('channelList.selfChannel'),
         unnamedLabel,
         dmUnnamedLabel: t('chat.dm.unnamedPeer'),

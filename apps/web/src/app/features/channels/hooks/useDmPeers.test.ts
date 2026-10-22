@@ -11,6 +11,13 @@ jest.mock('./useChannelProfiles', () => ({
     useChannelProfiles: (...args: unknown[]) => useChannelProfiles(...args),
 }));
 
+// The cloud-profile reader is its own unit (usePeerCloudNames.test); here we assert which rows it is
+// handed and that its names land on the peers.
+const usePeerCloudNames = jest.fn();
+jest.mock('./usePeerCloudNames', () => ({
+    usePeerCloudNames: (...args: unknown[]) => usePeerCloudNames(...args),
+}));
+
 const channel = (id: string, fields: Partial<DomainChannel>): DomainChannel => ({ id, ...fields }) as DomainChannel;
 
 const withProfiles = (entries: Array<[string, Partial<DomainProfile>]> = []) => {
@@ -23,6 +30,8 @@ describe('useDmPeers', () => {
     beforeEach(() => {
         useChannelProfiles.mockReset();
         withProfiles();
+        usePeerCloudNames.mockReset();
+        usePeerCloudNames.mockReturnValue(new Map());
     });
 
     it('maps each DM channel to the roster member that is not me', () => {
@@ -134,5 +143,37 @@ describe('useDmPeers', () => {
 
         expect(result.current.size).toBe(0);
         expect(useChannelProfiles).toHaveBeenCalledWith('sid', [], LIST_PROFILE_SYNC_INTERVAL_MS);
+    });
+
+    it("hands only cloud 1:1 rows to the cloud-profile reader, with each peer's place nick", () => {
+        withProfiles([['peer1', { nick: 'webB' }]]);
+
+        renderHook(() =>
+            useDmPeers(
+                'sid',
+                [
+                    channel('cloud1', { stereo: 'dm', cid: '1000002', memberIds: ['me', 'peer1'] }),
+                    channel('cloud2', { stereo: 'dm', cid: '1000002', memberIds: ['me', 'peer2'] }),
+                    channel('relay', { stereo: 'dm', cid: 'default', memberIds: ['me', 'peer3'] }),
+                    channel('group', { stereo: 'private', cid: '1000002', memberIds: ['me', 'peer4'] }),
+                ],
+                'me'
+            )
+        );
+
+        expect(usePeerCloudNames).toHaveBeenLastCalledWith([
+            { channelId: 'cloud1', cid: '1000002', peerId: 'peer1', profileNick: 'webB' },
+            { channelId: 'cloud2', cid: '1000002', peerId: 'peer2', profileNick: undefined },
+        ]);
+    });
+
+    it('puts the cloud-profile name on the peer', () => {
+        usePeerCloudNames.mockReturnValue(new Map([['peer', '임마']]));
+
+        const { result } = renderHook(() =>
+            useDmPeers('sid', [channel('c1', { stereo: 'dm', cid: '1000002', memberIds: ['me', 'peer'] })], 'me')
+        );
+
+        expect(result.current.get('c1')).toMatchObject({ id: 'peer', profileNick: undefined, cloudName: '임마' });
     });
 });

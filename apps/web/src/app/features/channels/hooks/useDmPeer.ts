@@ -3,18 +3,24 @@ import { useMemo } from 'react';
 import type { DomainProfile } from '@chatic/data';
 
 import type { ChannelMember, ClientChannelView } from '../types';
-import { pickDmPeerId } from '../utils/dmPeer';
+import { peerCloudNameOf, pickDmPeerId } from '../utils/dmPeer';
 
 /** The 1:1 peer (the other participant) resolved for header/settings display. */
 export interface DmPeer {
     id: string;
     /**
-     * The peer's site-profile nick — profile ONLY, with no member-cache fallback. Feed it to
-     * `resolveDmTitle`, which owns the rest of the chain. The member-cache name is excluded on
-     * purpose: it hydrates through a per-channel `syncChannelUsers` call the list surfaces cannot
-     * afford, so including it here would make the room disagree with the list.
+     * The peer's site-profile nick — profile ONLY. Feed it to `resolveChannelTitle`, which owns the
+     * rest of the chain. The member's own record is a separate field (`cloudName`) rather than a
+     * fallback folded in here, because only a cloud 1:1 reads it.
      */
     profileNick?: string;
+    /**
+     * The peer's cloud-profile name — their user record in the cloud's user cache, screened by
+     * `peerCloudNameOf`. The title chain reads it below `profileNick`, for a cloud 1:1 only. The room
+     * takes it from the members it already loads; a list takes it from the user cache, loading a
+     * room's members only for a peer the cache cannot name (`useDmPeers`).
+     */
+    cloudName?: string;
     /**
      * The peer's site-profile photo — profile ONLY, like the nick. A profile is per-place, so the
      * member-cache (account-wide) avatar is a photo the peer never chose for this place; with no
@@ -53,6 +59,10 @@ export const useDmPeer = (
         return {
             id: peerId,
             profileNick: profile?.nick,
+            cloudName: peerCloudNameOf(
+                members.find(member => member.id === peerId),
+                peerId
+            ),
             thumbnail: profile?.thumbnail,
         };
     }, [channel?.stereo, channel?.memberIds, members, profileMap, userId]);

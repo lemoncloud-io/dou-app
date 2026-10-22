@@ -3,6 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 
+import { usePeerCloudNames } from '../../channels/hooks/usePeerCloudNames';
 import { useSenderProfiles } from './useSenderProfiles';
 import { useSearchContext } from './useSearchContext';
 import type { GlobalSearchResults } from './useGlobalSearch';
@@ -24,6 +25,8 @@ jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) =>
 // Sender profiles come from ProfileRepository via this hook; it has its own test file.
 jest.mock('./useSenderProfiles', () => ({ useSenderProfiles: jest.fn(() => new Map()) }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
+// Cloud-profile names come from the user cache via this hook; it has its own test file.
+jest.mock('../../channels/hooks/usePeerCloudNames', () => ({ usePeerCloudNames: jest.fn(() => new Map()) }));
 
 const resolveContext = jest.fn();
 
@@ -42,6 +45,7 @@ beforeEach(() => {
     resolveContext.mockResolvedValue(EMPTY_CONTEXT);
     (runtime.data.useGlobalCacheSearch as jest.Mock).mockReturnValue({ search: jest.fn(), resolveContext });
     (useSenderProfiles as jest.Mock).mockReturnValue(new Map());
+    (usePeerCloudNames as jest.Mock).mockReturnValue(new Map());
 });
 
 describe('useSearchContext', () => {
@@ -393,6 +397,39 @@ describe('useSearchContext', () => {
         await waitFor(() => expect(logger.error).toHaveBeenCalled());
         expect(result.current.channels[0].name).toBe('Lounge');
         expect(result.current.channels[0].placeName).toBeUndefined();
+    });
+});
+
+describe('useSearchContext — a cloud 1:1 peer with no place profile', () => {
+    beforeEach(() => {
+        (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: 'me' });
+    });
+    afterEach(() => {
+        (runtime.session.useSessionIdentity as jest.Mock).mockReturnValue({ userId: undefined });
+    });
+
+    const dmRow = (cid: string) =>
+        results({ channels: [{ id: 'dm-1', cid, sid: 'site-1', stereo: 'dm', memberIds: ['me', 'peer'] }] as any });
+
+    // Home names this row by the cloud profile; search must not call the same room "대화 상대".
+    it("names the row by the peer's cloud-profile name, as home does", async () => {
+        (usePeerCloudNames as jest.Mock).mockReturnValue(new Map([['peer', '임마']]));
+
+        const { result } = renderHook(() => useSearchContext(dmRow('cloud-a')));
+
+        await waitFor(() => expect(result.current.channels[0]?.name).toBe('임마'));
+    });
+
+    it('hands the cloud-profile reader only cloud 1:1 rows, with the place nick it already has', () => {
+        (useSenderProfiles as jest.Mock).mockReturnValue(new Map([['site-1@peer', { nick: 'webB' }]]));
+
+        renderHook(() => useSearchContext(dmRow('cloud-a')));
+        expect(usePeerCloudNames).toHaveBeenLastCalledWith([
+            { channelId: 'dm-1', cid: 'cloud-a', peerId: 'peer', profileNick: 'webB' },
+        ]);
+
+        renderHook(() => useSearchContext(dmRow('default')));
+        expect(usePeerCloudNames).toHaveBeenLastCalledWith([]);
     });
 });
 

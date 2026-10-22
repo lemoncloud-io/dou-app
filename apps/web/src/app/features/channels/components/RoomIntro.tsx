@@ -7,7 +7,7 @@ export type RoomIntroVariant = 'self' | 'dm' | 'group';
 interface RoomIntroProps {
     /** Channel stereo — self / dm / group each get their own copy. */
     variant: RoomIntroVariant;
-    /** DM only: the peer's place-profile nick. Absent → the unnamed line. */
+    /** DM only: the peer's name from `resolveDmPeerName`. Absent → the unnamed line. */
     peerNick?: string | null;
     /** Group only: the copy is written in the creator's voice, so a member gets no intro. */
     isGroupOwner?: boolean;
@@ -23,10 +23,10 @@ interface RoomIntroProps {
  * exist, reading as the room's own first entry above the oldest message. The caller renders it
  * directly under the oldest date divider.
  *
- * The DM line names the peer from their place profile ONLY — it states who joined, so my private
- * alias for the room has no place in it — and says it without a name when there is no profile
- * (ADR-0039). The stream's own join notice (SystemNotice pill) is left in place: the repeated
- * sentence is intended.
+ * The DM line names the peer by `resolveDmPeerName` — their place profile, and for a cloud 1:1 their
+ * cloud profile after it — and never by my private alias for the room, since it states who joined.
+ * With neither it says it without a name. The stream's own join notice (SystemNotice pill) is left
+ * in place: the repeated sentence is intended.
  */
 export const RoomIntro = ({ variant, peerNick, isGroupOwner = false, onInvite }: RoomIntroProps) => {
     const { t } = useTranslation();

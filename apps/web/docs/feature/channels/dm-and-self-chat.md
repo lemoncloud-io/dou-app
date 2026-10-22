@@ -239,26 +239,63 @@ user-set — then the rung and the editor come back together.
 resolveChannelTitle
 ├── self   → customJoinNick(join.nick) → my place-profile nick → "self chat" label
 ├── dm     → customJoinNick(join.nick) → peer's place-profile nick → channel.name → unnamed-peer label
+│            (cloud 1:1: no join.nick; the peer's cloud-profile name sits after the place-profile nick)
 └── group  → channel.name → unnamed label   (owner and member alike — my join.nick is not read)
 ```
 
-Four rules hold that shape together.
+These rules hold that shape together.
 
 **The DM branch intercepts before the group rule.** That rule is wrong for a 1:1: the inviter owns
 the channel and the server sets its name, so it would ignore both the name I gave the room and the
 peer's profile. That is exactly how the home list came to disagree with the
 room header.
 
-**The chain does not change with the place rule.** A 1:1 is named from its own place's profiles now
-(`profilePlaceOf`), and a peer with no profile in that place falls through to `channel.name` or the
-unnamed-peer label — there is no cloud-profile rung on mobile. That gap is more common on new rooms,
-because the server no longer writes an alias into `join.nick` for a 1:1 the app opens. Desktop's
-chain does fall back to the cloud profile; mobile's deliberately does not.
+**A cloud 1:1 names a peer with no place profile by their cloud profile.** A 1:1 is named from its
+own place's profiles (`profilePlaceOf`), and a cloud member need not set up a profile in every place
+of the cloud — and the server no longer writes an alias into `join.nick` for a 1:1 the app opens. So
+for a peer with no profile in that place (the server answers `404`) or a profile with no nick, the
+chain used to fall straight to the unnamed-peer label. Measured on dev: the 1:1 picker listed the
+person as `임마`, the room's join message said `임마 entered the chat room`, and the header and the
+home row said "대화 상대". The picker, the message rows and the member list all read the user record;
+the title was the one surface that did not.
 
-**Only values every surface can get cheaply are in the chain.** The peer's _user-record_ name is
-excluded, deliberately. It hydrates through a per-channel `syncChannelUsers` call that a list cannot
-afford, so including it would let the room answer differently from the list — the original bug. It
-is also often a `***1234` phone placeholder, which is not a name anyway.
+The **cloud profile** is that user record — the row the cloud's user cache keeps for the person — read
+`nick` first, then `name`, the same order `resolveUserName` reads a member in (`peerCloudNameOf`).
+It is not a new stored thing. It sits below the place-profile nick, so a person who set up a profile
+in this place is still named by it, and above `channel.name`. Desktop names a 1:1 peer the same way.
+
+The values the server makes up for an account — its own id, `User_0101`, a masked `***0101` — are
+not names and fall through (`isServerSeededNick`, the guard `join.nick` already passes). A plain phone
+number that a batch invite stored as the name is shown: it is what the picker shows too.
+
+**A relay 1:1 does not read it.** Its records are mostly the masked placeholder, and its room is
+named at the invite form (`join.nick`, step 1) anyway, so the rung would buy little and the relay
+behaviour stays as it was.
+
+**Every surface gets the cloud profile, at a bounded cost.** This rung was once kept out of the chain
+because a list had no cheap way to fill it, so the room would answer differently from the list. That
+still decides how it is filled, not whether:
+
+- the room and settings take it from the members they already load (`useDmPeer`);
+- a list — home, place channel management and search, which all read the selected cloud — takes it
+  from the user cache (`usePeerCloudNames`), and loads a room's members (`syncChannelUsers`) only for a
+  cloud 1:1 whose peer has neither a place nick nor a cached record, once per room per mount. The
+  place profiles usually land just after the first render, so a row is checked for a place nick again
+  after its cache read and is not loaded if one arrived. A warm cache costs no request, and the cache
+  keeps the record across launches, so it is paid once per person rather than per visit.
+
+The hook is scoped to the selected cloud and my uid in it, not to the repository object: the app
+hands out one repository whose cloud is read at call time, so its identity cannot tell two clouds
+apart. A switch drops the previous names and subscriptions, rows of another cloud are ignored, and a
+load whose cloud moved during its cache read is not sent — it would carry the old cloud's room id
+into the new cloud's session.
+
+`resolveDmPeerName` is the one place the person-naming steps are written. The title reads it as its
+second step, and the intro block ("`<name>` entered the chat room") reads it directly, so the header
+and the first line of the body agree. A relay 1:1's intro still uses the place-profile nick alone.
+
+The message rows are a little looser: they drop only a raw id, so a peer whose record is named
+`***0101` reads that in a message row and the unnamed-peer label in the title.
 
 **A server-seeded nick is not a name.** Both chains open with `customJoinNick` — trim, reject a
 value the server put there, fall through. Sharing the whole step rather than just the guard is what
@@ -323,15 +360,18 @@ own name and face as the person I am talking to.
 Two hooks wrap it, one per surface shape:
 
 - **`useDmPeer(channel, members, profileMap, userId)`** for a single room. `profileNick` and
-  `thumbnail` are both the place profile only. A profile is per-place, so the member cache's
-  account-wide avatar is a photo the peer never chose for this place — showing it put a face in the
-  room header and settings that the home row (which never had it) did not show. With no profile
-  photo the placeholder glyph is drawn.
+  `thumbnail` are both the place profile only; `cloudName` is the peer's member record, screened by
+  `peerCloudNameOf`, which the title chain reads for a cloud 1:1 only. A profile is per-place, so the
+  member cache's account-wide avatar is a photo the peer never chose for this place — showing it put
+  a face in the room header and settings that the home row (which never had it) did not show. With no
+  profile photo the placeholder glyph is drawn.
 - **`useDmPeers(sid, channels, userId)`** for lists. It collects every DM row's peer off the roster
   and subscribes to profiles **once for the whole list**, deduped and sorted. Sorting is load-bearing:
   `useChannelProfiles` keys its registration effect on `ids.join(',')`, and a list ordered by recent
   activity would otherwise unregister and re-register every profile target each time a message
-  arrived. It polls at `LIST_PROFILE_SYNC_INTERVAL_MS` (60s), not the room's 20s.
+  arrived. It polls at `LIST_PROFILE_SYNC_INTERVAL_MS` (60s), not the room's 20s. For cloud 1:1 rows
+  it also fills `cloudName` from the user cache through `usePeerCloudNames`, which observes each peer's
+  record and loads a room's members only when nothing names the peer.
 
 A room also adds the peer to its own profile targets explicitly, taking the id from the roster
 rather than from `useDmPeer` (which consumes the profile map — reading it there would be circular).
@@ -547,8 +587,10 @@ telling that person they are not in the conversation would be a lie.
 - **Do not identify a stereo by member count.**
 - **Do not re-derive a per-kind rule at a call site.** Add it to `channelStereoPolicy` and read it.
 - **Do not add a surface that draws a channel without adding it to the five above.**
-- **Do not add the peer's user-record name to the title chain.** It is the one input a list cannot
-  afford.
+- **Do not read the peer's user record for a relay 1:1's title, or ahead of the place profile.** The
+  cloud-profile rung is a cloud 1:1's, below the place-profile nick.
+- **Do not load members per list row unconditionally.** `usePeerCloudNames` asks only for rows the
+  place profile and the user cache both fail to name.
 - **Do not read `channel.$join.nick` on a screen that must reflect a rename.** Use
   `useChannelJoins().myJoin`.
 - **Do not put `join.nick` on a person.** It belongs to the channel.
@@ -573,13 +615,15 @@ telling that person they are not in the conversation would be a lie.
   and feeding it back in is a render loop. `peerLeft` settles independently from the join rows.
 - The pure pieces carry the tests — `dmTitle.test.ts`, `selfChatTitle.test.ts`,
   `dmInviteState.test.ts` (the whole state machine), `membership.test.ts`, `resolveChannelTitle.test.ts`,
-  `channelStereoPolicy.test.ts`, `useDmPeer(s).test.ts`, `useDmInviteState.test.ts`,
+  `channelStereoPolicy.test.ts`, `useDmPeer(s).test.ts`, `usePeerCloudNames.test.ts`, `dmPeer.test.ts`,
+  `useDmInviteState.test.ts`,
   `nick.test.ts`, `useMessageJump.test.ts` (the join-window abandon) — plus
   `ChannelSettingsPage.test.tsx`, `PlaceChannelManagePage.test.tsx` (the DM-never-deletes case) and
   `JoinNickDialog.test.tsx` for the screens.
 - Search resolves a DM peer's profile through `useSenderProfiles`, not `useDmPeers`: the latter takes
   a single `sid` and results span the places of the searched cloud. Peers ride along with the message
-  authors so the page keeps one subscription.
+  authors so the page keeps one subscription. Their cloud-profile names come from the same
+  `usePeerCloudNames` home uses.
 
 ```bash
 npx jest --config apps/web/jest.config.js --runInBand --watchman=false apps/web/src/app/features/channels

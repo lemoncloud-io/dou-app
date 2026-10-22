@@ -2,9 +2,11 @@ import { useMemo } from 'react';
 
 import type { DomainChannel } from '@chatic/data';
 
+import { dmLineageOf } from '../lib';
 import { pickDmPeerId } from '../utils/dmPeer';
 import { useChannelProfiles } from './useChannelProfiles';
 import type { DmPeer } from './useDmPeer';
+import { usePeerCloudNames, type CloudDmPeerRef } from './usePeerCloudNames';
 
 /**
  * Profile poll cadence for list surfaces. `useChannelProfiles` defaults to a room-tuned interval,
@@ -21,6 +23,9 @@ export const LIST_PROFILE_SYNC_INTERVAL_MS = 60_000;
  * which costs a `syncChannelUsers` network call per channel. Here the peer is read straight off the
  * roster (`channel.memberIds`) and every peer's profile is fetched through ONE list-level
  * `useChannelProfiles` subscription instead of one per row.
+ *
+ * A cloud 1:1's peer also gets their cloud-profile name (`usePeerCloudNames`), which the title chain
+ * reads when this place's profile does not name them. A relay 1:1 never reads it, so none is asked for.
  *
  * Returns a `channelId -> DmPeer` map holding DM channels only, so a caller can look up a row and
  * get `undefined` for anything that is not a DM.
@@ -49,12 +54,28 @@ export const useDmPeers = (
 
     const { profileMap } = useChannelProfiles(sid, peerIds, LIST_PROFILE_SYNC_INTERVAL_MS);
 
+    const cloudRows = useMemo<CloudDmPeerRef[]>(() => {
+        const rows: CloudDmPeerRef[] = [];
+        for (const channel of channels) {
+            const peerId = peerIdByChannel.get(channel.id);
+            if (!peerId || dmLineageOf(channel) !== 'cloud') continue;
+            rows.push({ channelId: channel.id, cid: channel.cid, peerId, profileNick: profileMap.get(peerId)?.nick });
+        }
+        return rows;
+    }, [channels, peerIdByChannel, profileMap]);
+    const cloudNames = usePeerCloudNames(cloudRows);
+
     return useMemo(() => {
         const map = new Map<string, DmPeer>();
         for (const [channelId, peerId] of peerIdByChannel) {
             const profile = profileMap.get(peerId);
-            map.set(channelId, { id: peerId, profileNick: profile?.nick, thumbnail: profile?.thumbnail });
+            map.set(channelId, {
+                id: peerId,
+                profileNick: profile?.nick,
+                cloudName: cloudNames.get(peerId),
+                thumbnail: profile?.thumbnail,
+            });
         }
         return map;
-    }, [peerIdByChannel, profileMap]);
+    }, [peerIdByChannel, profileMap, cloudNames]);
 };

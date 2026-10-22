@@ -42,8 +42,8 @@ describe('useDmPeer', () => {
         expect(result.current).toMatchObject({ id: 'peer', profileNick: 'Profile Nick', thumbnail: 'profile.png' });
     });
 
-    // The member-cache name is NOT a fallback: the list surfaces cannot hydrate it, so including it
-    // would make the room title disagree with the home list (see resolveDmTitle).
+    // The member's own record is a separate field, not folded into profileNick: only a cloud 1:1's
+    // title reads it, so a relay title must still see "no profile" here.
     it('leaves profileNick undefined when no profile is cached', () => {
         const { result } = renderHook(() =>
             useDmPeer(
@@ -55,6 +55,35 @@ describe('useDmPeer', () => {
         );
         expect(result.current).toMatchObject({ id: 'peer' });
         expect(result.current?.profileNick).toBeUndefined();
+    });
+
+    it("takes the cloud-profile name from the peer's member record, nick first", () => {
+        const { result } = renderHook(() =>
+            useDmPeer(
+                channel({ stereo: 'dm', memberIds: ['me', 'peer'] }),
+                [member('me', { name: 'Me' }), member('peer', { name: '임마', nick: '토끼' })],
+                new Map(),
+                'me'
+            )
+        );
+        expect(result.current?.cloudName).toBe('토끼');
+    });
+
+    it('gives no cloud-profile name for a generated account name or a peer not loaded yet', () => {
+        const generated = renderHook(() =>
+            useDmPeer(
+                channel({ stereo: 'dm', memberIds: ['me', 'peer'] }),
+                [member('peer', { name: '***0101' })],
+                new Map(),
+                'me'
+            )
+        );
+        expect(generated.result.current?.cloudName).toBeUndefined();
+
+        const notLoaded = renderHook(() =>
+            useDmPeer(channel({ stereo: 'dm', memberIds: ['me', 'peer'] }), [], new Map(), 'me')
+        );
+        expect(notLoaded.result.current?.cloudName).toBeUndefined();
     });
 
     // A profile is per-place: the account-wide avatar is not a photo the peer chose for this place.

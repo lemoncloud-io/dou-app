@@ -54,7 +54,7 @@ jest.mock('../../../hooks', () => ({
 
 // The list-level DM peer lookup (one profile subscription for every DM row) is covered by
 // useDmPeers.test.ts; here we inject its result so rows can be driven without the runtime.
-const mockDmPeers = new Map<string, { id: string; profileNick?: string; thumbnail?: string }>();
+const mockDmPeers = new Map<string, { id: string; profileNick?: string; cloudName?: string; thumbnail?: string }>();
 // The swipe actions write through the same mutations the room's settings screen uses.
 const mockUpdateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 const mockLeaveChannel = jest.fn().mockResolvedValue(undefined);
@@ -448,6 +448,23 @@ describe('ChannelList — 1:1(DM) 행', () => {
         );
 
         expect(screen.getByText('토끼친구')).toBeInTheDocument();
+    });
+
+    // The relay chain does not read the cloud profile; a cloud 1:1 does.
+    it('names a cloud 1:1 peer with no place profile by their cloud-profile name', () => {
+        mockDmPeers.set('dm1', { id: 'peer', cloudName: '임마' });
+
+        render(<ChannelList channels={[dmChannel({ cid: '1000002', sid: '10004' })]} sid="10004" isLoading={false} />);
+
+        expect(screen.getByText('임마')).toBeInTheDocument();
+    });
+
+    it('keeps a relay 1:1 peer with no place profile on the unnamed label, cloud name or not', () => {
+        mockDmPeers.set('dm1', { id: 'peer', cloudName: '임마' });
+
+        render(<ChannelList channels={[dmChannel()]} sid="S:relay" isLoading={false} />);
+
+        expect(screen.getByText('chat.dm.unnamedPeer')).toBeInTheDocument();
     });
 
     it('상대 프로필이 없으면 DM 전용 라벨로 떨어진다', () => {

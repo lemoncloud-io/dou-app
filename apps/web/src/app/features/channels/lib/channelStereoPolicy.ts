@@ -132,6 +132,23 @@ export const dmLineageOf = (
 };
 
 /**
+ * The peer's name for a 1:1's intro block ("<name> entered the chat room"), or `undefined` for the
+ * name-free sentence.
+ *
+ * The intro states a fact about the person, so it never reads my own `join.nick` for the room — but
+ * it does follow the title chain's person-naming steps for the same lineage, so a cloud 1:1's
+ * header and the first line of its body cannot disagree about who the peer is.
+ */
+export const resolveDmPeerName = (
+    channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined,
+    peer: { profileNick?: string; cloudName?: string } | null | undefined
+): string | undefined => {
+    const profileNick = peer?.profileNick?.trim();
+    if (profileNick) return profileNick;
+    return dmLineageOf(channel) === 'cloud' ? peer?.cloudName?.trim() || undefined : undefined;
+};
+
+/**
  * Whether home lists a room atop a cloud's 1:1 section rather than under a place: the
  * notes-to-self room of a subscription cloud. It belongs to the account, not to a place, so under a
  * place it showed in whichever one it was tagged with and in none of the others. On the relay it
