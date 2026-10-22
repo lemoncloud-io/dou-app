@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-22] - root@0.110.1, @chatic/web@0.76.1
+
+### Bug Fixes
+
+- (web) name a cloud 1:1 peer with no place profile by their cloud profile (ADR-0221)
+
 ## [2026-10-22] - No version updates
 
 ### Bug Fixes
