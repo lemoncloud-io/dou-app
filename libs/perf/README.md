@@ -2,13 +2,17 @@
 
 **Performance traces, and the backends they are recorded on.** A trace has a start and a stop,
 and in between it collects low-cardinality attributes and integer metrics. Where it is recorded
-depends on the host: Firebase Performance in the mobile app (directly in the native shell, over the
-bridge from the WebView), the log pipeline for a WebView inside an app build that cannot do that,
-and nowhere at all for a host that never configures a backend.
+depends on the host, and can be two places at once: Firebase Performance in the mobile app (directly
+in the native shell, over the bridge from the WebView) and the log pipeline, side by side, through
+a fan-out backend. A host that never configures a backend records nothing.
 
-This package holds the trace API, the limits every backend has to respect, and the two backends
-that do not need a native SDK. The Firebase-backed backend lives in `apps/mobile`, because only the
-app has the SDK.
+This package holds the trace API, the limits every backend has to respect, the catalogue of what
+each trace may carry and what of it Firebase receives, and the backends that do not need a native
+SDK. The Firebase-backed backend lives in `apps/mobile`, because only the app has the SDK.
+
+**Firebase receives exactly what it did before the pipeline was added.** The two are compared over
+the same period, so the pipeline's extra room — sixteen attributes, three pipeline-only traces,
+three more web vitals — is cut away on Firebase's side by `catalog.ts`. See [The catalogue](#the-catalogue).
 
 ## Why traces, and why Firebase
 
@@ -19,10 +23,14 @@ pipeline could not:
 
 - **Percentiles in the console, with no offline work.** The log pipeline carried a number inside a
   length-capped `data` string, so every p95 meant downloading raw entries and computing it by hand.
-- **Every session, not a sample.** The log pipeline sampled one run in ten, because metrics competed
-  with diagnostic logs for the upload queue. Firebase traces do not use that queue, so the native
-  shell records every run. The sampling only survives in the log fallback, which still shares that
-  queue.
+- **Every session, not a sample.** The log pipeline used to sample one run in ten, because metrics
+  competed with diagnostic logs for the upload queue. Firebase traces do not use that queue, so the
+  native shell records every run.
+
+The log pipeline is back beside it, on different terms: a trace there is a statistics entry with its
+numbers as structured fields the server aggregates, it has a share of the upload queue of its own so
+it never competes with logs, and whether a run is recorded is the server's sampling policy rather than
+a constant. Until the server serves a policy it records nothing.
 
 The WebView cannot record Firebase traces itself. The Firebase JS SDK would register the WebView as a
 separate web app in the console, apart from the iOS and Android apps it runs inside. Its automatic
@@ -34,17 +42,21 @@ bridge, not over HTTP. So the WebView forwards both ends of each trace to the na
 ```text
 src/
   types.ts        PerfTraceName (closed) · PerfTraceStart · PerfTraceResult
-  limits.ts       Firebase's per-trace limits, enforced for every backend
+  limits.ts       the per-trace limits, enforced for every backend
+  catalog.ts      PERF_TRACE_CATALOG · firebaseResultOf · PERF_TELEMETRY_CATALOG
   PerfTrace.ts    PerfTrace (the handle) · PerfTraceBackend (the port) · NOOP_PERF_TRACE_BACKEND
   runtime.ts      the process slot: configurePerfTraces · startPerfTrace · adoptPerfTrace ·
                   recordPerfSample · resetPerfTraces
   traceId.ts      createPerfTraceId
-  sampling.ts     PERF_SAMPLE_PERCENT · hashRunId · isSampledRun (log fallback only)
+  sampling.ts     PERF_SAMPLE_PERCENT · hashRunId · isSampledRun (the per-name run buckets)
   perfNow.ts      performance.now() where it exists, else Date.now()
   pageHides.ts    pageHideCount · isPageHidden — drop a measurement the page was hidden during
+  activeTraces.ts set/get/clear/endActivePerfTrace · endPerfTrace — one trace in progress per name
   backends/
-    LogPerfTraceBackend.ts       info/PERF log entries, sampled by run
-    DeferredPerfTraceBackend.ts  holds calls until the destination is known
+    DeferredPerfTraceBackend.ts            holds calls until the destination is known
+    FanOutPerfTraceBackend.ts              the same calls to several backends; one failing costs no other
+    FirebaseDimensionsPerfTraceBackend.ts  a backend cut down to what Firebase receives
+    PipelinePerfTraceBackend.ts            statistics entries on the log pipeline, through a recorder
 ```
 
 ## The traces
@@ -52,22 +64,25 @@ src/
 `PerfTraceName` is a closed union. A name becomes a row in the Firebase console and a console alert
 is set against that exact string, so a typo must not open a second row that nobody watches.
 
-| Trace             | Start                                     | Stop                                     | Target                         |
-| ----------------- | ----------------------------------------- | ---------------------------------------- | ------------------------------ |
-| `boot`            | native provider construction (≈ JS entry) | `WebAppReady` received                   | 1500ms at p95                  |
-| `cloud_switch`    | cloud selected (the mutation hook)        | switch mutation settles                  | 1000ms at p95                  |
-| `site_switch`     | place selected, past the same-place no-op | `auth.switch` settles                    | 1000ms at p95                  |
-| `web_vitals`      | — a sample (see below)                    | —                                        | FCP 1800ms / LCP 2500ms at p75 |
-| `chat_room_open`  | the tap that opens a room                 | the room's first commit showing messages | none yet                       |
-| `chat_room_sync`  | the same tap                              | the room showing its synced, latest page | none yet                       |
-| `bridge_request`  | — a sample (see below)                    | —                                        | none yet                       |
-| `chat_send`       | the send of a text message                | the server's answer to it                | none yet                       |
-| `socket_verify`   | — a sample (see below)                    | —                                        | none yet                       |
-| `first_screen`    | — a sample (see below)                    | —                                        | none yet                       |
-| `socket_request`  | — a sample (see below)                    | —                                        | none yet                       |
-| `chat_send_media` | — a sample (see below)                    | —                                        | none yet                       |
-| `state_outbox`    | — a sample (see below)                    | —                                        | none yet                       |
-| `invite_accept`   | Accept pressed, or a step resuming it     | the hand-over, or a stop for input       | none yet                       |
+| Trace             | Start                                         | Stop                                     | Target                         |
+| ----------------- | --------------------------------------------- | ---------------------------------------- | ------------------------------ |
+| `boot`            | native provider construction (≈ JS entry)     | `WebAppReady` received                   | 1500ms at p95                  |
+| `cloud_switch`    | cloud selected (the mutation hook)            | switch mutation settles                  | 1000ms at p95                  |
+| `site_switch`     | place selected, past the same-place no-op     | `auth.switch` settles                    | 1000ms at p95                  |
+| `web_vitals`      | — a sample (see below)                        | —                                        | FCP 1800ms / LCP 2500ms at p75 |
+| `chat_room_open`  | the tap that opens a room                     | the room's first commit showing messages | none yet                       |
+| `chat_room_sync`  | the same tap                                  | the room showing its synced, latest page | none yet                       |
+| `bridge_request`  | — a sample (see below)                        | —                                        | none yet                       |
+| `chat_send`       | the send of a text message                    | the server's answer to it                | none yet                       |
+| `socket_verify`   | — a sample (see below)                        | —                                        | none yet                       |
+| `first_screen`    | — a sample (see below)                        | —                                        | none yet                       |
+| `socket_request`  | — a sample (see below)                        | —                                        | none yet                       |
+| `chat_send_media` | — a sample (see below)                        | —                                        | none yet                       |
+| `state_outbox`    | — a sample (see below)                        | —                                        | none yet                       |
+| `invite_accept`   | Accept pressed, or a step resuming it         | the hand-over, or a stop for input       | none yet                       |
+| `long_tasks`      | — a sample, pipeline only (not recorded yet)  | —                                        | none yet                       |
+| `api_request`     | — a sample, pipeline only (not recorded yet)  | —                                        | none yet                       |
+| `screen_render`   | route entry, pipeline only (not recorded yet) | the screen's first meaningful paint      | none yet                       |
 
 The targets are not in code. They are judged in the Firebase console, where each is configured as a
 performance alert threshold on its trace. They used to be a runtime table (`PERF_BUDGETS`) so a
@@ -95,8 +110,9 @@ trace.stop(); // once; everything after is a no-op
   (a success path and an unmount, say) records the first one, and the second cannot corrupt it.
 - **`mark` keeps the first write.** A phase boundary that fires twice, through a re-render or a
   retry, was first reached at the first write.
-- **Limits are enforced here, once.** The rules are Firebase's:
-    - 5 custom attributes per trace
+- **Limits are enforced here, once.** The shapes are Firebase's; the counts are the log pipeline's:
+    - 16 attributes and 32 metrics per trace (a new key past the cap is dropped, an existing one
+      overwritten)
     - an attribute key is a letter, then up to 39 letters, digits or underscores, and must not use
       a reserved prefix
     - an attribute value is at most 100 characters
@@ -104,8 +120,10 @@ trace.stop(); // once; everything after is a no-op
     - metric values are integers
 
     The React Native SDK throws on an out-of-limit value, and the native SDK drops what gets past
-    it, so the trace ships without it either way. The log fallback has no limits at all. Enforcing the stricter rule at the source means a trace
-    carries the same fields on either backend.
+    it, so enforcing Firebase's shapes at the source keeps every backend's fields well-formed.
+    Firebase's own cap of five attributes is not applied here any more: it is applied on Firebase's
+    side, from the catalogue, so a dimension added for the pipeline never pushes one Firebase already
+    reports off the trace.
 
 - **A trace keeps the backend it started on.** Swapping the process slot mid-flight leaves open
   traces where they began, so a start is never paired with a stop on another backend.
@@ -176,15 +194,20 @@ of, where a measurement is recorded.
 - **The no-op backend** is what the slot holds until `configurePerfTraces` runs. It is also what it
   returns to on `resetPerfTraces`. That is why `apps/desktop`, `apps/desktop-web`, `apps/testbed` and
   a plain browser tab record nothing: none of them configures a backend.
-- **`LogPerfTraceBackend`** writes each finished trace as
-  `logger.info('PERF', '<name> <ms>ms', { trace, ms, attributes, metrics })`.
-    - It is the WebView's fallback for app builds without the bridge handlers. The web deploys ahead
-      of the app, so for a while that covers most sessions, and new traces start producing data the
-      day the web ships.
-    - It is sampled by run: `hashRunId(runId) % 100 < PERF_SAMPLE_PERCENT` (10). The run id is the one
-      the native shell injects, so the verdict is a pure function both runtimes agree on. With no run
-      id, nothing is sampled.
-    - Its `start` records nothing. Only a finished trace is a sample.
+- **`FanOutPerfTraceBackend`** hands every call to several backends. A branch that throws is
+  skipped, and each branch gets its own copy of a stop, so one branch can never cost another its
+  record or change what it records.
+- **`FirebaseDimensionsPerfTraceBackend`** stands in front of a Firebase-bound backend and passes
+  only what Firebase receives (`firebaseResultOf`). A pipeline-only trace is never started there. A
+  sample restricted by value (`web_vitals`) has its start held until the stop says whether Firebase
+  takes it; start and stop of a sample are back to back, so nothing moves in time.
+- **`PipelinePerfTraceBackend`** records a finished trace as a statistics entry through a recorder —
+  `@chatic/logger`'s `TelemetryRecorder`, which applies the catalogue and the sampling policy. A
+  `recordPerfSample` value becomes `kind: 'sample'`, anything else `kind: 'trace'` with its duration,
+  stamped with the stop's wall-clock time (`endedAt`) so a replayed stop keeps when it happened. The
+  recorder is read on each stop, because the host builds it after boot; with none, nothing is
+  recorded. It replaces the old log fallback, which wrote a sentence with the numbers in a capped
+  string and sampled one run in ten by a constant.
 - **`DeferredPerfTraceBackend`** holds starts and stops, in order, until `resolve(target)` names
   the destination. It then replays everything onto it and forwards from then on.
     - The WebView uses it because the destination is only known from the WebAppReady reply, which
@@ -206,14 +229,32 @@ handlers check a name's shape rather than membership in `PerfTraceName`: the web
 the app, and an app build checking its own copy of the list would drop every trace added after it
 shipped.
 
+## The catalogue
+
+`PERF_TRACE_CATALOG` lists, per trace, whether it is a timed `trace` or a `sample`, the attributes
+and metrics it may record on the pipeline, and what Firebase receives:
+
+- **The fourteen existing traces send Firebase everything they recorded before**, and nothing new.
+  `catalog.spec.ts` pins that list by hand, trace by trace, so a change to what Firebase receives
+  shows up as a failing test rather than a quiet difference in the console.
+- **`long_tasks`, `api_request` and `screen_render` are pipeline-only.** Firebase never hears of
+  them.
+- **`web_vitals` reaches Firebase for `fcp` and `lcp` only.** INP, CLS (×1000, as an integer) and
+  TTFB are recorded on the pipeline.
+
+The pipeline drops an attribute or metric that is not in the catalogue, because every key becomes a
+field the server stores. Attribute values are open: a performance dimension such as a request type
+is not an enumeration. `PERF_TELEMETRY_CATALOG` is the same list keyed `perf.<name>`, the shape the
+recorder reads.
+
 ## Wiring in each host
 
-| Host                  | Backend                                                                                                                                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `apps/mobile` native  | `FirebasePerfTraceBackend`, configured first in `DependencyProvider`, before the boot service opens its trace                                                                        |
-| `apps/web` in the app | `DeferredPerfTraceBackend` at boot. It resolves to the bridge (`StartPerfTrace`/`StopPerfTrace`) when the WebAppReady report lists both messages, otherwise to `LogPerfTraceBackend` |
-| `apps/web` in a tab   | Resolves to `LogPerfTraceBackend` with no run id, so nothing is recorded                                                                                                             |
-| everything else       | Nothing configured, so the no-op backend                                                                                                                                             |
+| Host                  | Backend                                                                                                                                                                                                                                                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/mobile` native  | `FirebasePerfTraceBackend`, configured first in `DependencyProvider`, before the boot service opens its trace. It applies the Firebase filter itself to the names it knows; a name it does not know (a newer web's) is recorded as before, first five attributes, so the web can still deploy first. Native traces do not reach the pipeline yet |
+| `apps/web` in the app | `DeferredPerfTraceBackend` at boot. When the WebAppReady report lists both bridge messages it resolves to a fan-out of the bridge (behind the Firebase filter) and the pipeline; otherwise to the pipeline alone                                                                                                                                 |
+| `apps/web` in a tab   | Resolves to the pipeline alone                                                                                                                                                                                                                                                                                                                   |
+| everything else       | Nothing configured, so the no-op backend                                                                                                                                                                                                                                                                                                         |
 
 ## Notes for implementers and tests
 
@@ -221,8 +262,11 @@ shipped.
   without resetting leaks a backend into the next file.
 - A fake backend is `{ start: jest.fn(), stop: jest.fn() }`. Assert on what `stop` received, which
   is the whole record.
-- `samplePercent` pins the log backend's sampling in tests. Pass `100` or `0` rather than searching
-  for a run id that hashes the way you need.
+- `samplePercent` pins `isSampledRun` in tests. Pass `100` or `0` rather than searching for a run
+  id that hashes the way you need.
+- On the web the pipeline branch reads its recorder from `setPerfTelemetryRecorder`
+  (`apps/web/src/app/runtime/perf/webPerfTraces.ts`). Nothing sets it yet, so the pipeline records
+  nothing until the telemetry runtime does.
 
 ## How to verify
 

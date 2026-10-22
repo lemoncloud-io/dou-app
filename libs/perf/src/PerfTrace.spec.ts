@@ -7,7 +7,14 @@ const createBackend = () => ({ start: jest.fn(), stop: jest.fn() }) satisfies Pe
 
 const createTrace = (backend: PerfTraceBackend, announce = true) => {
     let elapsed = 0;
-    const trace = createPerfTrace({ backend, id: 't-1', name: 'chat_room_open', elapsed: () => elapsed, announce });
+    const trace = createPerfTrace({
+        backend,
+        id: 't-1',
+        name: 'chat_room_open',
+        elapsed: () => elapsed,
+        announce,
+        now: () => 1_000,
+    });
     return { trace, advance: (ms: number) => (elapsed += ms) };
 };
 
@@ -37,7 +44,38 @@ describe('createPerfTrace', () => {
             durationMs: 251,
             attributes: { entry: 'list' },
             metrics: { message_count: 12 },
+            endedAt: 1_000,
         });
+    });
+
+    it('marks a sample on the stop, and only a sample', () => {
+        const backend = createBackend();
+        createPerfTrace({
+            backend,
+            id: 's',
+            name: 'web_vitals',
+            elapsed: () => 0,
+            announce: true,
+            sample: true,
+        }).stop();
+        createTrace(backend).trace.stop();
+
+        expect(backend.stop.mock.calls[0][0]).toMatchObject({ sample: true });
+        expect(backend.stop.mock.calls[1][0]).not.toHaveProperty('sample');
+    });
+
+    it('keeps 32 metrics and drops a new one past that, while still overwriting existing ones', () => {
+        const backend = createBackend();
+        const { trace } = createTrace(backend);
+        for (let i = 0; i < 32; i += 1) trace.putMetric(`m${i}`, i);
+        trace.putMetric('extra', 1);
+        trace.putMetric('m0', 99);
+        trace.stop();
+
+        const { metrics } = backend.stop.mock.calls[0][0];
+        expect(Object.keys(metrics)).toHaveLength(32);
+        expect(metrics.extra).toBeUndefined();
+        expect(metrics.m0).toBe(99);
     });
 
     it('keeps the first mark for a key, since the boundary was reached the first time', () => {

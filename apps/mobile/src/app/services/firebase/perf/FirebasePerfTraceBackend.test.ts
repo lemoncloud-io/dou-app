@@ -120,4 +120,52 @@ describe('FirebasePerfTraceBackend', () => {
         expect(() => backend.stop(resultFor('a', { attributes: { entry: 'list' } }))).not.toThrow();
         expect(traces[0].trace.stop).toHaveBeenCalledTimes(1);
     });
+
+    it('sends Firebase only the attributes and metrics it has always received', () => {
+        const { backend, traces } = setup();
+
+        backend.start({ id: 'a', name: 'chat_room_open' });
+        backend.stop(
+            resultFor('a', { attributes: { entry: 'list', network: '4g' }, metrics: { mount: 5, new_phase: 1 } })
+        );
+
+        expect(traces[0].trace.putAttribute.mock.calls).toEqual([['entry', 'list']]);
+        expect(traces[0].trace.putMetric.mock.calls).toEqual([['mount', 5]]);
+    });
+
+    it('never opens a Firebase trace for a pipeline-only name', () => {
+        const { backend, traces } = setup();
+
+        backend.start({ id: 'x', name: 'long_tasks' });
+
+        expect(traces).toHaveLength(0);
+    });
+
+    it('leaves a web vital Firebase never had unstopped, so it is not recorded', () => {
+        const { backend, traces } = setup();
+
+        backend.start({ id: 'v', name: 'web_vitals' });
+        backend.stop(resultFor('v', { name: 'web_vitals', attributes: { vital: 'inp' }, metrics: { value_ms: 80 } }));
+
+        expect(traces[0].trace.stop).not.toHaveBeenCalled();
+        expect(backend.openCount()).toBe(0);
+    });
+
+    it('records a trace name this build does not know, capped at five attributes as before', () => {
+        const { backend, traces } = setup();
+
+        backend.start({ id: 'n', name: 'future_trace' as never });
+        backend.stop(
+            resultFor('n', {
+                name: 'future_trace' as never,
+                attributes: { a: '1', b: '2', c: '3', d: '4', e: '5', f: '6' },
+                metrics: { m: 1 },
+            })
+        );
+
+        expect(traces[0].name).toBe('future_trace');
+        expect(traces[0].trace.putAttribute.mock.calls.map(([key]) => key)).toEqual(['a', 'b', 'c', 'd', 'e']);
+        expect(traces[0].trace.putMetric).toHaveBeenCalledWith('m', 1);
+        expect(traces[0].trace.stop).toHaveBeenCalledTimes(1);
+    });
 });

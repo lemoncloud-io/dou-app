@@ -210,7 +210,7 @@ failed — so that call is the end of the transfer.
 | `outcome` | `ok`; `partial` — sent, with files left out as a failed row; `error`  |
 
 Metrics besides the phases: `value_ms` (the whole send), `bytes_kb` (the picked total), `files`,
-and `retry` (1 for a retry — the attributes are at Firebase's cap of five).
+and `retry` (1 for a retry — Firebase receives five attributes at most, and this trace already sends five).
 
 - **A sample, timed here.** The native backend forgets a trace left open for two minutes, and a
   large video can take longer; as a start and a stop, the slowest sends would be the missing ones.

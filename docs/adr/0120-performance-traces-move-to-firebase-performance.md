@@ -1,6 +1,6 @@
 # ADR-0120: Performance traces move to Firebase Performance, recorded natively and forwarded from the WebView
 
-> Status: Accepted · Decided: 2026-09-28 · Implemented: `feat/firebase-perf-monitoring`
+> Status: Accepted, superseded in part by [ADR-0222](./0222-performance-traces-also-go-to-the-log-pipeline-beside-firebase.md) (decisions 1 and 3) · Decided: 2026-09-28 · Implemented: `feat/firebase-perf-monitoring`
 > · Scope: `libs/perf/**` (new) · `libs/logger/src/perf/**` (removed) ·
 > `apps/mobile/src/app/services/firebase/perf/**` · `apps/web/src/app/runtime/perf/**` ·
 > `libs/app-messages` (`StartPerfTrace` / `StopPerfTrace`, `OnNavigate.perfTrace`)

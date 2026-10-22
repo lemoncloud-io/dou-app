@@ -1,5 +1,7 @@
 import { getPerformance, trace as newFirebaseTrace } from '@react-native-firebase/perf';
 
+import { firebaseResultOf, isKnownPerfTrace, isPipelineOnlyTrace } from '@chatic/perf';
+
 import type { PerfTraceBackend, PerfTraceResult, PerfTraceStart } from '@chatic/perf';
 
 /** The slice of a Firebase trace this backend drives. */
@@ -23,6 +25,14 @@ const createFirebaseTrace = (name: string): NativePerfTrace => newFirebaseTrace(
  * The attributes and metrics arrive only with the stop. The SDK sends them with the stop anyway,
  * and batching them there keeps a trace to two bridge messages however many phases it marks.
  */
+/** Firebase keeps five custom attributes per trace. */
+const FIREBASE_MAX_ATTRIBUTES = 5;
+
+const withFirebaseCap = (result: PerfTraceResult): PerfTraceResult => ({
+    ...result,
+    attributes: Object.fromEntries(Object.entries(result.attributes).slice(0, FIREBASE_MAX_ATTRIBUTES)),
+});
+
 export class FirebasePerfTraceBackend implements PerfTraceBackend {
     /**
      * A trace that has not been stopped by now never will be — the room it waited for was never
@@ -44,6 +54,10 @@ export class FirebasePerfTraceBackend implements PerfTraceBackend {
     ) {}
 
     public start({ id, name }: PerfTraceStart): void {
+        // A trace this build knows to be pipeline-only never becomes a Firebase trace. A name it does
+        // not know is recorded as before: the web deploys ahead of the app, and a newer web's new
+        // Firebase trace must not wait for every user to update the app.
+        if (isPipelineOnlyTrace(name)) return;
         this.dropExpired();
         // Ids are generated per start, so a repeat is a duplicate delivery of the same start; the
         // trace already running is the one that measures from the real start.
@@ -55,7 +69,8 @@ export class FirebasePerfTraceBackend implements PerfTraceBackend {
         trace.start().catch(() => undefined);
     }
 
-    public stop({ id, attributes, metrics }: PerfTraceResult): void {
+    public stop(result: PerfTraceResult): void {
+        const { id } = result;
         const entry = this.open.get(id);
         // Unknown ids are expected: a trace that expired, or a stop from a WebView whose start went
         // to a backend that has since been replaced.
@@ -65,6 +80,15 @@ export class FirebasePerfTraceBackend implements PerfTraceBackend {
         // an app that sat in the background, where the web's own timers stop — is refused here too
         // rather than recorded with the time away in its duration.
         if (this.now() - entry.startedAt > FirebasePerfTraceBackend.OPEN_TTL_MS) return;
+
+        // Firebase receives exactly what it always has: the handle now collects more (up to 16
+        // attributes, for the log pipeline). A known trace is cut to its Firebase list; a stop that
+        // list refuses — a vital Firebase never had — leaves the trace unstopped, which Firebase
+        // records as nothing. An unknown trace (a newer web's) keeps Firebase's own cap of five, the
+        // first five written, as every trace did before.
+        const forFirebase = isKnownPerfTrace(result.name) ? firebaseResultOf(result) : withFirebaseCap(result);
+        if (!forFirebase) return;
+        const { attributes, metrics } = forFirebase;
 
         try {
             for (const [key, value] of Object.entries(attributes)) entry.trace.putAttribute(key, value);
