@@ -164,6 +164,80 @@ describe('CloudRepository', () => {
             expect.anything()
         );
     });
+
+    // The mapper stamps `cid` from the request context — the ACTIVE cloud (`cloud-a` here). Renaming
+    // or reading another cloud from there must not file that cloud's row under the active one.
+    it('keeps the renamed cloud its own cid when another cloud is active', async () => {
+        const local = createLocalDataSource();
+        local.cacheRead.mockResolvedValue(null);
+        const remote = createSocketDataSource();
+        remote.updateCloud.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-a', name: 'New' });
+        const repository = new CloudRepository(remote as any, local as any, contextProvider);
+
+        await repository.updateCloud({ id: 'cloud-1', name: 'New' } as any);
+
+        expect(local.cacheWrite).toHaveBeenLastCalledWith(
+            expect.objectContaining({ id: 'cloud-1', cid: 'cloud-1' }),
+            expect.anything()
+        );
+    });
+
+    it('takes only the name from the relay view, so an invited row keeps its inviter', async () => {
+        const local = createLocalDataSource();
+        local.cacheRead.mockResolvedValue({
+            id: 'cloud-1',
+            cid: 'cloud-1',
+            name: 'Old',
+            cloudType: 'invited',
+            owner$: { id: 'inviter', name: 'Mina' },
+        });
+        const remote = createSocketDataSource();
+        remote.getCloud.mockResolvedValue({
+            id: 'cloud-1',
+            name: 'Fresh',
+            ownerId: 'owner',
+            owner$: { id: 'owner', name: 'owner@example.com' },
+            email: 'owner@example.com',
+        });
+        const repository = new CloudRepository(remote as any, local as any, contextProvider);
+
+        await repository.getCloud({ id: 'cloud-1' } as any);
+
+        expect(local.cacheWrite).toHaveBeenCalledWith(
+            { id: 'cloud-1', cid: 'cloud-1', name: 'Fresh', cloudType: 'invited' },
+            expect.anything()
+        );
+    });
+
+    it('keeps the cached name when the answer carries none', async () => {
+        const local = createLocalDataSource();
+        local.cacheRead.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-1', name: 'Kept', cloudType: 'owner' });
+        const remote = createSocketDataSource();
+        remote.getCloud.mockResolvedValue({ id: 'cloud-1' });
+        const repository = new CloudRepository(remote as any, local as any, contextProvider);
+
+        await repository.getCloud({ id: 'cloud-1' } as any);
+
+        expect(local.cacheWrite).toHaveBeenCalledWith(
+            { id: 'cloud-1', cid: 'cloud-1', cloudType: 'owner' },
+            expect.anything()
+        );
+    });
+
+    it('keeps an existing row its cid when mirroring a get made from another cloud', async () => {
+        const local = createLocalDataSource();
+        local.cacheRead.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-1', name: 'Old', cloudType: 'invited' });
+        const remote = createSocketDataSource();
+        remote.getCloud.mockResolvedValue({ id: 'cloud-1', cid: 'cloud-a', name: 'Fresh' });
+        const repository = new CloudRepository(remote as any, local as any, contextProvider);
+
+        await repository.getCloud({ id: 'cloud-1' } as any);
+
+        expect(local.cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'cloud-1', cid: 'cloud-1', name: 'Fresh' }),
+            expect.anything()
+        );
+    });
 });
 
 describe('CloudRepository — HTTP catalog surface (ADR-0070 late stage 2)', () => {

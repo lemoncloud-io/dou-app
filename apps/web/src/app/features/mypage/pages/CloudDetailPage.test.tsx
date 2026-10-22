@@ -32,6 +32,7 @@ jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: st
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (key: string) => key, i18n: { language: 'ko' } }),
 }));
+jest.mock('../../../hooks/useCachedCloudNames', () => ({ useCachedCloudNames: () => ({}) }));
 jest.mock('../../../hooks/useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds, hasCloudCatalog }),
 }));

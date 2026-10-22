@@ -10,6 +10,7 @@ const syncInvitedCloudName = vi.fn(() => Promise.resolve());
 const cloudRepository = { id: 'cloud-repo' };
 
 let isVerified = true;
+let isRelayVerified = true;
 let selectedCloudId: string | null = '1000001';
 let ownedClouds: Array<{ id: string }> = [];
 
@@ -22,6 +23,8 @@ vi.mock('@chatic/app-runtime', () => ({
         },
         connection: {
             useRuntimeSocketState: () => ({ isVerified }),
+            useSlotVerified: (slot: string) => (slot === 'relay-slot' ? isRelayVerified : false),
+            RELAY_SLOT: 'relay-slot',
         },
         session: {
             useSessionSelection: () => ({ selectedCloudId }),
@@ -42,6 +45,7 @@ describe('useInvitedCloudRecovery', () => {
         recoverInvitedCloudIfMissing.mockClear();
         syncInvitedCloudName.mockClear();
         isVerified = true;
+        isRelayVerified = true;
         selectedCloudId = '1000001';
         ownedClouds = [];
     });
@@ -68,6 +72,15 @@ describe('useInvitedCloudRecovery', () => {
         renderHook(() => useInvitedCloudRecovery());
 
         expect(recoverInvitedCloudIfMissing).not.toHaveBeenCalled();
+    });
+
+    it('waits for the relay socket too — the name is read from the relay', () => {
+        isRelayVerified = false;
+
+        renderHook(() => useInvitedCloudRecovery());
+
+        expect(recoverInvitedCloudIfMissing).not.toHaveBeenCalled();
+        expect(syncInvitedCloudName).not.toHaveBeenCalled();
     });
 
     it('does nothing on the Default Cloud', () => {

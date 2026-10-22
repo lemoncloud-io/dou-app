@@ -177,8 +177,14 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
     }
 
     /**
-     * Writes a get/update result into the local cache, merging over the existing entry and
+     * Writes the NAME of a get/update result into the local cache, over the existing entry and
      * preserving its cloud type. No-op when neither the result nor the payload yields an id.
+     *
+     * Only the name is taken. The answer is the relay's catalog view, which also carries the owner's
+     * head and email; an invited row keeps its inviter there, and the name is all the cache is read
+     * for. The row also keeps its own `cid`: a cloud view carries none, so the mapper fills
+     * `result.cid` from the request context — the cloud that was active, which is a different cloud
+     * whenever another one is read or renamed from there.
      */
     private async persistCloud(
         result: DomainCloud,
@@ -190,9 +196,9 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
         const existing = await this.cloudLocalDataSource.cacheRead(id, context);
         await this.cloudLocalDataSource.cacheWrite(
             {
-                ...result,
                 id,
-                cid: result.cid || existing?.cid || id,
+                cid: existing?.cid || id,
+                ...(result.name ? { name: result.name } : {}),
                 cloudType: this.resolveCloudType(result, existing),
             },
             context

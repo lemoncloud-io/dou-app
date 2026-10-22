@@ -20,8 +20,6 @@ import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout, fixedViewportScreen } from '../../../ui/layouts';
 import { ROUTES } from '../../../routes/paths';
 import { cloudDisplayName, isCloudEnterable, resolveCloudRowState } from '../../../utils';
-import { CloudSessionGate } from '../components/CloudSessionGate';
-import { useEnsureCloudSession } from '../hooks/useEnsureCloudSession';
 import { useOwnedCloud } from '../hooks/useOwnedCloud';
 
 const MIN_NAME_LENGTH = 1;
@@ -32,11 +30,10 @@ const MAX_NAME_LENGTH = 20;
  * "클라우드 프로필" — edits the CLOUD ENTITY's own name: the cloud organization itself, not the
  * connected user's per-cloud profile (that is home's place profile dialog).
  *
- * The write is the cloud's own socket action (`cloud.update`), so the cloud has to be the live
- * session: `useEnsureCloudSession` switches into it on entry when another cloud (or the relay) is
- * active, and the form waits behind `CloudSessionGate` until it is. The design draws a photo slot
- * above the name; the cloud model has no image field, so it is not drawn until the relay has one —
- * a slot that could not save would be worse than none.
+ * The write (`cloud.update`) goes to the relay, which owns the cloud's catalog row, so the screen
+ * renames the cloud from wherever the session is and never switches into it. The design draws a
+ * photo slot above the name; the cloud model has no image field, so it is not drawn until the relay
+ * has one — a slot that could not save would be worse than none.
  *
  * Not an owned cloud (or not mine): back to the list once the catalog has said so.
  */
@@ -48,14 +45,12 @@ export const CloudEditPage = () => {
     const { cloudId } = useParams<{ cloudId: string }>();
 
     const { cloud, isResolved } = useOwnedCloud(cloudId);
-    const isEnterable = !!cloud && isCloudEnterable(resolveCloudRowState(cloud));
-    const session = useEnsureCloudSession(isEnterable ? cloudId : undefined);
     const { mutateAsync: updateCloudName, isPending } = useUpdateCloudProfile();
 
     useEffect(() => {
         if (isResolved && !cloud) navigate(ROUTES.mypage.cloud.manage, { replace: true });
-        // The hub disables this row for a cloud with no session to switch to; a typed URL
-        // bypasses the hub, so the screen sends it back there rather than attempting the switch.
+        // The hub disables this row for a cloud that is not ready to be entered; a typed URL
+        // bypasses the hub, so the screen sends it back there, where that state is explained.
         if (cloud && cloudId && !isCloudEnterable(resolveCloudRowState(cloud))) {
             navigate(ROUTES.mypage.cloud.hub(cloudId), { replace: true });
         }
@@ -76,14 +71,14 @@ export const CloudEditPage = () => {
     const trimmedName = name.trim();
     const hasChanges = trimmedName !== initialRef.current.name.trim();
     const isValid = trimmedName.length >= MIN_NAME_LENGTH && name.length <= MAX_NAME_LENGTH;
-    const canSave = isValid && hasChanges && session.isReady && !isPending;
+    const canSave = isValid && hasChanges && !isPending;
 
     const handleSave = async () => {
         if (!canSave || !cloudId) return;
         try {
             await updateCloudName({ id: cloudId, name: trimmedName });
 
-            // `cloud.update` runs over the socket; the relay catalog (home header, cloud switcher,
+            // `cloud.update` runs over the relay socket; the relay catalog (home header, cloud switcher,
             // the management list) is a separate HTTP query, so patch its cache to reflect the new name.
             queryClient.setQueriesData<ListResult<CloudView>>({ queryKey: runtime.data.cloudsKeys.lists() }, old => {
                 if (!old?.list) return old;
@@ -115,21 +110,19 @@ export const CloudEditPage = () => {
                 />
             }
         >
-            <CloudSessionGate session={session}>
-                <div className="flex flex-col gap-8 py-10">
-                    <div className="flex flex-col items-center gap-3">
-                        <CloudAvatar name={trimmedName || cloudDisplayName(cloud ?? {})} size="xl" />
-                    </div>
-                    <TextField
-                        label={t('mypage.cloudManage.edit.nameLabel')}
-                        required
-                        value={name}
-                        onChange={value => setName(value.slice(0, MAX_NAME_LENGTH))}
-                        maxLength={MAX_NAME_LENGTH}
-                        description={t('mypage.cloudManage.edit.nameHelper', { max: MAX_NAME_LENGTH })}
-                    />
+            <div className="flex flex-col gap-8 py-10">
+                <div className="flex flex-col items-center gap-3">
+                    <CloudAvatar name={trimmedName || cloudDisplayName(cloud ?? {})} size="xl" />
                 </div>
-            </CloudSessionGate>
+                <TextField
+                    label={t('mypage.cloudManage.edit.nameLabel')}
+                    required
+                    value={name}
+                    onChange={value => setName(value.slice(0, MAX_NAME_LENGTH))}
+                    maxLength={MAX_NAME_LENGTH}
+                    description={t('mypage.cloudManage.edit.nameHelper', { max: MAX_NAME_LENGTH })}
+                />
+            </div>
         </KeyboardAwareLayout>
     );
 };

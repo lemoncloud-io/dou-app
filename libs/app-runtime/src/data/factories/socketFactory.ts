@@ -84,13 +84,18 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
     // time instead of exposed as a route, so no caller can leak it.
     const relayAuthGateway = createAuthGateway(relayClient as any);
     const inviteGateway = createInviteGateway(relayClient as any);
+    // A cloud's name lives on its catalog row, which the relay's backend owns. A cloud server keeps
+    // a copy of its own row that nothing syncs with the relay's, so reading or writing it there
+    // splits the name in two. Both `cloud.get` and `cloud.update` therefore go to the relay whichever
+    // slot is active: a rename needs no session in the renamed cloud, and an invited member reads
+    // the name its owner set.
+    const cloudGateway = createCloudGateway(relayClient as any);
 
     const channelGateway = createChannelGateway(socketClient as any);
     // `channel.get` has no typed SDK wrapper (its sync plans call the raw packet), so it is bound
     // here through the channel domain gateway — the single-channel snapshot `refreshOne` pulls.
     const channelDomainGateway = createDomainGateway('channel', socketClient as any);
     const chatGateway = createChatGateway(socketClient as any);
-    const cloudGateway = createCloudGateway(socketClient as any);
     const deviceGateway = routed(createDeviceGateway);
     const userGateway = createUserGateway(socketClient as any);
     const placeGateway = createPlaceGateway(socketClient as any);

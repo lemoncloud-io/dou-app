@@ -13,17 +13,19 @@ import { useCloudSessionCatalog } from './useCloudCatalog';
  * inside it and vanishes on a switch or a reload. Both engine
  * helpers already exist for the native app: `runtime.data.recoverInvitedCloudIfMissing` re-derives the cloud's
  * endpoints from a fresh delegation token, and `runtime.data.syncInvitedCloudName` fetches the authoritative
- * name over that cloud's socket — the row is written without one, which is why a recovered tile
- * would otherwise read as its id.
+ * name from the relay — the row is written without one, which is why a recovered tile would otherwise
+ * read as its id.
  *
  * Skipped for clouds in the relay catalog: those are owned, the catalog is their record, and
- * writing an invited row for one would mislabel it. Runs once per cloud, after the socket verifies
- * (both helpers need a live session), and is best-effort — a revoked grant just leaves the rail as
+ * writing an invited row for one would mislabel it. Runs once per cloud, after both the cloud's socket
+ * and the relay's verify (the session has to be inside the cloud, and the name is read from the
+ * relay), and is best-effort — a revoked grant just leaves the rail as
  * it was.
  */
 export const useInvitedCloudRecovery = (): void => {
     const { cloud } = runtime.data.useRuntimeRepositories();
     const { isVerified } = runtime.connection.useRuntimeSocketState();
+    const isRelayVerified = runtime.connection.useSlotVerified(runtime.connection.RELAY_SLOT);
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
     const recoveredRef = useRef<string | null>(null);
@@ -32,7 +34,7 @@ export const useInvitedCloudRecovery = (): void => {
     const isOwned = ownedClouds.some(c => c.id === selectedCloudId);
 
     useEffect(() => {
-        if (!isVerified || !selectedCloudId || selectedCloudId === 'default' || isOwned) return;
+        if (!isVerified || !isRelayVerified || !selectedCloudId || selectedCloudId === 'default' || isOwned) return;
         if (recoveredRef.current === selectedCloudId) return;
         recoveredRef.current = selectedCloudId;
 
@@ -43,5 +45,5 @@ export const useInvitedCloudRecovery = (): void => {
             await runtime.data.recoverInvitedCloudIfMissing(cloud, selectedCloudId);
             await runtime.data.syncInvitedCloudName(cloud, selectedCloudId);
         })().catch(() => undefined);
-    }, [cloud, isVerified, selectedCloudId, isOwned]);
+    }, [cloud, isVerified, isRelayVerified, selectedCloudId, isOwned]);
 };

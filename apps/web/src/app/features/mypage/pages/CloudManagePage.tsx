@@ -4,13 +4,13 @@ import { isNative } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { Button, Divider, IconPlus, IconSpinner, PromoBanner } from '@chatic/web-ui-kit';
 
-import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { ROUTES } from '../../../routes/paths';
 import { useAddCloudRequest } from '../../../stores/useAddCloudRequest';
 import { PageHeader } from '../../../ui/components';
 import { CloudManageBanner, CurrentPlanCard, useCloudManageScene, useCloudQuota } from '../../subscription';
 import { CloudManageRow } from '../components/CloudManageRow';
 import { SectionLabel } from '../components/SectionLabel';
+import { useOwnedClouds } from '../hooks/useOwnedClouds';
 
 /**
  * "클라우드 관리" — the owned clouds under the subscription that allows them (Figma 4472-75743
@@ -31,7 +31,7 @@ export const CloudManagePage = () => {
     const navigate = useNavigateWithTransition();
     const isOnMobileApp = isNative();
 
-    const { clouds, isPendingClouds } = useCloudSessionCatalog();
+    const { clouds, isPendingClouds } = useOwnedClouds();
     const { isLoading: isSceneLoading, hasSubscription, banner } = useCloudManageScene();
     const { used, limit } = useCloudQuota();
     const requestAddCloud = useAddCloudRequest(s => s.requestAddCloud);

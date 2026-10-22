@@ -47,10 +47,11 @@ export const recoverInvitedCloudIfMissing = async (
 };
 
 /**
- * Once connected to an invited cloud, fetch its authoritative name over that cloud's socket and
- * persist it. Invited clouds are absent from the relay catalog and the delegation token carries no
- * name, so `cloud.get` is the only source of a fresh name. No-op for a non-invited active cloud or
- * when the name is unchanged.
+ * Once connected to an invited cloud, fetch its authoritative name and persist it. Invited clouds are
+ * absent from the relay catalog and the delegation token carries no name, so `cloud.get` is the only
+ * source of a fresh name. The data layer sends it to the relay, which holds the name the owner set —
+ * the cloud's own server keeps a copy that renames no longer reach. No-op for a non-invited active
+ * cloud or when the name is unchanged.
  */
 export const syncInvitedCloudName = async (cloud: ICloudRepository, cloudId: string | undefined): Promise<void> => {
     if (!cloudId) return;

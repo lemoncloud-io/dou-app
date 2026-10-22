@@ -58,6 +58,8 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 `verifyCloudEmail` · `makeCloud` · `releaseCloud` · `cache*`
 
 - The socket axis is based on `CloudGateway`'s `get` / `update`. **Neither `cloud.create` nor `cloud.delete` is in the socket bundle** — a cloud is made and removed over HTTP (`makeCloud` / `releaseCloud`).
+- `getCloud` and `updateCloud` go to the **relay** whichever cloud is active. The name lives on the catalog row the relay's backend owns; a cloud server keeps its own copy of the row, and nothing syncs the two, so reading or writing there would split the name. A rename therefore never needs the renamed cloud's own session, and an invited member reads the name its owner set.
+- A get or update result writes only its `name` into the cache, and the row keeps its own `cid`. The relay's view carries the owner's head and email, which would overwrite the inviter an invited row keeps; and the mapper fills `cid` from the request context — the active cloud — which is a different cloud whenever another one is read or renamed from there.
 - The HTTP axis handles the catalogue (`list`) plus `make` / `release` / `verifyEmail`. **HTTP results are not written to local** — the catalogue's cache owner is a react-query adapter.
 - Cloud is the top-level organizational unit (`cid`); unlike place/site it acts as the scope root.
 
