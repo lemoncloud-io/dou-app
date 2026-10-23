@@ -42,14 +42,23 @@ Mute and do-not-disturb do not stop capture. A muted channel still records, as S
 - The `@` on a channel row, the mentions-only counts in the dock and place dots, and the unread
   mention count read only mention kinds (`isMentionKind`). An item stored before kinds existed has
   no `kind` and reads as `direct`, so nothing persisted is lost.
-- The Notifications panel lists every kind (below), and the nav rail's Notifications tile carries a
-  dot while any item is unread.
+- The Notifications panel lists every kind of the active place (below), and the nav rail's
+  Notifications tile carries a dot while any of those is unread.
 - Reading a channel marks every kind of item in it read up to the cursor (`markChannelRead`).
 
 ## The panel
 
 `NotificationsPanel` (`features/chat/components/notifications/`) is the Notifications destination's
 sidebar column. What it lists is one pure function, `inboxView`.
+
+- **Place.** Like Channels and DM, the panel is about the active place. The store holds every place's
+  items on this device; the panel, its tab badges, mark all as read and the nav rail dot take only
+  those in the place scope (`inboxPlaceScope`, `isInInboxScope`), so another place's history is gone
+  on a switch and back on the way back. Its news reaches the reader through the place rail's dots. On
+  a cloud the scope is the selected place. The Default Cloud scopes its UI by a `'default'` sentinel
+  no item carries, so there the scope is every place `usePlaces` lists, the same ids capture filed
+  the items under. An item stored before items carried a place cannot say where it was and shows in
+  every place.
 
 - **Tabs.** All, Channels, DM, Threads and Mentions, each badged with its unread count. The first four
   sort by where an item happened (`inboxSource`): a thread first, so a reply or a mention inside a
@@ -72,7 +81,7 @@ sidebar column. What it lists is one pure function, `inboxView`.
   selection bar: a select-all box (mixed while only some are chosen), its menu (select unread, clear,
   mark all as read), the count, then mark as read and delete. The selection is of the cards listed,
   so changing the tab or the filter drops it. Delete asks first and removes the items from this
-  device only. Mark all as read covers every unread item of the open tab, listed or not, ends the
+  device only. Mark all as read covers every unread item of the open tab in this place, listed or not, ends the
   mode, and its toast's Undo clears the read mark of exactly the items it marked — an item deleted
   meanwhile stays gone, and one read before keeps its own time.
 - **Empty.** A bell, "No new notifications", and that the list is this device's. On the Threads tab,

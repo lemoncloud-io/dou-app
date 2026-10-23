@@ -22,6 +22,7 @@ import {
     INBOX_TABS,
     bareChannelName,
     formatDayHeading,
+    isInInboxScope,
     myThreadKey,
     useMentionsStore,
     useMyThreadsStore,
@@ -56,13 +57,16 @@ interface NotificationsPanelProps {
     channels: DomainChannel[];
     /** The place `channels` belong to: channel ids repeat across places, so only its items use them. */
     currentPlaceId?: string;
+    /** The places whose items are listed, counted and marked read (`inboxPlaceScope`): the active one. */
+    placeScope: ReadonlySet<string>;
     /** Jump to the message: select its place and channel, then scroll to it or open its thread (4th arg). */
     onSelect: (channelId: string, chatNo?: number, placeId?: string, threadRootId?: string) => void;
 }
 
 /**
  * The Notifications destination's sidebar column: the device-local inbox in tabs (where it
- * happened, or Mentions for why), an unread filter and a sort order, in date groups.
+ * happened, or Mentions for why), an unread filter and a sort order, in date groups. It holds the
+ * active place's items only; the store keeps every place's, so switching back shows them again.
  *
  * Opening an item jumps to its message and marks it read. Under the unread filter that would drop
  * the card from under the pointer, so the opened one stays for `OPENED_LINGER_MS`, marked, then
@@ -71,7 +75,13 @@ interface NotificationsPanelProps {
  * In selection mode a click selects instead. The selection is of the cards listed, so changing the
  * tab or the filter drops it; marking the whole tab read is undone from its toast.
  */
-export const NotificationsPanel = ({ cloudId, channels, currentPlaceId, onSelect }: NotificationsPanelProps) => {
+export const NotificationsPanel = ({
+    cloudId,
+    channels,
+    currentPlaceId,
+    placeScope,
+    onSelect,
+}: NotificationsPanelProps) => {
     const { t } = useTranslation();
     const itemsById = useMentionsStore(s => s.items);
     const threads = useMyThreadsStore(s => s.threads);
@@ -93,7 +103,10 @@ export const NotificationsPanel = ({ cloudId, channels, currentPlaceId, onSelect
         []
     );
 
-    const items = useMemo(() => Object.values(itemsById), [itemsById]);
+    const items = useMemo(
+        () => Object.values(itemsById).filter(item => isInInboxScope(item, placeScope)),
+        [itemsById, placeScope]
+    );
     const counts = useMemo(() => inboxTabCounts(items), [items]);
     const groups = useMemo(
         () => inboxView(items, { tab, unreadOnly, sort, keepId }),
@@ -116,6 +129,15 @@ export const NotificationsPanel = ({ cloudId, channels, currentPlaceId, onSelect
     useEffect(() => {
         if (isEmpty) setSelecting(false);
     }, [isEmpty]);
+    // A place switch keeps the panel mounted, but what was picked or kept belongs to the place left.
+    const scopeRef = useRef(placeScope);
+    useEffect(() => {
+        if (scopeRef.current === placeScope) return;
+        scopeRef.current = placeScope;
+        setSelecting(false);
+        setSelected(new Set());
+        release();
+    }, [placeScope, release]);
     // The bar unmounts on the way out, so focus goes back to the button that opened it, or to the
     // title when deleting the last item disabled that button.
     const selectButtonRef = useRef<HTMLButtonElement>(null);
@@ -374,7 +396,9 @@ export const NotificationsPanel = ({ cloudId, channels, currentPlaceId, onSelect
                                     <NotificationCard
                                         key={item.id}
                                         item={item}
-                                        channelName={(isHere(item) && channelNames.get(item.channelId)) || item.channelName}
+                                        channelName={
+                                            (isHere(item) && channelNames.get(item.channelId)) || item.channelName
+                                        }
                                         rootPreview={rootPreviewOf(item)}
                                         isCurrent={item.id === openedId}
                                         selected={isSelecting ? selected.has(item.id) : undefined}

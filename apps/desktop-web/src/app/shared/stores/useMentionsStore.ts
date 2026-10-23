@@ -18,7 +18,7 @@ export interface MentionItem {
     avatar?: string;
     colorSeed?: string;
     ownerId?: string;
-    /** Place the message belongs to — groups the list + drives cross-place jump. */
+    /** Place the message belongs to — scopes the Notifications list to the active place. */
     placeId?: string;
     /** Root chatNo string when this message is a thread reply; absent = top-level. */
     parentId?: string;

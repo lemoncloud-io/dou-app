@@ -48,7 +48,10 @@ const seed = (...items: MentionItem[]) =>
 const CHANNELS = [{ id: 'C1', name: 'general' }] as DomainChannel[];
 
 const renderPanel = (onSelect = vi.fn()) =>
-    render(<NotificationsPanel cloudId="cloud-1" channels={CHANNELS} onSelect={onSelect} />, { wrapper });
+    render(
+        <NotificationsPanel cloudId="cloud-1" channels={CHANNELS} placeScope={new Set(['P1'])} onSelect={onSelect} />,
+        { wrapper }
+    );
 
 const stored = () => useMentionsStore.getState().items;
 const card = (id: string) => screen.getByRole('checkbox', { name: new RegExp(`${id} body`) });
@@ -159,7 +162,13 @@ describe('NotificationsPanel selection mode', () => {
     });
 
     it('marks the whole tab read with a toast whose undo restores only what it changed', () => {
-        seed(item('a'), item('b'), item('old', { readAt: EARLIER }), item('d', { kind: 'dm', inDm: true }));
+        seed(
+            item('a'),
+            item('b'),
+            item('old', { readAt: EARLIER }),
+            item('d', { kind: 'dm', inDm: true }),
+            item('away', { placeId: 'P2' })
+        );
         useNotificationsPanelStore.setState({ tab: 'channel' });
         renderPanel();
         startSelecting();
@@ -170,6 +179,7 @@ describe('NotificationsPanel selection mode', () => {
         expect(stored().a.readAt).toBe(NOW);
         expect(stored().b.readAt).toBe(NOW);
         expect(stored().d.readAt).toBeUndefined();
+        expect(stored().away.readAt).toBeUndefined();
         const toast = screen.getByText('Marked 2 notifications as read').closest('li') as HTMLElement;
 
         // An item gone before the undo stays gone; one read before the mark keeps its own time.
@@ -225,6 +235,28 @@ describe('NotificationsPanel selection mode', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'Close' }));
         expect(screen.queryByRole('checkbox', { name: /a body/ })).toBeNull();
+        expect(screen.getByRole('button', { name: /a body/ })).toBeTruthy();
+    });
+});
+
+describe('NotificationsPanel selection across a place switch', () => {
+    const panelFor = (place: string) => (
+        <NotificationsPanel cloudId="cloud-1" channels={CHANNELS} placeScope={new Set([place])} onSelect={vi.fn()} />
+    );
+
+    it('ends the mode and drops what was picked when the place changes', () => {
+        seed(item('a'), item('b'), item('c', { placeId: 'P2' }));
+        const { rerender } = render(panelFor('P1'), { wrapper });
+        startSelecting();
+        fireEvent.click(card('a'));
+        expect(screen.getByText('1 selected')).toBeTruthy();
+
+        rerender(panelFor('P2'));
+        expect(screen.queryByText(/selected/)).toBeNull();
+        expect(screen.getByRole('button', { name: /c body/ })).toBeTruthy();
+
+        rerender(panelFor('P1'));
+        expect(screen.queryByText(/selected/)).toBeNull();
         expect(screen.getByRole('button', { name: /a body/ })).toBeTruthy();
     });
 });
