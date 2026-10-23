@@ -57,11 +57,11 @@ Each store is a class taking `(storage, signal)` in its constructor — so a tes
 fake storage — and each is exported only as a singleton alongside its `I*Store` interface. The
 implementation classes are not exported.
 
-| Store           | Interface        | Keys                                                                                                                                                                                                                         |
-| --------------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `relayStore`    | `IRelayStore`    | `chatic-relay-token` · `chatic-relay-selected-site-id`                                                                                                                                                                       |
-| `cloudStore`    | `ICloudStore`    | `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-invited-clouds` · `chatic-cloud-token-cache` · `chatic-cloud-identities` · `chatic-recent-clouds` |
-| `identityStore` | `IIdentityStore` | `chatic-delegator-id` · `chatic-device-id`                                                                                                                                                                                   |
+| Store           | Interface        | Keys                                                                                                                                                                                                                                                     |
+| --------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `relayStore`    | `IRelayStore`    | `chatic-relay-token` · `chatic-relay-selected-site-id`                                                                                                                                                                                                   |
+| `cloudStore`    | `ICloudStore`    | `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-invited-clouds` · `chatic-cloud-token-cache` · `chatic-cloud-identities` · `chatic-recent-clouds` · `chatic-reclaimed-clouds` |
+| `identityStore` | `IIdentityStore` | `chatic-delegator-id` · `chatic-device-id`                                                                                                                                                                                                               |
 
 The keys stay in the file of the store that reads and writes them rather than moving to a shared
 `constants.ts`: a storage key is that class's persistence contract, and nothing else may touch it.
@@ -80,12 +80,16 @@ which uid this account has in each cloud and outlives the tokens. It is what a r
 cloud's cache partition addresses that partition by. The recent-cloud order — `recordCloudUse` ·
 `getRecentClouds` · `clearRecentClouds`, most recent first, at most 20 — is written by every
 successful switch and decides which clouds keep a background socket session when there are more of
-them than the cap ([docs/socket/](../socket/README.md#background-slots)).
+them than the cap ([docs/socket/](../socket/README.md#background-slots)). The reclaim records —
+`getReclaimedFor` · `setReclaimedFor` · `clearReclaimedClouds` — map an owned cloud the device also
+cached as invited to the relay user it was last re-issued for, so the owned-cloud reclaim asks
+`delegate-cloud` once per account rather than on every trigger
+([docs/auth/](../auth/README.md#an-owned-cloud-held-as-its-invitee)).
 
 **Leaving the committed cloud is not the end of the account**, so `clearSession` clears the committed
-session and the selection and keeps all three of those: the token cache (the other clouds' background
-sessions sign from it, and the cloud just left usually becomes one of them), the identities and the
-recent order. Only `relaySession.clearAndRedirect` clears them.
+session and the selection and keeps the rest: the token cache (the other clouds' background sessions
+sign from it, and the cloud just left usually becomes one of them), the identities, the recent order
+and the reclaim records. Only `relaySession.clearAndRedirect` clears them.
 
 [`jsonSlot.ts`](../../src/session/store/jsonSlot.ts) is what each token slot is built on. It
 memoizes by raw string, so re-reading an unchanged token reuses the parse — building the relay
@@ -117,9 +121,11 @@ arriving while a cloud session is active must not re-derive cloud-scoped consume
 | `cloudStore.setCachedCloudTokens` · `dropCachedCloudTokens` · `clearCachedCloudTokens` | **nothing**                                  |
 | `cloudStore.setCloudIdentity` · `clearCloudIdentities`                                 | **nothing**                                  |
 | `cloudStore.recordCloudUse` · `clearRecentClouds`                                      | **nothing**                                  |
+| `cloudStore.setReclaimedFor` · `clearReclaimedClouds`                                  | **nothing**                                  |
 
-The last three rows are the legitimate exceptions and their names say so: the per-cloud token cache,
-the identity map and the recent order change no observable session state. A uid moves only with a
+The last four rows are the legitimate exceptions and their names say so: the per-cloud token cache,
+the identity map, the recent order and the reclaim records change no observable session state. The
+reclaim records are read only by the reclaim, inside the run that writes them. A uid moves only with a
 new account, which announces itself through the relay token, and the recent order is written inside
 a switch's commit batch, which already announces `cloud:token` + `selection`. The background socket
 slots do derive from the token cache; they are told through their own store
@@ -216,14 +222,16 @@ joins it, so a switch, the background-slot preparer and a renewal can never leav
 the cloud's socket registered with holding different tokens.
 `reissueCloudTokens` decides at write time whether the result also lands in the session store: it
 does when `cloudId` is the committed cloud at that moment, and stays in the cache otherwise. A
-committed renewal merges into the stored view, except over an invite entry (an empty delegation
-JWT): that re-issue names another user, so it replaces the view and drops the selected place
-([docs/auth/](../auth/README.md#an-owned-cloud-held-as-its-invitee)). Both
+committed renewal merges into the stored view, except when it names another user: over an invite
+entry (an empty delegation JWT), or when the stored token's uid differs from the re-issued one's. It
+then replaces the view and drops the selected place
+([docs/auth/](../auth/README.md#an-owned-cloud-held-as-its-invitee)). Each exchange also remembers,
+in memory, which relay user it was asked as (`lastIssuedForOf`), for the owned-cloud reclaim. Both
 record the cloud's uid through [`cloudIdentity.ts`](../../src/session/auth/cloudIdentity.ts), a
 module of its own so the writeback path can record it without reaching the data runtime.
 
 `relaySession.clearAndRedirect()` clears both relay and cloud stores, the per-cloud token cache, the
-cloud identity map and the recent-cloud order, and redirects to `/?logout=1`.
+cloud identity map, the recent-cloud order and the reclaim records, and redirects to `/?logout=1`.
 It performs no server-side logout; notifying the sockets is
 [`logoutSession`](../auth/README.md)'s job, one layer up. `logoutStorageSweeper.sweep()` is the other
 half of that flag: on the next document load it wipes the `@`-prefixed storage namespace, preserving

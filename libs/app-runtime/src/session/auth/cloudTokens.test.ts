@@ -1,6 +1,13 @@
 import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import { isInviteLoginEntry, issueCloudTokens, reissueCloudTokens, tokensFromInviteLogin } from './cloudTokens';
+import {
+    isExchangeInFlight,
+    isInviteLoginEntry,
+    issueCloudTokens,
+    lastIssuedForOf,
+    reissueCloudTokens,
+    tokensFromInviteLogin,
+} from './cloudTokens';
 
 const mockDelegateCloud = jest.fn();
 const mockExchangeToken = jest.fn();
@@ -17,6 +24,7 @@ const mockClearSelectedSite = jest.fn();
 const mockSetCloudIdentity = jest.fn();
 
 const mockRebuildSessionIdentity = jest.fn();
+const mockGetUidInCloud = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
 /** Counts `sessionSignal.batch` — a re-issue must be one observable change. */
 const mockBatch = jest.fn();
@@ -47,6 +55,7 @@ jest.mock('../store/stores', () => ({
 
 jest.mock('../store', () => ({
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
+    getUidInCloud: (...args: unknown[]) => mockGetUidInCloud(...args),
     // The store announces KINDS now (ADR-0076 decision 2). `mockNotifySessionStateChanged` stands for
     // `emit`, so the existing "was the session announced" assertions keep their meaning; `batch`
     // runs straight through because the collapsing is covered by signal.test.ts.
@@ -241,6 +250,55 @@ describe('reissueCloudTokens', () => {
         expect(mockSaveSelectedCloudId).not.toHaveBeenCalled();
     });
 
+    it("replaces a committed token that names another user — a guest's issue renewed before the sign-in", async () => {
+        // An ordinary signed delegation, so nothing marks it as an invite entry: only the uid differs.
+        mockGetDelegationToken.mockReturnValue(delegation());
+        mockGetCloudToken.mockReturnValue({
+            uid: 'guest-uid',
+            Token: { identityToken: 'guest-identity' },
+            $user: { id: 'guest-uid', userRole: 'member' },
+        } as unknown as UserTokenView);
+        mockExchangeToken.mockResolvedValue(cloudToken('owner-identity', 'owner-uid'));
+
+        await reissueCloudTokens('cloud-1');
+
+        expect(mockSaveCloudToken).toHaveBeenCalledWith(cloudToken('owner-identity', 'owner-uid'));
+        expect(mockClearSelectedSite).toHaveBeenCalledTimes(1);
+    });
+
+    it('merges a committed token that names the same user, and keeps its place', async () => {
+        mockGetDelegationToken.mockReturnValue(delegation());
+        mockGetCloudToken.mockReturnValue({
+            uid: 'owner-uid',
+            Token: { identityToken: 'old-identity' },
+            name: 'kept-name',
+        } as unknown as UserTokenView);
+        mockExchangeToken.mockResolvedValue(cloudToken('fresh-identity', 'owner-uid'));
+
+        await reissueCloudTokens('cloud-1');
+
+        expect(mockSaveCloudToken).toHaveBeenCalledWith({
+            uid: 'owner-uid',
+            Token: { identityToken: 'fresh-identity' },
+            name: 'kept-name',
+        });
+        expect(mockClearSelectedSite).not.toHaveBeenCalled();
+    });
+
+    it('merges when either side names no uid — there is nothing to tell the two users apart by', async () => {
+        mockGetDelegationToken.mockReturnValue(delegation());
+        mockGetCloudToken.mockReturnValue({
+            Token: { identityToken: 'old-identity' },
+            name: 'kept-name',
+        } as unknown as UserTokenView);
+        mockExchangeToken.mockResolvedValue(cloudToken('fresh-identity', 'owner-uid'));
+
+        await reissueCloudTokens('cloud-1');
+
+        expect(mockSaveCloudToken).toHaveBeenCalledWith(expect.objectContaining({ name: 'kept-name' }));
+        expect(mockClearSelectedSite).not.toHaveBeenCalled();
+    });
+
     it('선택 상태(cid·sid·place order)는 건드리지 않는다 — 사용자는 아무 데도 이동하지 않았다', async () => {
         mockGetDelegationToken.mockReturnValue(delegation());
 
@@ -362,5 +420,43 @@ describe('isInviteLoginEntry', () => {
         expect(isInviteLoginEntry({ cloudId: 'cloud-1' } as unknown as CloudDelegationTokenView)).toBe(false);
         expect(isInviteLoginEntry(null)).toBe(false);
         expect(isInviteLoginEntry(undefined)).toBe(false);
+    });
+});
+
+describe('exchange attribution', () => {
+    it('records the relay user an exchange was asked as, read when it started', async () => {
+        mockGetUidInCloud.mockReturnValue('guest-1');
+        let answer!: () => void;
+        mockDelegateCloud.mockImplementation(
+            () => new Promise(resolve => (answer = () => resolve(delegation('attributed-1'))))
+        );
+
+        const issuing = issueCloudTokens('attributed-1', { allowCache: false });
+        expect(isExchangeInFlight('attributed-1')).toBe(true);
+        // The sign-in lands while the exchange is on the wire.
+        mockGetUidInCloud.mockReturnValue('account-1');
+        answer();
+        await issuing;
+
+        expect(isExchangeInFlight('attributed-1')).toBe(false);
+        expect(lastIssuedForOf('attributed-1')).toBe('guest-1');
+        expect(mockGetUidInCloud).toHaveBeenCalledWith('default');
+    });
+
+    it('knows nothing of a cloud no exchange finished for, a failed one included', async () => {
+        mockDelegateCloud.mockRejectedValue(new Error('403'));
+
+        await expect(issueCloudTokens('attributed-2', { allowCache: false })).rejects.toThrow('403');
+
+        expect(lastIssuedForOf('attributed-2')).toBeUndefined();
+        expect(isExchangeInFlight('attributed-2')).toBe(false);
+    });
+
+    it('a cache replay attributes nothing — no exchange ran', async () => {
+        mockGetCachedCloudTokens.mockReturnValue({ delegationToken: delegation(), cloudToken: cloudToken('cached') });
+
+        await issueCloudTokens('attributed-3', { allowCache: true });
+
+        expect(lastIssuedForOf('attributed-3')).toBeUndefined();
     });
 });

@@ -138,6 +138,22 @@ the relay's `default` (`pushCloudIdOf`), which is never recovered, and switching
 instead of asking `delegate-cloud` for a delegation. The switch flow reads a stray `#` the same way,
 since a delegation to `#` only ever answers "cloud not found".
 
+## An owned cloud that a guest entered first
+
+A guest on this device can accept an invite into a cloud, and then sign in to the account that
+owns it. The tile then reads as owned, but the token the device holds for that cloud is still the
+guest's. Tokens are kept per cloud id, and before the sign-in they were renewed through
+`delegate-cloud` as the guest, so nothing in the token says so. Every entry would then replay it,
+and the owner would walk into their own cloud as the guest's member.
+
+`BackgroundCloudsRunner` hands the runtime the owned clouds and, from `useClouds`,
+`ownedAlsoInvitedIds`: the owned ones that also have an invited cache row. The runtime
+(`runtime.connection.useReclaimOwnedClouds`) re-issues each of those once per signed-in account,
+socket included. The invited row stays, still drawn as owned. A cloud written as invited while the
+catalog was still loading (see above) lands in that list too, which costs one extra re-issue. The
+rules (when it records, how it backs off) are the runtime's: `libs/app-runtime` docs/auth, "An
+owned cloud held as its invitee".
+
 ## A failed switch
 
 `useCloudSwitchFlow` (`shared/hooks/useCloudSwitchFlow.ts`) switches with `switchCloud`, which rolls

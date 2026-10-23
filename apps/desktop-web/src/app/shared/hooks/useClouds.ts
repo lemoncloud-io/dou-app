@@ -125,5 +125,15 @@ export const useClouds = () => {
         return [home, ...byId.values()];
     }, [rawClouds, cachedClouds, joinedClouds, activeCloudId, t]);
 
-    return { clouds, activeCloudId, isFetchingClouds, isCloudsError, refetchClouds };
+    // Owned clouds that are also cached as invited — drawn as owned above, and handed to the owned-cloud
+    // reclaim: a guest on this device may have entered one before the account that owns it signed in,
+    // and the token it left behind no longer says so.
+    const ownedAlsoInvitedIds = useMemo(() => {
+        const ownedIds = new Set(rawClouds.map(c => c.id).filter((id): id is string => !!id && id !== 'default'));
+        return cachedClouds
+            .filter(c => c.cloudType === 'invited' && !!c.id && ownedIds.has(c.id))
+            .map(c => c.id as string);
+    }, [rawClouds, cachedClouds]);
+
+    return { clouds, activeCloudId, isFetchingClouds, isCloudsError, refetchClouds, ownedAlsoInvitedIds };
 };

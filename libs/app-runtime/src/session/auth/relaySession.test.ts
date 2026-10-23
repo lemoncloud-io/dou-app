@@ -100,6 +100,7 @@ jest.mock('../store/stores', () => ({
         clearCachedCloudTokens: (...args: unknown[]) => mockCloudClear('clearCachedCloudTokens', ...args),
         clearCloudIdentities: (...args: unknown[]) => mockCloudClear('clearCloudIdentities', ...args),
         clearRecentClouds: (...args: unknown[]) => mockCloudClear('clearRecentClouds', ...args),
+        clearReclaimedClouds: (...args: unknown[]) => mockCloudClear('clearReclaimedClouds', ...args),
         getIdentityToken: (...args: unknown[]) => mockGetIdentityToken(...args),
         getBackend: (...args: unknown[]) => mockGetBackend(...args),
         getWss: (...args: unknown[]) => mockGetWss(...args),
@@ -369,7 +370,7 @@ describe('session/auth/relaySession', () => {
     });
 
     // ⑪ device registration: deviceId persisted through identityStore ONLY
-    it('the full teardown ends the account in every cloud — tokens, uids and recent order all go', async () => {
+    it('the full teardown ends the account in every cloud — tokens, uids, recent order and reclaims all go', async () => {
         // jsdom does not navigate; the redirect is not what this case is about.
         const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
 
@@ -382,6 +383,7 @@ describe('session/auth/relaySession', () => {
                 'clearCachedCloudTokens',
                 'clearCloudIdentities',
                 'clearRecentClouds',
+                'clearReclaimedClouds',
             ])
         );
         consoleError.mockRestore();

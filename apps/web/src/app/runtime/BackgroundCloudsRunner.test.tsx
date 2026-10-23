@@ -11,7 +11,7 @@ jest.mock('../hooks/useCloudCatalog', () => ({
     useCloudSessionCatalog: () => ({ clouds: [{ id: 'owned-1' }] }),
 }));
 jest.mock('../hooks/useInvitedClouds', () => ({
-    useInvitedClouds: () => ({ invitedClouds: [{ id: 'invited-1' }] }),
+    useInvitedClouds: () => ({ invitedClouds: [{ id: 'invited-1' }], ownedAlsoInvitedIds: ['owned-1'] }),
 }));
 
 describe('BackgroundCloudsRunner', () => {
@@ -21,9 +21,9 @@ describe('BackgroundCloudsRunner', () => {
         expect(runtime.connection.useBackgroundClouds).toHaveBeenCalledWith(['owned-1', 'invited-1']);
     });
 
-    it('hands the owned clouds alone over for reclaiming, never an invited one', () => {
+    it('hands the owned clouds over for reclaiming, with the ones also cached as invited', () => {
         render(<BackgroundCloudsRunner />);
 
-        expect(runtime.connection.useReclaimOwnedClouds).toHaveBeenCalledWith(['owned-1']);
+        expect(runtime.connection.useReclaimOwnedClouds).toHaveBeenCalledWith(['owned-1'], ['owned-1']);
     });
 });

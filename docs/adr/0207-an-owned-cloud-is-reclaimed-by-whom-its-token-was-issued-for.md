@@ -7,6 +7,8 @@
 > was rolled back rather than patched in place. The code, the module docs and
 > ADR-0169's status line are back to what ADR-0169 decided. The number stays taken; a second attempt
 > takes a new one.
+> · Second attempt: [ADR-0223](./0223-an-owned-cloud-also-cached-as-invited-is-re-issued-once-per-account.md),
+> which re-issues only the owned clouds also cached as invited
 > · Decided: 2026-10-16 · Was implemented by: `fix/owned-cloud-reclaim-after-sign-in`
 > · Would have amended: [ADR-0169](./0169-an-owned-cloud-is-never-held-as-its-invitee.md) decisions 2 and 3
 

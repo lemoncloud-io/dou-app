@@ -387,29 +387,68 @@ owner opening their own invite link on this device, and a guest accepting an inv
 signing in to the account that owns the cloud. The server is not at fault — `delegate-cloud` answers
 an owner as the owner — the device has simply stopped asking it.
 
-[`reclaimOwnedClouds(ownedCloudIds)`](../../src/socket/auth/reclaimOwnedClouds.ts), driven by
-`connection.useReclaimOwnedClouds` with the app's owned catalog, re-issues every owned cloud whose
-**held** delegation half is an invite entry (`isInviteLoginEntry` in `session/auth/cloudTokens`).
-"Held" is the session store's copy while the cloud is committed and the cache's otherwise, the same
-split `getCloudTokenOf` makes. The re-issue is a renewal (`renewCloudSession`), not a cache drop,
+[`reclaimOwnedClouds(ownedCloudIds, alsoInvitedCloudIds)`](../../src/socket/auth/reclaimOwnedClouds.ts),
+driven by `connection.useReclaimOwnedClouds` with the app's owned catalog, re-issues an owned cloud
+on either of two marks:
+
+- **Its held delegation half is an invite entry** (`isInviteLoginEntry` in `session/auth/cloudTokens`).
+  "Held" is the session store's copy while the cloud is committed and the cache's otherwise, the same
+  split `getCloudTokenOf` makes.
+- **The device has also cached it as an invited cloud, and it has not been re-issued for the relay
+  user signed in now.** An invite entry does not stay one. Before a sign-in, the credential guard
+  and the background preparer re-issue it through `delegate-cloud` as the guest, and the server
+  answers the guest as the invitee with an ordinary signed token, the same shape as the owner's. The
+  invited row (`alsoInvitedCloudIds`, from the app's invited cache) is the only trace left. So such a
+  cloud is re-issued once per relay user, and `cloudStore.setReclaimedFor` records it
+  (`chatic-reclaimed-clouds`, cleared at logout with the token cache). If the device holds no token
+  for it and no exchange for it is on the wire, it is recorded without an exchange, because its next
+  entry asks `delegate-cloud` as the account anyway. A failed renewal is not recorded, and neither is
+  one whose relay user signed out while it ran.
+
+Only that overlap goes through the second mark. An owned cloud with no invited row cannot have been
+entered here as a guest, and re-issuing every owned cloud is what a withdrawn attempt at this repair
+shipped and rolled back.
+The re-issue is a renewal (`renewCloudSession`), not a cache drop,
 because the committed cloud's store and a live slot's socket both hold the invitee too, and only a
 renewal replaces all three — the socket included, since a cloud slot is never re-authenticated on its
 own.
 
 - **Detection reads only what the device wrote.** Neither the token's role nor the cloud's owner id is
   consulted, so the rule does not depend on how the server spells either. An empty delegation JWT
-  is written by the invite entry and by nothing else.
-- **A cloud held by a delegate-cloud issue costs nothing.** The check is a storage read; no request
-  goes out unless an invite entry is found.
+  is written by the invite entry and by nothing else. An invited row is written when this device
+  entered the cloud as a guest: by an invite accept, or by the push recovery
+  (`recoverInvitedCloudIfMissing`), which re-caches a cloud a push names when the cache has no row
+  for it. The recovery can also write one for a cloud the account owns. That cloud then goes through
+  the second mark once per account, which costs at most one exchange.
+- **A cloud held by a delegate-cloud issue costs nothing**, unless it is also cached as invited and not
+  yet recorded for this relay user. Otherwise the check is a storage read.
+- **A renewal is recorded only when its exchange was asked as the account.** A renewal joins an
+  exchange already in flight for the cloud. One the guest started before the sign-in still answers for
+  the guest, because `delegate-cloud` answers for the relay user that signed the request. So
+  `issueCloudTokens` remembers, in memory, which relay user each cloud's latest exchange was asked as
+  (`lastIssuedForOf`), read when the exchange started. The reclaim records a renewal only when that is
+  the relay user signed in now. Otherwise it leaves the cloud unrecorded, and the next trigger starts
+  a fresh exchange as the account.
 - **It runs on two triggers**, because either can come second: the owned list changing (a catalog
   resolving after an invite entry was already held, or a sign-in to the owning account), and a
   committed cloud token (`cloud:token` — an invite entry committed after the catalog resolved, which
-  no list change would follow). A failed renewal leaves the invitee in place and is retried on the
-  next of either. It cannot loop: a successful renewal removes the empty JWT the check looks for.
-- **Over the committed cloud, the re-issue replaces rather than merges.** `reissueCloudTokens` merges
-  a renewal into the stored view, because a re-issue may omit profile fields; over an invite entry it
-  is an identity change, and a merge would keep the invitee's `$user` and role wherever the owner's
-  answer has no field. For the same reason it drops the selected place, which was the invitee's.
+  no list change would follow). A change in the invited overlap triggers it too. It cannot loop: a
+  successful renewal removes the empty JWT the first check looks for, and writes the record the
+  second one looks for.
+- **A failed renewal backs off for 30 minutes.** It leaves the invitee in place. The committed cloud's
+  own refresh commits a cloud token every few minutes, so a renewal that cannot succeed (a refusal, or
+  a cloud backend that is gone) would otherwise call `delegate-cloud` at that rate until logout. The
+  backoff is in memory, so a reload clears it.
+- **Over the committed cloud, the re-issue replaces rather than merges** when it names another user.
+  `reissueCloudTokens` merges a renewal into the stored view, because a re-issue may omit profile
+  fields. Over another user that would be an identity change, and a merge would keep the previous
+  user's `$user` and role wherever the owner's answer has no field. "Another user" means an invite
+  entry, or a stored token whose uid differs from the re-issued one's; the uid is the only thing that
+  still tells a guest's ordinary issue apart. In both cases it also drops the selected place, which
+  was the other user's.
+- **The invited row is kept.** `useInvitedClouds` hides it while the cloud is owned. The device's
+  guest is still a member on the server, and the row is how that guest gets back in after the account
+  signs out.
 
 ## Ending a session
 

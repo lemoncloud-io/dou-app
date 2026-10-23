@@ -292,13 +292,14 @@ class RelaySession implements IRelaySession {
         // redirect.
         sessionSignal.batch(() => {
             cloudStore.clearSession();
-            // The per-cloud tokens, uids and recent-cloud order go with the account. `clearSession`
-            // keeps all three on purpose (leaving one cloud is not a change of account, and the other
-            // clouds' background sessions sign from that cache); this is the one place the account
-            // itself ends.
+            // The per-cloud tokens, uids, recent-cloud order and reclaim records go with the account.
+            // `clearSession` keeps them on purpose (leaving one cloud is not a change of account, and
+            // the other clouds' background sessions sign from that cache); this is the one place the
+            // account itself ends.
             cloudStore.clearCachedCloudTokens();
             cloudStore.clearCloudIdentities();
             cloudStore.clearRecentClouds();
+            cloudStore.clearReclaimedClouds();
             relayStore.clearSelectedSite();
             // Replaces `clearRelayTransportOverrides()` — drop the deeplinked `?_backend`/`?_wss`
             // local overrides so a future boot resolves the build's own endpoint again instead of

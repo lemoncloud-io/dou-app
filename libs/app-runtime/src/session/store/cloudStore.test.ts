@@ -213,3 +213,37 @@ describe('cloudStore — recently entered clouds', () => {
         expect(cloudStore.getRecentClouds()).toEqual(['cloud-1']);
     });
 });
+
+describe('cloudStore — reclaim records', () => {
+    it('is null for a cloud never reclaimed', () => {
+        expect(cloudStore.getReclaimedFor('cloud-1')).toBeNull();
+    });
+
+    it('records the relay user per cloud, and the latest one wins', () => {
+        cloudStore.setReclaimedFor('cloud-1', 'guest-1');
+        cloudStore.setReclaimedFor('cloud-2', 'account-1');
+        cloudStore.setReclaimedFor('cloud-1', 'account-1');
+
+        expect(cloudStore.getReclaimedFor('cloud-1')).toBe('account-1');
+        expect(cloudStore.getReclaimedFor('cloud-2')).toBe('account-1');
+    });
+
+    it('survives clearSession and goes with clearReclaimedClouds', () => {
+        cloudStore.setReclaimedFor('cloud-1', 'account-1');
+
+        cloudStore.clearSession();
+        expect(cloudStore.getReclaimedFor('cloud-1')).toBe('account-1');
+
+        cloudStore.clearReclaimedClouds();
+        expect(cloudStore.getReclaimedFor('cloud-1')).toBeNull();
+    });
+
+    it('does not rewrite storage for the same relay user', () => {
+        cloudStore.setReclaimedFor('cloud-1', 'account-1');
+        const writesBefore = mockSets.length;
+
+        cloudStore.setReclaimedFor('cloud-1', 'account-1');
+
+        expect(mockSets.length).toBe(writesBefore);
+    });
+});
