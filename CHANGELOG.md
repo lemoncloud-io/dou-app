@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-23] - No version updates
+
+### Features
+
+- (web,mobile,bridges,logger) wire statistics through the log pipeline, off by default
+
 ## [2026-10-22] - No version updates
 
 ### Features
