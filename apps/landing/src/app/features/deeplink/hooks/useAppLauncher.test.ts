@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 
 import { act, renderHook } from '@testing-library/react';
 
-import { APP_CONFIG, DEEPLINK_CONFIG } from '../constants';
+import { APP_CONFIG, DEEPLINK_CONFIG } from '../consts';
 import { openUrl } from '../utils';
 
 import type * as Utils from '../utils';

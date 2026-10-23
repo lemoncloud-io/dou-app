@@ -6,7 +6,8 @@ listing and the app's own My Page both cite, and the `/s/*` + `/i` bounce page t
 invite link into the installed app or into the web app. It has no session, no data layer and no backend call of
 its own.
 
-59 TypeScript files under `src/`, three features, five shared components, five test files.
+52 TypeScript files under `src/` plus nine test files, in three features over one app-level
+`config/` and the route table.
 
 ## Purpose
 
@@ -31,7 +32,7 @@ Three things are true of it and of nothing in `apps/web`, and each is checkable:
 
 1. **It deploys to its own origin.** `scripts/deploy-landing.sh` targets `app.chatic.io` (prod) and
    `app-dev.chatic.io` (dev); the web app's domains are `dou.chatic.io` and `dou-dev.chatic.io` (see
-   `WEB_CONFIG` in `src/app/features/deeplink/constants/index.ts`). Separate S3 buckets, separate
+   `WEB_CONFIG` in `src/app/config/links.ts`). Separate S3 buckets, separate
    CloudFront distribution, separate `package.json` version.
 2. **The origin is the deep-link origin.** `public/.well-known/apple-app-site-association` and
    `public/.well-known/assetlinks.json` are what make iOS Universal Links and Android App Links
@@ -40,7 +41,7 @@ Three things are true of it and of nothing in `apps/web`, and each is checkable:
    claims only the link paths (`/i`, `/s`, `/s/*`), the same ones the Android manifest
    filters on: the rest of the origin is this site, and a wider claim hands `/` to the app on any
    device that has it — a Mac running the iPhone app included.
-3. **It loads with no session.** Its entire `@chatic` surface is three packages, and none of them is
+3. **It loads with no session.** Its entire `@chatic` surface is four packages, and none of them is
    an auth, data or socket module:
 
 ```bash
@@ -53,7 +54,7 @@ grep -rho "@chatic/[a-z-]*" apps/landing/src | sort | uniq -c
    is reading it belongs in `apps/web`.
 2. **No network call to our own backend.** The only `fetch` in the app is an orphan (see
    [Traps](#traps)); `/s/*` and `/i` redirect the browser and let the destination do the work.
-3. **Legal text is imported, never typed.** `src/app/features/policy/constants/index.ts` is a
+3. **Legal text is imported, never typed.** `src/app/features/policy/consts/index.ts` is a
    two-line re-export of the `@chatic/policy-content` barrel. A paragraph written into a page
    component here is a second copy of a policy, which is the failure that library exists to prevent.
 4. **The routes are public URLs with external references.** `/policy/terms`, `/policy/privacy`,
@@ -87,30 +88,40 @@ icons (`assets`), everything a signed-in user does (`apps/web`).
 ```mermaid
 flowchart TD
     main[main.tsx] --> i18n[i18n · ko / en]
-    main --> TP[ThemeProvider]
-    main --> App[app.tsx → Router]
-    App --> CR[CommonRoutes]
-    CR -->|s/*| DL[deeplink]
-    CR -->|policy/*| PO[policy]
-    CR -->|*| HO[home]
+    main --> App[app.tsx]
+    App --> TP[ThemeProvider]
+    App --> R[routes/index.tsx → Router]
+    R --> CR[CommonRoutes]
+    R -->|error screen| SH[["@chatic/shared"]]
+    R --> AS
+    CR -->|index| HO[home]
+    CR -->|s/* · i/*| DL[deeplink]
+    CR -.->|policy/* · lazy| PO[policy]
+    HO --> CFG[config/ · links, stage]
+    DL --> CFG
     PO --> PC[["@chatic/policy-content"]]
     TP --> TH[["@chatic/theme"]]
     HO --> AS[["@chatic/assets"]]
     DL --> AS
+    DL --> SH
     TH -.-> BR[["@chatic/bridges → logger, app-messages"]]
 
     classDef ext stroke-dasharray: 4 4;
-    class PC,TH,AS,BR ext;
+    class PC,TH,AS,SH,BR ext;
 ```
 
-The dashed arrow is the one the diagram cannot explain: **no file in this app imports
-`@chatic/bridges`, `@chatic/logger` or `@chatic/app-messages`** — see
+The dashed arrow out of `@chatic/theme` is the one the diagram cannot explain: **no file in this app
+imports `@chatic/bridges`, `@chatic/logger` or `@chatic/app-messages`** — see
 [Dependencies](#dependencies-why-a-marketing-site-pulls-a-bridge-and-a-logger).
 
 ### Routes
 
-`src/app/routes/CommonRoutes.tsx` splits on `/s`, `/i` and `/policy`, sends everything else home, and
-each feature owns its own subtree.
+`src/app/routes/index.tsx` builds the one router from `CommonRoutes` plus a catch-all that sends any
+other path home, and gives every top-level route the same `errorElement` (`RouteErrorFallback`).
+`CommonRoutes.tsx` mounts home at the root and splits on `/s`, `/i` and `/policy`; each feature owns
+its own subtree. Home and the bounce page are in the entry chunk — home is most visitors' first
+screen, and the bounce page tries the app as soon as it mounts — while the policy pages, the bulk of
+the bundle's text, load lazily.
 
 | URL               | Renders                                           |
 | ----------------- | ------------------------------------------------- |
@@ -121,7 +132,10 @@ each feature owns its own subtree.
 | `/policy/*`       | redirect to `/policy/terms`                       |
 | `/s/*`            | `DeepLinkPage` — any path under `/s` reaches it   |
 | `/i/*`            | `DeepLinkPage` — the encoded invite link `/i?t=…` |
-| anything else     | redirect to `/`                                   |
+| anything else     | redirect to `/`, dropping the query               |
+
+`src/app/routes/CommonRoutes.test.tsx` holds this table as data — every row, its final URL and
+whether the query survives — so a row that changes fails a test before it breaks a link.
 
 `createBrowserRouter` means every one of these is served by S3 as `index.html`; the CloudFront
 distribution has to rewrite unknown paths to it or `/policy/terms` 404s on a hard refresh.
@@ -132,18 +146,78 @@ distribution has to rewrite unknown paths to it or `/policy/terms` 404s on a har
 apps/landing/
 ├── index.html                  English-only metadata, canonical https://app.chatic.io/
 ├── vite.config.mts             build, dev server on :5004, window-injected VITE_* vars
+├── tsconfig.app.json           the app; tsconfig.spec.json type checks the tests
 ├── public/.well-known/         apple-app-site-association, assetlinks.json
 ├── public/                     sitemap.xml, robots.txt, two OG images
 └── src/
-    ├── main.tsx                the only composition point: ThemeProvider + i18n + App
+    ├── main.tsx                initialises i18n and renders <App /> — nothing else
     ├── i18n/                   i18next, ko + en, detector key `@landing.language`
-    ├── app/routes/             CommonRoutes (the prefix split) and the RouterProvider
-    ├── app/shared/             Header, Footer, StoreButton, StoreIcons, Toast, useToast
-    └── app/features/
-        ├── home/               5 section components, store URLs
-        ├── policy/             3 pages over one PolicyPageLayout + VersionSelector
-        └── deeplink/           1 page, 4 hooks, the app-launch and web-redirect logic
+    └── app/
+        ├── app.tsx             the provider assembly: ThemeProvider around the Router
+        ├── routes/             the router, the route table, ROUTES (paths.ts), the error screen
+        ├── config/             stage.ts (hostname and import.meta), links.ts (store, web, contact)
+        └── features/
+            ├── home/           sections, Header, Footer, StoreButton
+            ├── policy/         3 pages over one PolicyPageLayout + VersionSelector
+            └── deeplink/       1 page, 4 hooks, the app-launch and web-redirect logic
 ```
+
+### Layering
+
+This app follows the web app's layering contract, and that document is the canon:
+[`apps/web/docs/README.md`](../web/docs/README.md) (where a file goes, what a feature folder holds,
+which way an import may point). It is not restated here. What it comes to in an app this size:
+
+- **Features do not import each other.** What two features share moves up to the app level —
+  `app/config/` today: `links.ts` is the site's one list of outside addresses, and it sits there
+  because the store listings are read by both home and the deep-link page; `app/ui/`,
+  `app/hooks/` or `app/utils/` when a component, hook or helper is the shared thing. The app level
+  imports no feature; only `app.tsx` and `routes/` do.
+- **No `shared/` folder, and nothing promoted ahead of time.** A file moves up on its second
+  consumer. `Header`, `Footer` and `StoreButton` have one consumer, so they live in `home`.
+- **Absolute paths come from `ROUTES`** in `app/routes/paths.ts`, never a typed string — the web
+  app's design principle 5. The route table's own patterns (`policy/*`) stay spelled out, as the web
+  app's do.
+- **`import.meta` and the hostname are read in `app/config/stage.ts` only.** No barrel re-exports
+  it; import it by path.
+- **A feature is reached through its `index.ts`**, which exports its `<Name>Routes`. Inside, a feature
+  uses the subset of `pages/ components/ hooks/ lib/ utils/ types/ consts/ routes/` it needs.
+- **Copy lives in one file per language** (`src/i18n/locales/{ko,en}.json`); `localeParity.test.ts`
+  fails when a key exists in one language and not the other, for every pair under `locales/`.
+
+Two things differ from the web app on purpose: the copy is bundled JSON rather than fetched (a
+crawler and a first-time visitor get it with the page), and the route error screen is this app's
+own, because the shared one is built from UI-kit components whose design tokens this site's
+Tailwind config does not define. There is no `docs/feature/` tree here; this README is the app's
+documentation.
+
+**Checking it.** The rules above are checked by grep, as the web app checks its own. Each command
+prints nothing when the rule holds:
+
+```bash
+# a feature importing another feature (keep the feature list current)
+git grep -n -E "from '(\.\./)+(home|policy|deeplink)(/|')" -- apps/landing/src/app/features/
+
+# the app level importing a feature
+git grep -n -E "from '.*features/" -- apps/landing/src/app/config apps/landing/src/app/ui \
+    apps/landing/src/app/hooks apps/landing/src/app/utils
+
+# import.meta or the hostname read outside app/config (the locale parity test globs the locale files)
+git grep -n -E 'import\.meta|location\.hostname' -- apps/landing/src ':!apps/landing/src/app/config' \
+    ':!apps/landing/src/i18n/*.test.ts'
+
+test ! -d apps/landing/src/app/shared   # no shared/ wrapper
+```
+
+Give the first command the features folder itself, as above. A pathspec with a trailing glob such
+as `'apps/landing/src/app/features/*/'` matches no file at all, so the command prints nothing
+whatever the code imports.
+
+**Adding a feature.** Create `src/app/features/<name>/` with an `index.ts` that exports
+`<Name>Routes`, add `<name>` to the first command above, give it an entry in `CommonRoutes.tsx` (lazy
+unless something is timed against its mount, as the bounce page's app launch is)
+and a row in the table in `CommonRoutes.test.tsx`, and put every absolute path it links to in
+`ROUTES`. Its copy goes under a top-level key of its own in the locale files.
 
 There is no `project.json`: Nx infers every target from `vite.config.mts` and the package name, so
 `build`, `test`, `typecheck`, `lint` and `dev` exist without being declared anywhere. `nx show
@@ -151,20 +225,25 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
-Nx's graph gives this app five libraries under `libs/` — `app-messages`, `bridges`, `logger`,
-`policy-content`, `theme` — plus the root `assets` project. Only three of the six are imported by a
-file here:
+Nx's graph gives this app nine libraries under `libs/` plus the root `assets` project. Only four of
+the ten are imported by a file here:
 
 | Library                  | Reached how               | Used for                                                    |
 | ------------------------ | ------------------------- | ----------------------------------------------------------- |
 | `@chatic/policy-content` | direct, 1 file            | the three policy tables and their types                     |
-| `@chatic/theme`          | direct, 2 files           | `ThemeProvider` in `main.tsx`, the theme toggle in `Header` |
-| `@chatic/assets`         | direct, 5 files           | illustrations and icons (also a Vite alias to `assets/src`) |
-| `@chatic/bridges`        | transitive, via `theme`   | nothing here calls it                                       |
+| `@chatic/theme`          | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`  |
+| `@chatic/assets`         | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`) |
+| `@chatic/shared`         | direct, 3 files           | invite-link decoding, the error screen's English defaults   |
+| `@chatic/bridges`        | via `theme` and `shared`  | nothing here calls it                                       |
 | `@chatic/logger`         | transitive, via `bridges` | nothing here calls it                                       |
 | `@chatic/app-messages`   | transitive, via `bridges` | nothing here calls it                                       |
+| `@chatic/ui-kit`         | transitive, via `shared`  | nothing here calls it                                       |
+| `@chatic/config`         | transitive, via `shared`  | nothing here calls it                                       |
+| `@chatic/device-utils`   | transitive, via `shared`  | nothing here calls it                                       |
 
-The whole chain hangs off one import inside `libs/theme/src/provider/ThemeProvider.tsx`:
+`shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
+libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain
+hangs off one import inside `libs/theme/src/provider/ThemeProvider.tsx`:
 
 ```ts
 import { isNative, webClient } from '@chatic/bridges';
@@ -176,7 +255,7 @@ On `app.chatic.io` in an ordinary browser it is false, the effect returns immedi
 is never used. `@chatic/logger` and `@chatic/app-messages` arrive only because `bridges` uses them
 internally.
 
-**So the finding is: three of the five libraries are inherited, not needed.** They ship in the bundle
+**So the finding is: the bridge, the logger and the message types are inherited, not needed.** They ship in the bundle
 and no landing code path reaches them. This is worth knowing for two reasons. Bundle size on a page
 whose job is to load fast for a stranger is a real cost. And the lever is not in this app — trimming
 it means making `libs/theme`'s native sync optional, not editing anything under `apps/landing`.
@@ -186,7 +265,7 @@ grep -rn "@chatic/bridges\|@chatic/logger\|@chatic/app-messages" apps/landing/sr
 ```
 
 The landing app's own diagnostics are plain `console.log` / `console.error` calls in
-`useWebRedirect.ts` — it does not use the repo's logger.
+`useWebRedirect.ts` and `RouteErrorFallback.tsx` — it does not use the repo's logger.
 
 ## Usage
 
@@ -219,10 +298,10 @@ unless `dist/apps/landing/index.html` and both `.well-known` files exist, syncs 
 `REDACTED_TEAM_ID` in the AASA file with `$APPLE_TEAM_ID` before uploading it as
 `application/json`, and invalidates CloudFront.
 
-The `.env` is mostly theatre for this app: the only `import.meta.env` reference in `src/` is the
-`DEV` flag in `src/app/features/deeplink/constants/index.ts`. Environment selection at runtime is
-done by sniffing the hostname for `-dev`, which is what picks the `chatic-dev` URL scheme and the
-`io.chatic.dou.dev` package id.
+The `.env` is mostly theatre for this app: the only `import.meta.env` reference in `src/app` is the
+`DEV` flag in `src/app/config/stage.ts`. Environment selection at runtime is done by sniffing the
+hostname for `-dev` in that same file, which is what picks the `chatic-dev` URL scheme, the
+`io.chatic.dou.dev` package id and the dev web origin.
 
 ## Scenarios
 
@@ -280,27 +359,33 @@ not trigger.
 
 ## Traps
 
-- **This project is excluded from the CI gate.**
-  [`.github/workflows/verify.yml`](../../.github/workflows/verify.yml) leaves `@chatic/landing` out of
-  both the `typecheck` and the `test` run, and lists it as red in both. `lint` does cover it.
-- **The typecheck really is red — 32 errors.** 29 of them are the same error,
-  `TS2503: Cannot find namespace 'JSX'`, one per `: JSX.Element` annotation across 26 files: React 19
-  removed the global `JSX` namespace, and `@types/react` 19 exposes it as `React.JSX`. The other
-  three are `TS7030` in `Toast.tsx` (a `useEffect` that does not return on every path) and two
-  `TS6307` for `src/i18n/locales/{en,ko}.json`, which `tsconfig.app.json` imports but does not
-  `include`. Vite never type checks, so the site builds and deploys in this state.
+- **CI gates this app's typecheck and tests; until the layering change it did not.**
+  [`.github/workflows/verify.yml`](../../.github/workflows/verify.yml) left `@chatic/landing` out of
+  both runs, and the typecheck sat at 32 errors that Vite, which never type checks, built and deployed
+  straight past. Two of the causes are easy to reintroduce. React 19 removed the global `JSX`
+  namespace, so a component annotated `: JSX.Element` needs `import { type JSX } from 'react'` (29
+  of the 32). And `tsconfig.app.json` has to `include` the locale JSON it imports, or `tsc -b`
+  reports TS6307 for each file.
 
     ```bash
-    npx tsc -b apps/landing/tsconfig.app.json
+    npx tsc -b apps/landing/tsconfig.json   # the app and the tests — what nx's typecheck target runs
     ```
 
-- **Five test files, and they are all there is.** Two sit in `src/i18n/`, one covers the route
-  table, and two cover the app launch (`utils/appLaunch`, `hooks/useAppLauncher`); every component
-  and the other deep-link hooks have none. They are invisible to `tsc -b`: `tsconfig.app.json`
-  excludes `*.test.ts(x)` and there is no spec tsconfig to pick them up.
+- **Test files are type checked by `tsconfig.spec.json`, not by `tsconfig.app.json`.** The app config
+  excludes `*.test.ts(x)`; `tsconfig.json` references both projects, which is what puts the tests
+  under `nx typecheck`. The spec project keeps its own build info: two projects sharing one
+  `tsBuildInfoFile` let the second read the first one's state as its own and skip the tests.
+- **A missing error-screen key does not show.** `RouteErrorFallback` looks its copy up under
+  `error.screen.unknown.*` with English as the default, the same rule the shared error screens
+  follow, so a key dropped from `ko.json` makes Korean readers see English rather than a raw key.
+  The parity test catches a key missing from one language only; the values match the web app's.
+- **Nine test files, and they cover routing, config, copy and the app launch only.** The route
+  table, the stage and link config, ko/en key parity, the i18n language handling, and the app launch
+  (`utils/appLaunch`, `hooks/useAppLauncher`) have tests; the components and the other deep-link
+  hooks have none.
 
     ```bash
-    npx nx test @chatic/landing   # 41 tests, and verify.yml does not run them
+    npx nx test @chatic/landing   # 66 tests
     ```
 
 - **`src/app/features/deeplink/utils/fingerprint.ts` is dead.** `generateFingerprint` calls out to
@@ -340,13 +425,15 @@ not trigger.
 ## How to verify
 
 ```bash
-npx tsc -b apps/landing/tsconfig.app.json     # red today, see Traps
-npx nx lint @chatic/landing                   # passes (one warning), and it is in CI
-npx nx test @chatic/landing                   # 41 tests pass, and CI does not run them
-npx nx build @chatic/landing                  # passes — the build the deploy wraps
-yarn landing:start                            # http://localhost:5004
+npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
+npx nx lint @chatic/landing                               # passes (one warning); in CI
+npx nx test @chatic/landing                               # 66 tests pass; in CI
+npx nx build @chatic/landing                              # passes — the build the deploy wraps
+yarn landing:start                                        # http://localhost:5004
 ```
 
+Then the boundary commands in [Layering](#layering).
+
 Nothing imports this app, so a change here reaches no other project — the reverse is not true:
-`libs/policy-content`, `libs/theme` and `assets` all reach it, and `tsconfig.app.json` references
-exactly those three.
+`libs/policy-content`, `libs/theme`, `libs/shared` and `assets` all reach it, and
+`tsconfig.app.json` and `tsconfig.spec.json` both reference exactly those four.

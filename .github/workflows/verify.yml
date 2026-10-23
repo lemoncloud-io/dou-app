@@ -78,7 +78,7 @@ jobs:
             - name: Typecheck
               run: >
                   npx nx run-many -t typecheck
-                  --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+                  --exclude=block-kit-builder,@chatic/mobile,chatic-deferred-link-cleanup
 
             # `libs/db` and `libs/app-runtime` ran through a separate step until the root
             # `workspaces` array was fixed to `libs/*` — it still named `libs/bridge` and
@@ -86,16 +86,20 @@ jobs:
             # `run-many` skipped them silently. They are covered by the line below now, and so is
             # `@chatic/bridges`, whose `yarn test` could not resolve jest for the same reason.
             - name: Test
-              run: >
-                  npx nx run-many -t test
-                  --exclude=@chatic/landing
+              run: npx nx run-many -t test
 
             # Left out of the gate, with the reason. Measured 2026-09-14 (dated per row where a row was re-measured).
             #
             #   typecheck   @chatic/mobile               red
-            #               @chatic/landing              red
             #               block-kit-builder            red
             #               chatic-deferred-link-cleanup red
+            #
+            #   `landing` left both the TYPECHECK and the TEST list on 2026-10-23, and nothing was traded
+            #   away for it. Its 32 type errors were fixed, not silenced: 29 were the global `JSX`
+            #   namespace React 19 removed (now imported from 'react'), one sat in a component nothing
+            #   used (deleted), and two were locale JSON files missing from the include. tsconfig.json
+            #   references a spec project too, so the tests are type checked as well as run. All of its
+            #   tests pass, measured the same day; what was missing was a gate that ran them.
             #
             #   `desktop-web` left the TYPECHECK list on 2026-10-06, and nothing was traded away for it:
             #   its errors (21 when first counted) are gone, measured 0 from a clean build of every lib
@@ -114,7 +118,7 @@ jobs:
             #   lib, spec AND storybook. Source, tests and stories are all type checked.
             #   (`web` was only ever excluded because its target pulls web-ui-kit.)
             #
-            #   test        @chatic/landing               red
+            #   test        (none)
 
     # `apps/web` in its native (WebView) mode, driven in Chromium and WebKit against a fake native
     # shell and a fake relay (`apps/web-e2e`). A job of its own so it runs beside the gate above

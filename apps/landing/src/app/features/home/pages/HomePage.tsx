@@ -1,5 +1,6 @@
-import { Footer, Header } from '../../../shared/components';
-import { CTASection, FeaturesSection, HeroSection } from '../components';
+import { type JSX } from 'react';
+
+import { CTASection, FeaturesSection, Footer, Header, HeroSection } from '../components';
 
 export const HomePage = (): JSX.Element => {
     return (

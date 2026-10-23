@@ -365,7 +365,7 @@ npx tsc -b libs/app-messages/tsconfig.json --force     # the whole gate
   `@chatic/mobile` — that one is for you to run by hand.
 
 ```bash
-npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-deferred-link-cleanup
 ```
 
 The app → web direction has no compile-time check here at all: a shell pushing a payload that

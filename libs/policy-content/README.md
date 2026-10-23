@@ -22,7 +22,7 @@ grep -rn "@chatic/policy-content/" --include='*.ts' --include='*.tsx' apps libs 
 ```
 
 Two apps consume it, and each re-exports the barrel through a two-line local barrel of its own rather
-than importing it in pages directly — `apps/landing/src/app/features/policy/constants/index.ts` and
+than importing it in pages directly — `apps/landing/src/app/features/policy/consts/index.ts` and
 `apps/web/src/app/features/mypage/consts/index.ts`.
 
 ```bash
@@ -109,7 +109,7 @@ flowchart TD
     Utils["utils.ts<br/><i>TERMS · PRIVACY · CHILD tables</i>"]:::tab
     Barrel["index.ts<br/><i>the only entry point</i>"]:::tab
 
-    LandBar["apps/landing<br/>features/policy/constants"]:::ext
+    LandBar["apps/landing<br/>features/policy/consts"]:::ext
     WebBar["apps/web<br/>features/mypage/consts"]:::ext
 
     LandPg["3 public routes<br/><i>terms · privacy · child</i>"]:::ext
@@ -206,7 +206,7 @@ when the bundle loads, and both apps reach them through a local re-export:
 
 ```text
 apps/landing
-  └─ features/policy/constants/index.ts     re-exports all three tables + the four types
+  └─ features/policy/consts/index.ts        re-exports all three tables + the four types
        └─ pages/{Terms,Privacy,Child}Page   each owns its own selectedVersion state
 
 apps/web
@@ -309,7 +309,7 @@ file exists.
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves. `rm -rf dist/out-tsc` and look
   again.
 - Downstream: a changed barrel identifier reaches `apps/landing` and `apps/web`.
-  `.github/workflows/verify.yml` excludes `@chatic/landing` from both its typecheck and its test step,
-  so that one is the one to run by hand; `web` is on the gate for typecheck.
+  Both are on the `.github/workflows/verify.yml` gate for typecheck, and landing is on its test step
+  too.
 - Neither consumer has a test that touches these tables, so the only way to see a rendering change is
   to open the pages — `/policy/terms` on the landing site, My Page → Terms in `apps/web`.

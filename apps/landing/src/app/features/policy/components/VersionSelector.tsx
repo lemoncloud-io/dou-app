@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { type JSX, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { PolicyVersion } from '../constants';
+import type { PolicyVersion } from '../consts';
 
 interface VersionSelectorProps {
     versions: readonly PolicyVersion[];

@@ -105,5 +105,15 @@
         "privacy": "개인정보처리방침",
         "child": "아동 보호 정책 및 운영표준",
         "copyright": "Copyright 2026 LEMONCLOUD. All rights reserved."
+    },
+    "error": {
+        "screen": {
+            "unknown": {
+                "title": "오류 발생",
+                "description": "예상치 못한 오류가 발생했습니다.",
+                "primaryAction": "다시 시도",
+                "secondaryAction": "홈으로"
+            }
+        }
     }
 }

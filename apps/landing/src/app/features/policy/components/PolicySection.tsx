@@ -1,4 +1,6 @@
-import type { PolicySection as PolicySectionType } from '../constants';
+import { type JSX } from 'react';
+
+import type { PolicySection as PolicySectionType } from '../consts';
 
 interface PolicySectionProps {
     section: PolicySectionType;

@@ -329,5 +329,5 @@ npx jest --config libs/http/jest.config.js   # 14 suites, 95 cases
   those except `@chatic/mobile` — that one is for you to run by hand.
 
 ```bash
-npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-deferred-link-cleanup
 ```

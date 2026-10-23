@@ -1,3 +1,5 @@
+import { type JSX } from 'react';
+
 interface StoreButtonProps {
     onClick?: () => void;
     href?: string;
