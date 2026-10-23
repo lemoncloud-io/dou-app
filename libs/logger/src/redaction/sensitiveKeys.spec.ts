@@ -1,4 +1,4 @@
-import { isSensitiveField, isSensitiveKey } from './sensitiveKeys';
+import { isSensitiveField, isSensitiveKey, sensitiveFamilyOf } from './sensitiveKeys';
 
 describe('isSensitiveKey — 이름으로 판정한다', () => {
     it('비밀을 담는 이름을 잡는다', () => {
@@ -45,5 +45,37 @@ describe('isSensitiveField — 값을 같이 보고 판정한다', () => {
     it('평범한 이름은 값과 무관하게 통과시킨다', () => {
         expect(isSensitiveField('kind', 'relay')).toBe(false);
         expect(isSensitiveField('count', 3)).toBe(false);
+    });
+});
+
+describe('safe keys for diagnostic codes', () => {
+    it('does not mask responseCode, httpStatus, errorCode or closeCode', () => {
+        for (const key of ['responseCode', 'httpStatus', 'errorCode', 'closeCode']) {
+            expect(isSensitiveKey(key)).toBe(false);
+        }
+    });
+});
+
+describe('sensitiveFamilyOf', () => {
+    it('names a token family only when every match is a token name', () => {
+        for (const key of ['deviceToken', 'delegationToken', 'identityToken', 'token']) {
+            expect(sensitiveFamilyOf(key)).toBe('token');
+        }
+        // A reset token is a one-time code, and a secret is a secret, whatever else the name says.
+        expect(sensitiveFamilyOf('passwordResetToken')).toBeUndefined();
+        expect(sensitiveFamilyOf('secretToken')).toBeUndefined();
+    });
+
+    it('names the email and phone families', () => {
+        expect(sensitiveFamilyOf('email')).toBe('email');
+        expect(sensitiveFamilyOf('userEmail')).toBe('email');
+        expect(sensitiveFamilyOf('phoneNumber')).toBe('phone');
+        expect(sensitiveFamilyOf('emailCode')).toBeUndefined();
+    });
+
+    it('gives no family to passwords, codes, secrets, keys or safe names', () => {
+        for (const key of ['password', 'otp', 'code', 'secret', 'accessKey', 'authorization', 'errorCode', 'label']) {
+            expect(sensitiveFamilyOf(key)).toBeUndefined();
+        }
     });
 });

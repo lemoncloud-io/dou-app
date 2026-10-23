@@ -3,6 +3,7 @@
 > Overview in the [lib README](../../README.md) · Canonical code:
 > [redaction/sensitiveKeys.ts](../../src/redaction/sensitiveKeys.ts) ·
 > [redaction/valuePatterns.ts](../../src/redaction/valuePatterns.ts) ·
+> [redaction/fingerprint.ts](../../src/redaction/fingerprint.ts) ·
 > [serialization/wire.ts](../../src/serialization/wire.ts) ·
 > [serialization/safeStringify.ts](../../src/serialization/safeStringify.ts)
 
@@ -19,9 +20,11 @@ format away from shipping cleartext.
 
 ```text
 redaction/
-  sensitiveKeys.ts   SENSITIVE_KEYS · SAFE_KEYS · REDACTED · isSensitiveKey · isSensitiveField
-  valuePatterns.ts   redactText — url queries, then the shape rules
-  redact.ts          redactSensitive · redactMaybeJson · truncate
+  sensitiveKeys.ts   SENSITIVE_KEYS · SAFE_KEYS · REDACTED · isSensitiveKey · isSensitiveField · sensitiveFamilyOf
+  valuePatterns.ts   redactText — url queries (SAFE_QUERY_PARAMS), then the shape rules
+  redact.ts          maskSensitiveValue · redactSensitive · redactMaybeJson · truncate
+  fingerprint.ts     the device salt (setRedactionSalt) · fingerprints · partial display · strict
+  hmacSha256.ts      synchronous HMAC-SHA256, no dependency
 
 serialization/
   safeStringify.ts    → string, masking everything it walks
@@ -39,13 +42,31 @@ serialization/
 
 1. **`SENSITIVE_KEYS`** — a case-insensitive **substring** match. `token` covers most bearer fields; the entries that do not contain it are listed separately (`x-lemon-identity`, `pwd`, `otp`, `secret`, `alias`, `code`). `code` and `alias` are there because a rejected verify-alias call logs its request body, which would otherwise ship a still-valid reset code next to the account's address. The tail of the list is the catalogue's forbidden-content names — `email`, `phone`, `receipt`, the push body and title fields. Nothing in the tree logs those today; they are there for the call site that has not been written yet. Names with a diagnostic homonym are deliberately absent: `body`, `text`, `content` and `name` would take `requestBody`, `statusText`, `contentType` and `tagName` with them.
 
-2. **`SAFE_KEYS`** — an allowlist matched as an exact name **or a suffix**, so `httpStatusCode` is covered by `statuscode` without being listed. This exists because over-masking fails silently while under-masking eventually gets noticed: a secret that is visible gets reported, but a `[REDACTED]` sitting exactly where the answer was leaves a well-formed entry and no trace of the loss. `code` is the whole problem — it must stay on the sensitive list (it is the one-time verification code) and it matches `errorCode`, `statusCode`, `countryCode`, which is what a failure is diagnosed from.
+2. **`SAFE_KEYS`** — an allowlist matched as an exact name **or a suffix**, so `httpStatusCode` is covered by `statuscode` without being listed. This exists because over-masking fails silently while under-masking eventually gets noticed: a secret that is visible gets reported, but a `[REDACTED]` sitting exactly where the answer was leaves a well-formed entry and no trace of the loss. `code` is the whole problem — it must stay on the sensitive list (it is the one-time verification code) and it matches `errorCode`, `statusCode`, `countryCode`, which is what a failure is diagnosed from. `responseCode`, `closeCode` and `httpStatus` are on it for the same reason.
 
 3. **Presence flags** — a `boolean` under a name starting `has`/`is`/`are`/`was`/`were`/`can`/`should`/`allow(s)`/`need(s)`. These exist _because_ the value must not be logged: a caller who wanted to say "a token was present" without shipping it wrote a boolean. Masking that takes away what was bought and leaves the entry looking as if it had held the secret. The boolean check is the guard — a `hasToken` holding a string is not a presence flag whatever it is called.
 
 `isSensitiveKey(key)` remains for callers holding a name alone, but prefer the two-argument form
 wherever the value is in hand: it is the only one that can tell a flag from the secret it stands in
 for.
+
+What a sensitive value **becomes** is `maskSensitiveValue(key, value)`. It is `[REDACTED]` unless the
+device's salt is set ([below](#fingerprints-and-partial-display)) and the name's family allows more
+(`sensitiveFamilyOf`):
+
+| Family  | Names                                                          | Becomes                                  |
+| ------- | -------------------------------------------------------------- | ---------------------------------------- |
+| `token` | every match is a token name — `deviceToken`, `delegationToken` | `[TOKEN#b07e22]`, or `[JWT#…]` for a JWT |
+| `email` | every match is `email` — `email`, `userEmail`                  | `[EMAIL#9d0e11:@gmail.com]`              |
+| `phone` | every match is `phone` — `phone`, `phoneNumber`                | `[PHONE#a1b2c3:…5678]`                   |
+| —       | passwords, one-time codes, secrets, keys, `authorization`      | `[REDACTED]`, always                     |
+
+**Every** match has to agree: `passwordResetToken` also matches `password`, and a reset token is a
+one-time code. A token value shorter than 16 characters gets no fingerprint — no real token is that
+short, and short is what a fingerprint must not be taken of. A value that is not what its name
+promises (an `email` with no address in it, a `phone` of fewer than nine digits) is `[REDACTED]`. A
+value that is already a placeholder of the name's own kind, because the layer that wrote the entry
+masked it first, is kept as it is — and only one in exactly the form the builders print.
 
 ### By shape
 
@@ -54,29 +75,35 @@ free-form `message`, and a string whose key says nothing (`detail`, `reason`, wh
 chose). `redactText` is the second axis, and it runs on **every** string.
 
 Query strings go first. A url-ish token carrying `?` or `#` is rewritten so the **parameter names
-survive and every value is masked**: which parameter holds the secret depends on the link that
+survive and the values are masked**: which parameter holds the secret depends on the link that
 produced it, so a deny-list of parameter names would be a guess, and the diagnostic value is in
-_which_ parameters were present. A fragment goes whole, because auth flows put bare tokens there and
+_which_ parameters were present. The exception is `SAFE_QUERY_PARAMS` — `cid` `sid` `v` `version`
+`provider` `tab` `page` `limit` `sort` `type` `view` `lang`, matched case-insensitively — whose values
+are kept as written when they are plain (`[A-Za-z0-9._~-]`, at most 64 characters). Anything else under
+those names — `?cid=1?token=…`, an encoded `@` — is masked like any other value. Each was among the most often masked names in real entries, none ever held a
+secret, and `cid`/`sid` are the axes an entry is read by. `code` is not on it: it is an OAuth
+authorization code or an invite code as often as anything else. A kept value still goes through the
+shape rules with the rest of the text. A fragment goes whole, because auth flows put bare tokens there and
 a fragment is not reliably `key=value`. Repeated names collapse. Three url forms are matched, because
 all three appear in entries: absolute (`https://host/path?…`), scheme-with-opaque-body
 (`sms:…?body=…`, `chatic://…`) and bare path (`/invite/accept?…`).
 
 Then the shape rules, most specific first.
 
-| Pattern                                                | Becomes          |
-| ------------------------------------------------------ | ---------------- |
-| `eyJ…` base64url triple (a JSON-header JWT)            | `[JWT]`          |
-| `Bearer <8+ chars>`                                    | `Bearer [TOKEN]` |
-| FCM/GCM registration token (`:APA91b…`)                | `[TOKEN]`        |
-| `AKIA…` / `ASIA…` AWS key ids                          | `[TOKEN]`        |
-| An email address with a dotted TLD                     | `[EMAIL]`        |
-| E.164, then separated and bare domestic mobile numbers | `[PHONE]`        |
+| Pattern                                                | Becomes          | With the device salt           |
+| ------------------------------------------------------ | ---------------- | ------------------------------ |
+| `eyJ…` base64url triple (a JSON-header JWT)            | `[JWT]`          | `[JWT#3f9a1c]`                 |
+| `Bearer <8+ chars>`                                    | `Bearer [TOKEN]` | `Bearer [TOKEN#…]`             |
+| FCM/GCM registration token (`:APA91b…`)                | `[TOKEN]`        | `[TOKEN#b07e22]`               |
+| `AKIA…` / `ASIA…` AWS key ids                          | `[TOKEN]`        | `[TOKEN]` — a key, not a token |
+| An email address with a dotted TLD                     | `[EMAIL]`        | `[EMAIL#9d0e11:@gmail.com]`    |
+| E.164, then separated and bare domestic mobile numbers | `[PHONE]`        | `[PHONE#a1b2c3:…5678]`         |
 
 **Each match gets its own placeholder** — "an address was here" is itself the diagnosis, and
 collapsing every kind into one word deletes the finding along with the value. `Bearer` runs after the
 JWT rule so a bearer JWT reads as `Bearer [JWT]`.
 
-Two exclusions are load-bearing.
+Three exclusions are load-bearing.
 
 - **Opaque high-entropy strings are not matched.** A rule like "20+ random-looking characters" would also eat ids, `cid`, `runId` and every uuid — the join axes the whole log system exists to follow. Losing those is worse than the risk it covers, and it fails silently.
 - **The email rule requires a dotted TLD**, which is what keeps it off composite ids of the form `<channelId>@<userId>`.
@@ -84,6 +111,60 @@ Two exclusions are load-bearing.
 
 `redactText` returns its input unchanged when nothing matched, so a caller can compare identity to
 learn whether anything was masked.
+
+## Fingerprints and partial display
+
+A bare `[JWT]` hides the token and also the one fact a token problem is diagnosed from: is this the
+token from a minute ago, or a newly issued one? A support case asks the same of a number ("is this
+the one you mean?") and of an address ("which provider?"). So with the device's salt set:
+
+- **A token keeps a fingerprint** — the first six hex characters of `HMAC-SHA256(salt, token)`. The
+  same token reads the same on one device, wherever it was found: a bearer value is fingerprinted
+  without its scheme, so a header line and a `token` field agree. Nothing about the value can be read
+  back from it.
+- **A phone number keeps its last four digits**, and a fingerprint of its digits alone, so
+  `010-1234-5678` and `01012345678` match. A number written with its country code (`+82 10…`) does not
+  match its domestic form.
+- **An address keeps its domain**, never the local part, and a fingerprint of the lower-cased address.
+
+**The salt belongs to the device and never leaves it.** Each install draws its own and keeps it; no
+entry, field or statistic carries it. Across devices the same value prints differently, on purpose:
+a salt shared by every client would ship inside every client, and with it anyone holding the logs
+could hash every phone number there is and read the fingerprints back. Comparing across devices is
+what `uid` is for.
+
+The host sets it with `setRedactionSalt` at boot, before anything is serialized:
+
+| Host           | Where the salt lives                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| app (native)   | MMKV, drawn on first launch; set by `attachNativeLogContext` — **none today**, see below                                        |
+| app (WebView)  | injected by the shell as `CHATIC_APP_LOG_SALT`, so both runtimes agree; its own `localStorage` one while the shell injects none |
+| standalone web | `localStorage`, per browser profile                                                                                             |
+| anywhere else  | none — bare placeholders                                                                                                        |
+
+A salt shorter than 16 characters is refused. Clearing the app's storage draws a new one.
+
+**A salt comes only from a cryptographic random source** (`createRedactionSalt` reads
+`crypto.getRandomValues` and returns `undefined` without it). Never `Math.random`: entry ids fall back
+to it where `crypto` is missing, those ids are uploaded, a generator's state can be recovered from its
+outputs, and a number with four digits shown has ten thousand candidates left. React Native's Hermes
+has no `getRandomValues` today, so **the app's native side has no salt and masks bare** — and since the
+app's upload queue is native, the web's entries inside the app end up bare too. The detail reaches the
+logs from the standalone web only, until a native secure source exists.
+
+**No salt, no detail.** Without a salt every placeholder is the bare form, and detailed ones that
+arrive from elsewhere are folded back to bare. **`{ strict: true }`** asks for the same output with a
+salt set, and also leaves out the safe lists added for the log pipeline's readers (query values,
+`responseCode`, `httpStatus`); `redactText`, `redactSensitive`, `redactMaybeJson`, `safeStringify` and
+`isSensitiveField` all take it. It exists for a sink outside the log pipeline — Crashlytics uses it, so
+Firebase receives what it did before this.
+
+**Masking twice gives the same text as masking once.** An entry is masked again each time it moves
+into another shape (the app's store, then the upload), and a detailed placeholder carries a `#` that
+the query rule would read as a url fragment — `token:[JWT#3f9a1c]` looks like a scheme with one.
+`redactText` therefore shelves detailed placeholders while its rules run and puts them back after.
+Only the exact forms the builders print are shelved — `[EMAIL#abcdef:jane@gmail.com]` is not one, so
+the address inside it is still masked.
 
 ## The three output shapes
 
@@ -155,7 +236,7 @@ entries from a run that was killed or crashed, which is to say the ones most wor
 
 ## Where an unmasked value can still escape
 
-- **A listener reading `entry.data` directly.** Masking lives in the serialization surfaces, so what a listener receives is the original. Crashlytics is the sink that does this and calls `redactSensitive` itself.
+- **A listener reading `entry.data` directly.** Masking lives in the serialization surfaces, so what a listener receives is the original. Crashlytics is the sink that does this and calls `redactSensitive` itself, `strict`.
 - **Anything `safeSerializable` passes through.** By design — see above — but it means the bridge payload is masked only at the boundary that stores or sends it.
 - **A shape the patterns do not recognise.** The caller's own rule is the first defence and there is no second one.
 
@@ -175,7 +256,7 @@ was exactly that failure. Passing it is not permission to log the value.
 
 ### Adding a shape rule
 
-1. Add it to `VALUE_PATTERNS` in `valuePatterns.ts`, with its own placeholder, and place it above any more general rule it should win against.
+1. Add it to `VALUE_PATTERNS` in `valuePatterns.ts`, with its own placeholder, and place it above any more general rule it should win against. A placeholder that carries detail has to be added to the folding and shelving pattern in `fingerprint.ts` too, or strict output and repeated masking will break it.
 2. Prove the negative as well as the positive: the test that matters is the one asserting the rule does **not** eat a uuid, a `cid`, a `runId` or an epoch timestamp.
 
 ### What not to do
@@ -183,8 +264,11 @@ was exactly that failure. Passing it is not permission to log the value.
 - **Do not add a blanket "looks random" rule.** It eats the join axes.
 - **Do not mask a field because the name sounds alarming.** Over-masking is the failure mode that never gets reported.
 - **Do not move masking to the call site.** It would have to be right in every one of them, and the boundary is the only place where "right once" is possible.
+- **Do not give a password, a one-time code or a secret a fingerprint.** They are short; with the salt, a fingerprint of one is a guess away from the value.
+- **Do not log or upload the salt**, and do not replace it with one shared by every install.
 
 ## Further reading
 
 - [docs/entries/](../entries/README.md#what-not-to-put-in-an-entry) — the caller's own obligations
 - [docs/upload/](../upload/README.md) — the budget the wire mapper's output is measured against
+- ADR-0224 — why masked values keep a fingerprint and a partial display, and what was rejected

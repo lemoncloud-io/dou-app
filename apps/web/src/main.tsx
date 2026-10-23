@@ -20,6 +20,7 @@ import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
 import { attachLogContext, readInjectedRunId, readLogContext, reportRunIdJoin } from './app/runtime/logging/logContext';
+import { attachRedactionSalt } from './app/runtime/logging/redactionSalt';
 import { startLogUploader } from './app/runtime/logging/logUploader';
 import { createLogUploadSwitch } from './app/runtime/logging/logUploadSwitch';
 import { schedulePageCrashReport } from './app/runtime/pageCrashReporter';
@@ -46,6 +47,9 @@ attachConsoleListener({ isDev: import.meta.env.DEV });
 // Context must be registered before anything logs: it is stamped at dispatch,
 // so an entry written earlier would carry none and be unattributable.
 attachLogContext();
+// The masking salt, before the uploader below can serialize anything: an entry masked without it
+// would carry bare placeholders where the rest carry fingerprints.
+attachRedactionSalt();
 
 // Always-on log collection, wired BEFORE anything can log: the queue is filled
 // by a hub subscription, so an entry dispatched before this line lands nowhere.

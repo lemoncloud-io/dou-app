@@ -10,6 +10,7 @@ const cached: CachedDeviceInfo = {
     deviceId: 'device-1',
     osVersion: '18.0',
     runId: 'run-abc',
+    logSalt: 'salt-0123456789abcdef',
 };
 
 const dynamic: DynamicDeviceInfo = {
@@ -71,6 +72,10 @@ describe('로그 컨텍스트용 필드', () => {
 
         expect(params.runId).toBe('run-abc');
         expect(params.osVersion).toBe('18.0');
+    });
+
+    it('carries the masking salt through unchanged', () => {
+        expect(buildDeviceInfoParams(cached, dynamic).logSalt).toBe('salt-0123456789abcdef');
     });
 });
 

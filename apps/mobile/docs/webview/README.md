@@ -271,6 +271,12 @@ instead of surfacing as an opaque "Script error.":
   so `useKeyboardHeight` adds the safe-area bottom back there — without it, anything padded by the
   variable (the chat composer) sits behind the keyboard by exactly the navigation bar.
 - device info: run id, platform, stage, app/OS version, build number, language, device model
+- `CHATIC_APP_LOG_SALT` — the device's masking salt, drawn once per install from a cryptographic
+  random source and kept in MMKV (`services/log/native/redactionSalt.ts`), so the web fingerprints a
+  masked token, number or address the way native code does. Empty while the runtime has no such
+  source, which is today. Like every global here it is readable by scripts on the page; the web
+  removes it once read, but the after-load injection writes it again. Never logged or uploaded — see
+  `@chatic/logger`'s docs/redaction.
 - `CHATIC_APP_CONSOLE_ENABLED` — whether relaying `debug` logs to native is worth it in this build.
   The legacy `__console__` relay script it replaced is gone; `SendLog` is now the only web→native log
   channel (ADR-0097).

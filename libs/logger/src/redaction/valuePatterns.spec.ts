@@ -1,4 +1,10 @@
+import { createHmac } from 'crypto';
+
+import { setRedactionSalt } from './fingerprint';
 import { redactText } from './valuePatterns';
+
+const SALT = 'device-salt-0123456789';
+const fingerprint = (value: string) => createHmac('sha256', SALT).update(value).digest('hex').slice(0, 6);
 
 describe('redactText — 모양으로 마스킹한다', () => {
     it('이메일 주소를 [EMAIL]로 바꾼다', () => {
@@ -55,7 +61,7 @@ describe('redactText — 모양으로 마스킹한다', () => {
         // A fragment isn't guaranteed to be key=value shaped — auth flows put bare tokens there.
         it('프래그먼트는 통째로 가린다', () => {
             expect(redactText('chatic://open/chat?cid=c1#access_token=secret')).toBe(
-                'chatic://open/chat?cid=[REDACTED]#[REDACTED]'
+                'chatic://open/chat?cid=c1#[REDACTED]'
             );
             expect(redactText('https://app.dou.io/chat/ch-1#top')).toBe('https://app.dou.io/chat/ch-1#[REDACTED]');
         });
@@ -103,5 +109,111 @@ describe('redactText — 모양으로 마스킹한다', () => {
             const text = 'reconnect attempt failed';
             expect(redactText(text)).toBe(text);
         });
+    });
+});
+
+describe('URL query safe list', () => {
+    it('keeps the values of the listed parameters and masks the rest', () => {
+        expect(redactText('open /chat?cid=1000002&sid=s1&v=1.2.3&tab=home&k=secret')).toBe(
+            'open /chat?cid=1000002&sid=s1&v=1.2.3&tab=home&k=[REDACTED]'
+        );
+    });
+
+    it('keeps masking `code`, which can be an authorization or invite code', () => {
+        expect(redactText('https://app.dou.io/oauth?provider=google&code=4/0Ab-secret&version=2')).toBe(
+            'https://app.dou.io/oauth?provider=google&code=[REDACTED]&version=2'
+        );
+    });
+
+    it('matches names case-insensitively and keeps distinct values of one name', () => {
+        expect(redactText('/x?Lang=ko&page=1&page=2&page=1')).toBe('/x?Lang=ko&page=1&page=2');
+    });
+
+    it('masks an address that turns up in a listed parameter, as it is no plain value', () => {
+        expect(redactText('/x?type=someone@user.test')).toBe('/x?type=[REDACTED]');
+    });
+
+    it('masks a listed parameter whose value is not a plain id, version or word', () => {
+        expect(redactText('https://x/a?cid=1?token=SECRETSECRET')).toBe('https://x/a?cid=[REDACTED]');
+        expect(redactText('/a?cid=1;token=SECRET&v=2')).toBe('/a?cid=[REDACTED]&v=2');
+        expect(redactText('/a?type=jane%40gmail.com')).toBe('/a?type=[REDACTED]');
+    });
+
+    it('keeps no value at all for a strict caller', () => {
+        expect(redactText('/chat?cid=1000002&v=1.2.3', { strict: true })).toBe('/chat?cid=[REDACTED]&v=[REDACTED]');
+    });
+
+    it('keeps a listed parameter with no value as an empty value', () => {
+        expect(redactText('/x?view&k')).toBe('/x?view=&k=[REDACTED]');
+    });
+});
+
+describe('redactText with the device salt', () => {
+    beforeEach(() => setRedactionSalt(SALT));
+    afterEach(() => setRedactionSalt(undefined));
+
+    const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+    const fcm = 'fMxZ1s9k:APA91bHqRs0dQxT7vWnLpYzB3cKmJ4eR5uG';
+
+    it('fingerprints JWTs, bearer tokens and FCM tokens', () => {
+        expect(redactText(`401 - Bearer ${jwt}`)).toBe(`401 - Bearer [JWT#${fingerprint(jwt)}]`);
+        expect(redactText('authorization: Bearer abcdef1234567890')).toBe(
+            `authorization: Bearer [TOKEN#${fingerprint('abcdef1234567890')}]`
+        );
+        expect(redactText(`token=${fcm}`)).toBe(`token=[TOKEN#${fingerprint(fcm)}]`);
+    });
+
+    it('tells the same token from a new one', () => {
+        const first = redactText(`refresh ${jwt}`);
+        expect(redactText(`retry ${jwt}`).split(' ')[1]).toBe(first.split(' ')[1]);
+        expect(redactText(`refresh ${jwt.slice(0, -1)}x`)).not.toBe(first);
+    });
+
+    it('leaves an AWS access key bare — a key, not a token', () => {
+        expect(redactText('AKIAIOSFODNN7EXAMPLE denied')).toBe('[TOKEN] denied');
+    });
+
+    it('shows the last four digits of a phone number, one fingerprint for every written form', () => {
+        const domestic = `[PHONE#${fingerprint('01012345678')}:…5678]`;
+        expect(redactText('sms to 010-1234-5678')).toBe(`sms to ${domestic}`);
+        expect(redactText('01012345678')).toBe(domestic);
+        expect(redactText('to=+821012345678')).toBe(`to=[PHONE#${fingerprint('821012345678')}:…5678]`);
+    });
+
+    it('shows the domain of an address only', () => {
+        expect(redactText('lookup failed for someone@user.test')).toBe(
+            `lookup failed for [EMAIL#${fingerprint('someone@user.test')}:@user.test]`
+        );
+    });
+
+    it('gives the same text when masked again', () => {
+        const samples = [
+            `token:${jwt}`,
+            `GET /auth/${jwt}`,
+            '/x?type=someone@user.test&cid=c1',
+            'https://x/a?cid=01012345678',
+            `sms:01012345678?body=hi / Bearer ${jwt} / ${fcm} / a.b@c.io`,
+            '{"email":"someone@user.test","phone":"010-1234-5678"}',
+        ];
+        for (const sample of samples) {
+            const once = redactText(sample);
+            expect(redactText(once)).toBe(once);
+        }
+    });
+
+    it('prints bare placeholders for a strict caller and folds detailed ones it is handed', () => {
+        expect(redactText(`sms to 010-1234-5678 / ${jwt}`, { strict: true })).toBe('sms to [PHONE] / [JWT]');
+        const detailed = redactText('mail someone@user.test');
+        expect(redactText(detailed, { strict: true })).toBe('mail [EMAIL]');
+    });
+
+    it('still leaves the join axes alone', () => {
+        const ids = [
+            '9f8e7d6c-5b4a-4321-9876-0123456789ab',
+            'ch_01H9Z@usr_01H9Y',
+            'run-1757462400000',
+            '1757462400000',
+        ];
+        for (const id of ids) expect(redactText(id)).toBe(id);
     });
 });

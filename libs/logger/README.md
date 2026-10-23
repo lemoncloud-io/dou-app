@@ -138,14 +138,15 @@ libs/logger/src/
 ├── core/             10 files — the contract (LogEntry · LogContext · Logger · LogTag · LogKind ·
 │                     ObservationKind · areas) and the engine (LogHub · CoreLogger · logId · logContext)
 ├── sinks/            2 files — the LogSink contract and ConsoleLogSink
-├── redaction/        4 files — what counts as a secret, by name and by value shape
+├── redaction/        6 files — what counts as a secret, by name and by value shape, and the
+│                     fingerprint or partial display a masked value may keep
 ├── serialization/    6 files — the three output shapes and the shared truncation rule
 ├── upload/           6 files — the queue, the LogStore ports, the scheduler and its policy
 ├── sampling/         6 files — the statistics policy, the per-run verdict, the catalogue check, the recorder
 └── observation/      2 files — the foreign-drop aggregator
 ```
 
-38 source files, 23 spec files, 3,257 lines of non-test code.
+40 source files, 25 spec files, 3,821 lines of non-test code.
 
 Three names are not where their filename suggests. `LogSink` lives in `sinks/ConsoleLogSink.ts` —
 there is no `LogSink.ts` to open. `LogStoreReader`, `LogStoreWriter` and `toLogListener` all live in
@@ -255,14 +256,14 @@ See [docs/observations/](./docs/observations/README.md).
 
 ## Documents
 
-| Folder                                              | What it covers                                                                                                             |
-| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| [docs/entries/](./docs/entries/README.md)           | The entry contract. `LogEntry`, its kinds, the sixteen context fields, the four levels, tags and areas, the third argument |
-| [docs/pipeline/](./docs/pipeline/README.md)         | Dispatch, the hub, and the listeners. What a listener must satisfy, wiring order, the three listeners per host             |
-| [docs/upload/](./docs/upload/README.md)             | The queue and the schedule. The two ceilings and the drop order, the store ports, backoff and give-up, **naming history**  |
-| [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, the three output shapes, where an unmasked value can still escape         |
-| [docs/sampling/](./docs/sampling/README.md)         | Statistics. The sampling policy and the per-run verdict, the closed catalogue, the recorder                                |
-| [docs/observations/](./docs/observations/README.md) | Structured entries. The `data.observation` discriminator, the ten families, and the rules a producer follows               |
+| Folder                                              | What it covers                                                                                                                                       |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/entries/](./docs/entries/README.md)           | The entry contract. `LogEntry`, its kinds, the sixteen context fields, the four levels, tags and areas, the third argument                           |
+| [docs/pipeline/](./docs/pipeline/README.md)         | Dispatch, the hub, and the listeners. What a listener must satisfy, wiring order, the three listeners per host                                       |
+| [docs/upload/](./docs/upload/README.md)             | The queue and the schedule. The two ceilings and the drop order, the store ports, backoff and give-up, **naming history**                            |
+| [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, fingerprints and the device salt, the three output shapes, where an unmasked value can still escape |
+| [docs/sampling/](./docs/sampling/README.md)         | Statistics. The sampling policy and the per-run verdict, the closed catalogue, the recorder                                                          |
+| [docs/observations/](./docs/observations/README.md) | Structured entries. The `data.observation` discriminator, the ten families, and the rules a producer follows                                         |
 
 ## How to verify
 
@@ -275,6 +276,6 @@ npx jest --config libs/logger/jest.config.js
 - Type checking must be `tsc -b`. Inside `libs/logger`, `tsc --noEmit` checks zero files and succeeds.
 - **The two type checks are separate on purpose.** `tsconfig.lib.json` excludes `*.spec.ts`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles and a fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime. `npx tsc -b libs/logger/tsconfig.json` runs both, because `tsconfig.json` references both projects.
 - `tsconfig.spec.json` must not set `module: "commonjs"`. The base sets `moduleResolution: bundler`, which rejects it with TS5095 — the config then cannot compile at all, which is how these tests went years without a check.
-- Every directory has specs except the barrels: 5 in `core`, 4 in `redaction`, 3 in `serialization`, 5 in `upload`, 3 in `sampling`, 1 each in `sinks` and `observation`, plus `runtime.spec.ts`. The commands above are what answers whether they pass, not this sentence.
+- Every directory has specs except the barrels: 5 in `core`, 6 in `redaction`, 3 in `serialization`, 5 in `upload`, 3 in `sampling`, 1 each in `sinks` and `observation`, plus `runtime.spec.ts`. The commands above are what answers whether they pass, not this sentence.
 - Downstream: a changed barrel identifier reaches `libs/bridges`, `libs/data`, `libs/http` and `libs/app-runtime` directly, and through `libs/bridges`' re-export it reaches `apps/web`, `apps/desktop-web` and `apps/mobile` as well (`apps/desktop` aliases the package in its electron-vite config). `.github/workflows/verify.yml` type checks every one of those except `desktop-web` and `@chatic/mobile`, so those two are the ones to run by hand.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again. The lib and spec projects emit to different directories (`dist/out-tsc` and `dist/out-tsc/logger-spec`) so they cannot overwrite each other's declarations.

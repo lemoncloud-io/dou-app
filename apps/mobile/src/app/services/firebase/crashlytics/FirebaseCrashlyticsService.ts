@@ -15,14 +15,20 @@ import { getUserAgent } from '../../../utils';
  * for itself. `dispatch` keeps the raw value in the buffer and masking happens
  * inside `safeStringify`, which only the wire mapper calls — anything that
  * reads `entry.data` directly is reading unmasked input.
+ *
+ * Masked `strict`: bare placeholders only. The log pipeline may keep a token's
+ * fingerprint or a number's last four digits for its own readers; that is not
+ * a widening this pipeline gets to make for Firebase.
  */
+const STRICT = { strict: true } as const;
+
 const toCrashlyticsAttributes = (data: unknown): Record<string, string> => {
     if (typeof data !== 'object' || data === null || Array.isArray(data)) return {};
 
     return Object.fromEntries(
-        Object.entries(redactSensitive(data) as Record<string, unknown>).map(([key, value]) => [
+        Object.entries(redactSensitive(data, STRICT) as Record<string, unknown>).map(([key, value]) => [
             key,
-            typeof value === 'string' ? value : (safeStringify(value) ?? ''),
+            typeof value === 'string' ? value : (safeStringify(value, STRICT) ?? ''),
         ])
     );
 };
@@ -68,7 +74,7 @@ export class FirebaseCrashlyticsService implements IFirebaseCrashlyticsService {
             // Occurrence time from the entry, so bridged web logs keep their
             // original timeline in the Crashlytics breadcrumb (ADR-0097).
             const timestamp = new Date(entry.timestamp).toISOString();
-            const dataString = data ? ` | Data: ${safeStringify(data) ?? ''}` : '';
+            const dataString = data ? ` | Data: ${safeStringify(data, STRICT) ?? ''}` : '';
             const logLine = `${timestamp} [${level.toUpperCase()}] [${tag}] ${message}${dataString}`;
             crashlytics().log(logLine);
 
