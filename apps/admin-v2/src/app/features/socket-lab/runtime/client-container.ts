@@ -121,7 +121,6 @@ export interface ClientContainer {
 const E2E_RE = /⟦E2E ([\d.]+) ([\d.]+) (\S+) (\d+)⟧/;
 export const encodeE2eMarker = (sentAt: number, origin: number, from = '-', seq = 0): string =>
     ` ⟦E2E ${sentAt} ${origin} ${from || '-'} ${seq}⟧`;
-export const stripE2eMarker = (content: unknown): string => `${content ?? ''}`.replace(E2E_RE, '').trimEnd();
 const parseE2eMarker = (content: unknown): { sentAt: number; origin: number; from: string; seq: number } | null => {
     if (typeof content !== 'string') return null;
     const m = E2E_RE.exec(content);
