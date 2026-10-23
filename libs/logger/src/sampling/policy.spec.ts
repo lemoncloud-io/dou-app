@@ -1,5 +1,5 @@
 import { samplingBucket } from './bucket';
-import { DEFAULT_TELEMETRY_POLICY, parseTelemetryPolicy, resolveTelemetryRate } from './policy';
+import { DEFAULT_TELEMETRY_POLICY, isAppVersionAtLeast, parseTelemetryPolicy, resolveTelemetryRate } from './policy';
 
 import type { TelemetryPolicy } from './policy';
 
@@ -143,5 +143,51 @@ describe('resolveTelemetryRate', () => {
     it('lets the kill switch win over an override', () => {
         const policy = { ...base, enabled: false, force: [{ uid: 'u1', until: NOW + 1000 }] };
         expect(resolveTelemetryRate(policy, { stream: 'perf', tag: 'perf.boot', uid: 'u1' }, NOW).rate).toBe(0);
+    });
+});
+
+describe('minAppVersion', () => {
+    const rule = (minAppVersion: string) => ({
+        version: 9,
+        enabled: true,
+        defaults: { perf: 0 },
+        rules: [{ match: { host: 'app', minAppVersion }, rate: 1 }],
+    });
+
+    it('matches the minimum and every later app version, part by part', () => {
+        const policy = parseTelemetryPolicy(rule('1.9.0')) as TelemetryPolicy;
+        const rate = (appVersion?: string) =>
+            resolveTelemetryRate(policy, { stream: 'perf', tag: 'perf.boot', host: 'app', appVersion }, 0).rate;
+
+        expect(rate('1.9.0')).toBe(1);
+        expect(rate('1.10.0')).toBe(1);
+        expect(rate('2.0')).toBe(1);
+        expect(rate('1.8.99')).toBe(0);
+    });
+
+    it('never matches a record with no app version, such as the standalone web', () => {
+        const policy = parseTelemetryPolicy(rule('0.0.1')) as TelemetryPolicy;
+        expect(resolveTelemetryRate(policy, { stream: 'perf', tag: 'perf.boot', host: 'app' }, 0).rate).toBe(0);
+    });
+
+    it('does not match an app version it cannot parse', () => {
+        const policy = parseTelemetryPolicy(rule('1.0.0')) as TelemetryPolicy;
+        expect(
+            resolveTelemetryRate(policy, { stream: 'perf', tag: 'x', host: 'app', appVersion: '1.2.0-beta' }, 0).rate
+        ).toBe(0);
+    });
+
+    it('skips a rule whose minimum is not a version', () => {
+        expect(parseTelemetryPolicy(rule('latest'))?.rules).toEqual([]);
+        expect(parseTelemetryPolicy(rule('1.2.3.4'))?.rules).toEqual([]);
+    });
+});
+
+describe('isAppVersionAtLeast', () => {
+    it('compares numerically with missing parts as zero', () => {
+        expect(isAppVersionAtLeast('0.29.0', '0.29')).toBe(true);
+        expect(isAppVersionAtLeast('0.29.0', '0.29.1')).toBe(false);
+        expect(isAppVersionAtLeast('10.0.0', '9.9.9')).toBe(true);
+        expect(isAppVersionAtLeast(undefined, '0.0.1')).toBe(false);
     });
 });

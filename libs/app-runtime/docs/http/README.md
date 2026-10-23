@@ -143,6 +143,17 @@ code (`ERR_NETWORK`) onto `errorCode`, so the server can filter on them — insi
 as part of a capped string. `data` still carries both. `errorCode` is left off when it only restates
 the status, which is what `@chatic/http` reports whenever a response came back.
 
+Every request the sink sees is also an **`api_request` statistic** — 10 a minute at most, recorded
+through `@chatic/logger`'s process recorder, so only when the host has set one and its sampling policy
+keeps the run. Its dimensions are the endpoint **template** (`/clouds/:id/release`: the path only, ids
+replaced by `:id`, the query dropped — `@chatic/http`'s `endpointTemplateOf` lists what counts as an
+id), the method, the status class (`2xx`…`5xx`, `none` without a response) and the outcome; its
+metrics are the round trip and, when the server sent `content-length`, the response size on the wire
+(compressed when the response was; absent on a chunked response). The size is kept out of the log
+line. Samples are per attempt — a request replayed after its credential was recovered records both
+attempts — and the cap is a fixed one-minute window that keeps its first ten, so bursts at the start
+of a run are over-represented. The log batch upload bypasses this sink, so measuring never feeds itself.
+
 ## Usage
 
 Apps do not call into this folder. `data/factories/httpFactory.ts` builds its data sources over the

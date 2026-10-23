@@ -37,15 +37,16 @@ localStorage.setItem(
 
 ## What it records
 
-| Record                   | Kind           | When                                                                         |
-| ------------------------ | -------------- | ---------------------------------------------------------------------------- |
-| `perf.*` traces          | trace / sample | every performance trace — see [performance.md](./performance.md)             |
-| `perf.web_vitals`        | sample         | FCP, LCP, INP, CLS (×1000), TTFB. INP and CLS when the page is hidden        |
-| `perf.long_tasks`        | sample         | leaving a screen that had long tasks: `count`, `total_ms`, `max_ms`          |
-| `perf.telemetry_dropped` | sample         | at most once a minute, statistics the queue dropped for room                 |
-| `usage.session_start`    | event          | the run starts (`start=cold`), or a return after 30+ minutes away (`resume`) |
-| `usage.session_end`      | event          | before that `resume`: the old session's `duration_ms` and `screens`          |
-| `usage.screen_view`      | event          | the route template changes: `screen`, `prev_screen`, `prev_dwell_ms`         |
+| Record                   | Kind           | When                                                                          |
+| ------------------------ | -------------- | ----------------------------------------------------------------------------- |
+| `perf.*` traces          | trace / sample | every performance trace — see [performance.md](./performance.md)              |
+| `perf.web_vitals`        | sample         | FCP, LCP, INP, CLS (×1000), TTFB. INP and CLS when the page is hidden         |
+| `perf.long_tasks`        | sample         | leaving a screen that had long tasks: `count`, `total_ms`, `max_ms`           |
+| `perf.telemetry_dropped` | sample         | at most once a minute, statistics the queue dropped for room                  |
+| `perf.api_request`       | sample         | an HTTP request finished — 10 a minute at most (`libs/app-runtime` docs/http) |
+| `usage.session_start`    | event          | the run starts (`start=cold`), or a return after 30+ minutes away (`resume`)  |
+| `usage.session_end`      | event          | before that `resume`: the old session's `duration_ms` and `screens`           |
+| `usage.screen_view`      | event          | the route template changes: `screen`, `prev_screen`, `prev_dwell_ms`          |
 
 The usage list stops at screens and sessions on purpose: the rest of the usage catalogue is still
 being settled, and an event cannot be renamed once it has data behind it.
@@ -82,9 +83,8 @@ statistics fields, and the forwarder never folds a statistic into a "+N identica
 
 ## What is not wired here
 
-- **`api_request`** and **`screen_render`** are defined in `@chatic/perf`'s catalogue but nothing
-  records them yet: the first needs a per-request observer in the HTTP layer, the second each
-  screen's own "first meaningful paint" signal.
+- **`screen_render`** is defined in `@chatic/perf`'s catalogue but nothing records it yet: it needs
+  each screen's own "first meaningful paint" signal.
 - **The policy source** is a stand-in until the server serves a policy; it becomes
   `@chatic/http`'s `TelemetryPolicyHttpGateway`.
 - **`session_start`'s `entry`** is `icon` for every run inside the app — a push or link entry is not

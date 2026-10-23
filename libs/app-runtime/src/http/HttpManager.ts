@@ -1,8 +1,10 @@
 import { logger } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import { redactSensitive, truncate } from '@chatic/logger';
+import { recordTelemetry, redactSensitive, truncate } from '@chatic/logger';
 import {
     createHttpClient,
+    createPerMinuteCap,
+    toApiRequestSample,
     type HttpClient,
     type HttpLogSink,
     type HttpRoute,
@@ -45,12 +47,32 @@ export interface CredentialStalenessPort {
     recover(route: HttpRoute): Promise<boolean>;
 }
 
+/** `api_request` statistics a minute at most; the rest of the minute's requests are not measured. */
+export const API_REQUEST_SAMPLES_PER_MINUTE = 10;
+
 const createNetworkLogSink = (): HttpLogSink => {
+    // Every logged request is also an `api_request` statistic — capped, and recorded only when the
+    // host has set a recorder and the sampling policy keeps this run. The upload of the log batch
+    // itself bypasses this sink, so measuring cannot feed itself.
+    const apiRequestCap = createPerMinuteCap(API_REQUEST_SAMPLES_PER_MINUTE);
+    // One sample per attempt: a request replayed after recovering its credential records the failed
+    // attempt and the replay. Wrapped whole because this runs inside the request's own try — a throw
+    // here would turn a success into a failure, or replace a failure's error.
+    const measure = (fields: NetworkLogFields): void => {
+        try {
+            if (apiRequestCap()) recordTelemetry('sample', 'api_request', toApiRequestSample(fields));
+        } catch {
+            /* the measurement is lost, the request is not */
+        }
+    };
+
     // Redact in place, key-by-key — `{...fields, responseData: ...}` would ADD a `responseData:
     // undefined` own key on the success path (where the lib deliberately omits it). Only touch keys
     // that already exist; see libs/web-core/src/transport/httpLogSink.ts for the same fix.
     const redactFields = (fields: NetworkLogFields): NetworkLogFields => {
-        const result: NetworkLogFields = { ...fields };
+        // `responseBytes` is for the statistic only; the log line stays what it was.
+        const { responseBytes: _bytes, ...logged } = fields;
+        const result: NetworkLogFields = { ...logged };
         if ('params' in fields) result.params = truncate(redactSensitive(fields.params));
         if ('requestBody' in fields) result.requestBody = truncate(redactSensitive(fields.requestBody));
         if ('responseData' in fields) result.responseData = truncate(redactSensitive(fields.responseData));
@@ -58,10 +80,17 @@ const createNetworkLogSink = (): HttpLogSink => {
     };
 
     return {
-        debug: (tag, message, fields) => logger.debug(tag, message, redactFields(fields)),
-        warn: (tag, message, fields) => logger.warn(tag, message, redactFields(fields)),
+        debug: (tag, message, fields) => {
+            measure(fields);
+            logger.debug(tag, message, redactFields(fields));
+        },
+        warn: (tag, message, fields) => {
+            measure(fields);
+            logger.warn(tag, message, redactFields(fields));
+        },
         error: (tag, message, fields) => {
             const { error, ...rest } = fields;
+            measure(rest);
             // The status and the transport's code also ride as the entry's own `httpStatus` /
             // `errorCode`, so the server can filter "every 401" — inside `data` they arrive as part of
             // a capped string. `data` keeps them too; this only adds. `fields.errorCode` restates the

@@ -169,11 +169,13 @@ libs/http/src/
 ├── gateways/                    5 domain gateways + the telemetry-policy port + types.ts + index.ts
 ├── error/                       classify · credentialStale · attribution · recovery (4 files)
 ├── log/networkLog.ts            withNetworkLog + the HttpLogSink contract
+├── log/apiRequest.ts            endpointTemplateOf · statusClassOf · toApiRequestSample · createPerMinuteCap
+├── log/apiRequest.ts            endpointTemplateOf · statusClassOf · toApiRequestSample · createPerMinuteCap
 ├── policy/                      bypass.ts · retry.ts
 └── utils/browserNetwork.ts      isBrowserOffline — the only place this lib reads `navigator`
 ```
 
-21 production files, 15 spec files. Names you cannot guess from a filename:
+22 production files, 16 spec files. Names you cannot guess from a filename:
 
 - **`HttpClientImpl` has no file of its own.** It is private to `client.ts`, and `createHttpClient`
   is the only thing that constructs it.
