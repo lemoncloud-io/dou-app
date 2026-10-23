@@ -15,12 +15,11 @@ jest.mock('@chatic/app-runtime', () => ({
 jest.mock('../../../hooks', () => ({ useRelayInvites: jest.fn() }));
 
 const dismiss = jest.fn();
-const undismiss = jest.fn();
 
 describe('useLocallyCanceledInvites', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { dismiss, undismiss } });
+        (runtime.data.useRuntimeRepositories as jest.Mock).mockReturnValue({ invite: { dismiss } });
         (useRelayInvites as jest.Mock).mockReturnValue({ invites: [] });
     });
 
@@ -66,21 +65,5 @@ describe('useLocallyCanceledInvites', () => {
         result.current.markCanceled('');
 
         expect(dismiss).not.toHaveBeenCalled();
-    });
-
-    it('clearCanceled는 repository.undismiss를 호출한다 — reconcile이 정산한 기록을 걷는 경로', () => {
-        const { result } = renderHook(() => useLocallyCanceledInvites());
-
-        result.current.clearCanceled('invite-1');
-
-        expect(undismiss).toHaveBeenCalledWith('invite-1');
-    });
-
-    it('clearCanceled는 빈 id로는 호출하지 않는다', () => {
-        const { result } = renderHook(() => useLocallyCanceledInvites());
-
-        result.current.clearCanceled('');
-
-        expect(undismiss).not.toHaveBeenCalled();
     });
 });

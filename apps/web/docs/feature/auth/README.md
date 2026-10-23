@@ -65,12 +65,13 @@ The arrow that does not exist runs from a shell to the runtime. `PhoneVerifyScre
 touch a session. Every judgement is in a hook, and every session read or write goes through
 `runtime.session.*`.
 
-Two things in the folder are worth knowing before you grep for a caller:
+Two things are worth knowing before you grep for a caller:
 
 - `useClearCache` clears all seven repository caches, is exported from the barrel, and **nothing
   calls it today** — including logout.
-- `utils/phone.ts` (`isValidKoreanPhone`, `formatPhoneNumber`) is tested and called by nobody; the
-  live validation is [international-phone-input.md](./international-phone-input.md)'s.
+- The folder has no `utils/`. Phone parsing and validation come from `@chatic/shared/phone`, as
+  [international-phone-input.md](./international-phone-input.md) describes; the Korean-only helper
+  that used to sit in `utils/phone.ts`, tested and called by nobody, was deleted.
 
 `PhoneVerifyFields` is deliberately absent from `components/index.ts`, and two files here import
 concrete modules rather than barrels, for the same reason: a barrel pulls the whole runtime surface,

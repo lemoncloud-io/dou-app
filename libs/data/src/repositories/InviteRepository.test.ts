@@ -305,32 +305,12 @@ describe('InviteRepository', () => {
             );
         });
 
-        it('undismiss clears dismissedAt', async () => {
+        it('cacheDelete delegates to the local data source (for the debug panel)', async () => {
             const { repository, inviteLocalDataSource } = createRepository();
 
-            await repository.undismiss('invt-1');
+            await repository.cacheDelete('dbg-1');
 
-            expect(inviteLocalDataSource.cacheWrite).toHaveBeenCalledWith(
-                { id: 'invt-1', dismissedAt: undefined },
-                expect.anything()
-            );
-        });
-
-        it('cacheWriteMany delegates to the local data source (for seeding a migration stub)', async () => {
-            const { repository, inviteLocalDataSource } = createRepository();
-            const items = [{ id: 'stub-1', dismissedAt: 1 }];
-
-            await repository.cacheWriteMany(items);
-
-            expect(inviteLocalDataSource.cacheWriteMany).toHaveBeenCalledWith(items, expect.anything());
-        });
-
-        it('cacheDelete delegates to the local data source (for draining a reconcile)', async () => {
-            const { repository, inviteLocalDataSource } = createRepository();
-
-            await repository.cacheDelete('stub-1');
-
-            expect(inviteLocalDataSource.cacheDelete).toHaveBeenCalledWith('stub-1', expect.anything());
+            expect(inviteLocalDataSource.cacheDelete).toHaveBeenCalledWith('dbg-1', expect.anything());
         });
 
         it('cacheWrite (single) delegates to the local data source (for the debug panel)', async () => {
@@ -360,26 +340,10 @@ describe('InviteRepository', () => {
             expect(inviteLocalDataSource.cacheWrite).not.toHaveBeenCalled();
         });
 
-        it('undismiss writes nothing', async () => {
-            const { repository, inviteLocalDataSource } = createRepository({ cid: 'cloud-a', uid: 'me' });
-
-            await repository.undismiss('invt-1');
-
-            expect(inviteLocalDataSource.cacheWrite).not.toHaveBeenCalled();
-        });
-
-        it('cacheWriteMany writes nothing (keeping a migration from running on another cloud)', async () => {
-            const { repository, inviteLocalDataSource } = createRepository({ cid: 'cloud-a', uid: 'me' });
-
-            await repository.cacheWriteMany([{ id: 'stub-1', dismissedAt: 1 }]);
-
-            expect(inviteLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
-        });
-
         it('cacheDelete deletes nothing', async () => {
             const { repository, inviteLocalDataSource } = createRepository({ cid: 'cloud-a', uid: 'me' });
 
-            await repository.cacheDelete('stub-1');
+            await repository.cacheDelete('dbg-1');
 
             expect(inviteLocalDataSource.cacheDelete).not.toHaveBeenCalled();
         });

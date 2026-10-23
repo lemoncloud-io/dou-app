@@ -178,8 +178,8 @@ reissue dialog holds the same value.
 
 ### What not to do
 
-- **Do not validate with a Korean-only helper.** `features/auth/utils/phone.ts` still exists; no
-  international field may use it. The cloud invite (`AddFriendSheet`, the contact tab's
+- **Do not validate with a Korean-only helper.** The last one in the app (`features/auth/utils/phone.ts`)
+  was deleted; do not bring one back for an international field. The cloud invite (`AddFriendSheet`, the contact tab's
   `deviceContact.ts`) reads numbers through this module too, and `readMobileNumber` exists for it:
   one parse that answers validity, E.164 and both display forms for a stored number.
 - **Do not re-export this module or the picker from a barrel.** See the metadata rule.

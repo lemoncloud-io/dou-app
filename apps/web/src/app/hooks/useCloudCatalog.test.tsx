@@ -10,11 +10,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
  * A real QueryClient carries the query state, so only the relay flag and the catalog read are faked.
  */
 let relayVerified = false;
+let mockIsAuthenticated = true;
 const mockFetchCloudCatalog = jest.fn();
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
-        session: { useSessionAuth: () => ({ isAuthenticated: true }) },
+        session: { useSessionAuth: () => ({ isAuthenticated: mockIsAuthenticated }) },
         connection: {
             RELAY_SLOT: 'default',
             useSlotVerified: () => relayVerified,
@@ -29,7 +30,7 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 
-import { useCloudCatalogRelayResync, useCloudSessionCatalog } from './useCloudCatalog';
+import { useCloudCatalogRelayResync, useClouds, useCloudSessionCatalog } from './useCloudCatalog';
 
 const setup = () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -48,7 +49,35 @@ const setup = () => {
 
 beforeEach(() => {
     relayVerified = false;
+    mockIsAuthenticated = true;
     mockFetchCloudCatalog.mockReset();
+});
+
+describe('useClouds', () => {
+    const renderClouds = (params?: Record<string, unknown>) => {
+        const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            createElement(QueryClientProvider, { client: queryClient }, children);
+        return { queryClient, ...renderHook(() => useClouds(params), { wrapper }) };
+    };
+
+    it('reads the catalog with the params as given, under a key built from the same params', async () => {
+        mockFetchCloudCatalog.mockResolvedValue({ list: [] });
+        const { queryClient } = renderClouds({ limit: -1 });
+
+        await waitFor(() => expect(mockFetchCloudCatalog).toHaveBeenCalledWith({ limit: -1 }));
+        expect(queryClient.getQueryData(['clouds', 'list', { limit: -1 }])).toEqual({ list: [] });
+    });
+
+    it('does not read the catalog while signed out', async () => {
+        mockIsAuthenticated = false;
+        const { result } = renderClouds({ limit: -1 });
+
+        // Give a read the chance to start; a disabled query stays pending without fetching.
+        await act(async () => undefined);
+        expect(mockFetchCloudCatalog).not.toHaveBeenCalled();
+        expect(result.current.fetchStatus).toBe('idle');
+    });
 });
 
 describe('useCloudCatalogRelayResync', () => {

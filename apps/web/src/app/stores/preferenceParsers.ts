@@ -9,7 +9,8 @@ import type { ChannelSortMethod, HomeSectionId, Theme } from './preferenceKeys';
 // know that a "channel sort map" must have `ChannelSortMethod` values, or that a "pinned channels
 // map" must have non-empty string arrays. That product-shape validation lives here, applied to
 // whatever `config.get()`/`useConfigValue()` returns (already-decoded, so these take the real value,
-// not a raw string) and to a raw legacy-storage string during the one-time migration.
+// not a raw string) and to the old key's value during the one-time legacy migration, which does its
+// own `JSON.parse` first.
 // ---------------------------------------------------------------------------
 
 const VALID_CHANNEL_SORTS: readonly ChannelSortMethod[] = ['recent', 'unread'];
@@ -29,31 +30,6 @@ export const normalizeChannelSort = (value: unknown): Record<string, ChannelSort
         }
     }
     return result;
-};
-
-export const parseChannelSort = (raw: string): Record<string, ChannelSortMethod> => {
-    try {
-        return normalizeChannelSort(JSON.parse(raw));
-    } catch {
-        return {};
-    }
-};
-
-/**
- * A stored array of ids. Anything else — a corrupt value, a non-array, non-string members —
- * degrades to "nothing recorded" rather than throwing, matching the other parsers here.
- */
-export const normalizeInviteIds = (value: unknown): string[] => {
-    if (!Array.isArray(value)) return [];
-    return value.filter((id): id is string => typeof id === 'string' && id.length > 0);
-};
-
-export const parseInviteIds = (raw: string): string[] => {
-    try {
-        return normalizeInviteIds(JSON.parse(raw));
-    } catch {
-        return [];
-    }
 };
 
 const HOME_SECTION_IDS: readonly HomeSectionId[] = ['places', 'channels', 'cloudDm'];
@@ -83,14 +59,6 @@ export const normalizeRecentSearches = (value: unknown): string[] => {
     return value.filter((item): item is string => typeof item === 'string');
 };
 
-export const parseRecentSearches = (raw: string): string[] => {
-    try {
-        return normalizeRecentSearches(JSON.parse(raw));
-    } catch {
-        return [];
-    }
-};
-
 /**
  * Anything unusable degrades to 0 so the banner SHOWS rather than staying hidden: a corrupt value
  * must not be able to suppress it permanently. A timestamp in the future is treated the same way —
@@ -102,9 +70,6 @@ export const normalizeCloudPromoDismissedAt = (value: unknown, now: number = Dat
     if (value == null || value === '' || !Number.isFinite(parsed) || parsed <= 0) return 0;
     return parsed > now ? 0 : parsed;
 };
-
-export const parseCloudPromoDismissedAt = (raw: string, now: number = Date.now()): number =>
-    normalizeCloudPromoDismissedAt(raw, now);
 
 const THEME_VALUES: readonly string[] = ['dark', 'light', 'system'];
 

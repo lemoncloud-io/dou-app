@@ -1,16 +1,5 @@
 const ALIVE_SENTINEL_KEY = '@chatic/web.log.alive';
 
-/**
- * Key the ring buffer used to be mirrored into, back when a page-crash report
- * carried the previous session's entries as breadcrumbs. Reports no longer
- * attach logs — the batch uploader ships every entry on its own, keyed by
- * `runId`, so the crash report only has to say THAT the session died and the
- * surrounding logs are already in the collector. The write is gone; this key is
- * cleared once on boot so a tab that reloads into this build does not keep the
- * old copy sitting in sessionStorage.
- */
-const LEGACY_LOG_QUEUE_KEY = '@chatic/web.log.queue';
-
 export interface WebCrashSentinelResult {
     /**
      * True when the previous session in this tab ended WITHOUT a clean
@@ -41,7 +30,6 @@ export const attachWebCrashSentinel = (): WebCrashSentinelResult => {
 
     try {
         crashedLastSession = sessionStorage.getItem(ALIVE_SENTINEL_KEY) === '1';
-        sessionStorage.removeItem(LEGACY_LOG_QUEUE_KEY);
     } catch {
         /* storage unavailable: run memory-only, and never report a crash */
     }

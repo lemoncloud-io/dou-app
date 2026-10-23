@@ -94,8 +94,10 @@ miss it exactly in the common case — sitting in cloud A while cloud B finishes
   share, so they cannot drift apart.
 - `hooks/useAddCloudFlow.tsx` — 22 lines that raise a request on a store. It renders nothing and
   checks no quota; both belong to the subscription flow's host.
-- `hooks/useReconcileInvitedClouds.ts` — purges an `invited` cache row for a cloud the signed-in
-  account actually owns. **It has no caller today.**
+
+An `invited` cache row for a cloud the signed-in account owns is hidden by `useInvitedClouds`, never
+deleted: the owned-cloud reclaim reads it, and a guest who signs out gets back in through it
+([invite](../invite/README.md)). An unmounted hook that purged those rows was removed for that reason.
 
 ## Usage
 

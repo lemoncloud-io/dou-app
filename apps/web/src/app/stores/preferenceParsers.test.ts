@@ -2,16 +2,11 @@ import {
     normalizeChannelSort,
     normalizeCloudPromoDismissedAt,
     normalizeHomeSectionsCollapsed,
-    normalizeInviteIds,
     normalizeRecentSearches,
-    parseChannelSort,
-    parseCloudPromoDismissedAt,
-    parseInviteIds,
-    parseRecentSearches,
     parseThemeBridgeValue,
 } from './preferenceParsers';
 
-describe('normalizeChannelSort / parseChannelSort', () => {
+describe('normalizeChannelSort', () => {
     it('cid:sid 스코프의 유효한 정렬값만 남긴다', () => {
         expect(normalizeChannelSort({ 'cloud-1:place-1': 'unread', 'cloud-2:place-2': 'recent' })).toEqual({
             'cloud-1:place-1': 'unread',
@@ -35,10 +30,6 @@ describe('normalizeChannelSort / parseChannelSort', () => {
         expect(normalizeChannelSort(null)).toEqual({});
         expect(normalizeChannelSort(['unread'])).toEqual({});
     });
-
-    it('손상된 JSON 문자열은 빈 맵으로 폴백한다', () => {
-        expect(parseChannelSort('{broken')).toEqual({});
-    });
 });
 
 describe('normalizeHomeSectionsCollapsed', () => {
@@ -61,23 +52,7 @@ describe('normalizeHomeSectionsCollapsed', () => {
     });
 });
 
-describe('normalizeInviteIds / parseInviteIds', () => {
-    it('비어있지 않은 문자열만 남긴다', () => {
-        expect(normalizeInviteIds(['ok', '', null, 1, 'ok2'])).toEqual(['ok', 'ok2']);
-    });
-
-    it('배열이 아니면 빈 배열이다', () => {
-        expect(normalizeInviteIds({ a: 1 })).toEqual([]);
-    });
-
-    it('손상된 값은 "기록 없음"으로 degrade한다 — 던지지 않는다', () => {
-        expect(parseInviteIds('not json')).toEqual([]);
-        expect(parseInviteIds('{"a":1}')).toEqual([]);
-        expect(parseInviteIds('[1, null, "", "ok"]')).toEqual(['ok']);
-    });
-});
-
-describe('normalizeRecentSearches / parseRecentSearches', () => {
+describe('normalizeRecentSearches', () => {
     it('문자열 배열을 그대로 반환한다', () => {
         expect(normalizeRecentSearches(['lemon', 'mango'])).toEqual(['lemon', 'mango']);
     });
@@ -89,43 +64,39 @@ describe('normalizeRecentSearches / parseRecentSearches', () => {
     it('문자열이 아닌 항목은 걸러낸다', () => {
         expect(normalizeRecentSearches(['lemon', 42, null, 'mango'])).toEqual(['lemon', 'mango']);
     });
-
-    it('손상된 JSON은 빈 배열로 폴백한다', () => {
-        expect(parseRecentSearches('{not valid json')).toEqual([]);
-    });
 });
 
-describe('normalizeCloudPromoDismissedAt / parseCloudPromoDismissedAt', () => {
+describe('normalizeCloudPromoDismissedAt', () => {
     const NOW = 1_800_000_000_000;
 
     it('정상 epoch ms를 그대로 반환한다', () => {
         expect(normalizeCloudPromoDismissedAt(NOW - 1000, NOW)).toBe(NOW - 1000);
-        expect(parseCloudPromoDismissedAt(String(NOW - 1000), NOW)).toBe(NOW - 1000);
+        expect(normalizeCloudPromoDismissedAt(String(NOW - 1000), NOW)).toBe(NOW - 1000);
     });
 
     it('없음/빈 값은 0(닫힌 적 없음)이다', () => {
         expect(normalizeCloudPromoDismissedAt(null, NOW)).toBe(0);
         expect(normalizeCloudPromoDismissedAt(undefined, NOW)).toBe(0);
-        expect(parseCloudPromoDismissedAt('', NOW)).toBe(0);
+        expect(normalizeCloudPromoDismissedAt('', NOW)).toBe(0);
     });
 
     it('숫자가 아니거나 0 이하인 값은 0으로 강등한다', () => {
         // A corrupt write must not be able to hide the banner forever.
-        expect(parseCloudPromoDismissedAt('not-a-number', NOW)).toBe(0);
-        expect(parseCloudPromoDismissedAt('0', NOW)).toBe(0);
-        expect(parseCloudPromoDismissedAt('-5', NOW)).toBe(0);
-        expect(parseCloudPromoDismissedAt('Infinity', NOW)).toBe(0);
+        expect(normalizeCloudPromoDismissedAt('not-a-number', NOW)).toBe(0);
+        expect(normalizeCloudPromoDismissedAt('0', NOW)).toBe(0);
+        expect(normalizeCloudPromoDismissedAt('-5', NOW)).toBe(0);
+        expect(normalizeCloudPromoDismissedAt('Infinity', NOW)).toBe(0);
     });
 
     it('공백 문자열과 지수 표기 오버플로도 0으로 강등한다', () => {
-        expect(parseCloudPromoDismissedAt('   ', NOW)).toBe(0);
-        expect(parseCloudPromoDismissedAt('1e400', NOW)).toBe(0);
+        expect(normalizeCloudPromoDismissedAt('   ', NOW)).toBe(0);
+        expect(normalizeCloudPromoDismissedAt('1e400', NOW)).toBe(0);
     });
 
     it('미래 시각도 0으로 강등한다', () => {
         // Only a clock change or a bad write can produce this; honoring it would hide the banner
         // until that future date.
-        expect(parseCloudPromoDismissedAt(String(NOW + 1), NOW)).toBe(0);
+        expect(normalizeCloudPromoDismissedAt(String(NOW + 1), NOW)).toBe(0);
     });
 });
 

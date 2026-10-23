@@ -73,8 +73,6 @@ import {
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 import { RELAY_CLOUD_ID } from '../utils/resolvePushCloudId';
 import { resolveHeaderProfile } from '../lib';
-import { useCanceledInviteReconcile } from '../../invite/hooks/useCanceledInviteReconcile';
-import { useInviteDismissMigration } from '../../invite/hooks/useInviteDismissMigration';
 import { useInviteListRows } from '../../invite/hooks/useInviteListRows';
 import { resolvePlaceInviteGate } from '../../../utils/placeInviteGate';
 
@@ -222,12 +220,6 @@ export const HomePage = () => {
     // (relay) cloud, since invite.create has no siteId/place concept (unlike a custom cloud's
     // group-channel invites). Gate rendering, not the fetch, to avoid a Track 0 contract change.
     const { invites: sentInvites } = useInviteListRows();
-    // One-time: folds the stub era's `canceledInviteIds` (localStorage) into cache dismiss stamps
-    // (ADR-0052 decision 5) — a no-op once every install has run it.
-    useInviteDismissMigration();
-    // Replays the stub era's local-only cancels as real invite.cancel calls, once per mount
-    // (ADR-0043 decision 8) — a no-op once the legacy records are drained.
-    useCanceledInviteReconcile();
     // ONE unread source now (see docs/feature/home/unread-dot.md §Detailed Implementation 2, ADR-0056): the
     // app-wide observation already aggregates the whole cloud, so the per-row counts, the join rows
     // the rows read (nick/mute) and the place dots all come off it — home used to compute the
