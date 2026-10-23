@@ -43,10 +43,17 @@ const seed = (...items: MentionItem[]) =>
 
 const CHANNELS = [{ id: 'C1', name: 'general' }] as DomainChannel[];
 
-const renderPanel = (onSelect = vi.fn()) =>
-    render(<NotificationsPanel cloudId="cloud-1" channels={CHANNELS} currentPlaceId="P1" onSelect={onSelect} />, {
-        wrapper,
-    });
+const renderPanel = (onSelect = vi.fn(), { currentPlaceId = 'P1', placeScope = new Set(['P1']) } = {}) =>
+    render(
+        <NotificationsPanel
+            cloudId="cloud-1"
+            channels={CHANNELS}
+            currentPlaceId={currentPlaceId}
+            placeScope={placeScope}
+            onSelect={onSelect}
+        />,
+        { wrapper }
+    );
 
 /** Watches the panel's 3-second wait among the timers the kit's own components set. */
 const lingerTimer = () => {
@@ -241,9 +248,41 @@ describe('NotificationsPanel opening an item', () => {
         expect(listed()).toEqual([]);
         expect(wait.cleared()).toBe(true);
     });
-    it("names another place's channel by the name kept with it, not this place's same-id channel", () => {
-        seed(item('away', { placeId: 'P2', channelName: 'roadmap' }));
+});
+
+describe('NotificationsPanel place scope', () => {
+    it("lists only the active place's items, not another place's", () => {
+        seed(item('here'), item('away', { placeId: 'P2', channelName: 'roadmap' }));
         renderPanel();
+
+        expect(listed()).toEqual([expect.stringContaining('here body')]);
+    });
+
+    it("leaves another place's unread out of the tab badges", () => {
+        seed(item('here', { kind: 'direct' }), item('away', { kind: 'direct', placeId: 'P2' }));
+        renderPanel();
+
+        expect(screen.getByRole('tab', { name: /^All\s*, 1 unread$/ })).toBeTruthy();
+    });
+
+    it('keeps an item stored before items carried a place, since it cannot say where it was', () => {
+        seed(item('legacy', { placeId: undefined }));
+        renderPanel();
+
+        expect(listed()).toEqual([expect.stringContaining('legacy body')]);
+    });
+
+    it('says there is nothing new when only another place has items', () => {
+        seed(item('away', { placeId: 'P2' }));
+        renderPanel();
+
+        expect(screen.getByText('No new notifications')).toBeTruthy();
+    });
+
+    // The Default Cloud's scope spans its places while its UI place is the 'default' sentinel.
+    it("names a scoped item outside the UI place by the name kept with it, not that place's same-id channel", () => {
+        seed(item('away', { placeId: 'P2', channelName: 'roadmap' }));
+        renderPanel(vi.fn(), { currentPlaceId: 'default', placeScope: new Set(['P1', 'P2']) });
 
         const card = screen.getByRole('button', { name: /away body/ });
         expect(card.textContent).toContain('roadmap');

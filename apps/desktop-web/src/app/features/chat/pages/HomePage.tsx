@@ -35,6 +35,8 @@ import {
     useProfilePanelStore,
     useSavedPageStore,
     useMentionsStore,
+    inboxPlaceScope,
+    isInInboxScope,
     useNavStore,
     useReadCursorStore,
     useSelectPlace,
@@ -120,7 +122,7 @@ const NAV_PANEL_WIDTH = { storageKey: 'chatic.navPanel.width', defaultWidth: 420
 
 export const HomePage = () => {
     const { clouds, activeCloudId, isCloudsError, isFetchingClouds, refetchClouds } = useClouds();
-    const { places, isLoading: placesLoading } = usePlaces();
+    const { places, placeIds, isLoading: placesLoading } = usePlaces();
     // A new account's "not my account" stop comes first; the first-run tips wait until it is answered.
     const newAccountPending = useSignInNoticeStore(selectNewAccountPending);
     // Unread is aggregated once in the always-mounted shell (ShellUnreadSync) and
@@ -223,8 +225,14 @@ export const HomePage = () => {
     // empty place's welcome gives way only to the former. Reset per place below.
     const [roomOpenedHere, setRoomOpenedHere] = useState(false);
     const navActive = useNavStore(s => s.active);
+    const inboxScope = useMemo(
+        () => inboxPlaceScope({ isDefaultMode, selectedPlaceId, placeIds }),
+        [isDefaultMode, selectedPlaceId, placeIds]
+    );
     // Select the boolean, not the items: the dot only re-renders on false↔true.
-    const hasInboxUnread = useMentionsStore(s => Object.values(s.items).some(item => !item.readAt));
+    const hasInboxUnread = useMentionsStore(s =>
+        Object.values(s.items).some(item => !item.readAt && isInInboxScope(item, inboxScope))
+    );
     const hasChannelUnread = hasUnreadRoom(channels);
     const hasDmUnread = hasUnreadDm(channels);
     // Debug panel docks into the trailing-panel slot (dev gate: DEV build or the
@@ -857,6 +865,7 @@ export const HomePage = () => {
                                 cloudId={activeCloudId ?? RELAY_CLOUD_ID}
                                 channels={channels}
                                 currentPlaceId={selectedPlaceId ?? undefined}
+                                placeScope={inboxScope}
                                 onSelect={jumpToSaved}
                             />
                         }

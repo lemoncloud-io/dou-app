@@ -40,3 +40,29 @@ export const inboxKindFor = ({
     isDm: boolean;
     mention: MentionKind | null;
 }): InboxKind | null => (isReaction ? 'reaction' : isDm ? 'dm' : mention);
+
+/**
+ * The places whose items the Notifications destination shows — like Channels and DM, it is about the
+ * active place. A cloud's place is one id. The Default Cloud scopes its UI by a `'default'` sentinel
+ * no item carries, while its items are captured under the ids `usePlaces` lists, so there the scope
+ * is all of those.
+ */
+export const inboxPlaceScope = ({
+    isDefaultMode,
+    selectedPlaceId,
+    placeIds,
+}: {
+    isDefaultMode: boolean;
+    selectedPlaceId: string | null | undefined;
+    placeIds: readonly (string | undefined)[];
+}): ReadonlySet<string> => {
+    const ids = isDefaultMode ? placeIds : [selectedPlaceId];
+    return new Set(ids.filter((id): id is string => !!id));
+};
+
+/**
+ * Whether an item belongs to the scope. One stored before items carried a place cannot say where it
+ * happened, so it shows in every place rather than in none.
+ */
+export const isInInboxScope = (item: { placeId?: string }, scope: ReadonlySet<string>): boolean =>
+    !item.placeId || scope.has(item.placeId);
