@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-23] - root@0.111.1, @chatic/desktop-web@0.35.2
+
+### Bug Fixes
+
+- (desktop-web) open the emoji picker on the recently used tab
+
 ## [2026-10-23] - root@0.111.0, @chatic/web@0.76.2, @chatic/landing@0.6.0, @chatic/desktop-web@0.35.1
 
 ### Features
