@@ -1,6 +1,8 @@
 # ADR-0050: End the no-scrubbing policy for logs attached to reports, and apply key-based masking
 
-> Status: Accepted · Decided: 2026-08-11
+> Status: Accepted, the decision's placeholder amended by
+> [ADR-0224](./0224-masked-values-keep-a-fingerprint-and-a-partial-display.md) (a token under a sensitive key
+> keeps a fingerprint, and a phone number or address a partial display, instead of `[REDACTED]`) · Decided: 2026-08-11
 > Related: [ADR-0017](./0017-issue-report-floating-widget.md) (the v1 "attach without scrubbing" decision —
 > already Superseded) ·
 > [ADR-0097 unified logging](./0097-unified-logging-core-and-report-traceability.md) (scoped this item out as

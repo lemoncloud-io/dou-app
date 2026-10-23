@@ -70,7 +70,7 @@ expensive way.
 - **Swallow your own failures.** The hub's `try/catch` will eat a throw silently, and the listener learns nothing.
 - **Be fast.** `publish` is synchronous, so a slow listener slows down the code that logged.
 - **Decide your own level policy.** The hub forwards all four levels. The console takes everything, the store refuses `debug` in a release build, Crashlytics discards `debug`, and the relay sends it only when the receiving side can print it.
-- **Mask anything you read directly.** Redaction happens inside the serialization surfaces, so `entry.data` as the listener receives it is the **unmasked original**. A sink outside the upload path — Crashlytics is the one that exists — calls `redactSensitive` itself.
+- **Mask anything you read directly.** Redaction happens inside the serialization surfaces, so `entry.data` as the listener receives it is the **unmasked original**. A sink outside the upload path — Crashlytics is the one that exists — calls `redactSensitive` itself, `strict`.
 - **Subscribe before the entries you care about.** There is no buffer, so an entry published before a listener attached is not reachable later.
 
 Adding a destination means adding a fifth listener, never widening one of the existing ones. Two

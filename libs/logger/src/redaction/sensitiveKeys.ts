@@ -1,3 +1,5 @@
+import type { RedactOptions } from './fingerprint';
+
 /**
  * Field names whose values are masked before a log entry is persisted or sent
  * across the native bridge. Matched case-insensitively (substring) so
@@ -70,6 +72,9 @@ export const SAFE_KEYS = [
     'resultcode',
     'reasoncode',
     'closecode',
+    'responsecode',
+    // Holds no `code`, so nothing masks it today; listed so a future sensitive name cannot take it.
+    'httpstatus',
     'countrycode',
     'langcode',
     'languagecode',
@@ -87,15 +92,24 @@ export const SAFE_KEYS = [
     'receiptstatus',
 ];
 
+/**
+ * Safe names added for the log pipeline's own readers. A `strict` caller — a sink outside the
+ * pipeline, which keeps the masking it always had — still masks them.
+ */
+const PIPELINE_ONLY_SAFE_KEYS = ['responsecode', 'httpstatus'];
+
 /** Placeholder written in place of a masked value. */
 export const REDACTED = '[REDACTED]';
 
 const lower = (key: string): string => key.toLowerCase();
 
 /** Whether a name is a known non-secret despite matching {@link SENSITIVE_KEYS}. */
-const isSafeKey = (key: string): boolean => {
+const isSafeKey = (key: string, options?: RedactOptions): boolean => {
     const lowered = lower(key);
-    return SAFE_KEYS.some(safe => lowered === safe || lowered.endsWith(safe));
+    return SAFE_KEYS.some(
+        safe =>
+            (lowered === safe || lowered.endsWith(safe)) && !(options?.strict && PIPELINE_ONLY_SAFE_KEYS.includes(safe))
+    );
 };
 
 /**
@@ -112,8 +126,8 @@ const isPresenceFlag = (key: string, value: unknown): boolean =>
     typeof value === 'boolean' && /^(?:has|is|are|was|were|can|should|allows?|needs?)[A-Z_]/.test(key);
 
 /** Whether a field name looks secret-bearing (case-insensitive substring match). */
-export const isSensitiveKey = (key: string): boolean => {
-    if (isSafeKey(key)) return false;
+export const isSensitiveKey = (key: string, options?: RedactOptions): boolean => {
+    if (isSafeKey(key, options)) return false;
     const lowered = lower(key);
     return SENSITIVE_KEYS.some(sensitive => lowered.includes(sensitive));
 };
@@ -125,5 +139,32 @@ export const isSensitiveKey = (key: string): boolean => {
  * from the secret it stands in for. {@link isSensitiveKey} remains for callers that hold a name
  * alone.
  */
-export const isSensitiveField = (key: string, value: unknown): boolean =>
-    !isPresenceFlag(key, value) && isSensitiveKey(key);
+export const isSensitiveField = (key: string, value: unknown, options?: RedactOptions): boolean =>
+    !isPresenceFlag(key, value) && isSensitiveKey(key, options);
+
+/**
+ * Which kind of value a sensitive name holds, when that kind may keep a fingerprint or a partial
+ * display rather than going whole.
+ *
+ * - `token` — a name whose every sensitive match is a token name (`deviceToken`, `identityToken`,
+ *   `delegationToken`). A token is a key to an account, so it never shows its value; but whether it is
+ *   the same token as before is what a token problem is diagnosed from, and a fingerprint says that.
+ * - `email` / `phone` — the address or number, shown in part.
+ *
+ * **Every** match has to agree. `passwordResetToken` matches `token` and `password`, and a reset token
+ * is a one-time code; `emailCode` is a verification code. Passwords, one-time codes, secrets and keys
+ * keep no fingerprint at all — they are short enough that a fingerprint could be matched by trying
+ * every candidate. `undefined` for those, and for any name that is not sensitive.
+ */
+export type SensitiveFamily = 'token' | 'email' | 'phone';
+
+export const sensitiveFamilyOf = (key: string): SensitiveFamily | undefined => {
+    if (isSafeKey(key)) return undefined;
+    const lowered = lower(key);
+    const matched = SENSITIVE_KEYS.filter(sensitive => lowered.includes(sensitive));
+    if (!matched.length) return undefined;
+    if (matched.every(name => name.includes('token'))) return 'token';
+    if (matched.every(name => name === 'email')) return 'email';
+    if (matched.every(name => name === 'phone')) return 'phone';
+    return undefined;
+};
