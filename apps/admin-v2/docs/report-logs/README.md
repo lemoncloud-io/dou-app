@@ -40,16 +40,17 @@ user's logs at that moment, and comparing error distribution across a release.
 `GET /mocks/0/list` only ever reaches the fields `saveLogEntry` copies to the top of the document;
 everything else lives inside `meta` and is invisible to the query.
 
-| Axis                                                                  | Server-filterable | Note                                                       |
-| --------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------- |
-| `uid`, `sid`                                                          | yes               | handled specially by the backend's search-param packer     |
-| `cid`, `runId`, `level`                                               | yes               | copied to the top of the stored record                     |
-| `type` (`stereo`)                                                     | yes               | added directly as an ES term filter                        |
-| `from`/`to`                                                           | yes               | a `createdAt` range, day boundaries in KST, `to` inclusive |
-| `page`/`limit`/`offset`                                               | yes               |                                                            |
-| `sort`                                                                | **never sent**    | see the trap below                                         |
-| `tag`, `route`, `appVersion`, `webVersion`, `os`, `source`, `message` | no                | only inside the `meta` JSON — client-only                  |
-| aggregation                                                           | no                | the backend's query builder pins `aggregation: 'stereo'`   |
+| Axis                                                                        | Server-filterable | Note                                                                                                                                                   |
+| --------------------------------------------------------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `uid`, `sid`                                                                | yes               | handled specially by the backend's search-param packer                                                                                                 |
+| `cid`, `runId`, `level`                                                     | yes               | copied to the top of the stored record                                                                                                                 |
+| `type` (`stereo`)                                                           | yes               | added directly as an ES term filter                                                                                                                    |
+| `from`/`to`                                                                 | yes               | a `createdAt` range, day boundaries in KST, `to` inclusive                                                                                             |
+| `page`/`limit`/`offset`                                                     | yes               |                                                                                                                                                        |
+| `sort`                                                                      | **never sent**    | see the trap below                                                                                                                                     |
+| `tag`, `appVersion`, `webVersion`, `route`, `os`, `osVersion`, `model`      | yes               | copied to the top of the stored record; exact match only, and only on records stored after that backend change                                         |
+| `kind`, `area`, `durationMs`, `attrs`, `metrics`, `sr`, `source`, `message` | no                | only inside the `meta` JSON — client-only                                                                                                              |
+| aggregation                                                                 | partly            | counts per field, per time bucket (by arrival) and distinct users exist on the server; this screen does not use them yet, and there are no percentiles |
 
 **The sort trap:** omitting `sort` gets the default, `createdAt desc`. Sending `sort=createdAt` alone
 does **not** mean "the same, but explicit" — it flips the order to ascending, because the backend
@@ -76,6 +77,46 @@ deduplication:
 - `from = limit * page`, so the deepest possible request is `from=500` — comfortably inside
   Elasticsearch's default `max_result_window` (10,000). Pinned by a test.
 
+## Logs and statistics
+
+**Two different "kinds".** The `kind` URL parameter is the _report type_ (log entry, issue, legacy
+error report) and is sent to the server as `type`. A log-pipeline entry's own `kind` (log, trace,
+sample, event) is a different field, filtered here under **Records** (`record`).
+
+The same store holds logs and statistics — performance traces, samples and usage events, told apart
+by the entry's `kind` (absent means a log). The server cannot filter on `kind`, so the split is a
+client axis over the fetched rows:
+
+- **Records** (`record` in the URL) — `Logs` by default, so statistics never bury the log lines this
+  console is for; `All statistics`, one kind, or `Everything` on request. Reports and errors have no
+  `kind` and count as logs.
+- **Area** — the tag's area, as the clients derive it: before the first dot of an event tag
+  (`socket.reconnect_failed` → `socket`), the whole old tag lower-cased otherwise (`SOCKET` →
+  `socket`). It keeps a feature's old and new tags under one filter while call sites move over.
+  Newer clients store `area` on the entry; for older entries it is derived here the same way.
+
+### The run timeline
+
+A pinned run shows its logs, traces, samples and events on one line, in occurrence order — the run's
+own record of what it did and how long it took. A trace carries a bar against the run's longest one
+(its `timestamp` is when it ended), a statistic's attributes and metrics are shown inline, and once the
+run holds any statistic there is a toggle per kind (`show` in the URL). The record filter does not
+apply here: the timeline is about one run, all of it.
+
+### The statistics view
+
+`Statistics` reads one statistic over the fetched rows — a trace by its duration or a metric, a sample
+by a metric, an event by its count — split by an attribute or a context axis (app version, platform,
+host, OS, route template). Per group: `n`, an estimated count weighed by each record's sampling rate
+(`Σ 1/sr`), distinct users, and p50 / p75 / p95 / p99 / mean by nearest rank, plus a distribution. State
+is in the URL (`stat`, `measure`, `by`).
+
+It is honest about what it is: **numbers over the fetched rows**, exact for a narrow question (one
+trace, one version, a few days) and marked "Partial sample" when the fetch stopped at its cap. With no
+statistic in view it says so instead of showing zeros — no data and zero are different answers.
+Overviews over weeks, trends and version comparisons need the server to aggregate the statistics
+fields, which it does not store at the top of a record yet.
+
 ## Occurrence-time handling
 
 `lib/eventTime.ts` defines `eventAt(row) = row.timestamp ?? row.createdAt` and an ingest-lag
@@ -88,9 +129,9 @@ surfaces it rather than hiding the discrepancy.
 
 ```mermaid
 flowchart LR
-    Server["server axes: uid·cid·runId·level·type·from/to"] --> Corpus["fetched population<br/>(paged, capped at 1,000)"]
-    Corpus --> Client["client facets: tag·appVersion·route·os·search"]
-    Client --> Views["table · aggregate · trend · runId timeline"]
+    Server["server axes: uid·cid·runId·level·type·from/to<br/>tag·versions·route·os·model"] --> Corpus["fetched population<br/>(paged, capped at 1,000)"]
+    Corpus --> Client["client axes: records·area·app·env·source·search"]
+    Client --> Views["table · aggregate · trend · runId timeline · statistics"]
 ```
 
 `level` is counted as a facet for display but filtered server-side — it is deliberately excluded

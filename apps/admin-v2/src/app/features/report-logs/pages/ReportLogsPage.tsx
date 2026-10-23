@@ -29,6 +29,7 @@ import { bucketReportLogs } from '../lib/bucketReportLogs';
 import { byEventAtDesc } from '../lib/eventTime';
 import { groupReportLogs } from '../lib/groupReportLogs';
 import { buildFacets, makeQueryMatcher, matchesFacets } from '../lib/logFacets';
+import { matchesRecord } from '../lib/recordKinds';
 import type { ReportLogRow } from '../lib/parseReportLog';
 import { downloadTextFile, rowsToCsv } from '../lib/reportLogFormat';
 import { CorpusProgress } from '../components/CorpusProgress';
@@ -42,6 +43,7 @@ import { ReportLogTable } from '../components/ReportLogTable';
 import { ReportLogTimeChart } from '../components/ReportLogTimeChart';
 import { TrackingPins } from '../components/TrackingPins';
 import { RunTimeline } from '../components/RunTimeline';
+import { StatsPanel } from '../components/StatsPanel';
 import type { ViewMode } from '../hooks/use-log-console-state';
 import type { PinKey } from '../lib/pinAxes';
 
@@ -50,12 +52,29 @@ const VIEW_LABELS: Array<{ value: ViewMode; label: string }> = [
     { value: 'group', label: 'Aggregate' },
     { value: 'time', label: 'Trend' },
     { value: 'timeline', label: 'Timeline' },
+    { value: 'stats', label: 'Statistics' },
 ];
 
 export const ReportLogsPage = () => {
     const navigate = useNavigate();
-    const { server, client, mode, pins, setServerAxis, setQuery, setFacet, setMode, pin, unpin, clearClientAxes } =
-        useLogConsoleState();
+    const {
+        server,
+        client,
+        mode,
+        stats,
+        timelineKinds,
+        setRecord,
+        setStats,
+        toggleTimelineKind,
+        pins,
+        setServerAxis,
+        setQuery,
+        setFacet,
+        setMode,
+        pin,
+        unpin,
+        clearClientAxes,
+    } = useLogConsoleState();
 
     const [selected, setSelected] = useState<ReportLogRow | null>(null);
 
@@ -97,9 +116,26 @@ export const ReportLogsPage = () => {
      * query on every call, which is invisible for a handful of rows and wasteful across a
      * 5,000-row corpus.
      */
+    // Every client narrowing except the record filter. The timeline and the statistics view start
+    // from these: the timeline shows a run's logs and statistics together (with its own toggles),
+    // and the statistics view is about statistics whatever the list is set to show.
+    const unrecorded = useMemo(() => {
+        const matchesText = makeQueryMatcher(client.query);
+        return corpus.rows
+            .filter(
+                row =>
+                    (server.kind === 'all' || row.type === server.kind) &&
+                    matchesFacets(row, client.facets) &&
+                    matchesText(row)
+            )
+            .sort(byEventAtDesc);
+    }, [corpus.rows, server.kind, client.facets, client.query]);
+
     const filtered = useMemo(() => {
         const matchesText = makeQueryMatcher(client.query);
         const rows = corpus.rows.filter(row => {
+            // Statistics share the store with logs; the list shows logs unless asked otherwise.
+            if (!matchesRecord(row, client.record)) return false;
             // Records written before reports carried a stereo are all `log`, so a legacy
             // issue lands in the `error` bucket server-side; this drops those rows.
             if (server.kind !== 'all' && row.type !== server.kind) return false;
@@ -108,20 +144,33 @@ export const ReportLogsPage = () => {
             return true;
         });
         return rows.sort(byEventAtDesc);
-    }, [corpus.rows, server.kind, client.facets, client.query]);
+    }, [corpus.rows, server.kind, client.facets, client.query, client.record]);
 
     /** The same narrowing, reusable for anything that must predict what will show up. */
     const isVisible = useMemo(() => {
         const matchesText = makeQueryMatcher(client.query);
+        // The timeline and the statistics view ignore the record filter, so the banner does too there.
+        const recordApplies = mode !== 'timeline' && mode !== 'stats';
         return (row: ReportLogRow) =>
+            (!recordApplies || matchesRecord(row, client.record)) &&
             (server.kind === 'all' || row.type === server.kind) &&
             matchesFacets(row, client.facets) &&
             matchesText(row);
-    }, [server.kind, client.facets, client.query]);
+    }, [server.kind, client.facets, client.query, client.record, mode]);
 
     // Facets are built from the corpus, not from `filtered`: a facet list that shrank as
     // you selected from it would strand you with no way back to the other values.
-    const facets = useMemo(() => buildFacets(corpus.rows), [corpus.rows]);
+    // Over the records the list can show: a value only statistics carry (`perf.chat_room_open`)
+    // offered while the list shows logs would empty it with no hint why.
+    const facets = useMemo(
+        () =>
+            buildFacets(
+                mode === 'list' || mode === 'group' || mode === 'time'
+                    ? corpus.rows.filter(row => matchesRecord(row, client.record))
+                    : corpus.rows
+            ),
+        [corpus.rows, client.record, mode]
+    );
 
     const groups = useMemo(() => (mode === 'group' ? groupReportLogs(filtered) : []), [mode, filtered]);
     const buckets = useMemo(() => (mode === 'time' ? bucketReportLogs(filtered) : []), [mode, filtered]);
@@ -223,7 +272,8 @@ export const ReportLogsPage = () => {
                                 rowsToCsv(filtered)
                             )
                         }
-                        disabled={filtered.length === 0}
+                        // The statistics view has its own table; the export is of the list.
+                        disabled={filtered.length === 0 || mode === 'stats'}
                         className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50"
                     >
                         CSV
@@ -255,13 +305,18 @@ export const ReportLogsPage = () => {
         }
         if (mode === 'group') return <ReportLogGroupTable groups={groups} onSelect={g => setSelected(g.sample)} />;
         if (mode === 'time') return <ReportLogTimeChart buckets={buckets} />;
+        if (mode === 'stats') {
+            return <StatsPanel rows={unrecorded} view={stats} onView={setStats} partial={corpus.isTruncated} />;
+        }
         if (mode === 'timeline') {
             return (
                 <RunTimeline
-                    rows={filtered}
+                    rows={unrecorded}
                     onSelect={setSelected}
                     selectedId={selected?.id}
                     runId={server.runId || undefined}
+                    kinds={timelineKinds}
+                    onToggleKind={toggleTimelineKind}
                 />
             );
         }
@@ -291,6 +346,8 @@ export const ReportLogsPage = () => {
                     selection={client.facets}
                     onFacet={setFacet}
                     onClearClient={clearClientAxes}
+                    record={client.record}
+                    onRecord={setRecord}
                     corpusSize={corpus.loaded}
                 />
             }
