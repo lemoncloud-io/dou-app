@@ -10,7 +10,13 @@ module.exports = {
     ],
     theme: {
         extend: {
+            fontFamily: {
+                display: ['Outfit', 'Wanted Sans Variable', 'Pretendard Variable', 'Pretendard', 'sans-serif'],
+            },
             colors: {
+                ink: '#0D1830',
+                cream: '#F5F2E8',
+                lime: '#B0EA10',
                 border: 'hsl(var(--border))',
                 background: 'hsl(var(--background))',
                 foreground: 'hsl(var(--foreground))',

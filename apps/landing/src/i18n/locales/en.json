@@ -41,60 +41,6 @@
             "caption": "In a safe space,\nchat freely!"
         }
     },
-    "hero": {
-        "title": "Private Community",
-        "subtitle": "A safe space to talk and connect freely with the people who matter",
-        "appStore": "App Store",
-        "googlePlay": "Google Play"
-    },
-    "features": {
-        "private": {
-            "title": "Private Community",
-            "description": "Create up to 5 places with 5 chat rooms each, and keep every conversation with the people it is for"
-        },
-        "safe": {
-            "title": "A Safe Space to Chat",
-            "description": "Chat safely with friends who received your invite link"
-        },
-        "group": {
-            "title": "Group Communication",
-            "description": "With up to 100 members, enjoy more focused conversations and active participation"
-        },
-        "memo": {
-            "title": "Self Chat",
-            "description": "Organize tasks and quick notes in a chat room only you can see"
-        }
-    },
-    "pricing": {
-        "title": "DoU's Exclusive Benefits",
-        "basic": {
-            "title": "Free Plan",
-            "description": "Start chatting for free with essential features.",
-            "feature1": "Self Chat",
-            "feature2": "Chat in a place you were invited to"
-        },
-        "subscription": {
-            "title": "Pro Plan",
-            "highlight": "7 days free for new users",
-            "price": "$0",
-            "detail1": "Create your own cloud and invite friends",
-            "detail2": "Up to 5 places with 5 chat rooms each",
-            "detail3": "Group chats with up to 100 members",
-            "detail4": "Self Chat included",
-            "feature1": "My Cloud",
-            "feature2": "Invite friends",
-            "feature3": "Group chat",
-            "feature4": "Self Chat",
-            "feature5": "Priority support"
-        }
-    },
-    "cta": {
-        "title1": "Free for new users.",
-        "title2": "Get started now",
-        "subtitle": "Experience safe conversations with DoU",
-        "appStore": "Get it on the App Store",
-        "googlePlay": "Get it on Google Play"
-    },
     "policy": {
         "effectiveDate": "Effective Date",
         "versionNotFound": "Version not found.",
@@ -104,6 +50,162 @@
         "terms": "Terms of Service",
         "privacy": "Privacy Policy",
         "child": "Child Safety & Operating Standards",
-        "copyright": "Copyright 2026 LEMONCLOUD. All rights reserved."
+        "copyright": "Copyright 2026 LEMONCLOUD. All rights reserved.",
+        "tagline": "A private messenger for the people who matter.",
+        "policies": "Policies",
+        "get": "Get DoU"
+    },
+    "home": {
+        "nav": {
+            "features": "Features",
+            "how": "How it works",
+            "plans": "Plans",
+            "open": "Open DoU",
+            "menu": "Open menu",
+            "close": "Close menu",
+            "switchLanguage": "한국어",
+            "home": "DoU home"
+        },
+        "hero": {
+            "title": "A messenger for the people you actually talk to.",
+            "subtitle": "DoU gives your circle a cloud of its own: places and chat rooms that only invited people can enter. No feed, no strangers, no noise.",
+            "primary": "Get the app",
+            "secondary": "Open in browser"
+        },
+        "bento": {
+            "title": "Everything has a place.",
+            "lead": "Your circle gets a cloud. Inside it, a place for each part of life, and chat rooms inside those.",
+            "cloud": {
+                "title": "A cloud of your own",
+                "body": "Places inside your cloud, chat rooms inside each place. The book club never spills into the family chat again."
+            },
+            "invite": {
+                "title": "Invite-only, always",
+                "body": "No search, no public profile. People come in through an invite link you sent, and nobody else does."
+            },
+            "group": {
+                "title": "Up to 100 members",
+                "body": "Big enough for a whole club, small enough that every voice is still heard."
+            },
+            "self": {
+                "title": "Self Chat",
+                "body": "A chat room only you can see, for tasks, links and the thought you will want again tomorrow."
+            }
+        },
+        "manifesto": {
+            "part1": "Not a feed. Not a public square.",
+            "part2": "A quiet place for your people,",
+            "part3": "open only to the ones you invite."
+        },
+        "steps": {
+            "title": "From an empty cloud to a room full of your people.",
+            "lead": "Three moves, and nobody has to learn anything new.",
+            "create": {
+                "title": "Create your cloud",
+                "body": "Give it a name and a picture. It is yours, and it starts quiet."
+            },
+            "organize": {
+                "title": "Open places and chat rooms",
+                "body": "A place for the family, another for the team. Each one keeps its own chat rooms."
+            },
+            "invite": {
+                "title": "Share one invite link",
+                "body": "Send it however you like. Whoever opens it lands right inside, in the app or in the browser."
+            }
+        },
+        "platforms": {
+            "title": "Wherever the conversation is.",
+            "lead": "Start on your phone, pick it up at your desk. Same clouds, same chat rooms, same messages.",
+            "ios": {
+                "name": "iPhone",
+                "body": "The native app, on the App Store.",
+                "action": "App Store"
+            },
+            "android": {
+                "name": "Android",
+                "body": "The native app, on Google Play.",
+                "action": "Google Play"
+            },
+            "web": {
+                "name": "Web",
+                "body": "Open DoU in any modern browser. Nothing to install.",
+                "action": "Open in browser"
+            },
+            "desktop": {
+                "name": "Desktop",
+                "body": "An app for Mac and Windows that keeps every cloud one click away."
+            }
+        },
+        "scenes": {
+            "title": "Made for the circles you already have.",
+            "previous": "Previous",
+            "next": "Next",
+            "family": {
+                "name": "Family",
+                "body": "Dinner plans, photos and a group chat that finally has only family in it.",
+                "rooms": ["Sunday dinner", "Photos", "Grandma's birthday"]
+            },
+            "study": {
+                "name": "Study group",
+                "body": "One place per course, one chat room per problem set. Notes stay where the questions were asked.",
+                "rooms": ["Statistics", "Exam prep", "Shared notes"]
+            },
+            "team": {
+                "name": "Side project",
+                "body": "Keep the weekend project out of the work messenger, and out of your personal chats too.",
+                "rooms": ["Roadmap", "Design", "Launch day"]
+            },
+            "club": {
+                "name": "Club",
+                "body": "A hundred members, a handful of chat rooms, and the schedule pinned where everyone can find it.",
+                "rooms": ["Notices", "Saturday run", "Gear swap"]
+            }
+        },
+        "plans": {
+            "title": "Start free. Go Pro when you want to host.",
+            "free": {
+                "name": "Free",
+                "tag": "For joining",
+                "body": "Everything you need to talk in the places you were invited to.",
+                "items": ["Self Chat", "Chat in places you were invited to", "Join through any invite link"]
+            },
+            "pro": {
+                "name": "Pro",
+                "tag": "For hosting",
+                "highlight": "7 days free for new users",
+                "body": "Create your own cloud and bring your people in.",
+                "items": [
+                    "Your own cloud",
+                    "Places and chat rooms you create",
+                    "Invite links for your people",
+                    "Group chats with up to 100 members",
+                    "Self Chat included"
+                ]
+            }
+        },
+        "closing": {
+            "title": "Your people are waiting for an invite.",
+            "body": "New users get 7 days of Pro free. Download DoU and send the first link today.",
+            "appStore": "Download on the App Store",
+            "googlePlay": "Get it on Google Play",
+            "web": "Open in browser"
+        },
+        "mock": {
+            "cloud": "Park family",
+            "place": "Weekend hikers",
+            "room": "Saturday trail",
+            "members": "12 members",
+            "message1": "Trailhead at 8? The parking fills up fast.",
+            "message2": "8 works. I will bring coffee for everyone.",
+            "message3": "Count me in. Sending the route now.",
+            "inviteTitle": "You are invited",
+            "inviteBody": "Join Weekend hikers on DoU",
+            "inviteAction": "Accept invite",
+            "selfNote": "Book the cabin before Friday",
+            "selfLink": "Trail map, saved",
+            "input": "Message",
+            "today": "Today",
+            "route": "Ridge loop, 9.2 km"
+        }
     }
 }

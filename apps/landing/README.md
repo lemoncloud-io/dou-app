@@ -6,7 +6,7 @@ listing and the app's own My Page both cite, and the `/s/*` + `/i` bounce page t
 invite link into the installed app or into the web app. It has no session, no data layer and no backend call of
 its own.
 
-59 TypeScript files under `src/`, three features, five shared components, five test files.
+61 TypeScript files under `src/`, three features, six test files.
 
 ## Purpose
 
@@ -56,17 +56,14 @@ grep -rho "@chatic/[a-z-]*" apps/landing/src | sort | uniq -c
 4. **The routes are public URLs with external references.** `/policy/terms`, `/policy/privacy`,
    `/policy/child`, `/s/...` and `/i?t=...` are cited by store listings, `public/sitemap.xml` and links already
    sent to people. Renaming one breaks something this repo cannot see.
-5. **The English copy names the product's objects the way the app does.** Cloud, place, chat room
-   and Self Chat are the nouns the app's own English interface uses, and the four feature cards
-   render app screenshots (`assets/src/images/landing_en_*.png`) carrying those same words — a
-   friendlier synonym reads fine in isolation and then contradicts the screenshot beside it.
-   `place` is therefore reserved for the container between a cloud and a chat room; where a line
-   means an ordinary safe space it says space. Two limits on this principle: the pricing card has
-   no screenshot to check against, and its two plan names are not the app's — the app badges the
-   tiers `FREE` and `PRO` but names them after clouds (`DoU Home`, `My Cloud`), which does not read
-   as a tier on a pricing card, so the site says Free Plan and Pro Plan after the badges. The
-   principle covers nouns, not the numbers beside them (see [Traps](#traps)). The Korean copy
-   predates all of this and still uses looser wording (`공간` / `대화공간`).
+5. **The copy names the product's objects the way the app does, in both languages.** Cloud,
+   place, chat room and Self Chat in English; `클라우드`, `플레이스`, `채팅방` and `나와의 채팅` in Korean —
+   the nouns of the app's own interface. The home page draws its product UI in markup (see
+   [The home page](#the-home-page)) and those mock screens carry the same words, so a friendlier
+   synonym would contradict the picture beside it. `place` is reserved for the container between a
+   cloud and a chat room. The plan names are the app's badges, `Free` and `Pro`, not the cloud
+   names the app gives them (`DoU Home`, `My Cloud`), which do not read as a tier. The principle
+   covers nouns, not numbers (see [Traps](#traps)).
 6. **Nothing depends on this app.** It is a leaf: no lib and no other app imports it, so its only
    blast radius is the site itself.
 
@@ -111,7 +108,7 @@ each feature owns its own subtree.
 
 | URL               | Renders                                           |
 | ----------------- | ------------------------------------------------- |
-| `/`               | `HomePage` — hero, features, pricing, CTA         |
+| `/`               | `HomePage` — see [The home page](#the-home-page)  |
 | `/policy/terms`   | `TermsOfServicePage`                              |
 | `/policy/privacy` | `PrivacyPolicyPage`                               |
 | `/policy/child`   | `ChildPolicyPage`                                 |
@@ -135,9 +132,9 @@ apps/landing/
     ├── main.tsx                the only composition point: ThemeProvider + i18n + App
     ├── i18n/                   i18next, ko + en, detector key `@landing.language`
     ├── app/routes/             CommonRoutes (the prefix split) and the RouterProvider
-    ├── app/shared/             Header, Footer, StoreButton, StoreIcons, Toast, useToast
+    ├── app/constants/          store URLs, read by both home and deeplink
     └── app/features/
-        ├── home/               5 section components, store URLs
+        ├── home/               8 sections + nav, markup mocks, the GSAP motion hook
         ├── policy/             3 pages over one PolicyPageLayout + VersionSelector
         └── deeplink/           1 page, 4 hooks, the app-launch and web-redirect logic
 ```
@@ -146,20 +143,50 @@ There is no `project.json`: Nx infers every target from `vite.config.mts` and th
 `build`, `test`, `typecheck`, `lint` and `dev` exist without being declared anywhere. `nx show
 project landing` and `nx show project @chatic/landing` both resolve to it.
 
+## The home page
+
+One page, read top to bottom as attention, interest, desire, action: a floating nav, the hero, a
+four-card feature grid, a statement read word by word, a pinned how-it-works, the platforms, the
+circles DoU is for, the two plans, and one dark block that holds both the download call and the
+footer.
+
+- **Product UI is drawn in markup, not shipped as screenshots.** `components/mocks.tsx` renders the
+  chat room, the invite, the cloud tree and Self Chat as plain elements. A screenshot carries one
+  language and whatever the capture account happened to contain — the dev accounts are full of
+  expired QA invites — while the markup follows the page's language and never goes stale. The
+  mocks are illustrations: every one is `aria-hidden`, and the text beside it carries the meaning.
+- **Motion is GSAP with ScrollTrigger, and all of it sits behind one media query.**
+  `hooks/useMotion.ts` builds a section's scenes inside a `gsap.matchMedia` scoped to that section
+  and reverts them on unmount. Every scene is registered under `(prefers-reduced-motion:
+no-preference)`, and every tween animates _from_ a start state _to_ the markup's own state, so a
+  reader who asked for reduced motion gets the finished page — full opacity, no pin, no scrub —
+  without a separate code path. The pinned title in how-it-works additionally needs a wide screen.
+- **The page scrolls the window, not an inner container.** ScrollTrigger measures against the
+  viewport; an inner `overflow: auto` wrapper would leave every trigger reading a scroll position
+  that never moves.
+- **Display type is Outfit for Latin and Wanted Sans for Hangul**, both loaded from CDNs in
+  `index.html` (Wanted Sans as its unicode-range split build, so a page fetches only the glyphs it
+  shows). Outfit's tracking and 1.0 line height crush Hangul, so `styles.css` resets them under
+  `:lang(ko)` and drops Outfit from the stack there — otherwise its commas and digits land inside
+  Korean lines. The same block zeroes the wide tracking on uppercase labels, which in Korean only
+  splits words apart. Body text stays Pretendard in both languages.
+- **Store URLs live in `src/app/constants/`** because the deep-link bounce page sends people to the
+  same listings.
+
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
 Nx's graph gives this app five libraries under `libs/` — `app-messages`, `bridges`, `logger`,
 `policy-content`, `theme` — plus the root `assets` project. Only three of the six are imported by a
 file here:
 
-| Library                  | Reached how               | Used for                                                    |
-| ------------------------ | ------------------------- | ----------------------------------------------------------- |
-| `@chatic/policy-content` | direct, 1 file            | the three policy tables and their types                     |
-| `@chatic/theme`          | direct, 2 files           | `ThemeProvider` in `main.tsx`, the theme toggle in `Header` |
-| `@chatic/assets`         | direct, 5 files           | illustrations and icons (also a Vite alias to `assets/src`) |
-| `@chatic/bridges`        | transitive, via `theme`   | nothing here calls it                                       |
-| `@chatic/logger`         | transitive, via `bridges` | nothing here calls it                                       |
-| `@chatic/app-messages`   | transitive, via `bridges` | nothing here calls it                                       |
+| Library                  | Reached how               | Used for                                                       |
+| ------------------------ | ------------------------- | -------------------------------------------------------------- |
+| `@chatic/policy-content` | direct, 1 file            | the three policy tables and their types                        |
+| `@chatic/theme`          | direct, 1 file            | `ThemeProvider` in `main.tsx`                                  |
+| `@chatic/assets`         | direct, 6 files           | the logo and illustrations (also a Vite alias to `assets/src`) |
+| `@chatic/bridges`        | transitive, via `theme`   | nothing here calls it                                          |
+| `@chatic/logger`         | transitive, via `bridges` | nothing here calls it                                          |
+| `@chatic/app-messages`   | transitive, via `bridges` | nothing here calls it                                          |
 
 The whole chain hangs off one import inside `libs/theme/src/provider/ThemeProvider.tsx`:
 
@@ -280,24 +307,25 @@ not trigger.
 - **This project is excluded from the CI gate.**
   [`.github/workflows/verify.yml`](../../.github/workflows/verify.yml) leaves `@chatic/landing` out of
   both the `typecheck` and the `test` run, and lists it as red in both. `lint` does cover it.
-- **The typecheck really is red — 32 errors.** 29 of them are the same error,
-  `TS2503: Cannot find namespace 'JSX'`, one per `: JSX.Element` annotation across 26 files: React 19
-  removed the global `JSX` namespace, and `@types/react` 19 exposes it as `React.JSX`. The other
-  three are `TS7030` in `Toast.tsx` (a `useEffect` that does not return on every path) and two
-  `TS6307` for `src/i18n/locales/{en,ko}.json`, which `tsconfig.app.json` imports but does not
+- **The typecheck really is red — 16 errors, none of them in `features/home`.** 14 are the same
+  error, `TS2503: Cannot find namespace 'JSX'`, one per `: JSX.Element` annotation in the policy and
+  deep-link files: React 19 removed the global `JSX` namespace, and `@types/react` 19 exposes it as
+  `React.JSX`. The home feature annotates no return types, which is why it adds none. The other two
+  are `TS6307` for `src/i18n/locales/{en,ko}.json`, which `tsconfig.app.json` imports but does not
   `include`. Vite never type checks, so the site builds and deploys in this state.
 
     ```bash
     npx tsc -b apps/landing/tsconfig.app.json
     ```
 
-- **Five test files, and they are all there is.** Two sit in `src/i18n/`, one covers the route
-  table, and two cover the app launch (`utils/appLaunch`, `hooks/useAppLauncher`); every component
-  and the other deep-link hooks have none. They are invisible to `tsc -b`: `tsconfig.app.json`
+- **Six test files, and they are all there is.** Two sit in `src/i18n/`, one covers the route
+  table, two cover the app launch (`utils/appLaunch`, `hooks/useAppLauncher`), and one the home
+  carousel's index wrap (`utils/wrapIndex`); every component and the other deep-link hooks have
+  none. They are invisible to `tsc -b`: `tsconfig.app.json`
   excludes `*.test.ts(x)` and there is no spec tsconfig to pick them up.
 
     ```bash
-    npx nx test @chatic/landing   # 41 tests, and verify.yml does not run them
+    npx nx test @chatic/landing   # 45 tests, and verify.yml does not run them
     ```
 
 - **`src/app/features/deeplink/utils/fingerprint.ts` is dead.** `generateFingerprint` calls out to
@@ -323,12 +351,12 @@ not trigger.
   reports only a regional code — en-US and ja-JP visitors were served Korean. Without it, `ko-KR`
   strips to `ko` and Korean browsers still get Korean. `src/i18n/languageDetection.test.ts` measures
   all four cases and fails if the detector returns.
-- **The copy's counts are not the app's.** `features.private` and `pricing.subscription.detail2` say
-  5 places with 5 chat rooms each, in both locales and since before this was documented, while
-  `apps/web/src/app/utils/consts.ts` — which calls itself the single source of truth — has
-  `MAX_PLACES = 10` and `MAX_CHANNELS_PER_PLACE = 100`, and the app's own English copy says 10
-  places. Design principle 5 covers the nouns and stops at the numbers for exactly this reason:
-  which figure the marketing page should carry is a product question, not a copy fix.
+- **The copy states no place or chat room limit, on purpose.** The previous home page said 5 places
+  with 5 chat rooms each, while `apps/web/src/app/utils/consts.ts` — which calls itself the single
+  source of truth — has `MAX_PLACES = 10` and `MAX_CHANNELS_PER_PLACE = 100`, and the app's own
+  English copy says 10 places. Which figure the marketing page should carry is a product question,
+  so the rebuilt copy leaves both out. The one number it does print, 100 members per group, is the
+  same in every source. Adding a limit back means settling that question first.
 - **The `.well-known` files are load-bearing and untestable from here.** A wrong `appID` or `paths`
   entry does not break the build, does not break the site, and silently stops every Universal Link
   from opening the app. Anything that changes the domain, the bundle id, or the AASA content needs a
@@ -339,7 +367,7 @@ not trigger.
 ```bash
 npx tsc -b apps/landing/tsconfig.app.json     # red today, see Traps
 npx nx lint @chatic/landing                   # passes (one warning), and it is in CI
-npx nx test @chatic/landing                   # 41 tests pass, and CI does not run them
+npx nx test @chatic/landing                   # 45 tests pass, and CI does not run them
 npx nx build @chatic/landing                  # passes — the build the deploy wraps
 yarn landing:start                            # http://localhost:5004
 ```

@@ -1,70 +1,82 @@
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AppleIcon, PlayStoreIcon, StoreButton } from '../../../shared/components';
-import { storeUrls } from '../constants';
-import { ChatBubbleIllustration } from './ChatBubbleIllustration';
+import { ArrowUpRight } from 'lucide-react';
 
-export const HeroSection = (): JSX.Element => {
+import { SECTION_IDS, WEB_APP_URL } from '../constants';
+import { MOTION_OK, gsap, useMotion } from '../hooks/useMotion';
+import { ChatScreen, InviteCard, PhoneFrame } from './mocks';
+import { PillLink } from './StoreLinks';
+
+export const HeroSection = () => {
     const { t } = useTranslation();
+    const ref = useRef<HTMLElement>(null);
+
+    useMotion(ref, mm => {
+        mm.add(MOTION_OK, () => {
+            gsap.timeline({ defaults: { ease: 'expo.out', duration: 1.4 } })
+                .from('[data-hero-line]', { yPercent: 40, opacity: 0, stagger: 0.12 })
+                .from('[data-hero-phone]', { y: 80, opacity: 0, duration: 1.6 }, 0.15)
+                .from('[data-hero-invite]', { x: 40, y: 30, opacity: 0, duration: 1.2 }, 0.6);
+
+            // The phone drifts up slower than the page as the hero leaves, so the two layers separate.
+            gsap.to('[data-hero-phone]', {
+                yPercent: -12,
+                ease: 'none',
+                scrollTrigger: { trigger: ref.current, start: 'top top', end: 'bottom top', scrub: true },
+            });
+        });
+    });
+
     return (
-        <section className="relative w-full min-h-screen bg-main-green overflow-hidden">
+        <section ref={ref} id="top" className="relative overflow-hidden pb-24 pt-36 md:pb-40 md:pt-44">
             <div
-                className="max-w-[1440px] mx-auto flex flex-col md:flex-row items-center justify-center
-                           gap-[58px] md:gap-12
-                           px-6 md:px-10
-                           pt-16 md:pt-0 pb-0 md:pb-0 min-h-screen"
-            >
-                {/* Text content */}
-                <div className="md:flex-1 text-center md:text-left pb-[66px] md:pb-0 animate-fade-in-up">
-                    <div className="flex flex-col gap-[45px] md:gap-12 items-center md:items-start">
-                        <div className="flex flex-col gap-2 md:gap-[14px] w-full">
-                            <h1
-                                className="font-heading font-bold text-navy tracking-[-0.8px] md:tracking-[-1.3px] xl:tracking-[-1.6px]
-                                           text-[32px] md:text-[52px] xl:text-[64px] leading-[1.1]"
-                            >
-                                {t('hero.title')}
-                            </h1>
-                            <p
-                                className="text-subtitle tracking-[-0.27px] md:tracking-[-0.36px]
-                                          text-lg md:text-2xl leading-[1.23]"
-                            >
-                                {t('hero.subtitle')}
-                            </p>
-                        </div>
+                aria-hidden="true"
+                className="pointer-events-none absolute -right-40 top-10 h-[42rem] w-[42rem] rounded-full bg-lime/30 blur-[140px]"
+            />
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -left-32 bottom-0 h-[28rem] w-[28rem] rounded-full bg-[#C9B6FF]/30 blur-[120px]"
+            />
 
-                        {/* Desktop illustration (inside text flow on mobile) */}
-                        <div className="md:hidden w-full">
-                            <ChatBubbleIllustration />
-                        </div>
-
-                        {/* Desktop store buttons */}
-                        <div className="hidden md:flex flex-wrap items-center gap-3 justify-start animate-fade-in-up animate-delay-200">
-                            <StoreButton href={storeUrls.ios} icon={<AppleIcon />} label={t('hero.appStore')} />
-                            <StoreButton
-                                href={storeUrls.android}
-                                icon={<PlayStoreIcon />}
-                                label={t('hero.googlePlay')}
-                            />
-                        </div>
+            <div className="relative mx-auto grid max-w-7xl items-center gap-16 px-6 lg:grid-cols-12 lg:gap-8 lg:px-10">
+                <div className="lg:col-span-7">
+                    <h1
+                        data-hero-line
+                        className="w-full max-w-4xl font-display text-[clamp(2.75rem,5.2vw,5.25rem)] font-semibold leading-[1.02] tracking-[-0.035em] text-ink [word-break:keep-all]"
+                    >
+                        {t('home.hero.title')}
+                    </h1>
+                    <p
+                        data-hero-line
+                        className="mt-8 max-w-xl text-lg leading-relaxed text-ink/65 [word-break:keep-all] md:text-xl"
+                    >
+                        {t('home.hero.subtitle')}
+                    </p>
+                    <div data-hero-line className="mt-12 flex flex-col gap-3 sm:flex-row">
+                        <PillLink href={`#${SECTION_IDS.download}`} tone="dark" external={false}>
+                            {t('home.hero.primary')}
+                        </PillLink>
+                        <PillLink
+                            href={WEB_APP_URL}
+                            tone="outline"
+                            external={false}
+                            icon={<ArrowUpRight className="order-last h-4 w-4" />}
+                        >
+                            {t('home.hero.secondary')}
+                        </PillLink>
                     </div>
                 </div>
 
-                {/* Desktop/Tablet illustration */}
-                <div className="hidden md:block md:w-[40%] xl:w-[45%] flex-shrink-0 self-center animate-fade-in-up animate-delay-100">
-                    <ChatBubbleIllustration />
-                </div>
-            </div>
-
-            {/* Mobile bottom buttons - absolute within hero, not fixed */}
-            <div className="md:hidden absolute bottom-0 left-0 right-0 z-40 px-4 pb-[44px]">
-                <div className="flex gap-[10px]">
-                    <StoreButton href={storeUrls.ios} icon={<AppleIcon />} label={t('hero.appStore')} fullWidth />
-                    <StoreButton
-                        href={storeUrls.android}
-                        icon={<PlayStoreIcon />}
-                        label={t('hero.googlePlay')}
-                        fullWidth
-                    />
+                <div className="relative mx-auto w-full max-w-[19rem] lg:col-span-4 lg:col-start-9" aria-hidden="true">
+                    <div data-hero-phone>
+                        <PhoneFrame className="rotate-[4deg]">
+                            <ChatScreen />
+                        </PhoneFrame>
+                    </div>
+                    <div data-hero-invite className="absolute -left-24 -bottom-10 hidden sm:block lg:-left-44">
+                        <InviteCard className="-rotate-[5deg]" />
+                    </div>
                 </div>
             </div>
         </section>

@@ -1,4 +1,4 @@
-import { storeUrls } from '../../home/constants';
+import { storeUrls } from '../../../constants';
 
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const isDev =

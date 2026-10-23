@@ -1,5 +1,9 @@
+export { BentoSection } from './BentoSection';
+export { ClosingSection } from './ClosingSection';
 export { HeroSection } from './HeroSection';
-export { ChatBubbleIllustration } from './ChatBubbleIllustration';
-export { FeaturesSection } from './FeaturesSection';
-export { PricingSection } from './PricingSection';
-export { CTASection } from './CTASection';
+export { ManifestoSection } from './ManifestoSection';
+export { PlansSection } from './PlansSection';
+export { PlatformsSection } from './PlatformsSection';
+export { ScenesSection } from './ScenesSection';
+export { SiteNav } from './SiteNav';
+export { StepsSection } from './StepsSection';
