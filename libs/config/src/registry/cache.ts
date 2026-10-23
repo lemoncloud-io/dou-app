@@ -1,10 +1,9 @@
 import type { ConfigRegistryModule } from '../types';
 
 /**
- * Cache TTLs. `cache.ttl.metaMs` is the flagship case for this whole registry: the source comment
- * calls it a temporary migration value that costs real server load and says to restore it once the
- * migration is done — today that restoration is a code change, a build and a deploy. As a key it
- * becomes one value change on the day the migration ends.
+ * Cache TTLs, declared so one can change as a value rather than as a code change, a build and a
+ * deploy. Nothing reads them yet: the caches still take their TTLs from `libs/data`'s cache policy,
+ * and the two TTL defaults here mirror it — 30 minutes for general caches and for the sync cursor.
  */
 export const cacheModule: ConfigRegistryModule = {
     'cache.ttl.defaultMs': {
@@ -21,7 +20,7 @@ export const cacheModule: ConfigRegistryModule = {
         title: 'Sync cursor TTL',
         description: 'A full resync replaces a delta sync once idle past this time. Shorter values raise server load.',
         type: 'number',
-        defaultValue: 300_000,
+        defaultValue: 1_800_000,
         surface: 'dev',
         writableBy: ['local', 'server'],
         persist: 'session',

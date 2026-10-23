@@ -166,7 +166,7 @@ barrel. `UNLOCK_KEY` is declared in `resolve/ConfigResolver.ts` and leaves the b
 
 ```ts
 // Reading, outside React. Synchronous, and always an answer — defaultValue is the floor.
-const ttl = config.get<number>('cache.ttl.metaMs') ?? 300_000;
+const ttl = config.get<number>('cache.ttl.metaMs') ?? 1_800_000;
 
 // Reading, in React.
 const theme = useConfigValue<string>('ui.theme');

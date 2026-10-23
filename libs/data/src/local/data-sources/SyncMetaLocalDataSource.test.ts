@@ -8,10 +8,9 @@ jest.mock('@chatic/bridges', () => ({
 }));
 
 const MINUTE_MS = 60 * 1000;
-// Mirror of the sync-cursor TTL in storages/utils (`meta`). Kept explicit so the test pins the
-// intended window rather than tautologically re-deriving it from the code under test.
-// Temporarily 5 minutes while data is migrating — restore to 30 with storages/utils.
-const TTL_MS = 5 * MINUTE_MS;
+// Mirror of the sync-cursor TTL in local/ports/policy.ts (`meta`). Kept explicit so the test pins
+// the intended window rather than tautologically re-deriving it from the code under test.
+const TTL_MS = 30 * MINUTE_MS;
 
 const CONTEXT = { cid: 'cloud-a', uid: 'me' };
 
