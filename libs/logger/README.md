@@ -146,7 +146,7 @@ libs/logger/src/
 └── observation/      2 files — the foreign-drop aggregator
 ```
 
-40 source files, 25 spec files, 3,858 lines of non-test code.
+40 source files, 25 spec files, 3,802 lines of non-test code.
 
 Three names are not where their filename suggests. `LogSink` lives in `sinks/ConsoleLogSink.ts` —
 there is no `LogSink.ts` to open. `LogStoreReader`, `LogStoreWriter` and `toLogListener` all live in
@@ -261,7 +261,7 @@ See [docs/observations/](./docs/observations/README.md).
 | [docs/entries/](./docs/entries/README.md)           | The entry contract. `LogEntry`, its kinds, the sixteen context fields, the four levels, tags and areas, the third argument                           |
 | [docs/pipeline/](./docs/pipeline/README.md)         | Dispatch, the hub, and the listeners. What a listener must satisfy, wiring order, the three listeners per host                                       |
 | [docs/upload/](./docs/upload/README.md)             | The queue and the schedule. The two ceilings and the drop order, the store ports, backoff and give-up, **naming history**                            |
-| [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, fingerprints and the device salt, the three output shapes, where an unmasked value can still escape |
+| [docs/redaction/](./docs/redaction/README.md)       | Masking and serialization. The two masking axes, fingerprints and partial display, the three output shapes, where an unmasked value can still escape |
 | [docs/sampling/](./docs/sampling/README.md)         | Statistics. The sampling policy and the per-run verdict, the closed catalogue, the recorder                                                          |
 | [docs/observations/](./docs/observations/README.md) | Structured entries. The `data.observation` discriminator, the ten families, and the rules a producer follows                                         |
 

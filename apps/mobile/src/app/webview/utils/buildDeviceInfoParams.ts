@@ -29,8 +29,6 @@ export interface CachedDeviceInfo {
      * along rather than being threaded separately.
      */
     runId: string;
-    /** The device's masking salt — per install, so it shares this lifetime too. Empty when none could be drawn. */
-    logSalt: string;
 }
 
 /**
@@ -67,7 +65,6 @@ export const buildDeviceInfoParams = (cached: CachedDeviceInfo, dynamic: Dynamic
 
     return {
         runId: cached.runId,
-        logSalt: cached.logSalt,
         platform: cached.platform,
         applicationName: cached.applicationName,
         stage: dynamic.stage,

@@ -11,7 +11,6 @@ import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getLogUploadHoldScript, getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
 import { NATIVE_RUN_ID } from '../services/log/native/nativeLogContext';
-import { nativeRedactionSalt } from '../services/log/native/redactionSalt';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
 import { useFirebaseInstallId, useVersionCheckHandler } from './hooks';
 import { FullScreenLoader, ResumeOverlay } from '../features/core/components';
@@ -45,8 +44,6 @@ const CACHED_DEVICE_INFO: CachedDeviceInfo = {
     // Issued by the logging layer at app start; injected so the WebView stamps
     // its entries with the same run identity as the native side.
     runId: NATIVE_RUN_ID,
-    // The masking salt, so the WebView fingerprints values the way native code does.
-    logSalt: nativeRedactionSalt() ?? '',
 };
 
 export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {

@@ -12,8 +12,8 @@
  *
  * **Each match gets its own placeholder.** `[EMAIL]` rather than a blanket `[REDACTED]`, because
  * "an address was here" is itself the diagnosis — collapsing every kind to one word deletes the
- * finding along with the value. With the device's salt set, tokens, numbers and addresses say a
- * little more — a fingerprint, the last four digits, the domain (`fingerprint.ts`).
+ * finding along with the value. Tokens, numbers and addresses say a little more — a fingerprint,
+ * the last four digits, a mail provider's domain (`fingerprint.ts`) — except to a `strict` caller.
  *
  * **What is deliberately NOT matched: opaque high-entropy strings.** A rule like "20+ random-looking
  * characters" would also eat ids, `cid`, `runId` and every uuid — the join axes the whole log system
@@ -26,7 +26,7 @@ import {
     foldDetailedPlaceholders,
     isShelfMark,
     phonePlaceholder,
-    redactionSaltFor,
+    isDetailed,
     restoreShelved,
     shelveDetailedPlaceholders,
     tokenPlaceholder,
@@ -36,8 +36,8 @@ import { REDACTED } from './sensitiveKeys';
 
 interface ValuePattern {
     pattern: RegExp;
-    /** The salt to fingerprint with (`undefined` for bare placeholders), then the match and its groups. */
-    replace: (salt: string | undefined, match: string, ...groups: string[]) => string;
+    /** Whether to print the detailed form, then the match and its groups. */
+    replace: (detailed: boolean, match: string, ...groups: string[]) => string;
 }
 
 /**
@@ -174,23 +174,26 @@ const maskQuery = (tail: string, strict: boolean): string => {
  * key is a key, not a token, and stays bare.
  */
 const VALUE_PATTERNS: readonly ValuePattern[] = [
-    { pattern: global(JWT), replace: (salt, match) => tokenPlaceholder('JWT', match, salt) },
+    { pattern: global(JWT), replace: (detailed, match) => tokenPlaceholder('JWT', match, detailed) },
     {
         pattern: /\b(Bearer)\s+([A-Za-z0-9._~+/=-]{8,})/gi,
-        replace: (salt, _match, scheme, token) => `${scheme} ${tokenPlaceholder('TOKEN', token, salt)}`,
+        replace: (detailed, _match, scheme, token) => `${scheme} ${tokenPlaceholder('TOKEN', token, detailed)}`,
     },
     // FCM/GCM registration tokens carry this literal marker between the instance id and the body.
     {
         pattern: /[A-Za-z0-9_-]{6,}:APA91b[A-Za-z0-9_-]{20,}/g,
-        replace: (salt, match) => tokenPlaceholder('TOKEN', match, salt),
+        replace: (detailed, match) => tokenPlaceholder('TOKEN', match, detailed),
     },
     { pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g, replace: () => '[TOKEN]' },
-    { pattern: global(EMAIL), replace: (salt, match) => emailPlaceholder(match, salt) },
+    { pattern: global(EMAIL), replace: (detailed, match) => emailPlaceholder(match, detailed) },
     // E.164, then the separated and bare domestic mobile forms. Anchored on a leading `0`/`+` so
     // epoch milliseconds and other long numerals are left alone.
-    { pattern: /\+[1-9]\d{7,14}\b/g, replace: (salt, match) => phonePlaceholder(match, salt) },
-    { pattern: /\b0\d{1,2}[-.\s]\d{3,4}[-.\s]\d{4}\b/g, replace: (salt, match) => phonePlaceholder(match, salt) },
-    { pattern: /\b01[016789]\d{7,8}\b/g, replace: (salt, match) => phonePlaceholder(match, salt) },
+    { pattern: /\+[1-9]\d{7,14}\b/g, replace: (detailed, match) => phonePlaceholder(match, detailed) },
+    {
+        pattern: /\b0\d{1,2}[-.\s]\d{3,4}[-.\s]\d{4}\b/g,
+        replace: (detailed, match) => phonePlaceholder(match, detailed),
+    },
+    { pattern: /\b01[016789]\d{7,8}\b/g, replace: (detailed, match) => phonePlaceholder(match, detailed) },
 ];
 
 /**
@@ -203,17 +206,17 @@ const VALUE_PATTERNS: readonly ValuePattern[] = [
  *
  * Masking twice gives the same text as masking once, which matters because an entry is masked again
  * each time it crosses into another shape: no placeholder matches a rule, and detailed ones are
- * shelved while the rules run. Without a salt (or with `strict`) detailed placeholders that arrived
- * already masked are folded back to bare instead.
+ * shelved while the rules run. For a `strict` caller, detailed placeholders that arrived already
+ * masked are folded back to bare instead.
  *
  * Returns the input unchanged when nothing matches, so a caller can compare identity to tell whether
  * anything was masked at all.
  */
 export const redactText = (text: string, options?: RedactOptions): string => {
-    const salt = redactionSaltFor(options);
-    // Detailed placeholders already in the text are either kept out of the rules' way (with a salt)
-    // or folded to bare before anything runs (without one).
-    const { text: input, shelved } = salt
+    const detailed = isDetailed(options);
+    // Detailed placeholders already in the text are either kept out of the rules' way, or folded to
+    // bare before anything runs for a strict caller.
+    const { text: input, shelved } = detailed
         ? shelveDetailedPlaceholders(text)
         : { text: foldDetailedPlaceholders(text), shelved: [] };
     const withoutQueries = input.replace(
@@ -224,7 +227,7 @@ export const redactText = (text: string, options?: RedactOptions): string => {
     const masked = VALUE_PATTERNS.reduce(
         (current, { pattern, replace }) =>
             current.replace(pattern, (match: string, ...groups: unknown[]) =>
-                replace(salt, match, ...(groups as string[]))
+                replace(detailed, match, ...(groups as string[]))
             ),
         withoutQueries
     );

@@ -10,7 +10,7 @@ wires them. Code: `src/app/runtime/telemetry/`.
 
 ## Boot (`main.tsx`)
 
-`startTelemetry({ context: readLogContext, … })` runs after boot-order steps 5–8 in
+`startTelemetry({ context: readLogContext, … })` runs after boot-order steps 4–7 in
 [logging.md](./logging.md) and before the performance traces and the web vitals, so everything the run records is decided by one policy:
 
 1. **The run's policy is read synchronously** — the last fetched one while its `ttlSec` holds, else

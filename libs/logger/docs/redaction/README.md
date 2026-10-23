@@ -23,8 +23,8 @@ redaction/
   sensitiveKeys.ts   SENSITIVE_KEYS · SAFE_KEYS · REDACTED · isSensitiveKey · isSensitiveField · sensitiveFamilyOf
   valuePatterns.ts   redactText — url queries (SAFE_QUERY_PARAMS), then the shape rules
   redact.ts          maskSensitiveValue · redactSensitive · redactMaybeJson · truncate
-  fingerprint.ts     the device salt (setRedactionSalt) · fingerprints · partial display · strict
-  hmacSha256.ts      synchronous HMAC-SHA256, no dependency
+  fingerprint.ts     token fingerprints · partial display · COMMON_MAIL_DOMAINS · strict
+  sha256.ts          synchronous SHA-256, no dependency
 
 serialization/
   safeStringify.ts    → string, masking everything it walks
@@ -51,19 +51,20 @@ wherever the value is in hand: it is the only one that can tell a flag from the 
 for.
 
 What a sensitive value **becomes** is `maskSensitiveValue(key, value)`. It is `[REDACTED]` unless the
-device's salt is set ([below](#fingerprints-and-partial-display)) and the name's family allows more
-(`sensitiveFamilyOf`):
+name's family allows more (`sensitiveFamilyOf`, and [below](#fingerprints-and-partial-display)) and
+the caller is not `strict`:
 
-| Family  | Names                                                          | Becomes                                         |
-| ------- | -------------------------------------------------------------- | ----------------------------------------------- |
-| `token` | every match is a token name — `deviceToken`, `delegationToken` | `[TOKEN#b07e22]`, or `[JWT#…]` for a JWT        |
-| `email` | every match is `email` — `email`, `userEmail`                  | `[EMAIL#9d0e11:@gmail.com]` or `[EMAIL#9d0e11]` |
-| `phone` | every match is `phone` — `phone`, `phoneNumber`                | `[PHONE#a1b2c3:…5678]`                          |
-| —       | passwords, one-time codes, secrets, keys, `authorization`      | `[REDACTED]`, always                            |
+| Family  | Names                                                          | Becomes                                  |
+| ------- | -------------------------------------------------------------- | ---------------------------------------- |
+| `token` | every match is a token name — `deviceToken`, `delegationToken` | `[TOKEN#b07e22]`, or `[JWT#…]` for a JWT |
+| `email` | every match is `email` — `email`, `userEmail`                  | `[EMAIL:@gmail.com]`, or `[EMAIL]`       |
+| `phone` | every match is `phone` — `phone`, `phoneNumber`                | `[PHONE:…5678]`                          |
+| —       | passwords, one-time codes, secrets, keys, `authorization`      | `[REDACTED]`, always                     |
 
 **Every** match has to agree: `passwordResetToken` also matches `password`, and a reset token is a
-one-time code. A token value shorter than 16 characters gets no fingerprint — no real token is that
-short, and short is what a fingerprint must not be taken of. A value that is not what its name
+one-time code. A value shorter than 16 characters gets no fingerprint — under a token name or after
+`Bearer` alike: no real token is that short, and an unkeyed hash of a short value can be matched by
+guessing. A value that is not what its name
 promises (an `email` with no address in it, a `phone` of fewer than nine digits) is `[REDACTED]`. A
 value that is already a placeholder of the name's own kind, because the layer that wrote the entry
 masked it first, is kept as it is — and only one in exactly the form the builders print.
@@ -90,14 +91,14 @@ all three appear in entries: absolute (`https://host/path?…`), scheme-with-opa
 
 Then the shape rules, most specific first.
 
-| Pattern                                                | Becomes          | With the device salt                            |
-| ------------------------------------------------------ | ---------------- | ----------------------------------------------- |
-| `eyJ…` base64url triple (a JSON-header JWT)            | `[JWT]`          | `[JWT#3f9a1c]`                                  |
-| `Bearer <8+ chars>`                                    | `Bearer [TOKEN]` | `Bearer [TOKEN#…]`                              |
-| FCM/GCM registration token (`:APA91b…`)                | `[TOKEN]`        | `[TOKEN#b07e22]`                                |
-| `AKIA…` / `ASIA…` AWS key ids                          | `[TOKEN]`        | `[TOKEN]` — a key, not a token                  |
-| An email address with a dotted TLD                     | `[EMAIL]`        | `[EMAIL#9d0e11:@gmail.com]` or `[EMAIL#9d0e11]` |
-| E.164, then separated and bare domestic mobile numbers | `[PHONE]`        | `[PHONE#a1b2c3:…5678]`                          |
+| Pattern                                                | Strict           | Otherwise                          |
+| ------------------------------------------------------ | ---------------- | ---------------------------------- |
+| `eyJ…` base64url triple (a JSON-header JWT)            | `[JWT]`          | `[JWT#3f9a1c]`                     |
+| `Bearer <8+ chars>`                                    | `Bearer [TOKEN]` | `Bearer [TOKEN#…]`                 |
+| FCM/GCM registration token (`:APA91b…`)                | `[TOKEN]`        | `[TOKEN#b07e22]`                   |
+| `AKIA…` / `ASIA…` AWS key ids                          | `[TOKEN]`        | `[TOKEN]` — a key, not a token     |
+| An email address with a dotted TLD                     | `[EMAIL]`        | `[EMAIL:@gmail.com]`, or `[EMAIL]` |
+| E.164, then separated and bare domestic mobile numbers | `[PHONE]`        | `[PHONE:…5678]`                    |
 
 **Each match gets its own placeholder** — "an address was here" is itself the diagnosis, and
 collapsing every kind into one word deletes the finding along with the value. `Bearer` runs after the
@@ -116,59 +117,39 @@ learn whether anything was masked.
 
 A bare `[JWT]` hides the token and also the one fact a token problem is diagnosed from: is this the
 token from a minute ago, or a newly issued one? A support case asks the same of a number ("is this
-the one you mean?") and of an address ("which provider?"). So with the device's salt set:
+the one you mean?") and of an address ("which provider?"). So:
 
-- **A token keeps a fingerprint** — the first six hex characters of `HMAC-SHA256(salt, token)`. The
-  same token reads the same on one device, wherever it was found: a bearer value is fingerprinted
-  without its scheme, so a header line and a `token` field agree. Nothing about the value can be read
-  back from it.
-- **A phone number keeps its last four digits**, and a fingerprint of its digits alone, so
-  `010-1234-5678` and `01012345678` match. A number written with its country code (`+82 10…`) does not
-  match its domestic form.
+- **A token keeps a fingerprint** — the first six hex characters of its SHA-256. A bearer value is
+  fingerprinted without its scheme, so a header line and a `token` field agree; the same token reads
+  the same in the web and in native code, on any device. Nothing about the value can be read back.
+- **A phone number keeps its last four digits** — `[PHONE:…5678]` — and nothing else.
 - **An address keeps its domain when it is a common mail provider's** (`COMMON_MAIL_DOMAINS`:
   `gmail.com`, `naver.com`, `kakao.com`, `daum.net`, `icloud.com` … matched case-insensitively and
-  exactly, so a subdomain is not one), and a fingerprint of the lower-cased address always. A personal
-  or company domain names its owner nearly as well as the local part, so `[EMAIL#9d0e11]` shows none.
-  The local part is never shown.
+  exactly, so a subdomain is not one) — `[EMAIL:@gmail.com]`. A personal or company domain names its
+  owner nearly as well as the local part, so any other address is `[EMAIL]`. The local part is never
+  shown.
 
-**The salt belongs to the device and never leaves it.** Each install draws its own and keeps it; no
-entry, field or statistic carries it. Across devices the same value prints differently, on purpose:
-a salt shared by every client would ship inside every client, and with it anyone holding the logs
-could hash every phone number there is and read the fingerprints back. Comparing across devices is
-what `uid` is for.
+**Only tokens get a fingerprint, and no fingerprint uses a secret.** A token is long and random, so
+its hash cannot be reversed by trying candidates. A number is the opposite: with four digits shown, a
+domestic number has ten thousand candidates left, and hashing each is instant — a fingerprint of it
+would give the number away. Protecting one would take a salt only the device knows, drawn from a
+cryptographic random source, and the app's runtime (React Native's Hermes) has none; `Math.random`,
+which the entry ids fall back to, can be reconstructed from the ids every upload carries. So nothing
+here needs randomness or a per-device secret, and the web and the app mask alike. The cost: two numbers
+that end in the same four digits read the same.
 
-The host sets it with `setRedactionSalt` at boot, before anything is serialized:
-
-| Host           | Where the salt lives                                                                                                            |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| app (native)   | MMKV, drawn on first launch; set by `attachNativeLogContext` — **none today**, see below                                        |
-| app (WebView)  | injected by the shell as `CHATIC_APP_LOG_SALT`, so both runtimes agree; its own `localStorage` one while the shell injects none |
-| standalone web | `localStorage`, per browser profile                                                                                             |
-| anywhere else  | none — bare placeholders                                                                                                        |
-
-A salt shorter than 16 characters is refused. Clearing the app's storage draws a new one.
-
-**A salt comes only from a cryptographic random source** (`createRedactionSalt` reads
-`crypto.getRandomValues` and returns `undefined` without it). Never `Math.random`: entry ids fall back
-to it where `crypto` is missing, those ids are uploaded, a generator's state can be recovered from its
-outputs, and a number with four digits shown has ten thousand candidates left. React Native's Hermes
-has no `getRandomValues` today, so **the app's native side has no salt and masks bare** — and since the
-app's upload queue is native, the web's entries inside the app end up bare too. The detail reaches the
-logs from the standalone web only, until a native secure source exists.
-
-**No salt, no detail.** Without a salt every placeholder is the bare form, and detailed ones that
-arrive from elsewhere are folded back to bare. **`{ strict: true }`** asks for the same output with a
-salt set, and also leaves out the safe lists added for the log pipeline's readers (query values,
+**`{ strict: true }`** prints the bare forms, folds detailed ones that arrive already masked back to
+bare, and leaves out the safe lists added for the log pipeline's readers (query values,
 `responseCode`, `httpStatus`); `redactText`, `redactSensitive`, `redactMaybeJson`, `safeStringify` and
 `isSensitiveField` all take it. It exists for a sink outside the log pipeline — Crashlytics uses it, so
 Firebase receives what it did before this.
 
 **Masking twice gives the same text as masking once.** An entry is masked again each time it moves
-into another shape (the app's store, then the upload), and a detailed placeholder carries a `#` that
-the query rule would read as a url fragment — `token:[JWT#3f9a1c]` looks like a scheme with one.
+into another shape (the app's store, then the upload), and a detailed placeholder carries a `#` or a
+`:` the query rule would misread — `token:[JWT#3f9a1c]` looks like a scheme with a fragment.
 `redactText` therefore shelves detailed placeholders while its rules run and puts them back after.
-Only the exact forms the builders print are shelved — `[EMAIL#abcdef:jane@gmail.com]` is not one, so
-the address inside it is still masked.
+Only the exact forms the builders print are shelved — `[EMAIL:jane@gmail.com]` is not one, so the
+address inside it is still masked.
 
 ## The three output shapes
 
@@ -195,7 +176,9 @@ where collapsing to one string would destroy what the reader came for. It masks 
 plain value is returned intact and masking is left to whichever boundary stores or sends it. What it
 does dismantle is an axios error — `config` holds auth headers and the request body, so it is taken
 apart field by field rather than spread, **headers are dropped entirely**, and the request/response
-bodies are masked and truncated to `MAX_BODY_BYTES` (2048).
+bodies are masked and truncated to `MAX_BODY_BYTES` (2048). The cut never lands inside a detailed
+placeholder: one cut through would match nothing that folds it, and a strict reader would get its
+pieces.
 
 ### The wire shape
 
@@ -268,8 +251,7 @@ was exactly that failure. Passing it is not permission to log the value.
 - **Do not add a blanket "looks random" rule.** It eats the join axes.
 - **Do not mask a field because the name sounds alarming.** Over-masking is the failure mode that never gets reported.
 - **Do not move masking to the call site.** It would have to be right in every one of them, and the boundary is the only place where "right once" is possible.
-- **Do not give a password, a one-time code or a secret a fingerprint.** They are short; with the salt, a fingerprint of one is a guess away from the value.
-- **Do not log or upload the salt**, and do not replace it with one shared by every install.
+- **Do not fingerprint a guessable value** — a password, a one-time code, a secret, a phone number, an address. A fingerprint of a short or guessable value is a guess away from the value.
 
 ## Further reading
 

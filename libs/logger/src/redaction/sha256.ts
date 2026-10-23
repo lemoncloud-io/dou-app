@@ -1,12 +1,11 @@
 /**
- * HMAC-SHA256, synchronous and dependency-free — the one primitive the masking fingerprints need.
+ * SHA-256, synchronous and dependency-free — the one primitive the token fingerprints need.
  *
  * Hand-written rather than borrowed because neither platform offers it the way masking runs.
  * WebCrypto's `subtle` is asynchronous, and masking happens inside `JSON.stringify`'s replacer and
  * the wire mapper, which cannot wait. Hermes has no `crypto` at all. A library would be the first
- * dependency of a core that has none, for about a hundred lines that standard test vectors pin
- * completely (`hmacSha256.spec.ts` checks FIPS 180 and RFC 4231 cases, and a sweep against Node's
- * own `crypto`).
+ * dependency of a core that has none, for under a hundred lines that the FIPS 180 examples and a sweep
+ * against Node's own `crypto` pin completely (`sha256.spec.ts`).
  *
  * Speed is not a concern at this size: it runs only on a value a rule has already matched.
  */
@@ -105,24 +104,5 @@ export const sha256 = (message: Uint8Array): Uint8Array => {
     return digest;
 };
 
-export const hmacSha256 = (key: Uint8Array, message: Uint8Array): Uint8Array => {
-    const block = new Uint8Array(BLOCK_BYTES);
-    block.set(key.length > BLOCK_BYTES ? sha256(key) : key);
-
-    const inner = new Uint8Array(BLOCK_BYTES + message.length);
-    const outer = new Uint8Array(BLOCK_BYTES + 32);
-    for (let i = 0; i < BLOCK_BYTES; i += 1) {
-        inner[i] = block[i] ^ 0x36;
-        outer[i] = block[i] ^ 0x5c;
-    }
-    inner.set(message, BLOCK_BYTES);
-    outer.set(sha256(inner), BLOCK_BYTES);
-    return sha256(outer);
-};
-
 export const toHex = (bytes: Uint8Array): string =>
     Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-
-/** HMAC-SHA256 of two strings, UTF-8 encoded, as lower-case hex. */
-export const hmacSha256Hex = (key: string, message: string): string =>
-    toHex(hmacSha256(utf8Bytes(key), utf8Bytes(message)));

@@ -13,12 +13,6 @@ export interface DeviceInfoParams {
      * without it the web issues its own and the two sides do not line up.
      */
     runId: string;
-    /**
-     * The device's masking salt, so the web fingerprints a masked value the way native code does.
-     * Optional so a builder without one (the virtual shell) injects an empty string, which the web
-     * reads as "keep your own".
-     */
-    logSalt?: string;
     platform: string;
     applicationName: string;
     /**
@@ -102,7 +96,6 @@ export const getSafeAreaScript = (insets: EdgeInsets, keyboardHeight: number): s
  */
 export const getDeviceInfoScript = (params: DeviceInfoParams): string => `
     window.CHATIC_APP_RUN_ID = ${JSON.stringify(params.runId)};
-    window.CHATIC_APP_LOG_SALT = ${JSON.stringify(params.logSalt || '')};
     window.CHATIC_APP_PLATFORM = ${JSON.stringify(params.platform)};
     window.CHATIC_APP_APPLICATION = ${JSON.stringify(params.applicationName)};
     window.CHATIC_APP_STAGE = ${JSON.stringify(params.stage)};

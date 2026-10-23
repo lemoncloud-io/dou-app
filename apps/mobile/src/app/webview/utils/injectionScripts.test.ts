@@ -42,13 +42,6 @@ describe('getDeviceInfoScript — 디바이스 정보 주입 스크립트', () =
         expect(script).toContain('window.CHATIC_APP_INSTALLATION_ID = "device-1";');
     });
 
-    it('injects the masking salt, or an empty string when the builder has none', () => {
-        expect(getDeviceInfoScript(makeParams({ logSalt: 'salt-0123456789abcdef' }))).toContain(
-            'window.CHATIC_APP_LOG_SALT = "salt-0123456789abcdef";'
-        );
-        expect(getDeviceInfoScript(makeParams())).toContain('window.CHATIC_APP_LOG_SALT = "";');
-    });
-
     it('firebase id가 아직 resolve되지 않았으면 빈 문자열로 주입한다', () => {
         const script = getDeviceInfoScript(makeParams({ firebaseInstallationId: '' }));
 

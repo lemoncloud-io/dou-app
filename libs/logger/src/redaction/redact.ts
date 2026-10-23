@@ -2,8 +2,10 @@ import {
     emailPlaceholder,
     placeholderKindOf,
     phonePlaceholder,
-    redactionSaltFor,
+    isDetailed,
+    MIN_FINGERPRINTED_TOKEN_LENGTH,
     tokenPlaceholder,
+    withoutCutPlaceholder,
     type RedactOptions,
 } from './fingerprint';
 import { isSensitiveField, REDACTED, sensitiveFamilyOf } from './sensitiveKeys';
@@ -22,13 +24,6 @@ import { isEmailShaped, isJwtShaped, redactText } from './valuePatterns';
 export const MAX_BODY_BYTES = 2048;
 
 /**
- * Below this, a value under a token name gets no fingerprint. Every real token is far longer; a short
- * value there is something else wearing the name — a code, a nonce — and short is exactly what a
- * fingerprint must not be taken of.
- */
-const MIN_FINGERPRINTED_TOKEN_LENGTH = 16;
-
-/**
  * A phone number's digit count that may be shown in part: nine or more, so the four shown are fewer
  * than half; at most E.164's fifteen. A shorter value under a phone name is `[REDACTED]`.
  */
@@ -45,16 +40,15 @@ const FAMILY_KINDS: Record<string, readonly string[]> = {
  * What replaces a value held under a sensitive name — the name-based twin of the shape rules'
  * placeholders.
  *
- * `[REDACTED]` unless the device's salt is set and the name's family allows more
- * (`sensitiveFamilyOf`): a token keeps a fingerprint (`[TOKEN#b07e22]`, `[JWT#…]` for a JWT), a phone
- * number its last four digits, an address its domain — the same forms the shape rules print, so one
+ * `[REDACTED]` unless the name's family allows more (`sensitiveFamilyOf`) and the caller is not
+ * `strict`: a token keeps a fingerprint (`[TOKEN#b07e22]`, `[JWT#…]` for a JWT), a phone number its
+ * last four digits, an address a mail provider's domain — the same forms the shape rules print, so one
  * value reads alike wherever it was found. A value that does not look like what its name promises
  * (an `email` holding no address) is `[REDACTED]`: a partial display of the wrong thing could be
  * anything. A value that is already a placeholder of the name's own family is kept as it is.
  */
 export const maskSensitiveValue = (key: string, value: unknown, options?: RedactOptions): string => {
-    const salt = redactionSaltFor(options);
-    if (!salt) return REDACTED;
+    if (!isDetailed(options)) return REDACTED;
     const family = sensitiveFamilyOf(key);
     // Masked already, by a layer that wrote the entry (the HTTP logger masks bodies as it logs them).
     // Its placeholder no longer looks like an address or a token, so judging it again would lose it —
@@ -65,14 +59,14 @@ export const maskSensitiveValue = (key: string, value: unknown, options?: Redact
     switch (family) {
         case 'token':
             if (typeof value !== 'string' || value.length < MIN_FINGERPRINTED_TOKEN_LENGTH) return REDACTED;
-            return tokenPlaceholder(isJwtShaped(value) ? 'JWT' : 'TOKEN', value, salt);
+            return tokenPlaceholder(isJwtShaped(value) ? 'JWT' : 'TOKEN', value, true);
         case 'email': {
             const address = typeof value === 'string' ? value.trim() : '';
-            return isEmailShaped(address) ? emailPlaceholder(address, salt) : REDACTED;
+            return isEmailShaped(address) ? emailPlaceholder(address, true) : REDACTED;
         }
         case 'phone': {
             const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
-            return PHONE_DIGITS.test(text.replace(/[\s().+-]/g, '')) ? phonePlaceholder(text, salt) : REDACTED;
+            return PHONE_DIGITS.test(text.replace(/[\s().+-]/g, '')) ? phonePlaceholder(text, true) : REDACTED;
         }
         default:
             return REDACTED;
@@ -148,5 +142,6 @@ export const truncate = (value: unknown): unknown => {
     if (serialized === undefined) return undefined;
     if (serialized.length <= MAX_BODY_BYTES) return value;
 
-    return `${serialized.slice(0, MAX_BODY_BYTES)}…[truncated]`;
+    // The cut never lands inside a detailed placeholder; see `withoutCutPlaceholder`.
+    return `${withoutCutPlaceholder(serialized.slice(0, MAX_BODY_BYTES))}…[truncated]`;
 };

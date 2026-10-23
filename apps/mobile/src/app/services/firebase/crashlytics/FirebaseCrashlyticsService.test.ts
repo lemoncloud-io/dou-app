@@ -1,4 +1,4 @@
-import { REDACTED, setRedactionSalt } from '@chatic/logger';
+import { REDACTED } from '@chatic/logger';
 import type { LogEntry, LogListener } from '@chatic/logger';
 
 import { FirebaseCrashlyticsService } from './FirebaseCrashlyticsService';
@@ -38,8 +38,6 @@ jest.mock('react-native-device-info', () => ({
 }));
 // The utils barrel reaches react-native-config/localize, which are untransformed too.
 jest.mock('../../../utils', () => ({ getUserAgent: async () => 'test-ua' }));
-// The native log context draws the masking salt from MMKV when it is attached; nothing here attaches it.
-jest.mock('react-native-mmkv', () => ({ createMMKV: jest.fn() }));
 
 const entry = (overrides: Partial<LogEntry> = {}): LogEntry => ({
     level: 'info',
@@ -107,41 +105,36 @@ describe('FirebaseCrashlyticsService', () => {
     });
 
     // Crashlytics is Firebase: the log pipeline's fingerprints and partial display stop at its door.
-    it('sends what it always sent even when the device salt is set', () => {
-        setRedactionSalt('device-salt-0123456789');
-        try {
-            const listener = startService();
+    it('sends what it always sent, never the detailed forms the log pipeline prints', () => {
+        const listener = startService();
 
-            listener(
-                entry({
-                    level: 'error',
-                    data: {
-                        email: 'jane@gmail.com',
-                        deviceToken: 'fMxZ1s9k:APA91bHqRs0dQxT7vWnLpYzB3cKmJ4eR5uG',
-                        note: 'call 010-1234-5678',
-                        url: 'https://app.dou.io/chat?cid=1000002',
-                        responseCode: 'ABC',
-                    },
-                })
-            );
+        listener(
+            entry({
+                level: 'error',
+                data: {
+                    email: 'jane@gmail.com',
+                    deviceToken: 'fMxZ1s9k:APA91bHqRs0dQxT7vWnLpYzB3cKmJ4eR5uG',
+                    note: 'call 010-1234-5678',
+                    url: 'https://app.dou.io/chat?cid=1000002',
+                    responseCode: 'ABC',
+                },
+            })
+        );
 
-            const line = crashlyticsLog.mock.calls[0][0] as string;
-            expect(line).not.toMatch(/#[0-9a-f]{6}/);
-            expect(line).not.toContain('5678');
-            expect(line).not.toContain('gmail.com');
-            expect(setAttributes).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    email: REDACTED,
-                    deviceToken: REDACTED,
-                    note: 'call [PHONE]',
-                    // The log pipeline's safe lists widen nothing here either.
-                    url: 'https://app.dou.io/chat?cid=[REDACTED]',
-                    responseCode: REDACTED,
-                })
-            );
-        } finally {
-            setRedactionSalt(undefined);
-        }
+        const line = crashlyticsLog.mock.calls[0][0] as string;
+        expect(line).not.toMatch(/#[0-9a-f]{6}/);
+        expect(line).not.toContain('5678');
+        expect(line).not.toContain('gmail.com');
+        expect(setAttributes).toHaveBeenCalledWith(
+            expect.objectContaining({
+                email: REDACTED,
+                deviceToken: REDACTED,
+                note: 'call [PHONE]',
+                // The log pipeline's safe lists widen nothing here either.
+                url: 'https://app.dou.io/chat?cid=[REDACTED]',
+                responseCode: REDACTED,
+            })
+        );
     });
 
     it('flattens non-string attribute values instead of passing objects through', () => {

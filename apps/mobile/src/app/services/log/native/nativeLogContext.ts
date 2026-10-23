@@ -1,8 +1,6 @@
-import { createLogId, setLogContextProvider, setRedactionSalt } from '@chatic/logger';
+import { createLogId, setLogContextProvider } from '@chatic/logger';
 import DeviceInfo from 'react-native-device-info';
 import { Platform } from 'react-native';
-
-import { nativeRedactionSalt } from './redactionSalt';
 
 import type { LogContext } from '@chatic/logger';
 
@@ -37,11 +35,7 @@ export const readNativeLogContext = (): LogContext => ({
     ...DEVICE,
 });
 
-/**
- * Registers the provider with the logging core, and the device's masking salt with it. Call before
- * anything logs — and so before anything is masked.
- */
+/** Registers the provider with the logging core. Call before anything logs. */
 export const attachNativeLogContext = (): void => {
     setLogContextProvider(readNativeLogContext);
-    setRedactionSalt(nativeRedactionSalt());
 };

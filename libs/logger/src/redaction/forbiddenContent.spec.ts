@@ -1,5 +1,4 @@
 import { toWireLogEntry } from '../serialization/wire';
-import { setRedactionSalt } from './fingerprint';
 
 import type { LogEntry } from '../core/types';
 
@@ -142,17 +141,14 @@ describe('추적 축은 그대로 남는다', () => {
 });
 
 /**
- * With the device salt set, masking leaves a fingerprint and part of a phone number or address. These
- * cases hold that line at the boundary: what is shown is the last four digits, the domain and six hex
- * characters — never another digit, the local part, a token's body, or the salt itself.
+ * Masking leaves a token's fingerprint and part of a phone number or address. These cases hold that
+ * line at the boundary: what is shown is the last four digits, a mail provider's domain and six hex
+ * characters of a token's hash — never another digit, the local part, a personal domain or a token's
+ * body.
  */
 describe('fingerprints and partial display leave nothing else behind', () => {
-    const SALT = 'device-salt-forbidden-0123456789';
     const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1MSJ9.dBjftJeZ4CVPmB92K27uhbUJU1p1r_wW';
     const fcm = 'fMxZ1s9k:APA91bHqRs0dQxT7vWnLpYzB3cKmJ4eR5uG';
-
-    beforeEach(() => setRedactionSalt(SALT));
-    afterEach(() => setRedactionSalt(undefined));
 
     it('keeps no digit of a phone number but the last four', () => {
         const out = wire({
@@ -184,7 +180,7 @@ describe('fingerprints and partial display leave nothing else behind', () => {
         for (const fragment of ['jane-doe', 'mail.naver', 'lemoncloud', 'jane@', 'ops@', 'kim@']) {
             expect(out).not.toContain(fragment);
         }
-        expect(out).toMatch(/\[EMAIL#[0-9a-f]{6}\]/);
+        expect(out).toContain('[EMAIL]');
     });
 
     it('keeps no part of a token body', () => {
@@ -216,13 +212,17 @@ describe('fingerprints and partial display leave nothing else behind', () => {
         expect(out).not.toContain('483920');
     });
 
-    it('never carries the salt', () => {
+    // Four hidden digits are ten thousand candidates: a hash of a number could be matched by trying
+    // them all, so numbers and addresses carry none.
+    it('gives phone numbers and addresses no fingerprint', () => {
         const out = wire({
-            message: 'mail jane@gmail.com, call 010-9876-5432, token ' + fcm,
-            data: { email: 'jane@gmail.com', deviceToken: fcm },
+            message: 'mail jane@gmail.com, call 010-9876-5432',
+            data: { email: 'jane@gmail.com', phone: '01098765432' },
         });
 
-        expect(out).not.toContain(SALT);
+        expect(out).toContain('[PHONE:…5432]');
+        expect(out).toContain('[EMAIL:@gmail.com]');
+        expect(out).not.toMatch(/(?:PHONE|EMAIL)#/);
     });
 
     it('still leaves the join axes and diagnostic codes alone', () => {

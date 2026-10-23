@@ -11,26 +11,25 @@ subscribes to the hub, and this app is one of those subscribers.
 
 ## Boot order (`main.tsx`)
 
-| #   | Call                                                     | Why it has to sit there                                                                                                                        |
-| --- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `setupBridgeLogger()`                                    | wires the native forwarder (hybrid only) before anything can log                                                                               |
-| 2   | `attachConsoleListener()`                                | the web-standalone console sink                                                                                                                |
-| 3   | `attachLogContext()`                                     | registers the context provider the core reads at every dispatch                                                                                |
-| 4   | `attachRedactionSalt()`                                  | the device's masking salt — the app's injected one, else this browser's — before anything is serialized; see `@chatic/logger`'s docs/redaction |
-| 5   | `startLogUploader({ … })`                                | subscribes the upload queue — **the only log store**                                                                                           |
-| 6   | `reportRunIdJoin()`                                      | one entry saying whether native and web share a `runId` this launch                                                                            |
-| 7   | `attachWebCrashSentinel()` → `schedulePageCrashReport()` | reads the previous session's fate, logs `[page-crash]` if it died uncleanly                                                                    |
-| 8   | `schedulePendingReportFlush()`                           | hybrid only — drains the native side's own crash/exception queue into this one via `ingestLogEntry`                                            |
-| 9   | `startTelemetry({ … })`                                  | the run's sampling policy and the statistics recorder, before any trace or vital — [telemetry.md](./telemetry.md)                              |
+| #   | Call                                                     | Why it has to sit there                                                                                           |
+| --- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| 1   | `setupBridgeLogger()`                                    | wires the native forwarder (hybrid only) before anything can log                                                  |
+| 2   | `attachConsoleListener()`                                | the web-standalone console sink                                                                                   |
+| 3   | `attachLogContext()`                                     | registers the context provider the core reads at every dispatch                                                   |
+| 4   | `startLogUploader({ … })`                                | subscribes the upload queue — **the only log store**                                                              |
+| 5   | `reportRunIdJoin()`                                      | one entry saying whether native and web share a `runId` this launch                                               |
+| 6   | `attachWebCrashSentinel()` → `schedulePageCrashReport()` | reads the previous session's fate, logs `[page-crash]` if it died uncleanly                                       |
+| 7   | `schedulePendingReportFlush()`                           | hybrid only — drains the native side's own crash/exception queue into this one via `ingestLogEntry`               |
+| 8   | `startTelemetry({ … })`                                  | the run's sampling policy and the statistics recorder, before any trace or vital — [telemetry.md](./telemetry.md) |
 
 The core keeps no ring buffer of its own — the queue is filled purely by a hub subscription — so an
-entry dispatched above step 5 is published to nobody and lands nowhere. That is the one ordering
+entry dispatched above step 4 is published to nobody and lands nowhere. That is the one ordering
 constraint that matters when touching this file: nothing that can log belongs above
 `startLogUploader`, and `attachLogContext` has to precede it too, since context is stamped at
 dispatch, not backfilled later.
 
 ```bash
-grep -n "setupBridgeLogger\|attachConsoleListener\|attachLogContext\|attachRedactionSalt\|startLogUploader\|reportRunIdJoin\|attachWebCrashSentinel\|schedulePendingReportFlush" apps/web/src/main.tsx
+grep -n "setupBridgeLogger\|attachConsoleListener\|attachLogContext\|startLogUploader\|reportRunIdJoin\|attachWebCrashSentinel\|schedulePendingReportFlush" apps/web/src/main.tsx
 ```
 
 ## The upload queue is the only store

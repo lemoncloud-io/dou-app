@@ -153,8 +153,8 @@ export const isSensitiveField = (key: string, value: unknown, options?: RedactOp
  *
  * **Every** match has to agree. `passwordResetToken` matches `token` and `password`, and a reset token
  * is a one-time code; `emailCode` is a verification code. Passwords, one-time codes, secrets and keys
- * keep no fingerprint at all — they are short enough that, given the salt, a fingerprint could be
- * matched by trying every candidate. `undefined` for those, and for any name that is not sensitive.
+ * keep no fingerprint at all — they are short enough that a fingerprint could be matched by trying
+ * every candidate. `undefined` for those, and for any name that is not sensitive.
  */
 export type SensitiveFamily = 'token' | 'email' | 'phone';
 
