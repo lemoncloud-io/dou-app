@@ -16,6 +16,7 @@ import { useMemo } from 'react';
 import { levelBadgeClass } from '../lib/badgeClass';
 import { byEventAtAsc, eventAt } from '../lib/eventTime';
 import type { ReportLogRow } from '../lib/parseReportLog';
+import { recordKindOf, type RecordKind } from '../lib/recordKinds';
 
 interface RunTimelineProps {
     rows: ReportLogRow[];
@@ -23,7 +24,37 @@ interface RunTimelineProps {
     selectedId?: string;
     /** The pinned run, for the header. Absent when the view is open without a pin. */
     runId?: string;
+    /** Which record kinds are shown. Every kind of the run sits on one line, in occurrence order. */
+    kinds?: RecordKind[];
+    onToggleKind?: (kind: RecordKind) => void;
 }
+
+const KIND_LABELS: Record<RecordKind, string> = { log: 'Logs', trace: 'Traces', sample: 'Samples', event: 'Events' };
+
+const ALL_KINDS: RecordKind[] = ['log', 'trace', 'sample', 'event'];
+
+/**
+ * A trace drawn as a bar against the run's longest one, so slow spans stand out while scrolling.
+ * A trace's `timestamp` is when it ended; the bar is its length, not its position.
+ */
+const TraceBar = ({ durationMs, longest }: { durationMs: number; longest: number }) => (
+    <span className="flex w-40 shrink-0 items-center gap-1.5">
+        <span className="h-1.5 flex-1 rounded bg-muted">
+            <span
+                className="block h-1.5 rounded bg-primary"
+                style={{ width: `${Math.max(2, Math.round((durationMs / Math.max(1, longest)) * 100))}%` }}
+            />
+        </span>
+        <span className="w-14 text-right font-mono text-[11px] text-muted-foreground">{durationMs}ms</span>
+    </span>
+);
+
+/** A statistic's dimensions and numbers on one line, for scanning. */
+const statSummary = (row: ReportLogRow): string =>
+    [
+        ...Object.entries(row.attrs ?? {}).map(([k, v]) => `${k}=${v}`),
+        ...Object.entries(row.metrics ?? {}).map(([k, v]) => `${k}=${v}`),
+    ].join(' · ');
 
 const clockTime = (ms?: number): string =>
     ms === undefined ? '--:--:--' : new Date(ms).toLocaleTimeString(undefined, { hour12: false });
@@ -38,8 +69,45 @@ const formatGap = (ms: number): string => {
     return `+${minutes}m ${Math.round((ms % 60_000) / 1_000)}s`;
 };
 
-export const RunTimeline = ({ rows, onSelect, selectedId, runId }: RunTimelineProps) => {
-    const ordered = useMemo(() => [...rows].sort(byEventAtAsc), [rows]);
+export const RunTimeline = ({
+    rows,
+    onSelect,
+    selectedId,
+    runId,
+    kinds = ALL_KINDS,
+    onToggleKind,
+}: RunTimelineProps) => {
+    const ordered = useMemo(
+        () => rows.filter(row => kinds.includes(recordKindOf(row))).sort(byEventAtAsc),
+        [rows, kinds]
+    );
+    const longest = useMemo(() => Math.max(0, ...ordered.map(row => row.durationMs ?? 0)), [ordered]);
+    const present = useMemo(() => new Set(rows.map(recordKindOf)), [rows]);
+
+    // Offered once the run holds a statistic — a run of logs alone needs no toggles — and whenever
+    // a kind the run holds is hidden: the choice outlives a re-pin, and without the toggle a run of
+    // only that kind would show nothing with no way back.
+    const toggles =
+        onToggleKind &&
+        ([...present].some(kind => kind !== 'log') || [...present].some(kind => !kinds.includes(kind))) ? (
+            <div className="flex flex-wrap gap-1.5 border-b border-border px-4 py-1.5">
+                {ALL_KINDS.filter(kind => present.has(kind)).map(kind => (
+                    <button
+                        key={kind}
+                        type="button"
+                        aria-pressed={kinds.includes(kind)}
+                        onClick={() => onToggleKind(kind)}
+                        className={`rounded border px-2 py-0.5 text-[11px] ${
+                            kinds.includes(kind)
+                                ? 'border-primary bg-primary/10 text-foreground'
+                                : 'border-border text-muted-foreground'
+                        }`}
+                    >
+                        {KIND_LABELS[kind]}
+                    </button>
+                ))}
+            </div>
+        ) : null;
 
     if (!runId) {
         return (
@@ -50,7 +118,12 @@ export const RunTimeline = ({ rows, onSelect, selectedId, runId }: RunTimelinePr
     }
 
     if (ordered.length === 0) {
-        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">No logs for this run.</p>;
+        return (
+            <>
+                {toggles}
+                <p className="px-4 py-10 text-center text-sm text-muted-foreground">No records for this run.</p>
+            </>
+        );
     }
 
     const span = (eventAt(ordered[ordered.length - 1]) ?? 0) - (eventAt(ordered[0]) ?? 0);
@@ -63,6 +136,7 @@ export const RunTimeline = ({ rows, onSelect, selectedId, runId }: RunTimelinePr
                 {span > 0 && <span>· span {formatGap(span).replace('+', '')}</span>}
                 <span>· sorted by occurrence time, ascending</span>
             </div>
+            {toggles}
             <ol className="flex flex-col">
                 {ordered.map((row, index) => {
                     const at = eventAt(row);
@@ -86,18 +160,27 @@ export const RunTimeline = ({ rows, onSelect, selectedId, runId }: RunTimelinePr
                                 <span className="w-16 shrink-0 font-mono text-[11px] text-muted-foreground">
                                     {clockTime(at)}
                                 </span>
-                                <span
-                                    className={`w-12 shrink-0 rounded px-1 text-center text-[10px] font-semibold uppercase ${levelBadgeClass(row.level)}`}
-                                >
-                                    {row.level ?? row.type}
-                                </span>
+                                {recordKindOf(row) === 'log' ? (
+                                    <span
+                                        className={`w-12 shrink-0 rounded px-1 text-center text-[10px] font-semibold uppercase ${levelBadgeClass(row.level)}`}
+                                    >
+                                        {row.level ?? row.type}
+                                    </span>
+                                ) : (
+                                    <span className="w-12 shrink-0 rounded border border-primary/40 px-1 text-center text-[10px] font-semibold uppercase text-primary">
+                                        {recordKindOf(row)}
+                                    </span>
+                                )}
                                 {row.tag && (
                                     <span className="w-24 shrink-0 truncate font-mono text-[11px] text-muted-foreground">
                                         {row.tag}
                                     </span>
                                 )}
+                                {row.recordKind === 'trace' && row.durationMs !== undefined && (
+                                    <TraceBar durationMs={row.durationMs} longest={longest} />
+                                )}
                                 <span className="min-w-0 flex-1 truncate text-sm text-foreground" title={row.message}>
-                                    {row.message ?? row.title}
+                                    {recordKindOf(row) === 'log' ? (row.message ?? row.title) : statSummary(row)}
                                 </span>
                                 {row.route && (
                                     <span className="hidden w-32 shrink-0 truncate font-mono text-[11px] text-muted-foreground xl:block">

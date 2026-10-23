@@ -23,14 +23,17 @@ import { useSearchParams } from 'react-router-dom';
 
 import { ROUND_2_AXES, type ReportKind, type ReportStage } from '../api/reportLogApi';
 import { FACET_KEYS, type FacetKey, type FacetSelection } from '../lib/logFacets';
+import { RECORD_FILTERS, type RecordFilter, type RecordKind } from '../lib/recordKinds';
 import { PIN_KEYS, type PinKey } from '../lib/pinAxes';
 
 /** Which of the four views the middle column shows. */
-export type ViewMode = 'list' | 'group' | 'time' | 'timeline';
+export type ViewMode = 'list' | 'group' | 'time' | 'timeline' | 'stats';
 
 export type { PinKey };
 
-const VIEW_MODES: ViewMode[] = ['list', 'group', 'time', 'timeline'];
+const VIEW_MODES: ViewMode[] = ['list', 'group', 'time', 'timeline', 'stats'];
+
+const TIMELINE_KINDS: RecordKind[] = ['log', 'trace', 'sample', 'event'];
 
 /**
  * Facets that are genuinely client-side.
@@ -60,12 +63,27 @@ export interface ServerAxes extends Record<(typeof ROUND_2_AXES)[number], string
 export interface ClientAxes {
     query: string;
     facets: FacetSelection;
+    /** Which records the list shows — logs by default (`record` in the URL). */
+    record: RecordFilter;
+}
+
+/** The statistics view: one tag, read by one measure, split by one dimension. All in the URL. */
+export interface StatsView {
+    tag: string;
+    measure: string;
+    by: string;
 }
 
 export interface LogConsoleState {
     server: ServerAxes;
     client: ClientAxes;
     mode: ViewMode;
+    stats: StatsView;
+    /** Record kinds the run timeline shows (`show` in the URL); every kind by default. */
+    timelineKinds: RecordKind[];
+    setRecord: (value: RecordFilter) => void;
+    setStats: (patch: Partial<StatsView>) => void;
+    toggleTimelineKind: (kind: RecordKind) => void;
     /** Pins currently set, in a fixed order, for the chip row. */
     pins: Array<{ key: PinKey; value: string }>;
     setServerAxis: (patch: Partial<Record<keyof ServerAxes, string>>) => void;
@@ -115,8 +133,20 @@ export const useLogConsoleState = (): LogConsoleState => {
             if (value) acc[key] = value;
             return acc;
         }, {});
-        return { query: read('q'), facets };
+        return {
+            query: read('q'),
+            facets,
+            record: oneOf<RecordFilter>(searchParams.get('record'), [...RECORD_FILTERS], 'log'),
+        };
     }, [searchParams, read]);
+
+    const stats = useMemo<StatsView>(() => ({ tag: read('stat'), measure: read('measure'), by: read('by') }), [read]);
+
+    const timelineKinds = useMemo<RecordKind[]>(() => {
+        const raw = searchParams.get('show');
+        if (raw === null) return TIMELINE_KINDS;
+        return raw.split(',').filter((kind): kind is RecordKind => (TIMELINE_KINDS as string[]).includes(kind));
+    }, [searchParams]);
 
     const mode = oneOf<ViewMode>(searchParams.get('mode'), VIEW_MODES, 'list');
 
@@ -169,14 +199,47 @@ export const useLogConsoleState = (): LogConsoleState => {
     );
 
     const clearClientAxes = useCallback(
-        () => patchParams({ q: '', ...Object.fromEntries(CLIENT_FACET_KEYS.map(key => [key, ''])) }),
+        () => patchParams({ q: '', record: '', ...Object.fromEntries(CLIENT_FACET_KEYS.map(key => [key, ''])) }),
         [patchParams]
+    );
+
+    // The default (`log`) stays out of the URL, like every other default here.
+    const setRecord = useCallback(
+        (value: RecordFilter) => patchParams({ record: value === 'log' ? '' : value }),
+        [patchParams]
+    );
+
+    const setStats = useCallback(
+        (patch: Partial<StatsView>) =>
+            patchParams({
+                ...(patch.tag !== undefined ? { stat: patch.tag } : {}),
+                ...(patch.measure !== undefined ? { measure: patch.measure } : {}),
+                ...(patch.by !== undefined ? { by: patch.by } : {}),
+            }),
+        [patchParams]
+    );
+
+    // Every kind shown is the default and leaves the URL; none shown is written as `none`, so it is
+    // not mistaken for the default on a reload.
+    const toggleTimelineKind = useCallback(
+        (kind: RecordKind) => {
+            const next = timelineKinds.includes(kind)
+                ? timelineKinds.filter(k => k !== kind)
+                : TIMELINE_KINDS.filter(k => k === kind || timelineKinds.includes(k));
+            patchParams({ show: next.length === TIMELINE_KINDS.length ? '' : next.join(',') || 'none' });
+        },
+        [patchParams, timelineKinds]
     );
 
     return {
         server,
         client,
         mode,
+        stats,
+        timelineKinds,
+        setRecord,
+        setStats,
+        toggleTimelineKind,
         pins,
         setServerAxis,
         setQuery,

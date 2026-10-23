@@ -66,6 +66,12 @@ const CSV_COLUMNS: Array<[header: string, get: (r: ReportLogRow) => string]> = [
     // filters match them apart.
     ['os', r => formatOs(r.os, r.osVersion) ?? ''],
     ['model', r => r.model ?? ''],
+    // Statistics: blank on a log. Structured values as compact JSON, so one column holds each.
+    ['kind', r => r.recordKind ?? ''],
+    ['durationMs', r => (r.durationMs === undefined ? '' : String(r.durationMs))],
+    ['attrs', r => (r.attrs ? JSON.stringify(r.attrs) : '')],
+    ['metrics', r => (r.metrics ? JSON.stringify(r.metrics) : '')],
+    ['sr', r => (r.sr === undefined ? '' : String(r.sr))],
     ['title', r => r.title],
     ['message', r => r.message ?? ''],
     ['userName', r => r.userName ?? ''],

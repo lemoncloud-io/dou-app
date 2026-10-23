@@ -2,10 +2,9 @@
  * `lib/report-logs/logFacets.ts`
  * - Counts the distinct values of each client-side axis across the collected corpus.
  *
- * This exists because the backend's aggregation is hardwired: `buildQuery` always
- * aggregates on `stereo` and takes no parameter for anything else (chatic-backend-api
- * `abstract-services.ts`). So there is no server-side "count by tag" or "count by app
- * version" to ask for.
+ * This exists because, when it was written, the backend aggregated on `stereo` only. The list
+ * endpoint has since gained counts per field, per time bucket and of distinct users; this screen
+ * does not use them yet, so the counts below are still computed from the collected rows.
  *
  * **Counting and filtering have come apart.** chatic-backend-api #41 lifted `tag`, the two
  * versions, `route` and the device fields to top-level copies, so those axes ARE filterable now
@@ -35,6 +34,8 @@ export interface FacetValue {
  */
 export const FACET_KEYS = [
     'level',
+    // The area spans old tags (`SOCKET`) and event tags (`socket.reconnect_failed`) alike.
+    'area',
     'tag',
     'app',
     'env',
@@ -122,6 +123,7 @@ const searchableOf = (row: ReportLogRow): string => {
         row.type,
         row.category,
         row.tag,
+        row.area,
         row.level,
         row.source,
         row.route,
