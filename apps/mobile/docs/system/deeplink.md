@@ -48,13 +48,14 @@ A `https` link opens the app only when the OS sees the tap and finds the app cla
 | `/i?t=…`                | `"/i"`                             | `android:path="/i"`, exact                      |
 | `/s?code=…`             | `"/s"`                             | `android:path="/s"`, exact                      |
 | `/s/`, `/s/{code}`      | `"/s/*"`                           | `android:pathPattern="/s/.*"`                   |
-| `/auth/…`               | `"/auth/*"`                        | `android:pathPattern="/auth/.*"`                |
 | `chatic://…` (any path) | the custom scheme in `Info.plist`  | the custom-scheme filter, no host or path limit |
 
 **The two platforms claim the same paths, and nothing else on the host.** The host is the landing
 site, so a claim on any other path takes that page away from anyone with the app installed. The
 association file used to claim `*`, and an iPhone app installed on a Mac from the App Store then
-opened in place of the landing page itself, in Safari, on `/`. The iOS list lives in the landing
+opened in place of the landing page itself, in Safari, on `/`. Both also used to claim `/auth/*`,
+which no link on this host has ever used — the landing site has no such page, and its `/auth/login`
+redirect goes to the web app's own domain — so it was dropped. The iOS list lives in the landing
 app's `public/.well-known/` and reaches users with a landing deploy, not an app release — though
 Apple's CDN caches the file, so a device can keep the old list for a while.
 

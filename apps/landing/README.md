@@ -37,7 +37,7 @@ Three things are true of it and of nothing in `apps/web`, and each is checkable:
    `public/.well-known/assetlinks.json` are what make iOS Universal Links and Android App Links
    resolve to `io.chatic.dou`. They must be served from the domain the links use, and the deploy
    script refuses to run without them. That alone forces a site at this origin. The AASA file
-   claims only the link paths (`/i`, `/s`, `/s/*`, `/auth/*`), the same ones the Android manifest
+   claims only the link paths (`/i`, `/s`, `/s/*`), the same ones the Android manifest
    filters on: the rest of the origin is this site, and a wider claim hands `/` to the app on any
    device that has it — a Mac running the iPhone app included.
 3. **It loads with no session.** Its entire `@chatic` surface is three packages, and none of them is
