@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-import { APP_CONFIG, DEEPLINK_CONFIG } from '../constants';
+import { APP_CONFIG, DEEPLINK_CONFIG } from '../consts';
 import { APP_MISSING_HASH, buildAppLaunchUrl, openUrl } from '../utils';
 
 import type { DeviceType, DeepLinkState, DeepLinkInfo, DialogType } from '../types';

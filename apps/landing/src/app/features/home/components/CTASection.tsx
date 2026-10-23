@@ -1,7 +1,9 @@
+import { type JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AppleIcon, PlayStoreIcon, StoreButton } from '../../../shared/components';
-import { storeUrls } from '../constants';
+import { storeUrls } from '../../../config/links';
+import { StoreButton } from './StoreButton';
+import { AppleIcon, PlayStoreIcon } from './StoreIcons';
 
 export const CTASection = (): JSX.Element => {
     const { t } = useTranslation();

@@ -1,8 +1,10 @@
+import { type JSX } from 'react';
 import { Link } from 'react-router-dom';
 
+import { ROUTES } from '../../../routes/paths';
 import { VersionSelector } from './VersionSelector';
 
-import type { PolicyVersion } from '../constants';
+import type { PolicyVersion } from '../consts';
 
 interface PolicyPageLayoutProps {
     children: React.ReactNode;
@@ -29,7 +31,7 @@ export const PolicyPageLayout = ({
             {/* Logo Section */}
             <div className="w-full border-b border-[#eaeaec]">
                 <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-4 sm:py-5">
-                    <Link to="/" className="inline-block hover:opacity-80 transition-opacity">
+                    <Link to={ROUTES.root} className="inline-block hover:opacity-80 transition-opacity">
                         <span className="text-[24px] font-bold text-[#222325]">DoU</span>
                     </Link>
                 </div>

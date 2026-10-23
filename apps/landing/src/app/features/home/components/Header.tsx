@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { type JSX, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
+
+import { ROUTES } from '../../../routes/paths';
 
 export const Header = (): JSX.Element => {
     const { i18n } = useTranslation();
@@ -36,7 +38,7 @@ export const Header = (): JSX.Element => {
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/50 backdrop-blur-xl shadow-sm' : ''}`}
         >
             <div className="max-w-[1440px] mx-auto flex items-center justify-between h-20 px-6 md:px-10">
-                <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Link to={ROUTES.root} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <img src={Logo.logo} alt="DoU" className="h-10 w-10" />
                     <img src={Logo.douBk} alt="D.U" className="h-5" />
                 </Link>

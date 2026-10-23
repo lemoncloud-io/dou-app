@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { type JSX, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { PolicyPageLayout, PolicySection } from '../components';
-import { type SupportedLanguage, CHILD_CONTENTS } from '../constants';
+import { type SupportedLanguage, CHILD_CONTENTS } from '../consts';
 
 export const ChildPolicyPage = (): JSX.Element => {
     const { t, i18n } = useTranslation();

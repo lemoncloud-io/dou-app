@@ -1,7 +1,11 @@
+import { type JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 
 import { Logo } from '@chatic/assets';
+
+import { CONTACT_EMAIL } from '../../../config/links';
+import { ROUTES } from '../../../routes/paths';
 
 export const Footer = (): JSX.Element => {
     const { t } = useTranslation();
@@ -13,7 +17,7 @@ export const Footer = (): JSX.Element => {
                             px-6 md:px-10 py-12 md:py-16 gap-[18px]"
             >
                 {/* Logo */}
-                <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <Link to={ROUTES.root} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <img src={Logo.logo} alt="DoU" className="h-10 w-10" />
                     <img src={Logo.douBk} alt="D.U" className="h-5" />
                 </Link>
@@ -22,21 +26,21 @@ export const Footer = (): JSX.Element => {
                 <div className="flex flex-col gap-7 md:gap-3 md:items-end">
                     {/* Nav links */}
                     <div className="flex flex-col md:flex-row gap-3 md:gap-8 text-base text-desc-alt">
-                        <Link to="/policy/terms" className="underline hover:text-navy transition-colors">
+                        <Link to={ROUTES.policy.terms} className="underline hover:text-navy transition-colors">
                             {t('footer.terms')}
                         </Link>
-                        <Link to="/policy/privacy" className="underline hover:text-navy transition-colors">
+                        <Link to={ROUTES.policy.privacy} className="underline hover:text-navy transition-colors">
                             {t('footer.privacy')}
                         </Link>
-                        <Link to="/policy/child" className="underline hover:text-navy transition-colors">
+                        <Link to={ROUTES.policy.child} className="underline hover:text-navy transition-colors">
                             {t('footer.child')}
                         </Link>
                     </div>
 
                     {/* Info */}
                     <div className="flex flex-col md:flex-row gap-3 md:gap-8 text-base text-desc-alt">
-                        <a href="mailto:app@lemoncloud.io" className="hover:text-navy transition-colors">
-                            app@lemoncloud.io
+                        <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-navy transition-colors">
+                            {CONTACT_EMAIL}
                         </a>
                         <span>{t('footer.copyright')}</span>
                     </div>

@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback } from 'react';
 
 import { decodeInviteLink, isEncodedInviteUrl } from '@chatic/shared';
 
-import { WEB_CONFIG } from '../constants';
+import { WEB_CONFIG } from '../../../config/links';
 
 import type { DeepLinkInfo } from '../types';
 

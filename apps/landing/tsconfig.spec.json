@@ -1,0 +1,38 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        // Its own outDir and build info, apart from tsconfig.app.json's: two projects sharing one
+        // tsBuildInfoFile let the second build read the first one's state as its own and skip.
+        "outDir": "../../dist/out-tsc/landing-spec",
+        "tsBuildInfoFile": "../../dist/out-tsc/landing-spec/tsconfig.spec.tsbuildinfo",
+        "jsx": "react-jsx",
+        "lib": ["es2022", "dom"],
+        "types": [
+            "node",
+            "vitest/globals",
+            "@nx/react/typings/cssmodule.d.ts",
+            "@nx/react/typings/image.d.ts",
+            "vite/client"
+        ],
+        "rootDir": "src"
+    },
+    // The tests and every source file they reach: a composite project has to list each file it
+    // compiles, so the sources come in here as well as in tsconfig.app.json.
+    "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
+    "exclude": ["out-tsc", "dist", "eslint.config.js", "eslint.config.cjs", "eslint.config.mjs"],
+    // The same libraries tsconfig.app.json references, for the same reason (TS6307 otherwise).
+    "references": [
+        {
+            "path": "../../libs/policy-content/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/theme/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/shared/tsconfig.lib.json"
+        },
+        {
+            "path": "../../assets/tsconfig.lib.json"
+        }
+    ]
+}
