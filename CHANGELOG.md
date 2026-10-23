@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-23] - root@0.111.2, @chatic/desktop-web@0.35.3
+
+### Bug Fixes
+
+- (desktop-web) scope the notifications inbox to the active place
+
 ## [2026-10-23] - root@0.111.1, @chatic/desktop-web@0.35.2
 
 ### Bug Fixes
