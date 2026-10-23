@@ -15,8 +15,8 @@ import { ROUTES } from './paths';
  * Tailwind config does not define.
  *
  * The copy follows the same rule as the shared screens: each line is looked up under
- * `error.screen.*` with the English text as its default. This site's locale files carry no such
- * keys today, so the screen reads English in both languages until someone adds them.
+ * `error.screen.*` with the English text as its default, so a missing key still reads as a sentence
+ * rather than a raw key on a screen that only shows when something already went wrong.
  */
 export const RouteErrorFallback = (): JSX.Element => {
     const error = useRouteError();

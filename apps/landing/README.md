@@ -375,17 +375,17 @@ not trigger.
   excludes `*.test.ts(x)`; `tsconfig.json` references both projects, which is what puts the tests
   under `nx typecheck`. The spec project keeps its own build info: two projects sharing one
   `tsBuildInfoFile` let the second read the first one's state as its own and skip the tests.
-- **The route error screen reads English in both languages.** `RouteErrorFallback` looks its copy up
-  under `error.screen.*` with English as the default, the same rule the shared error screens follow,
-  and the locale files carry no such keys yet. Adding them to both files translates it; no code
-  changes.
+- **A missing error-screen key does not show.** `RouteErrorFallback` looks its copy up under
+  `error.screen.unknown.*` with English as the default, the same rule the shared error screens
+  follow, so a key dropped from `ko.json` makes Korean readers see English rather than a raw key.
+  The parity test catches a key missing from one language only; the values match the web app's.
 - **Nine test files, and they cover routing, config, copy and the app launch only.** The route
   table, the stage and link config, ko/en key parity, the i18n language handling, and the app launch
   (`utils/appLaunch`, `hooks/useAppLauncher`) have tests; the components and the other deep-link
   hooks have none.
 
     ```bash
-    npx nx test @chatic/landing   # 65 tests
+    npx nx test @chatic/landing   # 66 tests
     ```
 
 - **`src/app/features/deeplink/utils/fingerprint.ts` is dead.** `generateFingerprint` calls out to
@@ -427,7 +427,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 65 tests pass; in CI
+npx nx test @chatic/landing                               # 66 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

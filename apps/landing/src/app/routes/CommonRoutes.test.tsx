@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 
-import '../../i18n';
+import i18n from '../../i18n';
 
 import { appRoutes } from './index';
 
@@ -20,6 +20,13 @@ const renderAt = (url: string) => {
     render(<RouterProvider router={router} />);
     return router;
 };
+
+const Throws = () => {
+    throw new Error('boom');
+};
+
+// The same table with home swapped for a component that throws while rendering.
+const withThrowingHome = () => appRoutes.map(route => (route.index ? { ...route, element: <Throws /> } : route));
 
 describe('appRoutes', () => {
     // The public URLs and what each resolves to. Store listings, the sitemap and links already sent
@@ -55,24 +62,22 @@ describe('appRoutes', () => {
     });
 
     it('shows the error screen, not the router default, when a route throws', async () => {
-        const failing = appRoutes.map(route =>
-            route.index
-                ? {
-                      ...route,
-                      element: (() => {
-                          const Throws = () => {
-                              throw new Error('boom');
-                          };
-                          return <Throws />;
-                      })(),
-                  }
-                : route
-        );
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-        render(<RouterProvider router={createMemoryRouter(failing, { initialEntries: ['/'] })} />);
+        render(<RouterProvider router={createMemoryRouter(withThrowingHome(), { initialEntries: ['/'] })} />);
 
         expect(await screen.findByRole('alert')).toBeTruthy();
         expect(screen.getByText('An Error Occurred')).toBeTruthy();
+        consoleError.mockRestore();
+    });
+
+    it("shows the error screen in the reader's language", async () => {
+        const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        await i18n.changeLanguage('ko');
+        render(<RouterProvider router={createMemoryRouter(withThrowingHome(), { initialEntries: ['/'] })} />);
+
+        expect(await screen.findByText('오류 발생')).toBeTruthy();
+        expect(screen.getByText('다시 시도')).toBeTruthy();
+        await i18n.changeLanguage('en');
         consoleError.mockRestore();
     });
 });

@@ -59,16 +59,16 @@ document says what it is or why.
    the landing README; each prints nothing when its rule holds.
 
 The change keeps every URL, redirect — including that an unknown path is pushed onto history rather
-than replaced — screen, and copy key and value. What changes is when code loads and what a route
-that throws shows (see Consequences). A table of every URL and where it ends up is a test now, and screenshots of each URL before
+than replaced — screen, and existing copy key and value. What changes is when code loads and what a route that
+throws shows (see Consequences) — the one addition to the copy is that screen's four keys. A table of every URL and where it ends up is a test now, and screenshots of each URL before
 and after were compared pixel by pixel.
 
 Three things stay different from the web app on purpose. The copy is bundled rather than fetched,
 because a crawler and a first-time visitor need it with the page. The route error screen is
 landing's own, because the shared one is built from UI-kit components whose design tokens this
 site's Tailwind config does not have; it looks its copy up under `error.screen.*` with English as
-the default, the same rule the shared screens follow, and landing's locale files carry no such keys
-yet. And there is no `docs/feature/` tree: the README is this app's documentation.
+the default, the same rule the shared screens follow, and its four keys carry the web app's values
+in both locale files. And there is no `docs/feature/` tree: the README is this app's documentation.
 
 ## Alternatives
 
@@ -106,5 +106,3 @@ yet. And there is no `docs/feature/` tree: the README is this app's documentatio
   `CommonRoutes.tsx` (lazy unless something is timed against its mount), a row in the URL table
   test, its paths in `ROUTES`, and its name added to the cross-feature grep, whose feature list is
   typed out and has to be kept current.
-- **The error screen reads English in both languages** until landing's locale files gain
-  `error.screen.*` keys; adding them changes no code.

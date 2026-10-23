@@ -105,5 +105,15 @@
         "privacy": "Privacy Policy",
         "child": "Child Safety & Operating Standards",
         "copyright": "Copyright 2026 LEMONCLOUD. All rights reserved."
+    },
+    "error": {
+        "screen": {
+            "unknown": {
+                "title": "An Error Occurred",
+                "description": "An unexpected error occurred.",
+                "primaryAction": "Try Again",
+                "secondaryAction": "Go Home"
+            }
+        }
     }
 }
