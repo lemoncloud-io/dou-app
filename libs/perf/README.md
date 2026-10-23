@@ -51,7 +51,7 @@ src/
   sampling.ts     PERF_SAMPLE_PERCENT · hashRunId · isSampledRun (the per-name run buckets)
   perfNow.ts      performance.now() where it exists, else Date.now()
   pageHides.ts    pageHideCount · isPageHidden — drop a measurement the page was hidden during
-  activeTraces.ts set/get/clear/endActivePerfTrace · endPerfTrace — one trace in progress per name
+  activeTraces.ts set/get/clearActivePerfTrace · endPerfTrace — one trace in progress per name
   backends/
     DeferredPerfTraceBackend.ts            holds calls until the destination is known
     FanOutPerfTraceBackend.ts              the same calls to several backends; one failing costs no other
@@ -177,11 +177,10 @@ trace in progress per name, keyed by what it is about (the channel, here).
   found by name; a module already holding it may still mark and stop it, and otherwise it is never
   stopped, which records nothing.
 - **`clearActivePerfTrace(name, trace)` clears only that trace**, so a module finishing an old trace
-  cannot clear the newer one that replaced it. `endActivePerfTrace(name, subject, outcome)` records
-  the outcome, stops the trace and clears it, for whichever module learns the measured thing is over.
-  `endPerfTrace(name, trace, outcome)` does the same to a handle the caller already holds: a module
-  ending the trace it took must not look it up by subject, which would end whichever trace replaced
-  it.
+  cannot clear the newer one that replaced it. `endPerfTrace(name, trace, outcome)` records the
+  outcome, stops the trace and frees the slot if it still holds it. It takes the handle rather than a
+  subject: a module ending the trace it took must not look it up by subject, which would end
+  whichever trace replaced it.
 - **`trace.hasMetric(key)`** lets the module that ends a trace ask whether a phase another module
   marks has been reached — the room page ends `chat_room_sync` on the first list emission after the
   sync marked `feed_done`.

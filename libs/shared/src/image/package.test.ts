@@ -1,4 +1,4 @@
-import { encodeTypeFor, isUploadableType, renameForType, THUMBNAIL_SUFFIX, toUploadFile } from './package';
+import { encodeTypeFor, isUploadableType, renameForType, toUploadFile } from './package';
 
 describe('encodeTypeFor — 나가는 형식', () => {
     it('투명도를 가진 형식은 자기 자신으로 남는다', () => {
@@ -47,7 +47,7 @@ describe('renameForType — 이름이 바이트를 따라간다', () => {
     });
 
     it('접미사가 파생본을 구분한다', () => {
-        expect(renameForType('photo.jpg', 'image/jpeg', THUMBNAIL_SUFFIX)).toBe('photo-thumb.jpg');
+        expect(renameForType('photo.jpg', 'image/jpeg', '-thumb')).toBe('photo-thumb.jpg');
     });
 });
 
@@ -69,7 +69,7 @@ describe('toUploadFile — 선언이 바이트와 맞는다', () => {
     it('썸네일은 원본과 이름이 겹치지 않는다', () => {
         const jpeg = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
 
-        const thumb = toUploadFile(new Blob(['y']), jpeg, 'image/jpeg', THUMBNAIL_SUFFIX);
+        const thumb = toUploadFile(new Blob(['y']), jpeg, 'image/jpeg', '-thumb');
 
         expect(thumb.name).not.toBe(jpeg.name);
     });

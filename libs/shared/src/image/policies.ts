@@ -1,4 +1,4 @@
-import { AVATAR_PROFILE, INLINE_PROFILE, REPORT_PROFILE, THUMBNAIL_PROFILE } from './profiles';
+import { AVATAR_PROFILE, REPORT_PROFILE, THUMBNAIL_PROFILE } from './profiles';
 import type { ImageRequest } from './types';
 
 /**
@@ -43,6 +43,3 @@ export const CHAT_ATTACHMENT = {
     original: { as: 'file' },
     thumbnail: { as: 'file', profile: THUMBNAIL_PROFILE, suffix: '-thumb' },
 } as const satisfies ImageRequest;
-
-/** The default inline budget, for a caller that needs a data URL but has no policy of its own. */
-export const INLINE_IMAGE = { image: { as: 'dataUrl', profile: INLINE_PROFILE } } as const satisfies ImageRequest;

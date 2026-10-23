@@ -68,7 +68,7 @@ flowchart TD
     UI["UI · libs/app-runtime · libs/shared"]:::ext
 
     Facade["ConfigFacade<br/><i>index.ts — the only public class</i>"]:::resl
-    React["react/<br/><i>useConfigValue · useConfigSnapshot</i>"]:::resl
+    React["react/<br/><i>useConfigValue</i>"]:::resl
 
     Registry["ConfigRegistry<br/><i>merge · findPolicyViolations</i>"]:::decl
     Modules["registry/ × 12<br/><i>90 ConfigEntry declarations</i>"]:::decl
@@ -152,7 +152,7 @@ libs/config/src/
 ├── adapters/           createWebEnvAdapter — the one adapter shared by all four Vite apps
 ├── utils/              serialize.ts — encodeValue · decodeValue · storageKeyFor
 ├── testing/            fixtures.ts — entry() · envAdapter() · memoryStorage() · ports()
-└── react/              useConfigValue · useConfigSnapshot
+└── react/              useConfigValue
 ```
 
 Three things you cannot guess from a filename. `RemotePayload` and `IRemoteConfigAdapter` live in
