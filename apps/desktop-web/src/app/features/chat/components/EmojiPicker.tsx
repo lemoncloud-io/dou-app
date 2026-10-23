@@ -20,7 +20,9 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
     const { t } = useTranslation();
     const recent = useRecentEmojiStore(s => s.recent);
     const remember = useRecentEmojiStore(s => s.remember);
-    const [categoryKey, setCategoryKey] = useState(EMOJI_CATEGORIES[0].key);
+    // The popover unmounts on close, so this runs on every open: lead with the recents tab
+    // when it exists (same condition that renders it), the first category otherwise.
+    const [categoryKey, setCategoryKey] = useState(recent.length > 0 ? 'recent' : EMOJI_CATEGORIES[0].key);
 
     const pick = (emoji: string) => {
         remember(emoji);

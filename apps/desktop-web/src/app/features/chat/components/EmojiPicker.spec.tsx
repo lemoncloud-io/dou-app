@@ -42,4 +42,19 @@ describe('EmojiPicker', () => {
         fireEvent.click(await screen.findByRole('button', { name: '😀' }));
         expect(onPick).toHaveBeenCalledWith('😀');
     });
+
+    it('opens on the recently used tab when there is something recent', async () => {
+        setup(vi.fn());
+
+        const recentTab = await screen.findByRole('tab', { name: i18next.t('emoji.recent') });
+        expect(recentTab.getAttribute('aria-selected')).toBe('true');
+    });
+
+    it('opens on the first category when nothing has been used yet', async () => {
+        useRecentEmojiStore.setState({ recent: [] });
+        setup(vi.fn());
+
+        const first = await screen.findByRole('tab', { name: i18next.t(`emoji.cat.${EMOJI_CATEGORIES[0].key}`) });
+        expect(first.getAttribute('aria-selected')).toBe('true');
+    });
 });
