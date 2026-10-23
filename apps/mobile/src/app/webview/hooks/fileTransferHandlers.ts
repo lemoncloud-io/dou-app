@@ -88,9 +88,9 @@ export const createFileTransferHandlers = (
     const handleWriteTempFile = async (message: WebMessageData<'WriteTempFile'>) => {
         const { base64, fileName } = message.data;
         // Refuse before the native call: the string is already whole in JS memory, and handing a
-        // larger one across spikes it again natively — there is no chunked path for this direction
-        // (readChunk serves reads only). TOO_LARGE is the same code the native pickers reject with;
-        // the web maps unknown codes to a generic failure, so this degrades to that, fast.
+        // larger one across spikes it again natively — there is no chunked path across the bridge.
+        // TOO_LARGE is the same code the native pickers reject with; the web maps unknown codes to a
+        // generic failure, so this degrades to that, fast.
         if (typeof base64 === 'string' && base64.length > base64LengthFor(MAX_WRITE_TEMP_FILE_BYTES)) {
             logger.warn('TRANSFER', 'temp file payload over the bridge limit', {
                 fileName,

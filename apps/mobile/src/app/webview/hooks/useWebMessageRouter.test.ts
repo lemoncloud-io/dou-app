@@ -55,7 +55,7 @@ jest.mock('./index', () => {
 });
 
 jest.mock('./useAppStateHandler', () => ({
-    useAppStateHandler: () => ({ handleFetchBackgroundStatus: jest.fn(), handleDismissResumeOverlay: jest.fn() }),
+    useAppStateHandler: () => ({ handleDismissResumeOverlay: jest.fn() }),
 }));
 
 const createBridgeMock = (): jest.Mocked<IAppBridgeHost> =>

@@ -4,7 +4,6 @@ import type {
     OnBackPressedPayload,
     OnChangeAppIconPayload,
     OnCheckAppUpdatePayload,
-    OnClearAppLogBufferPayload,
     OnClearCacheDataByChannelPayload,
     OnClearCacheDataPayload,
     OnClearConfigValuePayload,
@@ -17,8 +16,6 @@ import type {
     OnFetchAllTestRecordsPayload,
     OnFetchAppIconListPayload,
     OnFetchAppIconPayload,
-    OnFetchAppLogBufferPayload,
-    OnFetchAppLogBufferSizePayload,
     OnFetchBadgeBasePayload,
     OnFetchBadgeCountPayload,
     OnFetchPushMarksPayload,
@@ -33,7 +30,6 @@ import type {
     OnFetchPendingReportsPayload,
     OnFetchPreferencePayload,
     OnFetchProductsPayload,
-    OnFetchSafeAreaPayload,
     OnFetchTestRecordPayload,
     OnFinishPurchaseTransactionPayload,
     OnGetContactsPayload,
@@ -52,7 +48,6 @@ import type {
     OnDismissResumeOverlayPayload,
     OnFirstScreenReadyPayload,
     OnWebAppReadyPayload,
-    OnPollAppLogBufferPayload,
     OnPurchaseErrorPayload,
     OnPurchasePayload,
     OnPurchaseSuccessPayload,
@@ -118,7 +113,6 @@ import type { BaseMessage } from './types';
 export type AppMessageDataMap = {
     // 1. Device & System
     OnUpdateDeviceInfo: OnUpdateDeviceInfoPayload;
-    OnFetchSafeArea: OnFetchSafeAreaPayload;
     OnBackgroundStatusChanged: OnBackgroundStatusChangedPayload;
     OnSetCanGoBack: OnSetCanGoBackPayload;
     OnOpenSettings: OnOpenSettingsPayload;
@@ -216,10 +210,6 @@ export type AppMessageDataMap = {
 
     // 7. Common & Others
     OnWebAppReady: OnWebAppReadyPayload;
-    OnFetchAppLogBuffer: OnFetchAppLogBufferPayload;
-    OnPollAppLogBuffer: OnPollAppLogBufferPayload;
-    OnClearAppLogBuffer: OnClearAppLogBufferPayload;
-    OnFetchAppLogBufferSize: OnFetchAppLogBufferSizePayload;
     OnSendLog: OnSendLogPayload;
     OnFetchLogUploadQueue: OnFetchLogUploadQueuePayload;
     OnAckLogUploadQueue: OnAckLogUploadQueuePayload;

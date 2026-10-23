@@ -24,7 +24,7 @@ ADR-0097 §4 already settled this:
 0047 anticipated a draining consumer would eventually appear, but it did not assume that consumer would **target the
 same buffer as the breadcrumb**. The implementation did exactly that. `drainNative`
 (`apps/web/src/app/runtime/logUploader.ts:94`) calls `PollAppLogBuffer` → `logBuffer.poll()`
-([useLogBufferHandler.ts:37](../../apps/mobile/src/app/webview/hooks/useLogBufferHandler.ts:37)) on every flush,
+(`apps/mobile/src/app/webview/hooks/useLogBufferHandler.ts:37`) on every flush,
 sweeping the app buffer by `headroom()`. In steady state, headroom is 450+, which is effectively the whole buffer.
 
 Meanwhile the report breadcrumb reads the same buffer non-destructively via `fetchAppLogBuffer` → `peek()`

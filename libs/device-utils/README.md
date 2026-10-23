@@ -2,10 +2,10 @@
 
 **The one reader of the `window.CHATIC_APP_*` globals a shell injects into the page.** It normalises
 that untyped bag into the `DeviceInfo` and `VersionInfo` shapes `@chatic/app-messages` declares,
-publishes both from a single zustand store, and puts two React hooks over it. It also holds the two
+publishes both from a single zustand store, and puts a React hook over it. It also holds the two
 User-Agent prefixes a native shell stamps on its WebView.
 
-Seven files and 172 lines, and the size is the point. This is a contract surface, not a feature:
+Six files and 148 lines, and the size is the point. This is a contract surface, not a feature:
 three shells written in three languages inject the same globals with different spellings, and this is
 the one place where those spellings are reconciled into a typed value.
 
@@ -64,14 +64,15 @@ here is only what the shell asserted at page load.
 6. **One store for the whole page.** `useDeviceInfoStore` is created at module scope, so every
    consumer shares one record and a non-React caller can reach it with `getState()`. There is no
    provider to mount and no place to put a second instance.
-7. **A hook here derives; it does not gate a feature.** `useAppChecker` returns booleans and nothing
-   else. It currently has no importer anywhere in the repo, and principle-wise that is the right
-   default to keep: platform gating has one owner and it is `isNative()`.
+7. **A hook here reads; it does not gate a feature.** `useDeviceInfo` hands back the two records and
+   their sync action, nothing derived from them. Platform gating has one owner, and it is
+   `isNative()`; a hook of `isIOS` / `isOnMobileApp` booleans once sat here, was never imported, and
+   was removed rather than left as a second answer to that question.
 
 ## Scope
 
 **In** — reading the shell-injected globals, the stage vocabulary table, the `DeviceInfo` /
-`VersionInfo` records and the store that holds them, the two hooks over that store, and the
+`VersionInfo` records and the store that holds them, the hook over that store, and the
 User-Agent prefix constants.
 
 **Out** — the `DeviceInfo`, `VersionInfo`, `Env`, `Platform` and `PageLanguage` type declarations
@@ -99,7 +100,6 @@ flowchart TD
     Const["constants.ts<br/><i>UA prefixes</i>"]:::pure
 
     UseDev["hooks/useDeviceInfo"]:::hook
-    UseApp["hooks/useAppChecker<br/><i>no importer</i>"]:::hook
 
     Web["apps/web × 5 files"]:::ext
     Shared["libs/shared<br/><i>usePageTransition</i>"]:::ext
@@ -113,7 +113,6 @@ flowchart TD
     Store --> Env
     Store -.->|types| Msgs
     UseDev --> Store
-    UseApp --> UseDev
     Web --> UseDev
     Web --> Store
     Shared --> UseDev
@@ -163,11 +162,11 @@ from globals that were frozen at page load.
 libs/device-utils/src/
 ├── index.ts          public barrel — three lines of `export *`
 ├── constants.ts      two lines; the iOS and Android User-Agent prefixes
-├── hooks/            useDeviceInfo · useAppChecker + index
+├── hooks/            useDeviceInfo + index
 └── stores/           deviceInfoStore + index
 ```
 
-Three things the filenames do not tell you.
+Two things the filenames do not tell you.
 
 - **`stores/deviceInfoStore.ts` carries the ambient declarations.** The `declare global` block that
   types every `CHATIC_APP_*` key this lib reads, the `ENV_BY_INJECTED` table, `toEnv`, and
@@ -176,8 +175,6 @@ Three things the filenames do not tell you.
 - **`DeviceInfoStore` is exported, the record types are not.** `DeviceInfo` and `VersionInfo` come
   from `@chatic/app-messages` and are re-exported by nothing here, so a consumer that needs to name
   one imports it from there.
-- **`hooks/useAppChecker.ts` is derivation only.** Four values off `deviceInfo`, no store access of
-  its own, and — measured across `apps` and `libs` — no importer.
 
 ## Usage
 
@@ -254,21 +251,17 @@ records that the boot-time `CHATIC_APP_SHOULD_UPDATE` injection is not one of it
 `apps/desktop`'s preload injects `CHATIC_APP_PLATFORM: 'desktop'`, and `'desktop'` is not a member of
 `@chatic/app-messages`' `Platform` union (`ios | android | windows | macos | web`). The store's
 `as Platform` cast lets it through, so `deviceInfo.platform` reads `'desktop'` at run time while the
-compiler believes otherwise. Both `isIOS` and `isAOS` are false, and `isOnMobileApp` is false too,
-since the injected application name is `'chatic-desktop'`. Desktop also injects no
+compiler believes otherwise. A check for `'ios'` or `'android'` is false there, as it should be, and
+the injected application name is `'chatic-desktop'`. Desktop also injects no
 `CHATIC_APP_UNIQUE_DEVICE_ID` and no `CHATIC_APP_FIREBASE_INSTALLATION_ID`, so both fields stay
 `undefined` there while mobile fills them.
 
-### 5. `deviceToken` is read and never written
+### 5. There is no push token here
 
-`syncDeviceAndVersionInfo` reads `window.CHATIC_APP_DEVICE_TOKEN` into `DeviceInfo.deviceToken`. No
-shell injects that key — this lib is the only file in the repo that names it — so the field is always
-`undefined`. The real push token is fetched over the bridge by `apps/web`'s
-`useDeviceTokenRegistration`, which never goes through this store.
-
-```bash
-grep -rn "CHATIC_APP_DEVICE_TOKEN" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
-```
+`DeviceInfo` carries no `deviceToken`, and this lib reads no token global. No shell ever injected
+one: the token is minted and rotated after the page has loaded, which a boot-time global cannot
+follow. `apps/web`'s `useDeviceTokenRegistration` asks the shell for it over the bridge
+(`FetchFcmToken`) instead, and never goes through this store.
 
 ### 6. The User-Agent prefix, imported only by its writer
 

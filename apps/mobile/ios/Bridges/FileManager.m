@@ -45,50 +45,6 @@ RCT_EXPORT_METHOD(exists:(NSString *)path
     resolve(@(exists));
 }
 
-RCT_EXPORT_METHOD(readChunk:(NSString *)path
-                  length:(nonnull NSNumber *)length
-                  offset:(nonnull NSNumber *)offset
-                  resolve:(RCTPromiseResolveBlock)resolve
-                  reject:(RCTPromiseRejectBlock)reject) {
-    @try {
-        NSString *cleanPath = [self getCleanPath:path];
-        if (!cleanPath || ![[NSFileManager defaultManager] fileExistsAtPath:cleanPath]) {
-            NSString *errDesc = [NSString stringWithFormat:@"File does not exist at path: %@ (Cleaned: %@)", path, cleanPath ?: @"nil"];
-            reject(@"FILE_NOT_FOUND", errDesc, nil);
-            return;
-        }
-
-        NSFileHandle *fileHandle = [NSFileHandle fileHandleForReadingAtPath:cleanPath];
-        if (!fileHandle) {
-            reject(@"READ_FAILED", @"Failed to open file for reading", nil);
-            return;
-        }
-
-        unsigned long long fileSize = [fileHandle seekToEndOfFile];
-        unsigned long long readOffset = [offset unsignedLongLongValue];
-        unsigned long long readLength = [length unsignedLongLongValue];
-
-        if (readOffset >= fileSize) {
-            [fileHandle closeFile];
-            resolve(@"");
-            return;
-        }
-
-        if (readOffset + readLength > fileSize) {
-            readLength = fileSize - readOffset;
-        }
-
-        [fileHandle seekToFileOffset:readOffset];
-        NSData *data = [fileHandle readDataOfLength:(NSUInteger)readLength];
-        [fileHandle closeFile];
-
-        NSString *base64 = [data base64EncodedStringWithOptions:0];
-        resolve(base64);
-    } @catch (NSException *exception) {
-        reject(@"READ_FAILED", exception.reason, nil);
-    }
-}
-
 RCT_EXPORT_METHOD(readFile:(NSString *)path
                   resolve:(RCTPromiseResolveBlock)resolve
                   reject:(RCTPromiseRejectBlock)reject) {

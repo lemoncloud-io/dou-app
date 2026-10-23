@@ -36,25 +36,3 @@ export interface IMessageQueue<T> {
     clear(): void;
     getAll(): T[];
 }
-
-export interface BridgeFailureConfig {
-    code?: string;
-    message?: string;
-    recoverable?: boolean;
-}
-
-export interface EnvironmentConfig {
-    /** The Web -> App -> Web round-trip delay. */
-    rttDelayMs?: number;
-    /** If true, returns a bridge-level failure response for every request without going through the App host. */
-    forceFailure?: boolean | BridgeFailureConfig;
-    /** If true, the request is never sent to the App host, so WebBridgeClient's timeout can be verified. */
-    timeoutMode?: boolean;
-    /** A value between 0 and 1. Drops messages at that probability. */
-    dropRate?: number;
-    /** If true, forces a response type mismatch to occur. */
-    responseTypeMismatch?: boolean | string;
-    /** If true, forces a malformed bridge response to occur. */
-    malformedResponse?: boolean;
-    random?: () => number;
-}

@@ -22,6 +22,9 @@ const DESKTOP_APP_EVENTS = {
     OnUpdateStatus: { emittedBy: ['main/updater.ts'], test: 'main/updater.test.ts' },
     OnBackPressed: { notEmitted: 'No hardware back button; the renderer handles keyboard and mouse back itself' },
     OnNavigate: { notEmitted: "Deeplinks reach the web as OnReceiveNotification's data.deeplink, which it routes" },
+    OnBackgroundStatusChanged: {
+        notEmitted: "The phone's app-state push; desktop-web reads window visibility from the page itself",
+    },
     OnUpdateDeviceInfo: {
         notEmitted: 'A phone store version check; the desktop reports its updates as OnUpdateStatus',
     },
