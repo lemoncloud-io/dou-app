@@ -43,13 +43,20 @@ no manual startup delay is needed.
 
 A `https` link opens the app only when the OS sees the tap and finds the app claiming that path:
 
-| Link                    | iOS                                    | Android (`AndroidManifest.xml`)                 |
-| ----------------------- | -------------------------------------- | ----------------------------------------------- |
-| `/i?t=…`                | the association file claims every path | `android:path="/i"`, exact                      |
-| `/s?code=…`             | same                                   | `android:path="/s"`, exact                      |
-| `/s/`, `/s/{code}`      | same                                   | `android:pathPattern="/s/.*"`                   |
-| `/auth/…`               | same                                   | `android:pathPattern="/auth/.*"`                |
-| `chatic://…` (any path) | the custom scheme in `Info.plist`      | the custom-scheme filter, no host or path limit |
+| Link                    | iOS (`apple-app-site-association`) | Android (`AndroidManifest.xml`)                 |
+| ----------------------- | ---------------------------------- | ----------------------------------------------- |
+| `/i?t=…`                | `"/i"`                             | `android:path="/i"`, exact                      |
+| `/s?code=…`             | `"/s"`                             | `android:path="/s"`, exact                      |
+| `/s/`, `/s/{code}`      | `"/s/*"`                           | `android:pathPattern="/s/.*"`                   |
+| `/auth/…`               | `"/auth/*"`                        | `android:pathPattern="/auth/.*"`                |
+| `chatic://…` (any path) | the custom scheme in `Info.plist`  | the custom-scheme filter, no host or path limit |
+
+**The two platforms claim the same paths, and nothing else on the host.** The host is the landing
+site, so a claim on any other path takes that page away from anyone with the app installed. The
+association file used to claim `*`, and an iPhone app installed on a Mac from the App Store then
+opened in place of the landing page itself, in Safari, on `/`. The iOS list lives in the landing
+app's `public/.well-known/` and reaches users with a landing deploy, not an app release — though
+Apple's CDN caches the file, so a device can keep the old list for a while.
 
 **A query string is not part of the path Android matches.** `/s?code=…` has the path `/s`, which a
 `/s/.*` pattern does not match — that filter alone, written for the retired `/s/{code}` shape, left
@@ -163,7 +170,7 @@ while a real device breaks.
 - Does any new path/query assembly avoid RN `URL`'s `searchParams.set()` + `.search` pattern? (see
   the pitfall above)
 - Does a new link path have its Android filter — an exact `android:path` for a link whose data is in
-  the query? iOS is covered by the association file's `*`.
+  the query — and the same path in the landing app's `apple-app-site-association`?
 - Is a new deep-link kind reflected in `resolveDeepLink` (native) and in whatever consumes `resolveInbound` on the web side?
 - Is an invite link's output a host-less relative path, with the frontend domain never recomputed
   outside `WEBVIEW_URL`?

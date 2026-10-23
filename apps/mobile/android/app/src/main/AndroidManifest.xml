@@ -100,7 +100,8 @@
                 `/invite/accept` and every `/images/...` URL on the same host, pulling pages into
                 the app that were never meant to open here.
 
-                iOS needs no counterpart — its association file already claims every path.
+                iOS claims the same paths in the landing app's apple-app-site-association; a path
+                added here goes there too.
             -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />

@@ -4,11 +4,11 @@
     "details": [
       {
         "appID": "REDACTED_TEAM_ID.io.chatic.dou",
-        "paths": [ "*" ]
+        "paths": [ "/i", "/s", "/s/*", "/auth/*" ]
       },
       {
         "appID": "REDACTED_TEAM_ID.io.chatic.dou.dev",
-        "paths": [ "*" ]
+        "paths": [ "/i", "/s", "/s/*", "/auth/*" ]
       }
     ]
   }
