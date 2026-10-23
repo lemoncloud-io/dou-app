@@ -84,15 +84,6 @@
                     android:host="${appHost}"
                     android:pathPattern="/s/.*" />
             </intent-filter>
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="https"
-                    android:host="${appHost}"
-                    android:pathPattern="/auth/.*" />
-            </intent-filter>
             <!--
                 Encoded invite links. `android:path` is an EXACT match, and that is the point twice
                 over: the link is `/i?t=...`, whose path is exactly `/i` with nothing appended (a
@@ -100,7 +91,8 @@
                 `/invite/accept` and every `/images/...` URL on the same host, pulling pages into
                 the app that were never meant to open here.
 
-                iOS needs no counterpart — its association file already claims every path.
+                iOS claims the same paths in the landing app's apple-app-site-association; a path
+                added here goes there too.
             -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
