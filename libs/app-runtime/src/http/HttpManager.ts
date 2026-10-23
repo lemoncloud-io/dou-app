@@ -2,6 +2,7 @@ import { logger } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { recordTelemetry, redactSensitive, truncate } from '@chatic/logger';
 import {
+    apiBackendOf,
     createHttpClient,
     createPerMinuteCap,
     toApiRequestSample,
@@ -60,7 +61,12 @@ const createNetworkLogSink = (): HttpLogSink => {
     // here would turn a success into a failure, or replace a failure's error.
     const measure = (fields: NetworkLogFields): void => {
         try {
-            if (apiRequestCap()) recordTelemetry('sample', 'api_request', toApiRequestSample(fields));
+            if (!apiRequestCap()) return;
+            const backend = apiBackendOf(fields.url, {
+                relay: ENDPOINT_RESOLVERS.relay(),
+                others: [ENDPOINT_RESOLVERS.oauth(), ENDPOINT_RESOLVERS.iap()],
+            });
+            recordTelemetry('sample', 'api_request', toApiRequestSample(fields, backend));
         } catch {
             /* the measurement is lost, the request is not */
         }

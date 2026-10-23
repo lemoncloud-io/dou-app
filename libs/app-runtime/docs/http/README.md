@@ -147,7 +147,10 @@ Every request the sink sees is also an **`api_request` statistic** — 10 a minu
 through `@chatic/logger`'s process recorder, so only when the host has set one and its sampling policy
 keeps the run. Its dimensions are the endpoint **template** (`/clouds/:id/release`: the path only, ids
 replaced by `:id`, the query dropped — `@chatic/http`'s `endpointTemplateOf` lists what counts as an
-id), the method, the status class (`2xx`…`5xx`, `none` without a response) and the outcome; its
+id), the method, the status class (`2xx`…`5xx`, `none` without a response), the outcome and the
+`backend` — `relay` for a request under the relay endpoint, `cloud` for one sent to a cloud's own
+backend (any other host: those are the requests that carry the host their token or invite names), and
+absent for the OAuth and in-app-purchase hosts. The host itself is never carried. Its
 metrics are the round trip and, when the server sent `content-length`, the response size on the wire
 (compressed when the response was; absent on a chunked response). The size is kept out of the log
 line. Samples are per attempt — a request replayed after its credential was recovered records both

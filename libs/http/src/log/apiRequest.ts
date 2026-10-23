@@ -6,7 +6,7 @@ import type { NetworkLogFields } from './networkLog';
  * to the request itself.
  */
 export interface ApiRequestSample {
-    attrs: { endpoint: string; method: string; status_class: string; outcome: string };
+    attrs: { endpoint: string; method: string; status_class: string; outcome: string; backend?: ApiBackend };
     metrics: { rtt_ms: number; res_bytes?: number };
 }
 
@@ -55,16 +55,58 @@ export const endpointTemplateOf = (url: string): string => {
     return template.slice(0, MAX_ENDPOINT_LENGTH) || '/';
 };
 
+/**
+ * Which kind of server a request went to: the relay, or a customer cloud's own backend.
+ *
+ * The endpoint template keeps no host (see {@link endpointTemplateOf}), so without this a
+ * `/oauth/login-invite` sent to the relay and the same path sent to a cloud's backend would read as
+ * one. Two values, not a host: one group per cloud would split the statistic the way a host would.
+ */
+export type ApiBackend = 'relay' | 'cloud';
+
+/** The configured hosts a request URL is compared against. */
+export interface ApiBackendEndpoints {
+    /** The relay's endpoint. */
+    relay: string;
+    /**
+     * The other services this app talks to that are neither the relay nor a cloud (the OAuth and
+     * in-app-purchase hosts). A request to one of them gets no `backend`.
+     */
+    others: readonly string[];
+}
+
+const isUnder = (url: string, endpoint: string): boolean => {
+    const base = endpoint.replace(/\/+$/, '');
+    return !!base && (url === base || url.startsWith(`${base}/`) || url.startsWith(`${base}?`));
+};
+
+/**
+ * `relay` for a request under the relay's endpoint, `cloud` for any other absolute http(s) URL, and
+ * `undefined` for one of the {@link ApiBackendEndpoints.others} or a URL that is not absolute.
+ *
+ * "Any other" is `cloud` because of how requests are addressed here: every gateway builds its URL
+ * from a configured endpoint, except the ones that go to a cloud's backend, which carry the host the
+ * cloud's token or invite names. A cloud backend that shares the relay's host reads `relay` — the
+ * request did go to the relay's server.
+ */
+export const apiBackendOf = (url: string, endpoints: ApiBackendEndpoints): ApiBackend | undefined => {
+    if (!/^https?:\/\//i.test(url)) return undefined;
+    if (isUnder(url, endpoints.relay)) return 'relay';
+    if (endpoints.others.some(endpoint => isUnder(url, endpoint))) return undefined;
+    return 'cloud';
+};
+
 /** `2xx` … `5xx`, or `none` when no response came back. */
 export const statusClassOf = (status: number | undefined): string =>
     status !== undefined && status >= 100 && status <= 599 ? `${Math.floor(status / 100)}xx` : 'none';
 
-export const toApiRequestSample = (fields: NetworkLogFields): ApiRequestSample => ({
+export const toApiRequestSample = (fields: NetworkLogFields, backend?: ApiBackend): ApiRequestSample => ({
     attrs: {
         endpoint: endpointTemplateOf(fields.url),
         method: String(fields.method).toUpperCase(),
         status_class: statusClassOf(fields.status),
         outcome: fields.outcome === 'success' ? 'ok' : 'error',
+        ...(backend ? { backend } : {}),
     },
     metrics: {
         rtt_ms: Math.max(0, Math.round(fields.durationMs)),

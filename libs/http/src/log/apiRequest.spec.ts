@@ -1,4 +1,4 @@
-import { createPerMinuteCap, endpointTemplateOf, statusClassOf, toApiRequestSample } from './apiRequest';
+import { apiBackendOf, createPerMinuteCap, endpointTemplateOf, statusClassOf, toApiRequestSample } from './apiRequest';
 
 describe('endpointTemplateOf', () => {
     it.each([
@@ -51,6 +51,12 @@ describe('toApiRequestSample', () => {
         });
     });
 
+    it('carries the backend when one is given, and leaves the key out when not', () => {
+        const fields = { outcome: 'success' as const, method: 'get', url: 'https://x/a', durationMs: 1, status: 200 };
+        expect(toApiRequestSample(fields, 'cloud').attrs.backend).toBe('cloud');
+        expect(toApiRequestSample(fields).attrs).not.toHaveProperty('backend');
+    });
+
     it('leaves the size out when the response carried none', () => {
         const sample = toApiRequestSample({ outcome: 'error', method: 'POST', url: 'https://x/a', durationMs: 5 });
         expect(sample.attrs).toMatchObject({ status_class: 'none', outcome: 'error' });
@@ -66,5 +72,29 @@ describe('createPerMinuteCap', () => {
         expect([cap(), cap(), cap()]).toEqual([true, true, false]);
         now = 60_000;
         expect(cap()).toBe(true);
+    });
+});
+
+describe('apiBackendOf', () => {
+    const endpoints = { relay: 'https://api.dou.test/d1', others: ['https://oauth.dou.test', 'https://iap.dou.test/'] };
+
+    it('is relay for a request under the relay endpoint, path prefix included', () => {
+        expect(apiBackendOf('https://api.dou.test/d1/clouds/0/list', endpoints)).toBe('relay');
+        expect(apiBackendOf('https://api.dou.test/d1', endpoints)).toBe('relay');
+    });
+
+    it('is cloud for any other absolute host, including a sibling path of the relay host', () => {
+        expect(apiBackendOf('https://c1000002.cloud.test/oauth/exchange-token', endpoints)).toBe('cloud');
+        expect(apiBackendOf('https://api.dou.test/d10/clouds', endpoints)).toBe('cloud');
+    });
+
+    it('names no backend for the oauth and iap hosts, or for a URL that is not absolute', () => {
+        expect(apiBackendOf('https://oauth.dou.test/oauth/google/token', endpoints)).toBeUndefined();
+        expect(apiBackendOf('https://iap.dou.test/validate/apple', endpoints)).toBeUndefined();
+        expect(apiBackendOf('/clouds/0/list', endpoints)).toBeUndefined();
+    });
+
+    it('names no relay when the relay endpoint is not configured', () => {
+        expect(apiBackendOf('https://api.dou.test/d1/x', { relay: '', others: [] })).toBe('cloud');
     });
 });

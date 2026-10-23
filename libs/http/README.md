@@ -169,8 +169,7 @@ libs/http/src/
 ├── gateways/                    5 domain gateways + the telemetry-policy port + types.ts + index.ts
 ├── error/                       classify · credentialStale · attribution · recovery (4 files)
 ├── log/networkLog.ts            withNetworkLog + the HttpLogSink contract
-├── log/apiRequest.ts            endpointTemplateOf · statusClassOf · toApiRequestSample · createPerMinuteCap
-├── log/apiRequest.ts            endpointTemplateOf · statusClassOf · toApiRequestSample · createPerMinuteCap
+├── log/apiRequest.ts            endpointTemplateOf · apiBackendOf · statusClassOf · toApiRequestSample · createPerMinuteCap
 ├── policy/                      bypass.ts · retry.ts
 └── utils/browserNetwork.ts      isBrowserOffline — the only place this lib reads `navigator`
 ```
