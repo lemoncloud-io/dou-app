@@ -481,3 +481,63 @@ describe('parseReportLog — 추적·파셋 축', () => {
         expect(row.parseError).toBe(false);
     });
 });
+
+describe('parseReportLog — statistics fields', () => {
+    const logEntry = (meta: Record<string, unknown>) =>
+        parseReportLog({
+            id: 'x',
+            createdAt: 1,
+            stereo: 'log',
+            meta: { level: 'info', message: 'm', timestamp: 2, ...meta },
+        });
+
+    it('reads kind and the structured fields of a statistic', () => {
+        const parsed = logEntry({
+            tag: 'perf.chat_room_open',
+            area: 'perf',
+            kind: 'trace',
+            durationMs: 381,
+            attrs: { entry: 'list', bad: 3 },
+            metrics: { mount: 327, junk: 'x' },
+            sr: 0.5,
+            pv: 2,
+            seq: 7,
+            routeTemplate: '/channels/:id/room',
+            sessionId: 's1',
+            platform: 'ios',
+            host: 'app',
+        });
+
+        expect(parsed).toMatchObject({
+            recordKind: 'trace',
+            area: 'perf',
+            durationMs: 381,
+            attrs: { entry: 'list' },
+            metrics: { mount: 327 },
+            sr: 0.5,
+            pv: 2,
+            seq: 7,
+            routeTemplate: '/channels/:id/room',
+            sessionId: 's1',
+            platform: 'ios',
+            host: 'app',
+        });
+    });
+
+    it('derives the area from a tag when the entry carries none, the clients way', () => {
+        expect(logEntry({ tag: 'SOCKET' }).area).toBe('socket');
+        expect(logEntry({ tag: 'socket.reconnect_failed' }).area).toBe('socket');
+    });
+
+    it('reads httpStatus and errorCode on a log, and adds no statistics keys to it', () => {
+        const parsed = logEntry({ tag: 'NET', httpStatus: 401, errorCode: 'ERR_NETWORK' });
+
+        expect(parsed).toMatchObject({ httpStatus: 401, errorCode: 'ERR_NETWORK' });
+        expect(parsed).not.toHaveProperty('recordKind');
+        expect(parsed).not.toHaveProperty('durationMs');
+    });
+
+    it('ignores an unknown kind', () => {
+        expect(logEntry({ tag: 'x', kind: 'metric' })).not.toHaveProperty('recordKind');
+    });
+});

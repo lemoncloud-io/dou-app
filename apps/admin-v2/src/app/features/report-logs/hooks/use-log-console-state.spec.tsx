@@ -212,3 +212,51 @@ describe('useLogConsoleState — 클라이언트 축 초기화', () => {
         expect(next.get('level')).toBe('error');
     });
 });
+
+describe('useLogConsoleState — records, statistics view, timeline kinds', () => {
+    it('shows logs by default and keeps the default out of the URL', () => {
+        const search = setup();
+        expect(api.client.record).toBe('log');
+
+        act(() => api.setRecord('stats'));
+        expect(params(search()).get('record')).toBe('stats');
+
+        act(() => api.setRecord('log'));
+        expect(params(search()).has('record')).toBe(false);
+    });
+
+    it('restores the record filter and the statistics view from a link', () => {
+        setup('/report-logs?record=event&mode=stats&stat=perf.boot&measure=durationMs&by=attr:boot_type');
+
+        expect(api.client.record).toBe('event');
+        expect(api.mode).toBe('stats');
+        expect(api.stats).toEqual({ tag: 'perf.boot', measure: 'durationMs', by: 'attr:boot_type' });
+    });
+
+    it('falls back to logs for a record value it does not know', () => {
+        setup('/report-logs?record=bogus');
+        expect(api.client.record).toBe('log');
+    });
+
+    it('toggles timeline kinds, and writes "none" rather than an empty list', () => {
+        const search = setup();
+        expect(api.timelineKinds).toEqual(['log', 'trace', 'sample', 'event']);
+
+        act(() => api.toggleTimelineKind('log'));
+        expect(params(search()).get('show')).toBe('trace,sample,event');
+        for (const kind of ['trace', 'sample', 'event'] as const) act(() => api.toggleTimelineKind(kind));
+        expect(params(search()).get('show')).toBe('none');
+        expect(api.timelineKinds).toEqual([]);
+
+        act(() => api.toggleTimelineKind('trace'));
+        expect(api.timelineKinds).toEqual(['trace']);
+    });
+
+    it('clears the record filter with the other client narrowings', () => {
+        const search = setup('/report-logs?record=stats&q=boot');
+        act(() => api.clearClientAxes());
+
+        expect(params(search()).has('record')).toBe(false);
+        expect(params(search()).has('q')).toBe(false);
+    });
+});

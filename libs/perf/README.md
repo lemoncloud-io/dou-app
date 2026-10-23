@@ -81,7 +81,7 @@ is set against that exact string, so a typo must not open a second row that nobo
 | `state_outbox`    | — a sample (see below)                        | —                                        | none yet                       |
 | `invite_accept`   | Accept pressed, or a step resuming it         | the hand-over, or a stop for input       | none yet                       |
 | `long_tasks`      | — a sample, pipeline only (not recorded yet)  | —                                        | none yet                       |
-| `api_request`     | — a sample, pipeline only (not recorded yet)  | —                                        | none yet                       |
+| `api_request`     | — a sample, pipeline only (the HTTP layer)    | —                                        | none yet                       |
 | `screen_render`   | route entry, pipeline only (not recorded yet) | the screen's first meaningful paint      | none yet                       |
 
 The targets are not in code. They are judged in the Firebase console, where each is configured as a

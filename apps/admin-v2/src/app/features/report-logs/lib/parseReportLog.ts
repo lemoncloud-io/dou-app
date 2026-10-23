@@ -138,6 +138,26 @@ export interface ReportLogRow {
     osVersion?: string;
     /** Device model identifier, e.g. `iPhone16`. */
     model?: string;
+
+    // ── Log-pipeline entries only. Absent on reports and on entries from builds before these fields. ──
+
+    /** `trace` · `sample` · `event` for a statistic; absent (or `log`) for a log. */
+    recordKind?: 'log' | 'trace' | 'sample' | 'event';
+    /** The tag's area — stored by newer clients, derived from the tag otherwise. */
+    area?: string;
+    durationMs?: number;
+    attrs?: Record<string, string>;
+    metrics?: Record<string, number>;
+    /** The sampling rate the statistic was kept at; a count is weighed by `1 / sr`. */
+    sr?: number;
+    pv?: number;
+    seq?: number;
+    routeTemplate?: string;
+    sessionId?: string;
+    platform?: string;
+    host?: string;
+    httpStatus?: number;
+    errorCode?: string;
 }
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -300,6 +320,67 @@ const parseLogData = (value: unknown): unknown => {
  * applies here, unlike the Slack report shapes `parseReportLog` otherwise
  * handles.
  */
+const RECORD_KINDS = ['log', 'trace', 'sample', 'event'] as const;
+
+const asNumber = (value: unknown): number | undefined =>
+    typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+
+const asString = (value: unknown): string | undefined => (typeof value === 'string' && value ? value : undefined);
+
+const asStringMap = (value: unknown): Record<string, string> | undefined => {
+    if (!isObject(value)) return undefined;
+    const out = Object.fromEntries(Object.entries(value).filter(([, v]) => typeof v === 'string')) as Record<
+        string,
+        string
+    >;
+    return Object.keys(out).length ? out : undefined;
+};
+
+const asNumberMap = (value: unknown): Record<string, number> | undefined => {
+    if (!isObject(value)) return undefined;
+    const out = Object.fromEntries(Object.entries(value).filter(([, v]) => asNumber(v) !== undefined)) as Record<
+        string,
+        number
+    >;
+    return Object.keys(out).length ? out : undefined;
+};
+
+/**
+ * The tag's area by the clients' own rule: before the first dot, or the whole dot-less tag lower-cased.
+ * Applied here too because entries from builds before `area` was sent carry none, and an area filter
+ * has to put `SOCKET` and `socket.reconnect_failed` together.
+ */
+export const areaOfTag = (tag?: string): string | undefined => {
+    if (!tag) return undefined;
+    const dot = tag.indexOf('.');
+    return dot > 0 ? tag.slice(0, dot) : tag.toLowerCase();
+};
+
+/** So a row from an older client gains no `durationMs: undefined` keys (rows are compared whole). */
+const dropUndefined = <T extends object>(value: T): Partial<T> =>
+    Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as Partial<T>;
+
+/** The statistics fields of a log-pipeline entry, read defensively — the store keeps whatever arrived. */
+const readTelemetryFields = (metaObj: Record<string, unknown>, tag?: string): Partial<ReportLogRow> =>
+    dropUndefined({
+        recordKind: (RECORD_KINDS as readonly unknown[]).includes(metaObj.kind)
+            ? (metaObj.kind as ReportLogRow['recordKind'])
+            : undefined,
+        area: asString(metaObj.area) ?? areaOfTag(tag),
+        durationMs: asNumber(metaObj.durationMs),
+        attrs: asStringMap(metaObj.attrs),
+        metrics: asNumberMap(metaObj.metrics),
+        sr: asNumber(metaObj.sr),
+        pv: asNumber(metaObj.pv),
+        seq: asNumber(metaObj.seq),
+        routeTemplate: asString(metaObj.routeTemplate),
+        sessionId: asString(metaObj.sessionId),
+        platform: asString(metaObj.platform),
+        host: asString(metaObj.host),
+        httpStatus: asNumber(metaObj.httpStatus),
+        errorCode: asString(metaObj.errorCode),
+    });
+
 const parseLogEntryRow = (mock: RawMockView, metaObj: Record<string, unknown>): ReportLogRow => {
     // Read straight from the entry: `isLogEntryShape` already established that
     // `meta.level` is a string, so a hoist fallback could only fire for the empty string
@@ -333,6 +414,7 @@ const parseLogEntryRow = (mock: RawMockView, metaObj: Record<string, unknown>): 
         os: readAxis(metaObj, mock, 'os'),
         osVersion: readAxis(metaObj, mock, 'osVersion'),
         model: readAxis(metaObj, mock, 'model'),
+        ...readTelemetryFields(metaObj, tag),
     };
 };
 

@@ -401,3 +401,92 @@ describe('ReportLogsPage — 발생 시각', () => {
         expect(screen.getByText('lag')).toBeTruthy();
     });
 });
+
+describe('ReportLogsPage — statistics', () => {
+    const traceEntry = (durationMs: number, runId = 'run-a') =>
+        entry({
+            level: 'info',
+            tag: 'perf.chat_room_open',
+            message: 'chat_room_open',
+            kind: 'trace',
+            durationMs,
+            attrs: { entry: 'list' },
+            sr: 1,
+            runId,
+        });
+
+    it('lists logs only by default, and statistics when asked', async () => {
+        servePage([entry({ message: 'a log line' }), traceEntry(381)]);
+
+        renderPage();
+        expect(await screen.findByText('a log line')).toBeTruthy();
+        expect(screen.queryByText('chat_room_open')).toBeNull();
+
+        fireEvent.change(screen.getByLabelText('Records'), { target: { value: 'stats' } });
+        expect(await screen.findByText('chat_room_open')).toBeTruthy();
+        expect(screen.queryByText('a log line')).toBeNull();
+    });
+
+    it('summarizes a trace in the statistics view, whatever the list shows', async () => {
+        servePage([traceEntry(100), traceEntry(200), traceEntry(300), entry()]);
+
+        renderPage('/report-logs?mode=stats');
+
+        const table = await screen.findByRole('table');
+        const total = within(table).getAllByRole('row')[1];
+        expect(within(total).getByText('(all)')).toBeTruthy();
+        // n, est., users, then p50 · p75 · p95 · p99 · mean.
+        const cells = within(total)
+            .getAllByRole('cell')
+            .map(cell => cell.textContent);
+        // [100, 200, 300] interpolated: p75 h = 1.5 → 250, p95 h = 1.9 → 290, p99 h = 1.98 → 298.
+        expect(cells).toEqual(['(all)', '3', '3', '1', '200 ms', '250 ms', '290 ms', '298 ms', '200 ms']);
+    });
+
+    it('says there are no statistics rather than showing zeros', async () => {
+        servePage([entry()]);
+
+        renderPage('/report-logs?mode=stats');
+
+        expect(await screen.findByText(/No statistics in the collected rows/)).toBeTruthy();
+    });
+
+    it('puts a run’s logs and traces on one timeline, with toggles per kind', async () => {
+        servePage([entry({ message: 'a log line' }), traceEntry(381)]);
+
+        renderPage('/report-logs?runId=run-a&mode=timeline');
+
+        expect(await screen.findByText('a log line')).toBeTruthy();
+        expect(screen.getByText('381ms')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Traces' }));
+        expect(screen.queryByText('381ms')).toBeNull();
+        expect(screen.getByText('a log line')).toBeTruthy();
+    });
+});
+
+describe('ReportLogsPage — statistics review fixes', () => {
+    it('does not offer a tag only statistics carry while the list shows logs', async () => {
+        servePage([
+            entry({ tag: 'AUTH', message: 'a log line' }),
+            entry({ tag: 'SOCKET', message: 'other line' }),
+            entry({ level: 'info', tag: 'perf.boot', message: 'boot', kind: 'trace', durationMs: 900 }),
+        ]);
+
+        renderPage();
+        await screen.findByText('a log line');
+
+        const tagSelect = screen.getByLabelText(/^Tag \(/) as HTMLSelectElement;
+        expect([...tagSelect.options].map(o => o.value)).not.toContain('perf.boot');
+    });
+
+    it('keeps the timeline toggles when the kinds shown hide everything this run holds', async () => {
+        servePage([entry({ message: 'only a log' })]);
+
+        renderPage('/report-logs?runId=run-a&mode=timeline&show=trace');
+
+        expect(await screen.findByText('No records for this run.')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Logs' }));
+        expect(await screen.findByText('only a log')).toBeTruthy();
+    });
+});

@@ -29,6 +29,18 @@ describe('rowsToCsv', () => {
         ...over,
     });
 
+    it('carries the statistics fields, blank on a log', () => {
+        const csv = rowsToCsv([
+            row({ recordKind: 'trace', durationMs: 381, attrs: { entry: 'list' }, metrics: { mount: 3 }, sr: 0.5 }),
+            row({}),
+        ]);
+        const [header, stat, log] = csv.split('\n');
+        expect(header).toContain('"kind","durationMs","attrs","metrics","sr"');
+        expect(stat).toContain('"trace","381"');
+        expect(stat).toContain('"{""entry"":""list""}"');
+        expect(log).toContain('"","","","",""');
+    });
+
     it('emits a header + one line per row', () => {
         const csv = rowsToCsv([row({ id: 'a', message: 'hi' })]);
         const [header, line] = csv.split('\n');

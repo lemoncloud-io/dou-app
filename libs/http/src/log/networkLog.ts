@@ -31,6 +31,11 @@ export interface NetworkLogFields {
     status?: number;
     errorCode?: string;
     responseData?: unknown;
+    /**
+     * The response's `content-length`, when the server sent one: the size on the wire (compressed when
+     * the response was), and absent on a chunked response.
+     */
+    responseBytes?: number;
 }
 
 /** Sink the caller injects to receive structured network log entries. Absent = no logging. */
@@ -46,6 +51,14 @@ const baseFields = (req: NetworkRequestMeta): Pick<NetworkLogFields, 'method' | 
     params: req.params,
     requestBody: req.body,
 });
+
+/** The `content-length` of an axios-shaped response, when present and a number. */
+const readResponseBytes = (res: unknown): number | undefined => {
+    const headers = (res as { headers?: Record<string, unknown> })?.headers;
+    const raw = headers?.['content-length'] ?? headers?.['Content-Length'];
+    const bytes = typeof raw === 'string' ? Number(raw) : raw;
+    return typeof bytes === 'number' && Number.isFinite(bytes) && bytes >= 0 ? bytes : undefined;
+};
 
 /** Extracts an HTTP status from an axios response shape, when present. */
 const readStatus = (res: unknown): number | undefined => {
@@ -101,6 +114,8 @@ export const withNetworkLog = async <T extends { data?: unknown }>(
             durationMs,
             status: readStatus(res),
         };
+        const responseBytes = readResponseBytes(res);
+        if (responseBytes !== undefined) fields.responseBytes = responseBytes;
 
         if (responseError !== undefined && !req.allowRecordError) {
             sink.warn(NETWORK_LOG_TAG, `${req.method} ${req.url} responded with error field`, fields);

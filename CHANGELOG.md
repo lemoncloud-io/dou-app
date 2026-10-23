@@ -2,9 +2,16 @@
 
 ## [2026-10-23] - No version updates
 
+### Features
+
+- (http,app-runtime,perf) tell relay requests from cloud backend ones in api_request
+- (logger,http,app-runtime) measure api requests and gate statistics by app version
+
+## [2026-10-23] - No version updates
+
 ### Bug Fixes
 
-- (landing,mobile) drop the /auth/* link claim, not used on this host
+- (landing,mobile) drop the /auth/\* link claim, not used on this host
 - (landing,mobile) claim only the link paths in the ios association file, not every path
 
 ## [2026-10-23] - No version updates

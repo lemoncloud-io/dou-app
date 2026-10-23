@@ -21,6 +21,7 @@ import type { ServerAxes } from '../hooks/use-log-console-state';
 import { SERVER_AXIS_CAVEAT } from '../api/reportLogApi';
 import type { FacetKey, Facets } from '../lib/logFacets';
 import type { FacetSelection } from '../lib/logFacets';
+import { RECORD_FILTER_LABELS, RECORD_FILTERS, type RecordFilter } from '../lib/recordKinds';
 
 interface LogFilterRailProps {
     server: ServerAxes;
@@ -31,6 +32,9 @@ interface LogFilterRailProps {
     selection: FacetSelection;
     onFacet: (key: FacetKey, value: string) => void;
     onClearClient: () => void;
+    /** Logs, statistics, or both. Client-side: the server stores no `kind` axis to filter on. */
+    record: RecordFilter;
+    onRecord: (value: RecordFilter) => void;
     /** Rows the client-side filters are working over, for the group's caption. */
     corpusSize: number;
 }
@@ -59,6 +63,9 @@ const LEVELS = [
  * corpus narrowed on the server instead of only hiding rows already fetched.
  */
 const CLIENT_FACETS: Array<{ key: FacetKey; label: string; onServer?: true }> = [
+    // Before the tag: the area holds a feature's old tag (`SOCKET`) and its event tags
+    // (`socket.reconnect_failed`) together, so it is the axis that survives the switch-over.
+    { key: 'area', label: 'Area' },
     { key: 'tag', label: 'Tag', onServer: true },
     { key: 'appVersion', label: 'App version', onServer: true },
     { key: 'webVersion', label: 'Web version', onServer: true },
@@ -114,6 +121,8 @@ export const LogFilterRail = ({
     selection,
     onFacet,
     onClearClient,
+    record,
+    onRecord,
     corpusSize,
 }: LogFilterRailProps) => {
     // Local draft so typing stays instant; `query` remains the source of truth so a
@@ -131,7 +140,7 @@ export const LogFilterRail = ({
         // would re-fire the effect with the value it just settled.
     }, [settled]);
 
-    const hasClientNarrowing = !!query || Object.values(selection).some(Boolean);
+    const hasClientNarrowing = !!query || Object.values(selection).some(Boolean) || record !== 'log';
 
     return (
         <aside className="flex w-64 shrink-0 flex-col gap-6 overflow-auto border-r border-border bg-card p-4">
@@ -216,6 +225,19 @@ export const LogFilterRail = ({
                     ) : undefined
                 }
             >
+                <Field label="Records">
+                    <select
+                        value={record}
+                        onChange={e => onRecord(e.target.value as RecordFilter)}
+                        className={fieldClass}
+                    >
+                        {RECORD_FILTERS.map(value => (
+                            <option key={value} value={value}>
+                                {RECORD_FILTER_LABELS[value]}
+                            </option>
+                        ))}
+                    </select>
+                </Field>
                 <Field label="Search">
                     <input
                         type="text"
