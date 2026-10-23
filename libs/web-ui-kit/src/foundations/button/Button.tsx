@@ -31,7 +31,6 @@ const SIZE = {
 export interface ButtonSurfaceOptions {
     variant?: 'solid' | 'outline' | 'ghost';
     tone?: keyof typeof SOLID_TONE;
-    accent?: boolean;
     size?: keyof typeof SIZE;
     fullWidth?: boolean;
 }
@@ -51,16 +50,15 @@ export interface ButtonSurfaceOptions {
 export const buttonSurfaceClass = ({
     variant = 'solid',
     tone,
-    accent = false,
     size = 'md',
     fullWidth = false,
 }: ButtonSurfaceOptions = {}): string =>
     cn(
         'inline-flex items-center justify-center rounded-full font-semibold transition-colors',
-        // Resolve tone: explicit `tone` wins; `accent` maps to green; otherwise
-        // solid defaults to green, outline/ghost to gray (neutral).
+        // Resolve tone: explicit `tone` wins; otherwise solid defaults to green,
+        // outline/ghost to gray (neutral).
         (() => {
-            const resolvedTone = tone ?? (accent ? 'green' : variant === 'solid' ? 'green' : 'gray');
+            const resolvedTone = tone ?? (variant === 'solid' ? 'green' : 'gray');
             if (variant === 'solid') {
                 return cn(SOLID_TONE[resolvedTone], 'disabled:bg-control-idle disabled:text-placeholder');
             }
@@ -78,8 +76,6 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
     variant?: 'solid' | 'outline' | 'ghost';
     /** Color tone (design-guide): green / black / gray. */
     tone?: keyof typeof SOLID_TONE;
-    /** @deprecated use `tone="green"` — kept for back-compat (green outline). */
-    accent?: boolean;
     size?: keyof typeof SIZE;
     fullWidth?: boolean;
     /** Shows a spinner and blocks interaction. */
@@ -99,7 +95,6 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {
             variant = 'solid',
             tone,
-            accent = false,
             size = 'md',
             fullWidth = false,
             loading = false,
@@ -118,7 +113,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 ref={ref}
                 type={type}
                 disabled={disabled || loading}
-                className={cn(buttonSurfaceClass({ variant, tone, accent, size, fullWidth }), className)}
+                className={cn(buttonSurfaceClass({ variant, tone, size, fullWidth }), className)}
                 {...props}
             >
                 {loading ? (

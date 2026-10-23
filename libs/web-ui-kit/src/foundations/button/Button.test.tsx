@@ -25,9 +25,9 @@ describe('Button', () => {
         expect(screen.getByRole('button').className).toContain('border-input-border');
     });
 
-    it('outline + accent (back-compat) uses the brand-green border', () => {
+    it('outline tone=green uses the brand-green border', () => {
         render(
-            <Button variant="outline" accent>
+            <Button variant="outline" tone="green">
                 PRO
             </Button>
         );
