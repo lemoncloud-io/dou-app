@@ -188,7 +188,7 @@ const { theme, setTheme, isDarkTheme } = useTheme();
 pre-paint script assumes about an empty key. The three consumers, and what each passes:
 
 ```text
-apps/landing            main.tsx      <ThemeProvider defaultTheme="light">
+apps/landing            app.tsx       <ThemeProvider defaultTheme="light">
   └─ no pre-paint script — the class appears only after React mounts
 
 apps/block-kit-builder  main.tsx      <ThemeProvider defaultTheme="system">
@@ -286,11 +286,10 @@ files are excluded from `tsconfig.lib.json`, so they are not part of `tsc -b`.
   `../bridges/tsconfig.lib.json`; a new cross-lib import needs its own reference and `npx nx sync`.
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves. `rm -rf dist/out-tsc` and look
   again.
-- **Most consumers of this lib sit outside the CI type-check gate.**
-  `.github/workflows/verify.yml` excludes `@chatic/landing` and `block-kit-builder` from its
-  `typecheck` step, and those are two of the three apps that mount `ThemeProvider` (`desktop-web` is
-  in the gate). A changed export signature here goes green in CI and breaks nothing it can see — run
-  the two by hand.
+- **One consumer of this lib sits outside the CI type-check gate.**
+  `.github/workflows/verify.yml` excludes `block-kit-builder` from its `typecheck` step, and it is one
+  of the three apps that mount `ThemeProvider` (`landing` and `desktop-web` are in the gate). A changed
+  export signature here goes green in CI and breaks nothing it can see there — run it by hand.
 - The behaviour this lib is most likely to break is not type checked at all: the agreement between
   `defaultTheme`, the stored key and each app's pre-paint script. Change any of the three and load the
   other two apps with an empty `localStorage`.

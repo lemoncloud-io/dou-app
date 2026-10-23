@@ -559,7 +559,7 @@ npx jest --config libs/bridges/jest.config.js   # 6 suites, 99 cases
   and excludes `web` from the test run — those are the ones to check by hand.
 
 ```bash
-npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/landing,@chatic/mobile,chatic-deferred-link-cleanup
+npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-deferred-link-cleanup
 ```
 
 ## Versioning
