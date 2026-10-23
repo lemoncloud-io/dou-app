@@ -1,5 +1,23 @@
 # Changelog
 
+## [2026-10-23] - root@0.111.0, @chatic/web@0.76.2, @chatic/landing@0.6.0, @chatic/desktop-web@0.35.1
+
+### Features
+
+- (landing) give the route error screen its copy in both languages
+
+### Documentation
+
+- (policy-content,theme,app-messages,bridges,http) repoint lines the landing refactor made stale
+
+### Refactor
+
+- (landing) follow the web app's layering and route from ROUTES (ADR-0225)
+
+### Other
+
+- ci: typecheck and test landing in the verify gate, not only lint
+
 ## [2026-10-23] - No version updates
 
 ### Features
