@@ -2,6 +2,12 @@
 
 ## [2026-10-23] - No version updates
 
+### Bug Fixes
+
+- (app-runtime,web,desktop-web) re-issue an owned cloud a guest held, as its owner (ADR-0223)
+
+## [2026-10-23] - No version updates
+
 ### Features
 
 - (web,mobile,bridges,logger) wire statistics through the log pipeline, off by default
