@@ -4,6 +4,13 @@
 
 ### Bug Fixes
 
+- (landing,mobile) drop the /auth/* link claim, not used on this host
+- (landing,mobile) claim only the link paths in the ios association file, not every path
+
+## [2026-10-23] - No version updates
+
+### Bug Fixes
+
 - (app-runtime,web,desktop-web) re-issue an owned cloud a guest held, as its owner (ADR-0223)
 
 ## [2026-10-23] - No version updates
