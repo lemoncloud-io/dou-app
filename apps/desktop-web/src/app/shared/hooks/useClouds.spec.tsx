@@ -158,6 +158,22 @@ describe('useClouds', () => {
         expect(result.current.clouds.map(c => c.kind)).toEqual(['home', 'owned']);
     });
 
+    it('reports the owned clouds also cached as invited, and no other', () => {
+        catalogClouds = [
+            { id: '1000004', name: 'Owned and invited', status: 'active' },
+            { id: '1000005', name: 'Owned only', status: 'active' },
+        ];
+        cachedClouds = [
+            { id: '1000004', cid: '1000004', cloudType: 'invited' },
+            { id: '1000006', cid: '1000006', cloudType: 'invited' },
+            { id: '1000005', cid: '1000005', name: 'Renamed' },
+        ];
+
+        const { result } = renderHook(() => useClouds());
+
+        expect(result.current.ownedAlsoInvitedIds).toEqual(['1000004']);
+    });
+
     it('names a cached invited cloud from the joined-clouds store', () => {
         // The invite-accept flow writes id/cid/backend/wss to the cache but no name; the store has it.
         cachedClouds = [{ id: '1000001', cid: '1000001', cloudType: 'invited' }];

@@ -8,6 +8,10 @@ import { reclaimOwnedClouds } from '../../socket/auth/reclaimOwnedClouds';
  * re-issued as the owner (`socket/auth/reclaimOwnedClouds`). Ownership is the app's to know — its
  * owned catalog — while which identity a cloud's token names is the runtime's.
  *
+ * `alsoInvitedCloudIds` are the owned clouds this device has also cached as invited clouds: the ones
+ * whose token may have been issued to the device's guest without leaving a mark on the token itself.
+ * Only the app reads the invited cache, so it hands these over too.
+ *
  * Runs on two triggers, because either can come second:
  *  - **the list changes** — a catalog that resolves after an invite token was already held, or one
  *    that changes after a sign-in to the owning account;
@@ -18,23 +22,30 @@ import { reclaimOwnedClouds } from '../../socket/auth/reclaimOwnedClouds';
  *
  * The list is compared by content, so handing a fresh array on every render costs nothing.
  */
-export const useReclaimOwnedClouds = (ownedCloudIds: readonly string[]): void => {
+export const useReclaimOwnedClouds = (
+    ownedCloudIds: readonly string[],
+    alsoInvitedCloudIds: readonly string[]
+): void => {
     const key = ownedCloudIds.join('\n');
-    // The commit listener outlives renders; it reads the latest list rather than the one it closed over.
-    const latest = useRef(key);
-    latest.current = key;
+    const invitedKey = alsoInvitedCloudIds.join('\n');
+    // The commit listener outlives renders; it reads the latest lists rather than the ones it closed over.
+    const latest = useRef({ key, invitedKey });
+    latest.current = { key, invitedKey };
 
     useEffect(() => {
         if (!key) return;
         // Never throws: each renewal reports its own failure.
-        void reclaimOwnedClouds(key.split('\n'));
-    }, [key]);
+        void reclaimOwnedClouds(key.split('\n'), splitKey(invitedKey));
+    }, [key, invitedKey]);
 
     useEffect(
         () =>
             sessionSignal.subscribe(['cloud:token'], () => {
-                if (latest.current) void reclaimOwnedClouds(latest.current.split('\n'));
+                const current = latest.current;
+                if (current.key) void reclaimOwnedClouds(current.key.split('\n'), splitKey(current.invitedKey));
             }),
         []
     );
 };
+
+const splitKey = (key: string): string[] => (key ? key.split('\n') : []);

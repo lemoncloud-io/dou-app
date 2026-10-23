@@ -30,6 +30,11 @@ const CLOUD_IDENTITIES_KEY = 'chatic-cloud-identities';
 const CLOUD_RECENT_KEY = 'chatic-recent-clouds';
 // Long enough to cover every cloud that could plausibly hold a background slot, several times over.
 const CLOUD_RECENT_LIMIT = 20;
+// Which relay user each owned-and-invited cloud was last re-issued for. A cloud the account owns that
+// this device also cached as an invited cloud may still hold a token issued to the device's guest
+// (see `reclaimOwnedClouds`), and nothing in that token says so; this is what tells the reclaim it
+// already asked `delegate-cloud` as this account. Account state, cleared with the identities above.
+const CLOUD_RECLAIMED_KEY = 'chatic-reclaimed-clouds';
 
 /** A cloud's delegation + user token, cached by cloudId for fast re-switch. */
 export interface CachedCloudTokens {
@@ -81,6 +86,12 @@ export interface ICloudStore {
     getRecentClouds(): string[];
     /** Forgets the recently entered clouds — account state, like the identities. */
     clearRecentClouds(): void;
+    /** The relay user `cloudId` was last reclaimed for, or null when it never was. */
+    getReclaimedFor(cloudId: string): string | null;
+    /** Records that `cloudId` was re-issued through `delegate-cloud` as `relayUserId`. */
+    setReclaimedFor(cloudId: string, relayUserId: string): void;
+    /** Forgets every reclaim record — account state, like the identities. */
+    clearReclaimedClouds(): void;
     saveSelectedCloudId(cloudId: string): void;
     getSelectedCloudId(): string | null;
     saveSelectedSiteId(siteId: string): void;
@@ -99,6 +110,7 @@ class CloudStore implements ICloudStore {
     private readonly cache: JsonSlot<Record<string, CachedCloudTokens>>;
     private readonly identities: JsonSlot<Record<string, CloudIdentity>>;
     private readonly recent: JsonSlot<string[]>;
+    private readonly reclaimed: JsonSlot<Record<string, string>>;
 
     constructor(
         private readonly storage: StorageLike,
@@ -109,6 +121,7 @@ class CloudStore implements ICloudStore {
         this.cache = new JsonSlot(storage, CLOUD_TOKEN_CACHE_KEY);
         this.identities = new JsonSlot(storage, CLOUD_IDENTITIES_KEY);
         this.recent = new JsonSlot(storage, CLOUD_RECENT_KEY);
+        this.reclaimed = new JsonSlot(storage, CLOUD_RECLAIMED_KEY);
     }
 
     saveDelegationToken(token: CloudDelegationTokenView): void {
@@ -215,6 +228,21 @@ class CloudStore implements ICloudStore {
 
     clearRecentClouds(): void {
         this.recent.clear();
+    }
+
+    getReclaimedFor(cloudId: string): string | null {
+        return this.reclaimed.read()?.[cloudId] ?? null;
+    }
+
+    setReclaimedFor(cloudId: string, relayUserId: string): void {
+        // No signal: the reclaim is the only reader, and it reads this inside the run that writes it.
+        const map = this.reclaimed.read() ?? {};
+        if (map[cloudId] === relayUserId) return;
+        this.reclaimed.write({ ...map, [cloudId]: relayUserId });
+    }
+
+    clearReclaimedClouds(): void {
+        this.reclaimed.clear();
     }
 
     saveSelectedCloudId(cloudId: string): void {

@@ -31,37 +31,60 @@ describe('useReclaimOwnedClouds', () => {
     });
 
     it('hands the owned list to the reclaim', () => {
-        renderHook(() => useReclaimOwnedClouds(['a', 'b']));
+        renderHook(() => useReclaimOwnedClouds(['a', 'b'], []));
 
-        expect(mockReclaimOwnedClouds).toHaveBeenCalledWith(['a', 'b']);
+        expect(mockReclaimOwnedClouds).toHaveBeenCalledWith(['a', 'b'], []);
+    });
+
+    it('hands the owned clouds also cached as invited along with them', () => {
+        renderHook(() => useReclaimOwnedClouds(['a', 'b'], ['b']));
+
+        expect(mockReclaimOwnedClouds).toHaveBeenCalledWith(['a', 'b'], ['b']);
+    });
+
+    it('runs again when the invited overlap changes, with the owned list the same', () => {
+        const { rerender } = renderHook(({ invited }) => useReclaimOwnedClouds(['a'], invited), {
+            initialProps: { invited: [] as readonly string[] },
+        });
+
+        rerender({ invited: [] });
+        rerender({ invited: ['a'] });
+
+        expect(mockReclaimOwnedClouds.mock.calls).toEqual([
+            [['a'], []],
+            [['a'], ['a']],
+        ]);
     });
 
     it('runs again when the list changes, and not for a fresh array with the same content', () => {
-        const { rerender } = renderHook(({ cids }) => useReclaimOwnedClouds(cids), {
+        const { rerender } = renderHook(({ cids }) => useReclaimOwnedClouds(cids, []), {
             initialProps: { cids: ['a'] as readonly string[] },
         });
 
         rerender({ cids: ['a'] });
         rerender({ cids: ['a', 'b'] });
 
-        expect(mockReclaimOwnedClouds.mock.calls).toEqual([[['a']], [['a', 'b']]]);
+        expect(mockReclaimOwnedClouds.mock.calls).toEqual([
+            [['a'], []],
+            [['a', 'b'], []],
+        ]);
     });
 
     it('runs again on a cloud token commit, with the latest list', () => {
         // An invite entry committed after the catalog resolved: no list change follows it.
-        const { rerender } = renderHook(({ cids }) => useReclaimOwnedClouds(cids), {
-            initialProps: { cids: ['a'] as readonly string[] },
+        const { rerender } = renderHook(({ cids, invited }) => useReclaimOwnedClouds(cids, invited), {
+            initialProps: { cids: ['a'] as readonly string[], invited: [] as readonly string[] },
         });
-        rerender({ cids: ['a', 'b'] });
+        rerender({ cids: ['a', 'b'], invited: ['b'] });
         mockReclaimOwnedClouds.mockClear();
 
         emit('cloud:token');
 
-        expect(mockReclaimOwnedClouds).toHaveBeenCalledWith(['a', 'b']);
+        expect(mockReclaimOwnedClouds).toHaveBeenCalledWith(['a', 'b'], ['b']);
     });
 
     it('ignores other session signals, and stops listening on unmount', () => {
-        const { unmount } = renderHook(() => useReclaimOwnedClouds(['a']));
+        const { unmount } = renderHook(() => useReclaimOwnedClouds(['a'], []));
         mockReclaimOwnedClouds.mockClear();
 
         emit('selection');
@@ -72,7 +95,7 @@ describe('useReclaimOwnedClouds', () => {
     });
 
     it('does nothing while the account owns no cloud, a commit included', () => {
-        renderHook(() => useReclaimOwnedClouds([]));
+        renderHook(() => useReclaimOwnedClouds([], []));
 
         emit('cloud:token');
 

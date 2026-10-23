@@ -98,6 +98,8 @@ jest.mock('../store/stores', () => ({
 }));
 
 jest.mock('../store', () => ({
+    // The exchange notes which relay user it was asked as; nothing here reads it back.
+    getUidInCloud: () => null,
     getCloudSessionSnapshot: (...args: unknown[]) => mockGetCloudSessionSnapshot(...args),
     getActiveServerContext: (...args: unknown[]) => mockGetActiveServerContext(...args),
     setSessionIdentityState: jest.fn(),

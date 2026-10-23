@@ -147,7 +147,12 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   are all caught by `BackgroundCloudsRunner`, which hands the owned catalog to
   `runtime.connection.useReclaimOwnedClouds`: an owned cloud whose held token came from an invite
   login is re-issued as the owner, socket included (`libs/app-runtime` docs/auth, "An owned cloud
-  held as its invitee").
+  held as its invitee"). The runner also hands over the owned clouds still cached as invited
+  (`useInvitedClouds().ownedAlsoInvitedIds`). A guest who used the cloud for a while had its invite
+  token renewed through `delegate-cloud` as the guest before signing in, and that token no longer
+  carries the invite mark. The cached invited row is the trace left, so each such cloud is re-issued
+  once per signed-in account. The row itself is kept, hidden, so the guest can get back in after a
+  sign-out.
 - **An answer that cannot be entered with** (no identity token, no endpoint) falls back to the
   ordinary re-issued switch. That one is relay-signed, and an app opened cold by the invite link has a
   stale relay credential for its first seconds, so a switch that gets no HTTP answer is retried

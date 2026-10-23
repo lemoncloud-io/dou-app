@@ -8,6 +8,13 @@ import type { DomainCloud } from '@chatic/data';
 export interface InvitedCloudsResult {
     invitedClouds: DomainCloud[];
     hasInvitedClouds: boolean;
+    /**
+     * Owned clouds this device has also cached as invited — the rows hidden from `invitedClouds` for
+     * being owned. Their token may have been issued to the device's guest, so they are handed to the
+     * owned-cloud reclaim. Not filtered by acceptor: a row another guest accepted costs the reclaim a
+     * storage read when this session holds no token for it, and nothing more.
+     */
+    ownedAlsoInvitedIds: string[];
 }
 
 /**
@@ -43,6 +50,7 @@ export const useInvitedClouds = (): InvitedCloudsResult => {
     // Drop invited rows whose id is present in the owned catalog (now owned by the signed-in account).
     const ownedIds = new Set(ownedClouds.map(c => c.id).filter((id): id is string => !!id));
     const invitedClouds = cachedInvited.filter(c => (!c.id || !ownedIds.has(c.id)) && isAcceptedBy(c, delegatorId));
+    const ownedAlsoInvitedIds = cachedInvited.map(c => c.id).filter((id): id is string => !!id && ownedIds.has(id));
 
-    return { invitedClouds, hasInvitedClouds: invitedClouds.length > 0 };
+    return { invitedClouds, hasInvitedClouds: invitedClouds.length > 0, ownedAlsoInvitedIds };
 };

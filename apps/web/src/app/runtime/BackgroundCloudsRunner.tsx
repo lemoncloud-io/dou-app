@@ -10,13 +10,15 @@ import { useJoinedCloudIds } from '../hooks/useJoinedCloudIds';
  * the runtime's decision; this only supplies membership, which only the app can see.
  *
  * The owned ones go over a second time on their own: an owned cloud this device holds as an invitee
- * (its owner accepted their own invite link here) is re-issued as the owner. Sharing this runner
- * keeps both lists read from the one catalog the switcher shows.
+ * (its owner accepted their own invite link here, or a guest accepted and later signed in to the
+ * owning account) is re-issued as the owner. The owned clouds also cached as invited go with them —
+ * the only trace left of a guest's token once it has been renewed. Sharing this runner keeps every
+ * list read from the one catalog the switcher shows.
  */
 export const BackgroundCloudsRunner = () => {
     const { clouds: ownedClouds } = useCloudSessionCatalog();
-    const { invitedClouds } = useInvitedClouds();
+    const { invitedClouds, ownedAlsoInvitedIds } = useInvitedClouds();
     runtime.connection.useBackgroundClouds(useJoinedCloudIds(ownedClouds, invitedClouds));
-    runtime.connection.useReclaimOwnedClouds(useJoinedCloudIds(ownedClouds, []));
+    runtime.connection.useReclaimOwnedClouds(useJoinedCloudIds(ownedClouds, []), ownedAlsoInvitedIds);
     return null;
 };

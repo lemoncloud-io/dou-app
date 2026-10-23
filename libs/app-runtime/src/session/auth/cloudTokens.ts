@@ -5,9 +5,9 @@ import { logger } from '@chatic/bridges';
 import { getRepositories } from '../../data/runtime';
 import { cloudStore } from '../store/stores';
 import { msUntilExpiration } from '../store/expiry';
-import { rebuildSessionIdentity, sessionSignal } from '../store';
-import { recordCloudIdentity } from './cloudIdentity';
-import type { IAuthRepository } from '@chatic/data';
+import { getUidInCloud, rebuildSessionIdentity, sessionSignal } from '../store';
+import { recordCloudIdentity, uidOfCloudToken } from './cloudIdentity';
+import { RELAY_CLOUD_ID, type IAuthRepository } from '@chatic/data';
 
 /**
  * Cloud token ISSUANCE — deliberately off the session barrel (like `auth/authActions`).
@@ -82,7 +82,17 @@ export const isInviteLoginEntry = (delegationToken?: CloudDelegationTokenView | 
 /** One exchange per cloud at a time — see `issueCloudTokens`. */
 const exchangesInFlight = new Map<string, Promise<IssuedCloudTokens>>();
 
+/**
+ * The relay user each cloud's latest finished exchange was asked as, for this page life. Not stored:
+ * its only reader is the owned-cloud reclaim, which needs to know whether the answer it joined was
+ * asked as the account or as the guest the account signed in from — `delegate-cloud` answers for the
+ * relay user that signed the request, so one that started before a sign-in answers for the guest.
+ */
+const lastIssuedFor = new Map<string, string | null>();
+
 const exchange = async (cloudId: string): Promise<IssuedCloudTokens> => {
+    // Read before anything awaits: a sign-in can land while the exchange is on the wire.
+    const issuedFor = getUidInCloud(RELAY_CLOUD_ID);
     const delegationToken = await authRepository().delegateCloud(cloudId);
     const cloudToken = await authRepository().exchangeToken({
         baseURL: delegationToken.backend as string,
@@ -91,8 +101,18 @@ const exchange = async (cloudId: string): Promise<IssuedCloudTokens> => {
 
     cloudStore.setCachedCloudTokens(cloudId, { delegationToken, cloudToken });
     recordCloudIdentity(cloudId, cloudToken);
+    lastIssuedFor.set(cloudId, issuedFor);
     return { delegationToken, cloudToken };
 };
+
+/** Whether a `delegate-cloud` exchange for `cloudId` is on the wire now. */
+export const isExchangeInFlight = (cloudId: string): boolean => exchangesInFlight.has(cloudId);
+
+/**
+ * The relay user the latest exchange for `cloudId` that finished in this page life was asked as.
+ * `undefined` when none has; `null` when one ran with no relay user to read.
+ */
+export const lastIssuedForOf = (cloudId: string): string | null | undefined => lastIssuedFor.get(cloudId);
 
 /**
  * Runs (or replays from the per-cloud cache) the two-call cloud token exchange for `cloudId` and
@@ -157,23 +177,30 @@ export const reissueCloudTokens = async (cloudId: string): Promise<IssuedCloudTo
     // One observable change (ADR-0076 decision 2): a renewal is not a cloud CHANGE, so observers must
     // not see a window where the delegation token moved but the cloud token had not.
     //
-    // A committed invite entry is the one case where the re-issue names a DIFFERENT user: the invitee
-    // was entered with the invite login's answer, and `delegate-cloud` answers for the relay user —
-    // the owner, when an owned cloud is being reclaimed. That is an identity change, not a renewal.
-    const replacesInvitee = isInviteLoginEntry(cloudStore.getDelegationToken());
+    // When the re-issue names a DIFFERENT user it is an identity change, not a renewal — the owned
+    // cloud reclaim does exactly that: the store holds the device's guest and `delegate-cloud` answers
+    // for the relay user, the owner. Two marks say so. A committed invite entry (the invite login's
+    // own answer). Or a stored token whose uid differs from the re-issued one's: a token the guest had
+    // re-issued before the sign-in is an ordinary issue by then, and only the uid it names still tells
+    // it apart. A same-user renewal names the same uid and merges as before.
+    const storedToken = cloudStore.getCloudToken();
+    const storedUid = storedToken ? uidOfCloudToken(storedToken) : null;
+    const issuedUid = uidOfCloudToken(issued.cloudToken);
+    const replacesAnotherUser =
+        isInviteLoginEntry(cloudStore.getDelegationToken()) || (!!storedUid && !!issuedUid && storedUid !== issuedUid);
     sessionSignal.batch(() => {
         cloudStore.saveDelegationToken(issued.delegationToken);
         // Merge, mirroring switchCloudSession's same-cloud branch: a re-issue is not guaranteed to
-        // carry every field the stored view holds (profile fields notably). Not over the invitee,
-        // though — a field the new answer omits would keep the invitee's value (its `$user`, its role).
-        const existing = replacesInvitee ? null : cloudStore.getCloudToken();
+        // carry every field the stored view holds (profile fields notably). Not over another user,
+        // though — a field the new answer omits would keep that user's value (its `$user`, its role).
+        const existing = replacesAnotherUser ? null : storedToken;
         cloudStore.saveCloudToken(
             existing ? ({ ...existing, ...issued.cloudToken } as UserTokenView) : issued.cloudToken
         );
-        // The selected place was the invitee's, and the new socket session does not start there. Kept,
-        // a later switch into it would no-op as "already there" and site-scoped writes would land on
-        // whatever site the new token names — the same reason a commit of issued tokens drops it.
-        if (replacesInvitee) cloudStore.clearSelectedSite();
+        // The selected place was the other user's, and the new socket session does not start there.
+        // Kept, a later switch into it would no-op as "already there" and site-scoped writes would land
+        // on whatever site the new token names — the same reason a commit of issued tokens drops it.
+        if (replacesAnotherUser) cloudStore.clearSelectedSite();
 
         // Re-derive uid/identity from the freshly written token, same as every other commit path.
         rebuildSessionIdentity();

@@ -1,6 +1,7 @@
 # ADR-0169: An owned cloud is never held as its invitee
 
-> Status: Accepted · Decided: 2026-10-06 · Implemented: `fix/self-invited-cloud-token`
+> Status: Accepted, decisions 2 and 3 amended by [ADR-0223](./0223-an-owned-cloud-also-cached-as-invited-is-re-issued-once-per-account.md)
+> · Decided: 2026-10-06 · Implemented: `fix/self-invited-cloud-token`
 > · Scope: `libs/app-runtime/src/session/auth/cloudTokens.ts` (`isInviteLoginEntry`, `reissueCloudTokens`) ·
 > `libs/app-runtime/src/socket/auth/reclaimOwnedClouds.ts` ·
 > `libs/app-runtime/src/connection/hooks/useReclaimOwnedClouds.ts` ·
