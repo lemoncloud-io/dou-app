@@ -249,12 +249,12 @@ recorder reads.
 
 ## Wiring in each host
 
-| Host                  | Backend                                                                                                                                                                                                                                                                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `apps/mobile` native  | `FirebasePerfTraceBackend`, configured first in `DependencyProvider`, before the boot service opens its trace. It applies the Firebase filter itself to the names it knows; a name it does not know (a newer web's) is recorded as before, first five attributes, so the web can still deploy first. Native traces do not reach the pipeline yet |
-| `apps/web` in the app | `DeferredPerfTraceBackend` at boot. When the WebAppReady report lists both bridge messages it resolves to a fan-out of the bridge (behind the Firebase filter) and the pipeline; otherwise to the pipeline alone                                                                                                                                 |
-| `apps/web` in a tab   | Resolves to the pipeline alone                                                                                                                                                                                                                                                                                                                   |
-| everything else       | Nothing configured, so the no-op backend                                                                                                                                                                                                                                                                                                         |
+| Host                  | Backend                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/mobile` native  | `FirebasePerfTraceBackend`, configured first in `DependencyProvider`, before the boot service opens its trace. It applies the Firebase filter itself to the names it knows; a name it does not know (a newer web's) is recorded as before, first five attributes, so the web can still deploy first. Native traces fan out to Firebase and to the app's queue, unjudged |
+| `apps/web` in the app | `DeferredPerfTraceBackend` at boot. When the WebAppReady report lists both bridge messages it resolves to a fan-out of the bridge (behind the Firebase filter) and the pipeline; otherwise to the pipeline alone                                                                                                                                                        |
+| `apps/web` in a tab   | Resolves to the pipeline alone                                                                                                                                                                                                                                                                                                                                          |
+| everything else       | Nothing configured, so the no-op backend                                                                                                                                                                                                                                                                                                                                |
 
 ## Notes for implementers and tests
 
@@ -265,8 +265,8 @@ recorder reads.
 - `samplePercent` pins `isSampledRun` in tests. Pass `100` or `0` rather than searching for a run
   id that hashes the way you need.
 - On the web the pipeline branch reads its recorder from `setPerfTelemetryRecorder`
-  (`apps/web/src/app/runtime/perf/webPerfTraces.ts`). Nothing sets it yet, so the pipeline records
-  nothing until the telemetry runtime does.
+  (`apps/web/src/app/runtime/perf/webPerfTraces.ts`), which the web's telemetry runtime sets at boot.
+  In the app, native traces fan out to Firebase and to an unjudged native recorder (`provider.ts`).
 
 ## How to verify
 

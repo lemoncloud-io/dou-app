@@ -145,6 +145,14 @@ describe('FirebaseCrashlyticsService', () => {
         expect(crashlyticsLog).not.toHaveBeenCalled();
     });
 
+    it('keeps statistics out of the breadcrumbs', () => {
+        const listener = startService();
+
+        listener(entry({ level: 'info', tag: 'perf.boot', message: 'boot', kind: 'trace' }));
+
+        expect(crashlyticsLog).not.toHaveBeenCalled();
+    });
+
     it('still breadcrumbs every level above debug', () => {
         const listener = startService();
 

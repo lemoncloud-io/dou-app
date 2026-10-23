@@ -15,12 +15,12 @@ import type { Metric } from 'web-vitals';
 /**
  * The vitals recorded as `web_vitals` samples, keyed to their `vital` attribute.
  *
- * Only the two with a target. CLS and TTFB have none. INP is deliberately
- * absent even though it has a reference target: it keeps being revised for the
- * lifetime of the page, and in a WebView SPA that lifetime is the whole app
- * session — there is no moment at which the value is final, so every revision
- * would become another sample for the same session. It stays local (the overlay
- * below still receives it) until a settling point is decided.
+ * All five. FCP and LCP reach Firebase as they always have; INP, CLS and TTFB are
+ * recorded on the log pipeline only (`@chatic/perf`'s catalogue keeps them away
+ * from Firebase). INP and CLS keep being revised for the lifetime of the page,
+ * which in a WebView SPA is the whole app session; `web-vitals` reports them when
+ * the page is hidden, and that value — the one at that moment — is the sample.
+ * A page hidden more than once can give more than one.
  *
  * A sample rather than a timed trace: the browser reports the value after the
  * fact, so it rides in `value_ms` and the trace's own duration means nothing.
@@ -28,12 +28,21 @@ import type { Metric } from 'web-vitals';
 const RECORDED_VITALS: Partial<Record<Metric['name'], string>> = {
     FCP: 'fcp',
     LCP: 'lcp',
+    INP: 'inp',
+    CLS: 'cls',
+    TTFB: 'ttfb',
 };
+
+/**
+ * CLS is a unitless score (0.1 is "good"), and metrics are integers, so it is carried ×1000. The
+ * others are milliseconds already.
+ */
+const valueOf = (metric: Metric): number => (metric.name === 'CLS' ? metric.value * 1000 : metric.value);
 
 export const receiveVital = (metric: Metric): void => {
     // The debug overlay takes every vital, budget or not.
     reportVital(metric.name, metric.value, metric.rating);
 
     const vital = RECORDED_VITALS[metric.name];
-    if (vital) recordPerfSample('web_vitals', { attributes: { vital }, metrics: { value_ms: metric.value } });
+    if (vital) recordPerfSample('web_vitals', { attributes: { vital }, metrics: { value_ms: valueOf(metric) } });
 };

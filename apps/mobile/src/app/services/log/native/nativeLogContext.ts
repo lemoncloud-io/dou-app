@@ -21,6 +21,9 @@ import type { LogContext } from '@chatic/logger';
 export const NATIVE_RUN_ID = createLogId();
 
 const DEVICE = {
+    // The device family and the host, the same two values the WebView stamps inside this app.
+    platform: Platform.OS === 'ios' || Platform.OS === 'android' ? Platform.OS : undefined,
+    host: 'app',
     os: Platform.OS.toLowerCase(),
     osVersion: DeviceInfo.getSystemVersion(),
     model: DeviceInfo.getDeviceId() || undefined,

@@ -1,4 +1,4 @@
-import { createLogUploadQueue, logHub } from '@chatic/logger';
+import { APP_STAT_QUEUE_CAPACITY, APP_STAT_QUEUE_MAX_BYTES, createLogUploadQueue, logHub } from '@chatic/logger';
 import type { LogEntry, LogUploadQueue } from '@chatic/logger';
 
 import type { ILogUploadQueueService, LogUploadQueuePersistence } from './types';
@@ -51,7 +51,13 @@ export class LogUploadQueueService implements ILogUploadQueueService {
         private readonly persistence: LogUploadQueuePersistence,
         keepDebug = false
     ) {
-        this.queue = createLogUploadQueue({ acceptDebug: keepDebug });
+        // Statistics get the app's smaller share (MMKV keeps the whole queue in memory as one value);
+        // the log share keeps the default ceilings, unchanged.
+        this.queue = createLogUploadQueue({
+            acceptDebug: keepDebug,
+            statCapacity: APP_STAT_QUEUE_CAPACITY,
+            statMaxBytes: APP_STAT_QUEUE_MAX_BYTES,
+        });
     }
 
     public init(): void {

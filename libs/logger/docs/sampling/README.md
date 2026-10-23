@@ -125,7 +125,7 @@ slot. A throwing context provider or hook never stops a record.
 ## Notes for implementers and tests
 
 - `policy.spec.ts`, `TelemetrySampler.spec.ts` and `TelemetryRecorder.spec.ts` pin the contract above: same run → same verdict, first match wins, an expired override is ignored, the default policy yields no entries, and catalogue refusals.
-- Nothing here is wired yet. The intended wiring: the hosts will build the sampler at boot, fetch the policy through `@chatic/http`'s `TelemetryPolicyHttpGateway` (a static, statistics-off stand-in until the server route exists), and pass `selectForUpload` to their scheduler. In a hybrid run the bridge codec does not carry the statistics fields yet — see [docs/entries/](../entries/README.md#the-entry).
+- The web wires it (`apps/web/src/app/runtime/telemetry/`, documented in `apps/web/docs/observability/telemetry.md`): it builds the sampler at boot from the stored policy, passes `selectForUpload` to its scheduler, and refreshes the switches every minute. The policy source is a statistics-off stand-in until the server route exists. The app records its native traces unjudged (`apps/mobile/src/app/services/perf/nativeTelemetryRecorder.ts`), for the web to judge on upload.
 
 ## Further reading
 

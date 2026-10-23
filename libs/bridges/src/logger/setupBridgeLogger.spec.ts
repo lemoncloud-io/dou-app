@@ -1,4 +1,4 @@
-import { logHub, logger, setLogContextProvider } from '@chatic/logger';
+import { ingestLogEntry, logHub, logger, setLogContextProvider } from '@chatic/logger';
 
 import { setupBridgeLogger } from './setupBridgeLogger';
 
@@ -309,6 +309,24 @@ describe('createNativeForwarder — 폭주 제어', () => {
         for (let i = 0; i < 50; i += 1) logger.error('NET', 'GET /messages failed');
 
         expect(postMessage).toHaveBeenCalledTimes(5);
+    });
+
+    it('never folds statistics entries — each sample is its own measurement', () => {
+        for (let i = 0; i < 20; i += 1) {
+            ingestLogEntry({
+                id: `s-${i}`,
+                level: 'info',
+                tag: 'perf.bridge_request',
+                message: 'bridge_request',
+                kind: 'sample',
+                timestamp: Date.now(),
+                metrics: { rtt_ms: i },
+            });
+        }
+
+        expect(postMessage).toHaveBeenCalledTimes(20);
+        const last = JSON.parse(postMessage.mock.calls[19][0]);
+        expect(last.data).toMatchObject({ kind: 'sample', metrics: { rtt_ms: 19 } });
     });
 
     it('다른 줄은 서로를 막지 않는다', () => {

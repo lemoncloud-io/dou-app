@@ -1,11 +1,11 @@
 import type { ILogService } from './log';
 import { LogService, LogUploadQueueService } from './log';
 import { createConsoleListener, logHub } from '@chatic/logger';
-import { configurePerfTraces } from '@chatic/perf';
+import { FanOutPerfTraceBackend, PipelinePerfTraceBackend, configurePerfTraces } from '@chatic/perf';
 // Deep path, per the barrel policy: this module imports react-native-mmkv.
 import { MmkvLogUploadQueuePersistence } from './log/uploadQueue/persistence';
 import { attachNativeLoggerBridge } from './log/native/nativeLoggerBridge';
-import { attachNativeLogContext } from './log/native/nativeLogContext';
+import { attachNativeLogContext, readNativeLogContext } from './log/native/nativeLogContext';
 import type { IPendingReportQueueService } from './report';
 import { PendingReportQueueService } from './report/PendingReportQueueService';
 import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './report/nativeErrorDetection';
@@ -41,7 +41,7 @@ import { CacheCrudService, CacheSearchService } from './cache';
 import type { ISmsService } from './sms';
 import { SmsService } from './sms';
 import type { IBootMetricsService } from './perf';
-import { BootMetricsService } from './perf';
+import { BootMetricsService, createNativeTelemetryRecorder } from './perf';
 import type { IVersionService } from './version';
 import { VersionService } from './version';
 import type { IUnfurlService } from './unfurl';
@@ -127,7 +127,15 @@ class DependencyProvider {
         // No sampling, unlike the log-pipeline metrics this replaces — Firebase traces do not
         // compete with diagnostic logs for the upload queue, which was the reason to sample.
         this.perfTraceBackend = new FirebasePerfTraceBackend();
-        configurePerfTraces(this.perfTraceBackend);
+        // Native traces also go to the log pipeline, into this app's own upload queue, unjudged — the
+        // web uploader decides on sampling when it draws them. Firebase receives what it always has.
+        const nativeTelemetryRecorder = createNativeTelemetryRecorder({ context: readNativeLogContext });
+        configurePerfTraces(
+            new FanOutPerfTraceBackend([
+                this.perfTraceBackend,
+                new PipelinePerfTraceBackend(() => nativeTelemetryRecorder),
+            ])
+        );
         // Constructed first after that, so its baseline sits as close to JS entry as possible.
         this.bootMetricsService = new BootMetricsService(
             this.logService,

@@ -19,8 +19,8 @@ only when the WebAppReady reply arrives:
 
 On the log pipeline a trace is a statistics entry (`kind: 'trace'` or `'sample'`, numbers as
 structured fields), recorded through the recorder `setPerfTelemetryRecorder` hands in, which applies
-the server's sampling policy. Nothing sets that recorder yet, so for now the pipeline records
-nothing; the `info`/`PERF` log lines older builds of this page wrote are gone.
+the server's sampling policy — set by the telemetry runtime at boot ([telemetry.md](./telemetry.md)).
+With the default policy it records nothing; the `info`/`PERF` log lines older builds of this page wrote are gone.
 
 Asking rather than assuming is the web-deploys-first rule: this bundle can be newer than the app
 it runs in. Both messages are required, because a start with nowhere to stop leaves the native side
@@ -28,20 +28,20 @@ holding a trace until it expires.
 
 ## What the web records
 
-| Trace             | Taken in                                                                   | Attributes                                         |
-| ----------------- | -------------------------------------------------------------------------- | -------------------------------------------------- |
-| `cloud_switch`    | `useSwitchCloudSession` (`libs/app-runtime`)                               | `outcome`: `ok` / `error`                          |
-| `site_switch`     | `switchSite` (`libs/app-runtime`), below its same-place no-op              | `outcome`: `ok` / `error`                          |
-| `web_vitals`      | `webVitalsReporter.ts`, FCP and LCP only, as samples (value in `value_ms`) | `vital`: `fcp` / `lcp`                             |
-| `chat_room_open`  | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
-| `chat_room_sync`  | below                                                                      | `entry` · `start` · `switch` · `cache` · `outcome` |
-| `bridge_request`  | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)             | `type` · `outcome`                                 |
-| `chat_send`       | `useChatMutations.sendMessage` — [below](#chat_send)                       | `thread` · `kind` (`text`) · `outcome`             |
-| `chat_send_media` | `libs/app-runtime` `useSendImages`, as samples — see its image-send doc    | `kind` · `count` · `size` · `thread` · `outcome`   |
-| `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)             | `type` · `kind` · `outcome` · `close_reason`       |
-| `state_outbox`    | `stateOutboxTrace.ts`, as samples — [below](#state_outbox)                 | `op` · `outcome` · `kind`                          |
-| `socket_verify`   | `libs/app-runtime`, as samples — see its socket doc                        | `kind` · `cause` · `outcome`                       |
-| `invite_accept`   | the invite accept pipelines, per run — [below](#invite_accept)             | `lane` · `outcome` · `step` · `room`               |
+| Trace             | Taken in                                                                                                                                      | Attributes                                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `cloud_switch`    | `useSwitchCloudSession` (`libs/app-runtime`)                                                                                                  | `outcome`: `ok` / `error`                          |
+| `site_switch`     | `switchSite` (`libs/app-runtime`), below its same-place no-op                                                                                 | `outcome`: `ok` / `error`                          |
+| `web_vitals`      | `webVitalsReporter.ts`, all five as samples (value in `value_ms`, CLS ×1000); FCP and LCP also reach Firebase, INP/CLS/TTFB the pipeline only | `vital`: `fcp` / `lcp` / `inp` / `cls` / `ttfb`    |
+| `chat_room_open`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome` |
+| `chat_room_sync`  | below                                                                                                                                         | `entry` · `start` · `switch` · `cache` · `outcome` |
+| `bridge_request`  | `bridgeRequestTrace.ts`, as samples — [below](#bridge_request)                                                                                | `type` · `outcome`                                 |
+| `chat_send`       | `useChatMutations.sendMessage` — [below](#chat_send)                                                                                          | `thread` · `kind` (`text`) · `outcome`             |
+| `chat_send_media` | `libs/app-runtime` `useSendImages`, as samples — see its image-send doc                                                                       | `kind` · `count` · `size` · `thread` · `outcome`   |
+| `socket_request`  | `socketRequestTrace.ts`, as samples — [below](#socket_request)                                                                                | `type` · `kind` · `outcome` · `close_reason`       |
+| `state_outbox`    | `stateOutboxTrace.ts`, as samples — [below](#state_outbox)                                                                                    | `op` · `outcome` · `kind`                          |
+| `socket_verify`   | `libs/app-runtime`, as samples — see its socket doc                                                                                           | `kind` · `cause` · `outcome`                       |
+| `invite_accept`   | the invite accept pipelines, per run — [below](#invite_accept)                                                                                | `lane` · `outcome` · `step` · `room`               |
 
 The switch traces are taken at chokepoints rather than call sites. They sit wherever a user selection
 is the only caller, and they record failures as well as successes: a switch slow enough to fail is

@@ -2,6 +2,8 @@ import { createLogId, isNative, logger, setLogContextProvider } from '@chatic/br
 import { runtime } from '@chatic/app-runtime';
 
 import { getRouteTrail } from '../../utils/routeTrail';
+import { currentTelemetrySessionId } from '../telemetry/telemetryRuntime';
+import { routeTemplateOf } from '../telemetry/routeTemplate';
 
 import type { LogContext } from '@chatic/bridges';
 
@@ -59,9 +61,29 @@ const resolveRunId = (): string => {
     return webRunId;
 };
 
+/** Where an `effectiveType` exists (Chromium, Android WebView); WebKit has none, and it is left out. */
+const readNetwork = (): string | undefined =>
+    (navigator as Navigator & { connection?: { effectiveType?: string } }).connection?.effectiveType;
+
+/**
+ * The device family and the host. Inside the app the platform is the one the shell injects; a
+ * standalone tab is `web` whatever it runs on, because what differs there is the browser, not the OS.
+ */
+const deviceContext = (globals: NativeGlobals): Pick<LogContext, 'platform' | 'host' | 'network' | 'locale'> => {
+    const hybrid = isNative();
+    const injected = globals.CHATIC_APP_PLATFORM;
+    return {
+        platform: hybrid && (injected === 'ios' || injected === 'android') ? injected : 'web',
+        host: hybrid ? 'app' : 'browser',
+        network: readNetwork(),
+        locale: document.documentElement.lang || navigator.language || undefined,
+    };
+};
+
 export const readLogContext = (): LogContext => {
     const globals = nativeGlobals();
     const trail = getRouteTrail();
+    const route = trail.at(-1);
 
     let uid: string | undefined;
     let cid: string | undefined;
@@ -83,10 +105,13 @@ export const readLogContext = (): LogContext => {
         sid,
         appVersion: globals.CHATIC_APP_CURRENT_VERSION,
         webVersion: WEB_VERSION,
-        route: trail.at(-1),
+        route,
+        routeTemplate: routeTemplateOf(route),
         os: globals.CHATIC_APP_PLATFORM,
         osVersion: globals.CHATIC_APP_OS_VERSION,
         model: globals.CHATIC_APP_DEVICE_MODEL,
+        sessionId: currentTelemetrySessionId(),
+        ...deviceContext(globals),
     };
 };
 

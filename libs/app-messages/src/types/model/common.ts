@@ -7,8 +7,31 @@ export type AppLogLevel = 'debug' | 'info' | 'warn' | 'error';
 /** Runtime where the log originated — recorded only when crossing the boundary (ADR-0097) */
 export type AppLogOrigin = 'web' | 'native';
 
+/**
+ * The fields a log entry carries beyond its message, as they cross the bridge.
+ *
+ * `kind` tells a log from a statistic (`trace` · `sample` · `event`); absent means a log. The rest
+ * are a statistic's numbers and dimensions, kept as numbers and objects end to end, and the two error
+ * keys a failed request or SDK call carries. All optional: an app or web build older than these
+ * fields sends and accepts entries without them.
+ */
+export type AppLogStructuredFields = {
+    kind?: 'log' | 'trace' | 'sample' | 'event';
+    httpStatus?: number;
+    errorCode?: string;
+    durationMs?: number;
+    attrs?: Record<string, string>;
+    metrics?: Record<string, number>;
+    /** Sampling rate the entry was kept at, `0..1`. */
+    sr?: number;
+    /** Sampling policy version. */
+    pv?: number;
+    /** Order within the run. */
+    seq?: number;
+};
+
 /** App log entry structure */
-export type AppLogInfo = {
+export type AppLogInfo = AppLogStructuredFields & {
     /**
      * Entry-unique id — the server dedup key. In the hybrid app, a web log lands in both
      * its own queue and the native buffer, and the uploader pulls from that buffer again,
@@ -37,6 +60,8 @@ export type AppLogInfo = {
     network?: string;
     /** UI locale. */
     locale?: string;
+    /** Route template (`/channels/:id/room`) — the screen axis statistics aggregate on. */
+    routeTemplate?: string;
     tag: string; // Log identifying tag
     message?: string; // Log message
     data?: unknown; // Attached data
@@ -47,7 +72,7 @@ export type AppLogInfo = {
 };
 
 /** [Request] Web -> App log delivery payload */
-export type SendLogPayload = {
+export type SendLogPayload = AppLogStructuredFields & {
     /** Entry-unique id — server dedup key (filled in by the receiver if absent) */
     id?: string;
     /** Context captured at occurrence — the lookup axis for batch upload. May differ from the value at save time, so it's captured at the moment the log happens */
@@ -61,6 +86,12 @@ export type SendLogPayload = {
     os?: string;
     osVersion?: string;
     model?: string;
+    sessionId?: string;
+    platform?: string;
+    host?: string;
+    network?: string;
+    locale?: string;
+    routeTemplate?: string;
     level?: AppLogLevel;
     tag?: string;
     message: string;

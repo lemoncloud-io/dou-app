@@ -392,3 +392,20 @@ describe('LogUploadQueueService — lastLogAt', () => {
         expect(next.getPreviousRunLastLogAt()).toBe(42);
     });
 });
+
+describe('LogUploadQueueService — statistics share', () => {
+    let service: LogUploadQueueService | undefined;
+    afterEach(() => service?.teardown());
+
+    it('caps statistics at the app share of 300 without evicting a log', () => {
+        const p = createPersistence();
+        service = new LogUploadQueueService(p.port);
+        service.init();
+        publish(entry({ id: 'the-log', level: 'error' }));
+        for (let i = 0; i < 350; i += 1) publish(entry({ id: `s-${i}`, tag: 'perf.boot', kind: 'trace' }));
+
+        const held = service.fetch();
+        expect(held.filter(e => e.kind === 'trace')).toHaveLength(300);
+        expect(held.some(e => e.id === 'the-log')).toBe(true);
+    });
+});

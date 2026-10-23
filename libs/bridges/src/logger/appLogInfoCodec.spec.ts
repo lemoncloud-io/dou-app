@@ -143,3 +143,62 @@ describe('toLogEntry (AppLogInfo → LogEntry)', () => {
         expect(toLogEntry({ tag: 'APP', message: 'x', timestamp: 1 } as AppLogInfo)).not.toHaveProperty('runId');
     });
 });
+
+describe('appLogInfoCodec — structured fields', () => {
+    const statistic = entryOf({
+        tag: 'perf.chat_room_open',
+        kind: 'trace',
+        durationMs: 381,
+        attrs: { entry: 'list' },
+        metrics: { mount: 327 },
+        sr: 0.5,
+        pv: 3,
+        seq: 7,
+    });
+
+    it('carries kind and the statistics fields both ways, numbers as numbers', () => {
+        const info = toAppLogInfo(statistic);
+        expect(info).toMatchObject({
+            kind: 'trace',
+            durationMs: 381,
+            attrs: { entry: 'list' },
+            metrics: { mount: 327 },
+            sr: 0.5,
+            pv: 3,
+            seq: 7,
+        });
+
+        const round = toLogEntry(JSON.parse(JSON.stringify(info)));
+        expect(round).toMatchObject({
+            kind: 'trace',
+            durationMs: 381,
+            attrs: { entry: 'list' },
+            metrics: { mount: 327 },
+            sr: 0.5,
+            pv: 3,
+            seq: 7,
+        });
+    });
+
+    it('carries httpStatus and errorCode on a log', () => {
+        const round = toLogEntry(toAppLogInfo(entryOf({ level: 'error', httpStatus: 401, errorCode: 'ERR_NETWORK' })));
+
+        expect(round).toMatchObject({ httpStatus: 401, errorCode: 'ERR_NETWORK' });
+    });
+
+    it('adds no structured keys to an entry that has none', () => {
+        const info = toAppLogInfo({ level: 'warn', tag: 'APP', message: 'x', timestamp: 1 });
+        const round = toLogEntry({ tag: 'APP' } as AppLogInfo);
+
+        for (const key of ['kind', 'httpStatus', 'errorCode', 'durationMs', 'attrs', 'metrics', 'sr', 'pv', 'seq']) {
+            expect(info).not.toHaveProperty(key);
+            expect(round).not.toHaveProperty(key);
+        }
+    });
+
+    it('drops a kind this build does not know, which makes the entry a log', () => {
+        const round = toLogEntry({ tag: 'perf.x', kind: 'metric' } as unknown as AppLogInfo);
+
+        expect(round).not.toHaveProperty('kind');
+    });
+});

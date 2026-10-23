@@ -1,6 +1,6 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import DeviceInfo from 'react-native-device-info';
-import { redactSensitive, safeStringify } from '@chatic/logger';
+import { isTelemetryEntry, redactSensitive, safeStringify } from '@chatic/logger';
 import type { ILogService } from '../../log';
 import { NATIVE_RUN_ID } from '../../log/native/nativeLogContext';
 import type { IFirebaseCrashlyticsService } from './types';
@@ -60,6 +60,10 @@ export class FirebaseCrashlyticsService implements IFirebaseCrashlyticsService {
             // legible, and it matches the upload queue, which drops `debug` at
             // its own door (principle 13). One level policy, both sinks.
             if (level === 'debug') return;
+
+            // Statistics (performance traces, usage events) share the hub with logs but are not
+            // breadcrumbs: they would spend the same 64KB budget and push out the lines before a crash.
+            if (isTelemetryEntry(entry)) return;
 
             // Occurrence time from the entry, so bridged web logs keep their
             // original timeline in the Crashlytics breadcrumb (ADR-0097).

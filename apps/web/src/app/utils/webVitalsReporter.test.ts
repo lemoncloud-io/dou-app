@@ -34,14 +34,21 @@ describe('receiveVital', () => {
         );
     });
 
-    it('records nothing for INP, CLS or TTFB', () => {
+    it('records INP, CLS and TTFB as samples too, CLS scaled ×1000 to an integer', () => {
+        // Firebase never receives these three: @chatic/perf's catalogue keeps them on the log
+        // pipeline. That rule is pinned in libs/perf's catalog.spec.ts, not here.
         configurePerfTraces(backend);
 
         receiveVital(vital('INP', 180));
         receiveVital(vital('CLS', 0.05));
         receiveVital(vital('TTFB', 320));
 
-        expect(backend.stop).not.toHaveBeenCalled();
+        const recorded = backend.stop.mock.calls.map(([result]) => [result.attributes.vital, result.metrics.value_ms]);
+        expect(recorded).toEqual([
+            ['inp', 180],
+            ['cls', 50],
+            ['ttfb', 320],
+        ]);
     });
 
     it('records FCP and LCP as web_vitals samples, the value carried in value_ms', () => {
