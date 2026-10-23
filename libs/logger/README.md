@@ -146,7 +146,7 @@ libs/logger/src/
 └── observation/      2 files — the foreign-drop aggregator
 ```
 
-40 source files, 25 spec files, 3,821 lines of non-test code.
+40 source files, 25 spec files, 3,858 lines of non-test code.
 
 Three names are not where their filename suggests. `LogSink` lives in `sinks/ConsoleLogSink.ts` —
 there is no `LogSink.ts` to open. `LogStoreReader`, `LogStoreWriter` and `toLogListener` all live in

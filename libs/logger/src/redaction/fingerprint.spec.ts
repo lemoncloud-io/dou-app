@@ -48,6 +48,16 @@ describe('placeholders', () => {
         expect(phonePlaceholder('010-1234-5678', undefined)).toBe('[PHONE]');
     });
 
+    it('show the domain only for a listed mail provider, matched case-insensitively and exactly', () => {
+        expect(emailPlaceholder('jane@NAVER.com', SALT)).toBe(`[EMAIL#${fingerprint('jane@naver.com')}:@naver.com]`);
+        expect(emailPlaceholder('jane@yahoo.co.kr', SALT)).toBe(
+            `[EMAIL#${fingerprint('jane@yahoo.co.kr')}:@yahoo.co.kr]`
+        );
+        // A personal or company domain, and a subdomain of a listed one, show no domain.
+        expect(emailPlaceholder('jane@jane-doe.com', SALT)).toBe(`[EMAIL#${fingerprint('jane@jane-doe.com')}]`);
+        expect(emailPlaceholder('jane@mail.naver.com', SALT)).toBe(`[EMAIL#${fingerprint('jane@mail.naver.com')}]`);
+    });
+
     it('show the domain of an address and fingerprint it case-insensitively', () => {
         const expected = `[EMAIL#${fingerprint('someone@gmail.com')}:@gmail.com]`;
         expect(emailPlaceholder('Someone@Gmail.com', SALT)).toBe(expected);
@@ -72,6 +82,7 @@ describe('placeholders already in a text', () => {
     it('are recognised as whole values', () => {
         expect(placeholderKindOf('[REDACTED]')).toBe('REDACTED');
         expect(placeholderKindOf('[EMAIL#9d0e11:@gmail.com]')).toBe('EMAIL');
+        expect(placeholderKindOf('[EMAIL#9d0e11]')).toBe('EMAIL');
         expect(placeholderKindOf('[PHONE#a1b2c3:…5678]')).toBe('PHONE');
         expect(placeholderKindOf('[JWT]')).toBe('JWT');
         expect(placeholderKindOf('[EMAIL] and more')).toBeUndefined();
@@ -82,6 +93,7 @@ describe('placeholders already in a text', () => {
         for (const forged of [
             '[EMAIL#abcdef:jane@gmail.com]',
             '[EMAIL#abcdef:hunter2hunter2]',
+            '[EMAIL#abcdef:@jane-doe.com]',
             '[TOKEN#abcdef:eyJhbGciOiJIUzI1NiJ9]',
             '[PHONE#abcdef:01012345678]',
         ]) {

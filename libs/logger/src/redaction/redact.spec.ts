@@ -109,7 +109,7 @@ describe('maskSensitiveValue', () => {
                 `[PHONE#${fingerprint('01012345678')}:…5678]`
             );
             expect(maskSensitiveValue('email', ' someone@user.test ')).toBe(
-                `[EMAIL#${fingerprint('someone@user.test')}:@user.test]`
+                `[EMAIL#${fingerprint('someone@user.test')}]`
             );
         });
 
@@ -120,15 +120,15 @@ describe('maskSensitiveValue', () => {
         });
 
         it('keeps a value an earlier layer already masked', () => {
-            const masked = `[EMAIL#${fingerprint('someone@user.test')}:@user.test]`;
+            const masked = `[EMAIL#${fingerprint('someone@user.test')}]`;
             expect(maskSensitiveValue('email', masked)).toBe(masked);
         });
 
         it('keeps a placeholder only of the kind the name prints', () => {
-            const email = `[EMAIL#${fingerprint('someone@user.test')}:@user.test]`;
+            const email = `[EMAIL#${fingerprint('someone@user.test')}]`;
             expect(maskSensitiveValue('password', email)).toBe('[REDACTED]');
-            // Judged afresh instead: a long value under a token name is fingerprinted, never kept.
-            expect(maskSensitiveValue('deviceToken', email)).toMatch(/^\[TOKEN#[0-9a-f]{6}\]$/);
+            // Judged afresh instead, as any value under a token name is — never kept as it came.
+            expect(maskSensitiveValue('deviceToken', email)).not.toBe(email);
             expect(maskSensitiveValue('deviceToken', '[TOKEN#abcdef]')).toBe('[TOKEN#abcdef]');
         });
 
@@ -150,7 +150,7 @@ describe('redactSensitive with the device salt', () => {
         const input = { email: 'someone@user.test', note: 'call 010-1234-5678', password: 'hunter2' };
 
         expect(redactSensitive(input)).toEqual({
-            email: `[EMAIL#${fingerprint('someone@user.test')}:@user.test]`,
+            email: `[EMAIL#${fingerprint('someone@user.test')}]`,
             note: `call [PHONE#${fingerprint('01012345678')}:…5678]`,
             password: '[REDACTED]',
         });

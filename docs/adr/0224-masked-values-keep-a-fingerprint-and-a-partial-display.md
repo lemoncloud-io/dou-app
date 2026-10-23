@@ -47,7 +47,10 @@ leaves a well-formed entry and no trace of the loss.
    (`passwordResetToken`) is not a token. These values are short, or are keys in their own right, and
    a fingerprint of a short value can be matched by trying every candidate.
 3. **Partial display for phone numbers and addresses.** `[PHONE#a1b2c3:…5678]` keeps the last four
-   digits, and `[EMAIL#9d0e11:@gmail.com]` keeps the domain, never the local part. The same forms
+   digits, and `[EMAIL#9d0e11:@gmail.com]` keeps the domain of a common mail provider — `gmail.com`,
+   `googlemail.com`, `naver.com`, `kakao.com`, `daum.net`, `hanmail.net`, `nate.com`, `outlook.com`,
+   `hotmail.com`, `live.com`, `icloud.com`, `me.com`, `yahoo.com`, `yahoo.co.kr`, exactly — while any
+   other address is `[EMAIL#9d0e11]`. The local part is never shown. The same forms
    apply whether the value was found by shape or under an `email`/`phone` name; under a name, a number
    needs nine digits or more, so the four shown are fewer than half. The axis that finds a person is
    still `uid`.
@@ -94,7 +97,7 @@ leaves a well-formed entry and no trace of the loss.
 ## Consequences
 
 - Logs and the report breadcrumbs built from them (ADR-0050) now carry the last four digits of a phone
-  number and an address's domain. Whether that sits inside the diagnostic data the service already
+  number and a common mail provider's domain. Whether that sits inside the diagnostic data the service already
   says it collects is a question for whoever owns that notice; this record only notes the widening.
 - **A phone number's fingerprint is only as private as the salt.** With the last four digits shown,
   a domestic `010` number has four unknown digits left — ten thousand candidates, which anyone holding
@@ -113,8 +116,9 @@ leaves a well-formed entry and no trace of the loss.
   compare by `uid` instead.
 - Clearing the app's storage draws a new salt. Fingerprints from before no longer match those after —
   the same as moving to another device.
-- An address's domain is shown whole, including a personal one (`@jane-doe.com`) that names its
-  owner nearly as well as the local part would.
+- A personal or company domain (`@jane-doe.com`) names its owner nearly as well as the local part, so
+  only listed providers show theirs. An address on an unlisted provider loses its domain too; adding a
+  provider is a change to that list.
 - `desktop-web` sets no salt and keeps the bare forms until it does.
 - Every name and shape rule still only catches what it recognises. The caller's rule — do not put
   credentials or personal data in an entry — is unchanged.

@@ -180,9 +180,12 @@ describe('redactText with the device salt', () => {
         expect(redactText('to=+821012345678')).toBe(`to=[PHONE#${fingerprint('821012345678')}:…5678]`);
     });
 
-    it('shows the domain of an address only', () => {
+    it('shows the domain of an address only for a common mail provider', () => {
+        expect(redactText('lookup failed for someone@gmail.com')).toBe(
+            `lookup failed for [EMAIL#${fingerprint('someone@gmail.com')}:@gmail.com]`
+        );
         expect(redactText('lookup failed for someone@user.test')).toBe(
-            `lookup failed for [EMAIL#${fingerprint('someone@user.test')}:@user.test]`
+            `lookup failed for [EMAIL#${fingerprint('someone@user.test')}]`
         );
     });
 

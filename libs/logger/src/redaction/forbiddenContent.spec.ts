@@ -175,6 +175,18 @@ describe('fingerprints and partial display leave nothing else behind', () => {
         expect(out).not.toContain('john.roe');
     });
 
+    it('keeps no personal or company domain', () => {
+        const out = wire({
+            message: 'bounce from jane@jane-doe.com and ops@mail.naver.com',
+            data: { email: 'kim@lemoncloud.io' },
+        });
+
+        for (const fragment of ['jane-doe', 'mail.naver', 'lemoncloud', 'jane@', 'ops@', 'kim@']) {
+            expect(out).not.toContain(fragment);
+        }
+        expect(out).toMatch(/\[EMAIL#[0-9a-f]{6}\]/);
+    });
+
     it('keeps no part of a token body', () => {
         const out = wire({
             message: `push ${fcm} / Bearer ${jwt}`,

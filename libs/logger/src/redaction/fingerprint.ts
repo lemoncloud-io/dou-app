@@ -99,8 +99,31 @@ export const phonePlaceholder = (value: string, key: string | undefined): string
 };
 
 /**
- * `[EMAIL#9d0e11:@gmail.com]` — the domain only. The local part is the person; the domain is the
- * provider, which is what a delivery problem is about.
+ * Mail providers whose domain an address may show. A provider's domain says which service a delivery
+ * problem is about and nothing about the person; a personal or company domain (`@jane-doe.com`,
+ * `@lemoncloud.io`) can name its owner nearly as well as the local part, so it is hidden too. Exact
+ * names only — a subdomain of one of these is not on the list.
+ */
+export const COMMON_MAIL_DOMAINS: ReadonlySet<string> = new Set([
+    'gmail.com',
+    'googlemail.com',
+    'naver.com',
+    'kakao.com',
+    'daum.net',
+    'hanmail.net',
+    'nate.com',
+    'outlook.com',
+    'hotmail.com',
+    'live.com',
+    'icloud.com',
+    'me.com',
+    'yahoo.com',
+    'yahoo.co.kr',
+]);
+
+/**
+ * `[EMAIL#9d0e11:@gmail.com]` for a common mail provider ({@link COMMON_MAIL_DOMAINS}), `[EMAIL#9d0e11]`
+ * for any other domain. The local part is never shown: it is the person.
  *
  * Lower-cased before hashing, because mail providers treat the address case-insensitively and a
  * fingerprint that split on case would call one address two.
@@ -108,17 +131,22 @@ export const phonePlaceholder = (value: string, key: string | undefined): string
 export const emailPlaceholder = (value: string, key: string | undefined): string => {
     if (!key) return '[EMAIL]';
     const address = value.toLowerCase();
-    return `[EMAIL#${fingerprintOf(address, key)}:@${address.slice(address.lastIndexOf('@') + 1)}]`;
+    const domain = address.slice(address.lastIndexOf('@') + 1);
+    const fingerprint = fingerprintOf(address, key);
+    return COMMON_MAIL_DOMAINS.has(domain) ? `[EMAIL#${fingerprint}:@${domain}]` : `[EMAIL#${fingerprint}]`;
 };
+
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const MAIL_DOMAINS = [...COMMON_MAIL_DOMAINS].map(escapeRegExp).join('|');
 
 /**
  * The exact detailed forms the builders above print — a token's fingerprint alone, a number's last
- * four digits, an address's domain. Exact, because whatever matches is let through untouched (shelved,
- * or kept under a sensitive name): a looser pattern would let `[EMAIL#abcdef:jane@gmail.com]` carry
- * an address past masking.
+ * four digits, a listed provider's domain. Exact, because whatever matches is let through untouched
+ * (shelved, or kept under a sensitive name): a looser pattern would let `[EMAIL#abcdef:jane@gmail.com]`
+ * carry an address past masking.
  */
-const DETAIL =
-    '(?:(JWT|TOKEN)#[0-9a-f]{6}|(PHONE)#[0-9a-f]{6}:…\\d{4}|(EMAIL)#[0-9a-f]{6}:@[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.[a-z]{2,})';
+const DETAIL = `(?:(JWT|TOKEN)#[0-9a-f]{6}|(PHONE)#[0-9a-f]{6}:…\\d{4}|(EMAIL)#[0-9a-f]{6}(?::@(?:${MAIL_DOMAINS}))?)`;
 
 /** A detailed placeholder, with its kind captured. Only these four ever carry detail. */
 const DETAILED_PLACEHOLDER = new RegExp(`\\[${DETAIL}\\]`, 'g');

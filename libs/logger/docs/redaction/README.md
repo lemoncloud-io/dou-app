@@ -54,12 +54,12 @@ What a sensitive value **becomes** is `maskSensitiveValue(key, value)`. It is `[
 device's salt is set ([below](#fingerprints-and-partial-display)) and the name's family allows more
 (`sensitiveFamilyOf`):
 
-| Family  | Names                                                          | Becomes                                  |
-| ------- | -------------------------------------------------------------- | ---------------------------------------- |
-| `token` | every match is a token name — `deviceToken`, `delegationToken` | `[TOKEN#b07e22]`, or `[JWT#…]` for a JWT |
-| `email` | every match is `email` — `email`, `userEmail`                  | `[EMAIL#9d0e11:@gmail.com]`              |
-| `phone` | every match is `phone` — `phone`, `phoneNumber`                | `[PHONE#a1b2c3:…5678]`                   |
-| —       | passwords, one-time codes, secrets, keys, `authorization`      | `[REDACTED]`, always                     |
+| Family  | Names                                                          | Becomes                                         |
+| ------- | -------------------------------------------------------------- | ----------------------------------------------- |
+| `token` | every match is a token name — `deviceToken`, `delegationToken` | `[TOKEN#b07e22]`, or `[JWT#…]` for a JWT        |
+| `email` | every match is `email` — `email`, `userEmail`                  | `[EMAIL#9d0e11:@gmail.com]` or `[EMAIL#9d0e11]` |
+| `phone` | every match is `phone` — `phone`, `phoneNumber`                | `[PHONE#a1b2c3:…5678]`                          |
+| —       | passwords, one-time codes, secrets, keys, `authorization`      | `[REDACTED]`, always                            |
 
 **Every** match has to agree: `passwordResetToken` also matches `password`, and a reset token is a
 one-time code. A token value shorter than 16 characters gets no fingerprint — no real token is that
@@ -90,14 +90,14 @@ all three appear in entries: absolute (`https://host/path?…`), scheme-with-opa
 
 Then the shape rules, most specific first.
 
-| Pattern                                                | Becomes          | With the device salt           |
-| ------------------------------------------------------ | ---------------- | ------------------------------ |
-| `eyJ…` base64url triple (a JSON-header JWT)            | `[JWT]`          | `[JWT#3f9a1c]`                 |
-| `Bearer <8+ chars>`                                    | `Bearer [TOKEN]` | `Bearer [TOKEN#…]`             |
-| FCM/GCM registration token (`:APA91b…`)                | `[TOKEN]`        | `[TOKEN#b07e22]`               |
-| `AKIA…` / `ASIA…` AWS key ids                          | `[TOKEN]`        | `[TOKEN]` — a key, not a token |
-| An email address with a dotted TLD                     | `[EMAIL]`        | `[EMAIL#9d0e11:@gmail.com]`    |
-| E.164, then separated and bare domestic mobile numbers | `[PHONE]`        | `[PHONE#a1b2c3:…5678]`         |
+| Pattern                                                | Becomes          | With the device salt                            |
+| ------------------------------------------------------ | ---------------- | ----------------------------------------------- |
+| `eyJ…` base64url triple (a JSON-header JWT)            | `[JWT]`          | `[JWT#3f9a1c]`                                  |
+| `Bearer <8+ chars>`                                    | `Bearer [TOKEN]` | `Bearer [TOKEN#…]`                              |
+| FCM/GCM registration token (`:APA91b…`)                | `[TOKEN]`        | `[TOKEN#b07e22]`                                |
+| `AKIA…` / `ASIA…` AWS key ids                          | `[TOKEN]`        | `[TOKEN]` — a key, not a token                  |
+| An email address with a dotted TLD                     | `[EMAIL]`        | `[EMAIL#9d0e11:@gmail.com]` or `[EMAIL#9d0e11]` |
+| E.164, then separated and bare domestic mobile numbers | `[PHONE]`        | `[PHONE#a1b2c3:…5678]`                          |
 
 **Each match gets its own placeholder** — "an address was here" is itself the diagnosis, and
 collapsing every kind into one word deletes the finding along with the value. `Bearer` runs after the
@@ -125,7 +125,11 @@ the one you mean?") and of an address ("which provider?"). So with the device's 
 - **A phone number keeps its last four digits**, and a fingerprint of its digits alone, so
   `010-1234-5678` and `01012345678` match. A number written with its country code (`+82 10…`) does not
   match its domestic form.
-- **An address keeps its domain**, never the local part, and a fingerprint of the lower-cased address.
+- **An address keeps its domain when it is a common mail provider's** (`COMMON_MAIL_DOMAINS`:
+  `gmail.com`, `naver.com`, `kakao.com`, `daum.net`, `icloud.com` … matched case-insensitively and
+  exactly, so a subdomain is not one), and a fingerprint of the lower-cased address always. A personal
+  or company domain names its owner nearly as well as the local part, so `[EMAIL#9d0e11]` shows none.
+  The local part is never shown.
 
 **The salt belongs to the device and never leaves it.** Each install draws its own and keeps it; no
 entry, field or statistic carries it. Across devices the same value prints differently, on purpose:
