@@ -4,6 +4,14 @@
 
 ### Features
 
+- (logger,web,mobile) mask without a device salt — fingerprint tokens only
+- (logger) show an email domain only for common mail providers
+- (logger,web,mobile) keep a fingerprint and a partial display in masked values (ADR-0224)
+
+## [2026-10-23] - No version updates
+
+### Features
+
 - (http,app-runtime,perf) tell relay requests from cloud backend ones in api_request
 - (logger,http,app-runtime) measure api requests and gate statistics by app version
 
