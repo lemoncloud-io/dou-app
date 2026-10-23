@@ -63,7 +63,6 @@ jest.mock('../../data/runtime', () => ({
 // the `session/store` barrel now.
 
 jest.mock('../store/stores', () => ({
-    CLOUD_INVITED_BUNDLES_KEY: 'invited-cloud-bundles',
     cloudStore: {
         saveDelegationToken: (...args: unknown[]) => mockSaveDelegationToken(...args),
         getDelegationToken: jest.fn(),

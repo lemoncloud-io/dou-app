@@ -108,11 +108,7 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
                 throw new Error('Missing cloud token fields for socket auth signature');
             }
             const current = new Date().toISOString();
-            const signature = calcSignature(
-                { authId, accountId, identityId, identityToken: '' },
-                current,
-                navigator.userAgent
-            );
+            const signature = calcSignature({ authId, accountId, identityId }, current, navigator.userAgent);
             return { signature, current };
         }
 
@@ -159,11 +155,7 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
             throw new Error('Missing relay token fields for socket auth signature');
         }
         const current = new Date().toISOString();
-        const signature = calcSignature(
-            { authId, accountId, identityId, identityToken: '' },
-            current,
-            navigator.userAgent
-        );
+        const signature = calcSignature({ authId, accountId, identityId }, current, navigator.userAgent);
         return { signature, current };
     }
 

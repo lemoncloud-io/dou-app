@@ -34,7 +34,7 @@ export interface IssueReportExtras {
      * Rides in the payload like the rest, but their size changes how the report is
      * sent: the payload is also the Slack message text, and one image blows past its
      * ~40k character limit, so `reportIssue` sends a report carrying images with
-     * `silent: true` — stored, not announced. @see ADR-0049
+     * `silent: true` — stored, not announced.
      */
     images?: string[];
 }

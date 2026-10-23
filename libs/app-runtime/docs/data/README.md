@@ -111,8 +111,9 @@ sent the message to the one they moved to — and nothing refused it, because `s
 `acceptsAnswer` check to fail. When the outgoing cloud's slot was then torn down, the request died
 with it.
 
-`data.runInCloud(cid, work)` names the cloud once, up front, and runs `work` against that cloud's
-graph; `data.sendChatInCloud(cid, payload)` is the text send on top of it, and the image send (a row,
+`runInCloud(cid, work)` (`data/cloudChat.ts`) names the cloud once, up front, and runs `work`
+against that cloud's graph. It is internal to this lib: the shells reach it only through the two
+sends built on it. `data.sendChatInCloud(cid, payload)` is the text send, and the image send (a row,
 an upload, then the send) runs inside one `runInCloud` so the hold covers the whole sequence
 ([image-send.md](./image-send.md) — `data.useSendImages`, the one image send every shell runs):
 
@@ -277,11 +278,6 @@ const cloudA = runtime.data.getCloudRepositories('cloud-a');
 
 // A chat send, to the cloud of the row the user pressed send in
 await runtime.data.sendChatInCloud(channel.cid, { channelId: channel.id, content });
-
-// A write of several requests, all to that cloud, its socket held until the last one settles
-await runtime.data.runInCloud(channel.cid, async ({ chat }) => {
-    /* create the row, upload, send */
-});
 ```
 
 Everything else about using a repository — subscribing with `observe*`, refreshing, writing —

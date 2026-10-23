@@ -39,8 +39,9 @@ const resolveAppType = (): AppType => {
 /**
  * The function through which a user directly reports an issue.
  *
- * `extras` is optional context a user-facing issue report screen attaches (recent logs, a
- * device/version snapshot, etc.). Without it, this behaves exactly like the old 2-argument call.
+ * `extras` is the context the issue report screen attaches (recent logs, a device/version
+ * snapshot, etc.). Every field in it is optional, but the argument is not: both report screens pass
+ * one.
  *
  * **When there's an attachment (`extras.images`), it's sent with `silent: true`.** The payload rides
  * as a JSON string inside `body.message`, which becomes the Slack message text verbatim — a single
@@ -48,13 +49,11 @@ const resolveAppType = (): AppType => {
  * `SlackReportBody.meta` was tried, but measurement confirmed (2026-08-11) that the backend doesn't
  * persist the client's `meta` — `message` is the only field that gets stored. So only reports with
  * attachments turn off the Slack send and save-only — trading the notification for the photo.
- * @see ADR-0049
  */
-export const reportIssue = async (title: string, message: string, extras?: IssueReportExtras): Promise<void> => {
+export const reportIssue = async (title: string, message: string, extras: IssueReportExtras): Promise<void> => {
     try {
         const app: AppType = resolveAppType();
-        const extrasWithImages = extras ?? {};
-        const hasImages = !!extrasWithImages.images?.length;
+        const hasImages = !!extras.images?.length;
 
         const state = getGlobalSessionContext();
         // Issue reporting is synchronous (not a hook), so it can't observe the profile cache.
@@ -73,7 +72,7 @@ export const reportIssue = async (title: string, message: string, extras?: Issue
             message,
             app,
             // `.toLowerCase()` preserves the exact wire value `WEB_ENV` always sent ('local' ·
-            // 'dev' · 'prod') — `env.stage` itself is uppercase now (ADR-0079 Decision 14), but this
+            // 'dev' · 'prod') — `env.stage` itself is uppercase now, but this
             // payload is stored and may already be filtered on by the admin console, so the
             // OUTGOING contract stays byte-identical rather than following the internal casing.
             env: (config.get<string>('env.stage') ?? '').toLowerCase(),
@@ -96,9 +95,7 @@ export const reportIssue = async (title: string, message: string, extras?: Issue
                 placeId: cloudState.siteId ?? undefined,
             },
             // User-facing screen context (recent logs, device/version snapshot, attachments, ...).
-            // Spread only when provided so the base payload shape is unchanged for
-            // legacy 2-arg callers.
-            ...extrasWithImages,
+            ...extras,
         };
 
         const serialized = JSON.stringify(payload, null, 2);
@@ -115,16 +112,16 @@ export const reportIssue = async (title: string, message: string, extras?: Issue
         };
 
         if (hasImages) {
-            // The remaining unknown is the store's per-item size ceiling (ADR-0049). Log what we
-            // actually sent so a failure has a number next to it instead of a guess.
+            // How large an item the report store accepts is still unknown. Log what we actually
+            // sent so a failure has a number next to it instead of a guess.
             logger.info('ISSUE_REPORT', '[reportIssue] sending attachments', {
-                images: extrasWithImages.images?.length,
+                images: extras.images?.length,
                 payloadKb: Math.round(serialized.length / 1024),
                 silent: true,
             });
         }
 
-        // repository → data source → gateway, like every other data call (ADR-0036). Resolved per
+        // repository → data source → gateway, like every other data call. Resolved per
         // call, not captured at module load: this file must stay importable before the data runtime
         // is configured — same rule `session/auth` follows.
         await getRepositories().report.submitIssue(body);

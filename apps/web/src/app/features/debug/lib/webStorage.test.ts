@@ -61,7 +61,6 @@ describe('classifyWebKey', () => {
         ['@chatic/web.log.pending.abc', 'logs'],
         ['@chatic/web.log.alive', 'logs'],
         ['chatic-selected-cloud-id', 'session'],
-        ['chatic-invited-clouds', 'session'],
         ['@chatic/config.ui.theme', 'config'],
         ['@chatic_dev.i18nextLng', 'other'],
         ['chatic-pinned-channels', 'other'],

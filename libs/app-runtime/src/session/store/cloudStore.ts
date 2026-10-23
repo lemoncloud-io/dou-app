@@ -10,7 +10,6 @@ const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
 const CLOUD_TOKEN_KEY = 'chatic-cloud-token';
 const CLOUD_SELECTED_CLOUD_KEY = 'chatic-selected-cloud-id';
 const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
-const CLOUD_INVITED_BUNDLES_KEY = 'chatic-invited-clouds';
 // Per-cloud token cache: lets a re-switch to a recently-visited cloud reuse its delegation + cloud
 // token instead of re-issuing them over 2 HTTP round trips, so the cloud identity (uid) — and thus
 // the cid+uid-scoped local cache — is available instantly on switch.
@@ -276,7 +275,6 @@ class CloudStore implements ICloudStore {
             this.token.clear();
             this.storage.remove(CLOUD_SELECTED_CLOUD_KEY);
             this.storage.remove(CLOUD_SELECTED_PLACE_KEY);
-            this.storage.remove(CLOUD_INVITED_BUNDLES_KEY);
             // The per-cloud token cache stays, and so do the identities: leaving the committed cloud
             // does not end this account's session in any other cloud. Those clouds keep background
             // socket sessions that sign from the cache, and the one just left usually becomes one of
