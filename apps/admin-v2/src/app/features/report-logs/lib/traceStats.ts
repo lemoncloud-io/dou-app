@@ -60,13 +60,22 @@ const measureOf = (row: ReportLogRow, measure: string): number | undefined =>
     measure === DURATION ? row.durationMs : row.metrics?.[measure];
 
 /**
- * The value at a percentile, nearest-rank on sorted values — the same definition a reader can
- * check by hand on a short list.
+ * The value at a percentile of sorted values, by linear interpolation between the two closest ranks —
+ * the definition spreadsheets use (`PERCENTILE.INC`), so a reader can check it by hand.
+ *
+ * Position `h = (n − 1) × p`; the value is `x[⌊h⌋] + (h − ⌊h⌋) × (x[⌊h⌋+1] − x[⌊h⌋])`. A single value is
+ * every percentile of itself. Interpolating keeps a tail percentile from snapping to whichever record
+ * happens to sit at the rank — on the small samples this view works with, that jump is most of the
+ * difference between two runs of the same code.
  */
 export const percentile = (sorted: number[], p: number): number | undefined => {
-    if (!sorted.length) return undefined;
-    const rank = Math.ceil((p / 100) * sorted.length);
-    return sorted[Math.min(sorted.length, Math.max(1, rank)) - 1];
+    const n = sorted.length;
+    if (!n) return undefined;
+    if (n === 1) return sorted[0];
+    const h = (n - 1) * (p / 100);
+    const low = Math.floor(h);
+    const high = Math.min(n - 1, low + 1);
+    return sorted[low] + (h - low) * (sorted[high] - sorted[low]);
 };
 
 export interface StatGroup {

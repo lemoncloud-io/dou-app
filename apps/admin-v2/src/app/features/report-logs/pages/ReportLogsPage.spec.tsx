@@ -439,7 +439,8 @@ describe('ReportLogsPage — statistics', () => {
         const cells = within(total)
             .getAllByRole('cell')
             .map(cell => cell.textContent);
-        expect(cells).toEqual(['(all)', '3', '3', '1', '200 ms', '300 ms', '300 ms', '300 ms', '200 ms']);
+        // [100, 200, 300] interpolated: p75 h = 1.5 → 250, p95 h = 1.9 → 290, p99 h = 1.98 → 298.
+        expect(cells).toEqual(['(all)', '3', '3', '1', '200 ms', '250 ms', '290 ms', '298 ms', '200 ms']);
     });
 
     it('says there are no statistics rather than showing zeros', async () => {

@@ -108,7 +108,8 @@ apply here: the timeline is about one run, all of it.
 `Statistics` reads one statistic over the fetched rows — a trace by its duration or a metric, a sample
 by a metric, an event by its count — split by an attribute or a context axis (app version, platform,
 host, OS, route template). Per group: `n`, an estimated count weighed by each record's sampling rate
-(`Σ 1/sr`), distinct users, and p50 / p75 / p95 / p99 / mean by nearest rank, plus a distribution. State
+(`Σ 1/sr`), distinct users, and p50 / p75 / p95 / p99 by linear interpolation between ranks (the spreadsheet `PERCENTILE.INC`:
+`h = (n − 1) × p`), the mean, and a distribution. State
 is in the URL (`stat`, `measure`, `by`).
 
 It is honest about what it is: **numbers over the fetched rows**, exact for a narrow question (one

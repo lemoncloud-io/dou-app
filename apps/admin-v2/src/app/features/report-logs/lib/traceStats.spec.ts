@@ -19,11 +19,19 @@ const trace = (durationMs: number, over: Partial<ReportLogRow> = {}) =>
     row({ tag: 'perf.chat_room_open', recordKind: 'trace', durationMs, ...over });
 
 describe('percentile', () => {
-    it('uses nearest rank', () => {
+    it('interpolates linearly between ranks, like PERCENTILE.INC', () => {
+        // n = 10. p95: h = 9 × 0.95 = 8.55 → 90 + 0.55 × (100 − 90) = 95.5.
+        // p50: h = 4.5 → 50 + 0.5 × 10 = 55. p75: h = 6.75 → 70 + 0.75 × 10 = 77.5.
         const sorted = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-        expect(percentile(sorted, 50)).toBe(50);
-        expect(percentile(sorted, 95)).toBe(100);
-        expect(percentile(sorted, 10)).toBe(10);
+        expect(percentile(sorted, 95)).toBeCloseTo(95.5);
+        expect(percentile(sorted, 50)).toBeCloseTo(55);
+        expect(percentile(sorted, 75)).toBeCloseTo(77.5);
+        expect(percentile(sorted, 0)).toBe(10);
+        expect(percentile(sorted, 100)).toBe(100);
+    });
+
+    it('is the value itself for a single value', () => {
+        expect(percentile([42], 95)).toBe(42);
     });
 
     it('has no value for no data', () => {
@@ -80,10 +88,11 @@ describe('statGroups', () => {
             estimated: 4,
             users: 2,
             measured: 4,
-            p50: 20,
-            p95: 40,
             mean: 25,
         });
+        // h50 = 3 × 0.5 = 1.5 → 20 + 0.5 × 10 = 25; h95 = 2.85 → 30 + 0.85 × 10 = 38.5.
+        expect(all.p50).toBeCloseTo(25);
+        expect(all.p95).toBeCloseTo(38.5);
     });
 
     it('weighs the estimated count by each record sampling rate', () => {

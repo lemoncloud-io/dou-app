@@ -110,7 +110,7 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
 
             <p className="text-[11px] leading-snug text-muted-foreground">
                 Over the {picked.length.toLocaleString()} collected <span className="font-mono">{tag}</span> records
-                {kind === 'event' ? '' : ', percentiles by nearest rank'}.{' '}
+                {kind === 'event' ? '' : ', percentiles interpolated between ranks'}.{' '}
                 {partial && (
                     <span className="font-semibold text-foreground">
                         Partial sample — the collection stopped at its cap; narrow the range for the whole period.{' '}
