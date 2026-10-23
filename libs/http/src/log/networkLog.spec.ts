@@ -32,6 +32,15 @@ describe('withNetworkLog', () => {
         expect(typeof fields.durationMs).toBe('number');
     });
 
+    it('reads the response size from content-length, and leaves it out when there is none', async () => {
+        const sink = createSink();
+        await withNetworkLog(req, async () => ({ data: {}, status: 200, headers: { 'content-length': '2048' } }), sink);
+        await withNetworkLog(req, async () => ({ data: {}, status: 200 }), sink);
+
+        expect(sink.debug.mock.calls[0][2].responseBytes).toBe(2048);
+        expect(sink.debug.mock.calls[1][2]).not.toHaveProperty('responseBytes');
+    });
+
     it('omits the response body on success — bulk without diagnostic value, and these entries now get uploaded', async () => {
         const sink = createSink();
         await withNetworkLog(req, async () => ({ data: { huge: 'payload' }, status: 200 }), sink);

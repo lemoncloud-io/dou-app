@@ -1,4 +1,4 @@
-import { logHub } from '@chatic/bridges';
+import { logHub, recordTelemetry } from '@chatic/bridges';
 
 import {
     noteStatisticsDropped,
@@ -130,5 +130,27 @@ describe('noteStatisticsDropped', () => {
         const reports = entries.filter(e => e.tag === 'perf.telemetry_dropped');
         expect(reports).toHaveLength(1);
         expect(reports[0].metrics).toEqual({ count: 2 });
+    });
+});
+
+describe('startTelemetry — the process recorder', () => {
+    it('lets code without its own recorder record through the run policy (the HTTP layer)', () => {
+        localStorage.setItem(
+            '@chatic/web.telemetry.policy.override',
+            JSON.stringify({ version: 1, enabled: true, defaults: { perf: 1 } })
+        );
+        const { entries, unsubscribe } = collect();
+        const stop = startTelemetry({ context: () => ({ runId: 'r1' }), allowPolicyOverride: true });
+        recordTelemetry('sample', 'api_request', {
+            attrs: { endpoint: '/clouds/:id', method: 'GET', status_class: '2xx', outcome: 'ok' },
+            metrics: { rtt_ms: 40 },
+        });
+        stop();
+        recordTelemetry('sample', 'api_request', { metrics: { rtt_ms: 1 } });
+        unsubscribe();
+
+        const api = entries.filter(e => e.tag === 'perf.api_request');
+        expect(api).toHaveLength(1);
+        expect(api[0]).toMatchObject({ kind: 'sample', attrs: { endpoint: '/clouds/:id' }, metrics: { rtt_ms: 40 } });
     });
 });

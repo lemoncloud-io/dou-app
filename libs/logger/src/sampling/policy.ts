@@ -14,7 +14,10 @@ export const TELEMETRY_STREAM_AREA: Record<TelemetryStream, string> = { perf: 'p
 
 export const telemetryStreamOf = (kind: TelemetryKind): TelemetryStream => (kind === 'event' ? 'usage' : 'perf');
 
-/** What a rule can match on. Every key is an exact match; a rule matches when all of its keys do. */
+/**
+ * What a rule can match on. A rule matches when all of its keys do. Every key is an exact match
+ * except `minAppVersion`, which is "this app version or later".
+ */
 export interface TelemetryPolicyMatch {
     stream?: TelemetryStream;
     tag?: string;
@@ -22,6 +25,13 @@ export interface TelemetryPolicyMatch {
     host?: LogHost;
     appVersion?: string;
     webVersion?: string;
+    /**
+     * The app version or later (`1.4.0` matches `1.4.0`, `1.4.2`, `2.0.0`). A record with no app
+     * version — the standalone web — never matches it. This is what lets statistics be turned on
+     * only for app builds that carry the statistics queue share: on an older build a statistic would
+     * be stored as a plain log.
+     */
+    minAppVersion?: string;
 }
 
 const MATCH_KEYS: readonly (keyof TelemetryPolicyMatch)[] = [
@@ -31,7 +41,31 @@ const MATCH_KEYS: readonly (keyof TelemetryPolicyMatch)[] = [
     'host',
     'appVersion',
     'webVersion',
+    'minAppVersion',
 ];
+
+/** `major.minor.patch`, with the minor and patch optional. A pre-release or build suffix is not a version here. */
+const VERSION = /^\d+(\.\d+){0,2}$/;
+
+/** The numeric parts of a version, or `undefined` when it is not one. */
+const versionParts = (value: string): number[] | undefined =>
+    VERSION.test(value) ? value.split('.').map(Number) : undefined;
+
+/**
+ * Whether `version` is `minimum` or later, part by part (`1.10.0` is after `1.9.0`; a missing part is
+ * zero). A version that does not parse — or no version at all — is not "later" than anything.
+ */
+export const isAppVersionAtLeast = (version: string | undefined, minimum: string): boolean => {
+    const have = version ? versionParts(version) : undefined;
+    const need = versionParts(minimum);
+    if (!have || !need) return false;
+    for (let i = 0; i < 3; i += 1) {
+        const a = have[i] ?? 0;
+        const b = need[i] ?? 0;
+        if (a !== b) return a > b;
+    }
+    return true;
+};
 
 export interface TelemetryPolicyRule {
     match: TelemetryPolicyMatch;
@@ -90,6 +124,9 @@ const parseRule = (raw: unknown): TelemetryPolicyRule | undefined => {
         // A key this build does not know, or a value that is not a string, could only be read more
         // broadly than the policy meant. Such a rule is skipped as a whole rather than half-applied.
         if (!(MATCH_KEYS as readonly string[]).includes(key) || typeof value !== 'string') return undefined;
+        // A minimum that is not a version could never be compared; the rule is skipped rather than
+        // read as "every version".
+        if (key === 'minAppVersion' && !versionParts(value)) return undefined;
         match[key] = value;
     }
     return { match: match as TelemetryPolicyMatch, rate };
@@ -159,7 +196,11 @@ export interface TelemetryRate {
 }
 
 const matches = (match: TelemetryPolicyMatch, query: TelemetryRateQuery): boolean =>
-    Object.entries(match).every(([key, value]) => query[key as keyof TelemetryRateQuery] === value);
+    Object.entries(match).every(([key, value]) =>
+        key === 'minAppVersion'
+            ? isAppVersionAtLeast(query.appVersion, value as string)
+            : query[key as keyof TelemetryRateQuery] === value
+    );
 
 /**
  * The rate one record is kept at.

@@ -9,4 +9,5 @@ export * from './error/credentialStale';
 export * from './error/attribution';
 export * from './error/recovery';
 export * from './log/networkLog';
+export * from './log/apiRequest';
 export * from './gateways';

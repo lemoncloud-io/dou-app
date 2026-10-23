@@ -20,6 +20,7 @@ sampling/
   TelemetrySampler.ts   the per-run verdict, and the drain-time selector for the uploader
   catalog.ts            TelemetryCatalog · validateTelemetryRecord — the closed list of records
   TelemetryRecorder.ts  catalogue check → verdict → entry → publish
+  telemetrySlot.ts      setTelemetryRecorder · recordTelemetry — the process recorder
 ```
 
 ## The verdict
@@ -51,9 +52,21 @@ The server owns the policy document; `parseTelemetryPolicy` is the only way one 
 ```
 
 `resolveTelemetryRate` reads it in this order: the kill switch; a live override (`force` — 100%,
-and an override past its `until` is ignored); the **first** rule whose every `match` key equals the
-record's (`stream`, `tag`, `platform`, `host`, `appVersion`, `webVersion`); the stream's default. A
-stream with no default is not collected — a policy has to say what it wants.
+and an override past its `until` is ignored); the **first** rule whose every `match` key matches the
+record's (`stream`, `tag`, `platform`, `host`, `appVersion`, `webVersion` exactly; `minAppVersion` as
+"this app version or later"); the stream's default. A stream with no default is not collected — a
+policy has to say what it wants.
+
+**`minAppVersion` is how statistics are turned on for the app safely.** An app build from before the
+statistics queue share stores a relayed statistic as a plain log and loses its `kind` on a restart, so
+a policy enables the app with one rule per mobile platform —
+`{ host: 'app', platform: 'ios', minAppVersion: '<first build with the share>' }` and the same for
+`android` — and the standalone web with `{ host: 'browser' }`, leaving older builds at the default.
+The platform belongs in the rule: the desktop app also runs the web as `host: 'app'` (with
+`platform: 'web'`), on a version line of its own that a mobile minimum says nothing about. The comparison is
+numeric, part by part (`1.10.0` is after `1.9.0`, a missing part is zero); a record with no app
+version (the standalone web) or one that does not parse (`1.2.0-beta`) never matches it, and a rule
+whose minimum is not a version is dropped when the policy is read.
 
 The parser is conservative item by item. A document without an integer `version` is not a policy
 (the caller falls back to the last stored one, then the default). `enabled` must be exactly `true`.
@@ -121,6 +134,13 @@ and the message the bare name.
 
 `onReject` must not call `logger`: a refusal is a coding mistake to fix, not an event worth a queue
 slot. A throwing context provider or hook never stops a record.
+
+## The process recorder
+
+`setTelemetryRecorder` / `recordTelemetry` (`telemetrySlot.ts`) give code that measures but owns no
+recorder a way to record — the HTTP layer, which every request passes through and which knows nothing
+of policies or runs. The web sets it to its run's recorder at boot; until then, and in a host that
+never sets it, `recordTelemetry` does nothing. It never throws.
 
 ## Notes for implementers and tests
 

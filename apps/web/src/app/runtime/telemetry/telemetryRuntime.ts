@@ -1,4 +1,11 @@
-import { TelemetryRecorder, TelemetrySampler, createLogId, ingestLogEntry, isNative } from '@chatic/bridges';
+import {
+    TelemetryRecorder,
+    TelemetrySampler,
+    createLogId,
+    ingestLogEntry,
+    isNative,
+    setTelemetryRecorder,
+} from '@chatic/bridges';
 
 import { getLongTaskStats } from '../../features/debug/metrics/longTasks';
 import { setPerfTelemetryRecorder } from '../perf';
@@ -83,6 +90,8 @@ export const startTelemetry = (options: StartTelemetryOptions): (() => void) => 
     // Current before anything records, so the first event already carries this session's id.
     active = { sampler, recorder, session, tracker };
     setPerfTelemetryRecorder(recorder);
+    // The same recorder for code that measures without owning one (the HTTP layer's api_request).
+    setTelemetryRecorder(recorder);
     session.begin();
 
     const onVisibility = (): void => {
@@ -120,6 +129,7 @@ export const startTelemetry = (options: StartTelemetryOptions): (() => void) => 
         if (active?.sampler === sampler) {
             active = undefined;
             setPerfTelemetryRecorder(undefined);
+            setTelemetryRecorder(undefined);
         }
     };
 };

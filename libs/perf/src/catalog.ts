@@ -116,7 +116,7 @@ export const PERF_TRACE_CATALOG: PerfTraceCatalog = {
     /** One `libs/http` request, per endpoint template. */
     api_request: {
         kind: 'sample',
-        attributes: attrs('endpoint', 'method', 'status_class', 'outcome'),
+        attributes: attrs('endpoint', 'method', 'status_class', 'outcome', 'backend'),
         metrics: ['rtt_ms', 'res_bytes'],
         firebase: null,
     },

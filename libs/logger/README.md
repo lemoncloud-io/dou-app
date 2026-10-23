@@ -141,11 +141,11 @@ libs/logger/src/
 ├── redaction/        4 files — what counts as a secret, by name and by value shape
 ├── serialization/    6 files — the three output shapes and the shared truncation rule
 ├── upload/           6 files — the queue, the LogStore ports, the scheduler and its policy
-├── sampling/         6 files — the statistics policy, the per-run verdict, the catalogue check, the recorder
+├── sampling/         7 files — the statistics policy, the per-run verdict, the catalogue check, the recorder, the process recorder slot
 └── observation/      2 files — the foreign-drop aggregator
 ```
 
-38 source files, 23 spec files, 3,257 lines of non-test code.
+39 source files, 24 spec files, 3,366 lines of non-test code.
 
 Three names are not where their filename suggests. `LogSink` lives in `sinks/ConsoleLogSink.ts` —
 there is no `LogSink.ts` to open. `LogStoreReader`, `LogStoreWriter` and `toLogListener` all live in
@@ -275,6 +275,6 @@ npx jest --config libs/logger/jest.config.js
 - Type checking must be `tsc -b`. Inside `libs/logger`, `tsc --noEmit` checks zero files and succeeds.
 - **The two type checks are separate on purpose.** `tsconfig.lib.json` excludes `*.spec.ts`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles and a fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime. `npx tsc -b libs/logger/tsconfig.json` runs both, because `tsconfig.json` references both projects.
 - `tsconfig.spec.json` must not set `module: "commonjs"`. The base sets `moduleResolution: bundler`, which rejects it with TS5095 — the config then cannot compile at all, which is how these tests went years without a check.
-- Every directory has specs except the barrels: 5 in `core`, 4 in `redaction`, 3 in `serialization`, 5 in `upload`, 3 in `sampling`, 1 each in `sinks` and `observation`, plus `runtime.spec.ts`. The commands above are what answers whether they pass, not this sentence.
+- Every directory has specs except the barrels: 5 in `core`, 4 in `redaction`, 3 in `serialization`, 5 in `upload`, 4 in `sampling`, 1 each in `sinks` and `observation`, plus `runtime.spec.ts`. The commands above are what answers whether they pass, not this sentence.
 - Downstream: a changed barrel identifier reaches `libs/bridges`, `libs/data`, `libs/http` and `libs/app-runtime` directly, and through `libs/bridges`' re-export it reaches `apps/web`, `apps/desktop-web` and `apps/mobile` as well (`apps/desktop` aliases the package in its electron-vite config). `.github/workflows/verify.yml` type checks every one of those except `desktop-web` and `@chatic/mobile`, so those two are the ones to run by hand.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again. The lib and spec projects emit to different directories (`dist/out-tsc` and `dist/out-tsc/logger-spec`) so they cannot overwrite each other's declarations.
