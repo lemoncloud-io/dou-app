@@ -45,7 +45,7 @@ Neither background handler can read "what the badge currently shows" — iOS's N
 increments therefore start from a **base the handler stores itself**, seeded from the foreground
 side. How that base gets seeded differs by platform:
 
-- **iOS** — the app process can read the live badge, so `applicationWillResignActive` captures
+- **iOS** — the app process can read the live badge, so `sceneWillResignActive` captures
   `applicationIconBadgeNumber` into an App Group as the app backgrounds. JS never has to push it.
 - **Android** — the app can't read the launcher badge, so the web explicitly writes it: every
   `setBadgeCount` call also calls `BadgeSyncBridge.setBase(n)`, which persists into
@@ -100,8 +100,8 @@ service (`isChatChannel` plus its background branch):
 
 - App Group `group.io.chatic.dou` is registered on both the app (dev/prod) and NSE entitlements.
 - App Group keys: `badge_count` (Int), `app_active` (Bool).
-- `AppDelegate.applicationDidBecomeActive` clears the badge to 0 and sets `app_active = true`.
-- `AppDelegate.applicationWillResignActive` sets `app_active = false` and captures the live badge
+- `SceneDelegate.sceneDidBecomeActive` (through `AppDelegate.didBecomeActive`) clears the badge to 0 and sets `app_active = true`.
+- `SceneDelegate.sceneWillResignActive` (through `AppDelegate.willResignActive`) sets `app_active = false` and captures the live badge
   into `badge_count`.
 - `NotificationService.applyBadgeIncrementIfNeeded` (NSE) increments `badge_count` and sets
   `content.badge` only when the channel is chat and `app_active` is false.

@@ -11,8 +11,9 @@ import './preview.css';
  * some real device actually has.
  *
  * `base` stays the default so existing stories frame exactly as they did before these presets
- * existed. `fold-open` is the one width where a surface is wider than any phone, and it is the
- * reason the others are listed at all — a layout that only ever renders at 390 hides both ends.
+ * existed. `fold-open` and `duo-inner` are the widths where a surface is wider than any phone, and
+ * they are the reason the others are listed at all — a layout that only ever renders at 390 hides
+ * both ends.
  */
 const VIEWPORTS = {
     xs: { title: 'xs · 320 (iPhone SE 1)', width: 320 },
@@ -20,6 +21,7 @@ const VIEWPORTS = {
     sm: { title: 'sm · 360 (common Android)', width: 360 },
     base: { title: 'base · 390 (iPhone 14/15)', width: 390 },
     'fold-open': { title: 'fold-open · 690 (Z Fold unfolded)', width: 690 },
+    'duo-inner': { title: 'duo-inner · 951 (iPhone Duo inner, landscape)', width: 951 },
 } as const;
 
 type ViewportName = keyof typeof VIEWPORTS;

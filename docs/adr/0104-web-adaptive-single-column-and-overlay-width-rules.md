@@ -1,6 +1,7 @@
 # ADR-0104: `apps/web` fills the device up to a phone-class bound, and notice dialogs opt out
 
-> Status: Accepted · Decided: 2026-09-17
+> Status: Accepted · Decided: 2026-09-17 · §1 superseded by
+> [ADR-0233](./0233-apps-web-is-a-600px-phone-column-on-every-wider-display.md) (2026-10-26)
 > Scope: `apps/web/src/styles.css` · `apps/web/tailwind.config.js` ·
 > `apps/web/src/app/{ui/components,features/{home,onboarding,subscription,appUpdate,debug}}/**` ·
 > `libs/ui-kit/src/components/ui/{dialog,alert-dialog}.tsx` ·

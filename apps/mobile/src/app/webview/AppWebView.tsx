@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useRef } from 'react';
+import React, { forwardRef, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { WebView, type WebViewProps } from 'react-native-webview';
 import DeviceInfo from 'react-native-device-info';
@@ -9,6 +9,7 @@ import { APP_USER_AGENT_PREFIX, getAppLanguage, t, toEnvStage } from '../utils';
 import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { getLogUploadHoldScript, getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
+import { toWebViewInsets } from './utils/webViewGeometry';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
 import { NATIVE_RUN_ID } from '../services/log/native/nativeLogContext';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
@@ -51,6 +52,9 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     const { isDark, backgroundColor } = useResolvedTheme();
     const insets = useSafeAreaInsets();
+    // The shell pads the WebView by the side insets and tells the web 0 for them (see
+    // `toWebViewInsets`). Memoised so the injection effect below reruns only when the insets do.
+    const { padding, web: webInsets } = useMemo(() => toWebViewInsets(insets), [insets]);
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
     const { onLoad: propsOnLoad } = props;
@@ -108,7 +112,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // initiated it and already knows.
     const theme = useThemeStore(state => state.theme);
     const syncInjectionScript = getSyncInjectionScript({
-        insets,
+        insets: webInsets,
         keyboardHeight,
         debugModeEnabled,
         logUploadHold,
@@ -135,8 +139,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
 
     useEffect(() => {
         if (!webViewRef.current) return;
-        webViewRef.current.injectJavaScript(getSafeAreaScript(insets, keyboardHeight));
-    }, [insets, keyboardHeight]);
+        webViewRef.current.injectJavaScript(getSafeAreaScript(webInsets, keyboardHeight));
+    }, [webInsets, keyboardHeight]);
 
     // Pushed live rather than only at load: the point of holding is to reproduce
     // a bug while it is on, and a reload would discard the very session being
@@ -156,7 +160,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     );
 
     return (
-        <View style={styles.webViewContainer}>
+        // The padding strip shows the container, so it takes the theme background colour.
+        <View style={[styles.webViewContainer, padding, { backgroundColor }]}>
             <WebView
                 ref={setRefs}
                 style={{ backgroundColor }}

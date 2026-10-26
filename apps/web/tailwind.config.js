@@ -21,11 +21,10 @@ module.exports = {
         extend: {
             maxWidth: {
                 /**
-                 * The upper bound of the phone class. `apps/web` fills the device it runs on —
-                 * a small phone, a foldable's cover screen, a foldable unfolded — and stops here;
-                 * on anything wider (a tablet, a desktop browser opening an invite link) the
-                 * content caps and centres rather than stretching a phone layout across the
-                 * viewport.
+                 * The app's column. `apps/web` fills a phone and stops here; on anything wider
+                 * (an unfolded foldable, iPhone Duo's inner display, a tablet, a desktop browser
+                 * opening an invite link) the column centres with a margin either side rather than
+                 * stretching a phone layout across the viewport.
                  *
                  * Always paired with `w-full` and `mx-auto`: fill whatever the device gives, stop
                  * here, stay centred.
@@ -35,7 +34,7 @@ module.exports = {
                  * have to re-declare the cap themselves and cannot read a Tailwind token that only
                  * this app's config defines. One variable, both readers.
                  */
-                app: 'var(--app-width, 860px)',
+                app: 'var(--app-width, 600px)',
 
                 /**
                  * The longest comfortable measure for a paragraph. Not a layout width — the column

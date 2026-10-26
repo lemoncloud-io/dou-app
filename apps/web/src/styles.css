@@ -7,18 +7,17 @@
 @layer base {
     :root {
         /**
-         * The upper bound of the phone class — the single source of truth for the app's width.
+         * The app's column — the single source of truth for the app's width.
          *
-         * Not "the width a phone is". Every surface FILLS the device it is on and stops here:
-         * below this bound (every phone, a foldable's cover screen, a foldable unfolded) the
-         * column is the device; above it (a tablet, a desktop browser opening an invite link) it
-         * caps and centres rather than stretching a phone layout across the viewport.
+         * A phone's column, not the widest device. On every phone the column is the device; on
+         * anything wider (an unfolded foldable, iPhone Duo's inner display, a tablet, a desktop
+         * browser opening an invite link) it stops here and centres, and `body` shows a grey margin
+         * either side, rather than a phone layout stretched across the display.
          *
-         * 860px is the widest phone-class device measured, plus headroom: a Pixel Fold reports
-         * 841 CSS px unfolded. This deliberately is NOT the 768 tablet breakpoint — that number
-         * was the obvious guess, and it left the widest foldable on the market capped with a
-         * margin down each side, which is the exact complaint this bound exists to answer. If a
-         * wider foldable appears, this is the one number to raise.
+         * 600px leaves room past the largest phones without a list or a chat line running long, and
+         * sits just above the width a form of a few fields reads well at, so no screen needs a
+         * narrower column of its own. The `body` margin rule below repeats the number in its media
+         * query (a variable cannot go there); change both together.
          *
          * Read two ways: `max-w-app` inside `apps/web`, and `max-w-[var(--app-width,…)]` inside
          * `libs/ui-kit` / `libs/web-ui-kit`, where the value cannot be hardcoded because other apps
@@ -26,10 +25,9 @@
          *
          * A CSS variable rather than a Tailwind-only token because the overlay primitives are
          * `fixed` and portalled to `document.body`, so they escape the shell's cap and have to
-         * re-declare it themselves — from a lib that must not know this app's number. Widening the
-         * app is this one edit; every reader follows, and nothing else should carry the number.
+         * re-declare it themselves — from a lib that must not know this app's number.
          */
-        --app-width: 860px;
+        --app-width: 600px;
 
         /* Chatic Light Theme */
         --background: 0 0% 100%;
@@ -234,6 +232,13 @@
         user-select: none;
         -webkit-touch-callout: none;
         -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Past the column (`--app-width`), the body around it is the margin either side. */
+    @media (min-width: 601px) {
+        body {
+            @apply bg-secondary;
+        }
     }
 }
 
