@@ -2,7 +2,9 @@
 
 > Status: Accepted; decision 5 superseded by
 > [ADR-0216](./0216-mobile-gives-a-cloud-1-1-its-own-section-and-starts-one.md) — mobile lists a cloud's 1:1s in a section of
-> their own and starts them · Decided: 2026-10-19 · Implemented: `feat/place-scoped-dm`
+> their own and starts them; decision 1 narrowed by
+> [ADR-0230](./0230-a-relay-1-1-is-listed-in-the-relays-place-whatever-its-sid-says.md) — a relay 1:1 is
+> listed in the relay's one place whatever its `sid` says · Decided: 2026-10-19 · Implemented: `feat/place-scoped-dm`
 > · Scope: `libs/data/src/domain/channelScope.ts` and the 1:1 place chain in `libs/data` ·
 > `apps/desktop-web/src/app/shared/**` · `apps/desktop-web/src/app/features/chat/**` ·
 > `apps/web/src/app/hooks/**` · `apps/web/src/app/features/home/**` ·

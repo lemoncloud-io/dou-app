@@ -256,6 +256,15 @@ When the tiers give up first — at once, with no active place — the push is s
 found, so the resolver keeps its never-rejects contract. The flow passes the inviter from its
 re-read; with no inviter, nothing is watched.
 
+Tier 3 observes the cloud-wide channel list (`sid: ''`) and matches a `dm` row by the shared place rule
+(`isInPlaceList`), not by comparing `sid`. The relay keys a 1:1 by its pair and hands back the room the
+same two people already had when they meet again, still stamped with the place of the session that
+first opened it, so its `sid` need not be the reader's place — and the cache wakes only the observers of
+the place a write files a row under, so an observer keyed by the active place would never see such a
+row. A room this device had already cached is not a new row, so tier 3 does not name it; the flow then
+ends on "the room is on its way", and the room is in the list, because no list in this app filters a
+relay 1:1 by place.
+
 Which way the room was found goes on the accept trace as `room` (`response`, `push`, `probe`,
 `list`, `none`) — see [performance.md](../../observability/performance.md#invite_accept).
 

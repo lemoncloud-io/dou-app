@@ -70,9 +70,15 @@ through.
 
 `stereo` says a room is a 1:1. It does not say **which kind**, and there are two.
 
-A **relay** 1:1 is reached by inviting a phone number. It lives in the relay's one default place, so
-it carries that place's `sid`, and it has an invite behind it — which is what the departure footer
-reads and what its re-invite CTA sends another of.
+A **relay** 1:1 is reached by inviting a phone number. It lives in the relay's one default place, and
+it has an invite behind it — which is what the departure footer reads and what its re-invite CTA sends
+another of. Its `sid` is **not** where it lives: the relay keys a 1:1 by its two members alone
+(`<uidA>@<uidB>`) and returns the same room every time the same two people accept an invite again, still
+stamped with the place of the session that first opened it — which can be another place, or none. A
+place filter on that field hid a room the reader had just accepted, so every list that slices by place
+(`isInPlaceList`, the reachable-place filter in `useActiveCloudChannels`, the channel sync's drop of
+place-less rows) passes a relay 1:1 through (`isRelayDm`), and `profilePlaceOf` names its people by the
+reader's place rather than the stamped one.
 
 A **cloud** 1:1 is opened by naming a member directly (`channel.startDm`) — from desktop, or from
 mobile's member picker and a member's profile. It belongs to the place it was opened in: the server opens a separate room
@@ -106,8 +112,10 @@ answered the room says nothing rather than borrowing a sentence written for a fl
 
 A profile is per-place: the same person has a different nick and photo in each one, so naming anyone
 means choosing a place first. Every room has already made that choice — it lives in a place, and
-`channel.sid` is it. A cloud 1:1 is no exception: it lives in the place it was opened in.
-`profilePlaceOf` returns `channel.sid`, and the three screens that draw a name in a room —
+`channel.sid` is it. A cloud 1:1 is no exception: it lives in the place it was opened in. A relay 1:1
+is: its `sid` is only the place of the session that first opened it (see above), so it is named by the
+reader's place — the relay's one place, the same one home names its peer by.
+`profilePlaceOf` returns that place, and the three screens that draw a name in a room —
 `ChannelRoomPage`, `ThreadPage`, `ChannelSettingsPage` — all read it, or the header and the settings
 list would disagree about who the room is with.
 

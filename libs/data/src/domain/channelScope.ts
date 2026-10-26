@@ -38,11 +38,25 @@ export const placeOfDmId = (id: string | null | undefined): string => {
  * place. The ambient place is a different fact: during a place switch it already names the next
  * place (the session context moves before `auth.switch` answers), and a room filed under it shows
  * in the wrong place's list. So its place is the place its id names, then the server's field, and
- * otherwise stays empty (`dmPlaceOf`). A relay 1:1 lives in the relay's one place, where the ambient
- * value is always right, so it keeps the ordinary chain.
+ * otherwise stays empty (`dmPlaceOf`). A relay 1:1 keeps the ordinary chain: the relay has one place,
+ * and no list reads a relay 1:1's place anyway (`isRelayDm`), so filling it from the context costs
+ * nothing.
  */
 export const isCloudDm = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
     !!channel && channel.stereo === 'dm' && !!channel.cid && channel.cid !== RELAY_CLOUD_ID;
+
+/**
+ * Whether a channel is a 1:1 on the relay — the one kind whose `sid` says nothing about where it is
+ * listed.
+ *
+ * The relay keys a 1:1 by its two members alone (`<uidA>@<uidB>`), never by a place, and hands the
+ * same room back every time the same two people meet again. The `sid` on it is whatever session
+ * opened it first, kept for the room's life, so a pair that met before the relay settled on its one
+ * place, or whose room was opened from a session with another place, carries a place the reader is
+ * not in — or none. The relay has only one place, so the room belongs in it whatever its field says.
+ */
+export const isRelayDm = (channel: Pick<DomainChannel, 'stereo' | 'cid'> | null | undefined): boolean =>
+    !!channel && channel.stereo === 'dm' && channel.cid === RELAY_CLOUD_ID;
 
 /**
  * The place a 1:1 belongs to, or `''`. Never the ambient place (see `isCloudDm`).
@@ -66,5 +80,9 @@ export const dmPlaceOf = (channel: Partial<Pick<DomainChannel, 'id' | 'sid' | '$
  * a single room whatever place it was opened from, so the place it carried was only where its
  * creator had been standing. The server now opens a separate 1:1 per place, so the place it
  * carries is where the conversation lives.
+ *
+ * Except on the relay, where a 1:1 is still one room per pair (`isRelayDm`): its `sid` is not where
+ * it lives, and filtering on it hid a room the reader had just accepted an invite into.
  */
-export const isInPlaceList = (channel: Pick<DomainChannel, 'sid'>, sid: string): boolean => channel.sid === sid;
+export const isInPlaceList = (channel: Pick<DomainChannel, 'sid' | 'stereo' | 'cid'>, sid: string): boolean =>
+    isRelayDm(channel) || channel.sid === sid;

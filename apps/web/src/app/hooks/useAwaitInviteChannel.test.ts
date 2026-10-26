@@ -97,6 +97,19 @@ describe('useAwaitInviteChannel', () => {
         await expect(pending).resolves.toBeNull();
     });
 
+    // A relay 1:1 carries the place of whichever session first opened it, so its field is no reason
+    // to pass it over.
+    it('resolves with a new relay 1:1 that carries another place', async () => {
+        const { result } = renderHook(() => useAwaitInviteChannel());
+
+        const pending = result.current.awaitChannel();
+        await flush();
+
+        emitRows?.([row('existing'), { id: 'me@peer', sid: 'S:other', stereo: 'dm', cid: 'default' } as never]);
+
+        await expect(pending).resolves.toBe('me@peer');
+    });
+
     it('호출부가 준 스냅샷을 기준으로 새 채널을 판정한다 (캐시를 다시 읽지 않는다)', async () => {
         const { result } = renderHook(() => useAwaitInviteChannel());
 
@@ -179,13 +192,15 @@ describe('useAwaitInviteChannel', () => {
         expect(observeListMock).not.toHaveBeenCalled();
     });
 
-    it('홈 목록과 같은 스코프로 구독한다', async () => {
+    // Cloud-wide, like the list home slices: the cache wakes only the observers of the place a write
+    // files the row under, and a relay 1:1 may be filed under another place or none.
+    it('observes the cloud-wide list home slices, not the active place', async () => {
         const { result } = renderHook(() => useAwaitInviteChannel());
 
         const pending = result.current.awaitChannel({ timeoutMs: 1_000 });
         await flush();
 
-        expect(observeListMock).toHaveBeenCalledWith({ sid: 's1' }, expect.any(Function), {
+        expect(observeListMock).toHaveBeenCalledWith({ sid: '' }, expect.any(Function), {
             cid: 'default',
             uid: 'u1',
         });
