@@ -1,8 +1,5 @@
 import type { UploadableType } from './types';
 
-/** Appended to a thumbnail's name so it is not mistaken for the original it came from. */
-export const THUMBNAIL_SUFFIX = '-thumb';
-
 /** Doubles as the format list: a new accepted type will not compile until it has an extension. */
 const EXTENSION_BY_TYPE: Record<UploadableType, string> = {
     'image/jpeg': 'jpg',

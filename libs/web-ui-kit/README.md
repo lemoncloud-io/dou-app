@@ -30,7 +30,7 @@ Two component libraries sit side by side, and the split is not by quality or by 
 
 |                    | `libs/ui-kit`                                                            | `libs/web-ui-kit` (here)                                       |
 | ------------------ | ------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| What it is         | 29 shadcn/ui primitives under `src/components/ui/`, plus the `cn` helper | The DoU mobile design system                                   |
+| What it is         | 21 shadcn/ui primitives under `src/components/ui/`, plus the `cn` helper | The DoU mobile design system                                   |
 | Named after        | The interaction — `dialog`, `sheet`, `popover`, `tabs`                   | The place on screen — `AppHeader`, `ChatRoomHeader`, `ListRow` |
 | Where it came from | `npx shadcn@latest add <name>` — regenerable                             | A Figma node, drawn by hand against the spec                   |
 | Who uses it        | `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `libs/shared`           | `apps/web` only                                                |
@@ -44,7 +44,7 @@ sheet.
 The dependency runs **one way: this lib imports `ui-kit`, `ui-kit` never imports this lib.** That is
 what keeps `desktop-web` and `admin-v2` free of mobile-web components.
 
-It is also a thin arrow. Production code here reaches into `ui-kit` for **3 of its 29 primitives**,
+It is also a thin arrow. Production code here reaches into `ui-kit` for **3 of its 21 primitives**,
 in 4 files:
 
 ```bash
@@ -124,10 +124,10 @@ flowchart TD
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
     C["composites × 60<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
-    F["foundations × 38<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
+    F["foundations × 37<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
     R["resources<br/><i>tokens.css · 47 icons · 7 assets</i>"]:::res
 
-    UK["@chatic/ui-kit<br/><i>3 of 29 primitives</i>"]:::ext
+    UK["@chatic/ui-kit<br/><i>3 of 21 primitives</i>"]:::ext
     CN["@chatic/lib/utils<br/><i>cn</i>"]:::ext
 
     App -->|"barrel only"| C
@@ -170,8 +170,8 @@ libs/web-ui-kit/src/
 │   ├── styles/tokens.css   123 lines of HSL channels, light + `.dark`
 │   ├── icons/              56 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
-├── foundations/   11 groups, 38 components
-│   avatar(7) · button(10) · input(7) · badge(6) · brand(2) ·
+├── foundations/   11 groups, 37 components
+│   avatar(7) · button(9) · input(7) · badge(6) · brand(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
 └── composites/    10 groups, 60 components
     chat(17) · list(6) · media(9) · overlay(6) · section(4) · header(3) ·

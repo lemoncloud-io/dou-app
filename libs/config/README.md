@@ -68,7 +68,7 @@ flowchart TD
     UI["UI · libs/app-runtime · libs/shared"]:::ext
 
     Facade["ConfigFacade<br/><i>index.ts — the only public class</i>"]:::resl
-    React["react/<br/><i>useConfigValue · useConfigSnapshot</i>"]:::resl
+    React["react/<br/><i>useConfigValue</i>"]:::resl
 
     Registry["ConfigRegistry<br/><i>merge · findPolicyViolations</i>"]:::decl
     Modules["registry/ × 12<br/><i>90 ConfigEntry declarations</i>"]:::decl
@@ -152,7 +152,7 @@ libs/config/src/
 ├── adapters/           createWebEnvAdapter — the one adapter shared by all four Vite apps
 ├── utils/              serialize.ts — encodeValue · decodeValue · storageKeyFor
 ├── testing/            fixtures.ts — entry() · envAdapter() · memoryStorage() · ports()
-└── react/              useConfigValue · useConfigSnapshot
+└── react/              useConfigValue
 ```
 
 Three things you cannot guess from a filename. `RemotePayload` and `IRemoteConfigAdapter` live in
@@ -166,7 +166,7 @@ barrel. `UNLOCK_KEY` is declared in `resolve/ConfigResolver.ts` and leaves the b
 
 ```ts
 // Reading, outside React. Synchronous, and always an answer — defaultValue is the floor.
-const ttl = config.get<number>('cache.ttl.metaMs') ?? 300_000;
+const ttl = config.get<number>('cache.ttl.metaMs') ?? 1_800_000;
 
 // Reading, in React.
 const theme = useConfigValue<string>('ui.theme');

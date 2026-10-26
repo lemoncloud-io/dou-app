@@ -57,11 +57,11 @@ Each store is a class taking `(storage, signal)` in its constructor — so a tes
 fake storage — and each is exported only as a singleton alongside its `I*Store` interface. The
 implementation classes are not exported.
 
-| Store           | Interface        | Keys                                                                                                                                                                                                                                                     |
-| --------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `relayStore`    | `IRelayStore`    | `chatic-relay-token` · `chatic-relay-selected-site-id`                                                                                                                                                                                                   |
-| `cloudStore`    | `ICloudStore`    | `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-invited-clouds` · `chatic-cloud-token-cache` · `chatic-cloud-identities` · `chatic-recent-clouds` · `chatic-reclaimed-clouds` |
-| `identityStore` | `IIdentityStore` | `chatic-delegator-id` · `chatic-device-id`                                                                                                                                                                                                               |
+| Store           | Interface        | Keys                                                                                                                                                                                                                           |
+| --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `relayStore`    | `IRelayStore`    | `chatic-relay-token` · `chatic-relay-selected-site-id`                                                                                                                                                                         |
+| `cloudStore`    | `ICloudStore`    | `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-cloud-token-cache` · `chatic-cloud-identities` · `chatic-recent-clouds` · `chatic-reclaimed-clouds` |
+| `identityStore` | `IIdentityStore` | `chatic-delegator-id` · `chatic-device-id`                                                                                                                                                                                     |
 
 The keys stay in the file of the store that reads and writes them rather than moving to a shared
 `constants.ts`: a storage key is that class's persistence contract, and nothing else may touch it.

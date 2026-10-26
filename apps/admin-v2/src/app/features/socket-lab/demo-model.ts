@@ -1,4 +1,4 @@
-import type { DeviceBody, DevicePlatform, DeviceSeed, DeviceView } from '@lemoncloud/chatic-sockets-lib';
+import type { DeviceBody, DevicePlatform, DeviceSeed } from '@lemoncloud/chatic-sockets-lib';
 
 export interface DeviceDraft {
     id: string;
@@ -11,14 +11,6 @@ export interface DeviceDraft {
 
 export type DemoChannelStereo = '' | 'dm' | 'self' | 'public' | 'private';
 
-export interface DemoChannelDraft {
-    stereo: DemoChannelStereo;
-    name: string;
-    channelId: string;
-    message: string;
-    feedLimit: string;
-}
-
 export interface DemoChannelView {
     id?: string;
     name?: string;
@@ -29,17 +21,6 @@ export interface DemoChannelView {
     memberIds?: string[];
 }
 
-export type DemoChannelMemberEventReason = 'join' | 'leave' | 'kick';
-
-export interface DemoChannelMemberEventView {
-    channelId?: string;
-    memberId?: string;
-    actorDeviceId?: string;
-    reason?: DemoChannelMemberEventReason;
-    channel?: DemoChannelView;
-    member$?: DeviceView;
-}
-
 export interface DemoChatView {
     id?: string;
     stereo?: string;
@@ -48,14 +29,6 @@ export interface DemoChatView {
     contentType?: string;
     channelId?: string;
     ownerId?: string;
-}
-
-export interface DemoJoinView {
-    id?: string;
-    channelId?: string;
-    ownerId?: string;
-    chatNo?: number;
-    joined?: boolean;
 }
 
 export interface DemoConnectionDraft {
@@ -69,21 +42,6 @@ export interface DemoConnectionDraft {
     trackedDeviceId: string;
 }
 
-export interface DemoPanelDescriptor {
-    id: string;
-    title: string;
-    seed: DemoConnectionDraft;
-    device: DeviceDraft;
-}
-
-export interface DeviceRegistryEntry {
-    panelId: string;
-    deviceId: string;
-    name: string;
-    connected: boolean;
-    read(): Promise<DeviceView | undefined>;
-}
-
 export interface DemoLogEntry {
     id: string;
     level: 'info' | 'warn' | 'error';
@@ -92,78 +50,7 @@ export interface DemoLogEntry {
     at: string;
 }
 
-export const buildDefaultWsUrl = (options: { search?: string } = {}): string => {
-    const params = new URLSearchParams(options.search ?? '');
-    const explicit = params.get('wsUrl') || params.get('ws');
-    if (explicit) return explicit;
-
-    const ws = `${import.meta.env.VITE_WS_ENDPOINT ?? ''}`.trim();
-    return ws ? `${ws}?v2` : '';
-};
-
-export const createDefaultConnectionDraft = (search?: string): DemoConnectionDraft => ({
-    wsUrl: buildDefaultWsUrl({ search }),
-    syncIntervalMs: '2000',
-    keepAliveIntervalMs: '10000',
-    reconnectMinDelayMs: '500',
-    reconnectMaxDelayMs: '10000',
-    rotationLifetimeMinutes: '110',
-    rotationRefreshMinutes: '10',
-    trackedDeviceId: '',
-});
-
-export const createDefaultDeviceDraft = (): DeviceDraft => ({
-    id: '',
-    name: 'browser-device',
-    platform: 'web',
-    status: 'green',
-    posX: '',
-    posY: '',
-});
-
-export const createDefaultChannelDraft = (): DemoChannelDraft => ({
-    stereo: 'public',
-    name: 'demo-room',
-    channelId: '',
-    message: 'hello from demo',
-    feedLimit: '10',
-});
-
 export const createShortDeviceId = (): string => Math.random().toString(36).slice(2, 8);
-
-export const detectDevicePlatform = (): DevicePlatform => {
-    const ua = `${globalThis.navigator?.userAgent ?? ''}`.toLowerCase();
-    if (!ua) return 'web';
-    if (ua.includes('iphone') || ua.includes('ipad')) return 'ios';
-    if (ua.includes('android')) return 'android';
-    if (ua.includes('mac os x') || ua.includes('macintosh')) return 'macos';
-    if (ua.includes('windows')) return 'windows';
-    if (ua.includes('linux')) return 'linux';
-    return 'web';
-};
-
-export const createAutoDeviceDraft = (): DeviceDraft => {
-    const id = createShortDeviceId();
-    const platform = detectDevicePlatform();
-    return {
-        id,
-        name: `device-${id}`,
-        platform,
-        status: 'green',
-        posX: '',
-        posY: '',
-    };
-};
-
-export const createDemoPanelId = (): string =>
-    `panel-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-
-export const createDemoPanel = (index: number, seed: DemoConnectionDraft): DemoPanelDescriptor => ({
-    id: createDemoPanelId(),
-    title: `Client ${index}`,
-    seed: { ...seed },
-    device: createAutoDeviceDraft(),
-});
 
 const parseNumber = (value?: string): number | undefined => {
     const text = `${value ?? ''}`.trim();
@@ -195,67 +82,6 @@ export const toPositiveInt = (value: string, fallback: number): number => {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
     return Math.round(parsed);
-};
-
-export const formatSyncTargetKey = (id?: string): string => `device:${`${id ?? ''}`.trim() || 'current'}`;
-
-export const formatDeviceSummary = (view?: DeviceView | null): string => {
-    if (!view) return 'not loaded';
-    const id = `${view.id ?? '-'}`;
-    const tick = typeof view.tick === 'number' ? `${view.tick}` : '-';
-    const status = `${view.status ?? '-'}`;
-    const point =
-        typeof view.posX === 'number' || typeof view.posY === 'number'
-            ? `${view.posX ?? '-'}, ${view.posY ?? '-'}`
-            : '-';
-    return `id=${id} tick=${tick} status=${status} pos=${point}`;
-};
-
-export const formatViewing = (view?: DeviceView | null): string => {
-    if (!view) return 'idle';
-    const type = `${view.viewingType ?? ''}`.trim();
-    const id = `${view.viewingId ?? ''}`.trim();
-    if (!type || !id) return 'idle';
-    return `📺 watching #${type}:${id}`;
-};
-
-export const formatRelativeTime = (at?: number, now: number = Date.now()): string => {
-    if (typeof at !== 'number' || !Number.isFinite(at) || at <= 0) return '-';
-    const deltaSec = Math.max(0, Math.round((now - at) / 1000));
-    if (deltaSec < 3) return 'just now';
-    if (deltaSec < 60) return `${deltaSec}s ago`;
-    const deltaMin = Math.round(deltaSec / 60);
-    if (deltaMin < 60) return `${deltaMin}m ago`;
-    const deltaHour = Math.round(deltaMin / 60);
-    if (deltaHour < 24) return `${deltaHour}h ago`;
-    return `${Math.round(deltaHour / 24)}d ago`;
-};
-
-export const formatChannelSummary = (view?: DemoChannelView | null): string => {
-    if (!view) return 'not loaded';
-    const id = `${view.id ?? '-'}`;
-    const stereo = `${view.stereo ?? '-'}`;
-    const chatNo = typeof view.chatNo === 'number' ? `${view.chatNo}` : '-';
-    const memberCount = Array.isArray(view.memberIds) ? `${view.memberIds.length}` : '-';
-    const name = `${view.name ?? '-'}`;
-    return `id=${id} stereo=${stereo} chatNo=${chatNo} members=${memberCount} name=${name}`;
-};
-
-export const formatChannelMemberEvent = (view?: DemoChannelMemberEventView | null): string => {
-    if (!view) return 'not loaded';
-    const reason = `${view.reason ?? '-'}`;
-    const member = `${view.memberId ?? view.member$?.id ?? '-'}`;
-    const actor = `${view.actorDeviceId ?? '-'}`;
-    const channel = `${view.channelId ?? view.channel?.id ?? '-'}`;
-    return `${reason} member=${member} actor=${actor} channel=${channel}`;
-};
-
-export const formatChatSummary = (view?: DemoChatView | null): string => {
-    if (!view) return 'not loaded';
-    const chatNo = typeof view.chatNo === 'number' ? `#${view.chatNo}` : '#-';
-    const owner = `${view.ownerId ?? '-'}`;
-    const content = `${view.content ?? ''}`.trim() || '-';
-    return `${chatNo} ${owner}: ${content}`;
 };
 
 export const pushLogEntry = (

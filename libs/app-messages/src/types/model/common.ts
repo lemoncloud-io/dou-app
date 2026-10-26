@@ -109,61 +109,6 @@ export type OnSendLogPayload = {
 };
 
 /**
- * The 4 log-buffer message pairs — **deprecated, kept only for compatibility.**
- *
- * The ring buffer these messages used to read from is gone; the pending-upload queue
- * (`FetchLogUploadQueue`) is now the sole log store. The types and app handlers remain
- * because **web ships ahead of the app** — a web build predating this change, still
- * installed alongside the latest app, keeps sending these messages. Removing the handler
- * would turn it into `NOT_FOUND`, which shows that side's debug screen as failing, so the
- * app returns an empty result instead.
- *
- * Once no deployed web build calls these anymore, delete all 4 pairs.
- */
-/** [Request] Fetch log buffer payload (deprecated — returns empty result) */
-export type FetchAppLogBufferPayload = {
-    count?: number;
-};
-
-/** [Request] Poll log buffer payload (deprecated — returns empty result, removes nothing) */
-export type PollAppLogBufferPayload = {
-    count?: number;
-};
-
-/** [Request] Clear log buffer payload (deprecated — no-op) */
-export type ClearAppLogBufferPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Request] Fetch log buffer size payload (deprecated — always 0) */
-export type FetchAppLogBufferSizePayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Response] Fetch log buffer payload (deprecated — empty list) */
-export type OnFetchAppLogBufferPayload = {
-    logs: AppLogInfo[];
-    size: number;
-};
-
-/** [Response] Poll log buffer payload (deprecated — empty list) */
-export type OnPollAppLogBufferPayload = {
-    logs: AppLogInfo[];
-    size: number;
-};
-
-/** [Response] Clear entire log buffer payload (deprecated) */
-export type OnClearAppLogBufferPayload = {
-    success: boolean;
-    size: number;
-};
-
-/** [Response] Fetch log buffer size payload (deprecated — always 0) */
-export type OnFetchAppLogBufferSizePayload = {
-    size: number;
-};
-
-/**
  * [Request] Fetch a batch from the app upload queue (ADR-0063).
  *
  * **Non-destructive.** Returning the same entries again on a repeat call is expected

@@ -1,4 +1,5 @@
-import { AVATAR_IMAGE, CHAT_ATTACHMENT, INLINE_IMAGE, REPORT_PHOTO } from './policies';
+import { AVATAR_IMAGE, CHAT_ATTACHMENT, REPORT_PHOTO } from './policies';
+import { INLINE_PROFILE } from './profiles';
 
 // These assert intent, not arithmetic. A policy is a decision written as data, and what is worth
 // pinning is the decision — that an avatar crops, that an attachment does not resize — so changing
@@ -20,8 +21,8 @@ describe('REPORT_PHOTO', () => {
     it('인라인 기본값과 같은 크기에 품질만 낮다', () => {
         // A report carries several at once, so the encoded total is the bound — and it is bought
         // with quality rather than pixels, because a screenshot has to stay readable.
-        expect(REPORT_PHOTO.photo.profile.maxEdge).toBe(INLINE_IMAGE.image.profile.maxEdge);
-        expect(REPORT_PHOTO.photo.profile.quality).toBeLessThan(INLINE_IMAGE.image.profile.quality);
+        expect(REPORT_PHOTO.photo.profile.maxEdge).toBe(INLINE_PROFILE.maxEdge);
+        expect(REPORT_PHOTO.photo.profile.quality).toBeLessThan(INLINE_PROFILE.quality);
     });
 });
 

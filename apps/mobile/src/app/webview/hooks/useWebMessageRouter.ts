@@ -11,13 +11,11 @@ import {
     useSmsHandler,
     useFcmHandler,
     useLogStoreHandler,
-    useLogBufferHandler,
     useLogHandler,
     useOAuthHandler,
     usePendingReportHandler,
     usePermissionHandler,
     usePreferenceCacheHandler,
-    useSafeAreaHandler,
     useSearchCacheHandler,
     useSubscriptionIapHandler,
     useFileTransferHandler,
@@ -57,8 +55,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { showResumeOverlay, dismissOverlay, coverReload } = useResumeOverlay();
 
     // --- Domain-specific Handlers (memoized with useCallback) ---
-    const { fetchSafeAreaInfo } = useSafeAreaHandler();
-    const { handleFetchBackgroundStatus, handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
+    const { handleDismissResumeOverlay } = useAppStateHandler(bridge, dismissOverlay);
     const {
         fetchFcmToken,
         handleDeleteFcmToken,
@@ -94,8 +91,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleSendLog } = useLogHandler();
     const { handleFetchLogUploadQueue, handleAckLogUploadQueue, handleClearLogUploadQueue } = useLogStoreHandler();
     const { handleFetchPendingReports, handleAckPendingReports } = usePendingReportHandler();
-    const { handleFetchAppLogBuffer, handlePollAppLogBuffer, handleClearAppLogBuffer, handleFetchAppLogBufferSize } =
-        useLogBufferHandler();
 
     const { handleSearchGlobalCache } = useSearchCacheHandler();
 
@@ -176,8 +171,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleFetchBadgeBase,
         handleSetBadgeCount,
         handleFetchPushMarks,
-        fetchSafeAreaInfo,
-        handleFetchBackgroundStatus,
         handleDismissResumeOverlay,
         handleFirstScreenReady,
         fetchProducts,
@@ -201,10 +194,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleDeletePreference,
         handleSaveConfigValue,
         handleClearConfigValue,
-        handleFetchAppLogBuffer,
-        handlePollAppLogBuffer,
-        handleClearAppLogBuffer,
-        handleFetchAppLogBufferSize,
         handleSendLog,
         handleFetchLogUploadQueue,
         handleAckLogUploadQueue,
@@ -275,8 +264,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleFetchBadgeBase,
             handleSetBadgeCount,
             handleFetchPushMarks,
-            fetchSafeAreaInfo,
-            handleFetchBackgroundStatus,
             handleDismissResumeOverlay,
             handleFirstScreenReady,
             fetchProducts,
@@ -300,10 +287,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleDeletePreference,
             handleSaveConfigValue,
             handleClearConfigValue,
-            handleFetchAppLogBuffer,
-            handlePollAppLogBuffer,
-            handleClearAppLogBuffer,
-            handleFetchAppLogBufferSize,
             handleSendLog,
             handleFetchLogUploadQueue,
             handleAckLogUploadQueue,
@@ -378,8 +361,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchBadgeBase: message => handlersRef.current.handleFetchBadgeBase(message),
             SetBadgeCount: message => handlersRef.current.handleSetBadgeCount(message),
             FetchPushMarks: message => handlersRef.current.handleFetchPushMarks(message),
-            FetchSafeArea: message => handlersRef.current.fetchSafeAreaInfo(message),
-            FetchBackgroundStatus: message => handlersRef.current.handleFetchBackgroundStatus(message),
             FetchProducts: message => handlersRef.current.fetchProducts(message),
             FetchCurrentPurchases: message => handlersRef.current.fetchCurrentPurchases(message),
             Purchase: message => handlersRef.current.handlePurchaseSubscription(message),
@@ -406,10 +387,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             DeletePreference: message => handlersRef.current.handleDeletePreference(message),
             SaveConfigValue: message => handlersRef.current.handleSaveConfigValue(message),
             ClearConfigValue: message => handlersRef.current.handleClearConfigValue(message),
-            FetchAppLogBuffer: message => handlersRef.current.handleFetchAppLogBuffer(message),
-            PollAppLogBuffer: message => handlersRef.current.handlePollAppLogBuffer(message),
-            ClearAppLogBuffer: message => handlersRef.current.handleClearAppLogBuffer(message),
-            FetchAppLogBufferSize: message => handlersRef.current.handleFetchAppLogBufferSize(message),
             SendLog: message => handlersRef.current.handleSendLog(message),
             FetchLogUploadQueue: message => handlersRef.current.handleFetchLogUploadQueue(message),
             AckLogUploadQueue: message => handlersRef.current.handleAckLogUploadQueue(message),

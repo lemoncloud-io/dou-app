@@ -1,5 +1,4 @@
 export * from './Button';
-export * from './ButtonGroup';
 export * from './FloatingButton';
 export * from './IconButton';
 export * from './InlineActionButton';

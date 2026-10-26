@@ -8,15 +8,15 @@ typed message, and a handler hook answers it through a service.
 
 ## Key files
 
-| File                                                         | Role                                                                          |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| `src/app/webview/AppWebView.tsx`                             | Renders the `WebView`, wires the injected runtime scripts, tracks ready state |
-| `src/app/webview/hooks/useBaseBridge.ts`                     | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler    |
-| `src/app/webview/hooks/useAppBridge.ts`                      | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                 |
-| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 31 handler hooks                        |
-| `src/app/webview/hooks/*Handler.ts`                          | 31 domain handlers, one per capability group                                  |
-| `src/app/webview/hooks/useWebMessageRouter.contract.test.ts` | The bridge contract: what this shell answers, and what it leaves unsupported  |
-| `src/app/webview/utils/injectionScripts.ts`                  | Builds the scripts injected before the WebView loads                          |
+| File                                                         | Role                                                                                                         |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `src/app/webview/AppWebView.tsx`                             | Renders the `WebView`, wires the injected runtime scripts, tracks ready state                                |
+| `src/app/webview/hooks/useBaseBridge.ts`                     | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler                                   |
+| `src/app/webview/hooks/useAppBridge.ts`                      | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                                                |
+| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 28 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
+| `src/app/webview/hooks/*Handler.ts`                          | 29 domain handlers, one per capability group                                                                 |
+| `src/app/webview/hooks/useWebMessageRouter.contract.test.ts` | The bridge contract: what this shell answers, and what it leaves unsupported                                 |
+| `src/app/webview/utils/injectionScripts.ts`                  | Builds the scripts injected before the WebView loads                                                         |
 
 `webview/core/bridge.ts` (`createBridge`, `postAppMessage`, `receiveWebMessage`) has no importer
 anywhere in `apps/mobile/src` — the bridge actually in use is `AppBridgeHost` from `@chatic/bridges`,
@@ -202,7 +202,7 @@ direction has its own contract tests.
 | Event                                   | Pushed by                   | When                                                                                                                                   |
 | --------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `OnBackPressed`                         | `useAndroidBack`            | Android back press, only while the web has reported `SetCanGoBack` true or the WebView has history; otherwise the press goes to the OS |
-| `OnBackgroundStatusChanged`             | `useAppStateHandler`        | On mount and on every `AppState` change, except while the state is `unknown`. Also the reply to `FetchBackgroundStatus`                |
+| `OnBackgroundStatusChanged`             | `useAppStateHandler`        | On mount and on every `AppState` change, except while the state is `unknown`                                                           |
 | `OnNavigate`                            | `useDeepLinkNavigation`     | A deep link or a notification tap, warm or cold start, that resolves to a web path; a room path carries a `perfTrace`                  |
 | `OnReceiveNotification`                 | `useFcmHandler`             | A push received in the foreground — from the notification library, or relayed by Android's native service                              |
 | `OnUpdateDeviceInfo`                    | `useVersionCheckHandler`    | When the store version check finds a newer version — iOS only for now, since Android's check reports none                              |
@@ -223,8 +223,8 @@ test) or never pushed, with a reason. The suite fails when:
 - a push-only message is added to the vocabulary and nobody decided it here;
 - a line names a message the vocabulary no longer declares;
 - the `pushEvent` calls in `src/` disagree with the list — a new call site, a listed file that
-  stopped pushing, a reply type pushed unprompted without a line (as `OnBackgroundStatusChanged` has),
-  or a call whose `type` is not a string literal and so cannot be read;
+  stopped pushing, a reply type pushed unprompted without a line, or a call whose `type` is not a
+  string literal and so cannot be read;
 - a listed test does not exist, or never names its event and `pushedEventErrors` — a pointer, not
   proof; that the test triggers the event is its own assertion.
 

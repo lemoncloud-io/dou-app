@@ -1,7 +1,7 @@
 import { WebBridgeClient } from './WebBridgeClient';
 import type { BridgeAdapter } from './adapters';
 import type { ResponseMessage } from '../common';
-import { BRIDGE_PROTOCOL_VERSION } from '../version';
+import { BRIDGE_VERSION } from '../version';
 describe('WebBridgeClient Buffering & Detection', () => {
     let mockAdapter: jest.Mocked<BridgeAdapter>;
     beforeEach(() => {
@@ -122,6 +122,20 @@ describe('WebBridgeClient Buffering & Detection', () => {
         client.post({ type: 'Ping', data: { payload: 'instant' } });
         expect(mockAdapter.postMessage).toHaveBeenCalledTimes(1);
     });
+    // The default availability check is the exported isNative(), so every channel a shell injects counts.
+    it.each([
+        ['ReactNativeWebView', () => ((window as any).ReactNativeWebView = { postMessage: jest.fn() })],
+        ['ChaticMessageHandler', () => ((window as any).ChaticMessageHandler = { postMessage: jest.fn() })],
+        [
+            'webkit ChaticMessageHandler',
+            () => ((window as any).webkit = { messageHandlers: { ChaticMessageHandler: { postMessage: jest.fn() } } }),
+        ],
+    ])('should treat an injected %s as an available bridge by default', (_name, inject) => {
+        inject();
+        const client = new WebBridgeClient({ adapter: mockAdapter });
+        client.post({ type: 'Ping', data: { payload: 'channel' } });
+        expect(mockAdapter.postMessage).toHaveBeenCalledTimes(1);
+    });
     it('should support object-style post and request messages', async () => {
         (global as any).window.ReactNativeWebView = {
             postMessage: jest.fn(),
@@ -132,7 +146,7 @@ describe('WebBridgeClient Buffering & Detection', () => {
             expect.objectContaining({
                 type: 'Ping',
                 data: { payload: 'object-post' },
-                version: BRIDGE_PROTOCOL_VERSION,
+                version: BRIDGE_VERSION,
                 refId: expect.any(String),
             })
         );
@@ -172,12 +186,12 @@ describe('WebBridgeClient Buffering & Detection', () => {
             postMessage: jest.fn(),
         };
         const client = new WebBridgeClient({ adapter: mockAdapter });
-        client.post({ type: 'FetchAppLogBuffer', nonce: 'log-nonce', data: { count: 50 } });
+        client.post({ type: 'Ping', nonce: 'ping-nonce', data: { payload: 'meta' } });
         expect(mockAdapter.postMessage).toHaveBeenCalledWith(
             expect.objectContaining({
-                type: 'FetchAppLogBuffer',
-                nonce: 'log-nonce',
-                data: { count: 50 },
+                type: 'Ping',
+                nonce: 'ping-nonce',
+                data: { payload: 'meta' },
                 refId: expect.any(String),
             })
         );
@@ -191,17 +205,17 @@ describe('WebBridgeClient Buffering & Detection', () => {
         const sentRequest = mockAdapter.postMessage.mock.calls[0][0] as any;
         const onMessageCallback = mockAdapter.onMessage.mock.calls[0][0];
         onMessageCallback({
-            type: 'OnFetchSafeArea',
+            type: 'OnFetchBadgeCount',
             refId: sentRequest.refId,
             success: true,
-            data: { top: 0, bottom: 0, left: 0, right: 0 },
+            data: { count: 0 },
         } as any);
         await expect(requestPromise).rejects.toEqual(
             expect.objectContaining({
                 code: 'RESPONSE_TYPE_MISMATCH',
                 requestType: 'Ping',
                 expectedResponseType: 'Pong',
-                actualResponseType: 'OnFetchSafeArea',
+                actualResponseType: 'OnFetchBadgeCount',
                 recoverable: true,
             })
         );
@@ -232,12 +246,12 @@ describe('WebBridgeClient Buffering & Detection', () => {
         );
     });
 
-    describe('WebBridgeClient Environment Simulation', () => {
-        let mockSimAdapter: jest.Mocked<BridgeAdapter>;
+    describe('WebBridgeClient lifecycle', () => {
+        let lifecycleAdapter: jest.Mocked<BridgeAdapter>;
 
         beforeEach(() => {
             jest.useFakeTimers();
-            mockSimAdapter = {
+            lifecycleAdapter = {
                 postMessage: jest.fn(),
                 onMessage: jest.fn(),
             } as any;
@@ -253,159 +267,14 @@ describe('WebBridgeClient Buffering & Detection', () => {
             jest.useRealTimers();
         });
 
-        it('should apply RTT delay to requests and responses', async () => {
-            const client = new WebBridgeClient({ adapter: mockSimAdapter });
-            client.configureEnvironment({ rttDelayMs: 100 });
-
-            const requestPromise = client.request({ type: 'Ping', data: { payload: 'delayed' } });
-
-            // At 0ms, postMessage has not been called yet (half RTT delay = 50ms)
-            expect(mockSimAdapter.postMessage).not.toHaveBeenCalled();
-
-            await jest.advanceTimersByTimeAsync(50);
-            expect(mockSimAdapter.postMessage).toHaveBeenCalledTimes(1);
-
-            const sentRequest = mockSimAdapter.postMessage.mock.calls[0][0] as any;
-            const onMessageCallback = mockSimAdapter.onMessage.mock.calls[0][0];
-
-            // Receive response instantly on mockSimAdapter
-            onMessageCallback({
-                type: 'Pong',
-                refId: sentRequest.refId,
-                success: true,
-                data: { payload: 'delayed' },
-            } as any);
-
-            // Client shouldn't resolve yet because of incoming delay (half RTT delay = 50ms)
-            let resolved = false;
-            void requestPromise.then(() => {
-                resolved = true;
-            });
-
-            await jest.advanceTimersByTimeAsync(49);
-            expect(resolved).toBe(false);
-
-            await jest.advanceTimersByTimeAsync(1);
-            expect(resolved).toBe(true);
-            await expect(requestPromise).resolves.toEqual(
-                expect.objectContaining({
-                    type: 'Pong',
-                    data: { payload: 'delayed' },
-                })
-            );
-        });
-
-        it('should fail request instantly or with delay when forceFailure is enabled', async () => {
-            const client = new WebBridgeClient({ adapter: mockSimAdapter });
-            client.configureEnvironment({
-                forceFailure: {
-                    code: 'FORCED',
-                    message: 'forced failure',
-                },
-                rttDelayMs: 100,
-            });
-
-            const requestPromise = client.request({ type: 'Ping', data: { payload: 'blocked' } });
-
-            // Advance 50ms, should not reject yet
-            let rejected = false;
-            void requestPromise.catch(() => {
-                rejected = true;
-            });
-
-            await jest.advanceTimersByTimeAsync(50);
-            expect(rejected).toBe(false);
-
-            await jest.advanceTimersByTimeAsync(50); // Total 100ms
-            await expect(requestPromise).rejects.toEqual(
-                expect.objectContaining({
-                    code: 'FORCED',
-                    message: 'forced failure',
-                    requestType: 'Ping',
-                })
-            );
-            expect(mockSimAdapter.postMessage).not.toHaveBeenCalled();
-        });
-
-        it('should drop requests randomly or deterministic when dropRate is 1', async () => {
-            const client = new WebBridgeClient({ adapter: mockSimAdapter });
-            client.configureEnvironment({
-                dropRate: 1,
-            });
-
-            const requestPromise = client.request({ type: 'Ping', data: { payload: 'dropped' } });
-            client.post({ type: 'Ping', data: { payload: 'dropped-post' } });
-
-            await jest.advanceTimersByTimeAsync(100);
-            expect(mockSimAdapter.postMessage).not.toHaveBeenCalled();
-
-            // Promise should never resolve
-            let resolved = false;
-            void requestPromise.then(() => {
-                resolved = true;
-            });
-            await jest.advanceTimersByTimeAsync(10000);
-            expect(resolved).toBe(false);
-        });
-
-        it('should induce response type mismatch when responseTypeMismatch is configured', async () => {
-            const client = new WebBridgeClient({ adapter: mockSimAdapter });
-            client.configureEnvironment({
-                responseTypeMismatch: 'OnFetchSafeArea',
-            });
-
-            const requestPromise = client.request({ type: 'Ping', data: { payload: 'mismatch' } });
-            const sentRequest = mockSimAdapter.postMessage.mock.calls[0][0] as any;
-            const onMessageCallback = mockSimAdapter.onMessage.mock.calls[0][0];
-
-            onMessageCallback({
-                type: 'Pong',
-                refId: sentRequest.refId,
-                success: true,
-                data: { payload: 'mismatch' },
-            } as any);
-
-            await expect(requestPromise).rejects.toEqual(
-                expect.objectContaining({
-                    code: 'RESPONSE_TYPE_MISMATCH',
-                    actualResponseType: 'OnFetchSafeArea',
-                })
-            );
-        });
-
-        it('should induce malformed response when malformedResponse is true', async () => {
-            const client = new WebBridgeClient({ adapter: mockSimAdapter });
-            client.configureEnvironment({
-                malformedResponse: true,
-            });
-
-            const requestPromise = client.request({ type: 'Ping', data: { payload: 'malformed' } });
-            const sentRequest = mockSimAdapter.postMessage.mock.calls[0][0] as any;
-            const onMessageCallback = mockSimAdapter.onMessage.mock.calls[0][0];
-
-            onMessageCallback({
-                type: 'Pong',
-                refId: sentRequest.refId,
-                success: true,
-                data: { payload: 'malformed' },
-            } as any);
-
-            await expect(requestPromise).rejects.toEqual(
-                expect.objectContaining({
-                    code: 'RESPONSE_TYPE_MISMATCH',
-                    actualResponseType: 'ERROR',
-                })
-            );
-        });
-
         it('should clean up timers, unsubscribe from adapter, and reject pending requests on destroy', async () => {
             const unsubscribeSpy = jest.fn();
-            mockSimAdapter.onMessage.mockReturnValue(unsubscribeSpy);
+            lifecycleAdapter.onMessage.mockReturnValue(unsubscribeSpy);
 
-            const client = new WebBridgeClient({ adapter: mockSimAdapter });
+            const client = new WebBridgeClient({ adapter: lifecycleAdapter });
             const requestPromise = client.request({ type: 'Ping', data: { payload: 'destroy-test' } });
 
-            expect(mockSimAdapter.onMessage).toHaveBeenCalled();
+            expect(lifecycleAdapter.onMessage).toHaveBeenCalled();
 
             client.destroy();
 
@@ -419,7 +288,7 @@ describe('WebBridgeClient Buffering & Detection', () => {
         });
 
         it('should allow dynamically swapping the adapter and direct messages to the new adapter', () => {
-            const client = new WebBridgeClient({ adapter: mockSimAdapter });
+            const client = new WebBridgeClient({ adapter: lifecycleAdapter });
 
             const newAdapter = {
                 postMessage: jest.fn(),
@@ -427,13 +296,13 @@ describe('WebBridgeClient Buffering & Detection', () => {
             } as any;
 
             client.post({ type: 'Ping', data: { payload: 'before-swap' } });
-            expect(mockSimAdapter.postMessage).toHaveBeenCalledTimes(1);
+            expect(lifecycleAdapter.postMessage).toHaveBeenCalledTimes(1);
             expect(newAdapter.postMessage).not.toHaveBeenCalled();
 
             client.setAdapter(newAdapter);
 
             client.post({ type: 'Ping', data: { payload: 'after-swap' } });
-            expect(mockSimAdapter.postMessage).toHaveBeenCalledTimes(1);
+            expect(lifecycleAdapter.postMessage).toHaveBeenCalledTimes(1);
             expect(newAdapter.postMessage).toHaveBeenCalledTimes(1);
         });
     });
@@ -582,22 +451,6 @@ describe('WebBridgeClient request observer', () => {
         await promise;
 
         expect(observer).toHaveBeenCalledWith(expect.objectContaining({ queuedMs: undefined }));
-    });
-
-    it('does not count a simulated outbound delay as queue time', async () => {
-        const client = createClient();
-        client.configureEnvironment({ rttDelayMs: 400 });
-        const observer = jest.fn();
-        client.setRequestObserver(observer);
-
-        const promise = client.request({ type: 'Ping', data: { payload: 'x' } });
-        clock += 200;
-        jest.advanceTimersByTime(200);
-        reply({ type: 'Pong' as any, refId: sentRefIds()[0], success: true, data: {} });
-        jest.advanceTimersByTime(200);
-        await promise;
-
-        expect(observer).toHaveBeenCalledWith(expect.objectContaining({ queuedMs: 0 }));
     });
 
     it('stops reporting once the observer is removed', async () => {

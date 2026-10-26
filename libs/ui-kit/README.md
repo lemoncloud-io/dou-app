@@ -1,6 +1,6 @@
 # @chatic/ui-kit
 
-**The repo's generic component library: 29 shadcn/ui primitives and the `cn` class merger.** Every
+**The repo's generic component library: 21 shadcn/ui primitives and the `cn` class merger.** Every
 file under `src/components/ui/` is the output of `npx shadcn@latest add <name>`, styled from the
 semantic Tailwind tokens the host app declares. Five projects render them — two web apps, an admin
 console, the shared error and fallback screens, and the DoU mobile design system in
@@ -15,9 +15,7 @@ This lib decides **behaviour** — focus trap, portal, dismiss, ARIA wiring, key
 **appearance** to whoever renders it. It owns no state, no data and no copy. The strings a user
 hears on every screen are required from the caller — the dialog and sheet close button's
 `closeLabel` and the `Toaster` region's `label` — because an English default there was the one
-English word a Korean screen reader still read out. The English literals left (`Previous`, `More pages`,
-`Command`) sit in primitives nothing here renders yet, and open/selected state
-belongs to the host.
+English word a Korean screen reader still read out. Open/selected state belongs to the host.
 
 Unlike every other lib here, **consumers do not import a barrel.** `src/index.ts` is one line
 (`export * from './utils'`), so the barrel carries `cn` and nothing else; a component is reached at
@@ -74,17 +72,17 @@ and desktop-web, the other app that raises toasts, no longer renders it.
 ## Design principles
 
 1. **Regenerable by default.** A file under `components/ui/` is the generator's output and stays
-   that way unless there is a reason it cannot. 19 of the 30 modules have not been touched since
+   that way unless there is a reason it cannot. 12 of the 22 modules have not been touched since
    `shadcn add` wrote them.
 2. **A local edit carries the reason in a comment.** The three overlay files that read `--app-width`
    each explain, in place, why a `fixed` element portalled to `document.body` has to re-declare the
    host's width cap. An unexplained edit is indistinguishable from upstream drift the next time
    somebody regenerates.
-3. **Behaviour here, appearance in the host.** Components take Radix/cmdk behaviour and semantic
+3. **Behaviour here, appearance in the host.** Components take Radix behaviour and semantic
    Tailwind classes. They never hard-code a hex, and they never read app state.
 4. **No barrel over `components/ui/`.** Deep paths are the public API. Adding an `index.ts` that
-   re-exports all 29 would make every consumer pull cmdk, all seventeen Radix packages and
-   `lucide-react` to render a `Button`.
+   re-exports all 21 would make every consumer pull all thirteen Radix packages and `lucide-react`
+   to render a `Button`.
 5. **One `cn`, and it is not just `clsx`.** `src/utils/index.ts` extends `tailwind-merge` with the
    repo's own `font-size` scale. Without that registration `twMerge` reads `text-callout` as a text
    _colour_ and drops it whenever a span also carries `text-foreground`, collapsing the type scale to
@@ -99,7 +97,7 @@ and desktop-web, the other app that raises toasts, no longer renders it.
 
 ## Scope
 
-**In** — shadcn/ui primitives (Radix, cmdk and lucide wrappers), the toast store they share, `cn`,
+**In** — shadcn/ui primitives (Radix and lucide wrappers), the toast store they share, `cn`,
 and the dialog focus helpers (`utils/openerFocus.tsx`).
 
 **Out** — the DoU mobile design system, its token sheet and its icons (`libs/web-ui-kit`); the
@@ -120,12 +118,12 @@ flowchart TD
     K["libs/web-ui-kit<br/><i>5 files</i>"]:::ext
     S["libs/shared<br/><i>4 files</i>"]:::ext
 
-    C["components/ui × 29<br/><i>@chatic/ui-kit/components/ui/&lt;name&gt;</i>"]:::ui
+    C["components/ui × 21<br/><i>@chatic/ui-kit/components/ui/&lt;name&gt;</i>"]:::ui
     T["use-toast.ts<br/><i>module-level toast store</i>"]:::ui
     U["utils/index.ts<br/><i>cn — @chatic/lib/utils</i>"]:::util
     F["utils/openerFocus.tsx<br/><i>dialog focus on open and close</i>"]:::util
 
-    R["@radix-ui/* × 17<br/>cmdk · lucide-react"]:::ext
+    R["@radix-ui/* × 13<br/>lucide-react"]:::ext
     TW["tailwind.config.js + styles.css<br/><i>owned by each host</i>"]:::ext
 
     W --> C
@@ -154,7 +152,7 @@ libs/ui-kit/src/
 ├── index.ts            public barrel — one line, and it exports `cn` only
 ├── utils/index.ts      `cn`: clsx + a tailwind-merge extended with the repo's font-size, z-index and animation names
 ├── utils/openerFocus.tsx  focus back to whatever opened a dialog (dialog, alert-dialog)
-└── components/ui/      29 primitives, one file each, plus use-toast.ts
+└── components/ui/      21 primitives, one file each, plus use-toast.ts
 ```
 
 Three files hold something the name does not give away:
@@ -192,7 +190,7 @@ declares an empty `targets` map and Nx infers `build`, `lint` and `typecheck` fr
 
 ### The catalogue
 
-All 30 modules, with the number of files outside this lib that import each path. Replace the name to
+All 22 modules, with the number of files outside this lib that import each path. Replace the name to
 re-measure any row:
 
 ```bash
@@ -216,32 +214,24 @@ grep -rln "@chatic/ui-kit/components/ui/button'" --include='*.ts' --include='*.t
 | `switch`        |         3 | desktop-web 2 · admin-v2 1                        | 3:1 track, ink edge and thumb when on                                         |
 | `table`         |         3 | admin-v2 3                                        | —                                                                             |
 | `badge`         |         2 | admin-v2 2                                        | —                                                                             |
+| `checkbox`      |         2 | admin-v2 2                                        | —                                                                             |
 | `toaster`       |         2 | web 1 · desktop-web 1                             | rewritten · required region `label`                                           |
 | `card`          |         1 | web 1                                             | —                                                                             |
+| `tabs`          |         1 | desktop-web 1                                     | —                                                                             |
 | `context-menu`  |         1 | desktop-web 1                                     | icon sizing on items                                                          |
 | `skeleton`      |         1 | admin-v2 1                                        | —                                                                             |
 | `textarea`      |         1 | admin-v2 1                                        | —                                                                             |
 | `toast`         |         0 | rendered by `toaster`                             | restyled · viewport moved to top                                              |
-| `command`       |         0 | —                                                 | `sr-only` name for the dialog · `closeLabel` passed through                   |
-| `accordion`     |         0 | —                                                 | —                                                                             |
-| `alert`         |         0 | —                                                 | —                                                                             |
-| `breadcrumb`    |         0 | —                                                 | —                                                                             |
-| `checkbox`      |         0 | —                                                 | —                                                                             |
-| `pagination`    |         0 | —                                                 | —                                                                             |
-| `scroll-area`   |         0 | —                                                 | —                                                                             |
-| `select`        |         0 | —                                                 | —                                                                             |
-| `separator`     |         0 | —                                                 | —                                                                             |
-| `tabs`          |         0 | —                                                 | —                                                                             |
 
-**Ten primitives are imported by nothing at all** — `accordion`, `alert`, `breadcrumb`, `checkbox`,
-`command`, `pagination`, `scroll-area`, `select`, `separator`, `tabs`. That is not dead code in the
-usual sense: they are the generator's catalogue, and deleting one saves nothing that re-adding it
-would not cost back. It does mean a change to any of them is unverifiable by rendering, because
-nothing renders it. `toast` is the eleventh with no direct importer, but `toaster` renders it.
+**Every primitive has an importer** except `toast`, and `toaster` renders that one. Do not add a
+primitive ahead of the screen that needs it: until then it is a dependency every install pulls and a
+file no rendering can check, and when that screen comes it is a single `shadcn add`
+([Adding a primitive](#1-adding-a-primitive)).
 
 Three modules have callers inside this lib as well, so their blast radius is one hop wider than the
-table row: `alert-dialog` and `pagination` take `buttonVariants` from `button`, `command` builds
-`CommandDialog` out of `dialog`, and `toaster` and `use-toast` both sit on `toast`.
+table row: `alert-dialog` takes `buttonVariants` from `button` and its height cap from `dialog`,
+`sheet` takes the close-button contract from `dialog`, and `toaster` and `use-toast` both sit on
+`toast`.
 
 The toast is the lopsided one. 79 files call `useToast()`; exactly two mount the `<Toaster />` that
 renders what they queue.
@@ -258,7 +248,7 @@ npx shadcn@latest add <component>
 lands here and imports `cn` through the repo's own alias. The style is `new-york`, base colour
 `stone`, icon library `lucide`.
 
-**Eleven of the 30 modules carry edits made after the generator wrote them, and re-running the command
+**Ten of the 22 modules carry edits made after the generator wrote them, and re-running the command
 on one of those overwrites the edit.** The list is not a claim to be trusted — it is a query:
 
 ```bash
@@ -277,7 +267,6 @@ done
 | `alert-dialog.tsx` | The same `--dialog-width` rule and viewport height cap as `DialogContent`'s `default` variant, the return of focus to the opener, focus on the first control when there is no Cancel, and the same `grid-cols-[minmax(0,1fr)]`, and the `bg-overlay/80` scrim                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | `input.tsx`        | The entire class list — `bg-surface`, `border-input-border`, `text-placeholder`, `focus-visible:border-focus-border`, and a flat `text-[16px]` where the generator writes `text-base md:text-sm`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `use-toast.ts`     | `TOAST_REMOVE_DELAY = 1000`; upstream ships `1000000`, which keeps dismissed toasts in the store for 16 minutes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `command.tsx`      | The `sr-only` `DialogTitle` / `DialogDescription` giving the dialog the accessible name Radix requires, and the `closeLabel` prop `CommandDialog` passes to its `DialogContent`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `button.tsx`       | The `link` variant's `text-primary-ink underline`; the generator writes `text-primary`, the fill colour, which as text on a light ground can fall under 1.5:1; and the focus ring, `ring-2` behind a 2px `ring-offset-background` gap where the generator writes a 1px `ring-1`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | `switch.tsx`       | `bg-control-border` for the off track, and the `primary-ink` edge and `primary-foreground` thumb on the checked state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `context-menu.tsx` | `gap-2` and `[&>svg]:size-4` on items, so icons match `dropdown-menu`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |

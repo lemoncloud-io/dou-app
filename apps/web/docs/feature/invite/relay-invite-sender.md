@@ -181,30 +181,6 @@ same "this invite is spent" signal, and only the label and the row's second line
 `canceled` and an unrecognized state resolve to `null`, which is defence in depth behind the filter
 rather than a reachable case.
 
-## Draining the pre-API cancels
-
-Cancels made before `invite.cancel` existed were recorded locally and never reached the server. Two
-hooks, both mounted on home, clear that out:
-
-1. `useInviteDismissMigration` runs **once per install**, folding the legacy `localStorage` list into
-   the cache as dismiss stubs. Its flag lives in `localStorage` rather than the cache, so it behaves
-   the same on web IndexedDB and native SQLite, and the flag is set only after a successful pass —
-   a transient failure simply retries next boot, since the writes are idempotent upserts.
-2. `useCanceledInviteReconcile` runs once per home mount, after the list settles, and replays each
-   dismissed row as a real cancel.
-
-The reconcile has one wrinkle worth knowing: **codes never reach the cache**, and home no longer
-fetches the invite list on its own. So a pass with anything to do re-asks the server once up front
-and composes every code from that single response. No response — the relay never verifying inside
-the refetch's wait — leaves every record untouched for a later mount. Clearing a stamp it could not
-act on would lose the legacy cancel silently.
-
-Per row: no `state` (a stub that never matched a server response) drops the stub, since there is no
-code to act with; `pending` or `expired` fires the cancel and clears on success or `409`; `canceled`
-or `accepted` clears, because the server already agrees; `rejected` is **kept**, because that stamp
-is the steady-state dismiss marker and not a legacy one. It runs sequentially — the records are few,
-and parallel cancels would only race the list invalidation each mutation already triggers.
-
 ## What not to do
 
 - **Do not issue before retiring a `pending` prior.** Two live codes for one number is the state
@@ -222,11 +198,10 @@ and parallel cancels would only race the list invalidation each mutation already
 ## Notes for implementers and tests
 
 - `invite.list` is asked with `limit: 100` and has no cursor, so there is no paging. A row outside
-  that window is invisible to re-invite detection, the list, the waiting screen and the reconcile
-  alike — and `resolveReinviteVariant` then offers the `expired` copy for a prior it cannot see.
+  that window is invisible to re-invite detection, the list and the waiting screen alike — and `resolveReinviteVariant` then offers the `expired` copy for a prior it cannot see.
 - `useSentInviteLog`'s storage key is versioned, and bumping it **is** the migration — there is no
   `persist` middleware and no `migrate` hook. The previous key was keyed by local Korean digits,
-  which collide once invites can go anywhere; it is cleared on first read.
+  which collide once invites can go anywhere; its entries were left to lapse.
 - The waiting screen exempts a retire it made itself from its own "this invite is gone" redirect,
   or a reissue would bounce the user home mid-flow.
 - The re-invite-into-a-channel path holds its own submitting flag across the retire round trip. The
@@ -239,6 +214,6 @@ and parallel cancels would only race the list invalidation each mutation already
 - [relay-invite-accept.md](./relay-invite-accept.md) — the recipient's side of every state named here
 - [auth](../auth/README.md) — phone verification and the country-aware number input the form mounts
 - [channels](../channels/README.md) — the 1:1 room that sends people here in re-invite mode
-- [home](../home/README.md) — the list surface these rows appear on, and where the drain hooks mount
+- [home](../home/README.md) — the list surface these rows appear on
 - [`@chatic/data`](../../../../../libs/data/docs/repositories/README.md) — the invite repository, the
   cache-first read, and the `dismissedAt` field

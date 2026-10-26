@@ -121,12 +121,12 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 
 ### Invite
 
-`list` · `create` · `get` · `accept` · `cancel` · `reject` · `dismiss` · `undismiss` ·
-`observeList` · `cacheReadList` · `cache*`
+`list` · `create` · `get` · `accept` · `cancel` · `reject` · `dismiss` · `observeList` ·
+`cacheReadList` · `cache*`
 
 - The 1:1 DM invite-code domain. The composition root **pins** the gateway to the relay slot — it must not follow the active cloud (ADR-0089).
 - Reading one's own list is local-first (ADR-0052 introduced the `invite` cache slot), but the remaining commands (`create`/`accept`/`cancel`/`reject`/`get`) have no cache slot.
-- `dismiss` / `undismiss` are local display state, not server state.
+- `dismiss` is local display state, not server state.
 
 ### Auth
 

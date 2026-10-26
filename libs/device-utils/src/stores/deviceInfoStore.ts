@@ -9,7 +9,6 @@ declare global {
         CHATIC_APP_PLATFORM?: string;
         CHATIC_APP_APPLICATION?: string;
         CHATIC_APP_STAGE?: string;
-        CHATIC_APP_DEVICE_TOKEN?: string;
         /** @deprecated Composite `deviceId:firebaseInstallId`; use CHATIC_APP_UNIQUE_DEVICE_ID + CHATIC_APP_FIREBASE_INSTALLATION_ID. */
         CHATIC_APP_DEVICE_ID?: string;
         CHATIC_APP_DEVICE_MODEL?: string;
@@ -73,7 +72,6 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
         const platform = (window.CHATIC_APP_PLATFORM as Platform) || 'web';
         const application = window.CHATIC_APP_APPLICATION || '';
         const stage = toEnv(window.CHATIC_APP_STAGE);
-        const deviceToken = window.CHATIC_APP_DEVICE_TOKEN;
         const deviceId = window.CHATIC_APP_DEVICE_ID;
         const deviceModel = window.CHATIC_APP_DEVICE_MODEL;
         const currentVersion = window.CHATIC_APP_CURRENT_VERSION || '';
@@ -96,7 +94,6 @@ export const useDeviceInfoStore = create<DeviceInfoStore>(set => ({
             application,
             deviceId,
             deviceModel,
-            deviceToken,
             platform,
             installId,
             uniqueDeviceId,

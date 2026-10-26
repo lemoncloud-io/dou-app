@@ -62,12 +62,13 @@ size budget and limit handling out of the design system.
 ### The context is a projection, not a dump
 
 `buildReportContext` picks six device fields: `platform`, `application`, `stage`, `deviceModel`,
-`lang`, `uniqueDeviceId`. It leaves out `deviceToken` and the `deviceId` / `installId` /
-`firebaseInstallationId` duplicates.
+`lang`, `uniqueDeviceId`. It leaves out the `deviceId` / `installId` / `firebaseInstallationId`
+duplicates, and it is an allowlist, so a field added to `DeviceInfo` later stays out until someone
+chooses it.
 
-**That exclusion is a security rule, not tidiness.** `deviceToken` is an FCM/APNs push credential,
-and a report without attachments is relayed into a shared Slack channel. Anything in `extras` is
-something you have handed to everyone in that channel.
+**That restraint is a security rule, not tidiness.** A report without attachments is relayed into a
+shared Slack channel, so anything in `extras` is something you have handed to everyone in that
+channel — a push credential, were one ever added to `DeviceInfo`, included.
 
 The same rule governs the route trail: `recordRoute` takes a `pathname` and callers must never pass
 `search` or `href`. This app puts capability tokens in query strings (`/invite/accept?…`, `/s?…`).

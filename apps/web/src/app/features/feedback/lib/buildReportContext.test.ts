@@ -10,8 +10,7 @@ const device = {
     deviceModel: 'iPhone',
     lang: 'ko',
     uniqueDeviceId: 'uniq-1',
-    // Sensitive fields that must NOT be forwarded to the report channel:
-    deviceToken: 'fcm-secret-token',
+    // Persistent identifiers that must NOT be forwarded to the report channel:
     deviceId: 'legacy-id',
     firebaseInstallationId: 'fb-1',
     installId: 'inst-1',
@@ -39,10 +38,9 @@ describe('buildReportContext — 컨텍스트 조합', () => {
         expect(ctx.path).toBe(window.location.pathname);
     });
 
-    it('푸시 토큰·영구 식별자 같은 민감 device 필드는 전송하지 않는다', () => {
+    it('does not forward the deprecated persistent device identifiers', () => {
         const ctx = buildReportContext({ deviceInfo: device, versionInfo: null });
         const dev = ctx.device as Record<string, unknown>;
-        expect(dev.deviceToken).toBeUndefined();
         expect(dev.deviceId).toBeUndefined();
         expect(dev.firebaseInstallationId).toBeUndefined();
         expect(dev.installId).toBeUndefined();

@@ -1,6 +1,6 @@
 /**
  * What matters here is the boundary, not the payload: a user report is a data call, so it goes
- * through the `report` repository (ADR-0036) and builds no request of its own. The body it hands
+ * through the `report` repository and builds no request of its own. The body it hands
  * over is asserted alongside, since the session facts inside it are this file's job.
  */
 import { getRepositories } from '../data/runtime';
@@ -33,13 +33,13 @@ beforeEach(() => {
 
 describe('reportIssue', () => {
     it('report repository로 부친다 — 자체 요청을 만들지 않는다', async () => {
-        await reportIssue('제목', '본문');
+        await reportIssue('제목', '본문', {});
 
         expect(submitIssue).toHaveBeenCalledTimes(1);
     });
 
     it('타이틀은 앱을 앞에 달고, stereo는 issue다 — admin이 로그와 가르는 기준', async () => {
-        await reportIssue('제목', '본문');
+        await reportIssue('제목', '본문', {});
 
         const body = submitIssue.mock.calls[0][0];
         expect(body.title).toBe('[web] issue: 제목');
@@ -48,12 +48,12 @@ describe('reportIssue', () => {
     });
 
     it('첨부가 없으면 Slack으로 나간다 (silent: false)', async () => {
-        await reportIssue('제목', '본문');
+        await reportIssue('제목', '본문', {});
 
         expect(submitIssue.mock.calls[0][0].silent).toBe(false);
     });
 
-    // A single attachment exceeds Slack's text cap — lose the notification, keep the photo. @see ADR-0049
+    // A single attachment exceeds Slack's text cap — lose the notification, keep the photo.
     it('첨부가 있으면 저장만 한다 (silent: true)', async () => {
         await reportIssue('제목', '본문', { images: ['data:image/jpeg;base64,AAAA'] });
 
@@ -61,7 +61,7 @@ describe('reportIssue', () => {
     });
 
     it('message에 세션 사실을 실어 보낸다 — uid·role·cloud·url', async () => {
-        await reportIssue('제목', '본문');
+        await reportIssue('제목', '본문', {});
 
         const payload = JSON.parse(submitIssue.mock.calls[0][0].message);
         expect(payload.user).toMatchObject({ uid: 'u1', name: 'nick', role: 'user', isAuthenticated: true });
@@ -72,6 +72,6 @@ describe('reportIssue', () => {
     it('전송 실패는 호출부로 던진다 — 화면이 실패를 알려야 한다', async () => {
         submitIssue.mockRejectedValue(new Error('boom'));
 
-        await expect(reportIssue('제목', '본문')).rejects.toThrow('boom');
+        await expect(reportIssue('제목', '본문', {})).rejects.toThrow('boom');
     });
 });

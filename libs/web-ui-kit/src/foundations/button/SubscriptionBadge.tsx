@@ -24,7 +24,7 @@ const XS_TIER_CLASS = {
 } as const;
 
 export interface SubscriptionBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
-    /** Subscription tier — drives the icon, accent and default label. */
+    /** Subscription tier — drives the icon, tone and default label. */
     tier: SubscriptionTier;
     /** Overrides the default label (FREE / PRO). */
     label?: string;
@@ -52,7 +52,7 @@ export const SubscriptionBadge = React.forwardRef<HTMLSpanElement, SubscriptionB
         <span
             ref={ref}
             className={cn(
-                buttonSurfaceClass({ variant: 'outline', accent: tier === 'pro', size }),
+                buttonSurfaceClass({ variant: 'outline', tone: tier === 'pro' ? 'green' : 'gray', size }),
                 'shrink-0',
                 size === 'xs' && XS_TIER_CLASS[tier],
                 className

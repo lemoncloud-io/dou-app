@@ -5,7 +5,6 @@
  * Kept apart from the page so the labels and the clearing rules are testable without rendering.
  */
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
-import type { MembershipListParams } from '../api/membershipsQuery';
 
 /** The filter keys the toolbar drives. `page`/`limit` are pagination, not filters. */
 export type FilterKey = 'status' | 'productId' | 'platform' | 'userId' | 'isSuper';
@@ -41,32 +40,6 @@ export const toChips = (values: FilterValues): FilterChip[] =>
 /** The patch that clears everything the toolbar owns. Pagination resets with it. */
 export const clearAllPatch = (): Record<string, string> =>
     FILTER_KEYS.reduce<Record<string, string>>((patch, key) => ({ ...patch, [key]: '' }), {});
-
-/**
- * Status distribution for the rows on screen.
- *
- * The membership list endpoint returns no aggregation (unlike the cloud list), so this counts what
- * came back. It describes the current page, never the whole result — the caller has to say so.
- */
-export const countByStatus = (rows: Array<{ status?: string }>): Array<[string, number]> => {
-    const counts = rows.reduce<Record<string, number>>((acc, row) => {
-        const key = row.status || 'unknown';
-        acc[key] = (acc[key] ?? 0) + 1;
-        return acc;
-    }, {});
-
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-};
-
-export const asListParams = (values: FilterValues, page: number, limit: number): MembershipListParams => ({
-    page,
-    limit,
-    status: values.status,
-    productId: values.productId,
-    platform: values.platform,
-    userId: values.userId,
-    isSuper: values.isSuper,
-});
 
 /**
  * Whether a row survives the filters, applied in the browser.

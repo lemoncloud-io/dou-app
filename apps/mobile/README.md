@@ -65,7 +65,7 @@ source tree only in comments.
 
 ## Scope
 
-**In** — the WebView host and the message router; the 31 handler hooks that answer web messages; the
+**In** — the WebView host and the message router; the 29 handler hooks that answer web messages; the
 20 service domains behind them; the 13 native bridge modules and their Android/Kotlin and iOS/Swift
 counterparts; the local SQLite and MMKV stores; push registration, notification channels, badge
 counts and push-tap routing; deep links and universal links; large-file upload and download, and saving or sharing a downloaded
@@ -92,7 +92,7 @@ flowchart TD
     Screen["features/main<br/>MainScreen"]
     WV["webview/AppWebView"]
     Router["webview/hooks<br/>useWebMessageRouter"]
-    Handlers["webview/hooks<br/>31 handlers"]
+    Handlers["webview/hooks<br/>29 handlers"]
     Services["services/<br/>20 domains"]
     BridgeTS["bridge/<br/>13 native modules"]
     Store["database/<br/>SQLite · MMKV"]
@@ -148,11 +148,10 @@ before the web client's own pre-paint code, and only the second survives a reloa
 apps/mobile/
 ├── src/
 │   ├── main.tsx           AppRegistry.registerComponent('Chatic', App) — four lines, nothing else
-│   ├── main-web.tsx       the web target's entry point
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash
-│       ├── webview/       93 files: AppWebView, the router, 31 handlers, injection
+│       ├── webview/       93 files: AppWebView, the router, 29 handlers, injection
 │       ├── services/      98 files across 20 domains, assembled in provider.ts
 │       ├── bridge/        13 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
@@ -218,7 +217,7 @@ main.tsx
             ├── debugSettingsStore.getResolvedWebviewBaseUrl()
             └── AppWebView
                 └── useWebMessageRouter({ bridge })
-                    └── 31 handler hooks → useServices() → provider
+                    └── 28 handler hooks → useServices() → provider
 ```
 
 `provider.ts` builds `LogService` first, because almost every other service takes it as its first

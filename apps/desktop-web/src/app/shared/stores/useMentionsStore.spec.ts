@@ -1,12 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import {
-    countUnreadMentionsIn,
-    hasUnreadMentionIn,
-    unreadMentionCount,
-    useMentionsStore,
-    type MentionItem,
-} from './useMentionsStore';
+import { hasUnreadMentionIn, useMentionsStore, type MentionItem } from './useMentionsStore';
 
 const item = (fields: Partial<MentionItem>): MentionItem => ({
     id: 'C1:5',
@@ -48,25 +42,6 @@ describe('hasUnreadMentionIn', () => {
     // Without a number there is no telling whether I have read past it.
     it('does not count a mention that has no number', () => {
         expect(hasUnreadMentionIn(inbox(item({ chatNo: undefined })), C1, 0)).toBe(false);
-    });
-});
-
-describe('countUnreadMentionsIn', () => {
-    it('counts unread mentions past the read boundary', () => {
-        const entries = inbox(item({ id: 'C1:5' }), item({ id: 'C1:6', chatNo: 6 }), item({ id: 'C1:4', chatNo: 4 }));
-        expect(countUnreadMentionsIn(entries, C1, 4)).toBe(2);
-    });
-
-    it('leaves out mentions opened from the inbox', () => {
-        expect(countUnreadMentionsIn(inbox(item({ readAt: 2 })), C1, 0)).toBe(0);
-    });
-
-    it('leaves out mentions at or below the read boundary', () => {
-        expect(countUnreadMentionsIn(inbox(item({})), C1, 5)).toBe(0);
-    });
-
-    it('leaves out another place’s channel of the same id', () => {
-        expect(countUnreadMentionsIn(inbox(item({ placeId: 'place-2' })), C1, 0)).toBe(0);
     });
 });
 
@@ -128,15 +103,7 @@ describe('mention-only readers', () => {
         item({ id: 'reaction', kind: 'reaction' })
     );
 
-    it('count only mentions as unread mentions, including items stored before kinds existed', () => {
-        expect(unreadMentionCount(others)).toBe(0);
-        expect(
-            unreadMentionCount({ ...others, ...inbox(item({ id: 'old' }), item({ id: 'all', kind: 'everyone' })) })
-        ).toBe(2);
-    });
-
     it('put no @ on a channel for a DM, a reply or a reaction', () => {
         expect(hasUnreadMentionIn(others, C1, 0)).toBe(false);
-        expect(countUnreadMentionsIn(others, C1, 0)).toBe(0);
     });
 });

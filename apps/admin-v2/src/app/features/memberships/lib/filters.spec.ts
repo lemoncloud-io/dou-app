@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { activeFilters, asListParams, clearAllPatch, countByStatus, matchesFilters, toChips } from './filters';
+import { activeFilters, clearAllPatch, matchesFilters, toChips } from './filters';
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
@@ -40,38 +40,6 @@ describe('toChips', () => {
 describe('clearAllPatch', () => {
     it('토글이 쥔 필터를 전부 빈 값으로 만든다', () => {
         expect(clearAllPatch()).toEqual({ status: '', productId: '', platform: '', userId: '', isSuper: '' });
-    });
-});
-
-describe('countByStatus', () => {
-    it('상태별로 세어 많은 것부터 낸다', () => {
-        const rows = [{ status: 'active' }, { status: 'expired' }, { status: 'active' }];
-        expect(countByStatus(rows)).toEqual([
-            ['active', 2],
-            ['expired', 1],
-        ]);
-    });
-
-    it('상태가 없으면 unknown 으로 묶는다', () => {
-        expect(countByStatus([{}, { status: '' }])).toEqual([['unknown', 2]]);
-    });
-
-    it('빈 목록이면 빈 결과다', () => {
-        expect(countByStatus([])).toEqual([]);
-    });
-});
-
-describe('asListParams', () => {
-    it('페이지·한도와 필터를 함께 싣는다', () => {
-        expect(asListParams({ status: 'active' }, 2, 20)).toEqual({
-            page: 2,
-            limit: 20,
-            status: 'active',
-            productId: undefined,
-            platform: undefined,
-            userId: undefined,
-            isSuper: undefined,
-        });
     });
 });
 

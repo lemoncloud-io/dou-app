@@ -171,10 +171,8 @@ export default defineConfig({
                     'vendor-ui': [
                         '@radix-ui/react-dialog',
                         '@radix-ui/react-popover',
-                        '@radix-ui/react-accordion',
                         '@radix-ui/react-tabs',
                         '@radix-ui/react-toast',
-                        '@radix-ui/react-select',
                         '@radix-ui/react-dropdown-menu',
                         '@radix-ui/react-alert-dialog',
                         '@radix-ui/react-tooltip',

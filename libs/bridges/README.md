@@ -139,11 +139,13 @@ consumer is a test outside this lib** — `apps/mobile`'s bridge contract suite
 (`useWebMessageRouter.contract.test.ts`), which puts a real `WebBridgeClient`, this adapter, a real
 `AppBridgeHost` and the real router in one process to assert what a web caller receives. This lib's
 own specs use a hand-rolled `jest.Mocked<BridgeAdapter>` instead. No product code constructs one.
-`configureEnvironment` and `setAdapter` are exercised by the specs and called by nobody else;
-`destroy()` is also called by that suite, to drop its client between cases.
+`setAdapter` is exercised by the specs and called by nobody else; `destroy()` is also called by that
+suite, to drop its client between cases. The client has no simulation knobs — no injected delay,
+drop rate or forced failure: a test that needs a misbehaving peer builds it as an adapter, the way
+these specs mock one.
 
 ```bash
-grep -rn "InMemoryAdapter\|configureEnvironment\|setAdapter(" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules | grep -v '^libs/bridges'
+grep -rn "InMemoryAdapter\|setAdapter(" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules | grep -v '^libs/bridges'
 ```
 
 ### A request that outruns its channel
@@ -206,7 +208,8 @@ instance) into a page with no listeners, where they vanish.
 
 Three runtimes, and `isNative()` is the one predicate that separates them. It lives in
 `common/utils.ts` rather than beside the client so a caller can branch on it without pulling the
-client in — 69 files do.
+client in — 69 files do. `WebBridgeClient` uses the same function as the default for its injectable
+`isBridgeAvailable`, so the client's readiness and a caller's branch cannot disagree.
 
 | Shell                                | web → app                                                                                                                    | app → web                                                                                     |
 | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
@@ -230,27 +233,23 @@ bound to the page.
 libs/bridges/src/
 ├── index.ts       barrel — common · web · app · provider · logger · version
 ├── provider.ts    webClient: the one WebBridgeClient, timeoutMs 15000
-├── version.ts     BRIDGE_VERSION · BRIDGE_PROTOCOL_VERSION · BRIDGE_VERSION_INFO
+├── version.ts     BRIDGE_VERSION · BRIDGE_VERSION_INFO
 ├── common/        JsonProtocol, MessageQueue, isNative, the message/adapter types
 ├── web/           WebBridgeClient + adapters/ (NativeBridgeAdapter, InMemoryAdapter)
 ├── app/           AppBridgeHost + IAppBridgeHost
 └── logger/        the web→native relay, and the @chatic/logger re-export
 ```
 
-22 production files, 6 spec files, 4,038 lines. The barrel exports 15 runtime values of its own — 5
-classes and 10 constants — plus 14 interfaces, 6 type aliases, and everything `@chatic/logger`
+22 production files, 6 spec files, 3,833 lines. The barrel exports 14 runtime values of its own — 5
+classes and 9 constants — plus 12 interfaces, 6 type aliases, and everything `@chatic/logger`
 exports.
 
 Names you would not find by guessing at a filename:
 
-- **`isNative()` is duplicated.** The exported one is in `common/utils.ts`; `WebBridgeClient` carries
-  its own private `checkNativeBridgeAvailable` with the same three checks, used as the default for
-  the injectable `isBridgeAvailable` config option. They are separate declarations and can drift.
 - **`PendingRequest` and `WebBridgeClientConfig` are in `web/types.ts`**, not beside the class.
   `IWebBridgeClient` is there too.
 - `BridgeAdapter` and the `Window` global augmentation for the three injected channels are in
   `web/adapters/types.ts`.
-- `EnvironmentConfig` and `BridgeFailureConfig` — the simulation knobs — are in `common/types.ts`.
 - `AppBridgeHostConfig` is in `AppBridgeHost.ts`; `IAppBridgeHost` has its own file.
 - `toAppLogInfo` and `toLogEntry` are both in `logger/appLogInfoCodec.ts`, deliberately neighbours so
   the context tuple cannot be listed differently per direction. Both also copy the structured fields
@@ -264,23 +263,21 @@ Names you would not find by guessing at a filename:
 
 ### Failure vocabulary
 
-| Code                        | Built by          | When                                                                                                                                                  |
-| --------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NATIVE_NOT_SUPPORTED`      | `WebBridgeClient` | no channel appeared before `bridgeReadyTimeoutMs`, or `window` did not exist at construction (SSR). `request` rejects; `post` logs `debug` and drops. |
-| `TIMEOUT`                   | `WebBridgeClient` | no reply within `timeoutMs` — 15s through `webClient`, 10s for a bare `WebBridgeClient`. Counted from dispatch, while the page is visible.            |
-| `RESPONSE_TYPE_MISMATCH`    | `WebBridgeClient` | a `success: true` reply arrived whose `type` is not the one the map names.                                                                            |
-| `DESTROYED`                 | `WebBridgeClient` | `destroy()` ran while the request was pending. `recoverable: false`.                                                                                  |
-| `BRIDGE_SIMULATION_FAILURE` | `WebBridgeClient` | `configureEnvironment({ forceFailure })` — test seam only.                                                                                            |
-| `NOT_FOUND`                 | `AppBridgeHost`   | no handler is registered for the request type.                                                                                                        |
-| `INTERNAL_ERROR`            | `AppBridgeHost`   | a handler threw. A thrown `error.code` is passed through instead of this.                                                                             |
+| Code                     | Built by          | When                                                                                                                                                  |
+| ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NATIVE_NOT_SUPPORTED`   | `WebBridgeClient` | no channel appeared before `bridgeReadyTimeoutMs`, or `window` did not exist at construction (SSR). `request` rejects; `post` logs `debug` and drops. |
+| `TIMEOUT`                | `WebBridgeClient` | no reply within `timeoutMs` — 15s through `webClient`, 10s for a bare `WebBridgeClient`. Counted from dispatch, while the page is visible.            |
+| `RESPONSE_TYPE_MISMATCH` | `WebBridgeClient` | a `success: true` reply arrived whose `type` is not the one the map names.                                                                            |
+| `DESTROYED`              | `WebBridgeClient` | `destroy()` ran while the request was pending. `recoverable: false`.                                                                                  |
+| `NOT_FOUND`              | `AppBridgeHost`   | no handler is registered for the request type.                                                                                                        |
+| `INTERNAL_ERROR`         | `AppBridgeHost`   | a handler threw. A thrown `error.code` is passed through instead of this.                                                                             |
 
 Two things about that table are worth knowing before you write a `catch`.
 
 `BridgeErrorCode` (declared in `@chatic/app-messages`) lists six literals and then `| string`, which
-is why `DESTROYED` and `BRIDGE_SIMULATION_FAILURE` type-check without appearing in it. The reverse
-also holds: **`MALFORMED_RESPONSE` is in that union and nothing in the repo produces it.** The
-`malformedResponse` simulation knob injects a `type: 'ERROR'` reply that comes back as a
-`RESPONSE_TYPE_MISMATCH` instead.
+is why `DESTROYED` type-checks without appearing in it. The reverse also holds:
+**`MALFORMED_RESPONSE` is in that union and nothing in the repo produces it.** It stays declared
+because the union is the wire contract a peer reads, not a list of what this lib builds today.
 
 And **every rejection is a plain object, not an `Error`.** `pending.reject({ code, message, … })` is
 what the client does, and a host failure rejects with the `BridgeError` off the wire. There is no
@@ -373,7 +370,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 web runtime                             apps/web · apps/desktop-web · apps/admin-v2
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_PROTOCOL_VERSION ('2.7.0')
+       ├─ version  BRIDGE_VERSION ('2.8.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -531,7 +528,7 @@ hide and show the page.
 
 ```bash
 npx tsc -b libs/bridges/tsconfig.json --force   # lib + specs, via the two project references
-npx jest --config libs/bridges/jest.config.js   # 6 suites, 99 cases
+npx jest --config libs/bridges/jest.config.js   # 6 suites, 101 cases
 ```
 
 - Type checking must be `tsc -b`. Inside the lib, `tsc --noEmit` checks zero files and succeeds, so
@@ -564,10 +561,10 @@ npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-d
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.7.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.8.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
-WebView contract speaks. `BRIDGE_PROTOCOL_VERSION` is an alias of it today, kept separate so a future
-compatibility layer can run a newer bridge that still speaks an older protocol.
+WebView contract speaks. There is one protocol constant; `BRIDGE_VERSION_INFO` carries it twice, as
+`bridgeVersion` and `protocolVersion`, because the web's debug screen prints both rows.
 
 Bump `BRIDGE_VERSION` when the wire contract or the capability surface changes. A desktop-only
 feature routed around the message map — `electronAPI.customUi`, `electronAPI.loginItem` — is
@@ -586,4 +583,9 @@ and the opt-in `mediaTypes` on the photo-library lists; the web learns a shell w
 lists truthful — a shell lists only what it has handlers for — and answers `Ping`. `2.7.0` removed
 six requests no web build sent and no shell answered (`OpenModal`, `CloseModal`, `ShowLoader`,
 `HideLoader`, `SyncCredential`, `PopWebView`): a web build that still sends one gets the same
-`NOT_FOUND` as before.
+`NOT_FOUND` as before. `2.8.0` removed six the phone shell still answered but no web build sends any
+more (`FetchSafeArea`, `FetchBackgroundStatus` and the four `*AppLogBuffer` requests): a shell loads
+the deployed web rather than a copy it was installed with, so once the web sources stop sending a
+message no production shell receives it, and the handshake stops listing them. A custom bundle loaded
+on purpose (the phone's non-PROD web zip, the desktop custom UI) can be older and still send one; it
+gets `NOT_FOUND`, which is accepted (ADR-0226).

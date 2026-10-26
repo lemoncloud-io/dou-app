@@ -1,6 +1,6 @@
 import { AppBridgeHost } from './AppBridgeHost';
 import { JsonProtocol } from '../common';
-import { BRIDGE_PROTOCOL_VERSION } from '../version';
+import { BRIDGE_VERSION } from '../version';
 
 describe('AppBridgeHost Buffering & Event Flushing', () => {
     let mockSendToWeb: jest.Mock;
@@ -23,7 +23,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         const webAppReadyRequest = JsonProtocol.encode({
             type: 'WebAppReady',
             refId: '123',
-            version: BRIDGE_PROTOCOL_VERSION,
+            version: BRIDGE_VERSION,
             data: {},
         } as any);
 
@@ -44,8 +44,8 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         expect(secondCallMsg.success).toBe(true);
         expect(secondCallMsg.data).toEqual(
             expect.objectContaining({
-                appVersion: BRIDGE_PROTOCOL_VERSION,
-                protocolVersion: BRIDGE_PROTOCOL_VERSION,
+                appVersion: BRIDGE_VERSION,
+                protocolVersion: BRIDGE_VERSION,
                 supportedWebMessages: expect.arrayContaining(['WebAppReady', 'Ping']),
                 supportedAppMessages: expect.arrayContaining(['OnWebAppReady', 'Pong']),
             })
@@ -60,7 +60,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         const host = new AppBridgeHost({ sendToWeb: mockSendToWeb, protocol: JsonProtocol, onAppReady });
 
         const ready = (data: unknown) =>
-            JsonProtocol.encode({ type: 'WebAppReady', refId: 'r', version: BRIDGE_PROTOCOL_VERSION, data } as any);
+            JsonProtocol.encode({ type: 'WebAppReady', refId: 'r', version: BRIDGE_VERSION, data } as any);
 
         await host.handleMessage(ready({ holdsBootSplash: true }) as string);
         expect(onAppReady).toHaveBeenLastCalledWith({ holdsBootSplash: true });
@@ -76,7 +76,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         const readyRequest = JsonProtocol.encode({
             type: 'WebAppReady',
             refId: '1',
-            version: BRIDGE_PROTOCOL_VERSION,
+            version: BRIDGE_VERSION,
             data: {},
         } as any);
 
@@ -109,7 +109,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             JsonProtocol.encode({
                 type: 'WebAppReady',
                 refId: '1',
-                version: BRIDGE_PROTOCOL_VERSION,
+                version: BRIDGE_VERSION,
                 data: {},
             } as any) as string;
 
@@ -189,7 +189,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         const pingRequest = JsonProtocol.encode({
             type: 'Ping',
             refId: 'ping-id',
-            version: BRIDGE_PROTOCOL_VERSION,
+            version: BRIDGE_VERSION,
             data: { payload: 'hello' },
         } as any);
 
@@ -228,7 +228,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             JsonProtocol.encode({
                 type: 'SendLog',
                 refId: 'log-1',
-                version: BRIDGE_PROTOCOL_VERSION,
+                version: BRIDGE_VERSION,
                 data: { level: 'info', tag: 'WEB_CORE', message: 'booting' },
             } as any) as string
         );
@@ -242,7 +242,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             JsonProtocol.encode({
                 type: 'Ping',
                 refId: 'ping-1',
-                version: BRIDGE_PROTOCOL_VERSION,
+                version: BRIDGE_VERSION,
                 data: {},
             } as any) as string
         );
@@ -264,7 +264,7 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
             JsonProtocol.encode({
                 type: 'WebAppReady',
                 refId: 'ready-ref',
-                version: BRIDGE_PROTOCOL_VERSION,
+                version: BRIDGE_VERSION,
                 data: {},
             } as any) as string
         );
