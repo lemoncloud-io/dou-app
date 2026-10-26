@@ -1,3 +1,4 @@
+import { config } from '@chatic/config';
 import {
     type CloudHttpGateway,
     createCloudHttpGateway,
@@ -51,8 +52,20 @@ export const subscriptionGateway = (): SubscriptionHttpGateway => {
     return subscription;
 };
 
+/**
+ * The archive address the report gateway sends to: `VITE_ARCHIVE_ENDPOINT` (`net.archive.endpoint`),
+ * or empty so the gateway builds it from the relay. A configured archive belongs to the build's relay,
+ * so while the relay itself is overridden (the `?_backend=` deep link, the debug panel) it is ignored —
+ * otherwise a prod build pointed at the dev relay would file that session's logs in the prod archive,
+ * signed by a dev session.
+ */
+export const configuredArchiveEndpoint = (): string =>
+    config.snapshot<string>('net.relay.backend')?.isOverridden
+        ? ''
+        : (config.get<string>('net.archive.endpoint') ?? '');
+
 export const reportGateway = (): ReportHttpGateway => {
-    if (!report) report = createReportHttpGateway(getHttpManager());
+    if (!report) report = createReportHttpGateway(getHttpManager(), { archiveEndpoint: configuredArchiveEndpoint });
     return report;
 };
 

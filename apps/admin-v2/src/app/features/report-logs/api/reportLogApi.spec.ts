@@ -7,20 +7,37 @@ import { buildReportLogListParams, reportLogBaseFor, STEREO_BY_KIND } from './re
 
 describe('reportLogApi', () => {
     // The list reads the archive service, where the app's report gateway now writes. The stage toggle
-    // picks `arc-<stage>` whatever stage the configured relay endpoint names.
+    // picks `arc-<stage>` whatever stage the configured endpoint names.
     describe('reportLogBaseFor', () => {
-        it('swaps the relay stage for the archive stage the toggle picks', () => {
-            expect(reportLogBaseFor('https://api.example.com/dou-d1', 'd1')).toBe('https://api.example.com/arc-d1');
-            expect(reportLogBaseFor('https://api.example.com/dou-d1', 'v1')).toBe('https://api.example.com/arc-v1');
-            expect(reportLogBaseFor('https://api.example.com/dou-v1', 'd1')).toBe('https://api.example.com/arc-d1');
+        it('uses VITE_ARCHIVE_ENDPOINT when set, with the stage the toggle picks', () => {
+            const endpoints = {
+                archive: 'https://archive.example.com/arc-v1',
+                relay: 'https://api.example.com/dou-v1',
+            };
+            expect(reportLogBaseFor(endpoints, 'v1')).toBe('https://archive.example.com/arc-v1');
+            expect(reportLogBaseFor(endpoints, 'd1')).toBe('https://archive.example.com/arc-d1');
         });
 
-        it('ignores a trailing slash on the relay endpoint', () => {
-            expect(reportLogBaseFor('https://api.example.com/dou-v1/', 'v1')).toBe('https://api.example.com/arc-v1');
+        it('falls back to the relay endpoint, swapping its stage for the archive stage', () => {
+            expect(reportLogBaseFor({ relay: 'https://api.example.com/dou-d1' }, 'd1')).toBe(
+                'https://api.example.com/arc-d1'
+            );
+            expect(reportLogBaseFor({ archive: ' ', relay: 'https://api.example.com/dou-d1' }, 'v1')).toBe(
+                'https://api.example.com/arc-v1'
+            );
         });
 
-        it('appends the archive stage to an endpoint with no relay stage', () => {
-            expect(reportLogBaseFor('http://localhost:8000', 'd1')).toBe('http://localhost:8000/arc-d1');
+        it('ignores a trailing slash', () => {
+            expect(reportLogBaseFor({ archive: 'https://api.example.com/arc-d1/' }, 'v1')).toBe(
+                'https://api.example.com/arc-v1'
+            );
+            expect(reportLogBaseFor({ relay: 'https://api.example.com/dou-v1/' }, 'v1')).toBe(
+                'https://api.example.com/arc-v1'
+            );
+        });
+
+        it('appends the archive stage to an endpoint with no stage segment', () => {
+            expect(reportLogBaseFor({ relay: 'http://localhost:8000' }, 'd1')).toBe('http://localhost:8000/arc-d1');
         });
     });
 

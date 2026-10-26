@@ -10,7 +10,7 @@ const isStage = (value: string | undefined): value is Stage => VALID_STAGES.incl
  * `WEB_OAUTH_ENDPOINT`/`WEB_SOCIAL_OAUTH_ENDPOINT` were all `.toLowerCase()`d).
  *
  * The endpoint names absent here (`VITE_DOU_ENDPOINT` · `VITE_WS_ENDPOINT` · `VITE_IAP_ENDPOINT` ·
- * `VITE_BACKEND_ENDPOINT`) carry path segments, where case is significant — those were never lowered
+ * `VITE_BACKEND_ENDPOINT` · `VITE_ARCHIVE_ENDPOINT`) carry path segments, where case is significant — those were never lowered
  * and must not start being lowered now.
  */
 const LOWERED_RAW_NAMES = new Set([

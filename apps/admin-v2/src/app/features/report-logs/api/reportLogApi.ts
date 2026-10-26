@@ -92,17 +92,17 @@ export type StatsInterval = 'hour' | 'day' | 'week';
 export type ReportStage = 'v1' | 'd1';
 
 /**
- * The archive service base for a stage. There is no env key for it: the archive sits on the relay's
- * host, so its base is rebuilt from the configured relay endpoint (`https://host/dou-d1`) by dropping
- * the `dou-XX` segment and appending `arc-<stage>` — the same swap the web app's report gateway
- * makes, so the console reads where the app writes. e.g. `https://api.eureka.codes/dou-d1`, `v1` →
- * `https://api.eureka.codes/arc-v1`.
+ * The archive service base for a stage. Taken from `VITE_ARCHIVE_ENDPOINT` (`https://host/arc-v1`)
+ * when it is set, else from the relay endpoint (`https://host/dou-v1`), since the archive sits on the
+ * relay's host — the same fallback the web app's report gateway uses, so the console reads where the
+ * app writes. Either way the trailing `arc-XX` / `dou-XX` segment is dropped and `arc-<stage>`
+ * appended, so the stage toggle still picks the stage. e.g. `https://api.eureka.codes/arc-v1`, `d1`
+ * → `https://api.eureka.codes/arc-d1`.
  */
-export const reportLogBaseFor = (relayEndpoint: string | undefined, stage: ReportStage): string =>
-    `${(relayEndpoint ?? '')
-        .trim()
-        .replace(/\/+$/, '')
-        .replace(/\/dou-[^/]*$/, '')}/arc-${stage}`;
+export const reportLogBaseFor = (endpoints: { archive?: string; relay?: string }, stage: ReportStage): string => {
+    const configured = (endpoints.archive ?? '').trim() || (endpoints.relay ?? '').trim();
+    return `${configured.replace(/\/+$/, '').replace(/\/(?:arc|dou)-[^/]*$/, '')}/arc-${stage}`;
+};
 
 /** Report kind as offered in the UI; `all` means "no server-side kind filter". */
 export type ReportKind = 'all' | 'error' | 'issue' | 'log-entry';
@@ -261,7 +261,10 @@ export const fetchReportLogs = async ({
     const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'GET',
-            baseURL: `${reportLogBaseFor(import.meta.env.VITE_DOU_ENDPOINT, stage)}/mocks/0/list`,
+            baseURL: `${reportLogBaseFor(
+                { archive: import.meta.env.VITE_ARCHIVE_ENDPOINT, relay: import.meta.env.VITE_DOU_ENDPOINT },
+                stage
+            )}/mocks/0/list`,
         })
         .setParams(buildReportLogListParams(params))
         .execute<ReportLogListResponse>();

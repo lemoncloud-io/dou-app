@@ -101,6 +101,33 @@ describe('createReportHttpGateway', () => {
         ]);
     });
 
+    it('sends to the configured archive address when one is set, read on every call', async () => {
+        let configured = 'https://archive.test/arc-v1/';
+        const gateway = createReportHttpGateway(exec, { archiveEndpoint: () => configured });
+
+        await gateway.uploadLogBatch({ list: [] });
+        await gateway.reportIssue({ title: 't' });
+        configured = 'https://archive.test/arc-d1';
+        await gateway.uploadLogBatch({ list: [] });
+
+        expect(executeSignedRelayRequest.mock.calls.map(([req]) => req.baseURL)).toEqual([
+            'https://archive.test/arc-v1/hello/report-bulk',
+            'https://archive.test/arc-v1/hello/report',
+            'https://archive.test/arc-d1/hello/report-bulk',
+        ]);
+    });
+
+    // The caller answers empty while a deep link has replaced the relay, so this is also that path.
+    it('builds the address from the relay when the configured one is empty', async () => {
+        const gateway = createReportHttpGateway(exec, { archiveEndpoint: () => '  ' });
+
+        await gateway.uploadLogBatch({ list: [] });
+
+        expect(executeSignedRelayRequest.mock.calls.at(-1)?.[0].baseURL).toBe(
+            'https://relay.test/arc-d1/hello/report-bulk'
+        );
+    });
+
     // If this ever regresses, an upload failure becomes a log entry that pushes the next flush,
     // which fails again — the feedback loop the batching design exists to avoid.
     it('uploadLogBatch — bypasses networkLog; nothing else in the repo does', async () => {

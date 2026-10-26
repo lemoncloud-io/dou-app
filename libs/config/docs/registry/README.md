@@ -16,7 +16,7 @@ libs/config/src/registry/
 ├── modules.ts     ALL_MODULES — the 12 domain modules, in merge order
 ├── system.ts   2  the two keys the lane machinery itself needs
 ├── env.ts     13  read-only build facts
-├── net.ts     11  endpoints, deeplink schemes, HTTP retry
+├── net.ts     12  endpoints, deeplink schemes, HTTP retry
 ├── ui.ts      15  user preferences — theme, blur, push mute, pin, sort, rail order, home sections, recent searches, photo grid columns, photo send grouping
 ├── log.ts     11  collection and upload levers, plus upload tuning
 ├── auth.ts    10  session, credential refresh and retry timing
@@ -28,7 +28,7 @@ libs/config/src/registry/
 └── bridge.ts   2  bridge request and handshake timeouts
 ```
 
-90 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
+91 keys. `allModules.spec.ts` asserts that number, so it cannot drift silently — but the command is
 what proves it:
 
 ```bash
@@ -45,7 +45,7 @@ refuses to stop the boot.
 
 **A duplicate key does not throw.** `merge` keeps the **first** declaration, drops the later one, and
 calls `onDuplicateKey`. The reason to reject one is real — two domains reading the same key
-differently is a genuine bug — but 67 of 90 keys are developer-facing, and one mistake among those
+differently is a genuine bug — but 67 of 91 keys are developer-facing, and one mistake among those
 must not keep every user's app from starting. The check moved to a test instead. Merge order is fixed
 in `modules.ts`, so two devices never disagree about which declaration survived.
 
@@ -85,7 +85,7 @@ Measured from the source, and asserted in `allModules.spec.ts`.
 | `user`     |    4 | Settings and its notification sub-page. A hand-built row per key, not a generated one                    |
 | `labs`     |    1 | The Lab page's Experiments card. A hand-built row per key, like `user`; today only `feature.placeInvite` |
 | `dev`      |   67 | The web debug overlay's `ConfigScreen`, which lists them all and edits the ones this device may write    |
-| `internal` |   18 | Nowhere. Code reads it, or product UI writes it through a flow of its own                                |
+| `internal` |   19 | Nowhere. Code reads it, or product UI writes it through a flow of its own                                |
 
 **Declaring a surface does not create a screen.** There is no renderer that walks the registry and
 produces Settings rows. `ConfigScreen` is the one generic viewer and it covers `dev` only.
@@ -187,11 +187,11 @@ shape only and are never reached.
 
 ## Notes for implementers and tests
 
-- **`ConfigRegistry` has no public constructor.** `merge` is the only way in, and it takes the module array plus an optional `onDuplicateKey`. `createConfig(modules)` exists so a test can build a registry from fixtures instead of the real 90 keys; nothing in the apps calls it.
+- **`ConfigRegistry` has no public constructor.** `merge` is the only way in, and it takes the module array plus an optional `onDuplicateKey`. `createConfig(modules)` exists so a test can build a registry from fixtures instead of the real 91 keys; nothing in the apps calls it.
 - **`testing/fixtures.ts` is the intended seam.** `entry()` gives a minimal `ConfigEntry` so a test states only the field it is about; its default `surface` is `'dev'`, which means a test about the unlock gate gets the gated behaviour for free and a test about user settings must override it.
 - **`UNLOCK_ENTRY` is a fixture, not the registry's own declaration.** It mirrors `system.overridesUnlocked` closely but is a separate object — changing one does not change the other.
 - **`isPersisted` in `utils/serialize.ts` has no caller,** inside this lib or outside it, and it is not on the barrel.
-- The registry's own tests are `registry/merge.spec.ts` (merge behaviour and each policy rule against fixtures) and `registry/allModules.spec.ts` (the same rules against the real 90 keys, plus the counts).
+- The registry's own tests are `registry/merge.spec.ts` (merge behaviour and each policy rule against fixtures) and `registry/allModules.spec.ts` (the same rules against the real 91 keys, plus the counts).
 
 ## Further reading
 

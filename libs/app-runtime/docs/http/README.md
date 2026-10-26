@@ -133,6 +133,13 @@ Five lazily memoized gateways — `oauthGateway`, `cloudGateway`, `userGateway`,
 for tests and **must be paired with `resetHttpManager()`**: a gateway memoized over a discarded
 manager keeps using it.
 
+`reportGateway` is the one built with an option: the archive address, read per call from
+`net.archive.endpoint` (`VITE_ARCHIVE_ENDPOINT`). It answers empty — so `@chatic/http` builds the
+address from the relay — when nothing is configured and also while `net.relay.backend` is overridden
+(the `?_backend=` deep link, the debug panel). A configured archive belongs to the build's relay; a
+session moved to another relay has to file its logs on that relay's stage, signed by that relay's
+session.
+
 The network log sink redacts and truncates **key by key**. That is not stylistic: spreading
 (`{ ...fields, responseData: … }`) adds an own `responseData: undefined` key on the success path,
 where the library deliberately omits it, and a present-but-undefined key reads differently

@@ -11,10 +11,10 @@ export type IssueReportWireBody = SlackReportBody;
  * The archive service's address, built from the relay's: the trailing `/dou-<stage>` path segment
  * becomes `/arc-<stage>` (`https://host/dou-d1` → `https://host/arc-d1`).
  *
- * Built rather than configured because the relay is read in one place, and a deep-linked relay
- * (`?_backend=`) has to send its logs to the archive of its own stage — a dev session's logs must
- * not land in prod. A relay with no stage segment (a local backend) is returned as it is, so those
- * reports reach the old route on the relay; that only works while the server keeps it open.
+ * The fallback for when no archive address is configured, and the address a deep-linked relay
+ * (`?_backend=`) sends to — a configured archive belongs to the build's relay, and a dev session's
+ * logs must not land in prod. A relay with no stage segment (a local backend) is returned as it is,
+ * so those reports reach the old route on the relay; that only works while the server keeps it open.
  */
 export const archiveEndpointFor = (relay: string): string =>
     relay
@@ -39,9 +39,9 @@ export interface LogBatchWireBody {
  *
  * Both routes were built inline against `webTransport.buildSignedRequest` until 2026-09 (they were
  * the last two data calls in the repo that skipped the gateway layer entirely). Since 2026-10 they go
- * to the archive service (`archiveEndpointFor`), still signed with the relay session — only the
- * address moved. The relay is read on every call, so the deeplink `?_backend` override is honored
- * like on every other relay call.
+ * to the archive service — the configured address, else one built from the relay
+ * (`archiveEndpointFor`) — still signed with the relay session; only the address moved. Both are
+ * read on every call, so the deeplink `?_backend` override is honored like on every other relay call.
  */
 export interface ReportHttpGateway {
     /** POST {archive}/hello/report — a report the USER wrote (automatic error reports were retired in
@@ -51,8 +51,21 @@ export interface ReportHttpGateway {
     uploadLogBatch(body: LogBatchWireBody): Promise<unknown>;
 }
 
-export const createReportHttpGateway = (exec: HttpGatewayExecutor): ReportHttpGateway => {
-    const archive = () => archiveEndpointFor(exec.resolveEndpoint('relay'));
+export interface ReportHttpGatewayOptions {
+    /**
+     * The configured archive address, read on every call. Empty (or absent) means "build it from the
+     * relay" — which is also what the caller returns while a deep link has replaced the relay.
+     */
+    archiveEndpoint?: () => string;
+}
+
+export const createReportHttpGateway = (
+    exec: HttpGatewayExecutor,
+    options: ReportHttpGatewayOptions = {}
+): ReportHttpGateway => {
+    const archive = () =>
+        (options.archiveEndpoint?.() ?? '').trim().replace(/\/+$/, '') ||
+        archiveEndpointFor(exec.resolveEndpoint('relay'));
 
     return {
         reportIssue: body =>

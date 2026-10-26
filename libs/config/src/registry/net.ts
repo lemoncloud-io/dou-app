@@ -28,6 +28,17 @@ export const netModule: ConfigRegistryModule = {
         writableBy: ['local'],
         persist: 'session',
     },
+    'net.archive.endpoint': {
+        title: 'Archive endpoint',
+        description:
+            'The address log batches and issue reports are sent to. Empty means it is built from the relay address.',
+        type: 'string',
+        defaultValue: '',
+        envDefaultKey: 'VITE_ARCHIVE_ENDPOINT',
+        surface: 'internal',
+        writableBy: [],
+        persist: 'none',
+    },
     'net.oauth.endpoint': {
         title: 'OAuth endpoint',
         description: 'The address social login exchange requests are sent to.',

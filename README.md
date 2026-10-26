@@ -405,6 +405,7 @@ yarn desktop:package:win:prod
 | `VITE_BACKEND_ENDPOINT`      | Backend API endpoint                 |
 | `VITE_WS_ENDPOINT`           | WebSocket endpoint                   |
 | `VITE_DOU_ENDPOINT`          | DoU API endpoint                     |
+| `VITE_ARCHIVE_ENDPOINT`      | Log archive endpoint (optional)      |
 | `VITE_SOC_ENDPOINT`          | Social API endpoint                  |
 
 </details>
@@ -423,6 +424,7 @@ yarn desktop:package:win:prod
 | `VITE_BACKEND_ENDPOINT`      | Backend API endpoint                 |
 | `VITE_WS_ENDPOINT`           | WebSocket endpoint                   |
 | `VITE_DOU_ENDPOINT`          | DoU API endpoint                     |
+| `VITE_ARCHIVE_ENDPOINT`      | Log archive endpoint (optional)      |
 | `VITE_FRONT_ENDPOINT`        | Frontend URL for cross-linking       |
 | `VITE_FIREBASE_*`            | Firebase web config (7 keys)         |
 
