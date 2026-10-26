@@ -141,7 +141,6 @@ export const SetupWizardPage = () => {
 
     return (
         <ScreenLayout
-            width="form"
             className="h-screen"
             header={
                 <ModalTopBar

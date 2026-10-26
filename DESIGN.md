@@ -278,10 +278,6 @@ cannot drift from the shell. Change it in one place or not at all.
   Fold unfolded (841px) are filled too.
   Overlays are portalled out of the shell, so `libs/ui-kit` and `libs/web-ui-kit` re-read
   the same variable.
-- Form screens (login, signup and reset steps, verification, edit and create forms, feedback,
-  setup wizard, and single confirmations: account deletion, purchase done) do not fill it: fields and CTA sit in a centred `--form-width` 560px column
-  (`width="form"` on the scaffold), the CTA panel's bar still spans the screen. Lists and
-  rooms keep filling. On a phone the column is wider than the device and changes nothing.
 - Main tabs (`/`, `/mypage`) scroll the page and get the floating bottom nav. Detail
   routes are `h-dvh overflow-hidden` and own their scroll.
 - **PageHeader**: 48px minimum, centred 17px title, back chevron left, glass fill

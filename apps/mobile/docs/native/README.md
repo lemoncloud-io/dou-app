@@ -29,7 +29,7 @@ know which platform implements a given capability.
 
 ## The shared contract
 
-Fourteen TypeScript wrappers, one native counterpart per platform where the feature exists on that
+Thirteen TypeScript wrappers, one native counterpart per platform where the feature exists on that
 platform:
 
 | Feature           | TypeScript                  | Android                                                                                                                                                  | iOS                                                                                                                                                            |
@@ -47,7 +47,6 @@ platform:
 | Badge sync        | `BadgeSyncBridge.ts`        | `BadgeSyncModule.kt`, `push/BadgeStore.kt`                                                                                                               | none — base captured natively in `AppDelegate` from the live icon badge, not reachable from JS                                                                 |
 | Shared language   | `SharedLanguageBridge.ts`   | `SharedLanguageModule.kt`, `push/LanguagePreferenceStore.kt`                                                                                             | `SharedLanguageModule.m` — see [../system/language.md](../system/language.md)                                                                                  |
 | Haptic            | `HapticBridge.ts`           | `HapticModule.kt` — `performHapticFeedback` on the window, no VIBRATE permission                                                                         | `HapticModule.m` — `UISelectionFeedbackGenerator` / light `UIImpactFeedbackGenerator`                                                                          |
-| Display region    | `DisplayRegionBridge.ts`    | none — iOS only                                                                                                                                          | `DisplayRegionModule.swift`/`.m` — the window's division reserved region (iOS 27.1), sent on change                                                            |
 | Push delivery     | none                        | `push/ChaticFirebaseMessagingService.kt`                                                                                                                 | `AppDelegate.swift` forwards APNs callbacks to `RNCPushNotificationIOS`                                                                                        |
 
 `TriggerHaptic` is answered only when it is asked as a request. The web sends its first haptic that
@@ -57,16 +56,6 @@ back on the UI thread mid-gesture. A kind this build does not know is refused wi
 when a reply is owed and dropped silently otherwise. A build whose JS has the handler but whose
 native side predates the `Haptic` module answers success and plays nothing — `HapticBridge` is
 silent rather than warning, because it is asked on every swipe and pull.
-
-`DisplayRegionBridge.subscribeDivision` is silent when the module is missing, for the same reason
-`SharedLanguageBridge` is: Android has no such module, and "no fold" is the right answer there. The
-iOS module asks UIKit for the window's `.division` reserved region — the fold of a foldable held
-half-open, which only iOS 27.1 reports. UIKit posts no notification when it changes, so a
-window-sized view that takes no touches asks again on every layout pass, and the module sends only
-when the answer differs. That view moves to whichever window becomes the app's own: when the system
-reconnects a scene, the running root moves into a new window without JS remounting, and an observer
-left on the old window would stop reporting. What the WebView does with it is in
-[../webview/README.md](../webview/README.md) § Injection.
 
 `PushMarksBridge.drain()` is a read-once call: it reads every pending mark recorded by a background
 chat push (Android's FCM service, iOS's Notification Service Extension) and clears native storage in

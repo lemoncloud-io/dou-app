@@ -9,8 +9,6 @@ export interface AppInjectionParams {
     theme: 'light' | 'dark' | 'system';
     configBag: Record<string, string>;
     deviceInfo: Record<string, string | boolean>;
-    /** Where a device fold crosses the page, in CSS px — absent or `null` for a flat display. */
-    fold?: { axis: 'vertical' | 'horizontal'; start: number; end: number } | null;
 }
 
 /** The shape of `apps/mobile/src/app/webview/utils/injectionScripts.ts`, as far as a fake shell calls it. */

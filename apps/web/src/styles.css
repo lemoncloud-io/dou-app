@@ -32,18 +32,6 @@
          */
         --app-width: 960px;
 
-        /*
-         * The form column: how wide a screen of a few fields and one action gets, however wide the
-         * app column is. Below it (every phone) nothing changes; on an unfolded foldable a login or
-         * signup screen keeps its inputs and button in a centred 560px column instead of stretching
-         * them across the display. A list or a chat room does not take it — it fills `--app-width`.
-         *
-         * Read through `FORM_COLUMN` in `libs/web-ui-kit` (the scaffolds' `width="form"`), and as
-         * `max-w-form` here. A CSS variable for the same reason as `--app-width`: the lib reads it
-         * without knowing this app's number, and in a host that declares none the column is off.
-         */
-        --form-width: 560px;
-
         /* Chatic Light Theme */
         --background: 0 0% 100%;
         --foreground: 220 20% 10%;

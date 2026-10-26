@@ -5,17 +5,7 @@ import { logger } from '@chatic/bridges';
 import { cn } from '@chatic/lib/utils';
 import { AVATAR_IMAGE, prepareImage, useNavigateWithTransition } from '@chatic/shared';
 
-import {
-    AlertDialog,
-    COLUMN_INSET,
-    FORM_COLUMN,
-    FloatingButton,
-    ModalTopBar,
-    ProfileAvatar,
-    Text,
-    TextField,
-    Toast,
-} from '@chatic/web-ui-kit';
+import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 // Direct path, not the `ui/layouts` barrel: the barrel reaches web-core / libs/shared, whose
@@ -165,7 +155,7 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                 <DialogTitle className="sr-only">{t('createChannel.title')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('createChannel.subtitle')}</DialogDescription>
 
-                <div className={`flex h-full w-full flex-col ${FORM_COLUMN}`}>
+                <div className="flex h-full w-full flex-col">
                     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                         {/* Glass top bar floats above the scroll area (sticky + z-index) instead of
                             occupying a band of its own, so the content passes under the translucent bar
@@ -181,10 +171,7 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                             className="sticky top-0 z-20 shrink-0"
                         />
 
-                        {/* The form column: inset here rather than on the scroller, which would
-                            narrow the glass bar above. */}
-                        <div className={`flex flex-1 flex-col ${COLUMN_INSET}`}>
-                            {/* Title + subtitle — folded away while the name field has focus.
+                        {/* Title + subtitle — folded away while the name field has focus.
                             The keyboard rises over a WebView that is never resized (Android
                             `adjustNothing`), so the field can only be kept readable by moving it UP.
                             Collapsing the decorative header lands it just under the top bar, above
@@ -193,101 +180,100 @@ export const CreateChannelDialog = ({ open, onOpenChange }: CreateChannelDialogP
                             devices where the field stayed buried. Animated through a 0fr<->1fr grid
                             row, the CollapsibleSection idiom, and faded alongside so the text dissolves
                             rather than being cut off by the shrinking row. */}
-                            <div
-                                className={cn(
-                                    'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
-                                    editing ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
-                                )}
-                                aria-hidden={editing}
-                            >
-                                <div className="min-h-0 overflow-hidden">
-                                    <div className="flex flex-col gap-2 px-4 py-4 text-center">
-                                        <Text
-                                            as="h1"
-                                            className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground"
-                                        >
-                                            {t('createChannel.title')}
-                                        </Text>
-                                        <Text className="whitespace-pre-line break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
-                                            {t('createChannel.subtitle')}
-                                        </Text>
-                                    </div>
+                        <div
+                            className={cn(
+                                'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
+                                editing ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
+                            )}
+                            aria-hidden={editing}
+                        >
+                            <div className="min-h-0 overflow-hidden">
+                                <div className="flex flex-col gap-2 px-4 py-4 text-center">
+                                    <Text
+                                        as="h1"
+                                        className="whitespace-pre-line break-keep text-[20px] font-semibold leading-[1.35] tracking-[-0.1px] text-foreground"
+                                    >
+                                        {t('createChannel.title')}
+                                    </Text>
+                                    <Text className="whitespace-pre-line break-keep text-[14px] font-medium leading-[1.45] tracking-[-0.07px] text-description">
+                                        {t('createChannel.subtitle')}
+                                    </Text>
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Avatar + name. The paddings tighten with the same compact mode: folding
+                        {/* Avatar + name. The paddings tighten with the same compact mode: folding
                             the header alone is not enough on a short screen, so the avatar block
                             gives up its generous spacing and its caption while typing. The avatar
                             keeps its size — the folded text frees enough height, and a photo that
                             shrank on every focus read as the screen changing under the user. */}
+                        <div
+                            className={cn(
+                                'flex flex-col transition-all duration-200 ease-out',
+                                editing ? 'gap-4 py-4' : 'gap-8 py-10'
+                            )}
+                        >
                             <div
                                 className={cn(
-                                    'flex flex-col transition-all duration-200 ease-out',
-                                    editing ? 'gap-4 py-4' : 'gap-8 py-10'
+                                    'flex flex-col items-center px-[18px] transition-all duration-200 ease-out',
+                                    editing ? 'gap-0' : 'gap-4'
                                 )}
                             >
-                                <div
-                                    className={cn(
-                                        'flex flex-col items-center px-[18px] transition-all duration-200 ease-out',
-                                        editing ? 'gap-0' : 'gap-4'
-                                    )}
-                                >
-                                    {/* Keeps focus on the input when the avatar is tapped: blurring
+                                {/* Keeps focus on the input when the avatar is tapped: blurring
                                     would expand the layout out from under the finger between
                                     pointerdown and click, so the tap would land on whatever moved
                                     into that spot. Preventing mousedown's default cancels the focus
                                     change while still delivering the click. */}
-                                    <span onMouseDown={event => event.preventDefault()}>
-                                        <ProfileAvatar
-                                            src={thumbnail || undefined}
-                                            glyph="group"
-                                            onSelect={handleImageClick}
-                                            selectLabel={t('createChannel.photoLabel')}
-                                        />
-                                    </span>
-                                    <div
-                                        className={cn(
-                                            'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
-                                            editing ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
-                                        )}
-                                        aria-hidden={editing}
-                                    >
-                                        <div className="min-h-0 overflow-hidden">
-                                            <div className="flex flex-col items-center gap-0.5">
-                                                <Text variant="label" className="text-label">
-                                                    {t('createChannel.photoLabel')}
-                                                </Text>
-                                                <Text variant="caption" className="text-placeholder">
-                                                    {t('createChannel.photoOptional')}
-                                                </Text>
-                                            </div>
+                                <span onMouseDown={event => event.preventDefault()}>
+                                    <ProfileAvatar
+                                        src={thumbnail || undefined}
+                                        glyph="group"
+                                        onSelect={handleImageClick}
+                                        selectLabel={t('createChannel.photoLabel')}
+                                    />
+                                </span>
+                                <div
+                                    className={cn(
+                                        'grid transition-[grid-template-rows,opacity] duration-200 ease-out',
+                                        editing ? 'grid-rows-[0fr] opacity-0' : 'grid-rows-[1fr] opacity-100'
+                                    )}
+                                    aria-hidden={editing}
+                                >
+                                    <div className="min-h-0 overflow-hidden">
+                                        <div className="flex flex-col items-center gap-0.5">
+                                            <Text variant="label" className="text-label">
+                                                {t('createChannel.photoLabel')}
+                                            </Text>
+                                            <Text variant="caption" className="text-placeholder">
+                                                {t('createChannel.photoOptional')}
+                                            </Text>
                                         </div>
                                     </div>
                                 </div>
-
-                                <TextField
-                                    label={t('createChannel.nameLabel')}
-                                    required
-                                    value={name}
-                                    onChange={setName}
-                                    maxLength={NAME_MAX}
-                                    enforceMaxLength={false}
-                                    placeholder={t('createChannel.namePlaceholder')}
-                                    description={t('createChannel.nameHint')}
-                                    error={isOverLimit ? t('createChannel.nameHint') : undefined}
-                                    onFocus={() => setEditing(true)}
-                                    onBlur={() => setEditing(false)}
-                                />
                             </div>
 
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                onChange={handleImageChange}
-                                className="hidden"
+                            <TextField
+                                label={t('createChannel.nameLabel')}
+                                required
+                                value={name}
+                                onChange={setName}
+                                maxLength={NAME_MAX}
+                                enforceMaxLength={false}
+                                placeholder={t('createChannel.namePlaceholder')}
+                                description={t('createChannel.nameHint')}
+                                error={isOverLimit ? t('createChannel.nameHint') : undefined}
+                                onFocus={() => setEditing(true)}
+                                onBlur={() => setEditing(false)}
                             />
                         </div>
+
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            onChange={handleImageChange}
+                            className="hidden"
+                        />
                     </div>
 
                     {notice && (

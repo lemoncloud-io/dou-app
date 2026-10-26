@@ -3,15 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
-import {
-    COLUMN_INSET,
-    FORM_COLUMN,
-    FloatingButton,
-    ModalTopBar,
-    ProfileAvatar,
-    Text,
-    TextField,
-} from '@chatic/web-ui-kit';
+import { FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
@@ -151,16 +143,15 @@ export const UpdateChannelDialog = ({ open, onOpenChange, channelId }: UpdateCha
                 <DialogTitle className="sr-only">{t('updateChannel.readOnlyTitle')}</DialogTitle>
                 <DialogDescription className="sr-only">Update room info</DialogDescription>
 
-                {/* Full-bleed on phones, capped to a phone-width column on wider screens; the fields
-                    and CTA keep to the form column inside it. */}
-                <div className={`flex h-full w-full flex-col ${FORM_COLUMN}`}>
+                {/* Full-bleed on phones, capped to a phone-width column on wider screens. */}
+                <div className="flex h-full w-full flex-col">
                     <ModalTopBar
                         title={t('updateChannel.readOnlyTitle')}
                         onClose={() => onOpenChange(false)}
                         closeLabel={t('updateChannel.close')}
                     />
 
-                    <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${COLUMN_INSET}`}>
+                    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
                         {/* Heading */}
                         <div className="flex flex-col gap-2 px-4 py-4">
                             <Text

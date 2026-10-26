@@ -32,16 +32,6 @@ describe('FloatingButton', () => {
         expect(screen.queryByText('완료')).not.toBeInTheDocument();
     });
 
-    it('caps its button at the form column content, edge to edge with the fields, while the panel keeps the full width', () => {
-        render(<FloatingButton label="Done" />);
-
-        // The column's content width (the column less the gutter the fields keep), not the column
-        // itself: capped at the column, the button ran 16px wider than the fields on each side.
-        const button = screen.getByRole('button', { name: 'Done' });
-        expect(button.className).toContain('max-w-[var(--column-content,100%)]');
-        expect(button.parentElement?.className).not.toContain('--column-content');
-    });
-
     describe('snackbar lift', () => {
         const lift = () => document.documentElement.style.getPropertyValue('--toast-lift');
         let resize: (() => void) | undefined;

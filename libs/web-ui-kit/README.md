@@ -301,12 +301,6 @@ One optional input arrives outside the token layer: `HeaderGlass` reads `data-pa
 that never sets it — Storybook, or a navigation that does not go through that hook — gets glass
 headers that fade in at mount, as they did before the attribute existed.
 
-The form column is another: `FORM_COLUMN`, `COLUMN_INSET` and `COLUMN_CAP` (`foundations/formColumn.ts`,
-used by `ScreenLayout`'s `width="form"` and `FloatingButton`) read `--form-width`, the width a screen
-of a few fields and one action keeps on a display wider than a phone. `apps/web` declares it (560px);
-a host that does not — Storybook's token layer, `apps/desktop-web` — gets no column, so those screens
-fill their container as before.
-
 ## Scenarios
 
 ### 1. Adding a component

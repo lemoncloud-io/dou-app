@@ -3,7 +3,6 @@ import * as React from 'react';
 import { cn } from '@chatic/lib/utils';
 import { useToastLift } from '@chatic/ui-kit/components/ui/toaster';
 
-import { COLUMN_CAP } from '../formColumn';
 import { Button, type ButtonProps } from './Button';
 import { FLOATING_PANEL } from './floatingPanel';
 
@@ -28,10 +27,6 @@ export interface FloatingButtonProps extends React.ButtonHTMLAttributes<HTMLButt
  * The panel lifts the app's bottom snackbar by its own height while it is mounted, so a toast its
  * press raises (a failed verify, say, that turns the button into "retry") lands above the button
  * instead of on it. Measured rather than fixed: a `link` under the button makes the panel taller.
- *
- * Inside a form column the panel keeps spanning the screen and the button caps at the column's
- * content width — the column less the fields' 16px gutter, so it lines up with them (`COLUMN_CAP`);
- * anywhere else the cap resolves to the full width.
  */
 export const FloatingButton = React.forwardRef<HTMLButtonElement, FloatingButtonProps>(
     ({ label, tone = 'green', loading = false, link, className, wrapperClassName, ...props }, ref) => {
@@ -58,7 +53,7 @@ export const FloatingButton = React.forwardRef<HTMLButtonElement, FloatingButton
                     size="lg"
                     fullWidth
                     loading={loading}
-                    className={cn(COLUMN_CAP, className)}
+                    className={className}
                     {...props}
                 >
                     {label}

@@ -2,7 +2,6 @@ import type { EdgeInsets } from 'react-native-safe-area-context';
 import type { Env } from '@chatic/app-messages';
 
 import type { ThemeMode } from '../../stores/themeMode';
-import type { WebViewFold } from './webViewGeometry';
 
 /**
  * Parameter interface for injecting device information
@@ -76,34 +75,6 @@ export const getSafeAreaScript = (insets: EdgeInsets, keyboardHeight: number): s
         root.style.setProperty('--safe-left', '${insets.left}px');
         root.style.setProperty('--safe-right', '${insets.right}px');
         root.style.setProperty('--keyboard-height', '${keyboardHeight}px');
-    })();
-    true;
-`;
-
-/**
- * Generates a script that tells the web where the device fold is: `data-fold` on the root element
- * (`vertical` | `horizontal`) and `--fold-start`/`--fold-end`, its two edges in px. With no fold it
- * removes all three, so a surface keyed on `[data-fold]` returns to its normal place the moment the
- * display goes flat. The axis is one of two literals and the edges are numbers, so nothing here
- * carries a string from outside.
- */
-export const getFoldScript = (fold: WebViewFold | null): string =>
-    fold
-        ? `
-    (function() {
-        const root = document.documentElement;
-        root.setAttribute('data-fold', '${fold.axis === 'vertical' ? 'vertical' : 'horizontal'}');
-        root.style.setProperty('--fold-start', '${Number(fold.start)}px');
-        root.style.setProperty('--fold-end', '${Number(fold.end)}px');
-    })();
-    true;
-`
-        : `
-    (function() {
-        const root = document.documentElement;
-        root.removeAttribute('data-fold');
-        root.style.removeProperty('--fold-start');
-        root.style.removeProperty('--fold-end');
     })();
     true;
 `;
@@ -234,8 +205,6 @@ export interface SyncInjectionScriptParams {
     theme: ThemeMode;
     /** `@chatic/config`'s shell-lane KV bag (see `ConfigKvService.getAll()`). Empty when absent. */
     configBag?: Readonly<Record<string, string>>;
-    /** Where the device fold crosses the WebView (see `toWebViewFold`). None when absent. */
-    fold?: WebViewFold | null;
 }
 
 /**
@@ -253,7 +222,6 @@ export interface SyncInjectionScriptParams {
 export const getSyncInjectionScript = (params: SyncInjectionScriptParams): string => `
     try {
         ${getSafeAreaScript(params.insets, params.keyboardHeight)}
-        ${getFoldScript(params.fold ?? null)}
         ${getDeviceInfoScript(params.deviceInfo)}
         ${getDebugModeScript(params.debugModeEnabled ?? false)}
         ${getLogUploadHoldScript(params.logUploadHold ?? false)}

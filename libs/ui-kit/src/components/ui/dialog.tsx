@@ -64,29 +64,8 @@ const APP_WIDTH_CAP = 'max-w-[var(--app-width,100%)] mx-auto';
  */
 export const VIEWPORT_HEIGHT_CAP = 'max-h-[calc(100dvh-2rem)] overflow-y-auto';
 
-/**
- * A centred card on a device held half-open like a book would sit across the fold, so it moves to
- * the middle of the region after the fold and narrows to fit there. The shell marks the page root
- * with `data-fold="vertical"` and `--fold-end`, the fold's trailing edge in px, and removes both when
- * the display goes flat, so nothing changes anywhere else. Trailing, because that is where the
- * system puts its own alerts in that pose. A horizontal fold is left alone: a short card above or
- * below the middle reads fine, and the pose is rare. Pairs with a `left-[50%]` +
- * `translate-x-[-50%]` placement and a `--dialog-width` cap.
- */
-export const FOLD_TRAILING_CENTRE =
-    '[[data-fold=vertical]_&]:left-[calc((100%_+_var(--fold-end))/2)] [[data-fold=vertical]_&]:[--dialog-width:min(311px,calc(100%_-_var(--fold-end)_-_48px),var(--app-width))]';
-
-/**
- * The opt-out from `FOLD_TRAILING_CENTRE` for a `default`-variant panel that fills the screen
- * (`h-full max-w-app`). The move is sized for a card: a column-wide panel moved by it would centre
- * on the trailing region and run off the trailing edge. A full-screen panel stays centred and lets
- * its content pass over the fold, as a scrolling page does. `tailwind-merge` resolves it in the
- * caller's favour because it carries the same variant and utility.
- */
-export const FOLD_STAYS_CENTRED = '[[data-fold=vertical]_&]:left-[50%]';
-
 const dialogVariants = {
-    default: `${VIEWPORT_HEIGHT_CAP} ${FOLD_TRAILING_CENTRE} p-6 left-[50%] top-[50%] w-full [--dialog-width:min(311px,calc(100%_-_48px),var(--app-width))] max-w-[var(--dialog-width,min(32rem,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg`,
+    default: `${VIEWPORT_HEIGHT_CAP} p-6 left-[50%] top-[50%] w-full [--dialog-width:min(311px,calc(100%_-_48px),var(--app-width))] max-w-[var(--dialog-width,min(32rem,100%))] translate-x-[-50%] translate-y-[-50%] border rounded-lg data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg`,
     fullscreen: `inset-0 ${APP_WIDTH_CAP} pt-safe-top pb-safe-bottom pl-safe-left pr-safe-right w-full border-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]`,
     /** No placement or entrance of its own — the caller's `className` positions the panel. */
     bare: '',

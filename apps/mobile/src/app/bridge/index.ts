@@ -3,7 +3,6 @@ export * from './AttachmentPickerBridge';
 export * from './BackNavigationBridge';
 export * from './BadgeSyncBridge';
 export * from './BootSplashBridge';
-export * from './DisplayRegionBridge';
 export * from './FileManagerBridge';
 export * from './HapticBridge';
 export * from './MediaExportBridge';

@@ -145,9 +145,7 @@ export const LoginPage = () => {
         <div className="flex h-full flex-col bg-background">
             <PageHeader title="" />
 
-            {/* The form column, without the scaffold's padding trick: nothing here is docked, so
-                the content box itself caps and centres. */}
-            <div className="mx-auto flex w-full max-w-form flex-1 flex-col justify-center overflow-y-auto overscroll-none px-6 pb-safe-bottom">
+            <div className="flex flex-1 flex-col justify-center overflow-y-auto overscroll-none px-6 pb-safe-bottom">
                 <div className="flex flex-col items-center pb-10">
                     <BrandMark height={40} />
                 </div>

@@ -95,7 +95,6 @@ export const CloudEditPage = () => {
 
     return (
         <KeyboardAwareLayout
-            width="form"
             className={fixedViewportScreen}
             // PageHeader frosts its own notch strip, so the scaffold must not pad above it —
             // that would push the glass down and leave the inset bare, with the body

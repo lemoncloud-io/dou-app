@@ -1,13 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogTitle,
-    FOLD_STAYS_CENTRED,
-} from '@chatic/ui-kit/components/ui/dialog';
-import { Button, COLUMN_CAP, KeyValueRows, ModalTopBar, ScreenLayout, type KeyValueRow } from '@chatic/web-ui-kit';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
+import { Button, KeyValueRows, ModalTopBar, ScreenLayout, type KeyValueRow } from '@chatic/web-ui-kit';
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
 import { formatDate, platformLabelKey, type TierChangeKind } from '../lib';
@@ -109,24 +103,20 @@ export const PurchaseDoneDialog = ({
     return (
         <Dialog open={!!membership} onOpenChange={open => !open && onDone()}>
             {/* `max-w-app`: a full-screen surface on the notice variant follows the column, the way
-                the email verification screen does, and stays centred on a device fold. */}
-            <DialogContent
-                className={`h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none ${FOLD_STAYS_CENTRED}`}
-                hideClose
-            >
+                the email verification screen does. */}
+            <DialogContent className="h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none" hideClose>
                 <DialogTitle className="sr-only">{title}</DialogTitle>
                 <DialogDescription className="sr-only">{t('mypage.subscription.detail.infoTitle')}</DialogDescription>
                 <ScreenLayout
-                    width="form"
                     header={<ModalTopBar safeArea onClose={onDone} closeLabel={t('common.close')} />}
                     footer={
-                        <div className="flex flex-col items-center gap-3 px-4 pb-[calc(var(--safe-bottom,0px)+1rem)] pt-4">
+                        <div className="flex flex-col gap-3 px-4 pb-[calc(var(--safe-bottom,0px)+1rem)] pt-4">
                             {primary && (
-                                <Button size="lg" fullWidth className={COLUMN_CAP} onClick={primary.onClick}>
+                                <Button size="lg" fullWidth onClick={primary.onClick}>
                                     {primary.label}
                                 </Button>
                             )}
-                            <Button variant="outline" size="lg" fullWidth className={COLUMN_CAP} onClick={onDone}>
+                            <Button variant="outline" size="lg" fullWidth onClick={onDone}>
                                 {t('common.confirm')}
                             </Button>
                         </div>

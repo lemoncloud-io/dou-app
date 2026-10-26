@@ -2,13 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogTitle,
-    FOLD_STAYS_CENTRED,
-} from '@chatic/ui-kit/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
 import { FloatingButton, ModalTopBar, ScreenLayout, TextField } from '@chatic/web-ui-kit';
@@ -188,17 +182,12 @@ export const EmailVerifyDialog = ({
         <Dialog open={open} onOpenChange={next => !next && handleClose()}>
             {/* `max-w-app` for the same reason PhoneVerifyScreen states it: this is a full-screen
                 surface on the notice variant, which otherwise sizes it to one card width. A
-                full-screen dialog follows the column, `max-h-none` lifts the card's viewport cap, and
-                `FOLD_STAYS_CENTRED` keeps it off the card's move to one side of a device fold. */}
-            <DialogContent
-                className={`h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none ${FOLD_STAYS_CENTRED}`}
-                hideClose
-            >
+                full-screen dialog follows the column, and `max-h-none` lifts the card's viewport cap. */}
+            <DialogContent className="h-full max-h-none max-w-app rounded-none p-0 sm:rounded-none" hideClose>
                 <DialogTitle className="sr-only">{t('addAccount.emailTitle')}</DialogTitle>
                 <DialogDescription className="sr-only">{t('addAccount.emailSubtitle')}</DialogDescription>
 
                 <ScreenLayout
-                    width="form"
                     header={<ModalTopBar safeArea title={t('addAccount.emailTitle')} onClose={handleClose} />}
                     footer={
                         <>

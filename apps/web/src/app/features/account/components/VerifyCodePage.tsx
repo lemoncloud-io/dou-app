@@ -77,7 +77,6 @@ export const VerifyCodePage = ({ translationPrefix, onVerify, onResend }: Verify
 
     return (
         <KeyboardAwareLayout
-            width="form"
             header={
                 <header className="flex items-center px-[6px]">
                     <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">
