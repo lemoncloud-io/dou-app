@@ -1,23 +1,21 @@
 /**
  * `api/report-logs/reportLogApi.ts`
- * - Reads stored reports and log entries from the DOU mocks list endpoint.
+ * - Reads stored reports and log entries from the archive service's mocks list endpoint.
  *
  * Two writers land here. `reportIssue` (libs/app-runtime) POSTs a
- * `SlackReportBody` to `${DOU_ENDPOINT}/hello/report` with `save: true`, and the
- * log uploader POSTs batches to `/hello/report-bulk`. A third is now historical:
+ * `SlackReportBody` to `{archive}/hello/report` with `save: true`, and the
+ * log uploader POSTs batches to `{archive}/hello/report-bulk`. A third is now historical:
  * `reportError` filed automatic error reports until it was retired in 2026-09,
  * and its records are still in the store — which is why the `error` kind below
  * outlives the function that produced it.
  *
- * @see chatic-backend-api (deployed backend, `MockListParam` — this repo's installed
- *   `@lemoncloud/chatic-backend-api` SDK package is unrelated/older and does not need to
- *   match) — GET /dou-v1/mocks/0/list, query: `type` (stereo filter), `from`/`to`
- *   (createdAt range, `YYYY-MM-DD`, KST day boundaries, `to` inclusive) + `PaginateParam`.
+ * @see chatic-archive-api (deployed service, `MockListParam`) — GET /arc-v1/mocks/0/list, query:
+ *   `type` (stereo filter), `from`/`to` (createdAt range, `YYYY-MM-DD`, KST day boundaries, `to` inclusive) + `PaginateParam`.
  */
 import { runtime } from '@chatic/app-runtime';
 
 /**
- * Minimal projection of `MockView` (chatic-backend-api) we actually consume.
+ * Minimal projection of `MockView` (chatic-archive-api) we actually consume.
  * Kept local so the feature does not depend on the SDK's type re-exports. The report payload is not a top-level
  * field — it lives serialized inside `meta` (object or JSON string) and/or the
  * SlackReportBody `message`; `parseReportLog` unwraps it defensively.
@@ -90,15 +88,21 @@ export type StatsGroupField = (typeof STATS_GROUP_FIELDS)[number];
 /** Time bucket widths the server accepts, on arrival time with Korean boundaries. */
 export type StatsInterval = 'hour' | 'day' | 'week';
 
-/** DOU stage: `v1` = prod (where real user reports land), `d1` = dev. */
+/** Stage: `v1` = prod (where real user reports land), `d1` = dev. */
 export type ReportStage = 'v1' | 'd1';
 
 /**
- * Host derived from the configured DOU endpoint, with its `/dou-XX` stage suffix stripped so the
- * stage toggle can swap it. Keeps the endpoint env-configurable instead of hardcoding the host.
- * e.g. `https://api.eureka.codes/dou-d1` → `https://api.eureka.codes`.
+ * The archive service base for a stage. There is no env key for it: the archive sits on the relay's
+ * host, so its base is rebuilt from the configured relay endpoint (`https://host/dou-d1`) by dropping
+ * the `dou-XX` segment and appending `arc-<stage>` — the same swap the web app's report gateway
+ * makes, so the console reads where the app writes. e.g. `https://api.eureka.codes/dou-d1`, `v1` →
+ * `https://api.eureka.codes/arc-v1`.
  */
-const DOU_BASE = (import.meta.env.VITE_DOU_ENDPOINT ?? '').replace(/\/dou-[^/]*\/?$/, '');
+export const reportLogBaseFor = (relayEndpoint: string | undefined, stage: ReportStage): string =>
+    `${(relayEndpoint ?? '')
+        .trim()
+        .replace(/\/+$/, '')
+        .replace(/\/dou-[^/]*$/, '')}/arc-${stage}`;
 
 /** Report kind as offered in the UI; `all` means "no server-side kind filter". */
 export type ReportKind = 'all' | 'error' | 'issue' | 'log-entry';
@@ -257,7 +261,7 @@ export const fetchReportLogs = async ({
     const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'GET',
-            baseURL: `${DOU_BASE}/dou-${stage}/mocks/0/list`,
+            baseURL: `${reportLogBaseFor(import.meta.env.VITE_DOU_ENDPOINT, stage)}/mocks/0/list`,
         })
         .setParams(buildReportLogListParams(params))
         .execute<ReportLogListResponse>();

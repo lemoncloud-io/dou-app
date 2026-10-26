@@ -1,5 +1,5 @@
 import type { IssueReportWireBody, LogBatchWireBody } from '@chatic/http';
-import type { SlackReportResult } from '@lemoncloud/chatic-backend-api';
+import type { SlackReportResult } from '@lemoncloud/chatic-archive-api';
 import type { ReportHttpDomainGateway } from '../gateways';
 
 export interface IReportHttpDataSource {

@@ -1,13 +1,26 @@
-import type { SlackReportBody, SlackReportResult } from '@lemoncloud/chatic-backend-api';
+import type { SlackReportBody, SlackReportResult } from '@lemoncloud/chatic-archive-api';
 import type { HttpGatewayExecutor } from './types';
 
 /**
  * `/hello/report` body. `stereo` is the stored record's KIND and admin's server-side filter
- * (`MockListParam.type`) — the deployed backend accepts it, but the installed
- * `@lemoncloud/chatic-backend-api` SDK type does not carry it yet, so it is added here as a cross
- * type. Drop the intersection once the SDK catches up.
+ * (`MockListParam.type`).
  */
-export type IssueReportWireBody = SlackReportBody & { stereo?: string };
+export type IssueReportWireBody = SlackReportBody;
+
+/**
+ * The archive service's address, built from the relay's: the trailing `/dou-<stage>` path segment
+ * becomes `/arc-<stage>` (`https://host/dou-d1` → `https://host/arc-d1`).
+ *
+ * Built rather than configured because the relay is read in one place, and a deep-linked relay
+ * (`?_backend=`) has to send its logs to the archive of its own stage — a dev session's logs must
+ * not land in prod. A relay with no stage segment (a local backend) is returned as it is, so those
+ * reports reach the old route on the relay; that only works while the server keeps it open.
+ */
+export const archiveEndpointFor = (relay: string): string =>
+    relay
+        .trim()
+        .replace(/\/+$/, '')
+        .replace(/\/dou-([^/]+)$/, '/arc-$1');
 
 /**
  * `/hello/report-bulk` body — the envelope-less `{ list }` the collector expects.
@@ -21,37 +34,38 @@ export interface LogBatchWireBody {
 }
 
 /**
- * `/hello/report*` relay resource wire vocabulary — the user's own issue reports and the log
- * batches the uploader drains.
+ * `/hello/report*` wire vocabulary — the user's own issue reports and the log batches the uploader
+ * drains.
  *
  * Both routes were built inline against `webTransport.buildSignedRequest` until 2026-09 (they were
- * the last two data calls in the repo that skipped the gateway layer entirely). The host they hit is
- * unchanged — `resolveEndpoint('relay')` reads the same `DOU_ENDPOINT` the old constants did, with
- * the deeplink `?_backend` override now honored like every other relay call.
+ * the last two data calls in the repo that skipped the gateway layer entirely). Since 2026-10 they go
+ * to the archive service (`archiveEndpointFor`), still signed with the relay session — only the
+ * address moved. The relay is read on every call, so the deeplink `?_backend` override is honored
+ * like on every other relay call.
  */
 export interface ReportHttpGateway {
-    /** POST {relay}/hello/report — a report the USER wrote (automatic error reports were retired in
+    /** POST {archive}/hello/report — a report the USER wrote (automatic error reports were retired in
      * 2026-09; errors ride the log batch below). */
     reportIssue(body: IssueReportWireBody): Promise<SlackReportResult>;
-    /** POST {relay}/hello/report-bulk, `bypass: ['networkLog']` + `allowRecordError` — see below. */
+    /** POST {archive}/hello/report-bulk, `bypass: ['networkLog']` + `allowRecordError` — see below. */
     uploadLogBatch(body: LogBatchWireBody): Promise<unknown>;
 }
 
 export const createReportHttpGateway = (exec: HttpGatewayExecutor): ReportHttpGateway => {
-    const relay = () => exec.resolveEndpoint('relay');
+    const archive = () => archiveEndpointFor(exec.resolveEndpoint('relay'));
 
     return {
         reportIssue: body =>
             exec.executeSignedRelayRequest<SlackReportResult, IssueReportWireBody>({
                 method: 'POST',
-                baseURL: `${relay()}/hello/report`,
+                baseURL: `${archive()}/hello/report`,
                 body,
             }),
 
         uploadLogBatch: body =>
             exec.executeSignedRelayRequest<unknown, LogBatchWireBody>({
                 method: 'POST',
-                baseURL: `${relay()}/hello/report-bulk`,
+                baseURL: `${archive()}/hello/report-bulk`,
                 body,
                 // The one request in the app that must NOT be logged. Logging it would close a loop:
                 // an upload failure becomes an error entry, that entry joins the queue this call
