@@ -10,9 +10,10 @@ interface PolicyPageLayoutProps {
     children: React.ReactNode;
     title: string;
     subtitle?: string;
-    versions: readonly PolicyVersion[];
-    currentVersion: string;
-    onVersionChange: (version: string) => void;
+    /** Leave the three out for a policy that has no published version yet (no version picker). */
+    versions?: readonly PolicyVersion[];
+    currentVersion?: string;
+    onVersionChange?: (version: string) => void;
 }
 
 export const PolicyPageLayout = ({
@@ -47,13 +48,15 @@ export const PolicyPageLayout = ({
                             </h1>
                             {subtitle && <p className="mt-2 text-[14px] sm:text-[16px] text-gray-600">{subtitle}</p>}
                         </div>
-                        <div className="flex-shrink-0">
-                            <VersionSelector
-                                versions={versions}
-                                currentVersion={currentVersion}
-                                onVersionChange={onVersionChange}
-                            />
-                        </div>
+                        {versions && currentVersion && onVersionChange && (
+                            <div className="flex-shrink-0">
+                                <VersionSelector
+                                    versions={versions}
+                                    currentVersion={currentVersion}
+                                    onVersionChange={onVersionChange}
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
