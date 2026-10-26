@@ -1,4 +1,12 @@
-import { ACCOUNT_CHANNEL_SID, dmPlaceOf, isCloudDm, isInPlaceList, placeOfDmId, RELAY_CLOUD_ID } from './channelScope';
+import {
+    ACCOUNT_CHANNEL_SID,
+    dmPlaceOf,
+    isCloudDm,
+    isInPlaceList,
+    isRelayDm,
+    placeOfDmId,
+    RELAY_CLOUD_ID,
+} from './channelScope';
 
 const room = (over: Record<string, unknown>) => ({ stereo: 'private', cid: '1000001', sid: 'S:one', ...over }) as never;
 
@@ -10,6 +18,17 @@ describe('isInPlaceList', () => {
 
     it('keeps a relay 1:1 in the relay place it lives in', () => {
         expect(isInPlaceList(room({ stereo: 'dm', cid: RELAY_CLOUD_ID, sid: '0000' }), '0000')).toBe(true);
+    });
+
+    // The relay hands the same pair-keyed room back on every re-invite, still carrying the place of
+    // the session that first opened it — which need not be the relay's one place, or any place.
+    it('keeps a relay 1:1 whatever place it carries, or none', () => {
+        expect(isInPlaceList(room({ stereo: 'dm', cid: RELAY_CLOUD_ID, sid: 'S:other' }), '0000')).toBe(true);
+        expect(isInPlaceList(room({ stereo: 'dm', cid: RELAY_CLOUD_ID, sid: '' }), '0000')).toBe(true);
+    });
+
+    it('still keeps a relay group room to its own place', () => {
+        expect(isInPlaceList(room({ cid: RELAY_CLOUD_ID, sid: 'S:other' }), '0000')).toBe(false);
     });
 
     // A cloud 1:1 now lives in the place it was opened in, like a group room.
@@ -73,5 +92,19 @@ describe('isCloudDm', () => {
         expect(isCloudDm(room({ stereo: 'private' }))).toBe(false);
         expect(isCloudDm(room({ stereo: 'self' }))).toBe(false);
         expect(isCloudDm(null)).toBe(false);
+    });
+});
+
+describe('isRelayDm', () => {
+    it('is true for a 1:1 on the relay', () => {
+        expect(isRelayDm(room({ stereo: 'dm', cid: RELAY_CLOUD_ID }))).toBe(true);
+    });
+
+    it('is false for a cloud 1:1, a relay group or self chat, a row with no cloud and an absent row', () => {
+        expect(isRelayDm(room({ stereo: 'dm' }))).toBe(false);
+        expect(isRelayDm(room({ cid: RELAY_CLOUD_ID }))).toBe(false);
+        expect(isRelayDm(room({ stereo: 'self', cid: RELAY_CLOUD_ID }))).toBe(false);
+        expect(isRelayDm(room({ stereo: 'dm', cid: '' }))).toBe(false);
+        expect(isRelayDm(null)).toBe(false);
     });
 });

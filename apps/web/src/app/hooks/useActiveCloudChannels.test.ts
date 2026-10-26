@@ -206,6 +206,20 @@ describe('useActiveCloudChannelsSource — 닿을 수 없는 place 제외', () =
 
         expect(result.current.channels.map(c => c.id)).toEqual(['self']);
     });
+
+    // A relay 1:1's place field is whatever session first opened it, not where it lives.
+    it('keeps a relay 1:1 that carries a place the reader cannot reach, and drops a group that does', () => {
+        setSelection('default');
+        emitPlaces(['0000']);
+        emit([
+            { id: 'me@old', sid: 'S:other', stereo: 'dm' } as unknown as DomainChannel,
+            channel('g-gone', 'S:other'),
+        ]);
+
+        const { result } = renderHook(() => useActiveCloudChannelsSource());
+
+        expect(result.current.channels.map(c => c.id)).toEqual(['me@old']);
+    });
 });
 
 // A cloud this device has never opened answers from the cache instantly, with nothing — which is not

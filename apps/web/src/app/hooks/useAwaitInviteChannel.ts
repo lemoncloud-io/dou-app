@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import type { DomainChannel } from '@chatic/data';
+import { isInPlaceList, type DomainChannel } from '@chatic/data';
 
 /** Give up after this long and let the caller fall back (home + a "it's on its way" notice). */
 export const CHANNEL_WAIT_TIMEOUT_MS = 20_000;
@@ -70,9 +70,11 @@ export const useAwaitInviteChannel = () => {
                 for (const item of before?.list ?? []) if (item.id) known.add(item.id);
             }
 
-            // The cache read on the relay server is not sid-isolated, so filter like useHomeChannels.
+            // The cache read on the relay server is not sid-isolated, so filter like useHomeChannels — with
+            // its place rule, which lists a relay 1:1 whatever place it carries.
             const findNewDm = (list: DomainChannel[]): string | undefined =>
-                list.find(item => !!item.id && !known.has(item.id) && item.sid === sid && item.stereo === 'dm')?.id;
+                list.find(item => !!item.id && !known.has(item.id) && item.stereo === 'dm' && isInPlaceList(item, sid))
+                    ?.id;
 
             return new Promise<string | null>(resolve => {
                 let settled = false;
@@ -107,8 +109,11 @@ export const useAwaitInviteChannel = () => {
 
                 // SCOPE PINNING — key the observer off the React session, matching useHomeChannels;
                 // without it a cloud switch registers under the stale provider cid and misses writes.
+                // Cloud-wide (`sid: ''`), like the list home slices: a write wakes only the observers of
+                // the place it files the row under, and a relay 1:1 can be filed under another place or
+                // none — a place-keyed observer would never see it. `findNewDm` applies the place rule.
                 unsubscribe = channel.observeList(
-                    { sid },
+                    { sid: '' },
                     result => {
                         const found = findNewDm(result?.list ?? []);
                         if (found) finish(found);

@@ -2,6 +2,9 @@
 
 > Status: Accepted · Decided: 2026-07-30 · Follow-up 1 (the push fast path) taken up by
 > [ADR-0205](./0205-an-invite-is-accepted-once-read-its-relay-room-comes-from-the-push-and-its-accept-is-timed.md)
+> · Decision 4 and the first rejected hypothesis superseded by
+> [ADR-0230](./0230-a-relay-1-1-is-listed-in-the-relays-place-whatever-its-sid-says.md) — a relay 1:1
+> handed back on a re-invite keeps the place of the session that first opened it, so the `sid` filter goes
 
 ## Context
 

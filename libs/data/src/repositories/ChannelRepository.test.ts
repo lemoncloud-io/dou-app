@@ -237,7 +237,7 @@ describe('ChannelRepository', () => {
             list: [
                 { id: 'S1@me@u2', cid: 'cloud-a', stereo: 'dm', sid: 'S1', $: {} },
                 { id: 'me@u3', cid: 'cloud-a', stereo: 'dm', sid: '', $: {} },
-                { id: 'relay-dm', cid: 'default', stereo: 'dm', $: {} },
+                { id: 'ch-orphan', cid: 'cloud-a', stereo: 'public', $: {} },
             ],
             syncedAt: 1,
         });
@@ -247,6 +247,25 @@ describe('ChannelRepository', () => {
         expect(channelLocalDataSource.cacheWriteMany.mock.calls[0][0].map((row: { id: string }) => row.id)).toEqual([
             'S1@me@u2',
             'me@u3',
+        ]);
+    });
+
+    // A relay 1:1 is one room per pair, handed back on every re-invite with whatever place the session
+    // that first opened it had — possibly none. Dropping it lost a room the reader had just accepted.
+    it('syncChannels keeps a relay 1:1 whose row carries no place field', async () => {
+        const { repository, channelSocketDataSource, channelLocalDataSource } = createRepository();
+        channelSocketDataSource.syncChannel.mockResolvedValue({
+            list: [
+                { id: 'me@u2', cid: 'default', stereo: 'dm', $: {} },
+                { id: 'relay-orphan', cid: 'default', stereo: 'public', $: {} },
+            ],
+            syncedAt: 1,
+        });
+
+        await repository.syncChannels(0);
+
+        expect(channelLocalDataSource.cacheWriteMany.mock.calls[0][0].map((row: { id: string }) => row.id)).toEqual([
+            'me@u2',
         ]);
     });
 

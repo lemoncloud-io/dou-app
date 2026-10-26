@@ -239,6 +239,26 @@ describe('ChannelLocalDataSource', () => {
 
             expect((await dataSource.cacheRead('u1@u2'))?.sid).toBe('0000');
         });
+
+        // A sync writes with no active place, and the relay's pair-keyed room may name none. The relay
+        // lists such a room in its one place anyway, so refusing it would only fail the whole sync.
+        it('stores a relay 1:1 that names no place with an empty place, and still refuses a relay group', async () => {
+            const storage = createPartitionedMemoryStorage('channel');
+            const relayProvider = {
+                getContext: () => ({ cid: 'default', uid: 'me' }),
+                setContext: () => undefined,
+            };
+            const dataSource = new ChannelLocalDataSource(relayProvider as any, storage);
+
+            await dataSource.cacheWriteMany([{ id: 'u1@u5', stereo: 'dm' } as any]);
+            await dataSource.cacheWrite({ id: 'u1@u6', stereo: 'dm' } as any);
+
+            expect((await dataSource.cacheRead('u1@u5'))?.sid).toBe('');
+            expect((await dataSource.cacheRead('u1@u6'))?.sid).toBe('');
+            await expect(dataSource.cacheWrite({ id: 'g-relay', stereo: 'public' } as any)).rejects.toThrow(
+                /sid is required/
+            );
+        });
     });
 
     // The Self Channel belongs to the account, not a place, and the relay sends it with an empty

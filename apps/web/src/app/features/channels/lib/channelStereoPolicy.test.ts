@@ -102,12 +102,18 @@ describe('hasDmInviteFlow', () => {
 });
 
 describe('profilePlaceOf', () => {
-    // Only the place is read; the kind and cloud are spelled out so each case says what room it is.
-    const room = (fields: { stereo: string; cid: string; sid: string }) => fields as { sid: string };
+    const room = (fields: { stereo: string; cid: string; sid: string }) => fields as unknown as DomainChannel;
 
     it('names a place-scoped room by the place it lives in', () => {
-        expect(profilePlaceOf(room({ stereo: 'dm', cid: 'default', sid: 'S:relay' }), 'S:active')).toBe('S:relay');
         expect(profilePlaceOf(room({ stereo: 'private', cid: '1000001', sid: 'S:room' }), 'S:active')).toBe('S:room');
+        expect(profilePlaceOf(room({ stereo: 'private', cid: 'default', sid: '0000' }), 'S:active')).toBe('0000');
+    });
+
+    // The relay hands the same pair-keyed room back on every re-invite, still stamped with the place
+    // of the session that first opened it; home names its peer by the relay's one place.
+    it("names a relay 1:1 by the reader's place, whatever place it is stamped with", () => {
+        expect(profilePlaceOf(room({ stereo: 'dm', cid: 'default', sid: 'S:stamped' }), '0000')).toBe('0000');
+        expect(profilePlaceOf(room({ stereo: 'dm', cid: 'default', sid: 'S:stamped' }), null)).toBeNull();
     });
 
     // A cloud 1:1 lives in the place it was opened in, so that place's profiles name its people.
