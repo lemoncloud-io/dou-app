@@ -30,6 +30,20 @@ class ShareIntakeRulesTest {
     // --- Which streams are taken ---
 
     @Test
+    fun takesOnlyAStreamTheSenderGrantedReadAccessTo() {
+        val photo = "content://media/external/images/media/12"
+        val granted = setOf(photo)
+        assertTrue(ShareIntakeRules.isGranted(photo, grantsRead = true, granted = granted))
+        // No grant flag: the system never checked that the sender may read it, and this app would read
+        // it with its own permissions.
+        assertFalse(ShareIntakeRules.isGranted(photo, grantsRead = false, granted = granted))
+        // Named only in the extra, not among the granted URIs.
+        assertFalse(
+            ShareIntakeRules.isGranted("content://com.android.contacts/contacts/as_multi_vcard/x", grantsRead = true, granted = granted),
+        )
+    }
+
+    @Test
     fun takesAContentStreamFromAnotherApp() {
         assertEquals(StreamCheck.Accepted, ShareIntakeRules.checkStream("content", "com.google.android.apps.photos.contentprovider", own))
         assertEquals(StreamCheck.Accepted, ShareIntakeRules.checkStream("CONTENT", "media", own))

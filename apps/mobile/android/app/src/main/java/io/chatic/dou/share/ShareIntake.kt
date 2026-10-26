@@ -67,6 +67,9 @@ object ShareIntake {
         // screen exists. A share that cannot be read leaves the app opening as it would.
         return try {
             val streams = streamsOf(intent)
+            val grantsRead = intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
+            val clip = intent.clipData
+            val granted = if (clip == null) emptySet() else (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri?.toString() }.toSet()
             val text = ShareIntakeRules.sharedText(intent.getCharSequenceExtra(Intent.EXTRA_TEXT))
             if (streams.isEmpty() && text == null) {
                 Log.w(TAG, "a share with no stream and no text")
@@ -76,7 +79,7 @@ object ShareIntake {
             val view = Intent(Intent.ACTION_VIEW, Uri.parse(ShareIntakeRules.shareUrl(context.getString(R.string.app_scheme), id)))
             val appContext = context.applicationContext
             // Registered last, so nothing is copied for a share the screen never opens on.
-            pending[id] = CompletableFuture.supplyAsync({ copyAll(appContext, streams, text) }, copier)
+            pending[id] = CompletableFuture.supplyAsync({ copyAll(appContext, streams, text) { ShareIntakeRules.isGranted(it.toString(), grantsRead, granted) } }, copier)
             Log.i(TAG, "share taken: ${streams.size} stream(s), text: ${text != null}")
             view
         } catch (e: Exception) {
@@ -109,7 +112,7 @@ object ShareIntake {
         else -> emptyList()
     }
 
-    private fun copyAll(context: Context, streams: List<Uri>, text: String?): Received {
+    private fun copyAll(context: Context, streams: List<Uri>, text: String?, isGranted: (Uri) -> Boolean): Received {
         val copies = PickedCopies(context)
         // Every writer of `attach-pick` sweeps before it copies.
         copies.sweep()
@@ -122,6 +125,11 @@ object ShareIntake {
             // Without the list of this app's providers no stream can be told safe, so none is taken.
             if (own == null) {
                 refused += Refusal(fallbackName(uri), Kind.FILE, "unreadable")
+                continue
+            }
+            if (!isGranted(uri)) {
+                Log.w(TAG, "stream refused: the sender did not grant read access")
+                refused += Refusal(fallbackName(uri), Kind.FILE, "unsupported")
                 continue
             }
             when (val check = ShareIntakeRules.checkStream(uri.scheme, uri.authority, own)) {

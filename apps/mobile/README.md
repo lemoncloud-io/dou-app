@@ -167,7 +167,7 @@ apps/mobile/
 ├── android/               Kotlin: MainActivity, bridge, handler, module, push, service, worker
 ├── ios/                   Swift: Chatic, Bridges, ChaticNotificationServiceExtension, ChaticShareExtension
 ├── fastlane/              store upload lanes
-└── docs/                  7 categories, 17 topic documents — see Documents
+└── docs/                  7 categories, 19 topic documents — see Documents
 ```
 
 There is no `screens/` directory to open beyond `features/main`, and no `api/` directory at all —

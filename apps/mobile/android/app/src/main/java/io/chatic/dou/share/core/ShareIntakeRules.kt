@@ -58,6 +58,16 @@ object ShareIntakeRules {
         return StreamCheck.Accepted
     }
 
+    /**
+     * Whether the sender granted read access to [uri]: the intent carries `FLAG_GRANT_READ_URI_PERMISSION`
+     * and [uri] is among the URIs that grant covers (the intent's `ClipData`). The system refuses to
+     * deliver a grant the sender could not give, so a stream that passes was readable by the sender.
+     * Without it this app would read the stream with its own permissions — contacts or photos another
+     * app cannot read — and put it in front of the person to send. A normal share always passes: the
+     * system copies `EXTRA_STREAM` into `ClipData` and adds the flag when the sender starts the share.
+     */
+    fun isGranted(uri: String, grantsRead: Boolean, granted: Set<String>): Boolean = grantsRead && uri in granted
+
     /** This app's provider authorities, from the manifest's `;`-separated lists, lower-cased. */
     fun ownAuthorities(declared: List<String?>): Set<String> =
         declared.flatMap { it.orEmpty().split(';') }.map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()

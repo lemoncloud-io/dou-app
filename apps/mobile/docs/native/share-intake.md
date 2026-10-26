@@ -78,6 +78,11 @@ What is taken:
   its own private files and upload them — those are refused by name. The provider is judged without a
   `<userId>@` prefix, which the resolver drops before it finds the provider, so `content://0@<own>/…`
   is refused too. If the system will not list this app's providers, no stream is taken at all.
+- **Only streams the sender granted.** A stream is copied only when the intent carries a read grant
+  (`FLAG_GRANT_READ_URI_PERMISSION`) and the stream is among the URIs it covers. The system refuses to
+  deliver a grant the sender could not give, so this keeps an app with no permissions from handing Dou
+  a contacts or photos URI that Dou would read with its own permissions. A normal share always has the
+  grant: the system adds it, with the streams, when the sender starts the share.
 - **One item's failure is that item's.** An item that cannot be read, or fails in a way the copy did not
   expect, is refused by name; the others are still copied.
 - **Ten items**, one message's worth. The rest are named as not sent rather than copied.
