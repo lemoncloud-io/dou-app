@@ -112,6 +112,38 @@ describe('createMockPort — scenarios and the URL', () => {
     });
 });
 
+describe('createMockPort — what the scenarios carry', () => {
+    it('gives a store subscriber the store plan and its next charge', async () => {
+        const { port } = setup('?mock=store-android');
+        expect((await port.getSession())?.storeSubscription).toEqual({
+            planId: 'pro-tier-02',
+            nextBillingAt: '2026-11-03',
+        });
+    });
+
+    it('gives a failing subscription its decline reason and the retry days from the policy', async () => {
+        const { port } = setup('?mock=past-due');
+        expect(await port.getSubscription('sub-2')).toMatchObject({
+            failureReason: '카드 한도 초과',
+            retryAt: ['2026-10-31', '2026-11-02', '2026-11-04'],
+        });
+    });
+
+    it('gives an expired subscription its restore deadline from the policy, and why it ended', async () => {
+        const { port } = setup('?mock=expired');
+        expect(await port.getSubscription('sub-2')).toMatchObject({
+            restoreUntil: '2026-11-19',
+            endedReason: 'canceled',
+        });
+    });
+
+    it('carries every way a subscription ends in history-mixed', async () => {
+        const { port } = setup('?mock=history-mixed');
+        const reasons = (await port.listSubscriptions()).map(s => s.endedReason).filter(Boolean);
+        expect(reasons.sort()).toEqual(['paymentFailed', 'replaced']);
+    });
+});
+
 describe('createMockPort — fail flags', () => {
     it('fails the next call once with network', async () => {
         const { port } = setup('?mock=active&fail=network');
@@ -242,6 +274,8 @@ describe('createMockPort — the state machine', () => {
         const sub = await port.getSubscription('sub-2');
         expect(sub).toMatchObject({ status: 'active', nextBillingAt: '2026-11-30' });
         expect(sub.restrictAt).toBeUndefined();
+        expect(sub.failureReason).toBeUndefined();
+        expect(sub.retryAt).toBeUndefined();
     });
 
     it('leaves a failing subscription failing when the retry is declined', async () => {

@@ -42,6 +42,8 @@ export interface Account {
     displayName?: string;
     billingSource: BillingSource;
     trialUsed: boolean;
+    /** A store subscriber's plan and next charge, for the store notice. Absent for anyone else. */
+    storeSubscription?: { planId: PlanId; nextBillingAt?: string };
 }
 
 export type SubscriptionStatus = 'trial' | 'active' | 'pastDue' | 'restricted' | 'cancelScheduled' | 'expired';
@@ -59,9 +61,17 @@ export interface Subscription {
     /** `pastDue` and `restricted` — where the D-Day comes from. */
     failedAt?: string;
     restrictAt?: string;
+    /** Why the charge failed, in the payment provider's own words. */
+    failureReason?: string;
+    /** When the failed charge is retried. */
+    retryAt?: string[];
     /** `cancelScheduled` and `expired`. */
     endsAt?: string;
     expiredAt?: string;
+    /** `expired` — subscribing again before this day keeps the clouds that were held. */
+    restoreUntil?: string;
+    /** Why an ended subscription ended: cancelled, replaced by the next one, or a payment never recovered. */
+    endedReason?: 'canceled' | 'replaced' | 'paymentFailed';
     /** A scheduled downgrade. Not a status: the subscription stays `active` until it applies. */
     pendingChange?: { planId: PlanId; effectiveAt: string };
     /** Subscribed again within the restore window after expiring. Also not a status. */

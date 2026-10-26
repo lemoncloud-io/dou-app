@@ -566,7 +566,7 @@ not trigger.
   other deep-link hooks have none. The account surface tests its rules, its mock and its routes.
 
     ```bash
-    npx nx test @chatic/landing   # 181 tests
+    npx nx test @chatic/landing   # 185 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionWebEnabled` is true on
@@ -616,7 +616,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 181 tests pass; in CI
+npx nx test @chatic/landing                               # 185 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

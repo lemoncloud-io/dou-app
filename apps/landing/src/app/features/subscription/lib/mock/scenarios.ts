@@ -1,5 +1,6 @@
 import { ROUTES } from '../../../../routes/paths';
-import { planOf } from './policy';
+import { addDays } from '../calendar';
+import { MOCK_POLICY, planOf } from './policy';
 
 import type { ConsentChoice, MockState, ScenarioId } from './state';
 import type { Account, BillingEmail, Invoice, PaymentMethod, PlanId, Subscription } from '../../types';
@@ -18,6 +19,15 @@ export const mockReceiptUrl = (invoiceId: string): string =>
     `${ROUTES.subscription.mockReceipt}?invoice=${encodeURIComponent(invoiceId)}`;
 
 const price = (planId: PlanId) => planOf(planId).monthly;
+
+/** The retry days after a failed charge, from the policy. */
+const retriesAfter = (failedAt: string) => MOCK_POLICY.retryAfterDays.map(days => addDays(failedAt, days));
+
+/** The last day subscribing again restores the held clouds, from the policy. */
+const restoreUntil = (expiredAt: string) => addDays(expiredAt, MOCK_POLICY.restoreWindowDays);
+
+/** The payment provider's decline text, kept as it would arrive. */
+const DECLINE_REASON = '카드 한도 초과';
 
 const ACCOUNT: Account = {
     id: 'acc-1',
@@ -80,6 +90,8 @@ const endedCloud1: Subscription = {
     billingDay: 20,
     endsAt: '2026-09-19',
     expiredAt: '2026-09-19',
+    restoreUntil: restoreUntil('2026-09-19'),
+    endedReason: 'replaced',
 };
 
 const ACTIVE_INVOICES = [
@@ -113,8 +125,22 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
         account: { ...NEW_ACCOUNT, provider: 'apple', email: undefined },
         signIn: { provider: 'apple', defaultChoice: 'noAccount' },
     }),
-    'store-ios': () => ({ signedIn: true, account: { ...ACCOUNT, billingSource: 'appStore' } }),
-    'store-android': () => ({ signedIn: true, account: { ...ACCOUNT, billingSource: 'googlePlay' } }),
+    'store-ios': () => ({
+        signedIn: true,
+        account: {
+            ...ACCOUNT,
+            billingSource: 'appStore',
+            storeSubscription: { planId: 'pro-tier-02', nextBillingAt: '2026-11-03' },
+        },
+    }),
+    'store-android': () => ({
+        signedIn: true,
+        account: {
+            ...ACCOUNT,
+            billingSource: 'googlePlay',
+            storeSubscription: { planId: 'pro-tier-02', nextBillingAt: '2026-11-03' },
+        },
+    }),
     trial: () => ({
         signedIn: true,
         account: ACCOUNT,
@@ -160,6 +186,8 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
                 nextBillingAt: undefined,
                 failedAt: '2026-10-30',
                 restrictAt: '2026-11-06',
+                failureReason: DECLINE_REASON,
+                retryAt: retriesAfter('2026-10-30'),
             }),
         ],
         paymentMethods: [CARDS[0]],
@@ -180,6 +208,8 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
                 nextBillingAt: undefined,
                 failedAt: '2026-10-24',
                 restrictAt: '2026-10-31',
+                failureReason: DECLINE_REASON,
+                retryAt: retriesAfter('2026-10-24'),
             }),
         ],
         paymentMethods: [CARDS[0]],
@@ -231,15 +261,33 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
                 nextAmount: undefined,
                 endsAt: '2026-10-20',
                 expiredAt: '2026-10-20',
+                restoreUntil: restoreUntil('2026-10-20'),
+                endedReason: 'canceled',
             }),
         ],
         paymentMethods: [CARDS[0]],
         invoices: [invoice('inv-1', '2026-09-20', 'first', 'pro-tier-02', 'paid')],
     }),
+    // One subscription of each ending beside the current one, for the list's per-status cards.
     'history-mixed': () => ({
         signedIn: true,
         account: ACCOUNT,
-        subscriptions: [activeCloud2(), endedCloud1],
+        subscriptions: [
+            activeCloud2(),
+            endedCloud1,
+            {
+                id: 'sub-0',
+                planId: 'pro-tier-01',
+                status: 'expired',
+                startedAt: '2026-05-10',
+                billingDay: 10,
+                failedAt: '2026-07-10',
+                endsAt: '2026-07-17',
+                expiredAt: '2026-07-17',
+                restoreUntil: restoreUntil('2026-07-17'),
+                endedReason: 'paymentFailed',
+            },
+        ],
         paymentMethods: CARDS,
         invoices: [
             invoice('inv-6', '2026-10-25', 'refund', 'pro-tier-01', 'refunded', { amount: -8600, currency: 'KRW' }),

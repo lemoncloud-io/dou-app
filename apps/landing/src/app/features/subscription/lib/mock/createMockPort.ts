@@ -275,6 +275,8 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         sub.nextAmount = planOf(sub.planId).monthly;
         delete sub.failedAt;
         delete sub.restrictAt;
+        delete sub.failureReason;
+        delete sub.retryAt;
         const id = nextId(s, 'inv');
         s.invoices.unshift({
             id,
