@@ -4,9 +4,6 @@ export interface SignaturePayload {
     authId: string;
     accountId: string;
     identityId: string;
-    /** Never read. The formula's 4th `data` slot is the empty string, so any value here produces
-     * the same signature. The field exists so call sites can pass their token object unchanged. */
-    identityToken: string;
 }
 
 export interface SignatureContext {

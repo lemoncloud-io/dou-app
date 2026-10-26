@@ -345,14 +345,17 @@ test.describe('two people', () => {
         if (quiet.DM) await expect(navTile(app, 'DM')).toHaveAccessibleName('DM');
     });
 
-    test('opens a notification from another place in that place, at its message', async ({ app, browser }) => {
+    test('lists a notification only in the place it came from, and opens it at its message', async ({
+        app,
+        browser,
+    }) => {
         test.skip(!inviteLink, 'the invite scenario did not run');
         test.skip(!emptyPlace, 'DESKTOP_E2E_EMPTY_PLACE is not set');
         await enterSandbox(app);
         await openDmWithPeer(app);
         const opener = marker('opener');
         await send(app, opener);
-        // Standing in another place of the same cloud.
+        // Standing in another place of the same cloud while it arrives: capture still files it.
         await openPlace(app, emptyPlace);
 
         const peer = await openPeer(browser);
@@ -360,11 +363,23 @@ test.describe('two people', () => {
         const text = marker('elsewhere');
         await send(peer, text);
 
+        // The place it was sent in lists it…
+        await go(app, 'Home');
+        await openPlace(app, place);
+        await expect(await inboxCard(app, 'DM', text)).toBeVisible({ timeout: 30_000 });
+        // …another place does not…
+        await go(app, 'Home');
+        await openPlace(app, emptyPlace);
+        await expect(await inboxCard(app, 'DM', text)).toHaveCount(0);
+        // …and switching back brings it back, opening at its message.
+        await go(app, 'Home');
+        await openPlace(app, place);
         const card = await inboxCard(app, 'DM', text);
-        await expect(card).toBeVisible({ timeout: 30_000 });
+        await expect(card).toBeVisible();
+        // An open while the place switch still runs is dropped, as the place rail is locked; the rail
+        // taking clicks again is the switch finishing.
+        await expect(placeTile(app, emptyPlace)).toBeEnabled({ timeout: 15_000 });
         await card.click();
-        // The place the message was sent in, its 1:1, the message. The sidebar stays on Notifications.
-        await expect(placeTile(app, place)).toHaveAttribute('aria-current', 'true', { timeout: 30_000 });
         await expect(app.getByRole('main').getByRole('heading', { level: 1 })).toContainText(peerName);
         await expect(message(app, text)).toBeVisible();
     });

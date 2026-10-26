@@ -1,5 +1,12 @@
 import type { DomainChannel, DomainChannelListPayload, DomainListResult } from '../../domain';
-import { ACCOUNT_CHANNEL_SID, createDomainListResult, dmPlaceOf, isCloudDm, placeOfDmId } from '../../domain';
+import {
+    ACCOUNT_CHANNEL_SID,
+    createDomainListResult,
+    dmPlaceOf,
+    isCloudDm,
+    isRelayDm,
+    placeOfDmId,
+} from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
 import type { ScopedCacheStorage } from '../ports';
 import {
@@ -37,6 +44,14 @@ const cloudDmPlace = (item: Partial<DomainChannel>, existing: DomainChannel | nu
 
 const isCloudDmRow = (item: Partial<DomainChannel>, existing: DomainChannel | null | undefined, cid: string) =>
     isCloudDm({ stereo: item.stereo ?? existing?.stereo, cid });
+
+/**
+ * A relay 1:1 may be stored with no place: it is listed in the relay's one place whatever its field
+ * says (`isRelayDm`), so a room the server filed under none is kept rather than refused. It still
+ * takes the ordinary place chain first — an empty sid is only what is left when nothing names one.
+ */
+const isRelayDmRow = (item: Partial<DomainChannel>, existing: DomainChannel | null | undefined, cid: string) =>
+    isRelayDm({ stereo: item.stereo ?? existing?.stereo, cid });
 
 export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> implements IChannelLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'channel'>) {
@@ -136,7 +151,7 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
             ? cloudDmPlace(item, existing)
             : ((item.sid || existing?.sid || scope.sid || accountSid(item)) ?? '');
 
-        if (!sid && !isDm) {
+        if (!sid && !isDm && !isRelayDmRow(item, existing, cid)) {
             throw new Error('[ChannelLocalDataSource] sid is required to sync/save channel.');
         }
 
@@ -181,7 +196,7 @@ export class ChannelLocalDataSource extends BaseLocalDataSource<'channel'> imple
                 ? cloudDmPlace(item, existing)
                 : item.sid || item.$?.sid || existing?.sid || scope.sid || accountSid(item) || '';
 
-            if (!sid && !isDm) {
+            if (!sid && !isDm && !isRelayDmRow(item, existing, cid)) {
                 throw new Error('[ChannelLocalDataSource] sid is required to sync/save channels.');
             }
 

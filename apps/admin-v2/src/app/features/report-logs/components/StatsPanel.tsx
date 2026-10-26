@@ -9,7 +9,9 @@
  */
 import { useMemo } from 'react';
 
+import { useT, type Language } from '../../../i18n';
 import { isStatistic } from '../lib/recordKinds';
+import { formatNumber } from '../lib/timeFormat';
 import { DURATION, groupKeysOf, histogram, measuresOf, statGroups, statTagsOf } from '../lib/traceStats';
 
 import type { StatsView } from '../hooks/use-log-console-state';
@@ -27,19 +29,23 @@ interface StatsPanelProps {
 const fieldClass =
     'rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring';
 
-const formatValue = (value: number | undefined, measure: string): string => {
+const formatValue = (value: number | undefined, measure: string, lng: Language): string => {
     if (value === undefined) return '—';
     // Rounded for display only, so a metric below 1 still reads as more than zero.
-    const shown = value.toLocaleString(undefined, { maximumFractionDigits: Math.abs(value) < 10 ? 1 : 0 });
+    const shown = formatNumber(value, lng, Math.abs(value) < 10 ? 1 : 0);
     return measure === DURATION || measure.endsWith('_ms') ? `${shown} ms` : shown;
 };
 
 export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => {
+    const { t, lng } = useT('allLogs');
+    const n = (value: number): string => formatNumber(value, lng);
+    const value = (v: number | undefined, measure: string): string => formatValue(v, measure, lng);
+    const measureName = (m: string): string => (m === DURATION ? t('stats.duration') : m);
     const tags = useMemo(() => statTagsOf(rows), [rows]);
-    const tag = view.tag && tags.some(t => t.tag === view.tag) ? view.tag : tags[0]?.tag;
+    const tag = view.tag && tags.some(stat => stat.tag === view.tag) ? view.tag : tags[0]?.tag;
     // A log that happens to share the tag is not one of these records.
     const picked = useMemo(() => rows.filter(row => isStatistic(row) && row.tag === tag), [rows, tag]);
-    const kind = tags.find(t => t.tag === tag)?.kind;
+    const kind = tags.find(stat => stat.tag === tag)?.kind;
 
     const measures = useMemo(() => measuresOf(picked), [picked]);
     const measure = view.measure && measures.includes(view.measure) ? view.measure : (measures[0] ?? '');
@@ -54,34 +60,29 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
     // "No data" and "zero" are different answers: an empty collection says nothing about whether
     // the thing happened, only that none of it was fetched.
     if (!tags.length) {
-        return (
-            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                No statistics in the collected rows. Statistics are off until the sampling policy turns them on, and the
-                date range, the pins or a report-type filter other than Log or All may leave none in view.
-            </p>
-        );
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t('stats.empty')}</p>;
     }
 
     return (
         <div className="flex flex-col gap-4 p-4">
             <div className="flex flex-wrap items-end gap-3">
                 <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                    Statistic
+                    {t('stats.statistic')}
                     <select
                         value={tag}
                         onChange={e => onView({ tag: e.target.value, measure: '', by: '' })}
                         className={fieldClass}
                     >
-                        {tags.map(t => (
-                            <option key={t.tag} value={t.tag}>
-                                {t.tag} · {t.kind} ({t.count.toLocaleString()})
+                        {tags.map(stat => (
+                            <option key={stat.tag} value={stat.tag}>
+                                {stat.tag} · {stat.kind} ({n(stat.count)})
                             </option>
                         ))}
                     </select>
                 </label>
                 {measures.length > 0 && (
                     <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                        Measure
+                        {t('stats.measure')}
                         <select
                             value={measure}
                             onChange={e => onView({ measure: e.target.value })}
@@ -89,14 +90,14 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
                         >
                             {measures.map(m => (
                                 <option key={m} value={m}>
-                                    {m === DURATION ? 'duration' : m}
+                                    {measureName(m)}
                                 </option>
                             ))}
                         </select>
                     </label>
                 )}
                 <label className="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                    Split by
+                    {t('stats.splitBy')}
                     <select value={by} onChange={e => onView({ by: e.target.value })} className={fieldClass}>
                         <option value="">—</option>
                         {groupKeys.map(key => (
@@ -109,15 +110,10 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
             </div>
 
             <p className="text-[11px] leading-snug text-muted-foreground">
-                Over the {picked.length.toLocaleString()} collected <span className="font-mono">{tag}</span> records
-                {kind === 'event' ? '' : ', percentiles interpolated between ranks'}.{' '}
-                {partial && (
-                    <span className="font-semibold text-foreground">
-                        Partial sample — the collection stopped at its cap; narrow the range for the whole period.{' '}
-                    </span>
-                )}
-                {sampled && 'Some records were sampled; the estimated count weighs each by 1 / its sampling rate. '}
-                Percentiles over a small n move a lot — read them with n.
+                {t(kind === 'event' ? 'stats.over' : 'stats.overInterpolated', { n: n(picked.length), tag })}{' '}
+                {partial && <span className="font-semibold text-foreground">{t('stats.partial')} </span>}
+                {sampled && `${t('stats.sampled')} `}
+                {t('stats.smallN')}
             </p>
 
             <div className="overflow-auto">
@@ -125,18 +121,18 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
                     <thead className="text-left text-[11px] uppercase text-muted-foreground">
                         <tr>
                             <th className="py-1 pr-3 font-medium">
-                                {by ? (by.startsWith('attr:') ? by.slice(5) : by) : 'Group'}
+                                {by ? (by.startsWith('attr:') ? by.slice(5) : by) : t('stats.group')}
                             </th>
                             <th className="py-1 pr-3 text-right font-medium">n</th>
-                            <th className="py-1 pr-3 text-right font-medium">Est.</th>
-                            <th className="py-1 pr-3 text-right font-medium">Users</th>
+                            <th className="py-1 pr-3 text-right font-medium">{t('stats.est')}</th>
+                            <th className="py-1 pr-3 text-right font-medium">{t('stats.users')}</th>
                             {measure && (
                                 <>
                                     <th className="py-1 pr-3 text-right font-medium">p50</th>
                                     <th className="py-1 pr-3 text-right font-medium">p75</th>
                                     <th className="py-1 pr-3 text-right font-medium">p95</th>
                                     <th className="py-1 pr-3 text-right font-medium">p99</th>
-                                    <th className="py-1 text-right font-medium">Mean</th>
+                                    <th className="py-1 text-right font-medium">{t('stats.mean')}</th>
                                 </>
                             )}
                         </tr>
@@ -148,31 +144,29 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
                                 className={index === 0 && by ? 'border-b border-border font-medium' : ''}
                             >
                                 <td className="py-1 pr-3 font-mono text-xs">{group.group}</td>
+                                <td className="py-1 pr-3 whitespace-nowrap text-right tabular-nums">{n(group.n)}</td>
                                 <td className="py-1 pr-3 whitespace-nowrap text-right tabular-nums">
-                                    {group.n.toLocaleString()}
+                                    {n(group.estimated)}
                                 </td>
                                 <td className="py-1 pr-3 whitespace-nowrap text-right tabular-nums">
-                                    {group.estimated.toLocaleString()}
-                                </td>
-                                <td className="py-1 pr-3 whitespace-nowrap text-right tabular-nums">
-                                    {group.users.toLocaleString()}
+                                    {n(group.users)}
                                 </td>
                                 {measure && (
                                     <>
                                         <td className="py-1 pr-3 whitespace-nowrap text-right tabular-nums">
-                                            {formatValue(group.p50, measure)}
+                                            {value(group.p50, measure)}
                                         </td>
                                         <td className="py-1 pr-3 whitespace-nowrap text-right tabular-nums">
-                                            {formatValue(group.p75, measure)}
+                                            {value(group.p75, measure)}
                                         </td>
                                         <td className="py-1 pr-3 whitespace-nowrap text-right tabular-nums">
-                                            {formatValue(group.p95, measure)}
+                                            {value(group.p95, measure)}
                                         </td>
                                         <td className="py-1 pr-3 whitespace-nowrap text-right tabular-nums">
-                                            {formatValue(group.p99, measure)}
+                                            {value(group.p99, measure)}
                                         </td>
                                         <td className="py-1 whitespace-nowrap text-right tabular-nums">
-                                            {formatValue(group.mean, measure)}
+                                            {value(group.mean, measure)}
                                         </td>
                                     </>
                                 )}
@@ -182,17 +176,16 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
                 </table>
             </div>
 
-            {/* The policy editor belongs here once the server serves the sampling policy; until then
-                there is nothing to read or change, and the screen says why instead of hiding it. */}
+            {/* The policy editor belongs here once the server serves the sampling policy; until then the
+                web app carries a built-in one that cannot be changed from here, and the screen says what it
+                is instead of hiding it. */}
             <section className="rounded-md border border-dashed border-border p-3 text-[11px] leading-snug text-muted-foreground">
-                <h3 className="mb-1 font-semibold uppercase tracking-wide text-foreground">Sampling policy</h3>
-                Which runs record statistics, and at what rate, is a policy the server serves. It has no route yet, so
-                every client runs with statistics off unless a development build overrides it locally. Viewing and
-                editing the policy will live here.
+                <h3 className="mb-1 font-semibold uppercase tracking-wide text-foreground">{t('stats.policyTitle')}</h3>
+                {t('stats.policyBody')}
             </section>
 
             {bins.length > 1 && (
-                <figure className="flex flex-col gap-1" aria-label="Distribution">
+                <figure className="flex flex-col gap-1" aria-label={t('stats.distribution')}>
                     <div className="flex h-32 items-end gap-px">
                         {bins.map((bin, i) => (
                             <div
@@ -204,9 +197,9 @@ export const StatsPanel = ({ rows, view, onView, partial }: StatsPanelProps) => 
                         ))}
                     </div>
                     <figcaption className="flex justify-between text-[11px] text-muted-foreground">
-                        <span>{formatValue(Math.round(bins[0].from), measure)}</span>
-                        <span>distribution of {measure === DURATION ? 'duration' : measure}</span>
-                        <span>{formatValue(Math.round(bins[bins.length - 1].to), measure)}</span>
+                        <span>{value(Math.round(bins[0].from), measure)}</span>
+                        <span>{t('stats.distributionOf', { measure: measureName(measure) })}</span>
+                        <span>{value(Math.round(bins[bins.length - 1].to), measure)}</span>
                     </figcaption>
                 </figure>
             )}

@@ -55,19 +55,16 @@ export interface IInviteRepository extends DisposableRepository {
     observeList(callback: (result: DomainListResult<DomainInvite> | null) => void): () => void;
 
     /**
-     * Stamps a local-only hide on a cache row (a `rejected` row the sender re-invited over, or a
-     * legacy pre-API cancel stamp mid-migration). Never touches the server. No-op off the default
-     * cloud (see the class-level note on why every local write here is cid-gated).
+     * Stamps a local-only hide on a cache row — a `rejected` row the sender re-invited over, which
+     * the server keeps forever. Never touches the server, and nothing clears the stamp afterwards.
+     * No-op off the default cloud (see the class-level note on why every local write here is
+     * cid-gated).
      */
     dismiss(id: string): Promise<void>;
-    /** Clears a dismiss stamp — used only by the legacy-reconcile drain once it acts on a record. */
-    undismiss(id: string): Promise<void>;
 
-    /** Bulk local write — used by the one-time legacy dismiss-stamp migration to seed stub rows. */
-    cacheWriteMany(items: Array<Partial<DomainInvite>>): Promise<void>;
     /** Single-row local write — same id overwrites (see `InviteLocalDataSource`'s merge). Debug tooling only. */
     cacheWrite(item: Partial<DomainInvite>): Promise<void>;
-    /** Drops a local row outright — used by reconcile once a legacy record is fully drained. */
+    /** Drops a local row outright. Debug tooling only. */
     cacheDelete(id: string): Promise<void>;
     /** Empties the invite cache for the active scope. Debug tooling only. */
     cacheClear(): Promise<void>;
@@ -153,16 +150,6 @@ export class InviteRepository extends BaseRepository implements IInviteRepositor
         await this.inviteLocalDataSource.cacheWrite({ id, dismissedAt: Date.now() }, this.getRepositoryContext());
     }
 
-    public async undismiss(id: string): Promise<void> {
-        if (!this.isDefaultCloud()) return;
-        await this.inviteLocalDataSource.cacheWrite({ id, dismissedAt: undefined }, this.getRepositoryContext());
-    }
-
-    public async cacheWriteMany(items: Array<Partial<DomainInvite>>): Promise<void> {
-        if (!this.isDefaultCloud()) return;
-        await this.inviteLocalDataSource.cacheWriteMany(items, this.getRepositoryContext());
-    }
-
     public async cacheWrite(item: Partial<DomainInvite>): Promise<void> {
         if (!this.isDefaultCloud()) return;
         await this.inviteLocalDataSource.cacheWrite(item, this.getRepositoryContext());
@@ -186,9 +173,9 @@ export class InviteRepository extends BaseRepository implements IInviteRepositor
      * instead is not an option either: the answer came from a cloud session, and the relay's own
      * `list` is the one authority on relay invites.
      *
-     * Applied to every local write this repository exposes, not just the `list` mirror — a
-     * dismiss/undismiss/stub-cleanup fired while some other cloud happens to be active (a stale
-     * deep link to the waiting screen, say) would otherwise seed the exact same kind of orphan row.
+     * Applied to every local write this repository exposes, not just the `list` mirror — a dismiss
+     * fired while some other cloud happens to be active (a stale deep link to the waiting screen,
+     * say) would otherwise seed the exact same kind of orphan row.
      */
     private isDefaultCloud(context: DataContext = this.getRepositoryContext()): boolean {
         return (this.getNormalizedContext(context).cid || 'default') === 'default';

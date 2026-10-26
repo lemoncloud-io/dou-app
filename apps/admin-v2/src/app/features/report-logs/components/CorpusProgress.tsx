@@ -8,8 +8,9 @@
  * 5,000 rows I happened to read". So the truncated state names the fix (narrow the range)
  * rather than just flagging a limit.
  */
-import { formatRelative } from '../lib/reportLogFormat';
+import { useT } from '../../../i18n';
 import type { CorpusPhase } from '../hooks/use-log-corpus';
+import { formatAgo, formatDateTime, formatNumber } from '../lib/timeFormat';
 
 interface CorpusProgressProps {
     phase: CorpusPhase;
@@ -27,18 +28,19 @@ interface CorpusProgressProps {
     onRetry: () => void;
 }
 
-const n = (value: number): string => value.toLocaleString();
-
 /** Below this the rows are current enough that stamping an age on them is just noise. */
 const HELD_NOTICE_MS = 60_000;
 
 export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, onRetry }: CorpusProgressProps) => {
+    const { t, lng } = useT('allLogs');
+    const n = (value: number): string => formatNumber(value, lng);
+
     if (phase === 'failed') {
         return (
             <div className="flex items-center gap-2 text-xs text-destructive">
-                <span>Query failed: {error?.message ?? 'Unknown error'}</span>
+                <span>{t('progress.failed', { message: error?.message ?? t('progress.unknownError') })}</span>
                 <button type="button" onClick={onRetry} className="rounded border border-border px-2 py-0.5">
-                    Retry
+                    {t('progress.retry')}
                 </button>
             </div>
         );
@@ -54,8 +56,9 @@ export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, on
                     <span className="block h-full bg-primary transition-[width]" style={{ width: `${pct}%` }} />
                 </span>
                 <span>
-                    Collecting {n(loaded)}
-                    {total > 0 && ` / ${n(Math.min(total, cap))}`} rows
+                    {total > 0
+                        ? t('progress.collectingOf', { loaded: n(loaded), total: n(Math.min(total, cap)) })
+                        : t('progress.collecting', { loaded: n(loaded) })}
                 </span>
             </div>
         );
@@ -64,27 +67,30 @@ export const CorpusProgress = ({ phase, loaded, total, cap, error, fetchedAt, on
     // Appended to a settled state rather than replacing it: what was collected is still
     // what is on screen, the only extra fact is when.
     const isHeld = fetchedAt !== undefined && Date.now() - fetchedAt >= HELD_NOTICE_MS;
-    const held = isHeld ? ` · collected ${formatRelative(fetchedAt)}` : '';
+    const held = isHeld ? t('progress.held', { ago: formatAgo(fetchedAt, lng) }) : '';
+    // The age is relative, so the instant it stands for sits in the tooltip.
+    const heldTitle = isHeld ? formatDateTime(fetchedAt, lng, { seconds: true }) : undefined;
 
     if (phase === 'truncated') {
         return (
             <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded bg-yellow-500/15 px-2 py-0.5 text-yellow-700 dark:text-yellow-400">
-                    Capped at {n(cap)} rows — {n(total)} total{held}
+                <span
+                    className="rounded bg-yellow-500/15 px-2 py-0.5 text-yellow-700 dark:text-yellow-400"
+                    title={heldTitle}
+                >
+                    {t('progress.capped', { cap: n(cap), total: n(total), held })}
                 </span>
-                <span className="text-muted-foreground">
-                    The stats below are over the {n(loaded)} collected rows. Narrow the range to see the full set.
-                </span>
+                <span className="text-muted-foreground">{t('progress.cappedHint', { loaded: n(loaded) })}</span>
             </div>
         );
     }
 
     if (phase === 'complete') {
         return (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground" title={heldTitle}>
                 {loaded === 0
-                    ? 'No logs match this query'
-                    : `Collected all ${n(loaded)} ${loaded === 1 ? 'row' : 'rows'}${held}`}
+                    ? t('progress.empty')
+                    : t(loaded === 1 ? 'progress.completeOne' : 'progress.completeOther', { n: n(loaded), held })}
             </span>
         );
     }

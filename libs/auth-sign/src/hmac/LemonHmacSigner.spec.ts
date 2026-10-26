@@ -9,14 +9,12 @@ const RELAY_PAYLOAD: SignaturePayload = {
     authId: 'auth-relay-id', // the key a relay socket signs with
     accountId: 'account-relay-1',
     identityId: 'identity-relay-1',
-    identityToken: '',
 };
 
 const CLOUD_PAYLOAD: SignaturePayload = {
     authId: 'token-authid-cloud-1', // the key a cloud socket and an HTTP refresh sign with
     accountId: 'account-cloud-1',
     identityId: 'identity-cloud-1',
-    identityToken: '',
 };
 
 const FIXTURE_CURRENT = '2026-08-27T00:00:00.000Z';
@@ -38,16 +36,6 @@ describe('LemonHmacSigner — fixed signatures', () => {
 
         expect(result.current).toBe(FIXTURE_CURRENT);
         expect(result.signature).toBe('t5omyhdwmHFMsBfEhZLGcJkFUl2bABmTe8IYCjHhNL0=');
-    });
-
-    it('ignores identityToken — changing it leaves the signature identical', () => {
-        const withEmpty = signer.sign(RELAY_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
-        const withValue = signer.sign(
-            { ...RELAY_PAYLOAD, identityToken: 'any-token' },
-            { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA }
-        );
-
-        expect(withValue.signature).toBe(withEmpty.signature);
     });
 
     it('changes the signature when a single character of current changes', () => {
@@ -85,14 +73,6 @@ describe('LemonHmacSigner — equivalence with lemon-web-core', () => {
     it('matches calcSignature for cloud material', () => {
         const ours = signer.sign(CLOUD_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
         const theirs = lemonCalcSignature(CLOUD_PAYLOAD, FIXTURE_CURRENT, FIXTURE_UA);
-
-        expect(ours.signature).toBe(theirs);
-    });
-
-    it('matches calcSignature, which ignores identityToken the same way', () => {
-        const payloadWithToken = { ...RELAY_PAYLOAD, identityToken: 'any-token' };
-        const ours = signer.sign(payloadWithToken, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
-        const theirs = lemonCalcSignature(payloadWithToken, FIXTURE_CURRENT, FIXTURE_UA);
 
         expect(ours.signature).toBe(theirs);
     });

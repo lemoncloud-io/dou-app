@@ -28,4 +28,15 @@ describe('ImageAvatar', () => {
         expect(root.className).toContain('rounded-full');
         expect(root.querySelector('img')?.className).toContain('object-cover');
     });
+
+    it('strokes the photo edge over the image rather than shrinking the image', () => {
+        const { container } = render(<ImageAvatar src="http://example.com/turtle.png" size={42} />);
+        const root = container.firstElementChild as HTMLElement;
+        const stroke = root.querySelector('[data-avatar-stroke]');
+
+        expect(stroke?.className).toContain('border-avatar-stroke');
+        expect(root.lastElementChild).toBe(stroke);
+        expect(root.querySelector('img')?.className).toContain('h-full');
+        expect(root.querySelector('img')?.className).toContain('w-full');
+    });
 });

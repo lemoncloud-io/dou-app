@@ -72,6 +72,7 @@ describe('measuresOf / groupKeysOf', () => {
             'platform',
             'host',
             'os',
+            'model',
             'routeTemplate',
         ]);
     });

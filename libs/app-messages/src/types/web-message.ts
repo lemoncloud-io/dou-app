@@ -13,7 +13,6 @@ import type {
     AckLogUploadQueuePayload,
     ClearLogUploadQueuePayload,
     AckPendingReportsPayload,
-    FetchAppLogBufferPayload,
     FetchLogUploadQueuePayload,
     FetchCacheDataPayload,
     FetchLastChatsDataPayload,
@@ -30,7 +29,6 @@ import type {
     OpenShareSheetPayload,
     OpenURLPayload,
     PingPayload,
-    PollAppLogBufferPayload,
     PurchasePayload,
     RequestPermissionPayload,
     SaveAllCacheDataPayload,
@@ -74,8 +72,6 @@ import type {
     OpenSettingsPayload,
     OpenStorePayload,
     GetContactsPayload,
-    FetchSafeAreaPayload,
-    FetchBackgroundStatusPayload,
     FetchAppIconPayload,
     FetchAppIconListPayload,
     FetchFcmTokenPayload,
@@ -88,8 +84,6 @@ import type {
     FetchCurrentPurchasesPayload,
     OpenSubscriptionManagementPayload,
     WebAppReadyPayload,
-    ClearAppLogBufferPayload,
-    FetchAppLogBufferSizePayload,
     CopyToClipboardPayload,
     TriggerHapticPayload,
     DismissResumeOverlayPayload,
@@ -145,8 +139,6 @@ export type WebMessagePayloadMap = {
     // A received video's first frame, made by the shell from its address. A shell without it answers
     // `NOT_FOUND`, and the web draws the tile another way or leaves it grey.
     ReadVideoFrame: ReadVideoFramePayload;
-    FetchSafeArea: FetchSafeAreaPayload;
-    FetchBackgroundStatus: FetchBackgroundStatusPayload;
     RequestPermission: RequestPermissionPayload;
     OpenURL: OpenURLPayload;
     SendSms: SendSmsPayload;
@@ -208,10 +200,6 @@ export type WebMessagePayloadMap = {
 
     // 7. Common & Others
     WebAppReady: WebAppReadyPayload;
-    FetchAppLogBuffer: FetchAppLogBufferPayload;
-    PollAppLogBuffer: PollAppLogBufferPayload;
-    ClearAppLogBuffer: ClearAppLogBufferPayload;
-    FetchAppLogBufferSize: FetchAppLogBufferSizePayload;
     SendLog: SendLogPayload;
     FetchLogUploadQueue: FetchLogUploadQueuePayload;
     AckLogUploadQueue: AckLogUploadQueuePayload;

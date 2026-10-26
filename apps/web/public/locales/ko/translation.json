@@ -559,7 +559,7 @@
         "noCloudsError": "설정할 수 있는 클라우드가 없어요",
         "selectCloud": "클라우드 선택하기",
         "cannotCreatePlace": "이 클라우드에서는 플레이스를 만들 수 없어요",
-        "placeLimitReached": "플레이스는 최대 10개까지 만들 수 있어요",
+        "placeLimitReached": "플레이스는 최대 5개까지 만들 수 있어요",
         "placeLimit": {
             "title": "플레이스를 더 이상 추가할 수 없어요",
             "description": "플레이스는 <strong>클라우드당 최대 {{max}}개</strong>까지 추가할 수 있습니다.\n플레이스를 삭제하거나\n<strong>새로운 클라우드</strong>를 만들어 주세요.",

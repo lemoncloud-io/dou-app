@@ -77,16 +77,5 @@ describe('useAppStateHandler', () => {
 
             expect(bridge.pushEvent).not.toHaveBeenCalled();
         });
-
-        // The same message type is also the reply to FetchBackgroundStatus.
-        it('answers FetchBackgroundStatus with the same contract, active while unknown', async () => {
-            mockCurrentState = 'unknown';
-            const { result } = renderHook(() => useAppStateHandler(bridge as any));
-
-            const reply = await result.current.handleFetchBackgroundStatus({} as any);
-
-            expect(reply.data).toEqual({ status: 'active', isForeground: true, isBackground: false });
-            expect(pushedEventErrors([reply])).toEqual([]);
-        });
     });
 });

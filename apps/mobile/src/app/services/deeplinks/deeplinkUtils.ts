@@ -7,8 +7,7 @@ import type { ILogService } from '../log';
 /**
  * Deep Link Utilities (Local to Mobile App)
  *
- * Handles deep link validation, parsing, campaign parameter extraction,
- * and conversion to frontend WebView URLs.
+ * Handles deep link validation, parsing, and conversion to frontend WebView URLs.
  */
 
 /** Valid domains that can be used as deep link sources */
@@ -28,9 +27,6 @@ export const CUSTOM_SCHEMES = ['chatic', 'chatic-dev'] as const;
 
 /** Deep link domains that need conversion to frontend domain */
 export const DEEP_LINK_DOMAINS = ['app.chatic.io', 'app-dev.chatic.io'] as const;
-
-export const DEEPLINK_DOMAIN_PROD = 'app.chatic.io';
-export const DEEPLINK_DOMAIN_DEV = 'app-dev.chatic.io';
 
 /**
  * The custom scheme this build's OS registration actually uses.
@@ -65,9 +61,6 @@ export const isCustomScheme = (scheme: string): scheme is (typeof CUSTOM_SCHEMES
 
 export const isValidDomain = (domain: string): domain is (typeof VALID_DOMAINS)[number] =>
     (VALID_DOMAINS as readonly string[]).includes(domain);
-
-export const isDeepLinkDomain = (domain: string): domain is (typeof DEEP_LINK_DOMAINS)[number] =>
-    (DEEP_LINK_DOMAINS as readonly string[]).includes(domain);
 
 /**
  * Safely parses any URL, including custom schemes, by normalizing them to standard HTTPS URLs first.
@@ -120,33 +113,6 @@ export const isValidDeepLink = (url: string): boolean => {
 };
 
 /**
- * Extracts campaign parameters from URL (UTM, referrer, etc.)
- */
-export const extractCampaignParams = (url: string): Record<string, string> => {
-    try {
-        const parsed = parseUrlSafe(url);
-        const params: Record<string, string> = {};
-        const utmParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
-
-        utmParams.forEach(param => {
-            const value = parsed.searchParams.get(param);
-            if (value) {
-                params[param] = value;
-            }
-        });
-
-        const ref = parsed.searchParams.get('ref') || parsed.searchParams.get('referrer');
-        if (ref) {
-            params.referrer = ref;
-        }
-
-        return params;
-    } catch {
-        return {};
-    }
-};
-
-/**
  * Check if URL matches the new dynamic invite URL pattern
  *
  * Two accepted forms, both rooted at `/s` and both requiring `code`:
@@ -187,22 +153,6 @@ export const isShortUrl = (url: string): boolean => {
         return parsed.pathname.startsWith('/s/');
     } catch {
         return false;
-    }
-};
-
-/**
- * Extract short code from URL
- */
-export const extractShortCode = (url: string): string | null => {
-    try {
-        if (isNewPatternInviteUrl(url)) {
-            return null;
-        }
-        const parsed = parseUrlSafe(url);
-        const match = parsed.pathname.match(/^\/s\/([^/]+)/);
-        return match ? match[1] : null;
-    } catch {
-        return null;
     }
 };
 

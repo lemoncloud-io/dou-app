@@ -16,8 +16,8 @@ describe('OutlineButton', () => {
         expect(onClick).toHaveBeenCalledTimes(1);
     });
 
-    it('applies the accent border when accent is set', () => {
-        render(<OutlineButton accent>PRO</OutlineButton>);
+    it('applies the brand-green border when tone is green', () => {
+        render(<OutlineButton tone="green">PRO</OutlineButton>);
         expect(screen.getByRole('button').className).toContain('border-main-accent');
     });
 

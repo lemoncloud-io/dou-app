@@ -1,7 +1,7 @@
 # @chatic/app-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 101 web→app request types, 109 app→web message types, the payload
+can cross the WebView boundary — 95 web→app request types, 104 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -54,14 +54,19 @@ mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
    `WebMessagePayloadMap` and omit its row here, and the package stops compiling. The other check
    is downstream, in each shell's contract suite (step 5 below); nothing else in the procedure fails
    on its own.
-4. **A retired message keeps its declaration.** The web deploys ahead of the app, so a web build
-   that predates a removal is still installed against the newest shell and still sends the old
-   message. Deleting the type deletes the handler, which answers `NOT_FOUND`, which surfaces as a
-   failure on a screen that used to work. The four `*AppLogBuffer` request/reply pairs are in this
-   state today: declared, handled, and documented as answering empty. A declaration goes once
-   deleting it changes no reply anyone receives: either no installed web build sends it any more
-   (how the `*AppLogBuffer` pairs will go), or no shell handles it, so a build that still sends it
-   already gets `NOT_FOUND` — and a handshake that lists only handled requests never named it.
+4. **A message goes once deleting it changes no reply anyone receives.** Deleting the type deletes
+   the handler, which answers `NOT_FOUND`, which surfaces as a failure on a screen that used to
+   work — so the question is always whether something still sends it. Either no web build sends it
+   any more, or no shell handles it, so a build that still sends it already gets `NOT_FOUND` and a
+   handshake that lists only handled requests never named it. The first case is a grep, not a wait:
+   a shell loads the web from its server rather than from a copy it was installed with, and the web
+   deploys ahead of the app, so the web a shell runs is the deployed one. Once the web and
+   desktop-web sources stop sending a message, no production shell receives it. The one exception
+   is a custom bundle someone loads on purpose — the phone's custom web zip on a non-PROD build
+   (`apps/mobile`'s `customZipGate.ts` allows it only while `VITE_ENV !== 'PROD'`), or the desktop
+   shell's custom-UI bundle. Such a bundle can be older than the deployed web, and if it still
+   sends a removed message it gets `NOT_FOUND`. That is accepted — a deliberate override is not a
+   reason to keep a handler for everyone (ADR-0226).
 5. **Where both sides must declare independently, share the type and not the value.**
    `CacheDomainVersions` is `Partial<Record<CacheType, number>>` and there is deliberately no shared
    constant of version numbers: if both sides imported one, the handshake would be an identity
@@ -98,8 +103,8 @@ flowchart TD
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
     Model["model/ × 21<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>101 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>109 message types</i>"]:::map
+    WM["WebMessagePayloadMap<br/><i>95 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>104 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -162,13 +167,13 @@ libs/app-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (101) + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (109) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (95)  + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (104) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
     └── model/                    23 files — 22 payload files, grouped by domain, and their barrel
 ```
 
-29 files, 3,745 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+29 files, 3,671 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -177,12 +182,12 @@ The payload files, with what is in each:
 | ---------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `system.ts`            | 514   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                                                                                             |
 | `cache.ts`             | 480   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages                                                                           |
-| `common.ts`            | 235   | `AppLogInfo`, the upload queue, the four retired buffer pairs, `PendingReportInfo`                                                                                                 |
+| `common.ts`            | 211   | `AppLogInfo`, the upload queue, `PendingReportInfo`                                                                                                                                |
 | `file-transfer.ts`     | 188   | The native file-transfer contract — start (upload or download), cancel, list, ack, temp file, state event                                                                          |
 | `media-export.ts`      | 143   | A downloaded file to the photo library, the share sheet, the OS preview or the device's downloads — `SaveToPhotoLibrary`, `ShareFile`, `OpenFile`, `SaveFile`, codes               |
 | `attachment-picker.ts` | 215   | What the shell picks and keeps — `PickAttachments`, `PrepareVideo` (conversion and poster), `ReadAttachment` (one kept photo's bytes), `ReadVideoFrame` (a received video's frame) |
 | `photo-library.ts`     | 192   | The in-app photo picker — albums, a page of previews (sized to the tile, by cursor or `offset`), a picked photo's bytes, `KeepLibraryVideo`, iOS limited access                    |
-| `device.ts`            | 85    | `DeviceInfo`, `VersionInfo`, `SafeAreaInfo`, the debug panel's dummy test file                                                                                                     |
+| `device.ts`            | 63    | `DeviceInfo`, `VersionInfo`, the debug panel's dummy test file                                                                                                                     |
 | `iap.ts`               | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                                                                                                                |
 | `notification.ts`      | 133   | FCM token, badge count and base, push marks, OS notification                                                                                                                       |
 | `perf.ts`              | 182   | Boot timeline, `SetDebugMode`, `StartPerfTrace`/`StopPerfTrace`, `HandedOverPerfTrace`                                                                                             |
@@ -270,16 +275,16 @@ bridge.registerHandler('FetchBadgeCount', async (_message: WebMessageData<'Fetch
    `DESKTOP_UNSUPPORTED` in `bridgeHandlers.contract.test.ts`). Each shell's contract suite fails
    until the message is one or the other, and fails again if a line outlives its message.
 
-For an app→web push with no request behind it, do step 1 and step 3 only. Eight messages are in that
-shape: `OnUpdateDeviceInfo`, `OnBackPressed`, `OnNavigate`, `OnReceiveNotification`,
-`OnFileTransferState`, `OnPurchaseSuccess`, `OnPurchaseError`, `OnUpdateStatus`. Nothing here marks
-them as pushes: a push-only message is any `AppMessageDataMap` key that no
-`WEB_MESSAGE_RESPONSE_TYPE` row maps to, and each shell's event inventory computes the list that way
-— `MOBILE_APP_EVENTS` in `apps/mobile/src/app/webview/hooks/appEvents.contract.test.ts`,
+For an app→web push with no request behind it, do step 1 and step 3 only. Nine messages are in that
+shape: `OnUpdateDeviceInfo`, `OnBackgroundStatusChanged`, `OnBackPressed`, `OnNavigate`,
+`OnReceiveNotification`, `OnFileTransferState`, `OnPurchaseSuccess`, `OnPurchaseError`,
+`OnUpdateStatus`. Nothing here marks them as pushes: a push-only message is any `AppMessageDataMap`
+key that no `WEB_MESSAGE_RESPONSE_TYPE` row maps to, and each shell's event inventory computes the
+list that way: `MOBILE_APP_EVENTS` in `apps/mobile/src/app/webview/hooks/appEvents.contract.test.ts`,
 `DESKTOP_APP_EVENTS` in `apps/desktop/src/main/appEvents.contract.test.ts`. Adding one fails both
 suites until each shell names the file that pushes it and a test that triggers it, or says why it
-never does. A reply a shell also pushes unprompted (`OnBackgroundStatusChanged` on the phone,
-`OnFetchFcmToken` on the desktop) is listed in that shell's inventory too.
+never does. A reply a shell also pushes unprompted (`OnFetchFcmToken` on the desktop) is listed in
+that shell's inventory too.
 
 The deploy order is part of the procedure, not a caveat: **the web ships before the app.** A web
 build that sends a message the installed shell has no handler for gets `NOT_FOUND` back, so a new
@@ -289,34 +294,36 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 101 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 95 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for
 
 `Purchase` resolves with `OnPurchase`, which is an **acknowledgement that the flow started**, not the
 outcome. The outcome arrives later and unsolicited, as `OnPurchaseSuccess` or `OnPurchaseError`, and
-the web reads it through `onEvent`. That split is why those two are among the eight app-only types:
+the web reads it through `onEvent`. That split is why those two are among the nine app-only types:
 there is no request they could be the reply to.
 
 ### 3. A message the installed shell does not implement
 
 The shell answers `NOT_FOUND`, and the caller decides. `@chatic/db` turns three specific
 `NOT_FOUND`s into learned fallbacks — `FetchManyCacheData`, `FetchLastChatsData` and
-`ClearCacheDataByChannel` each degrade to an older path the first time they come back unhandled. The
-alternative, deleting the message from the map, would break the older web builds still sending it.
+`ClearCacheDataByChannel` each degrade to an older path the first time they come back unhandled.
+This is the direction the deploy order runs: a newer web meeting an older shell. The opposite case —
+a shell that drops a message an older web still sends — does not arise in production, because the
+web a shell loads is the deployed one (rule 4).
 
-### 4. Retiring a message without deleting it
+### 4. Retiring a message
 
-The ring buffer the four `*AppLogBuffer` messages read is gone; the upload queue
-(`FetchLogUploadQueue` / `AckLogUploadQueue`) is the only log store. Their types stay, and the shell
-answers them with an empty result, because an installed older web build still calls them and a
-`NOT_FOUND` would render as a failure on its debug screen.
-
-They deliberately do **not** fall back to the upload queue. `PollAppLogBuffer` is destructive by
-contract, so serving the queue through it would let an old build drain entries the server has not
-accepted yet — trading at-least-once delivery for a populated debug screen. All four go when no
-deployed web build calls them.
+The four `*AppLogBuffer` request/reply pairs read a ring buffer that the upload queue
+(`FetchLogUploadQueue` / `AckLogUploadQueue`) replaced as the only log store. For a while after the
+web stopped calling them the phone shell kept answering them with an empty result rather than
+`NOT_FOUND`, and deliberately not from the upload queue: `PollAppLogBuffer` was destructive by
+contract, so serving the queue through it would have let a caller drain entries the server had not
+accepted yet. Once no web or desktop-web source sent them, the pairs and those answers went
+together. `FetchSafeArea` and `FetchBackgroundStatus` went the same way, never having had a web
+caller; `OnBackgroundStatusChanged`, which used to double as the second one's reply, stays as the
+push it always also was.
 
 ### 5. Fire-and-forget
 

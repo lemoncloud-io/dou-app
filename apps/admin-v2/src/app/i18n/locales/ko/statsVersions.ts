@@ -1,0 +1,51 @@
+/** Korean copy for the statistics tab's version adoption view. */
+export const statsVersions = {
+    summary: {
+        title: '한눈에 보기',
+        hint: '이 기간에 기록을 남긴 사람 전체를 서버가 세었어요. 로그도 함께 세니까, 통계를 보내지 않는 옛 버전도 들어 있어요.',
+        users: '전체 사용자',
+        usersSub: '기록 {{n}}건',
+        coverage: '통계를 보낼 수 있는 앱 사용자',
+        coverageSub: '앱 사용자 {{total}}명 중 {{eligible}}명',
+        coverageHelp:
+            '통계는 앱 0.29.2 이상과 브라우저 웹에서만 모아요. 그래서 이 비율만큼의 앱 사용자를 통계 탭에서 볼 수 있어요. 버전별 사용자 수를 더해 계산해서 대략적인 값이에요.',
+        noVersions: '앱 버전이 있는 기록이 없어요 — 브라우저 웹 기록만 있었을 수 있어요.',
+        newest: '가장 새 앱 버전',
+        newestSince: '{{day}}에 처음 보였어요',
+        newestFromStart: '기간 첫날부터 있었어요',
+        newestUsers: '사용자 {{n}}명',
+    },
+    dim: {
+        label: '나눠 볼 기준',
+        appVersion: '앱 버전',
+        os: 'OS',
+        model: '기기 모델',
+        webVersion: '웹 버전',
+    },
+    dimInline: { appVersion: '앱 버전', os: 'OS', model: '기기 모델', webVersion: '웹 버전' },
+    people: {
+        title: '{{dim}}별 사용자',
+        hint: '값마다 사람 수를 세었어요. 기간 중에 업데이트한 사람은 두 값에 모두 들어가서, 비율을 더하면 100%를 넘을 수 있어요.',
+        barsLabel: '{{dim}}별 사용자 수',
+        usersShort: '{{n}}명',
+        records: '기록 {{n}}건',
+        sendsStats: '통계 보냄',
+        sendsStatsHelp: '0.29.2 이상이라 통계를 보내는 버전이에요',
+        missing:
+            '비율은 전체 사용자 {{n}}명 대비예요. 이 값이 없는 기록은 어느 줄에도 들어가지 않아요 — 예를 들어 브라우저로 쓰는 웹에는 앱 버전이 없어요.',
+        more: '기록이 많은 {{n}}개 값만 보여요.',
+        empty: '이 기간에 {{dim}} 값이 있는 기록이 없어요',
+        emptyHint: '브라우저 웹처럼 이 값을 남기지 않는 곳의 기록만 있었을 수 있어요. 다른 기준으로 나눠 보세요.',
+    },
+    adoption: {
+        title: '날마다 앱 버전 비율',
+        hint: '사용자가 많은 세 버전이 그날, 살펴본 버전들의 사용자 합 중 얼마였는지예요. 합은 버전마다 센 사용자를 더한 값이라 그날 업데이트한 사람은 두 번 들어가고, 살펴보지 않은 버전은 빠져요.',
+        day: '날짜',
+        dayTotal: '살펴본 버전 사용자 합',
+        cell: '{{pct}} · {{n}}명',
+        empty: '날짜별로 나눌 앱 기록이 없어요',
+    },
+    wideSpan: '서버는 날짜 단위로만 세서, 이 화면의 숫자는 {{from}} 0시부터 {{to}}까지를 센 값이에요.',
+    unsupported: '서버가 아직 이 집계를 하지 않아요',
+    unsupportedHint: '버전별 사용자 수는 서버가 세어 줘야 볼 수 있어요. 서버가 업데이트되면 여기에 나와요.',
+};

@@ -74,8 +74,8 @@ const LOG_PREFIX = '@chatic/web.log.';
 const LANGUAGE_SUFFIX = '.i18nextLng';
 /**
  * The session's own keys: lemon-web-core's token bundle (`@<project>.*`), and the relay and cloud
- * tokens, the per-cloud token cache, the selection and the invited-cloud bundle the runtime keeps
- * beside it. A stale entry in any of these decides which cloud and account the app resumes as.
+ * tokens, the per-cloud token cache and the selection the runtime keeps beside it. A stale entry in
+ * any of these decides which cloud and account the app resumes as.
  */
 const SESSION_PREFIXES = ['chatic-relay-', 'chatic-selected-'] as const;
 // Cloud keys by name: `chatic-cloud-promo-dismissed-at` shares the prefix and is a UI dismissal.
@@ -84,7 +84,6 @@ const SESSION_KEYS = new Set([
     'chatic-cloud-delegation-token',
     'chatic-cloud-token-cache',
     'chatic-cloud-identities',
-    'chatic-invited-clouds',
     'chatic-recent-clouds',
     'chatic-delegator-id',
     'chatic-oauth-provider',

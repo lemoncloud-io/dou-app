@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { i18n } from '../../../i18n';
 import type { ReportLogRow } from '../lib/parseReportLog';
 import { ReportDetailBody } from './ReportDetailBody';
 
@@ -10,10 +11,16 @@ import { ReportDetailBody } from './ReportDetailBody';
 // in for clicking through it.
 //
 // It used to be rendered inside the overlay drawer; the shell became a fixed column
-// (ADR-0083) but the sections under test moved across unchanged, so these assertions
+// but the sections under test moved across unchanged, so these assertions
 // carried over as they were, minus the drawer's own props.
 
+// The assertions below read the English copy; Korean is the console's default.
+beforeAll(async () => {
+    await i18n.changeLanguage('en');
+});
+
 // Hand-built map: generated line 1 col 9 -> useMyProfile.ts:1:9, name getMyProfile.
+
 const MAP_JSON = JSON.stringify({
     version: 3,
     sources: ['../../apps/web/src/app/hooks/useMyProfile.ts'],

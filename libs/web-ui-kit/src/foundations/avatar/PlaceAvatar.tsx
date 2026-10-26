@@ -1,7 +1,7 @@
 import { cn } from '@chatic/lib/utils';
 
 import { IconHome } from '../../resources/icons';
-import { AvatarShell } from './avatarBase';
+import { AvatarFrame } from './avatarBase';
 
 const SIZE = { sm: 36, md: 40, lg: 46 } as const;
 
@@ -29,13 +29,18 @@ export const PlaceAvatar = ({ name, size = 'lg', className }: PlaceAvatarProps) 
     const initial = trimmed ? [...trimmed][0].toUpperCase() : null;
 
     return (
-        <AvatarShell px={px} className={cn('bg-avatar-ring font-semibold text-brand-ink', className)}>
+        // Figma strokes the place disc in its own fill colour, not the photo avatars' stroke.
+        <AvatarFrame
+            px={px}
+            stroke="border-avatar-ring"
+            className={cn('bg-avatar-ring font-semibold text-brand-ink', className)}
+        >
             {initial ? (
                 // Match CloudAvatar's initial scale (~42%) so the two avatar families align in a list.
                 <span style={{ fontSize: Math.round(px * 0.42) }}>{initial}</span>
             ) : (
                 <IconHome className="size-[42%]" />
             )}
-        </AvatarShell>
+        </AvatarFrame>
     );
 };

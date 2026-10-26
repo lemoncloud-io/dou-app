@@ -58,8 +58,7 @@ const slide = (locale: string, id: string) => stepsFor(locale).find(step => step
 
 /**
  * This slide is a promise about "what the app allows", so it has to move together with the limits.
- * It used to have 5 and 5 hardcoded as strings, and they stayed that way even after ADR-0018 retired
- * that value.
+ * It used to have 5 and 5 hardcoded as strings, and they stayed that way after the real limits moved.
  */
 describe('useOnboardingSteps — 생성 한도 문구', () => {
     it.each(['ko', 'en'])('%s 문구가 상수에서 온 숫자를 싣는다', locale => {
@@ -69,11 +68,13 @@ describe('useOnboardingSteps — 생성 한도 문구', () => {
         expect(description).toContain(String(MAX_CHANNELS_PER_PLACE));
     });
 
-    it('폐기된 한도(5/5)를 다시 박아 넣지 않는다', () => {
-        // If the constant happens to become 5 again, this assertion loses its meaning — check the product spec, not this test, when that happens.
-        if (MAX_PLACES === 5) return;
-        for (const locale of ['ko', 'en']) {
-            expect(slide(locale, 'private-community')?.description).not.toMatch(/\b5\b/);
+    // Checks every number rather than banning a stale one, so it keeps meaning whatever the limits become.
+    it.each(['ko', 'en'])('%s copy carries no number besides the two limits', locale => {
+        const numbers = (slide(locale, 'private-community')?.description ?? '').match(/\d+/g) ?? [];
+
+        expect(numbers.length).toBeGreaterThan(0);
+        for (const n of numbers) {
+            expect([String(MAX_PLACES), String(MAX_CHANNELS_PER_PLACE)]).toContain(n);
         }
     });
 

@@ -10,7 +10,7 @@ import {
 import { getLongTaskStats } from '../../features/debug/metrics/longTasks';
 import { setPerfTelemetryRecorder } from '../perf';
 import { WEB_TELEMETRY_CATALOG } from './catalog';
-import { disabledTelemetryPolicySource, loadStartingPolicy, refreshPolicy } from './policy';
+import { builtInTelemetryPolicySource, loadStartingPolicy, refreshPolicy } from './policy';
 import { createScreenViewTracker } from './screenViews';
 import { TelemetrySession } from './session';
 
@@ -51,12 +51,13 @@ let dropTimer: ReturnType<typeof setTimeout> | undefined;
  * attached and before anything records — the boot-time vitals are decided with the policy read here.
  *
  * Everything recorded flows into the log hub like a log entry, and from there into the same queue.
- * With the default policy nothing is recorded at all.
+ * With statistics off (the default policy, or a run on a build the policy excludes) nothing is
+ * recorded at all.
  */
 export const startTelemetry = (options: StartTelemetryOptions): (() => void) => {
     const now = options.now ?? Date.now;
     const allowOverride = options.allowPolicyOverride ?? false;
-    const source = options.source ?? disabledTelemetryPolicySource;
+    const source = options.source ?? builtInTelemetryPolicySource;
 
     const sampler = new TelemetrySampler({
         policy: loadStartingPolicy(now(), allowOverride),

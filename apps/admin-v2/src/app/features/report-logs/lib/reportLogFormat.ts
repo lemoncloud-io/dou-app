@@ -1,34 +1,10 @@
 /**
  * `lib/report-logs/reportLogFormat.ts`
- * - Presentation helpers: relative time and CSV export for report rows.
+ * - CSV export for report rows. On-screen dates and numbers live in `timeFormat.ts`.
  */
 import { eventAt, ingestLagMs } from './eventTime';
 import { formatOs } from './parseReportLog';
 import type { ReportLogRow } from './parseReportLog';
-
-/**
- * Absolute time for a tooltip or a detail line. `-` only when there is no instant at all —
- * `0` is epoch, which `eventAt` deliberately preserves as a real value rather than hiding
- * a bad device clock, so it must not read as "missing" here either.
- */
-export const formatAbsolute = (ms?: number): string => (ms === undefined ? '-' : new Date(ms).toLocaleString());
-
-/** Compact relative time like "5m ago" / "2h ago"; falls back to "-" for a missing instant. */
-export const formatRelative = (ms?: number, now: number = Date.now()): string => {
-    if (ms === undefined) return '-';
-    const diff = Math.max(0, now - ms);
-    const sec = Math.floor(diff / 1000);
-    if (sec < 60) return 'just now';
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m ago`;
-    const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr}h ago`;
-    const day = Math.floor(hr / 24);
-    if (day < 30) return `${day}d ago`;
-    const mon = Math.floor(day / 30);
-    if (mon < 12) return `${mon}mo ago`;
-    return `${Math.floor(mon / 12)}y ago`;
-};
 
 /**
  * ISO 8601, or blank. `eventAt` already rejects an implausible clock, but `createdAt` is

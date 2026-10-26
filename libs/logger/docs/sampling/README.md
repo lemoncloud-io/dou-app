@@ -76,7 +76,8 @@ ignored.
 
 **The default is off.** `DEFAULT_TELEMETRY_POLICY` is `{ version: 0, enabled: false }`: a run that
 never received a policy creates no statistics entries at all. That is what lets the client ship
-before the server serves a policy — no statistics entry reaches the wire until one does.
+before the server serves a policy — no statistics entry reaches the wire until one does. The web app
+does not wait for that: it serves a policy of its own (`apps/web/docs/observability/telemetry.md`).
 
 ### When it applies
 
@@ -145,7 +146,7 @@ never sets it, `recordTelemetry` does nothing. It never throws.
 ## Notes for implementers and tests
 
 - `policy.spec.ts`, `TelemetrySampler.spec.ts` and `TelemetryRecorder.spec.ts` pin the contract above: same run → same verdict, first match wins, an expired override is ignored, the default policy yields no entries, and catalogue refusals.
-- The web wires it (`apps/web/src/app/runtime/telemetry/`, documented in `apps/web/docs/observability/telemetry.md`): it builds the sampler at boot from the stored policy, passes `selectForUpload` to its scheduler, and refreshes the switches every minute. The policy source is a statistics-off stand-in until the server route exists. The app records its native traces unjudged (`apps/mobile/src/app/services/perf/nativeTelemetryRecorder.ts`), for the web to judge on upload.
+- The web wires it (`apps/web/src/app/runtime/telemetry/`, documented in `apps/web/docs/observability/telemetry.md`): it builds the sampler at boot from the stored policy, passes `selectForUpload` to its scheduler, and refreshes the switches every minute. Until the server route exists, the policy source is a policy built into the web (`BUILT_IN_TELEMETRY_POLICY`), which turns statistics on for app builds with the statistics share and for the web in a browser. The app records its native traces unjudged (`apps/mobile/src/app/services/perf/nativeTelemetryRecorder.ts`), for the web to judge on upload.
 
 ## Further reading
 

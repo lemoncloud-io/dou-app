@@ -1,11 +1,11 @@
 /**
  * `lib/report-logs/pinAxes.ts`
- * - The pinnable axes and their labels, in one place.
+ * - The pinnable axes, in one place.
  *
- * `PinButton` and `TrackingPins` both name these axes for the operator, and the label had
- * already been written out twice. They must agree: the button says "Track by user u1" and
- * the chip that appears says "user u1", and a mismatch between them reads as two different
- * filters.
+ * `PinButton` and `TrackingPins` both name these axes for the operator, and both read the name
+ * from the same `allLogs` key (`pins.axis.<key>`). They must agree: the button says "Track user
+ * u1" and the chip that appears says "user u1", and a mismatch between them reads as two
+ * different filters.
  */
 
 /**
@@ -17,9 +17,3 @@
 export const PIN_KEYS = ['uid', 'cid', 'runId'] as const;
 
 export type PinKey = (typeof PIN_KEYS)[number];
-
-export const PIN_LABEL: Record<PinKey, string> = {
-    uid: 'user',
-    cid: 'cloud',
-    runId: 'run',
-};

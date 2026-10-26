@@ -558,7 +558,7 @@
         "noCloudsError": "No clouds available to configure",
         "selectCloud": "Select a cloud",
         "cannotCreatePlace": "Can't create place in this cloud",
-        "placeLimitReached": "You can create up to 10 places",
+        "placeLimitReached": "You can create up to 5 places",
         "placeLimit": {
             "title": "You can't add more places",
             "description": "Each cloud can hold up to <strong>{{max}} places</strong>.\nDelete a place, or create a <strong>new cloud</strong>.",

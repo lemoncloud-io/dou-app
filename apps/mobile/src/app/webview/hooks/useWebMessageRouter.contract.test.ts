@@ -25,10 +25,8 @@ const mockHandlers: Record<string, Record<string, unknown>> = {
         handleFetchBadgeCount: async () => ({ type: 'OnFetchBadgeCount', success: true, data: { count: 7 } }),
         // The reply of a different request — what a handler wired to the wrong message would send.
         handleFetchBadgeBase: async () => ({ type: 'OnFetchBadgeCount', success: true, data: { count: 7 } }),
-    },
-    useSafeAreaHandler: {
-        fetchSafeAreaInfo: async () => {
-            throw new Error('insets unavailable');
+        handleFetchPushMarks: async () => {
+            throw new Error('push marks unavailable');
         },
     },
     useLogHandler: { handleSendLog: jest.fn() },
@@ -60,7 +58,7 @@ jest.mock('./index', () => {
 });
 
 jest.mock('./useAppStateHandler', () => ({
-    useAppStateHandler: () => ({ handleFetchBackgroundStatus: jest.fn(), handleDismissResumeOverlay: jest.fn() }),
+    useAppStateHandler: () => ({ handleDismissResumeOverlay: jest.fn() }),
 }));
 jest.mock('../../bridge', () => ({ BackNavigationBridge: { setCanGoBack: jest.fn() } }));
 jest.mock('./useAndroidBack', () => ({ useAndroidBack: jest.fn() }));
@@ -184,14 +182,14 @@ describe('mobile bridge loopback', () => {
     });
 
     it('rejects with a BridgeError when the handler throws', async () => {
-        const failure = bridge.client.request({ type: 'FetchSafeArea', data: {} });
+        const failure = bridge.client.request({ type: 'FetchPushMarks', data: {} });
 
         await expect(failure).rejects.toEqual(
             expect.objectContaining<Partial<BridgeError>>({
                 code: 'INTERNAL_ERROR',
-                message: 'insets unavailable',
-                requestType: 'FetchSafeArea',
-                expectedResponseType: 'OnFetchSafeArea',
+                message: 'push marks unavailable',
+                requestType: 'FetchPushMarks',
+                expectedResponseType: 'OnFetchPushMarks',
             })
         );
     });

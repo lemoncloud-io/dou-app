@@ -17,25 +17,18 @@ import type { Params } from '@lemoncloud/lemon-web-core';
  *
  * `runtime.data.cloudsKeys` still comes from the runtime on purpose: `useLogin` invalidates the catalog right
  * after a relay login, so that key is shared vocabulary between the lib and the apps.
+ *
+ * `params` are request params only. The read is gated on the session alone: signed out there is no
+ * relay credential to read it with, and no caller has needed to switch it off otherwise.
  */
-export type UseCloudsParams = Params & {
-    enabled?: boolean;
-};
-
-export type UseCloudsOptions = {
-    enabled?: boolean;
-};
-
-export const useClouds = (params: UseCloudsParams = {}, options?: UseCloudsOptions) => {
+export const useClouds = (params: Params = {}) => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const { cloud } = runtime.data.useRuntimeRepositories();
-    const { enabled: legacyEnabled, ...requestParams } = params;
-    const enabled = options?.enabled ?? legacyEnabled ?? true;
 
     return useQuery({
-        queryKey: runtime.data.cloudsKeys.list(requestParams),
-        queryFn: () => cloud.fetchCloudCatalog(requestParams),
-        enabled: isAuthenticated && enabled,
+        queryKey: runtime.data.cloudsKeys.list(params),
+        queryFn: () => cloud.fetchCloudCatalog(params),
+        enabled: isAuthenticated,
         refetchOnWindowFocus: false,
         staleTime: 0,
         refetchOnMount: 'always',
@@ -46,14 +39,7 @@ export const useClouds = (params: UseCloudsParams = {}, options?: UseCloudsOptio
  * Fetches the relay-visible cloud catalog for authenticated users.
  */
 export const useCloudSessionCatalog = () => {
-    const { isAuthenticated } = runtime.session.useSessionAuth();
-    const {
-        data,
-        isError: isFetchError,
-        isFetching,
-        isPending,
-        refetch,
-    } = useClouds({ limit: -1, enabled: isAuthenticated });
+    const { data, isError: isFetchError, isFetching, isPending, refetch } = useClouds({ limit: -1 });
 
     return {
         clouds: data?.list ?? [],

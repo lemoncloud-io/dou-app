@@ -26,8 +26,7 @@ export interface IInviteLocalDataSource
  * everything else" falls out of an ordinary merge.
  *
  * Rows outside the server's list window are never deleted by this class — there is no
- * `cacheDeleteMany` call on the list-sync path. Only the reconcile/migration cleanup (draining a
- * legacy dismiss stub) calls `cacheDelete` explicitly.
+ * `cacheDeleteMany` call on the list-sync path. Only debug tooling calls `cacheDelete` explicitly.
  */
 export class InviteLocalDataSource extends BaseLocalDataSource<'invite'> implements IInviteLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'invite'>) {

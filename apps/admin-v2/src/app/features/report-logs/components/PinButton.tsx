@@ -9,7 +9,8 @@
  * on the value itself, in both the list and the detail panel, rather than in a filter box
  * the operator would have to copy into.
  */
-import { PIN_LABEL, type PinKey } from '../lib/pinAxes';
+import { useT } from '../../../i18n';
+import type { PinKey } from '../lib/pinAxes';
 
 interface PinButtonProps {
     axis: PinKey;
@@ -32,9 +33,11 @@ export const PinButton = ({
     withLabel = false,
     className = '',
 }: PinButtonProps) => {
+    const { t } = useT('allLogs');
     if (!value) return <span className="text-muted-foreground">-</span>;
 
-    const title = active ? `Untrack ${PIN_LABEL[axis]} — ${value}` : `Track ${PIN_LABEL[axis]} ${value} (server query)`;
+    const label = t(`pins.axis.${axis}`);
+    const title = active ? t('pins.untrackValue', { axis: label, value }) : t('pins.track', { axis: label, value });
 
     return (
         <button
@@ -52,7 +55,7 @@ export const PinButton = ({
                     : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted hover:text-foreground'
             } ${className}`}
         >
-            {withLabel && <span className="font-sans text-muted-foreground">{PIN_LABEL[axis]}</span>}
+            {withLabel && <span className="font-sans text-muted-foreground">{label}</span>}
             <span className="truncate">{value}</span>
             <span aria-hidden>{active ? '×' : '⌖'}</span>
         </button>

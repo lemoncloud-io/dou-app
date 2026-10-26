@@ -5,37 +5,12 @@ import type { AppBackgroundStatus, WebMessageData } from '@chatic/app-messages';
 import { logger } from '../../services';
 
 /**
- * Hook responsible for detecting the app's state (Foreground/Background) and syncing it with the
- * WebView. It also handles dismissing the background-resume screen overlay (DismissResumeOverlay).
+ * Hook responsible for detecting the app's state (Foreground/Background) and pushing it to the
+ * WebView as `OnBackgroundStatusChanged`. It also handles dismissing the background-resume screen
+ * overlay (DismissResumeOverlay).
  */
 export const useAppStateHandler = (bridge: IAppBridgeHost | null, onDismissOverlay?: () => void) => {
     const { appState, isForeground, isBackground } = useAppState();
-
-    const handleFetchBackgroundStatus = useCallback(
-        async (_message: WebMessageData<'FetchBackgroundStatus'>) => {
-            if (appState === 'unknown') {
-                return {
-                    type: 'OnBackgroundStatusChanged' as const,
-                    success: true,
-                    data: {
-                        status: 'active',
-                        isForeground: true,
-                        isBackground: false,
-                    },
-                };
-            }
-            return {
-                type: 'OnBackgroundStatusChanged' as const,
-                success: true,
-                data: {
-                    status: appState as AppBackgroundStatus,
-                    isForeground,
-                    isBackground,
-                },
-            };
-        },
-        [appState, isForeground, isBackground]
-    );
 
     const handleDismissResumeOverlay = useCallback(
         async (_message: WebMessageData<'DismissResumeOverlay'>) => {
@@ -67,7 +42,6 @@ export const useAppStateHandler = (bridge: IAppBridgeHost | null, onDismissOverl
     }, [appState, bridge, isForeground, isBackground]);
 
     return {
-        handleFetchBackgroundStatus,
         handleDismissResumeOverlay,
     };
 };

@@ -52,8 +52,9 @@ const EMPTY_WEDGE_CEILING_MS = 4000;
  * server opens a separate 1:1 per place and never moves one. My notes-to-self room is listed in
  * every place (`roomPlaces`), and a cloud with no place lists the 1:1s no place of it holds, which
  * needs every row. A per-place `observeList({ sid })` could serve neither: outside the relay the
- * cache scopes that read by `sid`. (apps/web reads the same rule through `isInPlaceList`; desktop's
- * sidebar buckets 1:1s into their own section, so one list serves both.)
+ * cache scopes that read by `sid`. (apps/web reads the same rule through `isInPlaceList`, which also
+ * lists a relay 1:1 whatever its `sid` says — desktop does not yet; desktop's sidebar buckets 1:1s
+ * into their own section, so one list serves both.)
  *
  * `uid` is part of the cache observer's scope key ({cid, sid, uid}) and flips only at
  * cloud-switch commit, after the optimistic `cid` pre-apply. sid alone cannot key the

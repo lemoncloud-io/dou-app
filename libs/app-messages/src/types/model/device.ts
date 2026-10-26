@@ -17,7 +17,6 @@ export type DeviceInfo = {
     stage: Env;
     platform: Platform;
     application: string; // App package name / bundle ID
-    deviceToken?: string; // Push token (FCM/APNS)
     /** @deprecated Composite `deviceId:firebaseInstallId`; use `uniqueDeviceId` + `firebaseInstallationId`. */
     deviceId?: string | null;
     deviceModel?: string | null;
@@ -30,19 +29,8 @@ export type DeviceInfo = {
     lang?: PageLanguage;
 };
 
-/** Display safe area (accounts for notch, home bar) */
-export type SafeAreaInfo = {
-    top: number;
-    bottom: number;
-    left: number;
-    right: number;
-};
-
 /** [Response] Device/version info update payload */
 export type OnUpdateDeviceInfoPayload = DeviceInfo & VersionInfo;
-
-/** [Response] Safe area info return payload */
-export type OnFetchSafeAreaPayload = SafeAreaInfo;
 
 // --- Test File Types ---
 
@@ -61,16 +49,6 @@ export type OnCreateDummyFilePayload = {
 
 /** [Request] Contacts lookup request payload */
 export type GetContactsPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Request] Safe area lookup request payload */
-export type FetchSafeAreaPayload = {
-    // Empty object type, reserved for future extension (optional fields, etc.).
-};
-
-/** [Request] Background status lookup request payload */
-export type FetchBackgroundStatusPayload = {
     // Empty object type, reserved for future extension (optional fields, etc.).
 };
 

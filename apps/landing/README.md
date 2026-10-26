@@ -601,12 +601,12 @@ not trigger.
   reports only a regional code — en-US and ja-JP visitors were served Korean. Without it, `ko-KR`
   strips to `ko` and Korean browsers still get Korean. `src/i18n/languageDetection.test.ts` measures
   all four cases and fails if the detector returns.
-- **The copy's counts are not the app's.** `features.private` and `pricing.subscription.detail2` say
-  5 places with 5 chat rooms each, in both locales and since before this was documented, while
-  `apps/web/src/app/utils/consts.ts` — which calls itself the single source of truth — has
-  `MAX_PLACES = 10` and `MAX_CHANNELS_PER_PLACE = 100`, and the app's own English copy says 10
-  places. Design principle 5 covers the nouns and stops at the numbers for exactly this reason:
-  which figure the marketing page should carry is a product question, not a copy fix.
+- **The copy's counts are only half the app's.** `features.private` and
+  `pricing.subscription.detail2` say 5 places with 5 chat rooms each, in both locales and since
+  before this was documented. `apps/web/src/app/utils/consts.ts` — which calls itself the single
+  source of truth — agrees on `MAX_PLACES = 5` but has `MAX_CHANNELS_PER_PLACE = 100`. Design
+  principle 5 covers the nouns and stops at the numbers for exactly this reason: which figure the
+  marketing page should carry is a product question, not a copy fix.
 - **The `.well-known` files are load-bearing and untestable from here.** A wrong `appID` or `paths`
   entry does not break the build, does not break the site, and silently stops every Universal Link
   from opening the app. Anything that changes the domain, the bundle id, or the AASA content needs a

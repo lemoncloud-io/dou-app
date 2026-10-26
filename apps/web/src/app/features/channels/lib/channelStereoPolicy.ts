@@ -1,4 +1,4 @@
-import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
+import { isRelayDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 
 /** The server's `ChannelStereo`, plus the absent case a cached row can carry. */
 type ChannelStereo = DomainChannel['stereo'];
@@ -187,14 +187,20 @@ export const hasDmInviteFlow = (channel: Pick<DomainChannel, 'stereo' | 'cid'> |
  * A room that names no place (`''`, or the server's `#` for "no place") falls back to the reader's
  * place, the only one left to look under: a 1:1 from before places keyed 1:1s may carry either.
  *
+ * A relay 1:1 is the exception: it always reads the reader's place. The relay keys a 1:1 by its pair
+ * and hands the same room back on every re-invite, still stamped with the place of the session that
+ * first opened it, so its `sid` can name a place the relay list does not read — and home names the
+ * peer by the relay's one place. Reading the stamp made the room and its home row disagree.
+ *
  * Returns `null` when there is nothing to look under, which is what the profile hooks read as "do
  * not subscribe yet" — an unresolved session or an unloaded row, not an answer.
  */
 export const profilePlaceOf = (
-    channel: Pick<DomainChannel, 'sid'> | null | undefined,
+    channel: Pick<DomainChannel, 'sid' | 'stereo' | 'cid'> | null | undefined,
     activeSid: string | null | undefined
 ): string | null => {
     if (!channel) return null;
+    if (isRelayDm(channel)) return activeSid ?? null;
     return channel.sid && channel.sid !== '#' ? channel.sid : (activeSid ?? null);
 };
 

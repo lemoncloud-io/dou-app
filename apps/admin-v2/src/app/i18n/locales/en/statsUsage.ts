@@ -1,0 +1,80 @@
+import type { statsUsage as ko } from '../ko/statsUsage';
+
+/** English copy for the statistics tab's usage patterns view. */
+export const statsUsage: typeof ko = {
+    empty: {
+        title: 'No usage records in this period',
+        hint: 'Usage is recorded on every run of the iOS and Android apps from 0.29.2 and of the web opened in a browser. Try a wider period.',
+    },
+    unsupported: {
+        title: 'The server does not count usage yet',
+        hint: 'It will show here once the aggregation is deployed.',
+    },
+    failed: 'Could not load usage: {{message}}',
+    wideSpan: 'The server counts by whole days, so these numbers cover {{from}} 00:00 through {{to}}.',
+    partial: 'There were many records, so this is worked out from the newest part of the period.',
+    summary: {
+        title: 'At a glance',
+        hint: 'Who used the app in this period, how often they opened it, and how much one visit covers.',
+        people: 'People',
+        peopleSub: 'Estimated by the server',
+        opens: 'App opens',
+        perPerson: 'Opens per person',
+        perPersonSub: 'Of {{n}} people who opened it',
+        sessionLength: 'Visit length (median)',
+        screens: 'Screens per visit (median)',
+        screensValue: '{{n}}',
+        sessionsSub: 'From {{n}} visits',
+        none: '—',
+        partial:
+            'Visit length and screens are worked out from the newest part of the period, as there were many records.',
+    },
+    trend: {
+        titleDay: 'By day',
+        titleHour: 'By hour',
+        hint: 'People and app opens, by the Korean time each record reached the server.',
+        people: 'People',
+        opens: 'App opens',
+        empty: 'No usage counted in this period',
+        hourLabel: '{{h}}:00',
+        peopleTitle: '{{when}} · people: {{n}}',
+        opensTitle: '{{when}} · opens: {{n}}',
+    },
+    hours: {
+        title: 'When in the day',
+        hint: 'App opens in each hour of the day, summed over the whole period. People cannot be added across hours, so this shows opens.',
+        label: 'App opens by hour of day',
+        busiest: 'Busiest hour: {{h}}:00 (opens: {{n}})',
+        slotTitle: '{{h}}:00 · opens: {{n}}',
+        empty: 'No app opens in this period',
+        note: 'By the time each record reached the server, which can differ slightly from when the app was opened.',
+    },
+    screens: {
+        title: 'Most used screens',
+        hint: 'The ten screens opened most. Time on a screen is recorded when the next screen opens.',
+        label: 'Views per screen',
+        sub: 'Median time {{dwell}} · measured {{n}} times',
+        noDwell: 'No time recorded',
+        total: 'Screens: {{distinct}} · views: {{n}}',
+        empty: 'No screen views in this period',
+    },
+    starts: {
+        title: 'How visits start',
+        hint: 'How the app was opened, and what was tapped to get in.',
+        startLabel: 'Start',
+        entryLabel: 'Way in',
+        total: 'From {{n}} app opens',
+        empty: 'No app opens in this period',
+        start: {
+            cold: 'Fresh start',
+            warm: 'Reopened',
+            resume: 'Back after 30+ minutes away',
+        },
+        entry: {
+            icon: 'App icon',
+            push: 'Push notification',
+            deeplink: 'Link',
+            browser: 'Browser',
+        },
+    },
+};

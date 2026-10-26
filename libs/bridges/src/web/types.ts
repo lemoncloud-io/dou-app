@@ -5,7 +5,7 @@ import type {
     WebMessageResponse,
     WebMessageType,
 } from '@chatic/app-messages';
-import type { EnvironmentConfig, IMessageQueue, RequestMessage } from '../common';
+import type { IMessageQueue, RequestMessage } from '../common';
 import type { BridgeAdapter } from './adapters/types';
 
 /**
@@ -85,8 +85,6 @@ export interface WebBridgeClientConfig {
     isBridgeAvailable?: () => boolean;
     /** The message queue that buffers requests until the bridge is ready (default: an in-memory MessageQueue) */
     pendingBuffer?: IMessageQueue<RequestMessage>;
-    /** Environment configuration options for testing/simulation */
-    environment?: EnvironmentConfig;
     /** The clock request samples are measured on (default: `performance.now()`, else `Date.now()`) */
     now?: () => number;
     /**
@@ -135,12 +133,6 @@ export interface IWebBridgeClient {
      * @returns A cleanup (unsubscribe) function
      */
     onEvent<K extends AppMessageType>(type: K, handler: (message: AppMessageData<K>) => void): () => void;
-
-    /**
-     * Dynamically changes the bridge's runtime environment (latency, drops, forced failures, etc.) at runtime, for testing and debugging.
-     * @param config The environment configuration object to apply (omit it, or pass undefined, to restore the default state)
-     */
-    configureEnvironment(config?: EnvironmentConfig): void;
 
     /**
      * Tears down the bridge client and cleans up the polling timer and registered event listeners. (prevents memory leaks)

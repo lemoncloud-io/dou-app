@@ -30,7 +30,7 @@ Two component libraries sit side by side, and the split is not by quality or by 
 
 |                    | `libs/ui-kit`                                                            | `libs/web-ui-kit` (here)                                       |
 | ------------------ | ------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| What it is         | 29 shadcn/ui primitives under `src/components/ui/`, plus the `cn` helper | The DoU mobile design system                                   |
+| What it is         | 21 shadcn/ui primitives under `src/components/ui/`, plus the `cn` helper | The DoU mobile design system                                   |
 | Named after        | The interaction — `dialog`, `sheet`, `popover`, `tabs`                   | The place on screen — `AppHeader`, `ChatRoomHeader`, `ListRow` |
 | Where it came from | `npx shadcn@latest add <name>` — regenerable                             | A Figma node, drawn by hand against the spec                   |
 | Who uses it        | `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `libs/shared`           | `apps/web` only                                                |
@@ -44,7 +44,7 @@ sheet.
 The dependency runs **one way: this lib imports `ui-kit`, `ui-kit` never imports this lib.** That is
 what keeps `desktop-web` and `admin-v2` free of mobile-web components.
 
-It is also a thin arrow. Production code here reaches into `ui-kit` for **3 of its 29 primitives**,
+It is also a thin arrow. Production code here reaches into `ui-kit` for **3 of its 21 primitives**,
 in 4 files:
 
 ```bash
@@ -124,10 +124,10 @@ flowchart TD
     SB["Storybook showcase<br/><i>.storybook/</i>"]:::ext
 
     C["composites × 60<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
-    F["foundations × 38<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
+    F["foundations × 37<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
     R["resources<br/><i>tokens.css · 47 icons · 7 assets</i>"]:::res
 
-    UK["@chatic/ui-kit<br/><i>3 of 29 primitives</i>"]:::ext
+    UK["@chatic/ui-kit<br/><i>3 of 21 primitives</i>"]:::ext
     CN["@chatic/lib/utils<br/><i>cn</i>"]:::ext
 
     App -->|"barrel only"| C
@@ -170,8 +170,8 @@ libs/web-ui-kit/src/
 │   ├── styles/tokens.css   123 lines of HSL channels, light + `.dark`
 │   ├── icons/              56 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
-├── foundations/   11 groups, 38 components
-│   avatar(7) · button(10) · input(7) · badge(6) · brand(2) ·
+├── foundations/   11 groups, 37 components
+│   avatar(7) · button(9) · input(7) · badge(6) · brand(2) ·
 │   bubble · checkbox · divider · switch · text · toast (1 each)
 └── composites/    10 groups, 60 components
     chat(17) · list(6) · media(9) · overlay(6) · section(4) · header(3) ·
@@ -182,8 +182,8 @@ Ten files are internal — used across a group but absent from every barrel, so 
 API will not find them. The one partial exception is `slidePresence.ts`, whose timing is public while
 its hook is not:
 
-- `foundations/avatar/avatarBase.tsx` — `AvatarShell`, the ringed circle `ChatAvatar` and
-  `PlaceAvatar` are both drawn on.
+- `foundations/avatar/avatarBase.tsx` — `AvatarFrame`, the circle `ImageAvatar`, `DefaultAvatar`,
+  `ProfileAvatar`, `PlaceAvatar` and `ChatAvatar` are drawn in. It owns the stroke (see [Picking an avatar](#4-picking-an-avatar)).
 - `foundations/button/floatingPanel.ts` — the shared class string for floating surfaces.
 - `composites/header/HeaderGlass.tsx` — the blurred header backdrop. Mounted while `<html>` carries
   `data-page-transition` (set by `@chatic/shared`'s `useNavigateWithTransition`), it holds its opaque
@@ -337,8 +337,28 @@ Seven components draw a circle and they are not interchangeable.
 | `ChatAvatar`    | A chat with no photo — a speech bubble on a faint navy tint                                                                                                         |
 | `AvatarGroup`   | Overlapping stack plus a member count. Presentational — the host builds the nodes and owns the self-vs-peer ring                                                    |
 
-Two inconsistencies are real and worth knowing before you match a design: `DefaultAvatar` rings
-itself with `border-border` while `AvatarShell` and `ProfileAvatar` use `border-avatar-ring`, and
+**The stroke sits on top of the picture, not around it.** Figma strokes an avatar on the inside and
+paints that stroke over the content, so a 42px photo is a 42px photo whose outermost pixel is
+covered by a 1px line. A CSS `border` on the clipping box does something else — it shrinks the
+content to 40px and lays the line beside it — so `AvatarFrame` clips the content to the full circle
+and draws the stroke as a separate layer above it. The two layers share one grid cell instead of
+being absolutely positioned: a positioned avatar would paint over a static sibling it overlaps, like
+the `+N` chip that ends `ThreadSummary`'s face stack. `size` is therefore always the outer diameter,
+stroke included, and a full-size glyph (`IconUser` at `size`) lines up with the circle exactly.
+
+Which stroke a frame gets follows what the avatar stands for:
+
+| Stroke                             | Drawn by                                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `border-avatar-stroke` (`#E4EAEC`) | `ImageAvatar`, `DefaultAvatar`, `ProfileAvatar` (every glyph but `home`) — a photo or its placeholder |
+| `border-avatar-ring` (`#F4F5F5`)   | `PlaceAvatar`, `ChatAvatar` — the same tone as the place disc, as Figma draws it                      |
+| none                               | `ProfileAvatar glyph="home"`, `CloudAvatar`                                                           |
+
+A photo and its placeholder share one stroke on purpose, so a member reads the same with and without
+a photo. An outer `ring-*` from the host — an overlapping stack punching a gap between faces — is a
+separate thing and still works: it is a box-shadow outside the frame, not the stroke.
+
+One inconsistency is real and worth knowing before you match a design:
 `ChatAvatar`'s `sm/md/lg` is 36/46/56 where `PlaceAvatar` and `CloudAvatar` read 36/40/46 (and
 `CloudAvatar` alone adds an `xl` of 86 for the cloud management screens' identity head). Folding
 all seven into one variant-driven `Avatar` is an open decision (ADR-0094, decision 6) that has not
@@ -347,7 +367,7 @@ been taken; until it is, the divergence is the state of the code and not a bug t
 The one avatar rule that is easy to get wrong: `ProfileAvatar glyph="home"` is the only placeholder
 on a _light_ disc, and the DoU character it draws paints no circle of its own, so it is inset to
 58/86 of the diameter instead of going full-bleed. A new illustration that does paint its own circle
-goes full-bleed like `glyph="place"`. Mixing the two paths makes the character overflow its ring.
+goes full-bleed like `glyph="place"`. Mixing the two paths makes the character overflow its circle.
 
 ### 5. Changing a colour
 

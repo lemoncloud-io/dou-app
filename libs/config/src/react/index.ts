@@ -18,10 +18,3 @@ export const useConfigValue = <T>(key: string): T | undefined => {
     const getSnapshot = useCallback(() => config.get<T>(key), [key]);
     return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 };
-
-/** The whole row — name, description, value, which lane won, whether it is editable here. */
-export const useConfigSnapshot = <T>(key: string) => {
-    const subscribe = useCallback((onChange: () => void) => config.subscribe([key], onChange), [key]);
-    const getSnapshot = useCallback(() => config.snapshot<T>(key), [key]);
-    return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-};

@@ -1,5 +1,86 @@
 # Changelog
 
+## [2026-10-26] - No version updates
+
+### Bug Fixes
+
+- (web-ui-kit,web) draw the avatar stroke over the picture, not around it
+
+## [2026-10-26] - No version updates
+
+### Bug Fixes
+
+- (web,data,desktop-web) list a relay 1:1 in the relay's place, not by its sid (ADR-0230)
+
+## [2026-10-26] - root@0.112.1, @chatic/web@0.77.1, @chatic/landing@0.6.1, @chatic/desktop-web@0.35.4
+
+### Documentation
+
+- (admin-v2) describe socket-lab as it is now and add the users feature
+
+### Refactor
+
+- (admin-v2) remove socket-lab and memberships code nothing imports
+- (desktop-web) drop the mute toggle and mention counters nothing calls
+- retire six bridge requests no web sends, and the shells' dead bridge code
+- (web,data) delete dead helpers and the drained invite stub-era migration
+- (auth-sign,app-runtime,web) drop fields and paths nothing reads or takes
+- (web-ui-kit) drop ButtonGroup and Button's deprecated accent prop for tone
+- (config,data,shared,perf) remove exports only their own tests used
+- (ui-kit) delete eight primitives nothing imports, and the deps only they pulled
+
+### Chores
+
+- (mobile) drop native deps and the web target nothing uses
+
+### Other
+
+- perf: (data) hold the sync cursor for 30 minutes again, not the migration's 5
+
+## [2026-10-26] - root@0.112.0, @chatic/web@0.77.0
+
+### Features
+
+- (admin-v2) give statistics four more views, not just goal cards
+- (admin-v2) open the log console on purpose tabs in korean and english (ADR-0228)
+- (web) turn statistics on with a built-in policy, not off until a server route (ADR-0229)
+
+## [2026-10-26] - No version updates
+
+### Features
+
+- (web,landing) cap places per owned cloud at 5, not 10
+
+## [2026-10-23] - root@0.111.2, @chatic/desktop-web@0.35.3
+
+### Bug Fixes
+
+- (desktop-web) scope the notifications inbox to the active place
+
+## [2026-10-23] - root@0.111.1, @chatic/desktop-web@0.35.2
+
+### Bug Fixes
+
+- (desktop-web) open the emoji picker on the recently used tab
+
+## [2026-10-23] - root@0.111.0, @chatic/web@0.76.2, @chatic/landing@0.6.0, @chatic/desktop-web@0.35.1
+
+### Features
+
+- (landing) give the route error screen its copy in both languages
+
+### Documentation
+
+- (policy-content,theme,app-messages,bridges,http) repoint lines the landing refactor made stale
+
+### Refactor
+
+- (landing) follow the web app's layering and route from ROUTES (ADR-0225)
+
+### Other
+
+- ci: typecheck and test landing in the verify gate, not only lint
+
 ## [2026-10-23] - No version updates
 
 ### Features

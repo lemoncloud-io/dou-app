@@ -18,7 +18,7 @@ export interface MentionItem {
     avatar?: string;
     colorSeed?: string;
     ownerId?: string;
-    /** Place the message belongs to — groups the list + drives cross-place jump. */
+    /** Place the message belongs to — scopes the Notifications list to the active place. */
     placeId?: string;
     /** Root chatNo string when this message is a thread reply; absent = top-level. */
     parentId?: string;
@@ -72,10 +72,6 @@ interface MentionsState {
     removeMany: (ids: readonly string[]) => void;
 }
 
-/** Count of unread mentions — drives the sidebar Activity dot. Other kinds do not count. */
-export const unreadMentionCount = (items: Record<string, MentionItem>): number =>
-    Object.values(items).reduce((count, item) => (item.readAt || !isMentionKind(item) ? count : count + 1), 0);
-
 /**
  * Whether a channel holds a mention I have not got to: one not opened from the inbox, and past
  * `readNo`, what I have read in the channel. Drives the `@` on the channel's row.
@@ -95,18 +91,6 @@ export const hasUnreadMentionIn = (
     channel: { id: string; placeId?: string },
     readNo: number
 ): boolean => Object.values(items).some(item => isUnreadMentionIn(item, channel, readNo));
-
-/**
- * How many unread mentions a channel holds — the same condition as
- * `hasUnreadMentionIn`, as a count. Drives the dock and place totals for
- * mentions-only channels (`placeUnreadCounts` caps it at the channel's unread).
- */
-export const countUnreadMentionsIn = (
-    items: Record<string, MentionItem>,
-    channel: { id: string; placeId?: string },
-    readNo: number
-): number =>
-    Object.values(items).reduce((count, item) => (isUnreadMentionIn(item, channel, readNo) ? count + 1 : count), 0);
 
 /**
  * Device-local mentions inbox ("Activity"). No server mention model exists, so

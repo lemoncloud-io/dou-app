@@ -51,8 +51,8 @@ A leaf that holds only the formula is harmless from either side.
    because the lib is shared: a consumer that wants to swap the algorithm implements the interface
    rather than editing this lib.
 5. **The 4th `data` slot is always `''`.** This is a property of the formula, not a caller
-   convention — `lemon-web-core`'s own `calcSignature` hardcodes it too. `SignaturePayload` still
-   carries an `identityToken` field for call-site compatibility, and the signer never reads it.
+   convention — `lemon-web-core`'s own `calcSignature` hardcodes it too — so `SignaturePayload` has
+   no field for it: the three HMAC keys are the whole payload.
 6. **The injected `userAgent` must be the one the transport actually sends.** The server verifies
    against the UA it received, so an arbitrary constant fails verification. On the web that means
    `navigator.userAgent`, because the browser sets the same string on the WebSocket handshake and on
@@ -143,7 +143,7 @@ import { LemonHmacSigner } from '@chatic/auth-sign';
 const signer = new LemonHmacSigner();
 
 const { signature, current } = signer.sign(
-    { authId, accountId, identityId, identityToken: '' },
+    { authId, accountId, identityId },
     { current: new Date().toISOString(), userAgent: navigator.userAgent }
 );
 ```

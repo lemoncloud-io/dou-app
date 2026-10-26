@@ -60,55 +60,6 @@ class FileManagerModule(reactContext: ReactApplicationContext) : ReactContextBas
     }
 
     @ReactMethod
-    fun readChunk(path: String, length: Double, offset: Double, promise: Promise) {
-        try {
-            val uri = Uri.parse(path)
-            if (uri.scheme == "content") {
-                reactApplicationContext.contentResolver.openInputStream(uri)?.use { stream ->
-                    val skipped = stream.skip(offset.toLong())
-                    val buffer = ByteArray(length.toInt())
-                    val bytesRead = stream.read(buffer)
-                    if (bytesRead <= 0) {
-                        promise.resolve("")
-                        return
-                    }
-                    val actualBuffer = if (bytesRead < length.toInt()) {
-                        buffer.copyOf(bytesRead)
-                    } else {
-                        buffer
-                    }
-                    val base64 = Base64.encodeToString(actualBuffer, Base64.NO_WRAP)
-                    promise.resolve(base64)
-                } ?: throw Exception("Failed to open input stream for content URI: $path")
-            } else {
-                val cleanPath = getCleanPath(path)
-                val file = File(cleanPath)
-                if (!file.exists()) {
-                    throw Exception("File does not exist at path: $cleanPath")
-                }
-                RandomAccessFile(file, "r").use { raf ->
-                    raf.seek(offset.toLong())
-                    val buffer = ByteArray(length.toInt())
-                    val bytesRead = raf.read(buffer)
-                    if (bytesRead <= 0) {
-                        promise.resolve("")
-                        return
-                    }
-                    val actualBuffer = if (bytesRead < length.toInt()) {
-                        buffer.copyOf(bytesRead)
-                    } else {
-                        buffer
-                    }
-                    val base64 = Base64.encodeToString(actualBuffer, Base64.NO_WRAP)
-                    promise.resolve(base64)
-                }
-            }
-        } catch (e: Exception) {
-            promise.reject("READ_CHUNK_FAILED", e.message, e)
-        }
-    }
-
-    @ReactMethod
     fun readFile(path: String, promise: Promise) {
         try {
             val uri = Uri.parse(path)

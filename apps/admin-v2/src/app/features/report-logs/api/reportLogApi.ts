@@ -18,8 +18,7 @@ import { runtime } from '@chatic/app-runtime';
 
 /**
  * Minimal projection of `MockView` (chatic-backend-api) we actually consume.
- * Kept local (mirrors the socket-lab `deviceApi` convention) so the feature does
- * not depend on the SDK's type re-exports. The report payload is not a top-level
+ * Kept local so the feature does not depend on the SDK's type re-exports. The report payload is not a top-level
  * field — it lives serialized inside `meta` (object or JSON string) and/or the
  * SlackReportBody `message`; `parseReportLog` unwraps it defensively.
  */
@@ -45,13 +44,51 @@ export interface RawMockView {
 /** Aggregation buckets returned alongside the list (shape: { key: { bucket: count } }). */
 export type AggrResult = Record<string, Record<string, number>>;
 
+/** One bucket of a server aggregation: a field value or a bucket start, and how many records. */
+export interface StatsBucket {
+    key: string;
+    val: number;
+}
+
+/**
+ * The list endpoint's aggregation, present only when `groupBy`, `interval` or `users` was asked
+ * for — and only from a backend that has the feature. An older one ignores the three parameters
+ * and answers without `stats`, which is how a caller tells "not supported" from "zero".
+ */
+export interface LogListStats {
+    /** Per requested field, the most frequent values first. */
+    groups?: Record<string, StatsBucket[]>;
+    /** Per time bucket (arrival time, Korean boundaries), oldest first. `users` only when asked for. */
+    trend?: Array<{ key: number; val: number; users?: number }>;
+    /** Distinct users across the whole match — an approximate count. */
+    users?: number;
+}
+
 export interface ReportLogListResponse {
     list?: RawMockView[];
     total?: number;
     page?: number;
     limit?: number;
     aggr?: AggrResult | AggrResult[];
+    stats?: LogListStats;
 }
+
+/** Fields the server can count by. Anything else is refused with a 400 before the search runs. */
+export const STATS_GROUP_FIELDS = [
+    'tag',
+    'level',
+    'appVersion',
+    'webVersion',
+    'route',
+    'os',
+    'osVersion',
+    'model',
+] as const;
+
+export type StatsGroupField = (typeof STATS_GROUP_FIELDS)[number];
+
+/** Time bucket widths the server accepts, on arrival time with Korean boundaries. */
+export type StatsInterval = 'hour' | 'day' | 'week';
 
 /** DOU stage: `v1` = prod (where real user reports land), `d1` = dev. */
 export type ReportStage = 'v1' | 'd1';
@@ -122,7 +159,7 @@ export interface FetchReportLogsParams {
     /** (optional) cloud-id filter — `MockModel.cid`, hoisted by `saveLogEntry`. */
     cid?: string;
     /**
-     * Round 2 axes (chatic-backend-api #41): `tag`, the two versions, `route` and the three
+     * Round 2 axes (a second backend change): `tag`, the two versions, `route` and the three
      * device fields, lifted to top-level copies so they can be filtered on. Round 1 lifted
      * `sid`/`uid`/`cid`/`runId`/`level` and left these inside `meta`, where no filter reaches.
      *
@@ -132,7 +169,7 @@ export interface FetchReportLogsParams {
      *
      * **Only records written after the backend deploy carry them.** There is no backfill — a full
      * rewrite would be a table scan without a GSI — so narrowing on any of these silently excludes
-     * everything older. `SERVER_AXIS_CAVEAT` is what says so on screen.
+     * everything older. The full-log tab's filter rail says so where these can be set.
      */
     tag?: string;
     appVersion?: string;
@@ -141,6 +178,17 @@ export interface FetchReportLogsParams {
     os?: string;
     osVersion?: string;
     model?: string;
+    /**
+     * Aggregation, all optional and all over the same match as the list. `groupBy` counts per
+     * field value (top `aggrSize`, server default 20, at most 100), `interval` counts per time
+     * bucket, `users` counts distinct users — overall, and per bucket when `interval` is set.
+     * The counts cover the whole match, not the page, which is what lets a screen count past
+     * the rows it fetched.
+     */
+    groupBy?: readonly StatsGroupField[];
+    aggrSize?: number;
+    interval?: StatsInterval;
+    users?: boolean;
 }
 
 /**
@@ -148,10 +196,6 @@ export interface FetchReportLogsParams {
  * cannot disagree about which filters carry this restriction.
  */
 export const ROUND_2_AXES = ['tag', 'appVersion', 'webVersion', 'route', 'os', 'osVersion', 'model'] as const;
-
-/** What the screen must say wherever one of {@link ROUND_2_AXES} can be set. */
-export const SERVER_AXIS_CAVEAT =
-    'Tag, version, screen and device filters are exact-match single values, and only apply to records stored after the backend deploy.';
 
 /**
  * Query params for the list call. Filters are included only when non-empty — the
@@ -168,6 +212,10 @@ export const buildReportLogListParams = ({
     runId,
     uid,
     cid,
+    groupBy,
+    aggrSize,
+    interval,
+    users,
     ...rest
 }: FetchReportLogsParams = {}): Record<string, string | number> => ({
     page,
@@ -183,6 +231,11 @@ export const buildReportLogListParams = ({
     // filter, while an empty string would be matched literally against `<field>.keyword` and
     // return nothing. Spread from a list so adding an axis is one edit, not two.
     ...Object.fromEntries(ROUND_2_AXES.flatMap(axis => (rest[axis] ? [[axis, rest[axis] as string]] : []))),
+    // Absent unless asked for: with none of these the server's query and answer are unchanged.
+    ...(groupBy?.length ? { groupBy: groupBy.join(',') } : {}),
+    ...(groupBy?.length && aggrSize ? { aggrSize } : {}),
+    ...(interval ? { interval } : {}),
+    ...(users ? { users: 1 } : {}),
 });
 
 /**
@@ -213,8 +266,8 @@ export const fetchReportLogs = async ({
 
 /**
  * No `AbortSignal` here on purpose. `SealedWebTransport`'s request builder exposes only
- * `setBody`/`setParams`/`execute` (libs/http `lemonTransport.ts`) — the narrow surface is
- * ADR-0070's, and widening it for this screen is outside this change. So cancellation is
+ * `setBody`/`setParams`/`execute` (libs/http `lemonTransport.ts`) — a deliberately narrow
+ * surface, and widening it for this screen is outside this change. So cancellation is
  * cooperative instead: `collectCorpus` stops between pages and `useLogCorpus` discards a
  * late response by generation, which costs at most one wasted in-flight page per filter
  * change.

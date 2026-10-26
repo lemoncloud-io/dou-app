@@ -1,4 +1,16 @@
-import { loadStartingPolicy, refreshPolicy, TELEMETRY_POLICY_OVERRIDE_KEY } from './policy';
+import { parseTelemetryPolicy, resolveTelemetryRate } from '@chatic/bridges';
+
+import type { TelemetryRateQuery } from '@chatic/bridges';
+
+import {
+    BUILT_IN_TELEMETRY_POLICY,
+    DEFAULT_PERF_RATE,
+    FIRST_APP_VERSION_WITH_STATISTICS,
+    FULL_RATE_PERF_TAGS,
+    loadStartingPolicy,
+    refreshPolicy,
+    TELEMETRY_POLICY_OVERRIDE_KEY,
+} from './policy';
 
 const STORED = '@chatic/web.telemetry.policy';
 const on = { version: 4, enabled: true, ttlSec: 60, defaults: { perf: 1 } };
@@ -58,5 +70,39 @@ describe('refreshPolicy', () => {
             )
         ).resolves.toBeUndefined();
         expect(localStorage.getItem(STORED)).toBeNull();
+    });
+});
+
+describe('the built-in policy', () => {
+    const rateOf = (query: Partial<TelemetryRateQuery> & Pick<TelemetryRateQuery, 'stream'>) =>
+        resolveTelemetryRate(BUILT_IN_TELEMETRY_POLICY, { tag: 'perf.api_request', ...query }, 0).rate;
+
+    it('parses as a policy, so a fetch stores it for the next run', () => {
+        expect(parseTelemetryPolicy(BUILT_IN_TELEMETRY_POLICY)).toEqual(BUILT_IN_TELEMETRY_POLICY);
+    });
+
+    it('collects on the mobile apps from the first build with a statistics share', () => {
+        const app = { host: 'app', appVersion: FIRST_APP_VERSION_WITH_STATISTICS } as const;
+        expect(rateOf({ ...app, platform: 'ios', stream: 'usage' })).toBe(1);
+        expect(rateOf({ ...app, platform: 'android', stream: 'perf' })).toBe(DEFAULT_PERF_RATE);
+        expect(rateOf({ host: 'app', platform: 'ios', appVersion: '0.30.0', stream: 'perf' })).toBe(DEFAULT_PERF_RATE);
+    });
+
+    it('keeps older app builds and the desktop app off', () => {
+        expect(rateOf({ host: 'app', platform: 'ios', appVersion: '0.29.1', stream: 'usage' })).toBe(0);
+        expect(rateOf({ host: 'app', platform: 'android', stream: 'perf' })).toBe(0);
+        expect(rateOf({ host: 'app', platform: 'web', appVersion: '9.0.0', stream: 'usage' })).toBe(0);
+    });
+
+    it('collects in a browser tab', () => {
+        expect(rateOf({ host: 'browser', platform: 'web', stream: 'usage' })).toBe(1);
+        expect(rateOf({ host: 'browser', platform: 'web', stream: 'perf' })).toBe(DEFAULT_PERF_RATE);
+    });
+
+    it('keeps every run of the records with a target', () => {
+        for (const tag of FULL_RATE_PERF_TAGS) {
+            expect(rateOf({ host: 'browser', platform: 'web', stream: 'perf', tag })).toBe(1);
+            expect(rateOf({ host: 'app', platform: 'ios', appVersion: '0.29.1', stream: 'perf', tag })).toBe(0);
+        }
     });
 });
