@@ -270,6 +270,16 @@ instead of surfacing as an opaque "Script error.":
   platforms (Android runs edge-to-edge). Android's `Keyboard` event reports the height with the navigation bar subtracted,
   so `useKeyboardHeight` adds the safe-area bottom back there — without it, anything padded by the
   variable (the chat composer) sits behind the keyboard by exactly the navigation bar.
+  **The shell owns the side insets; the web owns top and bottom.** `AppWebView` pads its container
+  by the left and right insets and reports 0 for them — in `--safe-left`/`--safe-right` and in
+  `OnFetchSafeArea` alike ([`webViewGeometry.ts`](../../src/app/webview/utils/webViewGeometry.ts)'s
+  `toWebViewInsets`). A side inset is a strip nothing should be drawn in: iPhone Duo's outer display
+  keeps its status bar and Dynamic Island on the trailing edge, and a phone in landscape has the
+  notch on one side. Padding the WebView keeps every web surface clear of it, `position: fixed` and
+  portalled ones included, without each one reading a variable; reporting the real value as well
+  would pad the same strip twice wherever a component does read it. Top and bottom stay with the
+  web, which draws behind the status bar and home indicator on purpose. The strip takes the theme
+  background colour.
 - device info: run id, platform, stage, app/OS version, build number, language, device model
 - `CHATIC_APP_CONSOLE_ENABLED` — whether relaying `debug` logs to native is worth it in this build.
   The legacy `__console__` relay script it replaced is gone; `SendLog` is now the only web→native log

@@ -193,6 +193,17 @@ the row rather than on a timing of its own. Like the field's pill, it carries a 
 soft rounded card sized to its thumbnails — since the list scrolls on behind the bar
 ([channels image-send.md](../feature/channels/image-send.md#picking--usechatimageattach)).
 
+## Side insets belong to the shell
+
+Inside the mobile app `--safe-left` and `--safe-right` are always `0px`, and so are `left`/`right`
+in `OnFetchSafeArea`. The shell pads the WebView itself by the side insets — iPhone Duo's outer
+display keeps its status bar on the trailing edge, a phone in landscape has the notch on one side —
+so the viewport the web lays out in already starts clear of them, `fixed` and portalled surfaces
+included. Nothing here has to read the two variables; a component that does gets 0 rather than
+padding the same strip a second time. `--safe-top` and `--safe-bottom` are unchanged: the web still
+draws behind the status bar and home indicator and pads for them itself. The shell side is in
+`apps/mobile`'s `docs/webview/README.md`.
+
 ## The app-width contract (`--app-width`)
 
 `apps/web` runs in a WebView on a phone-class device; the same bundle is also reachable from a
