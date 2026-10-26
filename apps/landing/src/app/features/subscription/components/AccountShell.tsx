@@ -6,6 +6,8 @@ import { Logo } from '@chatic/assets';
 
 import { ROUTES } from '../../../routes/paths';
 import { useCurrentSubscription, useSession } from '../hooks';
+import { useToday } from '../lib/port';
+import { sceneOf } from '../lib/sceneOf';
 import { cn, formatDate } from '../utils';
 import { AccountMenu } from './AccountMenu';
 
@@ -25,7 +27,10 @@ export const AccountShell = (): JSX.Element => {
     const { t } = useTranslation();
     const session = useSession();
     const { subscription, plan } = useCurrentSubscription();
-    const cancellable = subscription && (subscription.status === 'trial' || subscription.status === 'active');
+    const today = useToday();
+    // The same rule as the detail screen's buttons, so the sidebar never offers what the screen
+    // would refuse (a scheduled downgrade, for one, is cancelled from its own card first).
+    const cancellable = !!subscription && sceneOf(subscription, today).actions.includes('cancel');
 
     return (
         <div className="flex h-full bg-background">

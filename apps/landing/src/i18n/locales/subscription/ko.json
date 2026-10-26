@@ -64,7 +64,7 @@
             "plan": {
                 "clouds_one": "클라우드 {{count}}개",
                 "clouds_other": "클라우드 {{count}}개",
-                "perMonth": "월 {{price}}",
+                "perMonth": "<price>월 {{price}}</price>",
                 "vatNote": "VAT 포함 · 1개월"
             }
         },

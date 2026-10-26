@@ -78,7 +78,12 @@ export const sceneOf = (sub: Subscription, now: Date): Scene => {
                 actions: ['resume'],
             };
         case 'expired':
-            return { banner: { kind: 'expired', date: sub.expiredAt }, actions: ['resubscribe'] };
+            // One replaced by the next subscription is history, not a lapse: there is nothing to
+            // subscribe again to while its successor runs.
+            return {
+                banner: { kind: 'expired', date: sub.expiredAt },
+                actions: sub.endedReason === 'replaced' ? [] : ['resubscribe'],
+            };
         case 'active':
             if (sub.pendingChange) {
                 return {

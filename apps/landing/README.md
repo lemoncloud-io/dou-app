@@ -267,7 +267,8 @@ git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(ht
     -- apps/landing/src ':!apps/landing/src/app/features/subscription' ':!apps/landing/src/app/routes'
 
 # an account-surface page, hook or component reaching the network (only lib/port and lib/mock may)
-git grep -n -E 'fetch\(|axios|@chatic/(http|data)' -- apps/landing/src/app/features/subscription/pages \
+# (`[^[:alnum:]_]` before fetch: `window.fetch(` is caught, react-query's `refetch(` is not)
+git grep -n -E '(^|[^[:alnum:]_])fetch\(|axios|@chatic/(http|data)' -- apps/landing/src/app/features/subscription/pages \
     apps/landing/src/app/features/subscription/hooks apps/landing/src/app/features/subscription/components
 ```
 
@@ -566,7 +567,7 @@ not trigger.
   other deep-link hooks have none. The account surface tests its rules, its mock and its routes.
 
     ```bash
-    npx nx test @chatic/landing   # 185 tests
+    npx nx test @chatic/landing   # 190 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionWebEnabled` is true on
@@ -616,7 +617,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 185 tests pass; in CI
+npx nx test @chatic/landing                               # 190 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

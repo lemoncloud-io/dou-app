@@ -64,7 +64,7 @@
             "plan": {
                 "clouds_one": "{{count}} cloud",
                 "clouds_other": "{{count}} clouds",
-                "perMonth": "{{price}}/month",
+                "perMonth": "<price>{{price}}</price> / month",
                 "vatNote": "VAT included · 1 month"
             }
         },
