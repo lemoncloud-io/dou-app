@@ -167,7 +167,302 @@
                 "either": "Google·Apple"
             }
         },
-        "checkout": {},
+        "checkout": {
+            "steps": {
+                "label": "결제 단계",
+                "plan": "상품 선택",
+                "signIn": "로그인",
+                "details": "결제 정보",
+                "payment": "결제수단",
+                "done": "완료"
+            },
+            "planRo": {
+                "1": "DoU Cloud 1로",
+                "2": "DoU Cloud 2로",
+                "3": "DoU Cloud 3으로",
+                "4": "DoU Cloud 4로",
+                "5": "DoU Cloud 5로"
+            },
+            "planEul": {
+                "1": "DoU Cloud 1을",
+                "2": "DoU Cloud 2를",
+                "3": "DoU Cloud 3을",
+                "4": "DoU Cloud 4를",
+                "5": "DoU Cloud 5를"
+            },
+            "cardLabel": "{{brand}} ···· {{last4}}",
+            "perMonth": "월 {{price}}",
+            "summary": {
+                "title": "주문 요약",
+                "plan": "상품",
+                "clouds": "클라우드",
+                "cloudCount_one": "{{count}}개",
+                "cloudCount_other": "{{count}}개",
+                "monthly": "월 요금",
+                "monthlyValue": "{{price}} (VAT 포함)",
+                "trial": "무료 체험",
+                "trialRange_one": "{{from}} – {{to}} ({{count}}일)",
+                "trialRange_other": "{{from}} – {{to}} ({{count}}일)",
+                "trialRangeShort": "{{from}} – {{to}}",
+                "trialUsed": "없음 — 이미 사용함",
+                "none": "없음",
+                "firstCharge": "첫 결제일",
+                "firstChargeShort": "첫 결제",
+                "today": "{{date}} (오늘)",
+                "dateAndPrice": "{{date}} · {{price}}",
+                "chargeToday": "오늘 결제"
+            },
+            "details": {
+                "title": "결제 정보 확인",
+                "subtitle": "상품과 금액, 구독이 적용될 계정을 확인해 주세요.",
+                "accountTitle": "이 계정의 DoU 앱에 적용돼요",
+                "provider": {
+                    "google": "Google",
+                    "apple": "Apple"
+                },
+                "accountNote": "다른 계정이라면 로그아웃하고 앱에서 쓰는 계정으로 다시 로그인해 주세요.",
+                "next": "다음 · 결제수단 등록"
+            },
+            "billing": {
+                "title": "청구 정보",
+                "country": "청구 국가",
+                "email": "청구 메일",
+                "countries": {
+                    "KR": "대한민국",
+                    "US": "미국",
+                    "JP": "일본",
+                    "OTHER": "그 밖의 국가"
+                },
+                "countryNote": "청구 국가에 따라 결제 경로가 정해져요. 구독한 뒤에는 바꿀 수 없어요.",
+                "comingSoonTitle": "해외 결제는 곧 지원할 예정이에요",
+                "comingSoonBody": "지금은 청구 국가가 대한민국일 때만 구독할 수 있어요."
+            },
+            "email": {
+                "change": "변경",
+                "verified": "✓ 인증됨",
+                "sendCode": "인증 코드 받기",
+                "codeSent": "{{address}} 주소로 보낸 인증 코드를 입력해 주세요.",
+                "verify": "확인",
+                "resend": "코드 다시 받기",
+                "otherAddress": "다른 메일 쓰기",
+                "error": {
+                    "invalidCode": "인증 코드가 맞지 않아요. 다시 확인해 주세요.",
+                    "limit": "청구 메일을 더 추가할 수 없어요. 청구 정보에서 쓰지 않는 메일을 지워 주세요."
+                }
+            },
+            "consent": {
+                "all": "전체 동의",
+                "terms": "이용약관 동의",
+                "privacy": "개인정보 수집·이용 동의",
+                "autoRenew": "자동결제 안내를 확인했어요",
+                "required": "필수",
+                "view": "보기",
+                "noticeTrial": "체험이 끝나는 {{date}}부터 매월 {{day}}일 {{price}}이 등록한 카드로 자동 결제돼요. 언제든 해지할 수 있고, 체험 중 해지하면 결제되지 않아요.",
+                "noticePaid": "오늘 {{price}}이 결제되고, 매월 {{day}}일 같은 금액이 등록한 카드로 자동 결제돼요. 언제든 해지할 수 있어요."
+            },
+            "payment": {
+                "title": "결제수단 등록",
+                "subtitleTrial": "카드를 등록하면 무료 체험이 시작돼요. 오늘은 결제되지 않아요.",
+                "subtitlePaid": "카드를 등록하면 바로 {{price}}이 결제되고 구독이 시작돼요.",
+                "card": "카드",
+                "cardNote": "카드 정보는 결제사 결제창에서 입력해요. DoU는 카드 번호를 저장하지 않아요.",
+                "windowTitle": "국내 카드 결제창 (결제사 제공 화면)",
+                "windowSteps": "카드사 선택 · 카드 번호 · 유효기간 · 비밀번호 앞 2자리 · 본인 확인",
+                "ctaTrial": "카드 등록하고 무료 체험 시작",
+                "ctaPaid": "{{price}} 결제하기",
+                "renewTrial": "{{date}}부터 매월 {{day}}일 {{price}}이 자동 결제돼요. 해지는 구독 관리에서 언제든 할 수 있어요.",
+                "renewPaid": "오늘부터 매월 {{day}}일 {{price}}이 자동 결제돼요. 해지는 구독 관리에서 언제든 할 수 있어요.",
+                "back": "이전",
+                "error": {
+                    "limit": "카드 등록 시도 횟수를 넘었어요. 잠시 뒤 다시 시도해 주세요.",
+                    "conflict": "지금은 이 구독을 시작할 수 없어요. 구독 관리에서 이용 중인 구독을 확인해 주세요."
+                }
+            },
+            "status": {
+                "processing": {
+                    "card": "카드 정보를 확인하고 있어요",
+                    "amount": "{{price}}을 결제하고 있어요",
+                    "payment": "결제하고 있어요",
+                    "body": "창을 닫거나 새로고침하지 말고 잠시만 기다려 주세요.",
+                    "bodyUpgrade": "창을 닫지 말고 잠시만 기다려 주세요. 결제가 확정되면 {{plan}} 바뀌어요.",
+                    "waitTitle": "결제사 응답을 기다리는 중",
+                    "waitBody": "창을 닫아도 결제 결과는 구독 관리에서 확인할 수 있어요."
+                },
+                "retried": {
+                    "title": "결제가 완료됐어요",
+                    "body": "구독이 정상으로 돌아왔어요. 청구일은 매월 {{day}}일 그대로예요.",
+                    "amount": "결제 금액",
+                    "card": "결제 카드",
+                    "next": "다음 결제"
+                },
+                "toSubscription": "구독 정보로",
+                "canceled": {
+                    "title": {
+                        "card": "카드 등록을 취소했어요",
+                        "payment": "결제를 취소했어요",
+                        "upgrade": "업그레이드를 취소했어요",
+                        "retry": "결제를 취소했어요"
+                    },
+                    "body": {
+                        "card": "결제창을 닫아서 구독이 만들어지지 않았어요. 결제된 금액은 없어요.",
+                        "payment": "결제창을 닫아서 구독이 만들어지지 않았어요. 결제된 금액은 없어요.",
+                        "upgrade": "결제창을 닫아서 상품이 바뀌지 않았어요. 결제된 금액은 없어요.",
+                        "retry": "결제창을 닫아서 결제되지 않았어요. 구독은 결제 실패 상태 그대로예요."
+                    },
+                    "retry": {
+                        "card": "다시 등록하기",
+                        "payment": "다시 결제하기",
+                        "upgrade": "다시 업그레이드하기",
+                        "retry": "결제수단 관리"
+                    },
+                    "choosePlan": "상품 다시 고르기"
+                },
+                "failed": {
+                    "title": {
+                        "card": "카드를 등록하지 못했어요",
+                        "payment": "결제하지 못했어요",
+                        "upgrade": "업그레이드하지 못했어요",
+                        "retry": "결제하지 못했어요"
+                    },
+                    "body": {
+                        "card": "구독은 만들어지지 않았고 결제된 금액도 없어요.",
+                        "payment": "구독은 만들어지지 않았고 결제된 금액도 없어요.",
+                        "upgrade": "결제되지 않았고 {{plan}} 그대로 써요.",
+                        "retry": "결제되지 않았고 구독은 결제 실패 상태 그대로예요."
+                    },
+                    "reasonTitle": "실패 사유",
+                    "reason": {
+                        "declined": "카드사에서 승인을 거절했어요. {{next}}",
+                        "attemptLimit": "카드 시도 횟수를 넘었어요. 잠시 뒤 다시 시도해 주세요.",
+                        "unknown": "결제사에서 결제를 마치지 못했어요. 잠시 뒤 다시 시도해 주세요."
+                    },
+                    "reasonNext": {
+                        "register": "다른 카드로 등록하거나 카드사에 문의해 주세요.",
+                        "pay": "다른 카드로 결제하거나 카드사에 문의해 주세요."
+                    },
+                    "chargedCard": "결제 카드 {{card}}",
+                    "manageCards": "결제수단 관리",
+                    "otherCard": {
+                        "card": "다른 카드로 등록",
+                        "payment": "다른 카드로 결제"
+                    },
+                    "retryStillDue": "결제수단을 바꾸거나 같은 카드로 다시 결제할 수 있어요."
+                }
+            },
+            "complete": {
+                "accountName": "{{name}}({{provider}})",
+                "appliedTo": "구독은 {{account}} 계정의 DoU 앱에 바로 적용됐어요.",
+                "trialTitle": "{{plan}} 무료 체험이 시작됐어요",
+                "paidTitle": "{{plan}} 구독을 시작했어요",
+                "trialLabel": "무료 체험",
+                "trialUntil": "{{date}}까지",
+                "renewLabel": "자동 결제",
+                "renewValue": "{{date}}부터 매월 {{day}}일 · {{price}}",
+                "cancelLabel": "해지",
+                "cancelValue": "구독 관리에서 언제든",
+                "paidLabel": "결제 금액",
+                "nextLabel": "다음 결제",
+                "appSetup": {
+                    "title": "앱에서 클라우드를 설정해 주세요",
+                    "open": "DoU 앱을 열어요",
+                    "check": "MY › 구독 관리에서 {{plan}} 구독을 확인해요",
+                    "create": "클라우드 만들기를 눌러요"
+                },
+                "toManage": "구독 관리로 가기",
+                "setUpInApp": "앱에서 클라우드 설정하기",
+                "upgradedTitle": "{{plan}} 업그레이드했어요",
+                "upgradedBodyPaid_one": "{{price}}을 결제했고 클라우드를 {{count}}개까지 만들 수 있어요.",
+                "upgradedBodyPaid_other": "{{price}}을 결제했고 클라우드를 {{count}}개까지 만들 수 있어요.",
+                "upgradedBodyFree_one": "체험 중이라 결제되지 않았고, 클라우드를 {{count}}개까지 만들 수 있어요.",
+                "upgradedBodyFree_other": "체험 중이라 결제되지 않았고, 클라우드를 {{count}}개까지 만들 수 있어요.",
+                "nextDateLabel": "다음 결제일",
+                "nextAmountLabel": "다음 결제부터",
+                "receiptLabel": "영수증",
+                "receiptValue": "청구 내역에서 볼 수 있어요",
+                "toSubscription": "구독 정보로",
+                "addInApp": "앱에서 새 클라우드 추가하기",
+                "downgradeTitle": "{{plan}} 변경을 예약했어요",
+                "downgradeBody": "{{date}}까지 {{plan}} 그대로 써요.",
+                "effectiveLabel": "변경 적용일",
+                "thatDayLabel": "그날 결제",
+                "currentLabel": "지금 상품",
+                "currentValue": "종료 예정",
+                "chooseClouds": {
+                    "title": "남길 클라우드는 앱에서 골라 주세요",
+                    "body_one": "변경 후에는 클라우드를 {{count}}개까지 쓸 수 있어요. 적용일 전에 DoU 앱 MY › 구독 관리에서 남길 클라우드를 골라 주세요.",
+                    "body_other": "변경 후에는 클라우드를 {{count}}개까지 쓸 수 있어요. 적용일 전에 DoU 앱 MY › 구독 관리에서 남길 클라우드를 골라 주세요."
+                }
+            },
+            "change": {
+                "now": "지금",
+                "after": "변경 후",
+                "sameDay": "오늘은 예약된 변경이 적용되는 날이라 상품을 바꿀 수 없어요. 내일 다시 시도해 주세요.",
+                "error": {
+                    "conflict": "지금은 상품을 바꿀 수 없어요. 구독 정보에서 상태를 확인해 주세요."
+                },
+                "ending": {
+                    "title": "해지 예정인 구독은 상품을 바꿀 수 없어요",
+                    "body": "구독 정보에서 해지를 취소한 뒤 다시 시도해 주세요.",
+                    "action": "구독 정보로"
+                },
+                "upgrade": {
+                    "title": "업그레이드 확인",
+                    "subtitlePaid": "오늘 차액을 결제하면 바로 {{plan}} 쓸 수 있어요.",
+                    "subtitleFree": "체험 중이라 오늘은 결제되지 않아요. 바로 {{plan}} 쓸 수 있어요.",
+                    "pendingTitle": "{{plan}} 변경 예약이 있어요",
+                    "pendingBody": "업그레이드하면 {{date}} 변경 예약이 취소되고, 오늘부터 {{plan}} 써요.",
+                    "todayLabel": "오늘 결제할 차액",
+                    "cardLabel": "결제 카드",
+                    "cardValue": "{{brand}} ···· {{last4}} (기본)",
+                    "nextDateLabel": "다음 결제일",
+                    "nextDateValue": "{{date}} (그대로)",
+                    "nextAmountLabel": "다음 결제부터",
+                    "prorationNote": "차액은 이번 결제 주기에 남은 기간 기준이에요.",
+                    "ctaPaid": "{{price}} 결제하고 업그레이드",
+                    "ctaFree": "업그레이드하기",
+                    "ctaPendingPaid": "예약 취소하고 {{price}} 결제",
+                    "ctaPendingFree": "예약 취소하고 업그레이드",
+                    "asideTitle": "업그레이드하면",
+                    "asideClouds_one": "클라우드를 {{count}}개까지 만들 수 있어요",
+                    "asideClouds_other": "클라우드를 {{count}}개까지 만들 수 있어요",
+                    "asideApp": "새 클라우드는 앱에서 추가해요",
+                    "asideFailure": "결제에 실패하면 상품은 그대로이고 결제수단 관리로 안내해요"
+                },
+                "downgrade": {
+                    "title": "다운그레이드 예약",
+                    "subtitle": "다음 결제일에 {{plan}} 바뀌어요. 지금은 결제되지 않아요.",
+                    "effectiveLabel": "변경 적용일",
+                    "thatDayLabel": "그날 결제 금액",
+                    "untilLabel": "그때까지",
+                    "untilValue": "{{plan}} 그대로 사용",
+                    "todayLabel": "오늘 결제",
+                    "todayValue": "없음",
+                    "keepTitle": "클라우드 {{from}}개 중 {{to}}개만 유지돼요",
+                    "keepBody": "변경 적용일 전까지 앱에서 유지할 클라우드를 골라 주세요. 고르지 않은 클라우드는 지우지 않고 비활성으로 둬요.",
+                    "cta": "구독 예약하기",
+                    "asideTitle": "유지할 클라우드 선택",
+                    "asideBody": "클라우드 목록은 앱에 있어서 선택도 앱에서 해요. 예약은 구독 정보에서 언제든 취소할 수 있어요."
+                },
+                "pastDue": {
+                    "title": "플랜 변경 확인",
+                    "route": "{{from}} → {{to}}",
+                    "bannerTitle": "밀린 금액을 먼저 결제해 주세요",
+                    "bannerBody": "{{date}} 결제({{price}})가 실패한 상태라 상품을 바꿀 수 없어요. 카드를 바꾸고 결제하면 상품을 바꿀 수 있어요.",
+                    "bannerBodyNoDate": "결제가 실패한 상태라 상품을 바꿀 수 없어요. 카드를 바꾸고 결제하면 상품을 바꿀 수 있어요.",
+                    "now": "지금",
+                    "nowValue": "{{plan}} · {{status}}",
+                    "owed": "밀린 금액",
+                    "restrict": "이용 제한",
+                    "restrictDday": "{{date}} (D-{{days}})",
+                    "manageCards": "결제수단 관리",
+                    "back": "돌아가기",
+                    "disabled": {
+                        "upgrade": "업그레이드 결제",
+                        "downgrade": "구독 예약하기"
+                    }
+                }
+            }
+        },
         "manage": {},
         "billing": {
             "card": {
