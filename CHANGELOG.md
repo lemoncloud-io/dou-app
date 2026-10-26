@@ -1,5 +1,34 @@
 # Changelog
 
+## [2026-10-26] - root@0.113.0, @chatic/web@0.78.0, @chatic/landing@0.6.2, @chatic/desktop-web@0.35.5
+
+### Features
+
+- (mobile) keep web content off side insets, not under the status bar
+- (web) fill iphone duo's inner display, not a centred 860 column
+- (mobile) tell the web where iphone duo folds, not leave it guessing
+- (web) move dialogs and the tab bar off iphone duo's fold
+- (web) keep form screens in a centred column, not 800px wide
+- (web) centre a 600px phone column with grey margins, not fill
+
+### Bug Fixes
+
+- (mobile) run the ios shell under the scene life cycle, not quit
+- (mobile) follow the app window when a scene reconnects
+
+### Documentation
+
+- (adr) record the fold contract and the form column
+
+### Refactor
+
+- trim duplicated fold query and form width literal
+
+### Other
+
+- build: (mobile) build the ios shell with xcode 27.1, not stop in pods
+- revert: (duo) drop the fold signal and the per-screen form column
+
 ## [2026-10-26] - No version updates
 
 ### Bug Fixes
