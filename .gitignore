@@ -168,3 +168,6 @@ storybook-static
 
 # Wayfinder maps / scratch working notes — local only, not shared
 /.scratch
+
+# Local skill copies the agent skill installer writes — a personal dev setup, not shared
+.agents/
