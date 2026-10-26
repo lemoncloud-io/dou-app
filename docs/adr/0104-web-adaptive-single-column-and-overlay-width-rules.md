@@ -1,6 +1,7 @@
 # ADR-0104: `apps/web` fills the device up to a phone-class bound, and notice dialogs opt out
 
-> Status: Accepted · Decided: 2026-09-17 · §1's value amended to 960px (2026-10-26, below)
+> Status: Accepted · Decided: 2026-09-17 · §1's value amended to 960px, and form screens given a
+> narrower column (both 2026-10-26, below)
 > Scope: `apps/web/src/styles.css` · `apps/web/tailwind.config.js` ·
 > `apps/web/src/app/{ui/components,features/{home,onboarding,subscription,appUpdate,debug}}/**` ·
 > `libs/ui-kit/src/components/ui/{dialog,alert-dialog}.tsx` ·
@@ -212,3 +213,26 @@ The range that fills instead of capping grows from up to 860 to up to 960: a por
 narrow desktop window between 861 and 960 now gets the full-width column rather than a centred one.
 That is the same side effect §1 already accepted for 820–860, extended by 100px. Notice dialogs are
 unaffected — they keep their own 311px width.
+
+## Amendment (2026-10-26): form screens keep a 560px column inside it
+
+### What changed
+
+At 960 the column fills iPhone Duo's inner display, which is right for a list or a chat room and
+wrong for a screen whose job is a few fields and one action: login buttons and signup inputs ran
+about 820px wide. Those screens — login, the signup and password-reset steps, verification, the
+edit and create forms, feedback, the setup wizard, and single confirmations such as account
+deletion — keep their fields and CTA in a centred `--form-width` (560px) column. The docked CTA's
+bar still spans the screen; its button takes the column's content width, so it lines up with the
+fields. Lists, rooms, and lists with an action under them (the subscription plans, keeping clouds,
+contact invite, the cloud guide) keep filling.
+
+The column is opt-in per screen (`width="form"` on the scaffold) and reads a variable the shared
+libraries do not hardcode, so a host that declares no `--form-width` gets no column. The rules are
+in `apps/web/docs/shell/layout-shell.md` § Form screens.
+
+### What it costs
+
+Two widths instead of one: a new form screen has to opt in, and one that does not stretches as
+before. On every phone the column is wider than the device, so nothing changes there. The
+`reading` token (30rem) stays a bound on prose only.
