@@ -5,9 +5,10 @@ import type { OnFetchShareIntakePayload } from '@chatic/app-messages';
  * ShareIntake — what another app shared to Dou through the OS share sheet (Swift `ShareIntake` over
  * the Share Extension's inbox, Kotlin `ShareIntakeModule` over the `ACTION_SEND` intents).
  *
- * The native side copies the shared items into the `attach-pick` folder before the app is opened on
- * the share URL, so by the time the web asks, the items are where the upload can read them: an OS
- * share grant does not outlive the screen that received it, and the send runs later.
+ * The native side copies the shared items out of the other app's hands before the web asks — Android
+ * into `attach-pick` as the intent arrives, iOS into the App Group inbox from the extension, moved into
+ * `attach-pick` at the first `FetchShareIntake` — so the items are where the upload can read them: an
+ * OS share grant does not outlive the screen that received it, and the send runs later.
  *
  * A native build without the module has `isAvailable` false and the router leaves the messages
  * unregistered, so the web gets `NOT_FOUND` and its share page goes home instead of waiting.

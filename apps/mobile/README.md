@@ -165,7 +165,7 @@ apps/mobile/
 │       ├── customZip/     the static server that serves a locally unpacked web bundle
 │       └── utils/
 ├── android/               Kotlin: MainActivity, bridge, handler, module, push, service, worker
-├── ios/                   Swift: Chatic, Bridges, ChaticNotificationServiceExtension
+├── ios/                   Swift: Chatic, Bridges, ChaticNotificationServiceExtension, ChaticShareExtension
 ├── fastlane/              store upload lanes
 └── docs/                  7 categories, 17 topic documents — see Documents
 ```
