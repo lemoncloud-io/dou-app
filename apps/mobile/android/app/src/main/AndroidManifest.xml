@@ -63,6 +63,29 @@
             </intent-filter>
 
             <!--
+                Dou in other apps' share sheets: photos, videos, documents, and text or a link. The
+                screen copies what it is given into attach-pick and opens on <scheme>://share?id=…
+                (ShareIntake). Exported like every filter here, so the intake takes only content://
+                streams of other apps' providers.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="application/*" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="application/*" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+
+            <!--
                 Query invite links. Today's link is `/s?code=...`, whose path is exactly `/s` (a
                 query string is not part of the path), so it needs the exact `android:path` below;
                 `/s/.*` alone never matched it, and those links reached the app only by way of the
