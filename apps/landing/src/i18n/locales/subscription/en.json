@@ -463,7 +463,237 @@
                 }
             }
         },
-        "manage": {},
+        "manage": {
+            "dday": {
+                "before": "D-{{count}}",
+                "today": "D-Day",
+                "after": "D+{{count}}"
+            },
+            "none": "—",
+            "cardLabel": "{{brand}} ···· {{last4}}",
+            "list": {
+                "title": "Subscriptions",
+                "subtitle": "Your current and ended subscriptions. Select one to see the details.",
+                "source": "Billed on the web",
+                "clouds": "Clouds",
+                "cloudsValue_one": "{{count}}",
+                "cloudsValue_other": "{{count}}",
+                "nextBilling": "Next payment",
+                "nextAmount": "Next amount",
+                "paymentMethod": "Payment method",
+                "viewDetail": "View subscription ›",
+                "detail": "Details",
+                "ended": "Ended subscriptions",
+                "endedLine": "{{from}} – {{to}} · Web",
+                "downgradeTitle": "DoU Cloud {{from}} → DoU Cloud {{to}}",
+                "status": {
+                    "trial": "Free trial until {{date}} · {{amount}} a month from {{chargeAt}}",
+                    "pastDue": "{{amount}} overdue · clouds restricted from {{date}} ({{dday}})",
+                    "restricted": "{{amount}} overdue · clouds restricted since {{date}}",
+                    "cancelScheduled": "In use until {{date}} · automatic payment stopped · you can undo the cancellation until then",
+                    "downgradeScheduled": "DoU Cloud {{to}} from {{date}} · {{amount}} a month"
+                },
+                "empty": {
+                    "title": "You have no subscription",
+                    "body": "Subscribe to DoU Cloud to create clouds and open group chats with your friends.",
+                    "subscribe": "Subscribe"
+                },
+                "endedLineWithReason": "{{from}} – {{to}} · Web · {{reason}}",
+                "endedReason": {
+                    "canceled": "Cancelled",
+                    "replaced": "Replaced by the next subscription",
+                    "paymentFailed": "Ended after a failed payment"
+                }
+            },
+            "detail": {
+                "title": "Subscription",
+                "subtitle": "Your plan, its status and the next payment.",
+                "notFound": "We couldn't find this subscription",
+                "backToList": "Back to subscriptions",
+                "tiles": {
+                    "product": "Plan",
+                    "status": "Status",
+                    "nextBilling": "Next payment",
+                    "nextAmount": "Next amount",
+                    "restrictAt": "Restricted from",
+                    "overdue": "Overdue",
+                    "card": "Card",
+                    "noCharge": "No payment",
+                    "unpaid": "{{amount}} (unpaid)",
+                    "afterChange": "{{amount}} (DoU Cloud {{sort}})",
+                    "retry": "Retries",
+                    "retryValue": "{{dates}}"
+                },
+                "banner": {
+                    "trial": {
+                        "title": "Free trial · until {{date}}",
+                        "body": "When the trial ends, {{amount}} is charged every month from {{chargeAt}}. Cancel during the trial and you are not charged."
+                    },
+                    "active": {
+                        "title": "Automatic payment scheduled",
+                        "body": "{{amount}} will be charged to {{card}} on {{date}}.",
+                        "bodyNoCard": "{{amount}} will be charged on {{date}}."
+                    },
+                    "pastDue": {
+                        "title": "Payment failed · {{dday}} until restriction",
+                        "body": "The payment on {{failedAt}} failed. Change your payment method by {{date}} or your clouds will be restricted. Once you change the card, the overdue {{amount}} is charged right away.",
+                        "bodyWithReason": "The payment on {{failedAt}} failed ({{reason}}). Change your payment method by {{date}} or your clouds will be restricted. Once you change the card, the overdue {{amount}} is charged right away."
+                    },
+                    "restricted": {
+                        "title": "Your clouds are restricted",
+                        "body": "The payment on {{failedAt}} did not go through, so your clouds have been unavailable since {{date}}. Pay the overdue {{amount}} to use them again right away."
+                    },
+                    "cancelScheduled": {
+                        "title": "Your subscription ends on {{date}} · {{dday}}",
+                        "body": "You cancelled. You can keep using it as before until it ends, and you won't be charged again."
+                    },
+                    "downgradeScheduled": {
+                        "title": "DoU Cloud {{to}} applies from {{date}}",
+                        "body_one": "Until then you keep your current plan. {{amount}} is charged on {{date}}. If you have more than {{count}} cloud, choose the one to keep in the app.",
+                        "body_other": "Until then you keep your current plan. {{amount}} is charged on {{date}}. If you have more than {{count}} clouds, choose the ones to keep in the app."
+                    },
+                    "expired": {
+                        "title": "Your subscription expired on {{date}}",
+                        "body": "Your clouds are restricted. Subscribe again to pick up the clouds you had.",
+                        "bodyWithDeadline": "Your clouds are restricted. Subscribe again by {{date}} to pick up the clouds you had.",
+                        "replacedTitle": "Replaced by the next subscription on {{date}}",
+                        "replacedBody": "See the subscription you use now under Subscriptions."
+                    },
+                    "restored": {
+                        "title": "Your subscription has started again",
+                        "body": "You can carry on with the clouds you had."
+                    },
+                    "bounced": {
+                        "title": "Check your billing email",
+                        "body": "An email sent to {{address}} bounced. Check the address in billing info.",
+                        "action": "Billing info"
+                    }
+                },
+                "actions": {
+                    "changePlan": "Change plan",
+                    "paymentMethods": "Payment methods",
+                    "invoices": "Billing history",
+                    "cancel": "Cancel subscription",
+                    "updatePaymentMethod": "Change payment method",
+                    "updatePaymentMethodRestricted": "Change card and pay",
+                    "resume": "Undo cancellation",
+                    "cancelScheduledChange": "Cancel the change",
+                    "chooseClouds": "Choose clouds to keep in the app",
+                    "resubscribe": "Subscribe again"
+                },
+                "paymentCard": {
+                    "title": "Payment method",
+                    "line": "Default card {{card}} · expires {{exp}}",
+                    "none": "No card registered",
+                    "manage": "Payment methods"
+                },
+                "periodCard": {
+                    "title": "Subscription period",
+                    "line": "Started {{date}} · billed on day {{day}} each month",
+                    "trialLine_one": "Started {{date}} · {{count}}-day free trial",
+                    "trialLine_other": "Started {{date}} · {{count}}-day free trial",
+                    "history": "View billing history"
+                },
+                "plans": {
+                    "ending": "Ending",
+                    "starting": "Starting",
+                    "endingLine": "In use until the day before {{date}}",
+                    "startingLine": "From {{date}} · {{amount}} a month",
+                    "allowance_one": "{{count}} cloud · {{amount}} a month",
+                    "allowance_other": "{{count}} clouds · {{amount}} a month",
+                    "chooseNote_one": "{{count}} cloud — choose the one to keep in the app",
+                    "chooseNote_other": "{{count}} clouds — choose the ones to keep in the app"
+                },
+                "invoices": {
+                    "title": "Recent billing",
+                    "empty": "No billing yet",
+                    "date": "Date",
+                    "item": "Item",
+                    "amount": "Amount",
+                    "status": "Status",
+                    "line": "DoU Cloud {{sort}} · {{kind}}",
+                    "kind": {
+                        "first": "First payment",
+                        "renewal": "Renewal",
+                        "upgrade": "Upgrade",
+                        "retry": "Retry",
+                        "refund": "Refund"
+                    },
+                    "statusLabel": {
+                        "paid": "Paid",
+                        "failed": "Failed",
+                        "refunded": "Refunded"
+                    }
+                }
+            },
+            "dialogs": {
+                "resume": {
+                    "title": "Undo the cancellation?",
+                    "body": "{{amount}} will be charged to {{card}} on {{date}} and your subscription continues.",
+                    "sameAsBefore": "The next payment date and amount stay as they were.",
+                    "confirm": "Undo cancellation",
+                    "done": "Your subscription continues"
+                },
+                "resumeNoCard": {
+                    "title": "No card to charge",
+                    "body": "The card was removed after you cancelled, so the next payment cannot be made. Add a card to undo the cancellation.",
+                    "confirm": "Add a card"
+                },
+                "cancelChange": {
+                    "title": "Cancel the scheduled downgrade?",
+                    "body": "You stay on DoU Cloud {{sort}} after {{date}}, and {{amount}} is charged that day. The clouds you chose to keep in the app are cleared.",
+                    "confirm": "Cancel the change",
+                    "done": "The scheduled downgrade is cancelled"
+                },
+                "cancelChangeToday": {
+                    "title": "The change can't be cancelled today",
+                    "body": "The payment that moves you to DoU Cloud {{sort}} is in progress today. Once it completes, you can upgrade again."
+                },
+                "changePlan": {
+                    "title": "Which plan do you want?",
+                    "description": "You can move one step up or down from your current plan.",
+                    "upgrade": "Upgrade",
+                    "downgrade": "Downgrade",
+                    "none": "There is no plan you can change to right now."
+                },
+                "chooseClouds": {
+                    "title": "Choose your clouds in the app",
+                    "body_one": "In the DoU app, go to MY › Subscription to choose the {{count}} cloud to keep once you move to DoU Cloud {{sort}}.",
+                    "body_other": "In the DoU app, go to MY › Subscription to choose the {{count}} clouds to keep once you move to DoU Cloud {{sort}}."
+                }
+            },
+            "cancel": {
+                "title": "Cancel subscription",
+                "subtitle": "After cancelling you can keep using it as before until it ends.",
+                "plan": "Current plan",
+                "endsAt": "Ends on",
+                "next": "Next payment",
+                "nextValue": "None — automatic payment stops right away",
+                "refund": {
+                    "title": "Refunds",
+                    "body": "Cancelling and refunds are separate. See the refund policy for when a refund applies and how to request one.",
+                    "link": "View the refund policy"
+                },
+                "after": {
+                    "title": "After the end date",
+                    "body": "Your clouds are restricted. Subscribe again to pick up the clouds you had."
+                },
+                "keep": "Keep my subscription",
+                "submit": "Cancel subscription",
+                "unavailable": {
+                    "title": "You can't cancel right now",
+                    "body": "This subscription can't be cancelled in its current state. Check its status in the subscription details."
+                },
+                "done": {
+                    "title": "You cancelled your subscription",
+                    "bannerTitle": "You can use it until {{date}}",
+                    "bannerBody": "You won't be charged again. If you change your mind, you can undo the cancellation until it ends.",
+                    "toDetail": "Subscription details",
+                    "resume": "Undo cancellation",
+                    "note": "After the end date, subscribing again starts a new subscription instead of undoing the cancellation. If you removed your card after cancelling, add one first."
+                }
+            }
+        },
         "billing": {
             "card": {
                 "label": "{{brand}} ···· {{last4}}",
