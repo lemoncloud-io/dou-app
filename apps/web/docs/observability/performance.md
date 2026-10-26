@@ -19,8 +19,8 @@ only when the WebAppReady reply arrives:
 
 On the log pipeline a trace is a statistics entry (`kind: 'trace'` or `'sample'`, numbers as
 structured fields), recorded through the recorder `setPerfTelemetryRecorder` hands in, which applies
-the server's sampling policy — set by the telemetry runtime at boot ([telemetry.md](./telemetry.md)).
-With the default policy it records nothing; the `info`/`PERF` log lines older builds of this page wrote are gone.
+the sampling policy — set by the telemetry runtime at boot, and built into the web until the server
+serves one ([telemetry.md](./telemetry.md)). With statistics off for a run it records nothing; the `info`/`PERF` log lines older builds of this page wrote are gone.
 
 Asking rather than assuming is the web-deploys-first rule: this bundle can be newer than the app
 it runs in. Both messages are required, because a start with nowhere to stop leaves the native side

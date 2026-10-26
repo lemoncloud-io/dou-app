@@ -1,6 +1,8 @@
 # ADR-0222: Performance traces also go to the log pipeline, beside Firebase
 
 > Status: Accepted · Decided: 2026-10-22 · Implemented: `feat/log-collection-telemetry-perf`
+> · Amended by [ADR-0229](./0229-statistics-are-turned-on-by-a-policy-the-web-app-ships.md): until the
+> server serves a policy, the web app ships one that turns statistics on
 > · Scope: `libs/perf/**` · `apps/web/src/app/runtime/perf/**` · `apps/mobile/src/app/services/firebase/perf/**`
 > · Supersedes in part: [ADR-0120](./0120-performance-traces-move-to-firebase-performance.md) decision 1
 > (one set of limits for every backend) and decision 3 (the log pipeline as a sampled fallback only).

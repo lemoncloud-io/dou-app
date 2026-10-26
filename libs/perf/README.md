@@ -30,7 +30,8 @@ pipeline could not:
 The log pipeline is back beside it, on different terms: a trace there is a statistics entry with its
 numbers as structured fields the server aggregates, it has a share of the upload queue of its own so
 it never competes with logs, and whether a run is recorded is the server's sampling policy rather than
-a constant. Until the server serves a policy it records nothing.
+a constant. With no policy it records nothing; the web app serves one of its own until the server
+has a route for it (`apps/web/docs/observability/telemetry.md`).
 
 The WebView cannot record Firebase traces itself. The Firebase JS SDK would register the WebView as a
 separate web app in the console, apart from the iOS and Android apps it runs inside. Its automatic
