@@ -1,7 +1,7 @@
 import { cn } from '@chatic/lib/utils';
 
 import { IconChatBubble } from '../../resources/icons';
-import { AvatarShell } from './avatarBase';
+import { AvatarFrame } from './avatarBase';
 
 const SIZE = { sm: 36, md: 46, lg: 56 } as const;
 
@@ -16,7 +16,11 @@ export interface ChatAvatarProps {
  * ringed circle with a speech-bubble glyph, used for chats without a photo.
  */
 export const ChatAvatar = ({ size = 'md', className }: ChatAvatarProps) => (
-    <AvatarShell px={SIZE[size]} className={cn('bg-brand-ink/5 text-placeholder', className)}>
+    <AvatarFrame
+        px={SIZE[size]}
+        stroke="border-avatar-ring"
+        className={cn('bg-brand-ink/5 text-placeholder', className)}
+    >
         <IconChatBubble className="size-[36%]" />
-    </AvatarShell>
+    </AvatarFrame>
 );

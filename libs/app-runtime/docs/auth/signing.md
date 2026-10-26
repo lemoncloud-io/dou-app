@@ -49,9 +49,9 @@ answering it once cost a production database read.
 
 ## The signature does not depend on the token
 
-`calcSignature` hashes `{ authId, accountId, identityId, identityToken: '' }` with `current` (an ISO
-timestamp) and the user agent, nesting the HMAC keys `authId → accountId → identityId`. **The
-identity-token slot is always the empty string.**
+`calcSignature` hashes `{ authId, accountId, identityId }` with `current` (an ISO timestamp) and
+the user agent, nesting the HMAC keys `authId → accountId → identityId`. **The identity-token slot
+is always the empty string**, so the payload carries no token at all.
 
 Two consequences:
 

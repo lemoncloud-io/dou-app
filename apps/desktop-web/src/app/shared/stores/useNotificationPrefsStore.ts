@@ -31,7 +31,6 @@ interface NotificationPrefsState {
      */
     mentionBreaksQuietHours: boolean;
     setDesktopEnabled: (enabled: boolean) => void;
-    toggleMute: (channelId: string) => void;
     setChannelNotify: (channelId: string, mode: ChannelNotifyMode) => void;
     setSnooze: (untilMs: number | null) => void;
     setQuietHours: (quietHours: QuietHours | null) => void;
@@ -104,13 +103,6 @@ export const useNotificationPrefsStore = create<NotificationPrefsState>()(
             setSnooze: untilMs => set({ snoozeUntil: untilMs }),
             setQuietHours: quietHours => set({ quietHours }),
             setMentionBreaksQuietHours: enabled => set({ mentionBreaksQuietHours: enabled }),
-            toggleMute: channelId =>
-                set(state => {
-                    const next = { ...state.mutedChannels };
-                    if (next[channelId]) delete next[channelId];
-                    else next[channelId] = true;
-                    return { mutedChannels: next };
-                }),
             setChannelNotify: (channelId, mode) =>
                 set(state => {
                     // Keep the legacy mute map coherent for anything still reading it.

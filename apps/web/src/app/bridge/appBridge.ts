@@ -304,10 +304,8 @@ export const appBridge = {
         return webClient.request({ type: 'FetchProducts', data: {} }, { timeoutMs });
     },
 
-    // The four `*AppLogBuffer` methods are gone: the ring buffer they read no
-    // longer exists, and the unsent queue below is the only log store. The
-    // message types and the app-side handlers stay — an older web build still
-    // sends them to a current app — but nothing in this build calls them.
+    // The four `*AppLogBuffer` methods are gone with the ring buffer they read
+    // and with their messages; the unsent queue below is the only log store.
 
     // ---------------------------------------------------------------
     // App log store (ADR-0063 · ADR-0066)

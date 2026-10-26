@@ -9,7 +9,6 @@ const context = (platform: 'ios' | 'android' = 'ios') => {
     const signIn = vi.fn(async () => ({ provider: 'google' as const, platform, idToken: 'id-token' }));
     const shell = {
         device: { platform },
-        app: { state: () => 'background' },
         store: new Map<string, unknown>(),
         log: { append: (line: { source: string; type: string }) => void lines.push(line) },
         auth: { signIn },
@@ -57,14 +56,6 @@ describe('the shell handlers', () => {
         });
         await expect(call('SavePreference', { key: 'debugSettings', value: {} }, shell)).rejects.toMatchObject({
             code: 'PREF_KEY_NOT_WRITABLE',
-        });
-    });
-
-    it("answers the app's state as the shell has it", async () => {
-        await expect(call('FetchBackgroundStatus', {}, context().shell)).resolves.toEqual({
-            status: 'background',
-            isForeground: false,
-            isBackground: true,
         });
     });
 

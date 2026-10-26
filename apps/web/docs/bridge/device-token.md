@@ -70,9 +70,9 @@ introduce a way for the two to disagree.
 ## The token does not arrive as a global
 
 Only `CHATIC_APP_PLATFORM`, `CHATIC_APP_DEVICE_ID` and `CHATIC_APP_INSTALLATION_ID` are injected
-into the WebView. `CHATIC_APP_DEVICE_TOKEN` is read by `@chatic/device-utils` but nothing writes it,
-so **`useDeviceInfo().deviceInfo.deviceToken` is always empty**. Asking the bridge is the only way
-to hold a token, and code that reads the global instead fails silently rather than loudly.
+into the WebView, and `DeviceInfo` from `@chatic/device-utils` has no token field. **Asking the
+bridge is the only way to hold a token**: it is minted and rotated after the page has loaded, which a
+boot-time global could not follow.
 
 `deviceId` does arrive, but it is not the raw hardware id: the shell concatenates the Firebase
 installation id onto it. That lookup is asynchronous, so a very early read can see the raw id alone.

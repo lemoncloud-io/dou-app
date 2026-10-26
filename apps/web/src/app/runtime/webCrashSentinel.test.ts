@@ -1,6 +1,5 @@
 import { attachWebCrashSentinel } from './webCrashSentinel';
 
-const LEGACY_QUEUE_KEY = '@chatic/web.log.queue';
 const ALIVE_KEY = '@chatic/web.log.alive';
 
 describe('attachWebCrashSentinel', () => {
@@ -39,17 +38,6 @@ describe('attachWebCrashSentinel', () => {
         teardown = result.teardown;
 
         expect(result.crashedLastSession).toBe(true);
-    });
-
-    // Nothing uses this key anymore now that reports stopped attaching logs. Leaving it behind would
-    // let a tab reloaded on an old version sit there with stale logs still in place.
-    it('구버전이 남긴 로그 큐 키를 부팅 때 지운다', () => {
-        sessionStorage.setItem(LEGACY_QUEUE_KEY, JSON.stringify([{ message: 'stale' }]));
-
-        const result = attachWebCrashSentinel();
-        teardown = result.teardown;
-
-        expect(sessionStorage.getItem(LEGACY_QUEUE_KEY)).toBeNull();
     });
 
     it('탭이 백그라운드로 가면 센티널을 내리고 돌아오면 다시 세운다', () => {

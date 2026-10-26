@@ -94,7 +94,6 @@ const GROUPS: Record<string, readonly string[]> = {
         'globalCacheRefKey',
         'recoverInvitedCloudIfMissing',
         'requestSyncCursorReset',
-        'runInCloud',
         'sendChatInCloud',
         'setStateOutboxObserver',
         'syncInvitedCloudName',

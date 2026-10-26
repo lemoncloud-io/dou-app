@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
-import { ACCOUNT_CHANNEL_SID, type DomainChannel } from '@chatic/data';
+import { ACCOUNT_CHANNEL_SID, isRelayDm, type DomainChannel } from '@chatic/data';
 
 import { useHasChannelSync } from '../stores/useChannelSyncMarkStore';
 import { useColdListWindowElapsed } from './useColdListWindow';
@@ -121,8 +121,12 @@ export const useCloudChannelsSource = ({
 
     const accessible = useMemo(() => {
         if (!accessiblePlaceIds) return inCloud;
-        // The notes-to-self room is kept under the account, not a place, when nothing names one.
-        return inCloud.filter(row => !row.sid || row.sid === ACCOUNT_CHANNEL_SID || accessiblePlaceIds.has(row.sid));
+        // The notes-to-self room is kept under the account, not a place, when nothing names one. A relay
+        // 1:1's place field is not where it lives (`isRelayDm`), so a place the reader cannot reach does
+        // not make it inaccessible.
+        return inCloud.filter(
+            row => !row.sid || row.sid === ACCOUNT_CHANNEL_SID || isRelayDm(row) || accessiblePlaceIds.has(row.sid)
+        );
     }, [inCloud, accessiblePlaceIds]);
 
     return useMemo(() => ({ channels: accessible, isLoaded }), [accessible, isLoaded]);

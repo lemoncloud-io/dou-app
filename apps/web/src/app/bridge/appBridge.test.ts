@@ -147,9 +147,8 @@ describe('appBridge — 네이티브 브릿지 호출', () => {
         });
     });
 
-    // With the ring buffer retired, the four `*AppLogBuffer` methods are gone. The message types and
-    // app handlers remain for older-web compatibility, but this build never calls them — this test
-    // pins exactly that: they are not called.
+    // The ring buffer and its four `*AppLogBuffer` messages are retired; this pins that the methods
+    // that sent them do not come back.
     it('폐지된 log-buffer 메서드를 더 이상 노출하지 않는다', () => {
         expect('fetchAppLogBuffer' in appBridge).toBe(false);
         expect('pollAppLogBuffer' in appBridge).toBe(false);

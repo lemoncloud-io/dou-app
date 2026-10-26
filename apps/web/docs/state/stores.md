@@ -87,11 +87,10 @@ with `{ lane: 'shell' }`: a `local` write lands in a lower-priority row than a n
 grep -rn "lane: 'shell'" apps/web/src/app/hooks apps/web/src/app/features --include='*.ts'
 ```
 
-`canceledInvites` is not in this table — it never became a config key. It is legacy,
-ADR-0043-era cancel-stamp data that `useInviteDismissMigration.ts`
-(`features/invite/hooks/`) reads directly off its old localStorage key
-(`dou.relayInvite.locallyCanceled.v1`) and drains, one-way, into the invite cache's
-`dismissedAt` field. `language` and `debugSettings` are also absent: `usePreferenceStore` never
+`canceledInvites` is not in this table — it never became a config key. A hidden sent invite is a
+`dismissedAt` stamp on its invite cache row instead; the short-lived localStorage list that came
+before it (`dou.relayInvite.locallyCanceled.v1`) was folded into the cache by a one-time migration
+that has since been retired. `language` and `debugSettings` are also absent: `usePreferenceStore` never
 actually managed either (see "Out of scope" below), so neither moved.
 
 ## Storage model

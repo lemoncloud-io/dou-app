@@ -11,20 +11,17 @@ interface SentInviteEntry {
 /** Keyed by the recipient's number in E.164 (`+821012345678`). */
 type SentInviteLogMap = Record<string, SentInviteEntry>;
 
-const STORAGE_KEY = 'dou.relayInvite.sentLog.v2';
 /**
- * `.v1` was keyed by local Korean digits, which collide across countries once invites can go
- * anywhere. There is no `persist` middleware here and no `migrate` hook, so bumping the key IS the
- * migration: entries are a local convenience cache (ADR-0044 §6) and simply lapse. The old key is
- * cleared on the first read so the dead data does not sit in storage forever.
+ * `.v2` because `.v1` was keyed by local Korean digits, which collide across countries once invites
+ * can go anywhere. There is no `persist` middleware here and no `migrate` hook, so bumping the key
+ * was the migration: entries are a local convenience cache and simply lapsed.
  */
-const LEGACY_STORAGE_KEY = 'dou.relayInvite.sentLog.v1';
+const STORAGE_KEY = 'dou.relayInvite.sentLog.v2';
 
 /** A corrupt/tampered value degrades to an empty log rather than throwing. */
 const readStoredLog = (): SentInviteLogMap => {
     if (typeof window === 'undefined') return {};
     try {
-        localStorage.removeItem(LEGACY_STORAGE_KEY);
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return {};
         const parsed: unknown = JSON.parse(raw);

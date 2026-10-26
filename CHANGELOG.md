@@ -1,5 +1,42 @@
 # Changelog
 
+## [2026-10-26] - No version updates
+
+### Bug Fixes
+
+- (web-ui-kit,web) draw the avatar stroke over the picture, not around it
+
+## [2026-10-26] - No version updates
+
+### Bug Fixes
+
+- (web,data,desktop-web) list a relay 1:1 in the relay's place, not by its sid (ADR-0230)
+
+## [2026-10-26] - root@0.112.1, @chatic/web@0.77.1, @chatic/landing@0.6.1, @chatic/desktop-web@0.35.4
+
+### Documentation
+
+- (admin-v2) describe socket-lab as it is now and add the users feature
+
+### Refactor
+
+- (admin-v2) remove socket-lab and memberships code nothing imports
+- (desktop-web) drop the mute toggle and mention counters nothing calls
+- retire six bridge requests no web sends, and the shells' dead bridge code
+- (web,data) delete dead helpers and the drained invite stub-era migration
+- (auth-sign,app-runtime,web) drop fields and paths nothing reads or takes
+- (web-ui-kit) drop ButtonGroup and Button's deprecated accent prop for tone
+- (config,data,shared,perf) remove exports only their own tests used
+- (ui-kit) delete eight primitives nothing imports, and the deps only they pulled
+
+### Chores
+
+- (mobile) drop native deps and the web target nothing uses
+
+### Other
+
+- perf: (data) hold the sync cursor for 30 minutes again, not the migration's 5
+
 ## [2026-10-26] - root@0.112.0, @chatic/web@0.77.0
 
 ### Features

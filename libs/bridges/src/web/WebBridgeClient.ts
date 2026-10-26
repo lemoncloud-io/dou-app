@@ -1,8 +1,8 @@
 import { logger } from '@chatic/logger';
 
 import type { BridgeAdapter, InboundMessageMeta } from './adapters/types';
-import type { EventMessage, RequestMessage, ResponseMessage, EnvironmentConfig, IMessageQueue } from '../common';
-import { MessageQueue } from '../common';
+import type { EventMessage, RequestMessage, ResponseMessage, IMessageQueue } from '../common';
+import { isNative, MessageQueue } from '../common';
 import type {
     BridgeRequestObserver,
     IWebBridgeClient,
@@ -19,7 +19,7 @@ import {
     type WebMessageResponse,
     type WebMessageType,
 } from '@chatic/app-messages';
-import { BRIDGE_PROTOCOL_VERSION } from '../version';
+import { BRIDGE_VERSION } from '../version';
 
 /**
  * The least a held timeout gets back when the page shows again. On Android the replies held while
@@ -38,7 +38,6 @@ export class WebBridgeClient implements IWebBridgeClient {
     private timeoutMs: number;
     private bridgeReadyTimeoutMs: number;
     private isBridgeAvailable: () => boolean;
-    private environment?: EnvironmentConfig;
     private now: () => number;
     /** Receives a sample per settled request. Absent means nothing is measured at all. */
     private requestObserver?: BridgeRequestObserver;
@@ -68,12 +67,11 @@ export class WebBridgeClient implements IWebBridgeClient {
 
     constructor(config: WebBridgeClientConfig) {
         this.adapter = config.adapter;
-        this.version = config.version ?? BRIDGE_PROTOCOL_VERSION;
+        this.version = config.version ?? BRIDGE_VERSION;
         this.timeoutMs = config.timeoutMs ?? 10000;
         this.bridgeReadyTimeoutMs = config.bridgeReadyTimeoutMs ?? 10000;
-        this.isBridgeAvailable = config.isBridgeAvailable ?? this.checkNativeBridgeAvailable;
+        this.isBridgeAvailable = config.isBridgeAvailable ?? isNative;
         this.pendingBuffer = config.pendingBuffer ?? new MessageQueue();
-        this.environment = config.environment;
         this.now = config.now ?? defaultNow;
         this.visibility = config.visibility ?? createDocumentVisibility();
         this.unsubscribeVisibility = this.visibility?.subscribe(this.handleVisibilityChange);
@@ -84,18 +82,6 @@ export class WebBridgeClient implements IWebBridgeClient {
         // Starts watching for the native bridge.
         this.initBridgeDetection();
     }
-
-    /**
-     * [Internal] Checks in real time whether the bridge is injected for each platform on the browser global object (window).
-     */
-    private checkNativeBridgeAvailable = (): boolean => {
-        if (typeof window === 'undefined') return false;
-        return !!(
-            window.ReactNativeWebView?.postMessage ||
-            window.ChaticMessageHandler?.postMessage ||
-            window.webkit?.messageHandlers?.ChaticMessageHandler?.postMessage
-        );
-    };
 
     /**
      * [Internal] Runs a polling loop until the bridge is detected, if it hasn't been detected yet.
@@ -243,7 +229,7 @@ export class WebBridgeClient implements IWebBridgeClient {
         // device wakes, would otherwise shrink the remainder to nothing or stretch it past the budget.
         const now = defaultNow();
         this.pendingRequests.forEach(pending => {
-            // Only timers this client can re-arm; the timeout simulation keeps its own.
+            // Only a running timer: one still in the readiness buffer, or already held, has none.
             if (!pending.timeoutId || pending.armedAt === undefined) return;
             clearTimeout(pending.timeoutId);
             pending.timeoutId = undefined;
@@ -330,22 +316,6 @@ export class WebBridgeClient implements IWebBridgeClient {
      * [Internal] Validates the raw message delivered from the adapter and routes it by determining its target.
      */
     private handleMessage = (message: ResponseMessage | EventMessage, meta?: InboundMessageMeta): void => {
-        // Drop the event early if drop simulation is configured
-        if (this.shouldDrop()) return;
-
-        // Apply a decoding delay if RTT delay simulation is configured
-        const delay = (this.environment?.rttDelayMs ?? 0) / 2;
-        if (delay > 0) {
-            setTimeout(() => this.processReceivedMessage(message, meta), delay);
-        } else {
-            this.processReceivedMessage(message, meta);
-        }
-    };
-
-    /**
-     * [Internal] Makes the final call on whether an actually received message is a Response or an Event.
-     */
-    private processReceivedMessage(message: ResponseMessage | EventMessage, meta?: InboundMessageMeta): void {
         // A message from the host proves it can reach the page, so nothing held is waiting on a
         // delivery any more. The visible edge is otherwise the only thing that resumes a held timer,
         // and the hold must not outlive a page whose visibility state lags the app's real one.
@@ -355,42 +325,12 @@ export class WebBridgeClient implements IWebBridgeClient {
 
         // If it has a `success` property and refId is pending in the map, it's a Response to a request
         if ('success' in message && refId && this.pendingRequests.has(refId)) {
-            // Simulation: force injection of malformed data
-            if (this.environment?.malformedResponse) {
-                this.handleResponse(
-                    {
-                        refId,
-                        version: message.version,
-                        type: 'ERROR',
-                        success: true,
-                    } as unknown as ResponseMessage,
-                    meta
-                );
-                return;
-            }
-
-            // Simulation: force injection of a fake response-type mismatch
-            if (this.environment?.responseTypeMismatch && message.success) {
-                const mismatchType =
-                    typeof this.environment.responseTypeMismatch === 'string'
-                        ? this.environment.responseTypeMismatch
-                        : 'OnFetchSafeArea';
-                this.handleResponse(
-                    {
-                        ...message,
-                        type: mismatchType,
-                    } as ResponseMessage,
-                    meta
-                );
-                return;
-            }
-
             this.handleResponse(message as ResponseMessage, meta);
         } else {
             // Treated as an event when it isn't in the pending map, or when it's one-way data
             this.handleEvent(message as EventMessage);
         }
-    }
+    };
 
     /**
      * [Internal] Ends the lifetime of the matched pending request and settles (resolve/reject) its promise.
@@ -469,23 +409,11 @@ export class WebBridgeClient implements IWebBridgeClient {
             return;
         }
 
-        if (this.shouldDrop()) return;
-
         const requestMessage = this.createRequestMessage(message);
-
-        const send = () => {
-            if (!this.isReady) {
-                this.pendingBuffer.enqueue(requestMessage);
-            } else {
-                this.adapter.postMessage(requestMessage);
-            }
-        };
-
-        const delay = (this.environment?.rttDelayMs ?? 0) / 2;
-        if (delay > 0) {
-            setTimeout(send, delay);
+        if (!this.isReady) {
+            this.pendingBuffer.enqueue(requestMessage);
         } else {
-            send();
+            this.adapter.postMessage(requestMessage);
         }
     }
 
@@ -502,64 +430,6 @@ export class WebBridgeClient implements IWebBridgeClient {
             return Promise.reject(this.createNativeNotSupportedError(requestType));
         }
 
-        // Simulation: reject immediately when forced-instant-error is configured
-        if (this.environment?.forceFailure) {
-            const failure = typeof this.environment.forceFailure === 'object' ? this.environment.forceFailure : {};
-            const delay = this.environment?.rttDelayMs ?? 0;
-            return new Promise((_, reject) => {
-                setTimeout(() => {
-                    reject({
-                        code: failure.code ?? 'BRIDGE_SIMULATION_FAILURE',
-                        message:
-                            failure.message ??
-                            'The request failed because the bridge simulation was configured to fail.',
-                        reason: 'The bridge simulation was configured to fail before reaching the app host.',
-                        requestType,
-                        expectedResponseType,
-                        protocolVersion: this.version,
-                        webVersion: this.version,
-                        recoverable: failure.recoverable ?? true,
-                    });
-                }, delay);
-            });
-        }
-
-        // Simulation: forcing an indefinite response-delay timeout
-        if (this.environment?.timeoutMode) {
-            const timeoutMs = options?.timeoutMs ?? this.timeoutMs;
-            return new Promise((resolve, reject) => {
-                const refId = this.generateRefId();
-                const timeoutId = setTimeout(() => {
-                    this.pendingRequests.delete(refId);
-                    reject({
-                        code: 'TIMEOUT',
-                        message: `Request timed out after ${timeoutMs}ms`,
-                        reason: 'No response was received before the configured timeout.',
-                        requestType,
-                        expectedResponseType,
-                        protocolVersion: this.version,
-                        webVersion: this.version,
-                        recoverable: true,
-                    });
-                }, timeoutMs);
-
-                this.pendingRequests.set(refId, {
-                    resolve,
-                    reject,
-                    timeoutId,
-                    timeoutMs,
-                    requestType,
-                    expectedResponseType,
-                });
-            });
-        }
-
-        if (this.shouldDrop()) {
-            return new Promise(() => {
-                /* drop, never resolves */
-            });
-        }
-
         return new Promise((resolve, reject) => {
             const requestMessage = this.createRequestMessage(message);
             const refId = requestMessage.refId ?? this.generateRefId();
@@ -571,25 +441,15 @@ export class WebBridgeClient implements IWebBridgeClient {
                 timeoutMs: options?.timeoutMs ?? this.timeoutMs,
                 requestType,
                 expectedResponseType,
+                // Only while measuring: a request called before the observer was attached reports
+                // no queue time rather than a wrong one.
+                calledAt: this.requestObserver ? this.now() : undefined,
             });
 
-            const send = () => {
-                // Stamped here rather than at the call: a simulated outbound delay is not time spent
-                // waiting for the channel, and must not read as queue time.
-                const pending = this.pendingRequests.get(refId);
-                if (pending && this.requestObserver) pending.calledAt = this.now();
-                if (!this.isReady) {
-                    this.pendingBuffer.enqueue(requestMessage);
-                } else {
-                    this.dispatchRequest(requestMessage);
-                }
-            };
-
-            const delay = (this.environment?.rttDelayMs ?? 0) / 2;
-            if (delay > 0) {
-                setTimeout(send, delay);
+            if (!this.isReady) {
+                this.pendingBuffer.enqueue(requestMessage);
             } else {
-                send();
+                this.dispatchRequest(requestMessage);
             }
         });
     }
@@ -610,24 +470,6 @@ export class WebBridgeClient implements IWebBridgeClient {
             listeners.delete(handler as any);
             if (listeners.size === 0) this.eventListeners.delete(typeStr);
         };
-    }
-
-    /**
-     * [Internal] Determines whether a message should be lost, based on the configured drop-rate simulation value.
-     */
-    private shouldDrop(): boolean {
-        const rate = this.environment?.dropRate ?? 0;
-        if (rate <= 0) return false;
-        if (rate >= 1) return true;
-        const rand = this.environment?.random ?? Math.random;
-        return rand() < rate;
-    }
-
-    /**
-     * Overwrites the simulation variables that drive the bridge's runtime communication behavior, for testing and debugging.
-     */
-    public configureEnvironment(config?: EnvironmentConfig): void {
-        this.environment = config;
     }
 
     /**

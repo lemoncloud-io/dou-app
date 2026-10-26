@@ -1,12 +1,6 @@
 import type { ShellFileRef } from '../uploads/types';
 import { CHAT_ATTACHMENT_MAX_BYTES } from './chatAttachments';
-import {
-    CHAT_IMAGE_MAX_BYTES,
-    chatAttachmentSummary,
-    chatImageCount,
-    judgeChatAttachments,
-    judgeChatImages,
-} from './chatImages';
+import { chatAttachmentSummary, chatImageCount, judgeChatAttachments, judgeChatImages } from './chatImages';
 
 const file = (name: string, type = 'image/jpeg', size = 1024, lastModified = 1): File => {
     const f = new File(['x'], name, { type, lastModified });
@@ -42,8 +36,8 @@ describe('judgeChatImages', () => {
     it('refuses a file over the page ceiling, and takes one exactly at it', () => {
         const { accepted, rejected } = judgeChatImages(
             [
-                file('big.jpg', 'image/jpeg', CHAT_IMAGE_MAX_BYTES + 1),
-                file('edge.jpg', 'image/jpeg', CHAT_IMAGE_MAX_BYTES),
+                file('big.jpg', 'image/jpeg', CHAT_ATTACHMENT_MAX_BYTES.image + 1),
+                file('edge.jpg', 'image/jpeg', CHAT_ATTACHMENT_MAX_BYTES.image),
             ],
             10
         );

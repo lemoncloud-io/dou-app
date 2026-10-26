@@ -10,9 +10,6 @@ type Decision = { emittedBy: string[]; test: string } | { notEmitted: string };
  * pushes it and the test that triggers it, or the reason it never does. Paths are relative to
  * `apps/mobile/src`. A new push-only message in `@chatic/app-messages`, or a new `pushEvent` call
  * here, fails this suite until it has a line.
- *
- * A reply type is listed too when the shell also pushes it unprompted — `OnBackgroundStatusChanged`
- * answers `FetchBackgroundStatus`, and is pushed again on every app-state change.
  */
 const MOBILE_APP_EVENTS = {
     OnBackPressed: {

@@ -21,3 +21,4 @@ documents cover each console feature in turn.
 | [memberships/](./memberships/README.md)             | Viewing and overriding a user's subscription                 |
 | [report-logs/](./report-logs/README.md)             | The log console: users, errors, reports, statistics, logs    |
 | [socket-lab/](./socket-lab/README.md)               | The multi-client WebSocket lab and its live device-watch tab |
+| [users/](./users/README.md)                         | Listing relay users and registering a new one                |

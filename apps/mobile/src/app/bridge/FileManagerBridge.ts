@@ -19,7 +19,6 @@ export interface IFileManagerBridge {
      */
     TransferTempPath: string;
     exists(path: string): Promise<boolean>;
-    readChunk(path: string, length: number, offset: number): Promise<string>;
     readFile(path: string): Promise<string>;
     unlink(path: string): Promise<boolean>;
     downloadFile(url: string, toPath: string): Promise<string>;
@@ -46,16 +45,10 @@ export const FileManagerBridge: IFileManagerBridge = {
         return FileManager.exists(path);
     },
 
-    readChunk: async (path: string, length: number, offset: number): Promise<string> => {
-        if (!FileManager) throw new Error('FileManager native module is not available');
-        return FileManager.readChunk(path, length, offset);
-    },
-
     /**
-     * The three terminal file operations log their failures (ADR-0099). `exists` and `readChunk`
-     * deliberately do not: the first is a probe whose negative answer is information rather than a
-     * fault, and the second runs once per chunk of an upload — a hot path the catalog's volume rules
-     * keep out of the log.
+     * The terminal file operations log their failures: a read, delete, download or temp write that
+     * fails on a device is otherwise invisible to whoever diagnoses it later. `exists` deliberately
+     * does not: it is a probe whose negative answer is information rather than a fault.
      *
      * Paths are recorded; they are app-private locations, not user content.
      */

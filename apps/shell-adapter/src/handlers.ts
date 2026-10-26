@@ -41,7 +41,7 @@ const preferences = (shell: HandlerContext): Map<string, unknown> => {
 /** A failed reply with the app's error code, as the mobile handlers answer a domain failure. */
 const failure = (code: string, message: string): Error => Object.assign(new Error(message), { code });
 
-/** The settings the app stores, the app state, and sign-in. */
+/** The settings the app stores, and sign-in. */
 const shellHandlers: Handlers<DouMethods> = {
     FetchPreference: ({ key }, shell) => ({ key, value: preferences(shell).get(key) ?? null }),
     SavePreference: ({ key, value }, shell) => {
@@ -60,10 +60,6 @@ const shellHandlers: Handlers<DouMethods> = {
     DeletePreference: ({ key }, shell) => {
         preferences(shell).delete(key);
         return { key, success: true };
-    },
-    FetchBackgroundStatus: (_params, shell) => {
-        const status = shell.app.state();
-        return { status, isForeground: status === 'active', isBackground: status === 'background' };
     },
     OAuthLogin: async ({ provider }, shell) => {
         if (provider === 'apple') {

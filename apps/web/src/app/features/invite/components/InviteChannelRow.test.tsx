@@ -26,7 +26,7 @@ describe('InviteChannelRow', () => {
         );
         const avatar = container.querySelector('.bg-brand-ink') as HTMLElement;
 
-        expect(avatar.className).toContain('border-border');
+        expect(avatar.querySelector('[data-avatar-stroke]')?.className).toContain('border-avatar-stroke');
         expect(avatar.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 42 42');
     });
 

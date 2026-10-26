@@ -19,13 +19,6 @@ import type { DomainChat } from './models';
 /** The formats the server accepts. Anything else is refused before an upload is started. */
 export const CHAT_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'] as const;
 
-/**
- * Per-file ceiling for an image, the server's own. Every shell uses the same one to avoid "it worked
- * on my phone"; the web shell also holds a whole picked photo in memory while it prepares it, and the
- * app hands each one over as base64.
- */
-export const CHAT_IMAGE_MAX_BYTES = CHAT_ATTACHMENT_MAX_BYTES.image;
-
 /** Why a picked file was not taken, judged in this order. Kept for the image-only callers. */
 export type ChatImageRejection = 'unsupported' | 'too-large' | 'duplicate' | 'limit';
 

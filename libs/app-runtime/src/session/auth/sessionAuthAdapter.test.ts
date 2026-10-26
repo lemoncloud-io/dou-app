@@ -69,7 +69,6 @@ jest.mock('@chatic/auth-sign', () => ({
 }));
 
 jest.mock('../store/stores', () => ({
-    CLOUD_INVITED_BUNDLES_KEY: 'invited-cloud-bundles',
     cloudStore: {
         saveDelegationToken: jest.fn(),
         getDelegationToken: (...args: unknown[]) => mockGetDelegationToken(...args),
@@ -202,7 +201,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         // cloud signs with Token.authId (not $auth.id — cloud tokens have no $auth); accountId/identityId
         // also come from Token.
         expect(mockCalcSignature).toHaveBeenCalledWith(
-            { authId: 'http-id', accountId: 'acct', identityId: 'ident', identityToken: '' },
+            { authId: 'http-id', accountId: 'acct', identityId: 'ident' },
             expect.any(String),
             expect.any(String)
         );
@@ -226,7 +225,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         const result = await sessionAuthAdapter.signAuth(RELAY);
 
         expect(mockCalcSignature).toHaveBeenCalledWith(
-            { authId: 'relay-auth-id', accountId: 'r-acct', identityId: 'r-ident', identityToken: '' },
+            { authId: 'relay-auth-id', accountId: 'r-acct', identityId: 'r-ident' },
             expect.any(String),
             expect.any(String)
         );

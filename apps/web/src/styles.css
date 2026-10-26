@@ -79,12 +79,14 @@
         --warning: 38 92% 50%; /* highlight behind a mention of me (MSG_MENTION_SELF_CLASS) */
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge) */
         --control-idle: 220 3% 81%; /* #CFD0D3 - idle/disabled control fill */
-        --avatar-ring: 210 22% 96%; /* #F4F5F5 - avatar outer ring */
+        --avatar-ring: 210 22% 96%; /* #F4F5F5 - place/chat avatar stroke + light avatar disc */
+        --avatar-stroke: 195 17% 91%; /* #E4EAEC - photo/person avatar stroke (web-ui-kit parity) */
 
         /* Brand + control tokens (Figma, web-ui-kit parity) */
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge, active send) */
         --control-idle: 220 3% 81%; /* #CFD0D3 - idle/disabled control fill */
-        --avatar-ring: 210 22% 96%; /* #F4F5F5 - avatar outer ring */
+        --avatar-ring: 210 22% 96%; /* #F4F5F5 - place/chat avatar stroke + light avatar disc */
+        --avatar-stroke: 195 17% 91%; /* #E4EAEC - photo/person avatar stroke (web-ui-kit parity) */
         --control-surface: 210 22% 96%; /* #F4F5F5 - circular action tile fill (chat attach menu) */
 
         /* Attach menu + photo picker (Figma, web-ui-kit parity) */
@@ -166,11 +168,13 @@
         --brand-ink: 217 63% 17%; /* #102346 - dark brand fill (avatar badge) */
         --control-idle: 220 3% 40%; /* idle/disabled control fill on dark bg */
         --avatar-ring: 0 0% 18%; /* avatar outer ring on dark bg */
+        --avatar-stroke: 0 0% 18%; /* avatar stroke on dark bg */
 
         /* Brand + control tokens (Figma, web-ui-kit parity) */
         --brand-ink: 217 63% 17%; /* #102346 */
         --control-idle: 220 3% 40%; /* muted control on dark bg */
         --avatar-ring: 0 0% 18%; /* subtle ring on dark bg */
+        --avatar-stroke: 0 0% 18%; /* avatar stroke on dark bg */
         --control-surface: 0 0% 15%; /* tile fill on dark bg */
 
         /* Attach menu + photo picker (web-ui-kit parity) */

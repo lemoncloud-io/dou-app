@@ -56,6 +56,3 @@ export const statusOf = (k: MetricKey, v: number): SliStatus => {
     const t = THRESHOLDS[k];
     return v > t[1] ? 'red' : v > t[0] ? 'yellow' : 'green';
 };
-
-export const statusColor = (st: SliStatus): string =>
-    st === 'red' ? '#f85149' : st === 'yellow' ? '#d29922' : '#3fb950';

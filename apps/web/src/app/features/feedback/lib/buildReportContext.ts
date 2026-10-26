@@ -13,11 +13,12 @@ interface BuildReportContextArgs {
 }
 
 /**
- * Diagnostic-only projection of the device snapshot. Deliberately excludes
- * `deviceToken` (an FCM/APNS push *credential*) and the deprecated
- * `deviceId`/`installId`/`firebaseInstallationId` duplicates — a bug report
- * lands in a shared channel, so it must not carry a capability token. Keeps the
- * fields useful for diagnosis plus `uniqueDeviceId` for support correlation.
+ * Diagnostic-only projection of the device snapshot. Deliberately excludes the
+ * deprecated `deviceId`/`installId`/`firebaseInstallationId` duplicates — a bug
+ * report lands in a shared channel, so it carries one device identifier, not
+ * every one the shell injects. Keeps the fields useful for diagnosis plus
+ * `uniqueDeviceId` for support correlation. An allowlist rather than a
+ * blocklist, so a field added to `DeviceInfo` later stays out until chosen.
  */
 const pickDeviceFields = (deviceInfo: DeviceInfo) => ({
     platform: deviceInfo.platform,

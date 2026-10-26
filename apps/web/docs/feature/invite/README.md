@@ -264,7 +264,7 @@ The lanes are shaped around these absences, so they are stated once here:
 
 A third limit is structural rather than missing work: `invite.list` is asked with `limit: 100` and
 `InviteListInput` has no cursor, so there is no real paging. An invite outside that window is
-invisible to re-invite detection, the list rows, the waiting screen and the reconcile pass alike.
+invisible to re-invite detection, the list rows and the waiting screen alike.
 
 ## How to verify
 

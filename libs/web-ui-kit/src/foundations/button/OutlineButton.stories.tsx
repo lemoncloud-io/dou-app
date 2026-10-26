@@ -14,7 +14,7 @@ type Story = StoryObj<typeof OutlineButton>;
 
 export const Default: Story = {};
 export const WithIcon: Story = { args: { icon: <IconPlan className="size-4" /> } };
-export const Accent: Story = { args: { accent: true, icon: <IconPlan className="size-4" /> } };
+export const Green: Story = { args: { tone: 'green', icon: <IconPlan className="size-4" /> } };
 export const Medium: Story = {
     args: { size: 'md', children: '초대 다시 보내기', trailingIcon: <IconChevronRight className="size-[18px]" /> },
 };

@@ -18,8 +18,7 @@ import { runtime } from '@chatic/app-runtime';
 
 /**
  * Minimal projection of `MockView` (chatic-backend-api) we actually consume.
- * Kept local (mirrors the socket-lab `deviceApi` convention) so the feature does
- * not depend on the SDK's type re-exports. The report payload is not a top-level
+ * Kept local so the feature does not depend on the SDK's type re-exports. The report payload is not a top-level
  * field — it lives serialized inside `meta` (object or JSON string) and/or the
  * SlackReportBody `message`; `parseReportLog` unwraps it defensively.
  */

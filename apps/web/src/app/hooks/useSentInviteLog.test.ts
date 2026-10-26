@@ -5,7 +5,6 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 import { useSentInviteLog, useSentInviteLogStore } from './useSentInviteLog';
 
 const STORAGE_KEY = 'dou.relayInvite.sentLog.v2';
-const LEGACY_STORAGE_KEY = 'dou.relayInvite.sentLog.v1';
 
 const invite = (id: string): MyInviteView => ({ id }) as MyInviteView;
 
@@ -87,17 +86,6 @@ describe('useSentInviteLog', () => {
     it('findByInviteId는 일치하는 항목이 없으면 undefined다', () => {
         const { result } = renderHook(() => useSentInviteLog());
         expect(result.current.findByInviteId('invite-none')).toBeUndefined();
-    });
-
-    it('구 .v1 키는 첫 읽기에서 치운다 — 키 교체가 곧 마이그레이션이다 (ADR-0044 §6)', () => {
-        localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ '01012345678': { inviteId: 'old', name: '옛' } }));
-
-        // The store reads storage once, at module init — so re-import to observe that read.
-        jest.isolateModules(() => {
-            require('./useSentInviteLog');
-        });
-
-        expect(localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
     });
 
     it('E.164 키라 로컬 형태가 겹치는 두 나라 번호를 구분한다', () => {

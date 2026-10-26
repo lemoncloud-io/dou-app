@@ -195,8 +195,7 @@ soft rounded card sized to its thumbnails — since the list scrolls on behind t
 
 ## Side insets belong to the shell
 
-Inside the mobile app `--safe-left` and `--safe-right` are always `0px`, and so are `left`/`right`
-in `OnFetchSafeArea`. The shell pads the WebView itself by the side insets — iPhone Duo's outer
+Inside the mobile app `--safe-left` and `--safe-right` are always `0px`. The shell pads the WebView itself by the side insets — iPhone Duo's outer
 display keeps its status bar on the trailing edge, a phone in landscape has the notch on one side —
 so the viewport the web lays out in already starts clear of them, `fixed` and portalled surfaces
 included. Nothing here has to read the two variables; a component that does gets 0 rather than

@@ -26,7 +26,7 @@ Figma variables read from node `187-3` (the desktop palette):
 | `main color/GR1`              | `#B0EA10` | `--primary` on every surface. The only hue in the system         |
 | (GR2, referenced in comments) | `#90C304` | `--main-accent`: the desktop toast's success check               |
 | `blue_bk`                     | `#102346` | `--brand-ink` (web): avatar badge, active send, my bubble        |
-| `gray_blue`                   | `#E4EAEC` | not tokenised, unused in code                                    |
+| `gray_blue`                   | `#E4EAEC` | `--avatar-stroke` (web): photo/person avatar stroke              |
 | `Solid/Secondary/BK_50`       | `#F4F5F5` | `--secondary`, `--muted`, `--accent` hover, `--avatar-ring`      |
 | `BK_100`                      | `#EAEAEC` | `--border`, `--hairline`, `--input-border` (web)                 |
 | `BK_300`                      | `#CFD0D3` | `--control-idle`, `--toast-muted`                                |

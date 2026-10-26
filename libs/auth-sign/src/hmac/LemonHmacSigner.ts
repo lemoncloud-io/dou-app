@@ -10,7 +10,7 @@ const hmac = (message: string, key: string): string => encBase64.stringify(hmacS
  * `data = [current, accountId, identityId, '', userAgent].join('&')`.
  *
  * The 4th slot is always `''`. That is a property of the formula and not a caller convention, so
- * `payload.identityToken` is accepted and never read.
+ * the payload has no field for it.
  *
  * Pure: no network, no storage, no globals. `current` and `userAgent` are required inputs rather
  * than defaults, because a default would have to read `new Date()` or `navigator`, and this lib

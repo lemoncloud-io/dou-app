@@ -9,6 +9,7 @@ import { logger } from '@chatic/bridges';
 import {
     dmPlaceOf,
     isCloudDm,
+    isRelayDm,
     type DomainChannel,
     type DomainChannelListPayload,
     type DomainListResult,
@@ -312,14 +313,15 @@ export class ChannelRepository extends BaseRepository implements IChannelReposit
         // Sync ingests channels across all places, so map without binding to the active sid.
         const remote = await this.channelSocketDataSource.syncChannel({ since }, { ...normalizedContext, sid: '' });
 
-        // A row with no place is dropped, with two exceptions. The Self Channel belongs to the account,
+        // A row with no place is dropped, with three exceptions. The Self Channel belongs to the account,
         // not to a place, and the relay sends it with an empty `$`; dropping it left a new user's Home
         // with no channel at all. A cloud 1:1 keeps the place its id names, or none: the cache never
         // fills its place from the reader's, and a desktop cloud with no place lists the ones no place
-        // holds.
+        // holds. A relay 1:1 is listed in the relay's one place whatever its field says (`isRelayDm`),
+        // so a room that names none is still the reader's room.
         const domainList = (remote.list || []).filter(
             item =>
-                (!!item.$?.sid || item.stereo === 'self' || isCloudDm(item)) &&
+                (!!item.$?.sid || item.stereo === 'self' || isCloudDm(item) || isRelayDm(item)) &&
                 !!item.id &&
                 !this.isGuardedAfterLeave(item.id)
         );

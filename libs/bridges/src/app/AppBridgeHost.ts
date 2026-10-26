@@ -14,7 +14,7 @@ import {
     type WebMessageType,
 } from '@chatic/app-messages';
 import type { IAppBridgeHost } from './IAppBridgeHost';
-import { BRIDGE_PROTOCOL_VERSION } from '../version';
+import { BRIDGE_VERSION } from '../version';
 
 export interface AppBridgeHostConfig {
     protocol?: MessageProtocol;
@@ -81,7 +81,7 @@ export class AppBridgeHost implements IAppBridgeHost {
     constructor(config: AppBridgeHostConfig) {
         this.protocol = config.protocol ?? JsonProtocol;
         this.sendToWeb = config.sendToWeb;
-        this.version = config.version ?? BRIDGE_PROTOCOL_VERSION;
+        this.version = config.version ?? BRIDGE_VERSION;
         this.eventBuffer = config.eventBuffer ?? new MessageQueue();
 
         // WebAppReady isn't a plain ready signal — it's a handshake that exchanges web/mobile protocol capability.
