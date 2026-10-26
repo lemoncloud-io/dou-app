@@ -167,7 +167,302 @@
                 "either": "Google or Apple"
             }
         },
-        "checkout": {},
+        "checkout": {
+            "steps": {
+                "label": "Checkout steps",
+                "plan": "Plan",
+                "signIn": "Sign in",
+                "details": "Details",
+                "payment": "Payment method",
+                "done": "Done"
+            },
+            "planRo": {
+                "1": "DoU Cloud 1",
+                "2": "DoU Cloud 2",
+                "3": "DoU Cloud 3",
+                "4": "DoU Cloud 4",
+                "5": "DoU Cloud 5"
+            },
+            "planEul": {
+                "1": "DoU Cloud 1",
+                "2": "DoU Cloud 2",
+                "3": "DoU Cloud 3",
+                "4": "DoU Cloud 4",
+                "5": "DoU Cloud 5"
+            },
+            "cardLabel": "{{brand}} ···· {{last4}}",
+            "perMonth": "{{price}} / month",
+            "summary": {
+                "title": "Order summary",
+                "plan": "Plan",
+                "clouds": "Clouds",
+                "cloudCount_one": "{{count}}",
+                "cloudCount_other": "{{count}}",
+                "monthly": "Monthly price",
+                "monthlyValue": "{{price}} (VAT incl.)",
+                "trial": "Free trial",
+                "trialRange_one": "{{from}} – {{to}} ({{count}} day)",
+                "trialRange_other": "{{from}} – {{to}} ({{count}} days)",
+                "trialRangeShort": "{{from}} – {{to}}",
+                "trialUsed": "None — already used",
+                "none": "None",
+                "firstCharge": "First payment date",
+                "firstChargeShort": "First payment",
+                "today": "{{date}} (today)",
+                "dateAndPrice": "{{date}} · {{price}}",
+                "chargeToday": "Due today"
+            },
+            "details": {
+                "title": "Review your order",
+                "subtitle": "Check the plan, the price and the account the subscription applies to.",
+                "accountTitle": "This applies to this account's DoU app",
+                "provider": {
+                    "google": "Google",
+                    "apple": "Apple"
+                },
+                "accountNote": "If this is not the account you use in the app, sign out and sign in again with that one.",
+                "next": "Next · Add a payment method"
+            },
+            "billing": {
+                "title": "Billing details",
+                "country": "Billing country",
+                "email": "Billing email",
+                "countries": {
+                    "KR": "South Korea",
+                    "US": "United States",
+                    "JP": "Japan",
+                    "OTHER": "Another country"
+                },
+                "countryNote": "The billing country decides how you pay. It cannot be changed after you subscribe.",
+                "comingSoonTitle": "Paying from outside Korea is coming soon",
+                "comingSoonBody": "For now you can subscribe only with South Korea as the billing country."
+            },
+            "email": {
+                "change": "Change",
+                "verified": "✓ Verified",
+                "sendCode": "Send code",
+                "codeSent": "Enter the code we sent to {{address}}.",
+                "verify": "Verify",
+                "resend": "Send the code again",
+                "otherAddress": "Use another email",
+                "error": {
+                    "invalidCode": "That code does not match. Please check it and try again.",
+                    "limit": "You cannot add more billing emails. Remove one you no longer use in Billing info."
+                }
+            },
+            "consent": {
+                "all": "Agree to all",
+                "terms": "I agree to the Terms of Service",
+                "privacy": "I agree to the collection and use of personal information",
+                "autoRenew": "I have read how automatic payment works",
+                "required": "Required",
+                "view": "View",
+                "noticeTrial": "From {{date}}, when the trial ends, {{price}} is charged to your card on day {{day}} of every month. You can cancel at any time, and cancelling during the trial means you are not charged.",
+                "noticePaid": "{{price}} is charged today, and the same amount on day {{day}} of every month to your card. You can cancel at any time."
+            },
+            "payment": {
+                "title": "Add a payment method",
+                "subtitleTrial": "Your free trial starts once a card is added. Nothing is charged today.",
+                "subtitlePaid": "Once a card is added, {{price}} is charged and your subscription starts.",
+                "card": "Card",
+                "cardNote": "You enter your card in the payment provider's window. DoU does not store card numbers.",
+                "windowTitle": "Korean card payment window (shown by the payment provider)",
+                "windowSteps": "Card issuer · Card number · Expiry · First 2 digits of PIN · Identity check",
+                "ctaTrial": "Add card and start free trial",
+                "ctaPaid": "Pay {{price}}",
+                "renewTrial": "From {{date}}, {{price}} is charged on day {{day}} of every month. You can cancel at any time in subscription management.",
+                "renewPaid": "From today, {{price}} is charged on day {{day}} of every month. You can cancel at any time in subscription management.",
+                "back": "Back",
+                "error": {
+                    "limit": "Too many card attempts. Please try again later.",
+                    "conflict": "This subscription cannot be started right now. Check your current subscription in subscription management."
+                }
+            },
+            "status": {
+                "processing": {
+                    "card": "Checking your card",
+                    "amount": "Charging {{price}}",
+                    "payment": "Processing your payment",
+                    "body": "Please wait a moment without closing or reloading this window.",
+                    "bodyUpgrade": "Please wait a moment without closing this window. Once the payment goes through, you are on {{plan}}.",
+                    "waitTitle": "Waiting for the payment provider",
+                    "waitBody": "Even if you close this window, you can see the result in subscription management."
+                },
+                "retried": {
+                    "title": "Payment complete",
+                    "body": "Your subscription is back to normal. You are still billed on day {{day}} of every month.",
+                    "amount": "Amount paid",
+                    "card": "Card",
+                    "next": "Next payment"
+                },
+                "toSubscription": "Go to subscription",
+                "canceled": {
+                    "title": {
+                        "card": "Card registration canceled",
+                        "payment": "Payment canceled",
+                        "upgrade": "Upgrade canceled",
+                        "retry": "Payment canceled"
+                    },
+                    "body": {
+                        "card": "The payment window was closed, so no subscription was created. Nothing was charged.",
+                        "payment": "The payment window was closed, so no subscription was created. Nothing was charged.",
+                        "upgrade": "The payment window was closed, so your plan did not change. Nothing was charged.",
+                        "retry": "The payment window was closed, so nothing was charged. Your subscription's payment is still overdue."
+                    },
+                    "retry": {
+                        "card": "Add a card again",
+                        "payment": "Pay again",
+                        "upgrade": "Upgrade again",
+                        "retry": "Payment methods"
+                    },
+                    "choosePlan": "Choose another plan"
+                },
+                "failed": {
+                    "title": {
+                        "card": "We could not add your card",
+                        "payment": "Payment failed",
+                        "upgrade": "Upgrade failed",
+                        "retry": "Payment failed"
+                    },
+                    "body": {
+                        "card": "No subscription was created and nothing was charged.",
+                        "payment": "No subscription was created and nothing was charged.",
+                        "upgrade": "Nothing was charged and you stay on {{plan}}.",
+                        "retry": "Nothing was charged and your subscription's payment is still overdue."
+                    },
+                    "reasonTitle": "Reason",
+                    "reason": {
+                        "declined": "Your card issuer declined it. {{next}}",
+                        "attemptLimit": "Too many card attempts. Please try again later.",
+                        "unknown": "The payment provider could not complete the payment. Please try again later."
+                    },
+                    "reasonNext": {
+                        "register": "Add another card, or contact your card issuer.",
+                        "pay": "Pay with another card, or contact your card issuer."
+                    },
+                    "chargedCard": "Card used: {{card}}",
+                    "manageCards": "Payment methods",
+                    "otherCard": {
+                        "card": "Add another card",
+                        "payment": "Pay with another card"
+                    },
+                    "retryStillDue": "You can change your payment method, or pay again with the same card."
+                }
+            },
+            "complete": {
+                "accountName": "{{name}} ({{provider}})",
+                "appliedTo": "Your subscription is already applied to the DoU app of {{account}}.",
+                "trialTitle": "Your {{plan}} free trial has started",
+                "paidTitle": "You have subscribed to {{plan}}",
+                "trialLabel": "Free trial",
+                "trialUntil": "Until {{date}}",
+                "renewLabel": "Automatic payment",
+                "renewValue": "From {{date}}, day {{day}} monthly · {{price}}",
+                "cancelLabel": "Cancel",
+                "cancelValue": "Any time in subscription management",
+                "paidLabel": "Amount paid",
+                "nextLabel": "Next payment",
+                "appSetup": {
+                    "title": "Set up your clouds in the app",
+                    "open": "Open the DoU app",
+                    "check": "Check your {{plan}} subscription in MY › Subscription",
+                    "create": "Tap Create cloud"
+                },
+                "toManage": "Go to subscription management",
+                "setUpInApp": "Set up clouds in the app",
+                "upgradedTitle": "You have upgraded to {{plan}}",
+                "upgradedBodyPaid_one": "{{price}} was charged, and you can now create up to {{count}} cloud.",
+                "upgradedBodyPaid_other": "{{price}} was charged, and you can now create up to {{count}} clouds.",
+                "upgradedBodyFree_one": "Nothing was charged during your trial, and you can now create up to {{count}} cloud.",
+                "upgradedBodyFree_other": "Nothing was charged during your trial, and you can now create up to {{count}} clouds.",
+                "nextDateLabel": "Next payment date",
+                "nextAmountLabel": "From the next payment",
+                "receiptLabel": "Receipt",
+                "receiptValue": "In billing history",
+                "toSubscription": "Go to subscription",
+                "addInApp": "Add a cloud in the app",
+                "downgradeTitle": "Change to {{plan}} scheduled",
+                "downgradeBody": "You keep {{plan}} until {{date}}.",
+                "effectiveLabel": "Takes effect",
+                "thatDayLabel": "Charged that day",
+                "currentLabel": "Current plan",
+                "currentValue": "Ending",
+                "chooseClouds": {
+                    "title": "Choose the clouds to keep in the app",
+                    "body_one": "After the change you can use up to {{count}} cloud. Before it takes effect, choose the clouds to keep in the DoU app under MY › Subscription.",
+                    "body_other": "After the change you can use up to {{count}} clouds. Before it takes effect, choose the clouds to keep in the DoU app under MY › Subscription."
+                }
+            },
+            "change": {
+                "now": "Now",
+                "after": "After",
+                "sameDay": "A scheduled change takes effect today, so the plan cannot be changed. Please try again tomorrow.",
+                "error": {
+                    "conflict": "The plan cannot be changed right now. Check the subscription's status."
+                },
+                "ending": {
+                    "title": "A subscription that is ending cannot change plan",
+                    "body": "Undo the cancellation on the subscription page, then try again.",
+                    "action": "Go to subscription"
+                },
+                "upgrade": {
+                    "title": "Confirm upgrade",
+                    "subtitlePaid": "Pay the difference today and start using {{plan}} right away.",
+                    "subtitleFree": "Nothing is charged today during your trial. You can use {{plan}} right away.",
+                    "pendingTitle": "A change to {{plan}} is scheduled",
+                    "pendingBody": "Upgrading cancels the change scheduled for {{date}}, and you use {{plan}} from today.",
+                    "todayLabel": "Difference due today",
+                    "cardLabel": "Card",
+                    "cardValue": "{{brand}} ···· {{last4}} (default)",
+                    "nextDateLabel": "Next payment date",
+                    "nextDateValue": "{{date}} (unchanged)",
+                    "nextAmountLabel": "From the next payment",
+                    "prorationNote": "The difference covers what is left of the current billing period.",
+                    "ctaPaid": "Pay {{price}} and upgrade",
+                    "ctaFree": "Upgrade",
+                    "ctaPendingPaid": "Cancel the change and pay {{price}}",
+                    "ctaPendingFree": "Cancel the change and upgrade",
+                    "asideTitle": "When you upgrade",
+                    "asideClouds_one": "You can create up to {{count}} cloud",
+                    "asideClouds_other": "You can create up to {{count}} clouds",
+                    "asideApp": "New clouds are added in the app",
+                    "asideFailure": "If the payment fails, your plan stays as it is and you are pointed to your payment methods"
+                },
+                "downgrade": {
+                    "title": "Schedule a downgrade",
+                    "subtitle": "You move to {{plan}} on the next payment date. Nothing is charged now.",
+                    "effectiveLabel": "Takes effect",
+                    "thatDayLabel": "Charged that day",
+                    "untilLabel": "Until then",
+                    "untilValue": "You keep {{plan}}",
+                    "todayLabel": "Due today",
+                    "todayValue": "Nothing",
+                    "keepTitle": "Only {{to}} of your {{from}} clouds stay active",
+                    "keepBody": "Before the change takes effect, choose the clouds to keep in the app. Clouds you do not choose are not deleted; they are made inactive.",
+                    "cta": "Schedule the change",
+                    "asideTitle": "Choosing clouds to keep",
+                    "asideBody": "Your clouds are listed in the app, so you choose them there. You can cancel the scheduled change at any time on the subscription page."
+                },
+                "pastDue": {
+                    "title": "Change plan",
+                    "route": "{{from}} → {{to}}",
+                    "bannerTitle": "Please pay the overdue amount first",
+                    "bannerBody": "The {{date}} payment ({{price}}) failed, so the plan cannot be changed. Update your card and pay, then you can change plan.",
+                    "bannerBodyNoDate": "A payment failed, so the plan cannot be changed. Update your card and pay, then you can change plan.",
+                    "now": "Now",
+                    "nowValue": "{{plan}} · {{status}}",
+                    "owed": "Overdue",
+                    "restrict": "Restricted from",
+                    "restrictDday": "{{date}} (D-{{days}})",
+                    "manageCards": "Payment methods",
+                    "back": "Back",
+                    "disabled": {
+                        "upgrade": "Pay and upgrade",
+                        "downgrade": "Schedule the change"
+                    }
+                }
+            }
+        },
         "manage": {
             "dday": {
                 "before": "D-{{count}}",
