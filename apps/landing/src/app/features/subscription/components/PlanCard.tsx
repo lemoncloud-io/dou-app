@@ -1,5 +1,5 @@
 import { type JSX, type ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { cn, formatMoney } from '../utils';
 
@@ -30,7 +30,8 @@ export const PlanCard = ({
             disabled={disabled || !onSelect}
             aria-pressed={selected}
             className={cn(
-                'flex flex-col items-start gap-2 rounded-2xl border bg-card p-5 text-left transition-colors',
+                // min-w-0: a grid cell otherwise grows to the widest unbreakable line inside it.
+                'flex w-full min-w-0 flex-col items-start gap-2 rounded-2xl border bg-card p-5 text-left transition-colors',
                 selected ? 'border-2 border-main-green' : 'border-border',
                 disabled && 'text-subtitle',
                 onSelect && !disabled && 'hover:border-navy/40'
@@ -43,8 +44,16 @@ export const PlanCard = ({
             <span className="text-sm text-subtitle">
                 {t('subscription.common.plan.clouds', { count: plan.maxClouds })}
             </span>
-            <span className={cn('mt-2 text-2xl font-bold', disabled ? 'text-subtitle' : 'text-navy')}>
-                {t('subscription.common.plan.perMonth', { price: formatMoney(plan.monthly, i18n.language) })}
+            {/* The copy decides what is large: the whole "월 ₩8,600" in Korean, only the amount in English,
+                where "₩43,000/month" at full size is wider than a five-column card. */}
+            <span className={cn('mt-2 text-sm', disabled ? 'text-subtitle' : 'text-desc-alt')}>
+                <Trans
+                    i18nKey="subscription.common.plan.perMonth"
+                    values={{ price: formatMoney(plan.monthly, i18n.language) }}
+                    components={{
+                        price: <span className={cn('text-2xl font-bold', disabled ? 'text-subtitle' : 'text-navy')} />,
+                    }}
+                />
             </span>
             <span className="text-xs text-subtitle">{t('subscription.common.plan.vatNote')}</span>
         </button>
