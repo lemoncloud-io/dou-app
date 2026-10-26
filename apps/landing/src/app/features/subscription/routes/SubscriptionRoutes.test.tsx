@@ -110,6 +110,13 @@ describe('SubscriptionRoutes', () => {
         );
     });
 
+    it('offers cancelling in the sidebar only where the detail screen would', async () => {
+        renderAt('/subscription', mockSetup('?mock=downgrade-scheduled'));
+
+        expect(await (await sidebar()).findByText('DoU Cloud 3')).toBeTruthy();
+        expect(screen.queryByRole('link', { name: 'Cancel subscription' })).toBeNull();
+    });
+
     it('sends a store subscriber to the store notice instead of checkout', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=store-ios'));
 
