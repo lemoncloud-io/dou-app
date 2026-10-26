@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-10-26] - root@0.112.0, @chatic/web@0.77.0
+
+### Features
+
+- (admin-v2) give statistics four more views, not just goal cards
+- (admin-v2) open the log console on purpose tabs in korean and english (ADR-0228)
+- (web) turn statistics on with a built-in policy, not off until a server route (ADR-0229)
+
 ## [2026-10-26] - No version updates
 
 ### Features
