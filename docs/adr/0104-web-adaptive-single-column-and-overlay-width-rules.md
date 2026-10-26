@@ -1,6 +1,6 @@
 # ADR-0104: `apps/web` fills the device up to a phone-class bound, and notice dialogs opt out
 
-> Status: Accepted · Decided: 2026-09-17
+> Status: Accepted · Decided: 2026-09-17 · §1's value amended to 960px (2026-10-26, below)
 > Scope: `apps/web/src/styles.css` · `apps/web/tailwind.config.js` ·
 > `apps/web/src/app/{ui/components,features/{home,onboarding,subscription,appUpdate,debug}}/**` ·
 > `libs/ui-kit/src/components/ui/{dialog,alert-dialog}.tsx` ·
@@ -194,3 +194,21 @@ into the variable's own comment rather than only here.
 an in-flight branch while this work landed, so the shared primitives were changed in a way those
 screens inherit without editing them. One notice dialog and the link preview there still carry
 their own widths and follow separately.
+
+## Amendment (2026-10-26): the bound is 960px, for iPhone Duo's inner display
+
+### What changed
+
+`--app-width` is 960px. iPhone Duo's inner display is 951 pt wide in landscape, so at 860 the app
+showed there as a centred column with a margin down each side — the "stretched iPhone app" Apple's
+Duo guidance names as the thing not to ship, and the same complaint 860 was chosen to answer for the
+Pixel Fold. The variable's own comment in `apps/web/src/styles.css` already said a wider foldable
+is answered by raising this one number; this is that edit, and nothing about how the value is read
+changes.
+
+### What it costs
+
+The range that fills instead of capping grows from up to 860 to up to 960: a portrait tablet or a
+narrow desktop window between 861 and 960 now gets the full-width column rather than a centred one.
+That is the same side effect §1 already accepted for 820–860, extended by 100px. Notice dialogs are
+unaffected — they keep their own 311px width.

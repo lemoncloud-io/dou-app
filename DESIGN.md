@@ -273,8 +273,9 @@ cannot drift from the shell. Change it in one place or not at all.
 
 ### Mobile web shell (`UnifiedLayout.tsx`, ADR-0011)
 
-- `w-full max-w-app mx-auto`: fill the device, cap at `--app-width` 860px — the upper bound
-  of the phone class, not a phone's width, so a Pixel Fold unfolded (841px) is filled too.
+- `w-full max-w-app mx-auto`: fill the device, cap at `--app-width` 960px — the upper bound
+  of the phone class, not a phone's width, so iPhone Duo's inner display (951px) and a Pixel
+  Fold unfolded (841px) are filled too.
   Overlays are portalled out of the shell, so `libs/ui-kit` and `libs/web-ui-kit` re-read
   the same variable.
 - Main tabs (`/`, `/mypage`) scroll the page and get the floating bottom nav. Detail
