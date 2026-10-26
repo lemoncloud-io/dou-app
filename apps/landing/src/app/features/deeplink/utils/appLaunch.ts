@@ -2,7 +2,7 @@ import { isEncodedInviteUrl } from '@chatic/shared';
 
 import { isNewPattern } from '../hooks/useWebRedirect';
 
-import type { DeviceType } from '../types';
+import type { DeviceType } from '../../../hooks';
 
 /**
  * Added to the page's own URL as the Android intent fallback when the launch was automatic. The
