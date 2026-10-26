@@ -5,8 +5,11 @@
  * The alternative was a polling refresh, and it fails on this screen specifically: the
  * corpus is a multi-page walk, so refreshing it means discarding what was collected and
  * re-walking — losing scroll position, selection, and any facet reading mid-comparison.
- * Making the merge a click keeps the surface still while it is being read (ADR-0083).
+ * Making the merge a click keeps the surface still while it is being read.
  */
+import { useT } from '../../../i18n';
+import { formatNumber } from '../lib/timeFormat';
+
 interface NewLogsBannerProps {
     /** Arrivals that will actually show up under the current narrowing. */
     count: number;
@@ -19,6 +22,7 @@ interface NewLogsBannerProps {
 }
 
 export const NewLogsBanner = ({ count, overflowed = false, onAccept }: NewLogsBannerProps) => {
+    const { t, lng } = useT('allLogs');
     // An overflowed window is worth announcing even when nothing matches the current
     // narrowing: there is more out there than the probe could see.
     if (count <= 0 && !overflowed) return null;
@@ -27,13 +31,11 @@ export const NewLogsBanner = ({ count, overflowed = false, onAccept }: NewLogsBa
         <button
             type="button"
             onClick={onAccept}
-            title={overflowed ? 'More arrived than fits in one page — click to recollect from scratch' : undefined}
+            title={overflowed ? t('banner.overflowTitle') : undefined}
             className="flex items-center gap-2 self-start rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs text-primary transition-colors hover:bg-primary/20"
         >
             <span className="inline-block size-1.5 rounded-full bg-primary" aria-hidden />
-            {overflowed
-                ? `${count.toLocaleString()}+ new logs · Recollect`
-                : `${count.toLocaleString()} new logs · Load`}
+            {t(overflowed ? 'banner.overflowed' : 'banner.load', { n: formatNumber(count, lng) })}
         </button>
     );
 };

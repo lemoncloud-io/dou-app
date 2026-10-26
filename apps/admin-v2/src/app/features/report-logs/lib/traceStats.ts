@@ -42,7 +42,7 @@ export const measuresOf = (rows: ReportLogRow[]): string[] => {
 };
 
 /** What a row can be grouped by: its attributes, and the context axes worth comparing. */
-const CONTEXT_GROUPS = ['appVersion', 'webVersion', 'platform', 'host', 'os', 'routeTemplate'] as const;
+const CONTEXT_GROUPS = ['appVersion', 'webVersion', 'platform', 'host', 'os', 'model', 'routeTemplate'] as const;
 
 export const groupKeysOf = (rows: ReportLogRow[]): string[] => {
     const keys = new Set<string>();

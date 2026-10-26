@@ -13,10 +13,12 @@
  */
 import { useMemo } from 'react';
 
+import { useT, type Language } from '../../../i18n';
 import { levelBadgeClass } from '../lib/badgeClass';
 import { byEventAtAsc, eventAt } from '../lib/eventTime';
 import type { ReportLogRow } from '../lib/parseReportLog';
 import { recordKindOf, type RecordKind } from '../lib/recordKinds';
+import { formatClock, formatDuration, formatNumber } from '../lib/timeFormat';
 
 interface RunTimelineProps {
     rows: ReportLogRow[];
@@ -29,15 +31,13 @@ interface RunTimelineProps {
     onToggleKind?: (kind: RecordKind) => void;
 }
 
-const KIND_LABELS: Record<RecordKind, string> = { log: 'Logs', trace: 'Traces', sample: 'Samples', event: 'Events' };
-
 const ALL_KINDS: RecordKind[] = ['log', 'trace', 'sample', 'event'];
 
 /**
  * A trace drawn as a bar against the run's longest one, so slow spans stand out while scrolling.
  * A trace's `timestamp` is when it ended; the bar is its length, not its position.
  */
-const TraceBar = ({ durationMs, longest }: { durationMs: number; longest: number }) => (
+const TraceBar = ({ durationMs, longest, lng }: { durationMs: number; longest: number; lng: Language }) => (
     <span className="flex w-40 shrink-0 items-center gap-1.5">
         <span className="h-1.5 flex-1 rounded bg-muted">
             <span
@@ -45,7 +45,9 @@ const TraceBar = ({ durationMs, longest }: { durationMs: number; longest: number
                 style={{ width: `${Math.max(2, Math.round((durationMs / Math.max(1, longest)) * 100))}%` }}
             />
         </span>
-        <span className="w-14 text-right font-mono text-[11px] text-muted-foreground">{durationMs}ms</span>
+        <span className="w-14 text-right font-mono text-[11px] text-muted-foreground">
+            {formatDuration(durationMs, lng)}
+        </span>
     </span>
 );
 
@@ -56,18 +58,8 @@ const statSummary = (row: ReportLogRow): string =>
         ...Object.entries(row.metrics ?? {}).map(([k, v]) => `${k}=${v}`),
     ].join(' · ');
 
-const clockTime = (ms?: number): string =>
-    ms === undefined ? '--:--:--' : new Date(ms).toLocaleTimeString(undefined, { hour12: false });
-
 /** Gaps below this are ordinary chatter and not worth drawing attention to. */
 const GAP_NOTICE_MS = 1_000;
-
-const formatGap = (ms: number): string => {
-    if (ms < 1_000) return `+${ms}ms`;
-    if (ms < 60_000) return `+${(ms / 1_000).toFixed(1)}s`;
-    const minutes = Math.floor(ms / 60_000);
-    return `+${minutes}m ${Math.round((ms % 60_000) / 1_000)}s`;
-};
 
 export const RunTimeline = ({
     rows,
@@ -77,6 +69,7 @@ export const RunTimeline = ({
     kinds = ALL_KINDS,
     onToggleKind,
 }: RunTimelineProps) => {
+    const { t, lng } = useT('allLogs');
     const ordered = useMemo(
         () => rows.filter(row => kinds.includes(recordKindOf(row))).sort(byEventAtAsc),
         [rows, kinds]
@@ -103,25 +96,21 @@ export const RunTimeline = ({
                                 : 'border-border text-muted-foreground'
                         }`}
                     >
-                        {KIND_LABELS[kind]}
+                        {t(`timeline.kinds.${kind}`)}
                     </button>
                 ))}
             </div>
         ) : null;
 
     if (!runId) {
-        return (
-            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
-                Pin a run (runId) from a row to see that run's timeline here.
-            </p>
-        );
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t('timeline.noRun')}</p>;
     }
 
     if (ordered.length === 0) {
         return (
             <>
                 {toggles}
-                <p className="px-4 py-10 text-center text-sm text-muted-foreground">No records for this run.</p>
+                <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t('timeline.empty')}</p>
             </>
         );
     }
@@ -132,9 +121,11 @@ export const RunTimeline = ({
         <div className="flex flex-col">
             <div className="flex flex-wrap items-baseline gap-2 border-b border-border px-4 py-2 text-xs text-muted-foreground">
                 <span className="font-mono text-foreground">{runId}</span>
-                <span>· {ordered.length.toLocaleString()} rows</span>
-                {span > 0 && <span>· span {formatGap(span).replace('+', '')}</span>}
-                <span>· sorted by occurrence time, ascending</span>
+                <span>
+                    · {t(ordered.length === 1 ? 'rowsOne' : 'rowsOther', { n: formatNumber(ordered.length, lng) })}
+                </span>
+                {span > 0 && <span>{t('timeline.span', { duration: formatDuration(span, lng) })}</span>}
+                <span>{t('timeline.sorted')}</span>
             </div>
             {toggles}
             <ol className="flex flex-col">
@@ -147,7 +138,7 @@ export const RunTimeline = ({
                             {gap !== undefined && gap >= GAP_NOTICE_MS && (
                                 <div className="flex items-center gap-2 px-4 py-0.5 text-[11px] text-muted-foreground">
                                     <span className="ml-[4.5rem] h-3 w-px bg-border" aria-hidden />
-                                    <span>{formatGap(gap)}</span>
+                                    <span>+{formatDuration(gap, lng)}</span>
                                 </div>
                             )}
                             <button
@@ -158,7 +149,7 @@ export const RunTimeline = ({
                                 }`}
                             >
                                 <span className="w-16 shrink-0 font-mono text-[11px] text-muted-foreground">
-                                    {clockTime(at)}
+                                    {formatClock(at, lng)}
                                 </span>
                                 {recordKindOf(row) === 'log' ? (
                                     <span
@@ -177,7 +168,7 @@ export const RunTimeline = ({
                                     </span>
                                 )}
                                 {row.recordKind === 'trace' && row.durationMs !== undefined && (
-                                    <TraceBar durationMs={row.durationMs} longest={longest} />
+                                    <TraceBar durationMs={row.durationMs} longest={longest} lng={lng} />
                                 )}
                                 <span className="min-w-0 flex-1 truncate text-sm text-foreground" title={row.message}>
                                     {recordKindOf(row) === 'log' ? (row.message ?? row.title) : statSummary(row)}

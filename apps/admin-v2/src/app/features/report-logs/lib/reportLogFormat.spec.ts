@@ -3,20 +3,8 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import { formatAbsolute, formatRelative, rowsToCsv } from './reportLogFormat';
+import { rowsToCsv } from './reportLogFormat';
 import type { ReportLogRow } from './parseReportLog';
-
-const now = 1_700_000_000_000;
-
-describe('formatRelative', () => {
-    it('buckets by unit', () => {
-        expect(formatRelative(undefined, now)).toBe('-');
-        expect(formatRelative(now - 5_000, now)).toBe('just now');
-        expect(formatRelative(now - 5 * 60_000, now)).toBe('5m ago');
-        expect(formatRelative(now - 2 * 3_600_000, now)).toBe('2h ago');
-        expect(formatRelative(now - 3 * 86_400_000, now)).toBe('3d ago');
-    });
-});
 
 describe('rowsToCsv', () => {
     const row = (over: Partial<ReportLogRow>): ReportLogRow => ({
@@ -52,18 +40,6 @@ describe('rowsToCsv', () => {
         const csv = rowsToCsv([row({ title: 'a,"b"' })]);
         // inner quotes doubled, whole cell quoted → "a,""b"""
         expect(csv).toContain('"a,""b"""');
-    });
-});
-
-describe('formatAbsolute', () => {
-    it('treats epoch 0 as a real instant, not as missing', () => {
-        // `eventAt` deliberately keeps `timestamp: 0` rather than hiding a bad device
-        // clock; the formatters must tell the same story.
-        expect(formatAbsolute(0)).not.toBe('-');
-    });
-
-    it('shows a dash only when there is no instant', () => {
-        expect(formatAbsolute(undefined)).toBe('-');
     });
 });
 

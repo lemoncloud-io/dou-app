@@ -6,20 +6,12 @@ import type { ReportLogRow } from './parseReportLog';
  *
  * The default is `log`: statistics would otherwise bury the logs this console exists to read. The
  * server cannot filter on `kind` — it is not one of the fields it stores at the top of a document —
- * so this narrows the fetched population only, like every other client axis.
+ * so this narrows the fetched population only, like every other client axis. Each value's name
+ * on screen is the `allLogs` key `rail.recordFilters.<value>`.
  */
 export const RECORD_FILTERS = ['log', 'stats', 'trace', 'sample', 'event', 'all'] as const;
 
 export type RecordFilter = (typeof RECORD_FILTERS)[number];
-
-export const RECORD_FILTER_LABELS: Record<RecordFilter, string> = {
-    log: 'Logs',
-    stats: 'All statistics',
-    trace: 'Traces',
-    sample: 'Samples',
-    event: 'Events',
-    all: 'Everything',
-};
 
 export type RecordKind = 'log' | 'trace' | 'sample' | 'event';
 

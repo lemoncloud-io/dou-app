@@ -22,7 +22,36 @@ wires them. Code: `src/app/runtime/telemetry/`.
    this run takes only its kill switch and its debugging overrides. A failed fetch changes nothing.
 
 **With the default policy nothing is recorded.** No entry is built, nothing reaches the queue or the
-bridge. The server has no policy route yet, so the source answers "statistics off" — every run today.
+bridge. That is what a run starts with when no policy was ever stored — the first run after an
+install — and what a run on a build the policy excludes keeps.
+
+## The built-in policy
+
+The server has no policy route yet, so the app serves its own (`BUILT_IN_TELEMETRY_POLICY`,
+`policy.ts`). It collects where a statistic can survive the trip and nowhere else:
+
+| Where                             | Matched as                                         |
+| --------------------------------- | -------------------------------------------------- |
+| iOS and Android apps from 0.29.2  | `host: app`, the platform, `minAppVersion: 0.29.2` |
+| the web in a browser tab          | `host: browser`                                    |
+| older app builds, the desktop app | no rule — nothing collected                        |
+
+0.29.2 is the first app build whose native queue has a statistics share; an older one would store a
+relayed statistic as a plain log. The desktop app runs the web as `host: app` with `platform: web`, on
+a version line of its own, so the mobile minimum leaves it out.
+
+| Records                                                                                                             | Rate       |
+| ------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `perf.boot`, `perf.first_screen`, `perf.cloud_switch`, `perf.site_switch`, `perf.web_vitals`, `perf.chat_room_open` | every run  |
+| every other `perf.*`                                                                                                | 1 run in 5 |
+| `usage.*`                                                                                                           | every run  |
+
+The full-rate records are the ones with a performance target, plus the room open, whose slow tail is
+the question — a sample misses the tail. Usage is kept whole because a sampled user count is not a
+user count. The policy is reused at a run's start for a week (`ttlSec`), so a user who opens the app
+once a day is not left on the default; a newer policy still takes over as soon as a run fetches it,
+and its kill switch applies at once. Turning statistics off without a server route is a web deploy
+that wires `disabledTelemetryPolicySource` again.
 
 **Development override.** In a development build, a policy document stored in `localStorage` under
 `@chatic/web.telemetry.policy.override` wins over everything else, so statistics can be checked end
@@ -85,7 +114,7 @@ statistics fields, and the forwarder never folds a statistic into a "+N identica
 
 - **`screen_render`** is defined in `@chatic/perf`'s catalogue but nothing records it yet: it needs
   each screen's own "first meaningful paint" signal.
-- **The policy source** is a stand-in until the server serves a policy; it becomes
+- **The policy source** is the built-in policy until the server serves one; it then becomes
   `@chatic/http`'s `TelemetryPolicyHttpGateway`.
 - **`session_start`'s `entry`** is `icon` for every run inside the app — a push or link entry is not
   distinguished yet.
@@ -99,5 +128,5 @@ statistics fields, and the forwarder never folds a statistic into a "+N identica
   goes to the background has not been checked; if it does not, an Android run is one long session.
 - **An app build older than this change keeps the statistics fields in memory** (its `SendLog`
   handler passes unknown fields on), but its queue has no statistics share and its storage drops
-  `kind` on a restart. Statistics stay off until the server serves a policy, so this only matters once
-  one is turned on for runs on such builds.
+  `kind` on a restart. The built-in policy leaves those builds out (`minAppVersion`), and any policy
+  that turns them on has to do the same.

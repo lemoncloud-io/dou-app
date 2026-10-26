@@ -8,18 +8,21 @@
  * makes this chart a picture of the incident rather than of the upload schedule — see
  * `eventTime.ts`.
  */
+import { useT } from '../../../i18n';
 import type { TimeBucket } from '../lib/bucketReportLogs';
+import { formatDateTime, formatNumber } from '../lib/timeFormat';
 
 interface ReportLogTimeChartProps {
     buckets: TimeBucket[];
 }
 
-const fmt = (ms: number): string =>
-    new Date(ms).toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-
 export const ReportLogTimeChart = ({ buckets }: ReportLogTimeChartProps) => {
+    const { t, lng } = useT('allLogs');
+    const fmt = (ms: number): string => formatDateTime(ms, lng);
+    const n = (value: number): string => formatNumber(value, lng);
+
     if (buckets.length === 0) {
-        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">No data to display.</p>;
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t('chart.empty')}</p>;
     }
 
     const max = Math.max(...buckets.map(b => b.count), 1);
@@ -30,9 +33,7 @@ export const ReportLogTimeChart = ({ buckets }: ReportLogTimeChartProps) => {
     return (
         <div className="flex flex-col gap-2 p-4">
             <div className="flex items-baseline justify-between text-xs text-muted-foreground">
-                <span>
-                    {buckets.length} buckets · {total.toLocaleString()} total · {max.toLocaleString()} max/bucket
-                </span>
+                <span>{t('chart.summary', { buckets: n(buckets.length), total: n(total), max: n(max) })}</span>
             </div>
             {/* Bars: height ∝ count, spike (== max) highlighted. */}
             <div className="flex h-40 items-end gap-0.5">
@@ -44,7 +45,7 @@ export const ReportLogTimeChart = ({ buckets }: ReportLogTimeChartProps) => {
                             key={i}
                             className="group relative flex-1"
                             style={{ height: '100%' }}
-                            title={`${fmt(b.start)}\n${b.count} ${b.count === 1 ? 'row' : 'rows'}`}
+                            title={`${fmt(b.start)}\n${t(b.count === 1 ? 'rowsOne' : 'rowsOther', { n: n(b.count) })}`}
                         >
                             <div
                                 className={`absolute bottom-0 w-full rounded-t ${isSpike ? 'bg-destructive' : 'bg-primary'}`}

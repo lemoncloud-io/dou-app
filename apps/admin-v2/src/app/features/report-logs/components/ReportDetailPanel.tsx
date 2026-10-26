@@ -2,7 +2,7 @@
  * `components/report-logs/ReportDetailPanel.tsx`
  * - The right-hand column: header, tracking affordances, and the detail body.
  *
- * This replaces the overlay drawer it grew out of (ADR-0083). The drawer put a backdrop
+ * This replaces the overlay drawer it grew out of. The drawer put a backdrop
  * over the list, so every step of "check this row, then the next" cost an open and a
  * close; tracking is exactly that loop, repeated. As a column it stays open while the
  * operator walks the list.
@@ -19,11 +19,12 @@ import { useEffect } from 'react';
 
 import { X } from 'lucide-react';
 
+import { useT } from '../../../i18n';
 import { rowBadge } from '../lib/badgeClass';
 import { eventAt, hasNoticeableLag, ingestLagMs } from '../lib/eventTime';
 import type { ReportLogRow } from '../lib/parseReportLog';
 import type { PinKey } from '../lib/pinAxes';
-import { formatAbsolute } from '../lib/reportLogFormat';
+import { formatAgo, formatDateTime, formatDuration } from '../lib/timeFormat';
 import { PinButton } from './PinButton';
 import { ReportDetailBody, rawRecordText } from './ReportDetailBody';
 
@@ -32,21 +33,32 @@ interface ReportDetailPanelProps {
     onClose: () => void;
     /** Jump to socket-lab Observe for the report's user (when a uid is present). */
     onObserve?: (uid: string) => void;
-    onPin: (axis: PinKey, value: string) => void;
-    onUnpin: (axis: PinKey) => void;
+    /**
+     * Pin a tracking axis. Without it the header shows no pin buttons at all — a tab whose
+     * screen has no pins to apply would otherwise offer a gesture that does nothing.
+     */
+    onPin?: (axis: PinKey, value: string) => void;
+    onUnpin?: (axis: PinKey) => void;
     /** Axes already pinned, so the header's buttons can offer to unpin instead. */
-    pinned: Partial<Record<PinKey, string>>;
+    pinned?: Partial<Record<PinKey, string>>;
+    /** Extra buttons for the header row, placed before "Copy" (e.g. a jump to the full report). */
+    actions?: React.ReactNode;
 }
 
-/** Human-readable lag, for the badge tooltip. Sub-minute lags are never shown. */
-const formatLag = (ms: number): string => {
-    const minutes = Math.round(ms / 60_000);
-    if (minutes < 60) return `${minutes}m`;
-    const hours = Math.floor(minutes / 60);
-    return `${hours}h ${minutes % 60}m`;
-};
+/** Lag rounded to whole minutes, for the badge. Sub-minute lags are never shown. */
+const roundToMinute = (ms: number): number => Math.round(ms / 60_000) * 60_000;
 
-export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pinned }: ReportDetailPanelProps) => {
+export const ReportDetailPanel = ({
+    row,
+    onClose,
+    onObserve,
+    onPin,
+    onUnpin,
+    pinned = {},
+    actions,
+}: ReportDetailPanelProps) => {
+    const { t, lng } = useT('allLogs');
+
     /**
      * Escape closes the panel.
      *
@@ -71,9 +83,7 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
     if (!row) {
         return (
             <aside className="hidden w-[26rem] shrink-0 flex-col border-l border-border bg-card xl:flex">
-                <p className="px-6 py-10 text-center text-sm text-muted-foreground">
-                    Select a row to open its detail here.
-                </p>
+                <p className="px-6 py-10 text-center text-sm text-muted-foreground">{t('detail.empty')}</p>
             </aside>
         );
     }
@@ -82,6 +92,7 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
     const uid = row.userId;
     const lag = ingestLagMs(row);
     const occurredAt = eventAt(row);
+    const lagText = lag === undefined ? '' : formatDuration(roundToMinute(lag), lng);
 
     const header = (
         <header className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
@@ -104,46 +115,54 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
                     {/* Occurrence time leads; arrival is shown only when it differs enough
                         to matter, so the reader is not asked to reconcile two clocks on
                         every row. */}
-                    <time dateTime={occurredAt === undefined ? undefined : new Date(occurredAt).toISOString()}>
-                        {formatAbsolute(occurredAt)}
+                    <time
+                        dateTime={occurredAt === undefined ? undefined : new Date(occurredAt).toISOString()}
+                        title={formatAgo(occurredAt, lng)}
+                    >
+                        {formatDateTime(occurredAt, lng, { seconds: true })}
                     </time>
                     {hasNoticeableLag(row) && lag !== undefined && (
                         <span
                             className="rounded bg-muted px-1.5 py-0.5 text-[11px]"
-                            title={`${formatLag(lag)} between occurring on device and arriving at server · arrived ${formatAbsolute(row.createdAt)}`}
+                            title={t('detail.lagTitle', {
+                                lag: lagText,
+                                arrived: formatDateTime(row.createdAt, lng, { seconds: true }),
+                            })}
                         >
-                            +{formatLag(lag)} lag
+                            {t('detail.lag', { lag: lagText })}
                         </span>
                     )}
                 </div>
                 {/* The tracking axes, pinnable straight from the detail — this is the hop
                     from "a user reported something" to "show me that user's logs". */}
-                <div className="flex flex-wrap items-center gap-1">
-                    <PinButton
-                        axis="uid"
-                        value={uid}
-                        active={!!uid && pinned.uid === uid}
-                        onPin={onPin}
-                        onUnpin={onUnpin}
-                        withLabel
-                    />
-                    <PinButton
-                        axis="cid"
-                        value={row.cid}
-                        active={!!row.cid && pinned.cid === row.cid}
-                        onPin={onPin}
-                        onUnpin={onUnpin}
-                        withLabel
-                    />
-                    <PinButton
-                        axis="runId"
-                        value={row.runId}
-                        active={!!row.runId && pinned.runId === row.runId}
-                        onPin={onPin}
-                        onUnpin={onUnpin}
-                        withLabel
-                    />
-                </div>
+                {onPin && (
+                    <div className="flex flex-wrap items-center gap-1">
+                        <PinButton
+                            axis="uid"
+                            value={uid}
+                            active={!!uid && pinned.uid === uid}
+                            onPin={onPin}
+                            onUnpin={onUnpin}
+                            withLabel
+                        />
+                        <PinButton
+                            axis="cid"
+                            value={row.cid}
+                            active={!!row.cid && pinned.cid === row.cid}
+                            onPin={onPin}
+                            onUnpin={onUnpin}
+                            withLabel
+                        />
+                        <PinButton
+                            axis="runId"
+                            value={row.runId}
+                            active={!!row.runId && pinned.runId === row.runId}
+                            onPin={onPin}
+                            onUnpin={onUnpin}
+                            withLabel
+                        />
+                    </div>
+                )}
                 {row.userName && <span className="text-xs text-muted-foreground">{row.userName}</span>}
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -152,22 +171,23 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
                         type="button"
                         onClick={() => onObserve(uid)}
                         className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                        title={`Observe user ${uid} in socket-lab`}
+                        title={t('detail.observeTitle', { uid })}
                     >
-                        Observe
+                        {t('detail.observe')}
                     </button>
                 )}
+                {actions}
                 <button
                     type="button"
                     onClick={() => navigator.clipboard?.writeText(rawRecordText(row))}
                     className="rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
-                    Copy
+                    {t('detail.copy')}
                 </button>
                 <button
                     type="button"
                     onClick={onClose}
-                    aria-label="Close"
+                    aria-label={t('detail.close')}
                     className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                 >
                     <X className="h-4 w-4" />
@@ -189,7 +209,7 @@ export const ReportDetailPanel = ({ row, onClose, onObserve, onPin, onUnpin, pin
             <aside
                 // `dialog` only describes the overlay form; at `xl` this is a column, and
                 // the role is left off there rather than lying about it.
-                aria-label="Log detail"
+                aria-label={t('detail.panelLabel')}
                 className="fixed inset-y-0 right-0 z-50 flex w-[min(92vw,32rem)] shrink-0 flex-col border-l border-border bg-card shadow-xl xl:static xl:z-auto xl:w-[26rem] xl:shadow-none"
             >
                 {header}

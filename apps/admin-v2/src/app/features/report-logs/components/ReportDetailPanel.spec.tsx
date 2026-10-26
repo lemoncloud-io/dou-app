@@ -1,16 +1,22 @@
 /**
  * `components/report-logs/ReportDetailPanel.spec.tsx`
  *
- * The panel shell is the genuinely new code in the drawer→panel change (ADR-0083);
+ * The panel shell is the genuinely new code in the drawer→panel change;
  * `ReportDetailBody.spec.tsx` covers the sections, which moved across unchanged. What is
  * tested here is the header: the three pin affordances and their active/unpin logic, the
  * lag badge, the clipboard payload, and the empty state.
  */
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { i18n } from '../../../i18n';
 import type { ReportLogRow } from '../lib/parseReportLog';
 import { ReportDetailPanel } from './ReportDetailPanel';
+
+// The assertions below read the English copy; Korean is the console's default.
+beforeAll(async () => {
+    await i18n.changeLanguage('en');
+});
 
 const row = (over: Partial<ReportLogRow> = {}): ReportLogRow => ({
     id: 'r1',
@@ -91,6 +97,13 @@ describe('ReportDetailPanel — 추적 핀', () => {
         expect(onPin).toHaveBeenCalledWith('uid', 'u1');
     });
 
+    it('offers no pins when the screen has none to apply', () => {
+        render(<ReportDetailPanel row={row()} onClose={vi.fn()} />);
+
+        expect(screen.queryByTitle(/^Track /)).toBeNull();
+        expect(screen.getByText('Copy')).toBeTruthy();
+    });
+
     it('shows a dash instead of a pin for an axis the row lacks', () => {
         setup({ cid: undefined });
 
@@ -142,6 +155,14 @@ describe('ReportDetailPanel — 헤더 동작', () => {
         setup({ userId: undefined }, { onObserve: vi.fn() });
 
         expect(screen.queryByText('Observe')).toBeNull();
+    });
+
+    it('places extra actions before Copy', () => {
+        setup({}, { actions: <button type="button">Open report</button> });
+
+        const buttons = screen.getAllByRole('button').map(button => button.textContent);
+        expect(buttons.indexOf('Open report')).toBeGreaterThanOrEqual(0);
+        expect(buttons.indexOf('Open report')).toBeLessThan(buttons.indexOf('Copy'));
     });
 
     it('closes on Escape, which is the only keyboard way out of the overlay form', () => {

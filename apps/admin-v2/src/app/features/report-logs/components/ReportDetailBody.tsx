@@ -7,16 +7,18 @@
  * too), so structured sections render generic key/value pairs without assuming fixed
  * fields. Batch log entries have no report payload at all and take their own branch.
  *
- * Split out of the old right-side drawer (ADR-0083). The shell became a fixed panel so
+ * Split out of the old right-side drawer. The shell became a fixed panel so
  * tracking work can read the list and the detail at once, but the section renderers below
  * — in particular the stack symbolication, which is the highest-value thing on this
  * screen — moved across unchanged.
  */
 import { useEffect, useState } from 'react';
 
+import { useT } from '../../../i18n';
 import { levelTextClass } from '../lib/badgeClass';
 import type { ReportLogRow, ReportPayload } from '../lib/parseReportLog';
 import { mapMatchesStack, readBundleNames, resolveStack } from '../lib/resolveStack';
+import { formatClock } from '../lib/timeFormat';
 import { buildTraceBlob, composeStackText } from '../lib/traceBlob';
 
 const stringify = (value: unknown): string => {
@@ -71,6 +73,7 @@ const KeyValueSection = ({ title, data }: { title: string; data?: Record<string,
  * the question that decides whether it is a client or a server bug.
  */
 const HttpSection = ({ http }: { http?: ReportPayload['http'] }) => {
+    const { t } = useT('allLogs');
     if (!http) return null;
 
     const request = { url: http.url, method: http.method, params: http.params, requestBody: http.requestBody };
@@ -86,8 +89,8 @@ const HttpSection = ({ http }: { http?: ReportPayload['http'] }) => {
 
     return (
         <>
-            <KeyValueSection title="HTTP · Request" data={request} />
-            <KeyValueSection title="HTTP · Response" data={response} />
+            <KeyValueSection title={t('body.httpRequest')} data={request} />
+            <KeyValueSection title={t('body.httpResponse')} data={response} />
         </>
     );
 };
@@ -106,12 +109,13 @@ interface LogEntry {
  * level/tag/message/timestamp/data/error) as a readable list rather than raw JSON.
  */
 const LogsSection = ({ logs }: { logs: unknown[] }) => {
+    const { t, lng } = useT('allLogs');
     const entries = logs.filter((l): l is LogEntry => typeof l === 'object' && l !== null);
     if (entries.length === 0) return null;
     return (
         <section className="flex flex-col gap-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Recent Logs ({entries.length})
+                {t('body.recentLogs', { n: entries.length })}
             </h3>
             <ul className="flex max-h-80 flex-col gap-1 overflow-auto rounded-md bg-muted p-2 font-mono text-xs">
                 {entries.map((log, i) => (
@@ -122,9 +126,7 @@ const LogsSection = ({ logs }: { logs: unknown[] }) => {
                             </span>
                             {log.tag && <span className="text-muted-foreground">[{log.tag}]</span>}
                             {log.timestamp && (
-                                <span className="text-muted-foreground">
-                                    {new Date(log.timestamp).toLocaleTimeString()}
-                                </span>
+                                <span className="text-muted-foreground">{formatClock(log.timestamp, lng)}</span>
                             )}
                         </div>
                         {log.message && (
@@ -151,6 +153,7 @@ const LogsSection = ({ logs }: { logs: unknown[] }) => {
  * in the raw record.
  */
 const LogEntryDetailSection = ({ row }: { row: ReportLogRow }) => {
+    const { t } = useT('allLogs');
     const rawObj = row.raw && typeof row.raw === 'object' ? (row.raw as Record<string, unknown>) : undefined;
     const context = rawObj
         ? {
@@ -171,7 +174,9 @@ const LogEntryDetailSection = ({ row }: { row: ReportLogRow }) => {
     return (
         <>
             <section className="flex flex-col gap-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Log Entry</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t('body.logEntry')}
+                </h3>
                 <div className="flex flex-wrap items-center gap-1.5 text-xs">
                     <span className={`font-semibold uppercase ${levelTextClass(row.level)}`}>{row.level ?? '-'}</span>
                     {row.tag && <span className="text-muted-foreground">[{row.tag}]</span>}
@@ -182,11 +187,11 @@ const LogEntryDetailSection = ({ row }: { row: ReportLogRow }) => {
                 )}
             </section>
             {row.logData !== undefined && typeof row.logData === 'object' && row.logData !== null ? (
-                <KeyValueSection title="Data" data={row.logData as Record<string, unknown>} />
+                <KeyValueSection title={t('body.data')} data={row.logData as Record<string, unknown>} />
             ) : (
-                <TextSection title="Data" text={row.logDataRaw} />
+                <TextSection title={t('body.data')} text={row.logDataRaw} />
             )}
-            <KeyValueSection title="Context" data={context} />
+            <KeyValueSection title={t('body.context')} data={context} />
         </>
     );
 };
@@ -196,32 +201,35 @@ const LogEntryDetailSection = ({ row }: { row: ReportLogRow }) => {
  * new tab — base64 data URLs can be megabytes, so rendering them inline at full
  * resolution would stall the drawer.
  */
-const ImagesSection = ({ images }: { images: string[] }) => (
-    <section className="flex flex-col gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Attachments ({images.length})
-        </h3>
-        <ul className="flex flex-wrap gap-2">
-            {images.map((src, i) => (
-                <li key={i}>
-                    <a
-                        href={src}
-                        target="_blank"
-                        rel="noreferrer"
-                        title={`Attachment ${i + 1} — open original in new tab`}
-                        className="block"
-                    >
-                        <img
-                            src={src}
-                            alt={`Attachment ${i + 1}`}
-                            className="size-24 rounded-md border border-border object-cover transition-opacity hover:opacity-80"
-                        />
-                    </a>
-                </li>
-            ))}
-        </ul>
-    </section>
-);
+const ImagesSection = ({ images }: { images: string[] }) => {
+    const { t } = useT('allLogs');
+    return (
+        <section className="flex flex-col gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('body.attachments', { n: images.length })}
+            </h3>
+            <ul className="flex flex-wrap gap-2">
+                {images.map((src, i) => (
+                    <li key={i}>
+                        <a
+                            href={src}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={t('body.attachmentTitle', { i: i + 1 })}
+                            className="block"
+                        >
+                            <img
+                                src={src}
+                                alt={t('body.attachmentAlt', { i: i + 1 })}
+                                className="size-24 rounded-md border border-border object-cover transition-opacity hover:opacity-80"
+                            />
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        </section>
+    );
+};
 
 /** Render a multiline text block (message/stack); returns null when empty. */
 const TextSection = ({ title, text }: { title: string; text?: string }) => {
@@ -251,8 +259,11 @@ const TextSection = ({ title, text }: { title: string; text?: string }) => {
  * to plausible wrong lines.
  */
 const StackSection = ({ row }: { row: ReportLogRow }) => {
+    const { t } = useT('allLogs');
     const [resolved, setResolved] = useState<string | null>(null);
-    const [notice, setNotice] = useState<string | null>(null);
+    // A key and its values rather than the text, so a notice already on screen follows a
+    // language switch.
+    const [notice, setNotice] = useState<{ key: string; values?: Record<string, string> } | null>(null);
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
@@ -275,7 +286,7 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
             setNotice(null);
             setCopied(true);
         } catch {
-            setNotice("Couldn't copy to clipboard — select the stack manually and copy it.");
+            setNotice({ key: 'body.copyFailed' });
         }
     };
 
@@ -290,32 +301,34 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
             const named = file.name.replace(/\.map$/, '');
             const out = resolveStack(map, stack, bundles.length > 1 && bundles.includes(named) ? named : undefined);
             setResolved(out);
-            if (out === stack) setNotice("This map didn't resolve any frames — it may be from a different build.");
+            if (out === stack) setNotice({ key: 'body.noFrames' });
             else if (!mapMatchesStack(file.name, stack)) {
-                setNotice(`Warning: ${file.name} doesn't match this stack's bundle (${bundles.join(', ')}).`);
+                setNotice({ key: 'body.mapMismatch', values: { file: file.name, bundles: bundles.join(', ') } });
             }
         } catch {
-            setNotice("Couldn't read the source map (check that it's a valid .map file).");
+            setNotice({ key: 'body.mapReadFailed' });
         }
     };
 
     return (
         <section className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Stack</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {t('body.stack')}
+                </h3>
                 {bundles.length > 0 && (
                     <span className="font-mono text-[11px] text-muted-foreground">{bundles.join(', ')}</span>
                 )}
                 <button
                     type="button"
                     className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-muted"
-                    title="Copies the stack; run `yarn trace` from the repo root to print it resolved to original files and lines."
+                    title={t('body.traceTitle')}
                     onClick={() => void onCopyForIde()}
                 >
-                    {copied ? 'Copied — yarn trace' : 'Trace to IDE'}
+                    {copied ? t('body.traceCopied') : t('body.traceToIde')}
                 </button>
                 <label className="cursor-pointer rounded-md border border-border px-2 py-1 text-[11px] hover:bg-muted">
-                    Choose source map
+                    {t('body.chooseMap')}
                     <input
                         type="file"
                         accept=".map,application/json"
@@ -329,11 +342,11 @@ const StackSection = ({ row }: { row: ReportLogRow }) => {
                         className="rounded-md border border-border px-2 py-1 text-[11px] hover:bg-muted"
                         onClick={() => setResolved(null)}
                     >
-                        Show original
+                        {t('body.showOriginal')}
                     </button>
                 )}
             </div>
-            {notice && <p className="text-[11px] text-destructive">{notice}</p>}
+            {notice && <p className="text-[11px] text-destructive">{t(notice.key, notice.values)}</p>}
             <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-3 font-mono text-xs text-foreground">
                 {resolved ?? stack}
             </pre>
@@ -350,13 +363,14 @@ interface ReportDetailBodyProps {
  * the close affordance, so this stays a pure rendering of the record.
  */
 export const ReportDetailBody = ({ row }: ReportDetailBodyProps) => {
+    const { t } = useT('allLogs');
     const p = row.payload;
 
     return (
         <>
             {row.parseError && (
                 <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    Couldn't parse the payload. Check the raw data below.
+                    {t('body.parseError')}
                 </p>
             )}
 
@@ -370,20 +384,20 @@ export const ReportDetailBody = ({ row }: ReportDetailBodyProps) => {
                 p && (
                     <>
                         <KeyValueSection
-                            title="Summary"
+                            title={t('body.summary')}
                             data={{ url: p.url, timestamp: p.timestamp, userAgent: p.userAgent, path: p.path }}
                         />
-                        <TextSection title="Message" text={p.message} />
+                        <TextSection title={t('body.message')} text={p.message} />
                         <StackSection row={row} />
-                        <TextSection title="Component Stack" text={p.componentStack} />
-                        <KeyValueSection title="Location" data={p.location} />
+                        <TextSection title={t('body.componentStack')} text={p.componentStack} />
+                        <KeyValueSection title={t('body.location')} data={p.location} />
                         <HttpSection http={p.http} />
-                        <KeyValueSection title="User" data={p.user} />
-                        <KeyValueSection title="Cloud" data={p.cloud} />
-                        <KeyValueSection title="Device" data={p.device} />
-                        <KeyValueSection title="Version" data={p.version} />
+                        <KeyValueSection title={t('body.user')} data={p.user} />
+                        <KeyValueSection title={t('body.cloud')} data={p.cloud} />
+                        <KeyValueSection title={t('body.device')} data={p.device} />
+                        <KeyValueSection title={t('body.version')} data={p.version} />
                         <KeyValueSection
-                            title="Network"
+                            title={t('body.network')}
                             data={{ ...(p.network ?? {}), viewport: p.viewport && stringify(p.viewport) }}
                         />
                         {Array.isArray(p.logs) && p.logs.length > 0 && <LogsSection logs={p.logs} />}
@@ -391,7 +405,7 @@ export const ReportDetailBody = ({ row }: ReportDetailBodyProps) => {
                 )
             )}
 
-            <TextSection title="Raw" text={redactDataUrls(stringify(row.raw))} />
+            <TextSection title={t('body.raw')} text={redactDataUrls(stringify(row.raw))} />
         </>
     );
 };

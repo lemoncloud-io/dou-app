@@ -12,9 +12,10 @@
  */
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@chatic/ui-kit/components/ui/table';
 
+import { useT } from '../../../i18n';
 import { typeBadgeClass } from '../lib/badgeClass';
 import type { ReportLogGroup } from '../lib/groupReportLogs';
-import { formatAbsolute } from '../lib/reportLogFormat';
+import { formatAgo, formatDateTime, formatNumber } from '../lib/timeFormat';
 
 interface ReportLogGroupTableProps {
     groups: ReportLogGroup[];
@@ -22,8 +23,10 @@ interface ReportLogGroupTableProps {
 }
 
 export const ReportLogGroupTable = ({ groups, onSelect }: ReportLogGroupTableProps) => {
+    const { t, lng } = useT('allLogs');
+
     if (groups.length === 0) {
-        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">No logs to aggregate.</p>;
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t('group.empty')}</p>;
     }
 
     const maxCount = groups[0]?.count ?? 1;
@@ -32,11 +35,11 @@ export const ReportLogGroupTable = ({ groups, onSelect }: ReportLogGroupTablePro
         <Table>
             <TableHeader>
                 <TableRow className="text-xs uppercase tracking-wide text-muted-foreground">
-                    <TableHead className="w-40">Count</TableHead>
-                    <TableHead className="w-24">Type</TableHead>
-                    <TableHead>Message</TableHead>
-                    <TableHead className="w-32">App</TableHead>
-                    <TableHead className="w-40">Last occurred</TableHead>
+                    <TableHead className="w-40">{t('group.count')}</TableHead>
+                    <TableHead className="w-24">{t('group.type')}</TableHead>
+                    <TableHead>{t('group.message')}</TableHead>
+                    <TableHead className="w-32">{t('group.app')}</TableHead>
+                    <TableHead className="w-40">{t('group.last')}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -58,7 +61,7 @@ export const ReportLogGroupTable = ({ groups, onSelect }: ReportLogGroupTablePro
                         <TableCell>
                             <div className="flex items-center gap-2">
                                 <span className="w-10 shrink-0 text-right font-semibold tabular-nums text-foreground">
-                                    {group.count.toLocaleString()}
+                                    {formatNumber(group.count, lng)}
                                 </span>
                                 {/* Relative bar for quick visual ranking. */}
                                 <span className="h-1.5 flex-1 rounded bg-muted">
@@ -83,7 +86,7 @@ export const ReportLogGroupTable = ({ groups, onSelect }: ReportLogGroupTablePro
                         </TableCell>
                         <TableCell className="text-muted-foreground">{group.apps.join(', ') || '-'}</TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
-                            {formatAbsolute(group.latestAt)}
+                            <span title={formatAgo(group.latestAt, lng)}>{formatDateTime(group.latestAt, lng)}</span>
                         </TableCell>
                     </TableRow>
                 ))}
