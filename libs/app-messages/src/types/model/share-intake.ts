@@ -9,9 +9,6 @@
 //
 // "Intake" because `ShareFile` already names the other direction — the web handing a file to the OS
 // share sheet.
-//
-// The web ships before the app: a shell without these handlers answers `NOT_FOUND`, and the share page
-// then has nothing to show and leaves for home.
 
 import type { PickedShellAttachment, RefusedAttachment } from './attachment-picker';
 

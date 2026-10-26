@@ -111,7 +111,7 @@ final class ShareViewController: UIViewController {
         if texts.isEmpty {
             // Some apps put a post or a note on the item itself, with no text attachment. Only then:
             // beside a shared link it is usually the page's title, which the link already says.
-            texts = inputItems.compactMap { Core.itemText($0.attributedContentText) }
+            texts = inputItems.compactMap { Core.sharedText($0.attributedContentText?.string) }
         }
         manifest.text = texts.isEmpty ? nil : texts.joined(separator: "\n")
 

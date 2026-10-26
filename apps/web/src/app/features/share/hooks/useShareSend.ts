@@ -102,11 +102,25 @@ export const useShareSend = (intakeId: string | null) => {
                 for (const destination of destinations) {
                     const data = { cid: destination.cid, channelId: destination.id, files: sources.length };
                     const sendFiles = sendersRef.current.get(destination.id);
-                    if (sources.length > 0 && !sendFiles) {
+                    if (sources.length === 0) {
+                        // A text send that fails leaves the room's failed row, which says so itself.
+                        runtime.data
+                            .sendChatInCloud(destination.cid, { channelId: destination.id, content })
+                            .catch((error: unknown) =>
+                                logger.warn(
+                                    'chat.share_send_failed',
+                                    `share: text to a ${destination.kind} room failed`,
+                                    {
+                                        error,
+                                        ...data,
+                                    }
+                                )
+                            );
+                    } else if (!sendFiles) {
                         // Its sender went while the photos were read.
                         logger.warn('chat.share_send_failed', 'share: a room lost its sender during the read', data);
                         toast({ title: t('share.sendFailedSome') });
-                    } else if (sendFiles && sources.length > 0) {
+                    } else {
                         // A file send rejects only where no failed row was left — no row written, or one
                         // stuck before its upload — so the person hears of it here or not at all.
                         sendFiles(sources, content ? { content } : {}).catch((error: unknown) => {
@@ -116,16 +130,6 @@ export const useShareSend = (intakeId: string | null) => {
                             });
                             toast({ title: t('share.sendFailedSome') });
                         });
-                    } else {
-                        // A text send that fails leaves the room's failed row, which says so itself.
-                        runtime.data
-                            .sendChatInCloud(destination.cid, { channelId: destination.id, content })
-                            .catch((error: unknown) =>
-                                logger.warn('chat.share_send_failed', `share: text to a ${destination.kind} room failed`, {
-                                    error,
-                                    ...data,
-                                })
-                            );
                     }
                 }
 

@@ -131,12 +131,6 @@ enum ShareIntakeCore {
         return trimmed?.isEmpty == false ? trimmed : nil
     }
 
-    /// The text an app puts on the shared item itself rather than in an attachment — some send a post
-    /// or a note that way, with no attachment at all.
-    static func itemText(_ text: NSAttributedString?) -> String? {
-        sharedText(text?.string)
-    }
-
     private static func unique(_ identifiers: [String]) -> [String] {
         var seen = Set<String>()
         return identifiers.filter { seen.insert($0).inserted }

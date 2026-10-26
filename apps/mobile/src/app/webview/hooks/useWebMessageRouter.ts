@@ -473,8 +473,6 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 canReadVideoFrame && {
                     ReadVideoFrame: message => handlersRef.current.handleReadVideoFrame(message),
                 }),
-            // What another app shared to Dou. A build without the module answers NOT_FOUND, and the
-            // web's share page goes home instead of waiting for items that never come.
             ...(isShareIntakeAvailable && {
                 FetchShareIntake: message => handlersRef.current.handleFetchShareIntake(message),
                 ReleaseShareIntake: message => handlersRef.current.handleReleaseShareIntake(message),

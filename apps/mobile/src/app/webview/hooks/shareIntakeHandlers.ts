@@ -1,6 +1,7 @@
 import type { FetchShareIntakeErrorCode, WebMessageData, WebMessageHandlerResponse } from '@chatic/app-messages';
 import type { IShareIntakeBridge } from '../../bridge';
 import type { ILogService } from '../../services';
+import { toError } from './attachmentPickerHandlers';
 
 /**
  * The only ids the native side makes. Checked here, before native code builds a folder path from
@@ -10,18 +11,8 @@ const SHARE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 
 const isShareId = (value: unknown): value is string => typeof value === 'string' && SHARE_ID.test(value);
 
-/**
- * A native rejection keeps `GONE` and `INVALID`; anything else is `INTERNAL`. Never `NOT_FOUND`,
- * which the web reads as "this app cannot take shares at all".
- */
-const toFetchError = (e: unknown): { code: FetchShareIntakeErrorCode; message: string } => {
-    const code = (e as { code?: unknown })?.code;
-    const message = (e as { message?: unknown })?.message;
-    return {
-        code: code === 'GONE' || code === 'INVALID' ? code : 'INTERNAL',
-        message: message ? String(message) : 'Unknown error',
-    };
-};
+/** A native rejection keeps these; anything else is `INTERNAL`, never `NOT_FOUND`. */
+const FETCH_CODES: readonly FetchShareIntakeErrorCode[] = ['GONE', 'INVALID'];
 
 /** Relays `FetchShareIntake` and `ReleaseShareIntake` to the native ShareIntake module. */
 export const createShareIntakeHandlers = (intake: IShareIntakeBridge, logger: ILogService) => {
@@ -50,7 +41,7 @@ export const createShareIntakeHandlers = (intake: IShareIntakeBridge, logger: IL
             );
             return { type: 'OnFetchShareIntake' as const, success: true, data };
         } catch (e) {
-            const error = toFetchError(e);
+            const error = toError<FetchShareIntakeErrorCode>(e, FETCH_CODES, 'INTERNAL');
             logger.warn('file.share_intake_failed', `FetchShareIntake failed: ${error.code}`);
             return { type: 'OnFetchShareIntake' as const, success: false, error };
         }
@@ -71,14 +62,13 @@ export const createShareIntakeHandlers = (intake: IShareIntakeBridge, logger: IL
             await intake.release(id, discard);
             return { type: 'OnReleaseShareIntake' as const, success: true, data: {} };
         } catch (e) {
-            const message = (e as { message?: unknown })?.message;
             // Said here because the web only learns the code: a discard that failed leaves the shared
             // copies until the sweep, and this is the one place that knows why.
             logger.warn('file.share_intake_release_failed', `ReleaseShareIntake failed (discard: ${discard})`);
             return {
                 type: 'OnReleaseShareIntake' as const,
                 success: false,
-                error: { code: 'INTERNAL', message: message ? String(message) : 'Unknown error' },
+                error: toError(e, [], 'INTERNAL'),
             };
         }
     };

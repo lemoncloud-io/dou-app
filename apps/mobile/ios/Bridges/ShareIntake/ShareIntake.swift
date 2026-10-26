@@ -89,7 +89,8 @@ final class ShareIntake: NSObject {
 
     private static func take(_ id: String) throws -> Received {
         guard let inbox else { throw Rejection(code: "INTERNAL", message: "the share inbox is not available") }
-        sweep(inbox)
+        // Inbox entries untouched for a day: shares the app was never opened on.
+        AttachmentPicker.sweep(inbox)
         AttachmentPicker.sweep()
 
         let folder = inbox.appendingPathComponent(id, isDirectory: true)
@@ -188,22 +189,6 @@ final class ShareIntake: NSObject {
             return true
         } catch {
             return !FileManager.default.fileExists(atPath: url.path)
-        }
-    }
-
-    /// Deletes inbox entries untouched for a day: shares whose app was never opened on them, when the
-    /// share sheet could not open it. Run before a share is taken.
-    private static func sweep(_ inbox: URL) {
-        let fm = FileManager.default
-        guard let names = try? fm.contentsOfDirectory(atPath: inbox.path) else { return }
-        let folders: [AttachmentPickerCore.FolderAge] = names.compactMap { name in
-            let path = inbox.appendingPathComponent(name).path
-            guard let date = (try? fm.attributesOfItem(atPath: path))?[.modificationDate] as? Date else { return nil }
-            return AttachmentPickerCore.FolderAge(name: name, newestModifiedAtMs: Int64(date.timeIntervalSince1970 * 1000))
-        }
-        let now = Int64(Date().timeIntervalSince1970 * 1000)
-        for name in AttachmentPickerCore.foldersToSweep(folders, nowMs: now) {
-            try? fm.removeItem(at: inbox.appendingPathComponent(name))
         }
     }
 }

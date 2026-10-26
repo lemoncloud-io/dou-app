@@ -47,14 +47,6 @@ final class ShareIntakeCoreTests: XCTestCase {
         XCTAssertNil(Core.readManifest(Data("not json".utf8)))
     }
 
-    // MARK: - Text beside the attachments
-
-    func testItemText_theTextAnAppPutsOnTheItemItself() {
-        XCTAssertEqual(Core.itemText(NSAttributedString(string: "  look at this \n")), "look at this")
-        XCTAssertNil(Core.itemText(NSAttributedString(string: " ")))
-        XCTAssertNil(Core.itemText(nil))
-    }
-
     // MARK: - What a shared item is taken as
 
     func testContent_aWebLinkOrPlainTextIsText() {

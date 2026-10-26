@@ -33,8 +33,5 @@ const unavailable = (): Promise<never> =>
 export const ShareIntakeBridge: IShareIntakeBridge = {
     isAvailable: !!ShareIntake,
     fetch: id => (ShareIntake ? ShareIntake.fetch(id) : unavailable()),
-    release: async (id, discard) => {
-        if (!ShareIntake) return unavailable();
-        await ShareIntake.release(id, discard);
-    },
+    release: (id, discard) => (ShareIntake ? ShareIntake.release(id, discard) : unavailable()),
 };
