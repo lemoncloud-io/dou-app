@@ -16,6 +16,7 @@ export * from './notification';
 export * from './perf';
 export * from './photo-library';
 export * from './preference';
+export * from './share-intake';
 export * from './system';
 export * from './test-record';
 export * from './unfurl';

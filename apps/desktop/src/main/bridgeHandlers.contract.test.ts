@@ -76,6 +76,8 @@ const DESKTOP_UNSUPPORTED = {
     PrepareVideo: BROWSER,
     ReadAttachment: BROWSER,
     ReadVideoFrame: BROWSER,
+    FetchShareIntake: PHONE,
+    ReleaseShareIntake: PHONE,
     RequestPermission: PHONE,
     OpenURL: BROWSER,
     SendSms: PHONE,

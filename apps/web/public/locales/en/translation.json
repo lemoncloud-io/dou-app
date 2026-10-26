@@ -2065,5 +2065,19 @@
             "nameLabel": "Name",
             "photoLabel": "Profile photo"
         }
+    },
+    "share": {
+        "title": "Share to Dou",
+        "close": "Close",
+        "send": "Send",
+        "cloud": "Cloud",
+        "to": "To",
+        "toPlaceholder": "Share with:",
+        "messagePlaceholder": "Add a message if you like",
+        "preparing": "Getting your items ready",
+        "loadFailed": "Couldn't load what you shared.",
+        "retry": "Try again",
+        "nothingToShare": "There's nothing to share.",
+        "notSent": "Can't send: {{names}}"
     }
 }

@@ -93,6 +93,8 @@ import type {
     OnPrepareVideoPayload,
     OnReadAttachmentPayload,
     OnReadVideoFramePayload,
+    OnFetchShareIntakePayload,
+    OnReleaseShareIntakePayload,
     OnFileTransferStatePayload,
     OnCopyToClipboardPayload,
     OnTriggerHapticPayload,
@@ -142,6 +144,8 @@ export type AppMessageDataMap = {
     OnPrepareVideo: OnPrepareVideoPayload;
     OnReadAttachment: OnReadAttachmentPayload;
     OnReadVideoFrame: OnReadVideoFramePayload;
+    OnFetchShareIntake: OnFetchShareIntakePayload;
+    OnReleaseShareIntake: OnReleaseShareIntakePayload;
     OnRequestPermission: OnRequestPermissionPayload;
     OnOpenURL: OnOpenURLPayload;
     OnNavigate: OnNavigatePayload;
