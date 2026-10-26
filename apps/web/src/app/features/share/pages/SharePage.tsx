@@ -14,7 +14,6 @@ import {
 } from '@chatic/web-ui-kit';
 import { IMAGE_MESSAGE_SLOT_MAX, judgeChatAttachments, type ShellFileRef } from '@chatic/data';
 
-import { releaseShareIntake } from '../../../bridge/shareIntake';
 import { ROUTES } from '../../../routes/paths';
 import { DestinationPicker } from '../components/DestinationPicker';
 import { DestinationSender } from '../components/DestinationSender';
@@ -67,10 +66,8 @@ export const SharePage = () => {
         if (switched) setSelectedIds([]);
     };
 
-    const close = () => {
-        if (id) void releaseShareIntake(id, { discard: true });
-        navigate(ROUTES.home, { replace: true });
-    };
+    // Leaving discards the share's copies; `useShareSend` does it as the page goes, whichever way.
+    const close = () => navigate(ROUTES.home, { replace: true });
 
     const intake = state.status === 'ready' ? state.intake : null;
     const items = useMemo<ShellFileRef[]>(

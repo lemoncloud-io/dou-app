@@ -47,7 +47,9 @@ const setup = (senders: Record<string, SendFiles>) => {
     return hook;
 };
 
-beforeEach(() => {
+beforeEach(async () => {
+    // The previous test's unmount schedules its discard a tick later; let it land before the mocks clear.
+    await new Promise(resolve => setTimeout(resolve, 0));
     jest.clearAllMocks();
     mockSendChatInCloud.mockResolvedValue({});
     mockReadPhotos.mockImplementation(async (items: unknown[]) => ({ items, refused: [] }));
@@ -90,7 +92,9 @@ describe('useShareSend', () => {
         const sendA = jest.fn();
         const { result } = setup({ a: sendA });
 
-        await act(async () => result.current.send({ destinations: [room('a', 'dm')], files: [], content: 'https://example.com' }));
+        await act(async () =>
+            result.current.send({ destinations: [room('a', 'dm')], files: [], content: 'https://example.com' })
+        );
 
         expect(mockSendChatInCloud).toHaveBeenCalledWith('cloud-a', { channelId: 'a', content: 'https://example.com' });
         expect(sendA).not.toHaveBeenCalled();
@@ -101,6 +105,32 @@ describe('useShareSend', () => {
 
         await act(async () => result.current.send({ destinations: [room('a')], files: [file('a.pdf')], content: '' }));
 
+        expect(releaseShareIntake).toHaveBeenCalledWith(intakeId, { discard: false });
+    });
+
+    it('discards the copies when the composer is left without a send, however it is left', async () => {
+        jest.useFakeTimers();
+        try {
+            const { unmount } = setup({});
+
+            unmount();
+            act(() => jest.runOnlyPendingTimers());
+
+            expect(releaseShareIntake).toHaveBeenCalledTimes(1);
+            expect(releaseShareIntake).toHaveBeenCalledWith(intakeId, { discard: true });
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('does not discard the copies once a send has released them', async () => {
+        const { result, unmount } = setup({ a: jest.fn().mockResolvedValue(undefined) });
+        await act(async () => result.current.send({ destinations: [room('a')], files: [file('a.pdf')], content: '' }));
+
+        unmount();
+        await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+
+        expect(releaseShareIntake).toHaveBeenCalledTimes(1);
         expect(releaseShareIntake).toHaveBeenCalledWith(intakeId, { discard: false });
     });
 
@@ -119,7 +149,9 @@ describe('useShareSend', () => {
             b: jest.fn().mockResolvedValue(undefined),
         });
 
-        await act(async () => result.current.send({ destinations: [room('a'), room('b')], files: [file('a.pdf')], content: '' }));
+        await act(async () =>
+            result.current.send({ destinations: [room('a'), room('b')], files: [file('a.pdf')], content: '' })
+        );
 
         expect(mockToast).toHaveBeenCalledWith({ title: 'share.sentMany|{"count":2}', description: undefined });
         expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true });
@@ -171,10 +203,17 @@ describe('useShareSend', () => {
             items: [file('a.pdf')],
             refused: [{ name: 'IMG_1.jpg', kind: 'image', reason: 'unreadable' }],
         });
-        const { result } = setup({ a: jest.fn().mockResolvedValue(undefined), b: jest.fn().mockResolvedValue(undefined) });
+        const { result } = setup({
+            a: jest.fn().mockResolvedValue(undefined),
+            b: jest.fn().mockResolvedValue(undefined),
+        });
 
         await act(async () =>
-            result.current.send({ destinations: [room('a'), room('b')], files: [file('IMG_1.jpg'), file('a.pdf')], content: '' })
+            result.current.send({
+                destinations: [room('a'), room('b')],
+                files: [file('IMG_1.jpg'), file('a.pdf')],
+                content: '',
+            })
         );
 
         expect(mockToast).toHaveBeenCalledTimes(1);
@@ -192,7 +231,9 @@ describe('useShareSend', () => {
         const { result } = setup({ a: sendA, b: sendB });
         const shared = [file('IMG_1.jpg'), file('a.pdf')];
 
-        await act(async () => result.current.send({ destinations: [room('a'), room('b')], files: shared, content: '' }));
+        await act(async () =>
+            result.current.send({ destinations: [room('a'), room('b')], files: shared, content: '' })
+        );
 
         expect(mockReadPhotos).toHaveBeenCalledTimes(1);
         expect(mockReadPhotos).toHaveBeenCalledWith(shared);

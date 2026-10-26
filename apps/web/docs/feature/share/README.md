@@ -24,12 +24,12 @@ and nothing about how the shell copies or keeps the items.
 `/share?id=` holds a share id and nothing else. The page asks the shell for that share with
 `FetchShareIntake` and reads the answer as one of four states:
 
-| State     | When                                                                | What the page does                     |
-| --------- | ------------------------------------------------------------------- | -------------------------------------- |
-| `loading` | The shell is still answering — Android may still be copying a video | A preparing spinner, for up to 10 min  |
-| `ready`   | The items, the refusals and any text                                | The composer                           |
-| `empty`   | No id, an app without share intake, or a share it no longer holds  | Home, with a notice when an id was given |
-| `error`   | A timeout or the bridge dropping                                    | A retry                                |
+| State     | When                                                                | What the page does                       |
+| --------- | ------------------------------------------------------------------- | ---------------------------------------- |
+| `loading` | The shell is still answering — Android may still be copying a video | A preparing spinner, for up to 10 min    |
+| `ready`   | The items, the refusals and any text                                | The composer                             |
+| `empty`   | No id, an app without share intake, or a share it no longer holds   | Home, with a notice when an id was given |
+| `error`   | A timeout or the bridge dropping                                    | A retry                                  |
 
 `NOT_FOUND`, `GONE` and `INVALID` all read as `empty`: the web ships before the app, so an app without
 the handler is normal, and a share already released is simply over. Only a transient failure offers a
@@ -88,10 +88,16 @@ room the page opens it; after several it says how many and goes home.
 
 ### Leaving
 
-Closing the page releases the share with `discard`, and the shell deletes its copies. Sending releases
-it without, because the uploads just started are still reading those files; they stay until the
-`attach-pick` sweep — which runs at the next pick — finds the folder a day old. Close is disabled while the photos are being read, since discarding then would take
-the files out from under the send.
+Leaving the page without sending — Close, the system back, or another share arriving — releases the
+share with `discard`, and the shell deletes its copies. Sending releases it without, because the uploads
+just started are still reading those files; they stay until the `attach-pick` sweep — which runs at the
+next pick — finds the folder a day old. A send under way keeps the copies even if the page goes, and
+Close is disabled while the photos are being read, since discarding then would take the files out from
+under the send.
+
+A share that arrives while another is open starts a fresh page: the route is keyed by the share id, so
+no picks or message carry over, and the page it replaces is left — and its share discarded — like any
+other.
 
 ### Reaching into `channels`
 

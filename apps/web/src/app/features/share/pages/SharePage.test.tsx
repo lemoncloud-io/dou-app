@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 
-import { fetchShareIntake, releaseShareIntake } from '../../../bridge/shareIntake';
+import { fetchShareIntake } from '../../../bridge/shareIntake';
+import { ShareRoutes } from '../routes';
 import { SharePage } from './SharePage';
 
 jest.mock('../../../bridge/shareIntake', () => ({
@@ -146,7 +147,8 @@ describe('SharePage — what was shared', () => {
 });
 
 describe('SharePage — leaving', () => {
-    it('cancel discards the copies and goes home', async () => {
+    // Discarding the copies as the page goes is `useShareSend`'s, and tested there.
+    it('cancel goes home', async () => {
         (fetchShareIntake as jest.Mock).mockResolvedValue({
             items: [{ uri: `${dir}/a.pdf`, name: 'a.pdf', type: 'application/pdf', size: 1, kind: 'file' }],
             refused: [],
@@ -156,8 +158,55 @@ describe('SharePage — leaving', () => {
 
         fireEvent.click(screen.getByRole('button', { name: 'share.close' }));
 
-        expect(releaseShareIntake).toHaveBeenCalledWith(id, { discard: true });
         expect(await screen.findByText('home')).toBeTruthy();
+    });
+
+    it('starts a fresh page when another share arrives while one is open', async () => {
+        const otherId = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
+        (fetchShareIntake as jest.Mock).mockImplementation(async (shareId: string) => ({
+            items: [
+                {
+                    uri: `${dir}/${shareId}.pdf`,
+                    name: `${shareId}.pdf`,
+                    type: 'application/pdf',
+                    size: 1,
+                    kind: 'file',
+                },
+            ],
+            refused: [],
+        }));
+        const NextShare = () => {
+            const navigate = useNavigate();
+            return <button onClick={() => navigate(`/share?id=${otherId}`)}>next share</button>;
+        };
+        render(
+            <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+                <MemoryRouter initialEntries={[`/share?id=${id}`]}>
+                    <Routes>
+                        <Route
+                            path="/share/*"
+                            element={
+                                <>
+                                    <ShareRoutes />
+                                    <NextShare />
+                                </>
+                            }
+                        />
+                    </Routes>
+                </MemoryRouter>
+            </QueryClientProvider>
+        );
+        await screen.findByText(`${id}.pdf`);
+        fireEvent.change(screen.getByRole('textbox', { name: 'share.messagePlaceholder' }), {
+            target: { value: 'for the first share' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'next share' }));
+
+        await screen.findByText(`${otherId}.pdf`);
+        expect((screen.getByRole('textbox', { name: 'share.messagePlaceholder' }) as HTMLTextAreaElement).value).toBe(
+            ''
+        );
     });
 
     it('goes home with a notice when there is nothing to share', async () => {
@@ -224,12 +273,20 @@ describe('SharePage — sending', () => {
 
     it('sends the first ten files and names the rest, and what the server refuses, as not sent', async () => {
         const many = Array.from({ length: 12 }, (_, index) => pdf(`f${index + 1}.pdf`));
-        const exe = { uri: `${dir}/setup.exe`, name: 'setup.exe', type: 'application/x-msdownload', size: 1, kind: 'file' };
+        const exe = {
+            uri: `${dir}/setup.exe`,
+            name: 'setup.exe',
+            type: 'application/x-msdownload',
+            size: 1,
+            kind: 'file',
+        };
         (fetchShareIntake as jest.Mock).mockResolvedValue({ items: [...many, exe], refused: [] });
         renderAt(`/share?id=${id}`);
         await screen.findByText('f1.pdf');
 
-        expect(screen.getByText(/share\.notSent/).textContent).toMatch(/f11\.pdf, f12\.pdf, setup\.exe|setup\.exe.*f11\.pdf/);
+        expect(screen.getByText(/share\.notSent/).textContent).toMatch(
+            /f11\.pdf, f12\.pdf, setup\.exe|setup\.exe.*f11\.pdf/
+        );
         pick('General');
         fireEvent.click(screen.getByRole('button', { name: 'share.send' }));
 
@@ -273,7 +330,9 @@ describe('SharePage — sending', () => {
         await screen.findByText('a.pdf');
 
         fireEvent.click(screen.getByRole('button', { name: /share\.to\b/ }));
-        fireEvent.change(screen.getByRole('searchbox', { name: 'share.searchPlaceholder' }), { target: { value: 'des' } });
+        fireEvent.change(screen.getByRole('searchbox', { name: 'share.searchPlaceholder' }), {
+            target: { value: 'des' },
+        });
 
         expect(screen.getAllByRole('checkbox').map(row => row.textContent)).toEqual(['Design']);
     });

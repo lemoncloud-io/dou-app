@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
@@ -38,7 +38,8 @@ export interface ShareSendInput {
  * does, as the room's failed row; one destination failing does not hold up another.
  *
  * The share is released without discarding its copies, which the uploads are still reading; the app
- * sweeps them later.
+ * sweeps them later. Leaving the composer any other way — Cancel, the system back, another share
+ * arriving — discards them.
  */
 export const useShareSend = (intakeId: string | null) => {
     const { t } = useTranslation();
@@ -46,7 +47,23 @@ export const useShareSend = (intakeId: string | null) => {
     const navigate = useNavigate();
     const sendersRef = useRef(new Map<string, SendFiles>());
     const sentRef = useRef(false);
+    const mountedRef = useRef(false);
     const [isSending, setIsSending] = useState(false);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+            // Checked a tick later: a development remount runs this cleanup and the effect again at once,
+            // and a share discarded then would be gone before the page could read it. A send under way or
+            // done keeps the copies: its uploads read them.
+            setTimeout(() => {
+                if (!mountedRef.current && !sentRef.current && intakeId) {
+                    void releaseShareIntake(intakeId, { discard: true });
+                }
+            }, 0);
+        };
+    }, [intakeId]);
 
     const register = useCallback((channelId: string, send: SendFiles) => {
         sendersRef.current.set(channelId, send);
