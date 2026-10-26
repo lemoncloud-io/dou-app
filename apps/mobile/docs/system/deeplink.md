@@ -21,6 +21,13 @@ path for the web to read.
 | `src/app/features/core/navigation/navigationRef.ts`       | Shared navigation ref for applying `target=native` routes (see [../push/README.md](../push/README.md))                                                                                      |
 | `apps/web/.../bridge/navigation/resolvePushNavigation.ts` | (web) Extracts and strips `cid`/`sid`/`chatId` from the `OnNavigate` path, switches cloud/site, then opens the thread for a reply                                                           |
 
+**On iOS the links enter through `SceneDelegate`, not the app delegate.** The app uses the scene
+life cycle (the iOS 27.1 SDK requires it), so a cold-start URL or universal link arrives in the
+scene's connection options rather than `didFinishLaunching`'s launch options, and a warm one in
+`scene(_:openURLContexts:)` / `scene(_:continue:)`. `SceneDelegate` copies the cold-start ones back
+into the launch-options keys React Native reads (`getInitialURL`, `getInitialNotification`) and
+forwards the warm ones to `RCTLinkingManager`, so nothing on the JS side changed.
+
 ## Structure
 
 ```mermaid

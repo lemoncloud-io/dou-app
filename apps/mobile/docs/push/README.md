@@ -257,7 +257,7 @@ sequenceDiagram
 ## Badge behavior
 
 - `NotificationService.onMessage`, `onNotificationOpenedApp` and `getInitialNotification` all call `clearBadge()`.
-- `AppDelegate.applicationDidBecomeActive` also clears the iOS app-icon badge.
+- `SceneDelegate.sceneDidBecomeActive` (through `AppDelegate.didBecomeActive`) also clears the iOS app-icon badge.
 - The WebView can explicitly fetch and set the badge count over the bridge.
 
 The full badge lifecycle — background increment, foreground reconcile — is in [badge.md](./badge.md).

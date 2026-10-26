@@ -16,7 +16,7 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 | Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`              |
 | Android share provider       | `android/app/src/main/java/io/chatic/dou/media`                 |
 | iOS bridge                   | [`ios/Bridges`](../../ios/Bridges)                              |
-| iOS app delegate integration | `ios/Chatic/AppDelegate.swift`                                  |
+| iOS app/scene delegate setup | `ios/Chatic/AppDelegate.swift`                                  |
 
 ## Responsibilities
 

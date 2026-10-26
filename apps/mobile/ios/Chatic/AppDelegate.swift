@@ -9,10 +9,15 @@ import UserNotifications
 class AppDelegate: UIResponder, UIApplicationDelegate,
     UNUserNotificationCenterDelegate
 {
+    /// The scene's window, set by `SceneDelegate`. Several pods still reach the root view through
+    /// `UIApplication.shared.delegate.window`, so it has to stay populated under the scene life cycle.
     var window: UIWindow?
 
     var reactNativeDelegate: ReactNativeDelegate?
     var reactNativeFactory: RCTReactNativeFactory?
+
+    /// Kept for `SceneDelegate`, which starts React Native once the window scene connects.
+    private var appLaunchOptions: [UIApplication.LaunchOptionsKey: Any]?
 
     /// Buffer for Universal Link URL received during cold start.
     static var initialUniversalLink: String?
@@ -38,22 +43,39 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
 
         reactNativeDelegate = delegate
         reactNativeFactory = factory
-
-        window = UIWindow(frame: UIScreen.main.bounds)
-
-        factory.startReactNative(
-            withModuleName: "Chatic",
-            in: window,
-            launchOptions: launchOptions
-        )
-
-        // Hold the launch screen over the app until the web reports its first screen painted — the
-        // OS drops its own as soon as RN draws, long before the WebView has content.
-        if let window {
-            BootSplashOverlay.shared.show(in: window)
-        }
+        appLaunchOptions = launchOptions
 
         return true
+    }
+
+    /// The launch options React Native reads at cold start, rebuilt for the scene life cycle.
+    ///
+    /// Under scenes UIKit no longer puts the URL or the universal link that launched the app into
+    /// `didFinishLaunching`'s options — they arrive in the scene's connection options instead. React
+    /// Native's `Linking.getInitialURL` and `PushNotificationIOS.getInitialNotification` still read
+    /// the old keys, so they are copied back here.
+    func launchOptions(
+        merging connectionOptions: UIScene.ConnectionOptions
+    ) -> [UIApplication.LaunchOptionsKey: Any]? {
+        var options = appLaunchOptions ?? [:]
+        if let url = connectionOptions.urlContexts.first?.url {
+            options[.url] = url
+        }
+        if let activity = connectionOptions.userActivities.first(where: {
+            $0.activityType == NSUserActivityTypeBrowsingWeb
+        }) {
+            options[.userActivityDictionary] = [
+                UIApplication.LaunchOptionsKey.userActivityType.rawValue: activity.activityType,
+                "UIApplicationLaunchOptionsUserActivityKey": activity,
+            ]
+        }
+        if options[.remoteNotification] == nil,
+            let response = connectionOptions.notificationResponse,
+            response.notification.request.trigger is UNPushNotificationTrigger
+        {
+            options[.remoteNotification] = response.notification.request.content.userInfo
+        }
+        return options.isEmpty ? nil : options
     }
 
     // MARK: - Background URLSession (file transfer)
@@ -71,31 +93,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         )
     }
 
-    // MARK: - Deep Linking (Custom URL Scheme)
-    func application(
-        _ app: UIApplication,
-        open url: URL,
-        options: [UIApplication.OpenURLOptionsKey: Any] = [:]
-    ) -> Bool {
-        return RCTLinkingManager.application(app, open: url, options: options)
-    }
-
     // MARK: - Universal Links
-    func application(
-        _ application: UIApplication,
-        continue userActivity: NSUserActivity,
-        restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
-    ) -> Bool {
+    /// Buffers a universal link for `InitialUrlModule`, the cold-start fallback when React Native's
+    /// own initial URL comes back empty. Called by `SceneDelegate` for both cold and warm starts.
+    static func bufferUniversalLink(_ userActivity: NSUserActivity) {
         if userActivity.activityType == NSUserActivityTypeBrowsingWeb,
             let url = userActivity.webpageURL
         {
-            AppDelegate.initialUniversalLink = url.absoluteString
+            initialUniversalLink = url.absoluteString
         }
-        return RCTLinkingManager.application(
-            application,
-            continue: userActivity,
-            restorationHandler: restorationHandler
-        )
     }
 
     // MARK: - Badge counter (shared with the Notification Service Extension via App Group)
@@ -113,7 +119,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         UserDefaults(suiteName: AppDelegate.appGroupId)
     }
 
-    func applicationDidBecomeActive(_ application: UIApplication) {
+    /// Called by `SceneDelegate` when the scene becomes active.
+    func didBecomeActive() {
         // Clear the visible badge on entry (existing behavior); the web re-aggregates and re-sets the
         // true count shortly after (see the web UnreadBadgeRunner foreground reconcile).
         UIApplication.shared.applicationIconBadgeNumber = 0
@@ -121,7 +128,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
         sharedDefaults?.set(true, forKey: AppDelegate.appActiveKey)
     }
 
-    func applicationWillResignActive(_ application: UIApplication) {
+    /// Called by `SceneDelegate` when the scene is about to stop being active.
+    func willResignActive() {
         guard let defaults = sharedDefaults else { return }
         // Handing the badge over to the NSE: capture the current true count (only the app process can
         // read the live icon badge — the NSE cannot) so background pushes increment from truth, and
@@ -187,6 +195,92 @@ class AppDelegate: UIResponder, UIApplicationDelegate,
 
         // Since we're in the foreground, don't show the system banner (banner, sound, vibration)
         completionHandler([])
+    }
+}
+
+/// Owns the app's one window. Apps built with the iOS 27.1 SDK must use the scene life cycle — without
+/// it the app is terminated at launch — and a window scene is also what follows the display when
+/// iPhone Duo opens or closes, where `UIScreen.main` would keep one fixed size. Under scenes UIKit
+/// stops calling the app delegate's URL, universal-link and active/resign callbacks, so they arrive
+/// here and are forwarded to the same places as before.
+class SceneDelegate: UIResponder, UIWindowSceneDelegate {
+    var window: UIWindow?
+
+    private var appDelegate: AppDelegate? {
+        UIApplication.shared.delegate as? AppDelegate
+    }
+
+    func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions
+    ) {
+        guard let windowScene = scene as? UIWindowScene,
+            let appDelegate,
+            let factory = appDelegate.reactNativeFactory
+        else {
+            // Only reachable if launch order or the scene manifest is broken. Carrying on would leave a
+            // black screen with nothing in the logs; a crash at least reaches Crashlytics.
+            fatalError("SceneDelegate connected without a window scene or the React Native factory")
+        }
+
+        let window = UIWindow(windowScene: windowScene)
+        self.window = window
+        let previousWindow = appDelegate.window
+        appDelegate.window = window
+
+        // The system may disconnect a backgrounded scene and connect a new one later while the
+        // process — and React Native with it — keeps running. Starting React Native again would
+        // mount the app a second time on the same JS runtime, so the running root moves over instead.
+        // A link that brought the scene back sits only in the connection options — UIKit does not
+        // repeat it through the warm-start callbacks — so it is replayed through them here.
+        if let root = previousWindow?.rootViewController {
+            previousWindow?.rootViewController = nil
+            window.rootViewController = root
+            window.makeKeyAndVisible()
+            self.scene(scene, openURLContexts: connectionOptions.urlContexts)
+            connectionOptions.userActivities.forEach { self.scene(scene, continue: $0) }
+            return
+        }
+
+        // A cold-start universal link arrives here, not through `scene(_:continue:)`.
+        connectionOptions.userActivities.forEach(AppDelegate.bufferUniversalLink)
+
+        factory.startReactNative(
+            withModuleName: "Chatic",
+            in: window,
+            launchOptions: appDelegate.launchOptions(merging: connectionOptions)
+        )
+
+        // Hold the launch screen over the app until the web reports its first screen painted — the
+        // OS drops its own as soon as RN draws, long before the WebView has content.
+        BootSplashOverlay.shared.show(in: window)
+    }
+
+    // MARK: - Deep Linking (Custom URL Scheme)
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        for context in URLContexts {
+            _ = RCTLinkingManager.application(UIApplication.shared, open: context.url, options: [:])
+        }
+    }
+
+    // MARK: - Universal Links
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        AppDelegate.bufferUniversalLink(userActivity)
+        _ = RCTLinkingManager.application(
+            UIApplication.shared,
+            continue: userActivity,
+            restorationHandler: { _ in }
+        )
+    }
+
+    // MARK: - Foreground (badge hand-over)
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        appDelegate?.didBecomeActive()
+    }
+
+    func sceneWillResignActive(_ scene: UIScene) {
+        appDelegate?.willResignActive()
     }
 }
 
