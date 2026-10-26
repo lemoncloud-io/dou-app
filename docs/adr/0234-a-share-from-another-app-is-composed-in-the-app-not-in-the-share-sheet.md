@@ -1,4 +1,4 @@
-# ADR-0231: A share from another app is composed in the app, not in the share sheet
+# ADR-0234: A share from another app is composed in the app, not in the share sheet
 
 > Status: Accepted · Decided: 2026-10-26
 > · Scope: `libs/app-messages/src/types/model/share-intake.ts` · `apps/mobile` (share intake: the iOS
