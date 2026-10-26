@@ -4,6 +4,12 @@
 
 ### Bug Fixes
 
+- (web-ui-kit,web) draw the avatar stroke over the picture, not around it
+
+## [2026-10-26] - No version updates
+
+### Bug Fixes
+
 - (web,data,desktop-web) list a relay 1:1 in the relay's place, not by its sid (ADR-0230)
 
 ## [2026-10-26] - root@0.112.1, @chatic/web@0.77.1, @chatic/landing@0.6.1, @chatic/desktop-web@0.35.4
