@@ -208,21 +208,24 @@ draws behind the status bar and home indicator and pads for them itself. The she
 
 `apps/web` runs in a WebView on a phone-class device; the same bundle is also reachable from a
 desktop browser through an invite or share link. One rule covers both: every surface fills the
-device up to `--app-width` (960px, `apps/web/src/styles.css`) and centers past it.
+device up to `--app-width` (600px, `apps/web/src/styles.css`) and centers past it, with the sides
+left as an empty margin.
 
-`--app-width` is the **upper bound of the phone class**, not the width of a phone. Below it the
-column IS the device, and that includes widths no phone has: a foldable unfolded is around 690px,
-and the app fills it. Above it — a tablet, a desktop browser — the column caps and centers, which
-is the behavior the invite path already relied on.
+`--app-width` is **a phone's column, not the widest device**. Every phone is narrower, so on a phone
+the column IS the device and nothing changes. Anything wider — an unfolded foldable, iPhone Duo's
+inner display, a tablet, a desktop browser — gets the same phone column in the middle and a grey
+margin either side, instead of a phone layout stretched across the display. The margin is `body`'s
+background (`bg-secondary`), shown only past 600px so a phone's overscroll stays white; the column
+itself paints `bg-background`.
 
-960 is the widest phone-class device measured, plus headroom: iPhone Duo's inner display is
-**951 pt** wide in landscape. It replaced 860, which was sized for a Pixel Fold (**841 CSS px**
-unfolded) and left the Duo's inner display as a centred column with a margin down each side — the
-"stretched iPhone app" Apple's Duo guidance says not to ship. The obvious guess had been 768, the
-tablet breakpoint, and measuring on the device is what ruled it out — at 768 the widest foldable on
-the market still showed a margin down each side, which is the thing this bound exists to prevent. It is deliberately not a Tailwind breakpoint either,
-because nothing here restructures by width. If a wider foldable appears, this is the one number to
-raise.
+600 leaves room past the largest phones (430) without the lines of a list or a chat room running
+long, and it sits just above the 560px a form of a few fields reads well at, so a form screen
+needs no column of its own. It is deliberately not a Tailwind breakpoint, because nothing here
+restructures by width: the layout is one column at every size.
+
+Half-open like a book, iPhone Duo's inner display folds down the middle of that column. Nothing
+moves off the fold: the column, its tab bar and a notice dialog stay centred across it. Moving them
+to the trailing side would push them past the column's edge into the margin.
 
 | Surface                                    | How it gets the cap                                                                   |
 | ------------------------------------------ | ------------------------------------------------------------------------------------- |
@@ -242,7 +245,7 @@ the variable rather than a literal number and fall back to `100%` — a host tha
 
 ### The one surface that does not follow the column
 
-A notice dialog — the small confirm/alert card — opts out. A card stretched to a 960px column stops
+A notice dialog — the small confirm/alert card — opts out. A card stretched to a 600px column stops
 being a card, so `dialog` and `alert-dialog`'s `default` variant declare a width of their own:
 
 ```
@@ -261,8 +264,8 @@ conflicting class in the caller's favor, so a single `max-w-[288px]` left behind
 one dialog out. `SubscriptionRequiredDialog` is the known exception — it is a hand-rolled portal
 rather than a `DialogContent`, so it spells the same expression out and has to be changed alongside.
 
-Bottom sheets do **not** opt out. They follow the column and fill an unfolded foldable, which is
-what that form factor does natively.
+Bottom sheets do **not** opt out. They follow the column, so on a wide display they rise inside it
+rather than across the whole width.
 
 ```bash
 grep -rn "var(--app-width" libs/ui-kit/src libs/web-ui-kit/src --include='*.tsx' | grep -v test
@@ -283,9 +286,9 @@ sheet), and it is the mistake to watch for in a new one.
   by side — all three should share the shell's column, and `document.documentElement.scrollWidth`
   should not exceed the viewport.
 - The widths worth checking are 320 (smallest phone), 411 (a Pixel Fold's cover screen), 841 (that
-  foldable unfolded), 951 (iPhone Duo's inner display) and 1024 (past the cap). At 690 the column
-  fills the device and a notice dialog stays 311 wide; at 951 the column still fills it; at 1024 the
-  column stops at 960 and centers. `libs/web-ui-kit`'s Storybook carries 320, 690 and 951 as
+  foldable unfolded), 951 (iPhone Duo's inner display) and 1024. Up to 600 the column fills the
+  device; past it the column stops at 600, centers, and the margins either side are grey. A notice
+  dialog stays 311 wide throughout. `libs/web-ui-kit`'s Storybook carries 320, 690 and 951 as
   viewport presets.
 - Fold and unfold with the message composer holding text. The layout is CSS, and nothing swaps a
   component on width, so the text survives — that is the property to protect when adding anything
