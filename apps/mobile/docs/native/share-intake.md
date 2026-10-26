@@ -100,6 +100,9 @@ Recents, or when the screen is restored after the process died. That intent is l
 again would copy with a grant that may have lapsed and open the share page over whatever the person was
 doing.
 
+**One at a time.** A new share discards any earlier one still pending — its page is replaced by the
+new share's anyway — so an app sending share after share cannot pile copies up in the cache.
+
 **Held in memory.** The pending shares live in the process. A share the process did not live to hand
 over is lost: the screen restored afterwards does not take its intent again (see above), so the app opens
 as it would, and the copies wait for the sweep. A page that still asks for it gets `GONE`. Every share sweeps before it copies, as every

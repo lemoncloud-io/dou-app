@@ -78,6 +78,9 @@ object ShareIntake {
             val id = UUID.randomUUID().toString()
             val view = Intent(Intent.ACTION_VIEW, Uri.parse(ShareIntakeRules.shareUrl(context.getString(R.string.app_scheme), id)))
             val appContext = context.applicationContext
+            // One share at a time: the page that showed an earlier one is replaced by this one's and lets
+            // it go, and an app sending share after share cannot pile copies up in the cache.
+            pending.keys.toList().forEach { release(it, discard = true) }
             // Registered last, so nothing is copied for a share the screen never opens on.
             pending[id] = CompletableFuture.supplyAsync({ copyAll(appContext, streams, text) { ShareIntakeRules.isGranted(it.toString(), grantsRead, granted) } }, copier)
             Log.i(TAG, "share taken: ${streams.size} stream(s), text: ${text != null}")
