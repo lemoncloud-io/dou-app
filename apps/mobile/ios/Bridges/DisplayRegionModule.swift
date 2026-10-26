@@ -14,6 +14,7 @@ class DisplayRegionModule: RCTEventEmitter {
   private static let divisionChange = "DisplayRegionDivisionChange"
 
   private var observer: UIView?
+  private var keyWindowObserver: NSObjectProtocol?
   private var hasListeners = false
 
   @objc override static func requiresMainQueueSetup() -> Bool {
@@ -38,14 +39,34 @@ class DisplayRegionModule: RCTEventEmitter {
   }
 
   /// JS calls this once subscribed: puts the observer on the app window and sends the current fold.
+  ///
+  /// It follows the window from then on. When the system reconnects a scene, `SceneDelegate` moves
+  /// the running root into a new window without remounting anything in JS, so `start()` is not
+  /// called again; left on the old window, which is no longer laid out, the observer would never
+  /// report the fold again and a stale value would keep dialogs off-centre on a flat display.
+  /// The new window becomes key as the root moves over, and that is the cue to move with it.
   @objc func start() {
     guard #available(iOS 27.1, *) else { return }
-    guard let window = (UIApplication.shared.delegate as? AppDelegate)?.window else { return }
-
-    if let current = observer as? DivisionObserverView, current.superview === window {
-      send(current.currentDivision())
-      return
+    if keyWindowObserver == nil {
+      keyWindowObserver = NotificationCenter.default.addObserver(
+        forName: UIWindow.didBecomeKeyNotification, object: nil, queue: .main
+      ) { [weak self] _ in self?.attach() }
     }
+    let attached = observer
+    attach()
+    // Already on the window, so `attach()` sent nothing; a new subscriber still needs the value.
+    if observer === attached, let current = observer as? DivisionObserverView {
+      send(current.currentDivision())
+    }
+  }
+
+  /// Puts the observer on the app window unless it is already there, and sends the fold it sees.
+  /// A window that merely becomes key again changes nothing and sends nothing.
+  @available(iOS 27.1, *)
+  private func attach() {
+    guard let window = (UIApplication.shared.delegate as? AppDelegate)?.window else { return }
+    if observer?.superview === window { return }
+
     observer?.removeFromSuperview()
     let view = DivisionObserverView(frame: window.bounds)
     view.onChange = { [weak self] division in self?.send(division) }
@@ -64,6 +85,8 @@ class DisplayRegionModule: RCTEventEmitter {
   }
 
   override func invalidate() {
+    if let keyWindowObserver { NotificationCenter.default.removeObserver(keyWindowObserver) }
+    keyWindowObserver = nil
     let view = observer
     observer = nil
     DispatchQueue.main.async { view?.removeFromSuperview() }

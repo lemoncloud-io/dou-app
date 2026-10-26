@@ -63,7 +63,9 @@ silent rather than warning, because it is asked on every swipe and pull.
 iOS module asks UIKit for the window's `.division` reserved region — the fold of a foldable held
 half-open, which only iOS 27.1 reports. UIKit posts no notification when it changes, so a
 window-sized view that takes no touches asks again on every layout pass, and the module sends only
-when the answer differs. What the WebView does with it is in
+when the answer differs. That view moves to whichever window becomes the app's own: when the system
+reconnects a scene, the running root moves into a new window without JS remounting, and an observer
+left on the old window would stop reporting. What the WebView does with it is in
 [../webview/README.md](../webview/README.md) § Injection.
 
 `PushMarksBridge.drain()` is a read-once call: it reads every pending mark recorded by a background
