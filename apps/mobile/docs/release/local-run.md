@@ -61,6 +61,14 @@ local or dev values beside the prod `GoogleService-Info.plist` — Google Sign-I
 `invalid_audience`, because the local/dev web client ID and the prod iOS client ID belong to
 different Google Cloud projects. After changing a mapping, run `pod install` again.
 
+**Xcode 27.1 needs two more `post_install` fixes, and both live in the same `Podfile`.** The iOS
+27.1 SDK — the one that lets the app lay out natively on iPhone Duo — refuses any target below iOS
+15.0, and several pods still declare 10.0 or 12.0 for their resource bundles; `post_install` lifts
+every pod target to the Podfile's own platform floor (15.5). The same toolchain's clang also rejects fmt 11.0.2's
+`consteval` format strings, so the `fmt` target alone is built as C++17, which turns that path off
+in fmt's own detection. Without either, a Release or Debug build stops in `Pods` before the app is
+compiled. Both take effect on the next `pod install`.
+
 **The WebView address is fixed at build time, on purpose.** There is no runtime switcher — the
 capability was removed because it let the web page redirect the shell to a different origin over
 the same bridge. Changing the address means rebuilding.
