@@ -89,5 +89,5 @@ the exception.
 - **Opening the surface in production is its own decision**: it needs a real port, the real payment
   provider and sign-in, and the policy and business text — and then a change to
   `isSubscriptionWebEnabled`.
-- **`/policy/refund` exists on every host**, as a placeholder until the policy text exists, because a
+- **`/policy/refund` exists on every host**, showing proposal text until the policy is written, because a
   policy URL is public the day it is linked. Only the links to it follow the gate.

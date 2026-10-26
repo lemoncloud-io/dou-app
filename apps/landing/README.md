@@ -173,7 +173,7 @@ test covers both.
 | `/policy/terms`   | `TermsOfServicePage`                              |
 | `/policy/privacy` | `PrivacyPolicyPage`                               |
 | `/policy/child`   | `ChildPolicyPage`                                 |
-| `/policy/refund`  | `RefundPolicyPage` — a placeholder, on every host |
+| `/policy/refund`  | `RefundPolicyPage` — proposal text, on every host |
 | `/policy/*`       | redirect to `/policy/terms`                       |
 | `/s/*`            | `DeepLinkPage` — any path under `/s` reaches it   |
 | `/i/*`            | `DeepLinkPage` — the encoded invite link `/i?t=…` |
@@ -208,7 +208,7 @@ apps/landing/
         ├── hooks/              useDeviceDetect — the bounce page and the desktop-only notice
         └── features/
             ├── home/           sections, Header, Footer, StoreButton
-            ├── policy/         4 pages; 3 over one PolicyPageLayout + VersionSelector
+            ├── policy/         4 pages over one PolicyPageLayout; the 3 versioned ones add a VersionSelector
             ├── deeplink/       1 page, 3 hooks, the app-launch and web-redirect logic
             └── subscription/   the account surface — see Two surfaces
 ```
@@ -297,10 +297,9 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 | Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                       |
 | Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts only (`isSubscriptionWebEnabled`) |
 
-The routes, guards, port, mock and the developer pages below are in place; every screen is still a
-`ScreenPlaceholder` showing its id, filled in screen by screen. Screen ids (`W-01`, `W-18`, …) are the
-names of the design frames each screen is drawn from; the route table below is their key. `W-23` is
-the desktop-only notice, which has no route of its own.
+Every screen below is drawn on the mock port; none is open on the production host yet. Screen ids
+(`W-01`, `W-18`, …) are the names of the design frames each screen is drawn from; the route table
+below is their key. `W-23` is the desktop-only notice, which has no route of its own.
 
 ### The account surface
 
@@ -327,27 +326,27 @@ features/subscription/
 above it. The primitives use this site's Tailwind tokens (plus the `status-*` colours in
 `tailwind.config.js` / `styles.css`), not the UI kits, which expect tokens this site does not define.
 
-| URL                                        | Screen                      | Shell   | Guard                              |
-| ------------------------------------------ | --------------------------- | ------- | ---------------------------------- |
-| `/subscription/plans`                      | W-01 plans                  | public  | —                                  |
-| `/subscription/login?next=&reason=`        | W-02 sign-in                | public  | signed in → on to `next` (or W-10) |
-| `/subscription/login/callback`             | W-02 sign-in return         | public  | —                                  |
-| `/subscription/login/no-account`           | W-02b no linked account     | public  | —                                  |
-| `/subscription/store-managed`              | W-17 billed by a store      | public  | signed in                          |
-| `/subscription/checkout?plan=`             | W-08 checkout               | public  | signed in, not store-billed        |
-| `/subscription/checkout/payment?plan=`     | W-05 card registration      | public  | 〃                                 |
-| `/subscription/checkout/status?attempt=`   | W-09 payment in progress    | public  | 〃                                 |
-| `/subscription/checkout/complete?attempt=` | W-06 done                   | public  | 〃                                 |
-| `/subscription/change?plan=`               | W-14 plan change            | public  | 〃                                 |
-| `/subscription`                            | W-10 subscriptions          | account | 〃                                 |
-| `/subscription/:subscriptionId`            | W-18 one subscription       | account | 〃                                 |
-| `/subscription/:subscriptionId/cancel`     | W-15 cancel                 | account | 〃                                 |
-| `/subscription/payment-methods`            | W-12 cards                  | account | 〃                                 |
-| `/subscription/history`                    | W-13 invoices               | account | 〃                                 |
-| `/subscription/billing-info`               | W-16 billing emails         | account | 〃                                 |
-| `/subscription/login/mock-provider`        | stand-in consent page       | —       | mock port only                     |
-| `/subscription/mock-receipt?invoice=`      | stand-in receipt            | —       | mock port only                     |
-| any other `/subscription/…`                | redirect to `/subscription` |         |                                    |
+| URL                                                              | Screen                                                                                                   | Shell   | Guard                              |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- | ---------------------------------- |
+| `/subscription/plans`                                            | W-01 plans                                                                                               | public  | —                                  |
+| `/subscription/login?next=&reason=`                              | W-02 sign-in                                                                                             | public  | signed in → on to `next` (or W-10) |
+| `/subscription/login/callback`                                   | W-02 sign-in return                                                                                      | public  | —                                  |
+| `/subscription/login/no-account`                                 | W-02b no linked account                                                                                  | public  | —                                  |
+| `/subscription/store-managed`                                    | W-17 billed by a store                                                                                   | public  | signed in                          |
+| `/subscription/checkout?plan=`                                   | W-08 checkout                                                                                            | public  | signed in, not store-billed        |
+| `/subscription/checkout/payment?plan=`                           | W-05 card registration                                                                                   | public  | 〃                                 |
+| `/subscription/checkout/status?attempt=` · `?plan=&outcome=`     | W-09 payment in progress — or, with `outcome`, a payment window that closed or failed before any attempt | public  | 〃                                 |
+| `/subscription/checkout/complete?attempt=` · `?change=downgrade` | W-06 done — a downgrade is scheduled without an attempt (nothing is charged)                             | public  | 〃                                 |
+| `/subscription/change?plan=`                                     | W-14 plan change                                                                                         | public  | 〃                                 |
+| `/subscription`                                                  | W-10 subscriptions                                                                                       | account | 〃                                 |
+| `/subscription/:subscriptionId`                                  | W-18 one subscription                                                                                    | account | 〃                                 |
+| `/subscription/:subscriptionId/cancel`                           | W-15 cancel                                                                                              | account | 〃                                 |
+| `/subscription/payment-methods`                                  | W-12 cards                                                                                               | account | 〃                                 |
+| `/subscription/history`                                          | W-13 invoices                                                                                            | account | 〃                                 |
+| `/subscription/billing-info`                                     | W-16 billing emails                                                                                      | account | 〃                                 |
+| `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                     |
+| `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                     |
+| any other `/subscription/…`                                      | redirect to `/subscription`                                                                              |         |                                    |
 
 Below the `md` breakpoint (768 px) every one of these shows W-23, the desktop-only notice, instead.
 Without a session a guarded page sends the reader to `/subscription/login?next=<the page>`; a
@@ -564,10 +563,11 @@ not trigger.
 - **The public surface's tests cover routing, config, copy and the app launch only.** The route
   table, the stage and link config, ko/en key parity, the i18n language handling, and the app launch
   (`utils/appLaunch`, `hooks/useAppLauncher`) have tests; the home and policy components and the
-  other deep-link hooks have none. The account surface tests its rules, its mock and its routes.
+  other deep-link hooks have none. The account surface tests its rules, its mock, its routes and
+  every screen (a render per scenario).
 
     ```bash
-    npx nx test @chatic/landing   # 190 tests
+    npx nx test @chatic/landing   # 368 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionWebEnabled` is true on
@@ -617,7 +617,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 190 tests pass; in CI
+npx nx test @chatic/landing                               # 368 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```
