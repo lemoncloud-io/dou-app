@@ -8,8 +8,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_USER_AGENT_PREFIX, getAppLanguage, t, toEnvStage } from '../utils';
 import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
-import { getLogUploadHoldScript, getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
-import { toWebViewInsets } from './utils/webViewGeometry';
+import { useDivision } from './hooks/useDivision';
+import {
+    getFoldScript,
+    getLogUploadHoldScript,
+    getSafeAreaScript,
+    getSyncInjectionScript,
+} from './utils/injectionScripts';
+import { toWebViewFold, toWebViewInsets } from './utils/webViewGeometry';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
 import { NATIVE_RUN_ID } from '../services/log/native/nativeLogContext';
 import { useWebMessageRouter } from './hooks/useWebMessageRouter';
@@ -55,6 +61,8 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     // The shell pads the WebView by the side insets and tells the web 0 for them (see
     // `toWebViewInsets`). Memoised so the injection effect below reruns only when the insets do.
     const { padding, web: webInsets } = useMemo(() => toWebViewInsets(insets), [insets]);
+    const division = useDivision();
+    const fold = useMemo(() => toWebViewFold(division, padding.paddingLeft), [division, padding.paddingLeft]);
     const keyboardHeight = useKeyboardHeight();
     const webViewRef = useRef<WebView | null>(null);
     const { onLoad: propsOnLoad } = props;
@@ -114,6 +122,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
     const syncInjectionScript = getSyncInjectionScript({
         insets: webInsets,
         keyboardHeight,
+        fold,
         debugModeEnabled,
         logUploadHold,
         theme,
@@ -141,6 +150,12 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         if (!webViewRef.current) return;
         webViewRef.current.injectJavaScript(getSafeAreaScript(webInsets, keyboardHeight));
     }, [webInsets, keyboardHeight]);
+
+    // Pushed live: unfolding or folding the display reloads nothing, and the sync script above only
+    // reaches the next load.
+    useEffect(() => {
+        webViewRef.current?.injectJavaScript(getFoldScript(fold));
+    }, [fold]);
 
     // Pushed live rather than only at load: the point of holding is to reproduce
     // a bug while it is on, and a reload would discard the very session being

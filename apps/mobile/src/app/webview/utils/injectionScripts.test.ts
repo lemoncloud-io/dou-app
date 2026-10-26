@@ -2,6 +2,7 @@ import {
     getConfigBagScript,
     getDebugModeScript,
     getDeviceInfoScript,
+    getFoldScript,
     getLogUploadHoldScript,
     getSyncInjectionScript,
     getThemeScript,
@@ -177,5 +178,49 @@ describe('getSyncInjectionScript — 통합 주입 스크립트', () => {
         });
 
         expect(script).toContain('window.CHATIC_APP_LOG_UPLOAD_HOLD = false;');
+    });
+});
+
+describe('getFoldScript', () => {
+    const root = document.documentElement;
+    // The WebView runs the script against its own document; jsdom's is the same contract.
+    // eslint-disable-next-line no-new-func
+    const run = (script: string) => new Function(script)();
+
+    afterEach(() => {
+        root.removeAttribute('data-fold');
+        root.removeAttribute('style');
+    });
+
+    it('marks the root with the device fold axis and its edges in px', () => {
+        run(getFoldScript({ axis: 'vertical', start: 465, end: 486 }));
+
+        expect(root.getAttribute('data-fold')).toBe('vertical');
+        expect(root.style.getPropertyValue('--fold-start')).toBe('465px');
+        expect(root.style.getPropertyValue('--fold-end')).toBe('486px');
+    });
+
+    it('clears every trace of the device fold when there is none, so a flat display is not displaced', () => {
+        run(getFoldScript({ axis: 'vertical', start: 465, end: 486 }));
+        run(getFoldScript(null));
+
+        expect(root.hasAttribute('data-fold')).toBe(false);
+        expect(root.style.getPropertyValue('--fold-start')).toBe('');
+        expect(root.style.getPropertyValue('--fold-end')).toBe('');
+    });
+
+    it('rides in the sync script, so a reloaded page starts with the device fold already set', () => {
+        run(
+            getSyncInjectionScript({
+                insets: { top: 0, bottom: 0, left: 0, right: 0 },
+                keyboardHeight: 0,
+                deviceInfo: makeParams(),
+                theme: 'dark',
+                fold: { axis: 'horizontal', start: 320, end: 341 },
+            })
+        );
+
+        expect(root.getAttribute('data-fold')).toBe('horizontal');
+        expect(root.style.getPropertyValue('--fold-start')).toBe('320px');
     });
 });

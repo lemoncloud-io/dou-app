@@ -280,6 +280,13 @@ instead of surfacing as an opaque "Script error.":
   would pad the same strip twice wherever a component does read it. Top and bottom stay with the
   web, which draws behind the status bar and home indicator on purpose. The strip takes the theme
   background colour.
+- the device fold, as `data-fold` (`vertical` | `horizontal`) on the root element and
+  `--fold-start`/`--fold-end`, its two edges in px — and `AppWebView` injects it again whenever it
+  changes, since folding the display reloads nothing. The source is `DisplayRegionBridge` (see
+  [../native/README.md](../native/README.md)); `toWebViewFold` moves the window rect into the
+  WebView's coordinates, which for a vertical fold means subtracting the left inset the shell pads
+  by. With no fold — a flat display, Android, iOS before 27.1 — all three are removed, so anything
+  keyed on `[data-fold]` is back in place the moment the display goes flat.
 - device info: run id, platform, stage, app/OS version, build number, language, device model
 - `CHATIC_APP_CONSOLE_ENABLED` — whether relaying `debug` logs to native is worth it in this build.
   The legacy `__console__` relay script it replaced is gone; `SendLog` is now the only web→native log
