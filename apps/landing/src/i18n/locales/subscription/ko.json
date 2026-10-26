@@ -68,7 +68,105 @@
                 "vatNote": "VAT 포함 · 1개월"
             }
         },
-        "entry": {},
+        "entry": {
+            "plans": {
+                "title": "DoU 구독 상품",
+                "subtitle": "앱과 같은 상품, 같은 가격이에요. 첫 구독은 {{days}}일 무료 체험 뒤 매월 자동 결제돼요.",
+                "subtitleTrialUsed": "무료 체험은 이미 사용했어요. 구독하면 오늘 바로 결제되고, 매월 같은 날 자동 결제돼요.",
+                "changeTitle": "상품 변경",
+                "changeSubtitle": "지금 쓰는 상품에서 한 단계 위나 아래로 바꿀 수 있어요.",
+                "tag": {
+                    "firstTrial": "첫 구독 · {{days}}일 무료",
+                    "trialUsed": "체험 사용함",
+                    "afterSubscribe": "구독 후 변경",
+                    "current": "지금 이용 중",
+                    "upgrade": "업그레이드",
+                    "downgrade": "다운그레이드",
+                    "adjacentOnly": "인접 단계만"
+                },
+                "subscribe": "{{plan}} 구독하기",
+                "subscribePaid": "{{plan}} 구독하기 — 오늘 {{price}}",
+                "entryHint": "첫 구독은 {{plan}}부터 시작해요. 더 많은 클라우드는 구독한 뒤 업그레이드하세요.",
+                "upgradeTo": "{{plan}}로 업그레이드",
+                "upgradeTo_3": "{{plan}}으로 업그레이드",
+                "downgradeTo": "{{plan}}로 다운그레이드",
+                "downgradeTo_3": "{{plan}}으로 다운그레이드",
+                "notesTitle": "꼭 확인해 주세요",
+                "notes": {
+                    "trialOnce": "무료 체험은 처음 구독하는 계정에 한 번만 제공돼요.",
+                    "afterTrial": "체험이 끝나면 매월 같은 날 자동 결제되고, 언제든 해지할 수 있어요.",
+                    "storeSubscribers": "앱(App Store·Google Play)에서 이미 구독 중이면 웹에서 다시 결제하지 않아요.",
+                    "trialUsed": "무료 체험은 계정당 한 번이에요. 이 계정은 앱 또는 웹에서 이미 체험을 사용했어요.",
+                    "chargeToday": "오늘 첫 결제가 되고, 이날(매월 {{day}}일)이 청구일이 돼요. 언제든 해지할 수 있어요.",
+                    "startAtEntry": "첫 구독은 {{plan}}부터 시작해요. 더 많은 클라우드는 구독한 뒤 업그레이드하세요."
+                },
+                "changeUnavailable": {
+                    "title": "지금은 상품을 바꿀 수 없어요",
+                    "body": "구독 상태를 먼저 확인해 주세요. 결제 문제나 해지·변경 예약을 정리하면 다시 바꿀 수 있어요.",
+                    "action": "구독 보기"
+                },
+                "storeBilled": {
+                    "title": "앱에서 구독하고 있어요",
+                    "body": "상품 변경은 구독한 스토어에서 해 주세요.",
+                    "action": "자세히 보기"
+                }
+            },
+            "login": {
+                "title": "로그인",
+                "body": "DoU 앱에서 쓰는 계정으로 로그인해요. 구독은 그 계정의 앱에 적용돼요.",
+                "google": "Google로 계속하기",
+                "apple": "Apple로 계속하기",
+                "phoneTitle": "번호로만 가입했다면",
+                "phoneBody": "앱 MY › 계정에서 Google 또는 Apple 계정을 먼저 연결하면 웹에서 로그인할 수 있어요.",
+                "noNewAccounts": "웹에서는 새 계정을 만들지 않아요.",
+                "reason": {
+                    "canceled": "로그인을 취소했어요",
+                    "expired-attempt": "로그인 시간이 지났어요. 다시 시도해 주세요",
+                    "failed": "로그인하지 못했어요. 다시 시도해 주세요",
+                    "session-ended": "로그인이 끝났어요. 다시 로그인해 주세요"
+                },
+                "completing": "로그인하는 중…"
+            },
+            "noAccount": {
+                "title": "DoU 앱 계정을 찾지 못했어요",
+                "bodyHint": "{{hint}}({{provider}})과 연결된 DoU 계정이 없어요. 앱을 설치하고 같은 계정으로 로그인한 뒤 다시 와 주세요.",
+                "body": "이 {{provider}} 계정과 연결된 DoU 계정이 없어요. 앱을 설치하고 같은 계정으로 로그인한 뒤 다시 와 주세요.",
+                "stepsTitle": "이렇게 해 주세요",
+                "step1": "DoU 앱을 설치해요",
+                "step2": "앱에서 같은 {{provider}} 계정으로 로그인해요",
+                "step3": "이 페이지에서 다시 로그인해요",
+                "otherWaysTitle": "앱에 이미 가입했다면",
+                "phoneUser": "번호로 가입했다면 앱 MY › 계정에서 {{provider}} 계정을 먼저 연결해 주세요.",
+                "otherProvider": "앱에서 다른 방법으로 로그인한다면 그 방법으로 다시 로그인해 주세요.",
+                "appStore": "App Store에서 받기",
+                "googlePlay": "Google Play에서 받기",
+                "otherAccount": "다른 계정으로 로그인"
+            },
+            "storeManaged": {
+                "badge": "{{store}} 구독 중",
+                "title": "앱에서 구독하고 있어요",
+                "body": "이 계정은 {{store}}로 구독 중이라 웹에서 결제하지 않아요. 상품 변경·해지는 구독한 스토어에서 해 주세요.",
+                "currentPlan": "지금 상품",
+                "nextBilling": "다음 결제일",
+                "billedBy": "청구처",
+                "howToTitle": "{{store}}에서 관리하는 방법",
+                "howTo": {
+                    "appStore": "iPhone 설정 › Apple ID › 구독 › DoU",
+                    "googlePlay": "Play 스토어 앱 › 프로필 › 결제 및 구독 › 구독 › DoU"
+                },
+                "confirm": "확인",
+                "moveToWeb": "웹으로 옮기려면 스토어에서 해지하고 이용 기간이 끝난 뒤 웹에서 새로 구독해요. 이때 무료 체험은 없어요."
+            },
+            "store": {
+                "appStore": "App Store",
+                "googlePlay": "Google Play"
+            },
+            "provider": {
+                "google": "Google",
+                "apple": "Apple",
+                "either": "Google·Apple"
+            }
+        },
         "checkout": {},
         "manage": {
             "dday": {
@@ -301,6 +399,186 @@
                 }
             }
         },
-        "billing": {}
+        "billing": {
+            "card": {
+                "label": "{{brand}} ···· {{last4}}",
+                "expires": "만료 {{expiry}}",
+                "default": "기본 카드",
+                "expiringSoon": "만료 임박",
+                "failed": "결제 실패",
+                "failedWithReason": "결제 실패 · {{reason}}"
+            },
+            "paymentMethods": {
+                "title": "결제수단",
+                "subtitle": "다음 결제부터 기본 카드로 청구돼요.",
+                "add": "카드 추가",
+                "makeDefault": "기본으로 지정",
+                "remove": "삭제",
+                "empty": {
+                    "title": "등록된 카드가 없어요",
+                    "body": "카드를 추가하면 다음 결제부터 그 카드로 청구돼요."
+                },
+                "notes": {
+                    "title": "알아 두세요",
+                    "removeDefault": "기본 카드를 지우려면 다른 카드를 먼저 기본으로 지정해요.",
+                    "removeLast": "구독 중에는 마지막 카드를 지울 수 없어요 — 새 카드를 등록한 뒤 바꿔 주세요.",
+                    "domestic": "지금은 국내 카드만 등록할 수 있어요.",
+                    "noCharge": "카드 추가는 결제 없이 등록만 해요."
+                },
+                "declined": {
+                    "title": "카드를 등록하지 못했어요",
+                    "body": "카드사에서 승인을 거절했어요. 다른 카드로 해 보거나 카드사에 문의해 주세요."
+                },
+                "attemptLimit": {
+                    "title": "등록 시도가 너무 많아요",
+                    "body": "잠시 뒤 다시 시도해 주세요."
+                },
+                "expiring": {
+                    "title": "기본 카드가 다음 결제일 전에 만료돼요",
+                    "body": "{{card}} 카드는 {{expiry}}에 만료돼요. {{date}} 결제 전에 새 카드를 등록하고 기본으로 바꿔 주세요.",
+                    "bodyNoDate": "{{card}} 카드는 {{expiry}}에 만료돼요. 새 카드를 등록하고 기본으로 바꿔 주세요."
+                },
+                "pastDue": {
+                    "title_one": "밀린 금액 {{amount}} · 이용 제한까지 D-{{count}}",
+                    "title_other": "밀린 금액 {{amount}} · 이용 제한까지 D-{{count}}",
+                    "titleNoDate": "밀린 금액 {{amount}}",
+                    "titleToday": "밀린 금액 {{amount}} · 오늘부터 이용이 제한돼요",
+                    "titleRestricted": "밀린 금액 {{amount}} · 이용이 제한됐어요",
+                    "body": "새 카드를 등록하거나 다른 카드를 기본으로 지정하면 밀린 금액을 바로 결제해요."
+                },
+                "replace": {
+                    "title": "{{card}} 카드를 기본으로 지정하고 결제할까요?",
+                    "amount": "결제할 금액",
+                    "billingDay": "청구일",
+                    "billingDayValue": "매월 {{day}}일 (그대로)",
+                    "confirm": "기본으로 지정하고 {{amount}} 결제"
+                },
+                "added": "{{card}} 카드를 등록했어요",
+                "defaultChanged": "기본 카드를 바꿨어요",
+                "removed": "카드를 지웠어요",
+                "addDialog": {
+                    "title": "카드 추가",
+                    "body": "결제 없이 카드만 등록해요. 카드 정보는 결제사 결제창에서 입력해요.",
+                    "open": "결제창 열기"
+                },
+                "defaultDialog": {
+                    "title": "기본 카드를 바꿀까요?",
+                    "body": "다음 결제({{date}} · {{amount}})부터 {{card}} 카드로 결제돼요.",
+                    "bodyNoNext": "다음 결제부터 {{card}} 카드로 결제돼요."
+                },
+                "removeDialog": {
+                    "title": "{{card}} 카드를 지울까요?",
+                    "body": "지운 카드는 다시 등록해야 쓸 수 있어요."
+                },
+                "cannotRemoveDefault": {
+                    "title": "기본 카드는 바로 지울 수 없어요",
+                    "body": "다른 카드를 기본으로 지정한 뒤 지워 주세요."
+                },
+                "cannotRemoveLast": {
+                    "title": "마지막 카드는 지울 수 없어요",
+                    "body": "구독 중에는 결제할 카드가 한 장 있어야 해요. 새 카드를 등록한 뒤 지워 주세요."
+                }
+            },
+            "history": {
+                "title": "청구 내역",
+                "subtitle": "결제와 환불 내역이에요. 영수증은 결제사가 발행한 카드 영수증이에요.",
+                "columns": {
+                    "date": "날짜",
+                    "description": "내용",
+                    "amount": "금액",
+                    "result": "결과",
+                    "receipt": "영수증"
+                },
+                "kind": {
+                    "first": "첫 결제 · {{plan}}",
+                    "renewal": "정기 결제 · {{plan}}",
+                    "upgrade": "업그레이드 차액 · {{plan}}",
+                    "retry": "정기 결제 (재시도) · {{plan}}",
+                    "refund": "환불 · {{plan}}"
+                },
+                "status": {
+                    "paid": "결제 완료",
+                    "failed": "결제 실패",
+                    "refunded": "환불",
+                    "failedRetrying": "결제 실패 · {{date}} 재시도 예정"
+                },
+                "receipt": "영수증",
+                "refundReceipt": "환불 영수증",
+                "opensInNewTab": "새 창에서 열려요",
+                "empty": {
+                    "title": "아직 결제 내역이 없어요",
+                    "trial": "무료 체험 중이에요. {{date}}에 첫 결제({{amount}})가 예정돼 있어요."
+                },
+                "taxNote": "카드 결제분은 세금계산서를 따로 발급하지 않아요."
+            },
+            "info": {
+                "title": "청구 정보",
+                "subtitle": "결제·고지 메일을 받을 주소와 청구 국가예요.",
+                "emails": {
+                    "label": "청구 메일",
+                    "primary": "대표",
+                    "status": {
+                        "pending": "인증 대기",
+                        "bounced": "반송",
+                        "unsubscribed": "수신 거부"
+                    },
+                    "receives": {
+                        "label": "받는 메일",
+                        "receipt": "영수증",
+                        "notice": "결제 안내"
+                    },
+                    "actions": {
+                        "change": "변경",
+                        "verify": "인증하기",
+                        "makePrimary": "대표로 지정",
+                        "remove": "삭제"
+                    },
+                    "add": "메일 추가",
+                    "empty": "등록된 청구 메일이 없어요"
+                },
+                "bounced": {
+                    "title": "대표 청구 메일이 반송되고 있어요",
+                    "body": "{{address}} 주소로 보낸 메일이 돌아왔어요. 주소를 확인하거나 다른 메일을 대표로 지정해 주세요."
+                },
+                "country": {
+                    "label": "청구 국가",
+                    "locked": "변경 불가",
+                    "note": "청구 국가는 결제 방식을 정하기 때문에 바꿀 수 없어요. 바꾸려면 해지한 뒤 새로 구독해 주세요."
+                },
+                "primaryChanged": "대표 메일을 바꿨어요",
+                "removed": "청구 메일을 지웠어요",
+                "removeDialog": {
+                    "title": "{{address}} 메일을 지울까요?",
+                    "body": "이 주소로는 더 이상 청구 메일을 보내지 않아요."
+                },
+                "dialog": {
+                    "titleAdd": "청구 메일 추가",
+                    "titleChange": "청구 메일 변경",
+                    "bodyAdd": "새 메일을 인증하면 청구 메일 목록에 더해져요.",
+                    "bodyChange": "청구 메일을 새 주소로 바꿔요. 새 메일을 인증한 뒤 변경하기를 누르면 바로 바뀌어요.",
+                    "current": "지금 메일",
+                    "newAddress": "새 메일",
+                    "addressPlaceholder": "name@example.com",
+                    "sendCode": "인증번호 받기",
+                    "resend": "다시 보내기",
+                    "code": "인증번호",
+                    "verify": "확인",
+                    "reenter": "다시 입력",
+                    "verified": "인증됨",
+                    "sent": "{{address}} 주소로 인증번호를 보냈어요.",
+                    "verifiedAdd": "인증이 끝났어요. 이 메일로도 청구 메일을 보내 드려요.",
+                    "verifiedChange": "인증이 끝났어요. 변경하기를 누르면 바로 이 메일로 바뀌어요.",
+                    "hint": "인증이 끝나기 전까지는 지금 메일로 계속 보내 드려요.",
+                    "invalidAddress": "메일 주소를 확인해 주세요.",
+                    "invalidCode": "인증번호가 맞지 않아요. 다시 확인해 주세요.",
+                    "limit": "청구 메일은 더 추가할 수 없어요. 쓰지 않는 메일을 지운 뒤 다시 해 주세요.",
+                    "confirmAdd": "완료",
+                    "confirmChange": "변경하기",
+                    "added": "청구 메일을 추가했어요",
+                    "changed": "청구 메일을 바꿨어요",
+                    "alreadyVerified": "이미 인증된 메일이에요. 목록에서 대표로 지정할 수 있어요."
+                }
+            }
+        }
     }
 }

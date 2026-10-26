@@ -68,7 +68,105 @@
                 "vatNote": "VAT included · 1 month"
             }
         },
-        "entry": {},
+        "entry": {
+            "plans": {
+                "title": "DoU plans",
+                "subtitle": "The same plans at the same prices as in the app. A first subscription starts with a {{days}}-day free trial, then renews monthly.",
+                "subtitleTrialUsed": "You have already used the free trial. Subscribing charges you today and renews on the same day each month.",
+                "changeTitle": "Change plan",
+                "changeSubtitle": "You can move one step up or down from your current plan.",
+                "tag": {
+                    "firstTrial": "First plan · {{days}} days free",
+                    "trialUsed": "Trial used",
+                    "afterSubscribe": "After subscribing",
+                    "current": "Current plan",
+                    "upgrade": "Upgrade",
+                    "downgrade": "Downgrade",
+                    "adjacentOnly": "One step at a time"
+                },
+                "subscribe": "Subscribe to {{plan}}",
+                "subscribePaid": "Subscribe to {{plan}} — {{price}} today",
+                "entryHint": "Your first subscription starts with {{plan}}. Upgrade after subscribing for more clouds.",
+                "upgradeTo": "Upgrade to {{plan}}",
+                "upgradeTo_3": "Upgrade to {{plan}}",
+                "downgradeTo": "Downgrade to {{plan}}",
+                "downgradeTo_3": "Downgrade to {{plan}}",
+                "notesTitle": "Please note",
+                "notes": {
+                    "trialOnce": "The free trial is offered once, to an account's first subscription.",
+                    "afterTrial": "After the trial, you are charged on the same day each month, and you can cancel at any time.",
+                    "storeSubscribers": "If you already subscribe in the app (App Store or Google Play), you are not charged again on the web.",
+                    "trialUsed": "The free trial is limited to one per account, and this account has already used it in the app or on the web.",
+                    "chargeToday": "You are charged today, and this day (day {{day}} of each month) becomes your billing day. You can cancel at any time.",
+                    "startAtEntry": "Your first subscription starts with {{plan}}. Upgrade after subscribing for more clouds."
+                },
+                "changeUnavailable": {
+                    "title": "You can't change your plan right now",
+                    "body": "Check your subscription first. Once a payment issue or a scheduled cancellation or change is settled, you can change it again.",
+                    "action": "View subscription"
+                },
+                "storeBilled": {
+                    "title": "You subscribe in the app",
+                    "body": "Change your plan in the store you subscribed through.",
+                    "action": "Learn more"
+                }
+            },
+            "login": {
+                "title": "Sign in",
+                "body": "Sign in with the account you use in the DoU app. Your subscription applies to that account's app.",
+                "google": "Continue with Google",
+                "apple": "Continue with Apple",
+                "phoneTitle": "Signed up with a phone number only?",
+                "phoneBody": "Link a Google or Apple account in the app under MY › Account first, then sign in here.",
+                "noNewAccounts": "New accounts are not created on the web.",
+                "reason": {
+                    "canceled": "You canceled the sign-in",
+                    "expired-attempt": "The sign-in timed out. Please try again",
+                    "failed": "We couldn't sign you in. Please try again",
+                    "session-ended": "You were signed out. Please sign in again"
+                },
+                "completing": "Signing you in…"
+            },
+            "noAccount": {
+                "title": "No DoU account found",
+                "bodyHint": "No DoU account is linked to {{hint}} ({{provider}}). Install the app, sign in with the same account, then come back.",
+                "body": "No DoU account is linked to this {{provider}} account. Install the app, sign in with the same account, then come back.",
+                "stepsTitle": "Here's what to do",
+                "step1": "Install the DoU app",
+                "step2": "Sign in to the app with the same {{provider}} account",
+                "step3": "Sign in again on this page",
+                "otherWaysTitle": "Already signed up in the app?",
+                "phoneUser": "If you signed up with a phone number, link your {{provider}} account in the app under MY › Account first.",
+                "otherProvider": "If you sign in to the app another way, sign in here that way instead.",
+                "appStore": "Get it on the App Store",
+                "googlePlay": "Get it on Google Play",
+                "otherAccount": "Sign in with another account"
+            },
+            "storeManaged": {
+                "badge": "Subscribed via {{store}}",
+                "title": "You subscribe in the app",
+                "body": "This account subscribes through {{store}}, so it is not billed on the web. Change or cancel your plan in the store you subscribed through.",
+                "currentPlan": "Current plan",
+                "nextBilling": "Next payment",
+                "billedBy": "Billed by",
+                "howToTitle": "Managing it in {{store}}",
+                "howTo": {
+                    "appStore": "iPhone Settings › Apple ID › Subscriptions › DoU",
+                    "googlePlay": "Play Store app › Profile › Payments & subscriptions › Subscriptions › DoU"
+                },
+                "confirm": "OK",
+                "moveToWeb": "To move to the web, cancel in the store and subscribe here once the paid period ends. There is no free trial then."
+            },
+            "store": {
+                "appStore": "App Store",
+                "googlePlay": "Google Play"
+            },
+            "provider": {
+                "google": "Google",
+                "apple": "Apple",
+                "either": "Google or Apple"
+            }
+        },
         "checkout": {},
         "manage": {
             "dday": {
@@ -301,6 +399,186 @@
                 }
             }
         },
-        "billing": {}
+        "billing": {
+            "card": {
+                "label": "{{brand}} ···· {{last4}}",
+                "expires": "Expires {{expiry}}",
+                "default": "Default",
+                "expiringSoon": "Expiring soon",
+                "failed": "Payment failed",
+                "failedWithReason": "Payment failed · {{reason}}"
+            },
+            "paymentMethods": {
+                "title": "Payment methods",
+                "subtitle": "From the next payment on, your default card is charged.",
+                "add": "Add card",
+                "makeDefault": "Make default",
+                "remove": "Remove",
+                "empty": {
+                    "title": "No cards yet",
+                    "body": "Add a card and the next payment is charged to it."
+                },
+                "notes": {
+                    "title": "Good to know",
+                    "removeDefault": "To remove your default card, make another card the default first.",
+                    "removeLast": "While subscribed you can't remove your last card — add a new one, then swap.",
+                    "domestic": "Only cards issued in Korea can be added for now.",
+                    "noCharge": "Adding a card only registers it — nothing is charged."
+                },
+                "declined": {
+                    "title": "We couldn't add the card",
+                    "body": "The card issuer declined it. Try another card or contact your issuer."
+                },
+                "attemptLimit": {
+                    "title": "Too many attempts",
+                    "body": "Please try again in a little while."
+                },
+                "expiring": {
+                    "title": "Your default card expires before the next payment",
+                    "body": "{{card}} expires in {{expiry}}. Add a new card and make it the default before the {{date}} payment.",
+                    "bodyNoDate": "{{card}} expires in {{expiry}}. Add a new card and make it the default."
+                },
+                "pastDue": {
+                    "title_one": "{{amount}} overdue · {{count}} day until access is restricted",
+                    "title_other": "{{amount}} overdue · {{count}} days until access is restricted",
+                    "titleNoDate": "{{amount}} overdue",
+                    "titleToday": "{{amount}} overdue · access is restricted from today",
+                    "titleRestricted": "{{amount}} overdue · access is restricted",
+                    "body": "Add a new card or make another card the default, and the overdue amount is charged right away."
+                },
+                "replace": {
+                    "title": "Make {{card}} the default and pay now?",
+                    "amount": "Amount due",
+                    "billingDay": "Billing day",
+                    "billingDayValue": "Day {{day}} of each month (unchanged)",
+                    "confirm": "Make default and pay {{amount}}"
+                },
+                "added": "{{card}} added",
+                "defaultChanged": "Default card changed",
+                "removed": "Card removed",
+                "addDialog": {
+                    "title": "Add card",
+                    "body": "This only registers a card — nothing is charged. You enter the card details in the payment provider's window.",
+                    "open": "Open payment window"
+                },
+                "defaultDialog": {
+                    "title": "Change your default card?",
+                    "body": "From the next payment ({{date}} · {{amount}}), {{card}} is charged.",
+                    "bodyNoNext": "From the next payment, {{card}} is charged."
+                },
+                "removeDialog": {
+                    "title": "Remove {{card}}?",
+                    "body": "To use it again you'd have to add it again."
+                },
+                "cannotRemoveDefault": {
+                    "title": "Your default card can't be removed yet",
+                    "body": "Make another card the default, then remove this one."
+                },
+                "cannotRemoveLast": {
+                    "title": "Your last card can't be removed",
+                    "body": "A subscription needs a card to charge. Add a new card, then remove this one."
+                }
+            },
+            "history": {
+                "title": "Billing history",
+                "subtitle": "Your payments and refunds. Receipts are card receipts issued by the payment provider.",
+                "columns": {
+                    "date": "Date",
+                    "description": "Description",
+                    "amount": "Amount",
+                    "result": "Result",
+                    "receipt": "Receipt"
+                },
+                "kind": {
+                    "first": "First payment · {{plan}}",
+                    "renewal": "Renewal · {{plan}}",
+                    "upgrade": "Upgrade difference · {{plan}}",
+                    "retry": "Renewal (retry) · {{plan}}",
+                    "refund": "Refund · {{plan}}"
+                },
+                "status": {
+                    "paid": "Paid",
+                    "failed": "Failed",
+                    "refunded": "Refunded",
+                    "failedRetrying": "Failed · retrying {{date}}"
+                },
+                "receipt": "Receipt",
+                "refundReceipt": "Refund receipt",
+                "opensInNewTab": "opens in a new tab",
+                "empty": {
+                    "title": "No payments yet",
+                    "trial": "You're on a free trial. The first payment ({{amount}}) is on {{date}}."
+                },
+                "taxNote": "Card payments are not issued a separate tax invoice."
+            },
+            "info": {
+                "title": "Billing info",
+                "subtitle": "Where payment and billing emails go, and your billing country.",
+                "emails": {
+                    "label": "Billing emails",
+                    "primary": "Primary",
+                    "status": {
+                        "pending": "Awaiting verification",
+                        "bounced": "Bounced",
+                        "unsubscribed": "Unsubscribed"
+                    },
+                    "receives": {
+                        "label": "Receives",
+                        "receipt": "Receipts",
+                        "notice": "Payment notices"
+                    },
+                    "actions": {
+                        "change": "Change",
+                        "verify": "Verify",
+                        "makePrimary": "Make primary",
+                        "remove": "Remove"
+                    },
+                    "add": "Add email",
+                    "empty": "No billing emails yet"
+                },
+                "bounced": {
+                    "title": "Your primary billing email is bouncing",
+                    "body": "Mail sent to {{address}} came back. Check the address or make another email the primary one."
+                },
+                "country": {
+                    "label": "Billing country",
+                    "locked": "Can't be changed",
+                    "note": "The billing country decides how you are charged, so it can't be changed. To change it, cancel and subscribe again."
+                },
+                "primaryChanged": "Primary email changed",
+                "removed": "Billing email removed",
+                "removeDialog": {
+                    "title": "Remove {{address}}?",
+                    "body": "Billing emails will no longer go to this address."
+                },
+                "dialog": {
+                    "titleAdd": "Add billing email",
+                    "titleChange": "Change billing email",
+                    "bodyAdd": "Once the new address is verified, it joins your billing emails.",
+                    "bodyChange": "Switch your billing email to a new address. Verify it, then choose Change to switch right away.",
+                    "current": "Current email",
+                    "newAddress": "New email",
+                    "addressPlaceholder": "name@example.com",
+                    "sendCode": "Send code",
+                    "resend": "Resend",
+                    "code": "Verification code",
+                    "verify": "Verify",
+                    "reenter": "Use another",
+                    "verified": "Verified",
+                    "sent": "We sent a code to {{address}}.",
+                    "verifiedAdd": "Verified. Billing emails will go to this address too.",
+                    "verifiedChange": "Verified. Choose Change to switch to this address now.",
+                    "hint": "Until the new address is verified, we keep sending to the current one.",
+                    "invalidAddress": "Check the email address.",
+                    "invalidCode": "That code doesn't match. Please check it.",
+                    "limit": "You can't add more billing emails. Remove one you don't use and try again.",
+                    "confirmAdd": "Done",
+                    "confirmChange": "Change",
+                    "added": "Billing email added",
+                    "changed": "Billing email changed",
+                    "alreadyVerified": "That address is already verified. You can make it primary from the list."
+                }
+            }
+        }
     }
 }
