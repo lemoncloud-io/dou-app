@@ -25,8 +25,11 @@ rules. The shell holds none of it; its own rule is that it renders chrome and ne
 ## Decision
 
 1. **The OS side only receives.** The iOS Share Extension and the Android `ACTION_SEND` /
-   `ACTION_SEND_MULTIPLE` intake copy what was shared into the shell's `attach-pick` folder — the one
-   folder the upload, the video conversion and the day-old sweep already accept — and open the app on
+   `ACTION_SEND_MULTIPLE` intake copy what was shared out of the other app's hands and into the shell's
+   `attach-pick` folder — the one folder the upload, the video conversion and the day-old sweep already
+   accept. Android copies there as the intent arrives; the iOS extension runs in its own process and
+   copies into an App Group inbox, which the app moves into `attach-pick` when the web first asks. Both
+   open the app on
    `<scheme>://share?id=<id>`. Neither renders a destination or makes a network call.
 2. **The deep-link pipeline carries it.** That URL resolves to the web path `/share?id=<id>` and
    reaches the web as `OnNavigate`, with the cold-start buffering every other link already has. No new
