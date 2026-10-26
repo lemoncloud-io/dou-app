@@ -1,9 +1,10 @@
 import { cn } from '@chatic/lib/utils';
 
 import { IconGroup, IconUser } from '../../resources/icons';
+import { AvatarFrame } from './avatarBase';
 
 export interface DefaultAvatarProps {
-    /** Diameter in pixels. */
+    /** Diameter in pixels, stroke included. */
     size?: number;
     /**
      * Which of the two avatar images to draw:
@@ -17,8 +18,9 @@ export interface DefaultAvatarProps {
 }
 
 /**
- * Default avatar placeholder — a brand-ink circle with a hairline ring and a white glyph, used
- * wherever a profile photo hasn't been set yet (a header's peer/channel avatar slot, a list row).
+ * Default avatar placeholder — a brand-ink circle with a white glyph under the same stroke
+ * {@link ImageAvatar} draws, used wherever a profile photo hasn't been set yet (a header's
+ * peer/channel avatar slot, a list row), so a member reads the same with and without a photo.
  *
  * For a grey placeholder on a light surface (my-page rows, ProfileAvatar) reach for
  * `IconUserOutline` directly instead — that is a different job from this one.
@@ -26,13 +28,7 @@ export interface DefaultAvatarProps {
 export const DefaultAvatar = ({ size = 36, variant = 'user', className }: DefaultAvatarProps) => {
     const isGroup = variant === 'group';
     return (
-        <span
-            className={cn(
-                'inline-flex shrink-0 items-center justify-center rounded-full border border-border bg-brand-ink',
-                className
-            )}
-            style={{ width: size, height: size }}
-        >
+        <AvatarFrame px={size} className={cn('bg-brand-ink', className)}>
             {isGroup ? (
                 <IconGroup size={Math.round(size * 0.6)} className="text-white" />
             ) : (
@@ -40,6 +36,6 @@ export const DefaultAvatar = ({ size = 36, variant = 'user', className }: Defaul
                 // circle-relative exactly as in Figma.
                 <IconUser size={size} className="text-white" />
             )}
-        </span>
+        </AvatarFrame>
     );
 };

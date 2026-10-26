@@ -182,8 +182,8 @@ Ten files are internal — used across a group but absent from every barrel, so 
 API will not find them. The one partial exception is `slidePresence.ts`, whose timing is public while
 its hook is not:
 
-- `foundations/avatar/avatarBase.tsx` — `AvatarShell`, the ringed circle `ChatAvatar` and
-  `PlaceAvatar` are both drawn on.
+- `foundations/avatar/avatarBase.tsx` — `AvatarFrame`, the circle `ImageAvatar`, `DefaultAvatar`,
+  `ProfileAvatar`, `PlaceAvatar` and `ChatAvatar` are drawn in. It owns the stroke (see [Picking an avatar](#4-picking-an-avatar)).
 - `foundations/button/floatingPanel.ts` — the shared class string for floating surfaces.
 - `composites/header/HeaderGlass.tsx` — the blurred header backdrop. Mounted while `<html>` carries
   `data-page-transition` (set by `@chatic/shared`'s `useNavigateWithTransition`), it holds its opaque
@@ -337,8 +337,28 @@ Seven components draw a circle and they are not interchangeable.
 | `ChatAvatar`    | A chat with no photo — a speech bubble on a faint navy tint                                                                                                         |
 | `AvatarGroup`   | Overlapping stack plus a member count. Presentational — the host builds the nodes and owns the self-vs-peer ring                                                    |
 
-Two inconsistencies are real and worth knowing before you match a design: `DefaultAvatar` rings
-itself with `border-border` while `AvatarShell` and `ProfileAvatar` use `border-avatar-ring`, and
+**The stroke sits on top of the picture, not around it.** Figma strokes an avatar on the inside and
+paints that stroke over the content, so a 42px photo is a 42px photo whose outermost pixel is
+covered by a 1px line. A CSS `border` on the clipping box does something else — it shrinks the
+content to 40px and lays the line beside it — so `AvatarFrame` clips the content to the full circle
+and draws the stroke as a separate layer above it. The two layers share one grid cell instead of
+being absolutely positioned: a positioned avatar would paint over a static sibling it overlaps, like
+the `+N` chip that ends `ThreadSummary`'s face stack. `size` is therefore always the outer diameter,
+stroke included, and a full-size glyph (`IconUser` at `size`) lines up with the circle exactly.
+
+Which stroke a frame gets follows what the avatar stands for:
+
+| Stroke                             | Drawn by                                                                                              |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `border-avatar-stroke` (`#E4EAEC`) | `ImageAvatar`, `DefaultAvatar`, `ProfileAvatar` (every glyph but `home`) — a photo or its placeholder |
+| `border-avatar-ring` (`#F4F5F5`)   | `PlaceAvatar`, `ChatAvatar` — the same tone as the place disc, as Figma draws it                      |
+| none                               | `ProfileAvatar glyph="home"`, `CloudAvatar`                                                           |
+
+A photo and its placeholder share one stroke on purpose, so a member reads the same with and without
+a photo. An outer `ring-*` from the host — an overlapping stack punching a gap between faces — is a
+separate thing and still works: it is a box-shadow outside the frame, not the stroke.
+
+One inconsistency is real and worth knowing before you match a design:
 `ChatAvatar`'s `sm/md/lg` is 36/46/56 where `PlaceAvatar` and `CloudAvatar` read 36/40/46 (and
 `CloudAvatar` alone adds an `xl` of 86 for the cloud management screens' identity head). Folding
 all seven into one variant-driven `Avatar` is an open decision (ADR-0094, decision 6) that has not
@@ -347,7 +367,7 @@ been taken; until it is, the divergence is the state of the code and not a bug t
 The one avatar rule that is easy to get wrong: `ProfileAvatar glyph="home"` is the only placeholder
 on a _light_ disc, and the DoU character it draws paints no circle of its own, so it is inset to
 58/86 of the diameter instead of going full-bleed. A new illustration that does paint its own circle
-goes full-bleed like `glyph="place"`. Mixing the two paths makes the character overflow its ring.
+goes full-bleed like `glyph="place"`. Mixing the two paths makes the character overflow its circle.
 
 ### 5. Changing a colour
 

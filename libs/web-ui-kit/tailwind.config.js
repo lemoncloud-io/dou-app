@@ -52,6 +52,7 @@ module.exports = {
                 'brand-ink': 'hsl(var(--brand-ink))',
                 'control-idle': 'hsl(var(--control-idle))',
                 'avatar-ring': 'hsl(var(--avatar-ring))',
+                'avatar-stroke': 'hsl(var(--avatar-stroke))',
                 'control-surface': 'hsl(var(--control-surface))',
                 'glyph-green': 'hsl(var(--glyph-green))',
                 'glyph-indigo': 'hsl(var(--glyph-indigo))',
