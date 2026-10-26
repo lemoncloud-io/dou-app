@@ -39,6 +39,7 @@ export const SetPasswordPage = ({ translationPrefix, onSubmit }: SetPasswordPage
 
     return (
         <KeyboardAwareLayout
+            width="form"
             header={
                 <header className="flex items-center px-[6px]">
                     <button onClick={() => navigate(-1)} className="rounded-full p-[9px]">

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { X } from 'lucide-react';
 
-import { FloatingButton } from '@chatic/web-ui-kit';
+import { COLUMN_INSET, FORM_COLUMN, FloatingButton } from '@chatic/web-ui-kit';
 import {
     Dialog,
     DialogContent,
@@ -67,7 +67,7 @@ export const PhoneVerifyScreen = (props: PhoneVerifyScreenProps) => {
                     On anything narrower it overflowed, and the dialog's `left-1/2 -translate-x-1/2`
                     centring spilled it off BOTH edges: 44px at 320px wide, 4px at the very common
                     360px. Measured fixed at 320 / 360 / 375. */}
-                <div className="flex h-full min-w-0 flex-col pt-safe-top">
+                <div className={`flex h-full min-w-0 flex-col pt-safe-top ${FORM_COLUMN}`}>
                     <div className="flex h-[60px] shrink-0 items-center justify-end px-4">
                         <button onClick={onClose} className="-mr-1 rounded-full p-1" aria-label={t('common.close')}>
                             <X size={24} strokeWidth={2} />
@@ -80,7 +80,7 @@ export const PhoneVerifyScreen = (props: PhoneVerifyScreenProps) => {
                         scroll. That is what made a focused input unreachable behind the soft
                         keyboard — the CTA panel rides up on `--keyboard-height`, but with no scroll
                         the field above it could not follow. */}
-                    <div className="flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto">
+                    <div className={`flex min-h-0 flex-1 flex-col gap-8 overflow-y-auto ${COLUMN_INSET}`}>
                         <div className="flex flex-col gap-4 px-4">
                             <h2 className="whitespace-pre-line text-center text-[20px] font-bold leading-[27px] text-foreground">
                                 {context === 'invite-accept'

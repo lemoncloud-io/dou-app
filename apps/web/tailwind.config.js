@@ -38,14 +38,23 @@ module.exports = {
                 app: 'var(--app-width, 960px)',
 
                 /**
+                 * The form column (`--form-width` in `src/styles.css`): the centred width a screen
+                 * of a few fields and one action keeps on a display wider than a phone. Most such
+                 * screens get it from their scaffold (`width="form"`); this token is for one that
+                 * has no scaffold.
+                 */
+                form: 'var(--form-width, 560px)',
+
+                /**
                  * The longest comfortable measure for a paragraph. Not a layout width — the column
                  * still fills the device — but a bound on the words inside it: past roughly 40
                  * characters of Korean a line stops being read and starts being scanned, and the
                  * column is now wide enough (an unfolded foldable) to cross that on its own.
                  *
                  * Applies to read-only prose only: onboarding copy, terms, privacy, guidance
-                 * paragraphs. Form fields and actions deliberately do NOT take it — a bounded CTA
-                 * ends up stranded in the middle of the screen.
+                 * paragraphs. Form fields and actions deliberately do NOT take it — a CTA narrower
+                 * than the fields above it ends up stranded in the middle of the screen. They take
+                 * `form` instead, which bounds fields and CTA together.
                  */
                 reading: '30rem',
             },

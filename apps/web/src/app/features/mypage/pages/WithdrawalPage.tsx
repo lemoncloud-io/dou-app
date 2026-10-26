@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
+import { COLUMN_CAP } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
@@ -31,6 +32,7 @@ export const WithdrawalPage = () => {
 
     return (
         <KeyboardAwareLayout
+            width="form"
             // PageHeader frosts its own notch strip, so the scaffold must not pad above it —
             // that would push the glass down and leave the inset bare, with the body
             // scrolling through it unblurred.
@@ -40,7 +42,7 @@ export const WithdrawalPage = () => {
                 <div className="px-5 pt-4">
                     <button
                         onClick={handleConfirmClick}
-                        className="w-full rounded-2xl bg-[#B0EA10] py-4 text-[15px] font-semibold text-foreground transition-transform active:scale-[0.98]"
+                        className={`mx-auto block w-full ${COLUMN_CAP} rounded-2xl bg-[#B0EA10] py-4 text-[15px] font-semibold text-foreground transition-transform active:scale-[0.98]`}
                     >
                         {t('mypage.withdrawal.confirm')}
                     </button>

@@ -198,6 +198,7 @@ export const EmailVerifyDialog = ({
                 <DialogDescription className="sr-only">{t('addAccount.emailSubtitle')}</DialogDescription>
 
                 <ScreenLayout
+                    width="form"
                     header={<ModalTopBar safeArea title={t('addAccount.emailTitle')} onClose={handleClose} />}
                     footer={
                         <>

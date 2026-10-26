@@ -293,6 +293,36 @@ rather than a `DialogContent`, so it spells the same expression out and has to b
 Bottom sheets do **not** opt out. They follow the column and fill an unfolded foldable, which is
 what that form factor does natively.
 
+### Form screens: the form column (`--form-width`)
+
+Filling 960px is right for a list, a chat room or a settings list, and wrong for a screen whose job
+is a few fields and one action — login, the signup and password-reset steps, verification, the
+profile, cloud, place and room edit screens, the create-place and create-room dialogs, feedback, the
+setup wizard — and for a single confirmation (account deletion, purchase done). Stretched across iPhone Duo's inner display their inputs and
+buttons ran about 820px wide. Those screens keep their content in a centred column of
+`--form-width` (560px, `apps/web/src/styles.css`) instead; on every phone the column is wider than
+the device and nothing changes.
+
+A screen opts in through its scaffold, `width="form"` on `ScreenLayout` (web-ui-kit) or
+`KeyboardAwareLayout`. The scaffold declares the column on its root (`FORM_COLUMN`) and pads its
+scroll body to it (`COLUMN_INSET`), so the body and its scrollbar stay full width and children that
+lay out against the body keep working. A docked CTA learns the width by inheritance: the
+`FloatingButton` panel — a shadowed bar — keeps spanning the screen, and its button caps at
+`--column-content`, the column less the 16px gutter both the fields and the panel keep, so the
+button lines up edge to edge with the fields above it. The classes and their reasoning are in
+`libs/web-ui-kit/src/foundations/formColumn.ts`.
+
+A screen without a scaffold takes the same classes by hand (`PhoneVerifyScreen`, the slide-up
+form dialogs, `PlaceProfileForm`) — where a glass bar is sticky inside the scroller, the inset goes
+on a wrapper after the bar so the bar keeps the full width — or caps its own
+content box with `max-w-form` when nothing is docked (`mypage/pages/LoginPage.tsx`). A hand-rolled
+CTA that is not a `FloatingButton` adds `COLUMN_CAP` and centres itself (`WithdrawalPage`,
+`PurchaseDoneDialog`). Screens that are a list with an action under it — the subscription plans,
+keeping clouds, contact invite, the cloud guide's benefit list — are lists, and keep filling.
+
+Like `--app-width`, the variable is read without a fallback number in the libraries: a host that
+declares no `--form-width` (`apps/desktop-web`) gets no column, by construction.
+
 ```bash
 grep -rn "var(--app-width" libs/ui-kit/src libs/web-ui-kit/src --include='*.tsx' | grep -v test
 ```
@@ -316,6 +346,10 @@ sheet), and it is the mistake to watch for in a new one.
   fills the device and a notice dialog stays 311 wide; at 951 the column still fills it; at 1024 the
   column stops at 960 and centers. `libs/web-ui-kit`'s Storybook carries 320, 690 and 951 as
   viewport presets.
+- Form column: at 867 (the inner display's WebView) the signup email step, feedback and profile
+  edit keep their fields and CTA in one centred 528px band (170–698) while the CTA panel spans the
+  screen; login's buttons sit in the 560 column; MY's list still fills. At 390 the same screens
+  match the device as before. `ScreenLayout.test.tsx` and `FloatingButton.test.tsx` pin the opt-in.
 - Half-open (iPhone Duo simulator, posture half-open): the tab bar's pill and a notice dialog sit
   right of the fold, and move back to the centre when the display is opened flat. Open the app
   while it is already half-open too — the first fold value arrives while the page is loading.

@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 
 import { cn } from '@chatic/lib/utils';
+import { COLUMN_INSET, FORM_COLUMN } from '@chatic/web-ui-kit';
 
 import { useChromeInsets } from '../hooks/useChromeInsets';
 import { keyboardSafeBottom } from './KeyboardSafeAreaSpacer';
@@ -18,6 +19,12 @@ interface KeyboardAwareLayoutProps {
      * unpainted strip across the notch with content scrolling through it.
      */
     headerSafeArea?: boolean;
+    /**
+     * `form` keeps the body in the centred form column and hands its width to the docked CTA, for a
+     * screen of a few fields and one action — the same switch as `ScreenLayout`'s. Default `app`
+     * fills the app column.
+     */
+    width?: 'app' | 'form';
     className?: string;
 }
 
@@ -50,12 +57,20 @@ export const KeyboardAwareLayout = ({
     footer,
     children,
     headerSafeArea = true,
+    width = 'app',
     className,
 }: KeyboardAwareLayoutProps) => {
     const { headerRef, footerRef, headerHeight, footerHeight } = useChromeInsets();
 
     return (
-        <div data-chrome-root className={cn('relative flex h-full flex-col overflow-hidden bg-background', className)}>
+        <div
+            data-chrome-root
+            className={cn(
+                'relative flex h-full flex-col overflow-hidden bg-background',
+                width === 'form' && FORM_COLUMN,
+                className
+            )}
+        >
             {header && (
                 <div
                     ref={headerRef}
@@ -67,7 +82,7 @@ export const KeyboardAwareLayout = ({
             )}
 
             <div
-                className="min-h-0 flex-1 overflow-y-auto overscroll-none"
+                className={cn('min-h-0 flex-1 overflow-y-auto overscroll-none', width === 'form' && COLUMN_INSET)}
                 style={{ paddingTop: headerHeight || undefined, paddingBottom: footer ? footerHeight : undefined }}
             >
                 {children}

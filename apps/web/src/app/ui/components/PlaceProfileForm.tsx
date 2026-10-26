@@ -2,7 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 
-import { AlertDialog, FloatingButton, ModalTopBar, ProfileAvatar, Text, TextField, Toast } from '@chatic/web-ui-kit';
+import {
+    AlertDialog,
+    COLUMN_INSET,
+    FORM_COLUMN,
+    FloatingButton,
+    ModalTopBar,
+    ProfileAvatar,
+    Text,
+    TextField,
+    Toast,
+} from '@chatic/web-ui-kit';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
 // Direct file paths, not the `.` / `../layouts` barrels: those re-export components reaching
@@ -210,9 +220,9 @@ export const PlaceProfileForm = ({
         }
     };
 
-    // Scrollable body — shared verbatim by both containers.
+    // Scrollable body — shared verbatim by both containers, inset to the form column each declares.
     const body = (
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${COLUMN_INSET}`}>
             {/* Title + optional subtitle. The page container shows the title in its PageHeader instead
                 (the settings-hub edit screen), so the in-body title is dialog-only. */}
             {container !== 'page' && (
@@ -299,7 +309,7 @@ export const PlaceProfileForm = ({
     if (container === 'page') {
         return (
             <div className="flex h-full flex-col bg-background">
-                <div className="flex h-full w-full flex-col">
+                <div className={`flex h-full w-full flex-col ${FORM_COLUMN}`}>
                     <PageHeader title={title} onBack={requestClose} />
                     {body}
                     {noticeEl}
@@ -337,7 +347,7 @@ export const PlaceProfileForm = ({
 
                 {/* Responsive: full-bleed on phones, capped to a phone-width column centered on wider
                     screens so the layout (and the full-width CTA) never stretches. */}
-                <div className="flex h-full w-full flex-col">
+                <div className={`flex h-full w-full flex-col ${FORM_COLUMN}`}>
                     {/* Omit onClose when mandatory so ModalTopBar hides the close (X) button. */}
                     <ModalTopBar
                         title={header}

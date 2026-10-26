@@ -9,3 +9,4 @@ export * from './avatar';
 export * from './bubble';
 export * from './toast';
 export * from './brand';
+export * from './formColumn';
