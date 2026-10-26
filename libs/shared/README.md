@@ -114,10 +114,10 @@ build objects to an export that nobody imports. Three measurements, each reprodu
   thing to move out comes from — one consumer means one owner, and that owner is a feature.
 - **The barrel is DOM-bound, and a React Native app imports it anyway.** `apps/mobile` takes exactly
   two constants from here, `STORE_URLS` and `getStoreUrl`. Its `package.json` nonetheless lists
-  `react-router-dom`, `sonner` and `next-themes` as dependencies while its own source imports none of
-  them, and it does not import `@chatic/ui-kit` at all. Only `react-router-dom` is still reachable
-  through this barrel, by way of `NotFoundPage` and `RouterErrorFallback`; the other two entries answer
-  to nothing. Its two test files `jest.mock('@chatic/shared')` wholesale for the same reason.
+  `react-router-dom` as a dependency while its own source does not import it, and it does not import
+  `@chatic/ui-kit` at all. `nx sync-deps` keeps that entry because the project graph reaches it through
+  this barrel, by way of `NotFoundPage` and `RouterErrorFallback`. Its two test files
+  `jest.mock('@chatic/shared')` wholesale for the same reason.
 
 None of that is a reason to leave. It is the reason to ask, before adding: does `@chatic/ui-kit`,
 `@chatic/config`, `@chatic/device-utils` or the feature itself own this? `@chatic/shared` is the
