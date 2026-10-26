@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-26] - No version updates
+
+### Features
+
+- (web,landing) cap places per owned cloud at 5, not 10
+
 ## [2026-10-23] - root@0.111.2, @chatic/desktop-web@0.35.3
 
 ### Bug Fixes
