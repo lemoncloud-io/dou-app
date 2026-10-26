@@ -26,7 +26,7 @@ this document is about creating the place or the room itself.
 
 | Constant                 | Value | Applies to                   |
 | ------------------------ | ----- | ---------------------------- |
-| `MAX_PLACES`             | 10    | places per owned cloud       |
+| `MAX_PLACES`             | 5     | places per owned cloud       |
 | `MAX_CHANNELS_PER_PLACE` | 100   | group rooms in one place     |
 | `GUEST_MAX_CHANNELS`     | 3     | channels for a guest account |
 
