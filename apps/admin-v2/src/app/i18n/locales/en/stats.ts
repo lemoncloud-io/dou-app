@@ -2,6 +2,14 @@ import type { stats as ko } from '../ko/stats';
 
 /** English copy for the statistics tab. */
 export const stats: typeof ko = {
+    views: {
+        label: 'View',
+        overview: 'Overview',
+        perf: 'By version & device',
+        usage: 'Usage patterns',
+        detail: 'Performance details',
+        versions: 'Version adoption',
+    },
     goals: {
         title: 'Against targets',
         hint: 'Speed measured against its target, from the measurements recorded in the period.',

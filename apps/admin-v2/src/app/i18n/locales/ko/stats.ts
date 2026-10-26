@@ -1,5 +1,13 @@
 /** Korean copy for the statistics tab. */
 export const stats = {
+    views: {
+        label: '보기',
+        overview: '개요',
+        perf: '성능 비교',
+        usage: '사용 패턴',
+        detail: '세부 성능',
+        versions: '버전 보급',
+    },
     goals: { title: '목표 대비', hint: '빠르기를 목표와 견줘요. 기간 안에 기록된 측정값 기준이에요.' },
     goal: {
         boot: { name: '앱 시작', what: '앱을 눌러서 첫 화면이 준비될 때까지' },

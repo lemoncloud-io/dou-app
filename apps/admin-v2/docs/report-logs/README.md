@@ -18,7 +18,7 @@ every feature it had. The nav item and the page title are the same name: "로그
 | Find a user (`user`, default) | "A user says it broke — what happened?"     | The user's records (`uid` on the server); the period's issue reports, matched to the user by the reporter id inside them; before a user is chosen, everyone's records |
 | Errors (`errors`)             | "Is something breaking, for how many?"      | `level=error` records, plus the server's counts per tag, per hour or day, and distinct users; an opened incident fetches its own cases with `tag` on the server       |
 | Issue reports (`reports`)     | "Who wrote in, and what was going on then?" | `type=issue` records                                                                                                                                                  |
-| Statistics (`stats`)          | "Are we fast enough, how many use it?"      | One fetch per goal statistic (`tag` on the server), plus the server's distinct-user and app-open counts per day                                                       |
+| Statistics (`stats`)          | "Are we fast enough, how many use it?"      | Five views over one period: one fetch per statistic (`tag` on the server) for timings, the server's counts for people, opens and versions — see below                 |
 | All logs (`all`)              | The developer's view, unchanged in reach    | As before — see [the full-log tab](#the-full-log-tab)                                                                                                                 |
 
 - **Find a user.** Type a user ID and press Find (an exact server lookup), or pick from the people seen
@@ -39,11 +39,33 @@ every feature it had. The nav item and the page title are the same name: "로그
   report shows its text, screenshots and device, a folded "Developer details" with the full record,
   and **"See this user's logs at that time"**, which opens the user tab on the reporter with the
   period set to 30 minutes either side of the report.
-- **Statistics.** Goal cards against the product's targets — app start (1.5 s at p95), cloud/place
-  switch (1 s at p95), FCP (1.8 s at p75), LCP (2.5 s at p75), and room entry, which has no target yet
-  and shows its numbers without a verdict. Usage: distinct users, app opens (`usage.session_start`)
-  and users per day. With no statistics in the period, the tab says why and when there will be (the
-  web app's built-in sampling policy — see `apps/web/docs/observability/telemetry.md`).
+- **Statistics.** One period, five views (`view=`):
+    - **Overview** — goal cards against the product's targets (app start 1.5 s at p95, cloud/place
+      switch 1 s at p95, FCP 1.8 s at p75, LCP 2.5 s at p75; room entry has no target yet and shows its
+      numbers without a verdict), with a bar against the target; users, app opens and users per day.
+      With no statistics in the period it says why and when there will be.
+    - **By version & device** (`perf`, `goal`, `by`) — one goal split by app version, OS, device or
+      platform: p50/p75/p95 per group (groups under 5 measurements dimmed), the newest version marked,
+      the goal's value per day, its distribution with the target, and the ten slowest cases leading to
+      that user's timeline.
+    - **Usage patterns** (`usage`) — people, app opens, opens per person, median session length and
+      screens; people and opens per day (per hour for two days or less); opens by hour of day; the most
+      used screens (route templates) with median time spent; how sessions start (cold/warm/resume,
+      icon/push/link/browser).
+    - **Performance details** (`detail`, `by`) — room entry outcomes, cache use and time per entry
+      path; server requests per endpoint (estimated count, median and p95 time, failure rate, relay or
+      cloud); message send by thread or kind; stalls (long tasks) per screen; INP, CLS and TTFB.
+    - **Version adoption** (`versions`, `dim`) — users per app version, OS, device or web version (one
+      server query per top value, since `groupBy` counts records, not users), the newest version and
+      when it appeared, the share of app users on a build that sends statistics (0.29.2+), and the top
+      versions' share per day.
+
+    Statistics records come from fetches narrowed to their tag on the server (≤500 each, marked when
+    cut short). Performance records other than the goals are sampled one run in five, so their counts
+    are estimates (`Σ 1/sr`) and say so; goal records and usage events come from every run. Server
+    counts (people, opens, versions) cover whole days by arrival, which the views state for a period
+    narrower than its days. Where collection comes from: the web app's built-in sampling policy
+    (`apps/web/docs/observability/telemetry.md`).
 
 ## Shared rules
 
@@ -70,17 +92,18 @@ every feature it had. The nav item and the page title are the same name: "로그
   lines that matter most keep full contrast. Everything uses the theme tokens or a colour paired with
   its `dark:` twin, so the tabs read the same in light and dark.
 
-| Parameter               | Tab                             | Meaning                                                                            |
-| ----------------------- | ------------------------------- | ---------------------------------------------------------------------------------- |
-| `tab`                   | all                             | `user` (default) · `errors` · `reports` · `stats` · `all`                          |
-| `stage`                 | all                             | `d1` for development; absent means production (`v1`)                               |
-| `period`                | user · errors · reports · stats | `1h` · `24h` · `today` · `yesterday` · `7d` · `custom`; absent = the tab's default |
-| `from`, `to`            | user · errors · reports · stats | `custom` only, `YYYY-MM-DD`                                                        |
-| `at`                    | user                            | an instant (epoch ms); the period becomes 30 minutes either side                   |
-| `uid`, `run`, `verbose` | user                            | the user, the open run card, detailed records shown                                |
-| `cloud`                 | user                            | narrow a uid to one cloud (sent to the server as `cid`)                            |
-| `event`                 | errors                          | the open incident (its tag)                                                        |
-| `report`                | reports                         | the open report's id                                                               |
+| Parameter                   | Tab                             | Meaning                                                                            |
+| --------------------------- | ------------------------------- | ---------------------------------------------------------------------------------- |
+| `tab`                       | all                             | `user` (default) · `errors` · `reports` · `stats` · `all`                          |
+| `stage`                     | all                             | `d1` for development; absent means production (`v1`)                               |
+| `period`                    | user · errors · reports · stats | `1h` · `24h` · `today` · `yesterday` · `7d` · `custom`; absent = the tab's default |
+| `from`, `to`                | user · errors · reports · stats | `custom` only, `YYYY-MM-DD`                                                        |
+| `at`                        | user                            | an instant (epoch ms); the period becomes 30 minutes either side                   |
+| `uid`, `run`, `verbose`     | user                            | the user, the open run card, detailed records shown                                |
+| `cloud`                     | user                            | narrow a uid to one cloud (sent to the server as `cid`)                            |
+| `view`, `goal`, `by`, `dim` | stats                           | the statistics view and its choices; switching views drops the previous view's     |
+| `event`                     | errors                          | the open incident (its tag)                                                        |
+| `report`                    | reports                         | the open report's id                                                               |
 
 ## Periods against a server that filters by day
 

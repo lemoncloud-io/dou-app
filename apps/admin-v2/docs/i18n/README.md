@@ -14,7 +14,9 @@ screens are still English-only.
   stored in this browser under `admin-v2.language`, and never put in the URL, so a shared link opens
   in the reader's language. If storage is unavailable the switch still works for the visit.
 - **One file per namespace per language** under `i18n/locales/{ko,en}/`: `common` (nav, page header,
-  periods, shared states), `user`, `errors`, `reports`, `stats`, `allLogs`, and `events` — display
+  periods, shared states), `user`, `errors`, `reports`, `stats` (the statistics overview and view
+  names), one per statistics view (`statsPerf`, `statsUsage`, `statsDetail`, `statsVersions`),
+  `allLogs`, and `events` — display
   names of log areas and statistics tags. `events` is a plain map rather than i18next keys because
   tags contain dots, which i18next reads as nesting.
 - **The two languages cannot drift.** Each English file is typed as its Korean twin, so a missing or
