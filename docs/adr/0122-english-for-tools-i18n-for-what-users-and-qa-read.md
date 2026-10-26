@@ -1,6 +1,7 @@
 # ADR-0122: English for tools; i18n for what users and QA read
 
-> Status: Accepted · Decided: 2026-09-28
+> Status: Accepted · Decided: 2026-09-28 · Decision 1 amended for admin-v2's log console by
+> [ADR-0228](./0228-the-log-console-speaks-korean-and-english.md)
 > · Scope: every non-comment string literal outside `**/locales/**` and `**/i18n/**` — `apps/web` (debug
 > panel and product features), `apps/desktop-web`, `apps/admin-v2`, `apps/testbed`, `apps/mobile`,
 > `apps/block-kit-builder`, `libs/config/src/registry`, `libs/shared`, `libs/http`, `libs/bridges`,

@@ -150,4 +150,23 @@ describe('reportLogApi', () => {
             expect(buildReportLogListParams({ page: 1 })).not.toHaveProperty('sort');
         });
     });
+
+    describe('aggregation parameters', () => {
+        it('sends them only when asked for, so a plain list call is unchanged', () => {
+            expect(buildReportLogListParams({ groupBy: [], interval: undefined, users: false })).toEqual({
+                page: 0,
+                limit: 100,
+            });
+        });
+
+        it('joins the group fields and sends users as a flag', () => {
+            expect(
+                buildReportLogListParams({ groupBy: ['tag', 'level'], aggrSize: 50, interval: 'hour', users: true })
+            ).toEqual({ page: 0, limit: 100, groupBy: 'tag,level', aggrSize: 50, interval: 'hour', users: 1 });
+        });
+
+        it('drops a bucket size that has no field to apply to', () => {
+            expect(buildReportLogListParams({ aggrSize: 50 })).toEqual({ page: 0, limit: 100 });
+        });
+    });
 });

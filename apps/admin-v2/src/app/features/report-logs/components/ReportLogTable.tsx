@@ -13,11 +13,12 @@
  */
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@chatic/ui-kit/components/ui/table';
 
+import { useT } from '../../../i18n';
 import type { PinKey } from '../hooks/use-log-console-state';
 import { rowBadge } from '../lib/badgeClass';
 import { eventAt, hasNoticeableLag, isOutsideRange } from '../lib/eventTime';
 import type { ReportLogRow } from '../lib/parseReportLog';
-import { formatAbsolute, formatRelative } from '../lib/reportLogFormat';
+import { formatAgo, formatDateTime } from '../lib/timeFormat';
 import { PinButton } from './PinButton';
 
 interface ReportLogTableProps {
@@ -36,21 +37,23 @@ interface ReportLogTableProps {
 }
 
 export const ReportLogTable = ({ rows, onSelect, selectedId, onPin, onUnpin, pinned, range }: ReportLogTableProps) => {
+    const { t, lng } = useT('allLogs');
+
     if (rows.length === 0) {
-        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">No logs to display.</p>;
+        return <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t('table.empty')}</p>;
     }
 
     return (
         <Table>
             <TableHeader>
                 <TableRow className="text-xs uppercase tracking-wide text-muted-foreground">
-                    <TableHead className="w-20">Level</TableHead>
-                    <TableHead className="w-32">Tag/Title</TableHead>
-                    <TableHead>Message</TableHead>
-                    <TableHead className="w-36">User</TableHead>
-                    <TableHead className="w-32">Run</TableHead>
-                    <TableHead className="w-28">Version/Screen</TableHead>
-                    <TableHead className="w-28">Time</TableHead>
+                    <TableHead className="w-20">{t('table.level')}</TableHead>
+                    <TableHead className="w-32">{t('table.title')}</TableHead>
+                    <TableHead>{t('table.message')}</TableHead>
+                    <TableHead className="w-36">{t('table.user')}</TableHead>
+                    <TableHead className="w-32">{t('table.run')}</TableHead>
+                    <TableHead className="w-28">{t('table.version')}</TableHead>
+                    <TableHead className="w-28">{t('table.time')}</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -141,24 +144,27 @@ export const ReportLogTable = ({ rows, onSelect, selectedId, onPin, onUnpin, pin
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-muted-foreground">
                                 <span
-                                    title={`Occurred ${formatAbsolute(eventAt(row))} · arrived ${formatAbsolute(row.createdAt)}`}
+                                    title={t('table.timeTitle', {
+                                        occurred: formatDateTime(eventAt(row), lng, { seconds: true }),
+                                        arrived: formatDateTime(row.createdAt, lng, { seconds: true }),
+                                    })}
                                 >
-                                    {formatRelative(eventAt(row))}
+                                    {formatAgo(eventAt(row), lng)}
                                 </span>
                                 {hasNoticeableLag(row) && (
                                     <span
                                         className="ml-1 rounded bg-muted px-1 text-[10px]"
-                                        title="More than a minute between occurring on device and arriving at server"
+                                        title={t('table.lagTitle')}
                                     >
-                                        lag
+                                        {t('table.lag')}
                                     </span>
                                 )}
                                 {isOutsideRange(row, range?.fromMs, range?.toMs) && (
                                     <span
                                         className="ml-1 rounded bg-muted px-1 text-[10px]"
-                                        title="The query range is matched on server arrival time. This row occurred outside the range but arrived within it."
+                                        title={t('table.outsideTitle')}
                                     >
-                                        outside range
+                                        {t('table.outside')}
                                     </span>
                                 )}
                             </TableCell>

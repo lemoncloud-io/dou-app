@@ -12,9 +12,11 @@
  */
 import { useMemo } from 'react';
 
+import { useT } from '../../../i18n';
 import { bucketReportLogs } from '../lib/bucketReportLogs';
 import { levelBadgeClass } from '../lib/badgeClass';
 import type { ReportLogRow } from '../lib/parseReportLog';
+import { formatNumber } from '../lib/timeFormat';
 
 interface MonitorStripProps {
     rows: ReportLogRow[];
@@ -30,6 +32,9 @@ interface MonitorStripProps {
  */
 const KNOWN_LEVELS = ['error', 'warn', 'info', 'debug'] as const;
 
+/** Stands in for a log with no level while counting; named in the viewer's language on render. */
+const NO_LEVEL = '';
+
 const median = (values: number[]): number => {
     if (values.length === 0) return 0;
     const sorted = [...values].sort((a, b) => a - b);
@@ -43,12 +48,14 @@ const SPIKE_FACTOR = 2;
 const SPIKE_MIN_COUNT = 5;
 
 export const MonitorStrip = ({ rows, corpusSize }: MonitorStripProps) => {
+    const { t, lng } = useT('allLogs');
+    const n = (value: number): string => formatNumber(value, lng);
     const counts = useMemo(() => {
         const byLevel = new Map<string, number>();
         let reports = 0;
         for (const row of rows) {
             if (row.type === 'log-entry') {
-                const level = row.level || '(no level)';
+                const level = row.level || NO_LEVEL;
                 byLevel.set(level, (byLevel.get(level) ?? 0) + 1);
             } else reports += 1;
         }
@@ -83,27 +90,30 @@ export const MonitorStrip = ({ rows, corpusSize }: MonitorStripProps) => {
                     <span
                         className={`rounded px-1.5 py-0.5 text-[11px] font-semibold uppercase ${levelBadgeClass(level)}`}
                     >
-                        {level}
+                        {level === NO_LEVEL ? t('monitor.noLevel') : level}
                     </span>
-                    <span className="font-mono text-foreground">{count.toLocaleString()}</span>
+                    <span className="font-mono text-foreground">{n(count)}</span>
                 </span>
             ))}
             {counts.reports > 0 && (
                 <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    Reports <span className="font-mono text-foreground">{counts.reports.toLocaleString()}</span>
+                    {t('monitor.reports')} <span className="font-mono text-foreground">{n(counts.reports)}</span>
                 </span>
             )}
             {spike && (
                 <span
                     className="rounded bg-destructive/15 px-2 py-0.5 text-destructive"
-                    title={`Latest bucket ${spike.count} ${spike.count === 1 ? 'row' : 'rows'} · prior median ${spike.baseline}`}
+                    title={t(spike.count === 1 ? 'monitor.spikeTitleOne' : 'monitor.spikeTitleOther', {
+                        n: n(spike.count),
+                        baseline: formatNumber(spike.baseline, lng, 1),
+                    })}
                 >
-                    Spike in latest bucket {spike.count.toLocaleString()} {spike.count === 1 ? 'row' : 'rows'}
+                    {t(spike.count === 1 ? 'monitor.spikeOne' : 'monitor.spikeOther', { n: n(spike.count) })}
                 </span>
             )}
             {corpusSize > 0 && rows.length !== corpusSize && (
                 <span className="text-muted-foreground">
-                    Filtered {rows.length.toLocaleString()} / collected {corpusSize.toLocaleString()} rows
+                    {t('monitor.filtered', { shown: n(rows.length), total: n(corpusSize) })}
                 </span>
             )}
         </div>

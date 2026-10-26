@@ -127,6 +127,11 @@ export const useLogCorpus = (
     }, [requestedKey, settleMs]);
 
     const settledKey = corpusKey(settled);
+    // While the axes are settling, the query keyed by the PREVIOUS axes must not run. Otherwise
+    // switching it on and changing its axes in one render (choosing a user) starts a walk of the
+    // old axes — with no user at all — and paints its rows under the new one until the debounce
+    // lands. Held data for the settled key still renders; only fetching waits.
+    const live = enabled && settledKey === requestedKey;
 
     const query = useInfiniteQuery({
         queryKey: [...CORPUS_QUERY_PREFIX, settledKey, cap, pageSize],
@@ -143,7 +148,7 @@ export const useLogCorpus = (
         // screen wants the opposite: hold briefly, then refresh behind the held rows.
         staleTime: CORPUS_STALE_MS,
         gcTime: CORPUS_GC_MS,
-        enabled,
+        enabled: live,
     });
 
     const pages = query.data?.pages;
@@ -159,11 +164,11 @@ export const useLogCorpus = (
     // Drive the walk to its stopping point. `isFetchingNextPage` keeps this from stacking
     // requests while one is in flight.
     useEffect(() => {
-        if (!enabled) return;
+        if (!live) return;
         if (query.hasNextPage && !query.isFetchingNextPage && !query.isFetching) {
             void query.fetchNextPage();
         }
-    }, [enabled, query.hasNextPage, query.isFetchingNextPage, query.isFetching, query.fetchNextPage]);
+    }, [live, query.hasNextPage, query.isFetchingNextPage, query.isFetching, query.fetchNextPage]);
 
     const rows = useMemo(() => (merged.length ? merged.concat(status.rows) : status.rows), [merged, status.rows]);
 
