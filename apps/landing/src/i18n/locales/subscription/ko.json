@@ -68,7 +68,105 @@
                 "vatNote": "VAT 포함 · 1개월"
             }
         },
-        "entry": {},
+        "entry": {
+            "plans": {
+                "title": "DoU 구독 상품",
+                "subtitle": "앱과 같은 상품, 같은 가격이에요. 첫 구독은 {{days}}일 무료 체험 뒤 매월 자동 결제돼요.",
+                "subtitleTrialUsed": "무료 체험은 이미 사용했어요. 구독하면 오늘 바로 결제되고, 매월 같은 날 자동 결제돼요.",
+                "changeTitle": "상품 변경",
+                "changeSubtitle": "지금 쓰는 상품에서 한 단계 위나 아래로 바꿀 수 있어요.",
+                "tag": {
+                    "firstTrial": "첫 구독 · {{days}}일 무료",
+                    "trialUsed": "체험 사용함",
+                    "afterSubscribe": "구독 후 변경",
+                    "current": "지금 이용 중",
+                    "upgrade": "업그레이드",
+                    "downgrade": "다운그레이드",
+                    "adjacentOnly": "인접 단계만"
+                },
+                "subscribe": "{{plan}} 구독하기",
+                "subscribePaid": "{{plan}} 구독하기 — 오늘 {{price}}",
+                "entryHint": "첫 구독은 {{plan}}부터 시작해요. 더 많은 클라우드는 구독한 뒤 업그레이드하세요.",
+                "upgradeTo": "{{plan}}로 업그레이드",
+                "upgradeTo_3": "{{plan}}으로 업그레이드",
+                "downgradeTo": "{{plan}}로 다운그레이드",
+                "downgradeTo_3": "{{plan}}으로 다운그레이드",
+                "notesTitle": "꼭 확인해 주세요",
+                "notes": {
+                    "trialOnce": "무료 체험은 처음 구독하는 계정에 한 번만 제공돼요.",
+                    "afterTrial": "체험이 끝나면 매월 같은 날 자동 결제되고, 언제든 해지할 수 있어요.",
+                    "storeSubscribers": "앱(App Store·Google Play)에서 이미 구독 중이면 웹에서 다시 결제하지 않아요.",
+                    "trialUsed": "무료 체험은 계정당 한 번이에요. 이 계정은 앱 또는 웹에서 이미 체험을 사용했어요.",
+                    "chargeToday": "오늘 첫 결제가 되고, 이날(매월 {{day}}일)이 청구일이 돼요. 언제든 해지할 수 있어요.",
+                    "startAtEntry": "첫 구독은 {{plan}}부터 시작해요. 더 많은 클라우드는 구독한 뒤 업그레이드하세요."
+                },
+                "changeUnavailable": {
+                    "title": "지금은 상품을 바꿀 수 없어요",
+                    "body": "구독 상태를 먼저 확인해 주세요. 결제 문제나 해지·변경 예약을 정리하면 다시 바꿀 수 있어요.",
+                    "action": "구독 보기"
+                },
+                "storeBilled": {
+                    "title": "앱에서 구독하고 있어요",
+                    "body": "상품 변경은 구독한 스토어에서 해 주세요.",
+                    "action": "자세히 보기"
+                }
+            },
+            "login": {
+                "title": "로그인",
+                "body": "DoU 앱에서 쓰는 계정으로 로그인해요. 구독은 그 계정의 앱에 적용돼요.",
+                "google": "Google로 계속하기",
+                "apple": "Apple로 계속하기",
+                "phoneTitle": "번호로만 가입했다면",
+                "phoneBody": "앱 MY › 계정에서 Google 또는 Apple 계정을 먼저 연결하면 웹에서 로그인할 수 있어요.",
+                "noNewAccounts": "웹에서는 새 계정을 만들지 않아요.",
+                "reason": {
+                    "canceled": "로그인을 취소했어요",
+                    "expired-attempt": "로그인 시간이 지났어요. 다시 시도해 주세요",
+                    "failed": "로그인하지 못했어요. 다시 시도해 주세요",
+                    "session-ended": "로그인이 끝났어요. 다시 로그인해 주세요"
+                },
+                "completing": "로그인하는 중…"
+            },
+            "noAccount": {
+                "title": "DoU 앱 계정을 찾지 못했어요",
+                "bodyHint": "{{hint}}({{provider}})과 연결된 DoU 계정이 없어요. 앱을 설치하고 같은 계정으로 로그인한 뒤 다시 와 주세요.",
+                "body": "이 {{provider}} 계정과 연결된 DoU 계정이 없어요. 앱을 설치하고 같은 계정으로 로그인한 뒤 다시 와 주세요.",
+                "stepsTitle": "이렇게 해 주세요",
+                "step1": "DoU 앱을 설치해요",
+                "step2": "앱에서 같은 {{provider}} 계정으로 로그인해요",
+                "step3": "이 페이지에서 다시 로그인해요",
+                "otherWaysTitle": "앱에 이미 가입했다면",
+                "phoneUser": "번호로 가입했다면 앱 MY › 계정에서 {{provider}} 계정을 먼저 연결해 주세요.",
+                "otherProvider": "앱에서 다른 방법으로 로그인한다면 그 방법으로 다시 로그인해 주세요.",
+                "appStore": "App Store에서 받기",
+                "googlePlay": "Google Play에서 받기",
+                "otherAccount": "다른 계정으로 로그인"
+            },
+            "storeManaged": {
+                "badge": "{{store}} 구독 중",
+                "title": "앱에서 구독하고 있어요",
+                "body": "이 계정은 {{store}}로 구독 중이라 웹에서 결제하지 않아요. 상품 변경·해지는 구독한 스토어에서 해 주세요.",
+                "currentPlan": "지금 상품",
+                "nextBilling": "다음 결제일",
+                "billedBy": "청구처",
+                "howToTitle": "{{store}}에서 관리하는 방법",
+                "howTo": {
+                    "appStore": "iPhone 설정 › Apple ID › 구독 › DoU",
+                    "googlePlay": "Play 스토어 앱 › 프로필 › 결제 및 구독 › 구독 › DoU"
+                },
+                "confirm": "확인",
+                "moveToWeb": "웹으로 옮기려면 스토어에서 해지하고 이용 기간이 끝난 뒤 웹에서 새로 구독해요. 이때 무료 체험은 없어요."
+            },
+            "store": {
+                "appStore": "App Store",
+                "googlePlay": "Google Play"
+            },
+            "provider": {
+                "google": "Google",
+                "apple": "Apple",
+                "either": "Google·Apple"
+            }
+        },
         "checkout": {},
         "manage": {},
         "billing": {}
