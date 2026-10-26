@@ -148,7 +148,6 @@ before the web client's own pre-paint code, and only the second survives a reloa
 apps/mobile/
 ├── src/
 │   ├── main.tsx           AppRegistry.registerComponent('Chatic', App) — four lines, nothing else
-│   ├── main-web.tsx       the web target's entry point
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash

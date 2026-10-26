@@ -21,11 +21,6 @@
     public int isGooglePlayServicesAvailable(android.content.Context);
 }
 
-# react-native-svg applies the pointerEvents prop by looking this method up on its superclass.
--keepclassmembers class com.facebook.react.views.view.ReactViewGroup {
-    void setPointerEvents(com.facebook.react.uimanager.PointerEvents);
-}
-
 # Keep file and line numbers so Crashlytics can map obfuscated stacks back to source lines.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
