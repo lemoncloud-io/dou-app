@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../i18n';
@@ -81,6 +81,9 @@ const renderAt = (url: string, setup: PortSetup) =>
 
 const where = () => screen.getByTestId('where').textContent;
 
+// The account shell's sidebar, so a plan name there is not confused with the same name on a screen.
+const sidebar = async () => within(await screen.findByRole('complementary'));
+
 describe('SubscriptionRoutes', () => {
     it('sends a reader with no session to sign in, and back afterwards', async () => {
         renderAt('/subscription/history', mockSetup('?mock=visitor'));
@@ -100,8 +103,8 @@ describe('SubscriptionRoutes', () => {
         renderAt('/subscription', mockSetup('?mock=active'));
 
         expect(await screen.findByText('W-10')).toBeTruthy();
-        expect(await screen.findByText('DoU Cloud 2')).toBeTruthy();
-        expect(screen.getByText('Web subscription · Next payment 2026.11.20')).toBeTruthy();
+        expect(await (await sidebar()).findByText('DoU Cloud 2')).toBeTruthy();
+        expect((await sidebar()).getByText('Web subscription · Next payment 2026.11.20')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Cancel subscription' }).getAttribute('href')).toBe(
             '/subscription/sub-2/cancel'
         );
@@ -184,12 +187,12 @@ describe('SubscriptionRoutes', () => {
 
     it('switches the scenario from the dev panel and refetches what the screen shows', async () => {
         renderAt('/subscription', mockSetup('?mock=active', { panel: true }));
-        expect(await screen.findByText('DoU Cloud 2')).toBeTruthy();
+        expect(await (await sidebar()).findByText('DoU Cloud 2')).toBeTruthy();
 
         fireEvent.click(screen.getByRole('button', { name: 'mock: active' }));
         fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'downgrade-scheduled' } });
 
-        expect(await screen.findByText('DoU Cloud 3')).toBeTruthy();
+        expect(await (await sidebar()).findByText('DoU Cloud 3')).toBeTruthy();
     });
 
     it('signs out from the account menu and lands on the plans', async () => {
