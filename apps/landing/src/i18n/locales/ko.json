@@ -99,7 +99,13 @@
         "effectiveDate": "시행일",
         "versionNotFound": "버전을 찾을 수 없습니다.",
         "current": "현재",
-        "refundTitle": "환불정책"
+        "refundTitle": "환불정책",
+        "refundSubtitle": "DoU 구독 결제의 환불 기준이에요.",
+        "refundDraft": {
+            "badge": "제안",
+            "title": "본문을 준비하고 있어요",
+            "body": "환불정책 본문은 아직 확정되지 않았어요. 확정되면 시행일과 함께 이 자리에 실려요."
+        }
     },
     "footer": {
         "terms": "이용약관",
