@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, type RefObject } from 'react';
 import type WebView from 'react-native-webview';
 
 import { getFoldScript } from '../utils/injectionScripts';
@@ -17,14 +17,11 @@ export const useFoldInjection = (
     webViewRef: RefObject<Pick<WebView, 'injectJavaScript'> | null>,
     fold: WebViewFold | null
 ): (() => void) => {
-    const latest = useRef(fold);
-
-    useEffect(() => {
-        latest.current = fold;
+    const inject = useCallback(() => {
         webViewRef.current?.injectJavaScript(getFoldScript(fold));
     }, [webViewRef, fold]);
 
-    return useCallback(() => {
-        webViewRef.current?.injectJavaScript(getFoldScript(latest.current));
-    }, [webViewRef]);
+    useEffect(inject, [inject]);
+
+    return inject;
 };

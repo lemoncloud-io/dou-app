@@ -91,15 +91,19 @@ private final class DivisionObserverView: UIView {
   }
 
   /// The first active division, in this view's coordinates — the window's, since it fills it.
+  private var activeDivision: CGRect? {
+    reservedRegions(kind: .division).first(where: { $0.isActive })?.frame
+  }
+
   func currentDivision() -> CGRect? {
-    let division = reservedRegions(kind: .division).first(where: { $0.isActive })?.frame
+    let division = activeDivision
     lastSent = .some(division)
     return division
   }
 
   override func layoutSubviews() {
     super.layoutSubviews()
-    let division = reservedRegions(kind: .division).first(where: { $0.isActive })?.frame
+    let division = activeDivision
     if let last = lastSent, last == division { return }
     lastSent = .some(division)
     onChange?(division)

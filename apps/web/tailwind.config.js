@@ -43,7 +43,7 @@ module.exports = {
                  * screens get it from their scaffold (`width="form"`); this token is for one that
                  * has no scaffold.
                  */
-                form: 'var(--form-width, 560px)',
+                form: 'var(--form-width)',
 
                 /**
                  * The longest comfortable measure for a paragraph. Not a layout width — the column

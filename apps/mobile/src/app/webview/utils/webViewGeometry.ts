@@ -35,7 +35,7 @@ export interface WebViewFold {
  *
  * The WebView starts `leftInset` points into the window, because the shell pads it by the side
  * insets (`toWebViewInsets`), so a vertical fold moves left by that much. Nothing pads it vertically,
- * so a horizontal fold keeps its window `y`. A rect taller than it is wide is a vertical fold. iOS
+ * so a horizontal fold keeps its window `y`. A rect at least as tall as it is wide is a vertical fold. iOS
  * points and CSS px are the same unit in a WKWebView at its default zoom.
  */
 export const toWebViewFold = (division: DivisionRect | null, leftInset: number): WebViewFold | null => {
