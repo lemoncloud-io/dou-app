@@ -55,6 +55,11 @@ export const FloatingTabBar = ({ items, onSelect, badgeMax = 999, className }: F
                 // column. The 430px fallback is this kit's own mobile design width, for a host
                 // (or a story) that does not set the variable.
                 'pointer-events-none fixed inset-x-0 bottom-0 z-10 mx-auto flex max-w-[var(--app-width,430px)] justify-center',
+                // A device held half-open like a book: the shell sets `data-fold="vertical"` and
+                // `--fold-end` (the fold's trailing edge, px) on the root, and the bar starts there so
+                // the pill centres in the trailing region instead of sitting across the fold. Gone
+                // with the attribute when the display goes flat.
+                '[[data-fold=vertical]_&]:left-[var(--fold-end)]',
                 className
             )}
             style={{ paddingBottom: 'calc(var(--safe-bottom, 0px) + 18px)' }}

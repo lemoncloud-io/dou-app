@@ -23,8 +23,11 @@ export const SubscriptionRequiredDialog = ({ open, onClose }: SubscriptionRequir
     };
 
     return createPortal(
+        // On a device held half-open like a book, the padding moves the card into the region after
+        // the fold and its `100%` width term measures that region — the same placement the shared
+        // notice dialogs take there.
         <div
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgba(34,35,37,0.38)]"
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-[rgba(34,35,37,0.38)] [[data-fold=vertical]_&]:pl-[var(--fold-end)]"
             onClick={onClose}
         >
             {/* The one notice-dialog width, spelled out rather than inherited: this dialog is a

@@ -91,4 +91,20 @@ describe('FloatingTabBar', () => {
         const activeTab = screen.getByRole('button', { name: '채팅' });
         expect(activeTab.querySelectorAll('.opacity-\\[0\\.54\\]')).toHaveLength(0);
     });
+
+    // jsdom compiles no Tailwind, so these pin the rule; where it lands is measured in the app.
+    it('starts after a vertical device fold, so the pill centres in the region past it', () => {
+        const { container } = render(<FloatingTabBar items={items} onSelect={jest.fn()} />);
+
+        expect(container.firstElementChild?.className).toContain('[[data-fold=vertical]_&]:left-[var(--fold-end)]');
+    });
+
+    it('keeps spanning the app column when there is no device fold', () => {
+        const { container } = render(<FloatingTabBar items={items} onSelect={jest.fn()} />);
+        const classes = container.firstElementChild?.className.split(' ') ?? [];
+
+        expect(classes).toEqual(expect.arrayContaining(['inset-x-0', 'mx-auto', 'max-w-[var(--app-width,430px)]']));
+        // The only placement change is scoped to the fold attribute.
+        expect(classes.filter(c => /left-/.test(c) && !c.startsWith('[[data-fold=vertical]_&]:'))).toEqual([]);
+    });
 });

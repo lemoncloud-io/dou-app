@@ -282,7 +282,10 @@ instead of surfacing as an opaque "Script error.":
   background colour.
 - the device fold, as `data-fold` (`vertical` | `horizontal`) on the root element and
   `--fold-start`/`--fold-end`, its two edges in px — and `AppWebView` injects it again whenever it
-  changes, since folding the display reloads nothing. The source is `DisplayRegionBridge` (see
+  changes, since folding the display reloads nothing, and again when a page finishes loading
+  (`useFoldInjection`). The first value comes over the bridge after the WebView exists, often
+  while its page is still loading; a push into a loading page is lost, and the boot script only
+  reaches the next load, so without the replay an app opened half-open kept its tab bar on the fold. The source is `DisplayRegionBridge` (see
   [../native/README.md](../native/README.md)); `toWebViewFold` moves the window rect into the
   WebView's coordinates, which for a vertical fold means subtracting the left inset the shell pads
   by. With no fold — a flat display, Android, iOS before 27.1 — all three are removed, so anything

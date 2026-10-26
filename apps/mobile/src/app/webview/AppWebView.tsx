@@ -9,12 +9,8 @@ import { APP_USER_AGENT_PREFIX, getAppLanguage, t, toEnvStage } from '../utils';
 import { getVersionCheckResult, useResolvedTheme } from '../hooks';
 import { useKeyboardHeight } from './hooks/useKeyboardHeight';
 import { useDivision } from './hooks/useDivision';
-import {
-    getFoldScript,
-    getLogUploadHoldScript,
-    getSafeAreaScript,
-    getSyncInjectionScript,
-} from './utils/injectionScripts';
+import { useFoldInjection } from './hooks/useFoldInjection';
+import { getLogUploadHoldScript, getSafeAreaScript, getSyncInjectionScript } from './utils/injectionScripts';
 import { toWebViewFold, toWebViewInsets } from './utils/webViewGeometry';
 import { buildDeviceInfoParams, type CachedDeviceInfo } from './utils/buildDeviceInfoParams';
 import { NATIVE_RUN_ID } from '../services/log/native/nativeLogContext';
@@ -151,11 +147,14 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
         webViewRef.current.injectJavaScript(getSafeAreaScript(webInsets, keyboardHeight));
     }, [webInsets, keyboardHeight]);
 
-    // Pushed live: unfolding or folding the display reloads nothing, and the sync script above only
-    // reaches the next load.
-    useEffect(() => {
-        webViewRef.current?.injectJavaScript(getFoldScript(fold));
-    }, [fold]);
+    const replayFold = useFoldInjection(webViewRef, fold);
+    const handleLoad = useCallback<NonNullable<WebViewProps['onLoad']>>(
+        event => {
+            replayFold();
+            propsOnLoad?.(event);
+        },
+        [replayFold, propsOnLoad]
+    );
 
     // Pushed live rather than only at load: the point of holding is to reproduce
     // a bug while it is on, and a reload would discard the very session being
@@ -210,7 +209,7 @@ export const AppWebView = forwardRef<WebView, AppWebViewProps>((props, ref) => {
                 cacheEnabled={true}
                 cacheMode="LOAD_DEFAULT"
                 {...restProps}
-                onLoad={propsOnLoad}
+                onLoad={handleLoad}
                 onMessage={onMessage}
                 onContentProcessDidTerminate={handleContentProcessDidTerminate}
                 onRenderProcessGone={handleRenderProcessGone}

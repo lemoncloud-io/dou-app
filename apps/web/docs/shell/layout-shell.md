@@ -204,6 +204,35 @@ padding the same strip a second time. `--safe-top` and `--safe-bottom` are uncha
 draws behind the status bar and home indicator and pads for them itself. The shell side is in
 `apps/mobile`'s `docs/webview/README.md`.
 
+## The device fold (`data-fold`)
+
+On a foldable held half-open — iPhone Duo stood up like a book — the shell tells the page where the
+fold is: `data-fold="vertical"` (or `"horizontal"`) on the root element, and `--fold-start` /
+`--fold-end`, the fold's two edges in px. With no fold all three are absent, which is every
+browser, every Android device and every flat display, so a rule keyed on the attribute changes
+nothing anywhere else. The shell side, including where the value comes from, is in `apps/mobile`'s
+`docs/webview/README.md`.
+
+What sits in the middle of the screen moves off a vertical fold to the region after it — the
+trailing side, where the system puts its own alerts in that pose:
+
+- the `default` notice dialog in `dialog` and `alert-dialog` (`FOLD_TRAILING_CENTRE` in
+  `dialog.tsx`): centred in the trailing region and narrowed to fit it, still at most 311px;
+- `SubscriptionRequiredDialog`, the hand-rolled one, by padding its centring container by
+  `--fold-end`;
+- `FloatingTabBar`, which starts at `--fold-end`, so its pill centres in the trailing region.
+
+The dialog move is sized for a card. A `default`-variant panel that fills the screen
+(`h-full max-w-app` — phone verification, email verification, purchase done) would be centred on
+the trailing region and run off the trailing edge, so it adds `FOLD_STAYS_CENTRED` and stays put.
+A new full-screen panel on the `default` variant needs the same; one on `fullscreen` or `slide-up`
+never gets the move.
+
+A horizontal fold is left alone: a short card a little above or below the middle reads fine, and
+the pose is rare. Content that scrolls is not moved either — it passes over the fold, which is what
+the system's own apps do. A new surface that is centred on the screen and should not straddle the
+fold uses the same attribute selector, `[[data-fold=vertical]_&]:…`.
+
 ## The app-width contract (`--app-width`)
 
 `apps/web` runs in a WebView on a phone-class device; the same bundle is also reachable from a
@@ -276,7 +305,7 @@ sheet), and it is the mistake to watch for in a new one.
 ## Verification
 
 - `libs/web-ui-kit`: `FloatingTabBar.test.tsx` (active/inactive render, `+999` badge clamp,
-  `onSelect`), `FloatingTabBar.stories.tsx`.
+  `onSelect`, the device fold rule), `FloatingTabBar.stories.tsx`.
 - `apps/web`: navigate `/` ↔ `/mypage` and confirm the nav persists with the active tab switching;
   navigate into `/mypage/account` or a channel room and confirm it hides.
 - Resize to a desktop width and open a bottom sheet, a fullscreen dialog, and a `fixed` route side
@@ -287,6 +316,11 @@ sheet), and it is the mistake to watch for in a new one.
   fills the device and a notice dialog stays 311 wide; at 951 the column still fills it; at 1024 the
   column stops at 960 and centers. `libs/web-ui-kit`'s Storybook carries 320, 690 and 951 as
   viewport presets.
+- Half-open (iPhone Duo simulator, posture half-open): the tab bar's pill and a notice dialog sit
+  right of the fold, and move back to the centre when the display is opened flat. Open the app
+  while it is already half-open too — the first fold value arrives while the page is loading.
+  `FloatingTabBar.test.tsx` pins the rule; jsdom compiles no Tailwind, so where it lands is
+  measured in the app or a browser with `data-fold` and `--fold-end` set on the root by hand.
 - Fold and unfold with the message composer holding text. The layout is CSS, and nothing swaps a
   component on width, so the text survives — that is the property to protect when adding anything
   that reads a width in JavaScript.
