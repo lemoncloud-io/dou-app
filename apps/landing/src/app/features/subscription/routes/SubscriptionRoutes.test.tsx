@@ -9,6 +9,34 @@ import { SubscriptionRoutes } from './index';
 
 import type { PortSetup } from '../lib/createPortSetup';
 
+// The screens are not under test here — only which one a URL reaches, which shell holds it and where
+// the guards send the reader. Each screen stands in as its id, so filling a screen never breaks this
+// file; the shells, guards and developer pages stay real.
+vi.mock('../pages/entry', () => ({
+    PlansPage: () => <p>W-01</p>,
+    LoginPage: () => <p>W-02</p>,
+    LoginCallbackPage: () => <p>W-02 callback</p>,
+    NoLinkedAccountPage: () => <p>W-02b</p>,
+    StoreManagedPage: () => <p>W-17</p>,
+}));
+vi.mock('../pages/checkout', () => ({
+    CheckoutPage: () => <p>W-08</p>,
+    CheckoutPaymentPage: () => <p>W-05</p>,
+    CheckoutStatusPage: () => <p>W-09</p>,
+    CheckoutCompletePage: () => <p>W-06</p>,
+    ChangePlanPage: () => <p>W-14</p>,
+}));
+vi.mock('../pages/manage', () => ({
+    SubscriptionListPage: () => <p>W-10</p>,
+    SubscriptionDetailPage: () => <p>W-18</p>,
+    CancelSubscriptionPage: () => <p>W-15</p>,
+}));
+vi.mock('../pages/billing', () => ({
+    PaymentMethodsPage: () => <p>W-12</p>,
+    BillingHistoryPage: () => <p>W-13</p>,
+    BillingInfoPage: () => <p>W-16</p>,
+}));
+
 // jsdom has no matchMedia; each test says whether the viewport is phone-width.
 let narrow = false;
 beforeAll(async () => {
@@ -57,21 +85,21 @@ describe('SubscriptionRoutes', () => {
     it('sends a reader with no session to sign in, and back afterwards', async () => {
         renderAt('/subscription/history', mockSetup('?mock=visitor'));
 
-        expect(await screen.findByText('The W-02 screen is on its way')).toBeTruthy();
+        expect(await screen.findByText('W-02')).toBeTruthy();
         expect(where()).toBe('/subscription/login?next=%2Fsubscription%2Fhistory');
     });
 
     it('opens the public pages without a session', async () => {
         renderAt('/subscription/plans', mockSetup('?mock=visitor'));
 
-        expect(await screen.findByText('The W-01 screen is on its way')).toBeTruthy();
+        expect(await screen.findByText('W-01')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Sign in' })).toBeTruthy();
     });
 
     it('opens a management page in the account shell for a signed-in reader', async () => {
         renderAt('/subscription', mockSetup('?mock=active'));
 
-        expect(await screen.findByText('The W-10 screen is on its way')).toBeTruthy();
+        expect(await screen.findByText('W-10')).toBeTruthy();
         expect(await screen.findByText('DoU Cloud 2')).toBeTruthy();
         expect(screen.getByText('Web subscription · Next payment 2026.11.20')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Cancel subscription' }).getAttribute('href')).toBe(
@@ -82,21 +110,21 @@ describe('SubscriptionRoutes', () => {
     it('sends a store subscriber to the store notice instead of checkout', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=store-ios'));
 
-        expect(await screen.findByText('The W-17 screen is on its way')).toBeTruthy();
+        expect(await screen.findByText('W-17')).toBeTruthy();
         expect(where()).toBe('/subscription/store-managed');
     });
 
     it('takes a signed-in reader past the sign-in page to a safe next', async () => {
         renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=active'));
 
-        expect(await screen.findByText('The W-13 screen is on its way')).toBeTruthy();
+        expect(await screen.findByText('W-13')).toBeTruthy();
         expect(where()).toBe('/subscription/history');
     });
 
     it('ignores an unsafe next on the sign-in page', async () => {
         renderAt('/subscription/login?next=https%3A%2F%2Fevil.example', mockSetup('?mock=active'));
 
-        expect(await screen.findByText('The W-10 screen is on its way')).toBeTruthy();
+        expect(await screen.findByText('W-10')).toBeTruthy();
         expect(where()).toBe('/subscription');
     });
 
@@ -106,7 +134,7 @@ describe('SubscriptionRoutes', () => {
         await waitFor(() =>
             expect(where()).toBe('/subscription/login?reason=session-ended&next=%2Fsubscription%2Fhistory')
         );
-        expect(await screen.findByText('The W-02 screen is on its way')).toBeTruthy();
+        expect(await screen.findByText('W-02')).toBeTruthy();
     });
 
     it('shows the desktop-only notice on a phone-width screen', async () => {
@@ -114,13 +142,13 @@ describe('SubscriptionRoutes', () => {
         renderAt('/subscription/plans', mockSetup('?mock=visitor'));
 
         expect(await screen.findByText('On a phone, subscribe in the app')).toBeTruthy();
-        expect(screen.queryByText('The W-01 screen is on its way')).toBeNull();
+        expect(screen.queryByText('W-01')).toBeNull();
     });
 
     it('sends an unknown deeper path to the subscription list', async () => {
         renderAt('/subscription/a/b/c', mockSetup('?mock=active'));
 
-        expect(await screen.findByText('The W-10 screen is on its way')).toBeTruthy();
+        expect(await screen.findByText('W-10')).toBeTruthy();
         expect(where()).toBe('/subscription');
     });
 
@@ -132,14 +160,14 @@ describe('SubscriptionRoutes', () => {
         fireEvent.click(screen.getByLabelText('Cancel'));
         fireEvent.click(screen.getByRole('button', { name: 'Return to DoU' }));
 
-        expect(await screen.findByText('The W-02 callback screen is on its way')).toBeTruthy();
+        expect(await screen.findByText('W-02 callback')).toBeTruthy();
         expect(where()).toBe('/subscription/login/callback?provider=google&nonce=n-1&result=canceled');
     });
 
     it('lets the stand-in payment window answer a card registration', async () => {
         const setup = mockSetup('?mock=active&fail=card-declined');
         renderAt('/subscription/payment-methods', setup);
-        await screen.findByText('The W-12 screen is on its way');
+        await screen.findByText('W-12');
 
         let outcome: Promise<{ outcome: string }> = Promise.resolve({ outcome: '' });
         act(() => {
@@ -167,7 +195,7 @@ describe('SubscriptionRoutes', () => {
     it('signs out from the account menu and lands on the plans', async () => {
         const setup = mockSetup('?mock=active');
         renderAt('/subscription/history', setup);
-        await screen.findByText('The W-13 screen is on its way');
+        await screen.findByText('W-13');
 
         fireEvent.click(screen.getByRole('button', { name: 'Account menu' }));
         fireEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
