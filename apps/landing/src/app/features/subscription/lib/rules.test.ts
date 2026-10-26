@@ -138,6 +138,13 @@ describe('sceneOf', () => {
         });
     });
 
+    it('offers nothing on a subscription the next one replaced', () => {
+        expect(sceneOf(sub({ status: 'expired', expiredAt: '2026-09-19', endedReason: 'replaced' }), now)).toEqual({
+            banner: { kind: 'expired', date: '2026-09-19' },
+            actions: [],
+        });
+    });
+
     it('announces a restore and keeps the ordinary actions', () => {
         expect(sceneOf(sub({ restored: true }), now)).toEqual({
             banner: { kind: 'restored' },
