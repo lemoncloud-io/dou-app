@@ -98,7 +98,8 @@
     "policy": {
         "effectiveDate": "Effective Date",
         "versionNotFound": "Version not found.",
-        "current": "Current"
+        "current": "Current",
+        "refundTitle": "Refund Policy"
     },
     "footer": {
         "terms": "Terms of Service",

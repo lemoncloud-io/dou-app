@@ -1,0 +1,94 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { usePort } from '../lib/port';
+import { subscriptionKeys } from './keys';
+
+import type { PlanId } from '../types';
+
+export const usePlans = () => {
+    const port = usePort();
+    return useQuery({ queryKey: subscriptionKeys.plans(), queryFn: () => port.listPlans() });
+};
+
+export const useSubscriptions = (options: { enabled?: boolean } = {}) => {
+    const port = usePort();
+    return useQuery({
+        queryKey: subscriptionKeys.subscriptions(),
+        queryFn: () => port.listSubscriptions(),
+        enabled: options.enabled,
+    });
+};
+
+export const useSubscription = (id: string | undefined) => {
+    const port = usePort();
+    return useQuery({
+        queryKey: subscriptionKeys.subscription(id ?? ''),
+        queryFn: () => port.getSubscription(id as string),
+        enabled: !!id,
+    });
+};
+
+/**
+ * Invalidates everything a change to a subscription can show up in: the list, every detail, the
+ * session (its billing source and trial flag), the invoices and any open preview.
+ */
+export const useInvalidateSubscriptionState = () => {
+    const queryClient = useQueryClient();
+    return () =>
+        Promise.all(
+            [
+                subscriptionKeys.subscriptions(),
+                ['subscription', 'getSubscription'],
+                subscriptionKeys.session(),
+                subscriptionKeys.invoices(),
+                ['subscription', 'previewChange'],
+                ['subscription', 'previewCheckout'],
+            ].map(queryKey => queryClient.invalidateQueries({ queryKey }))
+        );
+};
+
+export const useCancelSubscription = () => {
+    const port = usePort();
+    const invalidate = useInvalidateSubscriptionState();
+    return useMutation({
+        mutationFn: (subscriptionId: string) => port.cancelSubscription(subscriptionId),
+        onSuccess: invalidate,
+    });
+};
+
+export const useResumeSubscription = () => {
+    const port = usePort();
+    const invalidate = useInvalidateSubscriptionState();
+    return useMutation({
+        mutationFn: (subscriptionId: string) => port.resumeSubscription(subscriptionId),
+        onSuccess: invalidate,
+    });
+};
+
+export const usePreviewChange = (planId: PlanId | undefined) => {
+    const port = usePort();
+    return useQuery({
+        queryKey: subscriptionKeys.changePreview(planId ?? ''),
+        queryFn: () => port.previewChange(planId as PlanId),
+        enabled: !!planId,
+    });
+};
+
+/** An upgrade resolves with a payment attempt (follow it with `usePaymentAttempt`); a downgrade is scheduled. */
+export const useChangePlan = () => {
+    const port = usePort();
+    const invalidate = useInvalidateSubscriptionState();
+    return useMutation({
+        mutationFn: (planId: PlanId) => port.changePlan(planId),
+        onSuccess: invalidate,
+    });
+};
+
+export const useCancelScheduledChange = () => {
+    const port = usePort();
+    const invalidate = useInvalidateSubscriptionState();
+    return useMutation({
+        mutationFn: (subscriptionId: string) => port.cancelScheduledChange(subscriptionId),
+        onSuccess: invalidate,
+    });
+};

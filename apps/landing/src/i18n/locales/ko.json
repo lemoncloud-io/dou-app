@@ -98,7 +98,8 @@
     "policy": {
         "effectiveDate": "시행일",
         "versionNotFound": "버전을 찾을 수 없습니다.",
-        "current": "현재"
+        "current": "현재",
+        "refundTitle": "환불정책"
     },
     "footer": {
         "terms": "이용약관",

@@ -20,4 +20,18 @@ export const readStage = (hostname: string, devBuild: boolean): Stage => ({
     isDevStage: devBuild || hostname.includes('-dev') || hostname.includes('app-dev'),
 });
 
+/**
+ * Whether the signed-in subscription pages exist on this host: the local dev server and the dev
+ * stage, never production. They take no real payment yet, so on `app.chatic.io` their routes are not
+ * registered at all and `/subscription` falls to the catch-all like any unknown path; the home
+ * page's links into them are left out on the same test.
+ *
+ * Decided by the hostname alone, unlike `isDevStage`: a dev build served from the production host
+ * must still keep these pages shut.
+ */
+export const readSubscriptionWebEnabled = (hostname: string): boolean =>
+    hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('-dev');
+
 export const { isLocalhost, isDevStage } = readStage(window.location.hostname, import.meta.env.DEV);
+
+export const isSubscriptionWebEnabled = readSubscriptionWebEnabled(window.location.hostname);

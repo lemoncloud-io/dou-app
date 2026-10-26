@@ -1,0 +1,76 @@
+{
+    "subscription": {
+        "common": {
+            "planName": "DoU Cloud {{sort}}",
+            "nav": {
+                "plans": "Plans",
+                "manage": "Manage subscription",
+                "policy": "Policies & business info",
+                "signIn": "Sign in"
+            },
+            "sidebar": {
+                "manage": "Subscription",
+                "paymentMethods": "Payment methods",
+                "history": "Billing history",
+                "billingInfo": "Billing info",
+                "cancel": "Cancel subscription",
+                "summary": "Web subscription · Next payment {{date}}",
+                "noSubscription": "No active subscription"
+            },
+            "account": {
+                "menu": "Account menu",
+                "google": "Signed in with Google",
+                "apple": "Signed in with Apple",
+                "manage": "Manage subscription",
+                "signOut": "Sign out",
+                "signedOut": "You have signed out"
+            },
+            "status": {
+                "trial": "Trial",
+                "active": "Active",
+                "pastDue": "Payment failed",
+                "restricted": "Restricted",
+                "cancelScheduled": "Ending",
+                "expired": "Expired",
+                "downgradeScheduled": "Downgrade scheduled"
+            },
+            "actions": {
+                "confirm": "OK",
+                "cancel": "Cancel",
+                "close": "Close",
+                "retry": "Try again"
+            },
+            "loading": "Loading…",
+            "error": {
+                "network": "The connection is unstable. Please try again shortly.",
+                "unknown": "Something went wrong. Please try again."
+            },
+            "desktopOnly": {
+                "title": "DoU subscription",
+                "appTitle": "On a phone, subscribe in the app",
+                "appBody": "In the DoU app, go to MY › Subscription to subscribe through the App Store or Google Play.",
+                "openApp": "Open the DoU app",
+                "pcTitle": "Subscribe on the web from a computer",
+                "pcBody": "Open this page in a desktop browser to subscribe with web payment. Either way, your subscription works on both your phone and your PC."
+            },
+            "paymentWindow": {
+                "title": "Add a card",
+                "description": "This is a test payment window and takes no real card details. Pick an outcome.",
+                "registered": "Registered",
+                "failed": "Registration failed",
+                "closed": "Close the window"
+            },
+            "placeholder": "The {{id}} screen is on its way",
+            "plan": {
+                "clouds_one": "{{count}} cloud",
+                "clouds_other": "{{count}} clouds",
+                "perMonth": "{{price}}/month",
+                "vatNote": "VAT included · 1 month"
+            }
+        },
+        "entry": {},
+        "checkout": {},
+        "manage": {},
+        "billing": {}
+    }
+}

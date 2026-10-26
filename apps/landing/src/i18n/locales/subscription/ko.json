@@ -1,0 +1,76 @@
+{
+    "subscription": {
+        "common": {
+            "planName": "DoU Cloud {{sort}}",
+            "nav": {
+                "plans": "요금제",
+                "manage": "구독 관리",
+                "policy": "정책·사업자 정보",
+                "signIn": "로그인"
+            },
+            "sidebar": {
+                "manage": "구독 관리",
+                "paymentMethods": "결제수단",
+                "history": "청구 내역",
+                "billingInfo": "청구 정보",
+                "cancel": "구독 해지",
+                "summary": "웹 구독 · 다음 결제 {{date}}",
+                "noSubscription": "이용 중인 구독이 없어요"
+            },
+            "account": {
+                "menu": "계정 메뉴",
+                "google": "Google로 로그인",
+                "apple": "Apple로 로그인",
+                "manage": "구독 관리",
+                "signOut": "로그아웃",
+                "signedOut": "로그아웃했어요"
+            },
+            "status": {
+                "trial": "체험 중",
+                "active": "이용 중",
+                "pastDue": "결제 실패",
+                "restricted": "이용 제한",
+                "cancelScheduled": "종료 예정",
+                "expired": "만료",
+                "downgradeScheduled": "다운그레이드 예정"
+            },
+            "actions": {
+                "confirm": "확인",
+                "cancel": "취소",
+                "close": "닫기",
+                "retry": "다시 시도"
+            },
+            "loading": "불러오는 중…",
+            "error": {
+                "network": "연결이 불안정해요. 잠시 뒤 다시 시도해 주세요.",
+                "unknown": "문제가 생겼어요. 다시 시도해 주세요."
+            },
+            "desktopOnly": {
+                "title": "DoU 구독",
+                "appTitle": "휴대폰에서는 앱에서 구독해요",
+                "appBody": "DoU 앱 › MY › 구독 관리에서 App Store · Google Play로 구독할 수 있어요.",
+                "openApp": "DoU 앱 열기",
+                "pcTitle": "웹 구독은 PC에서 할 수 있어요",
+                "pcBody": "데스크톱 브라우저로 이 페이지에 오면 웹 결제로 구독할 수 있어요. 어느 쪽으로 구독해도 휴대폰과 PC 모두에서 쓸 수 있어요."
+            },
+            "paymentWindow": {
+                "title": "카드 등록",
+                "description": "테스트 결제창이에요. 실제 카드 정보는 받지 않아요. 결과를 골라 주세요.",
+                "registered": "등록 성공",
+                "failed": "등록 실패",
+                "closed": "창 닫기"
+            },
+            "placeholder": "{{id}} 화면은 준비 중이에요",
+            "plan": {
+                "clouds_one": "클라우드 {{count}}개",
+                "clouds_other": "클라우드 {{count}}개",
+                "perMonth": "월 {{price}}",
+                "vatNote": "VAT 포함 · 1개월"
+            }
+        },
+        "entry": {},
+        "checkout": {},
+        "manage": {},
+        "billing": {}
+    }
+}

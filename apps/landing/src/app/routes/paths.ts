@@ -15,5 +15,33 @@ export const ROUTES = {
         terms: '/policy/terms',
         privacy: '/policy/privacy',
         child: '/policy/child',
+        refund: '/policy/refund',
+    },
+    /**
+     * The signed-in subscription pages. Registered only where `isSubscriptionWebEnabled` holds
+     * (`app/config/stage.ts`), so on the production host every one of these is the catch-all.
+     */
+    subscription: {
+        /** W-10, the subscription list — where a signed-in visitor lands by default. */
+        root: '/subscription',
+        plans: '/subscription/plans',
+        login: '/subscription/login',
+        loginCallback: '/subscription/login/callback',
+        noLinkedAccount: '/subscription/login/no-account',
+        /** The mock port's stand-in for a social provider's consent page. */
+        mockProvider: '/subscription/login/mock-provider',
+        /** The mock port's stand-in for a provider-hosted receipt. */
+        mockReceipt: '/subscription/mock-receipt',
+        storeManaged: '/subscription/store-managed',
+        checkout: '/subscription/checkout',
+        checkoutPayment: '/subscription/checkout/payment',
+        checkoutStatus: '/subscription/checkout/status',
+        checkoutComplete: '/subscription/checkout/complete',
+        change: '/subscription/change',
+        paymentMethods: '/subscription/payment-methods',
+        history: '/subscription/history',
+        billingInfo: '/subscription/billing-info',
+        detail: (subscriptionId: string) => `/subscription/${encodeURIComponent(subscriptionId)}`,
+        cancel: (subscriptionId: string) => `/subscription/${encodeURIComponent(subscriptionId)}/cancel`,
     },
 } as const;

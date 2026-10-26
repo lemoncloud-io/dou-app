@@ -3,7 +3,7 @@ import { RouterProvider, createMemoryRouter } from 'react-router-dom';
 
 import i18n from '../../i18n';
 
-import { appRoutes } from './index';
+import { createAppRoutes } from './index';
 
 // The pages themselves are not under test here — only which screen a URL reaches, where the URL
 // ends up, and whether its query survives the trip. Each feature's own route table stays real.
@@ -12,11 +12,17 @@ vi.mock('../features/policy/pages', () => ({
     TermsOfServicePage: () => <p>terms</p>,
     PrivacyPolicyPage: () => <p>privacy</p>,
     ChildPolicyPage: () => <p>child</p>,
+    RefundPolicyPage: () => <p>refund</p>,
 }));
+// Stands in for the whole signed-in surface; its own routes are tested beside it.
+vi.mock('../features/subscription', () => ({ SubscriptionRoutes: () => <p>subscription</p> }));
 vi.mock('../features/deeplink/pages', () => ({ DeepLinkPage: () => <p>deeplink</p> }));
 
-const renderAt = (url: string) => {
-    const router = createMemoryRouter(appRoutes, { initialEntries: [url] });
+// The production host, where the subscription pages are shut, unless a test says otherwise.
+const appRoutes = createAppRoutes({ subscriptionWeb: false });
+
+const renderAt = (url: string, routes = appRoutes) => {
+    const router = createMemoryRouter(routes, { initialEntries: [url] });
     render(<RouterProvider router={router} />);
     return router;
 };
@@ -37,6 +43,7 @@ describe('appRoutes', () => {
         ['/policy/terms', 'terms', '/policy/terms'],
         ['/policy/privacy', 'privacy', '/policy/privacy'],
         ['/policy/child', 'child', '/policy/child'],
+        ['/policy/refund', 'refund', '/policy/refund'],
         ['/policy', 'terms', '/policy/terms'],
         ['/policy/unknown/x', 'terms', '/policy/terms'],
         ['/s', 'deeplink', '/s'],
@@ -46,11 +53,41 @@ describe('appRoutes', () => {
         ['/i/extra', 'deeplink', '/i/extra'],
         ['/invite/accept?x=1', 'home', '/'],
         ['/subscription', 'home', '/'],
+        ['/subscription/plans?mock=active', 'home', '/'],
     ])('%s renders %s at %s', async (url, screenText, finalUrl) => {
         const router = renderAt(url);
 
         expect(await screen.findByText(screenText)).toBeTruthy();
         expect(router.state.location.pathname + router.state.location.search).toBe(finalUrl);
+    });
+
+    // Where the gate is open (localhost, the dev stage) the same URLs reach the subscription pages, and
+    // every public URL resolves exactly as it does on the production host.
+    describe('with the subscription pages open', () => {
+        const open = createAppRoutes({ subscriptionWeb: true });
+
+        it.each([
+            ['/subscription', '/subscription'],
+            ['/subscription/plans?mock=active', '/subscription/plans?mock=active'],
+            ['/subscription/sub-1/cancel', '/subscription/sub-1/cancel'],
+        ])('%s reaches the subscription pages', async (url, finalUrl) => {
+            const router = renderAt(url, open);
+
+            expect(await screen.findByText('subscription')).toBeTruthy();
+            expect(router.state.location.pathname + router.state.location.search).toBe(finalUrl);
+        });
+
+        it.each([
+            ['/', 'home', '/'],
+            ['/policy/refund', 'refund', '/policy/refund'],
+            ['/s/1000052', 'deeplink', '/s/1000052'],
+            ['/invite/accept?x=1', 'home', '/'],
+        ])('%s still renders %s', async (url, screenText, finalUrl) => {
+            const router = renderAt(url, open);
+
+            expect(await screen.findByText(screenText)).toBeTruthy();
+            expect(router.state.location.pathname + router.state.location.search).toBe(finalUrl);
+        });
     });
 
     it('leaves an unknown path in history when it sends it home', async () => {

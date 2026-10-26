@@ -32,6 +32,18 @@ module.exports = {
                 'desc-alt': '#3A3C40',
                 'feature-orange': '#F87A26',
                 'feature-blue': '#266FF8',
+                // Banner and badge colours for the subscription pages: a foreground for text and
+                // icons, and a pale background behind it. Values live in styles.css.
+                status: {
+                    success: 'hsl(var(--status-success))',
+                    'success-bg': 'hsl(var(--status-success-bg))',
+                    warning: 'hsl(var(--status-warning))',
+                    'warning-bg': 'hsl(var(--status-warning-bg))',
+                    danger: 'hsl(var(--status-danger))',
+                    'danger-bg': 'hsl(var(--status-danger-bg))',
+                    info: 'hsl(var(--status-info))',
+                    'info-bg': 'hsl(var(--status-info-bg))',
+                },
             },
             keyframes: {
                 fadeIn: {

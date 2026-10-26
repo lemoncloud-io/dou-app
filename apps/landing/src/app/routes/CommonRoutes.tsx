@@ -11,7 +11,19 @@ import type { RouteObject } from 'react-router-dom';
 // carry the full legal text and nothing is timed against their mount, so they load on their own.
 const PolicyRoutes = lazy(() => import('../features/policy').then(m => ({ default: m.PolicyRoutes })));
 
-export const CommonRoutes: RouteObject[] = [
+// The signed-in surface. Lazy for more than size: its session, data layer and copy live in this chunk,
+// so a visitor to the public pages never downloads any of it. This import is the one place the public
+// surface reaches into it.
+const SubscriptionRoutes = lazy(() =>
+    import('../features/subscription').then(m => ({ default: m.SubscriptionRoutes }))
+);
+
+export interface CommonRoutesOptions {
+    /** Register `/subscription/*`. Off on the production host — see `isSubscriptionWebEnabled`. */
+    subscriptionWeb: boolean;
+}
+
+export const createCommonRoutes = ({ subscriptionWeb }: CommonRoutesOptions): RouteObject[] => [
     {
         index: true,
         element: <HomeRoutes />,
@@ -35,4 +47,18 @@ export const CommonRoutes: RouteObject[] = [
             </Suspense>
         ),
     },
+    // Not registered at all where the gate is shut, rather than registered and redirecting: an
+    // unregistered path is the catch-all's, exactly as before these pages existed.
+    ...(subscriptionWeb
+        ? [
+              {
+                  path: 'subscription/*',
+                  element: (
+                      <Suspense fallback={null}>
+                          <SubscriptionRoutes />
+                      </Suspense>
+                  ),
+              },
+          ]
+        : []),
 ];
