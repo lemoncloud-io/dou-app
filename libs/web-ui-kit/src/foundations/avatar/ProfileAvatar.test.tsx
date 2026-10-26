@@ -112,4 +112,25 @@ describe('ProfileAvatar', () => {
         expect(container.querySelector('.bg-brand-ink')).toBeInTheDocument();
         expect(container.querySelector('.bg-muted')).not.toBeInTheDocument();
     });
+
+    it('strokes the photo and every dark placeholder with the photo avatar stroke', () => {
+        for (const props of [
+            { src: 'http://example.com/a.png' },
+            { glyph: 'user' as const },
+            { glyph: 'group' as const },
+            { glyph: 'place' as const },
+        ]) {
+            const { container, unmount } = render(<ProfileAvatar {...props} />);
+
+            expect(container.querySelector('[data-avatar-stroke]')?.className).toContain('border-avatar-stroke');
+            unmount();
+        }
+    });
+
+    // Figma draws the DoU Home disc with no stroke at all.
+    it('draws no stroke on the light home disc', () => {
+        const { container } = render(<ProfileAvatar glyph="home" />);
+
+        expect(container.querySelector('[data-avatar-stroke]')).toBeNull();
+    });
 });

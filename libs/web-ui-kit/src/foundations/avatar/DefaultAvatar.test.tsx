@@ -19,19 +19,28 @@ describe('DefaultAvatar', () => {
         expect(root.style.height).toBe('42px');
     });
 
-    it('adds a hairline ring for the group variant', () => {
+    it('strokes the group variant over its edge', () => {
         const { container } = render(<DefaultAvatar variant="group" />);
         const root = container.firstElementChild as HTMLElement;
 
-        expect(root.className).toContain('border-border');
+        expect(root.querySelector('[data-avatar-stroke]')?.className).toContain('border-avatar-stroke');
         expect(root.querySelector('svg')).toBeTruthy();
     });
 
-    it('rings the default user variant too', () => {
+    // Same stroke as ImageAvatar, so a member looks the same with and without a photo.
+    it('strokes the default user variant with the photo avatar stroke', () => {
         const { container } = render(<DefaultAvatar />);
         const root = container.firstElementChild as HTMLElement;
 
-        expect(root.className).toContain('border-border');
+        expect(root.querySelector('[data-avatar-stroke]')?.className).toContain('border-avatar-stroke');
+    });
+
+    it('draws the silhouette at the full diameter, not shrunk inside the stroke', () => {
+        const { container } = render(<DefaultAvatar size={42} />);
+        const glyph = container.querySelector('svg');
+
+        expect(glyph?.getAttribute('width')).toBe('42');
+        expect(glyph?.getAttribute('height')).toBe('42');
     });
 
     // The room avatar has exactly two images and this is the single-person one: the custom solid

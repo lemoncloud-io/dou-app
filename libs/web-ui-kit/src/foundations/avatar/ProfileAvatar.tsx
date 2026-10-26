@@ -2,6 +2,7 @@ import { cn } from '@chatic/lib/utils';
 
 import { defaultPlaceAvatar, douHomeAvatar } from '../../resources/assets';
 import { IconGroup, IconPlus, IconUser } from '../../resources/icons';
+import { AvatarFrame } from './avatarBase';
 
 /** Share of the diameter the DoU character occupies — Figma 3769:34384 draws it 58 of 86. */
 const HOME_GLYPH_RATIO = 58 / 86;
@@ -28,8 +29,8 @@ export interface ProfileAvatarProps {
 
 /**
  * Profile avatar with a "+" badge — the Figma "Profile" component. A circular image (or placeholder
- * glyph) ringed by a hairline border, with a plus badge pinned bottom-right as the change-photo
- * affordance.
+ * glyph) under the same stroke {@link ImageAvatar} draws, with a plus badge pinned bottom-right as
+ * the change-photo affordance.
  *
  * The empty state depends on what the avatar stands for. A person is Figma's "1-person Profile"
  * (3177-13120): a brand-ink circle with the white solid silhouette — the same placeholder
@@ -43,8 +44,9 @@ export interface ProfileAvatarProps {
  *
  * `glyph="home"` is the one light placeholder: the relay default place (DoU Home) stands for the
  * service, so Figma 3769:34384 shows the DoU character inset on a light `avatar-ring` disc rather
- * than a dark fill. It is the only variant that changes the circle itself, not just what sits in it —
- * and therefore the only one where the badge has to flip back to dark to stay visible.
+ * than a dark fill, with no stroke. It is the only variant that changes the circle itself, not just
+ * what sits in it — and therefore the only one where the badge has to flip back to dark to stay
+ * visible.
  */
 export const ProfileAvatar = ({
     src,
@@ -65,11 +67,10 @@ export const ProfileAvatar = ({
             className={cn('relative inline-flex shrink-0', className)}
             style={{ width: size, height: size }}
         >
-            <span
-                className={cn(
-                    'flex h-full w-full items-center justify-center overflow-hidden rounded-full',
-                    isLightDisc ? 'bg-avatar-ring' : 'border border-avatar-ring bg-brand-ink'
-                )}
+            <AvatarFrame
+                px={size}
+                stroke={isLightDisc ? null : undefined}
+                className={isLightDisc ? 'bg-avatar-ring' : 'bg-brand-ink'}
             >
                 {src ? (
                     <img src={src} alt={alt} className="h-full w-full object-cover" />
@@ -95,7 +96,7 @@ export const ProfileAvatar = ({
                     // circle-relative exactly as in Figma (same as DefaultAvatar).
                     <IconUser size={size} className="text-white" />
                 )}
-            </span>
+            </AvatarFrame>
             {onSelect && (
                 // The badge inverts against whatever it sits on. `bg-muted` (95% L) and
                 // `bg-avatar-ring` (96% L) are a single lightness step apart, so the light badge
