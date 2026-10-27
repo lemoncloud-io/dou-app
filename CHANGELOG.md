@@ -1,5 +1,30 @@
 # Changelog
 
+## [2026-10-27] - root@0.118.0, @chatic/web@0.79.0
+
+### Features
+
+- (mobile,web) share files and text from other apps into a Dou room
+- (mobile,web,app-messages) open OS share-sheet items on /share
+- (web) compose a share into up to five rooms of a cloud and place
+- (mobile) take Android share-sheet items into the share page
+- (mobile) take iOS share-sheet items through a share extension
+
+### Bug Fixes
+
+- (mobile) take an Android shared stream only under the sender's grant
+- (web) discard an unsent share however its page is left
+- (mobile) let an Android share go when the next one arrives
+
+### Documentation
+
+- (adr) say where the iOS share extension puts a share
+- (adr) renumber ADR-0231 to ADR-0234
+
+### Refactor
+
+- (mobile,web) reuse the picker's sweep and errors for shares
+
 ## [2026-10-27] - root@0.117.1, @chatic/desktop-web@0.35.6
 
 ### Bug Fixes
