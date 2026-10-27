@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-27] - No version updates
+
+### Features
+
+- (config,http,app-runtime,admin-v2) read the archive address from VITE_ARCHIVE_ENDPOINT
+- (http,data,admin-v2) send logs and issue reports to the archive service
+
 ## [2026-10-27] - root@0.114.0, @chatic/landing@0.7.0
 
 ### Features
