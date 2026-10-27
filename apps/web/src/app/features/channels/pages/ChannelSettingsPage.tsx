@@ -7,7 +7,7 @@ import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainPlace } from '@chatic/data';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { DefaultAvatar, Divider, GroupLabel, IconChevronRight, ImageAvatar, ListRow } from '@chatic/web-ui-kit';
+import { DefaultAvatar, Divider, GroupLabel, IconChevronRight, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useActivePlaceName } from '../../../hooks';
@@ -28,6 +28,7 @@ import {
     useChannelMutations,
     useChannelProfiles,
     useChannelTitle,
+    useChatInputLock,
     useDmInviteState,
     useDmPeer,
     useJoinMutations,
@@ -180,6 +181,12 @@ export const ChannelSettingsPage = () => {
     const serverNotifyLevel = notifyLevelOf(myJoin?.notify, channel?.stereo === 'dm');
     const [notifyLevel, setNotifyLevel] = useState<NotifyLevel>(serverNotifyLevel);
     const [isNotifySheetOpen, setIsNotifySheetOpen] = useState(false);
+    // The Lab's input lock, on this device only — the same answer the room and its threads read.
+    const inputLock = useChatInputLock(channelId);
+    const handleInputLockChange = (isLocked: boolean) => {
+        inputLock.setLocked(isLocked);
+        toast({ title: t(isLocked ? 'chat.inputLock.locked' : 'chat.inputLock.unlocked') });
+    };
 
     // Reconcile with the join stream once it hydrates (or changes from another device). myJoin is
     // null on first render, so this seeds it too. Keyed on the derived level rather than the raw
@@ -509,6 +516,20 @@ export const ChannelSettingsPage = () => {
                             }
                             onClick={() => setIsNotifySheetOpen(true)}
                         />
+                        {/* Offered only while the Lab switch is on. A self chat has no settings group
+                            and goes without: what is sent there reaches nobody but me. */}
+                        {inputLock.isAvailable && (
+                            <ListRow
+                                title={t('chat.inputLock.settingsRow')}
+                                trailing={
+                                    <Switch
+                                        checked={inputLock.isLocked}
+                                        onCheckedChange={handleInputLockChange}
+                                        label={t('chat.inputLock.settingsRow')}
+                                    />
+                                }
+                            />
+                        )}
 
                         {/* Room members */}
                         <GroupLabel label={t('chat.settings.roomMembers')} />

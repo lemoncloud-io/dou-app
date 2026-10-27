@@ -16,6 +16,7 @@ import {
     Image as ImageGlyph,
     Link2,
     Loader2,
+    Lock,
     LogOut,
     MessageCircle,
     type LucideIcon,
@@ -86,6 +87,8 @@ export const IconRotateLeft: LucideIcon = RotateCcw;
 export const IconFlipHorizontal: LucideIcon = FlipHorizontal2;
 /** Edit — the photo grid's edit button, and the mark on a picked photo that has been edited. */
 export const IconEdit: LucideIcon = Pencil;
+/** A locked composer — the chat input lock's button in the composer's leading slot. */
+export const IconLock: LucideIcon = Lock;
 
 // Figma-exported custom glyphs (not lucide icons). See IconGroup.tsx / IconUser.tsx.
 export { IconGroup, type IconGroupProps } from './IconGroup';

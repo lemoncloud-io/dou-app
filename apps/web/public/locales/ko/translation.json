@@ -193,7 +193,10 @@
             "experiments": "실험 기능",
             "placeInvite": "플레이스 초대",
             "placeInviteSubtitle": "대화방 없이 플레이스로 초대해요",
-            "placeInviteNote": "켜면 홈 프로필 메뉴에 '플레이스에 초대하기'가 생겨요. 내 플레이스에서만 보여요."
+            "placeInviteNote": "켜면 홈 프로필 메뉴에 '플레이스에 초대하기'가 생겨요. 내 플레이스에서만 보여요.",
+            "chatInputLock": "대화 입력 잠금",
+            "chatInputLockSubtitle": "대화방마다 입력창을 잠가요",
+            "chatInputLockNote": "켜면 대화방 설정에 '입력 잠금'이 생겨요. 잠근 대화방과 그 스레드에서는 메시지를 보낼 수 없어요. 이 기기에서만 적용돼요."
         },
         "notificationSettings": "알림 설정",
         "pushNotifications": "푸시 알림",
@@ -1155,6 +1158,13 @@
         "preview": {
             "thread": "[스레드] {{text}}",
             "sender": "{{name}} : {{text}}"
+        },
+        "inputLock": {
+            "settingsRow": "입력 잠금",
+            "placeholder": "입력이 잠겨 있어요",
+            "unlock": "입력 잠금 해제",
+            "locked": "입력을 잠갔어요",
+            "unlocked": "입력 잠금을 해제했어요"
         }
     },
     "search": {

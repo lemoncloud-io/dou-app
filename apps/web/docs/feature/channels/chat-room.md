@@ -410,7 +410,8 @@ while typing on a hardware keyboard — so a mobile user agent only keeps Enter 
 primary pointer is not `(hover: hover) and (pointer: fine)`.
 
 The composer is disabled outright when the DM peer is gone — see
-[dm-and-self-chat.md](./dm-and-self-chat.md).
+[dm-and-self-chat.md](./dm-and-self-chat.md) — and while I have locked its input
+([the input lock](#the-input-lock-a-lab-experiment)).
 
 ### Mentions
 
@@ -498,6 +499,31 @@ id, or `channelId#rootNo` for a thread, so a thread's draft is its own and not t
   on the device never opens a room onto another person's unsent words.
 - **The chat list shows a room's draft** in place of its last message — see
   [home/last-chat.md](../home/last-chat.md#a-rooms-draft).
+
+### The input lock (a Lab experiment)
+
+A person can lock the composer of a room they mostly read, so nothing goes out of it by accident. It
+is behind the Lab switch `feature.chatInputLock` (default off) and is offered from the room's settings
+([channel-settings.md](./channel-settings.md#the-input-lock)).
+
+- **It locks my input, on this device, and nobody else's.** Other members, and my other devices, see
+  no change. The server knows nothing about it either: the lock stops this composer from sending, it
+  is not a rule about the room. A message that arrives still arrives.
+- **A thread answers to its room's lock.** Both screens read `useChatInputLock(channelId)` with the
+  room's channel id, so locking a room locks the replies under it, and one switch lifts both.
+- **Locked, the composer is disabled the way a departed DM peer disables it** — the text field, the
+  send button and the attach panel together — and its placeholder says it is locked. The attach
+  button's slot holds a padlock (`ComposerLockButton`) instead, and a tap on it lifts the lock with a
+  toast. A draft already in the field stays there, and is still there once the lock lifts.
+- **What it does not cover.** Reactions, editing or deleting my own messages, retrying a failed send,
+  and a share from another app into the room. Each is a deliberate act from somewhere other than the
+  composer, which is where an accidental send happens.
+- **Switched off in Lab, nothing is locked and nothing offers a lock.** The stored locks are kept, not
+  cleared, and come back when the switch does. The rule lives in `useChatInputLock`, which takes the
+  switch as an input, so no screen can enforce a lock the Lab has turned off.
+- **The locks are `useInputLockStore`**, persisted as `chatic.composer.inputLocks` behind the same
+  storage guard as the drafts, keyed by channel id. Sign-out clears them (`clearInputLocks`, registered
+  in `main.tsx`), because they name the signed-in person's rooms.
 
 ## Scrolling
 

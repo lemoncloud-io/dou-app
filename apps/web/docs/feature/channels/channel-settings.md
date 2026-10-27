@@ -20,12 +20,12 @@ creating a place profile is not a channel concern and this screen only opens it.
 
 ## The sections
 
-| Section         | Group                                               | 1:1                             | Self chat                 |
-| --------------- | --------------------------------------------------- | ------------------------------- | ------------------------- |
-| Room name row   | owner: `UpdateChannelDialog` · member: not a button | `JoinNickDialog` (`dm`)         | `JoinNickDialog` (`self`) |
-| Chat settings   | notification level: all · mention · off             | notification level: all · off   | —                         |
-| Room members    | add-friend row (owner) + member list                | member list, departed peer kept | member list (me alone)    |
-| Destructive row | owner: delete · member: leave                       | leave, for both sides           | —                         |
+| Section         | Group                                               | 1:1                                       | Self chat                 |
+| --------------- | --------------------------------------------------- | ----------------------------------------- | ------------------------- |
+| Room name row   | owner: `UpdateChannelDialog` · member: not a button | `JoinNickDialog` (`dm`)                   | `JoinNickDialog` (`self`) |
+| Chat settings   | notification level: all · mention · off; input lock | notification level: all · off; input lock | —                         |
+| Room members    | add-friend row (owner) + member list                | member list, departed peer kept           | member list (me alone)    |
+| Destructive row | owner: delete · member: leave                       | leave, for both sides                     | —                         |
 
 Five rules behind that table:
 
@@ -116,6 +116,15 @@ in the outbox.
 
 The home list is unchanged by the levels: its swipe action still toggles between Off and All
 messages, and its bell-off glyph marks Off only — a room on Mentions only is not drawn as muted.
+
+### The input lock
+
+The **Lock input** row is drawn under the notification level only while the Lab switch
+`feature.chatInputLock` is on, and only where there is a chat settings group — so a self chat, whose
+messages reach nobody else, goes without. Its switch writes nothing to the server: the lock is mine,
+on this device (`useChatInputLock`, the same answer the room and its threads read). Each change
+confirms itself with a toast, because its effect is on another screen. What a lock does to the
+composer is in [chat-room.md](./chat-room.md#the-input-lock-a-lab-experiment).
 
 ### A kick is a leave with a target
 

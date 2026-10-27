@@ -79,4 +79,16 @@ export const featureModule: ConfigRegistryModule = {
         persist: 'local',
         appliesAt: 'live',
     },
+    // Lets a person lock the composer of a room they only read, so nothing goes out by accident.
+    // Opt-in while nobody knows whether a per-room lock is wanted at all.
+    'feature.chatInputLock': {
+        title: 'Chat input lock',
+        description: 'Lets a person lock the message input of a chat room, and its threads, on this device.',
+        type: 'boolean',
+        defaultValue: false,
+        surface: 'labs',
+        writableBy: ['local', 'server'],
+        persist: 'local',
+        appliesAt: 'live',
+    },
 };

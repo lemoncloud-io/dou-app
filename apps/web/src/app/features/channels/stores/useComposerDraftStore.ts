@@ -1,7 +1,9 @@
 import { create } from 'zustand';
-import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { ChatAttachmentSource } from '@chatic/data';
+
+import { safeLocalStorage } from './safeLocalStorage';
 
 /** How many conversations keep a typed draft. Past it the one written longest ago goes. */
 export const COMPOSER_DRAFT_MAX = 50;
@@ -33,34 +35,6 @@ export interface ComposerDraftState {
     clear: (scope: string) => void;
     clearAll: () => void;
 }
-
-/**
- * localStorage behind a guard. A draft is a convenience: storage that is full, blocked or missing
- * (a private window, a WebView with storage off) must cost the draft, never the composer it sits under.
- */
-const safeLocalStorage: StateStorage = {
-    getItem: name => {
-        try {
-            return localStorage.getItem(name);
-        } catch {
-            return null;
-        }
-    },
-    setItem: (name, value) => {
-        try {
-            localStorage.setItem(name, value);
-        } catch {
-            // Full or blocked: the draft lives in memory for this run instead.
-        }
-    },
-    removeItem: name => {
-        try {
-            localStorage.removeItem(name);
-        } catch {
-            // Nothing to do: there was nowhere it could have been kept.
-        }
-    },
-};
 
 const without = <T>(record: Record<string, T>, scope: string): Record<string, T> => {
     if (!(scope in record)) return record;

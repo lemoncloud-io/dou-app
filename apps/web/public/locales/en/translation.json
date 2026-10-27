@@ -193,7 +193,10 @@
             "experiments": "Experiments",
             "placeInvite": "Place invite",
             "placeInviteSubtitle": "Invite into a place, no chat room needed",
-            "placeInviteNote": "Adds \"Invite to Place\" to the home profile menu. Shows only in places you own."
+            "placeInviteNote": "Adds \"Invite to Place\" to the home profile menu. Shows only in places you own.",
+            "chatInputLock": "Chat input lock",
+            "chatInputLockSubtitle": "Lock the message input per chat room",
+            "chatInputLockNote": "Adds 'Lock input' to chat room settings. A locked room and its threads cannot send messages. Applies to this device only."
         },
         "notificationSettings": "Notification Settings",
         "pushNotifications": "Push Notifications",
@@ -1155,6 +1158,13 @@
         "preview": {
             "thread": "[Thread] {{text}}",
             "sender": "{{name}}: {{text}}"
+        },
+        "inputLock": {
+            "settingsRow": "Lock input",
+            "placeholder": "Input is locked",
+            "unlock": "Unlock input",
+            "locked": "Input locked",
+            "unlocked": "Input unlocked"
         }
     },
     "search": {
