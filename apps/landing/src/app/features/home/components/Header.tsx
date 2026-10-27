@@ -5,10 +5,11 @@ import { Link } from 'react-router-dom';
 import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
 
+import { isSubscriptionWebEnabled } from '../../../config/stage';
 import { ROUTES } from '../../../routes/paths';
 
 export const Header = (): JSX.Element => {
-    const { i18n } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { theme, setTheme } = useTheme();
     const [isScrolled, setIsScrolled] = useState(false);
 
@@ -62,6 +63,28 @@ export const Header = (): JSX.Element => {
                         <GlobeIcon />
                         {i18n.language === 'ko' ? 'EN' : 'KR'}
                     </button>
+
+                    {/* The way into the subscription pages: plain links, so the public page never reads
+                        who is visiting — a reader already signed in is sent on from the sign-in page.
+                        Only where those pages are open. */}
+                    {isSubscriptionWebEnabled && (
+                        <>
+                            <Link
+                                to={ROUTES.subscription.plans}
+                                className="flex items-center px-5 py-2.5 text-[15px] font-semibold rounded-full transition-all
+                                           bg-navy text-white hover:opacity-90"
+                            >
+                                {t('header.plans')}
+                            </Link>
+                            <Link
+                                to={ROUTES.subscription.login}
+                                className="flex items-center px-5 py-2.5 text-[15px] font-semibold rounded-full transition-all
+                                           bg-navy text-white hover:opacity-90"
+                            >
+                                {t('header.signIn')}
+                            </Link>
+                        </>
+                    )}
                 </nav>
             </div>
         </header>

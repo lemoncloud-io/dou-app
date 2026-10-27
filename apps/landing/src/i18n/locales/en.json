@@ -122,5 +122,9 @@
                 "secondaryAction": "Go Home"
             }
         }
+    },
+    "header": {
+        "plans": "View plans",
+        "signIn": "Sign in"
     }
 }

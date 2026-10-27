@@ -122,5 +122,9 @@
                 "secondaryAction": "홈으로"
             }
         }
+    },
+    "header": {
+        "plans": "구독 상품 보기",
+        "signIn": "로그인"
     }
 }
