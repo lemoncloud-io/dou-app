@@ -170,7 +170,12 @@ export interface RelayInviteFlow {
     onVerified: () => void;
     /** The place profile was saved. */
     onProfileSaved: () => void;
-    /** The user backed out of verification / profile setup / the decline-confirm dialog. */
+    /**
+     * The user closed the profile step after a save failed — continue the accept without a profile,
+     * as the cloud invite does. The view offers the close only once a save has failed.
+     */
+    skipProfile: () => void;
+    /** The user backed out of verification or the decline-confirm dialog. */
     cancelStep: () => void;
     /** Confirm on the notice dialog. */
     dismissNotice: () => void;
@@ -227,7 +232,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     // session they already have (`link`) — sending `login` there is a 400 (ADR-0042 §3).
     const verifyMode: AccountLinkMode = isGuest || refusedAsMainUser ? 'login' : 'link';
 
-    const countdown = useInviteCountdown(invite?.expiredAt);
+    const countdown = useInviteCountdown(invite?.expiredAt, { minuteUntilImminent: true });
 
     // Latest-value refs: the async steps read these long after the closure was created, and keeping
     // them out of the callback deps stops `advance` from churning identity on every render.
@@ -274,6 +279,11 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     // would re-judge, and `profile.set` may not be readable back yet — which would bounce the user
     // into the same form a second time.
     const profileSavedRef = useRef(false);
+
+    // Whether the user chose to go on without a profile (only offered once a save has failed). Kept
+    // through a later verification, unlike `profileSavedRef`: it records a decision, not a saved row
+    // that the identity swap could orphan.
+    const profileSkippedRef = useRef(false);
 
     // Bumped by `retry` to re-run the entry read; a plain function call cannot restart an effect.
     const [attempt, setAttempt] = useState(0);
@@ -441,10 +451,11 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
             return setPhase('verifying');
         }
 
-        // The profile is a PRECONDITION of the accept, not a gate on the app: backing out returns to
-        // the review screen without accepting, so "accepted but nameless" — which a force-quit right
-        // after the accept would otherwise leave behind, irreversibly — cannot happen. Awaited and
-        // fail-open; see isPlaceProfileAbsent.
+        // The profile is a PRECONDITION of the accept, not a gate on the app: it is asked for before
+        // the accept, so a force-quit right after the accept cannot leave "accepted but nameless"
+        // behind. The step is required but not a trap: once a save has failed the user may close it,
+        // and that skip lets the accept through without a profile — the cloud invite's rule. Awaited
+        // and fail-open; see isPlaceProfileAbsent.
         // `!sid` skips the step deliberately. `setMyProfile` asserts a site id, and NOTHING on this
         // route establishes one: the relay sid is a plain read of `chatic-relay-selected-site-id`,
         // written only by an explicit place switch (`useSwitchPlace`, mounted on home). Auth does not
@@ -456,6 +467,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         // moved it, and the re-render that would carry the new one may not have landed yet.
         const needsProfile =
             !profileSavedRef.current &&
+            !profileSkippedRef.current &&
             !!runtime.session.getGlobalSessionContext().activeServer.siteId &&
             (await isPlaceProfileAbsent(latest.current.profileRepository));
         if (isStale(run)) return;
@@ -568,6 +580,11 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         void advance();
     }, [advance]);
 
+    const skipProfile = useCallback(() => {
+        profileSkippedRef.current = true;
+        void advance();
+    }, [advance]);
+
     // Rejecting is final and needs no verification (05-client-guide §B-4) — but exactly because it
     // is final, the button only raises the confirm dialog; the actual packet waits for the confirm.
     const decline = useCallback(() => {
@@ -622,6 +639,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
         close,
         onVerified,
         onProfileSaved,
+        skipProfile,
         cancelStep: useCallback(() => setPhase('review'), []),
         // Only closes while the notice is genuinely up, so the dismiss the dialog fires on its way
         // out of a retry cannot send the user home mid-read.

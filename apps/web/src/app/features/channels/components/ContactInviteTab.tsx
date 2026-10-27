@@ -34,6 +34,11 @@ interface ContactInviteTabProps {
      */
     active: boolean;
     maxSelection: number;
+    /**
+     * Says why a pick past `maxSelection` was refused. Without it the tab toasts its own batch-cap
+     * line; a host whose cap is something else (a room's remaining seats) explains it instead.
+     */
+    onLimitReached?: () => void;
     /** Invite one person — a text to that number (app) or the clipboard (web). */
     sendSingle: (recipient: { name: string; phone: string }) => Promise<InviteMessageChannel | false>;
     /** Invite several at once — the server fans the batch out over SMS itself. */
@@ -56,6 +61,7 @@ interface ContactInviteTabProps {
 export const ContactInviteTab = ({
     active,
     maxSelection,
+    onLimitReached,
     sendSingle,
     sendBatch,
     onSent,
@@ -182,11 +188,15 @@ export const ContactInviteTab = ({
     const handleToggle = useCallback(
         (contact: ContactInfo, next: boolean) => {
             if (isBatchInviting) return;
+            // Judged on the rendered selection, outside the updater: the host's explanation is a state
+            // change of its own, which an updater must not make.
+            if (next && selectedIds.size >= maxSelection && !selectedIds.has(contact.recordID)) {
+                if (onLimitReached) onLimitReached();
+                else toast({ title: t('inviteFriends.limitToast', { max: maxSelection }) });
+                return;
+            }
             setSelectedIds(prev => {
-                if (next && prev.size >= maxSelection && !prev.has(contact.recordID)) {
-                    toast({ title: t('inviteFriends.limitToast', { max: maxSelection }) });
-                    return prev;
-                }
+                if (next && prev.size >= maxSelection && !prev.has(contact.recordID)) return prev;
                 const updated = new Set(prev);
                 if (next) {
                     updated.add(contact.recordID);
@@ -196,7 +206,7 @@ export const ContactInviteTab = ({
                 return updated;
             });
         },
-        [isBatchInviting, maxSelection, toast, t]
+        [isBatchInviting, selectedIds, maxSelection, onLimitReached, toast, t]
     );
 
     const removeSelected = useCallback((id: string) => {

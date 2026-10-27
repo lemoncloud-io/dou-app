@@ -267,4 +267,34 @@ describe('useChannel', () => {
             expect(result.current.isForbidden).toBe(false);
         });
     });
+
+    describe('isOwner', () => {
+        it('reads my join role in a group', async () => {
+            const { result } = renderHook(() => useChannel('ch-1'));
+            act(() =>
+                emit(channelRow({ stereo: 'private', ownerId: 'you', $join: { userId: 'me', stereo: 'owner' } } as any))
+            );
+            await waitFor(() => expect(result.current.channel?.isOwner).toBe(true));
+        });
+
+        // After a kick the cached row's `$join` is the removed member's, until the next sync.
+        it('keeps the owner after a kick leaves the removed member in $join', async () => {
+            const { result } = renderHook(() => useChannel('ch-1'));
+            act(() =>
+                emit(
+                    channelRow({ stereo: 'private', ownerId: 'me', $join: { userId: 'you', stereo: 'member' } } as any)
+                )
+            );
+            await waitFor(() => expect(result.current.channel?.isOwner).toBe(true));
+        });
+
+        it('gives a 1:1 no owner, the inviter included', async () => {
+            const { result } = renderHook(() => useChannel('ch-1'));
+            act(() =>
+                emit(channelRow({ stereo: 'dm', ownerId: 'me', $join: { userId: 'me', stereo: 'owner' } } as any))
+            );
+            await waitFor(() => expect(result.current.channel?.id).toBe('ch-1'));
+            expect(result.current.channel?.isOwner).toBe(false);
+        });
+    });
 });

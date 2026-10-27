@@ -28,13 +28,35 @@ describe('pickPreviewChat', () => {
         );
     });
 
-    it('system rows (mine and other peoples) and thread replies cannot occupy the preview', () => {
+    it('system rows (mine and other peoples) cannot occupy the preview', () => {
         const picked = pickPreviewChat([
             chat(3, 'hello', { ownerId: 'u1', stereo: 'user' }),
             chat(4, 'u1 joined', { ownerId: 'u1', stereo: 'system' }),
-            chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' }),
         ]);
         expect(picked?.chatNo).toBe(3);
+    });
+
+    // A room's last activity is the preview, and a reply in a thread is activity.
+    it('picks a thread reply when it is the newest message', () => {
+        const reply = chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' });
+        expect(pickPreviewChat([chat(3, 'hello', { ownerId: 'u1', stereo: 'user' }), reply])).toEqual(reply);
+        expect(isPreviewableChat(reply)).toBe(true);
+    });
+
+    it('keeps a newer top-level message over an older thread reply', () => {
+        const picked = pickPreviewChat([
+            chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' }),
+            chat(6, 'newer', { ownerId: 'u2', stereo: 'user' }),
+        ]);
+        expect(picked?.chatNo).toBe(6);
+    });
+
+    it('still skips a reaction event on a thread reply', () => {
+        const picked = pickPreviewChat([
+            chat(5, 'reply', { ownerId: 'u1', stereo: 'user', parentId: '3' }),
+            chat(6, '', { ownerId: 'u2', stereo: 'system', subType: 'reaction', parentId: '3' }),
+        ]);
+        expect(picked?.chatNo).toBe(5);
     });
 
     it('undefined when the whole window is system rows', () => {

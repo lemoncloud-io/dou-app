@@ -46,7 +46,7 @@ export const en = {
     },
     push_chat_message_title: '{0}',
     push_chat_message_body: '{0}',
-    push_cloud_activate_title: '{0} is ready',
+    push_cloud_activate_title: '[Cloud] {0} has been created.',
     push_chat_image_body: 'Sent a photo',
     push_chat_images_body: 'Sent {0} photos',
     push_chat_video_body: 'Sent a video',

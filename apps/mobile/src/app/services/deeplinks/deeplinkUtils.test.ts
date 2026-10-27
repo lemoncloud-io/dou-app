@@ -424,10 +424,28 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
 
     // A cloud-activation push has no link, by contract. The spec's source of truth says "if link
     // is empty, go to root", and if a tap only brings the app to the foreground, the user taps the
-    // notification and goes nowhere.
-    it('클라우드 활성 푸시는 link가 없어도 루트로 보낸다', () => {
-        expect(resolvePushTapPath({ type: 'cloud', cid: 'cloud_1', uid: 'u1' })).toBe('/');
-        expect(resolvePushTapPath({ type: 'cloud', payload: JSON.stringify({ cid: 'cloud_1' }) })).toBe('/');
+    // notification and goes nowhere. The root is the root of the cloud the push names, so the tap
+    // lands in the cloud that just became ready rather than wherever the app last was.
+    it('sends a linkless cloud push to the main screen of the cloud it names', () => {
+        expect(resolvePushTapPath({ type: 'cloud', cid: 'cloud_1', uid: 'u1' })).toBe('/?cid=cloud_1');
+        expect(resolvePushTapPath({ type: 'cloud', payload: JSON.stringify({ cid: 'cloud_1' }) })).toBe(
+            '/?cid=cloud_1'
+        );
+    });
+
+    it('carries only the cloud, not a place or chat the payload also names', () => {
+        expect(resolvePushTapPath({ type: 'cloud', cid: 'cloud_1', sid: 'site_9', chatId: 'ch:1' })).toBe(
+            '/?cid=cloud_1'
+        );
+    });
+
+    it('sends a linkless cloud push that names no cloud to the bare root', () => {
+        expect(resolvePushTapPath({ type: 'cloud' })).toBe('/');
+        expect(resolvePushTapPath({ type: 'cloud', cid: '   ' })).toBe('/');
+    });
+
+    it('encodes a cloud id that is not URL-safe', () => {
+        expect(resolvePushTapPath({ type: 'cloud', cid: 'a&b=c' })).toBe('/?cid=a%26b%3Dc');
     });
 
     // The no-link-goes-to-root fallback is only granted to types that have no link by contract.
@@ -450,6 +468,11 @@ describe('resolvePushTapPath (푸시 탭 경로)', () => {
     it('네이티브가 싣는 스킴 루트 URI는 웹 루트로 풀린다', () => {
         expect(resolveDeepLink('chatic://')).toEqual({ kind: 'web', path: '/' });
         expect(resolveDeepLink('chatic-dev://')).toEqual({ kind: 'web', path: '/' });
+    });
+
+    // The cloud the push names rides the scheme root's query, so the web switches to it.
+    it("resolves a scheme root carrying the cloud to that cloud's root", () => {
+        expect(resolveDeepLink('chatic://?cid=cloud_1')).toEqual({ kind: 'web', path: '/?cid=cloud_1' });
     });
 
     it('커스텀 스킴 link는 스킴을 벗기고 경로/쿼리만 취한다', () => {

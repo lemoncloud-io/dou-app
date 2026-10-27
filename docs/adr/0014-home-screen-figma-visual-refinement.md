@@ -2,7 +2,8 @@
 
 ## Status
 
-accepted
+accepted (the Korean "두유 홈" label is superseded by
+[ADR-0239](./0239-korean-screen-copy-follows-the-product-glossary.md): Korean now reads "DoU Home" too)
 
 Decided: 2026-07-16
 
@@ -20,15 +21,15 @@ round applies it.
 Several of the reported issues are **already implemented**. Investigation found the request and the
 current branch out of step:
 
-| #   | Request                                          | State in the code                                                                                                                         | Evidence                    |
-| --- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| #   | Request                                          | State in the code                                                                                                                                                  | Evidence                    |
+| --- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- |
 | 1   | The bottom nav covers the chat list              | `FloatingTabBar` already floats with `pointer-events-none`. But a 96px `from-background` **gradient backdrop** at the bottom visually covers the content behind it | `FloatingTabBar.tsx:58-61`  |
-| 2   | Place selection mark plus an unread red dot      | **Implemented** (`VerifiedBadge` plus the red dot)                                                                                         | `PlaceItem.tsx:41-48`       |
-| 3   | Circular photo crop                              | **A bug** — channel thumbnails render as squares at their original size. `PlaceItem` is fine; only `ChannelList` is broken                  | `ChannelList.tsx:65-68`     |
-| 4   | A "DoU Home" label plus mark for the relay cloud | **Missing** — relay (default) is not listed among the clouds                                                                               | `CloudItem.tsx`             |
-| 5   | Cloud selection check plus a layout change       | The check icon is **implemented**; the layout needs the revision                                                                            | `CloudItem.tsx:81`          |
-| 6   | Channel unread badge                             | **Implemented** (`UnreadBadge variant="pill"`)                                                                                             | `ChannelList.tsx:100`       |
-| 7   | Counts beside the Place and Chat titles          | Not wired — though `CollapsibleSection` **already has** a `count?` prop                                                                     | `CollapsibleSection.tsx:11` |
+| 2   | Place selection mark plus an unread red dot      | **Implemented** (`VerifiedBadge` plus the red dot)                                                                                                                 | `PlaceItem.tsx:41-48`       |
+| 3   | Circular photo crop                              | **A bug** — channel thumbnails render as squares at their original size. `PlaceItem` is fine; only `ChannelList` is broken                                         | `ChannelList.tsx:65-68`     |
+| 4   | A "DoU Home" label plus mark for the relay cloud | **Missing** — relay (default) is not listed among the clouds                                                                                                       | `CloudItem.tsx`             |
+| 5   | Cloud selection check plus a layout change       | The check icon is **implemented**; the layout needs the revision                                                                                                   | `CloudItem.tsx:81`          |
+| 6   | Channel unread badge                             | **Implemented** (`UnreadBadge variant="pill"`)                                                                                                                     | `ChannelList.tsx:100`       |
+| 7   | Counts beside the Place and Chat titles          | Not wired — though `CollapsibleSection` **already has** a `count?` prop                                                                                            | `CollapsibleSection.tsx:11` |
 
 So the work is **mostly applying the revised Figma design**, and item 3 is a separate, real rendering
 bug (confirmed by the user's screenshot). The rest is not "build what is missing" but "align what

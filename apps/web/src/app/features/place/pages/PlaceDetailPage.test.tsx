@@ -103,7 +103,7 @@ describe('PlaceDetailPage — 클라우드 플레이스', () => {
         render(<PlaceDetailPage />);
 
         expect(screen.getByText('placeDetail.ownerLabel')).toBeInTheDocument();
-        expect(screen.getByText('chat.settings.badge.owner')).toBeInTheDocument();
+        expect(screen.getByText('placeMembers.badge.owner')).toBeInTheDocument();
         expect(screen.getByText('두유')).toBeInTheDocument();
     });
 
@@ -115,7 +115,7 @@ describe('PlaceDetailPage — 클라우드 플레이스', () => {
         render(<PlaceDetailPage />);
 
         expect(screen.getByText('placeDetail.ownerLabel')).toBeInTheDocument();
-        expect(screen.getByText('chat.settings.badge.owner')).toBeInTheDocument();
+        expect(screen.getByText('placeMembers.badge.owner')).toBeInTheDocument();
     });
 
     it('썸네일이 있으면 그 사진을 아바타로 쓴다', () => {
@@ -218,7 +218,7 @@ describe('PlaceDetailPage — DoU홈(relay 기본플레이스)', () => {
         render(<PlaceDetailPage />);
 
         expect(screen.queryByText('placeDetail.ownerLabel')).not.toBeInTheDocument();
-        expect(screen.queryByText('chat.settings.badge.owner')).not.toBeInTheDocument();
+        expect(screen.queryByText('placeMembers.badge.owner')).not.toBeInTheDocument();
     });
 
     // Even if ownerId were sent along (hypothetically), the owner section still wouldn't show — an

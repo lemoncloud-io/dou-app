@@ -18,7 +18,7 @@ export interface PlaceDisplayNameContext {
 
 /**
  * Display name for a place. The relay always shows the user's single personal place, whose backend
- * name is "default"/"#default" (id `0000`); we brand it as "두유 홈"/"DoU Home" instead of leaking
+ * name is "default"/"#default" (id `0000`); we brand it as "DoU Home" instead of leaking
  * that raw name into the UI.
  *
  * The home place is recognized by the cloud context OR the site id. The cloud context is the primary

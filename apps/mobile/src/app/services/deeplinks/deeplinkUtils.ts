@@ -346,12 +346,23 @@ const ROOTED_PUSH_TYPES = new Set(['cloud']);
 const PUSH_ROOT_PATH = '/';
 
 /**
+ * The root of the cloud the push names, or the bare root when it names none. Only `cid` is carried:
+ * the cloud-ready push is about the cloud, so the tap opens its main screen and the web switches
+ * to it (and stays put with an error when the cloud is gone). A place or chat is not this push's.
+ */
+const rootedPushPath = (data: PushNavigationData): string => {
+    const { cid } = extractPushContext(data);
+    return cid ? `${PUSH_ROOT_PATH}?cid=${encodeURIComponent(cid)}` : PUSH_ROOT_PATH;
+};
+
+/**
  * Returns the WEBVIEW_URL-relative path (pathname+search+hash) for a push notification tap, with
  * cid/sid/chatId merged into the query. Shared with the deep link path so push taps and deep links
  * converge on one OnNavigate contract.
  *
  * A push with no link resolves to the root for the types that omit `link` BY CONTRACT (cloud
- * activation carries none, and the payload spec routes a linkless push to the root), and to null
+ * activation carries none, and the payload spec routes a linkless push to the root) — the root of
+ * the cloud its `cid` names, so the tap lands in the cloud that just became ready — and to null
  * for everything else — a chat push arriving without a link is a malformed payload, not a request
  * to leave the screen the user is on, so that tap keeps only foregrounding the app.
  */
@@ -363,7 +374,7 @@ export const resolvePushTapPath = (data: PushNavigationData | undefined | null):
     const link = asString(data.link) ?? asString(data.clickAction);
     if (!link) {
         const type = asString(data.type);
-        return type && ROOTED_PUSH_TYPES.has(type) ? PUSH_ROOT_PATH : null;
+        return type && ROOTED_PUSH_TYPES.has(type) ? rootedPushPath(data) : null;
     }
 
     const context = extractPushContext(data);

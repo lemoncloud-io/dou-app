@@ -10,6 +10,8 @@ const createSingleInvite = jest.fn().mockResolvedValue(undefined);
 const createBatchInvite = jest.fn().mockResolvedValue(undefined);
 const requestInviteLink = jest.fn().mockResolvedValue('https://dou.link/abc');
 let isNativeValue = true;
+/** The room being added to. `memberCount` is what caps the selection (100 seats in all). */
+let mockChannel: any = { id: 'ch1', sid: 'site-1' };
 
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1' }),
@@ -29,11 +31,15 @@ jest.mock('../../../ui/components', () => ({ PageHeader: (p: any) => <div>{p.tit
 jest.mock('../../../bridge', () => ({ appBridge: { getContacts, openSettings } }));
 jest.mock('../hooks', () => ({
     useCreateInviteBatch: () => ({ createSingleInvite, createBatchInvite, requestInviteLink }),
-    useChannel: () => ({ channel: { id: 'ch1', sid: 'site-1' } }),
+    useChannel: () => ({ channel: mockChannel }),
 }));
 // The place tab has its own separate tests — here only "the tab wires it up" is checked.
 jest.mock('../components/PlaceInviteTab', () => ({
-    PlaceInviteTab: (p: any) => <div data-testid="place-tab" data-sid={String(p.sid)} />,
+    PlaceInviteTab: (p: any) => (
+        <div data-testid="place-tab" data-sid={String(p.sid)} data-max={String(p.maxSelection)}>
+            <button data-testid="place-limit" onClick={p.onLimitReached} />
+        </div>
+    ),
 }));
 jest.mock('../components/AddFriendSheet', () => ({
     // Surfaces the two host callbacks, so the page's own wiring — which room the link is for, and
@@ -50,6 +56,13 @@ jest.mock('../components/PermissionDeniedBanner', () => ({
 }));
 jest.mock('@chatic/web-ui-kit', () => ({
     IconLink: () => <span />,
+    AlertDialog: ({ open, title, confirmLabel, onConfirm }: any) =>
+        open ? (
+            <div role="alertdialog">
+                {title}
+                <button onClick={onConfirm}>{confirmLabel}</button>
+            </div>
+        ) : null,
     SegmentedTabs: ({ items, value, onChange }: any) => (
         <div>
             {items.map((item: any) => (
@@ -117,6 +130,7 @@ const contact = (id: string, phone = '010-1234-5678') => ({
 beforeEach(() => {
     jest.clearAllMocks();
     isNativeValue = true;
+    mockChannel = { id: 'ch1', sid: 'site-1' };
     getContacts.mockResolvedValue({ data: { contacts: [contact('1'), contact('2')] } });
 });
 
@@ -176,17 +190,48 @@ describe('InvitePage (native)', () => {
         expect(openSettings).not.toHaveBeenCalled();
     });
 
-    it('caps the selection at 100 and toasts', async () => {
+    // A new group (no members counted yet) still offers all 100 seats.
+    it('lets a new group pick 100 and explains the room limit on the 101st', async () => {
         const many = Array.from({ length: 101 }, (_, i) => contact(String(i)));
         getContacts.mockResolvedValue({ data: { contacts: many } });
         renderOnContactTab();
         await screen.findByTestId('user-N0');
 
         for (let i = 0; i < 100; i++) fireEvent.click(screen.getByTestId(`user-N${i}`));
-        toast.mockClear();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
         fireEvent.click(screen.getByTestId('user-N100'));
 
-        expect(toast).toHaveBeenCalledWith({ title: 'inviteFriends.limitToast' });
+        expect(screen.getByRole('alertdialog')).toHaveTextContent('chat.settings.memberLimit.message');
+        expect(screen.getByTestId('selected-row')).toHaveTextContent('100');
+    });
+
+    // The cap is the room's, not the batch's: 98 members leave two seats.
+    it('stops at the seats left in the room', async () => {
+        mockChannel = { id: 'ch1', sid: 'site-1', memberCount: 98 };
+        getContacts.mockResolvedValue({ data: { contacts: [contact('1'), contact('2'), contact('3')] } });
+        renderOnContactTab();
+        await screen.findByTestId('user-N1');
+
+        fireEvent.click(screen.getByTestId('user-N1'));
+        fireEvent.click(screen.getByTestId('user-N2'));
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByTestId('user-N3'));
+
+        expect(screen.getByRole('alertdialog')).toHaveTextContent('chat.settings.memberLimit.message');
+        expect(screen.getByTestId('selected-row')).toHaveTextContent('2');
+        expect(toast).not.toHaveBeenCalledWith({ title: 'inviteFriends.limitToast' });
+    });
+
+    it('lets nobody be added to a full room', async () => {
+        mockChannel = { id: 'ch1', sid: 'site-1', memberCount: 100 };
+        renderOnContactTab();
+        await screen.findByTestId('user-N1');
+
+        fireEvent.click(screen.getByTestId('user-N1'));
+
+        expect(screen.getByRole('alertdialog')).toHaveTextContent('chat.settings.memberLimit.message');
+        // Nothing was picked, so there is nothing to send.
+        expect(screen.getByTestId('cta')).toBeDisabled();
     });
 });
 
@@ -465,6 +510,15 @@ describe('InvitePage — 탭 셸', () => {
 
         expect(screen.getByTestId('tab-place')).toHaveAttribute('data-active', 'true');
         expect(screen.getByTestId('place-tab')).toBeInTheDocument();
+    });
+
+    it('caps the place tab at the seats left and lets it raise the room-limit notice', () => {
+        mockChannel = { id: 'ch1', sid: 'site-1', memberCount: 98 };
+        render(<InvitePage />);
+
+        expect(screen.getByTestId('place-tab')).toHaveAttribute('data-max', '2');
+        fireEvent.click(screen.getByTestId('place-limit'));
+        expect(screen.getByRole('alertdialog')).toHaveTextContent('chat.settings.memberLimit.message');
     });
 
     it('플레이스 탭에는 채널의 sid를 넘긴다', () => {

@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { RelayInviteAccept } from './RelayInviteAccept';
 import type { RelayInviteFlow } from '../hooks';
@@ -38,24 +38,31 @@ jest.mock('../../../../ui/components/PlaceProfileCreateDialog', () => ({
         placeName,
         onDone,
         onExit,
+        onSubmit,
+        dismissible,
         exit,
     }: {
         placeName: string;
         onDone: () => void;
         onExit: () => void;
+        onSubmit: (value: { nick: string }) => Promise<void>;
+        dismissible?: boolean;
         exit?: unknown;
     }) => (
         <div>
             <span>profile:{placeName}</span>
             <span>guard:{exit ? 'on' : 'off'}</span>
+            <span>dismissible:{String(dismissible)}</span>
+            <button onClick={() => onSubmit({ nick: 'n' }).catch(() => undefined)}>submit-profile</button>
             <button onClick={onDone}>save-profile</button>
             <button onClick={onExit}>exit-profile</button>
         </div>
     ),
 }));
+const mockSetMyPlaceProfile = jest.fn();
 jest.mock('../../../../hooks', () => ({
     useActivePlaceName: () => '두유 홈',
-    useSetMyPlaceProfile: () => jest.fn(),
+    useSetMyPlaceProfile: () => mockSetMyPlaceProfile,
 }));
 
 const CODE = 'invt:1:secret';
@@ -73,6 +80,7 @@ const flow = (over: Partial<RelayInviteFlow> = {}): RelayInviteFlow => ({
     close: jest.fn(),
     onVerified: jest.fn(),
     onProfileSaved: jest.fn(),
+    skipProfile: jest.fn(),
     cancelStep: jest.fn(),
     dismissNotice: jest.fn(),
     retry: jest.fn(),
@@ -289,15 +297,38 @@ describe('RelayInviteAccept — 프로필 스텝 (ADR-0041)', () => {
         expect(screen.getByText('guard:off')).toBeInTheDocument();
     });
 
-    it('저장은 onProfileSaved로, 이탈은 인증과 같은 cancelStep으로 간다', () => {
+    it('sends a save to onProfileSaved', () => {
         mockFlow = flow({ phase: 'profiling' });
         render(<RelayInviteAccept code={CODE} />);
 
         fireEvent.click(screen.getByText('save-profile'));
         expect(mockFlow.onProfileSaved).toHaveBeenCalledTimes(1);
+    });
+
+    // The cloud invite's rule: required, but not a trap once the server refuses the save.
+    it('offers no X until a save has failed, then X skips into the accept', async () => {
+        mockSetMyPlaceProfile.mockRejectedValueOnce(new Error('500'));
+        mockFlow = flow({ phase: 'profiling' });
+        render(<RelayInviteAccept code={CODE} />);
+
+        expect(screen.getByText('dismissible:false')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('submit-profile'));
+        expect(await screen.findByText('dismissible:true')).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('exit-profile'));
-        expect(mockFlow.cancelStep).toHaveBeenCalledTimes(1);
+        expect(mockFlow.skipProfile).toHaveBeenCalledTimes(1);
+        expect(mockFlow.cancelStep).not.toHaveBeenCalled();
+    });
+
+    it('keeps the X away after a save that succeeds', async () => {
+        mockSetMyPlaceProfile.mockResolvedValueOnce(undefined);
+        mockFlow = flow({ phase: 'profiling' });
+        render(<RelayInviteAccept code={CODE} />);
+
+        fireEvent.click(screen.getByText('submit-profile'));
+        await waitFor(() => expect(mockSetMyPlaceProfile).toHaveBeenCalledTimes(1));
+        expect(screen.getByText('dismissible:false')).toBeInTheDocument();
     });
 
     it('다른 페이즈에서는 뜨지 않는다', () => {

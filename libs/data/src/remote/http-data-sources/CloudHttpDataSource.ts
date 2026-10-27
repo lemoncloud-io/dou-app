@@ -22,6 +22,7 @@ export interface ICloudHttpDataSource {
     updateCloud(cloudId: string, body: CloudBody, context: DataContext): Promise<DomainCloud>;
     makeCloud(body: CloudBody, context: DataContext, opts?: CloudMakeOptions): Promise<DomainCloud>;
     releaseCloud(cloudId: string, context: DataContext, opts?: CloudReleaseOptions): Promise<DomainCloud>;
+    retryCloudSetup(cloudId: string, context: DataContext): Promise<DomainCloud>;
     verifyEmail(body: CloudVerifyEmailBody, opts?: { dryRun?: boolean }): Promise<CloudVerifyEmailView>;
 }
 
@@ -57,6 +58,11 @@ export class CloudHttpDataSource implements ICloudHttpDataSource {
 
     async releaseCloud(cloudId: string, context: DataContext, opts?: CloudReleaseOptions): Promise<DomainCloud> {
         const view = await this.gateway.release(cloudId, opts?.cascade ? { cascade: 1 } : undefined);
+        return toDomainCloud(view, context);
+    }
+
+    async retryCloudSetup(cloudId: string, context: DataContext): Promise<DomainCloud> {
+        const view = await this.gateway.workspace(cloudId);
         return toDomainCloud(view, context);
     }
 

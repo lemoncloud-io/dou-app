@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useParams } from 'react-router-dom';
 
 import { useNavigateWithTransition } from '@chatic/shared';
-import { SegmentedTabs } from '@chatic/web-ui-kit';
+import { AlertDialog, SegmentedTabs } from '@chatic/web-ui-kit';
 
 import { PageHeader } from '../../../ui/components';
 import { ROUTES } from '../../../routes/paths';
@@ -13,8 +13,12 @@ import { ContactInviteTab } from '../components/ContactInviteTab';
 import { PlaceInviteTab } from '../components/PlaceInviteTab';
 import { getRoomDistance } from '../utils/roomDistance';
 
-/** A single invite batch selects at most this many friends. Shared with the place tab. */
-const MAX_INVITE_SELECTION = 100;
+/**
+ * A room holds at most this many members, counting everyone already in it. So one invite picks at
+ * most the seats still free — the cap is the room's, not the batch's. People invited by contact who
+ * have not joined yet are not counted: nothing on the client can see them.
+ */
+const MAX_ROOM_MEMBERS = 100;
 
 type InviteTab = 'place' | 'contact';
 
@@ -37,6 +41,11 @@ export const InvitePage = () => {
     const [activeTab, setActiveTab] = useState<InviteTab>('place');
     const { channel } = useChannel(channelId ?? null);
     const [addFriendOpen, setAddFriendOpen] = useState(false);
+    const [limitNoticeOpen, setLimitNoticeOpen] = useState(false);
+
+    // Seats left in the room. A room with no members counted yet (a new group) offers all of them.
+    const maxSelection = Math.max(0, MAX_ROOM_MEMBERS - (channel?.memberCount ?? 0));
+    const showLimitNotice = () => setLimitNoticeOpen(true);
 
     const { createSingleInvite, createBatchInvite, requestInviteLink } = useCreateInviteBatch();
 
@@ -55,19 +64,33 @@ export const InvitePage = () => {
             {/* Each tab keeps its own selection and its own confirm action, so they are separate
                 subtrees rather than one body with a switch inside — see ADR-0075. */}
             {!isContactTab && channelId && (
-                <PlaceInviteTab channelId={channelId} sid={channel?.sid ?? null} maxSelection={MAX_INVITE_SELECTION} />
+                <PlaceInviteTab
+                    channelId={channelId}
+                    sid={channel?.sid ?? null}
+                    maxSelection={maxSelection}
+                    onLimitReached={showLimitNotice}
+                />
             )}
 
             {channelId && (
                 <ContactInviteTab
                     active={isContactTab}
-                    maxSelection={MAX_INVITE_SELECTION}
+                    maxSelection={maxSelection}
+                    onLimitReached={showLimitNotice}
                     sendSingle={async recipient => (await createSingleInvite({ channelId, ...recipient })).channel}
                     sendBatch={phones => createBatchInvite({ channelId, phones })}
                     onSent={() => navigate(-1)}
                     onRequestLink={() => setAddFriendOpen(true)}
                 />
             )}
+
+            <AlertDialog
+                open={limitNoticeOpen}
+                onOpenChange={setLimitNoticeOpen}
+                title={t('chat.settings.memberLimit.message')}
+                confirmLabel={t('chat.settings.memberLimit.confirm')}
+                onConfirm={() => setLimitNoticeOpen(false)}
+            />
 
             <AddFriendSheet
                 open={addFriendOpen}

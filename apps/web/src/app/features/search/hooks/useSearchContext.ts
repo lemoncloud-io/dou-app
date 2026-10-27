@@ -234,7 +234,7 @@ export const useSearchContext = (results: GlobalSearchResults): SearchResultRows
          *
          * `myNick` is deliberately not supplied. It is the self-chat chain's second tier (my own
          * place-profile nick), and reading my profile once per place in the results would cost more
-         * than it is worth here — the chain simply falls to the "나와의 채팅" label, which is what
+         * than it is worth here — the chain simply falls to the "나와의 대화" label, which is what
          * that row should read anyway.
          */
         const display = (channel: DomainChannel, joinNick?: string) => {

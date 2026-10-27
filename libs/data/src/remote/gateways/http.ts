@@ -38,7 +38,10 @@ export type AuthHttpDomainGateway = Pick<
     | 'exchangeToken'
 >;
 export type UserHttpDomainGateway = Pick<UserHttpGateway, 'list' | 'tryProfile'>;
-export type CloudHttpDomainGateway = Pick<CloudHttpGateway, 'list' | 'update' | 'make' | 'release' | 'verifyEmail'>;
+export type CloudHttpDomainGateway = Pick<
+    CloudHttpGateway,
+    'list' | 'update' | 'make' | 'release' | 'workspace' | 'verifyEmail'
+>;
 export type SubscriptionHttpDomainGateway = Pick<
     SubscriptionHttpGateway,
     | 'plans'

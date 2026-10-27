@@ -164,8 +164,17 @@ common case, since the room is created asynchronously — so the screen shows a 
 fallback rather than spinning on something that may never arrive.
 
 `expired` swaps in the expiry block and keeps the reissue action. `rejected` swaps in the decline
-block and **drops cancel entirely**: there is nothing left to cancel, and the server would not
-overwrite the mark anyway.
+block and keeps **both** actions, invite again and cancel. The server would not overwrite the decline,
+so canceling a declined invite is the same local dismiss a reissue makes (the `rejected` row above):
+it takes the invite off the list and goes home, and no packet is sent. The confirm says so
+(`inviteWaiting.cancelDialog.rejectedDescription`) rather than the live invite's "they can no longer
+join".
+
+The validity card under a live invite is a spaced clock, `HH : mm : ss 남음`, ticking every second,
+with the days folded into the hours (a day and three hours reads `27 : 00 : 00`). It turns red inside
+the last ten minutes, and an expired link reads `00 : 00 : 00` in red without "left". The formatter
+(`utils/countdownClock.ts`) is shared with the 1:1 room's invite strip, which prints the same clock
+with bare colons.
 
 ### List rows
 

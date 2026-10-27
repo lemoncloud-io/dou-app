@@ -70,7 +70,7 @@
         "basic": {
             "title": "기본 서비스",
             "description": "필수 기능으로 무료로 채팅을 시작하세요.",
-            "feature1": "나와의 채팅",
+            "feature1": "나와의 대화",
             "feature2": "초대받은 친구의 공간에서 채팅"
         },
         "subscription": {
@@ -79,11 +79,11 @@
             "price": "$0",
             "detail1": "나만의 공간을 만들고 친구를 초대하세요",
             "detail2": "최대 5개의 클라우드와 5개의 플레이스",
-            "detail3": "최대 100명의 그룹 채팅",
+            "detail3": "최대 100명의 그룹방",
             "detail4": "개인 메모 공간 포함",
             "feature1": "나의 공간",
             "feature2": "친구 초대",
-            "feature3": "그룹 채팅",
+            "feature3": "그룹방",
             "feature4": "메모 공간",
             "feature5": "우선 지원"
         }

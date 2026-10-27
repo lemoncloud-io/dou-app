@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-27] - No version updates
+
+### Features
+
+- (web,landing) name Korean screen copy by the product glossary, not mixed terms
+
 ## [2026-10-27] - root@0.118.0, @chatic/web@0.79.0
 
 ### Features

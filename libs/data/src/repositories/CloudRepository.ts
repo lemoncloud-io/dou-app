@@ -37,6 +37,12 @@ export interface ICloudRepository extends DisposableRepository {
      */
     makeCloud(body: CloudBody, opts?: CloudMakeOptions): Promise<DomainCloud>;
     releaseCloud(cloudId: string, opts?: CloudReleaseOptions): Promise<DomainCloud>;
+    /**
+     * Asks the relay for a workspace slot again, for a cloud whose setup failed. The relay accepts it
+     * only while the cloud is still `init` or `error` and only from its owner; a refusal, or a slot
+     * request that fails again, rejects. The returned row is not the catalog's — re-read the catalog.
+     */
+    retryCloudSetup(cloudId: string): Promise<DomainCloud>;
 }
 
 const resolveCloudId = (payload: unknown): string | undefined => {
@@ -82,6 +88,10 @@ export class CloudRepository extends BaseRepository implements ICloudRepository 
 
     public async releaseCloud(cloudId: string, opts?: CloudReleaseOptions): Promise<DomainCloud> {
         return this.requireHttp().releaseCloud(cloudId, this.getRequestContext(), opts);
+    }
+
+    public async retryCloudSetup(cloudId: string): Promise<DomainCloud> {
+        return this.requireHttp().retryCloudSetup(cloudId, this.getRequestContext());
     }
 
     public observeList(callback: (result: DomainListResult<DomainCloud> | null) => void): () => void {

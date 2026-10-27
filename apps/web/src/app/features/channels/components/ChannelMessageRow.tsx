@@ -400,7 +400,7 @@ export const ChannelMessageRow = ({
                     unreadCount={read.unreadCount}
                     readLabel={t('chat.room.read')}
                     unreadLabel={t('chat.room.unread')}
-                    allReadLabel={t('chat.room.allRead')}
+                    allReadLabel={t('chat.room.allRead', { count: read.readCount })}
                 />
             ) : (
                 <Loader2 size={11} className="animate-spin text-muted-foreground" />

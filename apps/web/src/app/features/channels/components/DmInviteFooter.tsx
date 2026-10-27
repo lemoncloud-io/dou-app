@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { IconChevronRight } from '@chatic/web-ui-kit';
 
 import type { InviteCountdown } from '../../invite/hooks/useInviteCountdown';
+import { formatCountdownClock } from '../../invite/utils/countdownClock';
 import { canReinviteDm, type DmInviteState } from '../utils/dmInviteState';
 
 interface DmInviteFooterProps {
@@ -13,19 +14,6 @@ interface DmInviteFooterProps {
     /** Opens the re-invite form. Omitted while the CTA cannot apply (e.g. an inactive cloud). */
     onReinvite?: () => void;
 }
-
-const pad = (n: number): string => String(n).padStart(2, '0');
-
-/**
- * Remaining time as `HH:mm:ss`.
- *
- * Days are folded into the hours rather than switching format the way the accept screen does
- * (`InviteExpiryCard`): links this client issues live 24 hours (ADR-0068 decision 4), so the day field is
- * always zero and one format is enough — and if a link ever comes back longer, `72:00:00` still
- * reads correctly instead of silently showing `00:00:00`.
- */
-const formatRemaining = ({ days, hours, minutes, seconds }: InviteCountdown): string =>
-    `${pad(days * 24 + hours)}:${pad(minutes)}:${pad(seconds)}`;
 
 /**
  * What a 1:1 room says once the peer is gone: why the composer is locked, where the invite stands,
@@ -94,7 +82,7 @@ export const DmInviteFooter = ({ state, countdown, onReinvite }: DmInviteFooterP
                         }`}
                     >
                         {`${t('inviteAccept.expiry.label')} ${t('inviteAccept.expiry.remaining', {
-                            time: formatRemaining(countdown),
+                            time: formatCountdownClock(countdown),
                         })}`}
                     </p>
                 )}

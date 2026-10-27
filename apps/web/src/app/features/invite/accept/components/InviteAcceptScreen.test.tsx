@@ -11,7 +11,7 @@ jest.mock('react-i18next', () => ({
                 'inviteAccept.target.you': 'You',
                 'inviteAccept.target.group': '그룹 대화',
                 'inviteAccept.target.oneToOne': '1:1 대화',
-                'inviteAccept.target.place': '플레이스 멤버',
+                'inviteAccept.target.place': '플레이스 친구',
                 'inviteAccept.invitedBy': '님이 DoU에 당신을 초대했어요',
                 'inviteAccept.description': '초대 수락하고 대화를 시작해 보세요.',
                 'inviteAccept.decline': '거절',
@@ -21,6 +21,8 @@ jest.mock('react-i18next', () => ({
             };
             if (key === 'inviteAccept.target.roomFriends') return `방 친구 ${opts?.count}`;
             if (key === 'inviteAccept.expiry.remaining') return `${opts?.time} 남음`;
+            if (key === 'inviteAccept.expiry.hours') return `${opts?.n}시간`;
+            if (key === 'inviteAccept.expiry.minutes') return `${opts?.n}분`;
             return copy[key] ?? key;
         },
     }),
@@ -118,7 +120,7 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
         setup({ targetKind: 'place', placeName: '레몬클라우드' });
 
         expect(screen.getByTestId('invite-place-card')).toBeTruthy();
-        expect(screen.getByText('플레이스 멤버')).toBeTruthy();
+        expect(screen.getByText('플레이스 친구')).toBeTruthy();
         expect(screen.queryByText('그룹 대화')).toBeNull();
     });
 
@@ -157,7 +159,7 @@ describe('InviteAcceptScreen — shared chrome', () => {
 
     it('renders the validity card from the countdown alone', () => {
         setup();
-        expect(screen.getByText('01:02:03 남음')).toBeTruthy();
+        expect(screen.getByText('1시간 2분 남음')).toBeTruthy();
     });
 
     it('routes decline to onDecline when given, and to onClose otherwise', async () => {

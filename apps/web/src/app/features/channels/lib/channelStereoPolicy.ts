@@ -66,6 +66,79 @@ export const showsMemberCount = (kind: ChannelKind): boolean => {
     }
 };
 
+/** The room fields the owner rule reads. */
+type OwnerRuleRoom = Pick<DomainChannel, 'stereo' | 'ownerId'>;
+
+/**
+ * One member's join row, as far as the owner rule reads it. Structural rather than `DomainJoin`: my
+ * own join also arrives embedded in the channel (`$join`), typed by a different package.
+ */
+type OwnerRuleJoin = { stereo?: string | null; userId?: string };
+
+/**
+ * Whether one member owns this room — the single owner rule every surface reads: my own
+ * delete-or-leave, the owner badge, the profile's owner mark, who may remove members, the owner-first
+ * avatar stack.
+ *
+ * **The member's join role decides it.** The server writes a role on every join
+ * (`'' | 'owner' | 'admin' | 'member'`), and only `owner` owns the room. `channel.ownerId` is the
+ * creator, which is not the same fact: a 1:1's `ownerId` is whoever sent the invite, and the badge
+ * that followed it put a "room owner" on a room that has none.
+ *
+ * **Only a group has an owner.** A 1:1's inviter carries `owner` on their join too, but a 1:1 has no
+ * owner/member split, and a self chat has one member. Both answer false whatever the join says.
+ *
+ * **A join with no role falls back to the creator.** A row cached before roles were read, or a
+ * response that omits the field, would otherwise strip a group of its owner — the settings screen
+ * would lose its delete and its member removal. So `undefined` (or `null`) compares the member with
+ * `ownerId` instead. An empty role is different: it is a role the server set, meaning "none", and it
+ * answers false without falling back.
+ *
+ * `userId` names the member when there is no join row at all; with a row, the row's own id wins.
+ *
+ * **A join that names someone else is ignored.** When both ids are known and differ, the row is not
+ * this member's, and the creator check decides instead. That is not hypothetical: a kick's response
+ * carries the REMOVED member's join in `$join`, and the channel cache keeps it until the next sync —
+ * read as mine, it turned the owner who had just removed someone into a member.
+ */
+export const isRoomOwner = (
+    room: OwnerRuleRoom | null | undefined,
+    join: OwnerRuleJoin | null | undefined,
+    userId?: string | null
+): boolean => {
+    if (!room || channelKindOf(room.stereo) !== 'group') return false;
+    const ownJoin = join && userId && join.userId && join.userId !== userId ? undefined : join;
+    if (ownJoin?.stereo != null) return ownJoin.stereo === 'owner';
+    const memberId = ownJoin?.userId || userId;
+    return !!memberId && !!room.ownerId && room.ownerId === memberId;
+};
+
+/**
+ * The user id that owns this room by {@link isRoomOwner}, or `undefined` when it has none (a 1:1, a
+ * self chat) or none can be told from what is cached.
+ *
+ * A join carrying `owner` names the owner. Without one, `ownerId` stands in — but only while that
+ * member's own row carries no role that says otherwise, which is the same fallback the per-member
+ * rule makes.
+ */
+export const roomOwnerIdOf = (
+    room: OwnerRuleRoom | null | undefined,
+    joins: ReadonlyArray<OwnerRuleJoin>
+): string | undefined => {
+    if (!room || channelKindOf(room.stereo) !== 'group') return undefined;
+    const byRole = joins.find(join => !!join.userId && join.stereo === 'owner');
+    if (byRole) return byRole.userId;
+    const creatorId = room.ownerId;
+    if (!creatorId) return undefined;
+    return isRoomOwner(
+        room,
+        joins.find(join => join.userId === creatorId),
+        creatorId
+    )
+        ? creatorId
+        : undefined;
+};
+
 /** What "remove this room" does for a given kind. `none` means the room cannot be removed at all. */
 export type ChannelRemoval = 'leave' | 'delete' | 'none';
 
@@ -73,18 +146,18 @@ export type ChannelRemoval = 'leave' | 'delete' | 'none';
  * The single answer to "what happens when this room is removed", shared by every surface that
  * offers the action.
  *
- * **A DM always leaves — never deletes, not even for the inviter.** `channel.ownerId` points at
- * whoever sent the invite, but a 1:1 has no owner/member split: that id is a by-product of how the
- * room was created, not a permission. Re-inviting needs the room to still be there, so letting one
- * side erase it takes that away.
+ * **A DM always leaves — never deletes, not even for the inviter.** The inviter carries the owner
+ * role on their join and `channel.ownerId` points at them, but a 1:1 has no owner/member split: both
+ * are by-products of how the room was created, not a permission. Re-inviting needs the room to still
+ * be there, so letting one side erase it takes that away.
  *
  * That rule was already honoured on the room's own settings screen and NOT on the place's bulk
  * "remove selected rooms", which branched on place ownership alone and sent `channel.delete` at
  * whatever was checked — a DM included. Two screens answering the same question differently is the
  * shape that produced the bug, so the answer lives here and both screens read it.
  *
- * `isChannelOwner` is about THIS channel (`channel.ownerId === uid`), not about owning the place
- * the channel sits in. A place owner who is merely a member of a room inside it does not get to
+ * `isChannelOwner` is about THIS channel ({@link isRoomOwner} with my join), not about owning the
+ * place the channel sits in. A place owner who is merely a member of a room inside it does not get to
  * delete that room.
  */
 export const removalActionFor = (kind: ChannelKind, isChannelOwner: boolean): ChannelRemoval => {
