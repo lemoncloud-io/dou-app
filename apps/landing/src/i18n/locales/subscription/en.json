@@ -160,26 +160,23 @@
                 "phoneBody": "Link a Google or Apple account in the app under MY › Account first, then sign in here.",
                 "noNewAccounts": "New accounts are not created on the web.",
                 "reason": {
-                    "canceled": "You canceled the sign-in",
-                    "expired-attempt": "The sign-in timed out. Please try again",
-                    "failed": "We couldn't sign you in. Please try again",
-                    "session-ended": "You were signed out. Please sign in again"
+                    "canceled": "You canceled the sign-in. Please try again.",
+                    "expired-attempt": "The sign-in timed out. Please try again.",
+                    "failed": "Something went wrong while signing you in. Please try again in a moment.",
+                    "session-ended": "Your sign-in has expired. Sign in again to return to the page you were on."
                 },
-                "completing": "Signing you in…"
+                "completing": "Signing you in",
+                "completingBody": "This will only take a moment."
             },
             "noAccount": {
                 "title": "No DoU account found",
-                "bodyHint": "No DoU account is linked to {{hint}} ({{provider}}). Install the app, sign in with the same account, then come back.",
-                "body": "No DoU account is linked to this {{provider}} account. Install the app, sign in with the same account, then come back.",
-                "stepsTitle": "Here's what to do",
+                "bodyHint": "No DoU account is linked to {{hint}} ({{provider}}). New accounts are not created on the web.",
+                "body": "No DoU account is linked to this {{provider}} account. New accounts are not created on the web.",
                 "step1": "Install the DoU app",
                 "step2": "Sign in to the app with the same {{provider}} account",
-                "step3": "Sign in again on this page",
-                "otherWaysTitle": "Already signed up in the app?",
-                "phoneUser": "If you signed up with a phone number, link your {{provider}} account in the app under MY › Account first.",
+                "step3": "Come back to this page and sign in again",
+                "phoneUser": "If you signed up with a phone number only, link a Google or Apple account in the app under MY › Account.",
                 "otherProvider": "If you sign in to the app another way, sign in here that way instead.",
-                "appStore": "Get it on the App Store",
-                "googlePlay": "Get it on Google Play",
                 "otherAccount": "Sign in with another account"
             },
             "storeManaged": {
