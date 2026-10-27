@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import type { PairingRequestState } from '@chatic/app-runtime';
+import type { runtime } from '@chatic/app-runtime';
+
+type PairingRequestState = runtime.session.PairingRequestState;
 
 import { PairingCodePage } from './PairingCodePage';
 

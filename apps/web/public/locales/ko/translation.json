@@ -2068,7 +2068,8 @@
     },
     "pairing": {
         "entry": {
-            "login": "다른 기기로 로그인"
+            "login": "다른 기기로 로그인",
+            "approve": "웹 로그인 승인"
         },
         "code": {
             "title": "다른 기기로 로그인",
@@ -2088,6 +2089,42 @@
             "doneRelayTitle": "{{name}} 계정으로 로그인했어요",
             "doneRelayBody": "이 브라우저에서 내 계정 전체를 쓸 수 있어요. 탭을 닫으면 로그인이 끝나요",
             "doneCloud": "승인한 클라우드에 들어왔어요"
+        },
+        "scope": {
+            "relayOption": "내 계정 전체 — 이 브라우저에서 내 모든 클라우드와 계정 설정을 쓸 수 있어요",
+            "cloudOption": "{{cloud}}만 — 이 브라우저는 {{cloud}}만 쓸 수 있어요",
+            "relayApprove": "내 계정 전체 승인",
+            "cloudApprove": "{{cloud}}만 승인",
+            "relayLabel": "내 계정 전체",
+            "cloudLabel": "{{cloud}}만"
+        },
+        "approve": {
+            "title": "웹 로그인 승인",
+            "instruction": "웹 화면에 보이는 숫자 8자리를 입력하거나 QR을 찍으세요",
+            "codeLabel": "로그인 코드",
+            "scan": "QR 찍기",
+            "scanOldApp": "앱을 업데이트하면 QR로 읽을 수 있어요. 지금은 숫자를 입력하세요",
+            "scanNotOurs": "두유 웹 로그인 QR이 아니에요",
+            "scanNoQr": "QR을 읽지 못했어요. 다시 찍거나 숫자를 입력하세요",
+            "requesterBrowser": "로그인을 요청한 브라우저",
+            "requesterPhone": "로그인을 요청한 휴대폰",
+            "unknownClient": "알 수 없는 기기",
+            "onlyYours": "지금 내가 연 브라우저가 맞을 때만 승인하세요",
+            "debugWarning": "이 계정의 모든 권한을 가진 개발용 토큰이 발급됩니다",
+            "debugConfirm": "내가 직접 실행한 개발 도구임을 확인했어요",
+            "noTarget": "승인할 수 있는 계정이 없어요",
+            "deny": "거부",
+            "otherCode": "다른 코드 입력",
+            "approved": "웹에서 로그인이 완료됩니다",
+            "denied": "거부했어요",
+            "errors": {
+                "notFound": "코드를 찾을 수 없어요. 웹 화면의 코드를 다시 확인하세요",
+                "expired": "코드가 만료됐어요. 웹에서 새 코드를 받으세요",
+                "codeRefused": "이 코드는 승인할 수 없어요",
+                "targetRefused": "이 대상으로 승인할 수 없어요",
+                "alreadyHandled": "이미 처리된 요청이에요. 웹에서 다시 요청해 주세요",
+                "unknown": "요청을 처리하지 못했어요. 잠시 뒤 다시 시도하세요"
+            }
         }
     }
 }

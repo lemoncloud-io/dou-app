@@ -12,10 +12,15 @@ session docs); this feature is the screens around it.
 
 ```text
 features/pairing/
-├── pages/PairingCodePage.tsx   the requesting device's code screen — /mypage/login/pair
-├── hooks/                      useDevicePairingEnabled (the flag) · useNow (the countdown's clock)
+├── pages/
+│   ├── PairingCodePage.tsx     the requesting device's code screen — /mypage/login/pair
+│   └── PairingApprovePage.tsx  the approving app's screen — /mypage/pairing/approve
+├── hooks/                      useDevicePairingEnabled (the flag) · useNow (a countdown's clock) ·
+│                               usePairingApproval (look up → approve or decline)
 └── lib/
     ├── pairingCode.ts          0734-4168 formatting, m:ss for the time left
+    ├── pairingTargets.ts       what an approval can let the requester into, and the default
+    ├── scanPairingQr.ts        the camera bridge → a code, or why there is none
     └── pairingQr.ts            photo (base64) → the eight-digit code, or null
 ```
 
@@ -39,6 +44,29 @@ started (`navigate(-2)`), or home when the app has nothing behind them.
   (the approver's name — it is the same account), "you're in the approved cloud" for a cloud one.
 - Leaving the screen stops the polling. A pending pairing expires on the server after three minutes;
   there is no cancel call.
+
+## The approval screen
+
+`/mypage/pairing/approve`, from My page's "Approve web sign-in". Both the entry and the page require
+the flag, `isNative()` and a session that is **not** itself a secondary device
+(`runtime.session.useIsPairedSession`). The server would take an approval from a browser's phone login
+as well — keeping approvals in the apps is this screen's rule, not the server's. A guest app sees the
+entry too: it can approve its clouds, just not its relay account.
+
+1. **The code.** One input keeps digits only (a pasted `0734-4168` or spaced code works) and looks the
+   code up once it has eight. The same eight digits are not looked up twice in a row — a lookup claims
+   the code for this account, so a repeat only earns a 403. "Scan QR" fills the same input
+   (below).
+2. **Who asks.** A large card: the requester's name, phone or browser by `client.platform`, the time
+   left, and "approve only if this is the browser you just opened". A developer tool (`purpose:
+'debug'`) adds a warning and a checkbox, and approval stays off until it is ticked.
+3. **What it may use.** "My whole account" (relay) unless the account is a guest, then each cloud in the
+   cloud catalog. The active slot starts selected. With nothing to offer the screen says so and shows no
+   approve button. The button repeats the scope ("Approve only Lemon"), the same words the device
+   management screen uses later.
+4. **The answer.** Approve or decline, a toast, and back. Errors come from
+   `runtime.session.classifyPairingError` (404 not found, `400 … pairing expired`, 403 on the code or on
+   the target, 409 already handled), each with its own sentence.
 
 ## Reading a pairing QR from a photo
 

@@ -1,6 +1,9 @@
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
+import { isNative } from '@chatic/bridges';
+import { runtime } from '@chatic/app-runtime';
+import { useConfigValue } from '@chatic/config/react';
 
 import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
 
@@ -26,6 +29,11 @@ export const MyPage = () => {
     // would answer for the delegated cloud user instead (see useIsAccountGuest).
     const isGuest = useIsAccountGuest();
     const myUser = useMyUser();
+    const pairingEnabled = useConfigValue<boolean>('feature.auth.devicePairing') === true;
+    // Approving is the apps' job, and a device that is itself signed in through an approval never
+    // approves another — it would sign out with its own approver.
+    const isPairedSession = runtime.session.useIsPairedSession();
+    const canApprovePairing = pairingEnabled && isNative() && !isPairedSession;
 
     const displayName = myUser?.name;
     const displayImageUrl = myUser?.photo;
@@ -98,6 +106,16 @@ export const MyPage = () => {
                             // empty one whose call to action leads to the cloud guide. Branching here on
                             // `isValid` sent a scheduled cancellation — still paid for — to the pitch.
                             onClick={() => navigate(ROUTES.subscription.root)}
+                        />
+                    </MenuCard>
+                )}
+
+                {canApprovePairing && (
+                    <MenuCard>
+                        <ListRow
+                            title={t('pairing.entry.approve')}
+                            trailing={<Chevron />}
+                            onClick={() => navigate(ROUTES.mypage.pairing.approve)}
                         />
                     </MenuCard>
                 )}

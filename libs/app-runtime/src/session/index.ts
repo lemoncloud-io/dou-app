@@ -91,6 +91,8 @@ export { useIsPairedSession, usePairedCloudIds, usePairingRequest } from './hook
 export type { PairingRequestOptions } from './hooks/pairing';
 export { isPairedSession } from './pairing/pairedSession';
 export { pairingClientOf } from './pairing/pairingClient';
+export { classifyPairingError } from './pairing/pairingErrors';
+export type { PairingApprovalError } from './pairing/pairingErrors';
 export type { PairingRequestState } from './pairing/pairingRequestFlow';
 
 // --- session actions · profile (live in other folders but belong to the session group) -----------------------------------------

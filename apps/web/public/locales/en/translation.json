@@ -2068,7 +2068,8 @@
     },
     "pairing": {
         "entry": {
-            "login": "Sign in with another device"
+            "login": "Sign in with another device",
+            "approve": "Approve web sign-in"
         },
         "code": {
             "title": "Sign in with another device",
@@ -2088,6 +2089,42 @@
             "doneRelayTitle": "Signed in as {{name}}",
             "doneRelayBody": "This browser can use your whole account. Closing the tab ends the sign-in",
             "doneCloud": "You're in the approved cloud"
+        },
+        "scope": {
+            "relayOption": "My whole account — this browser can use all my clouds and account settings",
+            "cloudOption": "Only {{cloud}} — this browser can use {{cloud}} only",
+            "relayApprove": "Approve my whole account",
+            "cloudApprove": "Approve only {{cloud}}",
+            "relayLabel": "My whole account",
+            "cloudLabel": "Only {{cloud}}"
+        },
+        "approve": {
+            "title": "Approve web sign-in",
+            "instruction": "Enter the 8 digits shown on the web, or scan its QR",
+            "codeLabel": "Sign-in code",
+            "scan": "Scan QR",
+            "scanOldApp": "Update the app to scan QR codes. For now, type the digits",
+            "scanNotOurs": "This isn't a DoU web sign-in QR",
+            "scanNoQr": "Couldn't read a QR code. Try again or type the digits",
+            "requesterBrowser": "Browser asking to sign in",
+            "requesterPhone": "Phone asking to sign in",
+            "unknownClient": "Unknown device",
+            "onlyYours": "Approve only if this is the browser you just opened",
+            "debugWarning": "A developer token with every permission of this account will be issued",
+            "debugConfirm": "I confirm I started this developer tool myself",
+            "noTarget": "There is no account you can approve for",
+            "deny": "Decline",
+            "otherCode": "Enter another code",
+            "approved": "The web sign-in will finish now",
+            "denied": "Declined",
+            "errors": {
+                "notFound": "Code not found. Check the code on the web screen",
+                "expired": "The code has expired. Get a new one on the web",
+                "codeRefused": "This code can't be approved",
+                "targetRefused": "You can't approve for this target",
+                "alreadyHandled": "This request was already handled. Request again on the web",
+                "unknown": "Couldn't complete the request. Try again shortly"
+            }
         }
     }
 }
