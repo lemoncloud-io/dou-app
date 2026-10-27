@@ -1,11 +1,13 @@
 import {
     clampZoom,
-    DOUBLE_TAP_ZOOM_SCALE,
-    doubleTapZoom,
+    CLICK_ZOOM_SCALE,
+    toggleZoom,
     IDENTITY_ZOOM,
     isZoomed,
     MAX_ZOOM_SCALE,
+    stepZoom,
     wheelZoom,
+    ZOOM_STEP,
     zoomAround,
     type Point,
     type Zoom,
@@ -73,18 +75,45 @@ describe('clampZoom', () => {
     });
 });
 
-describe('doubleTapZoom', () => {
+describe('toggleZoom', () => {
     it('zooms in on the tapped point', () => {
         const at = { x: 80, y: -40 };
-        const zoom = doubleTapZoom(IDENTITY_ZOOM, at);
+        const zoom = toggleZoom(IDENTITY_ZOOM, at);
 
-        expect(zoom.scale).toBe(DOUBLE_TAP_ZOOM_SCALE);
+        expect(zoom.scale).toBe(CLICK_ZOOM_SCALE);
         expect(onScreen(zoom, at).x).toBeCloseTo(at.x);
         expect(onScreen(zoom, at).y).toBeCloseTo(at.y);
     });
 
     it('zooms back out when already zoomed', () => {
-        expect(doubleTapZoom({ scale: 3, x: 40, y: 0 }, { x: 0, y: 0 })).toBe(IDENTITY_ZOOM);
+        expect(toggleZoom({ scale: 3, x: 40, y: 0 }, { x: 0, y: 0 })).toBe(IDENTITY_ZOOM);
+    });
+});
+
+describe('zoomAround at the limit', () => {
+    it('leaves the photo where it is when the scale is already at its maximum', () => {
+        const atMax = { scale: MAX_ZOOM_SCALE, x: 120, y: -60 };
+        expect(zoomAround(atMax, MAX_ZOOM_SCALE * 2, { x: 300, y: 200 })).toEqual(atMax);
+    });
+});
+
+describe('wheelZoom with a pinch', () => {
+    it('moves further per unit than a mouse wheel', () => {
+        const wheel = wheelZoom(IDENTITY_ZOOM, -10, { x: 0, y: 0 });
+        const pinch = wheelZoom(IDENTITY_ZOOM, -10, { x: 0, y: 0 }, true);
+        expect(pinch.scale).toBeGreaterThan(wheel.scale);
+    });
+});
+
+describe('stepZoom', () => {
+    it('steps in and out around the middle of the view', () => {
+        const zoomedIn = stepZoom(IDENTITY_ZOOM, 1);
+        expect(zoomedIn).toEqual({ scale: ZOOM_STEP, x: 0, y: 0 });
+        expect(stepZoom(zoomedIn, -1).scale).toBeCloseTo(1);
+    });
+
+    it('does not step out past fitting', () => {
+        expect(stepZoom(IDENTITY_ZOOM, -1).scale).toBe(1);
     });
 });
 

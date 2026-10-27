@@ -1,21 +1,24 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, Minus, Plus, X } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { avatarStyle } from '../../../../shared';
+import { avatarStyle, Hint } from '../../../../shared';
 import type { ChatImage } from '../../utils';
 import { ImageActions } from './ImageActions';
 import {
     clampZoom,
-    doubleTapZoom,
     IDENTITY_ZOOM,
     isZoomed,
+    MAX_ZOOM_SCALE,
+    MIN_ZOOM_SCALE,
+    stepZoom,
+    toggleZoom,
     type Point,
     type Size,
     type Zoom,
@@ -51,19 +54,27 @@ const NAV_BUTTON =
 
 /** How far past its own size the stage may draw a small picture before it turns to mush. */
 const MAX_UPSCALE = 2;
+/** Pointer travel, in px, below which a press and release on the photo is a click rather than a pan. */
+const PAN_THRESHOLD = 4;
 
-const toStagePoint = (clientX: number, clientY: number, stage: HTMLElement): Point => {
+/**
+ * The pointer relative to the zoom layer's own centre, which is where the transform scales from.
+ * The stage's padding is uneven (more on top), so its centre is not that point. offsetLeft/Top are
+ * the layer's untransformed position, so a zoom already applied does not move the origin.
+ */
+const toLayerPoint = (clientX: number, clientY: number, stage: HTMLElement, layer: HTMLElement): Point => {
     const rect = stage.getBoundingClientRect();
     return {
-        x: clientX - (rect.left + rect.width / 2),
-        y: clientY - (rect.top + rect.height / 2),
+        x: clientX - (rect.left + layer.offsetLeft + layer.offsetWidth / 2),
+        y: clientY - (rect.top + layer.offsetTop + layer.offsetHeight / 2),
     };
 };
 
-const zoomBounds = (stage: HTMLElement, image: HTMLImageElement | null) => {
-    const page = { width: stage.clientWidth, height: stage.clientHeight };
-    const content = image && image.offsetWidth > 0 ? { width: image.offsetWidth, height: image.offsetHeight } : page;
-    return { content, page };
+/** The photo as drawn at scale 1, and the frame it may not be dragged inside of: the layer box. */
+const zoomBounds = (layer: HTMLElement, image: HTMLImageElement | null) => {
+    const page = { width: layer.offsetWidth, height: layer.offsetHeight };
+    if (!image || image.offsetWidth <= 0) return { content: page, page };
+    return { content: { width: image.offsetWidth, height: image.offsetHeight }, page };
 };
 
 const sameZoom = (a: Zoom, b: Zoom) => a.scale === b.scale && a.x === b.x && a.y === b.y;
@@ -96,9 +107,13 @@ export const ImageViewer = ({
     const [seenOpenIndex, setSeenOpenIndex] = useState(openIndex);
     const [zoom, setZoomState] = useState<Zoom>(IDENTITY_ZOOM);
     const zoomRef = useRef<Zoom>(IDENTITY_ZOOM);
-    const setZoom = (next: Zoom) => {
+    // A click, button or key glides to its zoom; the wheel and a drag follow the input as it comes.
+    const [glide, setGlide] = useState(false);
+    const [panning, setPanning] = useState(false);
+    const setZoom = (next: Zoom, animate = false) => {
         if (sameZoom(zoomRef.current, next)) return;
         zoomRef.current = next;
+        setGlide(animate);
         setZoomState(next);
     };
     const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
@@ -106,19 +121,32 @@ export const ImageViewer = ({
         setStageEl(previous => (previous === node ? previous : node));
     }, []);
     const imageRef = useRef<HTMLImageElement>(null);
+    const layerRef = useRef<HTMLDivElement>(null);
     const panRef = useRef<{
         from: Zoom;
         startClientX: number;
         startClientY: number;
         content: Size;
         page: Size;
+        /** Pressed on the photo itself, not the empty stage around it: only that zooms in. */
+        onPhoto: boolean;
+        /** Past the drag threshold: a pan, so letting go is not a click. */
+        moved: boolean;
     } | null>(null);
     const isOpen = openIndex !== null;
     const isMulti = images.length > 1;
 
     const endPan = () => {
         panRef.current = null;
+        setPanning(false);
     };
+    const zoomBy = (direction: 1 | -1) => {
+        const layer = layerRef.current;
+        if (!layer) return;
+        const { content, page } = zoomBounds(layer, imageRef.current);
+        setZoom(clampZoom(stepZoom(zoomRef.current, direction), content, page), true);
+    };
+    const fitZoom = () => setZoom(IDENTITY_ZOOM, true);
     const resetZoom = () => {
         endPan();
         setZoom(IDENTITY_ZOOM);
@@ -146,10 +174,18 @@ export const ImageViewer = ({
         if (!stageEl) return;
         const onWheel = (event: WheelEvent) => {
             event.preventDefault();
-            const { content, page } = zoomBounds(stageEl, imageRef.current);
+            const layer = layerRef.current;
+            if (!layer) return;
+            const { content, page } = zoomBounds(layer, imageRef.current);
             setZoom(
                 clampZoom(
-                    wheelZoom(zoomRef.current, event.deltaY, toStagePoint(event.clientX, event.clientY, stageEl)),
+                    wheelZoom(
+                        zoomRef.current,
+                        event.deltaY,
+                        toLayerPoint(event.clientX, event.clientY, stageEl, layer),
+                        // Chromium reports a trackpad pinch as a wheel with ctrlKey set.
+                        event.ctrlKey
+                    ),
                     content,
                     page
                 )
@@ -185,6 +221,11 @@ export const ImageViewer = ({
                     if (event.defaultPrevented) return;
                     if (event.key === 'ArrowLeft') step(-1);
                     if (event.key === 'ArrowRight') step(1);
+                    // Cmd/Ctrl with these is the shell's own page zoom; leave it alone.
+                    if (event.metaKey || event.ctrlKey) return;
+                    if (event.key === '+' || event.key === '=') zoomBy(1);
+                    if (event.key === '-') zoomBy(-1);
+                    if (event.key === '0') fitZoom();
                 }}
                 // 32px from every edge is the Figma frame, and it holds on any window size.
                 className="inset-8 flex gap-0 overflow-hidden rounded-[20px] shadow-overlay outline-none"
@@ -212,40 +253,75 @@ export const ImageViewer = ({
                                     drawn at natural size, a small picture was a speck in the
                                     middle of the window. */}
                                 <div
+                                    ref={layerRef}
                                     data-zoom-layer=""
                                     className={cn(
                                         'flex h-full w-full items-center justify-center',
-                                        isZoomed(zoom) ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'
+                                        glide && 'transition-transform duration-200 ease-out',
+                                        panning ? 'cursor-grabbing' : isZoomed(zoom) && 'cursor-zoom-out'
                                     )}
                                     style={{
                                         transform: `translate3d(${zoom.x}px, ${zoom.y}px, 0) scale(${zoom.scale})`,
+                                        // The photo sizes itself against this box (cq units), so its
+                                        // element is exactly the picture, with no letterbox around it.
+                                        containerType: 'size',
                                     }}
                                     onPointerDown={event => {
-                                        if (!isZoomed(zoomRef.current) || !stageEl) return;
+                                        if (event.button !== 0) return;
                                         panRef.current = {
                                             from: zoomRef.current,
                                             startClientX: event.clientX,
                                             startClientY: event.clientY,
-                                            ...zoomBounds(stageEl, imageRef.current),
+                                            ...zoomBounds(event.currentTarget, imageRef.current),
+                                            onPhoto: event.target === imageRef.current,
+                                            moved: false,
                                         };
-                                        event.currentTarget.setPointerCapture(event.pointerId);
+                                        if (isZoomed(zoomRef.current)) {
+                                            event.currentTarget.setPointerCapture(event.pointerId);
+                                        }
                                     }}
                                     onPointerMove={event => {
                                         const pan = panRef.current;
-                                        if (!pan) return;
+                                        if (!pan || !isZoomed(pan.from)) return;
+                                        const dx = event.clientX - pan.startClientX;
+                                        const dy = event.clientY - pan.startClientY;
+                                        // A hand never holds perfectly still on a click; a few
+                                        // pixels of drift is still a click, not a pan.
+                                        if (!pan.moved && Math.hypot(dx, dy) < PAN_THRESHOLD) return;
+                                        if (!pan.moved) {
+                                            pan.moved = true;
+                                            setPanning(true);
+                                        }
                                         setZoom(
                                             clampZoom(
-                                                {
-                                                    ...pan.from,
-                                                    x: pan.from.x + event.clientX - pan.startClientX,
-                                                    y: pan.from.y + event.clientY - pan.startClientY,
-                                                },
+                                                { ...pan.from, x: pan.from.x + dx, y: pan.from.y + dy },
                                                 pan.content,
                                                 pan.page
                                             )
                                         );
                                     }}
-                                    onPointerUp={endPan}
+                                    onPointerUp={event => {
+                                        const pan = panRef.current;
+                                        endPan();
+                                        if (!pan || pan.moved || !stageEl) return;
+                                        // Zoomed, a click anywhere goes back to fit; at fit, only a
+                                        // click on the photo zooms in, onto the point clicked.
+                                        if (isZoomed(zoomRef.current)) {
+                                            fitZoom();
+                                            return;
+                                        }
+                                        if (!pan.onPhoto) return;
+                                        const at = toLayerPoint(
+                                            event.clientX,
+                                            event.clientY,
+                                            stageEl,
+                                            event.currentTarget
+                                        );
+                                        setZoom(
+                                            clampZoom(toggleZoom(zoomRef.current, at), pan.content, pan.page),
+                                            true
+                                        );
+                                    }}
                                     onPointerCancel={endPan}
                                 >
                                     <img
@@ -258,28 +334,17 @@ export const ImageViewer = ({
                                             name: author.name,
                                         })}
                                         draggable={false}
-                                        onDoubleClick={event => {
-                                            if (!stageEl) return;
-                                            const { content, page } = zoomBounds(stageEl, imageRef.current);
-                                            setZoom(
-                                                clampZoom(
-                                                    doubleTapZoom(
-                                                        zoomRef.current,
-                                                        toStagePoint(event.clientX, event.clientY, stageEl)
-                                                    ),
-                                                    content,
-                                                    page
-                                                )
-                                            );
-                                        }}
                                         onLoad={event =>
                                             setNatural({
                                                 width: event.currentTarget.naturalWidth,
                                                 height: event.currentTarget.naturalHeight,
                                             })
                                         }
-                                        style={fitStyle(natural)}
-                                        className="h-full w-full select-none rounded-sm object-contain"
+                                        style={stageFitStyle(natural)}
+                                        className={cn(
+                                            'max-h-full max-w-full select-none rounded-sm',
+                                            !isZoomed(zoom) && 'cursor-zoom-in'
+                                        )}
                                     />
                                 </div>
                                 {isMulti && (
@@ -309,10 +374,10 @@ export const ImageViewer = ({
                                         type="button"
                                         onClick={onClose}
                                         aria-label={t('chat.image.close')}
-                                        // Persistent, unlike the secondary controls: with the app
-                                        // still visible behind a frosted layer, nothing else on
-                                        // screen says how to leave.
-                                        className="focus-ring absolute right-6 top-6 flex h-9 w-9 items-center justify-center rounded-md text-foreground transition-colors hover:bg-foreground/[0.08]"
+                                        // Persistent, and on its own surface like previous/next: a
+                                        // zoomed photo runs under it, and a bare glyph disappeared
+                                        // into whatever the picture had there.
+                                        className={cn(NAV_BUTTON, 'right-6 top-6 translate-y-0 hover:bg-accent')}
                                     >
                                         <X size={20} aria-hidden />
                                     </button>
@@ -324,6 +389,13 @@ export const ImageViewer = ({
                                 <span className="min-w-0 flex-1 truncate text-caption font-medium text-foreground">
                                     {current.name}
                                 </span>
+                                <ZoomControls
+                                    scale={zoom.scale}
+                                    onZoomOut={() => zoomBy(-1)}
+                                    onZoomIn={() => zoomBy(1)}
+                                    onFit={fitZoom}
+                                />
+                                <span aria-hidden className="h-5 w-px bg-hairline" />
                                 <ImageActions
                                     onDownload={() => onDownload(current)}
                                     onCopy={() => onCopy(current)}
@@ -415,6 +487,75 @@ export const ImageViewer = ({
 /** Caps the picture at `MAX_UPSCALE` times its own size; until it has loaded, no cap. */
 export const fitStyle = (natural: { width: number; height: number } | null): CSSProperties | undefined =>
     natural ? { maxWidth: natural.width * MAX_UPSCALE, maxHeight: natural.height * MAX_UPSCALE } : undefined;
+
+/**
+ * The viewer's picture at the largest size that fits the zoom layer and keeps its shape, capped at
+ * `MAX_UPSCALE` times its own size. Sizing the element itself, rather than letterboxing it with
+ * object-contain, keeps the zoom-in cursor and click on the photo and off the empty stage.
+ * Until the photo has loaded, max-width/max-height alone keep it inside.
+ */
+const stageFitStyle = (natural: { width: number; height: number } | null): CSSProperties | undefined =>
+    natural && natural.width > 0 && natural.height > 0
+        ? {
+              width: `min(${natural.width * MAX_UPSCALE}px, 100cqw, calc(100cqh * ${natural.width / natural.height}))`,
+              height: 'auto',
+          }
+        : undefined;
+
+interface ZoomControlsProps {
+    scale: number;
+    onZoomOut: () => void;
+    onZoomIn: () => void;
+    onFit: () => void;
+}
+
+const ZOOM_BUTTON =
+    'focus-ring flex h-9 items-center justify-center rounded-md text-foreground transition-colors ease-tactile hover:bg-foreground/[0.08] disabled:pointer-events-none disabled:opacity-40';
+
+/**
+ * Zoom out, the current zoom, zoom in. The wheel, a pinch and a click on the photo all zoom too, but
+ * none of them shows on screen; this says that zooming exists, how far in it is, and the percentage
+ * is the way back to fit.
+ */
+const ZoomControls = ({ scale, onZoomOut, onZoomIn, onFit }: ZoomControlsProps) => {
+    const { t } = useTranslation();
+    return (
+        <div className="flex items-center gap-1">
+            <Hint label={t('chat.image.zoomOut')}>
+                <button
+                    type="button"
+                    onClick={onZoomOut}
+                    disabled={scale <= MIN_ZOOM_SCALE}
+                    aria-label={t('chat.image.zoomOut')}
+                    className={cn(ZOOM_BUTTON, 'w-9')}
+                >
+                    <Minus size={16} aria-hidden />
+                </button>
+            </Hint>
+            <Hint label={t('chat.image.zoomFit')}>
+                <button
+                    type="button"
+                    onClick={onFit}
+                    aria-label={t('chat.image.zoomFit')}
+                    className={cn(ZOOM_BUTTON, 'w-14 text-caption font-medium tabular-nums')}
+                >
+                    {Math.round(scale * 100)}%
+                </button>
+            </Hint>
+            <Hint label={t('chat.image.zoomIn')}>
+                <button
+                    type="button"
+                    onClick={onZoomIn}
+                    disabled={scale >= MAX_ZOOM_SCALE}
+                    aria-label={t('chat.image.zoomIn')}
+                    className={cn(ZOOM_BUTTON, 'w-9')}
+                >
+                    <Plus size={16} aria-hidden />
+                </button>
+            </Hint>
+        </div>
+    );
+};
 
 interface ImageSetMetaProps {
     count: number;
