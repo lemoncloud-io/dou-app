@@ -26,8 +26,8 @@ import { EmailVerifyDialog } from './EmailVerifyDialog';
  * pitch now lives on the purchase screen itself, so going straight there satisfies both.
  *
  * A used-up allowance opens `AddCloudLimitDialog` instead of a toast: the dialog can offer the plan
- * picker, and the top tier gets told it is the top tier rather than offered a change that would be
- * refused.
+ * picker, and the top tier gets told it is the top tier — and sent to the subscription list, MyPage's
+ * own entry to it — rather than offered a change that would be refused.
  */
 const AddCloudFlow = () => {
     const { t } = useTranslation();
@@ -35,7 +35,7 @@ const AddCloudFlow = () => {
     const navigate = useNavigateWithTransition();
     const closeAddCloud = useAddCloudRequest(s => s.closeAddCloud);
     const { canAdd, reason, limit, isLoading } = useCloudQuota();
-    const { currentPlan, sellablePlans } = usePlanCatalog();
+    const { currentPlan, catalogPlans } = usePlanCatalog();
     const verifyEmail = useCloudEmailGuard();
     const addCloud = useAddCloud();
 
@@ -55,7 +55,7 @@ const AddCloudFlow = () => {
         // The allowance case stays open: the dialog below carries it.
         if (reason === 'limitReached') return;
 
-        toast({ title: t('addAccount.cancelScheduled'), variant: 'destructive' });
+        toast({ title: t('addAccount.subscriptionCanceled'), variant: 'destructive' });
         closeAddCloud();
     }, [isLoading, canAdd, reason, limit, t, toast, closeAddCloud, navigate]);
 
@@ -88,11 +88,15 @@ const AddCloudFlow = () => {
             <AddCloudLimitDialog
                 open={isLimitReached}
                 limit={limit ?? 0}
-                canChangePlan={hasHigherTier(currentPlan, sellablePlans)}
+                canChangePlan={hasHigherTier(currentPlan, catalogPlans)}
                 onClose={closeAddCloud}
                 onChangePlan={() => {
                     closeAddCloud();
                     navigate(ROUTES.subscription.plans);
+                }}
+                onManageSubscription={() => {
+                    closeAddCloud();
+                    navigate(ROUTES.subscription.root);
                 }}
             />
         </>

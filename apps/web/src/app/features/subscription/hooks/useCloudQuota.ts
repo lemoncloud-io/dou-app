@@ -1,4 +1,5 @@
 import { useClouds } from '../../../hooks/useCloudCatalog';
+import { useMembershipInfo } from '../../../hooks/useMembership';
 
 import { countOwnedClouds, evaluateCloudQuota, type CloudQuotaReason } from '../lib';
 import { usePlanCatalog } from './usePlanCatalog';
@@ -25,6 +26,9 @@ export interface CloudQuota {
 export const useCloudQuota = (): CloudQuota => {
     const { summary, isLoading: isCatalogLoading, currentPlan } = usePlanCatalog();
     const { data: cloudsData, isLoading: isCloudsLoading } = useClouds({ limit: -1 });
+    // The same query `usePlanCatalog` already runs, so this adds no request — only the server's
+    // provisioning verdict, which the catalog's summary deliberately leaves out.
+    const { data: membership } = useMembershipInfo();
 
     const isLoading = isCatalogLoading || isCloudsLoading;
     const used = countOwnedClouds(cloudsData?.list ?? []);
@@ -32,7 +36,7 @@ export const useCloudQuota = (): CloudQuota => {
     // place to look: `null` here means the app genuinely cannot resolve the allowance.
     const limit = currentPlan?.maxClouds ?? null;
 
-    const verdict = evaluateCloudQuota({ used, limit, state: summary.state });
+    const verdict = evaluateCloudQuota({ used, limit, state: summary.state, isValid: membership?.isValid });
 
     return {
         used,

@@ -10,15 +10,19 @@ interface AddCloudLimitDialogProps {
     canChangePlan: boolean;
     onClose: () => void;
     onChangePlan: () => void;
+    /** Opens the subscription list — where the top tier is sent instead of a plan change. */
+    onManageSubscription: () => void;
 }
 
 /**
  * "No more clouds" — shown when the add-cloud flow is refused by the allowance (Figma 4998-52922
- * with the plan-change offer, 4999-53210 at the top tier).
+ * with the plan-change offer, 3486-25889 at the top tier).
  *
- * Two dialogs rather than one with a disabled button: at the top tier there is nothing to offer,
- * and a dead "change plan" button would read as broken. The toast this replaces could not carry an
- * action at all, which left the user to find the plan picker on their own.
+ * Two dialogs rather than one with a disabled button: at the top tier there is no plan to change to,
+ * and a dead "change plan" button would read as broken. What is left there is to look at the clouds
+ * already held, so that dialog states the ceiling and leads to the subscription list instead. The
+ * toast this replaces could not carry an action at all, which left the user to find either screen on
+ * their own.
  */
 export const AddCloudLimitDialog = ({
     open,
@@ -26,6 +30,7 @@ export const AddCloudLimitDialog = ({
     canChangePlan,
     onClose,
     onChangePlan,
+    onManageSubscription,
 }: AddCloudLimitDialogProps) => {
     const { t } = useTranslation();
 
@@ -33,7 +38,11 @@ export const AddCloudLimitDialog = ({
         <AlertDialog
             open={open}
             onOpenChange={isOpen => !isOpen && onClose()}
-            title={t('addAccount.limitDialog.title')}
+            // At the top tier the allowance in force is the catalog's ceiling, so `limit` is the
+            // number to state — read from the plan rather than written into the copy.
+            title={
+                canChangePlan ? t('addAccount.limitDialog.title') : t('addAccount.limitDialog.topTitle', { max: limit })
+            }
             description={
                 <span className="whitespace-pre-line">
                     {canChangePlan
@@ -41,9 +50,11 @@ export const AddCloudLimitDialog = ({
                         : t('addAccount.limitDialog.topDescription')}
                 </span>
             }
-            cancelLabel={canChangePlan ? t('common.cancel') : undefined}
-            confirmLabel={canChangePlan ? t('addAccount.limitDialog.changePlan') : t('common.confirm')}
-            onConfirm={canChangePlan ? onChangePlan : onClose}
+            cancelLabel={t('common.cancel')}
+            confirmLabel={
+                canChangePlan ? t('addAccount.limitDialog.changePlan') : t('addAccount.limitDialog.manageSubscription')
+            }
+            onConfirm={canChangePlan ? onChangePlan : onManageSubscription}
         />
     );
 };

@@ -325,6 +325,7 @@
                 "cancelAnytime": "You can cancel anytime in MY > Subscription."
             },
             "startAtEntryTier": "A first subscription starts on the entry plan",
+            "startAtLapsedTier": "Subscribing again starts on your previous plan",
             "otherStoreOnly": "Can only be changed on the store you subscribed with",
             "refusal": {
                 "current": {
@@ -337,7 +338,11 @@
                 },
                 "entryTier": {
                     "title": "A first subscription starts on plan 1",
-                    "description": "Subscribe to plan 1 first, then move up one step at each renewal."
+                    "description": "A first subscription starts on DoU Cloud 1. After that you can change your plan one step at a time."
+                },
+                "resubscribeSame": {
+                    "title": "Subscribing again starts on your previous plan",
+                    "description": "When you subscribe again, you start on the plan you had before. After that you can change your plan one step at a time."
                 },
                 "otherStore": {
                     "title": "Change it on the store you subscribed with",
@@ -417,7 +422,7 @@
             },
             "picker": {
                 "productsTitle": "Plans",
-                "intro": "Your first subscription starts at the lowest tier.\nAfter that you can move one tier at a time.",
+                "intro": "Your first subscription starts on DoU Cloud 1.\nAfter that you can change your plan one step at a time.",
                 "next": "Continue"
             },
             "confirm": {
@@ -428,7 +433,7 @@
                 "downgradeDescription": "Your plan changes to {{product}} on {{date}}. Until then you keep your current plan.",
                 "upgradeApple1": "Changing to {{product}} charges you now and starts right away. The unused part of {{current}} is refunded under Apple's policy.",
                 "upgradeApple2": "The refund amount and timing depend on your remaining period and Apple's policy.",
-                "upgradeGoogle1": "Changing to {{product}} takes effect now. Only the difference for the rest of your {{current}} period is charged, and your billing date stays the same.",
+                "upgradeGoogle1": "You switch to {{product}} right away, with no extra charge. What you paid for the rest of {{current}} is turned into time on the new plan, so your next billing date moves earlier.",
                 "upgradeGoogle2": "The amount depends on your remaining period and Google Play's policy.",
                 "unavailable": "We could not load this plan from the store, so it cannot be bought right now."
             },
@@ -1888,7 +1893,7 @@
         "subscriptionRequired": "You can only add an account on your subscribed platform",
         "cloudUserRequired": "Only cloud users can add an account",
         "emailAlreadyUsed": "This email is already used by another account",
-        "cancelScheduled": "You cannot add an account while cancellation is scheduled",
+        "subscriptionCanceled": "Your subscription was cancelled, so no cloud can be added.",
         "addFailed": "Could not add the account",
         "emailInvalid": "That email address is not valid",
         "codeExpired": "The code has expired — please resend",
@@ -1896,8 +1901,10 @@
         "limitDialog": {
             "title": "No more clouds can be added",
             "changeableDescription": "Your current plan allows up to {{max}} clouds.\nChange your plan to add more.",
-            "topDescription": "You are using the maximum number\nof clouds available.",
-            "changePlan": "Change plan"
+            "topTitle": "You can create up to {{max}} clouds",
+            "topDescription": "Check and manage the clouds you use from your subscription.",
+            "changePlan": "Change plan",
+            "manageSubscription": "Manage subscription"
         }
     },
     "nameSetup": {

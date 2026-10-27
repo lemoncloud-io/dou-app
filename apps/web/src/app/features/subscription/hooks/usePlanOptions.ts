@@ -35,6 +35,7 @@ export interface PlanOption {
 /** The line a refused card carries under its name; the tap still opens the full explanation. */
 const REFUSAL_LINE: Record<Exclude<TierRefusal, 'current'>, string> = {
     entryTier: 'mypage.subscription.startAtEntryTier',
+    resubscribeSame: 'mypage.subscription.startAtLapsedTier',
     tierJump: 'mypage.subscription.adjacentTierOnly',
     otherStore: 'mypage.subscription.otherStoreOnly',
 };
@@ -49,12 +50,12 @@ const REFUSAL_LINE: Record<Exclude<TierRefusal, 'current'>, string> = {
  */
 export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } => {
     const { t } = useTranslation();
-    const { sellablePlans, replaceablePlan, isIOS, isLoading } = usePlanCatalog();
+    const { sellablePlans, replaceablePlan, resubscribePlan, isIOS, isLoading } = usePlanCatalog();
     const { nativeProducts, isLoading: isCatalogLoading } = useNativeCatalog();
 
     const options = sellablePlans.map<PlanOption>(plan => {
-        const kind = getTierChangeKind(replaceablePlan, plan);
-        const refusal = getTierRefusal(replaceablePlan, kind, plan);
+        const kind = getTierChangeKind(replaceablePlan, plan, resubscribePlan);
+        const refusal = getTierRefusal(replaceablePlan, kind, plan, resubscribePlan);
         return {
             plan,
             kind,

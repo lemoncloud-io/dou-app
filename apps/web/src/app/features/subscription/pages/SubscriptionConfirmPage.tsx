@@ -170,8 +170,9 @@ export const SubscriptionConfirmPage = () => {
               ];
 
     // Upgrade billing differs by store and the wording has to say which: Apple refunds the unused
-    // part and charges in full, resetting the renewal date; Google charges the difference and keeps
-    // the cycle.
+    // part and charges in full, resetting the renewal date; Google (time proration, as the shell
+    // requests it) charges nothing now and turns the unused part into time on the new plan, so the
+    // next billing date moves earlier.
     const upgradeNotices = [
         t(`mypage.subscription.confirm.upgrade${isIOS ? 'Apple' : 'Google'}1`, {
             product: productName,
