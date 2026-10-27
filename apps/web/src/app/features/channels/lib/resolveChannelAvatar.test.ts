@@ -8,9 +8,14 @@ describe('resolveChannelAvatar', () => {
         expect(call('self', undefined, { myThumbnail: 'me.png' })).toEqual({ src: 'me.png', glyph: 'user' });
     });
 
-    it('self 방은 channel.thumbnail을 무시한다 (방 자체의 사진 개념이 없다)', () => {
-        expect(call('self', 'room.png', { myThumbnail: 'me.png' }).src).toBe('me.png');
-        expect(call('self', 'room.png').src).toBeUndefined();
+    // The self chat's name dialog sets the room's own photo; until then it is mine.
+    it("uses a self chat's own photo once one is set", () => {
+        expect(call('self', 'room.png', { myThumbnail: 'me.png' })).toEqual({ src: 'room.png', glyph: 'user' });
+        expect(call('self', 'room.png').src).toBe('room.png');
+    });
+
+    it("falls back to my photo when the self chat's own photo is blank", () => {
+        expect(call('self', '   ', { myThumbnail: 'me.png' }).src).toBe('me.png');
     });
 
     it('dm 방은 상대 프로필 사진 + 1인 글리프를 쓰고 channel.thumbnail을 무시한다', () => {

@@ -24,7 +24,8 @@ one component, three variants, one call site.
 The header takes its `kind` from the channel's stereo, which picks the fallback glyph; its title from
 `useChannelTitle` (with my join nick, the peer's profile nick and, for a cloud 1:1, their cloud-profile
 name as overrides); and its avatar from
-`resolveChannelAvatar` — my place-profile photo in a self chat, the peer's in a DM, and
+`resolveChannelAvatar` — the room's own `channel.thumbnail` in a self chat, else my place-profile
+photo; the peer's in a DM; and
 `channel.thumbnail` otherwise. Its only menu item is Settings, navigated with
 `state: { roomDistance: 1 }`.
 

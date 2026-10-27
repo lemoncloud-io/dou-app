@@ -571,11 +571,25 @@ describe('ChannelList 아바타', () => {
         expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'my-photo.png');
     });
 
-    it('self 행은 channel.thumbnail이 있어도 내 프로필 사진을 쓴다', () => {
+    // A self chat's own photo is set from its name dialog; until then it is my profile photo.
+    it("uses a self row's own photo once one is set", () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '', thumbnail: 'room.png' })]}
                 isLoading={false}
+                sid="S1"
+            />
+        );
+
+        expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'room.png');
+    });
+
+    it('falls back to my profile photo for a self row without its own', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '', thumbnail: '' })]}
+                isLoading={false}
+                sid="S1"
             />
         );
 

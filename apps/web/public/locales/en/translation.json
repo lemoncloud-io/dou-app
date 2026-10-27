@@ -1587,7 +1587,9 @@
             "done": "Done",
             "saving": "Saving...",
             "success": "Name updated",
-            "error": "Failed to update name"
+            "error": "Failed to update name",
+            "infoSuccess": "Room info saved.",
+            "infoError": "Couldn't save the room info."
         }
     },
     "onboarding": {
