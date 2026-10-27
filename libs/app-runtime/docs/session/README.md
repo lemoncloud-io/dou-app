@@ -10,12 +10,12 @@ Nothing in this folder authenticates a socket or renews a credential. That is
 ## Layout
 
 ```text
-session/                              63 source files, 31 tests
+session/                              67 source files, 34 tests
 ├── store/    12 files ·  4 tests  relay · cloud · identity tokens, selection, derived contexts
 ├── auth/     10 files ·  7 tests  login · cloud entry · teardown · the SDK delegate's material
 ├── scope/     3 files ·  1 test   ActiveScope — the three views, and the DataContextProvider
-├── pairing/   4 files ·  4 tests  device pairing: the code request flow, paired clouds, the secondary-device check
-├── hooks/    33 files · 12 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 3 pairing
+├── pairing/   6 files ·  6 tests  device pairing: the code request flow, paired clouds, the secondary-device check, errors
+├── hooks/    34 files · 13 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 4 pairing
 └── index.ts                       the `session` facade group
 ```
 
@@ -257,7 +257,7 @@ switch to, and keeping the old id would leave the app on a place they are no lon
 | `hooks/session/actions/` | 5     | `useSiteSwitch` · `useSwitchCloudSession` · `useLogoutCloudSession` · `useSessionLogout` · `useInviteFlow`                                                        |
 | `hooks/auth/`            | 8     | `useLogin` · `useLoginRelaySocial` · `useLoginRelayGuestByDevice` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo` |
 | `hooks/app/`             | 5     | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                |
-| `hooks/pairing/`         | 3     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` — see [Device pairing](#device-pairing)                                                          |
+| `hooks/pairing/`         | 4     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairingAwareLogout` — see [Device pairing](#device-pairing)                                |
 
 The first three readers are `useSyncExternalStore(subscribeSessionSignal, …)`; `useSessionSelection`
 derives from `useGlobalSession`. Twenty of these 23 are on the package barrel; the three that are not
@@ -295,6 +295,15 @@ themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests
 - **`isPairedSession`** — is this a secondary device? A relay pairing's `$auth` carries `purpose` and
   `pairingId`, which no other login writes; a guest holding paired clouds counts too. A secondary device
   signs out with its approver, so it neither approves others nor lists approvals.
+- **`usePairingAwareLogout(onLogout)`** — signing out of an approving app ends the sign-ins it approved:
+  it reads `GET /pairings`, and when approvals still stand it holds a confirm (`pending`), revokes each
+  of them on `confirm` (failures ignored) and then calls the app's own logout. A browser, a secondary
+  device, or a list that cannot be read logs out at once — the relay refuses those sessions at their
+  next renewal anyway, so nothing may hold a logout hostage.
+- **`forgetRefusedPairedCloud`** drops a paired cloud whose delegation the relay refused with 403 (the
+  approval was revoked); any other failure leaves it for the next try.
+- **`classifyPairingError`** names the approval side's failures (`notFound` · `expired` · `codeRefused`
+  · `targetRefused` · `alreadyHandled`) so both apps word them the same way.
 - **`pairingClientOf`** is what the request tells the approver about this device: the socket's own
   platform and label, and `iPhone` / `Android` for a phone, whose injected model is only a hardware id.
 

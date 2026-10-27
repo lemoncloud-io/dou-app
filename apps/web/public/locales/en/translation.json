@@ -2166,6 +2166,13 @@
         },
         "secondary": {
             "notice": "Signed in as a secondary device — signing out on the approving device signs this one out too"
+        },
+        "logout": {
+            "title": "The {{count}} sign-in(s) this device approved will end too",
+            "withdrawTitle": "Withdrawing ends the {{count}} sign-in(s) this device approved too",
+            "cloudNote": "A cloud screen already open may stay until that device checks again",
+            "confirm": "Sign out",
+            "withdrawConfirm": "Withdraw"
         }
     }
 }

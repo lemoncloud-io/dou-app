@@ -8,8 +8,9 @@ import { appBridge } from '../../../bridge';
 import { useDeviceInfo } from '@chatic/device-utils';
 import { IconChevronRight, IconSpinner, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 import { runtime } from '@chatic/app-runtime';
+import { useConfigValue } from '@chatic/config/react';
 
-import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog } from '../components';
+import { AppIconSelectSheet, LanguageSelectSheet, LogoutDialog, PairingLogoutDialog } from '../components';
 import { useAppIcon, useClearLocalCaches, useLanguagePreference } from '../hooks';
 import { useOnboarding, useTheme } from '../../../hooks';
 import { useAppUpdateStatus } from '../../appUpdate';
@@ -55,8 +56,14 @@ export const SettingsPage = () => {
     const showUpdateStatus = deviceInfo?.platform === 'ios';
 
     // Logout + local cache teardown is handled by the shared /auth/logout flow (LogoutPage).
+    const goToLogout = () => navigate(ROUTES.auth.logout);
+    // An approving app first ends the web sign-ins it approved (with a confirm when there are any).
+    const pairingEnabled = useConfigValue<boolean>('feature.auth.devicePairing') === true;
+    const pairingLogout = runtime.session.usePairingAwareLogout(goToLogout);
     const handleLogout = () => {
-        navigate(ROUTES.auth.logout);
+        setIsLogoutDialogOpen(false);
+        if (pairingEnabled) void pairingLogout.start();
+        else goToLogout();
     };
 
     const handleThemeToggle = () => {
@@ -213,6 +220,7 @@ export const SettingsPage = () => {
                 )}
             </div>
 
+            <PairingLogoutDialog logout={pairingLogout} action="logout" />
             <LogoutDialog
                 isOpen={isLogoutDialogOpen}
                 onClose={() => setIsLogoutDialogOpen(false)}

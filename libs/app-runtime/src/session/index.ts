@@ -87,8 +87,8 @@ export {
 // --- device pairing ---------------------------------------------------------------------------------
 // The code screen's request flow, the paired-cloud list a guest browser entered clouds through, and the
 // secondary-device check the screens gate their entries on.
-export { useIsPairedSession, usePairedCloudIds, usePairingRequest } from './hooks/pairing';
-export type { PairingRequestOptions } from './hooks/pairing';
+export { useIsPairedSession, usePairedCloudIds, usePairingAwareLogout, usePairingRequest } from './hooks/pairing';
+export type { PairingAwareLogout, PairingRequestOptions } from './hooks/pairing';
 export { isPairedSession } from './pairing/pairedSession';
 export { forgetRefusedPairedCloud } from './pairing/pairedCloudRefusal';
 export { pairingClientOf } from './pairing/pairingClient';

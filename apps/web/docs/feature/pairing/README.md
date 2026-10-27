@@ -109,6 +109,15 @@ is sent back; everyone else gets the first section, and an approving app the sec
   never is. Removing one warns per scope: a relay sign-in ends at once, a cloud one cannot come back but
   an open screen may last until its tokens expire. The header links to the approval screen.
 
+## Signing out of an approving app
+
+Settings' logout and the withdrawal screen go through `runtime.session.usePairingAwareLogout` while the
+flag is on: an approving app with approvals still standing shows `mypage/components/PairingLogoutDialog`
+("the N sign-ins this device approved end too", each with requester and scope, plus a caveat when a
+cloud approval is among them), revokes them all on confirm and then opens `/auth/logout` as before. With
+nothing approved, in a browser, on a secondary device, or when the list cannot be read, the logout
+happens at once.
+
 ## Reading a pairing QR from a photo
 
 The mobile app has no live QR scanner, and adding one would mean a new native dependency and camera
