@@ -46,7 +46,7 @@ export const ko = {
     },
     push_chat_message_title: '{0}',
     push_chat_message_body: '{0}',
-    push_cloud_activate_title: '{0} 클라우드가 준비되었습니다',
+    push_cloud_activate_title: '[클라우드 알림] {0} 생성이 완료되었습니다.',
     push_chat_image_body: '사진을 보냈습니다',
     push_chat_images_body: '사진 {0}장을 보냈습니다',
     push_chat_video_body: '동영상을 보냈습니다',

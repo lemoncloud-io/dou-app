@@ -545,6 +545,9 @@
     "notifications": {
         "title": "알림",
         "empty": "알림이 없습니다",
+        "cloudActivated": {
+            "title": "[클라우드 알림] {{name}} 생성이 완료되었습니다."
+        },
         "inApp": {
             "now": "지금"
         }

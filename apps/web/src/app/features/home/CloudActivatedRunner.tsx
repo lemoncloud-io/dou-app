@@ -46,10 +46,12 @@ interface CloudActivatedEvent {
  * - The cache invalidation always runs. It is what turns the provisioning row into an active one.
  * - The banner only renders when its copy resolves. Web i18n is served remotely, so the key can be
  *   absent on a client whose bundle predates it; a banner reading `notifications.cloudActivated.title`
- *   is worse than no banner, and the list still updates underneath either way.
+ *   is worse than no banner, and the list still updates underneath either way. The key ships in both
+ *   bundles now — the same sentence as the push title, so the event reads the same either way.
  *
- * The banner has no click action on purpose: a push tap for the same event goes to the root, and one
- * notification should not land somewhere different depending on how it arrived.
+ * The banner has no click action. It reaches an owner who is already in the app, where the cloud
+ * switcher shows the new cloud as ready; the push tap, which reaches an owner who was not, opens that
+ * cloud's main screen.
  */
 export const CloudActivatedRunner = (): null => {
     const queryClient = useQueryClient();

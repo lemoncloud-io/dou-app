@@ -545,6 +545,9 @@
     "notifications": {
         "title": "Notifications",
         "empty": "No notifications",
+        "cloudActivated": {
+            "title": "[Cloud] {{name}} has been created."
+        },
         "inApp": {
             "now": "now"
         }

@@ -1,9 +1,13 @@
 import { useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { RELAY_ORIGIN_CID } from '@chatic/data';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
+
+import { ROUTES } from '../../routes/paths';
 
 import { useLogoutCloudSession } from '../../runtime/useLogoutCloudSession';
 import { useSiteSwitch } from '../../runtime/useSiteSwitch';
@@ -88,11 +92,19 @@ const isChannelRoomPath = (pathname: string): boolean => /^\/channels\/[^/]+\/ro
  * thread if it turns out to be a reply. See `hopToThread`; a top-level message simply stops at the
  * room, which is the common case.
  *
+ * A push whose whole destination is another cloud's main screen (`/?cid=<cid>`, the cloud-ready push)
+ * is the one exception to best-effort. Landing on the root after its switch failed would show the
+ * cloud the user was already in, as if it were the one the push named — most often because that
+ * cloud has since been released. It stays where it is and says the switch failed instead — after a
+ * failed switch, and when the socket never verified for the switch to run at all.
+ *
  * Must be used within the router tree (relies on `useNavigate`).
  */
 export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     const navigate = useNavigate();
     const enterStack = useStackNavigate();
+    const { t } = useTranslation();
+    const { toast } = useToast();
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     // Committed session truth for the relay-return decision: `kind` is 'cloud' only while the
     // cloud session is fully active (tokens present), unlike the selection-derived cloud id.
@@ -190,6 +202,9 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             logger.info('ROUTER', `Push navigation requested: ${rawPath}`, { target, cid, sid, pushSid, chatId });
             const needsSiteSwitch = !!sid && sid !== selectedSiteId;
             const needsSwitch = needsRelayReturn || needsCloudSwitch || needsSiteSwitch;
+            // Nothing to land on but the cloud itself — see the hook's note on the cloud-ready push.
+            const isCloudMainPush = needsCloudSwitch && target === ROUTES.root;
+            let cloudSwitched = false;
 
             /**
              * Land on the resolved target, then take the thread leg when the push named a chat.
@@ -218,6 +233,12 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     const verified = await runtime.connection
                         .getSocketManager()
                         .waitUntilVerified(HANDSHAKE_WAIT_TIMEOUT_MS);
+                    if (!verified && isCloudMainPush) {
+                        // Landing would show the cloud already open as the one the push named.
+                        logger.warn('ROUTER', 'Socket not verified for a cloud-ready push; staying put', { cid });
+                        toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
+                        return;
+                    }
                     if (!verified) {
                         logger.warn('ROUTER', 'Socket handshake not verified before switch; navigating best-effort', {
                             target,
@@ -242,7 +263,10 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                     }
                     // Cloud transition first (it clears the selected site), then site, then route.
                     if (needsRelayReturn) await logoutCloudSession();
-                    if (cid && needsCloudSwitch) await switchCloud(cid);
+                    if (cid && needsCloudSwitch) {
+                        await switchCloud(cid);
+                        cloudSwitched = true;
+                    }
                     if (needsRelayReturn || needsCloudSwitch) roomOpenTrace.mark(roomChannelId, 'cloud_done');
                     if (sid && needsSiteSwitch) await switchSite(sid);
                     roomOpenTrace.mark(roomChannelId, 'switch_done');
@@ -250,6 +274,10 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
                 await land();
             } catch (error) {
                 logger.error('ROUTER', `Failed to navigate to: ${target}`, { error });
+                if (isCloudMainPush && !cloudSwitched) {
+                    toast({ title: t('cloudSessionSheet.switchFailed'), variant: 'destructive' });
+                    return;
+                }
                 // Best-effort: attempt the route anyway so a switch failure doesn't strand the user.
                 await land();
             } finally {
@@ -267,6 +295,8 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
             switchSite,
             cloud,
             channelRepository,
+            toast,
+            t,
         ]
     );
 };

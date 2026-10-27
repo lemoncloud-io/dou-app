@@ -114,7 +114,8 @@ A cloud/site switch re-issues tokens against the active server, so attempting on
 socket races the connection and rolls the selection back. Hence the handshake gate. If it times out,
 the switch is skipped and the route is attempted anyway — **every failure path here is best-effort**,
 because stranding someone on the screen they were already on is worse than landing them somewhere
-that may not load.
+that may not load. The one exception is the cloud-ready push, whose failed cloud switch stays put
+([below](#the-cloud-ready-push-tap)).
 
 `switchCloud` clears the selected site, which is the whole reason site comes second.
 
@@ -290,10 +291,24 @@ Two effects, independent on purpose:
 - **The banner renders only when its copy resolves.** Web i18n is served remotely, so the key can be
   absent on a client whose bundle predates it, and a banner reading
   `notifications.cloudActivated.title` is worse than no banner. The list still updates underneath.
+  The key is in both bundles — `[클라우드 알림] {{name}} 생성이 완료되었습니다.`, the push title's
+  sentence — and was missing from both until then, so the banner never showed.
 
-The banner has no click action. A push for the same event goes to the root, and one notification
-should not land somewhere different depending on how it arrived. Its toast id is fixed, so an
-upgrade that provisions several clouds replaces the banner instead of stacking them.
+The banner has no click action: it reaches an owner who is already in the app, where the switcher
+shows the cloud as ready. The push tap, which reaches an owner who was not, opens that cloud (below).
+Its toast id is fixed, so an upgrade that provisions several clouds replaces the banner instead of
+stacking them.
+
+### The cloud-ready push tap
+
+The push carries no link, only `data.cid`, and the shell turns its tap into `/?cid=<cid>` — the main
+screen of the cloud that just became ready (`resolvePushTapPath`, in the mobile app). Here that is an
+ordinary cloud switch with the root as its target, with one difference from every other push: **a
+failed switch does not land best-effort.** Landing on the root would show the cloud the user was
+already in as if it were the one the push named — most often because that cloud has been released
+since. `usePushNavigate` stays where it is and shows `cloudSessionSheet.switchFailed` instead, and does
+the same when the socket never verified for the switch to run (a cold start from a closed app is the
+usual case). A failure after the cloud switched (the place switch) is still best-effort.
 
 The envelope type is a string the backend picks, enforced by no shared type. A rename there goes
 silent here.

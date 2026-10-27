@@ -193,7 +193,9 @@ describe('formatPushCopy', () => {
     });
 
     it('strips an unfilled title placeholder instead of falling back', () => {
-        expect(formatPushCopy('push_cloud_activate_title', undefined, 'en', 'title')).toBe('is ready');
+        expect(formatPushCopy('push_cloud_activate_title', undefined, 'en', 'title')).toBe(
+            '[Cloud]  has been created.'
+        );
         expect(formatPushCopy('push_chat_message_title', undefined, 'en', 'title')).toBe('');
         expect(formatPushCopy('push_chat_message_title', ['Raine'], 'en', 'title')).toBe('Raine');
     });
