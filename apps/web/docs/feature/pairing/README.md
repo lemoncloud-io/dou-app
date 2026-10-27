@@ -57,6 +57,16 @@ The home switch sheet then lists the cloud under "Approved clouds" (home docs), 
 another device" there opens this same screen for a second cloud, leaving the current cloud session as
 it is. A switch the relay refuses with 403 (`forgetRefusedPairedCloud`) takes the cloud off the list.
 
+### A phone signing in through another phone
+
+The same screen opens inside the app for a guest: phone B shows the code, phone A approves it. B then
+holds a pairing session — a **secondary device** of A (`runtime.session.useIsPairedSession`): A signing
+out or revoking the approval signs B out at its next renewal, by design. So B's sign-in toast says so,
+My page carries a one-line "signed in as a secondary device" notice, and B shows neither the approval
+entry nor the approved sign-ins — a secondary device never approves another. B introduces itself to the
+approver as `iPhone` / `Android` (`client.platform` `ios` · `android`), and the approval screen calls it
+a phone. A desktop app has no code screen; it already signs in by phone or Google.
+
 ## The approval screen
 
 `/mypage/pairing/approve`, from My page's "Approve web sign-in". Both the entry and the page require

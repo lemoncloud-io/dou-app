@@ -112,6 +112,17 @@ export const MyPage = () => {
                     </MenuCard>
                 )}
 
+                {/* A secondary device signs out with the app that approved it — said here, where the
+                    user looks for who they are signed in as, since nothing else on the screen shows it. */}
+                {pairingEnabled && isNative() && isPairedSession && (
+                    <p
+                        className="px-1 text-[13px] leading-[1.5] text-description"
+                        data-testid="mypage-secondary-device"
+                    >
+                        {t('pairing.secondary.notice')}
+                    </p>
+                )}
+
                 {(canApprovePairing || canListDevices) && (
                     <MenuCard>
                         {canApprovePairing && (

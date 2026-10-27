@@ -85,3 +85,23 @@ describe('MyPage — devices entry', () => {
         expect(screen.queryByText('pairing.entry.devices')).toBeNull();
     });
 });
+
+describe('MyPage — secondary device', () => {
+    it('says this app is signed in through another device', () => {
+        mockPaired = true;
+        render(<MyPage />);
+
+        expect(screen.getByTestId('mypage-secondary-device').textContent).toBe('pairing.secondary.notice');
+    });
+
+    it('says nothing on an ordinary sign-in or in a browser', () => {
+        const { unmount } = render(<MyPage />);
+        expect(screen.queryByTestId('mypage-secondary-device')).toBeNull();
+        unmount();
+
+        mockPaired = true;
+        mockNative = false;
+        render(<MyPage />);
+        expect(screen.queryByTestId('mypage-secondary-device')).toBeNull();
+    });
+});

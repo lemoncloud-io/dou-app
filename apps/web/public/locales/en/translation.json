@@ -2089,7 +2089,8 @@
             "startOver": "Start over",
             "doneRelayTitle": "Signed in as {{name}}",
             "doneRelayBody": "This browser can use your whole account. Closing the tab ends the sign-in",
-            "doneCloud": "You're in the approved cloud"
+            "doneCloud": "You're in the approved cloud",
+            "doneSecondaryBody": "This device is a secondary device of the one that approved it. Signing out there signs this device out too"
         },
         "scope": {
             "relayOption": "My whole account — this browser can use all my clouds and account settings",
@@ -2162,6 +2163,9 @@
             "unnamed": "Cloud …{{id}}",
             "ended": "The approval ended, so you left this cloud",
             "endedNamed": "The approval ended, so you left {{cloud}}"
+        },
+        "secondary": {
+            "notice": "Signed in as a secondary device — signing out on the approving device signs this one out too"
         }
     }
 }

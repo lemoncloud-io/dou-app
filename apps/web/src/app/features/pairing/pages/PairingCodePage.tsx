@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation } from 'react-router-dom';
 
 import { runtime } from '@chatic/app-runtime';
+import { isNative } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
@@ -53,7 +54,9 @@ const PairingCodeScreen = () => {
                 ? { title: t('pairing.code.doneCloud') }
                 : {
                       title: t('pairing.code.doneRelayTitle', { name: state.approverName ?? '' }),
-                      description: t('pairing.code.doneRelayBody'),
+                      // A phone signed in this way is a secondary device: it signs out with its approver,
+                      // and that is worth saying once, now. A browser tab's sign-in ends with the tab.
+                      description: isNative() ? t('pairing.code.doneSecondaryBody') : t('pairing.code.doneRelayBody'),
                   }
         );
         // The login screen pushed this one; leaving goes back past both, to where the user started.

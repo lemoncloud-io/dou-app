@@ -25,6 +25,8 @@ jest.mock('qrcode.react', () => ({
     QRCodeSVG: ({ value }: { value: string }) => <svg data-testid="pairing-qr" data-value={value} />,
 }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
+let mockNative = false;
+jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('@chatic/lib/utils', () => ({ cn: (...c: unknown[]) => c.filter(Boolean).join(' ') }));
 jest.mock('@chatic/app-runtime', () => ({
@@ -48,6 +50,7 @@ beforeEach(() => {
     mockGuest = true;
     mockLocationState = null;
     mockCanGoBack = false;
+    mockNative = false;
 });
 
 describe('PairingCodePage', () => {
@@ -105,5 +108,16 @@ describe('PairingCodePage', () => {
 
         expect(toast).toHaveBeenCalledWith({ title: 'pairing.code.doneCloud' });
         expect(navigate).toHaveBeenCalledWith('/', { replace: true, transition: true, direction: 'back' });
+    });
+
+    it('tells a phone that it is now a secondary device of its approver', () => {
+        mockNative = true;
+        mockState = { phase: 'done', target: { type: 'relay' }, approverName: 'developer' };
+        render(<PairingCodePage />);
+
+        expect(toast).toHaveBeenCalledWith({
+            title: 'pairing.code.doneRelayTitle:{"name":"developer"}',
+            description: 'pairing.code.doneSecondaryBody',
+        });
     });
 });
