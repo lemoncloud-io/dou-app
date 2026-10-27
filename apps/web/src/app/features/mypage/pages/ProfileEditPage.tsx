@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { logger } from '@chatic/bridges';
 import { useNavigateWithTransition } from '@chatic/shared';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { AVATAR_IMAGE, prepareImage } from '@chatic/shared';
 
 import { FloatingButton, ProfileAvatar, Text, TextField } from '@chatic/web-ui-kit';
@@ -32,6 +33,7 @@ export const ProfileEditPage = () => {
     const profile = useMyUser();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { mutateAsync: updateProfile, isPending } = useUpdateProfile();
+    const { toast } = useToast();
 
     const initialRef = useRef({ name: '', imageUrl: '', initialized: false });
     const [name, setName] = useState((profile?.name || '').slice(0, MAX_NAME_LENGTH));
@@ -61,6 +63,7 @@ export const ProfileEditPage = () => {
                 photo: imageUrl !== initialRef.current.imageUrl ? imageUrl : undefined,
             });
 
+            toast({ title: t('profileEdit.saveSuccess') });
             navigate(-1);
         } catch (error) {
             logger.error('PROFILE', 'Failed to update profile', { error });
@@ -144,7 +147,7 @@ export const ProfileEditPage = () => {
                     value={name}
                     onChange={value => setName(value.slice(0, MAX_NAME_LENGTH))}
                     maxLength={MAX_NAME_LENGTH}
-                    description={t('profileEdit.nameHint')}
+                    description={t('profileEdit.nameHint', { max: MAX_NAME_LENGTH })}
                 />
 
                 <input

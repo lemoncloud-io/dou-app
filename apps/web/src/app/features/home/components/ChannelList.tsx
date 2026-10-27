@@ -36,6 +36,7 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { useDmPeers, type DmPeer } from '../../channels/hooks';
+import { useLastChatSenders } from '../hooks/useLastChatSenders';
 import { isSomeoneElsesSelfChat } from '../../channels/utils/membership';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
@@ -91,6 +92,7 @@ const ChannelItem = ({
     mentionOnly,
     myMemberId,
     lastChat,
+    lastChatSender,
 }: {
     channel: DomainChannel;
     unread: number;
@@ -114,6 +116,8 @@ const ChannelItem = ({
      * (ADR-0057) — not a per-row cache window. Undefined when the channel has nothing to preview.
      */
     lastChat?: DomainChat;
+    /** Who wrote `lastChat`, for a group room (list-level useLastChatSenders). Undefined otherwise. */
+    lastChatSender?: string;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -159,7 +163,7 @@ const ChannelItem = ({
     // text or the attachment noun — is shared with the search and manage rows (lastChatPreview).
     // Code in that line gets no badge or monospace: that would complicate the row and tangle with
     // blurLastMessage.
-    const preview = lastChatPreview(lastChat, t);
+    const preview = lastChatPreview(lastChat, t, lastChatSender);
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // An unread last message that calls me leads its line with "@me" — the record decides, as it
@@ -456,6 +460,8 @@ export const ChannelList = ({
     // by the host's useChatSyncRegistration, so rendering a row never makes a network call.
     // Previews are windowed by my join cursor so a re-joined room shows no pre-leave message (ADR-0067).
     const lastChats = useLastChats(channels, joinByChannel);
+    // A group row's line names who wrote it, through ONE list-level profile subscription as well.
+    const lastChatSenders = useLastChatSenders(sid, channels, lastChats);
 
     // Which row has its swipe actions out. One at a time: opening a row replaces this, and every
     // other row reads null and stays closed.
@@ -675,6 +681,7 @@ export const ChannelList = ({
                                 mentionOnly={notifyLevel === 'mention'}
                                 myMemberId={join?.userId}
                                 lastChat={lastChats.get(channel.id)}
+                                lastChatSender={lastChatSenders.get(channel.id)}
                             />
                         </SwipeActionRow>
                     );

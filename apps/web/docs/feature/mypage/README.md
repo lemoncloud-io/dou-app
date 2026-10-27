@@ -83,6 +83,10 @@ active, the relay `user` row is out of their reach. `useMyUser()` reads the toke
 response back into that token. **Read and write share one scope**, which is the invariant an earlier
 attempt inside the data layer could not hold — see [place](../place/README.md) for that history.
 
+The editor's name field takes up to 30 characters, and its hint states that number from the same
+constant (`profileEdit.nameHint` interpolates `{{max}}`) — the place profile's 20 is a different limit.
+A save that went through says `profileEdit.saveSuccess` before going back; a failed one stays put.
+
 ### The hub asks about the account; the settings depth asks about the session
 
 `useIsAccountGuest()` is what the hub branches on. Every row on it is account-scoped — your profile,
@@ -147,6 +151,15 @@ active, because the name it changes is that catalog row, so `CloudEditPage` edit
 session already is. The hub still disables both rows for a cloud that is not ready to be entered —
 one still provisioning, one that failed, one the relay holds — and keeps the information screen,
 which is where that state is explained and where the cloud is released.
+
+**A cloud whose setup failed gets a retry row on the hub.** It asks the relay to set the cloud up
+again (`useRetryCloudSetup` → `CloudRepository.retryCloudSetup`, the relay's workspace route), re-reads
+the catalog so every cloud screen shows the cloud as provisioning, and says so in a toast. The relay
+takes a retry only while the cloud is `init` or `error`, only from its owner, and only while the cloud
+holds no workspace slot — so a cloud that failed after its slot was assigned (`slotId` or `accountNo`
+on the catalog row) gets no retry row (`canRetryCloudSetup`). A refusal that still comes back is the
+failure toast, and releasing the cloud on the information screen is what is left. The button sits on the hub rather than on the
+switcher's row, which explains the state and leads here.
 
 **Releasing lives on the information screen, nowhere else.** It is irreversible and cascades, so it
 sits at the foot of the read-only facts behind a confirm, not on a list row. Releasing the ACTIVE

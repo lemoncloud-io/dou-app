@@ -4,21 +4,21 @@ import { IconClockSolid, Text } from '@chatic/web-ui-kit';
 
 import { InviteCard } from './InviteCard';
 import type { InviteCountdown } from '../../hooks/useInviteCountdown';
+import { formatCountdownClock, SPACED_CLOCK_SEPARATOR } from '../../utils/countdownClock';
 
 interface InviteExpiryCardProps {
     /** Live remaining-time breakdown from useInviteCountdown. */
     countdown: InviteCountdown;
 }
 
-const pad = (n: number): string => String(n).padStart(2, '0');
-
 /**
- * Invite accept screen — the link validity block: a clock label and one line of remaining time,
- * reddened once the link is spent (Figma 3072-10943 / 3076-11341).
+ * Invite accept screen — the link validity block: a clock label and one line of remaining time
+ * (Figma 3072-10943 / 3076-11341).
  *
- * Two granularities, because the design's `HH:mm:ss` assumes under a day while the server issues
- * 3-day links (ADR-0089 D8 · ADR-0037): a day or more out reads "2 days 5 hours", and the last day counts
- * down by the second exactly as designed.
+ * Two granularities. More than ten minutes out it reads in words, from the first unit that is not
+ * zero — `1일 2시간 5분`, `3시간 20분`, `45분` — which the countdown hook ticks by the minute. The last
+ * ten minutes switch to a spaced clock counting by the second (`00 : 09 : 05`), in red, and an
+ * expired link stays on `00 : 00 : 00` in red.
  */
 export const InviteExpiryCard = ({ countdown }: InviteExpiryCardProps) => {
     const { t } = useTranslation();
@@ -27,12 +27,15 @@ export const InviteExpiryCard = ({ countdown }: InviteExpiryCardProps) => {
     // "00:00:00 remaining" in the calm colour. Same pairing as InviteWaitingPage's `spent`.
     const spent = isExpired || isImminent;
 
-    const remaining =
-        days > 0
-            ? [t('inviteAccept.expiry.days', { n: days }), hours > 0 && t('inviteAccept.expiry.hours', { n: hours })]
-                  .filter(Boolean)
-                  .join(' ')
-            : `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    const remaining = spent
+        ? formatCountdownClock({ days, hours, minutes, seconds }, SPACED_CLOCK_SEPARATOR)
+        : [
+              days > 0 && t('inviteAccept.expiry.days', { n: days }),
+              (days > 0 || hours > 0) && t('inviteAccept.expiry.hours', { n: hours }),
+              t('inviteAccept.expiry.minutes', { n: minutes }),
+          ]
+              .filter(Boolean)
+              .join(' ');
 
     return (
         <InviteCard className="w-auto gap-2 px-8 py-[18px]">

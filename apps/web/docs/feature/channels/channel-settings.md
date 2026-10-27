@@ -162,6 +162,15 @@ writes `join.update` with a `nick`, capped at 20 characters, and **an empty valu
 — it clears the custom name and the title falls back down its chain. The placeholder is whatever the
 room falls back to right now, so clearing the field visibly returns to it.
 
+**'Done' is enabled only when something changed** from what the dialog opened with — the name, or in
+the self variant the photo — in both variants. What it opened with is seeded once per open, so a
+background sync of the channel does not throw away an edit in progress.
+
+The self variant also sets the room's photo: a picked image is prepared as an avatar (10 MB ceiling,
+the same as a group room's photo) and written to `channel.thumbnail` with `channel.update`. A save
+that changes both writes the photo first and the name after it; a refused photo leaves the dialog
+open and writes nothing else. A save that includes the photo says `selfChat.name.infoSuccess`.
+
 The DM variant is also the friend-info sheet: the peer's avatar, a "left the room" line when they
 are gone, and the re-invite CTA. The save button stays even though the design frame shows only the
 CTA — following the frame literally would leave no way to record a name at all.

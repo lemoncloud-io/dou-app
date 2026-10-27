@@ -20,6 +20,7 @@ import { useAcceptedChannelSync } from '../hooks/useAcceptedChannelSync';
 import { useInviteWaitingStatus } from '../hooks/useInviteWaitingStatus';
 import { useLocallyCanceledInvites } from '../hooks/useLocallyCanceledInvites';
 import { useRetireInvite } from '../hooks/useRetireInvite';
+import { formatCountdownClock, SPACED_CLOCK_SEPARATOR } from '../utils/countdownClock';
 import { resolveInviteCode } from '../utils/inviteCode';
 import { composeInviteSmsBody } from '../utils/inviteMessageCopy';
 import { sendInviteMessage } from '../utils/sendInviteMessage';
@@ -42,7 +43,7 @@ export const InviteWaitingPage = () => {
 
     const { invite, invites, isLoading, refetch } = useInviteWaitingStatus(inviteId);
     const countdown = useInviteCountdown(invite?.expiredAt ?? undefined);
-    const { isCanceled } = useLocallyCanceledInvites();
+    const { isCanceled, markCanceled } = useLocallyCanceledInvites();
     const { createInvite, cancelInvite } = useRelayInviteMutations();
     const { retire } = useRetireInvite();
     const { record, findByInviteId } = useSentInviteLog();
@@ -143,6 +144,15 @@ export const InviteWaitingPage = () => {
 
     const handleCancelConfirm = async () => {
         if (!invite || !invite.id || isCanceling) return;
+        // A declined invite is already final, and the server keeps that mark through a cancel — so
+        // canceling one hides it here, the same way a reissue retires it (useRetireInvite).
+        if (isRejected) {
+            markCanceled(invite.id);
+            setIsCancelDialogOpen(false);
+            toast({ title: t('inviteWaiting.canceledToast') });
+            goHome();
+            return;
+        }
         // Set before the (async) code resolution below, not after — code resolution can itself
         // take a network round trip (see resolveInviteCode's refetch fallback), and leaving
         // isCanceling unset across that window would let a second click double-submit.
@@ -203,15 +213,14 @@ export const InviteWaitingPage = () => {
         </div>
     );
 
-    /** Link-validity row: clock chip + label + live remaining time, reddened once it runs out. */
+    /**
+     * Link-validity row: clock chip + label + live remaining time as a spaced clock, days folded into
+     * the hours, reddened inside the last ten minutes and once it runs out (`00 : 00 : 00`).
+     */
     const validityCard = () => {
         if (!countdown) return null;
-        const parts = [
-            countdown.days > 0 && t('inviteAccept.expiry.days', { n: countdown.days }),
-            countdown.hours > 0 && t('inviteAccept.expiry.hours', { n: countdown.hours }),
-            t('inviteAccept.expiry.minutes', { n: countdown.minutes }),
-        ].filter(Boolean);
         const spent = countdown.isExpired || countdown.isImminent;
+        const clock = formatCountdownClock(countdown, SPACED_CLOCK_SEPARATOR);
 
         return (
             <div className="mx-4 flex items-center justify-center gap-2 rounded-[14px] border border-input-border bg-surface px-4 py-3">
@@ -227,18 +236,18 @@ export const InviteWaitingPage = () => {
                         spent ? 'text-destructive' : 'text-description'
                     )}
                 >
-                    {t('inviteAccept.expiry.remaining', { time: parts.join(' ') })}
+                    {countdown.isExpired ? clock : t('inviteAccept.expiry.remaining', { time: clock })}
                 </span>
             </div>
         );
     };
 
     /**
-     * "Reissue invite" / "Cancel invite" — the two actions the design puts under the validity card.
-     * A rejected invite keeps only the reissue: it is already final, so there is nothing to cancel
-     * (the server would not overwrite the mark either — ADR-0043).
+     * "Reissue invite" / "Cancel invite" — the two actions the design puts under the validity card,
+     * offered for a declined invite too. The decline itself is final (the server keeps that mark), so
+     * canceling one takes it off the user's list rather than changing what the recipient did.
      */
-    const actionRow = (showCancel = true) => (
+    const actionRow = () => (
         <div className="flex items-center gap-2 px-4">
             <button
                 type="button"
@@ -249,16 +258,14 @@ export const InviteWaitingPage = () => {
                 {t('inviteWaiting.reissue')}
                 <ChevronRight size={16} strokeWidth={2} />
             </button>
-            {showCancel && (
-                <button
-                    type="button"
-                    onClick={() => setIsCancelDialogOpen(true)}
-                    className="flex items-center gap-1 px-2 py-2.5 text-[14px] font-medium text-placeholder"
-                >
-                    {t('inviteWaiting.cancelInvite')}
-                    <ChevronRight size={16} strokeWidth={2} />
-                </button>
-            )}
+            <button
+                type="button"
+                onClick={() => setIsCancelDialogOpen(true)}
+                className="flex items-center gap-1 px-2 py-2.5 text-[14px] font-medium text-placeholder"
+            >
+                {t('inviteWaiting.cancelInvite')}
+                <ChevronRight size={16} strokeWidth={2} />
+            </button>
         </div>
     );
 
@@ -303,13 +310,13 @@ export const InviteWaitingPage = () => {
         }
 
         // The recipient declined (Figma 3263-30117): the room frame stays, the validity card goes
-        // (the link is spent, not ticking), and reissuing is the only action left.
+        // (the link is spent, not ticking), and both actions stay — invite again, or cancel.
         if (isRejected) {
             return (
                 <div className="flex flex-col gap-5 pt-2">
                     <DateDivider label={t('chat.room.today')} />
                     {statusBlock(t('inviteWaiting.rejected.title'), t('inviteWaiting.rejected.description'), true)}
-                    {actionRow(false)}
+                    {actionRow()}
                 </div>
             );
         }
@@ -351,7 +358,12 @@ export const InviteWaitingPage = () => {
                 open={isCancelDialogOpen}
                 onOpenChange={setIsCancelDialogOpen}
                 title={t('inviteWaiting.cancelDialog.title')}
-                description={t('inviteWaiting.cancelDialog.description')}
+                // A declined invite is only hidden here; the recipient's side is already settled.
+                description={t(
+                    isRejected
+                        ? 'inviteWaiting.cancelDialog.rejectedDescription'
+                        : 'inviteWaiting.cancelDialog.description'
+                )}
                 confirmLabel={t('inviteWaiting.cancelDialog.confirm')}
                 onConfirm={handleCancelConfirm}
                 isPending={isCanceling}

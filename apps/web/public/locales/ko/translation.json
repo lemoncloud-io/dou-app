@@ -322,7 +322,7 @@
             },
             "complete": {
                 "autoChargeAfter": "무료 사용 종료 후 월 {{price}} 자동 결제",
-                "cancelAnytime": "구독 취소는 언제든지 가능합니다."
+                "cancelAnytime": "구독은 MY > 구독 관리에서 언제든지 취소할 수 있습니다."
             },
             "startAtEntryTier": "첫 구독은 1단계부터 시작할 수 있어요",
             "otherStoreOnly": "구독한 스토어에서만 변경할 수 있어요",
@@ -481,7 +481,10 @@
                 "profile": "클라우드 프로필",
                 "detail": "클라우드 정보",
                 "places": "플레이스 관리",
-                "notEnterable": "클라우드를 이용할 수 있을 때 설정할 수 있어요"
+                "notEnterable": "클라우드를 이용할 수 있을 때 설정할 수 있어요",
+                "retry": "다시 시도",
+                "retrySuccess": "클라우드 생성을 다시 시작했어요.",
+                "retryFailed": "다시 시도하지 못했어요. 잠시 후 다시 시도해 주세요."
             },
             "detail": {
                 "title": "클라우드 정보",
@@ -544,6 +547,9 @@
     "notifications": {
         "title": "알림",
         "empty": "알림이 없습니다",
+        "cloudActivated": {
+            "title": "[클라우드 알림] {{name}} 생성이 완료되었습니다."
+        },
         "inApp": {
             "now": "지금"
         }
@@ -1129,6 +1135,10 @@
             "viewerPlay": "동영상 재생",
             "pickedFiles": "보낼 파일",
             "removeFile": "{{name}} 빼기"
+        },
+        "preview": {
+            "thread": "[스레드] {{text}}",
+            "sender": "{{name}} : {{text}}"
         }
     },
     "search": {
@@ -1351,10 +1361,11 @@
         "description1": "DoU에서 사용할 이름과",
         "description2": "사진을 설정해 주세요",
         "nameLabel": "이름",
-        "nameHint": "20글자 이내로 입력해 주세요.",
+        "nameHint": "{{max}}글자 이내로 입력해 주세요.",
         "photoLabel": "프로필 사진",
         "photoOptional": "[선택]",
         "save": "완료",
+        "saveSuccess": "프로필 설정이 완료되었습니다.",
         "imageSizeError": "이미지는 10MB 이하여야 합니다",
         "tabBasic": "기본 프로필",
         "thumbnailLabel": "프로필 이미지",
@@ -1580,7 +1591,9 @@
             "done": "완료",
             "saving": "저장 중...",
             "success": "이름이 변경되었습니다",
-            "error": "이름 변경에 실패했습니다"
+            "error": "이름 변경에 실패했습니다",
+            "infoSuccess": "방 정보가 저장되었어요.",
+            "infoError": "방 정보를 저장하지 못했어요."
         }
     },
     "onboarding": {
@@ -2002,12 +2015,13 @@
         "cancelDialog": {
             "title": "초대를 취소할까요?",
             "description": "취소하면 상대방이 이 초대로 더 이상 대화에 참여할 수 없어요.",
+            "rejectedDescription": "거절된 초대를 목록에서 지워요.",
             "confirm": "취소하기"
         },
         "canceledToast": "초대를 취소했어요",
         "rejected": {
-            "title": "상대방이 초대를 거절했어요",
-            "description": "새로운 초대 링크를 보내 다시 초대할 수 있어요."
+            "title": "초대가 거절되었습니다.",
+            "description": "상대방이 이번 초대를 수락하지 않았어도, 다시 초대를 보낼 수 있습니다."
         },
         "cancelFailed": "초대를 취소하지 못했어요. 잠시 후 다시 시도해 주세요"
     },

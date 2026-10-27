@@ -45,7 +45,8 @@ describe('ChatDataSource.fetchLastPerChannel (ADR-0057)', () => {
         expect(calls).toHaveLength(3);
         // Committed probe: the previewable check (SQL) and "1 latest row" must all be in the query.
         expect(String(calls[0][0])).toContain('chat_no > 0');
-        expect(String(calls[0][0])).toContain(`json_extract(data, '$.parentId') IS NULL`);
+        // A thread reply is previewable, so the probe must not filter replies out.
+        expect(String(calls[0][0])).not.toContain('parentId');
         expect(String(calls[0][0])).toContain(`<> 'system'`);
         expect(String(calls[0][0])).toContain(`<> 'reaction'`);
         expect(String(calls[0][0])).toContain('ORDER BY chat_no DESC LIMIT 1');

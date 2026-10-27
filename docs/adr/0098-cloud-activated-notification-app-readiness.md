@@ -4,6 +4,8 @@
 > Decision 2 implemented by [ADR-0126](./0126-a-cloud-off-screen-is-counted-from-its-own-cache.md)
 > (2026-09-29), which also lets a push with no `type` through — the payload spec is not in this
 > repository, and nothing confirms that every chat push carries one.
+> Decision 3 (tap goes home) and decision 1's copy superseded by
+> [ADR-0241](./0241-a-cloud-ready-push-opens-the-cloud-it-names.md) (2026-10-27).
 
 ## Context
 

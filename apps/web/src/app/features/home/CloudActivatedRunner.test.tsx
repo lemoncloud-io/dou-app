@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { render, screen } from '@testing-library/react';
 import { toast } from 'sonner';
 
@@ -105,12 +108,21 @@ describe('CloudActivatedRunner', () => {
         expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: runtime.data.cloudsKeys.all });
     });
 
-    // Tapping the push notification goes to home. If the banner alone went somewhere else, the same
-    // notification would end up in different places depending on how it arrived.
+    // The banner reaches an owner already in the app; only the push tap moves into the cloud.
     it('배너에 클릭 동작이 없다', () => {
         mount()({ data: { id: 'cloud_1', name: 'DoU' } });
 
         renderToastContent();
         expect(screen.queryByRole('button')).toBeNull();
+    });
+
+    // The banner is skipped while its key is missing, and it was missing from both bundles for as long
+    // as the runner existed — so the event never showed a banner at all.
+    it.each(['ko', 'en'])('ships the banner title in the %s bundle with the cloud name in it', lang => {
+        const bundle = JSON.parse(
+            readFileSync(join(__dirname, '../../../../public/locales', lang, 'translation.json'), 'utf-8')
+        ) as { notifications: { cloudActivated?: { title?: string } } };
+
+        expect(bundle.notifications.cloudActivated?.title).toContain('{{name}}');
     });
 });

@@ -347,14 +347,16 @@ winning even if they rename themselves.
 `resolveChannelAvatar` returns both the photo and the placeholder glyph, because they key off the
 same branch:
 
-| Stereo | Photo                          | Glyph  |
-| ------ | ------------------------------ | ------ |
-| self   | my place-profile photo         | person |
-| dm     | the peer's place-profile photo | person |
-| else   | `channel.thumbnail`            | group  |
+| Stereo | Photo                                            | Glyph  |
+| ------ | ------------------------------------------------ | ------ |
+| self   | `channel.thumbnail`, else my place-profile photo | person |
+| dm     | the peer's place-profile photo                   | person |
+| else   | `channel.thumbnail`                              | group  |
 
-Self and DM ignore `channel.thumbnail` entirely: neither room has a way to set one — settings routes
-both to the join-nick dialog — and the row stands for a person. Deciding the glyph separately per
+A self chat's own photo is set from its name dialog (`JoinNickDialog`, self variant) with
+`channel.update`, the call a group room's photo uses; the room has one member, so nobody else sees it.
+Until one is set the room shows my place-profile photo. A DM ignores `channel.thumbnail` entirely: no
+UI sets one, and the row stands for the person on the other side. Deciding the glyph separately per
 screen is how a group ends up with a one-person glyph in the home list and a chat-bubble
 placeholder in settings.
 

@@ -90,6 +90,27 @@ place's channel-management row print. In this order: a deleted message prints
 and quote markers dropped), whatever it
 has attached; and a message with attachments and no text prints what it carries.
 
+### A thread reply, and who wrote it
+
+A room's last activity is the preview, and a reply in a thread is activity: `isPreviewableChat` in
+`libs/data` takes thread replies (reaction events and system rows still never preview). A reply prints
+behind a thread mark, `chat.preview.thread` — `[스레드] 답글` — so it does not read as a message in the
+room itself. The row orders by it as well, since the order is the same value the row prints.
+
+A group room's line names its writer, `chat.preview.sender` — `보낸 사람 : 내용`, and
+`[스레드] 보낸 사람 : 내용` for a reply. A 1:1 and a self chat print the message alone. The name comes
+from `useLastChatSenders`, one list-level `useChannelProfiles` subscription for every group row's
+writer (the shape of `useDmPeers`), and follows the room's order for a message's author without the
+room-only member cache: this place's profile nick, then the name the chat row carries. A writer with
+neither prints no name rather than a label. My own messages carry my name, like anyone's. The search
+and channel-management rows print the thread mark too (it comes from the chat row) but no writer.
+
+On the native app the last-chat fast path picks the row in SQL, which mirrors this rule; an app whose
+mirror still drops replies answers with an older message, and its rows keep the old preview until the
+app is updated.
+
+### Attachments
+
 That last case reads `chatAttachmentSummary` from `libs/data` — the kind and number of the chat's
 attachments, taken from each slot of `upload$$` (or from `uploadIds` on a row that has no `upload$$`):
 

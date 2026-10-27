@@ -4,3 +4,4 @@ export * from './useHomeSections';
 export * from './usePlaceProfileNudge';
 export * from './useSwitchPlace';
 export * from './useUpdatePlace';
+export * from './useLastChatSenders';

@@ -246,6 +246,7 @@ describe('CloudRepository — HTTP catalog surface (ADR-0070 late stage 2)', () 
         updateCloud: jest.fn(),
         makeCloud: jest.fn(),
         releaseCloud: jest.fn(),
+        retryCloudSetup: jest.fn(),
         verifyEmail: jest.fn(),
     });
 
@@ -259,6 +260,7 @@ describe('CloudRepository — HTTP catalog surface (ADR-0070 late stage 2)', () 
         await expect(repository.fetchCloudCatalog()).rejects.toThrow('not injected');
         await expect(repository.makeCloud({} as any)).rejects.toThrow('not injected');
         await expect(repository.releaseCloud('c1')).rejects.toThrow('not injected');
+        await expect(repository.retryCloudSetup('c1')).rejects.toThrow('not injected');
         await expect(repository.verifyCloudEmail({} as any)).rejects.toThrow('not injected');
     });
 
@@ -279,5 +281,22 @@ describe('CloudRepository — HTTP catalog surface (ADR-0070 late stage 2)', () 
         expect(result.list).toEqual([{ id: 'c1' }]);
         expect(local.cacheWrite).not.toHaveBeenCalled();
         expect(local.cacheWriteMany).not.toHaveBeenCalled();
+    });
+
+    it('retryCloudSetup — delegates with the request context and leaves the local cache alone', async () => {
+        const http = createHttpDataSource();
+        http.retryCloudSetup.mockResolvedValue({ id: 'c1', status: 'reserved' });
+        const local = createLocalDataSource();
+        const repository = new CloudRepository(
+            createSocketDataSource() as any,
+            local as any,
+            contextProvider,
+            http as any
+        );
+
+        await expect(repository.retryCloudSetup('c1')).resolves.toEqual({ id: 'c1', status: 'reserved' });
+
+        expect(http.retryCloudSetup).toHaveBeenCalledWith('c1', expect.anything());
+        expect(local.cacheWrite).not.toHaveBeenCalled();
     });
 });

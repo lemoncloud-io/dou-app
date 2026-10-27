@@ -8,3 +8,4 @@ export * from './useClearLocalCaches';
 export * from './useEnsureCloudSession';
 export * from './useOwnedCloud';
 export * from './useOwnedClouds';
+export * from './useRetryCloudSetup';

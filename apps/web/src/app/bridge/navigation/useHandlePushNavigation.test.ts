@@ -45,6 +45,9 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() } }));
+const toast = jest.fn();
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
+jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
 jest.mock('../../runtime/useLogoutCloudSession', () => ({ useLogoutCloudSession: jest.fn() }));
 jest.mock('../../runtime/useSiteSwitch', () => ({ useSiteSwitch: jest.fn() }));
@@ -270,6 +273,58 @@ describe('useHandlePushNavigation', () => {
         await invoke();
 
         expect(navigate).toHaveBeenCalledWith('/room');
+    });
+
+    // The cloud-ready push lands on the cloud's main screen and nothing else: `/?cid=<cid>`.
+    describe("a push into another cloud's main screen", () => {
+        it('switches to that cloud and lands on its main screen', async () => {
+            setCurrentPath('/mypage');
+            setSelection('c1', 's1');
+            setResolved({ target: '/', cid: 'c2', sid: null });
+
+            await invoke();
+
+            expect(switchCloud).toHaveBeenCalledWith('c2');
+            expect(navigate).toHaveBeenCalledWith('/');
+            expect(toast).not.toHaveBeenCalled();
+        });
+
+        it('stays put and says so when the cloud cannot be switched to', async () => {
+            setCurrentPath('/mypage');
+            setSelection('c1', 's1');
+            setResolved({ target: '/', cid: 'gone', sid: null });
+            switchCloud.mockRejectedValue(new Error('404 NOT FOUND - not found cloud'));
+
+            await invoke();
+
+            expect(navigate).not.toHaveBeenCalled();
+            expect(toast).toHaveBeenCalledWith({ title: 'cloudSessionSheet.switchFailed', variant: 'destructive' });
+        });
+
+        it('stays put and says so when the socket never verified for the switch', async () => {
+            setCurrentPath('/mypage');
+            setSelection('c1', 's1');
+            setResolved({ target: '/', cid: 'c2', sid: null });
+            waitUntilVerified.mockResolvedValue(false);
+
+            await invoke();
+
+            expect(switchCloud).not.toHaveBeenCalled();
+            expect(navigate).not.toHaveBeenCalled();
+            expect(toast).toHaveBeenCalledWith({ title: 'cloudSessionSheet.switchFailed', variant: 'destructive' });
+        });
+
+        it('stays best-effort when the cloud switched and only the place switch failed', async () => {
+            setCurrentPath('/mypage');
+            setSelection('c1', 's1');
+            setResolved({ target: '/', cid: 'c2', sid: 'P9' });
+            switchSite.mockRejectedValue(new Error('boom'));
+
+            await invoke();
+
+            expect(navigate).toHaveBeenCalledWith('/');
+            expect(toast).not.toHaveBeenCalled();
+        });
     });
 
     describe("중계서버 푸시 (cid='#') — ADR-0045 크로스오버", () => {

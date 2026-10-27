@@ -227,7 +227,7 @@ export const useRelayInviteFlow = (code: string): RelayInviteFlow => {
     // session they already have (`link`) — sending `login` there is a 400 (ADR-0042 §3).
     const verifyMode: AccountLinkMode = isGuest || refusedAsMainUser ? 'login' : 'link';
 
-    const countdown = useInviteCountdown(invite?.expiredAt);
+    const countdown = useInviteCountdown(invite?.expiredAt, { minuteUntilImminent: true });
 
     // Latest-value refs: the async steps read these long after the closure was created, and keeping
     // them out of the callback deps stops `advance` from churning identity on every render.

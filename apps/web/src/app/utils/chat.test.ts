@@ -88,8 +88,9 @@ describe('isPreviewableChat — 홈 목록 미리보기 자격', () => {
         expect(isPreviewableChat(feedChat({ chatNo: 0, isFailed: true }))).toBe(false);
     });
 
-    it('스레드 답글은 미리보기가 되지 않는다', () => {
-        expect(isPreviewableChat(feedChat({ parentId: 'C1:1' }))).toBe(false);
+    // A room's last activity is the preview; the row marks a reply as one.
+    it('previews a thread reply', () => {
+        expect(isPreviewableChat(feedChat({ parentId: 'C1:1' }))).toBe(true);
     });
 
     it('리액션 이벤트는 미리보기가 되지 않는다', () => {
@@ -129,17 +130,17 @@ describe('pickPreviewChat — 미리보기로 쓸 최신 메시지 선택', () =
         expect(picked?.content).toBe('delivered');
     });
 
-    it('최신 행들이 답글·리액션이면 마지막 진짜 메시지로 폴스루한다', () => {
+    it('falls through reaction events to the newest message, a thread reply included', () => {
         const picked = pickPreviewChat([
             feedChat({ id: 'C1:5', chatNo: 5, content: 'real' }),
             feedChat({ id: 'C1:6', chatNo: 6, parentId: 'C1:5', content: 'reply' }),
             feedChat({ id: 'C1:7', chatNo: 7, stereo: 'system', subType: 'reaction' }),
         ]);
-        expect(picked?.content).toBe('real');
+        expect(picked?.content).toBe('reply');
     });
 
-    it('미리보기 가능한 행이 하나도 없으면 undefined', () => {
-        expect(pickPreviewChat([feedChat({ parentId: 'C1:1' })])).toBeUndefined();
+    it('is undefined when nothing in the window can preview', () => {
+        expect(pickPreviewChat([feedChat({ stereo: 'system', subType: 'reaction' })])).toBeUndefined();
         expect(pickPreviewChat([])).toBeUndefined();
     });
 });

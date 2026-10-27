@@ -6,7 +6,8 @@ import type { CloudView } from '@lemoncloud/chatic-backend-api';
  * one way in the sheet and another way on the management screen.
  *
  * - `provisioning` — the relay has the record but the slot is not deployed yet (`init` / `reserved`).
- * - `setupFailed` — provisioning errored; the only fix is releasing it and adding one again.
+ * - `setupFailed` — provisioning errored. Its owner can ask the relay to set it up again from cloud
+ *   management; when the relay refuses that, releasing it and adding one again is what is left.
  * - `dropScheduled` — the user chose to give this cloud up at the next renewal. It is still usable
  *   until then, so it is enterable.
  * - `restricted` — the relay holds it (`suspended`): over the allowance after a downgrade, or the
@@ -17,6 +18,14 @@ import type { CloudView } from '@lemoncloud/chatic-backend-api';
 export type CloudRowState = 'provisioning' | 'setupFailed' | 'dropScheduled' | 'restricted' | 'released' | 'ready';
 
 export type CloudRowInput = Pick<CloudView, 'status' | 'state$'>;
+
+/**
+ * Whether the relay can set a failed cloud up again. It takes a retry only while the cloud holds no
+ * workspace slot: one that failed after its slot was assigned (during the deploy) is refused, so it is
+ * not offered — releasing it is what is left.
+ */
+export const canRetryCloudSetup = (cloud: CloudRowInput & Pick<CloudView, 'slotId' | 'accountNo'>): boolean =>
+    resolveCloudRowState(cloud) === 'setupFailed' && !cloud.slotId && !cloud.accountNo;
 
 /**
  * Derives the row state from the relay's `status` and the `plan` axis.

@@ -13,6 +13,7 @@ describe('CloudHttpDataSource', () => {
             update: jest.fn(),
             make: jest.fn(),
             release: jest.fn(),
+            workspace: jest.fn(),
             verifyEmail: jest.fn(),
         };
         dataSource = new CloudHttpDataSource(gateway);
@@ -55,6 +56,22 @@ describe('CloudHttpDataSource', () => {
             cid: 'cloud-a',
         });
         await expect(dataSource.releaseCloud('c2', context)).resolves.toMatchObject({ id: 'c2', cid: 'cloud-a' });
+    });
+
+    it('retryCloudSetup — asks the workspace route for that cloud and maps to domain', async () => {
+        gateway.workspace.mockResolvedValue({ id: 'c3', status: 'reserved' } as any);
+
+        await expect(dataSource.retryCloudSetup('c3', context)).resolves.toMatchObject({
+            id: 'c3',
+            cid: 'cloud-a',
+        });
+        expect(gateway.workspace).toHaveBeenCalledWith('c3');
+    });
+
+    it('retryCloudSetup — a refused retry rejects', async () => {
+        gateway.workspace.mockRejectedValue(new Error('403 FORBIDDEN - not owner of cloud'));
+
+        await expect(dataSource.retryCloudSetup('c3', context)).rejects.toThrow('403');
     });
 
     it('verifyEmail — no domain mapping, passthrough', async () => {
