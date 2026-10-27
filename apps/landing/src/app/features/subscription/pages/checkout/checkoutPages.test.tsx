@@ -133,7 +133,7 @@ describe('W-24 email step', () => {
 
         enterCode('123456');
 
-        expect(await screen.findByText('The code has expired. Please get a new code.')).toBeTruthy();
+        expect(await screen.findByText('The code has expired. Press Resend to get a new code.')).toBeTruthy();
     });
 
     it('reports the resend limit with the time asking works again', async () => {
@@ -148,8 +148,11 @@ describe('W-24 email step', () => {
             fireEvent.click(resend);
 
             expect(
-                await screen.findByText(/^Too many codes requested\. Please verify again after \d{2}:\d{2}\.$/)
+                await screen.findByText('Too many codes requested. Please verify again in 10 minutes.')
             ).toBeTruthy();
+            // The code step shuts until the lock lifts, counting down to it.
+            expect(screen.getByText(/^Verify again in \d{2}:\d{2}$/)).toBeTruthy();
+            expect(screen.getByLabelText('6-digit code').hasAttribute('disabled')).toBe(true);
         } finally {
             vi.useRealTimers();
         }

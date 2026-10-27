@@ -131,13 +131,14 @@ export const BillingEmailChangeDialog = ({
                         setVerified(email);
                     }}
                     onBusyChange={setBusy}
+                    verifiedNote={<p className="text-xs text-status-success">{t(k('verifiedNote'))}</p>}
+                    policyExtra={where === 'billing' ? <p>{t(k('billingHint'))}</p> : undefined}
                     onReset={() => {
                         discard();
                         setVerified(undefined);
                     }}
                 />
                 {!verified && <p className="text-xs text-subtitle">ⓘ {t(k('hintNew'))}</p>}
-                {where === 'billing' && <p className="text-xs text-subtitle">{t(k('billingHint'))}</p>}
                 {error && (
                     <p role="alert" className="text-xs text-status-danger">
                         {error}

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
-import { BillingEmailChangeDialog, EmailVerificationForm, PageLoader } from '../../components';
+import { BillingEmailChangeDialog, EmailCodePolicy, EmailVerificationForm, PageLoader } from '../../components';
 import { Badge, Button, Card } from '../../components/ui';
 import { useAdoptSignInEmail, useBillingInfo, usePreviewCheckout, useSetPrimaryEmail } from '../../hooks';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
@@ -97,17 +97,17 @@ export const CheckoutEmailPage = (): JSX.Element => {
 
                 <Card className="flex flex-col gap-2">
                     {scene === 'verify' ? (
-                        <>
-                            <EmailVerificationForm
-                                idPrefix="checkout-email"
-                                label={<FieldLabel />}
-                                onVerified={onVerified}
-                                onReset={() => setVerified(undefined)}
-                            />
-                            {account.provider === 'apple' && (
-                                <p className="text-xs text-subtitle">ⓘ {t(k('appleNote'))}</p>
-                            )}
-                        </>
+                        <EmailVerificationForm
+                            idPrefix="checkout-email"
+                            label={<FieldLabel />}
+                            onVerified={onVerified}
+                            onReset={() => setVerified(undefined)}
+                            addressNote={
+                                account.provider === 'apple' ? (
+                                    <p className="text-xs text-subtitle">ⓘ {t(k('appleNote'))}</p>
+                                ) : undefined
+                            }
+                        />
                     ) : (
                         <>
                             <label htmlFor="checkout-email-address">
@@ -147,7 +147,7 @@ export const CheckoutEmailPage = (): JSX.Element => {
                             <p className="text-xs text-status-success">
                                 {t(k(scene === 'verified' ? 'verifiedNote' : 'signInNote'))}
                             </p>
-                            <CodePolicy />
+                            <EmailCodePolicy />
                         </>
                     )}
                     {stepError && (
@@ -193,19 +193,5 @@ const FieldLabel = (): JSX.Element => {
             </span>
             <span className="text-[13px] font-normal text-subtitle">{t(k('description'))}</span>
         </span>
-    );
-};
-
-/**
- * The code rules, also shown when no code is asked for, as the designs do. The verification form draws
- * the same box itself in the code scene.
- */
-const CodePolicy = (): JSX.Element => {
-    const { t } = useTranslation();
-    return (
-        <div className="mt-1 rounded-lg bg-muted px-4 py-3 text-xs leading-5 text-desc-alt">
-            <p>{t('subscription.common.email.policyCode')}</p>
-            <p>{t('subscription.common.email.policyResend')}</p>
-        </div>
     );
 };

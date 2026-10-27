@@ -34,6 +34,9 @@ export const EmailVerificationForm = ({
     onPending,
     onReset,
     onBusyChange,
+    addressNote,
+    verifiedNote,
+    policyExtra,
 }: {
     idPrefix: string;
     label: ReactNode;
@@ -47,6 +50,12 @@ export const EmailVerificationForm = ({
     onReset?: () => void;
     /** A request is in flight — a popup holding this form should not close under it. */
     onBusyChange?: (busy: boolean) => void;
+    /** A line under the address field, before any code is sent (the Apple note on the email step). */
+    addressNote?: ReactNode;
+    /** A line once the address is verified (the change popup's "press change" note). */
+    verifiedNote?: ReactNode;
+    /** More lines inside the code-rules box. */
+    policyExtra?: ReactNode;
 }): JSX.Element => {
     const { t } = useTranslation();
     const billing = useBillingInfo();
@@ -60,13 +69,21 @@ export const EmailVerificationForm = ({
     const [sentFor, setSentFor] = useState<number>(0);
     const [code, setCode] = useState('');
     const [error, setError] = useState<string>();
+    // Codes for this address are used up until this instant (ISO); the code step is shut until then.
+    const [lockedUntil, setLockedUntil] = useState<string>();
+    const [checkingKnown, setCheckingKnown] = useState(false);
 
     const now = useNow(step === 'code');
-    const pending = request.isPending || resend.isPending || verify.isPending;
+    const pending = request.isPending || resend.isPending || verify.isPending || checkingKnown;
     useEffect(() => onBusyChange?.(pending), [pending, onBusyChange]);
 
     const resendIn = ticket ? secondsUntil(ticket.resendAt, now) : 0;
     const remaining = ticket ? secondsUntil(ticket.expiresAt, now) : 0;
+    const lockLeft = lockedUntil ? secondsUntil(lockedUntil, now) : 0;
+    const locked = lockLeft > 0;
+    const expired = step === 'code' && !!ticket && remaining === 0 && !locked;
+    // The code field is shut once its code is dead or the address is locked.
+    const codeShut = expired || locked;
 
     const errorFor = (err: unknown): string => {
         if (isPortError(err, 'disposableEmail')) return t(k('error.disposable'));
@@ -75,7 +92,11 @@ export const EmailVerificationForm = ({
         if (isPortError(err, 'tooManyAttempts')) return t(k('error.tooManyAttempts'));
         if (isPortError(err, 'codeExpired')) return t(k('error.expired'));
         if (isPortError(err, 'resendLimit')) {
-            return t(k('error.resendLimit'), { time: err.detail?.retryAt ? formatTimeOfDay(err.detail.retryAt) : '' });
+            const until = err.detail?.retryAt;
+            return t(k('error.resendLimit'), {
+                count: until ? Math.max(1, Math.round(secondsUntil(until, Date.now()) / 60)) : 0,
+                time: until ? formatTimeOfDay(until) : '',
+            });
         }
         if (isPortError(err, 'conflict') && err.detail?.retryAt) return t(k('error.tooSoon'));
         if (isPortError(err, 'network')) return t('subscription.common.error.network');
@@ -102,7 +123,8 @@ export const EmailVerificationForm = ({
             onError: async err => {
                 // Already verified for this account: nothing to send, use it as it is.
                 if (isPortError(err, 'conflict') && !err.detail) {
-                    const known = (await billing.refetch()).data?.emails.find(
+                    setCheckingKnown(true);
+                    const known = (await billing.refetch().finally(() => setCheckingKnown(false))).data?.emails.find(
                         email => email.address.toLowerCase() === trimmed.toLowerCase() && email.status === 'verified'
                     );
                     if (known) {
@@ -119,7 +141,16 @@ export const EmailVerificationForm = ({
     const sendAgain = () => {
         if (!ticket) return;
         setError(undefined);
-        resend.mutate(ticket.emailId, { onSuccess: accept, onError: err => setError(errorFor(err)) });
+        resend.mutate(ticket.emailId, {
+            onSuccess: next => {
+                setLockedUntil(undefined);
+                accept(next);
+            },
+            onError: err => {
+                if (isPortError(err, 'resendLimit') && err.detail?.retryAt) setLockedUntil(err.detail.retryAt);
+                setError(errorFor(err));
+            },
+        });
     };
 
     const check = () => {
@@ -141,6 +172,7 @@ export const EmailVerificationForm = ({
         setStep('address');
         setAddress('');
         setTicket(undefined);
+        setLockedUntil(undefined);
         setCode('');
         setError(undefined);
         onReset?.();
@@ -180,7 +212,12 @@ export const EmailVerificationForm = ({
                     </Button>
                 )}
                 {step === 'code' && (
-                    <Button variant="secondary" size="lg" disabled={pending || resendIn > 0} onClick={sendAgain}>
+                    <Button
+                        variant="secondary"
+                        size="lg"
+                        disabled={pending || resendIn > 0 || locked}
+                        onClick={sendAgain}
+                    >
                         {resendIn > 0 ? t(k('resendIn'), { seconds: resendIn }) : t(k('resend'))}
                     </Button>
                 )}
@@ -199,7 +236,12 @@ export const EmailVerificationForm = ({
                             aria-label={t(k('code'))}
                             inputMode="numeric"
                             autoComplete="one-time-code"
-                            className={cn(INPUT, 'max-w-[200px]', error ? 'border-status-danger' : 'border-border')}
+                            className={cn(
+                                INPUT,
+                                'max-w-[200px] disabled:bg-muted',
+                                error && !codeShut ? 'border-status-danger' : 'border-border'
+                            )}
+                            disabled={codeShut}
                             placeholder={t(k('code'))}
                             value={code}
                             onChange={event => setCode(event.target.value)}
@@ -207,11 +249,21 @@ export const EmailVerificationForm = ({
                                 event.key === 'Enter' && code.trim() && !pending && remaining > 0 && check()
                             }
                         />
-                        <Button size="lg" disabled={pending || !code.trim() || remaining === 0} onClick={check}>
+                        <Button size="lg" disabled={pending || !code.trim() || codeShut} onClick={check}>
                             {t(k('verify'))}
                         </Button>
-                        <span className="text-[13px] text-subtitle" aria-live="off">
-                            {t(k('remaining'), { time: formatMinutesSeconds(remaining) })}
+                        <span
+                            className={cn(
+                                'text-[13px]',
+                                codeShut ? 'font-semibold text-status-danger' : 'text-subtitle'
+                            )}
+                            aria-live="off"
+                        >
+                            {locked
+                                ? t(k('lockedFor'), { time: formatMinutesSeconds(lockLeft) })
+                                : expired
+                                  ? formatMinutesSeconds(0)
+                                  : t(k('remaining'), { time: formatMinutesSeconds(remaining) })}
                         </span>
                     </div>
                     <p className="text-xs text-desc-alt">
@@ -230,15 +282,30 @@ export const EmailVerificationForm = ({
                     </p>
                 </>
             )}
-            {error && (
+            {step === 'address' && addressNote}
+            {step === 'verified' && verifiedNote}
+            {/* A code that ran out says so by itself, without waiting for a check to fail. */}
+            {(error || expired) && (
                 <p role="alert" className="text-xs text-status-danger">
-                    {error}
+                    {expired && !error ? t(k('error.expired')) : error}
                 </p>
             )}
-            <div className="mt-1 rounded-lg bg-muted px-4 py-3 text-xs leading-5 text-desc-alt">
-                <p>{t(k('policyCode'))}</p>
-                <p>{t(k('policyResend'))}</p>
-            </div>
+            <EmailCodePolicy extra={policyExtra} />
+        </div>
+    );
+};
+
+/**
+ * The code rules box, the same in the form and on the email step's no-code scenes. The rules are
+ * copy describing the published policy; the counts the reader acts on come from the port.
+ */
+export const EmailCodePolicy = ({ extra }: { extra?: ReactNode }): JSX.Element => {
+    const { t } = useTranslation();
+    return (
+        <div className="mt-1 rounded-lg bg-muted px-4 py-3 text-xs leading-5 text-desc-alt">
+            <p>{t(k('policyCode'))}</p>
+            <p>{t(k('policyResend'))}</p>
+            {extra}
         </div>
     );
 };

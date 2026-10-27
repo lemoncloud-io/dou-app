@@ -67,6 +67,27 @@ describe('EmailVerificationForm', () => {
         expect(screen.getByText(/Disposable addresses can't be used/)).toBeTruthy();
     });
 
+    it('shuts the code field and says so once the code runs out', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        try {
+            mount('?mock=new', <EmailVerificationForm idPrefix="t" label="Email" onVerified={vi.fn()} />);
+            typeAddress('billing@lemon.example');
+            fireEvent.click(screen.getByRole('button', { name: 'Get a code' }));
+            await screen.findByLabelText('6-digit code');
+
+            vi.setSystemTime(Date.now() + 5 * 60_000 + 1000);
+            expect(
+                await screen.findByText('The code has expired. Press Resend to get a new code.', undefined, {
+                    timeout: 3000,
+                })
+            ).toBeTruthy();
+            expect(screen.getByLabelText('6-digit code').hasAttribute('disabled')).toBe(true);
+            expect(screen.getByText('00:00')).toBeTruthy();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('says when a code has expired', async () => {
         mount('?mock=new&fail=code-expired', <EmailVerificationForm idPrefix="t" label="Email" onVerified={vi.fn()} />);
 
@@ -75,7 +96,7 @@ describe('EmailVerificationForm', () => {
         fireEvent.change(await screen.findByLabelText('6-digit code'), { target: { value: '123456' } });
         fireEvent.click(screen.getByRole('button', { name: 'Verify' }));
 
-        expect(await screen.findByText('The code has expired. Please get a new code.')).toBeTruthy();
+        expect(await screen.findByText('The code has expired. Press Resend to get a new code.')).toBeTruthy();
     });
 });
 

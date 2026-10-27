@@ -3,14 +3,13 @@
  * "~해 주세요". The softer "~해요" register is not used. A Korean sentence ending in "요" — other than a
  * "~세요" request — is the softer register slipping back in.
  *
- * Checks the key roots that have been brought over. A screen group's root joins the list once its
- * copy is rewritten, so the check never fails on copy nobody has touched yet.
+ * Checks every key root of the subscription copy.
  */
 import ko from './locales/subscription/ko.json';
 
 type Messages = { [key: string]: string | Messages };
 
-const CHECKED_ROOTS = ['common'];
+const CHECKED_ROOTS = ['common', 'entry', 'checkout', 'manage', 'billing'];
 
 const SOFT_ENDING = /(?<!세)요(?=[.!?,]?(\s|$))/;
 

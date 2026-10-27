@@ -327,28 +327,28 @@ features/subscription/
 above it. The primitives use this site's Tailwind tokens (plus the `status-*` colours in
 `tailwind.config.js` / `styles.css`), not the UI kits, which expect tokens this site does not define.
 
-| URL                                                              | Screen                                                                                                   | Shell   | Guard                                                                          |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------ |
-| `/subscription/plans`                                            | W-01 plans                                                                                               | public  | —                                                                              |
-| `/subscription/login?next=&reason=`                              | W-02 sign-in                                                                                             | public  | signed in → on to `next` (or W-01)                                             |
-| `/subscription/login/callback`                                   | W-02 sign-in return                                                                                      | public  | —                                                                              |
-| `/subscription/login/no-account`                                 | W-02b no linked account                                                                                  | public  | —                                                                              |
-| `/subscription/store-managed`                                    | W-17 billed by a store                                                                                   | public  | signed in                                                                      |
-| `/subscription/checkout/email?plan=`                             | W-24 email step                                                                                          | public  | signed in, not store-billed                                                    |
-| `/subscription/checkout?plan=`                                   | W-08 checkout                                                                                            | public  | signed in, not store-billed (W-24 first once the screens are wired, see below) |
-| `/subscription/checkout/payment?plan=`                           | W-05 card registration                                                                                   | public  | 〃                                                                             |
-| `/subscription/checkout/status?attempt=` · `?plan=&outcome=`     | W-09 payment in progress — or, with `outcome`, a payment window that closed or failed before any attempt | public  | 〃                                                                             |
-| `/subscription/checkout/complete?attempt=` · `?change=downgrade` | W-06 done — a downgrade is scheduled without an attempt (nothing is charged)                             | public  | 〃                                                                             |
-| `/subscription/change?plan=`                                     | W-14 plan change                                                                                         | public  | 〃                                                                             |
-| `/subscription`                                                  | W-10 subscriptions                                                                                       | account | 〃                                                                             |
-| `/subscription/:subscriptionId`                                  | W-18 one subscription                                                                                    | account | 〃                                                                             |
-| `/subscription/:subscriptionId/cancel`                           | W-15 cancel                                                                                              | account | 〃                                                                             |
-| `/subscription/payment-methods`                                  | W-12 cards                                                                                               | account | 〃                                                                             |
-| `/subscription/history`                                          | W-13 invoices                                                                                            | account | 〃                                                                             |
-| `/subscription/billing-info`                                     | W-16 billing emails                                                                                      | account | 〃                                                                             |
-| `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                                                                 |
-| `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                                                                 |
-| any other `/subscription/…`                                      | redirect to `/subscription`                                                                              |         |                                                                                |
+| URL                                                              | Screen                                                                                                   | Shell   | Guard                                                         |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------- |
+| `/subscription/plans`                                            | W-01 plans                                                                                               | public  | —                                                             |
+| `/subscription/login?next=&reason=`                              | W-02 sign-in                                                                                             | public  | signed in → on to `next` (or W-01)                            |
+| `/subscription/login/callback`                                   | W-02 sign-in return                                                                                      | public  | —                                                             |
+| `/subscription/login/no-account`                                 | W-02b no linked account                                                                                  | public  | —                                                             |
+| `/subscription/store-managed`                                    | W-17 billed by a store                                                                                   | public  | signed in                                                     |
+| `/subscription/checkout/email?plan=`                             | W-24 email step                                                                                          | public  | signed in, not store-billed                                   |
+| `/subscription/checkout?plan=`                                   | W-08 checkout                                                                                            | public  | signed in, not store-billed; no verified primary email → W-24 |
+| `/subscription/checkout/payment?plan=`                           | W-05 card registration                                                                                   | public  | 〃                                                            |
+| `/subscription/checkout/status?attempt=` · `?plan=&outcome=`     | W-09 payment in progress — or, with `outcome`, a payment window that closed or failed before any attempt | public  | 〃                                                            |
+| `/subscription/checkout/complete?attempt=` · `?change=downgrade` | W-06 done — a downgrade is scheduled without an attempt (nothing is charged)                             | public  | 〃                                                            |
+| `/subscription/change?plan=`                                     | W-14 plan change                                                                                         | public  | 〃                                                            |
+| `/subscription`                                                  | W-10 subscriptions                                                                                       | account | 〃                                                            |
+| `/subscription/:subscriptionId`                                  | W-18 one subscription                                                                                    | account | 〃                                                            |
+| `/subscription/:subscriptionId/cancel`                           | W-15 cancel                                                                                              | account | 〃                                                            |
+| `/subscription/payment-methods`                                  | W-12 cards                                                                                               | account | 〃                                                            |
+| `/subscription/history`                                          | W-13 invoices                                                                                            | account | 〃                                                            |
+| `/subscription/billing-info`                                     | W-16 billing emails                                                                                      | account | 〃                                                            |
+| `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                                                |
+| `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                                                |
+| any other `/subscription/…`                                      | redirect to `/subscription`                                                                              |         |                                                               |
 
 Below the `md` breakpoint (768 px) every one of these shows W-23, the desktop-only notice, instead.
 Without a session a guarded page sends the reader to `/subscription/login?next=<the page>`; a
@@ -408,19 +408,22 @@ other.
 
 The Korean copy is in the formal polite register (`~합니다`, `~했습니다`, requests as `~해 주세요`),
 not the softer `~해요`. `src/i18n/subscriptionTone.test.ts` fails on a softer sentence ending
-in the key roots it checks; a screen group's root joins its list once that group's copy is rewritten.
+anywhere in the subscription copy.
 Figma frames drawn before that rule still show the softer register — the copy does not follow them.
 
 **Sign-in lands on the plans.** Without a `next`, a completed sign-in goes to W-01: a subscriber sees
 the plan in force and its neighbours there, and reaches the subscription list from the account menu.
 A cancelled or timed-out sign-in keeps its `next` (the port returns it with the error).
 
-**Billing emails.** `EmailVerificationForm` and `BillingEmailChangeDialog` are the shared pieces for
-the email step (W-24, still a placeholder) and the change popup that W-08 and W-16 are moving to;
-until those screens are rebuilt, W-08 and W-16 keep their own email fields. Every countdown and count
-the form shows comes from the port's `EmailCodeTicket` or error detail. The popup swaps a verified new
-address in at once (`replaceEmail`) and removes one it added if the reader walks away. W-08 is to send
-a reader without a verified primary address (`primaryVerifiedEmail`) to W-24 first.
+**Billing emails.** A first checkout verifies its billing address on the email step (W-24) before
+the payment details (W-08): a Google sign-in address can be used as it is (`adoptSignInEmail`), any
+other address is verified by code, and W-08 sends a reader without a verified primary address
+(`primaryVerifiedEmail`) back to W-24. W-24, the add flow on W-16 and the change popup all use
+`EmailVerificationForm`; every countdown, count and lock it shows comes from the port's
+`EmailCodeTicket` or error detail — a dead code or a locked address shuts the code field until a new
+code can be sent. `BillingEmailChangeDialog`, opened from W-08 and W-16, swaps a verified new address
+in at once (`replaceEmail`) — there is nothing to save afterwards — and removes one it added if the
+reader walks away.
 
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
@@ -587,7 +590,7 @@ not trigger.
   every screen (a render per scenario).
 
     ```bash
-    npx nx test @chatic/landing   # 404 tests
+    npx nx test @chatic/landing   # 423 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionWebEnabled` is true on
@@ -637,7 +640,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 404 tests pass; in CI
+npx nx test @chatic/landing                               # 423 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

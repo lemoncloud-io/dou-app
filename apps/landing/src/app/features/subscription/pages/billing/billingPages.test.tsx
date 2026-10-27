@@ -327,7 +327,7 @@ describe('W-16 billing info', () => {
         fireEvent.click(within(dialog).getByRole('button', { name: 'Get a code' }));
         await enterCode(dialog, MOCK_POLICY.emailCode);
 
-        expect(await within(dialog).findByText('The code has expired. Please get a new code.')).toBeTruthy();
+        expect(await within(dialog).findByText('The code has expired. Press Resend to get a new code.')).toBeTruthy();
     });
 
     it('keeps a waiting address waiting when its verification is walked away from', async () => {
