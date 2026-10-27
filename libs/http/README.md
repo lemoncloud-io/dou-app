@@ -262,7 +262,11 @@ came from the route.
 - `POST /clouds/{id}/release` — a cloud keeps its last provisioning trace in its own `error` field,
   and the response **is** that record.
 - `POST /hello/report-bulk` — the body reports per-entry drops (`{ total, dropped, list }`).
-  Promoting it would make the uploader resend a batch the collector already accepted.
+  Promoting it would make the uploader resend a batch the collector already accepted. This route and
+  `/hello/report` go to the archive service, not the relay, and keep the relay signature. The address
+  is the caller's `archiveEndpoint` option when it returns one; otherwise `archiveEndpointFor` swaps
+  the relay address's `/dou-<stage>` segment for `/arc-<stage>`, and a relay with no such segment (a
+  local backend) is used as it is.
 
 ### 4. A lapsed credential, attributed and recovered
 

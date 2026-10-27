@@ -96,7 +96,7 @@ The adapter carries one behaviour that looks arbitrary and is not. Exactly five 
 lowercased — `VITE_PROJECT`, `VITE_REGION`, `VITE_HOST`, `VITE_OAUTH_ENDPOINT` and
 `VITE_SOCIAL_OAUTH_ENDPOINT` — because those five are the values this repo compares
 case-insensitively. The endpoint names outside that set (`VITE_DOU_ENDPOINT`, `VITE_WS_ENDPOINT`,
-`VITE_IAP_ENDPOINT`, `VITE_BACKEND_ENDPOINT`) carry path segments, where case is significant, so
+`VITE_IAP_ENDPOINT`, `VITE_BACKEND_ENDPOINT`, `VITE_ARCHIVE_ENDPOINT`) carry path segments, where case is significant, so
 adding one of them to the set would break the address it resolves to.
 
 ### `StorageLike` — two stores, taken structurally

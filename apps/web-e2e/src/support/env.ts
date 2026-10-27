@@ -32,6 +32,9 @@ export const WEB_SERVER_ENV: Record<string, string> = {
     VITE_PROJECT: 'CHATIC',
     VITE_HOST: E2E_BASE_URL,
     VITE_DOU_ENDPOINT: E2E_ENDPOINTS.relay,
+    // Empty, so the report gateway builds the archive address from the fake relay as it does in
+    // production when the key is unset, instead of a developer's real archive leaking in from `.env`.
+    VITE_ARCHIVE_ENDPOINT: '',
     VITE_OAUTH_ENDPOINT: E2E_ENDPOINTS.oauth,
     VITE_SOCIAL_OAUTH_ENDPOINT: E2E_ENDPOINTS.socialOAuth,
     VITE_IMAGE_API_ENDPOINT: E2E_ENDPOINTS.image,

@@ -3431,6 +3431,13 @@
   resolved "https://registry.yarnpkg.com/@js-sdsl/ordered-map/-/ordered-map-4.4.2.tgz#9299f82874bab9e4c7f9c48d865becbfe8d6907c"
   integrity sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==
 
+"@lemoncloud/chatic-archive-api@^0.26.902":
+  version "0.26.902"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-archive-api/-/chatic-archive-api-0.26.902.tgz#57aaef7bb27ef133e03293184fea6fd97069beee"
+  integrity sha512-+R3w9GBXJfkOHlnOCINdIl4aPJM24IxLWdC5ZW7zkOSJvyldi2HHMWrF5tSlKTEBfoPen8cLoB51YR0K99iRww==
+  dependencies:
+    lemon-model "^1.1.1"
+
 "@lemoncloud/chatic-backend-api@*":
   version "0.26.318"
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-backend-api/-/chatic-backend-api-0.26.318.tgz#069ca4238b488212c16f66922f923730e06d57df"
