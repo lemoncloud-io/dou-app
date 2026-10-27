@@ -1,7 +1,9 @@
 import { Fragment, type ReactNode } from 'react';
 
 import {
+    BOLD_SOURCE,
     GROUP_MENTIONS,
+    ITALIC_SOURCE,
     LABELLED_LINK_SOURCE,
     LINK_URL_SOURCE,
     MENTION_TOKEN_SOURCE,
@@ -28,8 +30,10 @@ export type MentionResolver = (name: string) => { userId: string; name: string }
 // One pass over a non-code run: labelled links, bold, italic, strikethrough, bare links, @mentions.
 // A labelled link is listed first so its address is not read as a bare one.
 // Bold is listed before italic so `**x**` matches as bold, not italic.
+// A mark captures only its words, which are read again for marks alone: an address or an @name
+// inside a mark stays text.
 const INLINE = new RegExp(
-    `${LABELLED_LINK_SOURCE}|(\\*\\*[^*\\n]+\\*\\*)|(\\*[^*\\n]+\\*)|(~~[^~\\n]+~~)|(${LINK_URL_SOURCE})|(@${MENTION_TOKEN_SOURCE}+)`,
+    `${LABELLED_LINK_SOURCE}|${BOLD_SOURCE}|${ITALIC_SOURCE}|~~([^~\\n]+)~~|(${LINK_URL_SOURCE})|(@${MENTION_TOKEN_SOURCE}+)`,
     'gu'
 );
 
@@ -47,15 +51,19 @@ const renderInline = (
     selfNames?: string[],
     resolveMention?: MentionResolver,
     hasMentionRecord?: boolean,
-    selfSuffix?: string
+    selfSuffix?: string,
+    /** Reading the words inside a mark: only further marks are drawn there, the rest stays text. */
+    insideMark = false
 ): ReactNode[] => {
     const nodes: ReactNode[] = [];
+    const marked = (words: string, key: string) =>
+        renderInline(words, key, selfNames, resolveMention, hasMentionRecord, selfSuffix, true);
     let last = 0;
-    INLINE.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = INLINE.exec(text)) !== null) {
-        if (match.index > last) nodes.push(text.slice(last, match.index));
+    for (const match of text.matchAll(INLINE)) {
         const [token, label, labelHref, bold, italic, strike, url, mention] = match;
+        // Skipped, so it stays inside the surrounding text run.
+        if (insideMark && !bold && !italic && !strike) continue;
+        if (match.index > last) nodes.push(text.slice(last, match.index));
         const key = `${keyBase}-${match.index}`;
         if (label && labelHref) {
             nodes.push(
@@ -66,13 +74,13 @@ const renderInline = (
         } else if (bold) {
             nodes.push(
                 <strong key={key} className={MSG_BOLD_CLASS}>
-                    {bold.slice(2, -2)}
+                    {marked(bold, key)}
                 </strong>
             );
         } else if (italic) {
-            nodes.push(<em key={key}>{italic.slice(1, -1)}</em>);
+            nodes.push(<em key={key}>{marked(italic, key)}</em>);
         } else if (strike) {
-            nodes.push(<s key={key}>{strike.slice(2, -2)}</s>);
+            nodes.push(<s key={key}>{marked(strike, key)}</s>);
         } else if (url) {
             nodes.push(
                 <a key={key} href={url} target="_blank" rel="noreferrer noopener" className={LINK_CLASS}>
@@ -106,8 +114,7 @@ const renderInline = (
             } else {
                 // A self pill reads its cue too — colour alone cannot carry "this
                 // is you" (the class also adds weight; see messageClasses).
-                const cue =
-                    isSelf && selfSuffix ? <span className="sr-only">{selfSuffix}</span> : null;
+                const cue = isSelf && selfSuffix ? <span className="sr-only">{selfSuffix}</span> : null;
                 nodes.push(
                     person ? (
                         <UserProfilePopover key={key} userId={person.userId} fallbackName={person.name}>
@@ -233,7 +240,7 @@ interface RichTextProps {
  * order: fenced ```code blocks``` are split out first (`splitFences`; their
  * contents stay fully literal and a language tag is not shown), then "> "
  * quote lines group into quote blocks, then backtick `code` spans, then the inline pass (**bold**, *italic*, ~~strike~~, links,
- * @mentions). Block elements render as display:block <span>s because the host
+ * @mentions; marks nest, as the composer stacks them). Block elements render as display:block <span>s because the host
  * wraps messages in a <p>.
  */
 export const RichText = ({

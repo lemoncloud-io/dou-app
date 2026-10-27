@@ -12,6 +12,9 @@ quotes are drawn now, and headings and lists stay out. Extends what
 [ADR-0195](./0195-messages-carry-labelled-links.md) made both readers agree on, from labelled links to
 the whole dialect.
 
+Partly superseded by [ADR-0236](./0236-message-marks-nest-as-the-composer-stacks-them.md): marks now
+nest in both readers. The rest of this decision stands.
+
 ## Context
 
 Message text is a small markdown-like dialect: `**bold**`, `*italic*`, `~~strike~~`, inline code,

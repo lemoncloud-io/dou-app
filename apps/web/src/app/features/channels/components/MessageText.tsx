@@ -125,7 +125,7 @@ export const MessageText = ({
         <PlainText value={value} mentions={mentions} onMentionClick={onMentionClick} onPage={onPage} />
     );
 
-    const renderInline = (token: InlineToken, key: number) => {
+    const renderInline = (token: InlineToken, key: number): ReactNode => {
         switch (token.type) {
             case 'url':
                 return (
@@ -145,17 +145,18 @@ export const MessageText = ({
                 );
             case 'code':
                 return <InlineCode key={key}>{token.value}</InlineCode>;
-            // A mention inside a mark is still a mention, so marked words go through PlainText too.
+            // A mark's words are tokens again — another mark, or text, where a mention is still a
+            // mention.
             case 'bold':
                 return (
                     <strong key={key} className="font-semibold">
-                        {plain(token.value)}
+                        {token.children.map(renderInline)}
                     </strong>
                 );
             case 'italic':
-                return <em key={key}>{plain(token.value)}</em>;
+                return <em key={key}>{token.children.map(renderInline)}</em>;
             case 'strike':
-                return <s key={key}>{plain(token.value)}</s>;
+                return <s key={key}>{token.children.map(renderInline)}</s>;
             default:
                 return <Fragment key={key}>{plain(token.value)}</Fragment>;
         }

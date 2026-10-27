@@ -7,6 +7,7 @@ export * from './avatarColor';
 export * from './displayName';
 export * from './displayProfile';
 export * from './linkMatch';
+export * from './markMatch';
 export * from './mentionMatch';
 export * from './inboxKinds';
 export * from './myNames';

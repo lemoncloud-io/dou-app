@@ -471,16 +471,16 @@ describe('labelled links', () => {
 describe('inline marks', () => {
     it('reads bold, italic and strikethrough', () => {
         expect(tokenizeMessage('**굵게** *기울임* ~~취소~~')).toEqual([
-            { type: 'bold', value: '굵게' },
+            { type: 'bold', children: [{ type: 'text', value: '굵게' }] },
             { type: 'text', value: ' ' },
-            { type: 'italic', value: '기울임' },
+            { type: 'italic', children: [{ type: 'text', value: '기울임' }] },
             { type: 'text', value: ' ' },
-            { type: 'strike', value: '취소' },
+            { type: 'strike', children: [{ type: 'text', value: '취소' }] },
         ]);
     });
 
     it('reads **x** as bold, not as italic around stars', () => {
-        expect(tokenizeMessage('**x**')).toEqual([{ type: 'bold', value: 'x' }]);
+        expect(tokenizeMessage('**x**')).toEqual([{ type: 'bold', children: [{ type: 'text', value: 'x' }] }]);
     });
 
     it('leaves a mark with no closing marker as text', () => {
@@ -497,10 +497,54 @@ describe('inline marks', () => {
         expect(tokenizeMessage('```\n**x**\n```')).toEqual([{ type: 'codeBlock', value: '**x**', lang: undefined }]);
     });
 
-    // Marks do not nest, as on desktop: what sits inside one is its plain words.
+    // The desktop composer's B and I buttons together send `***x***`.
+    it('reads bold and italic on the same words as both, with no asterisks left over', () => {
+        expect(tokenizeMessage('***123123***')).toEqual([
+            { type: 'bold', children: [{ type: 'italic', children: [{ type: 'text', value: '123123' }] }] },
+        ]);
+        expect(toPlainPreview('***123123***')).toBe('123123');
+    });
+
+    it('reads italic inside part of a bold run, and bold inside an italic one', () => {
+        expect(tokenizeMessage('**a *b* c** *d **e** f*')).toEqual([
+            {
+                type: 'bold',
+                children: [
+                    { type: 'text', value: 'a ' },
+                    { type: 'italic', children: [{ type: 'text', value: 'b' }] },
+                    { type: 'text', value: ' c' },
+                ],
+            },
+            { type: 'text', value: ' ' },
+            {
+                type: 'italic',
+                children: [
+                    { type: 'text', value: 'd ' },
+                    { type: 'bold', children: [{ type: 'text', value: 'e' }] },
+                    { type: 'text', value: ' f' },
+                ],
+            },
+        ]);
+    });
+
+    it('reads strikethrough stacked with bold', () => {
+        expect(tokenizeMessage('**~~gone~~**')).toEqual([
+            { type: 'bold', children: [{ type: 'strike', children: [{ type: 'text', value: 'gone' }] }] },
+        ]);
+    });
+
+    it('keeps separate bold runs on one line apart', () => {
+        expect(tokenizeMessage('**a** and **b**')).toEqual([
+            { type: 'bold', children: [{ type: 'text', value: 'a' }] },
+            { type: 'text', value: ' and ' },
+            { type: 'bold', children: [{ type: 'text', value: 'b' }] },
+        ]);
+    });
+
+    // Inside a mark only marks are read again, as on desktop: an address there is its plain words.
     it('does not link an address inside a mark', () => {
         expect(tokenizeMessage('**https://example.com/a**')).toEqual([
-            { type: 'bold', value: 'https://example.com/a' },
+            { type: 'bold', children: [{ type: 'text', value: 'https://example.com/a' }] },
         ]);
         expect(extractFirstUrl('**https://example.com/a**')).toBeUndefined();
     });
@@ -513,7 +557,7 @@ describe('inline marks', () => {
         expect(tokenizeMessage('https://example.com/a. **끝**')).toEqual([
             { type: 'url', value: 'https://example.com/a' },
             { type: 'text', value: '. ' },
-            { type: 'bold', value: '끝' },
+            { type: 'bold', children: [{ type: 'text', value: '끝' }] },
         ]);
     });
 
@@ -540,7 +584,7 @@ describe('quotes', () => {
             {
                 type: 'quote',
                 children: [
-                    { type: 'bold', value: 'a' },
+                    { type: 'bold', children: [{ type: 'text', value: 'a' }] },
                     { type: 'text', value: ' ' },
                     { type: 'code', value: 'b' },
                     { type: 'text', value: ' ' },

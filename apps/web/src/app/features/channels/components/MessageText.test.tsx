@@ -80,6 +80,14 @@ describe('MessageText', () => {
         expect(container).toHaveTextContent(/^굵게 기울임 취소$/);
     });
 
+    // The desktop composer's B and I buttons together send `***x***`.
+    it('draws a message sent bold and italic as both, with no asterisks left over', () => {
+        const { container } = render(<MessageText text="***123123***" />);
+
+        expect(container.querySelector('strong em')).toHaveTextContent(/^123123$/);
+        expect(container).toHaveTextContent(/^123123$/);
+    });
+
     it('draws > lines as one quote block, with its own links still tappable', () => {
         const onUrlClick = jest.fn();
         const { container } = render(
