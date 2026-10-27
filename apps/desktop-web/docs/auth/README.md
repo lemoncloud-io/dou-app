@@ -129,17 +129,19 @@ guest's id (`delegatorId`) and still stands on that guest's invite grants. Two t
   refusal's kind and, under it, the server's own words (`400 INVALID - grace-timeout by invite[…]`
   for an invite past its window); the same pair goes into an error toast that rises over the
   dialog. See `docs/shell/failure-toasts.md`.
-- **Its logout keeps the invited clouds.** After the reload the device registers back into the same
-  guest, which still holds the grants, so messages from those clouds keep arriving. The rail can list
-  an invited cloud only from the cloud cache's invited rows and the joined-clouds store — the relay
-  catalog never carries one, and there is no server list to rebuild them from. The account reset used
-  to wipe both, which emptied the list until a push re-cached one cloud at a time. It now keeps both
-  when a signed-in account logs out, and still clears the rest of the cloud cache (owned clouds'
-  names belong to the account). A guest's logout is a delete and takes its invited clouds with it.
+- **No logout takes the invited clouds** (ADR-0245). After the reload the device registers back into
+  the same guest, which still holds the grants, so messages from those clouds keep arriving. That is
+  as true after a guest logs out as after an account does: the device id is fixed per install, so the
+  next "Start chatting", sign-in, or sign-in the person backs out of registers the same guest again.
+  The rail can list an invited cloud only from the cloud cache's invited rows and the joined-clouds
+  store — the relay catalog never carries one, and there is no server list to rebuild them from. The
+  account reset used to wipe both, which emptied the list until a push re-cached one cloud at a time.
+  It now keeps both on every logout, as apps/web does, and still clears the rest of the cloud cache
+  (owned clouds' names belong to the account).
 
-Both checks read the role from the relay token (`isRelayGuest`), not from `useRuntimeProfile`: inside
-a cloud the active session is that cloud's user, and its role says nothing about the account. No relay
-user counts as a guest, as on the account hub.
+The join entry reads the role from the relay token (`isRelayGuest`), not from `useRuntimeProfile`:
+inside a cloud the active session is that cloud's user, and its role says nothing about the account.
+No relay user counts as a guest, as on the account hub.
 
 ## Linking Google
 

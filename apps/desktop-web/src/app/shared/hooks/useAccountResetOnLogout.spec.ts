@@ -94,39 +94,33 @@ describe('useAccountResetOnLogout', () => {
             );
         });
 
-        // A signed-in account on desktop is the device's guest linked to a provider. The guest it falls
-        // back to still holds the invite grants, and the rail can list invited clouds from nowhere but
-        // these two records — wiping them emptied the list until a push re-cached one cloud.
-        it('keeps the invited clouds in the list after a social account logs out', async () => {
-            relayUser.current = { userRole: 'user' };
+        // The rail can list invited clouds from nowhere but these two records, and no logout takes the
+        // grants with it: a signed-in account falls back to the device's guest, and a guest that logs
+        // out is registered back into by the same device id. Wiping them emptied the list until a push
+        // re-cached one cloud.
+        it.each([
+            ['a social account', { userRole: 'user' }],
+            ['a guest', { userRole: 'guest' }],
+            ['a device with no relay user', null],
+        ])('keeps the invited clouds in the list after %s logs out', async (_label, relay) => {
+            relayUser.current = relay;
             const { result } = renderHook(() => useAccountResetOnLogout());
             await result.current.resetAccount();
 
             expect(rows.map(row => row.id)).toEqual([invited.id]);
             expect(localStorage.getItem('chatic-joined-clouds')).not.toBeNull();
         });
-
-        // Inside a cloud the active session is the cloud user's, which is no guest even for a guest
-        // account; the relay role is the one that says the logout is a delete.
-        it.each([
-            ['a guest, whose logout is a delete', { userRole: 'guest' }],
-            ['a device with no relay user', null],
-        ])('takes the invited clouds with %s', async (_label, relay) => {
-            relayUser.current = relay;
-            const { result } = renderHook(() => useAccountResetOnLogout());
-            await result.current.resetAccount();
-
-            expect(rows).toEqual([]);
-            expect(localStorage.getItem('chatic-joined-clouds')).toBeNull();
-        });
     });
 
-    it('7개 repo 캐시를 비운다 — 로그아웃 위생은 그대로 유지된다', async () => {
+    // The cloud cache is swept row by row instead (the invited-clouds cases above).
+    it('clears every other data cache on logout', async () => {
         const { result } = renderHook(() => useAccountResetOnLogout());
 
         await result.current.resetAccount();
         await waitFor(() => {
-            for (const repo of Object.values(repos)) expect(repo.cacheClear).toHaveBeenCalled();
+            for (const [name, repo] of Object.entries(repos)) {
+                if (name !== 'cloud') expect(repo.cacheClear).toHaveBeenCalled();
+            }
         });
     });
 });

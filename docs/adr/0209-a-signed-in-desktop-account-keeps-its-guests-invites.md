@@ -1,6 +1,7 @@
 # ADR-0209: A signed-in desktop account keeps its guest's invites
 
-> Status: Accepted · Decided: 2026-10-19 · Implemented: `fix/desktop-social-invite`
+> Status: Accepted; decision 2's guest delete superseded by
+> [ADR-0245](./0245-no-desktop-logout-takes-the-invited-clouds.md) · Decided: 2026-10-19 · Implemented: `fix/desktop-social-invite`
 > · Scope: `apps/desktop-web/src/app/features/chat/components/PlaceRail.tsx` (the join entry) ·
 > `apps/desktop-web/src/app/shared/hooks/useAccountResetOnLogout.ts` (every logout path) ·
 > `useRelayAccount.ts` (`isRelayGuest`)
