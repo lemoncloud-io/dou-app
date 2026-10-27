@@ -13,17 +13,20 @@ const PolicyRoutes = lazy(() => import('../features/policy').then(m => ({ defaul
 
 // The signed-in surface. Lazy for more than size: its session, data layer and copy live in this chunk,
 // so a visitor to the public pages never downloads any of it. This import is the one place the public
-// surface reaches into it.
+// surface reaches into it — on the production host only for the plans page.
 const SubscriptionRoutes = lazy(() =>
     import('../features/subscription').then(m => ({ default: m.SubscriptionRoutes }))
 );
 
 export interface CommonRoutesOptions {
-    /** Register `/subscription/*`. Off on the production host — see `isSubscriptionWebEnabled`. */
-    subscriptionWeb: boolean;
+    /**
+     * Register `/subscription/*`. Off on the production host — see `isSubscriptionAccountEnabled` —
+     * where `/subscription/plans` alone is registered, listing the plans with nothing to buy yet.
+     */
+    subscriptionAccount: boolean;
 }
 
-export const createCommonRoutes = ({ subscriptionWeb }: CommonRoutesOptions): RouteObject[] => [
+export const createCommonRoutes = ({ subscriptionAccount }: CommonRoutesOptions): RouteObject[] => [
     {
         index: true,
         element: <HomeRoutes />,
@@ -47,18 +50,23 @@ export const createCommonRoutes = ({ subscriptionWeb }: CommonRoutesOptions): Ro
             </Suspense>
         ),
     },
-    // Not registered at all where the gate is shut, rather than registered and redirecting: an
-    // unregistered path is the catch-all's, exactly as before these pages existed.
-    ...(subscriptionWeb
-        ? [
-              {
-                  path: 'subscription/*',
-                  element: (
-                      <Suspense fallback={null}>
-                          <SubscriptionRoutes />
-                      </Suspense>
-                  ),
-              },
-          ]
-        : []),
+    // Where the gate is shut only the plans are registered, rather than everything registered and
+    // redirecting: any other subscription path is the catch-all's, exactly as before these pages existed.
+    subscriptionAccount
+        ? {
+              path: 'subscription/*',
+              element: (
+                  <Suspense fallback={null}>
+                      <SubscriptionRoutes />
+                  </Suspense>
+              ),
+          }
+        : {
+              path: 'subscription/plans/*',
+              element: (
+                  <Suspense fallback={null}>
+                      <SubscriptionRoutes account={false} />
+                  </Suspense>
+              ),
+          },
 ];

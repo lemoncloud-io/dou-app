@@ -5,7 +5,7 @@ import i18n from '../../../../i18n';
 
 const stage = vi.hoisted(() => ({ open: true }));
 vi.mock('../../../config/stage', () => ({
-    get isSubscriptionWebEnabled() {
+    get isSubscriptionAccountEnabled() {
         return stage.open;
     },
 }));
@@ -31,11 +31,11 @@ describe('Header', () => {
         expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/subscription/login');
     });
 
-    it('shows neither link where they are shut', () => {
+    it('keeps the plans link but drops sign-in where the signed-in pages are shut', () => {
         stage.open = false;
         renderHeader();
 
-        expect(screen.queryByRole('link', { name: 'View plans' })).toBeNull();
+        expect(screen.getByRole('link', { name: 'View plans' }).getAttribute('href')).toBe('/subscription/plans');
         expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
     });
 });

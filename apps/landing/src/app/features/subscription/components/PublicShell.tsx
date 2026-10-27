@@ -16,8 +16,11 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
  * The frame for the pages a reader reaches before or while buying: a plain top bar with the logo, the
  * three destinations and either `로그인` or the account menu. Not the home page's marketing header —
  * that one floats over a hero and watches the home page's own scroll container.
+ *
+ * Where the account surface is shut (`account` false) the bar keeps the plans and the policy and
+ * drops the two that lead nowhere there: the subscription list and sign-in.
  */
-export const PublicShell = (): JSX.Element => {
+export const PublicShell = ({ account = true }: { account?: boolean }): JSX.Element => {
     const { t } = useTranslation();
     const session = useSession();
 
@@ -33,21 +36,25 @@ export const PublicShell = (): JSX.Element => {
                         <NavLink to={ROUTES.subscription.plans} className={navClass}>
                             {t('subscription.common.nav.plans')}
                         </NavLink>
-                        <NavLink to={ROUTES.subscription.root} end className={navClass}>
-                            {t('subscription.common.nav.manage')}
-                        </NavLink>
+                        {account && (
+                            <NavLink to={ROUTES.subscription.root} end className={navClass}>
+                                {t('subscription.common.nav.manage')}
+                            </NavLink>
+                        )}
                         <NavLink to={ROUTES.policy.refund} className={navClass}>
                             {t('subscription.common.nav.policy')}
                         </NavLink>
                         {session.data ? (
                             <AccountMenu account={session.data} />
                         ) : (
-                            <Link
-                                to={ROUTES.subscription.login}
-                                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-navy hover:bg-muted"
-                            >
-                                {t('subscription.common.nav.signIn')}
-                            </Link>
+                            account && (
+                                <Link
+                                    to={ROUTES.subscription.login}
+                                    className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-navy hover:bg-muted"
+                                >
+                                    {t('subscription.common.nav.signIn')}
+                                </Link>
+                            )
                         )}
                     </nav>
                 </div>

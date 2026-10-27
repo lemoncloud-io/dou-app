@@ -15,11 +15,15 @@ vi.mock('../features/policy/pages', () => ({
     RefundPolicyPage: () => <p>refund</p>,
 }));
 // Stands in for the whole signed-in surface; its own routes are tested beside it.
-vi.mock('../features/subscription', () => ({ SubscriptionRoutes: () => <p>subscription</p> }));
+vi.mock('../features/subscription', () => ({
+    SubscriptionRoutes: ({ account = true }: { account?: boolean }) => (
+        <p>{account ? 'subscription' : 'subscription catalog'}</p>
+    ),
+}));
 vi.mock('../features/deeplink/pages', () => ({ DeepLinkPage: () => <p>deeplink</p> }));
 
 // The production host, where the subscription pages are shut, unless a test says otherwise.
-const appRoutes = createAppRoutes({ subscriptionWeb: false });
+const appRoutes = createAppRoutes({ subscriptionAccount: false });
 
 const renderAt = (url: string, routes = appRoutes) => {
     const router = createMemoryRouter(routes, { initialEntries: [url] });
@@ -53,7 +57,8 @@ describe('appRoutes', () => {
         ['/i/extra', 'deeplink', '/i/extra'],
         ['/invite/accept?x=1', 'home', '/'],
         ['/subscription', 'home', '/'],
-        ['/subscription/plans?mock=active', 'home', '/'],
+        ['/subscription/checkout?plan=pro-tier-01', 'home', '/'],
+        ['/subscription/plans?mock=active', 'subscription catalog', '/subscription/plans?mock=active'],
     ])('%s renders %s at %s', async (url, screenText, finalUrl) => {
         const router = renderAt(url);
 
@@ -64,7 +69,7 @@ describe('appRoutes', () => {
     // Where the gate is open (localhost, the dev stage) the same URLs reach the subscription pages, and
     // every public URL resolves exactly as it does on the production host.
     describe('with the subscription pages open', () => {
-        const open = createAppRoutes({ subscriptionWeb: true });
+        const open = createAppRoutes({ subscriptionAccount: true });
 
         it.each([
             ['/subscription', '/subscription'],

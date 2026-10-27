@@ -1,7 +1,7 @@
 import { type JSX, useMemo } from 'react';
 import { Navigate, RouterProvider, createBrowserRouter } from 'react-router-dom';
 
-import { isSubscriptionWebEnabled } from '../config/stage';
+import { isSubscriptionAccountEnabled } from '../config/stage';
 
 import { type CommonRoutesOptions, createCommonRoutes } from './CommonRoutes';
 import { RouteErrorFallback } from './RouteErrorFallback';
@@ -21,7 +21,7 @@ export const createAppRoutes = (options: CommonRoutesOptions): RouteObject[] =>
         { path: '*', element: <Navigate to={ROUTES.root} /> },
     ].map(route => ({ ...route, errorElement: <RouteErrorFallback /> }));
 
-export const appRoutes: RouteObject[] = createAppRoutes({ subscriptionWeb: isSubscriptionWebEnabled });
+export const appRoutes: RouteObject[] = createAppRoutes({ subscriptionAccount: isSubscriptionAccountEnabled });
 
 export const Router = (): JSX.Element => {
     const router = useMemo(() => {

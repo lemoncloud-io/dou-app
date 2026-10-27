@@ -38,7 +38,7 @@ export const RedirectIfSignedIn = ({ children }: { children: JSX.Element }): JSX
 };
 
 /** W-23 in place of any subscription page on a phone-width screen. */
-export const DesktopOnlyGuard = ({ children }: { children: JSX.Element }): JSX.Element => {
+export const DesktopOnlyGuard = ({ account, children }: { account: boolean; children: JSX.Element }): JSX.Element => {
     const narrow = useNarrowViewport();
-    return narrow ? <DesktopOnlyNotice /> : children;
+    return narrow ? <DesktopOnlyNotice account={account} /> : children;
 };
