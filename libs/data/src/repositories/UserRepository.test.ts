@@ -14,6 +14,8 @@ describe('UserRepository', () => {
             requestInvite: jest.fn(),
             inviteBatch: jest.fn(),
             syncChannelUsers: jest.fn(),
+            listDevices: jest.fn(),
+            unlinkDevice: jest.fn(),
         };
         const userLocalDataSource = {
             observeList: jest.fn(() => () => undefined),
@@ -247,6 +249,27 @@ describe('UserRepository', () => {
         expect(userSocketDataSource.inviteBatch).toHaveBeenCalledWith({
             to: ['+821011112222', '+821033334444'],
             channelId: 'ch-1',
+        });
+    });
+
+    describe('my devices', () => {
+        it('listDevices returns the socket answer and writes nothing to the cache', async () => {
+            const { repository, userSocketDataSource, userLocalDataSource } = createRepository();
+            const view = { list: [{ id: 'dev-1', kind: 'web', presence: 'green', current: true }], at: 1700 };
+            userSocketDataSource.listDevices.mockResolvedValue(view);
+
+            await expect(repository.listDevices()).resolves.toBe(view);
+            expect(userLocalDataSource.cacheWrite).not.toHaveBeenCalled();
+            expect(userLocalDataSource.cacheWriteMany).not.toHaveBeenCalled();
+        });
+
+        it('unlinkDevice passes the device id through and returns the socket answer', async () => {
+            const { repository, userSocketDataSource } = createRepository();
+            const view = { id: 'dev-2', marked: true, closed: true };
+            userSocketDataSource.unlinkDevice.mockResolvedValue(view);
+
+            await expect(repository.unlinkDevice('dev-2')).resolves.toBe(view);
+            expect(userSocketDataSource.unlinkDevice).toHaveBeenCalledWith('dev-2');
         });
     });
 });

@@ -5,6 +5,7 @@ import type {
     UserUpdateProfileInput,
 } from '@lemoncloud/chatic-sockets-api';
 import type { MyInviteView, UserProfile$ } from '@lemoncloud/chatic-backend-api';
+import type { UserListDeviceView, UserUnlinkDeviceView } from '@lemoncloud/chatic-sockets-lib';
 import type { DomainListResult, DomainPlaceMember, DomainUser } from '../domain';
 import type { IJoinLocalDataSource, IPlaceLocalDataSource, IUserLocalDataSource } from '../local/data-sources';
 import type { IUserSocketDataSource, UserInviteBatchPayload } from '../remote/socket-data-sources';
@@ -68,6 +69,13 @@ export interface IUserRepository extends DisposableRepository {
      * itself is not cached: it is asked for each time a picker opens.
      */
     listPlaceMembers(query: PlaceMembersQuery): Promise<PlaceMembersResult>;
+    /**
+     * user.list-device — my own devices on the server the session is on: the relay, or the cloud when
+     * one is active. Not cached; the device screen asks each time it opens.
+     */
+    listDevices(): Promise<UserListDeviceView>;
+    /** user.unlink-device — signs one of my other devices out of the session's server. */
+    unlinkDevice(deviceId: string): Promise<UserUnlinkDeviceView>;
 
     cacheRead(id: string): Promise<DomainUser | null>;
     cacheReadList(query: ChatUsersInput): Promise<DomainListResult<DomainUser> | null>;
@@ -221,6 +229,14 @@ export class UserRepository extends BaseRepository implements IUserRepository {
     public async requestInviteBatch(payload: UserInviteBatchPayload): Promise<MyInviteView[]> {
         const result = await this.userSocketDataSource.inviteBatch(payload);
         return result.list || [];
+    }
+
+    public listDevices(): Promise<UserListDeviceView> {
+        return this.userSocketDataSource.listDevices();
+    }
+
+    public unlinkDevice(deviceId: string): Promise<UserUnlinkDeviceView> {
+        return this.userSocketDataSource.unlinkDevice(deviceId);
     }
 
     public async syncChannelUsers(payload: ChannelSyncUsersInput): Promise<number> {

@@ -106,12 +106,14 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 ### User
 
 `observeList` · `observeItem` · `getMyProfile` · `updateProfile` · `requestInvite` ·
-`requestInviteBatch` · `syncChannelUsers` · `listPlaceMembers` · `listRelayUsers` · `tryFetchProfile` · `cache*`
+`requestInviteBatch` · `syncChannelUsers` · `listPlaceMembers` · `listDevices` · `unlinkDevice` · `listRelayUsers` ·
+`tryFetchProfile` · `cache*`
 
 - `listPlaceMembers({ placeId, sessionPlaceId, pageSize? })` — `place.list-user`, every member of one place (its role holders plus its owner, including people with no room and invitees who have not accepted). It lives here, not under Place, because what it answers is users — the same reason `channel.list-user` is here. Pages are read from 0 until an **empty page** or the answer's `total`; a short page is not the end, because the server drops members who left after cutting the page and `total` is counted before that. A page that adds nobody new also stops it, so a server ignoring `page` cannot spin it.
     - After each page it starts the Profile domain's `syncProfilesOf` with that page's ids — never more ids than one page holds, since list and profiles share the socket's answer size limit — **only when `sessionPlaceId` equals `placeId`**; the caller passes `null` while a switch is in flight. The loads run alongside the paging and are awaited together at the end, so the wait is set by the list's own round trips. Before each one the repository checks it is still on the cloud the list was asked in: a profile answer is filed under the cloud current when it is sent, so a switch between pages stops the remaining loads. A failed or stopped load leaves the members in the result (`profiles: 'failed'`).
     - The list is **not cached**: it is a per-open read, so it is returned, with the `{ cid, sid }` it was asked for, for the caller to drop if its scope has moved. That makes it an exception to "reads come from a local stream", like `listRelayUsers`; the profiles it loads do go through the cache. Each member is a `DomainPlaceMember` — id, the user's own `name`/`nick`, the picture moved from the server's `photo` to `thumbnail`, and `isOwner`, which is per place and so never written to the cloud-wide user cache. Nothing else the answer carries is kept.
     - It rejects without asking while the socket is still bound to another cloud (`isForeignContext`).
+- `listDevices()` · `unlinkDevice(deviceId)` — `user.list-device` and `user.unlink-device`: my own devices on the server the session is on, which is the cloud while one is active (the socket layer sends them to the active slot, not the relay). Neither is cached — the device screen asks each time it opens — and both return the SDK view unchanged, `current` and `presence` included. Unlinking the device in use is the server's to refuse; signing this device out is `auth.logout`.
 
 - `syncChannelUsers` — writes the result of `channel.sync-users` to local.
 - `updateProfile` (`user.update`) edits the user's own **account** profile, which is separate from the site profile (→ the Profile domain).
