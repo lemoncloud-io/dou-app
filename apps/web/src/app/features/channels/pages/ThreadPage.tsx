@@ -8,7 +8,7 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { canModifyMessage, isInJoinWindow } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import { ChatRoomHeader, DefaultAvatar, ImageAvatar, MessageInput } from '@chatic/web-ui-kit';
+import { ChatRoomHeader, ComposerLockButton, DefaultAvatar, ImageAvatar, MessageInput } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
 import { GapDivider } from '../components/GapDivider';
@@ -35,6 +35,7 @@ import {
     useChannelJoins,
     useChannelMembers,
     useChannelProfiles,
+    useChatInputLock,
     useChatMutations,
     useMessageEditing,
     useMessageJump,
@@ -208,6 +209,12 @@ export const ThreadPage = () => {
     }, [rootNo, myJoin?.joinedNo]);
     const { sendMessage } = useChatMutations();
     const editing = useMessageEditing(`${stableChannelId}/${rootNo ?? ''}`);
+    // A thread answers to its room's input lock: locking the room locks the replies under it too.
+    const inputLock = useChatInputLock(channelId);
+    const unlockInput = useCallback(() => {
+        inputLock.setLocked(false);
+        toast({ title: t('chat.inputLock.unlocked') });
+    }, [inputLock.setLocked, t]);
     const { toggleReaction, failedId } = useReactions();
     const remember = useRecentEmojiStore(s => s.remember);
 
@@ -299,7 +306,7 @@ export const ThreadPage = () => {
     });
     const attach = useChatImageAttach({
         sendImages: imageSend.sendImages,
-        disabled: editing.isEditing || rootOutsideJoinWindow || !thread.root?.id,
+        disabled: editing.isEditing || rootOutsideJoinWindow || !thread.root?.id || inputLock.isLocked,
         // The route keeps this page mounted from one thread to the next; what waits is this thread's.
         scope: draftScope,
         inputRef,
@@ -518,6 +525,8 @@ export const ThreadPage = () => {
     };
 
     const handleSend = (raw: string) => {
+        // The room's rule: a locked room sends nothing, whatever path reached the send.
+        if (inputLock.isLocked) return;
         // The reader is writing now, so the newest reply — theirs — is where the list belongs again.
         followHeldRef.current = false;
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
@@ -868,13 +877,22 @@ export const ThreadPage = () => {
                     sendReady={attach.sendReady}
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
-                    placeholder={t('chat.thread.inputPlaceholder')}
+                    placeholder={
+                        inputLock.isLocked ? t('chat.inputLock.placeholder') : t('chat.thread.inputPlaceholder')
+                    }
                     sendLabel={t('common.send')}
                     // One live field at a time — same rule as the room. Also closed when the root
                     // is outside my window: a reply needs the root's full id, so `handleSend`
                     // would drop what was typed without saying anything.
-                    disabled={editing.isEditing || rootOutsideJoinWindow}
-                    leadingSlot={attach.button}
+                    disabled={editing.isEditing || rootOutsideJoinWindow || inputLock.isLocked}
+                    // The room's rule: the padlock that lifts the lock stands where the attach button was.
+                    leadingSlot={
+                        inputLock.isLocked ? (
+                            <ComposerLockButton onClick={unlockInput} label={t('chat.inputLock.unlock')} />
+                        ) : (
+                            attach.button
+                        )
+                    }
                 />
             </div>
             {attach.overlays}

@@ -98,6 +98,7 @@ jest.mock('../hooks', () => ({
         profileMap: new Map([['owner', { nick: 'owner nick', thumbnail: 'https://x/owner.png' }]]),
     }),
     useChannelTitle: () => 'room',
+    useChatInputLock: () => ({ isAvailable: false, isLocked: false, setLocked: () => undefined }),
     useChatMutations: () => ({ sendMessage: jest.fn() }),
     useChats: () => ({
         rawChats: mockChats,

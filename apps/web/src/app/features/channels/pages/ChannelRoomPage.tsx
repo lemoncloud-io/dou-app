@@ -15,6 +15,7 @@ import { DropdownMenuItem } from '@chatic/ui-kit/components/ui/dropdown-menu';
 import {
     AvatarGroup,
     ChatRoomHeader,
+    ComposerLockButton,
     DateDivider,
     DefaultAvatar,
     FloatingDateChip,
@@ -60,6 +61,7 @@ import {
     useChannelMembers,
     useChannelProfiles,
     useChannelTitle,
+    useChatInputLock,
     useChatMutations,
     useMessageEditing,
     useChats,
@@ -499,9 +501,15 @@ export const ChannelRoomPage = () => {
 
     const { sendMessage, retryMessage, deleteMessage } = useChatMutations();
     const editing = useMessageEditing(stableChannelId);
+    // The Lab's input lock this person put on the room, so nothing goes out of it by accident.
+    const inputLock = useChatInputLock(channelId);
     // The composer's lock, shared by the text field and the attach button: a photo sent into an
     // empty 1:1 would strand the same unread badge a text would.
-    const composerLocked = isPeerGone || editing.isEditing;
+    const composerLocked = isPeerGone || editing.isEditing || inputLock.isLocked;
+    const unlockInput = useCallback(() => {
+        inputLock.setLocked(false);
+        toast({ title: t('chat.inputLock.unlocked') });
+    }, [inputLock.setLocked, t]);
     // Photos go to the room's own cloud, the same one a text sent from here goes to.
     const imageSend = useSendImages({ cid: roomCid, channelId: stableChannelId });
     const attach = useChatImageAttach({
@@ -727,6 +735,9 @@ export const ChannelRoomPage = () => {
     }, []);
 
     const handleSend = (raw: string) => {
+        // The disabled composer already refuses a locked room; this holds even if a path to the send
+        // is ever added that does not go through the field.
+        if (inputLock.isLocked) return;
         const trimmed = raw.trim().slice(0, MAX_INPUT_LENGTH);
         // Read at the press, before the field clears: who the text's names mean goes with this message.
         // The picks are forgotten only once something is actually sent — a press that sends nothing
@@ -1516,7 +1527,7 @@ export const ChannelRoomPage = () => {
                     sendReady={attach.sendReady}
                     onKeyDown={handleKeyDown}
                     inputRef={inputRef}
-                    placeholder={t('chat.room.inputPlaceholder')}
+                    placeholder={inputLock.isLocked ? t('chat.inputLock.placeholder') : t('chat.room.inputPlaceholder')}
                     sendLabel={t('common.send')}
                     // Nobody left to receive it: a message sent into an empty 1:1 would carry an
                     // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 decision 5).
@@ -1524,7 +1535,15 @@ export const ChannelRoomPage = () => {
                     // Also locked while a message is being edited: two live fields on one screen
                     // and there is no telling which one you are typing into.
                     disabled={composerLocked}
-                    leadingSlot={attach.button}
+                    // A locked composer takes no photos either, so the padlock that lifts the lock
+                    // stands where the attach button was.
+                    leadingSlot={
+                        inputLock.isLocked ? (
+                            <ComposerLockButton onClick={unlockInput} label={t('chat.inputLock.unlock')} />
+                        ) : (
+                            attach.button
+                        )
+                    }
                 />
             </div>
             {attach.overlays}

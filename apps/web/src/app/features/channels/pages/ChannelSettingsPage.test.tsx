@@ -15,6 +15,9 @@ let channelValue: any;
 let membersValue: any;
 let myJoinValue: any;
 let dmPeerValue: any;
+// The Lab's input lock on this room, as `useChatInputLock` answers it.
+let mockInputLock = { isAvailable: false, isLocked: false };
+const mockSetInputLocked = jest.fn();
 // Site profiles by userId — what the MEMBER ROW reads (useChannelProfiles). Defaults to "I have a
 // profile" so only the nudge tests opt out; an empty map would silently route every my-row assertion
 // through the profile-setup branch.
@@ -128,6 +131,9 @@ jest.mock('@chatic/web-ui-kit', () => ({
         );
     },
     GroupLabel: ({ label }: any) => <p>{label}</p>,
+    Switch: ({ checked, onCheckedChange, label }: any) => (
+        <input type="checkbox" aria-label={label} checked={checked} onChange={e => onCheckedChange(e.target.checked)} />
+    ),
     IconChevronRight: () => <span data-testid="chevron" />,
     BottomSheet: ({ open, title, children }: any) =>
         open ? (
@@ -231,6 +237,7 @@ const MEMBERS = {
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockInputLock = { isAvailable: false, isLocked: false };
     membersValue = MEMBERS;
     myJoinValue = { userId: 'me' }; // my join row from the stream; notify undefined → All messages
     dmPeerValue = null;
@@ -266,7 +273,49 @@ jest.mock('../hooks', () => ({
     // The title chain is what these tests are checking, so run the real hook — only the barrel
     // around it (which drags in the socket runtime) is stubbed.
     useChannelTitle: jest.requireActual('../hooks/useChannelTitle').useChannelTitle,
+    useChatInputLock: () => ({ ...mockInputLock, setLocked: mockSetInputLocked }),
 }));
+
+describe('ChannelSettingsPage — the input lock row', () => {
+    it('is not offered while the Lab switch is off', () => {
+        channelValue = MEMBER_CHANNEL;
+        render(<ChannelSettingsPage />);
+
+        expect(screen.queryByRole('checkbox', { name: 'chat.inputLock.settingsRow' })).not.toBeInTheDocument();
+    });
+
+    it("shows the room's lock once the Lab switch is on, and locks it from the switch", () => {
+        channelValue = MEMBER_CHANNEL;
+        mockInputLock = { isAvailable: true, isLocked: false };
+        render(<ChannelSettingsPage />);
+
+        const row = screen.getByRole('checkbox', { name: 'chat.inputLock.settingsRow' });
+        expect(row).not.toBeChecked();
+
+        fireEvent.click(row);
+        expect(mockSetInputLocked).toHaveBeenCalledWith(true);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.inputLock.locked' });
+    });
+
+    it('unlocks a locked room from the same switch', () => {
+        channelValue = MEMBER_CHANNEL;
+        mockInputLock = { isAvailable: true, isLocked: true };
+        render(<ChannelSettingsPage />);
+
+        fireEvent.click(screen.getByRole('checkbox', { name: 'chat.inputLock.settingsRow' }));
+        expect(mockSetInputLocked).toHaveBeenCalledWith(false);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.inputLock.unlocked' });
+    });
+
+    // Nothing sent in a self chat reaches anyone else, and its settings have no settings group.
+    it('is not offered in a self chat', () => {
+        channelValue = SELF_CHANNEL;
+        mockInputLock = { isAvailable: true, isLocked: false };
+        render(<ChannelSettingsPage />);
+
+        expect(screen.queryByRole('checkbox', { name: 'chat.inputLock.settingsRow' })).not.toBeInTheDocument();
+    });
+});
 
 describe('ChannelSettingsPage', () => {
     it('소유자 뷰: 친구 추가 행과 방 삭제를 노출하고 방 나가기는 숨긴다', () => {

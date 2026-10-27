@@ -28,6 +28,10 @@ const mockUidInCloud: Record<string, string> = { 'cloud-a': 'uid-a', 'cloud-b': 
 let mockSearch = '';
 const mockSetSearchParams = jest.fn();
 
+// The Lab's input lock on this room, as `useChatInputLock` answers it.
+let mockInputLocked = false;
+const mockSetInputLocked = jest.fn();
+
 // The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
 const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
 
@@ -68,18 +72,22 @@ jest.mock('@chatic/ui-kit/components/ui/dropdown-menu', () => ({ DropdownMenuIte
 jest.mock('@chatic/web-ui-kit', () => ({
     AvatarGroup: () => null,
     ChatRoomHeader: () => null,
+    ComposerLockButton: ({ onClick, label }: any) => <button aria-label={label} onClick={onClick} />,
     DateDivider: () => null,
     DefaultAvatar: () => null,
     FloatingDateChip: () => null,
     ImageAvatar: () => null,
     SystemNotice: () => null,
     // The field and the send button, and what the room tells the button: enough to drive the send.
-    MessageInput: ({ onSend, value, onChange, inputRef, sendReady }: any) => (
+    MessageInput: ({ onSend, value, onChange, inputRef, sendReady, disabled, placeholder, leadingSlot }: any) => (
         <>
+            {leadingSlot}
             <textarea
                 data-testid="composer-input"
                 ref={inputRef}
                 value={value}
+                disabled={disabled}
+                placeholder={placeholder}
                 onChange={e => onChange(e.target.value)}
             />
             <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend('hello')} />
@@ -161,6 +169,7 @@ interface MockAttachInput {
     onUnsentText?: (text: string) => void;
     composerRef?: { current: HTMLElement | null };
     onComposerSlide?: (sliding: boolean) => void;
+    disabled?: boolean;
 }
 let mockAttachInput: MockAttachInput = {};
 jest.mock('../components/ChatImageAttach', () => ({
@@ -190,6 +199,7 @@ jest.mock('../hooks', () => ({
     useChannelMembers: () => ({ members: mockMembers }),
     useChannelProfiles: () => ({ profileMap: new Map() }),
     useChannelTitle: () => 'room',
+    useChatInputLock: () => ({ isAvailable: true, isLocked: mockInputLocked, setLocked: mockSetInputLocked }),
     useChatMutations: () => ({
         sendMessage: mockSendMessage,
         retryMessage: mockRetryMessage,
@@ -271,7 +281,52 @@ beforeEach(() => {
     mockDeleteMessage.mockReset().mockResolvedValue(undefined);
     mockUseJoinPositions.mockReset();
     mockStackInMounts.length = 0;
+    mockInputLocked = false;
+    mockSetInputLocked.mockReset();
+    mockAttachReady = false;
     (toast as jest.Mock).mockClear();
+});
+
+describe('ChannelRoomPage — the input lock', () => {
+    it('leaves the composer open while the room is not locked', () => {
+        render(<ChannelRoomPage />);
+
+        expect(screen.getByTestId('composer-input')).not.toBeDisabled();
+        expect(screen.getByTestId('composer-input')).toHaveAttribute('placeholder', 'chat.room.inputPlaceholder');
+        expect(screen.queryByRole('button', { name: 'chat.inputLock.unlock' })).not.toBeInTheDocument();
+    });
+
+    it('closes the composer and the attach panel of a locked room, and says why', () => {
+        mockInputLocked = true;
+
+        render(<ChannelRoomPage />);
+
+        expect(screen.getByTestId('composer-input')).toBeDisabled();
+        expect(screen.getByTestId('composer-input')).toHaveAttribute('placeholder', 'chat.inputLock.placeholder');
+        expect(mockAttachInput).toEqual(expect.objectContaining({ disabled: true }));
+    });
+
+    // The disabled field is the first guard; the send itself refuses a locked room as well.
+    it('sends nothing from a locked room, even when the send fires', () => {
+        mockInputLocked = true;
+        mockAttachReady = true;
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendMessage).not.toHaveBeenCalled();
+        expect(mockSendPicked).not.toHaveBeenCalled();
+    });
+
+    it('lifts the lock from the padlock in the composer', () => {
+        mockInputLocked = true;
+
+        render(<ChannelRoomPage />);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.inputLock.unlock' }));
+
+        expect(mockSetInputLocked).toHaveBeenCalledWith(false);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.inputLock.unlocked' });
+    });
 });
 
 describe('ChannelRoomPage — the cloud a write is addressed to', () => {

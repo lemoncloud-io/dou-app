@@ -52,7 +52,8 @@ cloud management, and the policy screens.
   everything behind it.
 - **What an experiment does.** Lab holds the switch; the feature behind it, and the rule that reads
   the switch, belong to that feature — the place invite's to
-  [invite/place-invite.md](../invite/place-invite.md).
+  [invite/place-invite.md](../invite/place-invite.md), the chat input lock's to
+  [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment).
 - **Logout itself.** The row opens a dialog and navigates to `ROUTES.auth.logout`;
   [auth](../auth/README.md)'s `LogoutPage` does the cache teardown and session end.
 - **Social link detail.** [account](../account/README.md) is the canon; `useSocialLinks` here is the
@@ -213,9 +214,16 @@ key on the registry's `labs` surface — default off, and declared killable by t
 draws a hand-built row for it in the **Experiments** card. No renderer walks the registry; a new
 experiment adds its own row, as a `user` key does in Settings.
 
-Today there is one: **Place invite** (`feature.placeInvite`), through `usePlaceInviteExperiment`.
-The row's subtitle is one short line because `ListRow` truncates a subtitle to a single line; what
-the switch does and where it applies is the note under the card.
+Today there are two, each in its own card with its note under it:
+
+- **Place invite** (`feature.placeInvite`), through `usePlaceInviteExperiment` — see
+  [invite/place-invite.md](../invite/place-invite.md).
+- **Chat input lock** (`feature.chatInputLock`), through `useChatInputLockExperiment` — see
+  [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment). Turning it on
+  only adds a row to each room's settings; no room is locked until that row says so.
+
+A row's subtitle is one short line because `ListRow` truncates a subtitle to a single line; what the
+switch does and where it applies is the note under the card.
 
 The switch only lets the feature in. Who may use it, and where, is still the feature's own rule —
 turning on Place invite does not give a non-owner the menu entry. The value lives in this device's
@@ -293,7 +301,9 @@ sheet and `useClearLocalCaches` for the clear-cache row.
 - [shell/layout-shell.md](../../shell/layout-shell.md) — the nav, safe areas and
   keyboard insets these screens sit inside.
 - [account](../account/README.md) — social links and the account-credential story.
-- [invite/place-invite.md](../invite/place-invite.md) — the place invite, Lab's one experiment so far.
+- [invite/place-invite.md](../invite/place-invite.md) — the place invite, one of Lab's experiments.
+- [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment) — the chat input
+  lock, the other.
 - [debug](../debug/README.md) · [feedback](../feedback/README.md) — the two features Lab and
   Settings hand off to.
 - [subscription](../subscription/README.md) — where the subscription row goes.

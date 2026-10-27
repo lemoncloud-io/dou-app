@@ -42,6 +42,11 @@ const mockSetSearchParams = jest.fn((update: (params: URLSearchParams) => URLSea
 // The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
 const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
 
+// The Lab's input lock on the thread's room, as `useChatInputLock` answers it.
+let mockInputLocked = false;
+const mockSetInputLocked = jest.fn();
+let mockInputLockChannelId: string | null | undefined;
+
 jest.mock('react-router-dom', () => ({
     useParams: () => ({ channelId: 'ch1', rootNo: mockRootNo }),
     useLocation: () => ({ state: mockLocationState }),
@@ -84,8 +89,10 @@ jest.mock('@chatic/web-ui-kit', () => ({
             {title}
         </div>
     ),
-    MessageInput: ({ placeholder, disabled, onSend, value, onChange, inputRef, sendReady }: any) => (
+    ComposerLockButton: ({ onClick, label }: any) => <button aria-label={label} onClick={onClick} />,
+    MessageInput: ({ placeholder, disabled, onSend, value, onChange, inputRef, sendReady, leadingSlot }: any) => (
         <div data-testid="composer" data-disabled={String(!!disabled)}>
+            {leadingSlot}
             {placeholder}
             <textarea
                 data-testid="composer-input"
@@ -197,6 +204,10 @@ jest.mock('../hooks', () => ({
     useChannelMembers: () => ({ members: mockMembers }),
     useChannelProfiles: (placeId: string | null, memberIds: string[]) => mockUseChannelProfiles(placeId, memberIds),
     useChannelTitle: () => '개발 모임방',
+    useChatInputLock: (channelId: string | null | undefined) => {
+        mockInputLockChannelId = channelId;
+        return { isAvailable: true, isLocked: mockInputLocked, setLocked: mockSetInputLocked };
+    },
     useChatMutations: () => ({ sendMessage: mockSendMessage }),
     useChats: (params: unknown) => {
         mockChatParams = params;
@@ -282,6 +293,53 @@ beforeEach(() => {
     (toast as jest.Mock).mockClear();
     mockSendMessage.mockReset().mockResolvedValue({});
     mockReadInCloud.mockReset().mockResolvedValue(undefined);
+    mockInputLocked = false;
+    mockSetInputLocked.mockReset();
+});
+
+describe('ThreadPage — the input lock', () => {
+    beforeEach(() => {
+        mockAttachInputs.length = 0;
+        mockChats = [chat()];
+    });
+
+    // A thread is a view of its room, so it reads the room's lock rather than one of its own.
+    it("answers to its room's lock", () => {
+        render(<ThreadPage />);
+
+        expect(mockInputLockChannelId).toBe('ch1');
+        expect(screen.getByTestId('composer')).toHaveAttribute('data-disabled', 'false');
+        expect(screen.getByTestId('composer')).toHaveTextContent('chat.thread.inputPlaceholder');
+    });
+
+    it('closes the reply field and the attach panel while the room is locked, and says why', () => {
+        mockInputLocked = true;
+
+        render(<ThreadPage />);
+
+        expect(screen.getByTestId('composer')).toHaveAttribute('data-disabled', 'true');
+        expect(screen.getByTestId('composer')).toHaveTextContent('chat.inputLock.placeholder');
+        expect(mockAttachInputs.at(-1)?.disabled).toBe(true);
+    });
+
+    it('sends nothing from a locked room, even when the send fires', () => {
+        mockInputLocked = true;
+
+        render(<ThreadPage />);
+        fireEvent.click(screen.getByTestId('send'));
+
+        expect(mockSendMessage).not.toHaveBeenCalled();
+    });
+
+    it('lifts the lock from the padlock in the composer', () => {
+        mockInputLocked = true;
+
+        render(<ThreadPage />);
+        fireEvent.click(screen.getByRole('button', { name: 'chat.inputLock.unlock' }));
+
+        expect(mockSetInputLocked).toHaveBeenCalledWith(false);
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.inputLock.unlocked' });
+    });
 });
 
 describe('ThreadPage — 진입 시 첫 화면', () => {

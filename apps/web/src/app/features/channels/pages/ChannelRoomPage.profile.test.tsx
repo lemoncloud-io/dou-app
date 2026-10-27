@@ -132,6 +132,7 @@ jest.mock('../hooks', () => ({
     useChannelMembers: () => ({ members: [] }),
     useChannelProfiles: () => ({ profileMap: mockProfileMap }),
     useChannelTitle: () => 'room',
+    useChatInputLock: () => ({ isAvailable: false, isLocked: false, setLocked: () => undefined }),
     useChatMutations: () => ({
         sendMessage: jest.fn(),
         retryMessage: jest.fn(),
