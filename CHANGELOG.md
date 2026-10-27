@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-27] - root@0.120.0, @chatic/web@0.81.0
+
+### Features
+
+- (web) let ending subscriptions add clouds and resubscribe on the lapsed tier (ADR-0240)
+
 ## [2026-10-27] - root@0.119.0, @chatic/web@0.80.0
 
 ### Features
