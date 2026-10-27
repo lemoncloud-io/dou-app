@@ -3,13 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
-import { PageLoader, accountLabel } from '../../components';
-import { Banner, Button, Card } from '../../components/ui';
-import { usePreviewCheckout } from '../../hooks';
-import { toIsoDate } from '../../lib/calendar';
-import { useToday } from '../../lib/port';
+import { BillingEmailChangeDialog, PageLoader, accountLabel } from '../../components';
+import { Badge, Banner, Button, Card } from '../../components/ui';
+import { useBillingInfo, usePreviewCheckout } from '../../hooks';
+import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { formatDate, formatMoney } from '../../utils';
-import { BillingEmailField, type VerifiedEmail } from './BillingEmailField';
 import {
     BILLING_COUNTRY_OPTIONS,
     CONSENTS,
@@ -18,13 +16,12 @@ import {
     allConsented,
     canContinueCheckout,
     changePlanUrl,
+    checkoutEmailUrl,
     checkoutPaymentUrl,
-    dayBefore,
-    formatShortDate,
     isSupportedCountry,
     setAllConsents,
 } from './flow';
-import { CheckoutSteps, FactRows, LoadError, OrderSummary } from './parts';
+import { CheckoutSteps, CheckoutSummary, LoadError } from './parts';
 import { usePlanRoute } from './usePlanRoute';
 
 import type { CheckoutPreview } from '../../types';
@@ -33,17 +30,23 @@ const checkboxClass = 'h-5 w-5 shrink-0 cursor-pointer accent-main-green';
 
 /**
  * W-08 — checkout: the plan and what it costs, which account it applies to, the billing country and
- * email, and the consents. The way on to the payment window opens only once all three are settled.
+ * email, and the consents. The way on to the payment window opens once the country and the consents
+ * are settled.
+ *
+ * The billing email is not entered here. It is the primary address verified on W-24, shown as it is;
+ * [change] opens the shared popup, which swaps a newly verified address in. A reader without a verified
+ * primary address — a link pasted past W-24, or one removed since — is sent to W-24 with the plan kept.
  */
 export const CheckoutPage = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const { loading, error, retry, target: plan, route } = usePlanRoute();
     const preview = usePreviewCheckout(route === 'checkout' ? plan?.id : undefined);
+    const billing = useBillingInfo();
 
     const [country, setCountry] = useState<string>(BILLING_COUNTRY_OPTIONS[0]);
-    const [email, setEmail] = useState<VerifiedEmail>();
     const [consents, setConsents] = useState<Consents>(NO_CONSENTS);
+    const [changingEmail, setChangingEmail] = useState(false);
 
     if (loading) return <PageLoader />;
     if (error) return <LoadError error={error} onRetry={retry} />;
@@ -52,15 +55,18 @@ export const CheckoutPage = (): JSX.Element => {
     if (route === 'plans') return <Navigate to={ROUTES.subscription.plans} replace />;
 
     if (preview.isError) return <LoadError error={preview.error} onRetry={preview.refetch} />;
-    if (!preview.data) return <PageLoader />;
+    if (billing.isError) return <LoadError error={billing.error} onRetry={billing.refetch} />;
+    if (!preview.data || !billing.data) return <PageLoader />;
+
+    const email = primaryVerifiedEmail(billing.data);
+    if (!email) return <Navigate to={checkoutEmailUrl(plan.id)} replace />;
 
     const money = (amount: CheckoutPreview['amountToday']) => formatMoney(amount, i18n.language);
     const { account, withTrial } = preview.data;
     const supported = isSupportedCountry(country);
-    const ready = canContinueCheckout({ country, emailId: email?.id, consents });
+    const ready = canContinueCheckout({ country, emailId: email.id, consents });
 
     const onContinue = () => {
-        if (!email) return;
         navigate(checkoutPaymentUrl(plan.id), { state: { checkout: { country, emailId: email.id } } });
     };
 
@@ -117,7 +123,24 @@ export const CheckoutPage = (): JSX.Element => {
                                 ))}
                             </select>
                         </div>
-                        <BillingEmailField defaultAddress={account.email} value={email} onChange={setEmail} />
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[13px] text-desc-alt">
+                                    {t('subscription.checkout.billing.email')}
+                                </span>
+                                <Button size="sm" variant="secondary" onClick={() => setChangingEmail(true)}>
+                                    {t('subscription.checkout.billing.change')}
+                                </Button>
+                            </div>
+                            <div className="flex h-12 items-center justify-between gap-2 rounded-xl border border-border px-3">
+                                <span className="truncate text-[13px] text-navy" title={email.address}>
+                                    {email.address}
+                                </span>
+                                <Badge tone="success" className="px-2">
+                                    ✓ {t('subscription.common.email.verified')}
+                                </Badge>
+                            </div>
+                        </div>
                     </div>
                     <p className="text-[13px] text-subtitle">{t('subscription.checkout.billing.countryNote')}</p>
                     {!supported && (
@@ -186,63 +209,10 @@ export const CheckoutPage = (): JSX.Element => {
             </div>
 
             <CheckoutSummary preview={preview.data} />
-        </div>
-    );
-};
 
-/** W-08's order summary: the plan, its allowance and price, the trial and when the first charge falls. */
-const CheckoutSummary = ({ preview }: { preview: CheckoutPreview }): JSX.Element => {
-    const { t, i18n } = useTranslation();
-    const today = toIsoDate(useToday());
-    const { plan, withTrial, firstChargeAt, amountToday } = preview;
-    const firstChargeIsToday = firstChargeAt === today;
-    return (
-        <OrderSummary>
-            <FactRows
-                rows={[
-                    {
-                        key: 'plan',
-                        label: t('subscription.checkout.summary.plan'),
-                        value: t('subscription.common.planName', { sort: plan.sort }),
-                    },
-                    {
-                        key: 'clouds',
-                        label: t('subscription.checkout.summary.clouds'),
-                        value: t('subscription.checkout.summary.cloudCount', { count: plan.maxClouds }),
-                    },
-                    {
-                        key: 'monthly',
-                        label: t('subscription.checkout.summary.monthly'),
-                        value: t('subscription.checkout.summary.monthlyValue', {
-                            price: formatMoney(plan.monthly, i18n.language),
-                        }),
-                    },
-                    {
-                        key: 'trial',
-                        label: t('subscription.checkout.summary.trial'),
-                        value: withTrial
-                            ? t('subscription.checkout.summary.trialRange', {
-                                  from: formatShortDate(today),
-                                  to: formatShortDate(dayBefore(firstChargeAt)),
-                                  count: plan.trialDays,
-                              })
-                            : t('subscription.checkout.summary.trialUsed'),
-                    },
-                    {
-                        key: 'firstCharge',
-                        label: t('subscription.checkout.summary.firstCharge'),
-                        value: firstChargeIsToday
-                            ? t('subscription.checkout.summary.today', { date: formatDate(firstChargeAt) })
-                            : formatDate(firstChargeAt),
-                    },
-                    {
-                        key: 'today',
-                        label: t('subscription.checkout.summary.chargeToday'),
-                        value: formatMoney(amountToday, i18n.language),
-                        strong: true,
-                    },
-                ]}
-            />
-        </OrderSummary>
+            {changingEmail && (
+                <BillingEmailChangeDialog current={email} where="checkout" onClose={() => setChangingEmail(false)} />
+            )}
+        </div>
     );
 };

@@ -249,6 +249,20 @@
                 "dateAndPrice": "{{date}} · {{price}}",
                 "chargeToday": "Due today"
             },
+            "emailStep": {
+                "title": "Verify your email",
+                "subtitle": "To subscribe, please verify an email address.",
+                "label": "Email",
+                "description": "We send upcoming payments, receipts, price changes and other subscription notices to this address.",
+                "signInChip": "Google account email",
+                "useOther": "Use another email",
+                "signInNote": "This is the Google account you signed in with, so you can use it without verifying.",
+                "appleNote": "Signing in with Apple does not share an email address. Please enter the address you want subscription notices sent to, and verify it.",
+                "verifiedNote": "Verified. Subscription notices go to this address. After subscribing you can add or change addresses in Billing info.",
+                "change": "Change email",
+                "next": "Next · Review your order",
+                "nextHint": "Verify your email to go on to the next step."
+            },
             "details": {
                 "title": "Review your order",
                 "subtitle": "Check the plan, the price and the account the subscription applies to.",
@@ -264,6 +278,7 @@
                 "title": "Billing details",
                 "country": "Billing country",
                 "email": "Billing email",
+                "change": "Change",
                 "countries": {
                     "KR": "South Korea",
                     "US": "United States",
@@ -273,19 +288,6 @@
                 "countryNote": "The billing country decides how you pay. It cannot be changed after you subscribe.",
                 "comingSoonTitle": "Paying from outside Korea is coming soon",
                 "comingSoonBody": "For now you can subscribe only with South Korea as the billing country."
-            },
-            "email": {
-                "change": "Change",
-                "verified": "✓ Verified",
-                "sendCode": "Send code",
-                "codeSent": "Enter the code we sent to {{address}}.",
-                "verify": "Verify",
-                "resend": "Send the code again",
-                "otherAddress": "Use another email",
-                "error": {
-                    "invalidCode": "That code does not match. Please check it and try again.",
-                    "limit": "You cannot add more billing emails. Remove one you no longer use in Billing info."
-                }
             },
             "consent": {
                 "all": "Agree to all",
