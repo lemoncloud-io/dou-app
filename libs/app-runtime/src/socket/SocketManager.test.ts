@@ -111,6 +111,39 @@ describe('SocketManager request facade', () => {
     });
 });
 
+/**
+ * `device.save` is sent by the SDK from the `device` handed to `createClientSocketV2`, and the server
+ * files the device by its `platform`. Every shell used to send `web`, so phones and desktops showed up
+ * in the device list as browsers.
+ */
+describe('SocketManager device identity', () => {
+    const globals = window as unknown as { CHATIC_APP_PLATFORM?: string };
+
+    beforeEach(() => {
+        mockedCreate.mockReset();
+        mockedCreate.mockReturnValue(makeClient());
+    });
+
+    afterEach(() => {
+        delete globals.CHATIC_APP_PLATFORM;
+    });
+
+    it('sends the mobile shell platform with the device id', () => {
+        globals.CHATIC_APP_PLATFORM = 'ios';
+
+        new SocketManager().ensure(onRelay(CONFIG));
+
+        expect(mockedCreate.mock.calls[0][0].device).toEqual({ id: 'device-1', platform: 'ios' });
+    });
+
+    // A guard rather than a regression test: a browser sent `web` before too, and must keep doing so.
+    it('sends web from a plain browser', () => {
+        new SocketManager().ensure(onRelay(CONFIG));
+
+        expect(mockedCreate.mock.calls[0][0].device).toMatchObject({ id: 'device-1', platform: 'web' });
+    });
+});
+
 describe('SocketManager request observer', () => {
     beforeEach(() => {
         mockedCreate.mockReset();

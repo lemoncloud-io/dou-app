@@ -25,6 +25,7 @@ import type {
 } from './types';
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
 import { hasResumeKick } from './auth/socketVerifyTrace';
+import { resolveSocketDevice } from './devicePlatform';
 import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';
 import { type SocketCloseEvent, type SocketCloseReason, classifySocketClose } from './utils/closeReason';
@@ -1013,9 +1014,11 @@ export class SocketManager implements ISocketManager {
         // its OWN client (and its own timer scheduler — never shared, §6-13).
         return createClientSocketV2({
             url: this.normalizeUrl(config.url),
+            // The server files the device by `platform` (mobile · desktop · web), so it has to name the
+            // shell rather than say `web` for everyone.
             device: {
                 id: config.deviceId,
-                platform: 'web',
+                ...resolveSocketDevice(),
             },
             auth: AUTH_OPTIONS,
         });

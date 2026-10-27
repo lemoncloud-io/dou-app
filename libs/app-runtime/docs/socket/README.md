@@ -16,11 +16,12 @@ covered here because the two halves only make sense together.
 ## Layout
 
 ```text
-socket/                              45 source files, 37 tests
-├── SocketManager.ts   1036 lines   the class. Nothing else is exported from this file
+socket/                              46 source files, 38 tests
+├── SocketManager.ts   1039 lines   the class. Nothing else is exported from this file
 ├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · SocketRequestSample · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
+├── devicePlatform.ts              resolveSocketDevice — the platform and name `device.save` sends
 ├── socketFailureReporter.ts       classifies and reports rejected requests
 ├── backgroundClouds.ts            the app's cloud list · holds · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
 ├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode · errorCodeLedger · closeReason (classifySocketClose · APP_CLOSE_REASON · SocketCloseReason)
@@ -179,6 +180,34 @@ Verification has per-slot counterparts for the same reason: `isSlotVerified(key)
 `subscribeSlotVerified(key, listener)` (fires immediately, then on every change). Anything pinned
 with `getScopedClient` must gate on these — `waitUntilVerified` would wait on cloud the moment a
 cloud session came up.
+
+### What a socket says about its device
+
+Every client is created with a `device` seed, and the SDK sends it as `device.save` on each connect.
+The server files the device by its `platform` — `ios` · `android` are mobile, `macos` · `windows` ·
+`linux` desktop, `web` a browser — and that is what my device list shows. Until this was decided per
+shell, every client sent `web`, so phones and desktops were listed as browsers.
+
+`resolveSocketDevice` decides it from what the shell injected, read straight off `window` when the
+client is created:
+
+| Shell                       | `CHATIC_APP_PLATFORM` | `platform` sent                                   | `name` sent                               |
+| --------------------------- | --------------------- | ------------------------------------------------- | ----------------------------------------- |
+| Mobile                      | `ios` · `android`     | that value                                        | none                                      |
+| Desktop (Electron)          | `desktop`             | `macos` · `windows` · `linux` from the user agent | none                                      |
+| Browser, or any other value | absent                | `web`                                             | `<browser> · <OS>`, e.g. `Chrome · macOS` |
+
+- It reads the globals, not device-utils' `deviceInfoStore`: the store is filled by a React hook on
+  mount, and the first socket can be created before that hook runs. The shells inject the globals
+  before the page's own script.
+- **The apps send no name.** The server keeps a sent `name` on every save, overwriting the row's label,
+  and neither shell injects anything a person would recognise: the mobile shell's
+  `CHATIC_APP_DEVICE_MODEL` is `DeviceInfo.getDeviceId()` — `iPhone17,1` on iOS, the board codename
+  (`panther`) on Android — and the desktop shell's is Node's `process.platform` (`darwin`). Without a
+  name the server labels a new row from the user agent. Naming a phone after its model needs the shell
+  to inject a readable one first. A browser the user agent does not identify sends no name either.
+- The virtual shell (`yarn local`) injects the mobile shell's globals, so it reports `ios` or
+  `android`, like the phone it stands in for.
 
 ### State
 
