@@ -10,12 +10,12 @@ Nothing in this folder authenticates a socket or renews a credential. That is
 ## Layout
 
 ```text
-session/                              67 source files, 34 tests
+session/                              69 source files, 36 tests
 ├── store/    12 files ·  4 tests  relay · cloud · identity tokens, selection, derived contexts
 ├── auth/     10 files ·  7 tests  login · cloud entry · teardown · the SDK delegate's material
 ├── scope/     3 files ·  1 test   ActiveScope — the three views, and the DataContextProvider
-├── pairing/   6 files ·  6 tests  device pairing: the code request flow, paired clouds, the secondary-device check, errors
-├── hooks/    34 files · 13 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 4 pairing
+├── pairing/   7 files ·  7 tests  device pairing: the code request flow, paired clouds, the secondary-device check, errors
+├── hooks/    35 files · 14 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 5 pairing
 └── index.ts                       the `session` facade group
 ```
 
@@ -257,7 +257,7 @@ switch to, and keeping the old id would leave the app on a place they are no lon
 | `hooks/session/actions/` | 5     | `useSiteSwitch` · `useSwitchCloudSession` · `useLogoutCloudSession` · `useSessionLogout` · `useInviteFlow`                                                        |
 | `hooks/auth/`            | 8     | `useLogin` · `useLoginRelaySocial` · `useLoginRelayGuestByDevice` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo` |
 | `hooks/app/`             | 5     | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                |
-| `hooks/pairing/`         | 4     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairingAwareLogout` — see [Device pairing](#device-pairing)                                |
+| `hooks/pairing/`         | 5     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairingAwareLogout` · `usePairedCloudCheck` — see [Device pairing](#device-pairing)        |
 
 The first three readers are `useSyncExternalStore(subscribeSessionSignal, …)`; `useSessionSelection`
 derives from `useGlobalSession`. Twenty of these 23 are on the package barrel; the three that are not
@@ -300,6 +300,14 @@ themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests
   of them on `confirm` (failures ignored) and then calls the app's own logout. A browser, a secondary
   device, or a list that cannot be read logs out at once — the relay refuses those sessions at their
   next renewal anyway, so nothing may hold a logout hostage.
+- **`usePairedCloudCheck(onEnded)`** re-checks each paired cloud at mount, every ten minutes and when the
+  app calls `check` (apps/web does on foreground return) by re-issuing its tokens through the relay's
+  delegation (`checkPairedCloud`). A cloud server knows nothing of the relay's pairings, so a cloud
+  session can outlive a revoked approval while it renews itself; the delegation does know, and answers 403. On a 403 the cloud gets the terminal-expiry teardown (cached tokens dropped, the session stores
+  cleared if it is the committed cloud), leaves the list, and `onEnded` lets the app say so. Anything
+  else waits for the next round. The cloud socket's own token refresh is **not** turned off for paired
+  clouds, so between two rounds such a session can still renew itself — the ten-minute check is what
+  bounds it.
 - **`forgetRefusedPairedCloud`** drops a paired cloud whose delegation the relay refused with 403 (the
   approval was revoked); any other failure leaves it for the next try.
 - **`classifyPairingError`** names the approval side's failures (`notFound` · `expired` · `codeRefused`

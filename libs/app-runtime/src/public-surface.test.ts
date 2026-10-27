@@ -61,6 +61,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'useLoginRelayGuestByDevice',
         'useLoginRelaySocial',
         'useLogoutCloudSession',
+        'usePairedCloudCheck',
         'usePairedCloudIds',
         'usePairingAwareLogout',
         'usePairingRequest',
