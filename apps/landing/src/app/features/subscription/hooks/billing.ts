@@ -66,6 +66,30 @@ export const useRequestEmailCode = () => {
     });
 };
 
+/** A new code for an address already waiting; resolves with the new ticket. */
+export const useResendEmailCode = () => {
+    const port = usePort();
+    return useMutation({ mutationFn: (emailId: string) => port.resendEmailCode(emailId) });
+};
+
+/** The Google sign-in address as a billing address, without a code. */
+export const useAdoptSignInEmail = () => {
+    const port = usePort();
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: () => port.adoptSignInEmail(),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: subscriptionKeys.billingInfo() }),
+    });
+};
+
+/** A verified new address takes an old one's place — the change popup's "change". */
+export const useReplaceEmail = () => {
+    const port = usePort();
+    return useBillingInfoMutation(({ emailId, newEmailId }: { emailId: string; newEmailId: string }) =>
+        port.replaceEmail(emailId, newEmailId)
+    );
+};
+
 export const useVerifyEmailCode = () => {
     const port = usePort();
     const queryClient = useQueryClient();

@@ -20,6 +20,7 @@ vi.mock('../pages/entry', () => ({
     StoreManagedPage: () => <p>W-17</p>,
 }));
 vi.mock('../pages/checkout', () => ({
+    CheckoutEmailPage: () => <p>W-24</p>,
     CheckoutPage: () => <p>W-08</p>,
     CheckoutPaymentPage: () => <p>W-05</p>,
     CheckoutStatusPage: () => <p>W-09</p>,
@@ -117,6 +118,12 @@ describe('SubscriptionRoutes', () => {
         expect(screen.queryByRole('link', { name: 'Cancel subscription' })).toBeNull();
     });
 
+    it('opens the email step for a signed-in reader', async () => {
+        renderAt('/subscription/checkout/email?plan=pro-tier-01', mockSetup('?mock=new'));
+
+        expect(await screen.findByText('W-24')).toBeTruthy();
+    });
+
     it('sends a store subscriber to the store notice instead of checkout', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=store-ios'));
 
@@ -134,8 +141,8 @@ describe('SubscriptionRoutes', () => {
     it('ignores an unsafe next on the sign-in page', async () => {
         renderAt('/subscription/login?next=https%3A%2F%2Fevil.example', mockSetup('?mock=active'));
 
-        expect(await screen.findByText('W-10')).toBeTruthy();
-        expect(where()).toBe('/subscription');
+        expect(await screen.findByText('W-01')).toBeTruthy();
+        expect(where()).toBe('/subscription/plans');
     });
 
     it('sends the reader to sign in when the session ends mid-page, keeping the way back', async () => {

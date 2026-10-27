@@ -66,6 +66,46 @@
                 "clouds_other": "{{count}} clouds",
                 "perMonth": "<price>{{price}}</price> / month",
                 "vatNote": "VAT included · 1 month"
+            },
+            "email": {
+                "placeholder": "name@example.com",
+                "sendCode": "Get a code",
+                "resend": "Resend",
+                "resendIn": "Resend ({{seconds}}s)",
+                "code": "6-digit code",
+                "verify": "Verify",
+                "remaining": "{{time}} left",
+                "sent": "We sent a code to {{address}}. Enter it within {{minutes}} minutes.",
+                "spam": "No email? Check your spam folder.",
+                "verified": "Verified",
+                "reenter": "Use another",
+                "policyCode": "The code is 6 digits and works for 5 minutes. You can enter it up to 5 times.",
+                "policyResend": "You can resend a code after 60 seconds, up to 5 times. After that, please verify again in 10 minutes.",
+                "error": {
+                    "invalidAddress": "Please check the email address.",
+                    "disposable": "Disposable addresses can't be used. Please enter an address you use regularly.",
+                    "limit": "You can't add more billing emails. Remove one you don't use and try again.",
+                    "invalidCode_one": "That code isn't right. {{count}} try left.",
+                    "invalidCode_other": "That code isn't right. {{count}} tries left.",
+                    "tooManyAttempts": "Too many wrong codes. Please get a new code.",
+                    "expired": "The code has expired. Please get a new code.",
+                    "resendLimit": "Too many codes requested. Please verify again after {{time}}.",
+                    "tooSoon": "Please wait a moment before resending.",
+                    "same": "That's the current address.",
+                    "registered": "That address is already registered."
+                },
+                "otherAddress": "Use another address"
+            },
+            "emailChange": {
+                "title": "Change billing email",
+                "body": "Change the address that gets payment notices, receipts and other subscription mail. It changes once the new address is verified.",
+                "current": "Current email",
+                "newAddress": "New email",
+                "primary": "Primary",
+                "hintNew": "You can change it once the new address is verified.",
+                "billingHint": "Until then we keep sending to the current address. When the primary address changes, we let both the old and the new address know.",
+                "confirm": "Change",
+                "changed": "Billing email changed"
             }
         },
         "entry": {

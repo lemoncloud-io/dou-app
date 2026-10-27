@@ -104,8 +104,8 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    client. The implementation behind it (the mock today) is swapped without touching a page.
 10. **The account surface is not pointed at until it opens.** Where `isSubscriptionWebEnabled` is
     false (every host but `localhost`, `127.0.0.1` and `-dev` ones) its routes are not registered,
-    and any link a public page adds into it renders only where the gate is open — none exists yet;
-    the home page's way in comes with the home page's own redesign. It goes in no sitemap, email or
+    and the public pages' links into it render only where the gate is open — today the home header's
+    "View plans" and "Sign in". It goes in no sitemap, email or
     outside link before then.
 
 Principles 1, 2, 7 and 9 are checked by the boundary commands in [Layering](#layering); 10 by the
@@ -314,10 +314,11 @@ features/subscription/
 ├── lib/mock/         the mock port: state machine, scenarios, policy values, storage
 ├── lib/              decisions as pure functions: sceneOf, changeKindOf, ddayOf,
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
-├── utils/            formatMoney, formatDate, cn
-├── hooks/            one react-query hook per port method, useCurrentSubscription, useNarrowViewport
+├── utils/            formatMoney, formatDate, cn, countdowns, isEmailAddress
+├── hooks/            one react-query hook per port method, useCurrentSubscription, useNarrowViewport, useNow
 ├── components/       PublicShell, AccountShell, AccountMenu, StatusBadge, PlanCard, SummaryTile,
-│                     ConfirmDialog, MockPaymentWindow, DevScenarioPanel, DesktopOnlyNotice, …
+│                     ConfirmDialog, EmailVerificationForm, BillingEmailChangeDialog, MockPaymentWindow,
+│                     DevScenarioPanel, DesktopOnlyNotice, …
 ├── components/ui/    Button, Card, Badge, Banner, Table, Dialog, Spinner, Toast — landing tokens
 └── pages/            entry/ checkout/ manage/ billing/ (the screens), dev/ (mock-only pages)
 ```
@@ -326,27 +327,28 @@ features/subscription/
 above it. The primitives use this site's Tailwind tokens (plus the `status-*` colours in
 `tailwind.config.js` / `styles.css`), not the UI kits, which expect tokens this site does not define.
 
-| URL                                                              | Screen                                                                                                   | Shell   | Guard                              |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- | ---------------------------------- |
-| `/subscription/plans`                                            | W-01 plans                                                                                               | public  | —                                  |
-| `/subscription/login?next=&reason=`                              | W-02 sign-in                                                                                             | public  | signed in → on to `next` (or W-10) |
-| `/subscription/login/callback`                                   | W-02 sign-in return                                                                                      | public  | —                                  |
-| `/subscription/login/no-account`                                 | W-02b no linked account                                                                                  | public  | —                                  |
-| `/subscription/store-managed`                                    | W-17 billed by a store                                                                                   | public  | signed in                          |
-| `/subscription/checkout?plan=`                                   | W-08 checkout                                                                                            | public  | signed in, not store-billed        |
-| `/subscription/checkout/payment?plan=`                           | W-05 card registration                                                                                   | public  | 〃                                 |
-| `/subscription/checkout/status?attempt=` · `?plan=&outcome=`     | W-09 payment in progress — or, with `outcome`, a payment window that closed or failed before any attempt | public  | 〃                                 |
-| `/subscription/checkout/complete?attempt=` · `?change=downgrade` | W-06 done — a downgrade is scheduled without an attempt (nothing is charged)                             | public  | 〃                                 |
-| `/subscription/change?plan=`                                     | W-14 plan change                                                                                         | public  | 〃                                 |
-| `/subscription`                                                  | W-10 subscriptions                                                                                       | account | 〃                                 |
-| `/subscription/:subscriptionId`                                  | W-18 one subscription                                                                                    | account | 〃                                 |
-| `/subscription/:subscriptionId/cancel`                           | W-15 cancel                                                                                              | account | 〃                                 |
-| `/subscription/payment-methods`                                  | W-12 cards                                                                                               | account | 〃                                 |
-| `/subscription/history`                                          | W-13 invoices                                                                                            | account | 〃                                 |
-| `/subscription/billing-info`                                     | W-16 billing emails                                                                                      | account | 〃                                 |
-| `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                     |
-| `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                     |
-| any other `/subscription/…`                                      | redirect to `/subscription`                                                                              |         |                                    |
+| URL                                                              | Screen                                                                                                   | Shell   | Guard                                                                          |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------ |
+| `/subscription/plans`                                            | W-01 plans                                                                                               | public  | —                                                                              |
+| `/subscription/login?next=&reason=`                              | W-02 sign-in                                                                                             | public  | signed in → on to `next` (or W-01)                                             |
+| `/subscription/login/callback`                                   | W-02 sign-in return                                                                                      | public  | —                                                                              |
+| `/subscription/login/no-account`                                 | W-02b no linked account                                                                                  | public  | —                                                                              |
+| `/subscription/store-managed`                                    | W-17 billed by a store                                                                                   | public  | signed in                                                                      |
+| `/subscription/checkout/email?plan=`                             | W-24 email step                                                                                          | public  | signed in, not store-billed                                                    |
+| `/subscription/checkout?plan=`                                   | W-08 checkout                                                                                            | public  | signed in, not store-billed (W-24 first once the screens are wired, see below) |
+| `/subscription/checkout/payment?plan=`                           | W-05 card registration                                                                                   | public  | 〃                                                                             |
+| `/subscription/checkout/status?attempt=` · `?plan=&outcome=`     | W-09 payment in progress — or, with `outcome`, a payment window that closed or failed before any attempt | public  | 〃                                                                             |
+| `/subscription/checkout/complete?attempt=` · `?change=downgrade` | W-06 done — a downgrade is scheduled without an attempt (nothing is charged)                             | public  | 〃                                                                             |
+| `/subscription/change?plan=`                                     | W-14 plan change                                                                                         | public  | 〃                                                                             |
+| `/subscription`                                                  | W-10 subscriptions                                                                                       | account | 〃                                                                             |
+| `/subscription/:subscriptionId`                                  | W-18 one subscription                                                                                    | account | 〃                                                                             |
+| `/subscription/:subscriptionId/cancel`                           | W-15 cancel                                                                                              | account | 〃                                                                             |
+| `/subscription/payment-methods`                                  | W-12 cards                                                                                               | account | 〃                                                                             |
+| `/subscription/history`                                          | W-13 invoices                                                                                            | account | 〃                                                                             |
+| `/subscription/billing-info`                                     | W-16 billing emails                                                                                      | account | 〃                                                                             |
+| `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                                                                 |
+| `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                                                                 |
+| any other `/subscription/…`                                      | redirect to `/subscription`                                                                              |         |                                                                                |
 
 Below the `md` breakpoint (768 px) every one of these shows W-23, the desktop-only notice, instead.
 Without a session a guarded page sends the reader to `/subscription/login?next=<the page>`; a
@@ -375,15 +377,15 @@ Calls take 300 ms. Every price, period and count it uses is in `lib/mock/policy.
 Pick the state with the URL; each query is applied once per tab, so a reload keeps the state and a
 one-shot flag is spent once:
 
-| Parameter          | Effect                                                                                                                                                                                                      |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `?mock=<scenario>` | start that scenario (below); the same scenario again keeps the current state                                                                                                                                |
-| `&fail=<flag>`     | `card-declined`, `attempt-limit`, `closed` (the payment window), `network` and `session-ended` (each fails the next call only), `signin-canceled`, `signin-expired` (the consent page's preselected answer) |
-| `&now=2026-11-20`  | the mock's today; scenarios have fixed dates, so this is how the same-day cases are reached                                                                                                                 |
-| `&cards=0`         | the scenario with no payment method                                                                                                                                                                         |
-| `&panel=0`         | hide the dev panel, for screenshots                                                                                                                                                                         |
+| Parameter          | Effect                                                                                                                                                                                                                                                                                 |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `?mock=<scenario>` | start that scenario (below); the same scenario again keeps the current state                                                                                                                                                                                                           |
+| `&fail=<flag>`     | `card-declined`, `attempt-limit`, `closed` (the payment window), `network` and `session-ended` (each fails the next call only), `signin-canceled`, `signin-expired` (the consent page's preselected answer), `code-expired` (the next code check) and `resend-limit` (the next resend) |
+| `&now=2026-11-20`  | the mock's today; scenarios have fixed dates, so this is how the same-day cases are reached                                                                                                                                                                                            |
+| `&cards=0`         | the scenario with no payment method                                                                                                                                                                                                                                                    |
+| `&panel=0`         | hide the dev panel, for screenshots                                                                                                                                                                                                                                                    |
 
-Scenarios: `visitor` (the default, signed out), `new`, `new-trial-used`, `no-linked-account`,
+Scenarios: `visitor` (the default, signed out), `new` (Google, no billing email yet), `new-apple` (no address shared), `new-trial-used`, `no-linked-account`,
 `no-linked-account-apple`, `store-ios`, `store-android`, `trial`, `active`, `active-card-expiring`,
 `past-due`, `restricted`, `cancel-scheduled`, `downgrade-scheduled`, `expired`, `history-mixed`,
 `email-pending`. Their data is in `lib/mock/scenarios.ts`; each scenario's today is 2026-11-01.
@@ -391,7 +393,9 @@ Scenarios: `visitor` (the default, signed out), `new`, `new-trial-used`, `no-lin
 The **dev panel** (bottom right) changes the scenario, the fail flag and today, and resets the state.
 The **payment window** is a dialog standing in for the payment provider's card window:
 `startPaymentMethodRegistration` opens it and resolves with the outcome the reader picks
-(registered, failed, closed), the fail flag's outcome marked. Billing email codes are `123456`. The
+(registered, failed, closed), the fail flag's outcome marked. Billing email codes are `123456`; a code
+lives 5 minutes, resends are 60 seconds apart and 5 at most, then the address locks for 10 minutes
+(`lib/mock/policy.ts`). Those run on the wall clock, not on `?now=`, which moves only the day. The
 panel, the consent page and the receipt page are developer tools: English, not in the copy files.
 
 ### Copy
@@ -401,6 +405,22 @@ key `subscription`, with `common` for the shells and shared components and one k
 (`entry`, `checkout`, `manage`, `billing`). `lib/i18n.ts` adds it to the `translation` namespace when
 the chunk loads, so the public pages never carry it. `localeParity.test.ts` covers the pair like any
 other.
+
+The Korean copy is in the formal polite register (`~합니다`, `~했습니다`, requests as `~해 주세요`),
+not the softer `~해요`. `src/i18n/subscriptionTone.test.ts` fails on a softer sentence ending
+in the key roots it checks; a screen group's root joins its list once that group's copy is rewritten.
+Figma frames drawn before that rule still show the softer register — the copy does not follow them.
+
+**Sign-in lands on the plans.** Without a `next`, a completed sign-in goes to W-01: a subscriber sees
+the plan in force and its neighbours there, and reaches the subscription list from the account menu.
+A cancelled or timed-out sign-in keeps its `next` (the port returns it with the error).
+
+**Billing emails.** `EmailVerificationForm` and `BillingEmailChangeDialog` are the shared pieces for
+the email step (W-24, still a placeholder) and the change popup that W-08 and W-16 are moving to;
+until those screens are rebuilt, W-08 and W-16 keep their own email fields. Every countdown and count
+the form shows comes from the port's `EmailCodeTicket` or error detail. The popup swaps a verified new
+address in at once (`replaceEmail`) and removes one it added if the reader walks away. W-08 is to send
+a reader without a verified primary address (`primaryVerifiedEmail`) to W-24 first.
 
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
@@ -561,13 +581,13 @@ not trigger.
   follow, so a key dropped from `ko.json` makes Korean readers see English rather than a raw key.
   The parity test catches a key missing from one language only; the values match the web app's.
 - **The public surface's tests cover routing, config, copy and the app launch only.** The route
-  table, the stage and link config, ko/en key parity, the i18n language handling, and the app launch
-  (`utils/appLaunch`, `hooks/useAppLauncher`) have tests; the home and policy components and the
-  other deep-link hooks have none. The account surface tests its rules, its mock, its routes and
+  table, the stage and link config, ko/en key parity, the i18n language handling, the home header's
+  subscription links and the app launch (`utils/appLaunch`, `hooks/useAppLauncher`) have tests; the
+  other home and policy components and the other deep-link hooks have none. The account surface tests its rules, its mock, its routes and
   every screen (a render per scenario).
 
     ```bash
-    npx nx test @chatic/landing   # 368 tests
+    npx nx test @chatic/landing   # 404 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionWebEnabled` is true on
@@ -617,7 +637,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 368 tests pass; in CI
+npx nx test @chatic/landing                               # 404 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

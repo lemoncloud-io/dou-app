@@ -25,10 +25,14 @@ export {
     useInvoices,
     useBillingInfo,
     useRequestEmailCode,
+    useResendEmailCode,
     useVerifyEmailCode,
+    useAdoptSignInEmail,
+    useReplaceEmail,
     useSetPrimaryEmail,
     useSetEmailReceives,
     useRemoveEmail,
 } from './billing';
 export { useCurrentSubscription } from './useCurrentSubscription';
 export { useNarrowViewport, NARROW_QUERY } from './useNarrowViewport';
+export { useNow } from './useNow';

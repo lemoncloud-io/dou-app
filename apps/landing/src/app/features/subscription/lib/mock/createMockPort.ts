@@ -3,7 +3,7 @@ import { addDays, addMonths, dayNumber } from '../calendar';
 import { canRemovePaymentMethod } from '../canRemovePaymentMethod';
 import { changeKindOf } from '../changeKindOf';
 import { isLive } from '../sceneOf';
-import { SubscriptionPortError } from '../port/errors';
+import { SubscriptionPortError, type SubscriptionPortErrorDetail } from '../port/errors';
 import { MOCK_PLANS, MOCK_POLICY, planOf } from './policy';
 import { buildScenario, isScenario, mockReceiptUrl } from './scenarios';
 import {
@@ -11,6 +11,7 @@ import {
     FAIL_FLAGS,
     type FailFlag,
     type MockAttempt,
+    type MockEmailCode,
     type MockState,
     type ScenarioId,
 } from './state';
@@ -19,7 +20,9 @@ import { type StateStore, sessionStateStore } from './storage';
 import type { Clock, SubscriptionPort } from '../port';
 import type {
     AttemptPurpose,
+    BillingEmail,
     ChangePreview,
+    EmailCodeTicket,
     Money,
     PaymentAttempt,
     PaymentMethod,
@@ -84,8 +87,8 @@ const APPLIED_SEARCHES_KEPT = 50;
 
 const clone = <T>(value: T): T => (value === undefined ? value : (JSON.parse(JSON.stringify(value)) as T));
 
-const fail = (code: SubscriptionPortError['code'], message?: string): never => {
-    throw new SubscriptionPortError(code, message);
+const fail = (code: SubscriptionPortError['code'], message?: string, detail?: SubscriptionPortErrorDetail): never => {
+    throw new SubscriptionPortError(code, message, detail);
 };
 
 const isFailFlag = (value: string | null): value is FailFlag =>
@@ -129,7 +132,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
     let paymentWindow: PaymentWindowPresenter | null = null;
 
     const stored = store.load();
-    let state: MockState = stored && stored.version === 2 ? stored : buildScenario('visitor');
+    let state: MockState = stored && stored.version === 3 ? stored : buildScenario('visitor');
 
     const commit = (next: MockState) => {
         state = next;
@@ -172,6 +175,51 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         s.subscriptions.find(sub => sub.id === id) ?? fail('notFound', `no subscription ${id}`);
 
     const defaultCard = (s: MockState): PaymentMethod | undefined => s.paymentMethods.find(pm => pm.isDefault);
+
+    const ticketOf = (emailId: string, sent: MockEmailCode): EmailCodeTicket => ({
+        emailId,
+        expiresAt: new Date(sent.expiresAt).toISOString(),
+        resendAt: new Date(sent.sentAt + MOCK_POLICY.emailResendSeconds * 1000).toISOString(),
+        resendsLeft: sent.resendsLeft,
+        attemptsLeft: sent.attemptsLeft,
+    });
+
+    // Sends a code to an address, applying the resend rules: not again within the interval, and once
+    // the codes run out, a lock before the address can start over.
+    const sendCode = (s: MockState, emailId: string): EmailCodeTicket => {
+        const now = nowMs();
+        const previous = s.emailCodes[emailId];
+        const lockedUntil = previous?.lockedUntil;
+        if (lockedUntil && now < lockedUntil)
+            fail('resendLimit', undefined, { retryAt: new Date(lockedUntil).toISOString() });
+        const lockedOut = (until: number) => {
+            s.emailCodes[emailId] = { ...(previous as MockEmailCode), lockedUntil: until };
+            commit(clone(s));
+            fail('resendLimit', undefined, { retryAt: new Date(until).toISOString() });
+        };
+        if (previous && s.fail === 'resend-limit') {
+            s.fail = null;
+            lockedOut(now + MOCK_POLICY.emailLockMinutes * 60_000);
+        }
+        // A lock that has passed starts the address over with a full set of codes.
+        const fresh = !previous || (lockedUntil !== undefined && now >= lockedUntil);
+        if (!fresh) {
+            if (now < previous.sentAt + MOCK_POLICY.emailResendSeconds * 1000) {
+                fail('conflict', 'too soon to resend', {
+                    retryAt: new Date(previous.sentAt + MOCK_POLICY.emailResendSeconds * 1000).toISOString(),
+                });
+            }
+            if (previous.resendsLeft <= 0) lockedOut(now + MOCK_POLICY.emailLockMinutes * 60_000);
+        }
+        const sent: MockEmailCode = {
+            sentAt: now,
+            expiresAt: now + MOCK_POLICY.emailCodeMinutes * 60_000,
+            attemptsLeft: MOCK_POLICY.emailCodeAttempts,
+            resendsLeft: fresh ? MOCK_POLICY.emailResends - 1 : previous.resendsLeft - 1,
+        };
+        s.emailCodes[emailId] = sent;
+        return ticketOf(emailId, sent);
+    };
 
     // Applies what a processing attempt does once it settles. Called before every operation, so a
     // list read after the attempt's time is up already shows its result.
@@ -388,11 +436,15 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                     commit(clone(s));
                     const tooLate =
                         !!pending && nowMs() - pending.startedAt > MOCK_POLICY.signInAttemptMinutes * 60_000;
-                    if (!pending || callback.get('nonce') !== pending.nonce || tooLate) fail('signInExpired');
+                    // A failed round trip still hands back where it was going, so trying again keeps it.
+                    const detail = pending?.next ? { next: pending.next } : undefined;
+                    if (!pending || callback.get('nonce') !== pending.nonce || tooLate) {
+                        fail('signInExpired', undefined, detail);
+                    }
                     const provider = (pending as NonNullable<typeof pending>).provider;
                     const result = callback.get('result');
-                    if (result === 'canceled') fail('signInCanceled');
-                    if (result !== 'continue' && result !== 'noAccount') fail('signInExpired');
+                    if (result === 'canceled') fail('signInCanceled', undefined, detail);
+                    if (result !== 'continue' && result !== 'noAccount') fail('signInExpired', undefined, detail);
                     if (result === 'noAccount') {
                         return {
                             noLinkedAccount: true as const,
@@ -582,9 +634,19 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
 
         requestEmailCode: address =>
             call(s => {
+                const domain = address.split('@')[1]?.toLowerCase() ?? '';
+                if ((MOCK_POLICY.disposableEmailDomains as readonly string[]).includes(domain)) {
+                    fail('disposableEmail');
+                }
                 const existing = s.billing.emails.find(e => e.address.toLowerCase() === address.toLowerCase());
                 if (existing?.status === 'verified') fail('conflict', 'already verified');
-                if (existing) return { emailId: existing.id };
+                // An address still waiting keeps its live code — asking again within its lifetime hands back
+                // the same ticket rather than a "too soon"; once the code is dead it gets a fresh one.
+                if (existing) {
+                    const live = s.emailCodes[existing.id];
+                    if (live && nowMs() < live.expiresAt && !live.lockedUntil) return ticketOf(existing.id, live);
+                    return sendCode(s, existing.id);
+                }
                 if (s.billing.emails.length >= MOCK_POLICY.maxBillingEmails) fail('limit', 'billing email limit');
                 const id = nextId(s, 'em');
                 s.billing.emails.push({
@@ -594,16 +656,80 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                     status: 'pending',
                     receives: ['receipt', 'notice'],
                 });
-                return { emailId: id };
+                return sendCode(s, id);
+            }),
+
+        resendEmailCode: emailId =>
+            call(s => {
+                const email = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
+                if (email.status === 'verified') fail('conflict', 'already verified');
+                return sendCode(s, emailId);
             }),
 
         verifyEmailCode: (emailId, code) =>
             call(s => {
                 const email = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
-                if (code !== MOCK_POLICY.emailCode) fail('invalidCode');
+                // A second check of an address already verified (a retry, another tab) is not an error.
+                if (email.status === 'verified') return email;
+                // An address a scenario seeds as waiting has no send on record: count it as sent just now.
+                if (!s.emailCodes[emailId] && email.status === 'pending') sendCode(s, emailId);
+                const sent = s.emailCodes[emailId] ?? fail('codeExpired', 'no code sent');
+                if (s.fail === 'code-expired') {
+                    s.fail = null;
+                    commit(clone(s));
+                    fail('codeExpired');
+                }
+                if (nowMs() > sent.expiresAt) fail('codeExpired');
+                if (sent.attemptsLeft <= 0) fail('tooManyAttempts');
+                if (code !== MOCK_POLICY.emailCode) {
+                    // The wrong entry counts even though the call fails.
+                    sent.attemptsLeft -= 1;
+                    commit(clone(s));
+                    if (sent.attemptsLeft <= 0) fail('tooManyAttempts');
+                    fail('invalidCode', undefined, { attemptsLeft: sent.attemptsLeft });
+                }
+                delete s.emailCodes[emailId];
                 email.status = 'verified';
                 if (!s.billing.emails.some(e => e.primary)) email.primary = true;
                 return email;
+            }),
+
+        adoptSignInEmail: () =>
+            call(s => {
+                const address = s.account.email;
+                if (s.account.provider !== 'google' || !address) fail('conflict', 'no Google sign-in address');
+                const known = s.billing.emails.find(e => e.address.toLowerCase() === (address as string).toLowerCase());
+                if (known?.status === 'verified') return known;
+                if (known) {
+                    known.status = 'verified';
+                    delete s.emailCodes[known.id];
+                    if (!s.billing.emails.some(e => e.primary)) known.primary = true;
+                    return known;
+                }
+                if (s.billing.emails.length >= MOCK_POLICY.maxBillingEmails) fail('limit', 'billing email limit');
+                const email: BillingEmail = {
+                    id: nextId(s, 'em'),
+                    address: address as string,
+                    primary: !s.billing.emails.some(e => e.primary),
+                    status: 'verified',
+                    receives: ['receipt', 'notice'],
+                };
+                s.billing.emails.push(email);
+                return email;
+            }),
+
+        replaceEmail: (emailId, newEmailId) =>
+            call(s => {
+                const old = s.billing.emails.find(e => e.id === emailId) ?? fail('notFound', `no email ${emailId}`);
+                const next =
+                    s.billing.emails.find(e => e.id === newEmailId) ?? fail('notFound', `no email ${newEmailId}`);
+                if (old.id === next.id) fail('conflict', 'the same address');
+                if (next.status !== 'verified') fail('conflict', 'only a verified address can take over');
+                // The primary mark moves with the old address; a new address that already was primary keeps it.
+                next.primary = next.primary || old.primary;
+                next.receives = [...old.receives];
+                s.billing.emails = s.billing.emails.filter(e => e.id !== old.id);
+                return s.billing;
             }),
 
         setPrimaryEmail: emailId =>

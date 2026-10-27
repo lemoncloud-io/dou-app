@@ -16,6 +16,7 @@ import { BillingHistoryPage, BillingInfoPage, PaymentMethodsPage } from '../page
 import {
     ChangePlanPage,
     CheckoutCompletePage,
+    CheckoutEmailPage,
     CheckoutPage,
     CheckoutPaymentPage,
     CheckoutStatusPage,
@@ -97,6 +98,7 @@ export const SubscriptionRoutes = ({ setup = defaultSetup }: { setup?: PortSetup
                                         <Route path="store-managed" element={<StoreManagedPage />} />
                                     </Route>
                                     <Route element={<RequireSession />}>
+                                        <Route path="checkout/email" element={<CheckoutEmailPage />} />
                                         <Route path="checkout" element={<CheckoutPage />} />
                                         <Route path="checkout/payment" element={<CheckoutPaymentPage />} />
                                         <Route path="checkout/status" element={<CheckoutStatusPage />} />

@@ -200,13 +200,13 @@ describe('W-02 return', () => {
         await waitFor(() => expect(where()).toBe('/subscription/history'));
     });
 
-    it('lands on the subscription list without a next', async () => {
+    it('lands on the plans without a next', async () => {
         renderAt('/subscription/login', mockSetup('?mock=visitor'));
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Return to DoU' }));
 
-        await waitFor(() => expect(where()).toBe('/subscription'));
+        await waitFor(() => expect(where()).toBe('/subscription/plans'));
     });
 
     it('sends a store subscriber to the store notice', async () => {
@@ -230,6 +230,16 @@ describe('W-02 return', () => {
 
         expect(await screen.findByText('You canceled the sign-in')).toBeTruthy();
         expect(where()).toBe('/subscription/login?reason=canceled');
+    });
+
+    it('keeps the return path when the sign-in is canceled', async () => {
+        renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=visitor'));
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
+        fireEvent.click(await screen.findByLabelText('Cancel'));
+        fireEvent.click(screen.getByRole('button', { name: 'Return to DoU' }));
+
+        await waitFor(() => expect(where()).toBe('/subscription/login?reason=canceled&next=%2Fsubscription%2Fhistory'));
     });
 
     it('treats a callback with no sign-in behind it as expired', async () => {

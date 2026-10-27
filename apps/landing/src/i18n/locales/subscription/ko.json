@@ -3,7 +3,7 @@
         "common": {
             "planName": "DoU Cloud {{sort}}",
             "nav": {
-                "plans": "요금제",
+                "plans": "구독 상품",
                 "manage": "구독 관리",
                 "policy": "정책·사업자 정보",
                 "signIn": "로그인"
@@ -15,7 +15,7 @@
                 "billingInfo": "청구 정보",
                 "cancel": "구독 해지",
                 "summary": "웹 구독 · 다음 결제 {{date}}",
-                "noSubscription": "이용 중인 구독이 없어요"
+                "noSubscription": "이용 중인 구독이 없습니다"
             },
             "account": {
                 "menu": "계정 메뉴",
@@ -23,7 +23,7 @@
                 "apple": "Apple로 로그인",
                 "manage": "구독 관리",
                 "signOut": "로그아웃",
-                "signedOut": "로그아웃했어요"
+                "signedOut": "로그아웃되었습니다"
             },
             "status": {
                 "trial": "체험 중",
@@ -42,30 +42,70 @@
             },
             "loading": "불러오는 중…",
             "error": {
-                "network": "연결이 불안정해요. 잠시 뒤 다시 시도해 주세요.",
-                "unknown": "문제가 생겼어요. 다시 시도해 주세요."
+                "network": "연결이 불안정합니다. 잠시 후 다시 시도해 주세요.",
+                "unknown": "문제가 발생했습니다. 다시 시도해 주세요."
             },
             "desktopOnly": {
                 "title": "DoU 구독",
-                "appTitle": "휴대폰에서는 앱에서 구독해요",
-                "appBody": "DoU 앱 › MY › 구독 관리에서 App Store · Google Play로 구독할 수 있어요.",
+                "appTitle": "휴대폰에서는 앱에서 구독하실 수 있습니다",
+                "appBody": "DoU 앱 › MY › 구독 관리에서 App Store · Google Play로 구독하실 수 있습니다.",
                 "openApp": "DoU 앱 열기",
-                "pcTitle": "웹 구독은 PC에서 할 수 있어요",
-                "pcBody": "데스크톱 브라우저로 이 페이지에 오면 웹 결제로 구독할 수 있어요. 어느 쪽으로 구독해도 휴대폰과 PC 모두에서 쓸 수 있어요."
+                "pcTitle": "웹 구독은 PC에서 하실 수 있습니다",
+                "pcBody": "데스크톱 브라우저로 이 페이지에 오시면 웹 결제로 구독하실 수 있습니다. 어느 쪽으로 구독하셔도 휴대폰과 PC 모두에서 사용하실 수 있습니다."
             },
             "paymentWindow": {
                 "title": "카드 등록",
-                "description": "테스트 결제창이에요. 실제 카드 정보는 받지 않아요. 결과를 골라 주세요.",
+                "description": "테스트 결제창입니다. 실제 카드 정보는 받지 않습니다. 결과를 골라 주세요.",
                 "registered": "등록 성공",
                 "failed": "등록 실패",
                 "closed": "창 닫기"
             },
-            "placeholder": "{{id}} 화면은 준비 중이에요",
+            "placeholder": "{{id}} 화면은 준비 중입니다",
             "plan": {
                 "clouds_one": "클라우드 {{count}}개",
                 "clouds_other": "클라우드 {{count}}개",
                 "perMonth": "<price>월 {{price}}</price>",
                 "vatNote": "VAT 포함 · 1개월"
+            },
+            "email": {
+                "placeholder": "name@example.com",
+                "sendCode": "인증번호 받기",
+                "resend": "다시 보내기",
+                "resendIn": "다시 보내기 ({{seconds}}초)",
+                "code": "인증번호 6자리",
+                "verify": "확인",
+                "remaining": "{{time}} 남음",
+                "sent": "{{address}}로 인증번호를 보내 드렸습니다. {{minutes}}분 안에 입력해 주세요.",
+                "spam": "메일이 오지 않았다면 스팸함을 확인해 주세요.",
+                "verified": "인증됨",
+                "reenter": "다시 입력",
+                "policyCode": "인증번호는 숫자 6자리이며 5분 동안 유효합니다. 최대 5회까지 입력하실 수 있습니다.",
+                "policyResend": "인증번호 재전송은 60초 후부터 최대 5회 가능하며, 초과 시 10분 후에 다시 인증해 주세요.",
+                "error": {
+                    "invalidAddress": "메일 주소를 확인해 주세요.",
+                    "disposable": "일회용 메일 주소는 사용하실 수 없습니다. 자주 사용하시는 메일 주소를 입력해 주세요.",
+                    "limit": "청구 메일은 더 추가하실 수 없습니다. 쓰지 않는 메일을 지운 뒤 다시 시도해 주세요.",
+                    "invalidCode_one": "인증번호가 맞지 않습니다. {{count}}회 더 입력하실 수 있습니다.",
+                    "invalidCode_other": "인증번호가 맞지 않습니다. {{count}}회 더 입력하실 수 있습니다.",
+                    "tooManyAttempts": "인증번호를 여러 번 틀리셨습니다. 인증번호를 다시 받아 주세요.",
+                    "expired": "인증 시간이 지났습니다. 인증번호를 다시 받아 주세요.",
+                    "resendLimit": "인증번호를 너무 많이 요청하셨습니다. {{time}} 이후에 다시 인증해 주세요.",
+                    "tooSoon": "잠시 후 다시 보내 주세요.",
+                    "same": "지금 메일과 같은 주소입니다.",
+                    "registered": "이미 등록된 메일입니다."
+                },
+                "otherAddress": "다른 메일 쓰기"
+            },
+            "emailChange": {
+                "title": "청구 메일 변경",
+                "body": "결제 예정 · 영수증 등 구독 안내를 받으실 메일을 변경합니다. 새 메일을 인증하시면 변경됩니다.",
+                "current": "지금 메일",
+                "newAddress": "새 메일",
+                "primary": "대표",
+                "hintNew": "새 메일 인증을 완료하시면 변경하실 수 있습니다.",
+                "billingHint": "인증 전까지는 지금 메일로 계속 보내 드리며, 대표 메일을 바꾸시면 이전 메일과 새 메일로 알려 드립니다.",
+                "confirm": "변경하기",
+                "changed": "청구 메일이 변경되었습니다"
             }
         },
         "entry": {

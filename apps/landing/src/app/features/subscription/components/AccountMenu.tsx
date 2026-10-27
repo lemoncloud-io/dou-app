@@ -69,12 +69,28 @@ export const AccountMenu = ({
                 aria-expanded={open}
                 aria-label={t('subscription.common.account.menu')}
                 onClick={() => setOpen(value => !value)}
-                className="flex max-w-full items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm text-navy hover:bg-muted"
+                className={
+                    placement === 'below'
+                        ? 'flex max-w-[220px] items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-navy hover:bg-muted'
+                        : 'flex max-w-full items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm text-navy hover:bg-muted'
+                }
             >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
-                    {(account.displayName ?? label).slice(0, 1).toUpperCase()}
-                </span>
-                <span className="truncate">{label}</span>
+                {/* The top bar shows who by name, the sidebar foot by avatar and address. */}
+                {placement === 'below' ? (
+                    <>
+                        <span className="truncate">{account.displayName ?? label}</span>
+                        <span aria-hidden className="text-[10px]">
+                            ▾
+                        </span>
+                    </>
+                ) : (
+                    <>
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
+                            {(account.displayName ?? label).slice(0, 1).toUpperCase()}
+                        </span>
+                        <span className="truncate">{label}</span>
+                    </>
+                )}
             </button>
             {open && (
                 <div
@@ -101,7 +117,7 @@ export const AccountMenu = ({
                         type="button"
                         onClick={onSignOut}
                         disabled={signOut.isPending}
-                        className="block w-full rounded-lg px-3 py-2 text-left text-sm text-navy hover:bg-muted"
+                        className="block w-full rounded-lg px-3 py-2 text-left text-sm text-status-danger hover:bg-muted"
                     >
                         {t('subscription.common.account.signOut')}
                     </button>

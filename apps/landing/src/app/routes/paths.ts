@@ -33,6 +33,8 @@ export const ROUTES = {
         /** The mock port's stand-in for a provider-hosted receipt. */
         mockReceipt: '/subscription/mock-receipt',
         storeManaged: '/subscription/store-managed',
+        /** W-24, the email step every first checkout goes through before W-08. */
+        checkoutEmail: '/subscription/checkout/email',
         checkout: '/subscription/checkout',
         checkoutPayment: '/subscription/checkout/payment',
         checkoutStatus: '/subscription/checkout/status',

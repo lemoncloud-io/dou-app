@@ -25,6 +25,18 @@ export const MOCK_POLICY = {
     restoreWindowDays: 30,
     /** The verification code the mock accepts for any billing email. */
     emailCode: '123456',
+    /** How long a code works, in minutes. */
+    emailCodeMinutes: 5,
+    /** Wrong entries one code allows. */
+    emailCodeAttempts: 5,
+    /** Seconds between two codes for the same address. */
+    emailResendSeconds: 60,
+    /** Codes one address may be sent before it is locked. */
+    emailResends: 5,
+    /** Minutes an address stays locked after its codes run out. */
+    emailLockMinutes: 10,
+    /** Throwaway mail domains refused for billing mail. */
+    disposableEmailDomains: ['mailinator.com', 'guerrillamail.com', '10minutemail.com', 'tempmail.com', 'yopmail.com'],
     /** How long an unfinished sign-in stays valid (proposal). */
     signInAttemptMinutes: 10,
 } as const;

@@ -116,6 +116,22 @@ export interface BillingInfo {
     emails: BillingEmail[];
 }
 
+/**
+ * A verification code in flight for one billing address. The screen draws its countdowns from these
+ * instants and its counters from these numbers; the rules behind them (how long a code lives, how often
+ * it may be resent) belong to the server, not the screen. Instants are ISO date-times.
+ */
+export interface EmailCodeTicket {
+    emailId: string;
+    /** When the code stops working. */
+    expiresAt: string;
+    /** The earliest a new code may be asked for. */
+    resendAt: string;
+    resendsLeft: number;
+    /** Wrong entries the current code still allows. */
+    attemptsLeft: number;
+}
+
 export interface CheckoutPreview {
     plan: Plan;
     account: Account;

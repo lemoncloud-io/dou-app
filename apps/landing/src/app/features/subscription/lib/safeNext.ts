@@ -36,12 +36,12 @@ export const safeNext = (next: string | null | undefined): string | undefined =>
 /**
  * Where a completed sign-in goes. A store subscriber is told to manage the subscription in the store,
  * whatever they came for. Anyone else goes back to the page they came from when that is a safe one,
- * and otherwise to the subscription list — which, for someone with no subscription, is its empty state
- * with the way to the plans.
+ * and otherwise to the plans: a subscriber sees the plan in force and its neighbours there, and reaches
+ * the subscription list from the account menu.
  */
 export const landingAfterSignIn = (account: Account, next?: string | null): string => {
     if (account.billingSource === 'appStore' || account.billingSource === 'googlePlay') {
         return ROUTES.subscription.storeManaged;
     }
-    return safeNext(next) ?? ROUTES.subscription.root;
+    return safeNext(next) ?? ROUTES.subscription.plans;
 };

@@ -5,7 +5,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../../../routes/paths';
 import { Spinner } from '../../components/ui';
 import { useCompleteSignIn } from '../../hooks';
-import { landingAfterSignIn } from '../../lib/safeNext';
+import { isPortError } from '../../lib/port';
+import { landingAfterSignIn, safeNext } from '../../lib/safeNext';
 import { reasonOfSignInError } from './signInReason';
 
 import type { NoLinkedAccountState } from './NoLinkedAccountPage';
@@ -40,6 +41,9 @@ export const LoginCallbackPage = (): JSX.Element => {
             })
             .catch(error => {
                 const query = new URLSearchParams({ reason: reasonOfSignInError(error) });
+                // A failed round trip still knows where it was going; trying again should go there too.
+                const next = safeNext(isPortError(error) ? error.detail?.next : undefined);
+                if (next) query.set('next', next);
                 navigate(`${ROUTES.subscription.login}?${query}`, { replace: true });
             });
     }, [completeSignIn, navigate, search]);
