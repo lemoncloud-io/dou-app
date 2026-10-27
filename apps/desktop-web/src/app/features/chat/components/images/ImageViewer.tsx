@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { avatarStyle } from '../../../../shared';
 import type { ChatImage } from '../../utils';
 import { ImageActions } from './ImageActions';
+import { clampZoom, IDENTITY_ZOOM, type Zoom, wheelZoom } from './imageZoom';
 
 /** Who sent the images — the viewer's thread column repeats the message header. */
 export interface ImageAuthor {
@@ -68,6 +69,17 @@ export const ImageViewer = ({
     // The picture's own size, so the stage can fit it without blowing a thumbnail up to fill a monitor.
     const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
     const [seenOpenIndex, setSeenOpenIndex] = useState(openIndex);
+    const [zoom, setZoomState] = useState<Zoom>(IDENTITY_ZOOM);
+    const zoomRef = useRef<Zoom>(IDENTITY_ZOOM);
+    const setZoom = (next: Zoom) => {
+        zoomRef.current = next;
+        setZoomState(next);
+    };
+    const [stageEl, setStageEl] = useState<HTMLDivElement | null>(null);
+    const setStageNode = useCallback((node: HTMLDivElement | null) => {
+        setStageEl(previous => (previous === node ? previous : node));
+    }, []);
+    const imageRef = useRef<HTMLImageElement>(null);
     const isOpen = openIndex !== null;
     const isMulti = images.length > 1;
 
@@ -78,6 +90,8 @@ export const ImageViewer = ({
         if (openIndex !== null) setIndex(openIndex);
         setHasMoved(false);
         setNatural(null);
+        zoomRef.current = IDENTITY_ZOOM;
+        setZoomState(IDENTITY_ZOOM);
     }
 
     // A delete can shrink the set under the viewer; keep the index on a real image and
@@ -88,10 +102,35 @@ export const ImageViewer = ({
         else if (index > images.length - 1) setIndex(images.length - 1);
     }, [images.length, index, isOpen, onClose]);
 
+    useEffect(() => {
+        if (!stageEl) return;
+        const onWheel = (event: WheelEvent) => {
+            event.preventDefault();
+            const rect = stageEl.getBoundingClientRect();
+            const focal = {
+                x: event.clientX - (rect.left + rect.width / 2),
+                y: event.clientY - (rect.top + rect.height / 2),
+            };
+            const image = imageRef.current;
+            const content =
+                image && image.offsetWidth > 0
+                    ? { width: image.offsetWidth, height: image.offsetHeight }
+                    : { width: stageEl.clientWidth, height: stageEl.clientHeight };
+            const page = { width: stageEl.clientWidth, height: stageEl.clientHeight };
+            setZoom(clampZoom(wheelZoom(zoomRef.current, event.deltaY, focal), content, page));
+        };
+        stageEl.addEventListener('wheel', onWheel, { passive: false });
+        return () => stageEl.removeEventListener('wheel', onWheel);
+    }, [stageEl]);
+
     const current = images[Math.min(index, images.length - 1)];
     const position = Math.min(index, images.length - 1) + 1;
     const moveTo = (next: number) => {
-        if (next !== index) setNatural(null);
+        if (next !== index) {
+            setNatural(null);
+            zoomRef.current = IDENTITY_ZOOM;
+            setZoomState(IDENTITY_ZOOM);
+        }
         setIndex(next);
         setHasMoved(true);
     };
@@ -129,28 +168,41 @@ export const ImageViewer = ({
                 {current && (
                     <>
                         <div className="relative flex min-w-0 flex-1 flex-col bg-muted">
-                            <div className="relative flex min-h-0 flex-1 items-center justify-center px-16 pb-4 pt-8">
+                            <div
+                                ref={setStageNode}
+                                data-zoom-stage=""
+                                className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden px-16 pb-4 pt-8"
+                            >
                                 {/* Fills the stage and keeps its shape, up to twice its own size:
                                     drawn at natural size, a small picture was a speck in the
                                     middle of the window. */}
-                                <img
-                                    key={current.id}
-                                    src={current.url}
-                                    alt={t('chat.image.alt', {
-                                        index: position,
-                                        count: images.length,
-                                        name: author.name,
-                                    })}
-                                    draggable={false}
-                                    onLoad={event =>
-                                        setNatural({
-                                            width: event.currentTarget.naturalWidth,
-                                            height: event.currentTarget.naturalHeight,
-                                        })
-                                    }
-                                    style={fitStyle(natural)}
-                                    className="h-full w-full select-none rounded-sm object-contain"
-                                />
+                                <div
+                                    data-zoom-layer=""
+                                    className="flex h-full w-full items-center justify-center"
+                                    style={{
+                                        transform: `translate3d(${zoom.x}px, ${zoom.y}px, 0) scale(${zoom.scale})`,
+                                    }}
+                                >
+                                    <img
+                                        ref={imageRef}
+                                        key={current.id}
+                                        src={current.url}
+                                        alt={t('chat.image.alt', {
+                                            index: position,
+                                            count: images.length,
+                                            name: author.name,
+                                        })}
+                                        draggable={false}
+                                        onLoad={event =>
+                                            setNatural({
+                                                width: event.currentTarget.naturalWidth,
+                                                height: event.currentTarget.naturalHeight,
+                                            })
+                                        }
+                                        style={fitStyle(natural)}
+                                        className="h-full w-full select-none rounded-sm object-contain"
+                                    />
+                                </div>
                                 {isMulti && (
                                     <>
                                         <button

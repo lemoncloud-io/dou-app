@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -51,5 +51,39 @@ describe('ImageViewer keys', () => {
     it('stays quiet about the position until it changes', () => {
         renderViewer();
         expect(position()).toBe('');
+    });
+});
+
+describe('ImageViewer zoom', () => {
+    afterEach(() => {
+        cleanup();
+        vi.restoreAllMocks();
+    });
+
+    beforeEach(() => {
+        vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+        vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(400);
+        vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+        vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(300);
+    });
+
+    const layer = () => document.querySelector('[data-zoom-layer]') as HTMLElement;
+    const stage = () => document.querySelector('[data-zoom-stage]') as HTMLElement;
+    const scaleOf = () => Number(layer().style.transform.match(/scale\(([^)]+)\)/)?.[1]);
+
+    it('scales the picture around the pointer and stops the browser taking the wheel', () => {
+        renderViewer();
+        const event = new WheelEvent('wheel', {
+            deltaY: -400,
+            bubbles: true,
+            cancelable: true,
+            clientX: 200,
+            clientY: 200,
+        });
+        act(() => {
+            stage().dispatchEvent(event);
+        });
+        expect(event.defaultPrevented).toBe(true);
+        expect(scaleOf()).toBeGreaterThan(1);
     });
 });
