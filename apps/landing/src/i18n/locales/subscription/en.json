@@ -885,30 +885,14 @@
                 },
                 "dialog": {
                     "titleAdd": "Add billing email",
-                    "titleChange": "Change billing email",
+                    "titleVerify": "Verify billing email",
                     "bodyAdd": "Once the new address is verified, it joins your billing emails.",
-                    "bodyChange": "Switch your billing email to a new address. Verify it, then choose Change to switch right away.",
-                    "current": "Current email",
-                    "newAddress": "New email",
-                    "addressPlaceholder": "name@example.com",
-                    "sendCode": "Send code",
-                    "resend": "Resend",
-                    "code": "Verification code",
-                    "verify": "Verify",
-                    "reenter": "Use another",
-                    "verified": "Verified",
-                    "sent": "We sent a code to {{address}}.",
-                    "verifiedAdd": "Verified. Billing emails will go to this address too.",
-                    "verifiedChange": "Verified. Choose Change to switch to this address now.",
-                    "hint": "Until the new address is verified, we keep sending to the current one.",
-                    "invalidAddress": "Check the email address.",
-                    "invalidCode": "That code doesn't match. Please check it.",
-                    "limit": "You can't add more billing emails. Remove one you don't use and try again.",
-                    "confirmAdd": "Done",
-                    "confirmChange": "Change",
-                    "added": "Billing email added",
-                    "changed": "Billing email changed",
-                    "alreadyVerified": "That address is already verified. You can make it primary from the list."
+                    "bodyVerify": "Get a code and enter it, and billing emails go to this address too.",
+                    "address": "Email address",
+                    "verified": "Verified. Billing emails will go to this address too.",
+                    "alreadyVerified": "That address is already verified. You can make it primary from the list.",
+                    "confirm": "Done",
+                    "added": "Billing email added"
                 }
             }
         }

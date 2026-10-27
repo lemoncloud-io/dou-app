@@ -37,11 +37,11 @@ const Where = () => {
     return <output data-testid="where">{pathname + search}</output>;
 };
 
-const renderAt = (url: string, search: string) =>
+const renderAt = (url: string, search: string, setup: PortSetup = mockSetup(search)) =>
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
-                <Route path="/subscription/*" element={<SubscriptionRoutes setup={mockSetup(search)} />} />
+                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} />} />
             </Routes>
             <Where />
         </MemoryRouter>
@@ -274,7 +274,7 @@ describe('W-16 billing info', () => {
     const url = '/subscription/billing-info';
 
     const enterCode = async (dialog: HTMLElement, code: string) => {
-        fireEvent.change(await within(dialog).findByLabelText('Verification code'), { target: { value: code } });
+        fireEvent.change(await within(dialog).findByLabelText('6-digit code'), { target: { value: code } });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Verify' }));
     };
 
@@ -288,6 +288,11 @@ describe('W-16 billing info', () => {
         expect(screen.getByText("Can't be changed")).toBeTruthy();
     });
 
+    const sendCode = (dialog: HTMLElement, label: string, address: string) => {
+        fireEvent.change(within(dialog).getByLabelText(label), { target: { value: address } });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Get a code' }));
+    };
+
     it('flags a bouncing primary address and finishes a pending verification', async () => {
         renderAt(url, '?mock=email-pending');
 
@@ -296,9 +301,16 @@ describe('W-16 billing info', () => {
         expect(within(pending).getByText('Awaiting verification')).toBeTruthy();
 
         fireEvent.click(within(pending).getByRole('button', { name: 'Verify' }));
-        const dialog = await screen.findByRole('dialog', { name: 'Add billing email' });
+        const dialog = await screen.findByRole('dialog', { name: 'Verify billing email' });
+        // The waiting address is filled in; asking for a code picks up where it left off.
+        expect((within(dialog).getByLabelText('Email address') as HTMLInputElement).value).toBe(
+            'billing@lemon.example'
+        );
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Get a code' }));
+        // The tries left come from the port's answer, not from a count the page keeps.
         await enterCode(dialog, '000000');
-        expect(await within(dialog).findByText("That code doesn't match. Please check it.")).toBeTruthy();
+        expect(await within(dialog).findByText("That code isn't right. 4 tries left.")).toBeTruthy();
+        expect(within(dialog).getByRole('button', { name: 'Done' }).hasAttribute('disabled')).toBe(true);
         await enterCode(dialog, MOCK_POLICY.emailCode);
         expect(await within(dialog).findByText('✓ Verified')).toBeTruthy();
         fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }));
@@ -307,28 +319,114 @@ describe('W-16 billing info', () => {
         await waitFor(() => expect(screen.queryByText('Awaiting verification')).toBeNull());
     });
 
-    it('changes the primary address once the new one is verified', async () => {
+    it('says when the code ran out while finishing a verification', async () => {
+        renderAt(url, '?mock=email-pending&fail=code-expired');
+
+        fireEvent.click(within(await emailRow('billing@lemon.example')).getByRole('button', { name: 'Verify' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Verify billing email' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Get a code' }));
+        await enterCode(dialog, MOCK_POLICY.emailCode);
+
+        expect(await within(dialog).findByText('The code has expired. Please get a new code.')).toBeTruthy();
+    });
+
+    it('keeps a waiting address waiting when its verification is walked away from', async () => {
+        renderAt(url, '?mock=email-pending');
+
+        fireEvent.click(within(await emailRow('billing@lemon.example')).getByRole('button', { name: 'Verify' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Verify billing email' });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Get a code' }));
+        await within(dialog).findByLabelText('6-digit code');
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(within(await emailRow('billing@lemon.example')).getByText('Awaiting verification')).toBeTruthy();
+    });
+
+    it('becomes an addition once the waiting address is typed over', async () => {
+        renderAt(url, '?mock=email-pending');
+
+        fireEvent.click(within(await emailRow('billing@lemon.example')).getByRole('button', { name: 'Verify' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Verify billing email' });
+        sendCode(dialog, 'Email address', 'accounting@lemon.example');
+
+        expect(await screen.findByRole('dialog', { name: 'Add billing email' })).toBeTruthy();
+    });
+
+    it('does not count an address verified elsewhere as added, even from a stale list', async () => {
+        const setup = mockSetup('?mock=email-pending');
+        renderAt(url, '?mock=email-pending', setup);
+        await emailRow('billing@lemon.example');
+        // Verified behind the page's back (another tab): the list on screen still says it is waiting.
+        const { emailId } = await setup.port.requestEmailCode('billing@lemon.example');
+        await setup.port.verifyEmailCode(emailId, MOCK_POLICY.emailCode);
+
+        fireEvent.click(screen.getByRole('button', { name: '+ Add email' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Add billing email' });
+        sendCode(dialog, 'Email address', 'billing@lemon.example');
+
+        expect(
+            await within(dialog).findByText('That address is already verified. You can make it primary from the list.')
+        ).toBeTruthy();
+        expect(within(dialog).getByRole('button', { name: 'Done' }).hasAttribute('disabled')).toBe(true);
+    });
+
+    it('turns away a throwaway address when adding one', async () => {
+        renderAt(url, '?mock=active');
+
+        fireEvent.click(await screen.findByRole('button', { name: '+ Add email' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Add billing email' });
+        sendCode(dialog, 'Email address', 'temp4821@mailinator.com');
+
+        expect(await within(dialog).findByText(/Disposable addresses can't be used/)).toBeTruthy();
+        expect(within(dialog).queryByLabelText('6-digit code')).toBeNull();
+    });
+
+    it('swaps the primary address in from the change popup, with nothing left to save', async () => {
         renderAt(url, '?mock=active');
 
         const current = await emailRow('minji.kim@gmail.com');
         fireEvent.click(within(current).getByRole('button', { name: 'Change' }));
         const dialog = await screen.findByRole('dialog', { name: 'Change billing email' });
+        // The billing variant marks the current address primary and says who is told about the change.
+        expect(within(dialog).getByText('Primary')).toBeTruthy();
+        expect(within(dialog).getByText(/we let both the old and the new address know/)).toBeTruthy();
         expect(within(dialog).getByRole('button', { name: 'Change' }).hasAttribute('disabled')).toBe(true);
 
-        fireEvent.change(within(dialog).getByLabelText('New email'), { target: { value: 'not-an-address' } });
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Send code' }));
-        expect(await within(dialog).findByText('Check the email address.')).toBeTruthy();
+        sendCode(dialog, 'New email', 'minji.kim@gmail.com');
+        expect(await within(dialog).findByText("That's the current address.")).toBeTruthy();
 
-        fireEvent.change(within(dialog).getByLabelText('New email'), { target: { value: 'accounting@lemon.example' } });
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Send code' }));
-        expect(await within(dialog).findByText('We sent a code to accounting@lemon.example.')).toBeTruthy();
+        sendCode(dialog, 'New email', 'accounting@lemon.example');
+        expect(
+            await within(dialog).findByText('We sent a code to accounting@lemon.example. Enter it within 5 minutes.')
+        ).toBeTruthy();
         await enterCode(dialog, MOCK_POLICY.emailCode);
         await within(dialog).findByText('✓ Verified');
         fireEvent.click(within(dialog).getByRole('button', { name: 'Change' }));
 
         expect(await screen.findByText('Billing email changed')).toBeTruthy();
-        const added = await emailRow('accounting@lemon.example');
-        await waitFor(() => expect(within(added).getByText('Primary')).toBeTruthy());
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        const replaced = await emailRow('accounting@lemon.example');
+        await waitFor(() => expect(within(replaced).getByText('Primary')).toBeTruthy());
+        // The old address is gone rather than demoted, and the page has no save step.
+        await waitFor(() =>
+            expect(screen.getAllByText('minji.kim@gmail.com').every(node => !node.closest('li'))).toBe(true)
+        );
+        expect(screen.queryByRole('button', { name: /save/i })).toBeNull();
+    });
+
+    it('leaves the billing emails as they were when the change popup is cancelled', async () => {
+        renderAt(url, '?mock=active');
+
+        fireEvent.click(within(await emailRow('minji.kim@gmail.com')).getByRole('button', { name: 'Change' }));
+        const dialog = await screen.findByRole('dialog', { name: 'Change billing email' });
+        sendCode(dialog, 'New email', 'accounting@lemon.example');
+        await within(dialog).findByLabelText('6-digit code');
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        await waitFor(() => expect(screen.queryByText('accounting@lemon.example')).toBeNull());
+        expect(within(await emailRow('minji.kim@gmail.com')).getByText('Primary')).toBeTruthy();
     });
 
     it('turns off one kind of billing mail for an address', async () => {
@@ -344,17 +442,14 @@ describe('W-16 billing info', () => {
         expect((screen.getByRole('checkbox', { name: 'Receipts' }) as HTMLInputElement).checked).toBe(true);
     });
 
-    it('says an address is already verified instead of sending it a code', async () => {
+    it('refuses the primary address instead of sending it a code', async () => {
         renderAt(url, '?mock=active');
 
         fireEvent.click(await screen.findByRole('button', { name: '+ Add email' }));
         const dialog = await screen.findByRole('dialog', { name: 'Add billing email' });
-        fireEvent.change(within(dialog).getByLabelText('New email'), { target: { value: 'minji.kim@gmail.com' } });
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Send code' }));
-
-        expect(
-            await within(dialog).findByText('That address is already verified. You can make it primary from the list.')
-        ).toBeTruthy();
+        // The primary address is registered, and it is the primary already.
+        sendCode(dialog, 'Email address', 'minji.kim@gmail.com');
+        expect(await within(dialog).findByText('That address is already registered.')).toBeTruthy();
     });
 
     it('refuses another address past the limit', async () => {
@@ -364,21 +459,15 @@ describe('W-16 billing info', () => {
         for (let n = 1; n < MOCK_POLICY.maxBillingEmails; n++) {
             fireEvent.click(await screen.findByRole('button', { name: '+ Add email' }));
             const dialog = await screen.findByRole('dialog', { name: 'Add billing email' });
-            fireEvent.change(within(dialog).getByLabelText('New email'), {
-                target: { value: `extra${n}@lemon.example` },
-            });
-            fireEvent.click(within(dialog).getByRole('button', { name: 'Send code' }));
-            await within(dialog).findByLabelText('Verification code');
+            sendCode(dialog, 'Email address', `extra${n}@lemon.example`);
+            await within(dialog).findByLabelText('6-digit code');
             fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
             await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
         }
 
         fireEvent.click(await screen.findByRole('button', { name: '+ Add email' }));
         const dialog = await screen.findByRole('dialog', { name: 'Add billing email' });
-        fireEvent.change(within(dialog).getByLabelText('New email'), {
-            target: { value: 'one-too-many@lemon.example' },
-        });
-        fireEvent.click(within(dialog).getByRole('button', { name: 'Send code' }));
+        sendCode(dialog, 'Email address', 'one-too-many@lemon.example');
 
         expect(
             await within(dialog).findByText(

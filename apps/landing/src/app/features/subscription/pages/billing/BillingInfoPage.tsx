@@ -1,10 +1,10 @@
 import { type JSX, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ConfirmDialog, PageLoader } from '../../components';
+import { BillingEmailChangeDialog, ConfirmDialog, PageLoader } from '../../components';
 import { Badge, type BadgeTone, Banner, Button, Card, useToast } from '../../components/ui';
 import { useBillingInfo, useRemoveEmail, useSetEmailReceives, useSetPrimaryEmail } from '../../hooks';
-import { BillingEmailDialog, type BillingEmailDialogMode } from './BillingEmailDialog';
+import { BillingEmailAddDialog } from './BillingEmailAddDialog';
 import { BillingPageHeader, LoadFailed, useReportPortError } from './BillingPage';
 import { regionName, toggleReceive } from './display';
 
@@ -18,12 +18,17 @@ const STATUS_TONE: Record<Exclude<BillingEmail['status'], 'verified'>, BadgeTone
 
 const RECEIVES = ['receipt', 'notice'] as const;
 
+/** Which popup is open: changing an address (the primary's [change]) or adding one, new or waiting. */
+type EmailPopup = { kind: 'change'; current: BillingEmail } | { kind: 'add'; waiting?: BillingEmail };
+
 /**
  * W-16 — where billing mail goes and which country the account is billed in.
  *
  * Several addresses can receive billing mail; one is the primary. A new address is verified before it
- * receives anything, and only a verified one can become the primary. The billing country is shown and
- * not editable: it fixes how the account is charged, so changing it means subscribing again.
+ * receives anything, and only a verified one can become the primary. Changing the primary address is
+ * the shared change popup: once the new address is verified it takes the old one's place at once, so
+ * this page has nothing to save. The billing country is shown and not editable: it fixes how the
+ * account is charged, so changing it means subscribing again.
  */
 export const BillingInfoPage = (): JSX.Element => {
     const { t, i18n } = useTranslation();
@@ -34,7 +39,7 @@ export const BillingInfoPage = (): JSX.Element => {
     const setReceives = useSetEmailReceives();
     const remove = useRemoveEmail();
 
-    const [emailDialog, setEmailDialog] = useState<BillingEmailDialogMode | null>(null);
+    const [emailPopup, setEmailPopup] = useState<EmailPopup | null>(null);
     // Kept after the dialog closes, so its title does not blank while it goes.
     const [removing, setRemoving] = useState<BillingEmail | null>(null);
     const [removeOpen, setRemoveOpen] = useState(false);
@@ -101,7 +106,7 @@ export const BillingInfoPage = (): JSX.Element => {
                                                     size="sm"
                                                     variant="secondary"
                                                     disabled={busy}
-                                                    onClick={() => setEmailDialog({ kind: 'change', current: email })}
+                                                    onClick={() => setEmailPopup({ kind: 'change', current: email })}
                                                 >
                                                     {t('subscription.billing.info.emails.actions.change')}
                                                 </Button>
@@ -111,7 +116,7 @@ export const BillingInfoPage = (): JSX.Element => {
                                                     size="sm"
                                                     variant="secondary"
                                                     disabled={busy}
-                                                    onClick={() => setEmailDialog({ kind: 'resume', email })}
+                                                    onClick={() => setEmailPopup({ kind: 'add', waiting: email })}
                                                 >
                                                     {t('subscription.billing.info.emails.actions.verify')}
                                                 </Button>
@@ -179,7 +184,7 @@ export const BillingInfoPage = (): JSX.Element => {
                         variant="secondary"
                         className="self-start"
                         disabled={busy}
-                        onClick={() => setEmailDialog({ kind: 'add' })}
+                        onClick={() => setEmailPopup({ kind: 'add' })}
                     >
                         + {t('subscription.billing.info.emails.add')}
                     </Button>
@@ -197,7 +202,16 @@ export const BillingInfoPage = (): JSX.Element => {
                 </div>
             </Card>
 
-            {emailDialog && <BillingEmailDialog mode={emailDialog} onClose={() => setEmailDialog(null)} />}
+            {emailPopup?.kind === 'change' && (
+                <BillingEmailChangeDialog
+                    current={emailPopup.current}
+                    where="billing"
+                    onClose={() => setEmailPopup(null)}
+                />
+            )}
+            {emailPopup?.kind === 'add' && (
+                <BillingEmailAddDialog waiting={emailPopup.waiting} onClose={() => setEmailPopup(null)} />
+            )}
             <ConfirmDialog
                 open={removeOpen}
                 onOpenChange={setRemoveOpen}
