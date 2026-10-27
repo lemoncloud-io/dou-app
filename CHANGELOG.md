@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-27] - root@0.117.1, @chatic/desktop-web@0.35.6
+
+### Bug Fixes
+
+- (desktop-web) split author blocks by minute, not a 5-minute chain
+
 ## [2026-10-27] - No version updates
 
 ### Bug Fixes
