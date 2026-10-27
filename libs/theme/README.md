@@ -139,6 +139,11 @@ sequenceDiagram
 `setTheme` writes storage **before** state, so a crash between the two leaves the preference stored
 and the screen stale — recoverable on reload. The reverse order would lose the choice entirely.
 
+Storage that refuses — a profile with site data blocked, a full quota — is not a crash: the read
+answers "no choice made" and the provider opens on `defaultTheme`, and a refused write is dropped while
+the theme still changes for this run. The guard is two local functions rather than `@chatic/shared`'s
+`safeLocalStorage`, because that barrel would bring ui-kit and assets into this lib.
+
 ### Directories
 
 ```text

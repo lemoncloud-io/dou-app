@@ -23,6 +23,25 @@ const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
 
 const prefersDark = () => window.matchMedia(DARK_SCHEME_QUERY).matches;
 
+// Guarded here rather than through `@chatic/shared`'s `safeLocalStorage`: that barrel brings ui-kit
+// and assets with it, which this leaf lib does not otherwise depend on. Blocked storage reads as no
+// choice made, and a write it refuses still changes the theme for this run.
+const readStoredTheme = (key: string): Theme | null => {
+    try {
+        return localStorage.getItem(key) as Theme | null;
+    } catch {
+        return null;
+    }
+};
+
+const storeTheme = (key: string, theme: Theme): void => {
+    try {
+        localStorage.setItem(key, theme);
+    } catch {
+        // Full or blocked: the theme still applies until the next launch.
+    }
+};
+
 export const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
 export function ThemeProvider({
@@ -31,7 +50,7 @@ export function ThemeProvider({
     storageKey = 'vite-ui-theme',
     ...props
 }: ThemeProviderProps) {
-    const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem(storageKey) as Theme) || defaultTheme);
+    const [theme, setTheme] = useState<Theme>(() => readStoredTheme(storageKey) || defaultTheme);
     const [systemIsDark, setSystemIsDark] = useState(prefersDark);
     const isOnMobileApp = isNative();
 
@@ -69,7 +88,7 @@ export function ThemeProvider({
     const value = {
         theme,
         setTheme: (theme: Theme) => {
-            localStorage.setItem(storageKey, theme);
+            storeTheme(storageKey, theme);
             setTheme(theme);
         },
     };

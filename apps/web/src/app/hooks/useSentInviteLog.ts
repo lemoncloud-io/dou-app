@@ -2,6 +2,8 @@ import { create } from 'zustand';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
+import { safeLocalStorage } from '@chatic/shared';
+
 /** One remembered issuance: which invite id went to which recipient name. */
 interface SentInviteEntry {
     inviteId: string;
@@ -20,10 +22,9 @@ const STORAGE_KEY = 'dou.relayInvite.sentLog.v2';
 
 /** A corrupt/tampered value degrades to an empty log rather than throwing. */
 const readStoredLog = (): SentInviteLogMap => {
-    if (typeof window === 'undefined') return {};
+    const raw = safeLocalStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return {};
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
 
@@ -40,9 +41,9 @@ const readStoredLog = (): SentInviteLogMap => {
     }
 };
 
+/** A full or blocked storage loses the log, never the invite that was just sent. */
 const persistLog = (log: SentInviteLogMap): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(log));
+    safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify(log));
 };
 
 interface SentInviteLogState {

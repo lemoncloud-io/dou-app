@@ -11,6 +11,8 @@ import {
 // plain string and the final verdict on a value is the server's 400.
 import type { CountryCode } from 'libphonenumber-js';
 
+import { safeLocalStorage } from '../utils/storage';
+
 /**
  * ISO alpha-2 country of a phone number, as `libphonenumber-js` and the server both spell it.
  *
@@ -199,13 +201,8 @@ export const readInternationalInput = (input: string): InternationalPhoneInput |
 };
 
 const readStoredCountry = (): PhoneCountry | null => {
-    if (typeof window === 'undefined') return null;
-    try {
-        const stored = localStorage.getItem(COUNTRY_STORAGE_KEY);
-        return stored && isSupportedCountry(stored) ? stored : null;
-    } catch {
-        return null;
-    }
+    const stored = safeLocalStorage.getItem(COUNTRY_STORAGE_KEY);
+    return stored && isSupportedCountry(stored) ? stored : null;
 };
 
 /** The device locale's region (`ko-KR` → `KR`), or `null` when the locale names none. */
@@ -234,10 +231,6 @@ export const resolveDefaultCountry = (preferred?: PhoneCountry | null): PhoneCou
 
 /** Remembers an explicit pick. A storage-denied browser simply forgets it. */
 export const rememberCountry = (country: PhoneCountry): void => {
-    if (typeof window === 'undefined') return;
-    try {
-        localStorage.setItem(COUNTRY_STORAGE_KEY, country);
-    } catch {
-        // private mode / quota — the picker still works, it just reopens on the locale next time
-    }
+    // Private mode or a full quota drops it: the picker still works, and reopens on the locale next time.
+    safeLocalStorage.setItem(COUNTRY_STORAGE_KEY, country);
 };

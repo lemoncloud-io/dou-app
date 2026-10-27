@@ -2,8 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
 import type { ChatAttachmentSource } from '@chatic/data';
-
-import { safeLocalStorage } from './safeLocalStorage';
+import { safeLocalStorage } from '@chatic/shared';
 
 /** How many conversations keep a typed draft. Past it the one written longest ago goes. */
 export const COMPOSER_DRAFT_MAX = 50;
@@ -82,6 +81,8 @@ export const useComposerDraftStore = create<ComposerDraftState>()(
         }),
         {
             name: 'chatic.composer.drafts',
+            // A draft is a convenience: storage that is full, blocked or missing costs the draft,
+            // never the composer it sits under.
             storage: createJSONStorage(() => safeLocalStorage),
             // The waiting files are not storable (above): only the typed text outlives the run.
             partialize: state => ({ texts: state.texts }),

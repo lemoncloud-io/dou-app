@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
 
+import { safeLocalStorage } from '@chatic/shared';
+
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 720;
 const KEYBOARD_STEP = 16;
@@ -34,7 +36,8 @@ const otherPanelsWidth = (self: string): number => {
 
 /** The width kept under `key`, else `fallback`. */
 const readPreferred = (key: string, fallback: number): number => {
-    const stored = Number(localStorage.getItem(key));
+    // Unreadable storage reads as nothing kept, so the panel opens at its default width.
+    const stored = Number(safeLocalStorage.getItem(key));
     return Number.isFinite(stored) && stored > 0 ? stored : fallback;
 };
 
@@ -92,7 +95,7 @@ export const usePanelWidth = ({
 
     const persist = useCallback(() => {
         preferredRef.current = widthRef.current;
-        localStorage.setItem(storageKey, String(widthRef.current));
+        safeLocalStorage.setItem(storageKey, String(widthRef.current));
     }, [storageKey]);
 
     const startResize = useCallback(

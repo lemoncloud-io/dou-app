@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { safeLocalStorage } from './safeLocalStorage';
+import { safeLocalStorage } from '@chatic/shared';
 
 export interface InputLockState {
     /** The rooms whose composer this device has locked, by channel id. A room's threads share its id. */

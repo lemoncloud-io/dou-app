@@ -1,6 +1,7 @@
 import { DEFAULT_TELEMETRY_POLICY, parseTelemetryPolicy } from '@chatic/bridges';
 
 import type { TelemetryPolicy, TelemetryPolicyMatch, TelemetryPolicyRule } from '@chatic/bridges';
+import { safeLocalStorage } from '@chatic/shared';
 
 /**
  * Where the sampling policy comes from.
@@ -94,9 +95,10 @@ interface StoredPolicy {
 }
 
 const readJson = (key: string): unknown => {
+    const text = safeLocalStorage.getItem(key);
+    if (!text) return undefined;
     try {
-        const text = localStorage.getItem(key);
-        return text ? JSON.parse(text) : undefined;
+        return JSON.parse(text);
     } catch {
         return undefined;
     }
@@ -150,10 +152,7 @@ export const refreshPolicy = async (
     const policy = parseTelemetryPolicy(raw);
     if (!policy) return undefined;
 
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ raw, savedAt: now() } satisfies StoredPolicy));
-    } catch {
-        /* storage full or blocked: the next run starts from the default, which is safe */
-    }
+    // Storage full or blocked drops it: the next run starts from the default, which is safe.
+    safeLocalStorage.setItem(STORAGE_KEY, JSON.stringify({ raw, savedAt: now() } satisfies StoredPolicy));
     return policy;
 };

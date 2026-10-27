@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { isNative, logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import { safeSessionStorage } from '@chatic/shared';
 
 // After a long sleep the cloud token refresh 400s and the socket sticks at
 // isVerified=false: useCloudTokenRefresh's isAuthError path clears creds and
@@ -20,13 +21,8 @@ const RELOAD_GUARD_MS = 5 * 60_000; // never auto-reload more than once per 5 mi
 // if a reload didn't fix it, it's a genuine expiry, not a stale credential.
 const RELOAD_AT_KEY = 'chatic:wedge-reload-at';
 
-const readReloadAt = (): number => {
-    try {
-        return Number(sessionStorage.getItem(RELOAD_AT_KEY)) || 0;
-    } catch {
-        return 0; // private mode / storage disabled
-    }
-};
+// Private mode or disabled storage reads as never reloaded.
+const readReloadAt = (): number => Number(safeSessionStorage.getItem(RELOAD_AT_KEY)) || 0;
 
 /**
  * Self-heal a socket wedged unverified after sleep/wake by reloading the Electron
@@ -46,11 +42,7 @@ export const useSocketWedgeReload = (): void => {
         if (isVerified) {
             hasVerifiedRef.current = true;
             // Recovered — clear the guard so a later sleep episode can recover too.
-            try {
-                sessionStorage.removeItem(RELOAD_AT_KEY);
-            } catch {
-                /* ignore */
-            }
+            safeSessionStorage.removeItem(RELOAD_AT_KEY);
             return;
         }
 
@@ -65,11 +57,7 @@ export const useSocketWedgeReload = (): void => {
             if (lastReloadAt && Date.now() - lastReloadAt < RELOAD_GUARD_MS) return;
 
             logger.warn('AUTH', '[wedge-reload] socket unverified past grace after wake — reloading');
-            try {
-                sessionStorage.setItem(RELOAD_AT_KEY, String(Date.now()));
-            } catch {
-                /* ignore */
-            }
+            safeSessionStorage.setItem(RELOAD_AT_KEY, String(Date.now()));
             window.location.reload();
         }, WEDGE_GRACE_MS);
 

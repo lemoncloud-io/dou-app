@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { PanelResizeHandle } from '../components/PanelResizeHandle';
 import { type PanelEdge, usePanelWidth } from './usePanelWidth';
@@ -98,5 +98,25 @@ describe('usePanelWidth', () => {
         } finally {
             setWindowWidth(initial);
         }
+    });
+
+    // A profile with site data blocked throws on storage: the panel opens at its default and still resizes.
+    it('opens at the default and still resizes when storage is blocked', () => {
+        const blocked = () => {
+            throw new DOMException('denied', 'SecurityError');
+        };
+        const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(blocked);
+        const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(blocked);
+
+        render(<Panel />);
+        expect(width()).toBe(300);
+
+        pointer(screen.getByRole('separator'), 'pointerdown', 500);
+        pointer(window, 'pointermove', 450);
+        pointer(window, 'pointerup');
+        expect(width()).toBe(350);
+
+        getItem.mockRestore();
+        setItem.mockRestore();
     });
 });

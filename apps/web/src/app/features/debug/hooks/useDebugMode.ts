@@ -2,6 +2,7 @@ import { useCallback, useSyncExternalStore } from 'react';
 
 import { isNative } from '@chatic/bridges';
 import { config, CONFIG_UNLOCK_KEY } from '@chatic/config';
+import { safeSessionStorage } from '@chatic/shared';
 
 import { appBridge } from '../../../bridge';
 import { DEBUG_STORAGE_KEY, DEBUG_OVERLAY_KEY as OVERLAY_KEY } from '../consts';
@@ -23,7 +24,7 @@ const readInjectedFlag = () =>
 const readStagePolicy = () => config.get<boolean>('debug.overlayEnabled') === true;
 
 const readEnabled = () =>
-    sessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true' || readInjectedFlag() || readStagePolicy();
+    safeSessionStorage.getItem(DEBUG_STORAGE_KEY) === 'true' || readInjectedFlag() || readStagePolicy();
 
 // Module-level signal so every hook instance (MyPage unlock, always-mounted
 // debug overlay, …) observes the same enabled state without prop plumbing.
@@ -46,8 +47,9 @@ const notify = () => listeners.forEach(listener => listener());
  * not how it gets unlocked.
  */
 export const setDebugModeEnabled = (enabled: boolean) => {
-    if (enabled) sessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
-    else sessionStorage.removeItem(DEBUG_STORAGE_KEY);
+    // Blocked storage drops the unlock record; the registry row below still opens the panel for the run.
+    if (enabled) safeSessionStorage.setItem(DEBUG_STORAGE_KEY, 'true');
+    else safeSessionStorage.removeItem(DEBUG_STORAGE_KEY);
     // Disabling has to reach the registry row too. Clearing only the unlock record would leave the
     // panel open on LOCAL/DEV, where the stage rule is what put it there — "the web can hide it
     // again" (DebugOverlayHost's docblock) would stop being true.

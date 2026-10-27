@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
@@ -110,5 +110,28 @@ describe('ThemeProvider', () => {
 
         expect(screen.getByLabelText('theme').textContent).toBe('dark');
         expect(html().contains('dark')).toBe(true);
+    });
+
+    // A locked-down profile throws on any storage access; the theme still has to work for the run.
+    it('opens on the default and still switches when storage is blocked', () => {
+        const blocked = () => {
+            throw new DOMException('denied', 'SecurityError');
+        };
+        const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(blocked);
+        const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(blocked);
+
+        render(
+            <ThemeProvider defaultTheme="light">
+                <Probe />
+            </ThemeProvider>
+        );
+        expect(screen.getByLabelText('theme').textContent).toBe('light');
+
+        fireEvent.click(screen.getByText('dark'));
+        expect(screen.getByLabelText('theme').textContent).toBe('dark');
+        expect(html().contains('dark')).toBe(true);
+
+        getItem.mockRestore();
+        setItem.mockRestore();
     });
 });

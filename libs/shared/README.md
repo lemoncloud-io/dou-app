@@ -70,7 +70,8 @@ components here compose `Button` and `cn` rather than declaring a primitive of t
 ## Scope
 
 **In** — presentational components with no feature knowledge, generic React hooks, the two per-place
-sidebar preferences and their scope key, the swappable session-storage adapter, and small pure
+sidebar preferences and their scope key, the swappable session-storage adapter, the guarded browser
+stores (`safeLocalStorage`, `safeSessionStorage`), and small pure
 helpers over the DOM and over dates, query keys and images.
 
 **Out** — design-system primitives, `Toaster` included (`@chatic/ui-kit`), logging
@@ -255,7 +256,7 @@ Six things the filenames do not tell you.
 Import from the barrel. Nothing here needs construction or registration.
 
 ```ts
-import { AVATAR_IMAGE, formatDate, placeScopeKey, prepareImage, storage } from '@chatic/shared';
+import { AVATAR_IMAGE, formatDate, placeScopeKey, prepareImage, safeLocalStorage, storage } from '@chatic/shared';
 
 // Per-place preferences: derive the scope first, and let a null scope stay null.
 const scope = placeScopeKey(cloudId, placeId);
@@ -263,7 +264,43 @@ const { pinnedIds, toggle, reorder } = usePinnedChannels(scope);
 
 // Session-scoped storage, through whichever adapter the entry point installed.
 storage.set('relay.lastCloud', cloudId);
+
+// A device-local convenience value: a read that fails is null, a write that fails is dropped.
+safeLocalStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
 ```
+
+### The guarded stores
+
+`safeLocalStorage` and `safeSessionStorage` are web storage that never throws. Web storage fails in
+ordinary conditions — a full quota, a private window, a profile with site data blocked — and in some of
+them naming the global already throws, so each call looks the store up inside its own guard. A read
+that fails answers `null`; a write or a remove that fails is dropped.
+
+They exist so the guard is not rewritten at every caller. Before them, each caller wrapped its own
+`try`, and the ones that forgot threw in exactly those conditions: the sent-invite log's write, the
+desktop panel width, the session device id here, and the web debug-mode unlock record. Those use the
+guarded stores now, as do the callers whose hand-written guards they replace.
+
+The same guard is still hand-written in a few places on purpose. Modules that run first at boot and
+import nothing from `@chatic/*` keep theirs, so pulling this barrel in does not change what loads
+first: the web crash sentinel and both apps' `i18n` setup. The `storage` default below guards its one
+read the same way.
+
+- **Use them for values that are a convenience**: a draft, a panel width, a cached policy, a seen
+  flag. Losing the value is the right outcome there; breaking the screen is not.
+- **Keep a `try` of your own** where a failed write has to be known, or where the same `try` guards
+  more than storage — the log upload queue's `save` also guards its serialisation, and its orphan
+  sweep walks the store with `length` and `key()`, which the guarded stores do not offer.
+- **They are not `storage`.** That one is the session store whose adapter each entry point installs,
+  and it throws if its adapter does. The guarded stores always mean the browser's own stores.
+- **They are safe in React Native**, which bundles this barrel and has no web storage: nothing is
+  touched at import, and every call there is a no-op. `storage.test.ts` pins that case.
+- **`@chatic/theme` does not import them.** Its provider keeps its own two-line guard, because this
+  barrel would bring ui-kit and assets into a leaf lib that otherwise needs neither.
+- **A test that stubs this barrel wholesale has to keep them.** Several modules read a guarded store
+  when they load (a zustand store's initial state), so `jest.mock('@chatic/shared', () => ({ … }))`
+  that lists only the names it needs leaves them `undefined`, and the import itself fails. Spread
+  `jest.requireActual('@chatic/shared')` into such a stub.
 
 ### Wiring
 

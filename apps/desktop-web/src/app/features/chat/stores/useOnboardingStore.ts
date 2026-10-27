@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 
+import { safeLocalStorage } from '@chatic/shared';
+
 /**
  * Seen-flag key, one per account. A single device-wide flag survived logout, so
  * the next person to sign in on the same machine never saw the tips.
@@ -13,20 +15,11 @@ const onboardedKey = (userId: string) => `chatic.desktop.onboarded:${userId}`;
  * access is guarded because it throws outright in a locked-down profile — there
  * the tips reappear, which is the harmless end of the trade.
  */
-export const hasSeenOnboarding = (userId: string): boolean => {
-    try {
-        return localStorage.getItem(onboardedKey(userId)) === '1';
-    } catch {
-        return false;
-    }
-};
+export const hasSeenOnboarding = (userId: string): boolean => safeLocalStorage.getItem(onboardedKey(userId)) === '1';
 
+/** A dropped write is harmless: the in-session flag below still keeps it closed until reload. */
 export const markOnboardingSeen = (userId: string): void => {
-    try {
-        localStorage.setItem(onboardedKey(userId), '1');
-    } catch {
-        /* ignore — the in-session flag below still keeps it closed until reload */
-    }
+    safeLocalStorage.setItem(onboardedKey(userId), '1');
 };
 
 interface OnboardingState {

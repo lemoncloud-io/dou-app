@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react';
 import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { useConfigValue } from '@chatic/config/react';
+import { safeLocalStorage } from '@chatic/shared';
 import { appBridge } from '../bridge';
 import type { Theme } from '../stores/preferenceKeys';
 
@@ -69,11 +70,8 @@ const syncThemeToNativeStore = async (theme: Theme): Promise<void> => {
 export const setTheme = (theme: Theme): void => {
     config.set('ui.theme', theme, { lane: 'shell' });
     void syncThemeToNativeStore(theme);
-    try {
-        localStorage.setItem('vite-ui-theme', theme);
-    } catch {
-        // Best-effort — the @chatic/config write above already landed.
-    }
+    // Best-effort — the @chatic/config write above already landed.
+    safeLocalStorage.setItem('vite-ui-theme', theme);
 };
 
 /**

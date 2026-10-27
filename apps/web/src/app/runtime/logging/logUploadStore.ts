@@ -1,6 +1,7 @@
 import { toWireLogEntry } from '@chatic/bridges';
 
 import type { LogEntry, LogLevel } from '@chatic/bridges';
+import { safeLocalStorage, safeSessionStorage } from '@chatic/shared';
 
 /**
  * Persistence for the unsent upload queue.
@@ -48,9 +49,9 @@ const toEntry = (raw: Partial<LogEntry>): LogEntry => ({
 });
 
 const readJson = (key: string): LogEntry[] => {
+    const raw = safeLocalStorage.getItem(key);
+    if (!raw) return [];
     try {
-        const raw = localStorage.getItem(key);
-        if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? (parsed as Partial<LogEntry>[]).map(toEntry) : [];
     } catch {
@@ -67,22 +68,10 @@ const TAB_ID_KEY = '@chatic/web.log.pending.tab';
  * that run simply behaves like a fresh tab each load.
  */
 export const resolveTabId = (fallback: string): string => {
-    try {
-        const existing = sessionStorage.getItem(TAB_ID_KEY);
-        if (existing) return existing;
-        sessionStorage.setItem(TAB_ID_KEY, fallback);
-        return fallback;
-    } catch {
-        return fallback;
-    }
-};
-
-const safeRemove = (key: string): void => {
-    try {
-        localStorage.removeItem(key);
-    } catch {
-        /* storage unavailable — nothing to clean up */
-    }
+    const existing = safeSessionStorage.getItem(TAB_ID_KEY);
+    if (existing) return existing;
+    safeSessionStorage.setItem(TAB_ID_KEY, fallback);
+    return fallback;
 };
 
 export interface LogUploadStore {
@@ -97,13 +86,8 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
     const key = `${KEY_PREFIX}${tabId}`;
     const heartbeatKey = `${HEARTBEAT_PREFIX}${tabId}`;
 
-    const beat = (): void => {
-        try {
-            localStorage.setItem(heartbeatKey, String(Date.now()));
-        } catch {
-            /* quota or private mode — the queue still works in memory */
-        }
-    };
+    // Quota or private mode drops the beat: the queue still works in memory.
+    const beat = (): void => safeLocalStorage.setItem(heartbeatKey, String(Date.now()));
 
     /**
      * Collects queues left behind by tabs that are gone. A stale heartbeat is
@@ -134,8 +118,8 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
                 if (!isStale(owner)) return;
 
                 adopted.push(...readJson(dataKey));
-                safeRemove(dataKey);
-                safeRemove(`${HEARTBEAT_PREFIX}${owner}`);
+                safeLocalStorage.removeItem(dataKey);
+                safeLocalStorage.removeItem(`${HEARTBEAT_PREFIX}${owner}`);
             });
 
             // Sweep heartbeats whose queue is already gone. A tab that emptied
@@ -146,7 +130,7 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
                 const owner = beatKey.slice(HEARTBEAT_PREFIX.length);
                 if (!isStale(owner)) return;
                 if (localStorage.getItem(`${KEY_PREFIX}${owner}`)) return;
-                safeRemove(beatKey);
+                safeLocalStorage.removeItem(beatKey);
             });
         } catch {
             /* enumeration failed — carry on with just this tab's queue */
@@ -184,7 +168,7 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
 
             return () => {
                 clearInterval(timer);
-                safeRemove(heartbeatKey);
+                safeLocalStorage.removeItem(heartbeatKey);
             };
         },
     };

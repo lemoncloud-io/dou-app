@@ -99,4 +99,21 @@ describe('useSentInviteLog', () => {
         expect(result.current.findByPhone('+821012345678')?.inviteId).toBe('kr-1');
         expect(result.current.findByPhone('+819012345678')?.inviteId).toBe('jp-1');
     });
+
+    // The log is a convenience: storage that refuses the write must not break the invite that was sent.
+    it('keeps the record in memory when storage refuses the write', () => {
+        jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+            throw new DOMException('full', 'QuotaExceededError');
+        });
+        const { result } = renderHook(() => useSentInviteLog());
+
+        expect(() =>
+            act(() => {
+                result.current.record(invite('invite-1'), { phone: '+821012345678', name: 'A' });
+            })
+        ).not.toThrow();
+        expect(result.current.findByPhone('+821012345678')).toEqual({ inviteId: 'invite-1', name: 'A' });
+
+        jest.restoreAllMocks();
+    });
 });
