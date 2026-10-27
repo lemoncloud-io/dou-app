@@ -32,6 +32,6 @@ describe('document language sync', () => {
         await i18n.changeLanguage('ko-KR');
 
         expect(document.documentElement.lang).toBe('ko');
-        expect(i18n.t('footer.terms')).toBe('이용약관');
+        expect(i18n.t('footer.terms')).toBe('서비스 이용 약관');
     });
 });

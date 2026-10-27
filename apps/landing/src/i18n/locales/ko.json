@@ -108,10 +108,18 @@
         }
     },
     "footer": {
-        "terms": "이용약관",
-        "privacy": "개인정보처리방침",
-        "child": "아동 보호 정책 및 운영표준",
-        "copyright": "Copyright 2026 LEMONCLOUD. All rights reserved."
+        "terms": "서비스 이용 약관",
+        "privacy": "개인정보 처리방침",
+        "child": "아동 안전 및 운영 기준",
+        "copyright": "Copyrightⓒ2026 LEMONCLOUD. All rights reserved.",
+        "company": {
+            "name": "(주)레몬클라우드",
+            "ceo": "대표자명 : 김동혁",
+            "address": "주소 : 대구광역시 동구 동대구로 465, 3층 308호(신천동, 대구스케일업허브)",
+            "registration": "사업자등록번호 : {{number}}",
+            "tel": "TEL : {{number}}",
+            "mail": "MAIL :"
+        }
     },
     "error": {
         "screen": {

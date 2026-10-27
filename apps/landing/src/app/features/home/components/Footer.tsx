@@ -4,46 +4,54 @@ import { Link } from 'react-router-dom';
 
 import { Logo } from '@chatic/assets';
 
-import { CONTACT_EMAIL } from '../../../config/links';
+import { COMPANY } from '../../../config/links';
 import { ROUTES } from '../../../routes/paths';
 
+const LINK = 'whitespace-nowrap underline hover:text-navy transition-colors';
+
+/**
+ * The company's business details on the left, ending in the copyright line, and the three policy
+ * links on the right, level with that last line. A site that sells a subscription shows who sells it,
+ * so these details are on every visit, not only on the subscription pages.
+ */
 export const Footer = (): JSX.Element => {
     const { t } = useTranslation();
 
     return (
         <footer className="w-full bg-main-green">
-            <div
-                className="max-w-[1440px] mx-auto flex flex-col md:flex-row md:items-center md:justify-between
-                            px-6 md:px-10 py-12 md:py-16 gap-[18px]"
-            >
-                {/* Logo */}
-                <Link to={ROUTES.root} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                    <img src={Logo.logo} alt="DoU" className="h-10 w-10" />
-                    <img src={Logo.douBk} alt="D.U" className="h-5" />
+            <div className="box-content max-w-[1440px] mx-auto flex flex-col gap-6 px-6 md:px-10 pt-16 pb-24">
+                <Link to={ROUTES.root} className="flex w-fit items-center gap-1.5 hover:opacity-80 transition-opacity">
+                    <img src={Logo.logo} alt="DoU" className="h-[55px] w-[58px]" />
+                    <img src={Logo.douBk} alt="D.U" className="h-6" />
                 </Link>
 
-                {/* Right side */}
-                <div className="flex flex-col gap-7 md:gap-3 md:items-end">
-                    {/* Nav links */}
-                    <div className="flex flex-col md:flex-row gap-3 md:gap-8 text-base text-desc-alt">
-                        <Link to={ROUTES.policy.terms} className="underline hover:text-navy transition-colors">
-                            {t('footer.terms')}
-                        </Link>
-                        <Link to={ROUTES.policy.privacy} className="underline hover:text-navy transition-colors">
-                            {t('footer.privacy')}
-                        </Link>
-                        <Link to={ROUTES.policy.child} className="underline hover:text-navy transition-colors">
-                            {t('footer.child')}
-                        </Link>
+                <div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between">
+                    <div className="flex flex-col gap-4 text-base text-desc-alt">
+                        <p>{t('footer.company.name')}</p>
+                        <p>{t('footer.company.ceo')}</p>
+                        <p>{t('footer.company.address')}</p>
+                        <p>{t('footer.company.registration', { number: COMPANY.registrationNumber })}</p>
+                        <p>{t('footer.company.tel', { number: COMPANY.tel })}</p>
+                        <p>
+                            {t('footer.company.mail')}{' '}
+                            <a href={`mailto:${COMPANY.email}`} className="hover:text-navy transition-colors">
+                                {COMPANY.email}
+                            </a>
+                        </p>
+                        <p>{t('footer.copyright')}</p>
                     </div>
 
-                    {/* Info */}
-                    <div className="flex flex-col md:flex-row gap-3 md:gap-8 text-base text-desc-alt">
-                        <a href={`mailto:${CONTACT_EMAIL}`} className="hover:text-navy transition-colors">
-                            {CONTACT_EMAIL}
-                        </a>
-                        <span>{t('footer.copyright')}</span>
-                    </div>
+                    <nav className="flex shrink-0 flex-col gap-3 text-base text-desc-alt md:flex-row md:gap-8">
+                        <Link to={ROUTES.policy.terms} className={LINK}>
+                            {t('footer.terms')}
+                        </Link>
+                        <Link to={ROUTES.policy.privacy} className={LINK}>
+                            {t('footer.privacy')}
+                        </Link>
+                        <Link to={ROUTES.policy.child} className={LINK}>
+                            {t('footer.child')}
+                        </Link>
+                    </nav>
                 </div>
             </div>
         </footer>

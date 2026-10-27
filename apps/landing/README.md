@@ -590,7 +590,7 @@ not trigger.
   every screen (a render per scenario).
 
     ```bash
-    npx nx test @chatic/landing   # 423 tests
+    npx nx test @chatic/landing   # 425 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionWebEnabled` is true on
@@ -640,7 +640,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 423 tests pass; in CI
+npx nx test @chatic/landing                               # 425 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

@@ -9,8 +9,15 @@ export const storeUrls = {
     android: 'https://play.google.com/store/apps/details?id=io.chatic.dou',
 } as const;
 
-/** The support address printed in the footer. */
-export const CONTACT_EMAIL = 'app@lemoncloud.io';
+/**
+ * The business details the footer prints that read the same in every language. The name,
+ * representative and address are copy (`footer.company.*`), since they are written per language.
+ */
+export const COMPANY = {
+    registrationNumber: '596-87-01011',
+    tel: '02-424-1212',
+    email: 'lemon@lemoncloud.io',
+} as const;
 
 /** The web app this site hands an invite over to when the reader continues in the browser. */
 export const webConfigFor = ({ isLocalhost, isDevStage }: Stage) => {
