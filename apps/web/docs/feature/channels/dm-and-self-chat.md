@@ -47,6 +47,7 @@ client has rules for, and the per-kind rules hang off it:
 | `channelKindOf(stereo)`                  | `'self' \| 'dm' \| 'group'`              |
 | `showsMemberCount(kind)`                 | whether a row prints the member count    |
 | `removalActionFor(kind, isChannelOwner)` | `'leave' \| 'delete' \| 'none'`          |
+| `isRoomOwner(room, join, userId)`        | whether a member owns the room           |
 | `dmLineageOf(channel)`                   | `'relay' \| 'cloud'`, for a 1:1          |
 | `hasDmInviteFlow(channel)`               | whether invite UI belongs in this room   |
 | `profilePlaceOf(channel, activeSid)`     | which place's profiles name these people |
@@ -64,7 +65,8 @@ boolean form, and they are the same defect:
 `removalActionFor` also moved the ownership question from the PLACE to the CHANNEL. A place owner
 who has merely joined a room inside their place does not get to delete it, and the room's own
 settings screen had always read it that way — the two screens disagreeing is what let the bug
-through.
+through. Who owns a channel is `isRoomOwner`: the member's join role, only in a group (the rule is in
+[channel-settings.md § Who owns the room](./channel-settings.md#who-owns-the-room)).
 
 ### A second axis inside `dm` — where the 1:1 came from
 
@@ -498,9 +500,9 @@ filtering departed members out.
 
 A DM also has **no delete**, for either side — on the room's settings screen and on the place's bulk
 remove alike. Both read `removalActionFor`, so they cannot answer it differently again. Being the
-inviter is not an exception: `channel.ownerId` names whoever sent the invite, but a 1:1 has no
-owner/member split, so that id is a by-product of how the room was created rather than a permission
-over it. Re-inviting needs the room to still be there, and letting one side erase it takes that
+inviter is not an exception: `channel.ownerId` names whoever sent the invite and the server writes
+`owner` on their join, but a 1:1 has no owner/member split, so both are by-products of how the room
+was created rather than a permission over it — `isRoomOwner` answers false for every 1:1. Re-inviting needs the room to still be there, and letting one side erase it takes that
 away. See [channel-settings.md](./channel-settings.md).
 
 ### Read receipts

@@ -45,9 +45,11 @@ import {
     canStartDmFromProfile,
     channelKindOf,
     hasDmInviteFlow,
+    isRoomOwner,
     profilePlaceOf,
     resolveChannelAvatar,
     resolveDmPeerName,
+    roomOwnerIdOf,
 } from '../lib';
 import { orderMemberIdsOwnerFirst } from '../utils/orderMemberIds';
 import { pickDmPeerId } from '../utils/dmPeer';
@@ -1067,7 +1069,7 @@ export const ChannelRoomPage = () => {
     const headerMeta = !isGroupChat
         ? undefined
         : (() => {
-              const ids = orderMemberIdsOwnerFirst(channel?.ownerId, activeMemberIds, 5);
+              const ids = orderMemberIdsOwnerFirst(roomOwnerIdOf(channel, joins), activeMemberIds, 5);
               const avatars = ids.map(id => {
                   const profile = profileMap.get(id);
                   const member = memberById.get(id);
@@ -1097,7 +1099,7 @@ export const ChannelRoomPage = () => {
         <RoomIntro
             variant={isSelfChat ? 'self' : isDmChat ? 'dm' : 'group'}
             peerNick={resolveDmPeerName(channel, dmPeer)}
-            isGroupOwner={isGroupChat && channel?.ownerId === userId}
+            isGroupOwner={!!channel?.isOwner}
             onInvite={
                 !isGuest && isCloudActive
                     ? // roomDistance carries how many hops the invite flow is from this room screen, so
@@ -1538,7 +1540,11 @@ export const ChannelRoomPage = () => {
                     open={profileOpen}
                     onOpenChange={setProfileOpen}
                     member={profileTarget}
-                    memberIsOwner={profileTarget.id === channel?.ownerId}
+                    memberIsOwner={isRoomOwner(
+                        channel,
+                        joins.find(join => join.userId === profileTarget.id),
+                        profileTarget.id
+                    )}
                     canKick={false}
                     onStartDm={
                         canStartDm &&

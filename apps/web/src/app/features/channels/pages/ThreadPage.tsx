@@ -42,7 +42,7 @@ import {
     useReactions,
     useStartDm,
 } from '../hooks';
-import { canStartDmFromProfile, channelKindOf, profilePlaceOf } from '../lib';
+import { canStartDmFromProfile, channelKindOf, isRoomOwner, profilePlaceOf } from '../lib';
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
@@ -887,7 +887,11 @@ export const ThreadPage = () => {
                     open={profileOpen}
                     onOpenChange={setProfileOpen}
                     member={profileTarget}
-                    memberIsOwner={profileTarget.id === channel?.ownerId}
+                    memberIsOwner={isRoomOwner(
+                        channel,
+                        joins.find(join => join.userId === profileTarget.id),
+                        profileTarget.id
+                    )}
                     canKick={false}
                     onStartDm={
                         canStartDm &&

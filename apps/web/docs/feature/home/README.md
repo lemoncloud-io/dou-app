@@ -298,7 +298,8 @@ behind it — the kit's `SwipeActionRow`, which owns the gesture and nothing els
 
 - **Leave or delete is decided per row** by `removalActionFor`, the rule the room's settings screen
   and the place's bulk remove already share: a 1:1 always leaves, even for the person who opened it,
-  and a group deletes only for its owner (`channel.ownerId`). Both ask first, with the settings
+  and a group deletes only for its owner (my join role — `isRoomOwner`, see
+  [channel-settings.md](../channels/channel-settings.md#who-owns-the-room)). Both ask first, with the settings
   screen's own confirmation and copy — a 1:1 has its own wording — and neither runs until confirmed.
 - **Notifications** write my join row's `notify` — `none` to mute, `all` to unmute — the field the
   room's settings level writes. Only "Off" reads as muted here, so a room set to "Mentions only" offers

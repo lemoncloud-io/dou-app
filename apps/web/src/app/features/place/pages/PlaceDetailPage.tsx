@@ -239,7 +239,7 @@ export const PlaceDetailPage = () => {
                                     <DefaultAvatar size={OWNER_AVATAR_SIZE} />
                                 )}
                                 <div className="flex min-w-0 items-center gap-1.5">
-                                    <StatusBadge label={t('chat.settings.badge.owner')} variant="owner" />
+                                    <StatusBadge label={t('placeMembers.badge.owner')} variant="owner" />
                                     <Text variant="callout" className="truncate font-medium text-foreground">
                                         {owner?.nick ?? ''}
                                     </Text>

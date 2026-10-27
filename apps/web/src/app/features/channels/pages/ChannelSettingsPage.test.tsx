@@ -34,6 +34,20 @@ let selectedSiteIdValue = 's1';
 let mockIsGuest = false;
 /** What `useDmInviteState` reports — the friend sheet's "대화방 나감" line and the re-invite prefill. */
 let dmInviteStateValue: any;
+/** The room's join rows, when a test needs more than my own (the owner rule reads members' roles). */
+let joinsValue: any[] | undefined;
+/** My uid in the room's cloud — can differ from the session's (`me`). */
+let uidInCloudValue = 'me';
+/** The room's place row (`observeItem(channel.sid)`) — whether I own it, and who does. */
+let placeValue: any;
+const removePlaceMember = jest.fn().mockResolvedValue({ leftChannelIds: ['ch1'] });
+const placeRepository = {
+    observeItem: (_id: string, cb: (place: any) => void) => {
+        cb(placeValue);
+        return () => undefined;
+    },
+    removeMember: (...args: unknown[]) => removePlaceMember(...args),
+};
 
 // The profile's start-1:1 entry is gated by this hook; this suite keeps it off.
 const mockUseStartDm = () => ({ startDm: jest.fn(), isStarting: false, isAvailable: false });
@@ -61,8 +75,9 @@ jest.mock('@chatic/app-runtime', () => ({
             // A room that names no place is named from this place (`profilePlaceOf`), and my-row prompts are
             // offered only when the room's place is this one.
             useSessionSelection: () => ({ selectedCloudId: 'cloud-a', selectedSiteId: selectedSiteIdValue }),
-            useUidInCloud: () => 'me',
+            useUidInCloud: () => uidInCloudValue,
         },
+        data: { useRuntimeRepositories: () => ({ place: placeRepository }) },
     },
 }));
 
@@ -163,6 +178,8 @@ jest.mock('../components/MemberListItem', () => ({
             data-testid={`member-${p.member.id}`}
             data-needs-profile={String(!!p.needsProfileSetup)}
             data-pending-invite={String(!!p.isPendingInvite)}
+            data-owner={String(!!p.isOwner)}
+            data-me={String(!!p.isMe)}
             onClick={p.onClick}
         >
             {p.member.name}
@@ -225,6 +242,9 @@ beforeEach(() => {
     myProfileValue = { profile: { nick: '내프로필' } };
     mockIsGuest = false;
     dmInviteStateValue = { state: { kind: 'present' }, countdown: null, resolveReinvitePrefill: () => ({}) };
+    joinsValue = undefined;
+    uidInCloudValue = 'me';
+    placeValue = { id: 's1', name: '플레이스', isOwner: false, ownerId: 'owner1' };
 });
 
 jest.mock('../hooks', () => ({
@@ -238,7 +258,7 @@ jest.mock('../hooks', () => ({
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
     // The room's single join observation: my row (nick/notification) and the roster row list come from one source.
     useChannelJoins: () => ({
-        joins: myJoinValue ? [myJoinValue] : [],
+        joins: joinsValue ?? (myJoinValue ? [myJoinValue] : []),
         myJoin: myJoinValue,
         activeMemberIds: myJoinValue?.userId ? [myJoinValue.userId] : [],
         cursorByUser: new Map<string, number>(),
@@ -645,6 +665,61 @@ describe('ChannelSettingsPage', () => {
         expect(profileProps.canKick).toBe(false);
     });
 
+    describe('room owner badge', () => {
+        it('badges the member whose join role is owner, not the creator', () => {
+            channelValue = OWNER_CHANNEL;
+            joinsValue = [
+                { userId: 'owner1', stereo: 'member' },
+                { userId: 'me', stereo: 'member' },
+                { userId: 'u2', stereo: 'owner' },
+            ];
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('member-u2')).toHaveAttribute('data-owner', 'true');
+            expect(screen.getByTestId('member-owner1')).toHaveAttribute('data-owner', 'false');
+        });
+
+        // The inviter's join says owner on the server; a 1:1 still has no owner.
+        it('puts no owner badge on anyone in a 1:1, the inviter included', () => {
+            channelValue = DM_CHANNEL;
+            membersValue = {
+                members: [
+                    { id: 'me', name: '나', $join: { joined: 1 } },
+                    { id: 'peer', name: '상대', $join: { joined: 1 } },
+                ],
+                isLoading: false,
+            };
+            joinsValue = [
+                { userId: 'me', stereo: 'owner' },
+                { userId: 'peer', stereo: 'member' },
+            ];
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('member-me')).toHaveAttribute('data-owner', 'false');
+            expect(screen.getByTestId('member-peer')).toHaveAttribute('data-owner', 'false');
+
+            fireEvent.click(screen.getByTestId('member-peer'));
+            expect(profileProps.memberIsOwner).toBe(false);
+        });
+
+        it('knows my row by my id in the room cloud, not only the session id', () => {
+            channelValue = OWNER_CHANNEL;
+            uidInCloudValue = 'me-in-cloud';
+            membersValue = {
+                members: [
+                    { id: 'owner1', name: '오너', $join: { joined: 1 } },
+                    { id: 'me-in-cloud', name: '나', $join: { joined: 1 } },
+                ],
+                isLoading: false,
+            };
+            render(<ChannelSettingsPage />);
+
+            expect(screen.getByTestId('member-me-in-cloud')).toHaveAttribute('data-me', 'true');
+            fireEvent.click(screen.getByTestId('member-me-in-cloud'));
+            expect(profileProps.isSelf).toBe(true);
+        });
+    });
+
     it('내 항목을 탭하면 isSelf=true이고, 프로필 설정 진입 시 PlaceProfileEditDialog가 열린다', () => {
         channelValue = OWNER_CHANNEL;
         render(<ChannelSettingsPage />);
@@ -866,6 +941,95 @@ describe('ChannelSettingsPage', () => {
             expect(screen.getByText('channelList.selfChannel')).toBeInTheDocument();
             // The nudge only lives on the member row.
             expect(screen.getByTestId('member-me')).toHaveTextContent('chat.settings.profileSetupRequired');
+        });
+    });
+
+    describe('remove scopes', () => {
+        it('offers the room scope alone to a room owner who does not own the place', () => {
+            channelValue = OWNER_CHANNEL;
+            render(<ChannelSettingsPage />);
+
+            fireEvent.click(screen.getByTestId('member-u2'));
+            expect(profileProps.canKick).toBe(true);
+            expect(profileProps.canRemoveFromPlace).toBe(false);
+            expect(profileProps.roomName).toBe('방');
+        });
+
+        it('offers the place scope to the place owner, even as a plain member of the room', () => {
+            channelValue = MEMBER_CHANNEL;
+            placeValue = { id: 's1', name: '플레이스', isOwner: true, ownerId: 'me' };
+            render(<ChannelSettingsPage />);
+
+            fireEvent.click(screen.getByTestId('member-u2'));
+            expect(profileProps.canKick).toBe(false);
+            expect(profileProps.canRemoveFromPlace).toBe(true);
+            expect(profileProps.placeName).toBe('플레이스');
+        });
+
+        it('withholds the place scope when the member owns the place', () => {
+            channelValue = OWNER_CHANNEL;
+            placeValue = { id: 's1', name: '플레이스', isOwner: true, ownerId: 'u2' };
+            render(<ChannelSettingsPage />);
+
+            fireEvent.click(screen.getByTestId('member-u2'));
+            expect(profileProps.canKick).toBe(true);
+            expect(profileProps.canRemoveFromPlace).toBe(false);
+        });
+
+        it('offers neither scope on me or on the room owner', () => {
+            channelValue = OWNER_CHANNEL;
+            placeValue = { id: 's1', name: '플레이스', isOwner: true, ownerId: 'me' };
+            render(<ChannelSettingsPage />);
+
+            fireEvent.click(screen.getByTestId('member-owner1'));
+            expect(profileProps.canKick).toBe(false);
+            expect(profileProps.canRemoveFromPlace).toBe(false);
+        });
+
+        it('offers no removal in a 1:1, even to the place owner', () => {
+            channelValue = DM_CHANNEL;
+            placeValue = { id: 's1', name: '플레이스', isOwner: true, ownerId: 'me' };
+            membersValue = {
+                members: [
+                    { id: 'me', name: '나', $join: { joined: 1 } },
+                    { id: 'peer', name: '상대', $join: { joined: 1 } },
+                ],
+                isLoading: false,
+            };
+            render(<ChannelSettingsPage />);
+
+            fireEvent.click(screen.getByTestId('member-peer'));
+            expect(profileProps.canKick).toBe(false);
+            expect(profileProps.canRemoveFromPlace).toBe(false);
+        });
+
+        it("removes from the room's place with place.leave for that member", async () => {
+            channelValue = OWNER_CHANNEL;
+            placeValue = { id: 's1', name: '플레이스', isOwner: true, ownerId: 'me' };
+            render(<ChannelSettingsPage />);
+
+            fireEvent.click(screen.getByTestId('member-u2'));
+            await act(async () => {
+                await profileProps.onRemoveFromPlace();
+            });
+
+            expect(removePlaceMember).toHaveBeenCalledWith('s1', 'u2');
+            expect(leaveChannel).not.toHaveBeenCalled();
+            expect(toast).toHaveBeenCalledWith({ title: 'chat.settings.kicked' });
+        });
+
+        it('says so when the place removal fails', async () => {
+            channelValue = OWNER_CHANNEL;
+            placeValue = { id: 's1', name: '플레이스', isOwner: true, ownerId: 'me' };
+            removePlaceMember.mockRejectedValueOnce(new Error('403'));
+            render(<ChannelSettingsPage />);
+
+            fireEvent.click(screen.getByTestId('member-u2'));
+            await act(async () => {
+                await profileProps.onRemoveFromPlace();
+            });
+
+            expect(toast).toHaveBeenCalledWith({ title: 'chat.settings.kickFailed', variant: 'destructive' });
         });
     });
 

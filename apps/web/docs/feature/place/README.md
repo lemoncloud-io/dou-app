@@ -2,7 +2,7 @@
 
 `apps/web/src/app/features/place` owns the screens for a **single place**: its settings hub, its
 read-only information screen, the owner's edit screen, the per-place user profile, channel
-management, and its member list — which is also where the owner removes a member. The information
+management, and its member list — one of the two places the owner removes a member from. The information
 screen is where a member leaves the place and where its owner deletes it. A place is a `site` in the backend model — the two words name the same entity, and the
 session axis for it is `sid`.
 
@@ -156,7 +156,9 @@ substitutes that union. A `403` means I am not a member, and the screen goes bac
   the list only when the session is on this place; elsewhere the rows use the member's own name,
   and nothing on screen says so.
 - The order is the owner, then me, then everyone else in the server's order. One badge per row,
-  owner before "you". The count is the rows received, not the server's `total`, which can count
+  owner before "you" — the opposite of a room's member list, which puts "MY" first. The owner badge
+  reads "소유자" (`placeMembers.badge.owner`), here and on the information screen's owner row: a place
+  has an owner, and a room's "방장" is a different role in a different thing. The count is the rows received, not the server's `total`, which can count
   people the list then left out.
 - An answer whose `{ cid, sid }` is not the screen's current scope is dropped, so a slow answer can
   never show another place's people.
@@ -165,9 +167,14 @@ substitutes that union. A `403` means I am not a member, and the screen goes bac
 every row but their own and the owner's gets a Remove button, behind a confirm. On success that row
 is taken out of the list held on screen; the list is **not** read again, because the server's list
 catches up late and a fresh read straight after could show the person again. Only the row being
-removed is disabled while its request runs. Removal happens on this screen and nowhere else — not on
-a room's member list, where a kick means something narrower (one room, checked against the room's
-owner).
+removed is disabled while its request runs.
+
+**The other entry is a member's profile inside a room.** There the remove row asks for a scope —
+this room, or the room's place — and the place scope sends the same `place.leave` with the member's
+id ([channel-settings.md](../channels/channel-settings.md#memberprofiledialog--who-is-viewing-whom)).
+Who sees it follows the same flag: the place scope is offered only to the place's owner, never on the
+owner, and never in a 1:1. Its confirm, like this screen's, says the member leaves every **group**
+room: `place.leave` leaves their 1:1s in place, and the app cannot end someone else's 1:1.
 
 **Leaving and deleting** sit at the foot of the information screen, under a block divider, as one red
 row: **Leave place** for anyone but the owner, **Delete place** for the owner. Neither exists on the
