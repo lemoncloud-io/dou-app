@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-27] - root@0.116.0, @chatic/landing@0.9.0
+
+### Features
+
+- (landing) list the plans on every host so the prices can be reviewed before checkout opens
+
 ## [2026-10-27] - root@0.115.0, @chatic/landing@0.8.0
 
 ### Features
