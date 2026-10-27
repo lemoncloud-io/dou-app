@@ -54,21 +54,24 @@ platform-filtered list cannot — an iOS purchase read on an Android session wou
 
 `summarizeMembership(membership, plan, now)` collapses a membership into exactly five states:
 
-| State             | Means                                    | `isEntitled` | New cloud |
-| ----------------- | ---------------------------------------- | ------------ | --------- |
-| `none`            | Never subscribed, or `status === 'none'` | ✗            | ✗         |
-| `active`          | Paid period running (payment retry too)  | ✓            | ✓         |
-| `cancelScheduled` | Cancelled, paid period still running     | ✓            | ✗         |
-| `expired`         | `validUntil` has passed                  | ✗            | ✗         |
-| `blocked`         | An operator shut it off from the console | ✗            | ✗         |
+| State             | Means                                    | `isEntitled` | New cloud    |
+| ----------------- | ---------------------------------------- | ------------ | ------------ |
+| `none`            | Never subscribed, or `status === 'none'` | ✗            | ✗            |
+| `active`          | Paid period running (payment retry too)  | ✓            | ✓            |
+| `cancelScheduled` | Ending, paid period still running        | ✓            | if `isValid` |
+| `expired`         | `validUntil` has passed                  | ✗            | ✗            |
+| `blocked`         | An operator shut it off from the console | ✗            | ✗            |
 
 Two rules hold this together, and both were bought with production bugs:
 
-**Entitlement is not the server's `isValid`.** That flag goes false the moment `canceledAt` is set,
-while the paid period keeps running. Reading it as entitlement zeroes the allowance of someone who
-has already paid for the month and flags their clouds as excess. The paid window decides
-entitlement; `isValid` only decides whether the server will provision, which is why
-`cancelScheduled` keeps its allowance but cannot add a cloud.
+**Entitlement is not the server's `isValid`.** `cancelScheduled` covers two endings that read the
+same on screen: the user turned auto-renew off (`autoRenewing === false`), or the purchase was
+cancelled outright — a refund, a revocation, a cancellation the store made — which sets `canceledAt`
+and `status === 'canceled'`. `isValid` goes false on that second kind (and on a passed `validUntil`)
+while `validUntil` may still lie ahead. Reading it as entitlement zeroes the allowance of someone
+whose period is still running and flags their clouds as excess. The paid window decides entitlement;
+`isValid` only decides whether the server will provision (§ 3), which is why an ending subscription
+keeps its allowance either way and may add a cloud only while `isValid` holds.
 
 **`blocked` is not `expired`.** The store keeps charging through an operator block, so telling that
 user their subscription expired is wrong in the direction that produces support tickets.
@@ -101,6 +104,16 @@ wrong number here is a promise to the user.
 whose `status !== 'expired'`; `limit` is `currentPlan.maxClouds`, or `null` when the join could not
 resolve it.
 
+Whether the server will provision at all is the server's own judgement, and the app reads it
+rather than re-deriving it: `guardQuota` refuses a membership whose `isValid` is false, and the
+membership response carries the same `isValid`, so `evaluateCloudQuota` refuses on a definite
+`false` (reason `canceled`, toast "구독이 취소되어 클라우드를 추가할 수 없어요."). Turning auto-renew off
+does not set `canceledAt` — the receipt service records a cancellation time only for a revocation or
+an involuntary cancellation — so an ending subscription adds clouds up to its allowance, as the
+product defines a subscriber until the period ends. If the receipt service ever starts setting
+`canceledAt` on a voluntary cancellation, that is the change that makes ending subscribers refused
+again. An unread flag refuses nothing.
+
 `null` is **not zero**. A granted membership with no product, or a catalog that has not loaded,
 means the app does not know — so it does not refuse. The server says no if the answer is no.
 Reasons are suppressed while the inputs are still loading: a "subscription required" line over a
@@ -125,21 +138,36 @@ stays in cloud management.
 
 Adjacency is **app policy**, not a store or backend rule. A tier change may move one step:
 
-| Current                | Target              | Kind                     |
-| ---------------------- | ------------------- | ------------------------ |
-| none                   | `sort === 1`        | `new`                    |
-| none                   | any other           | `blocked` (`entryTier`)  |
-| a running tier         | the same tier       | `current`                |
-| a running tier         | one step up or down | `upgrade` / `downgrade`  |
-| a running tier         | two or more steps   | `blocked` (`tierJump`)   |
-| the other store's tier | the same tier       | `current`                |
-| the other store's tier | any other           | `blocked` (`otherStore`) |
+| Current                | Target                | Kind                          |
+| ---------------------- | --------------------- | ----------------------------- |
+| none                   | `sort === 1`          | `new`                         |
+| none                   | any other             | `blocked` (`entryTier`)       |
+| expired, tier N        | this store's tier N   | `new`                         |
+| expired, tier N        | any other, tier 1 too | `blocked` (`resubscribeSame`) |
+| a running tier         | the same tier         | `current`                     |
+| a running tier         | one step up or down   | `upgrade` / `downgrade`       |
+| a running tier         | two or more steps     | `blocked` (`tierJump`)        |
+| the other store's tier | the same tier         | `current`                     |
+| the other store's tier | any other             | `blocked` (`otherStore`)      |
 
 The reason is that each cloud carries its own email verification: a tier 1 → 3 jump would collect
 two verifications before either cloud is usable, and a multi-step drop would strand clouds that no
 UI can release yet. `getTierRefusal` splits the `blocked` cases because they read nothing alike to
 the user, and `nearestSelectablePlan` offers the closest pickable tier instead (ties go to the
 cheaper one).
+
+**An expired subscription comes back on the tier it lapsed from, not on tier 1.** The relay keeps
+`productId` through an expiry, so `usePlanCatalog.resubscribePlan` (`findResubscribePlan`) still
+knows the tier and picks this store's plan at that rank — a subscription bought on the other store
+comes back as this store's equal, which is the same match-by-`sort` axis `isOtherStorePlan` uses.
+Sending a returning subscriber to tier 1 would leave most of the clouds they already verified held
+until they had climbed back. The picker opens with that plan already chosen. It is still a new
+purchase: `replaceablePlan` stays `undefined` (there is no live receipt), so no `oldPlanId` is sent
+and nothing is replaced at the store. The screens show a trial only for `none`; whether a returning
+subscriber is offered one is the store's call. A lapsed tier the
+catalog cannot resolve, or this store does not sell, falls back to the entry-tier rule. Only
+`expired` gets this — a `blocked` membership is not a lapse, and the rule is the same before and
+after the 30-day hold ends (only the cloud copy differs there).
 
 **A subscription is changed only on the store that bills it** (ADR-0173 §6). The two stores' plan
 ids differ, so `isOtherStorePlan` matches the plan in force by `sort` and refuses every other tier:
@@ -186,8 +214,11 @@ narrowed by ADR-0173).
 
 **Only `confirm` talks to the store.** The picker chooses and nothing else, so the purchase answer
 has exactly one listener. `confirm` shows current against new, when it applies and the amount, and
-only then opens the sheet — an upgrade charges now and a downgrade waits for renewal, and that has to
-be read before paying, not on a receipt. `purchaseTier` resolves to the membership the relay just
+only then opens the sheet — an upgrade applies now and a downgrade waits for renewal, and that has to
+be read before paying, not on a receipt. What "now" costs differs by store: Apple charges the new
+plan in full and refunds the unused part; Google, in the time-proration mode the shell asks for,
+charges nothing now and turns the unused part into time on the new plan, bringing the next billing
+date forward. `purchaseTier` resolves to the membership the relay just
 validated, and the completion dialog draws from it instead of waiting on the refetch. That refetch
 still lands before `purchaseTier` resolves, and it turns the tier into the account's own — no longer
 one to buy, with nothing to replace and no trial left. So `confirm` freezes the terms it showed when
@@ -219,10 +250,13 @@ the clouds: a block, a lapse, or a queued downgrade that will hold some of them)
 its own status word) and `useCloudQuota` (the `used / limit` figure).
 
 **A used-up allowance gets a dialog, not a toast.** `AddCloudFlowHost` opens `AddCloudLimitDialog`
-when the quota's reason is `limitReached`: with a higher tier on sale (`hasHigherTier`) it offers
-the plan picker, at the top tier it says so and offers nothing — a dead "change plan" button would
-read as broken. The toast it replaced could carry no action, which left the user to find the picker
-on their own.
+when the quota's reason is `limitReached`: with a higher tier in the catalog (`hasHigherTier`, judged on
+both stores' tiers so an off-native session, which sells nothing, is not told it is at the top) it offers
+the plan picker; at the top tier there is no plan to change to — a dead "change plan" button would
+read as broken — so it states the ceiling ("up to N clouds", N being the allowance in force, read
+from the catalog rather than written into the copy) and offers the subscription list
+(`ROUTES.subscription.root`, MyPage's own entry) where the clouds already held can be reviewed. The
+toast it replaced could carry no action, which left the user to find either screen on their own.
 
 **A purchase provisions exactly one cloud.** Every cloud past the first on a multi-cloud tier is
 created by `useAddCloud`. The affordances for that live on other screens and features do not import
@@ -250,7 +284,9 @@ validation never landed — and is a hook because two screens reach it.
 ## What not to do
 
 - **Do not read a product field off the membership.** `product$` is a head. Join the catalog.
-- **Do not gate entitlement on `isValid`.** It is false throughout a scheduled cancellation.
+- **Do not gate entitlement on `isValid`.** It goes false on a refund or revocation while the paid
+  period may still run. It gates provisioning only — and there, read it rather than re-deriving it
+  from `autoRenewing`, `status` or `canceledAt`.
 - **Do not treat `limit === null` as zero.** It means unresolved; let the server refuse.
 - **Do not call `useTierPurchase` to learn what the current plan is.** A second instance stands up a
   second `useSubscriptionIap`, and therefore a duplicate `OnPurchaseSuccess` subscription. Read

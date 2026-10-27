@@ -47,17 +47,20 @@ const show = ({
     current,
     options,
     replaceable = current,
+    resubscribe,
 }: {
     state: string;
     current?: typeof tier1;
     options: unknown[];
     replaceable?: Record<string, unknown>;
+    resubscribe?: typeof tier1;
 }) => {
     (usePlanCatalog as jest.Mock).mockReturnValue({
         sellablePlans: [tier1, tier2, tier3],
         summary: { state, isEntitled: state !== 'none' },
         currentPlan: current,
         replaceablePlan: replaceable,
+        resubscribePlan: resubscribe,
         isOnMobileApp: true,
         isIOS: true,
     });
@@ -148,6 +151,45 @@ describe('Subscription picker — scenarios', () => {
         expect(screen.getByText(`${K}.refusal.otherStore.title`)).toBeInTheDocument();
         expect(screen.queryByText(/refusal\.selectInstead/)).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: `${K}.picker.next`, hidden: true })).toBeDisabled();
+    });
+
+    it('expired on tier 3: opens with tier 3 chosen and no trial, so continue goes straight to its confirm step', () => {
+        show({
+            state: 'expired',
+            current: tier3,
+            replaceable: undefined,
+            resubscribe: tier3,
+            options: [
+                option(tier1, 'blocked', { refusal: 'resubscribeSame', disabledReason: 'x' }),
+                option(tier2, 'blocked', { refusal: 'resubscribeSame', disabledReason: 'x' }),
+                option(tier3, 'new'),
+            ],
+        });
+
+        expect(screen.queryByText(`${K}.trialBadge:7`)).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByRole('button', { name: `${K}.picker.next` }));
+        expect(navigateMock).toHaveBeenCalledWith(
+            `${ROUTES.subscription.confirm}?plan=${encodeURIComponent(tier3.id)}`
+        );
+    });
+
+    it('expired: a refused tier keeps the lapsed one chosen and explains the resubscribe rule', () => {
+        show({
+            state: 'expired',
+            current: tier3,
+            replaceable: undefined,
+            resubscribe: tier3,
+            options: [
+                option(tier1, 'blocked', { refusal: 'resubscribeSame', disabledReason: 'x' }),
+                option(tier3, 'new'),
+            ],
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /DoU Cloud 1/ }));
+
+        expect(screen.getByText(`${K}.refusal.resubscribeSame.title`)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: `${K}.picker.next`, hidden: true })).toBeEnabled();
     });
 
     it('guest: asks to log in before leaving for the confirm step', () => {

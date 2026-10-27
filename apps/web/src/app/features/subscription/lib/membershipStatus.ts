@@ -59,10 +59,11 @@ const resolveTrialDaysLeft = (
  * The admin override is read first and wins, matching the relay. Everything below it is the
  * receipt's story.
  *
- * Entitlement deliberately does NOT use the server's `isValid`. That flag turns false the moment a
- * cancellation is recorded (`proxy.ts:717`: `canceledAt > 0` → false), but a scheduled cancellation
- * leaves the paid period running — reading `isValid` would zero the cloud allowance of someone who
- * has already paid for the month and flag their clouds as excess. The paid period is what decides.
+ * Entitlement deliberately does NOT use the server's `isValid`. That flag answers a different
+ * question — will the server provision another cloud — and turns false once `canceledAt` is set,
+ * which can happen while `validUntil` still lies ahead. Reading it as entitlement would zero the
+ * cloud allowance of someone whose period is still running and flag their clouds as excess. The paid
+ * period is what decides here; `isValid` gates provisioning only (`evaluateCloudQuota`).
  *
  * A payment-retry grace period is `active`, not a state of its own: the validity window has not
  * closed, and an app-side "N days after failure" cut would only disagree with the store.
@@ -106,8 +107,11 @@ export const summarizeMembership = (
     if (!membership?.productId || membership.status === 'none') return { ...base, state: 'none', isEntitled: false };
 
     if ((membership.validUntil ?? 0) > now) {
-        // The backend folds a scheduled cancellation into `status='canceled'` + `canceledAt`
-        // (`calcPurchaseStatus`); `autoRenewing === false` is the same signal from the receipt side.
+        // Two different endings read the same on screen: `status === 'canceled'` is a purchase
+        // cancelled outright (`canceledAt` set — a refund, a revocation, a store-side cancellation),
+        // `autoRenewing === false` is the user turning renewal off. Both stop at `validUntil`, so
+        // both are "ending". Whether either may still add a cloud is not decided here — see
+        // `evaluateCloudQuota`, which reads the server's `isValid` for that.
         const isCancelScheduled = membership.status === 'canceled' || membership.autoRenewing === false;
         return {
             ...base,

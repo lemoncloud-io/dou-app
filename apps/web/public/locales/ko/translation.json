@@ -325,6 +325,7 @@
                 "cancelAnytime": "구독 취소는 언제든지 가능합니다."
             },
             "startAtEntryTier": "첫 구독은 1단계부터 시작할 수 있어요",
+            "startAtLapsedTier": "다시 구독은 이전 상품으로 시작할 수 있어요",
             "otherStoreOnly": "구독한 스토어에서만 변경할 수 있어요",
             "refusal": {
                 "current": {
@@ -337,7 +338,11 @@
                 },
                 "entryTier": {
                     "title": "첫 구독은 1단계부터 시작해요",
-                    "description": "1단계를 구독한 뒤, 다음 갱신일마다 한 단계씩 올릴 수 있어요."
+                    "description": "첫 구독은 DoU Cloud 1부터 시작해요. 구독 후에는 현재 상품에서 한 단계씩 변경할 수 있어요."
+                },
+                "resubscribeSame": {
+                    "title": "다시 구독은 이전 상품으로 시작해요",
+                    "description": "다시 구독하면 이전에 이용하던 상품으로 시작해요. 구독 후에는 현재 상품에서 한 단계씩 변경할 수 있어요."
                 },
                 "otherStore": {
                     "title": "구독한 스토어에서 변경해 주세요",
@@ -417,7 +422,7 @@
             },
             "picker": {
                 "productsTitle": "구독 상품",
-                "intro": "첫 구독은 가장 낮은 단계부터 시작해요.\n구독 후에는 현재 상품에서 한 단계씩 변경할 수 있어요.",
+                "intro": "첫 구독은 DoU Cloud 1부터 시작해요.\n구독 후에는 현재 상품에서 한 단계씩 변경할 수 있어요.",
                 "next": "확인"
             },
             "confirm": {
@@ -428,7 +433,7 @@
                 "downgradeDescription": "{{date}}부터 {{product}} 구독으로 적용될 예정입니다. 변경 전까지는 현재 구독을 그대로 이용할 수 있어요.",
                 "upgradeApple1": "{{product}}로 변경하면 즉시 결제되고 구독이 바로 시작됩니다. 기존 {{current}}의 남은 이용 기간에 해당하는 금액은 Apple 정책에 따라 환불됩니다.",
                 "upgradeApple2": "환불 금액과 처리 시점은 남은 구독 기간 및 Apple 정책에 따라 달라질 수 있어요.",
-                "upgradeGoogle1": "{{product}}로 변경하면 즉시 적용됩니다. 기존 {{current}}의 남은 기간에 해당하는 차액만 청구되고 결제일은 그대로 유지돼요.",
+                "upgradeGoogle1": "{{product}}로 즉시 변경되며 추가 결제는 없어요. 기존 {{current}}의 남은 결제 금액만큼 새 상품의 이용 기간으로 바뀌어 다음 결제일이 앞당겨져요.",
                 "upgradeGoogle2": "청구 금액은 남은 구독 기간 및 Google Play 정책에 따라 달라질 수 있어요.",
                 "unavailable": "스토어에서 상품 정보를 불러오지 못해 지금은 진행할 수 없어요."
             },
@@ -1860,7 +1865,7 @@
         "subscriptionRequired": "구독 중인 플랫폼에서만 계정을 추가할 수 있어요",
         "cloudUserRequired": "클라우드 사용자만 계정을 추가할 수 있어요",
         "emailAlreadyUsed": "이미 다른 계정에 사용 중인 이메일이에요",
-        "cancelScheduled": "해지 예약 중에는 계정을 추가할 수 없어요",
+        "subscriptionCanceled": "구독이 취소되어 클라우드를 추가할 수 없어요.",
         "addFailed": "계정 추가에 실패했어요",
         "emailInvalid": "이메일 형식이 올바르지 않아요",
         "codeExpired": "인증 시간이 지났어요. 재전송해 주세요",
@@ -1868,8 +1873,10 @@
         "limitDialog": {
             "title": "클라우드를 더 추가할 수 없어요",
             "changeableDescription": "현재 구독에서는 클라우드를\n최대 {{max}}개까지 만들 수 있어요\n구독 상품을 변경하면 클라우드를\n추가할 수 있어요",
-            "topDescription": "현재 이용 가능한 최대 개수의\n클라우드를 사용하고 있어요",
-            "changePlan": "구독 변경"
+            "topTitle": "클라우드는 최대 {{max}}개까지 만들 수 있어요",
+            "topDescription": "구독 관리에서 이용 중인 클라우드를 확인하고 관리해 주세요.",
+            "changePlan": "구독 변경",
+            "manageSubscription": "구독 관리"
         }
     },
     "nameSetup": {

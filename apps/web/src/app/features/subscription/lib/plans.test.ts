@@ -2,6 +2,7 @@ import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
 import {
     findPlanById,
+    findResubscribePlan,
     getTierChangeKind,
     getTierRefusal,
     hasHigherTier,
@@ -140,6 +141,52 @@ describe('getTierChangeKind', () => {
         expect(getTierChangeKind(googlePlan(2), applePlan(3))).toBe('blocked');
         expect(getTierChangeKind(applePlan(1), googlePlan(2))).toBe('blocked');
     });
+
+    it('offers an expired subscriber the lapsed tier as new and blocks the rest, the entry tier included', () => {
+        const lapsed = googlePlan(3);
+        const kinds = [1, 2, 3, 4, 5].map(tier => getTierChangeKind(undefined, googlePlan(tier), lapsed));
+        expect(kinds).toEqual(['blocked', 'blocked', 'new', 'blocked', 'blocked']);
+    });
+
+    it('keeps the entry-tier rule when there is no lapsed tier to return to', () => {
+        expect(getTierChangeKind(undefined, googlePlan(1), undefined)).toBe('new');
+        expect(getTierChangeKind(undefined, googlePlan(3), undefined)).toBe('blocked');
+    });
+
+    it('lets a running subscription ignore the resubscribe plan — adjacency still decides', () => {
+        expect(getTierChangeKind(googlePlan(1), googlePlan(3), googlePlan(3))).toBe('blocked');
+        expect(getTierChangeKind(googlePlan(2), googlePlan(3), googlePlan(3))).toBe('upgrade');
+    });
+});
+
+describe('findResubscribePlan', () => {
+    const sellable = selectSellablePlans(catalog, 'apple');
+
+    it('returns this store’s plan at the lapsed tier', () => {
+        expect(findResubscribePlan(applePlan(3), sellable)?.id).toBe('#pro_tier_03');
+    });
+
+    it('maps a tier bought on the other store to this store’s plan of the same rank', () => {
+        expect(findResubscribePlan(googlePlan(3), sellable)?.id).toBe('#pro_tier_03');
+    });
+
+    it('returns nothing without a lapsed plan, or when this store does not sell its tier', () => {
+        expect(findResubscribePlan(undefined, sellable)).toBeUndefined();
+        expect(
+            findResubscribePlan(
+                applePlan(3),
+                sellable.filter(p => p.sort !== 3)
+            )
+        ).toBeUndefined();
+        expect(findResubscribePlan(applePlan(3), [])).toBeUndefined();
+    });
+
+    it('does not match a lapsed plan that carries no rank', () => {
+        const unranked = { id: '#pro_tier_09', platform: 'apple' } as ProductView;
+        expect(
+            findResubscribePlan(unranked, [...sellable, { id: '#odd', platform: 'apple' } as ProductView])
+        ).toBeUndefined();
+    });
 });
 
 describe('isSelectableTier', () => {
@@ -163,6 +210,11 @@ describe('getTierRefusal', () => {
 
     it('구독이 없는 상태의 blocked는 1단계 시작 규칙이다 — 같은 blocked, 다른 이유', () => {
         expect(getTierRefusal(undefined, 'blocked', applePlan(2))).toBe('entryTier');
+    });
+
+    it('explains a refused tier to an expired subscriber with the lapsed-tier rule, not the entry-tier one', () => {
+        expect(getTierRefusal(undefined, 'blocked', applePlan(1), applePlan(3))).toBe('resubscribeSame');
+        expect(getTierRefusal(undefined, 'new', applePlan(3), applePlan(3))).toBeUndefined();
     });
 
     it('a subscription billed by the other store is that store’s to change', () => {
@@ -218,21 +270,21 @@ describe('planDisplayName', () => {
 
 describe('hasHigherTier', () => {
     const tier = (sort: number) => ({ id: `#pro-tier-0${sort}`, sort }) as ProductView;
-    const sellable = [tier(1), tier(2), tier(3)];
+    const plans = [tier(1), tier(2), tier(3)];
 
-    it('offers a change while a higher tier is on sale', () => {
-        expect(hasHigherTier(tier(2), sellable)).toBe(true);
+    it('offers a change while the catalog has a higher tier', () => {
+        expect(hasHigherTier(tier(2), plans)).toBe(true);
     });
 
     it('says so when the plan in force is the top tier', () => {
-        expect(hasHigherTier(tier(3), sellable)).toBe(false);
+        expect(hasHigherTier(tier(3), plans)).toBe(false);
     });
 
     it('offers a change when the current plan could not be resolved — the picker decides', () => {
-        expect(hasHigherTier(undefined, sellable)).toBe(true);
+        expect(hasHigherTier(undefined, plans)).toBe(true);
     });
 
-    it('has nothing to offer off-native, where nothing is sellable', () => {
+    it('has nothing to offer from an empty catalog', () => {
         expect(hasHigherTier(tier(1), [])).toBe(false);
     });
 });

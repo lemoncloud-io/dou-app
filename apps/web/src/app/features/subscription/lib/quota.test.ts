@@ -34,11 +34,29 @@ describe('evaluateCloudQuota', () => {
         });
     });
 
-    it('해지 예약은 한도가 남아도 새 클라우드를 만들 수 없다 — 서버 guardQuota가 isValid로 막는다', () => {
-        expect(evaluateCloudQuota({ used: 0, limit: 3, state: 'cancelScheduled' })).toEqual({
-            canAdd: false,
-            reason: 'cancelScheduled',
+    it('lets a subscription with auto-renew turned off add clouds up to its allowance — the server still finds it valid', () => {
+        expect(evaluateCloudQuota({ used: 1, limit: 3, state: 'cancelScheduled', isValid: true })).toEqual({
+            canAdd: true,
         });
+        expect(evaluateCloudQuota({ used: 3, limit: 3, state: 'cancelScheduled', isValid: true })).toEqual({
+            canAdd: false,
+            reason: 'limitReached',
+        });
+    });
+
+    it('refuses a membership the server no longer finds valid — a refund or a revocation — whatever the allowance', () => {
+        expect(evaluateCloudQuota({ used: 0, limit: 3, state: 'cancelScheduled', isValid: false })).toEqual({
+            canAdd: false,
+            reason: 'canceled',
+        });
+        expect(evaluateCloudQuota({ used: 0, limit: 3, state: 'active', isValid: false })).toEqual({
+            canAdd: false,
+            reason: 'canceled',
+        });
+    });
+
+    it('does not refuse on a flag it has not read', () => {
+        expect(evaluateCloudQuota({ used: 0, limit: 3, state: 'cancelScheduled' })).toEqual({ canAdd: true });
     });
 
     it('한도 미달이면 허용한다', () => {
