@@ -103,7 +103,13 @@ bubble draws those states, and a card would show a finished-looking message for 
 landed. The card's links (a Slack `<url|label>` such as a webhook's source link) go to the row's
 `handleUrlClick` through `BlockKitMessage`'s `onLinkClick`, the same path as a link in a bubble.
 The lib's own default is a plain `target="_blank"` anchor, which the iOS shell's WebView answers by
-loading the page over the app itself.
+loading the page over the app itself. The card is as wide as what it holds, up to the row — a
+short attendance note is a small card and a stack trace fills the row — and its links take the
+`--link` token, which this app sets to the design's purple. When the sender gave a source (its
+`meta.sourceUrl`, the full report), the server writes it as the last link of the card's last line,
+`<url|원문 보기>`; `takeSourceLink` moves it up, so the card's first heading becomes the link (no
+icon; underlined on hover) and the line below loses it. Without a source the title is plain text:
+there is no report to open. The link opens through `handleUrlClick` like any other.
 
 **Truncation is the bubble's affordance.** Over 200 characters the bubble cuts, appends an ellipsis
 outside the tokenizer's output, and offers "view all" → `MessageDetailDialog`. A card never
@@ -279,6 +285,9 @@ Unread badges count user messages only; the home list subtracts `channel.metaNo`
 event total) for that, which is the home feature's concern.
 
 ## Attachments (`attach$`)
+
+A legacy field: the server now turns the sender's `meta` into `blocks$` (drawn as the Block Kit card
+above) and no longer writes `attach$`. What follows still holds for records written before that.
 
 `ChatModel.attach$` is a Slack-lineage payload — `pretext`, `title`, `text`, `color`, `username`,
 `ts`, `footer`, `sourceUrl`, `fields[]` — that the sender fills in as `meta` on the send body

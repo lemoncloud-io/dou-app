@@ -14,11 +14,14 @@ export interface BlockKitLabels {
     /** Toggle on a folded code block; `hiddenLines` is how many lines the fold hides. */
     expandCode: (hiddenLines: number) => string;
     collapseCode: string;
+    /** Heard after the heading when the heading opens the message's source; not drawn. */
+    openSource: string;
 }
 
 export const DEFAULT_BLOCK_KIT_LABELS: BlockKitLabels = {
     expandCode: hiddenLines => `View more (${hiddenLines} lines)`,
     collapseCode: 'View less',
+    openSource: 'View source',
 };
 
 export const BlockKitLabelsContext = createContext<BlockKitLabels>(DEFAULT_BLOCK_KIT_LABELS);

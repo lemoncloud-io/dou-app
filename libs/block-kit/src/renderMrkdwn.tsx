@@ -2,7 +2,17 @@ import { Fragment, createContext, useContext, type ReactNode } from 'react';
 
 import { SLACK_MARKS, decodeSlackEntities, markPattern } from './blockKit';
 import { CollapsibleCode } from './CollapsibleCode';
-import { MSG_BOLD_CLASS, MSG_CODE_INLINE_CLASS, MSG_MENTION_CLASS } from './messageClasses';
+import { MSG_BOLD_CLASS, MSG_MENTION_CLASS } from './messageClasses';
+
+/**
+ * Inline code inside a card: a bordered chip in the text's own face, not the
+ * composer's monospace span (`MSG_CODE_INLINE_CLASS`). In a webhook card an inline
+ * code run is a value — a service name, a version, a status — which the design
+ * draws as a tag; the monospace span is for code someone typed in a conversation.
+ * `font-family: inherit` undoes the monospace that preflight gives every `<code>`, and
+ * `box-decoration-clone` keeps the chip's edges on every line when a long one wraps.
+ */
+const CODE_CHIP_CLASS = 'rounded-md border border-hairline bg-well px-1.5 [font-family:inherit] box-decoration-clone';
 
 /**
  * Slack's mrkdwn, which is not the dialect the composer writes. `*x*` is bold
@@ -45,7 +55,7 @@ const BlockLink = ({ href, label }: { href: string; label: string }) => {
             href={href}
             target="_blank"
             rel="noreferrer noopener"
-            className="text-link underline-offset-2 hover:underline"
+            className="font-semibold text-link underline-offset-2 hover:underline"
             onClick={
                 onLinkClick &&
                 (event => {
@@ -112,7 +122,7 @@ const renderInline = (text: string, keyBase: string): ReactNode[] => {
 const renderCodeRuns = (text: string, keyBase: string): ReactNode[] =>
     text.split(/(`[^`\n]+`)/g).map((part, idx) =>
         idx % 2 === 1 ? (
-            <code key={`${keyBase}-${idx}`} className={MSG_CODE_INLINE_CLASS}>
+            <code key={`${keyBase}-${idx}`} className={CODE_CHIP_CLASS}>
                 {part.slice(1, -1)}
             </code>
         ) : (

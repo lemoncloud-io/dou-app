@@ -653,6 +653,46 @@ describe('ChannelMessageRow', () => {
                 expect(openExternalUrl).toHaveBeenCalledWith('https://s3.example.com/r.json');
             });
 
+            // The server writes the sender's `meta.sourceUrl` as the card's last link; the title is
+            // the way to it now, and it leaves the app the same way a link in the body does.
+            it("moves the server's source link to the title and opens it outside the webview", () => {
+                render(
+                    <ChannelMessageRow
+                        {...baseProps}
+                        message={blockMessage([
+                            { type: 'header', text: { type: 'plain_text', text: '503 ECONNRESET' } },
+                            {
+                                type: 'context',
+                                elements: [{ type: 'mrkdwn', text: '<https://s3.example.com/report.json|원문 보기>' }],
+                            },
+                        ])}
+                    />
+                );
+
+                expect(screen.queryByRole('link', { name: '원문 보기' })).not.toBeInTheDocument();
+                const followed = fireEvent.click(screen.getByRole('link', { name: /503 ECONNRESET/ }));
+
+                expect(followed).toBe(false);
+                expect(openExternalUrl).toHaveBeenCalledWith('https://s3.example.com/report.json');
+            });
+
+            it('leaves the title unlinked when the source is not a web address', () => {
+                render(
+                    <ChannelMessageRow
+                        {...baseProps}
+                        message={blockMessage([
+                            { type: 'header', text: { type: 'plain_text', text: '503 ECONNRESET' } },
+                            {
+                                type: 'context',
+                                elements: [{ type: 'mrkdwn', text: '<javascript:alert(1)|원문 보기>' }],
+                            },
+                        ])}
+                    />
+                );
+
+                expect(screen.getByRole('heading', { name: '503 ECONNRESET' }).closest('a')).toBeNull();
+            });
+
             it('swallows the click that ends a long press, so the action sheet wins', () => {
                 jest.useFakeTimers();
                 try {
