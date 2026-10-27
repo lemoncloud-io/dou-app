@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-10-27] - root@0.115.0, @chatic/landing@0.8.0
+
+### Features
+
+- (landing) print the business details in the footer, as the designs do
+- (landing) shut the code field when a code dies or the address locks, as the designs do
+- (landing) verify the billing email on its own step before checkout, not in the details form
+- (landing) change a billing email from the shared popup on billing info, with nothing to save
+- (landing) speak in the formal register on the subscription management screens
+- (landing) draw the sign-in states and no-account page to the designs, in the formal register
+- (landing) verify billing emails by a code ticket from the port, not rules in the screens
+- (landing) link the home header to the plans and to sign-in where subscriptions are open
+
+### Bug Fixes
+
+- (landing) give a fresh code for an address whose code is spent, not the dead ticket
+- (landing) brace the resend-lock guard in the mock port so the landing lint passes
+- (landing) brace the mock's resend-lock check, not a bare multi-line if
+
 ## [2026-10-27] - No version updates
 
 ### Features
