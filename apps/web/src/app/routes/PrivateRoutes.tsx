@@ -21,6 +21,7 @@ const PlaceRoutes = lazy(() => import('../features/place').then(m => ({ default:
 const InviteRoutes = lazy(() => import('../features/invite').then(m => ({ default: m.InviteRoutes })));
 const SearchRoutes = lazy(() => import('../features/search').then(m => ({ default: m.SearchRoutes })));
 const OnboardingRoutes = lazy(() => import('../features/onboarding').then(m => ({ default: m.OnboardingRoutes })));
+const ShareRoutes = lazy(() => import('../features/share').then(m => ({ default: m.ShareRoutes })));
 
 const RouteFallback = () => {
     // A lazy route still loading is not the first screen: keep the boot cover over this skeleton,
@@ -119,6 +120,8 @@ export const privateRoutes = [
             { path: 'invite/*', element: withSuspense(InviteRoutes) },
             { path: 'search/*', element: withSuspense(SearchRoutes) },
             { path: 'onboarding/*', element: withSuspense(OnboardingRoutes) },
+            // Another app's share, opened by the app on `/share?id=` (iOS share extension, Android share intent).
+            { path: 'share/*', element: withSuspense(ShareRoutes) },
         ],
     },
 ];

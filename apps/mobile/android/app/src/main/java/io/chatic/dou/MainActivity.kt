@@ -1,5 +1,6 @@
 package io.chatic.dou
 
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -9,6 +10,7 @@ import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnable
 import com.facebook.react.defaults.DefaultReactActivityDelegate
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.chatic.dou.handler.BackNavigationHandler
+import io.chatic.dou.share.ShareIntake
 import io.chatic.dou.splash.BootSplashState
 
 class MainActivity : ReactActivity() {
@@ -39,7 +41,17 @@ class MainActivity : ReactActivity() {
         // appears afterwards — the splash shown twice. Without a listener the system keeps its own
         // splash until the hold is released and removes it with its default fade.
         splashHandler.postDelayed(splashSafetyRelease, SPLASH_SAFETY_CAP_MS)
+        // A share from another app opens on the share URL instead: React Native reads the launch
+        // URL from this intent, so it is replaced before the React host starts.
+        ShareIntake.take(this, intent, restored = savedInstanceState != null)?.let { intent = it }
         super.onCreate(savedInstanceState)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        // A share while the app is open reaches the web as a deep link, like a tapped link does.
+        val next = ShareIntake.take(this, intent, restored = false) ?: intent
+        setIntent(next)
+        super.onNewIntent(next)
     }
 
     override fun onDestroy() {

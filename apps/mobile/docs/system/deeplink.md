@@ -77,6 +77,11 @@ browser (KakaoTalk, Instagram, …) loads the URL itself, and so does a browser 
 or explicitly handed-over URL. Those links land on the landing site's bounce page, which hands them
 over through the custom scheme.
 
+**The app also writes one custom-scheme link itself.** A share from another app opens the app on
+`<scheme>://share?id=<id>` — the iOS share extension opens that URL, and Android rewrites the share
+intent to it before React Native reads the intent — and it resolves like any other custom-scheme link,
+to the web path `/share?id=<id>`. See [../native/share-intake.md](../native/share-intake.md).
+
 ## Invite link conversion
 
 An invite link must be converted into a form the web recognizes; `convertShortUrlWithEnvsSync` does

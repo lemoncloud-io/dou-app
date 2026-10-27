@@ -77,6 +77,10 @@ export const ROUTES = {
         settingsMembers: (placeId: string) => `/place/${placeId}/settings/members`,
     },
 
+    // ── Share (Private) ──────────────────────────────────────────
+    // What another app shared to Dou; the app opens it with the share's id.
+    share: (id: string) => `/share?id=${encodeURIComponent(id)}`,
+
     // ── Search (Private) ─────────────────────────────────────────
     search: {
         root: '/search',

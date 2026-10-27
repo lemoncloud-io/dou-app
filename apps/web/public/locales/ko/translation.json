@@ -2077,5 +2077,34 @@
             "nameLabel": "이름",
             "photoLabel": "프로필 사진"
         }
+    },
+    "share": {
+        "title": "Dou에 공유",
+        "close": "닫기",
+        "send": "보내기",
+        "cloud": "클라우드",
+        "to": "대상",
+        "toPlaceholder": "공유 대상:",
+        "messagePlaceholder": "원하는 경우 여기에 메시지를 입력하세요!",
+        "preparing": "공유할 항목을 준비하고 있어요",
+        "loadFailed": "공유할 항목을 불러오지 못했어요.",
+        "retry": "다시 시도",
+        "nothingToShare": "공유할 항목이 없어요.",
+        "notSent": "보낼 수 없는 항목: {{names}}",
+        "place": "플레이스",
+        "cancel": "취소",
+        "done": "완료",
+        "searchPlaceholder": "채팅방 검색",
+        "noResults": "검색 결과가 없어요.",
+        "noDestinations": "보낼 수 있는 채팅방이 없어요.",
+        "groupPeople": "1:1 대화",
+        "groupChannels": "채널",
+        "removeDestination": "대상에서 빼기",
+        "limit": "최대 {{max}}곳까지 보낼 수 있어요.",
+        "sentMany": "{{count}}곳에 보냈어요.",
+        "switchFailed": "전환하지 못했어요. 다시 시도해 주세요.",
+        "sendFailed": "보내지 못했어요. 다시 시도해 주세요.",
+        "sendFailedSome": "일부 채팅방에 보내지 못했어요.",
+        "loadingDestinations": "채팅방을 불러오고 있어요"
     }
 }

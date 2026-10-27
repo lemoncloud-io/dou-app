@@ -74,7 +74,8 @@ const PREPARE_VIDEO_TIMEOUT_MS = 10 * 60_000;
 
 const isNotFound = (error: unknown): boolean => (error as { code?: string })?.code === 'NOT_FOUND';
 
-const toShellFile = (item: PickedShellAttachment): ShellFileRef => {
+/** A shell-kept item as the send takes it. The share page hands what another app shared over the same way. */
+export const toShellFile = (item: PickedShellAttachment): ShellFileRef => {
     const ref: ShellFileRef = {
         uri: item.uri,
         name: item.name,

@@ -10,7 +10,7 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 | Layer                        | Path                                                            |
 | ---------------------------- | --------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 13 files |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 14 files |
 | Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module`  |
 | Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                  |
 | Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`              |
@@ -29,7 +29,7 @@ know which platform implements a given capability.
 
 ## The shared contract
 
-Thirteen TypeScript wrappers, one native counterpart per platform where the feature exists on that
+Fourteen TypeScript wrappers, one native counterpart per platform where the feature exists on that
 platform:
 
 | Feature           | TypeScript                  | Android                                                                                                                                                  | iOS                                                                                                                                                            |
@@ -37,6 +37,7 @@ platform:
 | File transfer     | `TransferManagerBridge.ts`  | `transfer/` — `TransferManagerModule.kt`, `TransferService.kt`, `TransferRegistry.kt`, `core/`                                                           | `Transfer/` — `TransferManager.swift`, `TransferManager.m`, `TransferSessionOwner.swift`, `Core/` — see [file-transfer.md](./file-transfer.md)                 |
 | Media export      | `MediaExportBridge.ts`      | `MediaExportModule.kt`, `media/ShareFileProvider.kt`                                                                                                     | `MediaExport/` — `MediaExport.swift`, `MediaExport.m` — see [media-export.md](./media-export.md)                                                               |
 | Attachment picker | `AttachmentPickerBridge.ts` | `AttachmentPickerModule.kt`, `attach/PickedCopies.kt` — the pickers, the copies into `attach-pick`, the video check and poster, a received video's frame | `AttachmentPicker/` — PHPicker, the documents picker, the conversion and poster, a received video's frame — see [attachment-picker.md](./attachment-picker.md) |
+| Share intake      | `ShareIntakeBridge.ts`      | `ShareIntakeModule.kt`, `share/` — the `ACTION_SEND` intake on `MainActivity`, copies into `attach-pick` | `ShareIntake/` (host) and the `ChaticShareExtension` target — see [share-intake.md](./share-intake.md) |
 | Photo library     | `PhotoLibraryBridge.ts`     | `PhotoLibraryModule.kt`, `photo/core/` — MediaStore                                                                                                      | `PhotoLibrary/` — `PhotoLibrary.swift`, `PhotoLibrary.m`, `Core/` — see [photo-library.md](./photo-library.md)                                                 |
 | File              | `FileManagerBridge.ts`      | `FileManagerModule.kt`                                                                                                                                   | `FileManager.m`                                                                                                                                                |
 | App icon          | `AppIconBridge.ts`          | `AppIconManagerModule.kt`                                                                                                                                | `AppIconManager.m`                                                                                                                                             |
@@ -115,6 +116,8 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
   and handing it to the photo library, the share sheet, the preview or the device's downloads.
 - [attachment-picker.md](./attachment-picker.md) — picking a chat's videos and documents, the copies
   the shell keeps for their upload, preparing a video to send, and the first frame of a received one.
+- [share-intake.md](./share-intake.md) — what another app shares to Dou through the OS share sheet,
+  copied into `attach-pick` and handed to the web's share page by id.
 - [photo-library.md](./photo-library.md) — the in-app photo picker's library reads (photos and videos),
   PhotoKit and MediaStore, and keeping a picked video for its upload.
 - [../push/badge.md](../push/badge.md) — the badge-count flow `BadgeSyncBridge` and `PushMarksBridge` both feed.
