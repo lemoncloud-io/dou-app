@@ -36,6 +36,11 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 
+let mockPairingEnabled = false;
+jest.mock('@chatic/config/react', () => ({
+    useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? mockPairingEnabled : undefined),
+}));
+
 // Native by default so the social buttons render; the browser tests flip it.
 let mockIsNative = true;
 jest.mock('@chatic/bridges', () => ({
@@ -79,6 +84,7 @@ beforeEach(() => {
     currentLocation = { state: null };
     deliverOAuthResult = null;
     loginRelaySocial.mockResolvedValue(undefined);
+    mockPairingEnabled = false;
 });
 
 const GOOGLE_CREDENTIAL: OAuthResultMessage = { success: true, data: { result: { provider: 'google' } } };
@@ -360,5 +366,31 @@ describe('LoginPage — policy links', () => {
         fireEvent.click(screen.getByTestId('login-terms'));
 
         expect(navigate).not.toHaveBeenCalled();
+    });
+});
+
+describe('LoginPage — sign in with another device', () => {
+    it.each([true, false])('offers it when the device pairing flag is on (native %s)', native => {
+        mockIsNative = native;
+        mockPairingEnabled = true;
+        render(<LoginPage />);
+
+        expect(screen.queryByTestId('login-pairing')).not.toBeNull();
+    });
+
+    it('hides it while the flag is off', () => {
+        render(<LoginPage />);
+
+        expect(screen.queryByTestId('login-pairing')).toBeNull();
+    });
+
+    it('opens the code screen and hands the login state on', () => {
+        mockPairingEnabled = true;
+        currentLocation = { state: { returnTo: '/channels' } };
+        render(<LoginPage />);
+
+        fireEvent.click(screen.getByTestId('login-pairing'));
+
+        expect(navigate).toHaveBeenCalledWith('/mypage/login/pair', { state: { returnTo: '/channels' } });
     });
 });

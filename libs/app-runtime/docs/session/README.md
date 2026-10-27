@@ -10,11 +10,12 @@ Nothing in this folder authenticates a socket or renews a credential. That is
 ## Layout
 
 ```text
-session/                              56 source files, 27 tests
+session/                              63 source files, 31 tests
 ├── store/    12 files ·  4 tests  relay · cloud · identity tokens, selection, derived contexts
 ├── auth/     10 files ·  7 tests  login · cloud entry · teardown · the SDK delegate's material
 ├── scope/     3 files ·  1 test   ActiveScope — the three views, and the DataContextProvider
-├── hooks/    28 files · 11 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers
+├── pairing/   4 files ·  4 tests  device pairing: the code request flow, paired clouds, the secondary-device check
+├── hooks/    33 files · 12 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 3 pairing
 └── index.ts                       the `session` facade group
 ```
 
@@ -256,6 +257,7 @@ switch to, and keeping the old id would leave the app on a place they are no lon
 | `hooks/session/actions/` | 5     | `useSiteSwitch` · `useSwitchCloudSession` · `useLogoutCloudSession` · `useSessionLogout` · `useInviteFlow`                                                        |
 | `hooks/auth/`            | 8     | `useLogin` · `useLoginRelaySocial` · `useLoginRelayGuestByDevice` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo` |
 | `hooks/app/`             | 5     | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                |
+| `hooks/pairing/`         | 3     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` — see [Device pairing](#device-pairing)                                                          |
 
 The first three readers are `useSyncExternalStore(subscribeSessionSignal, …)`; `useSessionSelection`
 derives from `useGlobalSession`. Twenty of these 23 are on the package barrel; the three that are not
@@ -270,6 +272,31 @@ drive — [docs/auth/](../auth/README.md#the-two-guards).
 [`hooks/mutationKeys.ts`](../../src/session/hooks/mutationKeys.ts) holds `SWITCH_SITE_MUTATION_KEY`
 and `SWITCH_CLOUD_MUTATION_KEY`. They are public so an app can observe a switch in flight globally —
 `apps/web` uses them to stop periodic background sync while one is running.
+
+### Device pairing
+
+A device that is not signed in (a browser tab, or a phone) shows an 8-digit code, and a signed-in app
+approves it. `session/pairing/` holds the requesting side and the facts both sides need; the REST calls
+themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests.
+
+- **`usePairingRequest`** drives the code screen through `createPairingRequestFlow`, a machine with no
+  React in it: request a code, poll `claim` every `interval` seconds, then sign in. A relay approval's
+  session goes through `applySessionToken` — the same path a phone login takes — and a cloud approval
+  enters that cloud as a guest (`useSwitchCloudSession`) and adds it to the paired clouds.
+    - **One claim at a time, and an approval is never dropped.** The session rides only the first
+      `approved` answer; the server answers `claimed` afterwards. So the next claim waits for the last to
+      settle, a stop and start (strict mode's remount) resumes the same loop instead of opening a second
+      one, and stopping only stops scheduling — a claim already on the wire is handled to the end.
+    - A network failure keeps polling until the code expires; a 4xx ends it. A 503 on the request means
+      the drawn code was taken, and one more request is enough.
+- **`pairedClouds`** (`chatic-paired-cloud-ids`, in the session's own storage) lists the clouds a guest
+  entered through a pairing. A guest's cloud catalog is empty, so this list is what puts those clouds in
+  the switch sheet.
+- **`isPairedSession`** — is this a secondary device? A relay pairing's `$auth` carries `purpose` and
+  `pairingId`, which no other login writes; a guest holding paired clouds counts too. A secondary device
+  signs out with its approver, so it neither approves others nor lists approvals.
+- **`pairingClientOf`** is what the request tells the approver about this device: the socket's own
+  platform and label, and `iPhone` / `Android` for a phone, whose injected model is only a hardware id.
 
 ## Usage
 

@@ -149,6 +149,9 @@ jest.mock('@chatic/bridges', () => ({
     },
 }));
 
+const mockPairedCloudsClear = jest.fn();
+jest.mock('../pairing/pairedClouds', () => ({ pairedClouds: { clear: () => mockPairedCloudsClear() } }));
+
 describe('session/auth/relaySession', () => {
     beforeEach(() => {
         // resetAllMocks (not clearAllMocks): also wipes mockResolvedValue/mockRejectedValue
@@ -385,6 +388,8 @@ describe('session/auth/relaySession', () => {
                 'clearReclaimedClouds',
             ])
         );
+        // The clouds a guest entered through a pairing go with the session.
+        expect(mockPairedCloudsClear).toHaveBeenCalled();
         consoleError.mockRestore();
     });
 

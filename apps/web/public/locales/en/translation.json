@@ -2065,5 +2065,29 @@
             "nameLabel": "Name",
             "photoLabel": "Profile photo"
         }
+    },
+    "pairing": {
+        "entry": {
+            "login": "Sign in with another device"
+        },
+        "code": {
+            "title": "Sign in with another device",
+            "requesting": "Getting a code",
+            "applying": "Signing in",
+            "instruction": "On a signed-in phone or desktop app, enter this code or scan the QR in Settings › Approve web sign-in",
+            "remaining": "{{time}} left",
+            "checkBrowser": "Check that the app's approval screen shows \"{{name}}\"",
+            "checkBrowserUnnamed": "Check that the app's approval screen shows this browser",
+            "expired": "This code has expired",
+            "newCode": "Get a new code",
+            "denied": "The sign-in was declined",
+            "lost": "The sign-in could not be finished. Please start over",
+            "failed": "Could not get a code",
+            "retry": "Try again",
+            "startOver": "Start over",
+            "doneRelayTitle": "Signed in as {{name}}",
+            "doneRelayBody": "This browser can use your whole account. Closing the tab ends the sign-in",
+            "doneCloud": "You're in the approved cloud"
+        }
     }
 }

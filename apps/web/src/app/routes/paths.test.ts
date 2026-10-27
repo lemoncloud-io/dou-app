@@ -42,6 +42,11 @@ describe('ROUTES — 상수 경로', () => {
     it('mypage 허브 그룹을 노출한다', () => {
         expect(ROUTES.mypage.root).toBe('/mypage');
         expect(ROUTES.mypage.login).toBe('/mypage/login');
+        expect(ROUTES.mypage.pairing).toEqual({
+            code: '/mypage/login/pair',
+            approve: '/mypage/pairing/approve',
+            devices: '/mypage/devices',
+        });
         expect(ROUTES.mypage.account.info).toBe('/mypage/account');
         expect(ROUTES.mypage.account.edit).toBe('/mypage/edit');
         expect(ROUTES.mypage.account.withdrawal).toBe('/mypage/withdrawal');

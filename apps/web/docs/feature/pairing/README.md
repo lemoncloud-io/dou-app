@@ -1,16 +1,44 @@
-# pairing — signing a browser in from a phone that is already signed in
+# pairing — signing a device in from another device that is already signed in
 
-`apps/web/src/app/features/pairing` is where device pairing lives: a browser (or a phone that is not
-signed in) shows an eight-digit code and its QR, and a signed-in app approves it. Today the folder
-holds one piece, the QR reader the approval screen will use. The screens, their routes and their
-entry points are not here yet; this document grows with them.
+`apps/web/src/app/features/pairing` is device pairing on the web: a browser (or a phone that is not
+signed in) shows an eight-digit code and its QR, and a signed-in app approves it. Every entry sits
+behind `feature.auth.devicePairing`, which is on in LOCAL and DEV only until the design and wording are
+settled.
+
+The flow itself is `@chatic/app-runtime`'s (`runtime.session.usePairingRequest`, documented in its
+session docs); this feature is the screens around it.
 
 ## Layout
 
 ```text
 features/pairing/
-└── lib/pairingQr.ts   photo (base64) → the eight-digit code, or null
+├── pages/PairingCodePage.tsx   the requesting device's code screen — /mypage/login/pair
+├── hooks/                      useDevicePairingEnabled (the flag) · useNow (the countdown's clock)
+└── lib/
+    ├── pairingCode.ts          0734-4168 formatting, m:ss for the time left
+    └── pairingQr.ts            photo (base64) → the eight-digit code, or null
 ```
+
+The routes are registered in `routes/PrivateRoutes.tsx`, not in `features/mypage`: the addresses sit
+under `/mypage`, but a static path outranks `mypage/*`, and one feature does not import another. The
+login screen's entry reads the flag itself for the same reason.
+
+## The code screen
+
+`/mypage/login/pair`, opened from the login screen's "Sign in with another device". The login screen
+hands its location state on, so leaving after a sign-in goes back past both screens to wherever the user
+started (`navigate(-2)`), or home when the app has nothing behind them.
+
+- **Guests only, decided once.** The relay accepts a code request from a guest session alone, so the
+  screen sends anyone else to My page — but it decides at mount, because a successful pairing turns
+  this very session into an account.
+- **What it shows per state:** a spinner while requesting or applying; the code (`0734-4168`), its QR, the
+  time left and "check that the app's approval screen shows `<this browser>`" while waiting; the code
+  struck through with "get a new code" once it expired; a retry for declined, lost and failed.
+- **After a sign-in** it says which scope the approval gave: the account's name for a relay approval
+  (the approver's name — it is the same account), "you're in the approved cloud" for a cloud one.
+- Leaving the screen stops the polling. A pending pairing expires on the server after three minutes;
+  there is no cancel call.
 
 ## Reading a pairing QR from a photo
 

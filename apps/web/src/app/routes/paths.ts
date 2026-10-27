@@ -107,6 +107,12 @@ export const ROUTES = {
     mypage: {
         root: '/mypage',
         login: '/mypage/login',
+        /** Device pairing: the guest's code screen, the signed-in app's approval, and my devices. */
+        pairing: {
+            code: '/mypage/login/pair',
+            approve: '/mypage/pairing/approve',
+            devices: '/mypage/devices',
+        },
         account: {
             info: '/mypage/account',
             edit: '/mypage/edit',

@@ -171,7 +171,7 @@ either — `types/` is the entity layer, promoted to a cross-cutting `types` onl
 consumer.
 
 The 14 feature folders do not all use the same subset. Counting actual subfolders under
-`app/features/*/`: `components` (12), `pages` (11), `hooks` (11), `lib` (9), `routes` (7), `types`
+`app/features/*/`: `components` (12), `pages` (12), `hooks` (12), `lib` (9), `routes` (7), `types`
 (4), `consts`/`constants` (4), `utils` (3), `stores` (3), plus one-offs (`invite/accept`,
 `debug/overlay`, `debug/metrics`, `debug/i18n`). `routes/` appears only in features that export their own
 `<Feature>Routes` for the top-level route tables to lazy-compose; `lib/`, `utils/` and `stores/` show

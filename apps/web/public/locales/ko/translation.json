@@ -2065,5 +2065,29 @@
             "nameLabel": "이름",
             "photoLabel": "프로필 사진"
         }
+    },
+    "pairing": {
+        "entry": {
+            "login": "다른 기기로 로그인"
+        },
+        "code": {
+            "title": "다른 기기로 로그인",
+            "requesting": "코드를 받는 중이에요",
+            "applying": "로그인하는 중이에요",
+            "instruction": "로그인된 휴대폰이나 데스크톱 앱의 설정 › 웹 로그인 승인에서 이 코드를 입력하거나 QR을 찍으세요",
+            "remaining": "{{time}} 남음",
+            "checkBrowser": "앱 승인 화면에 \"{{name}}\"이(가) 보이는지 확인하세요",
+            "checkBrowserUnnamed": "앱 승인 화면에 이 브라우저가 보이는지 확인하세요",
+            "expired": "코드가 만료됐어요",
+            "newCode": "새 코드 받기",
+            "denied": "승인이 거부됐어요",
+            "lost": "로그인을 마치지 못했어요. 처음부터 다시 해 주세요",
+            "failed": "코드를 받지 못했어요",
+            "retry": "다시 시도",
+            "startOver": "처음부터 다시",
+            "doneRelayTitle": "{{name}} 계정으로 로그인했어요",
+            "doneRelayBody": "이 브라우저에서 내 계정 전체를 쓸 수 있어요. 탭을 닫으면 로그인이 끝나요",
+            "doneCloud": "승인한 클라우드에 들어왔어요"
+        }
     }
 }
