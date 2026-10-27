@@ -1,5 +1,3 @@
-export type DeviceType = 'ios' | 'android' | 'desktop';
-
 export type DeepLinkState = 'initial' | 'launching' | 'desktop' | 'web-redirecting';
 
 export type DialogType = 'app-confirm' | 'store-confirm' | null;

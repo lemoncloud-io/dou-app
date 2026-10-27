@@ -38,6 +38,14 @@ body,
         --accent-foreground: 229 47% 15%;
         --card: 0 0% 100%;
         --card-foreground: 229 47% 15%;
+        --status-success: 142 72% 29%;
+        --status-success-bg: 138 76% 97%;
+        --status-warning: 28 92% 37%;
+        --status-warning-bg: 39 100% 95%;
+        --status-danger: 4 74% 49%;
+        --status-danger-bg: 5 86% 97%;
+        --status-info: 217 80% 46%;
+        --status-info-bg: 207 100% 97%;
     }
 
     /* Dark Theme (reserved for future use) */
@@ -51,6 +59,14 @@ body,
         --accent-foreground: 240 10% 4%;
         --card: 240 6% 10%;
         --card-foreground: 0 0% 98%;
+        --status-success: 142 69% 58%;
+        --status-success-bg: 142 40% 12%;
+        --status-warning: 38 92% 60%;
+        --status-warning-bg: 30 40% 12%;
+        --status-danger: 4 86% 66%;
+        --status-danger-bg: 4 40% 13%;
+        --status-info: 213 94% 68%;
+        --status-info-bg: 215 40% 13%;
     }
 
     * {

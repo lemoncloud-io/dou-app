@@ -2,7 +2,8 @@ import { type JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { DeepLinkUI, DeepLinkDialog } from '../components';
-import { useDeviceDetect, useDeepLinkInfo, useAppLauncher, useWebRedirect } from '../hooks';
+import { useDeviceDetect } from '../../../hooks';
+import { useDeepLinkInfo, useAppLauncher, useWebRedirect } from '../hooks';
 import { APP_MISSING_HASH, isInviteLink, shouldAutoLaunch } from '../utils';
 
 /**

@@ -98,7 +98,14 @@
     "policy": {
         "effectiveDate": "Effective Date",
         "versionNotFound": "Version not found.",
-        "current": "Current"
+        "current": "Current",
+        "refundTitle": "Refund Policy",
+        "refundSubtitle": "How refunds work for DoU subscription payments.",
+        "refundDraft": {
+            "badge": "Proposal",
+            "title": "The text is on its way",
+            "body": "The refund policy text is not final yet. Once it is, it appears here with its effective date."
+        }
     },
     "footer": {
         "terms": "Terms of Service",

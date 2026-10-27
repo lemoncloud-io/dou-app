@@ -1,4 +1,4 @@
-import { readStage } from './stage';
+import { readStage, readSubscriptionWebEnabled } from './stage';
 
 describe('readStage', () => {
     it('reads the local dev server as local and dev', () => {
@@ -16,5 +16,17 @@ describe('readStage', () => {
 
     it('reads a dev build as dev on any host', () => {
         expect(readStage('app.chatic.io', true)).toEqual({ isLocalhost: false, isDevStage: true });
+    });
+});
+
+describe('readSubscriptionWebEnabled', () => {
+    it.each([
+        ['localhost', true],
+        ['127.0.0.1', true],
+        ['app-dev.chatic.io', true],
+        ['app.chatic.io', false],
+        ['dou.chatic.io', false],
+    ])('opens the subscription pages on %s: %s', (hostname, open) => {
+        expect(readSubscriptionWebEnabled(hostname)).toBe(open);
     });
 });
