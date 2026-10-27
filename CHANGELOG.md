@@ -4,6 +4,13 @@
 
 ### Features
 
+- (shell-adapter) open a url the web asks for in a new tab, not refuse it
+- (block-kit,web) draw webhook cards to the new design, title linked to the report (ADR-0246)
+
+## [2026-10-27] - No version updates
+
+### Features
+
 - (web,config,web-ui-kit) lock a room's message input, threads included, as a lab experiment
 
 ## [2026-10-27] - root@0.120.1, @chatic/desktop-web@0.35.7
