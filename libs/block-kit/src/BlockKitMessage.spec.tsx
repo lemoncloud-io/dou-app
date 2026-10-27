@@ -96,11 +96,37 @@ describe('BlockKitMessage', () => {
     // — but it is the thing that broke, and nothing else in the block reinstates it.
     it('preserves the line breaks Slack puts inside a text object', () => {
         const { container } = draw([
-            { type: 'section', fields: [{ type: 'mrkdwn', text: '*Service*\nchatic-sockets-api' }] },
+            { type: 'section', fields: [{ type: 'mrkdwn', text: 'chatic-sockets-api\nap-northeast-2' }] },
         ]);
-        const field = screen.getByText('Service').closest('.whitespace-pre-wrap');
+        const field = screen.getByText(/chatic-sockets-api/).closest('.whitespace-pre-wrap');
         expect(field).toBeTruthy();
         expect(container.textContent).toContain('\n');
+    });
+
+    // "*Label*\nvalue" is Slack's field shape. The label is a caption over the value,
+    // not a bold run, so the two bold lines of a two-field row do not compete with
+    // the card's title.
+    it('draws a field written as a bold first line as a caption over its value', () => {
+        const { container } = draw([
+            {
+                type: 'section',
+                fields: [{ type: 'mrkdwn', text: '*Commit*\n<https://x.dev/c/7b186ab|7b186ab> by octocat' }],
+            },
+        ]);
+        expect(screen.getByText('Commit').tagName).toBe('SPAN');
+        expect(container.querySelector('strong')).toBeNull();
+        expect(screen.getByRole('link', { name: '7b186ab' }).getAttribute('href')).toBe('https://x.dev/c/7b186ab');
+        expect(screen.getByText('Commit').parentElement?.textContent).toBe('Commit7b186ab by octocat');
+    });
+
+    it('keeps a bold run that is not a label line as bold', () => {
+        draw([{ type: 'section', fields: [{ type: 'mrkdwn', text: '*Commit* 7b186ab' }] }]);
+        expect(screen.getByText('Commit').tagName).toBe('STRONG');
+    });
+
+    it('does not read a plain_text field as a label and value', () => {
+        draw([{ type: 'section', fields: [{ type: 'plain_text', text: '*Commit*\n7b186ab' }] }]);
+        expect(screen.getByText(/\*Commit\*/)).toBeDefined();
     });
 
     // The rendered context line and the flattened one go to different surfaces — the
@@ -113,6 +139,53 @@ describe('BlockKitMessage', () => {
         const { container } = draw([{ type: 'context', elements }]);
         expect(container.textContent).toContain('platform · severity');
         expect(blocksToPlainText([{ type: 'context', elements }])).toBe('Owner: platform · severity S1');
+    });
+
+    describe('source link', () => {
+        const blocks: KnownBlock[] = [
+            { type: 'section', text: { type: 'mrkdwn', text: 'lead' } },
+            { type: 'header', text: { type: 'plain_text', text: '503 Service Unavailable' } },
+            { type: 'header', text: { type: 'plain_text', text: 'Second' }, level: 2 },
+        ];
+        const report = 'https://example.com/reports/report.json';
+
+        it('links the first heading to the source, named for a screen reader', () => {
+            render(<BlockKitMessage blocks={blocks} raw="" sourceUrl={report} labels={{ openSource: '원문 보기' }} />);
+            const link = screen.getByRole('link', { name: /503 Service Unavailable.*원문 보기/ });
+            expect(link.getAttribute('href')).toBe(report);
+            expect(screen.getByRole('heading', { level: 2 }).closest('a')).toBeNull();
+        });
+
+        it('hands the press to the caller instead of following it', () => {
+            const onLinkClick = vi.fn();
+            render(<BlockKitMessage blocks={blocks} raw="" sourceUrl={report} onLinkClick={onLinkClick} />);
+            const link = screen.getByRole('link', { name: /503/ });
+            const notPrevented = fireEvent.click(link);
+            expect(onLinkClick).toHaveBeenCalledWith(report);
+            expect(notPrevented).toBe(false);
+        });
+
+        it.each(['javascript:alert(1)', 'data:text/html,x', 'reports/report.json', '  '])(
+            'draws no link for %j',
+            sourceUrl => {
+                render(<BlockKitMessage blocks={blocks} raw="" sourceUrl={sourceUrl} />);
+                expect(screen.queryByRole('link')).toBeNull();
+            }
+        );
+
+        it('does not wrap a mrkdwn heading, whose own links cannot sit inside it', () => {
+            const mrkdwnHeader: KnownBlock = {
+                type: 'header',
+                text: { type: 'mrkdwn', text: 'Deploy <https://x.dev|#42>' },
+            };
+            render(<BlockKitMessage blocks={[mrkdwnHeader]} raw="" sourceUrl={report} />);
+            expect(screen.getAllByRole('link').map(link => link.getAttribute('href'))).toEqual(['https://x.dev']);
+        });
+
+        it('draws no link when there is no heading to carry it', () => {
+            render(<BlockKitMessage blocks={[blocks[0]]} raw="" sourceUrl={report} />);
+            expect(screen.queryByRole('link')).toBeNull();
+        });
     });
 
     it('names the block type it could not draw, so the JSON does not read as content', () => {

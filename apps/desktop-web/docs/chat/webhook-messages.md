@@ -15,6 +15,20 @@ produces — `header`, `section` (with `fields`), `divider` and `context`. A blo
 not know is shown as a short `unsupported block` line rather than dropped, so the card still reads.
 Links in the mrkdwn text, including the "view source" link the sender may attach, open in a new window.
 
+In the message only the heading speaks at full ink; section text, field values and the context line
+are quieter secondary text. Three Slack shapes are read for what they mean rather than literally: a
+field written `*Label*\nvalue` is a small caption over its value, an inline code run is a bordered
+chip in the text's own face (a service name, a version, a status — a value, not code), and a fenced
+run (in practice a stack trace) is wrapped secondary text that folds past five lines. None of this
+touches the composer's own code styles, which are for code a person typed.
+
+`BlockKitMessage` also takes a `sourceUrl`: the place the whole message can be read in full, such as
+a webhook's report. Slack's `header` has nowhere to carry a URL, so the caller passes it in, and the
+first heading becomes a link to it, drawn as the heading (underlined on hover). Only `http`/`https`
+is linked, and only a plain-text heading carries it. Where the source comes from is `takeSourceLink`: the server writes the sender's
+`meta.sourceUrl` as `<url|원문 보기>`, the last element of the last context line, and that function
+moves it off the line and hands it back. apps/web uses it; this app does not yet.
+
 `content` is not the card: for a message with `blocks$` it is the server's plain-text summary, and it
 is what Copy, Save, the delete confirmation and the link unfurl use. Folding the blocks back into text
 there would replace that summary with the card's raw parts.

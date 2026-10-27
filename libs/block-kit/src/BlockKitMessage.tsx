@@ -1,11 +1,17 @@
-import { type ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
-import { BlockKitLabelsContext, DEFAULT_BLOCK_KIT_LABELS, type BlockKitLabels } from './blockKitLabels';
+import {
+    BlockKitLabelsContext,
+    DEFAULT_BLOCK_KIT_LABELS,
+    useBlockKitLabels,
+    type BlockKitLabels,
+} from './blockKitLabels';
 import { decodeSlackEntities, hasDrawableBlocks, type BlockTextObject, type KnownBlock } from './blockKit';
 import { MSG_CODE_BLOCK_CLASS } from './messageClasses';
 import { BlockKitLinkContext, renderMrkdwn } from './renderMrkdwn';
+import { isWebUrl, linkableHeaderIndex } from './sourceLink';
 
 // Newlines are significant in every Slack text object — a field is routinely
 // "*Label*\nvalue" — and nothing else in the block reinstates them.
@@ -14,35 +20,96 @@ const TEXT_FLOW = 'whitespace-pre-wrap';
 const textOf = (text: BlockTextObject): ReactNode =>
     text.type === 'mrkdwn' ? renderMrkdwn(text.text) : decodeSlackEntities(text.text);
 
-// h1 is a message heading, not a page heading: it sits under an author line that
-// already carries more weight, so the scale starts one step below the app's.
-const HEADING_CLASS = ['text-title', 'text-heading', 'text-heading', 'text-callout font-semibold'];
+// The heading is the only line in the card that speaks at full ink; everything under
+// it is the same quieter secondary text, so the title is found first. h1 is the
+// app's body size made bold rather than a step up the scale: it sits under an author
+// line that already carries weight, and in a phone-width card a larger heading wraps
+// a one-line error name onto two.
+const HEADING_CLASS = [
+    'text-body font-semibold',
+    'text-body font-semibold',
+    'text-callout font-semibold',
+    'text-callout font-semibold',
+];
 
-const Header = ({ text, level }: { text: BlockTextObject; level?: number }): ReactNode => {
+// Body text of a section, a field value, and the stack under an error all read in
+// the label grey, not the foreground: the card's title is the message, the rest is
+// what supports it.
+const BODY_CLASS = 'text-caption font-medium text-label';
+
+const Header = ({ text, level, sourceUrl }: { text: BlockTextObject; level?: number; sourceUrl?: string }) => {
+    const onLinkClick = useContext(BlockKitLinkContext);
+    const labels = useBlockKitLabels();
     const depth = Math.min(Math.max(level ?? 1, 1), 4);
     const Tag = `h${depth}` as 'h1' | 'h2' | 'h3' | 'h4';
-    return <Tag className={cn('text-foreground', TEXT_FLOW, HEADING_CLASS[depth - 1])}>{textOf(text)}</Tag>;
+    const heading = <Tag className={cn('text-foreground', TEXT_FLOW, HEADING_CLASS[depth - 1])}>{textOf(text)}</Tag>;
+    if (!sourceUrl) return heading;
+    // The title itself is the link, drawn as the title: a webhook card's heading names
+    // the event, and the event's full report is what a reader pressing it wants. No
+    // icon beside it — every card from a sender that attaches its source would carry
+    // the same mark, which says nothing once it is on all of them. An underline on
+    // hover tells a pointer it is a link; a screen reader hears it from the hidden label.
+    return (
+        <a
+            href={sourceUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="focus-ring block w-fit max-w-full rounded underline-offset-2 hover:underline"
+            onClick={
+                onLinkClick &&
+                (event => {
+                    event.preventDefault();
+                    onLinkClick(sourceUrl);
+                })
+            }
+        >
+            {heading}
+            <span className="sr-only">{labels.openSource}</span>
+        </a>
+    );
 };
 
-const drawBlock = (block: KnownBlock, key: number): ReactNode => {
+// Slack's convention for a field is "*Label*\nvalue" — bold first line, value under
+// it. Read that shape as what it means, a small caption over its value, rather than
+// as a bold line followed by a plain one: in a two-column grid, two bold lines side
+// by side compete with the card's own title. Anything else stays one text object.
+const FIELD_LABEL = /^\*([^*\n]+)\*\n/;
+const FIELD_FIT = 'min-w-0 max-w-full [overflow-wrap:anywhere]';
+
+const Field = ({ field }: { field: BlockTextObject }): ReactNode => {
+    const label = field.type === 'mrkdwn' ? FIELD_LABEL.exec(field.text) : null;
+    // `min-w-0` and `overflow-wrap: anywhere`: a flex item will not shrink below its
+    // longest word, so a long hash or URL in a value would push past the card's edge.
+    if (!label) return <span className={cn(BODY_CLASS, FIELD_FIT)}>{textOf(field)}</span>;
+    return (
+        <span className={cn('flex flex-col gap-0.5', FIELD_FIT)}>
+            <span className="text-xs font-semibold text-description">{decodeSlackEntities(label[1])}</span>
+            <span className={BODY_CLASS}>{renderMrkdwn(field.text.slice(label[0].length))}</span>
+        </span>
+    );
+};
+
+const drawBlock = (block: KnownBlock, key: number, sourceUrl?: string): ReactNode => {
     switch (block.type) {
         case 'header':
-            return <Header key={key} text={block.text} level={block.level} />;
+            return <Header key={key} text={block.text} level={block.level} sourceUrl={sourceUrl} />;
         case 'divider':
-            // Inset rather than full-bleed: a rule that runs the width of the pane
-            // reads as a separator between messages, not inside one.
-            return <hr key={key} className="my-0.5 max-w-2xl border-hairline" />;
+            // Capped rather than full-bleed: in a wide pane the card can stretch, and a
+            // rule that runs its whole width reads as a separator between messages.
+            return <hr key={key} className="max-w-2xl border-hairline" />;
         case 'section':
             return (
                 <div key={key} className="flex flex-col gap-2">
-                    {block.text && <span className={TEXT_FLOW}>{textOf(block.text)}</span>}
-                    {/* Two columns, but only once there is room for them, and never
-                        wider than a readable measure — fields spread across a maximised
-                        window put the label and its value a screen apart. */}
+                    {block.text && <span className={cn(BODY_CLASS, TEXT_FLOW)}>{textOf(block.text)}</span>}
+                    {/* Columns as wide as their content, wrapping when the card runs
+                        out of room — a phone card fits two short fields side by side,
+                        which a fixed two-column grid only allowed from `sm` up. Capped,
+                        because fields spread across a maximised window put the label
+                        and its value a screen apart. */}
                     {block.fields && (
-                        <div className={cn('grid max-w-2xl gap-x-8 gap-y-2 sm:grid-cols-2', TEXT_FLOW)}>
+                        <div className={cn('flex max-w-2xl flex-wrap gap-x-12 gap-y-2', TEXT_FLOW)}>
                             {block.fields.map((field, i) => (
-                                <span key={i}>{textOf(field)}</span>
+                                <Field key={i} field={field} />
                             ))}
                         </div>
                     )}
@@ -53,7 +120,7 @@ const drawBlock = (block: KnownBlock, key: number): ReactNode => {
             // one, and a context line that reads differently in the sidebar preview than
             // in the message is the same value disagreeing with itself.
             return (
-                <div key={key} className={cn('text-caption text-muted-foreground', TEXT_FLOW)}>
+                <div key={key} className={cn('text-caption font-medium text-description', TEXT_FLOW)}>
                     {block.elements.map((element, i) => (
                         <span key={i}>
                             {i > 0 && ' '}
@@ -99,6 +166,14 @@ interface BlockKitMessageProps {
      * Absent, a link behaves as a plain `target="_blank"` anchor.
      */
     onLinkClick?: (url: string) => void;
+    /**
+     * Where the whole message can be read in full — a webhook's report, say. The
+     * first heading becomes a link to it. Not a block: Slack's
+     * `header` carries no URL, so the caller takes it from wherever its message keeps
+     * one. Ignored unless it is `http(s)`, and when the first heading is not plain text
+     * (a mrkdwn heading can hold links of its own, which cannot sit inside this one).
+     */
+    sourceUrl?: string;
 }
 
 /**
@@ -116,6 +191,7 @@ export const BlockKitMessage = ({
     renderFallback,
     labels,
     onLinkClick,
+    sourceUrl,
 }: BlockKitMessageProps): ReactNode => {
     if (!hasDrawableBlocks(blocks)) {
         return (
@@ -124,11 +200,12 @@ export const BlockKitMessage = ({
             </p>
         );
     }
+    const linkedHeader = isWebUrl(sourceUrl) ? linkableHeaderIndex(blocks) : -1;
     return (
         <BlockKitLabelsContext.Provider value={{ ...DEFAULT_BLOCK_KIT_LABELS, ...labels }}>
             <BlockKitLinkContext.Provider value={onLinkClick}>
-                <div className="flex select-text flex-col gap-2 break-words text-body text-foreground">
-                    {blocks.map(drawBlock)}
+                <div className="flex select-text flex-col gap-3.5 break-words text-body text-foreground">
+                    {blocks.map((block, i) => drawBlock(block, i, i === linkedHeader ? sourceUrl?.trim() : undefined))}
                 </div>
             </BlockKitLinkContext.Provider>
         </BlockKitLabelsContext.Provider>

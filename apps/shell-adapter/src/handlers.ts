@@ -1,4 +1,5 @@
-import { resolveDeepLink, resolvePushTapPath } from 'shell-adapter/mobile-deeplink';
+import { isCustomScheme, resolveDeepLink, resolvePushTapPath } from 'shell-adapter/mobile-deeplink';
+import { isOpenableUrl } from 'shell-adapter/mobile-url-trust';
 
 import type { PreferenceKey } from '@chatic/app-messages';
 import {
@@ -28,6 +29,13 @@ const LANGUAGES: readonly unknown[] = ['ko', 'en', 'system'];
 
 export const APPLE_SIGN_IN_UNSUPPORTED =
     'Apple sign-in is not supported in the virtual shell — use Google or a phone number';
+
+export const APP_SCHEME_OPEN_UNSUPPORTED =
+    "Opening the app's own scheme is an inbound deep link — use the shell's Link tool to open one";
+
+/** Whether `url` is in the app's own scheme, which the app treats as a link into itself, not a page. */
+const isAppScheme = (url: string): boolean =>
+    isCustomScheme(/^([a-z][a-z\d+\-.]*):/i.exec(url)?.[1]?.toLowerCase() ?? '');
 
 /** The older preference store (`FetchPreference` and friends), kept across relaunches as the app keeps it. */
 const preferences = (shell: HandlerContext): Map<string, unknown> => {
@@ -76,6 +84,30 @@ const shellHandlers: Handlers<DouMethods> = {
         return { result: credential };
     },
     OAuthLogout: () => ({ success: true }),
+    // The app hands the URL to the OS (`Linking.openURL`); the shell's OS is this browser, so a new tab.
+    // The app's own refusal comes first and in its words, so a link the device would not open does
+    // not open here either.
+    OpenURL: ({ url }, shell) => {
+        if (!isOpenableUrl(url)) {
+            throw failure('LINK_NOT_ALLOWED', 'This link cannot be opened.');
+        }
+        if (isAppScheme(url)) {
+            shell.log.append({
+                source: 'unsupported',
+                type: 'OpenURL',
+                data: { message: APP_SCHEME_OPEN_UNSUPPORTED },
+            });
+            throw failure('LINK_ERROR', APP_SCHEME_OPEN_UNSUPPORTED);
+        }
+        // A blank tab first, then the address. With `noopener` in the features `open` returns null
+        // whether or not a tab opened, so a blocked popup could not be told apart; and the opener can
+        // only be cut while the tab is still same-origin, before it navigates.
+        const opened = globalThis.open?.('about:blank', '_blank');
+        if (!opened) throw failure('LINK_ERROR', 'The browser blocked the new tab');
+        opened.opener = null;
+        opened.location.href = url;
+        return {};
+    },
     // The shell draws the badge the app sets, but keeps no count to read back.
     FetchBadgeCount: 'unsupported',
     // The memory cache keeps no per-channel preview; `NOT_FOUND` sends the web to a window per channel,

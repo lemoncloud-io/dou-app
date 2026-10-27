@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { cn } from '@chatic/lib/utils';
 
 import { useBlockKitLabels } from './blockKitLabels';
-import { MSG_CODE_BLOCK_CLASS } from './messageClasses';
 
 /**
  * How much of a folded block stays visible. Three lines is what the design
@@ -21,8 +20,18 @@ const COLLAPSED_LINES = 3;
  */
 const FOLD_ABOVE = COLLAPSED_LINES + 2;
 
+/**
+ * A fenced run in a card is almost always a stack trace or a log excerpt, and the
+ * design sets it as the card's own secondary text one step smaller — no well, no
+ * monospace, wrapped rather than scrolled. A phone-width card that scrolls sideways
+ * hides the end of every frame line, which is where the file and line number are.
+ * The composer's fenced block (`MSG_CODE_BLOCK_CLASS`) keeps its well; that one is
+ * code a person pasted into a conversation.
+ */
+const FENCE_CLASS = 'block whitespace-pre-wrap break-words text-[0.8125rem] font-medium leading-normal text-label';
+
 const TOGGLE_CLASS = cn(
-    'focus-ring mt-1 rounded text-caption text-muted-foreground underline-offset-2',
+    'focus-ring mt-2 rounded text-[0.8125rem] font-bold text-label underline-offset-2',
     'transition-colors hover:text-foreground hover:underline'
 );
 
@@ -39,25 +48,23 @@ const TOGGLE_CLASS = cn(
  * a fence is the only place where "too long to read inline" is a property of
  * the content instead of a guess about prose, and it is what the design folds.
  *
- * Folded lines are not rendered rather than hidden with CSS. The block scrolls
- * sideways, which rules out a line clamp, and a `max-height` would have to
- * assume a line height the theme is free to change. The cost is that a folded
- * trace is not findable by the browser's own search — one click away, and the
- * flattened copy in `blocksToPlainText` still carries the whole thing for the
- * surfaces that search.
+ * Folded lines are not rendered rather than hidden with CSS. A line clamp counts
+ * wrapped lines, not the trace's own, so a narrow card would fold a different
+ * amount than a wide one; and a `max-height` would have to assume a line height
+ * the theme is free to change. The cost is that a folded trace is not findable by
+ * the browser's own search — one click away, and the flattened copy in
+ * `blocksToPlainText` still carries the whole thing for the surfaces that search.
  */
 export const CollapsibleCode = ({ text }: { text: string }) => {
     const labels = useBlockKitLabels();
     const [open, setOpen] = useState(false);
     const lines = text.split('\n');
 
-    if (lines.length <= FOLD_ABOVE) return <span className={MSG_CODE_BLOCK_CLASS}>{text}</span>;
+    if (lines.length <= FOLD_ABOVE) return <span className={FENCE_CLASS}>{text}</span>;
 
     return (
-        <span className="my-1 block">
-            <span className={cn(MSG_CODE_BLOCK_CLASS, 'my-0')}>
-                {open ? text : lines.slice(0, COLLAPSED_LINES).join('\n')}
-            </span>
+        <span className="block">
+            <span className={FENCE_CLASS}>{open ? text : lines.slice(0, COLLAPSED_LINES).join('\n')}</span>
             <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className={TOGGLE_CLASS}>
                 {open ? labels.collapseCode : labels.expandCode(lines.length - COLLAPSED_LINES)}
             </button>
