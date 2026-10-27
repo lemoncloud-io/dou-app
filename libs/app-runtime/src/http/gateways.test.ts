@@ -2,6 +2,7 @@ import {
     cloudGateway,
     configuredArchiveEndpoint,
     oauthGateway,
+    pairingGateway,
     reportGateway,
     resetGateways,
     subscriptionGateway,
@@ -13,6 +14,7 @@ const createUserHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'user' })
 const createCloudHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'cloud' }));
 const createSubscriptionHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'subscription' }));
 const createReportHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'report' }));
+const createPairingHttpGateway = jest.fn((..._args: unknown[]) => ({ tag: 'pairing' }));
 const getHttpManager = jest.fn(() => ({ executor: true }));
 
 jest.mock('@chatic/http', () => ({
@@ -21,6 +23,7 @@ jest.mock('@chatic/http', () => ({
     createCloudHttpGateway: (...a: unknown[]) => createCloudHttpGateway(...a),
     createSubscriptionHttpGateway: (...a: unknown[]) => createSubscriptionHttpGateway(...a),
     createReportHttpGateway: (...a: unknown[]) => createReportHttpGateway(...a),
+    createPairingHttpGateway: (...a: unknown[]) => createPairingHttpGateway(...a),
 }));
 jest.mock('./factory', () => ({ getHttpManager: () => getHttpManager() }));
 
@@ -47,6 +50,7 @@ describe('공유 게이트웨이 인스턴스', () => {
         cloudGateway();
         subscriptionGateway();
         reportGateway();
+        pairingGateway();
 
         const executor = getHttpManager.mock.results[0].value;
         expect(createOAuthHttpGateway).toHaveBeenCalledWith(executor);
@@ -54,6 +58,7 @@ describe('공유 게이트웨이 인스턴스', () => {
         expect(createCloudHttpGateway).toHaveBeenCalledWith(executor);
         expect(createSubscriptionHttpGateway).toHaveBeenCalledWith(executor);
         expect(createReportHttpGateway).toHaveBeenCalledWith(executor, { archiveEndpoint: configuredArchiveEndpoint });
+        expect(createPairingHttpGateway).toHaveBeenCalledWith(executor);
     });
 
     it('한 번 만들고 재사용한다 — 소비자가 몇이든 인스턴스는 하나다', () => {
@@ -64,12 +69,15 @@ describe('공유 게이트웨이 인스턴스', () => {
     it('resetGateways()가 전부 버린다 — 테스트 심', () => {
         oauthGateway();
         reportGateway();
+        pairingGateway();
         resetGateways();
         oauthGateway();
         reportGateway();
+        pairingGateway();
 
         expect(createOAuthHttpGateway).toHaveBeenCalledTimes(2);
         expect(createReportHttpGateway).toHaveBeenCalledTimes(2);
+        expect(createPairingHttpGateway).toHaveBeenCalledTimes(2);
     });
 });
 

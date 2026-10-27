@@ -47,6 +47,17 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local', 'server'],
         persist: 'session',
     },
+    // Off in prod until the screens' design and wording are settled; that switch is a server setting.
+    'feature.auth.devicePairing': {
+        title: 'Device pairing',
+        description: 'Shows web login by code, the approval screen, and device management.',
+        type: 'boolean',
+        defaultValue: false,
+        byStage: { LOCAL: true, DEV: true },
+        surface: 'dev',
+        writableBy: ['local', 'server'],
+        persist: 'session',
+    },
     'feature.subscription.dryRun': {
         title: 'Subscription payment dry run',
         description: 'Exercises the subscription flow without an actual charge.',

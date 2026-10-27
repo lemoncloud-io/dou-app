@@ -4,7 +4,14 @@ import {
     type HttpGatewayBundle,
 } from '@chatic/data';
 
-import { cloudGateway, oauthGateway, reportGateway, subscriptionGateway, userGateway } from '../../http/gateways';
+import {
+    cloudGateway,
+    oauthGateway,
+    pairingGateway,
+    reportGateway,
+    subscriptionGateway,
+    userGateway,
+} from '../../http/gateways';
 
 /**
  * Assembles the HTTP gateway bundle and hands back the `data-source` bundle built on it —
@@ -30,6 +37,8 @@ export const createHttpDataSources = (): { httpDataSources: HttpDataSources } =>
         // Diagnostics (user issue reports · log batches). Not domain data, but a data call — it
         // comes through the same path so nothing builds its own signed request any more.
         report: reportGateway(),
+        // Device pairing — every operation is a signed relay request, whichever cloud is active.
+        pairing: pairingGateway(),
     };
 
     return { httpDataSources: createDataHttpDataSources({ gateways }) };

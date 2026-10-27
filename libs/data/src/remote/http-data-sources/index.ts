@@ -9,12 +9,15 @@ import type { ISubscriptionHttpDataSource } from './SubscriptionHttpDataSource';
 import { SubscriptionHttpDataSource } from './SubscriptionHttpDataSource';
 import type { IReportHttpDataSource } from './ReportHttpDataSource';
 import { ReportHttpDataSource } from './ReportHttpDataSource';
+import type { IPairingHttpDataSource } from './PairingHttpDataSource';
+import { PairingHttpDataSource } from './PairingHttpDataSource';
 
 export * from './AuthHttpDataSource';
 export * from './UserHttpDataSource';
 export * from './CloudHttpDataSource';
 export * from './SubscriptionHttpDataSource';
 export * from './ReportHttpDataSource';
+export * from './PairingHttpDataSource';
 
 export interface HttpDataSources {
     auth: IAuthHttpDataSource;
@@ -22,6 +25,7 @@ export interface HttpDataSources {
     cloud: ICloudHttpDataSource;
     subscription: ISubscriptionHttpDataSource;
     report: IReportHttpDataSource;
+    pairing: IPairingHttpDataSource;
 }
 
 /** Gathers HttpDataSource construction in one place — symmetric with the socket axis's `createSocketDataSources`. */
@@ -31,4 +35,5 @@ export const createHttpDataSources = ({ gateways }: { gateways: HttpGatewayBundl
     cloud: new CloudHttpDataSource(gateways.cloud),
     subscription: new SubscriptionHttpDataSource(gateways.subscription),
     report: new ReportHttpDataSource(gateways.report),
+    pairing: new PairingHttpDataSource(gateways.pairing),
 });

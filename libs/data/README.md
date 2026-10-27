@@ -36,7 +36,7 @@ makes no difference.
 ## Scope
 
 **In** — domain models and mappers, local data sources and the stream engine, the `CacheStorage` port,
-socket and HTTP gateway types (`Pick<>`) and their data sources, 13 repository facades, the
+socket and HTTP gateway types (`Pick<>`) and their data sources, 14 repository facades, the
 `DataContext` contract, the image send sequence (`uploads/`) with its ports and answer guard, and the state
 outbox (`outbox/`) with its port, its machine and the state definitions.
 
@@ -58,9 +58,9 @@ flowchart TD
     UI["UI (React hooks)"]:::ext
     Sync["sync orchestrator<br/>libs/app-runtime"]:::ext
 
-    Repo["Repository × 13<br/><i>data facade</i>"]:::repo
+    Repo["Repository × 14<br/><i>data facade</i>"]:::repo
     Local["LocalDataSource × 9<br/><i>stores snapshots · emits streams</i>"]:::local
-    Remote["SocketDataSource × 12<br/>HttpDataSource × 5"]:::remote
+    Remote["SocketDataSource × 12<br/>HttpDataSource × 6"]:::remote
     Domain["domain<br/><i>models · mappers</i>"]:::domain
 
     DB["@chatic/db<br/><i>storage engine</i>"]:::ext
@@ -266,7 +266,7 @@ npx jest --config libs/data/jest.config.js
 
 - Type checking must be `tsc -b`. Inside `libs/data`, `tsc --noEmit` checks zero files and succeeds.
 - **`tsconfig.json` covers both projects**, because its `references` name `tsconfig.lib.json` and `tsconfig.spec.json`. That matters: the lib config excludes `*.test.ts` and `__mocks__/**`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles. Without the spec project a broken test fixture (a mock missing an action, say) surfaces only as `… is not a function` at runtime. `nx typecheck @chatic/data` runs the same thing, plus every dependency's own typecheck, and all of it is green.
-- All 26 data sources have a matching test, and so do all 13 repositories. The commands above are what answer this, not this sentence.
+- All 27 data sources have a matching test, and so do all 14 repositories. The commands above are what answer this, not this sentence.
 - Downstream check: a changed barrel identifier reaches eight projects — `apps/web`, `apps/desktop-web`,
   `libs/app-runtime`, `apps/testbed`, `libs/db`, `libs/block-kit`, `apps/admin-v2` and `@chatic/mobile`.
   `.github/workflows/verify.yml` type checks every one of them except `apps/desktop-web` and

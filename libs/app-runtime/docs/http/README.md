@@ -128,8 +128,8 @@ has never had, on any 403.
 
 ### Gateways and the log sink
 
-Five lazily memoized gateways — `oauthGateway`, `cloudGateway`, `userGateway`,
-`subscriptionGateway`, `reportGateway` — all built over `getHttpManager()`. `resetGateways()` exists
+Six lazily memoized gateways — `oauthGateway`, `cloudGateway`, `userGateway`,
+`subscriptionGateway`, `reportGateway`, `pairingGateway` — all built over `getHttpManager()`. `resetGateways()` exists
 for tests and **must be paired with `resetHttpManager()`**: a gateway memoized over a discarded
 manager keeps using it.
 

@@ -149,6 +149,17 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 - Only the socket gateway is routed — `save`/`read`/`sync` go to the `active` slot, while `updateRemote`, the relay-owned push setting, goes to relay (ADR-0027).
 - Push-token registration is **not** here: `libs/app-runtime` registers through the HTTP user gateway directly (`data/hooks/device.ts`), and `useDeviceTokenRegistration` owns the once-per-install gate (ADR-0077).
 
+### Pairing
+
+`requestPairing` · `claimPairing` · `checkPairing` · `approvePairing` · `denyPairing` · `listPairings` ·
+`revokePairing`
+
+- **Remote-only and HTTP-only**, like `Report`. Every call is a signed request to the relay, whichever
+  cloud is active → [http.md's pairing lane](../remote/http.md#the-pairing-lane).
+- `checkPairing` sends the code's digits alone: people paste it as it is shown (`0734-4168`).
+- `claimPairing` returns the server's answer exactly as it came. The session in a relay approval's first
+  `approved` answer is applied by `app-runtime`, never here.
+
 ### Report
 
 `submitIssue` · `uploadLogBatch`

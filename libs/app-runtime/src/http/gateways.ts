@@ -3,10 +3,12 @@ import {
     type CloudHttpGateway,
     createCloudHttpGateway,
     createOAuthHttpGateway,
+    createPairingHttpGateway,
     createReportHttpGateway,
     createSubscriptionHttpGateway,
     createUserHttpGateway,
     type OAuthHttpGateway,
+    type PairingHttpGateway,
     type ReportHttpGateway,
     type SubscriptionHttpGateway,
     type UserHttpGateway,
@@ -31,6 +33,7 @@ let cloud: CloudHttpGateway | null = null;
 let user: UserHttpGateway | null = null;
 let subscription: SubscriptionHttpGateway | null = null;
 let report: ReportHttpGateway | null = null;
+let pairing: PairingHttpGateway | null = null;
 
 export const oauthGateway = (): OAuthHttpGateway => {
     if (!oauth) oauth = createOAuthHttpGateway(getHttpManager());
@@ -69,6 +72,11 @@ export const reportGateway = (): ReportHttpGateway => {
     return report;
 };
 
+export const pairingGateway = (): PairingHttpGateway => {
+    if (!pairing) pairing = createPairingHttpGateway(getHttpManager());
+    return pairing;
+};
+
 /** Test seam — drops every cached gateway. Pair with `resetHttpManager` when the client itself must
  * be rebuilt: a cached gateway holds the OLD client, so resetting only one of the two leaves stale
  * wiring behind. */
@@ -78,4 +86,5 @@ export const resetGateways = (): void => {
     user = null;
     subscription = null;
     report = null;
+    pairing = null;
 };
