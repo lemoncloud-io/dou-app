@@ -479,7 +479,10 @@
                 "profile": "Cloud profile",
                 "detail": "Cloud information",
                 "places": "Manage places",
-                "notEnterable": "Available once the cloud can be used"
+                "notEnterable": "Available once the cloud can be used",
+                "retry": "Try again",
+                "retrySuccess": "Started creating the cloud again.",
+                "retryFailed": "Couldn't try again. Please try again in a moment."
             },
             "detail": {
                 "title": "Cloud information",

@@ -1,4 +1,4 @@
-import { isCloudEnterable, needsCloudAttention, resolveCloudRowState } from './cloudRowState';
+import { canRetryCloudSetup, isCloudEnterable, needsCloudAttention, resolveCloudRowState } from './cloudRowState';
 
 describe('resolveCloudRowState — one row state per relay status', () => {
     it.each([
@@ -56,5 +56,20 @@ describe('needsCloudAttention', () => {
     it('leaves a provisioning row alone — waiting is the only action', () => {
         expect(needsCloudAttention('provisioning')).toBe(false);
         expect(needsCloudAttention('ready')).toBe(false);
+    });
+});
+
+describe('canRetryCloudSetup', () => {
+    it('offers a retry for a failed cloud that holds no workspace slot', () => {
+        expect(canRetryCloudSetup({ status: 'error' })).toBe(true);
+    });
+
+    it('offers none once the slot is held — the relay refuses it', () => {
+        expect(canRetryCloudSetup({ status: 'error', slotId: 'S9' })).toBe(false);
+        expect(canRetryCloudSetup({ status: 'error', accountNo: '123' })).toBe(false);
+    });
+
+    it.each([['init'], ['reserved'], ['active'], ['suspended']] as const)('offers none for %s', status => {
+        expect(canRetryCloudSetup({ status })).toBe(false);
     });
 });

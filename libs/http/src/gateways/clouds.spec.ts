@@ -68,6 +68,19 @@ describe('createCloudHttpGateway', () => {
         });
     });
 
+    it('workspace — POST {relay}/clouds/{cloudId}/workspace, without allowRecordError', async () => {
+        executeSignedRelayRequest.mockResolvedValue({ id: 'c1', status: 'reserved' });
+        const gateway = createCloudHttpGateway(exec);
+
+        await gateway.workspace('c1');
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith({
+            method: 'POST',
+            baseURL: 'https://relay.test/clouds/c1/workspace',
+            body: {},
+        });
+    });
+
     it('verifyEmail — POST {relay}/clouds/0/verify-email', async () => {
         executeSignedRelayRequest.mockResolvedValue({});
         const gateway = createCloudHttpGateway(exec);

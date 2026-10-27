@@ -479,7 +479,10 @@
                 "profile": "클라우드 프로필",
                 "detail": "클라우드 정보",
                 "places": "플레이스 관리",
-                "notEnterable": "클라우드를 이용할 수 있을 때 설정할 수 있어요"
+                "notEnterable": "클라우드를 이용할 수 있을 때 설정할 수 있어요",
+                "retry": "다시 시도",
+                "retrySuccess": "클라우드 생성을 다시 시작했어요.",
+                "retryFailed": "다시 시도하지 못했어요. 잠시 후 다시 시도해 주세요."
             },
             "detail": {
                 "title": "클라우드 정보",

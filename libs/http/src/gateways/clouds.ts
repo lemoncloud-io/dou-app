@@ -14,6 +14,11 @@ export interface CloudHttpGateway {
     /** POST {relay}/clouds/{cloudId}/release, `allowRecordError` — the response IS the released
      * record, and a cloud that failed provisioning keeps its trace in its own `error` column. */
     release(cloudId: string, params?: Record<string, unknown>): Promise<CloudView>;
+    /** POST {relay}/clouds/{cloudId}/workspace — asks for a workspace slot again. The relay takes it
+     * only for a cloud still in `init` or `error`, from its owner (or an admin). A slot request that
+     * fails comes back as a record carrying `error`, which is rejected like any other API error —
+     * unlike `release`, the caller has nothing to read from a failed retry. */
+    workspace(cloudId: string): Promise<CloudView>;
     /** POST {relay}/clouds/0/verify-email?dryRun. */
     verifyEmail(body: CloudVerifyEmailBody, params?: { dryRun?: boolean }): Promise<CloudVerifyEmailView>;
 }
@@ -51,6 +56,13 @@ export const createCloudHttpGateway = (exec: HttpGatewayExecutor): CloudHttpGate
                 body: {},
                 params: { ...params },
                 allowRecordError: true,
+            }),
+
+        workspace: cloudId =>
+            exec.executeSignedRelayRequest<CloudView, Record<string, never>>({
+                method: 'POST',
+                baseURL: `${relay()}/clouds/${cloudId}/workspace`,
+                body: {},
             }),
 
         verifyEmail: (body, params) =>

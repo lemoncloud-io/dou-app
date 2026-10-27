@@ -46,7 +46,7 @@ interface CloudItemProps {
  * A row either enters its cloud or explains itself, never both. A live cloud (ready, or scheduled
  * to end at the next renewal — still usable until then) switches; every other state has no
  * session to switch to, so the tap opens the cloud's management hub instead, where the state is
- * explained and a failed or held cloud is released. Renaming is NOT offered here — `/mypage/
+ * explained, a failed cloud is set up again or released, and a held cloud is released. Renaming is NOT offered here — `/mypage/
  * cloud-manage/:id/edit` is the single rename path.
  */
 export const CloudItem = ({
