@@ -8,5 +8,6 @@ export * from './HapticBridge';
 export * from './MediaExportBridge';
 export * from './PhotoLibraryBridge';
 export * from './PushMarksBridge';
+export * from './ShareIntakeBridge';
 export * from './SharedLanguageBridge';
 export * from './TransferManagerBridge';

@@ -1,7 +1,7 @@
 # @chatic/app-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 95 web→app request types, 104 app→web message types, the payload
+can cross the WebView boundary — 97 web→app request types, 106 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -87,7 +87,7 @@ mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
 the envelopes around them (`BaseMessage`, `WebDefaultMessage`, `AppDefaultMessage`,
 `AppSuccessMessage`, `AppFailureMessage`); the native handler signatures (`WebMessageHandler`,
 `WebMessageHandlerResponse`, `WebMessageHandlerMap`); the bridge failure taxonomy (`BridgeErrorCode`,
-`BridgeError`, `BridgeErrorResponse`); and 22 payload files under `model/`.
+`BridgeError`, `BridgeErrorResponse`); and 23 payload files under `model/`.
 
 **Out** — everything that runs. Transport, matching, buffering, timeouts and teardown are
 [`@chatic/bridges`](../bridges/README.md). The handlers are the shells (`apps/mobile`,
@@ -102,9 +102,9 @@ flowchart TD
     classDef map fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
-    Model["model/ × 21<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>95 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>104 message types</i>"]:::map
+    Model["model/ × 23<br/><i>XPayload · OnXPayload</i>"]
+    WM["WebMessagePayloadMap<br/><i>97 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>106 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -167,13 +167,13 @@ libs/app-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (95)  + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (104) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (97)  + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (106) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
-    └── model/                    23 files — 22 payload files, grouped by domain, and their barrel
+    └── model/                    24 files — 23 payload files, grouped by domain, and their barrel
 ```
 
-29 files, 3,671 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+30 files, 3,744 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -225,7 +225,8 @@ Names you would not find by guessing at a filename:
   `model/media-export.ts` does the same for `SaveToPhotoLibrary`, `ShareFile`, `OpenFile` and
   `SaveFile`, the messages that take a download's file onward, and `model/attachment-picker.ts` for
   `PickAttachments`, `PrepareVideo`, `ReadAttachment` and `ReadVideoFrame`; `model/photo-library.ts`
-  keeps `KeepLibraryVideo` beside the lists it picks from.
+  keeps `KeepLibraryVideo` beside the lists it picks from, and `model/share-intake.ts` keeps
+  `FetchShareIntake` and `ReleaseShareIntake` with their replies.
 - **`StartFileTransferPayload` is a union on `direction`.** An upload names the file it reads; a
   download names none — the shell decides where it writes, because a caller able to name the path
   could overwrite the app's own files — and gets the file back in the terminal event's `file`.
@@ -294,7 +295,7 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 95 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 97 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for

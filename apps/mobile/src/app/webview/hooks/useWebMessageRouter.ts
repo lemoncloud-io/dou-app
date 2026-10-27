@@ -21,6 +21,7 @@ import {
     useFileTransferHandler,
     useMediaExportHandler,
     useAttachmentPickerHandler,
+    useShareIntakeHandler,
     usePhotoLibraryHandler,
     useTestRecordHandler,
     useResumeOverlay,
@@ -125,6 +126,12 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleReadAttachment,
         handleReadVideoFrame,
     } = useAttachmentPickerHandler();
+
+    const {
+        isAvailable: isShareIntakeAvailable,
+        handleFetchShareIntake,
+        handleReleaseShareIntake,
+    } = useShareIntakeHandler();
 
     const {
         isAvailable: isPhotoLibraryAvailable,
@@ -243,6 +250,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handlePrepareVideo,
         handleReadAttachment,
         handleReadVideoFrame,
+        handleFetchShareIntake,
+        handleReleaseShareIntake,
         handleListPhotoAlbums,
         handleListPhotos,
         handleReadPhoto,
@@ -341,6 +350,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handlePrepareVideo,
             handleReadAttachment,
             handleReadVideoFrame,
+            handleFetchShareIntake,
+            handleReleaseShareIntake,
             handleListPhotoAlbums,
             handleListPhotos,
             handleReadPhoto,
@@ -462,6 +473,10 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 canReadVideoFrame && {
                     ReadVideoFrame: message => handlersRef.current.handleReadVideoFrame(message),
                 }),
+            ...(isShareIntakeAvailable && {
+                FetchShareIntake: message => handlersRef.current.handleFetchShareIntake(message),
+                ReleaseShareIntake: message => handlersRef.current.handleReleaseShareIntake(message),
+            }),
             ...(canOpenFile && { OpenFile: message => handlersRef.current.handleOpenFile(message) }),
             ...(canSaveFile && { SaveFile: message => handlersRef.current.handleSaveFile(message) }),
         };
@@ -483,6 +498,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         bridge,
         isPhotoLibraryAvailable,
         isAttachmentPickerAvailable,
+        isShareIntakeAvailable,
         canKeepVideo,
         canReadVideoFrame,
         canOpenFile,

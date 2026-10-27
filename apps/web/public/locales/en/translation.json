@@ -2065,5 +2065,34 @@
             "nameLabel": "Name",
             "photoLabel": "Profile photo"
         }
+    },
+    "share": {
+        "title": "Share to Dou",
+        "close": "Close",
+        "send": "Send",
+        "cloud": "Cloud",
+        "to": "To",
+        "toPlaceholder": "Share with:",
+        "messagePlaceholder": "Add a message if you like",
+        "preparing": "Getting your items ready",
+        "loadFailed": "Couldn't load what you shared.",
+        "retry": "Try again",
+        "nothingToShare": "There's nothing to share.",
+        "notSent": "Can't send: {{names}}",
+        "place": "Place",
+        "cancel": "Cancel",
+        "done": "Done",
+        "searchPlaceholder": "Search chats",
+        "noResults": "No matching chats.",
+        "noDestinations": "There are no chats to send to.",
+        "groupPeople": "Direct messages",
+        "groupChannels": "Channels",
+        "removeDestination": "Remove",
+        "limit": "You can send to up to {{max}} chats.",
+        "sentMany": "Sent to {{count}} chats.",
+        "switchFailed": "Couldn't switch. Please try again.",
+        "sendFailed": "Couldn't send. Please try again.",
+        "sendFailedSome": "Couldn't send to some chats.",
+        "loadingDestinations": "Loading chats"
     }
 }

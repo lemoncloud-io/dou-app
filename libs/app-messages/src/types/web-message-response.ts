@@ -37,6 +37,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     PrepareVideo: 'OnPrepareVideo',
     ReadAttachment: 'OnReadAttachment',
     ReadVideoFrame: 'OnReadVideoFrame',
+    FetchShareIntake: 'OnFetchShareIntake',
+    ReleaseShareIntake: 'OnReleaseShareIntake',
     RequestPermission: 'OnRequestPermission',
     OpenURL: 'OnOpenURL',
     SendSms: 'OnSendSms',

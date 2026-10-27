@@ -238,7 +238,7 @@ works.
 
 ```bash
 # feature importing another feature directly (targets vary; keep the feature list current)
-grep -rnE "from '(\.\./)+(account|appUpdate|auth|channels|debug|feedback|home|invite|mypage|onboarding|place|search|subscription)(/|')" \
+grep -rnE "from '(\.\./)+(account|appUpdate|auth|channels|debug|feedback|home|invite|mypage|onboarding|place|search|share|subscription)(/|')" \
     apps/web/src/app/features --include='*.ts*' | grep -v '\.test\.'
 
 # a barrel bypassed because of the test transform, not because of layering

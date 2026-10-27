@@ -17,6 +17,7 @@ import io.chatic.dou.bridge.MediaExportPackage
 import io.chatic.dou.bridge.NativeLoggerPackage
 import io.chatic.dou.bridge.PhotoLibraryPackage
 import io.chatic.dou.bridge.PushMarksPackage
+import io.chatic.dou.bridge.ShareIntakePackage
 import io.chatic.dou.bridge.SharedLanguagePackage
 import io.chatic.dou.bridge.SystemBarsPackage
 import io.chatic.dou.bridge.TransferManagerPackage
@@ -39,6 +40,7 @@ class MainApplication : Application(), ReactApplication {
             add(NativeLoggerPackage())
             add(PhotoLibraryPackage())
             add(PushMarksPackage())
+            add(ShareIntakePackage())
             add(SharedLanguagePackage())
             add(SystemBarsPackage())
             add(TransferManagerPackage())
