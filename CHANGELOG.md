@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-27] - No version updates
+
+### Bug Fixes
+
+- (desktop-web,web) read stacked marks, not bold with stray asterisks
+
 ## [2026-10-27] - root@0.117.0, @chatic/landing@0.10.0
 
 ### Features
