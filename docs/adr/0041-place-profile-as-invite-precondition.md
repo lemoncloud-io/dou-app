@@ -1,6 +1,7 @@
 # ADR-0041: Put the place profile back as a precondition of inviting
 
-> Status: Accepted · Decided: 2026-08-03
+> Status: Superseded in part by [ADR-0243](./0243-a-relay-invitees-profile-step-opens-only-after-a-failed-save.md) —
+> the invitee's side of decisions 1 and 2 · Decided: 2026-08-03
 >
 > **Depends on: [ADR-0040](0040-self-chat-title-and-profile-setup-nudge.md).** A session running in
 > parallel on the same day adds `PlaceProfileCreateDialog` (decision 6) and `resolvePlaceDisplayName`

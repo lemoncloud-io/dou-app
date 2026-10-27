@@ -77,8 +77,9 @@ Verification takes minutes, and in that window the inviter can cancel, the link 
 recipient can decline from another device. Re-validation is not something a caller remembers to do;
 it is the first decision the only path forward makes.
 
-That is also why abandoning a step is safe. Backing out of the profile dialog returns to `review`
-without accepting, and pressing accept again simply runs the chain from the top.
+That is also why abandoning a step is safe. Backing out of verification returns to `review` without
+accepting, and pressing accept again simply runs the chain from the top. The profile dialog has no
+way back to `review`: its only exit, once a save has failed, goes on into the accept (below).
 
 ### Wait for the relay handshake before the first read
 
@@ -139,7 +140,7 @@ stays in the switcher while that session lasts; after a `login` proof promotes t
 re-issue for an invited cloud can be refused (see [README](./README.md#where-the-backend-still-has-gaps)).
 
 Only Accept moves the session; opening the link, reading the invite and declining leave it where it
-is. Once moved it stays moved: backing out of the verification or profile step returns to `review`
+is. Once moved it stays moved: backing out of the verification step returns to `review`
 on relay, not to the cloud the reader came from. The active server and the place are read when each
 step runs, not off the last render, because the return has only just moved them.
 
@@ -187,11 +188,19 @@ The place profile is asked for **immediately before** `invite.accept`, and after
 branch. The order cannot be swapped: a device user has no site to write a profile to, and
 verification is what promotes them.
 
-Backing out of the dialog returns to `review` — the same handler as abandoning verification, because
-it means the same thing — and the invitation is **not accepted**. That is the entire reason the step
-sits where it does. Put the profile _after_ the accept and someone who force-quits in between is
-left, irreversibly, in a DM with no name. Here that state has no path into existence: the profile
-save and the accept are links in one `advance()` chain, and leaving breaks the chain.
+That is the entire reason the step sits where it does. Put the profile _after_ the accept and
+someone who force-quits in between is left, irreversibly, in a DM with no name. Here the profile save
+and the accept are links in one `advance()` chain, and leaving the app breaks the chain.
+
+**Required, but not a trap — the cloud invite's rule.** The dialog has no X until a save has failed
+once (`dismissible` follows a failed `onSubmit`, tracked by the view). After that, X is
+`skipProfile`: it records the skip (`profileSkippedRef`) and runs `advance()`, which lets the accept
+through without a profile. If the server will not take the save, being held on a form that cannot
+succeed is worse than entering without a name; the missing-profile prompts elsewhere (home's banner,
+the room-settings nudge) pick the name up later. X used to return to `review` like an abandoned
+verification, which left an invitee whose save kept failing with no way into the room. The skip
+survives a later verification, unlike a saved profile: it records a decision, not a row the identity
+swap could orphan.
 
 Two rules keep the step from misfiring:
 
@@ -288,6 +297,8 @@ on whatever screen that lands on — see
   standing between a several-minute verification and accepting an invitation that no longer exists.
 - **Do not move the profile step after the accept.** That is precisely the failure it exists to
   prevent.
+- **Do not offer the profile dialog's X before a save has failed**, and do not point it back at
+  `review`. Before a failure the step is required; after one, X continues into the accept.
 - **Do not make `isPlaceProfileAbsent` fail closed**, and do not read the reactive profile hook in
   its place.
 - **Do not start a `link` verification without `last4`.** The binding cannot be undone.

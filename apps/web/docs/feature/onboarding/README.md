@@ -76,8 +76,8 @@ finishing it does not mark onboarding complete.
   locale files; only the image pick (from `@chatic/assets`) still branches on `i18n.language`. Two
   numbers in slide 1 are interpolated from `MAX_PLACES` and `MAX_CHANNELS_PER_PLACE` rather than written into the sentence,
   because the slide is a promise about what the app allows and it kept promising the old limits after
-  they moved. The 100 in slide 3 stays a literal: no constant owns a room's member capacity, and the
-  nearest one (`MAX_INVITE_SELECTION`) caps a different thing.
+  they moved. The 100 in slide 3 stays a literal: the room cap (`MAX_ROOM_MEMBERS`) is private to the
+  channel invite page, which is the only thing that enforces it.
 - **Wizard** — every string is a `setupWizard.*` key in
   `apps/web/public/locales/{ko,en}/translation.json`.
 

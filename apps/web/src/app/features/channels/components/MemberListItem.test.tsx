@@ -61,10 +61,17 @@ describe('MemberListItem', () => {
         expect(badge).toHaveAttribute('data-variant', 'owner');
     });
 
-    it('소유자이면서 본인이면 방장 뱃지가 MY보다 우선한다', () => {
+    // My own row is always MY — owning the room does not turn it into an owner badge.
+    it('badges my own row MY even when I own the room', () => {
         render(<MemberListItem member={member} isOwner isMe />);
-        const badge = screen.getByTestId('badge');
-        expect(badge).toHaveAttribute('data-variant', 'owner');
+        const badges = screen.getAllByTestId('badge');
+        expect(badges).toHaveLength(1);
+        expect(badges[0]).toHaveAttribute('data-variant', 'mine');
+    });
+
+    it('ranks MY above a pending invite too', () => {
+        render(<MemberListItem member={member} isPendingInvite isMe />);
+        expect(screen.getByTestId('badge')).toHaveAttribute('data-variant', 'mine');
     });
 
     it('초대 대기 중이면 pending 뱃지를 노출하고 다른 뱃지보다 우선한다', () => {

@@ -1,6 +1,7 @@
 # ADR-0022: Move channel invites from a dialog to a page, and apply the Figma UI
 
-> Status: Accepted · Decided: 2026-07-20
+> Status: Superseded in part by [ADR-0244](./0244-a-group-room-holds-100-members-in-all.md) — the
+> selection cap unrelated to the member count · Decided: 2026-07-20
 
 ## Context
 

@@ -33,7 +33,8 @@ member's user row carries an account-wide avatar nobody chose for this place; fa
 a face in the header that the home row, which never had it, did not show. No profile photo means
 the placeholder, not the account avatar.
 
-The participant stack is `orderMemberIdsOwnerFirst(ownerId, activeMemberIds, 5)` — owner leftmost,
+The participant stack is `orderMemberIdsOwnerFirst(roomOwnerIdOf(channel, joins), activeMemberIds, 5)` —
+the owner by join role ([channel-settings.md § Who owns the room](./channel-settings.md#who-owns-the-room)) leftmost,
 then active members, capped at five. Each photo is the site profile's (default avatar without one);
 the name used as alt text still falls back to the member's user row. The count beside it is the full
 `memberCount`, not the five.
@@ -226,7 +227,7 @@ In the room the sheet can **view, report and start a 1:1** — the last only whe
 `canStartDmFromProfile` allows ([dm-and-self-chat.md](./dm-and-self-chat.md)). `canKick` is always
 false, because removing someone belongs on the settings screen, where you can see the member list it
 changes. The owner
-badge reads `channel.ownerId`, as it does in settings.
+mark reads `isRoomOwner` with the member's join, as it does in settings — never in a 1:1.
 
 The sheet shows the person exactly as the tapped element showed them. `ChannelMessageRow`'s
 `onOpenProfile` receives the `{ id, name, avatar }` the row drew (`ownerDisplayName`,

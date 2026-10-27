@@ -943,14 +943,25 @@
             "friendSettings": "친구 설정",
             "removeMember": "내보내기",
             "comingSoon": "준비 중인 기능이에요",
-            "deleteFriend": "친구 삭제",
-            "kickDialog": {
-                "title": "친구를 삭제하시겠습니까?",
-                "description": "삭제하면 이 친구는 더 이상 이 채팅방에 참여할 수 없습니다.",
-                "confirm": "삭제"
+            "removeScope": {
+                "title": "{{name}}님을 내보낼 범위를 선택해 주세요",
+                "description": "선택한 범위에서 {{name}}님이 나가게 됩니다.",
+                "room": {
+                    "label": "{{room}}에서 내보내기",
+                    "description": "선택한 대화방에서만 나가게 됩니다.",
+                    "confirmTitle": "선택한 대화방에서 내보낼까요?",
+                    "confirmDescription": "{{name}}님이 해당 대화방에서 나가게 됩니다. 다른 대화방과 플레이스에는 계속 참여됩니다."
+                },
+                "place": {
+                    "label": "{{place}}에서 내보내기",
+                    "description": "해당 플레이스와 모든 그룹방에서 나가게 됩니다.",
+                    "confirmTitle": "플레이스에서 내보낼까요?",
+                    "confirmDescription": "{{place}}에서 나가게 되면, {{name}}님이 속한 모든 그룹방에서도 나가게 됩니다. 다시 참여하려면 새로운 초대가 필요해요."
+                },
+                "confirm": "내보내기"
             },
-            "kicked": "친구를 삭제했습니다",
-            "kickFailed": "친구 삭제에 실패했습니다",
+            "kicked": "내보내기가 완료되었습니다.",
+            "kickFailed": "친구 내보내기에 실패했습니다",
             "notifyFailed": "알림 설정 변경에 실패했습니다",
             "memberLimit": {
                 "message": "방 인원은 최대 100명까지만 함께할 수 있어요. 😭",
@@ -1181,12 +1192,13 @@
         "retry": "다시 시도",
         "notMember": "이 플레이스의 멤버가 아니에요.",
         "badge": {
-            "me": "나"
+            "me": "나",
+            "owner": "소유자"
         },
         "remove": "내보내기",
         "removeDialog": {
             "title": "'{{name}}'님을 내보낼까요?",
-            "description": "이 플레이스의 모든 그룹 채팅방에서\n나가게 돼요.\n다시 초대되면 돌아올 수 있어요.",
+            "description": "이 플레이스의 모든 그룹방에서\n나가게 돼요.\n다시 초대되면 돌아올 수 있어요.",
             "confirm": "내보내기"
         },
         "removed": "'{{name}}'님을 내보냈어요.",

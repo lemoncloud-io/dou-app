@@ -943,14 +943,25 @@
             "friendSettings": "Friend settings",
             "removeMember": "Remove",
             "comingSoon": "This feature is coming soon",
-            "deleteFriend": "Remove friend",
-            "kickDialog": {
-                "title": "Remove this friend?",
-                "description": "Once removed, this friend can no longer take part in this chat room.",
+            "removeScope": {
+                "title": "Choose where to remove {{name}} from",
+                "description": "{{name}} will leave the scope you choose.",
+                "room": {
+                    "label": "Remove from {{room}}",
+                    "description": "They'll leave only this chat room.",
+                    "confirmTitle": "Remove from this chat room?",
+                    "confirmDescription": "{{name}} will leave this chat room. They stay in your other chat rooms and in the place."
+                },
+                "place": {
+                    "label": "Remove from {{place}}",
+                    "description": "They'll leave the place and every group chat in it.",
+                    "confirmTitle": "Remove from the place?",
+                    "confirmDescription": "Once {{name}} leaves {{place}}, they also leave every group chat they're in there. They'll need a new invite to come back."
+                },
                 "confirm": "Remove"
             },
-            "kicked": "Friend removed",
-            "kickFailed": "Failed to remove friend",
+            "kicked": "Member removed.",
+            "kickFailed": "Failed to remove the member",
             "notifyFailed": "Failed to update notification setting",
             "memberLimit": {
                 "message": "A room can have up to 100 members. 😭",
@@ -1181,7 +1192,8 @@
         "retry": "Try again",
         "notMember": "You're not a member of this place.",
         "badge": {
-            "me": "You"
+            "me": "You",
+            "owner": "Owner"
         },
         "remove": "Remove",
         "removeDialog": {

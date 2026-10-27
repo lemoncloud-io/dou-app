@@ -49,6 +49,7 @@ import { haptics } from '../../../bridge/haptics';
 import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
 import {
     channelKindOf,
+    isRoomOwner,
     removalActionFor,
     resolveChannelAvatar,
     resolveChannelTitle,
@@ -415,7 +416,7 @@ export const ChannelList = ({
     const { profile: myProfile } = useMyProfile();
     const myNick = myProfile?.nick;
     const myThumbnail = myProfile?.thumbnail;
-    // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
+    // My user id — the owner rule's fallback when my join carries no role (see isRoomOwner).
     const { userId: uid } = runtime.session.useSessionIdentity();
     // Unread is derived directly from the channel stream plus my join stream passed from HomePage.
     const { byChannel: unreadByChannel } = useChannelUnreads(channels, joinByChannel);
@@ -495,7 +496,7 @@ export const ChannelList = ({
                   },
               ]
             : [];
-        const removal = removalActionFor(channelKindOf(channel.stereo), !!uid && channel.ownerId === uid);
+        const removal = removalActionFor(channelKindOf(channel.stereo), isRoomOwner(channel, channel.$join, uid));
         if (removal === 'none') return { leading, trailing: [] };
         return {
             leading,

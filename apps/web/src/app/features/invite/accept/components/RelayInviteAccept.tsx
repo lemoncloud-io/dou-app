@@ -1,4 +1,4 @@
-import { lazy, Suspense, type JSX } from 'react';
+import { lazy, Suspense, useEffect, useState, type JSX } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -49,6 +49,22 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
     // Branded, so the relay's personal place reads "DoU Home" in the profile title rather than the raw
     // backend name "default" (ADR-0040 decision 7).
     const placeName = useActivePlaceName();
+    // The profile step offers its X only once a save has failed — see the `profiling` branch.
+    const [profileSaveFailed, setProfileSaveFailed] = useState(false);
+    // Each visit to the step starts required again — a verification in between can swap the identity
+    // the earlier failure was about.
+    const isProfiling = flow.phase === 'profiling';
+    useEffect(() => {
+        if (!isProfiling) setProfileSaveFailed(false);
+    }, [isProfiling]);
+    const submitProfile = async (value: { nick: string; thumbnail?: string }) => {
+        try {
+            await setMyPlaceProfile(value);
+        } catch (error) {
+            setProfileSaveFailed(true);
+            throw error;
+        }
+    };
 
     // Already navigated home — the URL still carries the code for one more render.
     if (flow.phase === 'closed') return null;
@@ -108,17 +124,19 @@ export const RelayInviteAccept = ({ code }: RelayInviteAcceptProps): JSX.Element
         );
     }
 
-    // Naming yourself is a precondition of the accept, not a gate on the app (ADR-0041): `onExit`
-    // shares `cancelStep` with verification because backing out of either means the same thing —
-    // return to the review screen, nothing accepted. No `exit` copy, so X leaves at once.
+    // Naming yourself is a precondition of the accept, not a gate on the app. Required
+    // without being a trap — the cloud invite's rule: no way out until a save has failed once, and
+    // then X goes on into the accept without a profile rather than back to the review screen. No
+    // `exit` copy, so X leaves at once.
     if (flow.phase === 'profiling') {
         return (
             <PlaceProfileCreateDialog
-                onSubmit={setMyPlaceProfile}
+                onSubmit={submitProfile}
                 open
                 placeName={placeName}
+                dismissible={profileSaveFailed}
                 onDone={flow.onProfileSaved}
-                onExit={flow.cancelStep}
+                onExit={flow.skipProfile}
             />
         );
     }

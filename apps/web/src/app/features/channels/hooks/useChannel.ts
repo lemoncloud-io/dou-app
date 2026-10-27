@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
 
+import { isRoomOwner } from '../lib/channelStereoPolicy';
 import type { ClientChannelView } from '../types';
 
 /**
@@ -14,7 +15,8 @@ import type { ClientChannelView } from '../types';
  */
 const toClientChannel = (channel: DomainChannel, myUid: string): ClientChannelView => ({
     ...channel,
-    isOwner: !!channel.ownerId && channel.ownerId === myUid,
+    // My own join (`$join`) carries my role here; a 1:1 and a self chat have no owner — see isRoomOwner.
+    isOwner: isRoomOwner(channel, channel.$join, myUid),
     isSelfChat: channel.stereo === 'self',
     memberCount: channel.memberIds?.length ?? channel.memberNo ?? 0,
 });
