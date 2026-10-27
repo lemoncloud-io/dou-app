@@ -34,6 +34,8 @@ export const MyPage = () => {
     // approves another — it would sign out with its own approver.
     const isPairedSession = runtime.session.useIsPairedSession();
     const canApprovePairing = pairingEnabled && isNative() && !isPairedSession;
+    // A browser guest has no account to list devices for; an app guest does have its own device.
+    const canListDevices = pairingEnabled && (!isGuest || isNative());
 
     const displayName = myUser?.name;
     const displayImageUrl = myUser?.photo;
@@ -110,13 +112,22 @@ export const MyPage = () => {
                     </MenuCard>
                 )}
 
-                {canApprovePairing && (
+                {(canApprovePairing || canListDevices) && (
                     <MenuCard>
-                        <ListRow
-                            title={t('pairing.entry.approve')}
-                            trailing={<Chevron />}
-                            onClick={() => navigate(ROUTES.mypage.pairing.approve)}
-                        />
+                        {canApprovePairing && (
+                            <ListRow
+                                title={t('pairing.entry.approve')}
+                                trailing={<Chevron />}
+                                onClick={() => navigate(ROUTES.mypage.pairing.approve)}
+                            />
+                        )}
+                        {canListDevices && (
+                            <ListRow
+                                title={t('pairing.entry.devices')}
+                                trailing={<Chevron />}
+                                onClick={() => navigate(ROUTES.mypage.pairing.devices)}
+                            />
+                        )}
                     </MenuCard>
                 )}
 

@@ -2069,7 +2069,8 @@
     "pairing": {
         "entry": {
             "login": "다른 기기로 로그인",
-            "approve": "웹 로그인 승인"
+            "approve": "웹 로그인 승인",
+            "devices": "기기 관리"
         },
         "code": {
             "title": "다른 기기로 로그인",
@@ -2124,6 +2125,33 @@
                 "targetRefused": "이 대상으로 승인할 수 없어요",
                 "alreadyHandled": "이미 처리된 요청이에요. 웹에서 다시 요청해 주세요",
                 "unknown": "요청을 처리하지 못했어요. 잠시 뒤 다시 시도하세요"
+            }
+        },
+        "devices": {
+            "title": "기기 관리",
+            "header": "기기",
+            "cloudHeader": "이 클라우드의 기기",
+            "thisDevice": "이 기기",
+            "online": "접속 중",
+            "lastActive": "마지막 활동 {{time}}",
+            "unlink": "해제",
+            "loadFailed": "목록을 불러오지 못했어요",
+            "approvedHeader": "승인한 로그인",
+            "noApprovals": "승인한 로그인이 없어요",
+            "approvedAt": "승인 {{time}}",
+            "claimedAt": "로그인 {{time}}",
+            "unclaimed": "로그인되지 않음 · 해제 권장",
+            "confirmTitle": "해제할까요?",
+            "unlinkBody": "이 기기의 로그인이 끝나요",
+            "unlinkCloudNote": "웹 로그인을 끝내려면 승인한 로그인에서도 해제하세요",
+            "revokeRelayBody": "이 브라우저의 로그인이 바로 끝나요",
+            "revokeCloudBody": "다시 들어오지 못해요. 이미 열린 화면은 최대 30일까지 남을 수 있어요 — 바로 끊으려면 그 클라우드의 기기 관리에서도 해제하세요",
+            "kind": {
+                "mobile": "휴대폰",
+                "desktop": "데스크톱",
+                "web": "브라우저",
+                "cli": "개발 도구",
+                "unknown": "알 수 없는 기기"
             }
         }
     }

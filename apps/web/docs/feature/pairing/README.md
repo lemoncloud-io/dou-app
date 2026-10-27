@@ -14,13 +14,16 @@ session docs); this feature is the screens around it.
 features/pairing/
 ├── pages/
 │   ├── PairingCodePage.tsx     the requesting device's code screen — /mypage/login/pair
-│   └── PairingApprovePage.tsx  the approving app's screen — /mypage/pairing/approve
+│   ├── PairingApprovePage.tsx  the approving app's screen — /mypage/pairing/approve
+│   └── PairingDevicesPage.tsx  my devices and the sign-ins I approved — /mypage/devices
 ├── hooks/                      useDevicePairingEnabled (the flag) · useNow (a countdown's clock) ·
-│                               usePairingApproval (look up → approve or decline)
+│                               usePairingApproval (look up → approve or decline) ·
+│                               usePairingDevices (the two lists and their removals)
 └── lib/
     ├── pairingCode.ts          0734-4168 formatting, m:ss for the time left
     ├── pairingTargets.ts       what an approval can let the requester into, and the default
     ├── scanPairingQr.ts        the camera bridge → a code, or why there is none
+    ├── deviceRows.ts           kind labels; standing approvals, newest first, unclaimed flagged
     └── pairingQr.ts            photo (base64) → the eight-digit code, or null
 ```
 
@@ -67,6 +70,25 @@ entry too: it can approve its clouds, just not its relay account.
 4. **The answer.** Approve or decline, a toast, and back. Errors come from
    `runtime.session.classifyPairingError` (404 not found, `400 … pairing expired`, 403 on the code or on
    the target, 409 already handled), each with its own sentence.
+
+## Device management
+
+`/mypage/devices`, from My page's "Devices". A browser guest has no account to list devices for and
+is sent back; everyone else gets the first section, and an approving app the second.
+
+- **Devices** — `UserRepository.listDevices()` on the active slot, so in a cloud the header reads
+  "Devices in this cloud" and the list is that cloud's. Each row: name, kind (`''` reads as unknown),
+  online or last activity, "this device" on `current`. Every other row can be removed after a confirm;
+  in a cloud the confirm adds that a web sign-in also has to be removed from the approvals, because the
+  pairing would bring it straight back. `closed` only says a close was sent, so the list is re-read
+  rather than trusted. The list is asked for on every open (`devicesKeys`, per cloud), and a server that
+  does not answer `user.list-device` shows an error with a retry — dev's customer clouds do not yet.
+- **Approved sign-ins** — inside the app on a non-secondary session only (the relay answers 403 to anyone
+  else). Standing approvals, newest first, each with requester, scope ("my whole account" / "only
+  Lemon", the same words the approval used), approval and sign-in times. A relay approval nobody
+  claimed is a lost session and is flagged for removal; a cloud approval never carries a session, so it
+  never is. Removing one warns per scope: a relay sign-in ends at once, a cloud one cannot come back but
+  an open screen may last until its tokens expire. The header links to the approval screen.
 
 ## Reading a pairing QR from a photo
 

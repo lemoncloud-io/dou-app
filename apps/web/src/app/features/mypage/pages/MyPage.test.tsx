@@ -65,3 +65,23 @@ describe('MyPage — web sign-in approval entry', () => {
         expect(screen.queryByText('pairing.entry.approve')).toBeNull();
     });
 });
+
+describe('MyPage — devices entry', () => {
+    it('opens device management for an account', () => {
+        render(<MyPage />);
+
+        fireEvent.click(screen.getByText('pairing.entry.devices'));
+        expect(navigate).toHaveBeenCalledWith('/mypage/devices');
+    });
+
+    it('is there for a guest app, and not for a guest browser', () => {
+        mockGuest = true;
+        const { unmount } = render(<MyPage />);
+        expect(screen.queryByText('pairing.entry.devices')).not.toBeNull();
+        unmount();
+
+        mockNative = false;
+        render(<MyPage />);
+        expect(screen.queryByText('pairing.entry.devices')).toBeNull();
+    });
+});

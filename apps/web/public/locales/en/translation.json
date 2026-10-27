@@ -2069,7 +2069,8 @@
     "pairing": {
         "entry": {
             "login": "Sign in with another device",
-            "approve": "Approve web sign-in"
+            "approve": "Approve web sign-in",
+            "devices": "Devices"
         },
         "code": {
             "title": "Sign in with another device",
@@ -2124,6 +2125,33 @@
                 "targetRefused": "You can't approve for this target",
                 "alreadyHandled": "This request was already handled. Request again on the web",
                 "unknown": "Couldn't complete the request. Try again shortly"
+            }
+        },
+        "devices": {
+            "title": "Devices",
+            "header": "Devices",
+            "cloudHeader": "Devices in this cloud",
+            "thisDevice": "This device",
+            "online": "Online",
+            "lastActive": "Last active {{time}}",
+            "unlink": "Remove",
+            "loadFailed": "Couldn't load the list",
+            "approvedHeader": "Approved sign-ins",
+            "noApprovals": "No approved sign-ins",
+            "approvedAt": "Approved {{time}}",
+            "claimedAt": "Signed in {{time}}",
+            "unclaimed": "Never signed in · removal recommended",
+            "confirmTitle": "Remove?",
+            "unlinkBody": "This device will be signed out",
+            "unlinkCloudNote": "To end a web sign-in, remove it from approved sign-ins too",
+            "revokeRelayBody": "This browser will be signed out right away",
+            "revokeCloudBody": "It can't get back in. Screens already open may stay for up to 30 days — to cut them now, remove it in that cloud's devices too",
+            "kind": {
+                "mobile": "Phone",
+                "desktop": "Desktop",
+                "web": "Browser",
+                "cli": "Developer tool",
+                "unknown": "Unknown device"
             }
         }
     }

@@ -23,6 +23,7 @@ const SearchRoutes = lazy(() => import('../features/search').then(m => ({ defaul
 const OnboardingRoutes = lazy(() => import('../features/onboarding').then(m => ({ default: m.OnboardingRoutes })));
 const PairingCodePage = lazy(() => import('../features/pairing').then(m => ({ default: m.PairingCodePage })));
 const PairingApprovePage = lazy(() => import('../features/pairing').then(m => ({ default: m.PairingApprovePage })));
+const PairingDevicesPage = lazy(() => import('../features/pairing').then(m => ({ default: m.PairingDevicesPage })));
 
 const RouteFallback = () => {
     // A lazy route still loading is not the first screen: keep the boot cover over this skeleton,
@@ -117,6 +118,7 @@ export const privateRoutes = [
             // path outranks `mypage/*`, so the router picks these first.
             { path: 'mypage/login/pair', element: withSuspense(PairingCodePage) },
             { path: 'mypage/pairing/approve', element: withSuspense(PairingApprovePage) },
+            { path: 'mypage/devices', element: withSuspense(PairingDevicesPage) },
             { path: 'mypage/*', element: withSuspense(MyPageRoutes) },
             { path: 'subscription/*', element: withSuspense(SubscriptionRoutes) },
             { path: 'account/*', element: withSuspense(AccountRoutes) },
