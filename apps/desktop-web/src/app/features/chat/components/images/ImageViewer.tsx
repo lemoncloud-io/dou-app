@@ -11,7 +11,16 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { avatarStyle } from '../../../../shared';
 import type { ChatImage } from '../../utils';
 import { ImageActions } from './ImageActions';
-import { clampZoom, doubleTapZoom, IDENTITY_ZOOM, isZoomed, type Point, type Zoom, wheelZoom } from './imageZoom';
+import {
+    clampZoom,
+    doubleTapZoom,
+    IDENTITY_ZOOM,
+    isZoomed,
+    type Point,
+    type Size,
+    type Zoom,
+    wheelZoom,
+} from './imageZoom';
 
 /** Who sent the images — the viewer's thread column repeats the message header. */
 export interface ImageAuthor {
@@ -43,6 +52,22 @@ const NAV_BUTTON =
 /** How far past its own size the stage may draw a small picture before it turns to mush. */
 const MAX_UPSCALE = 2;
 
+const toStagePoint = (clientX: number, clientY: number, stage: HTMLElement): Point => {
+    const rect = stage.getBoundingClientRect();
+    return {
+        x: clientX - (rect.left + rect.width / 2),
+        y: clientY - (rect.top + rect.height / 2),
+    };
+};
+
+const zoomBounds = (stage: HTMLElement, image: HTMLImageElement | null) => {
+    const page = { width: stage.clientWidth, height: stage.clientHeight };
+    const content = image && image.offsetWidth > 0 ? { width: image.offsetWidth, height: image.offsetHeight } : page;
+    return { content, page };
+};
+
+const sameZoom = (a: Zoom, b: Zoom) => a.scale === b.scale && a.x === b.x && a.y === b.y;
+
 /**
  * Full-view image viewer (Figma "#full image view").
  *
@@ -72,6 +97,7 @@ export const ImageViewer = ({
     const [zoom, setZoomState] = useState<Zoom>(IDENTITY_ZOOM);
     const zoomRef = useRef<Zoom>(IDENTITY_ZOOM);
     const setZoom = (next: Zoom) => {
+        if (sameZoom(zoomRef.current, next)) return;
         zoomRef.current = next;
         setZoomState(next);
     };
@@ -80,30 +106,22 @@ export const ImageViewer = ({
         setStageEl(previous => (previous === node ? previous : node));
     }, []);
     const imageRef = useRef<HTMLImageElement>(null);
-    const panRef = useRef<{ from: Zoom; start: Point } | null>(null);
-    const [panning, setPanning] = useState(false);
+    const panRef = useRef<{
+        from: Zoom;
+        startClientX: number;
+        startClientY: number;
+        content: Size;
+        page: Size;
+    } | null>(null);
     const isOpen = openIndex !== null;
     const isMulti = images.length > 1;
 
-    const toStagePoint = (clientX: number, clientY: number, stage: HTMLElement): Point => {
-        const rect = stage.getBoundingClientRect();
-        return {
-            x: clientX - (rect.left + rect.width / 2),
-            y: clientY - (rect.top + rect.height / 2),
-        };
-    };
-    const zoomBounds = (stage: HTMLElement) => {
-        const image = imageRef.current;
-        const page = { width: stage.clientWidth, height: stage.clientHeight };
-        const content =
-            image && image.offsetWidth > 0 ? { width: image.offsetWidth, height: image.offsetHeight } : page;
-        return { content, page };
+    const endPan = () => {
+        panRef.current = null;
     };
     const resetZoom = () => {
-        panRef.current = null;
-        setPanning(false);
-        zoomRef.current = IDENTITY_ZOOM;
-        setZoomState(IDENTITY_ZOOM);
+        endPan();
+        setZoom(IDENTITY_ZOOM);
     };
 
     // Follows a new `openIndex` during render rather than in an effect, so opening takes
@@ -128,7 +146,7 @@ export const ImageViewer = ({
         if (!stageEl) return;
         const onWheel = (event: WheelEvent) => {
             event.preventDefault();
-            const { content, page } = zoomBounds(stageEl);
+            const { content, page } = zoomBounds(stageEl, imageRef.current);
             setZoom(
                 clampZoom(
                     wheelZoom(zoomRef.current, event.deltaY, toStagePoint(event.clientX, event.clientY, stageEl)),
@@ -197,11 +215,7 @@ export const ImageViewer = ({
                                     data-zoom-layer=""
                                     className={cn(
                                         'flex h-full w-full items-center justify-center',
-                                        isZoomed(zoom)
-                                            ? panning
-                                                ? 'cursor-grabbing'
-                                                : 'cursor-grab'
-                                            : 'cursor-zoom-in'
+                                        isZoomed(zoom) ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'
                                     )}
                                     style={{
                                         transform: `translate3d(${zoom.x}px, ${zoom.y}px, 0) scale(${zoom.scale})`,
@@ -210,40 +224,29 @@ export const ImageViewer = ({
                                         if (!isZoomed(zoomRef.current) || !stageEl) return;
                                         panRef.current = {
                                             from: zoomRef.current,
-                                            start: toStagePoint(event.clientX, event.clientY, stageEl),
+                                            startClientX: event.clientX,
+                                            startClientY: event.clientY,
+                                            ...zoomBounds(stageEl, imageRef.current),
                                         };
-                                        try {
-                                            event.currentTarget.setPointerCapture(event.pointerId);
-                                        } catch {
-                                            // A synthetic pointer still delivers moves while it stays over the layer.
-                                        }
-                                        setPanning(true);
+                                        event.currentTarget.setPointerCapture(event.pointerId);
                                     }}
                                     onPointerMove={event => {
                                         const pan = panRef.current;
-                                        if (!pan || !stageEl) return;
-                                        const point = toStagePoint(event.clientX, event.clientY, stageEl);
-                                        const { content, page } = zoomBounds(stageEl);
+                                        if (!pan) return;
                                         setZoom(
                                             clampZoom(
                                                 {
                                                     ...pan.from,
-                                                    x: pan.from.x + point.x - pan.start.x,
-                                                    y: pan.from.y + point.y - pan.start.y,
+                                                    x: pan.from.x + event.clientX - pan.startClientX,
+                                                    y: pan.from.y + event.clientY - pan.startClientY,
                                                 },
-                                                content,
-                                                page
+                                                pan.content,
+                                                pan.page
                                             )
                                         );
                                     }}
-                                    onPointerUp={() => {
-                                        panRef.current = null;
-                                        setPanning(false);
-                                    }}
-                                    onPointerCancel={() => {
-                                        panRef.current = null;
-                                        setPanning(false);
-                                    }}
+                                    onPointerUp={endPan}
+                                    onPointerCancel={endPan}
                                 >
                                     <img
                                         ref={imageRef}
@@ -257,7 +260,7 @@ export const ImageViewer = ({
                                         draggable={false}
                                         onDoubleClick={event => {
                                             if (!stageEl) return;
-                                            const { content, page } = zoomBounds(stageEl);
+                                            const { content, page } = zoomBounds(stageEl, imageRef.current);
                                             setZoom(
                                                 clampZoom(
                                                     doubleTapZoom(

@@ -11,7 +11,6 @@ import {
     type Zoom,
 } from './imageZoom';
 
-// Where an image point lands on screen under a zoom — what "stays under the fingers" is checked with.
 const onScreen = (zoom: Zoom, imagePoint: Point): Point => ({
     x: zoom.x + zoom.scale * imagePoint.x,
     y: zoom.y + zoom.scale * imagePoint.y,
@@ -22,7 +21,6 @@ const imagePointAt = (zoom: Zoom, screen: Point): Point => ({
 });
 
 const page = { width: 400, height: 800 };
-// A landscape photo fitted to the page's width.
 const photo = { width: 400, height: 300 };
 
 describe('zoomAround', () => {

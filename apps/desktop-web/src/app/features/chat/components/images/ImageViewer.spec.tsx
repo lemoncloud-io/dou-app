@@ -66,6 +66,9 @@ describe('ImageViewer zoom', () => {
         vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(400);
         vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
         vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(300);
+        // jsdom has no pointer capture; the product handler calls it for a real pointer.
+        HTMLElement.prototype.setPointerCapture ??= () => undefined;
+        vi.spyOn(HTMLElement.prototype, 'setPointerCapture').mockImplementation(() => undefined);
     });
 
     const layer = () => document.querySelector('[data-zoom-layer]') as HTMLElement;
