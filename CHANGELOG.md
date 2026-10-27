@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-27] - root@0.117.0, @chatic/landing@0.10.0
+
+### Features
+
+- (landing) count clouds and places in the plan copy, not conversation spaces and chat rooms
+
 ## [2026-10-27] - root@0.116.0, @chatic/landing@0.9.0
 
 ### Features
