@@ -1,8 +1,11 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
+import { $createParagraphNode, $createTextNode, $getRoot, createEditor } from 'lexical';
+
 import { MSG_BOLD_CLASS, MSG_CODE_BLOCK_CLASS } from '@chatic/block-kit';
 
+import { COMPOSER_NODES, $exportWireMarkdown } from './editor';
 import { RichText } from './RichText';
 
 const renderText = (
@@ -69,6 +72,64 @@ describe('RichText labelled links', () => {
         const container = renderText('[x](javascript:alert(1))');
         expect(container.querySelector('a')).toBeNull();
         expect(container.textContent).toBe('[x](javascript:alert(1))');
+    });
+});
+
+describe('RichText marks', () => {
+    const marked = (container: HTMLElement, selector: string) =>
+        Array.from(container.querySelectorAll(selector)).map(node => node.textContent);
+
+    // The composer's B and I buttons together: the message has to read the way it was typed.
+    it('shows a message sent bold and italic as both, with no asterisks left over', () => {
+        const editor = createEditor({
+            namespace: 'rich-text-spec',
+            nodes: COMPOSER_NODES,
+            onError: error => {
+                throw error;
+            },
+        });
+        editor.update(
+            () => {
+                const text = $createTextNode('123123').toggleFormat('bold').toggleFormat('italic');
+                $getRoot().append($createParagraphNode().append(text));
+            },
+            { discrete: true }
+        );
+        const container = renderText(editor.read($exportWireMarkdown));
+        expect(container.textContent).toBe('123123');
+        expect(marked(container, 'strong em, em strong')).toEqual(['123123']);
+    });
+
+    it('draws italic inside part of a bold run, and bold inside an italic one', () => {
+        const container = renderText('**a *b* c** and *d **e** f*');
+        expect(container.textContent).toBe('a b c and d e f');
+        expect(marked(container, 'strong')).toEqual(['a b c', 'e']);
+        expect(marked(container, 'em')).toEqual(['b', 'd e f']);
+    });
+
+    it('draws strikethrough stacked with bold or italic', () => {
+        const container = renderText('**~~gone~~** ~~*also*~~');
+        expect(container.textContent).toBe('gone also');
+        expect(marked(container, 'strong s')).toEqual(['gone']);
+        expect(marked(container, 's em')).toEqual(['also']);
+    });
+
+    it('keeps separate marks on one line apart', () => {
+        const container = renderText('**a** and **b**, *c* and *d*');
+        expect(marked(container, 'strong')).toEqual(['a', 'b']);
+        expect(marked(container, 'em')).toEqual(['c', 'd']);
+    });
+
+    it('reads only marks inside a mark, leaving an address there as its words', () => {
+        const container = renderText('***https://example.com/a***');
+        expect(container.querySelector('a')).toBeNull();
+        expect(marked(container, 'strong em')).toEqual(['https://example.com/a']);
+    });
+
+    it('leaves an unclosed mark as text', () => {
+        const container = renderText('***a** b');
+        expect(container.textContent).toBe('*a b');
+        expect(marked(container, 'strong')).toEqual(['a']);
     });
 });
 

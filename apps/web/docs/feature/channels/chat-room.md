@@ -328,9 +328,11 @@ The passes run in this order, and each only sees what the one before left as tex
 3. **Inline code** in backticks becomes `code`.
 4. **Links and marks** in one leftmost-first pass: a labelled link, then `bold`, `italic`, `strike`,
    then a bare `url`. A mark stays on one line and needs its closing marker, so a lone `*` or a mark
-   cut off by truncation stays text. Marks do not nest — the words inside one are plain text, so an
-   address inside `**…**` is not linked and is not unfurled, as on desktop. A mention inside one is
-   still drawn, because the mention highlight works on the words.
+   cut off by truncation stays text. Marks nest, because the desktop composer's format buttons stack
+   them: `***x***` is bold around italic, `**a *b* c**` italic inside bold, and a mark token carries
+   its words as `children`. Inside a mark only marks are read again, so an address inside `**…**` is
+   not linked and is not unfurled, as on desktop. A mention inside one is still drawn, because the
+   mention highlight works on the words.
 
 The dialect's ambiguity is the desktop's too: text that only looks like a mark is one —
 `2 * 3 * 4` reads `3` in italics.

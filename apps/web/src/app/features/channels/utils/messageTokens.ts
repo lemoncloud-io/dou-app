@@ -5,8 +5,9 @@
  * The markup is the desktop composer's dialect, and only that: backtick fences, `> ` quote
  * lines, inline backticks, labelled links (`[words](https://…)`), `**bold**`, `*italic*` and
  * `~~strike~~`. Quotes and marks are matched by the desktop reader's rules, so they read the same on
- * both. It is not markdown — headings and lists stay plain text, and nothing can be escaped. Marks do
- * not nest: the words inside one are plain text, as on desktop.
+ * both. It is not markdown — headings and lists stay plain text, and nothing can be escaped. Marks
+ * nest, as on desktop, because the composer's toolbar stacks them: bold and italic together are
+ * `***x***`, and italic on part of a bold run is `**a *b* c**`.
  *
  * Code is resolved BEFORE URLs, so a `https://…` inside a code span stays literal: it is not
  * linked, and `extractFirstUrl` does not offer it to the unfurl card. That ordering is the point,
@@ -18,7 +19,8 @@ export type InlineToken =
     | { type: 'text'; value: string }
     | { type: 'url'; value: string; label?: string }
     | { type: 'code'; value: string }
-    | { type: 'bold' | 'italic' | 'strike'; value: string };
+    /** The words inside a mark, read again for marks — so bold can hold italic. */
+    | { type: 'bold' | 'italic' | 'strike'; children: InlineToken[] };
 
 export type MessageToken =
     | InlineToken
@@ -62,10 +64,14 @@ const QUOTE_LINE_PATTERN = /^>(?:\s(.*))?$/;
  * marker, so a lone `*` or a mark cut off by truncation stays text. Sharing one pass with bare URLs
  * is what keeps a mark inside an address (`…/a*b*`) part of the address, as on desktop.
  *
- * Capture groups: 1–2 labelled link, 3 bold, 4 italic, 5 strike, 6 bare URL.
+ * A bold run may hold whole italic runs and an italic run whole bold runs, which is how `***x***`
+ * reads as bold around italic rather than as bold with a stray `*` either side. The desktop's
+ * `markMatch.ts` holds the same rule.
+ *
+ * Capture groups: 1–2 labelled link, 3 bold words, 4 italic words, 5 strike words, 6 bare URL.
  */
 const INLINE_PATTERN = new RegExp(
-    `${LABELLED_LINK_PATTERN.source}|(\\*\\*[^*\\n]+\\*\\*)|(\\*[^*\\n]+\\*)|(~~[^~\\n]+~~)|(${URL_PATTERN.source})`,
+    `${LABELLED_LINK_PATTERN.source}|\\*\\*((?:[^*\\n]|\\*[^*\\n]+\\*)+)\\*\\*|\\*((?:[^*\\n]|\\*\\*[^*\\n]+\\*\\*)+)\\*|~~([^~\\n]+)~~|(${URL_PATTERN.source})`,
     'g'
 );
 
@@ -235,19 +241,23 @@ const splitFences = (text: string, closeDanglingFence: boolean): Segment[] => {
 /**
  * Pass 4 — links and marks over one run of non-code text. A bare URL is trimmed of trailing noise,
  * and one that reaches the cut of a truncated message is left as text: it may be a fragment.
+ *
+ * `insideMark` reads the words of a mark: only further marks count there, and an address stays
+ * text.
  */
-const tokenizeMarks = (text: string, dropTrailingUrl: boolean): InlineToken[] => {
+const tokenizeMarks = (text: string, dropTrailingUrl: boolean, insideMark = false): InlineToken[] => {
     const tokens: InlineToken[] = [];
     let last = 0;
-    let match: RegExpExecArray | null;
 
     const pushText = (end: number) => {
         if (end > last) tokens.push({ type: 'text', value: text.slice(last, end) });
     };
 
-    INLINE_PATTERN.lastIndex = 0;
-    while ((match = INLINE_PATTERN.exec(text)) !== null) {
+    for (const match of text.matchAll(INLINE_PATTERN)) {
         const [whole, label, labelUrl, bold, italic, strike, bareUrl] = match;
+
+        // Same as a skipped address below: the match stays inside the surrounding text run.
+        if (insideMark && bold === undefined && italic === undefined && strike === undefined) continue;
 
         if (bareUrl !== undefined) {
             const url = trimTrailingNoise(bareUrl);
@@ -265,11 +275,11 @@ const tokenizeMarks = (text: string, dropTrailingUrl: boolean): InlineToken[] =>
         if (label !== undefined && labelUrl !== undefined) {
             tokens.push({ type: 'url', value: labelUrl, label });
         } else if (bold !== undefined) {
-            tokens.push({ type: 'bold', value: bold.slice(2, -2) });
+            tokens.push({ type: 'bold', children: tokenizeMarks(bold, false, true) });
         } else if (italic !== undefined) {
-            tokens.push({ type: 'italic', value: italic.slice(1, -1) });
+            tokens.push({ type: 'italic', children: tokenizeMarks(italic, false, true) });
         } else if (strike !== undefined) {
-            tokens.push({ type: 'strike', value: strike.slice(2, -2) });
+            tokens.push({ type: 'strike', children: tokenizeMarks(strike, false, true) });
         }
         last = match.index + whole.length;
     }
@@ -355,7 +365,18 @@ export const extractFirstUrl = (text: string, closeDanglingFence = false): strin
 /** Pasted code often starts with a blank line, and a row previewing "" reads as an empty channel. */
 const firstNonEmptyLine = (value: string): string => value.split('\n').find(line => line.trim() !== '') ?? '';
 
-const plainOf = (token: InlineToken): string => (token.type === 'url' ? (token.label ?? token.value) : token.value);
+const plainOf = (token: InlineToken): string => {
+    switch (token.type) {
+        case 'url':
+            return token.label ?? token.value;
+        case 'bold':
+        case 'italic':
+        case 'strike':
+            return token.children.map(plainOf).join('');
+        default:
+            return token.value;
+    }
+};
 
 /** A fence or a quote: drawn as its own box, so it took the line breaks around it with it. */
 const isBlock = (token: MessageToken | undefined): boolean => token?.type === 'codeBlock' || token?.type === 'quote';

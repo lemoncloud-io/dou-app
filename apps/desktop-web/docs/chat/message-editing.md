@@ -57,6 +57,9 @@ after the editor opened do not turn earlier `@name` text into chips.
 A message is stored and sent as a small markdown dialect: `**bold**`, `*italic*`, `~~strike~~`,
 `` `code` ``, fenced blocks and `> ` quotes. The message view (`RichText`) renders exactly that and has
 no escape syntax, so a backslash is shown as a backslash and `snake_case_name` has nothing to protect.
+Marks nest as the format buttons stack them — bold and italic together travel as `***x***`, italic on
+part of a bold run as `**a *b* c**` — and the view reads only marks again inside a mark, so an address
+there stays its words.
 
 The editor library's markdown functions assume escapes exist. Left alone they would change what a
 person typed:

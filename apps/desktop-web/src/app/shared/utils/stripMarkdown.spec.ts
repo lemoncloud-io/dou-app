@@ -7,6 +7,13 @@ describe('stripMarkdown', () => {
         expect(stripMarkdown('see [the docs](https://example.com/a) here')).toBe('see the docs here');
     });
 
+    // The composer's format buttons stack, so a preview must drop every layer of markers.
+    it('drops the markers of stacked marks', () => {
+        expect(stripMarkdown('***123123***')).toBe('123123');
+        expect(stripMarkdown('**a *b* c** and *d **e** f*')).toBe('a b c and d e f');
+        expect(stripMarkdown('**~~gone~~**')).toBe('gone');
+    });
+
     it('keeps a bare address as is', () => {
         expect(stripMarkdown('see https://example.com/a')).toBe('see https://example.com/a');
     });
