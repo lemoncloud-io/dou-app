@@ -11,6 +11,8 @@ const chat = (over: Partial<DomainChat>): DomainChat =>
     ({ channelId: 'C1', createdAt: DAY, ownerId: 'ada', ...over }) as DomainChat;
 
 const kinds = (rows: ReturnType<typeof buildMessageRows>) => rows.map(row => row.kind);
+const groupsOf = (rows: ReturnType<typeof buildMessageRows>) =>
+    rows.flatMap(row => (row.kind === 'group' ? [row.group] : []));
 
 describe('buildMessageRows — system rows', () => {
     it('emits a system row carrying the chat and its resolved author', () => {
@@ -78,8 +80,6 @@ describe('buildMessageRows — author avatar', () => {
 });
 
 describe('buildMessageRows — webhook sender', () => {
-    const groupsOf = (rows: ReturnType<typeof buildMessageRows>) =>
-        rows.flatMap(row => (row.kind === 'group' ? [row.group] : []));
     const webhook = (over: Partial<DomainChat>) => chat({ stereo: 'webhook', ownerId: 'hook', ...over });
 
     it('marks a webhook group and names it from owner$ when the server sends it', () => {
@@ -192,5 +192,37 @@ describe('buildMessageRows — webhook sender', () => {
 
         expect(groupsOf(rows)).toHaveLength(1);
         expect(groupsOf(rows)[0].messages).toHaveLength(2);
+    });
+});
+
+describe('buildMessageRows — time headers', () => {
+    const at = (mmss: string) => new Date(`2026-08-03T10:${mmss}`).getTime();
+
+    it('starts a new author block when the minute changes, so every message sits under its own time', () => {
+        const rows = buildMessageRows(
+            [
+                chat({ id: 'C1:1', chatNo: 1, createdAt: at('06:10') }),
+                chat({ id: 'C1:2', chatNo: 2, createdAt: at('06:50') }),
+                chat({ id: 'C1:3', chatNo: 3, createdAt: at('07:05') }),
+                chat({ id: 'C1:4', chatNo: 4, createdAt: at('09:00') }),
+            ],
+            VIEWER
+        );
+
+        expect(kinds(rows)).toEqual(['date', 'group', 'group', 'group']);
+        expect(groupsOf(rows).map(group => group.messages.length)).toEqual([2, 1, 1]);
+    });
+
+    // A retried row sorts last by chatNo but keeps the minute it was first written in.
+    it('gives a row from an earlier minute its own block rather than hiding it under a later time', () => {
+        const rows = buildMessageRows(
+            [
+                chat({ id: 'C1:1', chatNo: 1, createdAt: at('09:00') }),
+                chat({ tempId: 't1', chatNo: 2, createdAt: at('05:00') }),
+            ],
+            VIEWER
+        );
+
+        expect(groupsOf(rows).map(group => group.timestamp)).toEqual([at('09:00'), at('05:00')]);
     });
 });

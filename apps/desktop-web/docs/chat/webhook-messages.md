@@ -38,7 +38,7 @@ The sender is a system user, not a channel member, so none of the person-shaped 
   shows no loading skeleton.
 - **Grouping.** A webhook message never joins a person's author block, and the reverse, even if the
   server sent both without an owner id. Consecutive messages from the same sender, by name, still collapse
-  into one block; posts under different names do not.
+  into one block while they share a clock minute, as a person's do; posts under different names do not.
 
 ## What the rest of the app does with one
 
