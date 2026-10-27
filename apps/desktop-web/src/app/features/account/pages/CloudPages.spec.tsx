@@ -37,6 +37,14 @@ vi.mock('@chatic/app-runtime', () => ({
         session: {
             useSessionSelection: () => ({ selectedCloudId: 'c1' }),
             useSessionLogout: () => logout,
+            // The pairing-aware logout with nothing approved: it signs out straight away.
+            usePairingAwareLogout: (onLogout: () => void) => ({
+                start: async () => onLogout(),
+                pending: null,
+                confirm: async () => undefined,
+                cancel: () => undefined,
+                busy: false,
+            }),
         },
     },
 }));

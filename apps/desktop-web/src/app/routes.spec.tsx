@@ -45,6 +45,15 @@ vi.mock('./features/auth/components/OAuthDeeplinkListener', () => ({ OAuthDeepli
 vi.mock('./features/auth/components/SignInNotice', () => ({ SignInNotice: () => <p>sign-in notice</p> }));
 vi.mock('./features/auth/pages/WelcomePage', () => ({ WelcomePage: () => <p>welcome page</p> }));
 
+const pairing = vi.hoisted(() => ({ enabled: true }));
+vi.mock('./features/pairing/utils/devicePairing', () => ({
+    isDevicePairingEnabled: () => pairing.enabled,
+    canRequestPairing: () => pairing.enabled,
+}));
+vi.mock('./features/pairing/pages/PairingCodePage', () => ({ PairingCodePage: () => <p>pairing page</p> }));
+vi.mock('./features/pairing/pages/PairingApprovePage', () => ({ PairingApprovePage: () => <p>approve page</p> }));
+vi.mock('./features/pairing/pages/DevicesPage', () => ({ DevicesPage: () => <p>devices page</p> }));
+
 const login = vi.fn();
 vi.mock('./features/auth/hooks/useInviteLogin', () => ({ useInviteLogin: () => ({ login }) }));
 
@@ -52,6 +61,7 @@ import '../i18n';
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
 import { useJoinDialogStore } from './features/auth/stores/useJoinDialogStore';
 import { useOAuthAttemptStore } from './features/auth/stores/useOAuthAttemptStore';
+import { usePairingCodePageStore } from './features/pairing/stores/usePairingCodePageStore';
 import { AppRouter } from './routes';
 
 /** The exchange needs a guest session, so a real attempt signs in before the code is judged. */
@@ -237,5 +247,70 @@ describe('AppRouter signed-out Google attempt', () => {
         });
 
         expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
+    });
+});
+
+// The code screen signs in as a guest before it asks for a code, which flips the router to its signed-in
+// branch mid-flow; the hold keeps `/auth/pair` there, and nothing else does.
+describe('AppRouter device pairing', () => {
+    beforeAll(async () => {
+        await Promise.all([import('./features/pairing'), import('./features/chat')]);
+    });
+    beforeEach(() => {
+        pairing.enabled = true;
+        window.history.pushState({}, '', '/auth/pair');
+    });
+    afterEach(() => {
+        session.set(false);
+        usePairingCodePageStore.getState().release();
+    });
+
+    it('opens the code screen signed out', async () => {
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText('pairing page', {}, WAIT)).toBeTruthy();
+    });
+
+    it('keeps the code screen once its guest sign-in flips the router, while it is held', async () => {
+        usePairingCodePageStore.getState().hold(true);
+        session.set(true);
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText('pairing page', {}, WAIT)).toBeTruthy();
+        expect(window.location.pathname).toBe('/auth/pair');
+    });
+
+    it('sends a signed-in session home from the code screen when nothing holds it', async () => {
+        session.set(true);
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText('home page', {}, WAIT)).toBeTruthy();
+    });
+
+    it('routes nothing of the feature while the flag is off', async () => {
+        pairing.enabled = false;
+        await act(async () => {
+            render(<AppRouter />);
+        });
+        expect(await screen.findByText('welcome page', {}, WAIT)).toBeTruthy();
+    });
+
+    it.each([
+        ['/settings/pairing/approve', 'approve page'],
+        ['/account/devices', 'devices page'],
+    ])('routes %s for a signed-in session', async (path, text) => {
+        window.history.pushState({}, '', path);
+        session.set(true);
+        await act(async () => {
+            render(<AppRouter />);
+        });
+
+        expect(await screen.findByText(text, {}, WAIT)).toBeTruthy();
     });
 });

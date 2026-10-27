@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 import { isPlaceholderName, PageShell, SettingsNavRow, SettingsRowGroup, useRelayAccount } from '../../../shared';
 import { isPhoneLoginEnabled, isSocialLoginEnabled } from '../../auth';
 import { useJoinDialogStore } from '../../auth/stores/useJoinDialogStore';
+import { isDevicePairingEnabled } from '../../pairing/utils/devicePairing';
 import { AccountProfileDialog } from '../components/AccountProfileDialog';
 import { AccountSignInCard } from '../components/AccountSignInCard';
 import { linkedSignInOf } from '../utils/linkedSignIn';
@@ -82,6 +83,14 @@ export const AccountHubPage = () => {
                             label={t('cloud.list.title')}
                             hint={t('cloud.list.openHint')}
                             onClick={() => navigate('/account/clouds')}
+                        />
+                    )}
+                    {/* A guest's only device is this one, and it has no approvals to withdraw. */}
+                    {!isGuest && isDevicePairingEnabled() && (
+                        <SettingsNavRow
+                            label={t('pairing.devices.entry')}
+                            hint={t('pairing.devices.entryHint')}
+                            onClick={() => navigate('/account/devices')}
                         />
                     )}
                     <SettingsNavRow

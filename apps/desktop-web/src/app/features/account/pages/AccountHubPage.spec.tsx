@@ -45,6 +45,9 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
     toast,
 }));
 
+const pairingEnabled = vi.hoisted(() => ({ value: true }));
+vi.mock('../../pairing/utils/devicePairing', () => ({ isDevicePairingEnabled: () => pairingEnabled.value }));
+
 const startSocialLogin = vi.hoisted(() => vi.fn());
 vi.mock('../../auth', () => ({
     GoogleIcon: () => null,
@@ -79,6 +82,7 @@ describe('AccountHubPage', () => {
         cleanup();
         vi.clearAllMocks();
         tokenUser.value = null;
+        pairingEnabled.value = true;
         gatewayUpdate.mockImplementation(async (data: unknown) => data);
         prepareImage.mockResolvedValue({ avatar: 'data:image/jpeg;base64,NEW' });
     });
@@ -137,6 +141,30 @@ describe('AccountHubPage', () => {
         fireEvent.click(screen.getByRole('button', { name: /My clouds/ }));
 
         expect(screen.getByTestId('away')).toBeTruthy();
+    });
+
+    it('opens device management from its entry', () => {
+        tokenUser.value = { name: 'Ada' };
+        renderAt();
+
+        fireEvent.click(screen.getByRole('button', { name: /^Devices/ }));
+
+        expect(screen.getByTestId('away')).toBeTruthy();
+    });
+
+    it('offers no device management to a guest', () => {
+        tokenUser.value = { name: 'Guest', userRole: 'guest' };
+        renderAt();
+
+        expect(screen.queryByRole('button', { name: /^Devices/ })).toBeNull();
+    });
+
+    it('offers no device management while device pairing is off', () => {
+        tokenUser.value = { name: 'Ada' };
+        pairingEnabled.value = false;
+        renderAt();
+
+        expect(screen.queryByRole('button', { name: /^Devices/ })).toBeNull();
     });
 
     // Settings → Account → back used to land in chat: the hub names its parent

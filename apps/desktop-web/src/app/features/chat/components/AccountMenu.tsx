@@ -26,6 +26,8 @@ import {
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
 import { useJoinDialogStore } from '../../auth';
+import { PairingLogoutDialog } from '../../pairing/components/PairingLogoutDialog';
+import { isDevicePairingEnabled } from '../../pairing/utils/devicePairing';
 import {
     isRelayGuest,
     useAccountName,
@@ -54,7 +56,10 @@ export const AccountMenu = () => {
     const debugEnabled = useDebugModeStore(s => s.enabled);
     const openDebugPanel = useDebugModeStore(s => s.setOverlayOpen);
 
-    const runLogout = () => void resetAccount().finally(() => logout());
+    const signOut = () => void resetAccount().finally(() => logout());
+    // An approving app first ends the web sign-ins it approved, with a confirm when there are any.
+    const pairingLogout = runtime.session.usePairingAwareLogout(signOut);
+    const runLogout = () => (isDevicePairingEnabled() ? void pairingLogout.start() : signOut());
     // Joining exchanges the code under the guest id the device registered (`delegatorId`). A
     // sign-in on desktop links that guest rather than replacing it, so a signed-in account keeps the
     // id and the server follows it back to the guest for the invited cloud. Only an account with no
@@ -116,6 +121,7 @@ export const AccountMenu = () => {
                     </DropdownMenuItem>
                 </DropdownMenuContent>
             </DropdownMenu>
+            <PairingLogoutDialog logout={pairingLogout} />
             {/* A guest logout is a delete: the safe way out (connect the account)
                 comes first, and the destructive choice is named for what it is. */}
             <AlertDialog open={confirmingLogout} onOpenChange={setConfirmingLogout}>

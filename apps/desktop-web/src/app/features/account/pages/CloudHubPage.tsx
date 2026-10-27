@@ -22,6 +22,8 @@ import {
     toastFailure,
 } from '../../../shared';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
+import { PairingLogoutDialog } from '../../pairing/components/PairingLogoutDialog';
+import { isDevicePairingEnabled } from '../../pairing/utils/devicePairing';
 
 /**
  * One owned cloud: rename inline, read-only facts, cascade release behind a
@@ -39,6 +41,7 @@ export const CloudHubPage = () => {
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const logout = runtime.session.useSessionLogout();
     const { resetAccount } = useAccountResetOnLogout();
+    const pairingLogout = runtime.session.usePairingAwareLogout(() => void resetAccount().finally(() => logout()));
     const [name, setName] = useState('');
     const [confirmingRelease, setConfirmingRelease] = useState(false);
 
@@ -94,8 +97,10 @@ export const CloudHubPage = () => {
             const result = await deleteOwnedCloud(cloud.id);
             setConfirmingRelease(false);
             if (cloud.id === selectedCloudId) {
-                // The session stood in this cloud: release the account state with it.
-                void resetAccount().finally(() => logout());
+                // The session stood in this cloud: release the account state with it — and, on an
+                // approving app, the web sign-ins it approved.
+                if (isDevicePairingEnabled()) void pairingLogout.start();
+                else void resetAccount().finally(() => logout());
                 return;
             }
             toast({ title: t(result === 'already-gone' ? 'cloud.hub.alreadyReleased' : 'cloud.hub.released') });
@@ -176,6 +181,7 @@ export const CloudHubPage = () => {
                 isPending={isDeleting}
                 variant="danger"
             />
+            <PairingLogoutDialog logout={pairingLogout} />
         </PageShell>
     );
 };

@@ -58,7 +58,7 @@ describe('checkPairedCloud', () => {
 describe('checkPairedClouds', () => {
     it('checks each paired cloud and returns the ones that ended', async () => {
         paired = ['a', 'b', 'c'];
-        const check = jest.fn(async (id: string) => (id === 'b' ? 'ended' : 'kept') as const);
+        const check = jest.fn(async (id: string): Promise<'ended' | 'kept'> => (id === 'b' ? 'ended' : 'kept'));
 
         await expect(checkPairedClouds(check)).resolves.toEqual(['b']);
         expect(check).toHaveBeenCalledTimes(3);

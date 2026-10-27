@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
+import { runtime } from '@chatic/app-runtime';
 import { type Theme, useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
@@ -18,6 +19,7 @@ import {
     VersionInfo,
 } from '../../../shared';
 import { NotificationSnoozeButton } from '../../chat/components/NotificationSnoozeButton';
+import { canApprovePairing } from '../../pairing/utils/devicePairing';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
 import { ReportIssueDialog } from '../components';
@@ -62,6 +64,7 @@ export const SettingsPage = () => {
     const reopenOnboarding = useOnboardingStore(s => s.reopen);
     const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
     const [reportOpen, setReportOpen] = useState(false);
+    const isPairedSession = runtime.session.useIsPairedSession();
     const desktopEnabled = useNotificationPrefsStore(s => s.desktopEnabled);
     const setDesktopEnabled = useNotificationPrefsStore(s => s.setDesktopEnabled);
     const quietHours = useNotificationPrefsStore(s => s.quietHours);
@@ -89,6 +92,15 @@ export const SettingsPage = () => {
                         hint={t('account.openHint')}
                         onClick={() => navigate('/account')}
                     />
+                    {/* Beside the account: approving a browser lends it this account. The browser's code
+                        screen names this place ("Settings › Approve web sign-in"), so it stays here. */}
+                    {canApprovePairing(isPairedSession) && (
+                        <SettingsNavRow
+                            label={t('pairing.approve.entry')}
+                            hint={t('pairing.approve.entryHint')}
+                            onClick={() => navigate('/settings/pairing/approve', { state: { from: '/settings' } })}
+                        />
+                    )}
                 </SettingsRowGroup>
             </section>
 

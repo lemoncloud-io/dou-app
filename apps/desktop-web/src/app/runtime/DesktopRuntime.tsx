@@ -1,7 +1,9 @@
 import { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { AppRouter } from '../routes';
 import {
@@ -170,6 +172,10 @@ export const DesktopRuntime = () => {
     //    this guard exists for. Gating it the way the relay hook gates its visibility trigger would
     //    disable it exactly when it is needed.
     runtime.session.useCloudCredentialGuard();
+    // A browser that a phone approved into a cloud re-checks that cloud through the relay at mount and
+    // every ten minutes; one whose approval ended is torn down by the runtime and said here.
+    const { t } = useTranslation();
+    runtime.session.usePairedCloudCheck(() => toast({ title: t('pairing.cloud.ended') }));
 
     return (
         <runtime.connection.RuntimeAuthHost>

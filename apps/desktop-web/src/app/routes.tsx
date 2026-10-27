@@ -6,6 +6,8 @@ import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
+import { usePairingCodePageStore } from './features/pairing/stores/usePairingCodePageStore';
+import { canRequestPairing, isDevicePairingEnabled } from './features/pairing/utils/devicePairing';
 import { selectHeldLogin, useOAuthAttemptStore } from './features/auth/stores/useOAuthAttemptStore';
 import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
@@ -90,11 +92,15 @@ const PhoneLoginPage = lazy(() => import('./features/auth').then(m => ({ default
 const OAuthResponsePage = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthResponsePage })));
 const OAuthDeeplinkListener = lazy(() => import('./features/auth').then(m => ({ default: m.OAuthDeeplinkListener })));
 const SignInNotice = lazy(() => import('./features/auth').then(m => ({ default: m.SignInNotice })));
+const PairingCodePage = lazy(() => import('./features/pairing').then(m => ({ default: m.PairingCodePage })));
+const PairingApprovePage = lazy(() => import('./features/pairing').then(m => ({ default: m.PairingApprovePage })));
+const DevicesPage = lazy(() => import('./features/pairing').then(m => ({ default: m.DevicesPage })));
 
 export const AppRouter = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
     const socialLoginHeld = useOAuthAttemptStore(selectHeldLogin);
+    const pairingHeld = usePairingCodePageStore(s => s.held);
 
     return (
         <Router>
@@ -132,6 +138,13 @@ export const AppRouter = () => {
                             <Route path="/account/policies" element={<PolicyListPage />} />
                             <Route path="/account/policies/terms" element={<TermsPage />} />
                             <Route path="/account/policies/privacy" element={<PrivacyPage />} />
+                            {isDevicePairingEnabled() && (
+                                <>
+                                    {/* The page itself turns away the browser and a paired session. */}
+                                    <Route path="/settings/pairing/approve" element={<PairingApprovePage />} />
+                                    <Route path="/account/devices" element={<DevicesPage />} />
+                                </>
+                            )}
                             {/* OAuth hand-off must work even with a (possibly stale) authenticated
                                 session in this browser — the relay return would otherwise bounce
                                 to home and lose the code before it reaches the shell. */}
@@ -147,6 +160,9 @@ export const AppRouter = () => {
                             {/* Sending the first code registers the device, which lands here mid-flow;
                                 the page also turns away an account that is already signed in. */}
                             {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}
+                            {/* The code screen signs in as a guest before it asks for a code, which flips
+                                the router here mid-flow. Keep it until it finishes or is left. */}
+                            {pairingHeld && <Route path="/auth/pair" element={<PairingCodePage />} />}
                             {/* Once authenticated, leave the auth screens — fixes invite login not advancing. */}
                             <Route path="/auth/*" element={<Navigate to="/" replace />} />
                             <Route path="*" element={<Navigate to="/" replace />} />
@@ -157,6 +173,7 @@ export const AppRouter = () => {
                             <Route path="/auth/login" element={<InviteLoginPage />} />
                             {isPhoneLoginEnabled() && <Route path="/auth/phone" element={<PhoneLoginPage />} />}
                             <Route path="/auth/oauth-response" element={<OAuthResponsePage />} />
+                            {canRequestPairing() && <Route path="/auth/pair" element={<PairingCodePage />} />}
                             {import.meta.env.DEV && <Route path="/auth/debug" element={<DebugLoginPage />} />}
                             <Route path="*" element={<Navigate to="/auth/welcome" replace />} />
                         </>
