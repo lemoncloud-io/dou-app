@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-27] - root@0.119.0, @chatic/web@0.80.0
+
+### Features
+
+- (web) judge room owners by join role and remove members by scope (ADR-0237, 0238)
+
 ## [2026-10-27] - No version updates
 
 ### Features
