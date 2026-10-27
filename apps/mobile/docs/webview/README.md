@@ -309,6 +309,16 @@ this file by path and runs when it changes. Moving or renaming it breaks both th
 trigger, so a move updates the two paths (`apps/web-e2e/src/support/fake-shell/appInjection.ts` and
 the workflow) in the same change.
 
+## Camera
+
+`OpenCamera` is answered by `useDeviceHandler` through `DeviceService.openCamera`. The handler passes
+on the capture options the page sent — only the fields of `OpenCameraPayload` (`mediaType`,
+`quality`, `maxWidth`, `maxHeight`, `includeBase64`, `cameraType`); anything else on the message,
+such as `saveToPhotos`, stays the service's decision. A request with no options opens the camera with
+the service's defaults, as it did before the options were read. Earlier builds dropped the options
+entirely, so `includeBase64` never reached the picker and the page got only a `uri` it cannot read —
+the web has to expect an asset without `base64` from an app that has not updated.
+
 ## Device contacts
 
 `GetContacts` is answered by `useDeviceHandler` through `DeviceService.getContacts`, which returns

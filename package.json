@@ -190,6 +190,7 @@
     "i18next-http-backend": "^3.0.2",
     "i18next-localstorage-backend": "^4.2.0",
     "i18next-xhr-backend": "^3.2.2",
+    "jsqr": "^1.4.0",
     "lexical": "^0.45.0",
     "libphonenumber-js": "1.13.10",
     "lodash": "^4.17.21",

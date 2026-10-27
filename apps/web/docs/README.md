@@ -46,7 +46,7 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     Root["composition root<br/>app.tsx · runtime/ · routes/"]:::root
-    Feat["features/ × 13<br/><i>pages · components · hooks</i>"]:::feat
+    Feat["features/ × 14<br/><i>pages · components · hooks</i>"]:::feat
     Shared["shared<br/>ui/ · hooks/ · stores/ · utils/ · navigation/ · bridge/ · config/"]:::shared
     Libs["@chatic/app-runtime · bridges · data · config<br/>web-ui-kit · shared · app-messages"]:::ext
 
@@ -170,10 +170,10 @@ feature's `hooks/` is where that gets wrapped. There is no separate `entities/` 
 either — `types/` is the entity layer, promoted to a cross-cutting `types` only on a second
 consumer.
 
-The 13 feature folders do not all use the same subset. Counting actual subfolders under
-`app/features/*/`: `components` (12), `pages` (11), `hooks` (11), `routes` (7), `lib` (6), `utils`
-(4), `types` (4), `consts`/`constants` (3), `stores` (2), plus one-offs (`invite/accept`,
-`debug/overlay`, `debug/metrics`). `routes/` appears only in features that export their own
+The 14 feature folders do not all use the same subset. Counting actual subfolders under
+`app/features/*/`: `components` (12), `pages` (11), `hooks` (11), `lib` (9), `routes` (7), `types`
+(4), `consts`/`constants` (4), `utils` (3), `stores` (3), plus one-offs (`invite/accept`,
+`debug/overlay`, `debug/metrics`, `debug/i18n`). `routes/` appears only in features that export their own
 `<Feature>Routes` for the top-level route tables to lazy-compose; `lib/`, `utils/` and `stores/` show
 up where a feature's own logic outgrows `hooks/`. Treat the skeleton above as the common case, not a
 fixed shape — add the subfolder a feature actually needs rather than forcing every feature to carry
@@ -238,7 +238,7 @@ works.
 
 ```bash
 # feature importing another feature directly (targets vary; keep the feature list current)
-grep -rnE "from '(\.\./)+(account|appUpdate|auth|channels|debug|feedback|home|invite|mypage|onboarding|place|search|subscription)(/|')" \
+grep -rnE "from '(\.\./)+(account|appUpdate|auth|channels|debug|feedback|home|invite|mypage|onboarding|pairing|place|search|subscription)(/|')" \
     apps/web/src/app/features --include='*.ts*' | grep -v '\.test\.'
 
 # a barrel bypassed because of the test transform, not because of layering
