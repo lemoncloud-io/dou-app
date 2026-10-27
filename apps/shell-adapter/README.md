@@ -15,6 +15,7 @@ yarn local --mode web               # the web dev server alone, dev, as a plain 
 yarn local --mode native            # the simulator run, unchanged (yarn mobile:ios:local)
 yarn local --mode native --platform android
 yarn local --check                  # what it would do, and what is missing; starts nothing
+yarn local:pair                     # the dev shell in its own window, signed in from a phone (below)
 ```
 
 An unnamed backend is dev. Before it starts anything it checks what it needs; a missing env file is
@@ -92,6 +93,27 @@ Outside this repository each client must list its shell's origin as an authorise
 A person signs in, in the browser the agent drives — the session lives in that browser profile's
 storage for the shell's origin and survives relaunches. An agent never picks an account or types a
 password.
+
+### Signing in from a terminal: `yarn local:pair`
+
+The way to a signed-in shell with no Google popup and no account typed anywhere: a phone that is
+already signed in approves it (device pairing).
+[`scripts/pair.mjs`](./scripts/pair.mjs):
+
+1. reuses the dev shell when one answers on `5007`, or starts `hybrid-shell local` (and stops it on
+   Ctrl-C);
+2. opens the shell in a visible Chromium window whose profile lives in `~/.cache/dou-local-pair`
+   (`DOU_SHELL_PROFILE` moves it), so a sign-in made once is still there on the next run;
+3. signed in already — prints `Connected: signed in as …` and keeps the window;
+4. a guest — opens "Sign in with another device" in the app, prints the code
+   (`Code: 0734-4168`) and waits. On the phone: DoU › My page › Approve web sign-in, then the code (or
+   scan the QR shown in the window). An expired code is replaced and printed again;
+5. approved — prints `Connected: …` (the account, or the cloud entered as a guest when the phone
+   approved one cloud only) and keeps the window until Ctrl-C or until it is closed.
+
+It needs the device pairing flag, which is on in dev, and the env files `yarn local` needs. The
+shell it signs in is a secondary device of the phone: signing out on the phone (or removing the
+approval there) signs it out too.
 
 ## Scenarios
 

@@ -6,6 +6,7 @@
     "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
     "prepare": "husky",
     "local": "hybrid-shell local",
+    "local:pair": "node apps/shell-adapter/scripts/pair.mjs",
     "postinstall": "node -e \"const cp=require('child_process'); const run=!process.env.SKIP_MOBILE_POD&&(process.env.CI!=='true'||process.env.RUNNER_OS==='macOS'); if(run){try{cp.execSync('yarn mobile:pod',{stdio:'inherit'})}catch(e){}}\"",
     "lint": "npx nx run-many --target=lint",
     "lint:fix": "npx nx run-many --target=lint --fix",
