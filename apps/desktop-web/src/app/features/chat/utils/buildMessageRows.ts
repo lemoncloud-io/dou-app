@@ -54,8 +54,9 @@ export type MessageRowItem =
     | { kind: 'system'; key: string; chat: DomainChat; authorName: string }
     | { kind: 'group'; group: MessageGroup };
 
-/** Split a run of same-author messages when they are more than this far apart. */
-const GROUP_TIME_GAP_MS = 5 * 60 * 1000;
+/** Floor to the clock minute — the unit the group header prints its time in. */
+const MINUTE_MS = 60 * 1000;
+const minuteOf = (ms: number): number => Math.floor(ms / MINUTE_MS);
 
 // A blank or UUID-style name (guest auto-name) is not a real name — treat it as
 // unresolved so it never shows, falling back to "You" / the roster / a skeleton.
@@ -112,8 +113,10 @@ const startOfDay = (ms: number): number => {
 /**
  * Slack-style layout pipeline. Produces a flat list of rows where:
  * - a `date` row is inserted whenever the calendar day changes, and
- * - consecutive messages by the same author within {@link GROUP_TIME_GAP_MS}
- *   collapse into one `group` (single avatar + name + time header).
+ * - consecutive messages by the same author sent in the same clock minute
+ *   collapse into one `group` (single avatar + name + time header). The header
+ *   prints one time for the whole block, so a block never spans two minutes —
+ *   the minute split the mobile feed makes too.
  */
 export const buildMessageRows = (
     messages: DomainChat[],
@@ -213,10 +216,9 @@ export const buildMessageRows = (
             open?.ownerId === message.ownerId &&
             open?.isWebhook === isWebhook &&
             (!isWebhook || open?.ownerName === webhookName(message));
-        const withinGap = timestamp - lastTimestamp <= GROUP_TIME_GAP_MS;
 
-        if (currentGroup && sameAuthor && withinGap) {
-            currentGroup.messages.push(message);
+        if (open && sameAuthor && minuteOf(timestamp) === minuteOf(open.timestamp)) {
+            open.messages.push(message);
         } else {
             flush();
             const resolvedName = isWebhook ? webhookName(message) : resolveOwnerName(message, viewer, names);
