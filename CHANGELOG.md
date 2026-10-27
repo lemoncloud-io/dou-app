@@ -1,5 +1,35 @@
 # Changelog
 
+## [2026-10-27] - root@0.114.0, @chatic/landing@0.7.0
+
+### Features
+
+- (landing) draw the checkout screens on the mock port, not placeholders
+- (landing) draw the subscription list, detail and cancel screens, not placeholders
+- (landing) build the billing screens and a refund policy page marked as a proposal
+- (landing) draw the subscription entry pages, not placeholders
+- (landing) carry the store plan, decline reason, retries and restore deadline in the view types
+- (landing) add the subscription account surface on a mock port, open on dev hosts only
+
+### Bug Fixes
+
+- (landing) offer no resubscribe on a subscription the next one replaced
+- (landing) keep the plan card's English price inside a five-column grid, not over the next card
+- (landing) offer cancelling in the account sidebar only where the detail screen does
+
+### Documentation
+
+- (landing) describe the drawn subscription screens, not placeholders, and their extra entry URLs
+
+### Refactor
+
+- (landing) move useDeviceDetect to the app level, not the deep-link page
+
+### Other
+
+- test: (landing) read the plan name from the account sidebar in the routes test, not the whole page
+- test: (landing) stand screens in by their ids in the subscription routes test, not placeholder copy
+
 ## [2026-10-26] - root@0.113.0, @chatic/web@0.78.0, @chatic/landing@0.6.2, @chatic/desktop-web@0.35.5
 
 ### Features
