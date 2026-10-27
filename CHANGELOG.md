@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-27] - No version updates
+
+### Features
+
+- (web,config,web-ui-kit) lock a room's message input, threads included, as a lab experiment
+
 ## [2026-10-27] - root@0.120.1, @chatic/desktop-web@0.35.7
 
 ### Bug Fixes
