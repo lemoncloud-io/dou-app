@@ -7,8 +7,9 @@ import { fetchManyByIds } from './fetchManyByIds';
  * Determines whether a row is previewable — a SQL mirror of the web's `isPreviewableChat`
  * (@chatic/data) (ADR-0057).
  *
- * Excludes thread replies (parentId), system rows (including reaction events), and failed sends,
- * but keeps tombstones (hidden) — the channel's last message that renders as "Deleted message."
+ * Excludes system rows (including reaction events) and failed sends, but keeps thread replies — a
+ * reply is the room's last activity and the web marks it as one — and tombstones (hidden), the
+ * channel's last message that renders as "Deleted message."
  * The fields used for this check have no extracted column, so we read the blob via
  * `json_extract`; each probe walks `idx_chats_cid_uid_channel_chatno` in newest-first order and
  * stops at the first match, so the number of rows evaluated is proportional to the length of the
@@ -16,11 +17,11 @@ import { fetchManyByIds } from './fetchManyByIds';
  *
  * This check is only an optimization — the web owns the semantics. The web re-validates the
  * returned rows against its own rules and, if they don't match, falls back to a windowed query
- * for just that channel. That's why an older app version can't force a wrong answer even as the
- * rules evolve.
+ * for just that channel. That catches a mirror that is too loose, not one that is too strict: an
+ * older app that still drops thread replies answers with an older top-level message, which passes
+ * the check, so its rows keep the old preview until the app is updated.
  */
 const PREVIEWABLE_SQL = [
-    `json_extract(data, '$.parentId') IS NULL`,
     `COALESCE(json_extract(data, '$.stereo'), '') <> 'system'`,
     `COALESCE(json_extract(data, '$.subType'), '') <> 'reaction'`,
     `COALESCE(json_extract(data, '$.isFailed'), 0) = 0`,

@@ -1132,6 +1132,10 @@
             "viewerPlay": "동영상 재생",
             "pickedFiles": "보낼 파일",
             "removeFile": "{{name}} 빼기"
+        },
+        "preview": {
+            "thread": "[스레드] {{text}}",
+            "sender": "{{name}} : {{text}}"
         }
     },
     "search": {

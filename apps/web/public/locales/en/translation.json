@@ -1132,6 +1132,10 @@
             "viewerPlay": "Play video",
             "pickedFiles": "Files to send",
             "removeFile": "Remove {{name}}"
+        },
+        "preview": {
+            "thread": "[Thread] {{text}}",
+            "sender": "{{name}}: {{text}}"
         }
     },
     "search": {

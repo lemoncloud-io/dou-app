@@ -1,7 +1,12 @@
 import { lastChatPreview } from './lastChatPreview';
 
 // Echoes the key, with the count when one is passed, so the chosen key and count are both assertable.
-const t = (key: string, options?: { count: number }) => (options ? `${key}:${options.count}` : key);
+// The thread and sender keys render their real shape, so the composed line reads as the row does.
+const t = (key: string, options?: { count?: number; name?: string; text?: string }) => {
+    if (key === 'chat.preview.thread') return `[thread] ${options?.text}`;
+    if (key === 'chat.preview.sender') return `${options?.name} : ${options?.text}`;
+    return options?.count !== undefined ? `${key}:${options.count}` : key;
+};
 
 describe('lastChatPreview', () => {
     it('answers nothing for a room with no last message', () => {
@@ -54,5 +59,37 @@ describe('lastChatPreview', () => {
 
     it('answers nothing for a message with neither text nor attachments', () => {
         expect(lastChatPreview({ content: '' }, t)).toBe('');
+    });
+
+    describe('a thread reply and a sender', () => {
+        it('marks a thread reply as one', () => {
+            expect(lastChatPreview({ content: 'reply', parentId: 'ch:3' }, t)).toBe('[thread] reply');
+        });
+
+        it('leads a group line with its sender', () => {
+            expect(lastChatPreview({ content: 'hello' }, t, 'Raine')).toBe('Raine : hello');
+        });
+
+        it('puts the thread mark before the sender', () => {
+            expect(lastChatPreview({ content: 'reply', parentId: 'ch:3' }, t, 'Raine')).toBe('[thread] Raine : reply');
+        });
+
+        it('prints the line alone when the sender did not resolve', () => {
+            expect(lastChatPreview({ content: 'hello' }, t, '')).toBe('hello');
+            expect(lastChatPreview({ content: 'hello' }, t, '   ')).toBe('hello');
+        });
+
+        it('names the sender of an attachment-only message and of a tombstone', () => {
+            expect(lastChatPreview({ content: '', uploadIds: ['u1'] }, t, 'Raine')).toBe(
+                'Raine : chat.attach.preview:1'
+            );
+            expect(lastChatPreview({ content: 'x', hidden: true }, t, 'Raine')).toBe(
+                'Raine : chat.room.deletedMessage'
+            );
+        });
+
+        it('prints nothing, not a bare sender or mark, when there is no line', () => {
+            expect(lastChatPreview({ content: '', parentId: 'ch:3' }, t, 'Raine')).toBe('');
+        });
     });
 });
