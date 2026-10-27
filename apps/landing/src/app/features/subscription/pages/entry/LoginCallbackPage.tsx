@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
-import { Spinner } from '../../components/ui';
+import { Card } from '../../components/ui';
 import { useCompleteSignIn } from '../../hooks';
 import { isPortError } from '../../lib/port';
 import { landingAfterSignIn, safeNext } from '../../lib/safeNext';
@@ -49,9 +49,16 @@ export const LoginCallbackPage = (): JSX.Element => {
     }, [completeSignIn, navigate, search]);
 
     return (
-        <div className="flex min-h-[240px] items-center justify-center gap-3 text-[15px] text-subtitle">
-            <Spinner />
-            <p>{t('subscription.entry.login.completing')}</p>
+        <div className="flex justify-center pt-6">
+            <Card role="status" className="flex w-[440px] flex-col items-center gap-2 px-10 py-12 text-center">
+                {/* Larger than the inline spinner, in the brand green: this is the whole page while it lasts. */}
+                <span
+                    aria-hidden
+                    className="mb-4 h-11 w-11 animate-spin rounded-full border-[3px] border-main-green border-t-transparent"
+                />
+                <h1 className="text-xl font-bold text-navy">{t('subscription.entry.login.completing')}</h1>
+                <p className="text-sm text-subtitle">{t('subscription.entry.login.completingBody')}</p>
+            </Card>
         </div>
     );
 };
