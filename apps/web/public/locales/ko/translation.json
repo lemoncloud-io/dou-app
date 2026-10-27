@@ -322,7 +322,7 @@
             },
             "complete": {
                 "autoChargeAfter": "무료 사용 종료 후 월 {{price}} 자동 결제",
-                "cancelAnytime": "구독 취소는 언제든지 가능합니다."
+                "cancelAnytime": "구독은 MY > 구독 관리에서 언제든지 취소할 수 있습니다."
             },
             "startAtEntryTier": "첫 구독은 1단계부터 시작할 수 있어요",
             "otherStoreOnly": "구독한 스토어에서만 변경할 수 있어요",

@@ -322,7 +322,7 @@
             },
             "complete": {
                 "autoChargeAfter": "{{price}} charged monthly once the free period ends",
-                "cancelAnytime": "You can cancel at any time."
+                "cancelAnytime": "You can cancel anytime in MY > Subscription."
             },
             "startAtEntryTier": "A first subscription starts on the entry plan",
             "otherStoreOnly": "Can only be changed on the store you subscribed with",
