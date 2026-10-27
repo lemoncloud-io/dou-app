@@ -466,6 +466,8 @@
             "sectionMine": "My clouds",
             "addCloud": "Add a cloud",
             "emptyTip": "Create a cloud of your own\nSet a name and profile to get started",
+            "emptyTitle": "No clouds in use.",
+            "emptyDescription": "Subscribe to create a new cloud.",
             "checkInfo": "Check the cloud information.",
             "status": {
                 "provisioning": "Creating",
@@ -891,6 +893,7 @@
                 "pending": "Invite Pending"
             },
             "leftRoom": "Left the room",
+            "leftRoomToast": "Left the room",
             "leaveFailed": "Failed to leave the room",
             "deletedRoom": "Room deleted",
             "deleteFailed": "Failed to delete the room",

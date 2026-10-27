@@ -1147,7 +1147,7 @@ describe('ChannelList swipe actions', () => {
 
         await waitFor(() => expect(mockLeaveChannel).toHaveBeenCalledWith({ channelId: 'g1' }));
         expect(mockDeleteChannel).not.toHaveBeenCalled();
-        await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.leftRoom' }));
+        await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.leftRoomToast' }));
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 

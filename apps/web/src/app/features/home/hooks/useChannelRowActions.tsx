@@ -77,7 +77,7 @@ export const useChannelRowActions = (): ChannelRowActions => {
         try {
             if (action === 'delete') await deleteChannel({ channelId: channel.id });
             else await leaveChannel({ channelId: channel.id });
-            toast({ title: t(action === 'delete' ? 'chat.settings.deletedRoom' : 'chat.settings.leftRoom') });
+            toast({ title: t(action === 'delete' ? 'chat.settings.deletedRoom' : 'chat.settings.leftRoomToast') });
         } catch (error) {
             logger.error('CHAT', action === 'delete' ? 'Failed to delete room' : 'Failed to leave room', {
                 error,

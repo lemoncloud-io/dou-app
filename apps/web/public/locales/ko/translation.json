@@ -56,7 +56,7 @@
         "logoutInvited": "초대 계정 로그아웃",
         "logoutFailed": "로그아웃 실패",
         "notifications": "알림",
-        "reportIssue": "문제 신고"
+        "reportIssue": "문제 제보"
     },
     "profile": {
         "editTitle": "프로필 수정",
@@ -192,7 +192,7 @@
             "openDebug": "디버그 모드 열기",
             "experiments": "실험 기능",
             "placeInvite": "플레이스 초대",
-            "placeInviteSubtitle": "채팅방 없이 플레이스로 초대해요",
+            "placeInviteSubtitle": "대화방 없이 플레이스로 초대해요",
             "placeInviteNote": "켜면 홈 프로필 메뉴에 '플레이스에 초대하기'가 생겨요. 내 플레이스에서만 보여요."
         },
         "notificationSettings": "알림 설정",
@@ -210,7 +210,7 @@
             "default": "기본",
             "WhiteIcon": "화이트"
         },
-        "viewOnboarding": "온보딩 다시보기",
+        "viewOnboarding": "온보딩 다시 보기",
         "feedback": "피드백 보내기",
         "logout": "로그아웃",
         "appVersion": "버전",
@@ -225,7 +225,7 @@
         "accountInfo": {
             "title": "내 정보",
             "profileEdit": "프로필 수정",
-            "cloudProfileEdit": "Cloud 프로필 수정",
+            "cloudProfileEdit": "클라우드 프로필 수정",
             "withdrawal": "탈퇴",
             "social": {
                 "linked": "연동됨",
@@ -267,7 +267,7 @@
             "platformGoogle": "Google Play",
             "adminGrant": "관리자 부여",
             "adminGrantIndefinite": "무기한",
-            "blockedNotice": "관리자에 의해 이용이 제한되었습니다. 스토어 결제는 계속되니 고객센터로 문의해 주세요.",
+            "blockedNotice": "관리자에 의해 이용이 정지되었습니다. 스토어 결제는 계속되니 고객센터로 문의해 주세요.",
             "restore": "구매 복원",
             "restoreSuccess": "{{count}}건 복원 완료",
             "restoreEmpty": "복원할 구매가 없습니다",
@@ -275,9 +275,9 @@
             "autoRenewNotice": "본 구독은 자동 갱신 구독입니다. 구독 기간이 종료되면 동일한 가격으로 자동 갱신되며, 갱신일 최소 24시간 전에 구독을 해지하지 않으면 요금이 청구됩니다.",
             "termsOfService": "이용약관",
             "privacyPolicy": "개인정보처리방침",
-            "hubEntry": "구독 정보",
+            "hubEntry": "구독 관리",
             "socialLinkRequired": "구독은 소셜 계정 연동이 필요해요. 마이페이지 > 내 정보에서 연동해 주세요.",
-            "maxClouds": "계정 {{count}}개 구독 가능",
+            "maxClouds": "클라우드 {{count}}개 구독 가능",
             "trialBadge": "{{days}}일 무료",
             "adjacentTierOnly": "한 단계씩만 변경할 수 있어요",
             "productNotFound": "스토어에서 이 상품을 찾을 수 없어요",
@@ -299,7 +299,7 @@
                 "heroRest": "에서\n플레이스를 만들고\n여러 친구와 함께 대화해요",
                 "free": {
                     "name": "DoU Home",
-                    "badge": "FREE",
+                    "badge": "Free",
                     "headline": "바로 대화를 시작하는 공간",
                     "limit1": "친구와 1:1 대화만 가능해요",
                     "limit2": "나만의 클라우드 만들기 제한",
@@ -307,13 +307,13 @@
                 },
                 "pro": {
                     "name": "내 클라우드",
-                    "badge": "PRO",
+                    "badge": "Pro",
                     "headline": "내가 만드는 나만의 공간",
                     "benefit1Title": "나만의 클라우드",
                     "benefit1Description": "플레이스를 만들고 그룹 대화를 자유롭게 관리",
                     "benefit2Title": "플레이스 만들기",
                     "benefit2Description": "주제별 공간 만들기",
-                    "benefit3Title": "그룹 대화방",
+                    "benefit3Title": "그룹방",
                     "benefit3Description": "플레이스 안에서 여러 친구와 대화하기"
                 },
                 "ctaCaption": "구독하고 나만의 공간을 만들 수 있어요",
@@ -350,7 +350,7 @@
                 "active": "구독 중",
                 "ending": "종료 예정",
                 "expired": "구독 만료",
-                "blocked": "이용 제한",
+                "blocked": "이용 정지",
                 "scheduled": "구독 예정"
             },
             "info": {
@@ -390,7 +390,7 @@
                     "description": "구독이 다시 시작되었어요.\n기존 클라우드를 이어서 이용할 수 있어요."
                 },
                 "blocked": {
-                    "title": "이용 제한"
+                    "title": "이용 정지"
                 }
             },
             "list": {
@@ -399,7 +399,7 @@
                 "changeLine": "{{date}}부터 {{product}}으로 변경됩니다.",
                 "endsLine": "이용 종료일 {{date}}",
                 "expiredLine": "만료일 {{date}}",
-                "heldTitle": "한도를 넘은 클라우드 {{count}}개가 보류 중이에요",
+                "heldTitle": "한도를 넘은 클라우드 {{count}}개가 이용 제한 중이에요",
                 "heldDescription": "선택하지 않은 클라우드는 이용이 제한돼요. 클라우드 관리에서 정리할 수 있어요."
             },
             "detail": {
@@ -466,11 +466,13 @@
             "sectionMine": "내 클라우드",
             "addCloud": "클라우드 추가",
             "emptyTip": "나만의 클라우드를 만들어 보세요\n클라우드 이름과 프로필을 설정해 시작할 수 있어요",
+            "emptyTitle": "이용 중인 클라우드가 없습니다.",
+            "emptyDescription": "구독하고 새로운 클라우드를 만들어 보세요.",
             "checkInfo": "클라우드 정보를 확인해 주세요.",
             "status": {
                 "provisioning": "생성 중",
                 "setupFailed": "확인 필요",
-                "ending": "이용 종료 예정",
+                "ending": "종료 예정",
                 "restricted": "이용 제한",
                 "subscribed": "구독 중",
                 "expired": "구독 만료"
@@ -582,7 +584,7 @@
     },
     "cloudSessionSheet": {
         "title": "클라우드 전환",
-        "douHome": "두유 홈",
+        "douHome": "DoU Home",
         "errorLoading": "클라우드를 불러오지 못했어요",
         "retry": "재시도",
         "setupProfile": "프로필 설정을 해주세요",
@@ -591,7 +593,7 @@
         "switchFailed": "클라우드 전환에 실패했어요",
         "invited": "초대됨",
         "unreadBadge": "읽지 않음",
-        "emptyInvited": "초대된 클라우드가 없어요",
+        "emptyInvited": "초대받은 클라우드가 없어요",
         "emptyInvitedDescription": "초대를 받으면 여기에 표시돼요",
         "invitedOwnerLabel": "{{owner}}님의 클라우드",
         "invitedFallbackLabel": "초대받은 클라우드",
@@ -602,22 +604,22 @@
         "authTimeout": "클라우드 인증 시간이 초과되었어요",
         "placeLoadFailed": "플레이스 목록을 불러오지 못했어요",
         "placeAuthFailed": "플레이스 인증에 실패했어요",
-        "channelLoadFailed": "채널 목록을 불러오지 못했어요",
+        "channelLoadFailed": "대화방 목록을 불러오지 못했어요",
         "cloudSessionExpired": "클라우드 세션이 만료되어 기본 모드로 전환되었어요",
         "close": "닫기",
         "sectionHome": "Home",
         "myCloudsDescription": "나만의 공간에서 그룹 대화 시작",
         "toggleSection": "섹션 접기/펼치기",
         "sectionMy": "내 클라우드",
-        "sectionInvited": "초대된 클라우드",
+        "sectionInvited": "초대받은 클라우드",
         "statusProvisioning": "생성 중",
         "statusFailed": "확인 필요",
-        "statusEnding": "이용 종료 예정",
+        "statusEnding": "종료 예정",
         "statusRestricted": "이용 제한",
         "checkInfo": "클라우드 정보를 확인해 주세요."
     },
     "placeList": {
-        "defaultPlace": "두유 홈",
+        "defaultPlace": "DoU Home",
         "errorLoading": "플레이스를 불러오지 못했어요",
         "retry": "재시도",
         "empty": "플레이스가 없어요",
@@ -652,7 +654,7 @@
         },
         "leaveDialog": {
             "title": "플레이스 나가기",
-            "description": "'{{name}}'에서 나가시겠습니까? 더 이상 이 플레이스의 채팅에 참여할 수 없습니다.",
+            "description": "'{{name}}'에서 나가시겠습니까? 더 이상 이 플레이스의 대화에 참여할 수 없습니다.",
             "confirm": "나가기"
         }
     },
@@ -664,11 +666,11 @@
         "picker": {
             "title": "1:1 대화 상대",
             "searchPlaceholder": "이름으로 검색",
-            "loading": "멤버를 불러오는 중...",
-            "loadFailed": "멤버를 불러오지 못했어요",
+            "loading": "친구를 불러오는 중...",
+            "loadFailed": "친구를 불러오지 못했어요",
             "retry": "다시 시도",
             "empty": "아직 대화할 수 있는 사람이 없어요",
-            "emptyHint": "이 플레이스의 멤버와 1:1 대화를 시작할 수 있어요.",
+            "emptyHint": "이 플레이스의 친구와 1:1 대화를 시작할 수 있어요.",
             "noMatch": "검색 결과가 없어요",
             "failed": "1:1 대화를 열지 못했어요"
         },
@@ -676,23 +678,23 @@
         "startFromProfile": "1:1 대화하기"
     },
     "channelList": {
-        "noDescription": "채널 설명 없음",
-        "errorLoading": "채널을 불러올 수 없습니다",
+        "noDescription": "대화방 설명 없음",
+        "errorLoading": "대화방을 불러올 수 없습니다",
         "retry": "다시 시도",
-        "empty": "채팅방이 없습니다. 새로 만들어보세요!",
-        "unnamedChannel": "이름 없는 채팅방",
-        "selfChannel": "나와의 채팅",
-        "createChat": "채팅 만들기",
+        "empty": "대화방이 없습니다. 새로 만들어보세요!",
+        "unnamedChannel": "이름 없는 대화방",
+        "selfChannel": "나와의 대화",
+        "createChat": "대화방 만들기",
         "createDirect": "1:1 대화",
-        "createGroup": "그룹 방 만들기",
-        "pinned": "고정된 채팅방",
+        "createGroup": "그룹방 만들기",
+        "pinned": "고정된 대화방",
         "muted": "알림 꺼짐",
         "mentionOnly": "멘션만 알림",
         "mentionedMe": "@나",
-        "emptyInvited": "현재 참여 중인 채팅방이 없어요.\n새로운 채팅방에 초대되면 이곳에 표시됩니다.",
+        "emptyInvited": "현재 참여 중인 대화방이 없어요.\n새로운 대화방에 초대되면 이곳에 표시됩니다.",
         "emptyInvitedLeaveHint": "이 플레이스를 더 이상 이용하지 않는다면 나갈 수 있어요.",
         "emptyInvitedPlaceInfo": "플레이스 정보 바로가기",
-        "loading": "채팅방을 불러오는 중이에요",
+        "loading": "대화방을 불러오는 중이에요",
         "swipe": {
             "pin": "고정",
             "unpin": "고정 해제",
@@ -704,7 +706,7 @@
         "draft": "초안"
     },
     "channelManage": {
-        "title": "채팅방 관리",
+        "title": "대화방 관리",
         "clearSelection": "선택 해제",
         "readAll": "모두 읽음",
         "readSelected": "{{count}} 읽음",
@@ -722,26 +724,26 @@
         "deleteFailed": "{{count}}개 방을 삭제하지 못했어요.",
         "leaveFailed": "{{count}}개 방에서 나가지 못했어요.",
         "deleteDialog": {
-            "title": "선택한 {{count}}개의 채팅방을 삭제하시겠습니까?",
-            "description": "방을 삭제하면 모든 참여자도 이 채팅방에 접근할 수 없으며, 대화 내용은 영구적으로 삭제되어 복구할 수 없습니다.",
+            "title": "선택한 {{count}}개의 대화방을 삭제하시겠습니까?",
+            "description": "방을 삭제하면 모든 참여자도 이 대화방에 접근할 수 없으며, 대화 내용은 영구적으로 삭제되어 복구할 수 없습니다.",
             "confirm": "삭제"
         },
         "leaveDialog": {
-            "title": "선택한 {{count}}개의 채팅방에서 나가시겠습니까?",
+            "title": "선택한 {{count}}개의 대화방에서 나가시겠습니까?",
             "description": "방에서 나가면 대화 목록에서 사라지고, 다시 초대받아야 참여할 수 있습니다.",
             "confirm": "나가기"
         }
     },
     "bottomNav": {
-        "chat": "채팅",
+        "chat": "대화",
         "my": "MY",
         "unread": "{{count}}개 안 읽음"
     },
     "explore": {
         "title": "탐색",
-        "searchPlaceholder": "채팅방 또는 플레이스 검색",
+        "searchPlaceholder": "대화방 또는 플레이스 검색",
         "tabs": {
-            "rooms": "채팅방",
+            "rooms": "대화방",
             "workspaces": "플레이스"
         },
         "categories": {
@@ -759,8 +761,8 @@
         "dm": {
             "unnamedPeer": "대화 상대",
             "intro": {
-                "title": "{{name}}님이 채팅방에 입장했습니다.",
-                "titleUnnamed": "대화 상대가 채팅방에 입장했습니다.",
+                "title": "{{name}}님이 대화방에 입장했습니다.",
+                "titleUnnamed": "대화 상대가 대화방에 입장했습니다.",
                 "description": "1:1 대화를 시작해 보세요."
             },
             "footer": {
@@ -774,9 +776,9 @@
             }
         },
         "room": {
-            "title": "채팅방",
-            "loading": "채널 정보를 불러오는 중...",
-            "error": "채널 정보를 불러올 수 없습니다",
+            "title": "대화방",
+            "loading": "대화방 정보를 불러오는 중...",
+            "error": "대화방 정보를 불러올 수 없습니다",
             "goBack": "뒤로 가기",
             "inputPlaceholder": "메시지를 입력해 주세요",
             "attachment": {
@@ -798,8 +800,8 @@
             "today": "오늘",
             "yesterday": "어제",
             "system": {
-                "join": "님이 채팅방에 입장했습니다.",
-                "leave": "님이 채팅방을 나갔습니다."
+                "join": "님이 대화방에 입장했습니다.",
+                "leave": "님이 대화방을 나갔습니다."
             },
             "emptyState": {
                 "line1": "그룹방을 만들었습니다.",
@@ -809,8 +811,8 @@
                 "selfLine2": "메모, 링크 등 자유롭게 기록할 수 있어요"
             },
             "read": "읽음",
-            "unread": "미확인",
-            "allRead": "모두 읽음",
+            "unread": "안읽음",
+            "allRead": "읽음 {{count}}",
             "readCount": "읽음 {{count}}",
             "unreadCount": "안읽음 {{count}}",
             "viewAll": "전체보기",
@@ -868,8 +870,8 @@
         },
         "settings": {
             "title": "방 설정",
-            "loading": "채널 정보를 불러오는 중...",
-            "error": "채널 정보를 불러올 수 없습니다",
+            "loading": "대화방 정보를 불러오는 중...",
+            "error": "대화방 정보를 불러올 수 없습니다",
             "goBack": "뒤로 가기",
             "edit": "편집",
             "inviteFriends": "친구 초대",
@@ -891,18 +893,19 @@
                 "pending": "초대 대기 중"
             },
             "leftRoom": "대화방 나감",
+            "leftRoomToast": "대화방 나가기가 완료되었습니다.",
             "leaveFailed": "방 나가기에 실패했습니다",
-            "deletedRoom": "채팅방이 삭제되었습니다",
+            "deletedRoom": "대화방 삭제가 완료되었습니다.",
             "deleteFailed": "방 삭제에 실패했습니다",
             "roomName": "방 이름",
             "deleteDialog": {
-                "title": "채팅방을 삭제하시겠습니까?",
-                "description": "삭제하면 모든 참여자가 더 이상 이 채팅방에 접근할 수 없으며, 대화 내용과 관련 데이터가 모두 삭제됩니다.",
+                "title": "대화방을 삭제하시겠습니까?",
+                "description": "방을 삭제하면 모든 친구도 이 대화방에 접근할 수 없으며, 대화 내용은 영구적으로 삭제되어 복구할 수 없습니다.",
                 "confirm": "삭제"
             },
             "leaveDialog": {
-                "title": "채팅방을 나가시겠습니까?",
-                "description": "채팅방의 메시지를 확인할 수 없으며, 다시 초대를 받아야 참여할 수 있습니다.",
+                "title": "그룹방을 나가시겠습니까?",
+                "description": "방을 나가면 더 이상 대화에 참여할 수 없습니다.",
                 "confirm": "나가기"
             },
             "dmLeaveDialog": {
@@ -910,27 +913,27 @@
                 "description": "방을 나가면 더 이상 대화에 참여할 수 없습니다.",
                 "confirm": "나가기"
             },
-            "noMembers": "멤버가 없습니다",
+            "noMembers": "친구가 없습니다",
             "notificationSettings": {
                 "title": "알림 설정",
                 "appNotificationOff": "앱 알림이 꺼져 있어요",
                 "appNotificationOffDesc": "알림을 푸시로 확인하려면 기기 설정을 해주세요",
                 "messageNotification": "메시지 알림",
-                "messageNotificationDesc": "친구가 보낸 채팅 메시지 알림을 받을 수 있어요"
+                "messageNotificationDesc": "친구가 보낸 대화 메시지 알림을 받을 수 있어요"
             },
-            "report": "신고하기",
+            "report": "신고",
             "block": "차단하기",
-            "reportSuccess": "신고가 접수되었습니다",
+            "reportSuccess": "신고가 완료되었습니다.",
             "blockSuccess": "차단되었습니다",
             "reportDialog": {
-                "title": "멤버 신고",
+                "title": "친구 신고",
                 "description": "허위 신고는 이용 제한을 받을 수 있습니다.",
                 "reasonPlaceholder": "신고 사유를 입력해 주세요",
                 "confirm": "신고"
             },
             "blockDialog": {
-                "title": "멤버를 차단하시겠습니까?",
-                "description": "차단하면 이 멤버의 메시지를 더 이상 받지 않습니다.",
+                "title": "친구를 차단하시겠습니까?",
+                "description": "차단하면 이 친구의 메시지를 더 이상 받지 않습니다.",
                 "confirm": "차단"
             },
             "friendInfo": {
@@ -959,16 +962,16 @@
         },
         "thread": {
             "replyAction": "스레드",
-            "inputPlaceholder": "댓글 추가",
-            "unavailable": "원본 메시지가 아직 로드되지 않았어요. 채널에서 이전 대화를 불러오면 표시됩니다.",
+            "inputPlaceholder": "답글 추가",
+            "unavailable": "원본 메시지가 아직 로드되지 않았어요. 대화방에서 이전 대화를 불러오면 표시됩니다.",
             "loadOlder": "이전 메시지 불러오기",
-            "replyCount_one": "댓글 {{count}}개",
-            "replyCount_other": "댓글 {{count}}개",
-            "openThread_one": "스레드 열기 · 댓글 {{count}}개",
-            "openThread_other": "스레드 열기 · 댓글 {{count}}개",
+            "replyCount_one": "답글 {{count}}개",
+            "replyCount_other": "답글 {{count}}개",
+            "openThread_one": "스레드 열기 · 답글 {{count}}개",
+            "openThread_other": "스레드 열기 · 답글 {{count}}개",
             "title": "스레드",
-            "newReplyCount_one": "새 댓글 {{count}}개",
-            "newReplyCount_other": "새 댓글 {{count}}개",
+            "newReplyCount_one": "새 답글 {{count}}개",
+            "newReplyCount_other": "새 답글 {{count}}개",
             "rootOutsideJoinWindow": "다시 참여하기 전의 메시지라 볼 수 없어요. 상대방 화면에는 그대로 남아 있습니다."
         },
         "mention": {
@@ -1135,7 +1138,7 @@
         "removeRecent": "검색어 삭제",
         "clouds": "클라우드",
         "places": "플레이스",
-        "channels": "채널",
+        "channels": "대화방",
         "chat": "Chat",
         "noResults": "검색 결과가 없습니다.",
         "noHistory": "검색 내역이 없습니다.",
@@ -1150,23 +1153,23 @@
         "title": "플레이스 설정",
         "sectionSettings": "설정",
         "sectionNotifications": "알림",
-        "sectionChats": "채팅방",
+        "sectionChats": "대화방",
         "myProfile": "내 프로필",
         "placeProfile": "플레이스 프로필",
         "placeDetail": "플레이스 정보",
         "placeNotifications": "플레이스 알림",
         "placeNotificationsDescription": "해당 플레이스의 푸시 알림을 받습니다.",
-        "channelSort": "채팅방 정렬",
-        "channelManage": "채팅방 관리",
-        "ownerOnly": "오너만 변경할 수 있어요",
+        "channelSort": "대화방 정렬",
+        "channelManage": "대화방 관리",
+        "ownerOnly": "소유자만 변경할 수 있어요",
         "comingSoon": "준비 중이에요",
-        "members": "멤버",
+        "members": "친구",
         "networkError": "연결 상태를 확인하고 다시 시도해 주세요."
     },
     "placeLeave": {
         "dialog": {
             "title": "해당 플레이스를 나가시겠습니까?",
-            "description": "플레이스를 나가면 참여 중인\n모든 채팅방에서도 함께 나가게 됩니다.\n다시 참여하려면 새로운 초대를\n받아야 합니다.",
+            "description": "플레이스를 나가면 참여 중인\n모든 대화방에서도 함께 나가게 됩니다.\n다시 참여하려면 새로운 초대를\n받아야 합니다.",
             "confirm": "나가기"
         },
         "denied": "이 플레이스는 나갈 수 없어요.",
@@ -1174,12 +1177,12 @@
         "doneTitle": "플레이스 나가기가 완료되었어요\nDoU Home으로 이동됩니다."
     },
     "placeMembers": {
-        "title": "멤버",
-        "count": "멤버 {{count}}",
-        "loading": "멤버를 불러오는 중이에요",
-        "loadFailed": "멤버를 불러오지 못했어요",
+        "title": "친구",
+        "count": "친구 {{count}}",
+        "loading": "친구를 불러오는 중이에요",
+        "loadFailed": "친구를 불러오지 못했어요",
         "retry": "다시 시도",
-        "notMember": "이 플레이스의 멤버가 아니에요.",
+        "notMember": "이 플레이스의 친구가 아니에요.",
         "badge": {
             "me": "나"
         },
@@ -1190,18 +1193,18 @@
             "confirm": "내보내기"
         },
         "removed": "'{{name}}'님을 내보냈어요.",
-        "removeDenied": "이 멤버는 내보낼 수 없어요.",
+        "removeDenied": "이 친구는 내보낼 수 없어요.",
         "removeFailed": "내보내지 못했어요. 다시 시도해 주세요."
     },
     "placeDelete": {
         "dialog": {
             "title": "해당 플레이스를 삭제하시겠습니까?",
-            "description": "플레이스를 삭제하면 참여자 모두\n이 플레이스와 채팅방에\n더 이상 접근할 수 없습니다.\n삭제 후에는 복구할 수 없습니다.",
+            "description": "플레이스를 삭제하면 참여자 모두\n이 플레이스와 대화방에\n더 이상 접근할 수 없습니다.\n삭제 후에는 복구할 수 없습니다.",
             "confirm": "삭제"
         },
         "rooms": {
-            "title": "채팅방 항목",
-            "label": "채팅방",
+            "title": "대화방 항목",
+            "label": "대화방",
             "count": "{{count}}개",
             "members": "방 친구"
         },
@@ -1211,10 +1214,10 @@
     },
     "placeDeleted": {
         "title": "플레이스가 삭제되었어요",
-        "description": "소유자가 플레이스를 삭제하여,\n더 이상 참여할 수 없습니다.\n포함된 채팅방과 대화 내용에도\n접근할 수 없어 DoU Home으로\n이동됩니다."
+        "description": "소유자가 플레이스를 삭제하여,\n더 이상 참여할 수 없습니다.\n포함된 대화방과 대화 내용에도\n접근할 수 없어 DoU Home으로\n이동됩니다."
     },
     "channelSort": {
-        "title": "채팅방 정렬",
+        "title": "대화방 정렬",
         "recent": "최신 메시지 순",
         "unread": "안 읽은 메시지 순"
     },
@@ -1260,7 +1263,7 @@
             "private": "비공개",
             "public": "공개",
             "members": "{{count}}명",
-            "chatRooms": "채팅방"
+            "chatRooms": "대화방"
         },
         "settings": {
             "title": "워크스페이스 설정",
@@ -1269,7 +1272,7 @@
             "notifications": "알림 설정",
             "edit": "워크스페이스 편집",
             "leave": "워크스페이스 나가기",
-            "members": "멤버",
+            "members": "친구",
             "host": "호스트"
         },
         "create": {
@@ -1290,19 +1293,19 @@
             "done": "완료",
             "confirm": "확인",
             "created": "생성 완료!",
-            "shareCode": "초대 코드를 공유하여 멤버를 초대하세요"
+            "shareCode": "초대 코드를 공유하여 친구를 초대하세요"
         }
     },
     "join": {
         "title": "초대 코드 참여",
         "subtitle": "초대 코드를 입력해 주세요",
-        "description": "워크스페이스 또는 채팅방 초대 코드를 입력하세요",
+        "description": "워크스페이스 또는 대화방 초대 코드를 입력하세요",
         "codeLabel": "초대 코드",
         "codePlaceholder": "예: ABC123",
         "confirm": "확인",
         "workspace": "워크스페이스",
-        "chatRoom": "채팅방",
-        "memberCount": "멤버 {{count}}명",
+        "chatRoom": "대화방",
+        "memberCount": "친구 {{count}}명",
         "joinButton": "참여하기",
         "invalidCode": "유효하지 않은 초대 코드입니다. 코드를 다시 확인해 주세요."
     },
@@ -1355,8 +1358,8 @@
         "imageSizeError": "이미지는 10MB 이하여야 합니다",
         "tabBasic": "기본 프로필",
         "thumbnailLabel": "프로필 이미지",
-        "cloudSaveSuccess": "Cloud 프로필이 수정되었습니다.",
-        "cloudSaveError": "Cloud 프로필 수정에 실패했습니다."
+        "cloudSaveSuccess": "클라우드 프로필이 수정되었습니다.",
+        "cloudSaveError": "클라우드 프로필 수정에 실패했습니다."
     },
     "mypageLogin": {
         "title": "로그인하기",
@@ -1455,7 +1458,7 @@
         "title": "그룹방을 만들고\n대화를 시작해 보세요",
         "subtitle": "목적에 맞는 그룹방을 만들어\n필요한 사람들과 함께 대화하는 공간입니다.",
         "nameLabel": "방 이름",
-        "nameHint": "채팅방의 목적이 잘 드러나는 이름으로 입력해 주세요.",
+        "nameHint": "대화방의 목적이 잘 드러나는 이름으로 입력해 주세요.",
         "namePlaceholder": "예: 여름 여행, 가족 모임, 프로젝트 A",
         "photoLabel": "방 사진",
         "photoOptional": "[선택]",
@@ -1498,8 +1501,8 @@
         "noSearchResults": "검색 결과가 없습니다.",
         "linkCopied": "링크 복사가 완료되었습니다.",
         "shareFailed": "공유에 실패했습니다.",
-        "shareTitle": "채팅에 초대합니다",
-        "shareMessage": "이 링크를 통해 채팅에 참여하세요!",
+        "shareTitle": "대화에 초대합니다",
+        "shareMessage": "이 링크를 통해 대화에 참여하세요!",
         "batchSuccess": "{{count}}명에게 초대를 보냈습니다",
         "batchFailed": "초대 전송에 실패했습니다",
         "smsMessage": "{{senderName}}님이 DoU 대화방에 초대했어요! 아래 링크를 눌러 참여해보세요.\n{{deeplink}}",
@@ -1527,7 +1530,7 @@
     },
     "addFriend": {
         "title": "친구 추가",
-        "subtitle1": "채팅방에 초대할 친구의",
+        "subtitle1": "대화방에 초대할 친구의",
         "subtitle2": "이름을 입력해 주세요",
         "nameLabel": "이름",
         "namePlaceholder": "친구 이름을 입력해 주세요",
@@ -1551,8 +1554,8 @@
         "close": "닫기",
         "updating": "업데이트 중...",
         "done": "완료",
-        "success": "채널 정보가 업데이트되었습니다",
-        "error": "채널 업데이트에 실패했습니다"
+        "success": "대화방 정보가 업데이트되었습니다",
+        "error": "대화방 업데이트에 실패했습니다"
     },
     "dmChat": {
         "name": {
@@ -1572,7 +1575,7 @@
         "name": {
             "title": "이름 수정",
             "label": "방 이름",
-            "placeholder": "Self Chat",
+            "placeholder": "나와의 대화",
             "helper": "20글자 이내로 입력해 주세요.",
             "done": "완료",
             "saving": "저장 중...",
@@ -1587,7 +1590,7 @@
         "steps": {
             "privateCommunity": {
                 "title": "프라이빗 커뮤니티",
-                "description": "최대 {{maxPlaces}}개의 대화공간과, {{maxChannels}}개의 채팅방으로\n필요한 사람들과 필요한 이야기를 나눠요"
+                "description": "최대 {{maxPlaces}}개의 대화공간과, {{maxChannels}}개의 대화방으로\n필요한 사람들과 필요한 이야기를 나눠요"
             },
             "safeSpace": {
                 "title": "안전한 대화 공간",
@@ -1611,7 +1614,7 @@
         "newTokenPlaceholder": "새 토큰 입력",
         "change": "변경",
         "onboarding": "온보딩",
-        "resetOnboarding": "온보딩 다시보기"
+        "resetOnboarding": "온보딩 다시 보기"
     },
     "tokenLogin": {
         "title": "토큰 로그인",
@@ -1653,7 +1656,7 @@
             "you": "You",
             "group": "그룹 대화",
             "oneToOne": "1:1 대화",
-            "place": "플레이스 멤버",
+            "place": "플레이스 친구",
             "roomFriends": "방 친구 {{count}}"
         },
         "expiry": {
@@ -1666,19 +1669,19 @@
         "dialog": {
             "expired": {
                 "title": "초대 링크가 만료되었어요",
-                "description": "보안을 위해 일정 시간이 지나면 초대 링크는 자동으로 만료됩니다. 초대한 사람에게 새로운 초대를 받아 다시 참여해 주세요."
+                "description": "보안을 위해 일정 시간이 지나면 초대 링크는 자동으로 만료됩니다. 초대자에게 새로운 초대를 받아 다시 참여해 주세요."
             },
             "alreadyJoined": {
                 "title": "이미 참여한 초대입니다.",
-                "description": "채팅방에서 대화를 이어가주세요."
+                "description": "대화방에서 대화를 이어가주세요."
             },
             "channelDeleted": {
-                "title": "채팅방이 삭제되었습니다.",
-                "description": "채팅방이 삭제되어 참여할 수 없습니다."
+                "title": "대화방이 삭제되었습니다.",
+                "description": "대화방이 삭제되어 참여할 수 없습니다."
             },
             "inviteCanceled": {
                 "title": "초대가 취소되었습니다.",
-                "description": "초대한 사람이 초대를 취소하여 참여할 수 없습니다."
+                "description": "초대자가 초대를 취소하여 참여할 수 없습니다."
             },
             "missingDelegator": {
                 "title": "기기 인증 정보를 찾을 수 없습니다.",
@@ -1690,7 +1693,7 @@
             },
             "notFound": {
                 "title": "유효하지 않은 초대입니다.",
-                "description": "초대가 유효하지 않습니다. 초대한 사람에게 새로운 초대를 받아 주세요."
+                "description": "초대가 유효하지 않습니다. 초대자에게 새로운 초대를 받아 주세요."
             },
             "wrongNumber": {
                 "title": "초대받은 번호가 아닙니다.",
@@ -1716,26 +1719,26 @@
     },
     "relayInviteAccept": {
         "verifyTitle": "휴대폰 번호 인증",
-        "preparingRoom": "채팅방을 만들고 있어요",
-        "channelPending": "채팅방을 준비하고 있어요. 잠시 후 목록에 나타납니다.",
+        "preparingRoom": "대화방을 만들고 있어요",
+        "channelPending": "대화방을 준비하고 있어요. 잠시 후 목록에 나타납니다.",
         "declineDialog": {
-            "title": "초대를 거절할까요?",
-            "description": "거절하면 되돌릴 수 없어요. 다시 참여하려면 새로운 초대를 받아야 해요.",
+            "title": "초대를 거절하시겠어요?",
+            "description": "초대를 거절하면 현재 대화방에 참여할 수 없습니다. 나중에 참여를 원하면 새로운 초대를 받아 주세요.",
             "confirm": "거절하기"
         },
         "declinedToast": "초대를 거절했어요"
     },
     "subscriptionRequired": {
         "title": "해당 서비스를 이용하시려면\n구독이 필요해요",
-        "description": "구독 후에 채팅방을 만들고,\n친구를 초대하여 채팅을 시작해 보세요.",
+        "description": "구독 후에 대화방을 만들고,\n친구를 초대하여 대화를 시작해 보세요.",
         "cancel": "취소",
         "subscribe": "구독하기"
     },
     "limitExceeded": {
         "placeTitle": "플레이스를 더 만들 수 없어요",
         "placeDescription": "플레이스는 최대 {{max}}개까지만 만들 수 있어요.",
-        "channelTitle": "채팅방을 더 만들 수 없어요",
-        "channelDescription": "채팅방은 최대 {{max}}개까지만 만들 수 있어요.",
+        "channelTitle": "대화방을 더 만들 수 없어요",
+        "channelDescription": "대화방은 최대 {{max}}개까지만 만들 수 있어요.",
         "confirm": "확인"
     },
     "error": {
@@ -1840,7 +1843,7 @@
         "noResults": "검색 결과가 없어요"
     },
     "addAccount": {
-        "title": "계정 추가",
+        "title": "클라우드 추가",
         "emailTitle": "이메일 등록",
         "emailSubtitle": "기기를 바꾸거나 앱을 다시 설치했을 때\n클라우드를 복원할 이메일 주소를 입력해 주세요",
         "emailLabel": "이메일",
@@ -1857,11 +1860,11 @@
         "codeError": "인증번호를 정확히 입력해 주세요",
         "success": "계정 생성을 시작했어요. 설정에 최대 10분이 소요될 수 있어요",
         "tooltip": "이메일이 도착하지 않았다면\n스팸 메일함을 확인해주세요",
-        "subscriptionRequired": "구독 중인 플랫폼에서만 계정을 추가할 수 있어요",
-        "cloudUserRequired": "클라우드 사용자만 계정을 추가할 수 있어요",
+        "subscriptionRequired": "구독 중인 플랫폼에서만 클라우드를 추가할 수 있어요",
+        "cloudUserRequired": "클라우드 사용자만 클라우드를 추가할 수 있어요",
         "emailAlreadyUsed": "이미 다른 계정에 사용 중인 이메일이에요",
         "cancelScheduled": "해지 예약 중에는 계정을 추가할 수 없어요",
-        "addFailed": "계정 추가에 실패했어요",
+        "addFailed": "클라우드 추가에 실패했어요",
         "emailInvalid": "이메일 형식이 올바르지 않아요",
         "codeExpired": "인증 시간이 지났어요. 재전송해 주세요",
         "emailSkip": "나중에 인증할게요",
@@ -1874,7 +1877,7 @@
     },
     "nameSetup": {
         "title": "이름 설정",
-        "description": "채팅에서 사용할 이름을 입력해주세요",
+        "description": "대화에서 사용할 이름을 입력해주세요",
         "placeholder": "이름을 입력하세요",
         "save": "저장",
         "skip": "나중에",
@@ -1885,7 +1888,7 @@
     },
     "profileNameEdit": {
         "title": "이름 변경",
-        "description": "채팅에서 사용할 이름을 변경해주세요",
+        "description": "대화에서 사용할 이름을 변경해주세요",
         "myName": "내 이름:",
         "nameLabel": "이름",
         "placeholder": "이름을 입력하세요",
@@ -1994,7 +1997,7 @@
         "reissueFailed": "다시 초대하지 못했어요. 잠시 후 다시 시도해 주세요",
         "pending": {
             "title": "친구의 응답을 기다리고 있어요",
-            "description": "초대를 수락하면 채팅방에서 대화를 시작할 수 있어요"
+            "description": "초대를 수락하면 대화방에서 대화를 시작할 수 있어요"
         },
         "cancelDialog": {
             "title": "초대를 취소할까요?",
@@ -2082,17 +2085,17 @@
         "place": "플레이스",
         "cancel": "취소",
         "done": "완료",
-        "searchPlaceholder": "채팅방 검색",
+        "searchPlaceholder": "대화방 검색",
         "noResults": "검색 결과가 없어요.",
-        "noDestinations": "보낼 수 있는 채팅방이 없어요.",
+        "noDestinations": "보낼 수 있는 대화방이 없어요.",
         "groupPeople": "1:1 대화",
-        "groupChannels": "채널",
+        "groupChannels": "그룹방",
         "removeDestination": "대상에서 빼기",
         "limit": "최대 {{max}}곳까지 보낼 수 있어요.",
         "sentMany": "{{count}}곳에 보냈어요.",
         "switchFailed": "전환하지 못했어요. 다시 시도해 주세요.",
         "sendFailed": "보내지 못했어요. 다시 시도해 주세요.",
-        "sendFailedSome": "일부 채팅방에 보내지 못했어요.",
-        "loadingDestinations": "채팅방을 불러오고 있어요"
+        "sendFailedSome": "일부 대화방에 보내지 못했어요.",
+        "loadingDestinations": "대화방을 불러오고 있어요"
     }
 }

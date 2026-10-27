@@ -11,7 +11,7 @@ jest.mock('react-i18next', () => ({
                 'inviteAccept.target.you': 'You',
                 'inviteAccept.target.group': '그룹 대화',
                 'inviteAccept.target.oneToOne': '1:1 대화',
-                'inviteAccept.target.place': '플레이스 멤버',
+                'inviteAccept.target.place': '플레이스 친구',
                 'inviteAccept.invitedBy': '님이 DoU에 당신을 초대했어요',
                 'inviteAccept.description': '초대 수락하고 대화를 시작해 보세요.',
                 'inviteAccept.decline': '거절',
@@ -118,7 +118,7 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
         setup({ targetKind: 'place', placeName: '레몬클라우드' });
 
         expect(screen.getByTestId('invite-place-card')).toBeTruthy();
-        expect(screen.getByText('플레이스 멤버')).toBeTruthy();
+        expect(screen.getByText('플레이스 친구')).toBeTruthy();
         expect(screen.queryByText('그룹 대화')).toBeNull();
     });
 

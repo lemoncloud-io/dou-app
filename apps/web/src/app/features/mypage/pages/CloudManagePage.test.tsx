@@ -55,7 +55,9 @@ describe('CloudManagePage — never subscribed', () => {
     it('shows the empty card with a subscribe button leading to the guide', () => {
         render(<CloudManagePage />);
 
-        expect(screen.getByText('mypage.subscription.list.emptyTitle')).toBeInTheDocument();
+        expect(screen.getByText('mypage.cloudManage.emptyTitle')).toBeInTheDocument();
+        expect(screen.getByText('mypage.cloudManage.emptyDescription')).toBeInTheDocument();
+        expect(screen.queryByText('mypage.subscription.list.emptyTitle')).not.toBeInTheDocument();
         fireEvent.click(screen.getByText('mypage.subscription.subscribe'));
         expect(navigate).toHaveBeenCalledWith('/subscription/guide');
         expect(screen.queryByTestId('plan-card')).not.toBeInTheDocument();

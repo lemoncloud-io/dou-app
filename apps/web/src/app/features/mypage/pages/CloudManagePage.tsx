@@ -46,7 +46,8 @@ export const CloudManagePage = () => {
         </div>
     ) : !hasSubscription ? (
         // Same card the subscription list shows for an account that never subscribed, with the
-        // same call to action: the guide, which is where a first subscription starts.
+        // same call to action: the guide, which is where a first subscription starts. The copy is
+        // this screen's own — it reports no cloud in use, where the list reports no subscription.
         <div className="flex flex-col gap-6 px-4 pt-2">
             <SectionLabel title={t('mypage.cloudManage.sectionMine')} />
             <div className="flex flex-col items-center gap-3 rounded-[18px] bg-card px-4 py-8 shadow-[0_2px_6px_rgba(0,0,0,0.08)] dark:border dark:border-border dark:shadow-none">
@@ -57,12 +58,10 @@ export const CloudManagePage = () => {
                     !
                 </span>
                 <span className="text-center text-[17px] font-semibold text-foreground">
-                    {t('mypage.subscription.list.emptyTitle')}
+                    {t('mypage.cloudManage.emptyTitle')}
                 </span>
                 <span className="text-center text-[14px] text-description">
-                    {isOnMobileApp
-                        ? t('mypage.subscription.list.emptyDescription')
-                        : t('mypage.subscription.mobileOnly')}
+                    {isOnMobileApp ? t('mypage.cloudManage.emptyDescription') : t('mypage.subscription.mobileOnly')}
                 </span>
             </div>
             {isOnMobileApp && (

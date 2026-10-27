@@ -11,7 +11,7 @@ const stepText: Record<string, Record<string, string>> = {
     ko: {
         'onboarding.steps.privateCommunity.title': '프라이빗 커뮤니티',
         'onboarding.steps.privateCommunity.description':
-            '최대 {{maxPlaces}}개의 대화공간과, {{maxChannels}}개의 채팅방으로\n필요한 사람들과 필요한 이야기를 나눠요',
+            '최대 {{maxPlaces}}개의 대화공간과, {{maxChannels}}개의 대화방으로\n필요한 사람들과 필요한 이야기를 나눠요',
         'onboarding.steps.safeSpace.title': '안전한 대화 공간',
         'onboarding.steps.safeSpace.description': '초대 링크를 받은 친구끼리\n안전하게 대화가 가능해요.',
         'onboarding.steps.groupCommunication.title': '그룹 소통',
