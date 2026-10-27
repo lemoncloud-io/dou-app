@@ -83,6 +83,10 @@ active, the relay `user` row is out of their reach. `useMyUser()` reads the toke
 response back into that token. **Read and write share one scope**, which is the invariant an earlier
 attempt inside the data layer could not hold — see [place](../place/README.md) for that history.
 
+The editor's name field takes up to 30 characters, and its hint states that number from the same
+constant (`profileEdit.nameHint` interpolates `{{max}}`) — the place profile's 20 is a different limit.
+A save that went through says `profileEdit.saveSuccess` before going back; a failed one stays put.
+
 ### The hub asks about the account; the settings depth asks about the session
 
 `useIsAccountGuest()` is what the hub branches on. Every row on it is account-scoped — your profile,
