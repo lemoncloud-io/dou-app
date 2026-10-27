@@ -8,17 +8,18 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 import '../../../../../i18n';
 
 import { ImageViewer } from './ImageViewer';
+import { DOUBLE_TAP_ZOOM_SCALE } from './imageZoom';
 
 const images = ['a.png', 'b.png', 'c.png'].map((name, index) => ({ id: `i${index}`, name, url: `blob:${name}` }));
 
 const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
 
-const renderViewer = (openIndex = 0) =>
+const renderViewer = (openIndex = 0, onClose = vi.fn()) =>
     render(
         <ImageViewer
             images={images}
             openIndex={openIndex}
-            onClose={vi.fn()}
+            onClose={onClose}
             author={{ name: 'Ada', colorSeed: 'ada', time: '10:00' }}
             onDownload={vi.fn()}
             onDownloadAll={vi.fn()}
@@ -69,21 +70,57 @@ describe('ImageViewer zoom', () => {
 
     const layer = () => document.querySelector('[data-zoom-layer]') as HTMLElement;
     const stage = () => document.querySelector('[data-zoom-stage]') as HTMLElement;
+    const photo = () => screen.getByRole('img');
     const scaleOf = () => Number(layer().style.transform.match(/scale\(([^)]+)\)/)?.[1]);
-
-    it('scales the picture around the pointer and stops the browser taking the wheel', () => {
-        renderViewer();
+    const wheelZoomIn = (clientX = 200, clientY = 200) => {
         const event = new WheelEvent('wheel', {
             deltaY: -400,
             bubbles: true,
             cancelable: true,
-            clientX: 200,
-            clientY: 200,
+            clientX,
+            clientY,
         });
         act(() => {
             stage().dispatchEvent(event);
         });
+        return event;
+    };
+
+    it('scales the picture around the pointer and stops the browser taking the wheel', () => {
+        renderViewer();
+        const event = wheelZoomIn();
         expect(event.defaultPrevented).toBe(true);
         expect(scaleOf()).toBeGreaterThan(1);
+    });
+
+    it('pans a zoomed photo without closing or stepping the set', () => {
+        const onClose = vi.fn();
+        renderViewer(0, onClose);
+        wheelZoomIn(0, 0);
+        const before = layer().style.transform;
+
+        fireEvent.pointerDown(layer(), { clientX: 0, clientY: 0, pointerId: 1 });
+        fireEvent.pointerMove(layer(), { clientX: -150, clientY: 0, pointerId: 1 });
+        fireEvent.pointerUp(layer(), { clientX: -150, clientY: 0, pointerId: 1 });
+
+        expect(layer().style.transform).not.toBe(before);
+        expect(onClose).not.toHaveBeenCalled();
+        expect(photo()).toHaveProperty('alt', 'Image 1 of 3 from Ada');
+    });
+
+    it('zooms in on a double click on the photo, and back out on the next', () => {
+        renderViewer();
+        fireEvent.doubleClick(photo(), { clientX: 0, clientY: 0 });
+        expect(scaleOf()).toBe(DOUBLE_TAP_ZOOM_SCALE);
+        fireEvent.doubleClick(photo(), { clientX: 0, clientY: 0 });
+        expect(scaleOf()).toBe(1);
+    });
+
+    it('starts the next picture fitted after a zoom', () => {
+        renderViewer();
+        wheelZoomIn();
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' });
+        expect(scaleOf()).toBe(1);
+        expect(position()).toContain('Image 2 of 3');
     });
 });

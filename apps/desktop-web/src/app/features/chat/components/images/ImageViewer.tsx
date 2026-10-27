@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/u
 import { avatarStyle } from '../../../../shared';
 import type { ChatImage } from '../../utils';
 import { ImageActions } from './ImageActions';
-import { clampZoom, IDENTITY_ZOOM, type Zoom, wheelZoom } from './imageZoom';
+import { clampZoom, doubleTapZoom, IDENTITY_ZOOM, isZoomed, type Point, type Zoom, wheelZoom } from './imageZoom';
 
 /** Who sent the images — the viewer's thread column repeats the message header. */
 export interface ImageAuthor {
@@ -80,8 +80,31 @@ export const ImageViewer = ({
         setStageEl(previous => (previous === node ? previous : node));
     }, []);
     const imageRef = useRef<HTMLImageElement>(null);
+    const panRef = useRef<{ from: Zoom; start: Point } | null>(null);
+    const [panning, setPanning] = useState(false);
     const isOpen = openIndex !== null;
     const isMulti = images.length > 1;
+
+    const toStagePoint = (clientX: number, clientY: number, stage: HTMLElement): Point => {
+        const rect = stage.getBoundingClientRect();
+        return {
+            x: clientX - (rect.left + rect.width / 2),
+            y: clientY - (rect.top + rect.height / 2),
+        };
+    };
+    const zoomBounds = (stage: HTMLElement) => {
+        const image = imageRef.current;
+        const page = { width: stage.clientWidth, height: stage.clientHeight };
+        const content =
+            image && image.offsetWidth > 0 ? { width: image.offsetWidth, height: image.offsetHeight } : page;
+        return { content, page };
+    };
+    const resetZoom = () => {
+        panRef.current = null;
+        setPanning(false);
+        zoomRef.current = IDENTITY_ZOOM;
+        setZoomState(IDENTITY_ZOOM);
+    };
 
     // Follows a new `openIndex` during render rather than in an effect, so opening takes
     // one render instead of two.
@@ -90,8 +113,7 @@ export const ImageViewer = ({
         if (openIndex !== null) setIndex(openIndex);
         setHasMoved(false);
         setNatural(null);
-        zoomRef.current = IDENTITY_ZOOM;
-        setZoomState(IDENTITY_ZOOM);
+        resetZoom();
     }
 
     // A delete can shrink the set under the viewer; keep the index on a real image and
@@ -106,18 +128,14 @@ export const ImageViewer = ({
         if (!stageEl) return;
         const onWheel = (event: WheelEvent) => {
             event.preventDefault();
-            const rect = stageEl.getBoundingClientRect();
-            const focal = {
-                x: event.clientX - (rect.left + rect.width / 2),
-                y: event.clientY - (rect.top + rect.height / 2),
-            };
-            const image = imageRef.current;
-            const content =
-                image && image.offsetWidth > 0
-                    ? { width: image.offsetWidth, height: image.offsetHeight }
-                    : { width: stageEl.clientWidth, height: stageEl.clientHeight };
-            const page = { width: stageEl.clientWidth, height: stageEl.clientHeight };
-            setZoom(clampZoom(wheelZoom(zoomRef.current, event.deltaY, focal), content, page));
+            const { content, page } = zoomBounds(stageEl);
+            setZoom(
+                clampZoom(
+                    wheelZoom(zoomRef.current, event.deltaY, toStagePoint(event.clientX, event.clientY, stageEl)),
+                    content,
+                    page
+                )
+            );
         };
         stageEl.addEventListener('wheel', onWheel, { passive: false });
         return () => stageEl.removeEventListener('wheel', onWheel);
@@ -128,8 +146,7 @@ export const ImageViewer = ({
     const moveTo = (next: number) => {
         if (next !== index) {
             setNatural(null);
-            zoomRef.current = IDENTITY_ZOOM;
-            setZoomState(IDENTITY_ZOOM);
+            resetZoom();
         }
         setIndex(next);
         setHasMoved(true);
@@ -178,9 +195,54 @@ export const ImageViewer = ({
                                     middle of the window. */}
                                 <div
                                     data-zoom-layer=""
-                                    className="flex h-full w-full items-center justify-center"
+                                    className={cn(
+                                        'flex h-full w-full items-center justify-center',
+                                        isZoomed(zoom)
+                                            ? panning
+                                                ? 'cursor-grabbing'
+                                                : 'cursor-grab'
+                                            : 'cursor-zoom-in'
+                                    )}
                                     style={{
                                         transform: `translate3d(${zoom.x}px, ${zoom.y}px, 0) scale(${zoom.scale})`,
+                                    }}
+                                    onPointerDown={event => {
+                                        if (!isZoomed(zoomRef.current) || !stageEl) return;
+                                        panRef.current = {
+                                            from: zoomRef.current,
+                                            start: toStagePoint(event.clientX, event.clientY, stageEl),
+                                        };
+                                        try {
+                                            event.currentTarget.setPointerCapture(event.pointerId);
+                                        } catch {
+                                            // A synthetic pointer still delivers moves while it stays over the layer.
+                                        }
+                                        setPanning(true);
+                                    }}
+                                    onPointerMove={event => {
+                                        const pan = panRef.current;
+                                        if (!pan || !stageEl) return;
+                                        const point = toStagePoint(event.clientX, event.clientY, stageEl);
+                                        const { content, page } = zoomBounds(stageEl);
+                                        setZoom(
+                                            clampZoom(
+                                                {
+                                                    ...pan.from,
+                                                    x: pan.from.x + point.x - pan.start.x,
+                                                    y: pan.from.y + point.y - pan.start.y,
+                                                },
+                                                content,
+                                                page
+                                            )
+                                        );
+                                    }}
+                                    onPointerUp={() => {
+                                        panRef.current = null;
+                                        setPanning(false);
+                                    }}
+                                    onPointerCancel={() => {
+                                        panRef.current = null;
+                                        setPanning(false);
                                     }}
                                 >
                                     <img
@@ -193,6 +255,20 @@ export const ImageViewer = ({
                                             name: author.name,
                                         })}
                                         draggable={false}
+                                        onDoubleClick={event => {
+                                            if (!stageEl) return;
+                                            const { content, page } = zoomBounds(stageEl);
+                                            setZoom(
+                                                clampZoom(
+                                                    doubleTapZoom(
+                                                        zoomRef.current,
+                                                        toStagePoint(event.clientX, event.clientY, stageEl)
+                                                    ),
+                                                    content,
+                                                    page
+                                                )
+                                            );
+                                        }}
                                         onLoad={event =>
                                             setNatural({
                                                 width: event.currentTarget.naturalWidth,

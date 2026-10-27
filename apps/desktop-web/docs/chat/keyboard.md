@@ -55,7 +55,8 @@ it opened is on screen. The grouped timestamp in a message's left gutter shows o
   cancels the edit and used to close the thread panel as well. The editor takes the key itself, from
   the body, a toolbar button or Cancel alike; an Escape the emoji picker or the mention list took
   arrives already handled and cancels nothing.
-- The image viewer steps with ←/→ only when no control inside it has handled the key.
+- The image viewer steps with ←/→ only when no control inside it has handled the key. The arrows
+  still step while the photo is zoomed; zoom is the wheel and a double-click, not the arrows.
 
 ## Focus when something opens or closes
 

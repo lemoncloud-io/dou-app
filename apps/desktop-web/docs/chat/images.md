@@ -150,7 +150,9 @@ never saved without asking: the shell skips the dialog for images only (above).
 `ImageViewer` is a modal dialog over a plain scrim. Previously the app was frosted behind it.
 
 - The picture fills the stage and keeps its shape, up to twice its own size, so a small image is not
-  a speck in the middle of the window.
+  a speck in the middle of the window. The wheel (and a trackpad pinch) zooms around the cursor from
+  that fitted size up to 4×; dragging pans while zoomed, a double-click toggles 2.5× at that point, and
+  stepping to another picture starts at fit.
 - The alt text is the position and the sender ("Image 3 of 10 from Ada"), not the file name.
 - Previous and next, save, copy and delete are always on screen.
 - ←/→ step through the set, and a live region says the new position. The dialog's description says it
