@@ -27,6 +27,7 @@ export const SCENARIOS = [
     'expired',
     'history-mixed',
     'email-pending',
+    'new-apple',
 ] as const;
 
 export type ScenarioId = (typeof SCENARIOS)[number];
@@ -39,6 +40,8 @@ export const FAIL_FLAGS = [
     'signin-canceled',
     'signin-expired',
     'session-ended',
+    'code-expired',
+    'resend-limit',
 ] as const;
 
 export type FailFlag = (typeof FAIL_FLAGS)[number];
@@ -56,10 +59,19 @@ export interface MockAttempt extends PaymentAttempt {
     planId?: PlanId;
 }
 
+/** One address's code: when it was sent and dies, how many tries and codes are left, any lock. */
+export interface MockEmailCode {
+    sentAt: number;
+    expiresAt: number;
+    attemptsLeft: number;
+    resendsLeft: number;
+    lockedUntil?: number;
+}
+
 /** The whole mock server: one account and everything it owns. */
 export interface MockState {
     /** Bumped when this shape changes, so a stored older shape is rebuilt rather than misread. */
-    version: 2;
+    version: 3;
     scenario: ScenarioId;
     /** The mock's today, an ISO date. */
     today: string;
@@ -86,6 +98,8 @@ export interface MockState {
     paymentMethods: PaymentMethod[];
     invoices: Invoice[];
     billing: BillingInfo;
+    /** The verification code in flight per billing email id. Instants are wall-clock milliseconds. */
+    emailCodes: Record<string, MockEmailCode>;
     attempts: MockAttempt[];
     failedCardAttempts: number;
     /** Counter behind every id the mock hands out. */

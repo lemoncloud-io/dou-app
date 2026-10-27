@@ -66,6 +66,49 @@
                 "clouds_other": "{{count}} clouds",
                 "perMonth": "<price>{{price}}</price> / month",
                 "vatNote": "VAT included · 1 month"
+            },
+            "email": {
+                "placeholder": "name@example.com",
+                "sendCode": "Get a code",
+                "resend": "Resend",
+                "resendIn": "Resend ({{seconds}}s)",
+                "code": "6-digit code",
+                "verify": "Verify",
+                "remaining": "{{time}} left",
+                "sent": "We sent a code to {{address}}. Enter it within {{minutes}} minutes.",
+                "spam": "No email? Check your spam folder.",
+                "verified": "Verified",
+                "reenter": "Use another",
+                "policyCode": "The code is 6 digits and works for 5 minutes. You can enter it up to 5 times.",
+                "policyResend": "You can resend a code after 60 seconds, up to 5 times. After that, please verify again in 10 minutes.",
+                "error": {
+                    "invalidAddress": "Please check the email address.",
+                    "disposable": "Disposable addresses can't be used. Please enter an address you use regularly.",
+                    "limit": "You can't add more billing emails. Remove one you don't use and try again.",
+                    "invalidCode_one": "That code isn't right. {{count}} try left.",
+                    "invalidCode_other": "That code isn't right. {{count}} tries left.",
+                    "tooManyAttempts": "Too many wrong codes. Please get a new code.",
+                    "expired": "The code has expired. Press Resend to get a new code.",
+                    "tooSoon": "Please wait a moment before resending.",
+                    "same": "That's the current address.",
+                    "registered": "That address is already registered.",
+                    "resendLimit_one": "Too many codes requested. Please verify again in {{count}} minute.",
+                    "resendLimit_other": "Too many codes requested. Please verify again in {{count}} minutes."
+                },
+                "otherAddress": "Use another address",
+                "lockedFor": "Verify again in {{time}}"
+            },
+            "emailChange": {
+                "title": "Change billing email",
+                "body": "Change the address that gets payment notices, receipts and other subscription mail. It changes once the new address is verified.",
+                "current": "Current email",
+                "newAddress": "New email",
+                "primary": "Primary",
+                "hintNew": "You can change it once the new address is verified.",
+                "billingHint": "Until then we keep sending to the current address. When the primary address changes, we let both the old and the new address know.",
+                "confirm": "Change",
+                "changed": "Billing email changed",
+                "verifiedNote": "Verified. Press Change to switch to this address now."
             }
         },
         "entry": {
@@ -120,26 +163,23 @@
                 "phoneBody": "Link a Google or Apple account in the app under MY › Account first, then sign in here.",
                 "noNewAccounts": "New accounts are not created on the web.",
                 "reason": {
-                    "canceled": "You canceled the sign-in",
-                    "expired-attempt": "The sign-in timed out. Please try again",
-                    "failed": "We couldn't sign you in. Please try again",
-                    "session-ended": "You were signed out. Please sign in again"
+                    "canceled": "You canceled the sign-in. Please try again.",
+                    "expired-attempt": "The sign-in timed out. Please try again.",
+                    "failed": "Something went wrong while signing you in. Please try again in a moment.",
+                    "session-ended": "Your sign-in has expired. Sign in again to return to the page you were on."
                 },
-                "completing": "Signing you in…"
+                "completing": "Signing you in",
+                "completingBody": "This will only take a moment."
             },
             "noAccount": {
                 "title": "No DoU account found",
-                "bodyHint": "No DoU account is linked to {{hint}} ({{provider}}). Install the app, sign in with the same account, then come back.",
-                "body": "No DoU account is linked to this {{provider}} account. Install the app, sign in with the same account, then come back.",
-                "stepsTitle": "Here's what to do",
+                "bodyHint": "No DoU account is linked to {{hint}} ({{provider}}). New accounts are not created on the web.",
+                "body": "No DoU account is linked to this {{provider}} account. New accounts are not created on the web.",
                 "step1": "Install the DoU app",
                 "step2": "Sign in to the app with the same {{provider}} account",
-                "step3": "Sign in again on this page",
-                "otherWaysTitle": "Already signed up in the app?",
-                "phoneUser": "If you signed up with a phone number, link your {{provider}} account in the app under MY › Account first.",
+                "step3": "Come back to this page and sign in again",
+                "phoneUser": "If you signed up with a phone number only, link a Google or Apple account in the app under MY › Account.",
                 "otherProvider": "If you sign in to the app another way, sign in here that way instead.",
-                "appStore": "Get it on the App Store",
-                "googlePlay": "Get it on Google Play",
                 "otherAccount": "Sign in with another account"
             },
             "storeManaged": {
@@ -212,6 +252,20 @@
                 "dateAndPrice": "{{date}} · {{price}}",
                 "chargeToday": "Due today"
             },
+            "emailStep": {
+                "title": "Verify your email",
+                "subtitle": "To subscribe, please verify an email address.",
+                "label": "Email",
+                "description": "We send upcoming payments, receipts, price changes and other subscription notices to this address.",
+                "signInChip": "Google account email",
+                "useOther": "Use another email",
+                "signInNote": "This is the Google account you signed in with, so you can use it without verifying.",
+                "appleNote": "Signing in with Apple does not share an email address. Please enter the address you want subscription notices sent to, and verify it.",
+                "verifiedNote": "Verified. Subscription notices go to this address. After subscribing you can add or change addresses in Billing info.",
+                "change": "Change email",
+                "next": "Next · Review your order",
+                "nextHint": "Verify your email to go on to the next step."
+            },
             "details": {
                 "title": "Review your order",
                 "subtitle": "Check the plan, the price and the account the subscription applies to.",
@@ -227,6 +281,7 @@
                 "title": "Billing details",
                 "country": "Billing country",
                 "email": "Billing email",
+                "change": "Change",
                 "countries": {
                     "KR": "South Korea",
                     "US": "United States",
@@ -236,19 +291,6 @@
                 "countryNote": "The billing country decides how you pay. It cannot be changed after you subscribe.",
                 "comingSoonTitle": "Paying from outside Korea is coming soon",
                 "comingSoonBody": "For now you can subscribe only with South Korea as the billing country."
-            },
-            "email": {
-                "change": "Change",
-                "verified": "✓ Verified",
-                "sendCode": "Send code",
-                "codeSent": "Enter the code we sent to {{address}}.",
-                "verify": "Verify",
-                "resend": "Send the code again",
-                "otherAddress": "Use another email",
-                "error": {
-                    "invalidCode": "That code does not match. Please check it and try again.",
-                    "limit": "You cannot add more billing emails. Remove one you no longer use in Billing info."
-                }
             },
             "consent": {
                 "all": "Agree to all",
@@ -848,30 +890,14 @@
                 },
                 "dialog": {
                     "titleAdd": "Add billing email",
-                    "titleChange": "Change billing email",
+                    "titleVerify": "Verify billing email",
                     "bodyAdd": "Once the new address is verified, it joins your billing emails.",
-                    "bodyChange": "Switch your billing email to a new address. Verify it, then choose Change to switch right away.",
-                    "current": "Current email",
-                    "newAddress": "New email",
-                    "addressPlaceholder": "name@example.com",
-                    "sendCode": "Send code",
-                    "resend": "Resend",
-                    "code": "Verification code",
-                    "verify": "Verify",
-                    "reenter": "Use another",
-                    "verified": "Verified",
-                    "sent": "We sent a code to {{address}}.",
-                    "verifiedAdd": "Verified. Billing emails will go to this address too.",
-                    "verifiedChange": "Verified. Choose Change to switch to this address now.",
-                    "hint": "Until the new address is verified, we keep sending to the current one.",
-                    "invalidAddress": "Check the email address.",
-                    "invalidCode": "That code doesn't match. Please check it.",
-                    "limit": "You can't add more billing emails. Remove one you don't use and try again.",
-                    "confirmAdd": "Done",
-                    "confirmChange": "Change",
-                    "added": "Billing email added",
-                    "changed": "Billing email changed",
-                    "alreadyVerified": "That address is already verified. You can make it primary from the list."
+                    "bodyVerify": "Get a code and enter it, and billing emails go to this address too.",
+                    "address": "Email address",
+                    "verified": "Verified. Billing emails will go to this address too.",
+                    "alreadyVerified": "That address is already verified. You can make it primary from the list.",
+                    "confirm": "Done",
+                    "added": "Billing email added"
                 }
             }
         }

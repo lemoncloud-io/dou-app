@@ -385,6 +385,147 @@ describe('createMockPort — the state machine', () => {
     });
 });
 
+describe('createMockPort — billing email codes', () => {
+    const MIN = 60_000;
+
+    it('hands back a ticket with the code lifetime, the resend time and the counts', async () => {
+        const { port } = setup('?mock=new');
+        const ticket = await port.requestEmailCode('billing@lemon.example');
+        expect(ticket).toEqual({
+            emailId: ticket.emailId,
+            expiresAt: new Date(1_000_000 + 5 * MIN).toISOString(),
+            resendAt: new Date(1_000_000 + 60_000).toISOString(),
+            resendsLeft: 4,
+            attemptsLeft: 5,
+        });
+    });
+
+    it('refuses a throwaway address', async () => {
+        const { port } = setup('?mock=new');
+        await expectCode(port.requestEmailCode('temp4821@mailinator.com'), 'disposableEmail');
+    });
+
+    it('counts wrong entries down, then kills the code', async () => {
+        const { port } = setup('?mock=new');
+        const { emailId } = await port.requestEmailCode('billing@lemon.example');
+        for (const left of [4, 3, 2, 1]) {
+            const error = await port.verifyEmailCode(emailId, '000000').catch((e: unknown) => e);
+            expect(isPortError(error, 'invalidCode') && error.detail).toEqual({ attemptsLeft: left });
+        }
+        await expectCode(port.verifyEmailCode(emailId, '000000'), 'tooManyAttempts');
+        // Even the right code is refused once the attempts are spent.
+        await expectCode(port.verifyEmailCode(emailId, '123456'), 'tooManyAttempts');
+    });
+
+    it('lets a code die after its lifetime', async () => {
+        const { port, advance } = setup('?mock=new');
+        const { emailId } = await port.requestEmailCode('billing@lemon.example');
+        advance(5 * MIN + 1);
+        await expectCode(port.verifyEmailCode(emailId, '123456'), 'codeExpired');
+    });
+
+    it('spaces resends, locks the address when they run out, and starts it over after the lock', async () => {
+        const { port, advance } = setup('?mock=new');
+        const { emailId } = await port.requestEmailCode('billing@lemon.example');
+        await expectCode(port.resendEmailCode(emailId), 'conflict');
+        for (const left of [3, 2, 1, 0]) {
+            advance(60_000);
+            expect((await port.resendEmailCode(emailId)).resendsLeft).toBe(left);
+        }
+        advance(60_000);
+        const locked = await port.resendEmailCode(emailId).catch((e: unknown) => e);
+        expect(isPortError(locked, 'resendLimit') && locked.detail?.retryAt).toBe(
+            new Date(1_000_000 + 5 * 60_000 + 10 * MIN).toISOString()
+        );
+        advance(5 * MIN);
+        await expectCode(port.resendEmailCode(emailId), 'resendLimit');
+        advance(5 * MIN);
+        expect((await port.resendEmailCode(emailId)).resendsLeft).toBe(4);
+    });
+
+    it('hands back the live ticket when a waiting address is asked for again', async () => {
+        const { port } = setup('?mock=new');
+        const first = await port.requestEmailCode('billing@lemon.example');
+        expect(await port.requestEmailCode('billing@lemon.example')).toEqual(first);
+    });
+
+    it('does not hand back a code whose tries are spent', async () => {
+        const { port, advance } = setup('?mock=new');
+        const first = await port.requestEmailCode('billing@lemon.example');
+        for (let i = 0; i < 5; i++) await port.verifyEmailCode(first.emailId, '000000').catch(() => undefined);
+        advance(60_000);
+        const again = await port.requestEmailCode('billing@lemon.example');
+        expect(again.attemptsLeft).toBe(5);
+        expect(await port.verifyEmailCode(again.emailId, '123456')).toMatchObject({ status: 'verified' });
+    });
+
+    it('takes a second check of a verified address as done, and refuses to resend to it', async () => {
+        const { port } = setup('?mock=new');
+        const { emailId } = await port.requestEmailCode('billing@lemon.example');
+        await port.verifyEmailCode(emailId, '123456');
+        expect(await port.verifyEmailCode(emailId, '000000')).toMatchObject({ status: 'verified' });
+        await expectCode(port.resendEmailCode(emailId), 'conflict');
+    });
+
+    it('keeps the primary mark on a new address that already had it', async () => {
+        const { port } = setup('?mock=active');
+        const { emailId } = await port.requestEmailCode('second@lemon.example');
+        await port.verifyEmailCode(emailId, '123456');
+        // The verified primary (em-1) takes the place of the non-primary address: it stays primary.
+        const { emails } = await port.replaceEmail(emailId, 'em-1');
+        expect(emails.map(e => [e.id, e.primary])).toEqual([['em-1', true]]);
+    });
+
+    it('verifies a fresh code after a resend', async () => {
+        const { port, advance } = setup('?mock=new');
+        const { emailId } = await port.requestEmailCode('billing@lemon.example');
+        advance(60_000);
+        await port.resendEmailCode(emailId);
+        expect(await port.verifyEmailCode(emailId, '123456')).toMatchObject({ status: 'verified', primary: true });
+    });
+
+    it('fails the next verification with code-expired and the next resend with resend-limit', async () => {
+        const expired = setup('?mock=new&fail=code-expired');
+        const { emailId } = await expired.port.requestEmailCode('billing@lemon.example');
+        await expectCode(expired.port.verifyEmailCode(emailId, '123456'), 'codeExpired');
+
+        const limited = setup('?mock=new&fail=resend-limit');
+        const ticket = await limited.port.requestEmailCode('billing@lemon.example');
+        await expectCode(limited.port.resendEmailCode(ticket.emailId), 'resendLimit');
+    });
+
+    it('adopts the Google sign-in address as the verified primary, and refuses it for Apple', async () => {
+        const google = setup('?mock=new');
+        expect(await google.port.adoptSignInEmail()).toMatchObject({
+            address: 'minji.kim@gmail.com',
+            status: 'verified',
+            primary: true,
+        });
+        const apple = setup('?mock=new-apple');
+        expect((await apple.port.getSession())?.provider).toBe('apple');
+        await expectCode(apple.port.adoptSignInEmail(), 'conflict');
+    });
+
+    it('replaces an address with a verified new one, keeping its primary mark and what it receives', async () => {
+        const { port } = setup('?mock=active');
+        const { emailId } = await port.requestEmailCode('billing@lemon.example');
+        await expectCode(port.replaceEmail('em-1', emailId), 'conflict');
+        await port.verifyEmailCode(emailId, '123456');
+        await expectCode(port.replaceEmail('em-1', 'em-1'), 'conflict');
+
+        const { emails } = await port.replaceEmail('em-1', emailId);
+        expect(emails).toEqual([
+            {
+                id: emailId,
+                address: 'billing@lemon.example',
+                primary: true,
+                status: 'verified',
+                receives: ['receipt', 'notice'],
+            },
+        ]);
+    });
+});
+
 describe('createMockPort — the sign-in round trip', () => {
     const signIn = async (search: string, result: string, nonce = 'nonce-1') => {
         const mock = setup(search);
@@ -408,8 +549,9 @@ describe('createMockPort — the sign-in round trip', () => {
         expect(await mock.port.getSession()).toBeNull();
     });
 
-    it('reports a canceled sign-in', async () => {
-        await expectCode((await signIn('', 'canceled')).outcome, 'signInCanceled');
+    it('reports a canceled sign-in, with the return path it started with', async () => {
+        const error = await (await signIn('', 'canceled')).outcome.catch((e: unknown) => e);
+        expect(isPortError(error, 'signInCanceled') && error.detail).toEqual({ next: '/subscription/history' });
     });
 
     it('reports a timed-out sign-in', async () => {

@@ -41,12 +41,6 @@ export const toggleReceive = (
     on: boolean
 ): BillingEmailReceives => RECEIVE_ORDER.filter(k => (k === kind ? on : receives.includes(k)));
 
-// Shape only: whether the address is worth sending a code to. Whether it receives mail is what the
-// code proves.
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export const isEmailAddress = (value: string): boolean => EMAIL_SHAPE.test(value.trim());
-
 /**
  * The next day a failed charge is tried again, if one is still to come: today counts, a day already
  * passed does not. Only a subscription whose payment is failing carries a retry schedule.

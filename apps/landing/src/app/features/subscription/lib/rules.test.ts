@@ -1,3 +1,4 @@
+import { primaryVerifiedEmail } from './billingEmail';
 import { addDays, addMonths, toIsoDate } from './calendar';
 import { canRemovePaymentMethod } from './canRemovePaymentMethod';
 import { changeKindOf } from './changeKindOf';
@@ -5,7 +6,7 @@ import { ddayOf } from './ddayOf';
 import { landingAfterSignIn, safeNext } from './safeNext';
 import { sceneOf } from './sceneOf';
 
-import type { Account, PaymentMethod, Plan, Subscription } from '../types';
+import type { Account, BillingEmail, PaymentMethod, Plan, Subscription } from '../types';
 
 const plan = (sort: Plan['sort']): Plan => ({
     id: `pro-tier-0${sort}` as Plan['id'],
@@ -228,11 +229,35 @@ describe('landingAfterSignIn', () => {
         ).toBe('/subscription/store-managed');
     });
 
-    it('returns to a safe next, and to the subscription list otherwise', () => {
+    it('returns to a safe next, and to the plans otherwise', () => {
         expect(landingAfterSignIn(account(), '/subscription/checkout?plan=pro-tier-01')).toBe(
             '/subscription/checkout?plan=pro-tier-01'
         );
-        expect(landingAfterSignIn(account({ billingSource: 'none' }), 'https://evil.example')).toBe('/subscription');
-        expect(landingAfterSignIn(account(), undefined)).toBe('/subscription');
+        expect(landingAfterSignIn(account({ billingSource: 'none' }), 'https://evil.example')).toBe(
+            '/subscription/plans'
+        );
+        expect(landingAfterSignIn(account(), undefined)).toBe('/subscription/plans');
+    });
+});
+
+describe('primaryVerifiedEmail', () => {
+    const email = (overrides: Partial<BillingEmail>): BillingEmail => ({
+        id: 'em-1',
+        address: 'a@lemon.example',
+        primary: true,
+        status: 'verified',
+        receives: ['receipt', 'notice'],
+        ...overrides,
+    });
+
+    it('finds the verified primary address', () => {
+        const info = { country: 'KR', emails: [email({ id: 'em-2', primary: false }), email({})] };
+        expect(primaryVerifiedEmail(info)?.id).toBe('em-1');
+    });
+
+    it('finds nothing when the primary is not verified, or there is none', () => {
+        expect(primaryVerifiedEmail({ country: 'KR', emails: [email({ status: 'bounced' })] })).toBeUndefined();
+        expect(primaryVerifiedEmail({ country: 'KR', emails: [] })).toBeUndefined();
+        expect(primaryVerifiedEmail(undefined)).toBeUndefined();
     });
 });

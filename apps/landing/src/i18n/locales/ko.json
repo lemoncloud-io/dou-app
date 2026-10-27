@@ -100,18 +100,26 @@
         "versionNotFound": "버전을 찾을 수 없습니다.",
         "current": "현재",
         "refundTitle": "환불정책",
-        "refundSubtitle": "DoU 구독 결제의 환불 기준이에요.",
+        "refundSubtitle": "DoU 구독 결제의 환불 기준입니다.",
         "refundDraft": {
             "badge": "제안",
-            "title": "본문을 준비하고 있어요",
-            "body": "환불정책 본문은 아직 확정되지 않았어요. 확정되면 시행일과 함께 이 자리에 실려요."
+            "title": "본문을 준비하고 있습니다",
+            "body": "환불정책 본문은 아직 확정되지 않았습니다. 확정되면 시행일과 함께 이 자리에 게시됩니다."
         }
     },
     "footer": {
-        "terms": "이용약관",
-        "privacy": "개인정보처리방침",
-        "child": "아동 보호 정책 및 운영표준",
-        "copyright": "Copyright 2026 LEMONCLOUD. All rights reserved."
+        "terms": "서비스 이용 약관",
+        "privacy": "개인정보 처리방침",
+        "child": "아동 안전 및 운영 기준",
+        "copyright": "Copyrightⓒ2026 LEMONCLOUD. All rights reserved.",
+        "company": {
+            "name": "(주)레몬클라우드",
+            "ceo": "대표자명 : 김동혁",
+            "address": "주소 : 대구광역시 동구 동대구로 465, 3층 308호(신천동, 대구스케일업허브)",
+            "registration": "사업자등록번호 : {{number}}",
+            "tel": "TEL : {{number}}",
+            "mail": "MAIL :"
+        }
     },
     "error": {
         "screen": {
@@ -122,5 +130,9 @@
                 "secondaryAction": "홈으로"
             }
         }
+    },
+    "header": {
+        "plans": "구독 상품 보기",
+        "signIn": "로그인"
     }
 }

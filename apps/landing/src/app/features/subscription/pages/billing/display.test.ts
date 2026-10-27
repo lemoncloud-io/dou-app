@@ -1,12 +1,4 @@
-import {
-    addedCardOf,
-    cardExpiry,
-    cardExpiryMonth,
-    isEmailAddress,
-    nextRetryOf,
-    regionName,
-    toggleReceive,
-} from './display';
+import { addedCardOf, cardExpiry, cardExpiryMonth, nextRetryOf, regionName, toggleReceive } from './display';
 
 import type { PaymentMethod, Subscription } from '../../types';
 
@@ -76,16 +68,6 @@ describe('toggleReceive', () => {
 
     it('switching on a kind already on leaves the list as it was', () => {
         expect(toggleReceive(['receipt'], 'receipt', true)).toEqual(['receipt']);
-    });
-});
-
-describe('isEmailAddress', () => {
-    it.each(['a@b.co', ' billing@lemon.example ', 'x.y+z@sub.domain.kr'])('accepts %s', value => {
-        expect(isEmailAddress(value)).toBe(true);
-    });
-
-    it.each(['', 'billing', 'a@b', 'a b@c.d', '@c.d'])('rejects "%s"', value => {
-        expect(isEmailAddress(value)).toBe(false);
     });
 });
 

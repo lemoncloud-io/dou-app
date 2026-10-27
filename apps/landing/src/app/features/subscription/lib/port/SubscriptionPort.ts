@@ -7,6 +7,7 @@ import type {
     ChangePlanResult,
     ChangePreview,
     CheckoutPreview,
+    EmailCodeTicket,
     Invoice,
     PaymentAttempt,
     PaymentMethod,
@@ -67,8 +68,14 @@ export interface SubscriptionPort {
     // Billing.
     listInvoices(): Promise<Invoice[]>;
     getBillingInfo(): Promise<BillingInfo>;
-    requestEmailCode(address: string): Promise<{ emailId: string }>;
+    /** Sends a code to a new address (or a fresh one to an address still waiting). */
+    requestEmailCode(address: string): Promise<EmailCodeTicket>;
+    resendEmailCode(emailId: string): Promise<EmailCodeTicket>;
     verifyEmailCode(emailId: string, code: string): Promise<BillingEmail>;
+    /** Uses the Google sign-in address as a billing address without a code. */
+    adoptSignInEmail(): Promise<BillingEmail>;
+    /** A verified new address takes an old one's place: its primary mark and what it receives. */
+    replaceEmail(emailId: string, newEmailId: string): Promise<BillingInfo>;
     setPrimaryEmail(emailId: string): Promise<BillingInfo>;
     setEmailReceives(emailId: string, receives: BillingEmailReceives): Promise<BillingInfo>;
     removeEmail(emailId: string): Promise<BillingInfo>;

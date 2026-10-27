@@ -52,7 +52,7 @@ describe('first-visit language detection', () => {
     it('leaves the document describing the reader, not the static attribute', async () => {
         const i18n = await detectWith(['ko-KR']);
 
-        expect(i18n.t('footer.terms')).toBe('이용약관');
+        expect(i18n.t('footer.terms')).toBe('서비스 이용 약관');
         expect(document.documentElement.lang).toBe('ko');
     });
 });

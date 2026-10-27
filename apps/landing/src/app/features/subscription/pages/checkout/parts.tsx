@@ -4,8 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { storeUrls } from '../../../../config/links';
 import { useDeviceDetect } from '../../../../hooks';
 import { Banner, Button } from '../../components/ui';
-import { isPortError } from '../../lib/port';
-import { cn } from '../../utils';
+import { toIsoDate } from '../../lib/calendar';
+import { isPortError, useToday } from '../../lib/port';
+import { cn, formatDate, formatMoney } from '../../utils';
+import { dayBefore, formatShortDate } from './flow';
+
+import type { CheckoutPreview } from '../../types';
 
 /**
  * Pieces the checkout screens share and no other screen group draws. They stay in this folder rather
@@ -14,7 +18,7 @@ import { cn } from '../../utils';
 
 const STEPS = ['plan', 'signIn', 'details', 'payment', 'done'] as const;
 
-/** The five-step strip above W-08, W-05 and W-06. Steps before `current` are ticked. */
+/** The five-step strip above W-24, W-08, W-05 and W-06. Steps before `current` are ticked. */
 export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element => {
     const { t } = useTranslation();
     return (
@@ -70,7 +74,7 @@ export const FactRows = ({
     </dl>
 );
 
-/** The grey order summary beside W-08 and W-05. */
+/** The grey order summary beside W-24, W-08 and W-05. */
 export const OrderSummary = ({ children }: { children: ReactNode }): JSX.Element => {
     const { t } = useTranslation();
     return (
@@ -78,6 +82,63 @@ export const OrderSummary = ({ children }: { children: ReactNode }): JSX.Element
             <h2 className="font-semibold text-navy">{t('subscription.checkout.summary.title')}</h2>
             {children}
         </aside>
+    );
+};
+
+/** The order summary beside W-24 and W-08: the plan, its allowance and price, the trial and when the first charge falls. */
+export const CheckoutSummary = ({ preview }: { preview: CheckoutPreview }): JSX.Element => {
+    const { t, i18n } = useTranslation();
+    const today = toIsoDate(useToday());
+    const { plan, withTrial, firstChargeAt, amountToday } = preview;
+    const firstChargeIsToday = firstChargeAt === today;
+    return (
+        <OrderSummary>
+            <FactRows
+                rows={[
+                    {
+                        key: 'plan',
+                        label: t('subscription.checkout.summary.plan'),
+                        value: t('subscription.common.planName', { sort: plan.sort }),
+                    },
+                    {
+                        key: 'clouds',
+                        label: t('subscription.checkout.summary.clouds'),
+                        value: t('subscription.checkout.summary.cloudCount', { count: plan.maxClouds }),
+                    },
+                    {
+                        key: 'monthly',
+                        label: t('subscription.checkout.summary.monthly'),
+                        value: t('subscription.checkout.summary.monthlyValue', {
+                            price: formatMoney(plan.monthly, i18n.language),
+                        }),
+                    },
+                    {
+                        key: 'trial',
+                        label: t('subscription.checkout.summary.trial'),
+                        value: withTrial
+                            ? t('subscription.checkout.summary.trialRange', {
+                                  from: formatShortDate(today),
+                                  to: formatShortDate(dayBefore(firstChargeAt)),
+                                  count: plan.trialDays,
+                              })
+                            : t('subscription.checkout.summary.trialUsed'),
+                    },
+                    {
+                        key: 'firstCharge',
+                        label: t('subscription.checkout.summary.firstCharge'),
+                        value: firstChargeIsToday
+                            ? t('subscription.checkout.summary.today', { date: formatDate(firstChargeAt) })
+                            : formatDate(firstChargeAt),
+                    },
+                    {
+                        key: 'today',
+                        label: t('subscription.checkout.summary.chargeToday'),
+                        value: formatMoney(amountToday, i18n.language),
+                        strong: true,
+                    },
+                ]}
+            />
+        </OrderSummary>
     );
 };
 

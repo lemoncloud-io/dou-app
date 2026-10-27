@@ -156,10 +156,10 @@ describe('W-02 sign-in', () => {
     });
 
     it.each([
-        ['canceled', 'You canceled the sign-in'],
-        ['expired-attempt', 'The sign-in timed out. Please try again'],
-        ['failed', "We couldn't sign you in. Please try again"],
-        ['session-ended', 'You were signed out. Please sign in again'],
+        ['canceled', 'You canceled the sign-in. Please try again.'],
+        ['expired-attempt', 'The sign-in timed out. Please try again.'],
+        ['failed', 'Something went wrong while signing you in. Please try again in a moment.'],
+        ['session-ended', 'Your sign-in has expired. Sign in again to return to the page you were on.'],
     ])('shows the %s banner', async (reason, text) => {
         renderAt(`/subscription/login?reason=${reason}`, mockSetup('?mock=visitor'));
 
@@ -170,7 +170,9 @@ describe('W-02 sign-in', () => {
         renderAt('/subscription/login?reason=nonsense', mockSetup('?mock=visitor'));
 
         await screen.findByRole('button', { name: 'Continue with Google' });
-        expect(screen.queryByText(/canceled the sign-in|timed out|couldn't sign you in|were signed out/)).toBeNull();
+        expect(
+            screen.queryByText(/canceled the sign-in|timed out|went wrong while signing|sign-in has expired/)
+        ).toBeNull();
     });
 
     it('shows a failure when the sign-in cannot start', async () => {
@@ -178,8 +180,16 @@ describe('W-02 sign-in', () => {
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Apple' }));
 
-        expect(await screen.findByText("We couldn't sign you in. Please try again")).toBeTruthy();
+        expect(
+            await screen.findByText('Something went wrong while signing you in. Please try again in a moment.')
+        ).toBeTruthy();
         expect(where()).toBe('/subscription/login');
+    });
+
+    it('takes a reader who is already signed in to the plans when there is no next', async () => {
+        renderAt('/subscription/login', mockSetup('?mock=new'));
+
+        await waitFor(() => expect(where()).toBe('/subscription/plans'));
     });
 
     it('takes a reader who is already signed in straight to next', async () => {
@@ -200,13 +210,13 @@ describe('W-02 return', () => {
         await waitFor(() => expect(where()).toBe('/subscription/history'));
     });
 
-    it('lands on the subscription list without a next', async () => {
+    it('lands on the plans without a next', async () => {
         renderAt('/subscription/login', mockSetup('?mock=visitor'));
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Return to DoU' }));
 
-        await waitFor(() => expect(where()).toBe('/subscription'));
+        await waitFor(() => expect(where()).toBe('/subscription/plans'));
     });
 
     it('sends a store subscriber to the store notice', async () => {
@@ -228,8 +238,40 @@ describe('W-02 return', () => {
         fireEvent.click(await screen.findByLabelText('Cancel'));
         fireEvent.click(screen.getByRole('button', { name: 'Return to DoU' }));
 
-        expect(await screen.findByText('You canceled the sign-in')).toBeTruthy();
+        expect(await screen.findByText('You canceled the sign-in. Please try again.')).toBeTruthy();
         expect(where()).toBe('/subscription/login?reason=canceled');
+    });
+
+    it('keeps the return path when the sign-in is canceled', async () => {
+        renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=visitor'));
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
+        fireEvent.click(await screen.findByLabelText('Cancel'));
+        fireEvent.click(screen.getByRole('button', { name: 'Return to DoU' }));
+
+        await waitFor(() => expect(where()).toBe('/subscription/login?reason=canceled&next=%2Fsubscription%2Fhistory'));
+    });
+
+    it('keeps the return path when the sign-in times out', async () => {
+        renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=visitor'));
+
+        fireEvent.click(await screen.findByRole('button', { name: 'Continue with Apple' }));
+        fireEvent.click(await screen.findByLabelText('Time out'));
+        fireEvent.click(screen.getByRole('button', { name: 'Return to DoU' }));
+
+        expect(await screen.findByText('The sign-in timed out. Please try again.')).toBeTruthy();
+        expect(where()).toBe('/subscription/login?reason=expired-attempt&next=%2Fsubscription%2Fhistory');
+    });
+
+    it('shows that it is signing in while the port answers', async () => {
+        const setup = mockSetup('?mock=visitor');
+        // An answer that never comes keeps the page on its processing card for as long as the test looks.
+        vi.spyOn(setup.port, 'completeSignIn').mockReturnValue(new Promise(() => undefined));
+        renderAt('/subscription/login/callback?provider=google&nonce=n&result=continue', setup);
+
+        expect(await screen.findByRole('heading', { name: 'Signing you in' })).toBeTruthy();
+        expect(screen.getByText('This will only take a moment.')).toBeTruthy();
+        expect(where()).toBe('/subscription/login/callback?provider=google&nonce=n&result=continue');
     });
 
     it('treats a callback with no sign-in behind it as expired', async () => {
@@ -238,7 +280,7 @@ describe('W-02 return', () => {
             mockSetup('?mock=visitor')
         );
 
-        expect(await screen.findByText('The sign-in timed out. Please try again')).toBeTruthy();
+        expect(await screen.findByText('The sign-in timed out. Please try again.')).toBeTruthy();
         expect(where()).toBe('/subscription/login?reason=expired-attempt');
     });
 });
@@ -253,8 +295,12 @@ describe('W-02b no linked account', () => {
         expect(await screen.findByRole('heading', { name: 'No DoU account found' })).toBeTruthy();
         expect(screen.getByText(/No DoU account is linked to mi\*\*\*@gmail\.com \(Google\)/)).toBeTruthy();
         expect(where()).toBe('/subscription/login/no-account');
-        expect(screen.getByRole('link', { name: 'Get it on the App Store' }).getAttribute('href')).toMatch(
+        expect(screen.getByText('Sign in to the app with the same Google account')).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'App Store' }).getAttribute('href')).toMatch(
             /^https:\/\/apps\.apple\.com\//
+        );
+        expect(screen.getByRole('link', { name: 'Google Play' }).getAttribute('href')).toMatch(
+            /^https:\/\/play\.google\.com\//
         );
         expect(screen.getByRole('link', { name: 'Sign in with another account' }).getAttribute('href')).toBe(
             '/subscription/login'
@@ -269,6 +315,7 @@ describe('W-02b no linked account', () => {
 
         expect(await screen.findByText(/No DoU account is linked to this Apple account/)).toBeTruthy();
         expect(screen.queryByText(/@/)).toBeNull();
+        expect(screen.getByText('Sign in to the app with the same Apple account')).toBeTruthy();
     });
 
     it('still reads when opened without the hand-over', async () => {

@@ -113,6 +113,8 @@ const NEW_ACCOUNT: Account = { ...ACCOUNT, billingSource: 'none', trialUsed: fal
 
 const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
     visitor: () => ({ signedIn: false, account: NEW_ACCOUNT }),
+    // Signed in with Apple, which shares no address: the email step starts from an empty field.
+    'new-apple': () => ({ signedIn: true, account: { ...NEW_ACCOUNT, provider: 'apple', email: undefined } }),
     new: () => ({ signedIn: true, account: NEW_ACCOUNT }),
     'new-trial-used': () => ({ signedIn: true, account: { ...NEW_ACCOUNT, trialUsed: true } }),
     'no-linked-account': () => ({
@@ -323,7 +325,7 @@ export const buildScenario = (
     );
     const hasWebHistory = subscriptions.length > 0;
     return {
-        version: 2,
+        version: 3,
         scenario,
         today: options.today ?? DEFAULT_TODAY,
         fail: null,
@@ -344,6 +346,7 @@ export const buildScenario = (
             country: 'KR',
             emails: data.emails ?? (hasWebHistory ? [PRIMARY_EMAIL] : []),
         },
+        emailCodes: {},
         attempts: [],
         failedCardAttempts: 0,
         seq: 100,
