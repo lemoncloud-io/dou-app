@@ -6,13 +6,15 @@ import type { Plugin, UserConfig } from 'vite';
 const ROOT = path.resolve(import.meta.dirname, '../..');
 
 /**
- * The mobile app's route functions, reached through an alias rather than an import: a relative import
+ * The mobile app's route functions and URL rules, reached through an alias rather than an import: a relative import
  * breaks `@nx/enforce-module-boundaries`, and either form would make `@chatic/mobile` a dependency of
  * this project, whose typecheck would then build the mobile app. Their types are declared by hand in
- * `src/mobile.d.ts`; `routes.spec.ts` calls them through this same alias.
+ * `src/mobile.d.ts`; `routes.spec.ts` and `handlers.spec.ts` call them through this same alias.
  */
 export const MOBILE_ALIASES = {
     'shell-adapter/mobile-deeplink': path.join(ROOT, 'apps/mobile/src/app/services/deeplinks/deeplinkUtils.ts'),
+    // Which URLs the app lets the web open, so the shell's `OpenURL` refuses what the app refuses.
+    'shell-adapter/mobile-url-trust': path.join(ROOT, 'apps/mobile/src/app/webview/utils/urlTrust.ts'),
     // `deeplinkUtils.ts` reads one value from react-native-config: `VITE_ENV`, for the custom scheme.
     'react-native-config': path.join(import.meta.dirname, 'src/stubs/reactNativeConfig.ts'),
 };

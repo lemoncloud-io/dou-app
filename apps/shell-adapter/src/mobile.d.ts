@@ -26,4 +26,10 @@ declare module 'shell-adapter/mobile-deeplink' {
 
     export const resolvePushTapPath: (data: PushNavigationData | undefined | null) => string | null;
     export const resolveDeepLink: (rawUrl: string) => DeepLinkResolution;
+    export const isCustomScheme: (scheme: string) => boolean;
+}
+
+/** The app's rule for which URLs the web may ask it to open (`useDeviceHandler`'s `OpenURL`). */
+declare module 'shell-adapter/mobile-url-trust' {
+    export const isOpenableUrl: (url: unknown) => boolean;
 }

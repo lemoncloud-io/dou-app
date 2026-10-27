@@ -1,6 +1,6 @@
 import type { HandlerContext } from '@lemoncloud/hybrid-shell';
 
-import handlers, { APPLE_SIGN_IN_UNSUPPORTED } from './handlers';
+import handlers, { APP_SCHEME_OPEN_UNSUPPORTED, APPLE_SIGN_IN_UNSUPPORTED } from './handlers';
 import { mobileRoutes } from './routes';
 
 /** The shell's side of a call, with only what these handlers read. */
@@ -42,6 +42,60 @@ describe('the shell handlers', () => {
         });
         expect(signIn).not.toHaveBeenCalled();
         expect(lines).toEqual([expect.objectContaining({ source: 'unsupported', type: 'OAuthLogin' })]);
+    });
+
+    describe('OpenURL', () => {
+        afterEach(() => {
+            vi.unstubAllGlobals();
+        });
+
+        it('opens a web link in a new tab, cut off from the shell page', async () => {
+            const tab = { opener: 'shell' as unknown, location: { href: 'about:blank' } };
+            const open = vi.fn(() => tab);
+            vi.stubGlobal('open', open);
+            const { shell } = context();
+
+            await expect(call('OpenURL', { url: 'https://example.com/report.json' }, shell)).resolves.toEqual({});
+            expect(open).toHaveBeenCalledWith('about:blank', '_blank');
+            expect(tab.opener).toBeNull();
+            expect(tab.location.href).toBe('https://example.com/report.json');
+        });
+
+        it('refuses a scheme the app refuses, with its code, and opens nothing', async () => {
+            const open = vi.fn();
+            vi.stubGlobal('open', open);
+            const { shell } = context();
+
+            await expect(call('OpenURL', { url: 'javascript:alert(1)' }, shell)).rejects.toMatchObject({
+                code: 'LINK_NOT_ALLOWED',
+            });
+            expect(open).not.toHaveBeenCalled();
+        });
+
+        it("points the app's own scheme at the shell's link tool rather than a tab", async () => {
+            const open = vi.fn();
+            vi.stubGlobal('open', open);
+            const { shell, lines } = context();
+
+            await expect(call('OpenURL', { url: 'chatic-dev://channels/1' }, shell)).rejects.toMatchObject({
+                code: 'LINK_ERROR',
+                message: APP_SCHEME_OPEN_UNSUPPORTED,
+            });
+            expect(open).not.toHaveBeenCalled();
+            expect(lines).toEqual([expect.objectContaining({ source: 'unsupported', type: 'OpenURL' })]);
+        });
+
+        it('fails when the browser blocks the tab, instead of reporting it opened', async () => {
+            vi.stubGlobal(
+                'open',
+                vi.fn(() => null)
+            );
+            const { shell } = context();
+
+            await expect(call('OpenURL', { url: 'https://example.com' }, shell)).rejects.toMatchObject({
+                code: 'LINK_ERROR',
+            });
+        });
     });
 
     it('keeps a writable preference, and refuses a bad value or a key the app does not let the web write', async () => {

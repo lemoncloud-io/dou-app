@@ -35,7 +35,7 @@ The agent procedure is [`dou-shell-verify`](../../docs/config/skills/dou-shell-v
 | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | [`hybrid-shell.config.ts`](../../hybrid-shell.config.ts) | The ports, the web command, the env files, and the shell's events and requests under this app's message names                 |
 | `src/types.ts`                                           | The bridge contract as the shell's method and event tables, so a renamed message fails the config and the handlers to compile |
-| `src/handlers.ts`                                        | The answers to app-only messages: `libs/fake-shell`'s boot answers and cache, the preference store, sign-in                   |
+| `src/handlers.ts`                                        | The answers to app-only messages: `libs/fake-shell`'s boot answers and cache, preferences, sign-in, opening a URL             |
 | `src/routes.ts`, `src/mobile.d.ts`                       | The mobile app's `resolvePushTapPath` and `resolveDeepLink`, as the push-tap and link events call them                        |
 | `vite.shell.config.mts`, `src/stubs/`                    | The alias that reaches those functions, and the stub for the one native module they import — read by the shell server only    |
 | `scenarios/`                                             | Scenario files the shell lists and runs                                                                                       |
@@ -43,9 +43,11 @@ The agent procedure is [`dou-shell-verify`](../../docs/config/skills/dou-shell-v
 The routing functions are the mobile app's own, not copies: reached through an alias (an import would
 make `@chatic/mobile` a dependency of this project, and its typecheck would build the mobile app), with
 their types written by hand in `src/mobile.d.ts`. `src/routes.spec.ts` calls the real functions through
-the same alias, so a change in what the app returns fails it. The config is read in Node by the CLI as
-well as by the shell page, and those functions only load in the page, so the handler module — which only
-the page loads, before the shell starts — hands them to the config's event maps.
+the same alias, so a change in what the app returns fails it. The handlers' `OpenURL` checks a URL with
+the app's own `isOpenableUrl`, reached and declared the same way, so the shell refuses exactly what a
+device refuses. The config is read in Node by the CLI as well as by the shell page, and those
+functions only load in the page, so the handler module — which only the page loads, before the shell
+starts — hands them to the config's event maps.
 
 ## What it imitates and what it does not
 
@@ -58,6 +60,7 @@ This table is the reference. Adding an imitation changes it in the same commit.
 | Settings: `SaveConfigValue`, `ClearConfigValue`                                          | Kept and injected again at every launch as `CHATIC_APP_CONFIG_BAG`, as the app does; emptied by reloading the shell page                                                  |
 | Preferences: `Save/Delete/FetchPreference`                                               | Kept across relaunches; keys follow the app's allowlist and values its checks. A saved theme is not injected at the next launch — the device preset's theme is            |
 | Push received / tapped, links, background and resume, Android back, network off and back | Made with the tools. A tap routes where `resolvePushTapPath` sends it; a link where `resolveDeepLink` does — a native-screen or rejected link fails the tool call instead |
+| Opening a URL (`OpenURL`)                                                                | A new browser tab for the OS browser. What the app refuses fails with its code; the app's own scheme is a deep link, logged as unsupported                                |
 | Network status                                                                           | Requests fail while offline, as on a device. The app's bridge has no network-status message, so the web hears no event for it                                             |
 | Google sign-in                                                                           | Real — a Google popup (below)                                                                                                                                             |
 | Apple sign-in                                                                            | **Not imitated.** Answered as the app answers a failed sign-in (`OAUTH_LOGIN_ERROR`), so the web shows its failure toast, and logged as unsupported                       |
