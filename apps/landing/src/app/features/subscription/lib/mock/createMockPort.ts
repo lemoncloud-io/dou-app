@@ -645,7 +645,10 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 // the same ticket rather than a "too soon"; once the code is dead it gets a fresh one.
                 if (existing) {
                     const live = s.emailCodes[existing.id];
-                    if (live && nowMs() < live.expiresAt && !live.lockedUntil) return ticketOf(existing.id, live);
+                    // Only a code that can still be used: one spent on wrong entries is not handed back.
+                    if (live && nowMs() < live.expiresAt && !live.lockedUntil && live.attemptsLeft > 0) {
+                        return ticketOf(existing.id, live);
+                    }
                     return sendCode(s, existing.id);
                 }
                 if (s.billing.emails.length >= MOCK_POLICY.maxBillingEmails) fail('limit', 'billing email limit');

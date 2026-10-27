@@ -449,6 +449,16 @@ describe('createMockPort — billing email codes', () => {
         expect(await port.requestEmailCode('billing@lemon.example')).toEqual(first);
     });
 
+    it('does not hand back a code whose tries are spent', async () => {
+        const { port, advance } = setup('?mock=new');
+        const first = await port.requestEmailCode('billing@lemon.example');
+        for (let i = 0; i < 5; i++) await port.verifyEmailCode(first.emailId, '000000').catch(() => undefined);
+        advance(60_000);
+        const again = await port.requestEmailCode('billing@lemon.example');
+        expect(again.attemptsLeft).toBe(5);
+        expect(await port.verifyEmailCode(again.emailId, '123456')).toMatchObject({ status: 'verified' });
+    });
+
     it('takes a second check of a verified address as done, and refuses to resend to it', async () => {
         const { port } = setup('?mock=new');
         const { emailId } = await port.requestEmailCode('billing@lemon.example');
