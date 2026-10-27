@@ -92,7 +92,8 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    tiers `FREE` and `PRO` but names them after clouds (`DoU Home`, `My Cloud`), which does not read
    as a tier on a pricing card, so the site says Free Plan and Pro Plan after the badges. The
    principle covers nouns, not the numbers beside them (see [Traps](#traps)). The Korean copy
-   predates all of this and still uses looser wording (`공간` / `대화공간`).
+   predates all of this and mostly still uses looser wording (`공간` / `대화공간`); only the
+   private-community card and the matching pricing line name `클라우드` and `플레이스`.
 6. **Nothing depends on this app.** It is a leaf: no lib and no other app imports it, so its only
    blast radius is the site itself.
 7. **One boundary between the surfaces.** The public surface reaches the account surface only through
@@ -663,12 +664,14 @@ not trigger.
   reports only a regional code — en-US and ja-JP visitors were served Korean. Without it, `ko-KR`
   strips to `ko` and Korean browsers still get Korean. `src/i18n/languageDetection.test.ts` measures
   all four cases and fails if the detector returns.
-- **The copy's counts are only half the app's.** `features.private` and
-  `pricing.subscription.detail2` say 5 places with 5 chat rooms each, in both locales and since
-  before this was documented. `apps/web/src/app/utils/consts.ts` — which calls itself the single
-  source of truth — agrees on `MAX_PLACES = 5` but has `MAX_CHANNELS_PER_PLACE = 100`. Design
-  principle 5 covers the nouns and stops at the numbers for exactly this reason: which figure the
-  marketing page should carry is a product question, not a copy fix.
+- **The copy's counts are not read from the app.** `features.private` and
+  `pricing.subscription.detail2` say up to 5 clouds and 5 places, in both locales. Neither number
+  comes from code: the cloud limit is each plan's `maxClouds` in the server's plan catalog, and
+  `apps/web/src/app/utils/consts.ts` — which calls itself the single source of truth — has
+  `MAX_PLACES = 5`. Until this copy changed it said 5 places with 5 chat rooms each, while the
+  same file has `MAX_CHANNELS_PER_PLACE = 100`. Design principle 5 covers the nouns and stops at
+  the numbers for exactly this reason: which figure the marketing page should carry is a product
+  question, not a copy fix — so a plan change has to be carried here by hand.
 - **The `.well-known` files are load-bearing and untestable from here.** A wrong `appID` or `paths`
   entry does not break the build, does not break the site, and silently stops every Universal Link
   from opening the app. Anything that changes the domain, the bundle id, or the AASA content needs a

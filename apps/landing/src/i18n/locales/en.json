@@ -50,7 +50,7 @@
     "features": {
         "private": {
             "title": "Private Community",
-            "description": "Create up to 5 places with 5 chat rooms each, and keep every conversation with the people it is for"
+            "description": "Create up to 5 clouds and 5 places, and keep every conversation with the people it is for"
         },
         "safe": {
             "title": "A Safe Space to Chat",
@@ -78,7 +78,7 @@
             "highlight": "7 days free for new users",
             "price": "$0",
             "detail1": "Create your own cloud and invite friends",
-            "detail2": "Up to 5 places with 5 chat rooms each",
+            "detail2": "Up to 5 clouds and 5 places",
             "detail3": "Group chats with up to 100 members",
             "detail4": "Self Chat included",
             "feature1": "My Cloud",
