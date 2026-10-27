@@ -6,12 +6,12 @@ import {
     canContinueCheckout,
     chargedToday,
     checkoutDetailsOf,
+    checkoutEmailUrl,
     checkoutRouteFor,
     completeSceneOf,
     completeUrl,
     dayBefore,
     formatShortDate,
-    isEmailShaped,
     planFromQuery,
     registrationOutcomeUrl,
     registrationSceneOf,
@@ -70,12 +70,6 @@ describe('checkout readiness', () => {
         );
         expect(canContinueCheckout({ country: 'KR', emailId: 'em-1', consents: NO_CONSENTS })).toBe(false);
     });
-
-    it('takes an address-shaped email only', () => {
-        expect(isEmailShaped(' billing@lemon.example ')).toBe(true);
-        expect(isEmailShaped('billing@lemon')).toBe(false);
-        expect(isEmailShaped('')).toBe(false);
-    });
 });
 
 describe('checkoutRouteFor', () => {
@@ -110,6 +104,10 @@ describe('checkoutDetailsOf', () => {
 });
 
 describe('URLs', () => {
+    it('keeps the plan on the way through the email step', () => {
+        expect(checkoutEmailUrl('pro-tier-01')).toBe('/subscription/checkout/email?plan=pro-tier-01');
+    });
+
     it('names the attempt and, when known, the plan', () => {
         expect(statusUrl('att-1', 'pro-tier-01')).toBe('/subscription/checkout/status?attempt=att-1&plan=pro-tier-01');
         expect(statusUrl('att-1')).toBe('/subscription/checkout/status?attempt=att-1');

@@ -28,11 +28,6 @@ export const BILLING_COUNTRY_OPTIONS = ['KR', 'US', 'JP', 'OTHER'] as const;
 
 export const isSupportedCountry = (country: string): boolean => SUPPORTED_BILLING_COUNTRIES.includes(country);
 
-// Deliberately loose: the verification code is the real check that the address exists and is theirs.
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-export const isEmailShaped = (address: string): boolean => EMAIL_SHAPE.test(address.trim());
-
 export const CONSENTS = ['terms', 'privacy', 'autoRenew'] as const;
 export type Consent = (typeof CONSENTS)[number];
 export type Consents = Record<Consent, boolean>;
@@ -91,6 +86,10 @@ const withQuery = (path: string, query: Record<string, string | undefined>): str
     const search = params.toString();
     return search ? `${path}?${search}` : path;
 };
+
+/** W-24, the email step a first checkout passes before W-08. */
+export const checkoutEmailUrl = (planId: PlanId): string =>
+    withQuery(ROUTES.subscription.checkoutEmail, { plan: planId });
 
 export const checkoutUrl = (planId: PlanId): string => withQuery(ROUTES.subscription.checkout, { plan: planId });
 
