@@ -183,7 +183,7 @@ export const PlaceDetailPage = () => {
     const exitAction = isHomePlace || isGuest ? null : place.isOwner ? 'delete' : 'leave';
     // The place in the URL decides this, NOT the active session. `resolvePlaceDisplayName` ORs its
     // `isDefaultCloud` flag with the id check, so passing the session's `selectedCloudId === 'default'`
-    // would brand ANY place row viewed while the relay is active as "두유 홈" — including a cloud
+    // would brand ANY place row viewed while the relay is active as "DoU Home" — including a cloud
     // place reached by direct URL. Feeding it the same `isHomePlace` the avatar uses keeps the name
     // and the illustration from ever disagreeing.
     const displayName = resolvePlaceDisplayName(place, { isDefaultCloud: isHomePlace }, t);

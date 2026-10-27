@@ -338,7 +338,7 @@ interface ChannelListProps {
      * shows and where the tap goes are the host's call (on mobile: relay only, to the contact form).
      */
     showOneOnOneCreate?: boolean;
-    /** Drives the PRO badge on "그룹 방 만들기" — and, on relay, whether that entry shows at all. */
+    /** Drives the PRO badge on "그룹방 만들기" — and, on relay, whether that entry shows at all. */
     isPro?: boolean;
     /** Sort method for this place's channel list (client preference). Defaults to 'recent'. */
     sortMethod?: ChannelSortMethod;
@@ -539,7 +539,7 @@ export const ChannelList = ({
         [channels, lastChats, unreadByChannel, sortMethod, pinnedChannelIds, leadsWithSelf]
     );
 
-    // "그룹 방 만들기" is the real action on a cloud; on relay it rides along ONLY as an upsell for
+    // "그룹방 만들기" is the real action on a cloud; on relay it rides along ONLY as an upsell for
     // an unpaid account (Figma 2870:20387) — a group room lives in a cloud of one's own, so for a
     // subscriber the relay entry would lead nowhere and is dropped. What the tap does is the host's
     // call (see HomePage.handleCreateGroup).

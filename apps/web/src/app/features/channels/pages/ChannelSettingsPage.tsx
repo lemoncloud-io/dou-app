@@ -251,7 +251,7 @@ export const ChannelSettingsPage = () => {
         try {
             await leaveChannel({ channelId });
             closeDialog();
-            toast({ title: t('chat.settings.leftRoom') });
+            toast({ title: t('chat.settings.leftRoomToast') });
             navigate(ROUTES.root, { replace: true });
         } catch (error) {
             logger.error('CHAT', 'Failed to leave room', { error, data: { channelId } });

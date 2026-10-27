@@ -17,7 +17,7 @@ import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 /**
  * Place settings hub — the landing screen reached from the home profile dropdown. Three titled
  * cards: "설정" (my profile / place profile / place information, previewing its introduction),
- * "알림" (place push toggle) and "채팅방" (chat sort / chat management). The place-profile row
+ * "알림" (place push toggle) and "대화방" (chat sort / chat management). The place-profile row
  * writes, so it is owner-only and disabled for non-owners (server `isOwner` is the authority —
  * ADR-0031); the place-information row only reads, so it stays open to everyone (ADR-0047). The
  * notification toggle is still a placeholder (no backend support).

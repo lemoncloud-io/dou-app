@@ -197,7 +197,7 @@ export const useBackgroundSync = (): void => {
         ]
     );
 
-    // Load the "나와의 채팅" (notes-to-self) channel for the active site via channel.get-self, which
+    // Load the "나와의 대화" (notes-to-self) channel for the active site via channel.get-self, which
     // caches it so it appears in the channel list. Runs on every place entry (rising edge + site
     // switch); the cloud-wide delta sync (syncChannels) keeps the rest of the list converging, so no
     // full channel.mine snapshot is needed here.

@@ -97,7 +97,7 @@ so the banner can only ask about the active one.
 The relay's personal place is named `default`/`#default` at the backend and has site id `0000`. That
 string must not reach a screen. `apps/web/src/app/utils/resolvePlaceDisplayName.ts` is the single
 pure function that decides. It takes the place, an `isDefaultCloud` flag and the translator, and
-returns the branded `placeList.defaultPlace` label ("두유 홈" / "DoU Home") when `isDefaultCloud`
+returns the branded `placeList.defaultPlace` label ("DoU Home" in both languages) when `isDefaultCloud`
 is true **or** `place.id === HOME_PLACE_ID` (`'0000'`), and `place.name` otherwise.
 
 Two signals rather than one, because the callers hold different things. A hook that knows the
@@ -108,7 +108,7 @@ the relay at all.
 
 `useActivePlaceName` is the hook form: it observes the active place row and runs the same function,
 falling back to `{ id: sid }` when the row is not cached yet so a dialog title never flashes empty.
-It drops the previous row on **every** sid change — keeping it would go on answering "두유 홈" after
+It drops the previous row on **every** sid change — keeping it would go on answering "DoU Home" after
 a switch away from the relay, because the retained row still has id `0000`.
 
 Keeping this a pure function rather than a hook is what stops the list row and the dialog title from

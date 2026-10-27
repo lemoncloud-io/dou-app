@@ -116,10 +116,13 @@ different wording). Otherwise, if `read.show`, the row draws
 `ReadReceipt` — or a spinner until `read.isReady`, meaning the join cursors have synced.
 
 The receipt's gates are set by the page: `show = !isSelfChat && activeMemberIds.length >= 2`, and
-`mode = isDmChat ? 'dm' : 'count'`. `count` prints `read N • unread M` (ko `읽음 N • 미확인 M`)
-while anybody is behind, and the single `allRead` label (ko `모두 읽음`) once nobody is — a bare
-`read 10` left the reader to work out from the member count whether that was everyone. `dm` prints
-the single unread badge and nothing once it is read. A self chat never shows one.
+`mode = isDmChat ? 'dm' : 'count'`. `count` prints `read N • unread M` (ko `읽음 N • 안읽음 M`)
+while anybody is behind, and the single `allRead` label once nobody is. In English that label is
+`Read by all` — a bare `read 10` left the reader to work out from the member count whether that was
+everyone. In Korean it is `읽음 N`, the same `읽음` word the partial receipt opens with, so the two
+states read as one indicator losing its `안읽음` half; that missing half is what says nobody is
+left. The page passes the read count so the label can carry it.
+`dm` prints the single unread badge and nothing once it is read. A self chat never shows one.
 
 **Editing.** A message of mine can be edited in place from the action sheet: the bubble becomes a
 field where it sits, so the surrounding conversation stays put and the position says which message

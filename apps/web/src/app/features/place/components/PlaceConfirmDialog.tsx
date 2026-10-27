@@ -12,7 +12,7 @@ import {
 
 /**
  * How the place dialogs set Korean text. A line break in the copy is kept, and a line wraps between
- * words, never inside one — Korean otherwise breaks at any syllable ("채팅방에 / 서도"). A single run
+ * words, never inside one — Korean otherwise breaks at any syllable ("대화방에 / 서도"). A single run
  * with no space that still does not fit (a long name) may break anywhere rather than push the card
  * wider than the screen.
  */

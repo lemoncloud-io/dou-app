@@ -50,7 +50,7 @@ that is neither the relay nor invited is one I own.
 
 The channel section's `＋` opens for **either** of its two rows, which is not the same as
 `canCreate`. `canCreate` (`isDefaultCloud || isCloudOwner`) means "may make a room here" and now
-guards the `그룹 방 만들기` row alone; that row additionally appears **only while unpaid** on the
+guards the `그룹방 만들기` row alone; that row additionally appears **only while unpaid** on the
 relay, because a group room lives in a cloud of one's own and for a subscriber the relay entry would
 lead nowhere. `1:1 대화` has its own condition, `showOneOnOneCreate`, and shows on relay only: the tap
 goes to the phone-number contact form. A cloud starts its 1:1s from the `1:1 대화` section's own `＋`
