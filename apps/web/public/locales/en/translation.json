@@ -2153,6 +2153,15 @@
                 "cli": "Developer tool",
                 "unknown": "Unknown device"
             }
+        },
+        "cloud": {
+            "section": "Approved clouds",
+            "sectionDescription": "This browser can use only the clouds approved from your phone",
+            "add": "Add a cloud with another device",
+            "pairedLabel": "Approved on another device",
+            "unnamed": "Cloud …{{id}}",
+            "ended": "The approval ended, so you left this cloud",
+            "endedNamed": "The approval ended, so you left {{cloud}}"
         }
     }
 }

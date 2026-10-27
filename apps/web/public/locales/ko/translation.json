@@ -2153,6 +2153,15 @@
                 "cli": "개발 도구",
                 "unknown": "알 수 없는 기기"
             }
+        },
+        "cloud": {
+            "section": "승인받은 클라우드",
+            "sectionDescription": "이 브라우저는 휴대폰에서 승인한 클라우드만 쓸 수 있어요",
+            "add": "다른 기기로 클라우드 추가",
+            "pairedLabel": "다른 기기에서 승인함",
+            "unnamed": "클라우드 …{{id}}",
+            "ended": "승인이 끝나 이 클라우드에서 나왔어요",
+            "endedNamed": "승인이 끝나 {{cloud}}에서 나왔어요"
         }
     }
 }

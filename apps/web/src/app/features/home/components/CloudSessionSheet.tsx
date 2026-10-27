@@ -7,6 +7,7 @@ import { logger } from '@chatic/bridges';
 import { useInterval, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
+import { useConfigValue } from '@chatic/config/react';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';
 
@@ -15,7 +16,7 @@ import { BottomSheet, CollapsibleSection, Divider } from '@chatic/web-ui-kit';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
-import { useCachedCloudNames, useInvitedClouds } from '../../../hooks';
+import { useCachedCloudNames, useInvitedClouds, useIsAccountGuest } from '../../../hooks';
 import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
 import { ROUTES } from '../../../routes/paths';
@@ -28,6 +29,7 @@ import {
     DouHomeItem,
     InviteCloudItem,
     isProvisioning,
+    PairedCloudItem,
     sortCloudsForSwitcher,
 } from './cloud-session';
 
@@ -76,6 +78,12 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
     const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
+    // A guest browser's clouds come from pairings, not from a catalog (a guest's is empty). An account
+    // — a relay pairing included — has its catalog and never shows this section.
+    const isAccountGuest = useIsAccountGuest();
+    const pairedCloudIds = runtime.session.usePairedCloudIds();
+    const pairingEnabled = useConfigValue<boolean>('feature.auth.devicePairing') === true;
+    const showPairedClouds = isAccountGuest && (pairingEnabled || pairedCloudIds.length > 0);
 
     // Active selection is derived from the session; relay mode reads as 'default'.
     const selectedId = selectedCloudId;
@@ -126,10 +134,14 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
         try {
             await switchCloud(cloudId);
             logger.info('CLOUD', 'cloud switch succeeded', { cloudId });
-        } catch {
+        } catch (error) {
             // Deliberately not logged here: the session service already records the failure and does
             // the cid/sid rollback. A second entry would double the error count — and `error` advances
             // the upload flush, so it would double that too.
+            // A paired cloud the relay no longer delegates (approval revoked) leaves the list.
+            if (runtime.session.forgetRefusedPairedCloud(cloudId, error)) {
+                toast({ title: t('pairing.cloud.ended') });
+            }
         }
     };
 
@@ -263,6 +275,46 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
                     >
                         {ownedBody}
                     </CollapsibleSection>
+
+                    {showPairedClouds && (
+                        <>
+                            <Divider variant="block" className="my-[14px]" />
+                            <CollapsibleSection
+                                title={t('pairing.cloud.section')}
+                                toggleLabel={t('cloudSessionSheet.toggleSection')}
+                                count={pairedCloudIds.length}
+                                description={t('pairing.cloud.sectionDescription')}
+                                footer={
+                                    pairingEnabled ? (
+                                        <button
+                                            type="button"
+                                            data-testid="paired-cloud-add"
+                                            onClick={() => {
+                                                handleClose();
+                                                navigate(ROUTES.mypage.pairing.code);
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-[15px] font-medium text-primary"
+                                        >
+                                            {t('pairing.cloud.add')}
+                                        </button>
+                                    ) : undefined
+                                }
+                            >
+                                <div className="flex flex-col px-2">
+                                    {pairedCloudIds.map(cloudId => (
+                                        <PairedCloudItem
+                                            key={cloudId}
+                                            cloudId={cloudId}
+                                            name={cachedCloudNames[cloudId]}
+                                            isSelected={selectedId === cloudId}
+                                            isDisabled={isSwitching}
+                                            onSelectCloud={handleSelectCloud}
+                                        />
+                                    ))}
+                                </div>
+                            </CollapsibleSection>
+                        </>
+                    )}
 
                     <Divider variant="block" className="my-[14px]" />
 

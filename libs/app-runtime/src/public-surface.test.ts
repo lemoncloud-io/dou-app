@@ -36,6 +36,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'clearSiteSelection',
         'createCredentialsByProvider',
         'fetchInviteInfoWithCode',
+        'forgetRefusedPairedCloud',
         'getActiveServerContext',
         'getActiveSessionUser',
         'getCommittedSessionSiteId',

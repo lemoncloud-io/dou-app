@@ -233,6 +233,16 @@ the sheet is open and any row is provisioning, a 30-second poll refetches and a 
 toast. The switcher is open to everyone, guests included — it is the way to reach DoU Home, see
 invited clouds, or subscribe.
 
+A **guest** gets a fourth section, "Approved clouds", between owned and invited: the clouds this
+browser entered through a device pairing (`runtime.session.usePairedCloudIds`, see
+[pairing](../pairing/README.md#a-cloud-approval)). A guest's own catalog is empty, so without this list
+those clouds would not appear anywhere. Its footer, "Add a cloud with another device", opens the code
+screen; the section is shown while the device pairing flag is on or a paired cloud exists, and never to
+an account (a relay pairing included — an account has its catalog). A paired row's name comes from the
+cached cloud names, which fill in once the browser has been inside the cloud; until then it shows the
+end of the cloud id. A switch the relay refuses with 403 (the approval was revoked) drops the cloud
+from the list with a toast.
+
 An invited row is titled by its cloud name with the owner caption ("sunny's cloud", else "Invited
 cloud") under it. An invite can carry no cloud name, and the cached row has none until `cloud.get`
 fills it in after the first connect; until then the caption becomes the title and the second line

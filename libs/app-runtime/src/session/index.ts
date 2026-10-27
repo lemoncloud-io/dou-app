@@ -90,6 +90,7 @@ export {
 export { useIsPairedSession, usePairedCloudIds, usePairingRequest } from './hooks/pairing';
 export type { PairingRequestOptions } from './hooks/pairing';
 export { isPairedSession } from './pairing/pairedSession';
+export { forgetRefusedPairedCloud } from './pairing/pairedCloudRefusal';
 export { pairingClientOf } from './pairing/pairingClient';
 export { classifyPairingError } from './pairing/pairingErrors';
 export type { PairingApprovalError } from './pairing/pairingErrors';

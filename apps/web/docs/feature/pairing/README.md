@@ -48,6 +48,15 @@ started (`navigate(-2)`), or home when the app has nothing behind them.
 - Leaving the screen stops the polling. A pending pairing expires on the server after three minutes;
   there is no cancel call.
 
+### A cloud approval
+
+When the approver chose one of its clouds, the code screen's flow enters that cloud as a guest through
+the ordinary cloud switch — the relay's delegation answers for the approving account in that cloud —
+and adds the cloud to the paired-cloud list (`runtime.session` docs). The browser stays a relay guest.
+The home switch sheet then lists the cloud under "Approved clouds" (home docs), and "Add a cloud with
+another device" there opens this same screen for a second cloud, leaving the current cloud session as
+it is. A switch the relay refuses with 403 (`forgetRefusedPairedCloud`) takes the cloud off the list.
+
 ## The approval screen
 
 `/mypage/pairing/approve`, from My page's "Approve web sign-in". Both the entry and the page require
