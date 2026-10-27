@@ -153,7 +153,10 @@ holds the relay invite and the link that carries it. `fixtures/subscription.ts` 
 `signedInMember` (a purchase is refused to a guest), `installSubscriptions` (the relay's plans, a
 membership that turns active once a purchase is checked, and the check), and `storeHandlers` for the
 shell's store, whose `Purchase` answers nothing the page reads — the scenario pushes the outcome
-(`OnPurchaseSuccess`, `OnPurchaseError`) as the app does. Another host is keyed by its full address (`'GET https://c1.e2e.test/api/hello/invite-code'`) and another socket by its
+(`OnPurchaseSuccess`, `OnPurchaseError`) as the app does. `fixtures/pairing.ts` holds the requesting device's half of
+device pairing: `installPairing` hands out a code with a one-second polling interval, answers each
+`claim` as the scenario says, and records the requests, the claims and how many were ever on the wire
+at once; `relayApproval` is the approval that carries the account's session. Another host is keyed by its full address (`'GET https://c1.e2e.test/api/hello/invite-code'`) and another socket by its
 endpoint (`useSocketAt`; `sentAt` reads one socket's frames, `allFrames` all of them in order). Every socket the page opens is answered here
 whatever its host, except the dev server's own; one with no fixture is closed and listed. The fake
 cloud keeps the server rule its scenarios are about: a session sits on one place at a time — the one
@@ -177,6 +180,7 @@ written there.
 | `room-mute.spec.ts`             | A room muted from the home list while the socket is signing in again shows muted at once, sends nothing until the socket is back, and then sends `join.update` on the new socket; the row stays muted throughout.                                                                                                                                                       |
 | `room-read.spec.ts`             | A room the guest opens loses its unread count on the list at once: when the relay fails the `chat.read`, the count stays gone and the read is sent again until the relay has it; when the room is entered while the socket is signing in again, the count goes before the relay could have heard, and the read follows on the new socket.                               |
 | `subscription-purchase.spec.ts` | A completed store purchase is checked with the relay, finished only after that, confirmed with "You are subscribed." and the membership reads active; a cancel says nothing and can be retried; a store error and a pending purchase (the page's own 60s wait) say "Payment failed", and nothing is checked or finished.                                                |
+| `device-pairing.spec.ts`        | "Sign in with another device" asks the relay for a code as this guest and shows it with its QR; claims go out one at a time, and the approval signs the device in as the account — the socket re-signs on the same connection, the toast names the approver, MY stops asking to sign in. An expired code is struck through; "Get a new code" shows a new one.           |
 
 ## Limits
 
