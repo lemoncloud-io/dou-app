@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-27] - root@0.120.1, @chatic/desktop-web@0.35.7
+
+### Bug Fixes
+
+- (desktop-web) keep invited clouds on a guest's logout too (ADR-0245)
+
 ## [2026-10-27] - root@0.120.0, @chatic/web@0.81.0
 
 ### Features
