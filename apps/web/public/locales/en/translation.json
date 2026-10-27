@@ -2011,12 +2011,13 @@
         "cancelDialog": {
             "title": "Cancel this invite?",
             "description": "Canceling means they can no longer join with this invite.",
+            "rejectedDescription": "This removes the declined invite from your list.",
             "confirm": "Cancel invite"
         },
         "canceledToast": "Invite canceled",
         "rejected": {
-            "title": "They declined your invite",
-            "description": "Send a new invite link to try again."
+            "title": "Your invite was declined.",
+            "description": "Even though they didn't accept this invite, you can send another one."
         },
         "cancelFailed": "Couldn't cancel the invite. Please try again shortly"
     },

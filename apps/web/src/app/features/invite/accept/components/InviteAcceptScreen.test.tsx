@@ -21,6 +21,8 @@ jest.mock('react-i18next', () => ({
             };
             if (key === 'inviteAccept.target.roomFriends') return `방 친구 ${opts?.count}`;
             if (key === 'inviteAccept.expiry.remaining') return `${opts?.time} 남음`;
+            if (key === 'inviteAccept.expiry.hours') return `${opts?.n}시간`;
+            if (key === 'inviteAccept.expiry.minutes') return `${opts?.n}분`;
             return copy[key] ?? key;
         },
     }),
@@ -157,7 +159,7 @@ describe('InviteAcceptScreen — shared chrome', () => {
 
     it('renders the validity card from the countdown alone', () => {
         setup();
-        expect(screen.getByText('01:02:03 남음')).toBeTruthy();
+        expect(screen.getByText('1시간 2분 남음')).toBeTruthy();
     });
 
     it('routes decline to onDecline when given, and to onClose otherwise', async () => {

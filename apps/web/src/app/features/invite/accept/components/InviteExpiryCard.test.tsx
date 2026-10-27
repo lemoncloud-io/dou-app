@@ -10,6 +10,7 @@ jest.mock('react-i18next', () => ({
             if (key === 'inviteAccept.expiry.remaining') return `${opts?.time} 남음`;
             if (key === 'inviteAccept.expiry.days') return `${opts?.n}일`;
             if (key === 'inviteAccept.expiry.hours') return `${opts?.n}시간`;
+            if (key === 'inviteAccept.expiry.minutes') return `${opts?.n}분`;
             return key;
         },
     }),
@@ -26,40 +27,36 @@ const countdown = (over: Partial<InviteCountdown> = {}): InviteCountdown => ({
 });
 
 describe('InviteExpiryCard', () => {
-    it('counts down by the second inside the last day', () => {
-        render(<InviteExpiryCard countdown={countdown({ hours: 5, minutes: 7, seconds: 9 })} />);
-        expect(screen.getByText('05:07:09 남음')).toBeTruthy();
+    it('reads in words from the first non-zero unit while more than ten minutes remain', () => {
+        render(<InviteExpiryCard countdown={countdown({ hours: 3, minutes: 20, seconds: 41 })} />);
+        expect(screen.getByText('3시간 20분 남음').className).toContain('text-label');
     });
 
-    it('zero-pads every field so the line does not jitter as it ticks', () => {
-        render(<InviteExpiryCard countdown={countdown({ hours: 0, minutes: 0, seconds: 3 })} />);
-        expect(screen.getByText('00:00:03 남음')).toBeTruthy();
+    it('names every unit from the days down', () => {
+        render(<InviteExpiryCard countdown={countdown({ days: 1, hours: 2, minutes: 5 })} />);
+        expect(screen.getByText('1일 2시간 5분 남음')).toBeTruthy();
     });
 
-    it('switches to day + hour once more than a day remains', () => {
-        // The server issues 3-day links, which HH:mm:ss cannot express (ADR-0037).
-        render(<InviteExpiryCard countdown={countdown({ days: 2, hours: 5, minutes: 7, seconds: 9 })} />);
-        expect(screen.getByText('2일 5시간 남음')).toBeTruthy();
+    it('keeps a zero unit after the first non-zero one', () => {
+        render(<InviteExpiryCard countdown={countdown({ days: 2, hours: 0, minutes: 40 })} />);
+        expect(screen.getByText('2일 0시간 40분 남음')).toBeTruthy();
     });
 
-    it('drops the hour part when it is zero', () => {
-        render(<InviteExpiryCard countdown={countdown({ days: 3, hours: 0, minutes: 40 })} />);
-        expect(screen.getByText('3일 남음')).toBeTruthy();
+    it('reads minutes alone under an hour', () => {
+        render(<InviteExpiryCard countdown={countdown({ minutes: 45, seconds: 12 })} />);
+        expect(screen.getByText('45분 남음')).toBeTruthy();
     });
 
-    it('reddens the remaining line when expiry is imminent', () => {
-        const { rerender } = render(<InviteExpiryCard countdown={countdown({ minutes: 9, isImminent: true })} />);
-        expect(screen.getByText('00:09:00 남음').className).toContain('text-destructive');
-
-        rerender(<InviteExpiryCard countdown={countdown({ minutes: 30 })} />);
-        expect(screen.getByText('00:30:00 남음').className).toContain('text-label');
+    it('switches to a spaced red clock inside the last ten minutes', () => {
+        render(<InviteExpiryCard countdown={countdown({ minutes: 9, seconds: 5, isImminent: true })} />);
+        expect(screen.getByText('00 : 09 : 05 남음').className).toContain('text-destructive');
     });
 
-    it('stays red once expired, where isImminent has already flipped back to false', () => {
-        // Guards the pairing with isExpired — on its own, isImminent would let a dead link render
-        // "00:00:00 남음" in the calm colour.
+    it('stays on a red zero clock once expired, where isImminent has already flipped back to false', () => {
+        // Guards the pairing with isExpired — on its own, isImminent would let a dead link render in
+        // words and in the calm colour.
         render(<InviteExpiryCard countdown={countdown({ isExpired: true, isImminent: false })} />);
-        expect(screen.getByText('00:00:00 남음').className).toContain('text-destructive');
+        expect(screen.getByText('00 : 00 : 00 남음').className).toContain('text-destructive');
     });
 
     it('shows the validity label', () => {

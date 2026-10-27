@@ -2011,12 +2011,13 @@
         "cancelDialog": {
             "title": "초대를 취소할까요?",
             "description": "취소하면 상대방이 이 초대로 더 이상 대화에 참여할 수 없어요.",
+            "rejectedDescription": "거절된 초대를 목록에서 지워요.",
             "confirm": "취소하기"
         },
         "canceledToast": "초대를 취소했어요",
         "rejected": {
-            "title": "상대방이 초대를 거절했어요",
-            "description": "새로운 초대 링크를 보내 다시 초대할 수 있어요."
+            "title": "초대가 거절되었습니다.",
+            "description": "상대방이 이번 초대를 수락하지 않았어도, 다시 초대를 보낼 수 있습니다."
         },
         "cancelFailed": "초대를 취소하지 못했어요. 잠시 후 다시 시도해 주세요"
     },

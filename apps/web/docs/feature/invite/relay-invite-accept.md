@@ -210,6 +210,15 @@ Two rules keep the step from misfiring:
 - **`profileSavedRef` stops it asking twice.** `profile.set` is not guaranteed to be visible to the
   next `get-mine`, so re-asking could bounce the user into the same form again.
 
+### The validity card
+
+`InviteExpiryCard` prints the time left on the link, the same card for a relay and a cloud invite. More
+than ten minutes out it reads in words from the first unit that is not zero — `1일 2시간 5분 남음`,
+`3시간 20분 남음`, `45분 남음` — and `useInviteCountdown` ticks it by the minute (`minuteUntilImminent`).
+The last ten minutes switch to a spaced clock counting by the second, `00 : 09 : 05 남음`, in red,
+and an expired link stays on `00 : 00 : 00 남음` in red. The lifetime is the record's `expiredAt`:
+links this app issues live 24 hours, but the server's own default is 3 days, so the day unit can show.
+
 ### Declining
 
 Decline is final and cannot be undone, so it takes a confirm dialog. `decline()` only moves to

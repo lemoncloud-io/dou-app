@@ -76,7 +76,7 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
             throw error;
         }
     };
-    const countdown = useInviteCountdown(info?.expiredAt);
+    const countdown = useInviteCountdown(info?.expiredAt, { minuteUntilImminent: true });
 
     // Home is the fallback, not the destination — see `useEnterInvitedChannel`. A warm entry
     // rewinds onto whatever the reader was looking at when the link arrived.

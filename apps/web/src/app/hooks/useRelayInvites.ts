@@ -52,11 +52,12 @@ export interface RelayInviteCreateInput {
 export const INVITE_LIST_LIMIT = 100;
 
 /**
- * Lifetime, in days, of every relay invite this client issues — 24 hours (ADR-0068 decision 4).
+ * Lifetime, in days, of every relay invite this client issues — 24 hours.
  *
  * Applied centrally rather than per call site so a new invite and a re-invite cannot drift apart,
- * and so there is exactly one place to move it. The server's own default is 3 days (ADR-0089 D8);
- * sending this narrows the window a phone-bound link is exposed for. Callers may still override.
+ * and so there is exactly one place to move it. The server's own default, for a link issued without
+ * one, is 3 days; sending this narrows the window a phone-bound link is exposed for. Callers may
+ * still override.
  */
 export const INVITE_EXPIRES_DAYS = 1;
 
