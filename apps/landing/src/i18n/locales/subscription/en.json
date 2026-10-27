@@ -152,6 +152,10 @@
                     "title": "You subscribe in the app",
                     "body": "Change your plan in the store you subscribed through.",
                     "action": "Learn more"
+                },
+                "inAppOnly": {
+                    "title": "Subscribing on the web is coming soon",
+                    "body": "For now, you can subscribe to the same plans at the same prices in the app."
                 }
             },
             "login": {

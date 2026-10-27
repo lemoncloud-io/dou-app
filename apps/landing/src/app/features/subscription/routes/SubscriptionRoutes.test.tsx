@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../i18n';
+import { createPortSetup } from '../lib/createPortSetup';
 import { createMockPort } from '../lib/mock';
 import { memoryStateStore } from '../lib/mock/storage';
 
@@ -160,6 +161,23 @@ describe('SubscriptionRoutes', () => {
 
         expect(await screen.findByText('On a phone, subscribe in the app')).toBeTruthy();
         expect(screen.queryByText('W-01')).toBeNull();
+    });
+
+    it('drops the desktop card from the phone notice where nothing can be bought on the web yet', async () => {
+        narrow = true;
+        render(
+            <MemoryRouter initialEntries={['/subscription/plans']}>
+                <Routes>
+                    <Route
+                        path="/subscription/plans/*"
+                        element={<SubscriptionRoutes account={false} setup={createPortSetup({ account: false })} />}
+                    />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText('On a phone, subscribe in the app')).toBeTruthy();
+        expect(screen.queryByText('Subscribe on the web from a computer')).toBeNull();
     });
 
     it('sends an unknown deeper path to the subscription list', async () => {

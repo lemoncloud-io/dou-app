@@ -8,8 +8,11 @@ import { useDeviceDetect } from '../../../hooks';
  * W-23. On a phone the subscription is bought and managed in the app, through the store; the web
  * pages are for a desktop browser. This replaces every subscription page below the `md` breakpoint.
  * The app button goes to the store listing for the phone in hand (the App Store when it cannot tell).
+ *
+ * Where the account surface is shut (`account` false) nothing can be bought on a desktop either, so
+ * the card pointing there is left out.
  */
-export const DesktopOnlyNotice = (): JSX.Element => {
+export const DesktopOnlyNotice = ({ account = true }: { account?: boolean }): JSX.Element => {
     const { t } = useTranslation();
     const device = useDeviceDetect();
     const appUrl = device === 'android' ? storeUrls.android : storeUrls.ios;
@@ -31,10 +34,14 @@ export const DesktopOnlyNotice = (): JSX.Element => {
                     {t('subscription.common.desktopOnly.openApp')}
                 </a>
             </section>
-            <section className="rounded-2xl bg-muted p-5">
-                <h2 className="mb-2 font-semibold text-navy">{t('subscription.common.desktopOnly.pcTitle')}</h2>
-                <p className="text-sm leading-relaxed text-desc-alt">{t('subscription.common.desktopOnly.pcBody')}</p>
-            </section>
+            {account && (
+                <section className="rounded-2xl bg-muted p-5">
+                    <h2 className="mb-2 font-semibold text-navy">{t('subscription.common.desktopOnly.pcTitle')}</h2>
+                    <p className="text-sm leading-relaxed text-desc-alt">
+                        {t('subscription.common.desktopOnly.pcBody')}
+                    </p>
+                </section>
+            )}
         </main>
     );
 };

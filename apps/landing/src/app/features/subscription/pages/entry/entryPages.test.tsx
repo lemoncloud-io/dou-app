@@ -4,6 +4,7 @@ import { vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
+import { createPortSetup } from '../../lib/createPortSetup';
 import { createMockPort } from '../../lib/mock';
 import { memoryStateStore } from '../../lib/mock/storage';
 import { SubscriptionRoutes } from '../../routes';
@@ -142,6 +143,54 @@ describe('W-01 plans', () => {
         expect(screen.getByRole('link', { name: 'Learn more' }).getAttribute('href')).toBe(
             '/subscription/store-managed'
         );
+    });
+});
+
+// Where the signed-in pages are shut — the production host — the route table mounts the plans alone.
+describe('W-01 plans with the account surface shut', () => {
+    const renderCatalog = (url: string) =>
+        render(
+            <MemoryRouter initialEntries={[url]}>
+                <Routes>
+                    <Route
+                        path="/subscription/plans/*"
+                        element={<SubscriptionRoutes account={false} setup={createPortSetup({ account: false })} />}
+                    />
+                </Routes>
+                <Where />
+            </MemoryRouter>
+        );
+
+    it('lists the published plans and points to the app instead of a checkout', async () => {
+        renderCatalog('/subscription/plans?mock=active');
+
+        expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
+        // A price list: every plan at full strength, none tagged by the web checkout's rules.
+        expect(screen.getByText('₩43,000')).toBeTruthy();
+        expect(screen.queryByText('First plan · 7 days free')).toBeNull();
+        expect(screen.queryByText('After subscribing')).toBeNull();
+        expect(screen.queryByText(/not charged again on the web/)).toBeNull();
+        expect(screen.getByText('Subscribing on the web is coming soon')).toBeTruthy();
+        expect(screen.getByRole('link', { name: 'App Store' }).getAttribute('href')).toMatch(
+            /^https:\/\/apps\.apple\.com\//
+        );
+        expect(screen.getByRole('link', { name: 'Google Play' }).getAttribute('href')).toMatch(
+            /^https:\/\/play\.google\.com\//
+        );
+        // Nothing here leads to a page that does not exist on this host.
+        expect(screen.queryByRole('button', { name: /^Subscribe/ })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Sign in' })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Manage subscription' })).toBeNull();
+        expect(screen.getByRole('link', { name: 'Policies & business info' }).getAttribute('href')).toBe(
+            '/policy/refund'
+        );
+    });
+
+    it('keeps a deeper path on the plans', async () => {
+        renderCatalog('/subscription/plans/extra');
+
+        expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
+        expect(where()).toBe('/subscription/plans');
     });
 });
 

@@ -1,3 +1,5 @@
+import { CATALOG_CURRENCY, PLAN_CATALOG, PRICE_PER_TIER, TRIAL_DAYS } from '../catalog';
+
 import type { Plan } from '../../types';
 
 /**
@@ -5,14 +7,16 @@ import type { Plan } from '../../types';
  *
  * Several of these are proposals still waiting on a product decision. When one is settled, this file
  * is the only thing that changes — no screen carries a price, a period or a count of its own; they
- * read them from what the port returns.
+ * read them from what the port returns. The price and the trial are the exception: they are published
+ * on the plans page, so they live in the catalog (`lib/catalog.ts`) and are repeated here only so this
+ * object still lists every rule.
  */
 export const MOCK_POLICY = {
     /** Monthly price per tier step, VAT included: DoU Cloud n costs n times this. */
-    pricePerTier: 8600,
-    currency: 'KRW',
+    pricePerTier: PRICE_PER_TIER,
+    currency: CATALOG_CURRENCY,
     /** The free trial on a first subscription. */
-    trialDays: 7,
+    trialDays: TRIAL_DAYS,
     /** Days after a failed renewal on which the charge is retried (proposal). */
     retryAfterDays: [1, 3, 5],
     /** Days after a failed renewal on which access is restricted (proposal). */
@@ -41,15 +45,8 @@ export const MOCK_POLICY = {
     signInAttemptMinutes: 10,
 } as const;
 
-const SORTS = [1, 2, 3, 4, 5] as const;
-
-export const MOCK_PLANS: Plan[] = SORTS.map(sort => ({
-    id: `pro-tier-0${sort}` as Plan['id'],
-    sort,
-    maxClouds: sort,
-    monthly: { amount: MOCK_POLICY.pricePerTier * sort, currency: MOCK_POLICY.currency },
-    trialDays: MOCK_POLICY.trialDays,
-}));
+/** The mock sells exactly the published catalog. */
+export const MOCK_PLANS: Plan[] = PLAN_CATALOG;
 
 export const planOf = (id: Plan['id']): Plan => {
     const plan = MOCK_PLANS.find(p => p.id === id);

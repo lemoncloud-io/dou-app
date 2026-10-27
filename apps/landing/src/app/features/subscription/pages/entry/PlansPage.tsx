@@ -2,6 +2,7 @@ import { type JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { storeUrls } from '../../../../config/links';
 import { ROUTES } from '../../../../routes/paths';
 import { PageLoader, PlanCard } from '../../components';
 import { Badge, type BadgeTone, Banner, Button } from '../../components/ui';
@@ -35,13 +36,16 @@ const checkoutPath = (plan: Plan) => `${ROUTES.subscription.checkout}?${new URLS
  * W-01 — the plans. A visitor and a signed-in reader with no plan are offered the entry plan only; a
  * subscriber is offered the step up and the step down. Which card is pickable comes from
  * `planChoicesOf`, and every price and trial length from the port.
+ *
+ * Where the account surface is shut (`account` false) the reader is always a visitor and there is
+ * nowhere to buy yet: the same plans and notes, with the store links in place of the subscribe button.
  */
-export const PlansPage = (): JSX.Element => {
+export const PlansPage = ({ account = true }: { account?: boolean }): JSX.Element => {
     const session = useSession();
     if (session.isLoading) return <PageLoader />;
     // A visitor has no subscriptions to ask for: the call would answer that the session is gone, and
     // that answer sends the reader to sign in — not what a visitor browsing the plans asked for.
-    return session.data ? <SignedInPlans /> : <PlansScene signedIn={false} />;
+    return account && session.data ? <SignedInPlans /> : <PlansScene signedIn={false} canBuy={account} />;
 };
 
 const SignedInPlans = (): JSX.Element => {
@@ -57,10 +61,12 @@ const SignedInPlans = (): JSX.Element => {
 
 const PlansScene = ({
     signedIn,
+    canBuy = true,
     subscription,
     current,
 }: {
     signedIn: boolean;
+    canBuy?: boolean;
     subscription?: Subscription;
     current?: Plan;
 }): JSX.Element => {
@@ -163,14 +169,22 @@ const PlansScene = ({
                 {choices.cards.map(choice => (
                     <ChoiceCard
                         key={choice.plan.id}
-                        choice={choice}
+                        choice={canBuy ? choice : listed(choice)}
                         tagLabel={choice.tag && t(`subscription.entry.plans.tag.${choice.tag}`, { days: trialDays })}
-                        onPick={choices.mode === 'change' ? () => navigate(changePath(choice.plan)) : subscribe}
+                        onPick={
+                            !canBuy
+                                ? undefined
+                                : choices.mode === 'change'
+                                  ? () => navigate(changePath(choice.plan))
+                                  : subscribe
+                        }
                     />
                 ))}
             </div>
 
-            {(choices.mode === 'visitor' || choices.mode === 'new') && choices.entry && (
+            {!canBuy && <InAppOnly />}
+
+            {canBuy && (choices.mode === 'visitor' || choices.mode === 'new') && choices.entry && (
                 <div className="flex items-center gap-5">
                     <Button size="lg" className="rounded-full px-7" onClick={subscribe}>
                         {withTrial || !preview.data
@@ -221,11 +235,43 @@ const PlansScene = ({
             {(choices.mode === 'visitor' || choices.mode === 'new') && (
                 <Notes
                     withTrial={withTrial}
+                    canBuy={canBuy}
                     firstChargeAt={preview.data?.firstChargeAt}
                     entryName={choices.entry && planName(choices.entry)}
                 />
             )}
         </section>
+    );
+};
+
+/**
+ * A card as a price list shows it while nothing can be bought on the web: no tag and no greying. The
+ * tags ("after subscribing", the entry plan) are rules of the web checkout, and a plan greyed by them
+ * would read as unavailable rather than as a price.
+ */
+const listed = (choice: PlanChoice): PlanChoice => ({ ...choice, tag: undefined, selected: false, pickable: true });
+
+/** In place of the subscribe button while nothing can be bought on the web: buy in the app. */
+const InAppOnly = (): JSX.Element => {
+    const { t } = useTranslation();
+    const store = 'rounded-full bg-navy px-6 py-3 text-sm font-semibold text-white hover:opacity-90';
+    return (
+        <Banner
+            tone="info"
+            title={t('subscription.entry.plans.inAppOnly.title')}
+            action={
+                <div className="flex gap-2">
+                    <a href={storeUrls.ios} target="_blank" rel="noreferrer" className={store}>
+                        App Store
+                    </a>
+                    <a href={storeUrls.android} target="_blank" rel="noreferrer" className={store}>
+                        Google Play
+                    </a>
+                </div>
+            }
+        >
+            {t('subscription.entry.plans.inAppOnly.body')}
+        </Banner>
     );
 };
 
@@ -263,10 +309,12 @@ const ChoiceCard = ({
 
 const Notes = ({
     withTrial,
+    canBuy,
     firstChargeAt,
     entryName,
 }: {
     withTrial: boolean;
+    canBuy: boolean;
     firstChargeAt?: string;
     entryName?: string;
 }): JSX.Element => {
@@ -275,7 +323,8 @@ const Notes = ({
         ? [
               t('subscription.entry.plans.notes.trialOnce'),
               t('subscription.entry.plans.notes.afterTrial'),
-              t('subscription.entry.plans.notes.storeSubscribers'),
+              // About paying twice on the web — said only where the web takes a payment.
+              ...(canBuy ? [t('subscription.entry.plans.notes.storeSubscribers')] : []),
           ]
         : [
               t('subscription.entry.plans.notes.trialUsed'),

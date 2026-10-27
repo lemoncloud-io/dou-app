@@ -18,8 +18,9 @@ export const ROUTES = {
         refund: '/policy/refund',
     },
     /**
-     * The signed-in subscription pages. Registered only where `isSubscriptionWebEnabled` holds
-     * (`app/config/stage.ts`), so on the production host every one of these is the catch-all.
+     * The signed-in subscription pages. Registered only where `isSubscriptionAccountEnabled` holds
+     * (`app/config/stage.ts`), so on the production host every one of these is the catch-all — except
+     * `plans`, which lists the plans on every host.
      */
     subscription: {
         /** W-10, the subscription list — where a signed-in visitor lands by default. */

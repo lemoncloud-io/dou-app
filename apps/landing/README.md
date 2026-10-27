@@ -6,7 +6,9 @@
 bounce page that sends an invite link into the installed app or into the web app — with no session,
 no data layer and no backend call of its own. Its **account surface**, `/subscription/*`, is where a
 signed-in account holder buys and manages a subscription outside the stores; it is open only on
-local and dev hosts, and runs on a mock until a server exists (see [Two surfaces](#two-surfaces)).
+local and dev hosts, and runs on a mock until a server exists (see [Two surfaces](#two-surfaces)) —
+except `/subscription/plans`, which lists the published plans on every host from a fixed catalog (see
+[Plans before checkout opens](#plans-before-checkout-opens)).
 
 Four features over the app-level `config/`, `hooks/`, `ui/` and the route table.
 
@@ -78,7 +80,8 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
 4. **The routes are public URLs with external references.** `/policy/terms`, `/policy/privacy`,
    `/policy/child`, `/s/...` and `/i?t=...` are cited by store listings, `public/sitemap.xml` and links already
    sent to people. Renaming one breaks something this repo cannot see. `/policy/refund` joins them
-   the day it is linked, and the `/subscription` paths the day the account surface opens.
+   the day it is linked, `/subscription/plans` already has — it is the price page a payment provider
+   reviews — and the other `/subscription` paths join the day the account surface opens.
 5. **The English copy names the product's objects the way the app does.** Cloud, place, chat room
    and Self Chat are the nouns the app's own English interface uses, and the four feature cards
    render app screenshots (`assets/src/images/landing_en_*.png`) carrying those same words — a
@@ -102,11 +105,15 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
 9. **The account surface talks to a server through one port.** Pages, hooks and components call
    `SubscriptionPort` (`features/subscription/lib/port/`) and nothing else — no `fetch`, no HTTP
    client. The implementation behind it (the mock today) is swapped without touching a page.
-10. **The account surface is not pointed at until it opens.** Where `isSubscriptionWebEnabled` is
+10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountEnabled` is
     false (every host but `localhost`, `127.0.0.1` and `-dev` ones) its routes are not registered,
     and the public pages' links into it render only where the gate is open — today the home header's
-    "View plans" and "Sign in". It goes in no sitemap, email or
-    outside link before then.
+    "Sign in". It goes in no sitemap, email or outside link before then. **The plans page is the one
+    exception**: it is registered on every host, because a payment provider reviews the prices on the
+    live site before any payment can be taken. Where the gate is shut it runs on the catalog port —
+    the published plans, no session, nothing to buy — and offers the store links in place of
+    checkout. It is linked from the home header's "View plans" everywhere and given to the provider's
+    review; it goes in the sitemap only when checkout opens.
 
 Principles 1, 2, 7 and 9 are checked by the boundary commands in [Layering](#layering); 10 by the
 route table test.
@@ -136,7 +143,7 @@ flowchart TD
     CR -->|index| HO[home]
     CR -->|s/* · i/*| DL[deeplink]
     CR -.->|policy/* · lazy| PO[policy]
-    CR -.->|subscription/* · lazy · gated| SU[subscription]
+    CR -.->|subscription/* · lazy · gated, plans on every host| SU[subscription]
     SU --> RQ[[react-query · radix dialog]]
     SU --> CFG
     HO --> CFG[config/ · links, stage]
@@ -160,12 +167,12 @@ imports `@chatic/bridges`, `@chatic/logger` or `@chatic/app-messages`** — see
 
 `src/app/routes/index.tsx` builds the one router from `CommonRoutes` plus a catch-all that sends any
 other path home, and gives every top-level route the same `errorElement` (`RouteErrorFallback`).
-`CommonRoutes.tsx` mounts home at the root and splits on `/s`, `/i`, `/policy` and — where the gate is
-open — `/subscription`; each feature owns its own subtree. Home and the bounce page are in the entry
-chunk — home is most visitors' first screen, and the bounce page tries the app as soon as it mounts —
-while the policy pages, the bulk of the bundle's text, and the account surface load lazily.
-`createAppRoutes({ subscriptionWeb })` builds the table for either side of the gate, which is how the
-test covers both.
+`CommonRoutes.tsx` mounts home at the root and splits on `/s`, `/i`, `/policy` and `/subscription` —
+all of it where the gate is open, `/subscription/plans` alone where it is shut; each feature owns its
+own subtree. Home and the bounce page are in the entry chunk — home is most visitors' first screen,
+and the bounce page tries the app as soon as it mounts — while the policy pages, the bulk of the
+bundle's text, and the account surface load lazily. `createAppRoutes({ subscriptionAccount })` builds
+the table for either side of the gate, which is how the test covers both.
 
 | URL               | Renders                                           |
 | ----------------- | ------------------------------------------------- |
@@ -180,8 +187,9 @@ test covers both.
 | `/subscription/*` | the account surface — gated, see below            |
 | anything else     | redirect to `/`, dropping the query               |
 
-Where the gate is shut, `/subscription/*` is "anything else". The account surface's own routes are in
-[Two surfaces](#two-surfaces).
+Where the gate is shut, `/subscription/plans` lists the plans with the store links (any deeper path
+returns to it) and the rest of `/subscription/*` is "anything else". The account surface's own routes
+are in [Two surfaces](#two-surfaces).
 
 `src/app/routes/CommonRoutes.test.tsx` holds this table as data — every row, its final URL and
 whether the query survives — so a row that changes fails a test before it breaks a link.
@@ -288,18 +296,19 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 
 ## Two surfaces
 
-|                  | Public surface                                                                        | Account surface                                                          |
-| ---------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| Paths            | `/`, `/policy/*`, `/s/*`, `/i`                                                        | `/subscription/*`                                                        |
-| Who              | anyone — no account, a crawler, a store reviewer, a phone before the app is installed | a DoU account holder signed in with Google or Apple                      |
-| Does             | introduces the product, serves the policies, hands invite links on                    | buys and manages a subscription bought outside the stores                |
-| Session, backend | none (principles 1, 2)                                                                | yes — through one port (principle 9)                                     |
-| Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                       |
-| Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts only (`isSubscriptionWebEnabled`) |
+|                  | Public surface                                                                        | Account surface                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Paths            | `/`, `/policy/*`, `/s/*`, `/i`                                                        | `/subscription/*`                                                                                |
+| Who              | anyone — no account, a crawler, a store reviewer, a phone before the app is installed | a DoU account holder signed in with Google or Apple (W-01: any visitor)                          |
+| Does             | introduces the product, serves the policies, hands invite links on                    | buys and manages a subscription bought outside the stores                                        |
+| Session, backend | none (principles 1, 2)                                                                | yes — through one port (principle 9)                                                             |
+| Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                                               |
+| Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts only (`isSubscriptionAccountEnabled`); W-01 on every host |
 
-Every screen below is drawn on the mock port; none is open on the production host yet. Screen ids
-(`W-01`, `W-18`, …) are the names of the design frames each screen is drawn from; the route table
-below is their key. `W-23` is the desktop-only notice, which has no route of its own.
+Every screen below is drawn on the mock port. None is open on the production host yet except W-01,
+which runs there on the catalog port (see [Plans before checkout opens](#plans-before-checkout-opens)).
+Screen ids (`W-01`, `W-18`, …) are the names of the design frames each screen is drawn from; the route
+table below is their key. `W-23` is the desktop-only notice, which has no route of its own.
 
 ### The account surface
 
@@ -312,6 +321,8 @@ features/subscription/
 ├── types/            the view types the screens draw (Plan, Subscription, PaymentMethod, …)
 ├── lib/port/         SubscriptionPort, SubscriptionPortError, PortProvider (+ the clock)
 ├── lib/mock/         the mock port: state machine, scenarios, policy values, storage
+├── lib/catalog.ts    the published plans and prices, read by both ports
+├── lib/catalogPort.ts the port where the account surface is shut: the plans, no session
 ├── lib/              decisions as pure functions: sceneOf, changeKindOf, ddayOf,
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
 ├── utils/            formatMoney, formatDate, cn, countdowns, isEmailAddress
@@ -329,7 +340,7 @@ above it. The primitives use this site's Tailwind tokens (plus the `status-*` co
 
 | URL                                                              | Screen                                                                                                   | Shell   | Guard                                                         |
 | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------- |
-| `/subscription/plans`                                            | W-01 plans                                                                                               | public  | —                                                             |
+| `/subscription/plans`                                            | W-01 plans                                                                                               | public  | — (every host; gate shut: catalog port, store links)          |
 | `/subscription/login?next=&reason=`                              | W-02 sign-in                                                                                             | public  | signed in → on to `next` (or W-01)                            |
 | `/subscription/login/callback`                                   | W-02 sign-in return                                                                                      | public  | —                                                             |
 | `/subscription/login/no-account`                                 | W-02b no linked account                                                                                  | public  | —                                                             |
@@ -348,7 +359,7 @@ above it. The primitives use this site's Tailwind tokens (plus the `status-*` co
 | `/subscription/billing-info`                                     | W-16 billing emails                                                                                      | account | 〃                                                            |
 | `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                                                |
 | `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                                                |
-| any other `/subscription/…`                                      | redirect to `/subscription`                                                                              |         |                                                               |
+| any other `/subscription/…`                                      | redirect to `/subscription` (gate shut: see [Routes](#routes))                                           |         |                                                               |
 
 Below the `md` breakpoint (768 px) every one of these shows W-23, the desktop-only notice, instead.
 Without a session a guarded page sends the reader to `/subscription/login?next=<the page>`; a
@@ -364,15 +375,41 @@ leaves for it; the provider sends it back to `/subscription/login/callback`, who
 `completeSignIn`. The mock walks the same trip through its stand-in consent page, so the pages do not
 change when a real provider replaces it.
 
+### Plans before checkout opens
+
+Where `isSubscriptionAccountEnabled` is false — the production host — the route table mounts
+`SubscriptionRoutes` at `/subscription/plans` alone, with `account={false}`. `createPortSetup` then
+returns the catalog port (`lib/catalogPort.ts`) instead of the mock: `getSession` answers no session,
+`listPlans` answers `lib/catalog.ts`, and every other method rejects as it would for a visitor. The
+mock is never created there, so nothing reads `?mock=` or session storage on that host.
+
+The pages read the same flag where it changes what they offer:
+
+- W-01 is a price list: all five cards at full strength with no tag (the entry-plan and "after
+  subscribing" tags are rules of the web checkout, and a plan greyed by them would read as
+  unavailable), none pickable, the subscribe button replaced by "web checkout is coming" with the App
+  Store and Google Play links, and the note about not paying twice on the web left out.
+- `PublicShell` keeps the plans and the policy links and drops "Manage subscription" and "Sign in",
+  which lead to pages that do not exist on that host.
+- W-23, on a phone, keeps the open-the-app card and drops the "subscribe from a computer" one.
+
+`lib/catalog.ts` is therefore a published price list, not mock data: the mock sells exactly this
+catalog, and a price changes there together with the stores' prices. When the server and the payment
+provider arrive, the account surface opens by the gate and the catalog port is no longer used.
+
+Two costs are accepted. The production visitor to this page downloads the whole account-surface
+chunk, mock code included, though the mock is never run there. And a phone-width reader sees W-23
+rather than the prices, as on every subscription page.
+
 ### The mock
 
-`createPortSetup()` (`lib/createPortSetup.ts`) is where the port is chosen; today it is always the
-mock. The mock is an in-memory server holding one account — its subscriptions, cards, invoices and
-billing emails — kept in `sessionStorage` (memory if that fails), so a reload keeps what a flow
-changed. Each method moves that state the way the server should: cancelling schedules an end, a
-payment attempt settles 1.5 s after it starts (a successful upgrade then changes the plan), a retry
-restores a failing subscription.
-Calls take 300 ms. Every price, period and count it uses is in `lib/mock/policy.ts`, and only there.
+`createPortSetup({ account })` (`lib/createPortSetup.ts`) is where the port is chosen; where the
+account surface is open it is the mock. The mock is an in-memory server holding one account — its
+subscriptions, cards, invoices and billing emails — kept in `sessionStorage` (memory if that fails),
+so a reload keeps what a flow changed. Each method moves that state the way the server should:
+cancelling schedules an end, a payment attempt settles 1.5 s after it starts (a successful upgrade
+then changes the plan), a retry restores a failing subscription. Calls take 300 ms. Every period and
+count it uses is in `lib/mock/policy.ts`; the price and the trial come from `lib/catalog.ts`.
 
 Pick the state with the URL; each query is applied once per tab, so a reload keeps the state and a
 one-shot flag is spent once:
@@ -590,13 +627,15 @@ not trigger.
   every screen (a render per scenario).
 
     ```bash
-    npx nx test @chatic/landing   # 425 tests
+    npx nx test @chatic/landing   # 430 tests
     ```
 
-- **The account-surface gate is the hostname, not the build.** `isSubscriptionWebEnabled` is true on
+- **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
   `localhost`, `127.0.0.1` and any host containing `-dev`, whatever the build mode — a dev build served
   from `app.chatic.io` still keeps the pages shut. In tests (jsdom's `localhost`) it is open; the route
-  table test builds both sides with `createAppRoutes`.
+  table test builds both sides with `createAppRoutes`. To see the shut side in a browser, serve the
+  production build under a host that is neither, mapping one to the local server in Chromium with
+  `--host-resolver-rules="MAP app.chatic.test 127.0.0.1"`. `?mock=` does nothing there, by design.
 - **The mock reads the URL once per query.** Opening the same `?mock=…` again does not reset the
   state (it is how a reload keeps a flow's changes); use the dev panel's Reset, or a different
   scenario.
@@ -640,7 +679,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 425 tests pass; in CI
+npx nx test @chatic/landing                               # 430 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```
