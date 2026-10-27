@@ -190,8 +190,9 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         const now = nowMs();
         const previous = s.emailCodes[emailId];
         const lockedUntil = previous?.lockedUntil;
-        if (lockedUntil && now < lockedUntil)
+        if (lockedUntil && now < lockedUntil) {
             fail('resendLimit', undefined, { retryAt: new Date(lockedUntil).toISOString() });
+        }
         const lockedOut = (until: number) => {
             s.emailCodes[emailId] = { ...(previous as MockEmailCode), lockedUntil: until };
             commit(clone(s));
