@@ -222,8 +222,6 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         const kind = changeKindOf(toPlan(from), toPlan(to), account);
         if (kind === 'new' || kind === 'current') return fail('conflict', `cannot change to ${planId}`);
         const direction = to.sort > from.sort ? 'upgrade' : 'downgrade';
-        // The server upgrades a paid period only; a trial can move down but not up.
-        if (direction === 'upgrade' && sub.status === 'trial') return fail('conflict', 'no upgrade during a trial');
         const today = toIsoDate(new Date(now()));
         const preview: ChangePreview = {
             kind: direction,
@@ -236,6 +234,8 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             preview.amountToday = prorate(from.monthly, to.monthly, wire.validFrom ?? 0, wire.validUntil ?? 0, now());
         }
         if (kind === 'blocked') preview.blocked = 'notAdjacent';
+        // The server upgrades a paid period only (409 during a trial); a trial can move down.
+        else if (direction === 'upgrade' && sub.status === 'trial') preview.blocked = 'trialUpgrade';
         return preview;
     };
 

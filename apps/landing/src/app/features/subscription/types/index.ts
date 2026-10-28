@@ -163,7 +163,8 @@ export interface ChangePreview {
     amountToday?: Money;
     effectiveAt: string;
     nextAmount: Money;
-    blocked?: 'pastDue' | 'notAdjacent' | 'sameDayAsChange';
+    /** `trialUpgrade`: a trial may move down but not up — the server upgrades a paid period only. */
+    blocked?: 'pastDue' | 'notAdjacent' | 'sameDayAsChange' | 'trialUpgrade';
 }
 
 export type AttemptPurpose = 'start' | 'upgrade' | 'retry' | 'addCard';

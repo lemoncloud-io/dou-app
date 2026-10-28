@@ -435,7 +435,8 @@ What the screens get from the server differs from the mock in a few places, all 
 - It answers a checkout or an upgrade with the subscription; the attempt W-09 follows is made from it,
   and a `pending` one is settled by reading the subscription again.
 - W-14's charge for an upgrade is an estimate with the server's own proration; the copy says so. The
-  server upgrades a paid period only, so a trial can move down but not up.
+  server upgrades a paid period only, so a trial can move down but not up — W-14 says so before
+  anything is tried, and the mock refuses the same way.
 - Its cards carry no expiry, so none is drawn. It removes the one card it holds.
 - Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
 - The payer's name and mobile number, which the card company requires with every card, are asked for
@@ -673,7 +674,7 @@ not trigger.
   not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 498 tests
+    npx nx test @chatic/landing   # 499 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
@@ -727,7 +728,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 498 tests pass; in CI
+npx nx test @chatic/landing                               # 499 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

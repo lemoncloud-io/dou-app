@@ -517,6 +517,11 @@
                         "upgrade": "Pay and upgrade",
                         "downgrade": "Schedule the change"
                     }
+                },
+                "trialUpgrade": {
+                    "title": "You can move up once the trial ends",
+                    "body": "A higher plan starts with a paid period, so it cannot be chosen during the free trial. You can still move to a lower plan now.",
+                    "action": "Back to the subscription"
                 }
             }
         },

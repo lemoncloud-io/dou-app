@@ -373,16 +373,14 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                       kind,
                       from,
                       to,
-                      amountToday:
-                          sub.status === 'trial'
-                              ? { amount: 0, currency: to.monthly.currency }
-                              : prorate(from.monthly, to.monthly, s.today, sub.nextBillingAt),
+                      amountToday: prorate(from.monthly, to.monthly, s.today, sub.nextBillingAt),
                       effectiveAt: s.today,
                       nextAmount: to.monthly,
                   }
                 : { kind, from, to, effectiveAt: sub.nextBillingAt ?? s.today, nextAmount: to.monthly };
         if (sub.status === 'pastDue' || sub.status === 'restricted') preview.blocked = 'pastDue';
         else if (changeKindOf(from, to, s.account) === 'blocked') preview.blocked = 'notAdjacent';
+        else if (sub.status === 'trial' && kind === 'upgrade') preview.blocked = 'trialUpgrade';
         else if (sub.pendingChange && sub.pendingChange.effectiveAt === s.today) preview.blocked = 'sameDayAsChange';
         return preview;
     };

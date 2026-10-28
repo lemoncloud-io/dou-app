@@ -416,6 +416,16 @@ describe('W-14 plan change', () => {
         );
     });
 
+    it('says a trial moves up only once it ends, with the way back to the subscription', async () => {
+        renderAt('/subscription/change?plan=pro-tier-02', mockSetup('?mock=trial'));
+
+        expect(await screen.findByText('You can move up once the trial ends')).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /upgrade/i })).toBeNull();
+        expect(screen.getByRole('link', { name: 'Back to the subscription' }).getAttribute('href')).toBe(
+            '/subscription/sub-3'
+        );
+    });
+
     it('cancels a scheduled downgrade by upgrading', async () => {
         renderAt('/subscription/change?plan=pro-tier-04', mockSetup('?mock=downgrade-scheduled'));
 

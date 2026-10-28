@@ -405,8 +405,11 @@ describe('createHttpPort — plan change and cancelling', () => {
             ...BASE_ROUTES,
             'GET /subscriptions/0/mine': { subscription: subscription({ status: 'trial' }) },
         });
-        expect(isPortError(await port.previewChange('pro-tier-03').catch(e => e), 'conflict')).toBe(true);
-        expect(await port.previewChange('pro-tier-01')).toMatchObject({ kind: 'downgrade' });
+        expect(await port.previewChange('pro-tier-03')).toMatchObject({ kind: 'upgrade', blocked: 'trialUpgrade' });
+        expect(isPortError(await port.changePlan('pro-tier-03').catch(e => e), 'conflict')).toBe(true);
+        const down = await port.previewChange('pro-tier-01');
+        expect(down).toMatchObject({ kind: 'downgrade' });
+        expect(down.blocked).toBeUndefined();
     });
 
     it('cancels into a subscription that ends on its last paid day', async () => {

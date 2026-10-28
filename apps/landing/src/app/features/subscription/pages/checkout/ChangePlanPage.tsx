@@ -64,6 +64,21 @@ export const ChangePlanPage = (): JSX.Element => {
 
     if (preview.data.blocked === 'pastDue') return <PastDue preview={preview.data} subscription={subscription} />;
     if (preview.data.blocked === 'notAdjacent') return <Navigate to={ROUTES.subscription.plans} replace />;
+    if (preview.data.blocked === 'trialUpgrade') {
+        return (
+            <Banner
+                tone="warning"
+                title={t('subscription.checkout.change.trialUpgrade.title')}
+                action={
+                    <Link to={ROUTES.subscription.detail(subscription.id)} className="text-sm font-semibold underline">
+                        {t('subscription.checkout.change.trialUpgrade.action')}
+                    </Link>
+                }
+            >
+                {t('subscription.checkout.change.trialUpgrade.body')}
+            </Banner>
+        );
+    }
     return <ChangeConfirm preview={preview.data} subscription={subscription} />;
 };
 

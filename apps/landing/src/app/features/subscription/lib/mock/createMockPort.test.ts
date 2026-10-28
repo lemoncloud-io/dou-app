@@ -370,13 +370,11 @@ describe('createMockPort — the state machine', () => {
         expect((await port.retryPayment('sub-2')).id).toBe(first.id);
     });
 
-    it('charges nothing for an upgrade during a trial', async () => {
-        const { port, advance } = setup('?mock=trial');
-        expect((await port.previewChange('pro-tier-02')).amountToday).toEqual({ amount: 0, currency: 'KRW' });
-        const attempt = await port.changePlan('pro-tier-02');
-        await settle(port, (attempt as { id: string }).id, advance);
-        expect((await port.getSubscription('sub-3')).planId).toBe('pro-tier-02');
-        expect(await port.listInvoices()).toEqual([]);
+    it('refuses an upgrade during a trial, as the server does', async () => {
+        const { port } = setup('?mock=trial');
+        expect((await port.previewChange('pro-tier-02')).blocked).toBe('trialUpgrade');
+        await expectCode(port.changePlan('pro-tier-02'), 'conflict');
+        expect((await port.getSubscription('sub-3')).planId).toBe('pro-tier-01');
     });
 
     it('refuses a plan change on a subscription that is ending', async () => {
