@@ -57,7 +57,8 @@ export interface SubscriptionPort {
     startCheckout(input: {
         planId: PlanId;
         country: string;
-        emailId: string;
+        /** The verified billing email, where billing emails are managed; the payer's address is what is charged to. */
+        emailId?: string;
         payer: Payer;
         /** The card `startPaymentMethodRegistration` registered for this checkout. */
         card?: CardToken;

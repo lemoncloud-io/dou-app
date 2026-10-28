@@ -7,15 +7,16 @@ import { Logo } from '@chatic/assets';
 import { ROUTES } from '../../../routes/paths';
 import { useCurrentSubscription, useSession } from '../hooks';
 import { useToday } from '../lib/port';
+import { useManagementScreens } from '../lib/screens';
 import { sceneOf } from '../lib/sceneOf';
 import { cn, formatDate } from '../utils';
 import { AccountMenu } from './AccountMenu';
 
 const MENU = [
-    { to: ROUTES.subscription.root, key: 'manage', end: true },
-    { to: ROUTES.subscription.paymentMethods, key: 'paymentMethods', end: false },
-    { to: ROUTES.subscription.history, key: 'history', end: false },
-    { to: ROUTES.subscription.billingInfo, key: 'billingInfo', end: false },
+    { to: ROUTES.subscription.root, key: 'manage', end: true, management: false },
+    { to: ROUTES.subscription.paymentMethods, key: 'paymentMethods', end: false, management: true },
+    { to: ROUTES.subscription.history, key: 'history', end: false, management: false },
+    { to: ROUTES.subscription.billingInfo, key: 'billingInfo', end: false, management: true },
 ] as const;
 
 /**
@@ -28,6 +29,7 @@ export const AccountShell = (): JSX.Element => {
     const session = useSession();
     const { subscription, plan } = useCurrentSubscription();
     const today = useToday();
+    const management = useManagementScreens();
     // The same rule as the detail screen's buttons, so the sidebar never offers what the screen
     // would refuse (a scheduled downgrade, for one, is cancelled from its own card first).
     const cancellable = !!subscription && sceneOf(subscription, today).actions.includes('cancel');
@@ -58,7 +60,7 @@ export const AccountShell = (): JSX.Element => {
                     )}
                 </div>
                 <nav className="flex flex-col gap-1">
-                    {MENU.map(item => (
+                    {MENU.filter(item => management || !item.management).map(item => (
                         <NavLink
                             key={item.key}
                             to={item.to}

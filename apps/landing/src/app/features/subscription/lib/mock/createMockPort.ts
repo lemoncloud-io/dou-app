@@ -550,8 +550,12 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 if (changeKindOf(undefined, planOf(planId), s.account) !== 'new') fail('conflict', 'plan not sellable');
                 if (country !== 'KR') fail('conflict', 'billing country not supported yet');
                 if (!defaultCard(s)) fail('conflict', 'no payment method');
-                const email = s.billing.emails.find(e => e.id === emailId);
-                if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
+                // A checkout without a billing email (the billing-email screens are hidden) is charged
+                // with the payer's own address, which is all the card company asks for.
+                if (emailId !== undefined) {
+                    const email = s.billing.emails.find(e => e.id === emailId);
+                    if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
+                }
                 return startAttempt(s, { purpose: 'start', planId, withTrial: !s.account.trialUsed });
             }),
 

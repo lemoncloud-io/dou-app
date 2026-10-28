@@ -11,6 +11,7 @@ import { type PortSetup, createPortSetup } from '../lib/createPortSetup';
 import { registerSubscriptionCopy } from '../lib/i18n';
 import { MockControllerProvider } from '../lib/mock';
 import { PortProvider, isPortError } from '../lib/port';
+import { MANAGEMENT_SCREENS_OPEN, ManagementScreensProvider } from '../lib/screens';
 import { sessionEndedRedirect } from '../lib/sessionEnded';
 import { BillingHistoryPage, BillingInfoPage, PaymentMethodsPage } from '../pages/billing';
 import {
@@ -66,9 +67,12 @@ const createQueryClient = (onUnauthenticated: () => void): QueryClient => {
 export const SubscriptionRoutes = ({
     account = true,
     setup = setupFor(account),
+    management = MANAGEMENT_SCREENS_OPEN,
 }: {
     account?: boolean;
     setup?: PortSetup;
+    /** Whether the card and billing-email screens exist (`lib/screens.tsx`). */
+    management?: boolean;
 }): JSX.Element => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -97,11 +101,17 @@ export const SubscriptionRoutes = ({
             <PortProvider port={setup.port} clock={setup.clock}>
                 <MockControllerProvider controller={paymentWindow}>
                     <ToastProvider>
-                        <Host>
-                            <DesktopOnlyGuard account={account}>
-                                {account ? <AccountRoutes mock={mock} /> : <CatalogRoutes />}
-                            </DesktopOnlyGuard>
-                        </Host>
+                        <ManagementScreensProvider open={management}>
+                            <Host>
+                                <DesktopOnlyGuard account={account}>
+                                    {account ? (
+                                        <AccountRoutes mock={mock} management={management} />
+                                    ) : (
+                                        <CatalogRoutes />
+                                    )}
+                                </DesktopOnlyGuard>
+                            </Host>
+                        </ManagementScreensProvider>
                         {paymentWindow && <MockPaymentWindow />}
                         {mock && <DevScenarioPanel />}
                     </ToastProvider>
@@ -121,7 +131,7 @@ const CatalogRoutes = (): JSX.Element => (
     </Routes>
 );
 
-const AccountRoutes = ({ mock }: { mock: boolean }): JSX.Element => (
+const AccountRoutes = ({ mock, management }: { mock: boolean; management: boolean }): JSX.Element => (
     <Routes>
         <Route element={<PublicShell />}>
             <Route path="plans" element={<PlansPage />} />
@@ -139,7 +149,7 @@ const AccountRoutes = ({ mock }: { mock: boolean }): JSX.Element => (
                 <Route path="store-managed" element={<StoreManagedPage />} />
             </Route>
             <Route element={<RequireSession />}>
-                <Route path="checkout/email" element={<CheckoutEmailPage />} />
+                {management && <Route path="checkout/email" element={<CheckoutEmailPage />} />}
                 <Route path="checkout" element={<CheckoutPage />} />
                 <Route path="checkout/payment" element={<CheckoutPaymentPage />} />
                 <Route path="checkout/status" element={<CheckoutStatusPage />} />
@@ -150,9 +160,18 @@ const AccountRoutes = ({ mock }: { mock: boolean }): JSX.Element => (
         <Route element={<RequireSession />}>
             <Route element={<AccountShell />}>
                 <Route index element={<SubscriptionListPage />} />
-                <Route path="payment-methods" element={<PaymentMethodsPage />} />
+                {management ? (
+                    <Route path="payment-methods" element={<PaymentMethodsPage />} />
+                ) : (
+                    // Not a screen, but a path the next route would take for a subscription's id.
+                    <Route path="payment-methods" element={<Navigate to={ROUTES.subscription.root} replace />} />
+                )}
                 <Route path="history" element={<BillingHistoryPage />} />
-                <Route path="billing-info" element={<BillingInfoPage />} />
+                {management ? (
+                    <Route path="billing-info" element={<BillingInfoPage />} />
+                ) : (
+                    <Route path="billing-info" element={<Navigate to={ROUTES.subscription.root} replace />} />
+                )}
                 <Route path=":subscriptionId" element={<SubscriptionDetailPage />} />
                 <Route path=":subscriptionId/cancel" element={<CancelSubscriptionPage />} />
             </Route>

@@ -50,19 +50,17 @@ export const allConsented = (consents: Consents): boolean => CONSENTS.every(key 
 export const setAllConsents = (value: boolean): Consents => ({ terms: value, privacy: value, autoRenew: value });
 
 /**
- * The checkout continues only once the country is one it can bill, the email is verified, the payer is
- * filled in, and every consent is given.
+ * The checkout continues only once the country is one it can bill, there is an address for the card
+ * company, the payer is filled in, and every consent is given.
  */
 export const canContinueCheckout = (input: {
     country: string;
-    emailId?: string;
+    /** The address the card company is given: the verified billing email, or the account's own. */
+    email?: string;
     payer: PayerDraft;
     consents: Consents;
 }): boolean =>
-    isSupportedCountry(input.country) &&
-    !!input.emailId &&
-    isPayerComplete(input.payer) &&
-    allConsented(input.consents);
+    isSupportedCountry(input.country) && !!input.email && isPayerComplete(input.payer) && allConsented(input.consents);
 
 /**
  * Where a request for `/subscription/checkout?plan=` belongs. A first subscription stays here; a
@@ -86,7 +84,8 @@ export const checkoutRouteFor = (
  */
 export interface CheckoutDetails {
     country: string;
-    emailId: string;
+    /** The verified billing email the checkout used; absent while the billing-email screens are hidden. */
+    emailId?: string;
     /** Who pays, for the payment window and the server. It lives in this state and nowhere else. */
     payer: Payer;
 }
@@ -100,11 +99,12 @@ const isPayer = (value: unknown): value is Payer => {
 
 export const checkoutDetailsOf = (state: unknown): CheckoutDetails | undefined => {
     const details = (state as { checkout?: Partial<CheckoutDetails> } | null)?.checkout;
-    return details &&
-        typeof details.country === 'string' &&
-        typeof details.emailId === 'string' &&
-        isPayer(details.payer)
-        ? { country: details.country, emailId: details.emailId, payer: details.payer }
+    return details && typeof details.country === 'string' && isPayer(details.payer)
+        ? {
+              country: details.country,
+              ...(typeof details.emailId === 'string' ? { emailId: details.emailId } : {}),
+              payer: details.payer,
+          }
         : undefined;
 };
 

@@ -47,11 +47,13 @@ const Where = () => {
     );
 };
 
-const renderAt = (url: string, setup: PortSetup) =>
+// The card and billing-email screens are open unless `management` says otherwise: they are hidden by
+// default in the app (`lib/screens.tsx`), and the last describe below is about that.
+const renderAt = (url: string, setup: PortSetup, { management = true }: { management?: boolean } = {}) =>
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
-                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} />} />
+                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management={management} />} />
             </Routes>
             <Where />
         </MemoryRouter>
@@ -319,6 +321,53 @@ const toPayment = async () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
     await screen.findByRole('heading', { name: 'Add a payment method' });
 };
+
+describe('checkout with the card and billing-email screens hidden', () => {
+    const hidden = { management: false };
+
+    it('goes straight to the details, with no billing email to verify or change', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new'), hidden);
+
+        expect(await screen.findByRole('heading', { name: 'Review your order' })).toBeTruthy();
+        expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
+        expect(screen.queryByText('Billing email')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+        expect(screen.getByText("Receipts and notices go to your account's email address.")).toBeTruthy();
+    });
+
+    it('hands the card company the account address, and carries no billing email on', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new'), hidden);
+        await fillPayer();
+        await consentAll();
+        fireEvent.click(await screen.findByRole('button', { name: 'Next · Add a payment method' }));
+
+        await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
+        expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null')).toEqual({
+            checkout: { country: 'KR', payer: { ...PAYER, email: 'minji.kim@gmail.com' } },
+        });
+    });
+
+    it('starts the trial without a billing email', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new'), hidden);
+        await toPayment();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Add card and start free trial' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
+
+        expect(await screen.findByText('Your DoU Cloud 1 free trial has started')).toBeTruthy();
+    });
+
+    it('says an account with no address cannot subscribe, instead of asking for one', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new-apple'), hidden);
+
+        expect(await screen.findByText('Your account has no email address')).toBeTruthy();
+        await fillPayer();
+        await consentAll();
+        expect(
+            (screen.getByRole('button', { name: 'Next · Add a payment method' }) as HTMLButtonElement).disabled
+        ).toBe(true);
+    });
+});
 
 describe('W-05 card, W-09 and W-06', () => {
     it('goes back to W-08 when reached without its details', async () => {

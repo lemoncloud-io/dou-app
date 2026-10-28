@@ -49,6 +49,12 @@ Three things had to be settled to connect them:
    before. A variable asks the server for sample payments, with the in-page stand-in as the card window.
 6. **The card company's required payer fields are asked for on the screens.** The name and mobile number
    go on W-08 and in the add-card dialog, travel with that one checkout or card, and are not stored.
+7. **The card and billing-email screens are hidden until their servers exist.** W-12, W-16 and W-24 have
+   no server of their own — the cards and the emails they manage are DoU's, not the payment provider's,
+   which only takes the card number in its window — so they would be answered by the mock alone. Their
+   routes are not registered and every link into them is gone, behind one value
+   (`MANAGEMENT_SCREENS_OPEN`); the port methods, the HTTP port and the mock stay. The card company gets
+   the signed-in account's own address in place of a verified billing email.
 
 ## Alternatives
 
@@ -61,6 +67,8 @@ Three things had to be settled to connect them:
   (W-24 needs billing emails before W-08); mocking all of them would test nothing against the server.
 - **Write the dev addresses in source, chosen by host.** It keeps the site free of runtime
   environment, but puts addresses the other apps keep out of this public repository into it.
+- **Keep the screens and answer them from the mock.** It keeps every flow whole, but a production-bound
+  surface would show a card list and verified emails that no server holds.
 - **Store the payer for the next card.** It saves typing, but it is personal data kept for a form the
   card company asks for again anyway.
 
@@ -74,6 +82,9 @@ Three things had to be settled to connect them:
   tab that runs against the server.
 - **Methods move from the mock to the server one by one**: a method joins `HTTP_METHODS` the day its
   server exists. The production build keeps the account surface shut until every method has one.
+- **Shutting them costs two things.** A subscriber cannot change or remove the card (a failed payment or
+  an expired card has no fix on the page), and receipts and notices go to the sign-in address alone.
+  Both are settled before the account surface opens on the production host.
 - **The server's view of the signed-in account decides who may subscribe.** An account the relay
   still holds as a guest (a device account that linked a social login later) is refused by the
   subscription server, whatever the landing site shows.

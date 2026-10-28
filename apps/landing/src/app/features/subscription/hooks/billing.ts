@@ -44,9 +44,10 @@ export const useInvoices = () => {
     return useQuery({ queryKey: subscriptionKeys.invoices(), queryFn: () => port.listInvoices() });
 };
 
-export const useBillingInfo = () => {
+/** `enabled: false` where no screen reads the billing emails (they are hidden — `lib/screens.tsx`). */
+export const useBillingInfo = ({ enabled = true }: { enabled?: boolean } = {}) => {
     const port = usePort();
-    return useQuery({ queryKey: subscriptionKeys.billingInfo(), queryFn: () => port.getBillingInfo() });
+    return useQuery({ queryKey: subscriptionKeys.billingInfo(), queryFn: () => port.getBillingInfo(), enabled });
 };
 
 const useBillingInfoMutation = <T>(fn: (input: T) => Promise<BillingInfo>) => {

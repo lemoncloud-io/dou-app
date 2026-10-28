@@ -6,6 +6,8 @@ import { createPortSetup } from '../lib/createPortSetup';
 import { createMockPort } from '../lib/mock';
 import { memoryStateStore } from '../lib/mock/storage';
 
+import { MANAGEMENT_SCREENS_OPEN } from '../lib/screens';
+
 import { SubscriptionRoutes } from './index';
 
 import type { PortSetup } from '../lib/createPortSetup';
@@ -71,11 +73,12 @@ const Where = () => {
     return <output data-testid="where">{pathname + search}</output>;
 };
 
-const renderAt = (url: string, setup: PortSetup) =>
+// `management` opens the card and billing-email screens, which are hidden by default (`lib/screens.tsx`).
+const renderAt = (url: string, setup: PortSetup, { management = true }: { management?: boolean } = {}) =>
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
-                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} />} />
+                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management={management} />} />
             </Routes>
             <Where />
         </MemoryRouter>
@@ -123,6 +126,40 @@ describe('SubscriptionRoutes', () => {
         renderAt('/subscription/checkout/email?plan=pro-tier-01', mockSetup('?mock=new'));
 
         expect(await screen.findByText('W-24')).toBeTruthy();
+    });
+
+    describe('with the card and billing-email screens hidden (the default)', () => {
+        it.each([
+            ['/subscription/payment-methods'],
+            ['/subscription/billing-info'],
+            ['/subscription/checkout/email?plan=pro-tier-01'],
+        ])('does not register %s: it falls to the subscription list', async url => {
+            renderAt(url, mockSetup('?mock=active'), { management: false });
+
+            expect(await screen.findByText('W-10')).toBeTruthy();
+            expect(where()).toBe('/subscription');
+        });
+
+        it('leaves the card and billing-email screens out of the sidebar, and keeps the rest', async () => {
+            renderAt('/subscription', mockSetup('?mock=active'), { management: false });
+
+            const nav = within(await screen.findByRole('navigation'));
+            expect(nav.getByRole('link', { name: 'Subscription' })).toBeTruthy();
+            expect(nav.getByRole('link', { name: 'Billing history' })).toBeTruthy();
+            expect(nav.queryByRole('link', { name: 'Payment methods' })).toBeNull();
+            expect(nav.queryByRole('link', { name: 'Billing info' })).toBeNull();
+        });
+
+        it('keeps the screens that stay open', async () => {
+            renderAt('/subscription/history', mockSetup('?mock=active'), { management: false });
+
+            expect(await screen.findByText('W-13')).toBeTruthy();
+            expect(where()).toBe('/subscription/history');
+        });
+
+        it('is hidden unless asked for: nothing opens them by default', () => {
+            expect(MANAGEMENT_SCREENS_OPEN).toBe(false);
+        });
     });
 
     it('sends a store subscriber to the store notice instead of checkout', async () => {

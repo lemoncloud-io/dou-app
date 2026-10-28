@@ -15,6 +15,7 @@ import {
 } from '../../hooks';
 import { isPortError, useToday } from '../../lib/port';
 import { type SceneAction, type SceneBanner, sceneOf } from '../../lib/sceneOf';
+import { useManagementScreens } from '../../lib/screens';
 import { chargeCardOf, changeTargetsOf, expiryOf, scheduledChangeDialogOf } from './manageModel';
 import { LoadFailure } from './LoadFailure';
 import { RecentInvoices } from './RecentInvoices';
@@ -57,18 +58,26 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
     const toast = useToast();
     const today = useToday();
     const methods = usePaymentMethods();
-    const billingInfo = useBillingInfo();
+    const management = useManagementScreens();
+    const billingInfo = useBillingInfo({ enabled: management });
     const session = useSession();
     const plans = usePlans();
     const cancelChange = useCancelScheduledChange();
     const resume = useResumeFlow(sub, fmt);
     const [dialog, setDialog] = useState<'changePlan' | 'chooseClouds' | 'cancelChange' | 'sameDay' | null>(null);
 
-    const { banner, actions } = sceneOf(sub, today);
+    const scene = sceneOf(sub, today);
+    const { banner } = scene;
+    // The card screens are hidden, so the buttons that lead to them go with them.
+    const actions = scene.actions.filter(
+        action => management || (action !== 'paymentMethods' && action !== 'updatePaymentMethod')
+    );
     const plan = fmt.planOf(sub.planId);
     const target = fmt.planOf(sub.pendingChange?.planId);
     const card = chargeCardOf(sub, methods.data ?? []);
-    const bounced = billingInfo.data?.emails.find(email => email.primary && email.status === 'bounced');
+    const bounced = management
+        ? billingInfo.data?.emails.find(email => email.primary && email.status === 'bounced')
+        : undefined;
     const changeTargets = plan ? changeTargetsOf(plan, plans.data ?? [], session.data ?? null) : [];
 
     const close = (next: boolean) => !next && setDialog(null);
@@ -197,23 +206,25 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             ) : (
                 banner.kind !== 'restricted' && (
                     <div className="grid grid-cols-2 gap-3">
-                        <InfoCard
-                            title={t('subscription.manage.detail.paymentCard.title')}
-                            line={
-                                card
-                                    ? expiryOf(card)
-                                        ? t('subscription.manage.detail.paymentCard.line', {
-                                              card: fmt.card(card),
-                                              exp: expiryOf(card),
-                                          })
-                                        : t('subscription.manage.detail.paymentCard.lineNoExpiry', {
-                                              card: fmt.card(card),
-                                          })
-                                    : t('subscription.manage.detail.paymentCard.none')
-                            }
-                            action={t('subscription.manage.detail.paymentCard.manage')}
-                            onAction={() => navigate(ROUTES.subscription.paymentMethods)}
-                        />
+                        {management && (
+                            <InfoCard
+                                title={t('subscription.manage.detail.paymentCard.title')}
+                                line={
+                                    card
+                                        ? expiryOf(card)
+                                            ? t('subscription.manage.detail.paymentCard.line', {
+                                                  card: fmt.card(card),
+                                                  exp: expiryOf(card),
+                                              })
+                                            : t('subscription.manage.detail.paymentCard.lineNoExpiry', {
+                                                  card: fmt.card(card),
+                                              })
+                                        : t('subscription.manage.detail.paymentCard.none')
+                                }
+                                action={t('subscription.manage.detail.paymentCard.manage')}
+                                onAction={() => navigate(ROUTES.subscription.paymentMethods)}
+                            />
+                        )}
                         <InfoCard
                             title={t('subscription.manage.detail.periodCard.title')}
                             line={

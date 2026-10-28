@@ -8,6 +8,7 @@ import { registerSubscriptionCopy } from '../../lib/i18n';
 import { createMockPort } from '../../lib/mock';
 import { memoryStateStore } from '../../lib/mock/storage';
 import { PortProvider } from '../../lib/port';
+import { ManagementScreensProvider } from '../../lib/screens';
 import { CancelSubscriptionPage, SubscriptionDetailPage, SubscriptionListPage } from './index';
 
 beforeAll(async () => {
@@ -20,8 +21,12 @@ const Where = () => {
     return <output data-testid="where">{pathname + search}</output>;
 };
 
-/** Renders the three management routes on a fresh mock in the given scenario, starting at `url`. */
-const renderAt = (url: string, search: string) => {
+/**
+ * Renders the three management routes on a fresh mock in the given scenario, starting at `url`. The card
+ * and billing-email screens are open unless `management` says otherwise — they are hidden by default in
+ * the app (`lib/screens.tsx`), and the tests below say what each hides.
+ */
+const renderAt = (url: string, search: string, { management = true }: { management?: boolean } = {}) => {
     const { port, clock } = createMockPort({
         store: memoryStateStore(),
         readSearch: () => `${search}&panel=0`,
@@ -31,17 +36,22 @@ const renderAt = (url: string, search: string) => {
     return render(
         <QueryClientProvider client={queryClient}>
             <PortProvider port={port} clock={clock}>
-                <ToastProvider>
-                    <MemoryRouter initialEntries={[url]}>
-                        <Routes>
-                            <Route path="/subscription" element={<SubscriptionListPage />} />
-                            <Route path="/subscription/:subscriptionId" element={<SubscriptionDetailPage />} />
-                            <Route path="/subscription/:subscriptionId/cancel" element={<CancelSubscriptionPage />} />
-                            <Route path="*" element={null} />
-                        </Routes>
-                        <Where />
-                    </MemoryRouter>
-                </ToastProvider>
+                <ManagementScreensProvider open={management}>
+                    <ToastProvider>
+                        <MemoryRouter initialEntries={[url]}>
+                            <Routes>
+                                <Route path="/subscription" element={<SubscriptionListPage />} />
+                                <Route path="/subscription/:subscriptionId" element={<SubscriptionDetailPage />} />
+                                <Route
+                                    path="/subscription/:subscriptionId/cancel"
+                                    element={<CancelSubscriptionPage />}
+                                />
+                                <Route path="*" element={null} />
+                            </Routes>
+                            <Where />
+                        </MemoryRouter>
+                    </ToastProvider>
+                </ManagementScreensProvider>
             </PortProvider>
         </QueryClientProvider>
     );
@@ -179,6 +189,46 @@ describe('W-18 subscription detail', () => {
         expect(await screen.findByText('Check your billing email')).toBeTruthy();
         fireEvent.click(button('Billing info'));
         expect(where()).toBe('/subscription/billing-info');
+    });
+
+    describe('with the card and billing-email screens hidden', () => {
+        it('draws no card tile and no way into the card screens', async () => {
+            renderAt('/subscription/sub-2', '?mock=active', { management: false });
+
+            await screen.findByText('Automatic payment scheduled');
+            expect(screen.queryByText('Payment method')).toBeNull();
+            expect(screen.queryByRole('button', { name: 'Payment methods' })).toBeNull();
+            // What stays: the plan change, cancelling and the billing history.
+            expect(button('Change plan')).toBeTruthy();
+            expect(button('Cancel subscription')).toBeTruthy();
+        });
+
+        it('offers no button to a failed payment that leads to the card screens', async () => {
+            renderAt('/subscription/sub-2', '?mock=past-due', { management: false });
+
+            expect(await screen.findByText('Payment failed · D-5 until restriction')).toBeTruthy();
+            expect(screen.queryByRole('button', { name: 'Change payment method' })).toBeNull();
+        });
+
+        it('does not ask for a billing email check where it cannot be done', async () => {
+            renderAt('/subscription/sub-2', '?mock=email-pending', { management: false });
+
+            await screen.findByText('Automatic payment scheduled');
+            expect(screen.queryByText('Check your billing email')).toBeNull();
+        });
+
+        it('tells a cancelled subscription with no card that nothing can be added, rather than sending it away', async () => {
+            renderAt('/subscription/sub-2', '?mock=cancel-scheduled&cards=0', { management: false });
+
+            await screen.findByText('Your subscription ends on 2026.11.20 · D-19');
+            await waitFor(() => expect(button('Undo cancellation').hasAttribute('disabled')).toBe(false));
+            fireEvent.click(button('Undo cancellation'));
+            const dialog = await screen.findByRole('dialog');
+            expect(within(dialog).getByText('No card to charge')).toBeTruthy();
+            expect(within(dialog).getByText(/cards cannot be added here yet/)).toBeTruthy();
+            expect(within(dialog).queryByRole('button', { name: 'Add a card' })).toBeNull();
+            expect(where()).toBe('/subscription/sub-2');
+        });
     });
 
     it('gives an expired subscription the last day to restore its clouds', async () => {

@@ -311,6 +311,12 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 | Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                                               |
 | Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts only (`isSubscriptionAccountEnabled`); W-01 on every host |
 
+**The card and billing-email screens are hidden** — W-12, W-16 and the email step W-24 — until their
+servers exist (ADR-0248, `lib/screens.tsx`). Their rows are kept in the table, marked _hidden_: the routes
+are not registered, every link into them is gone, and the port methods, the HTTP port and the mock are
+left as they were. Opening them again is the one value `MANAGEMENT_SCREENS_OPEN`. What that costs: a
+subscriber cannot change or remove the card, and receipts go to the sign-in address alone.
+
 Every screen below runs on the server where the build has its addresses, and on the mock otherwise or
 with `?mock=` (see [The server](#the-server)). None is open on the production host yet except W-01,
 which runs there on the catalog port (see [Plans before checkout opens](#plans-before-checkout-opens)).
@@ -353,7 +359,7 @@ above it. The primitives use this site's Tailwind tokens (plus the `status-*` co
 | `/subscription/login/callback`                                   | W-02 sign-in return                                                                                      | public  | —                                                             |
 | `/subscription/login/no-account`                                 | W-02b no linked account                                                                                  | public  | —                                                             |
 | `/subscription/store-managed`                                    | W-17 billed by a store                                                                                   | public  | signed in                                                     |
-| `/subscription/checkout/email?plan=`                             | W-24 email step                                                                                          | public  | signed in, not store-billed                                   |
+| `/subscription/checkout/email?plan=`                             | W-24 email step _(hidden)_                                                                               | public  | signed in, not store-billed                                   |
 | `/subscription/checkout?plan=`                                   | W-08 checkout                                                                                            | public  | signed in, not store-billed; no verified primary email → W-24 |
 | `/subscription/checkout/payment?plan=`                           | W-05 card registration                                                                                   | public  | 〃                                                            |
 | `/subscription/checkout/status?attempt=` · `?plan=&outcome=`     | W-09 payment in progress — or, with `outcome`, a payment window that closed or failed before any attempt | public  | 〃                                                            |
@@ -362,9 +368,9 @@ above it. The primitives use this site's Tailwind tokens (plus the `status-*` co
 | `/subscription`                                                  | W-10 subscriptions                                                                                       | account | 〃                                                            |
 | `/subscription/:subscriptionId`                                  | W-18 one subscription                                                                                    | account | 〃                                                            |
 | `/subscription/:subscriptionId/cancel`                           | W-15 cancel                                                                                              | account | 〃                                                            |
-| `/subscription/payment-methods`                                  | W-12 cards                                                                                               | account | 〃                                                            |
+| `/subscription/payment-methods`                                  | W-12 cards _(hidden)_                                                                                    | account | 〃                                                            |
 | `/subscription/history`                                          | W-13 invoices                                                                                            | account | 〃                                                            |
-| `/subscription/billing-info`                                     | W-16 billing emails                                                                                      | account | 〃                                                            |
+| `/subscription/billing-info`                                     | W-16 billing emails _(hidden)_                                                                           | account | 〃                                                            |
 | `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                                                |
 | `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                                                |
 | any other `/subscription/…`                                      | redirect to `/subscription` (gate shut: see [Routes](#routes))                                           |         |                                                               |
@@ -444,7 +450,8 @@ What the screens get from the server differs from the mock in a few places, all 
   — the code a refused card also gets — with a message that the user cancelled; `portOneWindow.ts`
   tells the two apart by that message, so a closed window reads as cancelled, not as a declined card.
 - The payer's name and mobile number, which the card company requires with every card, are asked for
-  on W-08 and in W-12's add-card dialog. They travel with that checkout or card and are not stored.
+  on W-08 (and in W-12's add-card dialog when W-12 is open). They travel with that checkout or card and
+  are not stored. The payer's address is the account's own while the billing-email screens are hidden.
 
 ### The mock
 
@@ -496,7 +503,9 @@ Figma frames drawn before that rule still show the softer register — the copy 
 the plan in force and its neighbours there, and reaches the subscription list from the account menu.
 A cancelled or timed-out sign-in keeps its `next` (the port returns it with the error).
 
-**Billing emails.** A first checkout verifies its billing address on the email step (W-24) before
+**Billing emails (hidden).** While the billing-email screens are hidden, a checkout skips all of this: W-08
+has no billing-email block and hands the card company the signed-in account's own address, and an account
+with none cannot start one. The rest of this paragraph is what opening them restores. A first checkout verifies its billing address on the email step (W-24) before
 the payment details (W-08): a Google sign-in address can be used as it is (`adoptSignInEmail`), any
 other address is verified by code, and W-08 sends a reader without a verified primary address
 (`primaryVerifiedEmail`) back to W-24. W-24, the add flow on W-16 and the change popup all use

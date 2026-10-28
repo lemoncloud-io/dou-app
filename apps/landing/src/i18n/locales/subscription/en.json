@@ -305,7 +305,12 @@
                 },
                 "countryNote": "The billing country decides how you pay. It cannot be changed after you subscribe.",
                 "comingSoonTitle": "Paying from outside Korea is coming soon",
-                "comingSoonBody": "For now you can subscribe only with South Korea as the billing country."
+                "comingSoonBody": "For now you can subscribe only with South Korea as the billing country.",
+                "noAccountEmail": {
+                    "title": "Your account has no email address",
+                    "body": "The card company needs an email address with every card, and this account has none to give. Sign in with an account that has one to subscribe."
+                },
+                "noticeEmail": "Receipts and notices go to your account's email address."
             },
             "consent": {
                 "all": "Agree to all",
@@ -704,7 +709,8 @@
                 "resumeNoCard": {
                     "title": "No card to charge",
                     "body": "The card was removed after you cancelled, so the next payment cannot be made. Add a card to undo the cancellation.",
-                    "confirm": "Add a card"
+                    "confirm": "Add a card",
+                    "bodyHidden": "There is no card on this subscription, and cards cannot be added here yet, so the cancellation cannot be undone. You can subscribe again once it ends."
                 },
                 "cancelChange": {
                     "title": "Cancel the scheduled downgrade?",

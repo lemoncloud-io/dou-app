@@ -41,7 +41,7 @@ const renderAt = (url: string, search: string, setup: PortSetup = mockSetup(sear
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
-                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} />} />
+                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management />} />
             </Routes>
             <Where />
         </MemoryRouter>
