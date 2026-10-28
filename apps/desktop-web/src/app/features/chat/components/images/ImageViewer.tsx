@@ -574,7 +574,7 @@ const BAR_DIVIDER = <span aria-hidden className="mx-1.5 h-5 w-px bg-foreground/1
 const ZoomControls = ({ scale, onRotate, onZoomOut, onZoomIn, onZoomTo, onFit }: ZoomControlsProps) => {
     const { t } = useTranslation();
     return (
-        <div className="flex items-center rounded-xl bg-foreground/[0.06] p-1.5 shadow-raised backdrop-blur-xl">
+        <div className="flex items-center rounded-xl border border-white/60 bg-white/70 p-1.5 shadow-raised backdrop-blur-xl dark:border-white/10 dark:bg-white/10">
             <Hint label={t('chat.image.rotate')}>
                 <button type="button" onClick={onRotate} aria-label={t('chat.image.rotate')} className={ZOOM_BUTTON}>
                     <RotateCw size={20} strokeWidth={1.75} aria-hidden />
