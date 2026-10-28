@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-28] - root@0.121.1, @chatic/desktop-web@0.36.1
+
+### Bug Fixes
+
+- (desktop-web) draw no link card under a deleted message
+
 ## [2026-10-28] - root@0.121.0, @chatic/desktop-web@0.36.0
 
 ### Features
