@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-28] - root@0.121.2, @chatic/desktop-web@0.36.2
+
+### Bug Fixes
+
+- (desktop-web) draw a member name with a space as one mention pill
+
 ## [2026-10-28] - root@0.121.1, @chatic/desktop-web@0.36.1
 
 ### Bug Fixes
