@@ -31,6 +31,7 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             useIsPairedSession: () => mockPaired,
             useSessionSelection: () => ({ selectedCloudId: mockSelected }),
+            deviceDisplayName: (d: { name?: string; platform?: string }) => (d.platform === 'ios' ? 'iPhone' : d.name),
         },
     },
 }));
@@ -92,6 +93,28 @@ describe('PairingDevicesPage', () => {
         render(<PairingDevicesPage />);
 
         expect(screen.getByTestId('redirect').textContent).toBe('/mypage');
+    });
+
+    it('names a phone by its system rather than the user agent the server stored for it', () => {
+        devicesQuery = {
+            data: {
+                list: [
+                    {
+                        id: 'p',
+                        name: 'Mozilla/5.0 (Macintosh) AppleWebKit/537.36',
+                        platform: 'ios',
+                        kind: 'mobile',
+                        presence: 'green',
+                        current: false,
+                    },
+                ],
+                at: 0,
+            },
+        };
+        render(<PairingDevicesPage />);
+
+        expect(screen.getByTestId('device-row-p').textContent).toContain('iPhone');
+        expect(screen.getByTestId('device-row-p').textContent).not.toContain('Mozilla');
     });
 
     it('lists my devices, with no removal on this device and a label for an unknown kind', () => {

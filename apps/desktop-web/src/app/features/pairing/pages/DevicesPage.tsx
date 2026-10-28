@@ -131,7 +131,7 @@ const DeviceSection = () => {
             ) : (
                 <ul className={GROUP}>
                     {list.map(device => {
-                        const name = device.name || t('pairing.devices.unknownName');
+                        const name = runtime.session.deviceDisplayName(device) || t('pairing.devices.unknownName');
                         return (
                             <li key={device.id} className={ROW} data-testid="device-row">
                                 <div className="flex min-w-0 flex-1 flex-col gap-0.5">

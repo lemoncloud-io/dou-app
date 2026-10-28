@@ -78,7 +78,9 @@ account may not approve, a target it may not approve for, and a request already 
 Reached from **Devices** on the account hub; hidden from a relay guest.
 
 **Devices** lists the account's devices (`user.list-device`) on the active slot — inside a cloud,
-that cloud's devices, headed as such. Each row has the name, the kind (phone, desktop, browser,
+that cloud's devices, headed as such. Each row has the name (`runtime.session.deviceDisplayName`: a
+phone or the desktop app saves no name, so its stored user agent reads as `iPhone`, the OS, or
+`<browser> · <OS>`), the kind (phone, desktop, browser,
 developer tool, or unknown), and "online" or the last activity. The device in use is marked and is
 never offered for unlinking; it is signed out with logout. Unlinking asks first, and inside a cloud
 the confirmation adds that a browser let in by a cloud approval also has to be unlinked under

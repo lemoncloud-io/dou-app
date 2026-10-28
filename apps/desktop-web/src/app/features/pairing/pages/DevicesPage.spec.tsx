@@ -25,6 +25,7 @@ vi.mock('@chatic/app-runtime', () => ({
             useIsPairedSession: () => false,
             useSessionSelection: () => ({ selectedCloudId: env.selectedCloudId, selectedSiteId: null }),
             getRelaySessionUser: () => env.relayUser,
+            deviceDisplayName: (d: { name?: string; platform?: string }) => (d.platform === 'ios' ? 'iPhone' : d.name),
         },
         data: {
             useRuntimeRepositories: () => ({
@@ -129,6 +130,18 @@ describe('DevicesPage', () => {
             expect(rows[0].textContent).toContain('Desktop · Online');
             expect(within(rows[0]).queryByRole('button', { name: /Unlink/ })).toBeNull();
             expect(within(rows[1]).getByRole('button', { name: 'Unlink Old PC' })).toBeTruthy();
+        });
+
+        it('names a phone by its system rather than the user agent the server stored for it', async () => {
+            env.listDevices.mockResolvedValue({
+                list: [device({ id: 'p', name: 'Mozilla/5.0 (Macintosh) AppleWebKit/537.36', platform: 'ios' })],
+                at: 0,
+            });
+            renderPage();
+
+            const [row] = await screen.findAllByTestId('device-row');
+            expect(row.textContent).toContain('iPhone');
+            expect(row.textContent).not.toContain('Mozilla');
         });
 
         it('names a device without a name or a known kind as unknown', async () => {

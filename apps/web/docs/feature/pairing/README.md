@@ -110,7 +110,9 @@ server's.
 is sent back; everyone else gets the first section, and an approving app the second.
 
 - **Devices** — `UserRepository.listDevices()` on the active slot, so in a cloud the header reads
-  "Devices in this cloud" and the list is that cloud's. Each row: name, kind (`''` reads as unknown),
+  "Devices in this cloud" and the list is that cloud's. Each row: name (`runtime.session.deviceDisplayName`
+  — phones and the desktop app save no name, so the server keeps their user agent, shown as `iPhone`,
+  `Android`, the OS, or `<browser> · <OS>`), kind (`''` reads as unknown),
   online or last activity, "this device" on `current`. Every other row can be removed after a confirm;
   in a cloud the confirm adds that a web sign-in also has to be removed from the approvals, because the
   pairing would bring it straight back. `closed` only says a close was sent, so the list is re-read

@@ -328,6 +328,9 @@ themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests
   session clears it, which is why an app signs the device out when it meets one.
 - **`classifyPairingError`** names the approval side's failures (`notFound` · `expired` · `codeRefused`
   · `targetRefused` · `alreadyHandled`) so both apps word them the same way.
+- **`deviceDisplayName`** names a row of my device list. Phones and the desktop app save no name of their
+  own, so the server keeps the user agent there; it becomes `iPhone` / `Android`, the OS, or
+  `<browser> · <OS>` instead of a raw `Mozilla/5.0 (…)` line.
 - **`pairingClientOf`** is what the request tells the approver about this device: the socket's own
   platform and label, and `iPhone` / `Android` for a phone, whose injected model is only a hardware id.
 

@@ -97,7 +97,7 @@ export {
 export type { PairingAwareLogout, PairingRequestOptions } from './hooks/pairing';
 export { isInOwnCloudSession, isPairedSession } from './pairing/pairedSession';
 export { forgetRefusedPairedCloud, isRefusedForEndedPairing } from './pairing/pairedCloudRefusal';
-export { pairingClientOf } from './pairing/pairingClient';
+export { deviceDisplayName, pairingClientOf } from './pairing/pairingClient';
 export { classifyPairingError } from './pairing/pairingErrors';
 export type { PairingApprovalError } from './pairing/pairingErrors';
 export type { PairingRequestState } from './pairing/pairingRequestFlow';

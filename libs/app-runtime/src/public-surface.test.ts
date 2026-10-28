@@ -35,6 +35,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'classifyPairingError',
         'clearSiteSelection',
         'createCredentialsByProvider',
+        'deviceDisplayName',
         'fetchInviteInfoWithCode',
         'forgetRefusedPairedCloud',
         'getActiveServerContext',

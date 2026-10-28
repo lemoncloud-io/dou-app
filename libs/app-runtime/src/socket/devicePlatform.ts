@@ -67,6 +67,14 @@ const DESKTOP_PLATFORM: Partial<Record<OsName, SocketDeviceIdentity['platform']>
     ChromeOS: 'linux',
 };
 
+/** `<browser> · <OS>` for a user agent, the OS alone when the browser is not recognised, else nothing. */
+export const userAgentLabel = (userAgent: string): string | undefined => {
+    const os = match(OS_PATTERNS, userAgent);
+    const browser = match(BROWSER_PATTERNS, userAgent);
+    if (browser && os) return `${browser} · ${os}`;
+    return os;
+};
+
 /**
  * Decides `platform` (and `name`) for `device.save`:
  * - mobile shell — `ios` · `android` as injected. Not named: the only model global the shell injects,
@@ -91,5 +99,5 @@ export const resolveSocketDevice = (environment: DeviceEnvironment = readDeviceE
     }
 
     const browser = match(BROWSER_PATTERNS, userAgent);
-    return browser && os ? { platform: 'web', name: `${browser} · ${os}` } : { platform: 'web' };
+    return browser && os ? { platform: 'web', name: userAgentLabel(userAgent) } : { platform: 'web' };
 };

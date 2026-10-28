@@ -101,7 +101,8 @@ const PairingDevicesScreen = () => {
                                 >
                                     <div className="flex min-w-0 flex-1 flex-col">
                                         <span className="truncate text-[15px] text-foreground">
-                                            {device.name || t('pairing.devices.kind.unknown')}
+                                            {runtime.session.deviceDisplayName(device) ||
+                                                t('pairing.devices.kind.unknown')}
                                             {device.current && (
                                                 <span className="ml-2 text-[12px] text-primary">
                                                     {t('pairing.devices.thisDevice')}
