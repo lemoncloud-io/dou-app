@@ -439,6 +439,10 @@ What the screens get from the server differs from the mock in a few places, all 
   anything is tried, and the mock refuses the same way.
 - Its cards carry no expiry, so none is drawn. It removes the one card it holds.
 - Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
+- The payment provider's window opens in the page (an iframe), not as a pop-up, about 0.8 s after the
+  click. Closing it and confirming the card company's "cancel?" question answers `FAILURE_TYPE_PG`
+  — the code a refused card also gets — with a message that the user cancelled; `portOneWindow.ts`
+  tells the two apart by that message, so a closed window reads as cancelled, not as a declined card.
 - The payer's name and mobile number, which the card company requires with every card, are asked for
   on W-08 and in W-12's add-card dialog. They travel with that checkout or card and are not stored.
 

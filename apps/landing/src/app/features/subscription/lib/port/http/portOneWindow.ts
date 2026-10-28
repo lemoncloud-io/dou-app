@@ -6,15 +6,22 @@ import type { PaymentWindow, PaymentWindowResult } from './createHttpPort';
  * What the payment provider's window answered. A `code` is a failure and a `billingKey` the card.
  * No answer at all is the window gone without a result.
  *
- * The code a window closed by the reader reports is not documented, and has not been measured on the
- * test channel yet, so until it is every code reads as a failure — the screens then offer to try again
- * either way.
+ * A reader closing the window is not told apart by its code: measured on the test channel, closing it
+ * (and confirming the card company's "cancel?" question) answers `FAILURE_TYPE_PG`, the same code a
+ * refused card gets, with a message that the user cancelled the issuing. The message is therefore the
+ * only tell, so the match is on its Korean word for cancelling; anything else with a code is a failure.
  */
+const USER_CANCELLED = /취소/;
+
 export const windowResultOf = (
-    response: { code?: string; billingKey?: string } | undefined | null
+    response: { code?: string; message?: string; pgMessage?: string; billingKey?: string } | undefined | null
 ): PaymentWindowResult => {
     if (!response) return { outcome: 'closed' };
-    if (response.code || !response.billingKey) return { outcome: 'failed' };
+    if (response.code) {
+        const said = `${response.message ?? ''} ${response.pgMessage ?? ''}`;
+        return { outcome: USER_CANCELLED.test(said) ? 'closed' : 'failed' };
+    }
+    if (!response.billingKey) return { outcome: 'failed' };
     return { outcome: 'registered', billingKey: response.billingKey };
 };
 
