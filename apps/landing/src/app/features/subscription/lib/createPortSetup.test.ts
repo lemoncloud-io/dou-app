@@ -11,10 +11,22 @@ const SERVER: SubscriptionServer = {
     env: () => undefined,
 };
 
+const SERVER_ACCOUNT = {
+    id: 'U9',
+    provider: 'google' as const,
+    email: 'real.user@example.com',
+    displayName: 'Real User',
+    billingSource: 'none' as const,
+    trialUsed: false,
+};
+
 const fakeHttp = (): HttpSetup => ({
-    port: Object.fromEntries(
-        HTTP_METHODS.map(method => [method, vi.fn(async () => `http:${method}`)])
-    ) as unknown as HttpPort,
+    port: {
+        ...(Object.fromEntries(
+            HTTP_METHODS.map(method => [method, vi.fn(async () => `http:${method}`)])
+        ) as unknown as HttpPort),
+        getSession: async () => SERVER_ACCOUNT,
+    },
     Host: ({ children }) => children as never,
 });
 
@@ -86,6 +98,17 @@ describe('createPortSetup', () => {
         expect((await composed.port.getBillingInfo()).emails).toHaveLength(1);
         expect(await composed.port.signOut()).toBe('http:signOut');
         expect((await composed.port.getBillingInfo()).emails).toEqual([]);
+    });
+
+    it('has the mock speak for the account the server signed in, not the scenario account', async () => {
+        const setup = createPortSetup({ account: true, server: SERVER, search: '', createHttp: fakeHttp });
+        expect(await setup.port.getSession()).toEqual(SERVER_ACCOUNT);
+        // The billing email taken from the sign-in address is the server account's.
+        const adopted = await setup.port.adoptSignInEmail();
+        expect(adopted.address).toBe('real.user@example.com');
+        expect((await setup.port.getBillingInfo()).emails.map(email => email.address)).toEqual([
+            'real.user@example.com',
+        ]);
     });
 
     it('opens the provider window, not the stand-in, when the server takes real payments', () => {

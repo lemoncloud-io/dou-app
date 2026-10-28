@@ -7,7 +7,7 @@ import { sessionStateStore } from './mock/storage';
 import { systemClock, type Clock, type SubscriptionPort } from './port';
 import { HTTP_METHODS, type HttpPort, type HttpSetup, type PaymentWindow, createHttpSetup } from './port/http';
 
-import type { CardToken } from '../types';
+import type { Account, CardToken } from '../types';
 
 export interface PortSetup {
     port: SubscriptionPort;
@@ -119,9 +119,21 @@ export const createPortSetup = ({
     if (!held.signedIn || held.scenario !== 'new') fresh();
     const http = createHttp(server, standInWindowOf(mock));
     const port = composePort(http.port, mock.port);
+    // The mock answers for the account the server knows, so what it derives from the account — the
+    // billing email taken from the sign-in address — is that account's, not the scenario's.
+    const known = (account: Account | null): Account | null => {
+        if (account) mock.controller.setAccount(account);
+        return account;
+    };
     return {
         port: {
             ...port,
+            getSession: async () => known(await http.port.getSession()),
+            completeSignIn: async callback => {
+                const result = await http.port.completeSignIn(callback);
+                if ('account' in result) known(result.account);
+                return result;
+            },
             signOut: () => {
                 fresh();
                 return http.port.signOut();
