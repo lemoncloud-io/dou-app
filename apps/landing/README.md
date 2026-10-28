@@ -688,7 +688,7 @@ not trigger.
   not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 499 tests
+    npx nx test @chatic/landing   # 517 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
@@ -742,7 +742,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 499 tests pass; in CI
+npx nx test @chatic/landing                               # 517 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```
