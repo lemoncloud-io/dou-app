@@ -188,6 +188,8 @@ export const en = {
     'chat.image.zoomIn': 'Zoom in',
     'chat.image.zoomOut': 'Zoom out',
     'chat.image.zoomFit': 'Fit to window',
+    'chat.image.zoomSlider': 'Zoom',
+    'chat.image.rotate': 'Rotate',
     'chat.image.failed': "This image couldn't be loaded",
     'chat.image.more_one': '{{count}} more image',
     'chat.image.more_other': '{{count}} more images',

@@ -198,6 +198,8 @@ export const ko: EnTranslation = {
     'chat.image.zoomIn': '확대',
     'chat.image.zoomOut': '축소',
     'chat.image.zoomFit': '화면에 맞추기',
+    'chat.image.zoomSlider': '확대/축소',
+    'chat.image.rotate': '회전',
     'chat.image.failed': '이미지를 불러올 수 없어요',
     'chat.image.more_one': '이미지 {{count}}개 더',
     'chat.image.more_other': '이미지 {{count}}개 더',

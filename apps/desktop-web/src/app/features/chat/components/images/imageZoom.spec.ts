@@ -6,9 +6,11 @@ import {
     isZoomed,
     MAX_ZOOM_SCALE,
     stepZoom,
+    turnedContent,
     wheelZoom,
     ZOOM_STEP,
     zoomAround,
+    zoomTo,
     type Point,
     type Zoom,
 } from './imageZoom';
@@ -121,5 +123,31 @@ describe('isZoomed', () => {
     it('is true only past fitting the page', () => {
         expect(isZoomed(IDENTITY_ZOOM)).toBe(false);
         expect(isZoomed({ scale: 1.5, x: 0, y: 0 })).toBe(true);
+    });
+});
+
+describe('turnedContent', () => {
+    it('swaps width and height on an odd number of quarter turns', () => {
+        expect(turnedContent(photo, 1)).toEqual({ width: 300, height: 400 });
+        expect(turnedContent(photo, 3)).toEqual({ width: 300, height: 400 });
+    });
+
+    it('keeps the size on an even number of quarter turns', () => {
+        expect(turnedContent(photo, 0)).toEqual(photo);
+        expect(turnedContent(photo, 2)).toEqual(photo);
+    });
+
+    it('lets a turned landscape be dragged by its visual height', () => {
+        const zoom = clampZoom({ scale: 2, x: 0, y: 9999 }, turnedContent(photo, 1), page);
+        // 400 tall turned, doubled = 800: exactly the page, so no room to pan vertically.
+        expect(zoom.y).toBe(0);
+    });
+});
+
+describe('zoomTo', () => {
+    it('sets the scale around the middle of the view, clamped to the range', () => {
+        expect(zoomTo(IDENTITY_ZOOM, 2.5)).toEqual({ scale: 2.5, x: 0, y: 0 });
+        expect(zoomTo(IDENTITY_ZOOM, 99).scale).toBe(MAX_ZOOM_SCALE);
+        expect(zoomTo({ scale: 3, x: 10, y: 20 }, 0.2).scale).toBe(1);
     });
 });
