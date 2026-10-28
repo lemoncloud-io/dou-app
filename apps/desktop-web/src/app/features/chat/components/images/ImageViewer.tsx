@@ -425,7 +425,7 @@ export const ImageViewer = ({
                             </div>
                             {/* Always on screen. It used to wait for a hover, so the only way to
                                 learn the viewer could save or copy was to wave the pointer around. */}
-                            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-8 pb-6">
+                            <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 px-8 py-4">
                                 <span className="min-w-0 truncate text-caption font-medium text-foreground">
                                     {current.name}
                                 </span>
@@ -539,7 +539,10 @@ export const fitStyle = (natural: { width: number; height: number } | null): CSS
  * layer's height must hold, so the two bounds trade places.
  * Until the photo has loaded, max-width/max-height alone keep it inside.
  */
-export const stageFitStyle = (natural: { width: number; height: number } | null, turns: number): CSSProperties | undefined => {
+export const stageFitStyle = (
+    natural: { width: number; height: number } | null,
+    turns: number
+): CSSProperties | undefined => {
     if (!natural || natural.width <= 0 || natural.height <= 0) return undefined;
     const ratio = natural.width / natural.height;
     const bound = turns % 2 === 0 ? `100cqw, calc(100cqh * ${ratio})` : `100cqh, calc(100cqw * ${ratio})`;
@@ -561,7 +564,7 @@ const ZOOM_BUTTON =
 /** What a focused range input does with the keyboard, and so what the viewer must not also act on. */
 const SLIDER_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown']);
 
-const BAR_DIVIDER = <span aria-hidden className="mx-1 h-5 w-px bg-hairline" />;
+const BAR_DIVIDER = <span aria-hidden className="mx-1.5 h-5 w-px bg-foreground/15" />;
 
 /**
  * The picture's controls on one raised pill: turn it, zoom out, a slider for the zoom in between, zoom
@@ -571,10 +574,10 @@ const BAR_DIVIDER = <span aria-hidden className="mx-1 h-5 w-px bg-hairline" />;
 const ZoomControls = ({ scale, onRotate, onZoomOut, onZoomIn, onZoomTo, onFit }: ZoomControlsProps) => {
     const { t } = useTranslation();
     return (
-        <div className="flex items-center rounded-lg bg-elevated p-1 shadow-raised">
+        <div className="flex items-center rounded-xl border border-white/60 bg-white/70 p-1.5 shadow-raised backdrop-blur-xl dark:border-white/10 dark:bg-white/10">
             <Hint label={t('chat.image.rotate')}>
                 <button type="button" onClick={onRotate} aria-label={t('chat.image.rotate')} className={ZOOM_BUTTON}>
-                    <RotateCw size={16} aria-hidden />
+                    <RotateCw size={20} strokeWidth={1.75} aria-hidden />
                 </button>
             </Hint>
             {BAR_DIVIDER}
@@ -586,7 +589,7 @@ const ZoomControls = ({ scale, onRotate, onZoomOut, onZoomIn, onZoomTo, onFit }:
                     aria-label={t('chat.image.zoomOut')}
                     className={ZOOM_BUTTON}
                 >
-                    <Minus size={16} aria-hidden />
+                    <Minus size={20} strokeWidth={1.75} aria-hidden />
                 </button>
             </Hint>
             <input
@@ -602,7 +605,7 @@ const ZoomControls = ({ scale, onRotate, onZoomOut, onZoomIn, onZoomTo, onFit }:
                 }}
                 aria-label={t('chat.image.zoomSlider')}
                 aria-valuetext={`${Math.round(scale * 100)}%`}
-                className="focus-ring mx-1 h-1 w-28 cursor-pointer accent-primary"
+                className="zoom-slider focus-ring mx-1 w-28 cursor-pointer"
             />
             <Hint label={t('chat.image.zoomIn')}>
                 <button
@@ -612,13 +615,13 @@ const ZoomControls = ({ scale, onRotate, onZoomOut, onZoomIn, onZoomTo, onFit }:
                     aria-label={t('chat.image.zoomIn')}
                     className={ZOOM_BUTTON}
                 >
-                    <Plus size={16} aria-hidden />
+                    <Plus size={20} strokeWidth={1.75} aria-hidden />
                 </button>
             </Hint>
             {BAR_DIVIDER}
             <Hint label={t('chat.image.zoomFit')}>
                 <button type="button" onClick={onFit} aria-label={t('chat.image.zoomFit')} className={ZOOM_BUTTON}>
-                    <FoldVertical size={16} aria-hidden />
+                    <FoldVertical size={20} strokeWidth={1.75} aria-hidden />
                 </button>
             </Hint>
         </div>
