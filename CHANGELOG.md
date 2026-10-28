@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-10-28] - root@0.121.0, @chatic/desktop-web@0.36.0
+
+### Features
+
+- (desktop-web) zoom the image viewer around the cursor
+- (desktop-web) pan a zoomed photo and double-click to zoom
+- (desktop-web) zoom the image viewer on click, with zoom controls
+
+### Refactor
+
+- (desktop-web) cheapen image-viewer zoom and pan hot paths
+
 ## [2026-10-27] - No version updates
 
 ### Features
