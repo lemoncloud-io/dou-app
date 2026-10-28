@@ -1,6 +1,8 @@
 # ADR-0037: Group and 1:1 variants of the invite accept popup, and the new design
 
-> Status: Accepted · Decided: 2026-07-30
+> Status: Accepted · Decided: 2026-07-30 · Superseded in part by
+> [ADR-0249](./0249-an-invite-names-its-inviter-by-place-nickname-and-its-room-by-channel-name.md) — the
+> target card is no longer the invitee's own "You" block (2026-10-28). The rest stands.
 
 ## Context
 

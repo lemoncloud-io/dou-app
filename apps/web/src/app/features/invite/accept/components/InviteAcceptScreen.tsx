@@ -19,10 +19,12 @@ export interface InviteAcceptScreenProps {
     /** Live countdown for the invite link; `null` (no expiry known) hides the validity card. */
     countdown: InviteCountdown | null;
     /**
-     * Which kind of room the invite leads to. Drives the "You" card caption **and** whether the place
-     * card exists at all — a 1:1 invite has no place to show (ADR-0037).
+     * Which kind of room the invite leads to: picks the room card's caption, and a `place` invite —
+     * which joins no room — has no room card at all.
      */
     targetKind?: InviteTargetKind;
+    /** Name the room card shows (the group room's name, or the inviter for a 1:1); blank or absent shows none. */
+    targetName?: string;
     /** True while the accept pipeline is in flight — disables dismissal and spins the CTA. */
     isAccepting: boolean;
     onAccept: () => void;
@@ -51,6 +53,7 @@ export const InviteAcceptScreen = ({
     memberCount,
     countdown,
     targetKind,
+    targetName,
     isAccepting,
     onAccept,
     onClose,
@@ -59,9 +62,8 @@ export const InviteAcceptScreen = ({
 }: InviteAcceptScreenProps) => {
     const { t } = useTranslation();
 
-    // Both target kinds show the place — the invite is INTO a place either way, and the 1:1 design node
-    // draws the card too (ADR-0037 decision 1 read that as leftover from the group node; it was not).
-    // Still gated on having something to say: an icon-only shell is worse than no card, and every field
+    // Every invite is INTO a place, so every kind can show the place card (the 1:1 design node draws it
+    // too). Still gated on having something to say: an icon-only shell is worse than no card, and every field
     // counts, or an intro-only invite would silently drop its copy.
     const showPlaceCard = Boolean(placeName || placeIntro || placeThumbnail);
 
@@ -120,12 +122,14 @@ export const InviteAcceptScreen = ({
                     </div>
                 </div>
 
-                {/* Place + target cards. Which cards exist is the group / 1:1 difference. */}
+                {/* Place + room cards. A place invite joins no room, so only the place card is drawn. */}
                 <div className="flex flex-col gap-4">
                     {showPlaceCard && (
                         <InvitePlaceCard name={placeName} intro={placeIntro} thumbnail={placeThumbnail} />
                     )}
-                    <InviteTargetCard memberCount={memberCount} kind={targetKind} />
+                    {targetKind !== 'place' && (
+                        <InviteTargetCard memberCount={memberCount} kind={targetKind} name={targetName} />
+                    )}
                 </div>
 
                 {/* Link validity countdown (hidden when no expiry is known) */}

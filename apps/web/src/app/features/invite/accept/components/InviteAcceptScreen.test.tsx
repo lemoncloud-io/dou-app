@@ -8,10 +8,9 @@ jest.mock('react-i18next', () => ({
     useTranslation: () => ({
         t: (key: string, opts?: Record<string, unknown>) => {
             const copy: Record<string, string> = {
-                'inviteAccept.target.you': 'You',
                 'inviteAccept.target.group': '그룹 대화',
                 'inviteAccept.target.oneToOne': '1:1 대화',
-                'inviteAccept.target.place': '플레이스 친구',
+                'inviteAccept.title': 'DoU에 당신을 초대했어요',
                 'inviteAccept.invitedBy': '님이 DoU에 당신을 초대했어요',
                 'inviteAccept.description': '초대 수락하고 대화를 시작해 보세요.',
                 'inviteAccept.decline': '거절',
@@ -116,18 +115,29 @@ describe('InviteAcceptScreen — group / 1:1 variants', () => {
         expect(screen.getByText('방 친구 20')).toBeTruthy();
     });
 
-    it('captions a place-only invite as a place member, not a group chat', () => {
-        setup({ targetKind: 'place', placeName: '레몬클라우드' });
+    it('draws no room card for a place invite, which joins no room', () => {
+        setup({ targetKind: 'place', placeName: '레몬클라우드', targetName: 'Ignored', memberCount: 20 });
 
         expect(screen.getByTestId('invite-place-card')).toBeTruthy();
-        expect(screen.getByText('플레이스 친구')).toBeTruthy();
+        expect(screen.queryByTestId('invite-target-card')).toBeNull();
         expect(screen.queryByText('그룹 대화')).toBeNull();
+        expect(screen.queryByText(/방 친구/)).toBeNull();
+        expect(screen.queryByText('Ignored')).toBeNull();
     });
 
-    it('keeps the room-friends chip off a place-only invite, which joins no room', () => {
-        setup({ targetKind: 'place', placeName: 'P', memberCount: 20 });
+    it('names the room on the card when the invite carries a name', () => {
+        setup({ targetKind: 'group', targetName: '독서 모임' });
 
-        expect(screen.queryByText(/방 친구/)).toBeNull();
+        expect(screen.getByTestId('invite-target-card')).toBeTruthy();
+        expect(screen.getByText('독서 모임')).toBeTruthy();
+        expect(screen.getByText('그룹 대화')).toBeTruthy();
+    });
+
+    it('draws only the caption on the card when there is no name, and never "You"', () => {
+        setup({ targetKind: 'oneToOne' });
+
+        expect(screen.getByText('1:1 대화')).toBeTruthy();
+        expect(screen.queryByText('You')).toBeNull();
     });
 });
 
@@ -135,6 +145,13 @@ describe('InviteAcceptScreen — shared chrome', () => {
     it('renders the inviter name inside the heading', () => {
         setup({ inviterName: 'Sunny' });
         expect(screen.getByText('Sunny')).toBeTruthy();
+    });
+
+    it('falls back to the nameless heading when no inviter name is given', () => {
+        setup({ inviterName: undefined });
+
+        expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('DoU에 당신을 초대했어요');
+        expect(screen.queryByText('Sunny')).toBeNull();
     });
 
     // jsdom has no layout, so this asserts the rule rather than the pixels it prevents. It earns its
