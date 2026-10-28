@@ -35,22 +35,34 @@ const compute = (expiredAt: number): InviteCountdown => {
     };
 };
 
+export interface InviteCountdownOptions {
+    /**
+     * Tick by the minute until the last ten minutes, then by the second. For a screen that shows
+     * minutes until the countdown turns imminent (the accept screen); left off, it ticks every second.
+     */
+    minuteUntilImminent?: boolean;
+}
+
 /**
  * Live countdown for an invite link's `expiredAt` (epoch ms). Returns the remaining
  * day/hour/minute/second breakdown plus expired / imminent flags, or `null` when no expiry is
  * provided (the validity card is then hidden).
  *
- * Invite links live **3 days** (server-side, ADR-0089 D8), so the day/hour fields are usually the
- * meaningful ones and the caller decides which granularity to show — the accept screen switches to
- * `HH:mm:ss` only inside the last day (ADR-0037).
+ * The lifetime is the record's: links this client issues live 24 hours, while the server's own
+ * default — what a link issued without one gets — is 3 days. So the day field can be non-zero, and
+ * the caller decides how to show it: the accept screen reads `n days n hours n minutes` until the last
+ * ten minutes and a clock after; the waiting screen and the 1:1 strip are a clock throughout.
  *
- * The tick follows what is actually on screen: every second inside the last day, every minute above
- * it (where the coarse display only changes hourly), and it stops entirely at expiry — the same
+ * The tick follows what is on screen: every second by default, or by the minute until the last ten
+ * minutes when `minuteUntilImminent` is set, and it stops entirely at expiry — the same
  * self-terminating shape as `useOtpExpiryCountdown`. Each tick is scheduled onto the instant the
  * displayed value next changes rather than on a fixed interval, so a late-firing timer can't make the
  * seconds freeze for two ticks and then jump by two.
  */
-export const useInviteCountdown = (expiredAt?: number): InviteCountdown | null => {
+export const useInviteCountdown = (
+    expiredAt?: number,
+    { minuteUntilImminent = false }: InviteCountdownOptions = {}
+): InviteCountdown | null => {
     const [countdown, setCountdown] = useState<InviteCountdown | null>(() => (expiredAt ? compute(expiredAt) : null));
 
     useEffect(() => {
@@ -66,18 +78,27 @@ export const useInviteCountdown = (expiredAt?: number): InviteCountdown | null =
             // Nothing left to count down to; leave the terminal value on screen.
             if (next.isExpired) return;
 
-            const step = next.days > 0 ? MINUTE_MS : SECOND_MS;
             const remaining = expiredAt - Date.now();
-            // The display ticks in step with `expiredAt`, not with the wall clock, so land just after
-            // its next boundary. `|| step` covers landing exactly on one.
-            timer = setTimeout(schedule, remaining % step || step);
+            // The display ticks in step with `expiredAt`, not with the wall clock, so land on its next
+            // boundary; `|| step` covers landing exactly on one. Seconds round up, so a second turns
+            // over at a whole-second remainder — and a minute, being read off those seconds, a second
+            // before a whole-minute one. A minute tick also never sleeps past the imminent edge, where
+            // the second tick takes over.
+            const delay =
+                minuteUntilImminent && !next.isImminent
+                    ? Math.min(
+                          (remaining + SECOND_MS) % MINUTE_MS || MINUTE_MS,
+                          remaining - IMMINENT_MINUTES * MINUTE_MS
+                      )
+                    : remaining % SECOND_MS || SECOND_MS;
+            timer = setTimeout(schedule, delay);
         };
         // Runs immediately as well as on a later `expiredAt` change, where the useState initializer
         // no longer applies.
         schedule();
 
         return () => clearTimeout(timer);
-    }, [expiredAt]);
+    }, [expiredAt, minuteUntilImminent]);
 
     return countdown;
 };

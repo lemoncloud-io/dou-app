@@ -43,6 +43,11 @@ jest.mock('../../../hooks/useLastChats', () => ({
     }),
 }));
 
+// A group row's sender, from the list-level lookup (covered by useLastChatSenders.test.ts). Empty by
+// default, so every other case reads its line without a sender.
+const mockLastChatSenders = new Map<string, string>();
+jest.mock('../hooks/useLastChatSenders', () => ({ useLastChatSenders: () => mockLastChatSenders }));
+
 // My profile nick is the self-chat title fallback and my photo is the self-chat row avatar
 // (both resolved once by ChannelList). resolveSelfChatTitle / resolveChannelAvatar are the real
 // pure fns (unit-tested separately).
@@ -566,11 +571,25 @@ describe('ChannelList 아바타', () => {
         expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'my-photo.png');
     });
 
-    it('self 행은 channel.thumbnail이 있어도 내 프로필 사진을 쓴다', () => {
+    // A self chat's own photo is set from its name dialog; until then it is my profile photo.
+    it("uses a self row's own photo once one is set", () => {
         render(
             <ChannelList
                 channels={[makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '', thumbnail: 'room.png' })]}
                 isLoading={false}
+                sid="S1"
+            />
+        );
+
+        expect(screen.getByTestId('image-avatar')).toHaveAttribute('src', 'room.png');
+    });
+
+    it('falls back to my profile photo for a self row without its own', () => {
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'self1', stereo: 'self', memberNo: 1, name: '', thumbnail: '' })]}
+                isLoading={false}
+                sid="S1"
             />
         );
 
@@ -1147,7 +1166,7 @@ describe('ChannelList swipe actions', () => {
 
         await waitFor(() => expect(mockLeaveChannel).toHaveBeenCalledWith({ channelId: 'g1' }));
         expect(mockDeleteChannel).not.toHaveBeenCalled();
-        await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.leftRoom' }));
+        await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.leftRoomToast' }));
         expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
@@ -1344,5 +1363,58 @@ describe('ChannelList — a room with a draft', () => {
 
         expect(label()).not.toBeInTheDocument();
         expect(screen.getByText('the last message')).toBeInTheDocument();
+    });
+});
+
+// The line names who wrote a group room's last message, and marks a thread reply as one. The prefix
+// keys echo here, so the assertion reads which key composed the line.
+describe('ChannelList — sender and thread marks', () => {
+    afterEach(() => {
+        mockLastChat = null;
+        mockLastChatSenders.clear();
+    });
+
+    it('passes the resolved sender into a group row line', () => {
+        mockLastChat = { content: 'hello', createdAtMs: 1 };
+        mockLastChatSenders.set('g1', 'Raine');
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'g1', stereo: 'public', name: 'general' })]}
+                joinByChannel={new Map()}
+                isLoading={false}
+                sid="S1"
+            />
+        );
+
+        expect(screen.getByText('chat.preview.sender')).toBeInTheDocument();
+        expect(screen.queryByText('hello')).not.toBeInTheDocument();
+    });
+
+    it('prints the line alone when no sender resolved', () => {
+        mockLastChat = { content: 'hello', createdAtMs: 1 };
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'g1', stereo: 'public', name: 'general' })]}
+                joinByChannel={new Map()}
+                isLoading={false}
+                sid="S1"
+            />
+        );
+
+        expect(screen.getByText('hello')).toBeInTheDocument();
+    });
+
+    it('marks a thread reply', () => {
+        mockLastChat = { content: 'reply', parentId: 'g1:3', createdAtMs: 1 };
+        render(
+            <ChannelList
+                channels={[makeChannel({ id: 'g1', stereo: 'public', name: 'general' })]}
+                joinByChannel={new Map()}
+                isLoading={false}
+                sid="S1"
+            />
+        );
+
+        expect(screen.getByText('chat.preview.thread')).toBeInTheDocument();
     });
 });

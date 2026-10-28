@@ -1,5 +1,79 @@
 # Changelog
 
+## [2026-10-28] - root@0.121.0, @chatic/desktop-web@0.36.0
+
+### Features
+
+- (desktop-web) zoom the image viewer around the cursor
+- (desktop-web) pan a zoomed photo and double-click to zoom
+- (desktop-web) zoom the image viewer on click, with zoom controls
+
+### Refactor
+
+- (desktop-web) cheapen image-viewer zoom and pan hot paths
+
+## [2026-10-27] - No version updates
+
+### Features
+
+- (shell-adapter) open a url the web asks for in a new tab, not refuse it
+- (block-kit,web) draw webhook cards to the new design, title linked to the report (ADR-0246)
+
+## [2026-10-27] - No version updates
+
+### Features
+
+- (web,config,web-ui-kit) lock a room's message input, threads included, as a lab experiment
+
+## [2026-10-27] - root@0.120.1, @chatic/desktop-web@0.35.7
+
+### Bug Fixes
+
+- (desktop-web) keep invited clouds on a guest's logout too (ADR-0245)
+
+## [2026-10-27] - root@0.120.0, @chatic/web@0.81.0
+
+### Features
+
+- (web) let ending subscriptions add clouds and resubscribe on the lapsed tier (ADR-0240)
+
+## [2026-10-27] - root@0.119.0, @chatic/web@0.80.0
+
+### Features
+
+- (web) judge room owners by join role and remove members by scope (ADR-0237, 0238)
+
+## [2026-10-27] - No version updates
+
+### Features
+
+- (web,landing) name Korean screen copy by the product glossary, not mixed terms
+
+## [2026-10-27] - root@0.118.0, @chatic/web@0.79.0
+
+### Features
+
+- (mobile,web) share files and text from other apps into a Dou room
+- (mobile,web,app-messages) open OS share-sheet items on /share
+- (web) compose a share into up to five rooms of a cloud and place
+- (mobile) take Android share-sheet items into the share page
+- (mobile) take iOS share-sheet items through a share extension
+
+### Bug Fixes
+
+- (mobile) take an Android shared stream only under the sender's grant
+- (web) discard an unsent share however its page is left
+- (mobile) let an Android share go when the next one arrives
+
+### Documentation
+
+- (adr) say where the iOS share extension puts a share
+- (adr) renumber ADR-0231 to ADR-0234
+
+### Refactor
+
+- (mobile,web) reuse the picker's sweep and errors for shares
+
 ## [2026-10-27] - root@0.117.1, @chatic/desktop-web@0.35.6
 
 ### Bug Fixes

@@ -20,12 +20,12 @@ creating a place profile is not a channel concern and this screen only opens it.
 
 ## The sections
 
-| Section         | Group                                               | 1:1                             | Self chat                 |
-| --------------- | --------------------------------------------------- | ------------------------------- | ------------------------- |
-| Room name row   | owner: `UpdateChannelDialog` · member: not a button | `JoinNickDialog` (`dm`)         | `JoinNickDialog` (`self`) |
-| Chat settings   | notification level: all · mention · off             | notification level: all · off   | —                         |
-| Room members    | add-friend row (owner) + member list                | member list, departed peer kept | member list (me alone)    |
-| Destructive row | owner: delete · member: leave                       | leave, for both sides           | —                         |
+| Section         | Group                                               | 1:1                                       | Self chat                 |
+| --------------- | --------------------------------------------------- | ----------------------------------------- | ------------------------- |
+| Room name row   | owner: `UpdateChannelDialog` · member: not a button | `JoinNickDialog` (`dm`)                   | `JoinNickDialog` (`self`) |
+| Chat settings   | notification level: all · mention · off; input lock | notification level: all · off; input lock | —                         |
+| Room members    | add-friend row (owner) + member list                | member list, departed peer kept           | member list (me alone)    |
+| Destructive row | owner: delete · member: leave                       | leave, for both sides                     | —                         |
 
 Five rules behind that table:
 
@@ -44,11 +44,34 @@ Five rules behind that table:
 - **A departed member is dropped from a group and kept in a DM**, with a "left the room" subtitle.
   In a group a pile of departed members is noise; in a DM that person _is_ the room.
 
+### Who owns the room
+
+"Owner" everywhere on this screen — my delete-or-leave, the add-friend row, the member list's badge,
+the profile's owner mark, who may remove a member — is one rule, `isRoomOwner(room, join, userId)` in
+`lib/channelStereoPolicy.ts`, and the room screen's header and profile read it too:
+
+- **The member's join role decides it.** The server writes a role on every join (`stereo`:
+  `'' | 'owner' | 'admin' | 'member'`); only `owner` owns the room. My own comes from `channel.$join`,
+  another member's from the room's join list (`useChannelJoins`).
+- **Only a group has an owner.** The server writes `owner` on a 1:1 inviter's join too, but a 1:1 has
+  no owner/member split and a self chat has one member, so both answer "no owner" — no badge, no owner
+  mark, and "leave" for both sides of a 1:1.
+- **A join with no role falls back to `channel.ownerId`** (the creator), so a row cached without the
+  field cannot strip a group of its owner. An empty role is a role the server set, meaning "none".
+- **A join that names someone else is ignored** and the creator check decides. A kick's response
+  carries the removed member's join in `$join`, and the channel cache keeps it until the next sync;
+  read as mine, it demoted the owner who had just removed someone to a member.
+
+`channel.ownerId` alone used to decide it. That is the creator, which in a 1:1 is whoever sent the
+invite — the inviter's row carried an owner badge in a room of two equals.
+
 ## Writes
 
 The notification level and my private name write `join.update`; the room's shared name and photo
 write `channel.update`; a kick and a leave are both `leaveChannel` (with and without a `userId`); a
-delete is `deleteChannel`. Leaving or deleting replaces the route with the root.
+delete is `deleteChannel`. Removing a member from the room's place is `place.leave` with their id,
+through `PlaceRepository.removeMember` — the same call the place's member screen sends. Leaving or
+deleting replaces the route with the root.
 
 ### The notification level
 
@@ -94,11 +117,24 @@ in the outbox.
 The home list is unchanged by the levels: its swipe action still toggles between Off and All
 messages, and its bell-off glyph marks Off only — a room on Mentions only is not drawn as muted.
 
+### The input lock
+
+The **Lock input** row is drawn under the notification level only while the Lab switch
+`feature.chatInputLock` is on, and only where there is a chat settings group — so a self chat, whose
+messages reach nobody else, goes without. Its switch writes nothing to the server: the lock is mine,
+on this device (`useChatInputLock`, the same answer the room and its threads read). Each change
+confirms itself with a toast, because its effect is on another screen. What a lock does to the
+composer is in [chat-room.md](./chat-room.md#the-input-lock-a-lab-experiment).
+
 ### A kick is a leave with a target
 
 `leaveChannel({ channelId, userId })` removes someone else. Nothing server-side pushes a join update
 for the target, so the mutation hook also marks their join row locally — otherwise the member list
 keeps rendering them. That detail belongs to the hook; see [data-layer.md](./data-layer.md).
+
+A removal from the place needs nothing of its own here either: `place.leave` answers with the rooms
+it took the member out of, and the repository drops them from those rooms' cached rosters — this
+room's included, since it is in the place — which is the roster this screen's list reads.
 
 ## The member list
 
@@ -107,7 +143,9 @@ decorated with `useChannelProfiles`. A row resolves its name as **place-profile 
 row's name → "me" / "unknown user"**. The member id is deliberately not a rung: put it before the
 label and an unresolved member shows a raw UUID, with the label unreachable.
 
-Badges are `owner` and `mine`. **There is no "invite pending" badge**, and its absence is a
+Badges are `mine` and `owner`, at most one per row, and **my own row is always `mine`** — owning the
+room does not turn it into an owner badge. "Me" is matched by the session's id and by my id in the
+room's own cloud, which can differ. **There is no "invite pending" badge**, and its absence is a
 decision: the join counter reads `0` both for "invited, never came in" and for "left", so badging on
 it labelled departed members as pending invitees. A missing badge on a real invitee costs less than
 a wrong one on someone who left. `MemberListItem` still accepts the prop, ready for a server that
@@ -162,6 +200,15 @@ writes `join.update` with a `nick`, capped at 20 characters, and **an empty valu
 — it clears the custom name and the title falls back down its chain. The placeholder is whatever the
 room falls back to right now, so clearing the field visibly returns to it.
 
+**'Done' is enabled only when something changed** from what the dialog opened with — the name, or in
+the self variant the photo — in both variants. What it opened with is seeded once per open, so a
+background sync of the channel does not throw away an edit in progress.
+
+The self variant also sets the room's photo: a picked image is prepared as an avatar (10 MB ceiling,
+the same as a group room's photo) and written to `channel.thumbnail` with `channel.update`. A save
+that changes both writes the photo first and the name after it; a refused photo leaves the dialog
+open and writes nothing else. A save that includes the photo says `selfChat.name.infoSuccess`.
+
 The DM variant is also the friend-info sheet: the peer's avatar, a "left the room" line when they
 are gone, and the re-invite CTA. The save button stays even though the design frame shows only the
 CTA — following the frame literally would leave no way to record a name at all.
@@ -173,21 +220,35 @@ two round trips and only one can ever be open.
 
 Rows depend on the viewer's role and on the target:
 
-| Viewer / target              | Rows                                                 |
-| ---------------------------- | ---------------------------------------------------- |
-| me                           | profile settings → `PlaceProfileEditDialog`          |
-| owner → another member       | (`1:1 대화하기`) · friend settings · remove · report |
-| anyone else → another member | (`1:1 대화하기`) · report                            |
+| Viewer / target                                | Rows                                                 |
+| ---------------------------------------------- | ---------------------------------------------------- |
+| me                                             | profile settings → `PlaceProfileEditDialog`          |
+| room owner and/or place owner → another member | (`1:1 대화하기`) · friend settings · remove · report |
+| anyone else → another member                   | (`1:1 대화하기`) · report                            |
 
 `1:1 대화하기` leads the rows only where a cloud 1:1 can open from here: the host passes `onStartDm`
 when `canStartDmFromProfile` holds — a cloud group room in the session's cloud and place, another
 member — and the dialog drops it on my own profile regardless. The rule is
 [dm-and-self-chat.md](./dm-and-self-chat.md)'s.
 
-Remove re-confirms through `ConfirmDialog` before calling the kick. **Friend settings and report are
-UI-only**: neither has a backend, so both acknowledge with a toast. They are rows rather than hidden
-items because the design has them, and a toast manages the expectation better than a dead tap does.
-`canKick` also requires a non-DM room.
+**Remove asks how far first.** `RemoveMemberScopeSheet` offers two scopes — "remove from
+<room>" (this room only) and "remove from <place>" (the place and every group room in it) — then a
+`ConfirmDialog` worded for the scope picked, then the call: the kick for the room, `place.leave` for
+the place. Only the scopes the viewer holds are drawn: the room scope to the room's owner
+(`canKick`), the place scope to the place's owner (the place row's `isOwner`, never the room rule).
+Even one scope is shown as a choice — the step is where the reader learns how far the removal
+reaches — and the bottom button waits for a pick.
+
+The remove row is withheld entirely in a 1:1 and on me or the room's owner; the place scope is also
+withheld from the place's owner (`place.ownerId`). The room screen and a thread open the same profile
+with no removal at all: removing someone belongs where the roster it changes is in view.
+
+The place scope's copy says "every group room", not "every room": `place.leave` takes the member out
+of the place's group rooms and leaves their 1:1s, which the app cannot end for someone else.
+
+**Friend settings and report are UI-only**: neither has a backend, so both acknowledge with a toast.
+They are rows rather than hidden items because the design has them, and a toast manages the
+expectation better than a dead tap does.
 
 ## What not to do
 
@@ -209,7 +270,7 @@ items because the design has them, and a toast manages the expectation better th
   from `channelId + userId` at write time, which is why the level write passes `userId` through a
   cast.
 - `ChannelSettingsPage.test.tsx` is the widest test in the feature: the three stereos' section sets,
-  which dialog each name row opens, the kick gating, the notification level (the label each stored
+  which dialog each name row opens, the owner badge, the remove scopes each viewer gets, the notification level (the label each stored
   value shows, the levels each room offers, the no-op re-pick and the failure path), and the
   profile-prompt row. The level mapping itself is tested in `notifyLevel.test.ts` and the sheet in
   `NotifyModeSheet.test.tsx`.

@@ -5,7 +5,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { JoinNickDialog } from './JoinNickDialog';
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
-jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn() } }));
+jest.mock('@chatic/bridges', () => ({ logger: { error: jest.fn(), warn: jest.fn() } }));
+const mockPrepareImage = jest.fn();
+jest.mock('@chatic/shared', () => ({
+    AVATAR_IMAGE: {},
+    prepareImage: (...args: unknown[]) => mockPrepareImage(...args),
+}));
 const mockToast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast: mockToast }) }));
 jest.mock('@chatic/app-runtime', () => ({
@@ -18,10 +23,14 @@ jest.mock('@chatic/app-runtime', () => ({
 
 const updateJoin = jest.fn().mockResolvedValue({ delivered: Promise.resolve() });
 // Stable channel reference so the prefill effect (`useEffect([open, channel])`) runs once.
-const mockChannel = { $join: { nick: '내 메모', userId: 'me-join' } };
+// Off only to stage a reopen before the channel has emitted.
+let mockChannelLoaded = true;
+const mockChannel = { $join: { nick: '내 메모', userId: 'me-join' }, thumbnail: '' };
+const updateChannel = jest.fn().mockResolvedValue({});
 jest.mock('../hooks', () => ({
-    useChannel: () => ({ channel: mockChannel }),
+    useChannel: () => ({ channel: mockChannelLoaded ? mockChannel : undefined }),
     useJoinMutations: () => ({ updateJoin, isPending: { update: false } }),
+    useChannelMutations: () => ({ updateChannel, isPending: { update: false } }),
 }));
 // The dialog surfaces my place-profile nick as the placeholder. Mock the app-level hooks barrel
 // so the test doesn't pull in the real app-runtime (socket lib) transitively.
@@ -30,7 +39,120 @@ jest.mock('../../../hooks', () => ({ useMyProfile: () => ({ profile: { nick: '�
 describe('JoinNickDialog', () => {
     beforeEach(() => {
         updateJoin.mockClear();
+        updateChannel.mockClear();
         mockToast.mockClear();
+        mockPrepareImage.mockReset();
+        mockChannelLoaded = true;
+    });
+
+    const doneButton = (copy = 'selfChat') => screen.getByText(`${copy}.name.done`).closest('button')!;
+    const pickPhoto = (base64: string) => {
+        mockPrepareImage.mockResolvedValue({ avatar: base64 });
+        const file = new File(['x'], 'photo.png', { type: 'image/png' });
+        fireEvent.change(screen.getByTestId('self-chat-photo-input'), { target: { files: [file] } });
+    };
+
+    // 'Done' is for a change: with nothing changed it stays off, in both variants.
+    describe('the done button', () => {
+        it('is disabled while nothing has changed', () => {
+            render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" />);
+
+            expect(doneButton()).toBeDisabled();
+        });
+
+        it('turns on once the name differs and off again when it is put back', () => {
+            render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" />);
+
+            fireEvent.change(screen.getByRole('textbox'), { target: { value: '새이름' } });
+            expect(doneButton()).toBeEnabled();
+            fireEvent.change(screen.getByRole('textbox'), { target: { value: ' 내 메모 ' } });
+            expect(doneButton()).toBeDisabled();
+        });
+
+        it('turns on once a photo is picked', async () => {
+            render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" />);
+
+            pickPhoto('data:image/png;base64,AAA');
+
+            await waitFor(() => expect(doneButton()).toBeEnabled());
+        });
+
+        it('applies to the 1:1 variant too', () => {
+            render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" variant="dm" />);
+
+            expect(doneButton('dmChat')).toBeDisabled();
+            fireEvent.change(screen.getByRole('textbox'), { target: { value: '토끼' } });
+            expect(doneButton('dmChat')).toBeEnabled();
+        });
+    });
+
+    // Reopened before the channel emits, the dialog has nothing to seed from — it must not show the
+    // name typed last time, nor count it as a change.
+    it('opens fresh after a close, not with what was typed last time', () => {
+        const { rerender } = render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" />);
+        fireEvent.change(screen.getByRole('textbox'), { target: { value: '버린 이름' } });
+
+        rerender(<JoinNickDialog open={false} onOpenChange={() => undefined} channelId="c1" />);
+        mockChannelLoaded = false;
+        rerender(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" />);
+
+        expect(screen.getByRole('textbox')).toHaveValue('');
+    });
+
+    describe("the self chat's photo", () => {
+        it('saves a picked photo on the channel without touching the name', async () => {
+            const onOpenChange = jest.fn();
+            render(<JoinNickDialog open onOpenChange={onOpenChange} channelId="c1" />);
+
+            pickPhoto('data:image/png;base64,AAA');
+            await waitFor(() => expect(doneButton()).toBeEnabled());
+            fireEvent.click(doneButton());
+
+            await waitFor(() =>
+                expect(updateChannel).toHaveBeenCalledWith({ channelId: 'c1', thumbnail: 'data:image/png;base64,AAA' })
+            );
+            expect(updateJoin).not.toHaveBeenCalled();
+            expect(mockToast).toHaveBeenCalledWith({ title: 'selfChat.name.infoSuccess' });
+            expect(onOpenChange).toHaveBeenCalledWith(false);
+        });
+
+        it('saves the photo and then the name when both changed', async () => {
+            render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" />);
+
+            pickPhoto('data:image/png;base64,BBB');
+            fireEvent.change(screen.getByRole('textbox'), { target: { value: '새이름' } });
+            await waitFor(() => expect(doneButton()).toBeEnabled());
+            fireEvent.click(doneButton());
+
+            await waitFor(() =>
+                expect(updateJoin).toHaveBeenCalledWith({ channelId: 'c1', userId: 'me-join', nick: '새이름' })
+            );
+            expect(updateChannel).toHaveBeenCalledWith({ channelId: 'c1', thumbnail: 'data:image/png;base64,BBB' });
+            expect(mockToast).toHaveBeenCalledWith({ title: 'selfChat.name.infoSuccess' });
+        });
+
+        it('stays open and says so when the photo is refused, and does not write the name', async () => {
+            updateChannel.mockRejectedValueOnce(new Error('403'));
+            const onOpenChange = jest.fn();
+            render(<JoinNickDialog open onOpenChange={onOpenChange} channelId="c1" />);
+
+            pickPhoto('data:image/png;base64,CCC');
+            fireEvent.change(screen.getByRole('textbox'), { target: { value: '새이름' } });
+            await waitFor(() => expect(doneButton()).toBeEnabled());
+            fireEvent.click(doneButton());
+
+            await waitFor(() =>
+                expect(mockToast).toHaveBeenCalledWith({ title: 'selfChat.name.infoError', variant: 'destructive' })
+            );
+            expect(updateJoin).not.toHaveBeenCalled();
+            expect(onOpenChange).not.toHaveBeenCalled();
+        });
+
+        it('shows no photo picker in the 1:1 variant', () => {
+            render(<JoinNickDialog open onOpenChange={() => undefined} channelId="c1" variant="dm" />);
+
+            expect(screen.queryByTestId('self-chat-photo-input')).not.toBeInTheDocument();
+        });
     });
 
     it('closes at once and says so later if the server refuses the name', async () => {

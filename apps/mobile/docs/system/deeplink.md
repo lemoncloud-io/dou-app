@@ -77,6 +77,11 @@ browser (KakaoTalk, Instagram, …) loads the URL itself, and so does a browser 
 or explicitly handed-over URL. Those links land on the landing site's bounce page, which hands them
 over through the custom scheme.
 
+**The app also writes one custom-scheme link itself.** A share from another app opens the app on
+`<scheme>://share?id=<id>` — the iOS share extension opens that URL, and Android rewrites the share
+intent to it before React Native reads the intent — and it resolves like any other custom-scheme link,
+to the web path `/share?id=<id>`. See [../native/share-intake.md](../native/share-intake.md).
+
 ## Invite link conversion
 
 An invite link must be converted into a form the web recognizes; `convertShortUrlWithEnvsSync` does
@@ -152,7 +157,9 @@ The `path` handed to the web via `OnNavigate` follows these rules:
 
 For a push tap specifically, `resolvePushTapPath` also decides what a **linkless** payload does: a
 push whose `type` is one of `ROOTED_PUSH_TYPES` (currently just `cloud`, whose payload carries no
-`link` by contract) resolves to `/`; every other linkless payload resolves to `null` and only
+`link` by contract) resolves to `/?cid=<cid>` — the root of the cloud the push names — or `/` when
+the payload names no cloud. An Android tap with the app in the background or closed builds the same
+link natively (`rootTapLinkFor`, as `<scheme>://?cid=<cid>`). Every other linkless payload resolves to `null` and only
 foregrounds the app — a chat push with no link is treated as a malformed payload, not a request to
 navigate away from wherever the user already is. When a link does exist, `cid`/`sid`/`chatId` are
 merged into its query only if the link does not already carry them explicitly. Android merges the

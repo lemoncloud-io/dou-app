@@ -10,8 +10,11 @@
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		17023709F2F7461BA3E1CE4C /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7DBA3ABEBDD04827AF4DC448 /* Colors.xcassets */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
+		79258BFE7A7381EC2F8895B3 /* ShareIntakeCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B0E069303A51F9DA9521CF /* ShareIntakeCore.swift */; };
+		793ECB956823D216D8EFA9C6 /* ShareIntakeCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0B0E069303A51F9DA9521CF /* ShareIntakeCore.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		96A4B745983B8AB3FF9F785C /* TransferTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91EB1B0E6926E0CA606D3EFD /* TransferTypes.swift */; };
+		994CD66D2788725466C3CBB3 /* ChaticShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 530A960601CB5459C187AC26 /* ChaticShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1D0C0DE5EED0000000000B1 /* DownloadFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D0C0DE5EED0000000000F1 /* DownloadFiles.swift */; };
 		B2E0A7C15D3F4A9E8C6B1D01 /* UploadSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E0A7C15D3F4A9E8C6B1D02 /* UploadSources.swift */; };
 		B2E0A7C15D3F4A9E8C6B1D03 /* AttachmentPickerCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2E0A7C15D3F4A9E8C6B1D04 /* AttachmentPickerCore.swift */; };
@@ -26,6 +29,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		D650B48317CFD3474E5B9174 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9997755F7BEB989922C9D21E;
+			remoteInfo = ChaticShareExtension;
+		};
 		F756627A2FD9233500100E59 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
@@ -43,6 +53,7 @@
 			dstSubfolderSpec = 13;
 			files = (
 				F756627C2FD9233500100E59 /* ChaticNotificationServiceExtension.appex in Embed Foundation Extensions */,
+				994CD66D2788725466C3CBB3 /* ChaticShareExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -56,6 +67,7 @@
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Chatic/Info.plist; sourceTree = "<group>"; };
 		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Chatic/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-Chatic.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Chatic.debug.xcconfig"; path = "Target Support Files/Pods-Chatic/Pods-Chatic.debug.xcconfig"; sourceTree = "<group>"; };
+		530A960601CB5459C187AC26 /* ChaticShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ChaticShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		5709B34CF0A7D63546082F79 /* Pods-Chatic.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Chatic.release.xcconfig"; path = "Target Support Files/Pods-Chatic/Pods-Chatic.release.xcconfig"; sourceTree = "<group>"; };
 		6FC543E0C41AB9FC82850DBA /* TransferText.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TransferText.swift; sourceTree = "<group>"; };
 		7217888ACC081748F8F0C215 /* Pods_Chatic.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Chatic.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -69,6 +81,7 @@
 		A1D0C0DE5EED0000000000F1 /* DownloadFiles.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DownloadFiles.swift; sourceTree = "<group>"; };
 		B2E0A7C15D3F4A9E8C6B1D02 /* UploadSources.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UploadSources.swift; sourceTree = "<group>"; };
 		B2E0A7C15D3F4A9E8C6B1D04 /* AttachmentPickerCore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AttachmentPickerCore.swift; sourceTree = "<group>"; };
+		D0B0E069303A51F9DA9521CF /* ShareIntakeCore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ShareIntakeCore.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F1ADAF0DE5B6C92A2CF01257 /* Pods-Chatic.release dev.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Chatic.release dev.xcconfig"; path = "Target Support Files/Pods-Chatic/Pods-Chatic.release dev.xcconfig"; sourceTree = "<group>"; };
 		F73CA1362FAEFF8A00005559 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -81,6 +94,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AD0B65AB0B9932326B710C20 /* Exceptions for "ChaticShareExtension" folder in "ChaticShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 9997755F7BEB989922C9D21E /* ChaticShareExtension */;
+		};
 		F75662822FD9233500100E59 /* Exceptions for "ChaticNotificationServiceExtension" folder in "ChaticNotificationServiceExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -91,6 +111,14 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		CE4ED406C054F0581CE43598 /* ChaticShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AD0B65AB0B9932326B710C20 /* Exceptions for "ChaticShareExtension" folder in "ChaticShareExtension" target */,
+			);
+			path = ChaticShareExtension;
+			sourceTree = "<group>";
+		};
 		F75662762FD9233500100E59 /* ChaticNotificationServiceExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -129,6 +157,13 @@
 			files = (
 				ED270CD00B93BC058B841610 /* Pods_Chatic.framework in Frameworks */,
 				F76029852F346C870009C3A7 /* StoreKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E23525DFB98E38C479F04E34 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -200,6 +235,7 @@
 				13B07FAE1A68108700A75B9A /* Chatic */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				F75662762FD9233500100E59 /* ChaticNotificationServiceExtension */,
+				CE4ED406C054F0581CE43598 /* ChaticShareExtension */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
@@ -207,6 +243,7 @@
 				876D9EBAC443B2624C4FEAA2 /* TransferCore */,
 				5966F507958B540DF7914A45 /* PhotoLibraryCore */,
 				B2E0A7C15D3F4A9E8C6B1D05 /* AttachmentPickerCore */,
+				F30E78DD7D5670915D72DF54 /* ShareIntakeCore */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -218,6 +255,7 @@
 			children = (
 				13B07F961A680F5B00A75B9A /* DoU.app */,
 				F75662752FD9233500100E59 /* ChaticNotificationServiceExtension.appex */,
+				530A960601CB5459C187AC26 /* ChaticShareExtension.appex */,
 				722274CE872EAD2197C7EE0D /* ChaticTransferCoreTests.xctest */,
 			);
 			name = Products;
@@ -256,6 +294,15 @@
 			path = Pods;
 			sourceTree = "<group>";
 		};
+		F30E78DD7D5670915D72DF54 /* ShareIntakeCore */ = {
+			isa = PBXGroup;
+			children = (
+				D0B0E069303A51F9DA9521CF /* ShareIntakeCore.swift */,
+			);
+			name = ShareIntakeCore;
+			path = Bridges/ShareIntake/Core;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -279,6 +326,7 @@
 			);
 			dependencies = (
 				F756627B2FD9233500100E59 /* PBXTargetDependency */,
+				04CE172AC7F81E6C4A54F3E1 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				F76029262F333E600009C3A7 /* Firebase */,
@@ -288,6 +336,26 @@
 			productName = Chatic;
 			productReference = 13B07F961A680F5B00A75B9A /* DoU.app */;
 			productType = "com.apple.product-type.application";
+		};
+		9997755F7BEB989922C9D21E /* ChaticShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 291DEFEF6EAAE674F0BD6A4E /* Build configuration list for PBXNativeTarget "ChaticShareExtension" */;
+			buildPhases = (
+				C6BDB3980926B24F09642745 /* Sources */,
+				E23525DFB98E38C479F04E34 /* Frameworks */,
+				A64810B526117BB93F88B1DD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				CE4ED406C054F0581CE43598 /* ChaticShareExtension */,
+			);
+			name = ChaticShareExtension;
+			productName = ChaticShareExtension;
+			productReference = 530A960601CB5459C187AC26 /* ChaticShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		F75662742FD9233500100E59 /* ChaticNotificationServiceExtension */ = {
 			isa = PBXNativeTarget;
@@ -341,6 +409,9 @@
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 2600;
 					};
+					9997755F7BEB989922C9D21E = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
 					F75662742FD9233500100E59 = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
@@ -365,6 +436,7 @@
 			targets = (
 				13B07F861A680F5B00A75B9A /* Chatic */,
 				F75662742FD9233500100E59 /* ChaticNotificationServiceExtension */,
+				9997755F7BEB989922C9D21E /* ChaticShareExtension */,
 				FFB149B76027D977A669A4B0 /* ChaticTransferCoreTests */,
 			);
 		};
@@ -384,6 +456,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		72435499AB27A0E71794751E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A64810B526117BB93F88B1DD /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -539,6 +618,15 @@
 				C75137B43126CCC5FA31156F /* PhotoLibraryCore.swift in Sources */,
 				B2E0A7C15D3F4A9E8C6B1D01 /* UploadSources.swift in Sources */,
 				B2E0A7C15D3F4A9E8C6B1D03 /* AttachmentPickerCore.swift in Sources */,
+				79258BFE7A7381EC2F8895B3 /* ShareIntakeCore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C6BDB3980926B24F09642745 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				793ECB956823D216D8EFA9C6 /* ShareIntakeCore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -552,6 +640,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		04CE172AC7F81E6C4A54F3E1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9997755F7BEB989922C9D21E /* ChaticShareExtension */;
+			targetProxy = D650B48317CFD3474E5B9174 /* PBXContainerItemProxy */;
+		};
 		F756627B2FD9233500100E59 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = F75662742FD9233500100E59 /* ChaticNotificationServiceExtension */;
@@ -572,6 +665,54 @@
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
+		1149D7FBB5126080916F29EB /* Debug Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APP_URL_SCHEME = "chatic-dev";
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = ChaticShareExtension/ChaticShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				HOST_BUNDLE_IDENTIFIER = io.chatic.dou.dev;
+				INFOPLIST_FILE = ChaticShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "DoU-Dev";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou.dev.ChaticShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Debug Dev";
+		};
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-Chatic.debug.xcconfig */;
@@ -669,6 +810,53 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = "Debug Dev";
+		};
+		579EF1880F86DB856F1277E1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APP_URL_SCHEME = chatic;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = ChaticShareExtension/ChaticShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				HOST_BUNDLE_IDENTIFIER = io.chatic.dou;
+				INFOPLIST_FILE = ChaticShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DoU;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou.ChaticShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
 		};
 		5C83AA7BA304698990FBFABD /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -905,6 +1093,53 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = "Release Dev";
+		};
+		F249C9885949620F76657F36 /* Release Dev */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APP_URL_SCHEME = "chatic-dev";
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = ChaticShareExtension/ChaticShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				HOST_BUNDLE_IDENTIFIER = io.chatic.dou.dev;
+				INFOPLIST_FILE = ChaticShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "DoU-Dev";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou.dev.ChaticShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -1352,6 +1587,54 @@
 			};
 			name = "Release Dev";
 		};
+		FFAF9F07EB2523E502442A7B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APP_URL_SCHEME = chatic;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CODE_SIGN_ENTITLEMENTS = ChaticShareExtension/ChaticShareExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = CH8U9VM6SR;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				HOST_BUNDLE_IDENTIFIER = io.chatic.dou;
+				INFOPLIST_FILE = ChaticShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DoU;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = io.chatic.dou.ChaticShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1362,6 +1645,17 @@
 				F77CD2472F333B59001FF4C9 /* Debug Dev */,
 				13B07F951A680F5B00A75B9A /* Release */,
 				F77CD2492F333B6D001FF4C9 /* Release Dev */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		291DEFEF6EAAE674F0BD6A4E /* Build configuration list for PBXNativeTarget "ChaticShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FFAF9F07EB2523E502442A7B /* Debug */,
+				1149D7FBB5126080916F29EB /* Debug Dev */,
+				579EF1880F86DB856F1277E1 /* Release */,
+				F249C9885949620F76657F36 /* Release Dev */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

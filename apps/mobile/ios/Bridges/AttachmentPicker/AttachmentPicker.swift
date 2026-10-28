@@ -101,10 +101,9 @@ final class AttachmentPicker: NSObject {
     /// Deletes pick folders untouched for a day. A folder's age is its newest change, so one whose
     /// video was converted an hour ago is kept even when it was picked yesterday. Run before a pick,
     /// and before a video is kept from the in-app grid, so someone who only ever sends from the grid
-    /// does not collect copies until the OS purges the cache.
-    static func sweep() {
+    /// does not collect copies until the OS purges the cache. The share inbox is swept the same way.
+    static func sweep(_ root: URL = AttachmentPicker.root) {
         let fm = FileManager.default
-        let root = Self.root
         guard let names = try? fm.contentsOfDirectory(atPath: root.path) else { return }
         func modified(_ path: String) -> Int64? {
             ((try? fm.attributesOfItem(atPath: path))?[.modificationDate] as? Date).map { Int64($0.timeIntervalSince1970 * 1000) }

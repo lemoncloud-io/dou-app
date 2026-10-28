@@ -39,9 +39,16 @@ to `channelId` and to `roomDistance`. The contact tab stays mounted while the pl
 One route, two subtrees. The tab is **not** in the URL: nothing deep-links to a specific tab, and
 putting it there would make the back button undo a tab switch, which reads as leaving the page.
 
-The two tabs share nothing but the 100-person cap — not the selection, not the confirm button. Place
+The two tabs share nothing but the room's cap — not the selection, not the confirm button. Place
 adds people immediately; contact issues links. One button that did either depending on a tab would
 be two buttons wearing one label.
+
+**The cap is the room's: 100 members in all.** One invite picks at most `100 − memberCount` — the
+seats still free (`MAX_ROOM_MEMBERS` in `InvitePage`). A new group with no members counted offers all
+100; a full room offers none. A pick past the cap is refused and explained with
+`chat.settings.memberLimit` in an alert, through the tabs' `onLimitReached`; without that prop a tab
+toasts its own batch-cap line, which is what the place invite page still does. People invited by
+contact who have not joined yet are not counted — nothing on the client can see them.
 
 **Contacts are only requested once the contact tab has been opened.** `appBridge.getContacts()`
 raises the OS permission prompt, so calling it on mount would ask people who never intended to use
@@ -185,7 +192,7 @@ Above the list sits a count of the rows it holds — `연락처 N명`, or `검�
 searching. It counts listed contacts, so the ones rule 4 drops are not in it, and while searching it
 counts matches only: a selected row pinned on top without matching is not a result.
 
-Selection caps at 100 with a toast. Confirming sends **one** recipient as a single invite (a text to
+Selection caps at the seats the room has left ([the tab shell](#the-tab-shell)). Confirming sends **one** recipient as a single invite (a text to
 that number, or the clipboard on web — the toast says which actually happened) and **several** as a
 batch the server fans out over SMS itself.
 

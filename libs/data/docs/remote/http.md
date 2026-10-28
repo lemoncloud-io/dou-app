@@ -26,7 +26,7 @@ remote/
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
 | `AuthHttpDomainGateway`         | `OAuthHttpGateway` — 13: `registerUser` · `registerUserV2` · `findAlias` · `verifyAlias` · `loginInvite` · `inviteInfo` · `registerDevice` · `login` · `verifyNativeToken` · `exchangeCode` · `verifyOAuthCode` · `delegateCloud` · `exchangeToken` | `AuthHttpDataSource`         |
 | `UserHttpDomainGateway`         | `UserHttpGateway` — `list` · `tryProfile`                                                                                                                                                                                                           | `UserHttpDataSource`         |
-| `CloudHttpDomainGateway`        | `CloudHttpGateway` — `list` · `update` · `make` · `release` · `verifyEmail`                                                                                                                                                                         | `CloudHttpDataSource`        |
+| `CloudHttpDomainGateway`        | `CloudHttpGateway` — `list` · `update` · `make` · `release` · `workspace` · `verifyEmail`                                                                                                                                                           | `CloudHttpDataSource`        |
 | `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `membership` · `validateMembership` · `markDrops`, plus the admin console's `adminMemberships` · `updateMembershipByAdmin` · `adminClouds` (ADR-0101)                                                         | `SubscriptionHttpDataSource` |
 | `ReportHttpDomainGateway`       | `ReportHttpGateway` — `reportIssue` · `uploadLogBatch` (all of it)                                                                                                                                                                                  | `ReportHttpDataSource`       |
 | `PairingHttpDomainGateway`      | `PairingHttpGateway` — `request` · `check` · `approve` · `deny` · `claim` · `revoke` · `list` (all of it)                                                                                                                                           | `PairingHttpDataSource`      |
@@ -64,7 +64,7 @@ from the session that is allowed it.
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `AuthHttpDataSource`         | `registerUser()` · `registerUserV2()` (the only two that map to `DomainUser`) · `findAlias()` · `verifyAlias()` · `loginWithInviteCode()` (`loginInvite`) · `fetchInviteInfo()` (`inviteInfo`) · `registerDevice()` · `login()` · `verifyNativeToken()` · `exchangeCode()` · `verifyOAuthCode()` · `delegateCloud()` · `exchangeToken()` |
 | `UserHttpDataSource`         | `listRelayUsers()` (`list`) · `tryFetchProfile()` (`tryProfile`)                                                                                                                                                                                                                                                                         |
-| `CloudHttpDataSource`        | `listClouds()` · `updateCloud()` · `makeCloud()` (`make`) · `releaseCloud()` (`release`) · `verifyEmail()`                                                                                                                                                                                                                               |
+| `CloudHttpDataSource`        | `listClouds()` · `updateCloud()` · `makeCloud()` (`make`) · `releaseCloud()` (`release`) · `retryCloudSetup()` (`workspace`) · `verifyEmail()`                                                                                                                                                                                           |
 | `SubscriptionHttpDataSource` | `fetchPlans()` (`plans`) · `fetchMembershipInfo()` (`membership`) · `validateMembership()` · `markDrops()` · `fetchAdminMemberships()` · `updateMembershipByAdmin()` · `fetchAdminClouds()`                                                                                                                                              |
 | `ReportHttpDataSource`       | `submitIssue()` (`reportIssue`) · `uploadLogBatch()`                                                                                                                                                                                                                                                                                     |
 | `PairingHttpDataSource`      | `requestPairing()` (`request`) · `checkPairing()` (`check`) · `approvePairing()` (`approve`) · `denyPairing()` (`deny`) · `claimPairing()` (`claim`) · `revokePairing()` (`revoke`) · `listPairings()` (`list`)                                                                                                                          |
@@ -192,7 +192,14 @@ let dataSource: CloudHttpDataSource;
 const context: DataContext = { cid: 'cloud-a', uid: 'me' };
 
 beforeEach(() => {
-    gateway = { list: jest.fn(), update: jest.fn(), make: jest.fn(), release: jest.fn(), verifyEmail: jest.fn() };
+    gateway = {
+        list: jest.fn(),
+        update: jest.fn(),
+        make: jest.fn(),
+        release: jest.fn(),
+        workspace: jest.fn(),
+        verifyEmail: jest.fn(),
+    };
     dataSource = new CloudHttpDataSource(gateway);
 });
 

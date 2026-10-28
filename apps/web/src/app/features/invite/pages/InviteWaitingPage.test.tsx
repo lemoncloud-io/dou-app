@@ -271,7 +271,35 @@ describe('InviteWaitingPage', () => {
         });
     });
 
-    it('rejected면 거절 상태 블록을 보여주고 취소 버튼과 유효시간 카드는 접는다 (Figma 3263-30117)', () => {
+    // Figma 3263-30117 with the product rule: a declined invite offers both actions, and no validity card.
+    // The server keeps a decline through a cancel, so canceling one hides it here instead.
+    it('cancels a declined invite by hiding it locally, without asking the server', async () => {
+        mockIsLoading = false;
+        mockInvite = { id: 'invite-1', code: 'c0de', state: 'rejected', name: '홍길동' };
+
+        render(<InviteWaitingPage />);
+        fireEvent.click(screen.getByText('inviteWaiting.cancelInvite'));
+        // The confirm says what canceling a declined invite does: it leaves the list.
+        expect(screen.getByText('inviteWaiting.cancelDialog.rejectedDescription')).toBeInTheDocument();
+        fireEvent.click(screen.getByText('inviteWaiting.cancelDialog.confirm'));
+
+        await waitFor(() => expect(markCanceled).toHaveBeenCalledWith('invite-1'));
+        expect(cancelInvite).not.toHaveBeenCalled();
+        expect(toast).toHaveBeenCalledWith({ title: 'inviteWaiting.canceledToast' });
+        expect(navigate).toHaveBeenCalledWith('/', { replace: true });
+    });
+
+    it('shows a red zero clock, without "left", once the link has run out', () => {
+        mockIsLoading = false;
+        mockInvite = { id: 'invite-1', state: 'expired', name: '홍길동', expiredAt: Date.now() - 60_000 };
+
+        render(<InviteWaitingPage />);
+
+        expect(screen.getByText('00 : 00 : 00').className).toContain('text-destructive');
+        expect(screen.queryByText('inviteAccept.expiry.remaining')).not.toBeInTheDocument();
+    });
+
+    it('shows the declined block with both invite-again and cancel, and no validity card', () => {
         mockIsLoading = false;
         mockInvite = {
             id: 'invite-1',
@@ -285,7 +313,7 @@ describe('InviteWaitingPage', () => {
 
         expect(screen.getByText('inviteWaiting.rejected.title')).toBeInTheDocument();
         expect(screen.getByText('inviteWaiting.reissue')).toBeInTheDocument();
-        expect(screen.queryByText('inviteWaiting.cancelInvite')).not.toBeInTheDocument();
+        expect(screen.getByText('inviteWaiting.cancelInvite')).toBeInTheDocument();
         expect(screen.queryByText('inviteAccept.expiry.remaining')).not.toBeInTheDocument();
     });
 

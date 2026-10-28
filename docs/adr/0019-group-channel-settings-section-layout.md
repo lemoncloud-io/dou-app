@@ -2,7 +2,8 @@
 
 ## Status
 
-accepted
+accepted — superseded in part by [ADR-0237](0237-a-room-owner-is-the-member-whose-join-role-is-owner.md):
+owner detection is the member's join role, not `ownerId === myUid`
 
 Decided: 2026-07-20
 
@@ -35,13 +36,13 @@ work therefore reverses decisions #1 and #4 of ADR-0015.
 
 ### Current implementation vs. the new design
 
-| Element           | Today (ADR-0015)                          | New design (3164-\*)                                          |
-| ----------------- | ----------------------------------------- | ------------------------------------------------------------- |
-| Room name         | Centred avatar plus an underlined "Edit"  | A left-aligned row (avatar + name + `>` chevron)              |
-| Room notifications | Icon button at the top → dialog           | An **inline toggle switch** in the "Room settings" section    |
-| Add friends       | Icon button at the top                    | A **list row** in the "Room friends" section (+ icon, owner only) |
-| Delete / leave    | Icon button at the top                    | **Red text at the bottom** (delete room / leave room)         |
-| Member badges     | Owner = green checkbox · MY = navy pill   | Owner = green text pill · MY (same) · Invitation pending (grey) |
+| Element            | Today (ADR-0015)                         | New design (3164-\*)                                              |
+| ------------------ | ---------------------------------------- | ----------------------------------------------------------------- |
+| Room name          | Centred avatar plus an underlined "Edit" | A left-aligned row (avatar + name + `>` chevron)                  |
+| Room notifications | Icon button at the top → dialog          | An **inline toggle switch** in the "Room settings" section        |
+| Add friends        | Icon button at the top                   | A **list row** in the "Room friends" section (+ icon, owner only) |
+| Delete / leave     | Icon button at the top                   | **Red text at the bottom** (delete room / leave room)             |
+| Member badges      | Owner = green checkbox · MY = navy pill  | Owner = green text pill · MY (same) · Invitation pending (grey)   |
 
 ### Domain constraints (the important part)
 

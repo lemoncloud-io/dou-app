@@ -6,9 +6,11 @@ import {
     dmLineageOf,
     hasDmInviteFlow,
     isInCloudSelfSection,
+    isRoomOwner,
     profilePlaceOf,
     removalActionFor,
     resolveDmPeerName,
+    roomOwnerIdOf,
     showsMemberCount,
 } from './channelStereoPolicy';
 
@@ -38,6 +40,78 @@ describe('showsMemberCount', () => {
     // Self is always 1 and DM is always 2 — neither number tells the reader anything.
     it.each(['self', 'dm'] as const)('hides the count for %s', kind => {
         expect(showsMemberCount(kind)).toBe(false);
+    });
+});
+
+describe('isRoomOwner', () => {
+    const group = { stereo: 'private', ownerId: 'u-creator' } as const;
+
+    it('reads the join role in a group: owner owns the room', () => {
+        expect(isRoomOwner(group, { stereo: 'owner', userId: 'u-1' })).toBe(true);
+    });
+
+    // A role the server set always answers — even for the creator, whose role says otherwise.
+    it.each(['member', 'admin', ''])('does not own a group with role %p, creator or not', stereo => {
+        expect(isRoomOwner(group, { stereo, userId: 'u-1' })).toBe(false);
+        expect(isRoomOwner(group, { stereo, userId: 'u-creator' })).toBe(false);
+    });
+
+    // No role on the row: fall back to the creator so a group never loses its owner.
+    it('falls back to ownerId when the join carries no role', () => {
+        expect(isRoomOwner(group, { userId: 'u-creator' })).toBe(true);
+        expect(isRoomOwner(group, { stereo: null, userId: 'u-creator' })).toBe(true);
+        expect(isRoomOwner(group, { userId: 'u-1' })).toBe(false);
+    });
+
+    it('falls back to the given user id when there is no join row at all', () => {
+        expect(isRoomOwner(group, undefined, 'u-creator')).toBe(true);
+        expect(isRoomOwner(group, null, 'u-1')).toBe(false);
+        expect(isRoomOwner(group, undefined)).toBe(false);
+    });
+
+    // A kick's response leaves the removed member's join in the channel's `$join`.
+    it('ignores a join that names someone else, and falls back to the creator', () => {
+        const kicked = { stereo: 'member', userId: 'u-kicked' };
+        expect(isRoomOwner(group, kicked, 'u-creator')).toBe(true);
+        expect(isRoomOwner(group, { stereo: 'owner', userId: 'u-other' }, 'u-1')).toBe(false);
+    });
+
+    // A 1:1's inviter carries `owner` on the server; the room still has no owner.
+    it.each(['dm', 'self'] as const)('never names an owner in a %s room', stereo => {
+        const room = { stereo, ownerId: 'u-creator' };
+        expect(isRoomOwner(room, { stereo: 'owner', userId: 'u-creator' })).toBe(false);
+        expect(isRoomOwner(room, undefined, 'u-creator')).toBe(false);
+    });
+
+    it('answers false while the room is not loaded', () => {
+        expect(isRoomOwner(null, { stereo: 'owner', userId: 'u-1' })).toBe(false);
+    });
+});
+
+describe('roomOwnerIdOf', () => {
+    const group = { stereo: 'private', ownerId: 'u-creator' } as const;
+
+    it('names the member whose role is owner, over the creator', () => {
+        const joins = [
+            { userId: 'u-creator', stereo: 'member' },
+            { userId: 'u-2', stereo: 'owner' },
+        ];
+        expect(roomOwnerIdOf(group, joins)).toBe('u-2');
+    });
+
+    it('falls back to the creator while no row carries a role for them', () => {
+        expect(roomOwnerIdOf(group, [])).toBe('u-creator');
+        expect(roomOwnerIdOf(group, [{ userId: 'u-creator' }, { userId: 'u-2', stereo: 'member' }])).toBe('u-creator');
+    });
+
+    it('names nobody when the creator row says they are not the owner', () => {
+        expect(roomOwnerIdOf(group, [{ userId: 'u-creator', stereo: 'member' }])).toBeUndefined();
+    });
+
+    it.each(['dm', 'self'] as const)('names nobody in a %s room', stereo => {
+        expect(roomOwnerIdOf({ stereo, ownerId: 'u-creator' }, [{ userId: 'u-creator', stereo: 'owner' }])).toBe(
+            undefined
+        );
     });
 });
 

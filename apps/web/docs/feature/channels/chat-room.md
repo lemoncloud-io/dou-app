@@ -24,7 +24,8 @@ one component, three variants, one call site.
 The header takes its `kind` from the channel's stereo, which picks the fallback glyph; its title from
 `useChannelTitle` (with my join nick, the peer's profile nick and, for a cloud 1:1, their cloud-profile
 name as overrides); and its avatar from
-`resolveChannelAvatar` — my place-profile photo in a self chat, the peer's in a DM, and
+`resolveChannelAvatar` — the room's own `channel.thumbnail` in a self chat, else my place-profile
+photo; the peer's in a DM; and
 `channel.thumbnail` otherwise. Its only menu item is Settings, navigated with
 `state: { roomDistance: 1 }`.
 
@@ -33,7 +34,8 @@ member's user row carries an account-wide avatar nobody chose for this place; fa
 a face in the header that the home row, which never had it, did not show. No profile photo means
 the placeholder, not the account avatar.
 
-The participant stack is `orderMemberIdsOwnerFirst(ownerId, activeMemberIds, 5)` — owner leftmost,
+The participant stack is `orderMemberIdsOwnerFirst(roomOwnerIdOf(channel, joins), activeMemberIds, 5)` —
+the owner by join role ([channel-settings.md § Who owns the room](./channel-settings.md#who-owns-the-room)) leftmost,
 then active members, capped at five. Each photo is the site profile's (default avatar without one);
 the name used as alt text still falls back to the member's user row. The count beside it is the full
 `memberCount`, not the five.
@@ -101,7 +103,13 @@ bubble draws those states, and a card would show a finished-looking message for 
 landed. The card's links (a Slack `<url|label>` such as a webhook's source link) go to the row's
 `handleUrlClick` through `BlockKitMessage`'s `onLinkClick`, the same path as a link in a bubble.
 The lib's own default is a plain `target="_blank"` anchor, which the iOS shell's WebView answers by
-loading the page over the app itself.
+loading the page over the app itself. The card is as wide as what it holds, up to the row — a
+short attendance note is a small card and a stack trace fills the row — and its links take the
+`--link` token, which this app sets to the design's purple. When the sender gave a source (its
+`meta.sourceUrl`, the full report), the server writes it as the last link of the card's last line,
+`<url|원문 보기>`; `takeSourceLink` moves it up, so the card's first heading becomes the link (no
+icon; underlined on hover) and the line below loses it. Without a source the title is plain text:
+there is no report to open. The link opens through `handleUrlClick` like any other.
 
 **Truncation is the bubble's affordance.** Over 200 characters the bubble cuts, appends an ellipsis
 outside the tokenizer's output, and offers "view all" → `MessageDetailDialog`. A card never
@@ -116,10 +124,13 @@ different wording). Otherwise, if `read.show`, the row draws
 `ReadReceipt` — or a spinner until `read.isReady`, meaning the join cursors have synced.
 
 The receipt's gates are set by the page: `show = !isSelfChat && activeMemberIds.length >= 2`, and
-`mode = isDmChat ? 'dm' : 'count'`. `count` prints `read N • unread M` (ko `읽음 N • 미확인 M`)
-while anybody is behind, and the single `allRead` label (ko `모두 읽음`) once nobody is — a bare
-`read 10` left the reader to work out from the member count whether that was everyone. `dm` prints
-the single unread badge and nothing once it is read. A self chat never shows one.
+`mode = isDmChat ? 'dm' : 'count'`. `count` prints `read N • unread M` (ko `읽음 N • 안읽음 M`)
+while anybody is behind, and the single `allRead` label once nobody is. In English that label is
+`Read by all` — a bare `read 10` left the reader to work out from the member count whether that was
+everyone. In Korean it is `읽음 N`, the same `읽음` word the partial receipt opens with, so the two
+states read as one indicator losing its `안읽음` half; that missing half is what says nobody is
+left. The page passes the read count so the label can carry it.
+`dm` prints the single unread badge and nothing once it is read. A self chat never shows one.
 
 **Editing.** A message of mine can be edited in place from the action sheet: the bubble becomes a
 field where it sits, so the surrounding conversation stays put and the position says which message
@@ -226,7 +237,7 @@ In the room the sheet can **view, report and start a 1:1** — the last only whe
 `canStartDmFromProfile` allows ([dm-and-self-chat.md](./dm-and-self-chat.md)). `canKick` is always
 false, because removing someone belongs on the settings screen, where you can see the member list it
 changes. The owner
-badge reads `channel.ownerId`, as it does in settings.
+mark reads `isRoomOwner` with the member's join, as it does in settings — never in a 1:1.
 
 The sheet shows the person exactly as the tapped element showed them. `ChannelMessageRow`'s
 `onOpenProfile` receives the `{ id, name, avatar }` the row drew (`ownerDisplayName`,
@@ -274,6 +285,9 @@ Unread badges count user messages only; the home list subtracts `channel.metaNo`
 event total) for that, which is the home feature's concern.
 
 ## Attachments (`attach$`)
+
+A legacy field: the server now turns the sender's `meta` into `blocks$` (drawn as the Block Kit card
+above) and no longer writes `attach$`. What follows still holds for records written before that.
 
 `ChatModel.attach$` is a Slack-lineage payload — `pretext`, `title`, `text`, `color`, `username`,
 `ts`, `footer`, `sourceUrl`, `fields[]` — that the sender fills in as `meta` on the send body
@@ -405,7 +419,8 @@ while typing on a hardware keyboard — so a mobile user agent only keeps Enter 
 primary pointer is not `(hover: hover) and (pointer: fine)`.
 
 The composer is disabled outright when the DM peer is gone — see
-[dm-and-self-chat.md](./dm-and-self-chat.md).
+[dm-and-self-chat.md](./dm-and-self-chat.md) — and while I have locked its input
+([the input lock](#the-input-lock-a-lab-experiment)).
 
 ### Mentions
 
@@ -493,6 +508,31 @@ id, or `channelId#rootNo` for a thread, so a thread's draft is its own and not t
   on the device never opens a room onto another person's unsent words.
 - **The chat list shows a room's draft** in place of its last message — see
   [home/last-chat.md](../home/last-chat.md#a-rooms-draft).
+
+### The input lock (a Lab experiment)
+
+A person can lock the composer of a room they mostly read, so nothing goes out of it by accident. It
+is behind the Lab switch `feature.chatInputLock` (default off) and is offered from the room's settings
+([channel-settings.md](./channel-settings.md#the-input-lock)).
+
+- **It locks my input, on this device, and nobody else's.** Other members, and my other devices, see
+  no change. The server knows nothing about it either: the lock stops this composer from sending, it
+  is not a rule about the room. A message that arrives still arrives.
+- **A thread answers to its room's lock.** Both screens read `useChatInputLock(channelId)` with the
+  room's channel id, so locking a room locks the replies under it, and one switch lifts both.
+- **Locked, the composer is disabled the way a departed DM peer disables it** — the text field, the
+  send button and the attach panel together — and its placeholder says it is locked. The attach
+  button's slot holds a padlock (`ComposerLockButton`) instead, and a tap on it lifts the lock with a
+  toast. A draft already in the field stays there, and is still there once the lock lifts.
+- **What it does not cover.** Reactions, editing or deleting my own messages, retrying a failed send,
+  and a share from another app into the room. Each is a deliberate act from somewhere other than the
+  composer, which is where an accidental send happens.
+- **Switched off in Lab, nothing is locked and nothing offers a lock.** The stored locks are kept, not
+  cleared, and come back when the switch does. The rule lives in `useChatInputLock`, which takes the
+  switch as an input, so no screen can enforce a lock the Lab has turned off.
+- **The locks are `useInputLockStore`**, persisted as `chatic.composer.inputLocks` behind the same
+  storage guard as the drafts, keyed by channel id. Sign-out clears them (`clearInputLocks`, registered
+  in `main.tsx`), because they name the signed-in person's rooms.
 
 ## Scrolling
 

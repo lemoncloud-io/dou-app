@@ -26,6 +26,11 @@ interface PlaceInviteTabProps {
     sid: string | null;
     /** One invite adds at most this many people — shared with the contact tab's batch cap. */
     maxSelection: number;
+    /**
+     * Says why a pick past `maxSelection` was refused. Without it the tab toasts its own batch-cap
+     * line; a host whose cap is something else (a room's remaining seats) explains it instead.
+     */
+    onLimitReached?: () => void;
 }
 
 /**
@@ -38,7 +43,7 @@ interface PlaceInviteTabProps {
  * optimistic membership write and its rollback, so this component only has to report the outcome.
  * See ADR-0075.
  */
-export const PlaceInviteTab = ({ channelId, sid, maxSelection }: PlaceInviteTabProps) => {
+export const PlaceInviteTab = ({ channelId, sid, maxSelection, onLimitReached }: PlaceInviteTabProps) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const navigate = useNavigateWithTransition();
@@ -123,18 +128,22 @@ export const PlaceInviteTab = ({ channelId, sid, maxSelection }: PlaceInviteTabP
     const handleToggle = useCallback(
         (userId: string, next: boolean) => {
             if (isInviting) return;
+            // Judged on the rendered selection, outside the updater: the host's explanation is a state
+            // change of its own, which an updater must not make.
+            if (next && selectedIds.size >= maxSelection && !selectedIds.has(userId)) {
+                if (onLimitReached) onLimitReached();
+                else toast({ title: t('inviteFriends.limitToast', { max: maxSelection }) });
+                return;
+            }
             setSelectedIds(prev => {
-                if (next && prev.size >= maxSelection && !prev.has(userId)) {
-                    toast({ title: t('inviteFriends.limitToast', { max: maxSelection }) });
-                    return prev;
-                }
+                if (next && prev.size >= maxSelection && !prev.has(userId)) return prev;
                 const updated = new Set(prev);
                 if (next) updated.add(userId);
                 else updated.delete(userId);
                 return updated;
             });
         },
-        [isInviting, maxSelection, toast, t]
+        [isInviting, selectedIds, maxSelection, onLimitReached, toast, t]
     );
 
     const removeSelected = useCallback((id: string) => {

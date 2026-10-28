@@ -22,6 +22,7 @@ const SUBSCRIPTION_KEYS = [
     'trialBadge',
     'adjacentTierOnly',
     'startAtEntryTier',
+    'startAtLapsedTier',
     'otherStoreOnly',
     'productNotFound',
     'offerTokenMissing',
@@ -128,6 +129,8 @@ const SUBSCRIPTION_KEYS = [
     'refusal.tierJump.description',
     'refusal.entryTier.title',
     'refusal.entryTier.description',
+    'refusal.resubscribeSame.title',
+    'refusal.resubscribeSame.description',
     'refusal.otherStore.title',
     'refusal.otherStore.description',
     'refusal.pickInstead',
@@ -142,10 +145,12 @@ const SUBSCRIPTION_KEYS = [
 const ADD_ACCOUNT_KEYS = [
     'limitDialog.title',
     'limitDialog.changeableDescription',
+    'limitDialog.topTitle',
     'limitDialog.topDescription',
     'limitDialog.changePlan',
+    'limitDialog.manageSubscription',
     'emailAlreadyUsed',
-    'cancelScheduled',
+    'subscriptionCanceled',
     'addFailed',
     'success',
     'emailSkip',
@@ -189,6 +194,7 @@ describe('구독 tier 문구 — 치환 변수', () => {
     // number silently dropped ("계정은 최대 개까지").
     const INTERPOLATIONS: [string, string][] = [
         ['addAccount.limitDialog.changeableDescription', 'max'],
+        ['addAccount.limitDialog.topTitle', 'max'],
         ['mypage.subscription.maxClouds', 'count'],
         ['mypage.subscription.trialBadge', 'days'],
         ['mypage.subscription.trialRemaining', 'days'],

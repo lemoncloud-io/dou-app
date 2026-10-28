@@ -89,7 +89,7 @@ describe('useActivePlaceName — 활성 플레이스명 관측', () => {
     });
 
     // Once branding applies, a stale row isn't merely outdated — it gives a "wrong" answer. Because
-    // the retained relay row's id is '0000', it keeps answering "두유 홈" ("Doyou Home") even in another cloud.
+    // the retained relay row's id is '0000', it keeps answering "DoU Home" even in another cloud.
     it('사이트가 바뀌면 이전 행을 즉시 버린다', () => {
         useSessionSelectionMock.mockReturnValue({ selectedSiteId: '0000', selectedCloudId: 'default' });
         const { result, rerender } = renderHook(() => useActivePlaceName());

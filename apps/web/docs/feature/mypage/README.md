@@ -52,7 +52,8 @@ cloud management, and the policy screens.
   everything behind it.
 - **What an experiment does.** Lab holds the switch; the feature behind it, and the rule that reads
   the switch, belong to that feature — the place invite's to
-  [invite/place-invite.md](../invite/place-invite.md).
+  [invite/place-invite.md](../invite/place-invite.md), the chat input lock's to
+  [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment).
 - **Logout itself.** The row opens a dialog and navigates to `ROUTES.auth.logout`;
   [auth](../auth/README.md)'s `LogoutPage` does the cache teardown and session end.
 - **Social link detail.** [account](../account/README.md) is the canon; `useSocialLinks` here is the
@@ -82,6 +83,10 @@ active, the relay `user` row is out of their reach. `useMyUser()` reads the toke
 `useUpdateProfile()` writes through `user.update` pinned to the relay slot and patches the server's
 response back into that token. **Read and write share one scope**, which is the invariant an earlier
 attempt inside the data layer could not hold — see [place](../place/README.md) for that history.
+
+The editor's name field takes up to 30 characters, and its hint states that number from the same
+constant (`profileEdit.nameHint` interpolates `{{max}}`) — the place profile's 20 is a different limit.
+A save that went through says `profileEdit.saveSuccess` before going back; a failed one stays put.
 
 ### The hub asks about the account; the settings depth asks about the session
 
@@ -148,6 +153,15 @@ session already is. The hub still disables both rows for a cloud that is not rea
 one still provisioning, one that failed, one the relay holds — and keeps the information screen,
 which is where that state is explained and where the cloud is released.
 
+**A cloud whose setup failed gets a retry row on the hub.** It asks the relay to set the cloud up
+again (`useRetryCloudSetup` → `CloudRepository.retryCloudSetup`, the relay's workspace route), re-reads
+the catalog so every cloud screen shows the cloud as provisioning, and says so in a toast. The relay
+takes a retry only while the cloud is `init` or `error`, only from its owner, and only while the cloud
+holds no workspace slot — so a cloud that failed after its slot was assigned (`slotId` or `accountNo`
+on the catalog row) gets no retry row (`canRetryCloudSetup`). A refusal that still comes back is the
+failure toast, and releasing the cloud on the information screen is what is left. The button sits on the hub rather than on the
+switcher's row, which explains the state and leads here.
+
 **Releasing lives on the information screen, nowhere else.** It is irreversible and cascades, so it
 sits at the foot of the read-only facts behind a confirm, not on a list row. Releasing the ACTIVE
 cloud ends the cloud session and reloads: the session's tokens name a cloud that no longer exists.
@@ -200,9 +214,16 @@ key on the registry's `labs` surface — default off, and declared killable by t
 draws a hand-built row for it in the **Experiments** card. No renderer walks the registry; a new
 experiment adds its own row, as a `user` key does in Settings.
 
-Today there is one: **Place invite** (`feature.placeInvite`), through `usePlaceInviteExperiment`.
-The row's subtitle is one short line because `ListRow` truncates a subtitle to a single line; what
-the switch does and where it applies is the note under the card.
+Today there are two, each in its own card with its note under it:
+
+- **Place invite** (`feature.placeInvite`), through `usePlaceInviteExperiment` — see
+  [invite/place-invite.md](../invite/place-invite.md).
+- **Chat input lock** (`feature.chatInputLock`), through `useChatInputLockExperiment` — see
+  [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment). Turning it on
+  only adds a row to each room's settings; no room is locked until that row says so.
+
+A row's subtitle is one short line because `ListRow` truncates a subtitle to a single line; what the
+switch does and where it applies is the note under the card.
 
 The switch only lets the feature in. Who may use it, and where, is still the feature's own rule —
 turning on Place invite does not give a non-owner the menu entry. The value lives in this device's
@@ -280,7 +301,9 @@ sheet and `useClearLocalCaches` for the clear-cache row.
 - [shell/layout-shell.md](../../shell/layout-shell.md) — the nav, safe areas and
   keyboard insets these screens sit inside.
 - [account](../account/README.md) — social links and the account-credential story.
-- [invite/place-invite.md](../invite/place-invite.md) — the place invite, Lab's one experiment so far.
+- [invite/place-invite.md](../invite/place-invite.md) — the place invite, one of Lab's experiments.
+- [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment) — the chat input
+  lock, the other.
 - [debug](../debug/README.md) · [feedback](../feedback/README.md) — the two features Lab and
   Settings hand off to.
 - [subscription](../subscription/README.md) — where the subscription row goes.

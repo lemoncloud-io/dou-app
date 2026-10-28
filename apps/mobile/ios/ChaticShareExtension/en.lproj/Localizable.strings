@@ -1,0 +1,4 @@
+"share.cannotOpen" = "DoU could not be opened, so this share was not received. Open DoU and share again.";
+"share.done" = "Done";
+"share.cannotSave" = "This share could not be saved for DoU. Try sharing again.";
+"share.nothing" = "There is nothing here DoU can send.";

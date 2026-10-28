@@ -80,22 +80,59 @@ describe('useInviteCountdown', () => {
         expect(renders).toBeLessThanOrEqual(4);
     });
 
-    it('ticks by the minute while more than a day remains', () => {
-        const { result } = renderHook(() => useInviteCountdown(NOW + 3 * DAY + 5 * MINUTE));
-        expect(result.current).toMatchObject({ days: 3, hours: 0, minutes: 5 });
+    describe('minuteUntilImminent (the accept screen)', () => {
+        it('ticks by the minute while more than ten minutes remain', () => {
+            const { result } = renderHook(() =>
+                useInviteCountdown(NOW + 3 * DAY + 5 * MINUTE + 30 * SECOND, { minuteUntilImminent: true })
+            );
+            expect(result.current).toMatchObject({ days: 3, hours: 0, minutes: 5, seconds: 30 });
 
-        // A second passing changes nothing: above a day the card shows "n days n hours", so re-evaluating
-        // every second would be 60 renders a minute for a string that turns over once an hour.
+            // A second passing changes nothing: the card reads in minutes until the last ten.
+            act(() => {
+                jest.advanceTimersByTime(SECOND);
+            });
+            expect(result.current).toMatchObject({ minutes: 5, seconds: 30 });
+
+            // The next tick lands where the shown minute turns over — seconds round up, so that is
+            // 4:59 left, not 5:00.
+            act(() => {
+                jest.advanceTimersByTime(29 * SECOND);
+            });
+            expect(result.current).toMatchObject({ minutes: 5 });
+            act(() => {
+                jest.advanceTimersByTime(SECOND);
+            });
+            expect(result.current).toMatchObject({ days: 3, hours: 0, minutes: 4, seconds: 59 });
+        });
+
+        it('switches to the second at the ten-minute mark', () => {
+            const { result } = renderHook(() =>
+                useInviteCountdown(NOW + 10 * MINUTE + 30 * SECOND, { minuteUntilImminent: true })
+            );
+            expect(result.current?.isImminent).toBe(false);
+
+            // The minute tick lands on 10:00 — imminent — and from there every second counts.
+            act(() => {
+                jest.advanceTimersByTime(30 * SECOND);
+            });
+            expect(result.current).toMatchObject({ minutes: 10, seconds: 0, isImminent: true });
+            act(() => {
+                jest.advanceTimersByTime(SECOND);
+            });
+            expect(result.current).toMatchObject({ minutes: 9, seconds: 59 });
+        });
+    });
+
+    // The waiting screen and the 1:1 strip are a clock throughout, so a day or more out still ticks
+    // by the second.
+    it('ticks by the second by default even with days to go', () => {
+        const { result } = renderHook(() => useInviteCountdown(NOW + 2 * DAY + 5 * SECOND));
+
         act(() => {
             jest.advanceTimersByTime(SECOND);
         });
-        expect(result.current).toMatchObject({ minutes: 5 });
 
-        // A minute does.
-        act(() => {
-            jest.advanceTimersByTime(MINUTE);
-        });
-        expect(result.current).toMatchObject({ days: 3, hours: 0, minutes: 4 });
+        expect(result.current).toMatchObject({ days: 2, seconds: 4 });
     });
 
     it('becomes expired once the deadline passes', () => {

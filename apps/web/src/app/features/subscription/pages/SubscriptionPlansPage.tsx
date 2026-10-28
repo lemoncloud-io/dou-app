@@ -32,17 +32,25 @@ import { nearestSelectablePlan, platformLabelKey, productStatusWord } from '../l
  *
  * The adjacency rule is unchanged — a first subscription starts on the entry tier, then one step at
  * a time either way. A refused tier stays tappable and explains itself (`TierRefusalDialog`).
+ *
+ * After an expiry the screen opens with the lapsed tier already chosen (`resubscribePlan`): coming
+ * back from "다시 구독하기" is picking the plan up again, and an empty selection would leave the user
+ * to find which card the rule allows.
  */
 export const SubscriptionPlansPage = () => {
     const navigate = useNavigateWithTransition();
     const goToLogin = useNavigateToLogin();
     const { t, i18n } = useTranslation();
 
-    const { sellablePlans, summary, currentPlan, replaceablePlan, isOnMobileApp, isIOS } = usePlanCatalog();
+    const { sellablePlans, summary, currentPlan, replaceablePlan, resubscribePlan, isOnMobileApp, isIOS } =
+        usePlanCatalog();
     const { options, isLoading } = usePlanOptions();
     const { isGuest } = runtime.session.useRuntimeProfile();
 
-    const [selected, setSelected] = useState<ProductView | null>(null);
+    const [picked, setPicked] = useState<ProductView | null>(null);
+    // Derived rather than seeded into state: the catalog loads after the first render, and the user's
+    // own pick always wins once there is one.
+    const selected = picked ?? resubscribePlan ?? null;
     const [isLoginPromptOpen, setIsLoginPromptOpen] = useState(false);
     const [refused, setRefused] = useState<PlanOption | null>(null);
 
@@ -59,7 +67,7 @@ export const SubscriptionPlansPage = () => {
             setRefused(option);
             return;
         }
-        setSelected(option.plan);
+        setPicked(option.plan);
     };
 
     const handleNext = () => {
@@ -184,7 +192,7 @@ export const SubscriptionPlansPage = () => {
                 onOpenChange={open => !open && setRefused(null)}
                 alternative={alternative?.plan}
                 onPickAlternative={plan => {
-                    setSelected(plan);
+                    setPicked(plan);
                     setRefused(null);
                 }}
                 isKo={isKo}

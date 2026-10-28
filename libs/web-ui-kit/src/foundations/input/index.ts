@@ -5,3 +5,4 @@ export * from './SearchInput';
 export * from './MessageInput';
 export * from './VerificationCodeInput';
 export * from './ComposerAttachButton';
+export * from './ComposerLockButton';

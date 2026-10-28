@@ -1,6 +1,8 @@
 # ADR-0047: Reaction/thread follow-up polish — an add button beside the chips · reaction info moves to a chip-long-press-only sheet · the home preview shows only the last real message · threads share the channel's context (header, notifications, scroll) · mark deleted messages
 
 > Status: Accepted · Decided: 2026-08-07
+> The "thread replies cannot be previews" part of the home preview rule superseded by
+> [ADR-0242](./0242-a-thread-reply-can-stand-as-a-rooms-home-preview.md) (2026-10-27).
 > Follows: [ADR-0093](./0093-web-emoji-reaction-and-thread.md) (introducing emoji reactions · threads) ·
 > [ADR-0008](./0008-threads-client-derived-from-parentid.md) (threads client-derived from `parentId`)
 > Related: [ADR-0046](./0046-web-feature-ownership-and-barrel-hygiene.md) (feature ownership · barrel hygiene)

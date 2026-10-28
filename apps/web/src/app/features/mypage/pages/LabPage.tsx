@@ -5,7 +5,7 @@ import { FlaskConical } from 'lucide-react';
 import { config } from '@chatic/config';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 
-import { usePlaceInviteExperiment } from '../../../hooks';
+import { useChatInputLockExperiment, usePlaceInviteExperiment } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
 
@@ -18,6 +18,7 @@ export const LabPage = () => {
     const { t } = useTranslation();
     const { isEnabled: isDebugMode } = useDebugMode();
     const placeInvite = usePlaceInviteExperiment();
+    const chatInputLock = useChatInputLockExperiment();
     const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(
         config.get<string>('debug.entryCode')
     );
@@ -65,6 +66,27 @@ export const LabPage = () => {
                     </MenuCard>
                     {/* Outside the row because a row's subtitle is one truncated line. */}
                     <p className="px-1 text-[13px] leading-[1.5] text-description">{t('mypage.lab.placeInviteNote')}</p>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                    <MenuCard>
+                        {/* Turning it on only offers the lock in each room's settings; no room is
+                            locked until its own row says so. Off again, the locks are kept, not enforced. */}
+                        <ListRow
+                            title={t('mypage.lab.chatInputLock')}
+                            subtitle={t('mypage.lab.chatInputLockSubtitle')}
+                            trailing={
+                                <Switch
+                                    checked={chatInputLock.isEnabled}
+                                    onCheckedChange={chatInputLock.setEnabled}
+                                    label={t('mypage.lab.chatInputLock')}
+                                />
+                            }
+                        />
+                    </MenuCard>
+                    <p className="px-1 text-[13px] leading-[1.5] text-description">
+                        {t('mypage.lab.chatInputLockNote')}
+                    </p>
                 </div>
 
                 {isDebugMode && (

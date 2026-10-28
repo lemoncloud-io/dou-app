@@ -22,7 +22,13 @@ import {
     useLastChats,
     useMyProfile,
 } from '../../../hooks';
-import { channelKindOf, removalActionFor, resolveChannelAvatar, resolveChannelTitle } from '../../channels/lib';
+import {
+    channelKindOf,
+    isRoomOwner,
+    removalActionFor,
+    resolveChannelAvatar,
+    resolveChannelTitle,
+} from '../../channels/lib';
 import { sortChannels } from '../../../utils/sortChannels';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { toCloudId } from '../../../hooks/useCloudScope';
@@ -37,7 +43,7 @@ import { lastChatPreview } from '../../channels/utils/lastChatPreview';
  *
  * Removal is decided PER ROW by `removalActionFor`, the same function the room's own settings
  * screen reads: a 1:1 always leaves, and a group is deleted only by its own owner
- * (`channel.ownerId === uid`) and left by everyone else. A place owner normally does own every
+ * (my join's role — `isRoomOwner`) and left by everyone else. A place owner normally does own every
  * group room in their place — they are the only role that can create one — so in the ordinary case
  * this reads the same as `place.isOwner` did, while no longer sending `channel.delete` at a 1:1 or
  * at a group the place owner had merely joined.
@@ -70,6 +76,8 @@ export const PlaceChannelManagePage = () => {
     // Last-message previews from ONE combined observation (ADR-0057) — the same source as the home
     // list, replacing the per-row cache-window subscription this page used to make per rendered row.
     const lastChats = useLastChats(channels, myJoins);
+    // Whether I own this room — my own join's role, the rule every room surface reads.
+    const amRoomOwner = (channel: DomainChannel) => isRoomOwner(channel, channel.$join, uid);
 
     // Sort + pins are scoped to cid:sid (see placeScopeKey) — the route only carries the sid, so the
     // cloud half comes from the active session.
@@ -183,7 +191,7 @@ export const PlaceChannelManagePage = () => {
      *
      * **Per row, not per place.** What removal means is answered by `removalActionFor` — the same
      * function the room's own settings screen reads — so a 1:1 always leaves and never deletes, and
-     * a group is judged by ITS owner (`channel.ownerId === uid`) rather than by who owns the place.
+     * a group is judged by ITS owner (my join role, `isRoomOwner`) rather than by who owns the place.
      * This branched on `place.isOwner` alone before, which sent `channel.delete` at whatever was
      * checked: a DM included, and a group the place owner had merely joined.
      */
@@ -194,7 +202,7 @@ export const PlaceChannelManagePage = () => {
         setIsRemoving(true);
         const results = await Promise.allSettled(
             targets.map(channel => {
-                const action = removalActionFor(channelKindOf(channel.stereo), !!uid && channel.ownerId === uid);
+                const action = removalActionFor(channelKindOf(channel.stereo), amRoomOwner(channel));
                 // `none` is unreachable — a self chat is not selectable (see isSelectable) — but a
                 // resolved promise keeps the success/failure tally honest if that ever changes.
                 if (action === 'none') return Promise.resolve(undefined);
@@ -251,10 +259,7 @@ export const PlaceChannelManagePage = () => {
         selectedIds.size > 0 &&
         sortedChannels
             .filter(channel => selectedIds.has(channel.id))
-            .every(
-                channel =>
-                    removalActionFor(channelKindOf(channel.stereo), !!uid && channel.ownerId === uid) === 'delete'
-            );
+            .every(channel => removalActionFor(channelKindOf(channel.stereo), amRoomOwner(channel)) === 'delete');
     const hasSelection = selectedCount > 0;
 
     return (

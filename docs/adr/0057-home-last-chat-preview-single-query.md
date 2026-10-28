@@ -1,6 +1,8 @@
 # ADR-0057: Home last-message preview — one native query instead of per-channel window observation
 
 > Status: Accepted · Decided: 2026-08-14
+> The "thread replies cannot be previews" part of the preview rule superseded by
+> [ADR-0242](./0242-a-thread-reply-can-stand-as-a-rooms-home-preview.md) (2026-10-27).
 
 ## Context
 

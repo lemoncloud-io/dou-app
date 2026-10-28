@@ -36,6 +36,7 @@ import {
 } from '@chatic/web-ui-kit';
 
 import { useDmPeers, type DmPeer } from '../../channels/hooks';
+import { useLastChatSenders } from '../hooks/useLastChatSenders';
 import { isSomeoneElsesSelfChat } from '../../channels/utils/membership';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
@@ -49,6 +50,7 @@ import { haptics } from '../../../bridge/haptics';
 import { readCursorOf, readPositionOf } from '../../../utils/countUnread';
 import {
     channelKindOf,
+    isRoomOwner,
     removalActionFor,
     resolveChannelAvatar,
     resolveChannelTitle,
@@ -91,6 +93,7 @@ const ChannelItem = ({
     mentionOnly,
     myMemberId,
     lastChat,
+    lastChatSender,
 }: {
     channel: DomainChannel;
     unread: number;
@@ -114,6 +117,8 @@ const ChannelItem = ({
      * (ADR-0057) — not a per-row cache window. Undefined when the channel has nothing to preview.
      */
     lastChat?: DomainChat;
+    /** Who wrote `lastChat`, for a group room (list-level useLastChatSenders). Undefined otherwise. */
+    lastChatSender?: string;
 }) => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
@@ -159,7 +164,7 @@ const ChannelItem = ({
     // text or the attachment noun — is shared with the search and manage rows (lastChatPreview).
     // Code in that line gets no badge or monospace: that would complicate the row and tangle with
     // blurLastMessage.
-    const preview = lastChatPreview(lastChat, t);
+    const preview = lastChatPreview(lastChat, t, lastChatSender);
     const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
 
     // An unread last message that calls me leads its line with "@me" — the record decides, as it
@@ -338,7 +343,7 @@ interface ChannelListProps {
      * shows and where the tap goes are the host's call (on mobile: relay only, to the contact form).
      */
     showOneOnOneCreate?: boolean;
-    /** Drives the PRO badge on "그룹 방 만들기" — and, on relay, whether that entry shows at all. */
+    /** Drives the PRO badge on "그룹방 만들기" — and, on relay, whether that entry shows at all. */
     isPro?: boolean;
     /** Sort method for this place's channel list (client preference). Defaults to 'recent'. */
     sortMethod?: ChannelSortMethod;
@@ -415,7 +420,7 @@ export const ChannelList = ({
     const { profile: myProfile } = useMyProfile();
     const myNick = myProfile?.nick;
     const myThumbnail = myProfile?.thumbnail;
-    // My user id drives the owner-vs-member title branch (channel.ownerId === uid).
+    // My user id — the owner rule's fallback when my join carries no role (see isRoomOwner).
     const { userId: uid } = runtime.session.useSessionIdentity();
     // Unread is derived directly from the channel stream plus my join stream passed from HomePage.
     const { byChannel: unreadByChannel } = useChannelUnreads(channels, joinByChannel);
@@ -456,6 +461,8 @@ export const ChannelList = ({
     // by the host's useChatSyncRegistration, so rendering a row never makes a network call.
     // Previews are windowed by my join cursor so a re-joined room shows no pre-leave message (ADR-0067).
     const lastChats = useLastChats(channels, joinByChannel);
+    // A group row's line names who wrote it, through ONE list-level profile subscription as well.
+    const lastChatSenders = useLastChatSenders(sid, channels, lastChats);
 
     // Which row has its swipe actions out. One at a time: opening a row replaces this, and every
     // other row reads null and stays closed.
@@ -495,7 +502,7 @@ export const ChannelList = ({
                   },
               ]
             : [];
-        const removal = removalActionFor(channelKindOf(channel.stereo), !!uid && channel.ownerId === uid);
+        const removal = removalActionFor(channelKindOf(channel.stereo), isRoomOwner(channel, channel.$join, uid));
         if (removal === 'none') return { leading, trailing: [] };
         return {
             leading,
@@ -539,7 +546,7 @@ export const ChannelList = ({
         [channels, lastChats, unreadByChannel, sortMethod, pinnedChannelIds, leadsWithSelf]
     );
 
-    // "그룹 방 만들기" is the real action on a cloud; on relay it rides along ONLY as an upsell for
+    // "그룹방 만들기" is the real action on a cloud; on relay it rides along ONLY as an upsell for
     // an unpaid account (Figma 2870:20387) — a group room lives in a cloud of one's own, so for a
     // subscriber the relay entry would lead nowhere and is dropped. What the tap does is the host's
     // call (see HomePage.handleCreateGroup).
@@ -675,6 +682,7 @@ export const ChannelList = ({
                                 mentionOnly={notifyLevel === 'mention'}
                                 myMemberId={join?.userId}
                                 lastChat={lastChats.get(channel.id)}
+                                lastChatSender={lastChatSenders.get(channel.id)}
                             />
                         </SwipeActionRow>
                     );

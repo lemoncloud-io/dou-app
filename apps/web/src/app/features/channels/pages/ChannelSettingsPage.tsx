@@ -5,8 +5,9 @@ import { useLocation, useParams } from 'react-router-dom';
 
 import { logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
+import type { DomainPlace } from '@chatic/data';
 import { useNavigateWithTransition } from '@chatic/shared';
-import { DefaultAvatar, Divider, GroupLabel, IconChevronRight, ImageAvatar, ListRow } from '@chatic/web-ui-kit';
+import { DefaultAvatar, Divider, GroupLabel, IconChevronRight, ImageAvatar, ListRow, Switch } from '@chatic/web-ui-kit';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { useActivePlaceName } from '../../../hooks';
@@ -27,6 +28,7 @@ import {
     useChannelMutations,
     useChannelProfiles,
     useChannelTitle,
+    useChatInputLock,
     useDmInviteState,
     useDmPeer,
     useJoinMutations,
@@ -37,6 +39,7 @@ import {
     channelKindOf,
     dmLineageOf,
     hasDmInviteFlow,
+    isRoomOwner,
     profilePlaceOf,
     removalActionFor,
     resolveChannelAvatar,
@@ -82,11 +85,36 @@ export const ChannelSettingsPage = () => {
     // My uid in the room's own cloud, which can differ from the session's. The start-1:1 row checks
     // both, so it is never offered on my own row.
     const uidInRoomCloud = runtime.session.useUidInCloud(toCloudId(channel?.cid || selectedCloudId));
+    // Whether a member is me. The room names me by my id in ITS cloud, which can differ from the
+    // session's, so both are checked — the MY badge and the self profile read this.
+    const isMe = (memberId: string | null | undefined) =>
+        !!memberId && (memberId === userId || memberId === uidInRoomCloud);
     const activePlaceName = useActivePlaceName();
+
+    // The room's place, for the place scope of a member removal: whether I own it (the place row's
+    // `isOwner`, as on every place screen — never the room's owner rule), who does, and its name.
+    const { place: placeRepository } = runtime.data.useRuntimeRepositories();
+    const roomPlaceId = channel?.sid;
+    const [roomPlace, setRoomPlace] = useState<DomainPlace | null>(null);
+    useEffect(() => {
+        // Cleared first, so another place's row never answers for this one while the read is out.
+        setRoomPlace(null);
+        if (!roomPlaceId) return;
+        return placeRepository.observeItem(roomPlaceId, setRoomPlace);
+    }, [placeRepository, roomPlaceId]);
+    const [isRemovingFromPlace, setIsRemovingFromPlace] = useState(false);
 
     // One join subscription for the screen: the member rows' read-state and my own row (the
     // notification level, my nick) are two readings of the same cache list — see useChannelJoins.
     const { joins, myJoin } = useChannelJoins(channelId ?? null);
+    // Whether a member owns this room, by their own join's role — the rule the badge, the profile's
+    // owner mark and member removal all read (see isRoomOwner).
+    const isMemberRoomOwner = (memberId: string) =>
+        isRoomOwner(
+            channel,
+            joins.find(join => join.userId === memberId),
+            memberId
+        );
 
     const { members, isLoading: isMembersLoading } = useChannelMembers({
         channelId: channelId || '',
@@ -153,6 +181,12 @@ export const ChannelSettingsPage = () => {
     const serverNotifyLevel = notifyLevelOf(myJoin?.notify, channel?.stereo === 'dm');
     const [notifyLevel, setNotifyLevel] = useState<NotifyLevel>(serverNotifyLevel);
     const [isNotifySheetOpen, setIsNotifySheetOpen] = useState(false);
+    // The Lab's input lock, on this device only — the same answer the room and its threads read.
+    const inputLock = useChatInputLock(channelId);
+    const handleInputLockChange = (isLocked: boolean) => {
+        inputLock.setLocked(isLocked);
+        toast({ title: t(isLocked ? 'chat.inputLock.locked' : 'chat.inputLock.unlocked') });
+    };
 
     // Reconcile with the join stream once it hydrates (or changes from another device). myJoin is
     // null on first render, so this seeds it too. Keyed on the derived level rather than the raw
@@ -192,7 +226,7 @@ export const ChannelSettingsPage = () => {
         setActiveDialog('profile');
     };
 
-    // Owner-only kick: leaveChannel with a target userId removes that member.
+    // Room scope: owner-only kick — leaveChannel with a target userId removes that member.
     const handleKickMember = async () => {
         if (!channelId || !selectedMember) return;
 
@@ -206,6 +240,28 @@ export const ChannelSettingsPage = () => {
                 data: { channelId, userId: selectedMember.id },
             });
             toast({ title: t('chat.settings.kickFailed'), variant: 'destructive' });
+        }
+    };
+
+    // Place scope: the same `place.leave` the place's member screen sends. The repository takes the
+    // member out of the cached roster of every room the server lists, this one included, so this
+    // screen's member list drops them with no work here.
+    const handleRemoveFromPlace = async () => {
+        if (!roomPlaceId || !selectedMember) return;
+
+        setIsRemovingFromPlace(true);
+        try {
+            await placeRepository.removeMember(roomPlaceId, selectedMember.id);
+            closeDialog();
+            toast({ title: t('chat.settings.kicked') });
+        } catch (error) {
+            logger.error('place.remove_member', 'Failed to remove a place member from a room profile', {
+                error,
+                data: { placeId: roomPlaceId, channelId, userId: selectedMember.id },
+            });
+            toast({ title: t('chat.settings.kickFailed'), variant: 'destructive' });
+        } finally {
+            setIsRemovingFromPlace(false);
         }
     };
 
@@ -251,7 +307,7 @@ export const ChannelSettingsPage = () => {
         try {
             await leaveChannel({ channelId });
             closeDialog();
-            toast({ title: t('chat.settings.leftRoom') });
+            toast({ title: t('chat.settings.leftRoomToast') });
             navigate(ROUTES.root, { replace: true });
         } catch (error) {
             logger.error('CHAT', 'Failed to leave room', { error, data: { channelId } });
@@ -298,6 +354,13 @@ export const ChannelSettingsPage = () => {
     // What "remove this room" means here, from the one place that answers it for every surface —
     // the place-level bulk remove reads the same function, so the two cannot drift again.
     const removal = removalActionFor(channelKindOf(channel?.stereo), isOwner);
+    // Whether the open profile's member may be removed at all, by either scope: only from a group,
+    // and never me or this room's owner. Which scopes I hold is decided beside the profile below.
+    const canRemoveTarget =
+        channelKindOf(channel?.stereo) === 'group' &&
+        !!selectedMember &&
+        !isMe(selectedMember.id) &&
+        !isMemberRoomOwner(selectedMember.id);
 
     // One shared rule with the room header and the home list (resolveChannelAvatar): self → MY
     // place-profile photo, DM → the peer's, else the channel photo. Both self and DM ignore
@@ -387,8 +450,8 @@ export const ChannelSettingsPage = () => {
                 <MemberListItem
                     key={memberId}
                     member={memberView}
-                    isMe={memberId === userId}
-                    isOwner={memberId === channel?.ownerId}
+                    isMe={isMe(memberId)}
+                    isOwner={isMemberRoomOwner(memberId)}
                     needsProfileSetup={needsProfileSetup}
                     // Only a DM keeps departed members in this list at all (see useChannelMembers),
                     // so this reads false everywhere else without needing the stereo here.
@@ -453,6 +516,20 @@ export const ChannelSettingsPage = () => {
                             }
                             onClick={() => setIsNotifySheetOpen(true)}
                         />
+                        {/* Offered only while the Lab switch is on. A self chat has no settings group
+                            and goes without: what is sent there reaches nobody but me. */}
+                        {inputLock.isAvailable && (
+                            <ListRow
+                                title={t('chat.inputLock.settingsRow')}
+                                trailing={
+                                    <Switch
+                                        checked={inputLock.isLocked}
+                                        onCheckedChange={handleInputLockChange}
+                                        label={t('chat.inputLock.settingsRow')}
+                                    />
+                                }
+                            />
+                        )}
 
                         {/* Room members */}
                         <GroupLabel label={t('chat.settings.roomMembers')} />
@@ -566,19 +643,22 @@ export const ChannelSettingsPage = () => {
                 open={activeDialog === 'profile'}
                 onOpenChange={open => (open ? openDialog('profile') : closeDialog())}
                 member={selectedMember}
-                memberIsOwner={!!selectedMember && selectedMember.id === channel?.ownerId}
-                isSelf={!!selectedMember && selectedMember.id === userId}
-                canKick={
-                    isOwner &&
-                    // DM has no kick — a 1:1 ends via delete (owner) / leave (peer), never by
-                    // removing the peer into a lone-member room (ADR-0032).
-                    !isDmChat &&
-                    !!selectedMember &&
-                    selectedMember.id !== channel?.ownerId &&
-                    selectedMember.id !== userId
-                }
+                memberIsOwner={!!selectedMember && isMemberRoomOwner(selectedMember.id)}
+                isSelf={!!selectedMember && isMe(selectedMember.id)}
+                // A 1:1 offers no removal at all — it ends by leaving, never by removing the peer
+                // into a lone-member room — and neither scope reaches me or this room's owner.
+                canKick={canRemoveTarget && isOwner}
                 onKick={handleKickMember}
-                isKicking={isPending.leave}
+                roomName={roomTitle}
+                canRemoveFromPlace={
+                    canRemoveTarget &&
+                    !!roomPlace?.isOwner &&
+                    // The place's owner cannot be removed from it.
+                    selectedMember?.id !== roomPlace.ownerId
+                }
+                onRemoveFromPlace={handleRemoveFromPlace}
+                placeName={roomPlace?.name}
+                isKicking={isPending.leave || isRemovingFromPlace}
                 onOpenProfileSettings={() => openDialog('profileSettings')}
                 onStartDm={
                     canStartDm &&
@@ -588,7 +668,7 @@ export const ChannelSettingsPage = () => {
                         sessionCloudId: selectedCloudId,
                         sessionPlaceId: selectedSiteId,
                         memberId: selectedMember.id,
-                        isMe: id => id === userId || id === uidInRoomCloud,
+                        isMe,
                     })
                         ? () => {
                               const peerId = selectedMember.id;

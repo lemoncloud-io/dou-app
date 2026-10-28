@@ -3,7 +3,13 @@ import { useMemo, useRef, type PointerEvent as ReactPointerEvent, type MouseEven
 import { useTranslation } from 'react-i18next';
 
 import { DefaultAvatar, ImageAvatar, MessageBubble, MessageRow, ReadReceipt } from '@chatic/web-ui-kit';
-import { BlockKitMessage, blocksToPlainText, hasDrawableBlocks, resolveChatBlocks } from '@chatic/block-kit';
+import {
+    BlockKitMessage,
+    blocksToPlainText,
+    hasDrawableBlocks,
+    resolveChatBlocks,
+    takeSourceLink,
+} from '@chatic/block-kit';
 import { cn } from '@chatic/ui-kit';
 import { isMessageEdited } from '@chatic/data';
 
@@ -199,13 +205,18 @@ export const ChannelMessageRow = ({
     // — a new message, a read receipt, a reaction elsewhere in the list — and for a webhook
     // send this is a `JSON.parse` plus the mrkdwn passes. Ordinary messages cost a `trim`
     // and a `startsWith` either way (`parseBlocks` bails on the first character).
-    const { drawnBlocks, plain } = useMemo(() => {
-        if (skipBlocks) return { drawnBlocks: null, plain: content };
+    //
+    // `sourceUrl` is the webhook's full report, which the card's title links to. The server puts it
+    // on the card's last line, and `takeSourceLink` moves it up.
+    const { drawnBlocks, plain, sourceUrl } = useMemo(() => {
+        if (skipBlocks) return { drawnBlocks: null, plain: content, sourceUrl: undefined };
         const { blocks, source } = resolveChatBlocks(message);
         const drawable = blocks && hasDrawableBlocks(blocks) ? blocks : null;
+        const linked = drawable ? takeSourceLink(drawable) : null;
         return {
-            drawnBlocks: drawable,
+            drawnBlocks: linked?.blocks ?? null,
             plain: drawable && source === 'content' ? blocksToPlainText(drawable) : content,
+            sourceUrl: linked?.sourceUrl,
         };
     }, [skipBlocks, content, message]);
     // Truncation is the bubble's own affordance, so it measures what the bubble renders —
@@ -400,7 +411,7 @@ export const ChannelMessageRow = ({
                     unreadCount={read.unreadCount}
                     readLabel={t('chat.room.read')}
                     unreadLabel={t('chat.room.unread')}
-                    allReadLabel={t('chat.room.allRead')}
+                    allReadLabel={t('chat.room.allRead', { count: read.readCount })}
                 />
             ) : (
                 <Loader2 size={11} className="animate-spin text-muted-foreground" />
@@ -501,10 +512,7 @@ export const ChannelMessageRow = ({
                                 // `select-none` (and the WebKit callout suppression) replaces what the old
                                 // `preventDefault()` on pointerdown did — without taking the scroll gesture
                                 // down with it. See `handlePointerDown`.
-                                className={cn(
-                                    'inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]',
-                                    drawnBlocks && 'w-full'
-                                )}
+                                className="inline-flex min-w-0 max-w-full select-none [-webkit-touch-callout:none]"
                                 {...pressHandlers}
                             >
                                 {drawnBlocks ? (
@@ -520,6 +528,10 @@ export const ChannelMessageRow = ({
                                     // Against the page it reads as a card only in dark; in light the border
                                     // carries it, which is how this app draws every other card.
                                     //
+                                    // As wide as what it holds, up to the row: a three-line attendance note
+                                    // is a small card, and a stack trace fills the row because it needs to.
+                                    // A card stretched to the row regardless leaves a short one mostly empty.
+                                    //
                                     // No `renderFallback`: `drawnBlocks` already means the renderer will draw,
                                     // so its raw-body path is unreachable from here. A message with nothing
                                     // drawable never enters this arm — it stays in the bubble as text.
@@ -528,14 +540,16 @@ export const ChannelMessageRow = ({
                                     // anchor's default would load the page into this WebView in the
                                     // native shell, and a hold that opened the action sheet must not
                                     // also follow the link.
-                                    <div className="w-full rounded-2xl border border-hairline bg-card px-4 py-3">
+                                    <div className="min-w-0 max-w-full rounded-[10px] border border-hairline bg-card p-4">
                                         <BlockKitMessage
                                             blocks={drawnBlocks}
                                             raw={content}
                                             onLinkClick={handleUrlClick}
+                                            sourceUrl={sourceUrl}
                                             labels={{
                                                 expandCode: count => t('chat.room.codeBlock.expand', { count }),
                                                 collapseCode: t('chat.room.codeBlock.collapse'),
+                                                openSource: t('chat.room.attachment.openSource'),
                                             }}
                                         />
                                     </div>

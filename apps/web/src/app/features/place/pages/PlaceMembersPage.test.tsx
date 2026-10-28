@@ -96,7 +96,7 @@ describe('PlaceMembersPage — the list', () => {
         await renderSettled();
 
         expect(rowNames()).toEqual(['Olivia', 'Mina', 'Bora', 'Chul']);
-        expect(screen.getByText('chat.settings.badge.owner')).toBeInTheDocument();
+        expect(screen.getByText('placeMembers.badge.owner')).toBeInTheDocument();
         expect(screen.getByText('placeMembers.badge.me')).toBeInTheDocument();
         // The count is the rows received.
         expect(screen.getByText('placeMembers.count')).toBeInTheDocument();

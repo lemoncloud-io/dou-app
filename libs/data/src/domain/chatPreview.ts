@@ -63,11 +63,18 @@ export const isFeedVisible = (chat: Pick<DomainChat, 'parentId' | 'subType'>): b
 /**
  * Whether a chat can stand as a channel's one-line preview on the home list.
  *
- * The feed's rule plus two. `isFeedVisible` already drops thread replies and reaction
- * events; the preview additionally drops system rows, because join and leave carry no
- * body, so previewing one leaves the home row showing a blank line where a message
- * should be. Composed from the predicates the app already has rather than restated,
- * so "which chats are real messages" cannot drift between surfaces.
+ * Reaction events never do — they are the input to `foldReactions`, not messages — and neither
+ * do system rows, because join and leave carry no body, so previewing one leaves the home row
+ * showing a blank line where a message should be. The system-row test is `isNotifiableChat`, the
+ * one the push and unread surfaces use, so "which chats are real messages" cannot drift between them.
+ *
+ * Thread replies DO preview, unlike in the feed. The feed leaves them to the thread page, but the
+ * home row is a room's last activity, and a reply is activity: a room whose conversation moved
+ * into a thread would otherwise keep showing the message the thread hangs off, however long ago
+ * that was. The row marks a reply as one (`lastChatPreview`), so it does not read as a message in
+ * the room itself. The native fast path mirrors this rule in SQL, and an app whose mirror still
+ * drops replies answers with an older top-level message that passes this check — such an app shows
+ * the old preview until it is updated.
  *
  * A failed send does not preview either. It never reached the channel — nobody else
  * can see it — and it keeps the sentinel `chatNo: 0` indefinitely, so ranked as newest
@@ -77,11 +84,11 @@ export const isFeedVisible = (chat: Pick<DomainChat, 'parentId' | 'subType'>): b
  * row renders the shared deleted-message phrase instead of the body (ADR-0047).
  */
 export const isPreviewableChat = (chat: DomainChat): boolean =>
-    isFeedVisible(chat) && isNotifiableChat(chat) && !chat.isFailed;
+    chat.subType !== 'reaction' && isNotifiableChat(chat) && !chat.isFailed;
 
 /**
  * The newest previewable chat in an observed window, or undefined when it holds none
- * (a channel whose recent traffic is all replies and reactions shows no preview).
+ * (a channel whose recent traffic is all reactions and system rows shows no preview).
  *
  * Newest is `compareByChatNo`'s order, not the raw number — a just-sent pending row
  * carries the sentinel `chatNo: 0` and would lose every numeric comparison.

@@ -1,6 +1,8 @@
 # ADR-0040: Fix the self chat display name and nudge profile setup
 
-> Status: Accepted · Decided: 2026-08-03
+> Status: Accepted (ko `나와의 채팅` is superseded by
+> [ADR-0239](./0239-korean-screen-copy-follows-the-product-glossary.md), which renames it `나와의 대화`) ·
+> Decided: 2026-08-03
 >
 > ⚠️ **A parallel session exists.** On the same day
 > [ADR-0041](0041-place-profile-as-invite-precondition.md) decided profile creation on the invite path,

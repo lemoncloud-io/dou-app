@@ -16,6 +16,7 @@ import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
 import { shellCapabilities } from './app/bridge/shellCapabilities';
 import { clearComposerDrafts } from './app/features/channels/stores/useComposerDraftStore';
+import { clearInputLocks } from './app/features/channels/stores/useInputLockStore';
 import { markBoot } from './app/features/debug/metrics/bootMarks';
 import { initLongTasks } from './app/features/debug/metrics/longTasks';
 import { attachConsoleListener } from './app/runtime/logging/consoleListener';
@@ -109,6 +110,8 @@ runtime.boot.initAppRuntime({
 // A composer draft is the signed-in person's own unsent text and files: they go at sign-out, so the
 // next account on this device never opens a room onto them.
 runtime.session.registerSessionLogoutCallback(clearComposerDrafts);
+// The same for the rooms whose composer was locked: they are the signed-in person's rooms.
+runtime.session.registerSessionLogoutCallback(clearInputLocks);
 
 // Read the previous session's fate — a session that died without a clean
 // pagehide is logged as page-crash (ADR-0097 S7). It carries no buffer: the dead

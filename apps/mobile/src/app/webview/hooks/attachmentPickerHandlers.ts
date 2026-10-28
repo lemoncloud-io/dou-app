@@ -23,7 +23,11 @@ const SOURCES: readonly string[] = ['media', 'document'];
  * message's catch-all. That includes `NOT_FOUND`: the web takes it to mean "this app has no picker"
  * and opens its own file input for the rest of the page's life, so one failed pick must never send it.
  */
-const toError = <C extends string>(e: unknown, known: readonly string[], fallback: C): { code: C; message: string } => {
+export const toError = <C extends string>(
+    e: unknown,
+    known: readonly string[],
+    fallback: C
+): { code: C; message: string } => {
     const code = (e as { code?: unknown })?.code;
     const message = (e as { message?: unknown })?.message;
     return {

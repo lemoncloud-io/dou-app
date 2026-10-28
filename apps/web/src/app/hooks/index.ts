@@ -29,6 +29,7 @@ export * from './useMyProfile';
 export * from './useMembership';
 export * from './useMenuNavigate';
 export * from './usePlaceInviteExperiment';
+export * from './useChatInputLockExperiment';
 export * from './menuDismissal';
 export * from './useMyUser';
 export * from './useOnboarding';

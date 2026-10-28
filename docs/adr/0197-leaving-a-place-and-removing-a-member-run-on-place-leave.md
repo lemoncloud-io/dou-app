@@ -1,7 +1,8 @@
 # ADR-0197: Leaving, deleting and removing a member — `place.leave` and `place.delete` from the place information and member screens
 
-> Status: Accepted · Decided: 2026-10-13 · Implemented: `feat/place-leave-and-remove` (data layer and
-> `apps/web`; `apps/desktop-web` follows in a separate change)
+> Status: Superseded in part by [ADR-0238](./0238-a-member-is-removed-from-a-room-profile-by-scope.md) —
+> decision 5's "only removal entry point" · Decided: 2026-10-13 · Implemented:
+> `feat/place-leave-and-remove` (data layer and `apps/web`; `apps/desktop-web` follows in a separate change)
 > · **Closes** the gaps [ADR-0095](./0095-place-detail-read-only-screen.md) deferred (no Leave place),
 > [ADR-0139](./0139-an-owner-invites-into-a-place-without-a-room.md) recorded ("there is still no way to leave a
 > place") and [ADR-0166](./0166-place-invite-is-a-lab-experiment-off-until-a-device-turns-it-on.md) gave as one

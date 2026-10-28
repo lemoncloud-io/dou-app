@@ -34,13 +34,13 @@ export interface TierPurchase {
  */
 export const useTierPurchase = (): TierPurchase => {
     const { t } = useTranslation();
-    const { isIOS, replaceablePlan } = usePlanCatalog();
+    const { isIOS, replaceablePlan, resubscribePlan } = usePlanCatalog();
     const { fetchNativeProducts, purchaseAndValidate } = useSubscriptionIap();
     const [pageState, setPageState] = useState<PageState>(PageState.Idle);
 
     const changeKindOf = useCallback(
-        (plan: ProductView) => getTierChangeKind(replaceablePlan, plan),
-        [replaceablePlan]
+        (plan: ProductView) => getTierChangeKind(replaceablePlan, plan, resubscribePlan),
+        [replaceablePlan, resubscribePlan]
     );
 
     const resolveNativeProduct = useCallback(

@@ -43,14 +43,15 @@ export const MemberListItem = ({
 }: MemberListItemProps) => {
     const { t } = useTranslation();
 
-    // Badge precedence: a pending invite wins (it carries its own greyed treatment),
-    // then the owner role (room owner — shown even on my own row when I own the room), then MY.
-    const badge = isPendingInvite
-        ? { variant: 'pending' as const, label: t('chat.settings.badge.pending') }
-        : isOwner
-          ? { variant: 'owner' as const, label: t('chat.settings.badge.owner') }
-          : isMe
-            ? { variant: 'mine' as const, label: t('chat.settings.badge.mine') }
+    // Badge precedence: MY on my own row whatever else is true of it — I am never badged as the room
+    // owner, even when I own the room. Then a pending invite (it carries its own greyed treatment),
+    // then the owner role.
+    const badge = isMe
+        ? { variant: 'mine' as const, label: t('chat.settings.badge.mine') }
+        : isPendingInvite
+          ? { variant: 'pending' as const, label: t('chat.settings.badge.pending') }
+          : isOwner
+            ? { variant: 'owner' as const, label: t('chat.settings.badge.owner') }
             : null;
 
     // A departed member is dimmed the same way a pending invite is — both are "not here right now".

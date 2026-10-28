@@ -208,7 +208,7 @@ export const HomePage = () => {
     // A place switch is also a channel load: `useHomeChannels` slices the ALREADY-loaded cloud-wide
     // observation by sid, so the moment the switch pre-applies the new sid the slice is empty with
     // isLoading === false. Without folding the switch in, the Chat section would flash its empty
-    // state ("채팅방이 없어요") on the way into every place. Skeletons cover the gap instead.
+    // state ("대화방이 없습니다") on the way into every place. Skeletons cover the gap instead.
     const isChannelSectionLoading = isChannelsLoading || isSwitching;
     // The place's own rooms. A subscription cloud's notes-to-self room carries a place too, but it
     // belongs to the account and leads the 1:1 section instead. `channels` keeps it for the syncs.

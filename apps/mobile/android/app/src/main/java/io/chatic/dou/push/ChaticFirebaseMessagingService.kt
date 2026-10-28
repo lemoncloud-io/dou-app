@@ -100,7 +100,7 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
         // cloud/site context, and the notified chat, to the web. RN Linking only surfaces the intent
         // URI (not the payload extra), so for Android data-only pushes this native merge is the only
         // place it can happen.
-        val navClickAction = mergeContextIntoLink(clickAction, payload).ifEmpty { rootTapLinkFor(type) }
+        val navClickAction = mergeContextIntoLink(clickAction, payload).ifEmpty { rootTapLinkFor(type, payload) }
 
         // 1. Resolve and translate title & body dynamically
         val lang = resolveLanguage()
@@ -305,15 +305,25 @@ class ChaticFirebaseMessagingService : FirebaseMessagingService() {
      * The scheme comes from the flavor's `app_scheme` string resource (prod `chatic`, dev
      * `chatic-dev`), looked up by name like the launcher icon above so this file stays free of a
      * flavor-specific `R` import. `<scheme>://` resolves to the web root — see the deep link tests.
+     *
+     * The root carries the payload's `cid` (see [cloudRootTapLink]), so the tap opens the cloud the
+     * push names — the same `/?cid=<cid>` that `resolvePushTapPath` builds for an iOS tap.
      */
-    private fun rootTapLinkFor(type: String): String {
+    private fun rootTapLinkFor(type: String, payload: String): String {
         if (type != PUSH_TYPE_CLOUD) return ""
         val resId = resources.getIdentifier("app_scheme", "string", packageName)
         if (resId == 0) {
             NativeLogger.log("warn", TAG, "app_scheme string resource missing; cloud tap will not navigate")
             return ""
         }
-        return "${getString(resId)}://"
+        val cid = try {
+            if (payload.isEmpty()) "" else JSONObject(payload).optString("cid")
+        } catch (e: Exception) {
+            // A malformed payload still opens the app at the root; only the cloud is lost.
+            NativeLogger.log("warn", TAG, "Cloud push payload is not JSON; tapping opens the root", e)
+            ""
+        }
+        return cloudRootTapLink(getString(resId), cid)
     }
 
     /** Chat channels contribute to the unread badge; notice/marketing/cloud pushes do not. */
@@ -781,6 +791,17 @@ internal fun mergeLinkQuery(link: String, params: List<Pair<String, String>>): S
 
     val merged = (listOf(query).filter { it.isNotEmpty() } + added).joinToString("&")
     return "$path?$merged$hash"
+}
+
+/**
+ * `<scheme>://?cid=<cid>` for a cloud push's tap — the scheme root plus the cloud it names — or the bare
+ * `<scheme>://` when it names none. Only the cloud is carried: the push is about the cloud, not a place
+ * or a chat in it. The shell's `resolveDeepLink` turns it into the web's `/?cid=<cid>`.
+ */
+internal fun cloudRootTapLink(scheme: String, cid: String): String {
+    val root = "$scheme://"
+    val trimmed = cid.trim()
+    return if (trimmed.isEmpty()) root else mergeLinkQuery(root, listOf("cid" to trimmed))
 }
 
 /** `encodeURIComponent`'s encoding: a space is `%20`, not the form encoding's `+`. */

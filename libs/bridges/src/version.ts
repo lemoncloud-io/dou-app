@@ -21,7 +21,9 @@
 //        answering them and its handshake stops listing them. OnBackgroundStatusChanged stays a push.
 //        A deliberately loaded custom bundle (a non-PROD phone zip, the desktop custom UI) may be
 //        older and still send one; it gets NOT_FOUND.
-export const BRIDGE_VERSION = '2.8.0' as const;
+// 2.9.0: added FetchShareIntake and ReleaseShareIntake (web -> app) — what another app shared to Dou
+//        through the OS share sheet, opened on `/share?id=`.
+export const BRIDGE_VERSION = '2.9.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

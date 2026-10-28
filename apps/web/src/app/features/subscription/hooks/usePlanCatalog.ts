@@ -5,7 +5,13 @@ import { useMembershipInfo, useProductPlans } from '../../../hooks/useMembership
 
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
-import { findPlanById, selectSellablePlans, summarizeMembership, type StorePlatform } from '../lib';
+import {
+    findPlanById,
+    findResubscribePlan,
+    selectSellablePlans,
+    summarizeMembership,
+    type StorePlatform,
+} from '../lib';
 import type { SubscriptionSummary } from '../lib';
 
 export interface PlanCatalog {
@@ -16,6 +22,8 @@ export interface PlanCatalog {
     platform: StorePlatform | undefined;
     /** Tier 1~5 for the current store, ascending by `sort`. Empty off-native. */
     sellablePlans: ProductView[];
+    /** Both stores' tiers, unfiltered — for questions about the catalog itself, not about selling. */
+    catalogPlans: ProductView[];
     /** The plan behind the running subscription — resolved even if it was bought on the other store. */
     currentPlan: ProductView | undefined;
     /**
@@ -24,6 +32,11 @@ export interface PlanCatalog {
      * here so the picker and the purchase path cannot disagree about what "current" means.
      */
     replaceablePlan: ProductView | undefined;
+    /**
+     * After an expiry, this store's tier at the rank the lapsed receipt held — the plan the picker
+     * offers back in place of the entry tier (`findResubscribePlan`). `undefined` in every other state.
+     */
+    resubscribePlan: ProductView | undefined;
     /**
      * The running subscription is billed by the other store (bought on Android, opened on iOS, or
      * the reverse). Nothing about it can be changed or managed from here — see `isOtherStorePlan`.
@@ -69,18 +82,24 @@ export const usePlanCatalog = (): PlanCatalog => {
     // fallback for a granted product the catalog does not list.
     const currentPlan = findPlanById(plans, summary.productId) ?? receiptPlan;
     const replaceablePlan = summary.hasLiveReceipt ? receiptPlan : undefined;
+    const sellablePlans = selectSellablePlans(plans, platform);
+    // The server keeps `productId` through an expiry, so the lapsed tier is still known here. A
+    // blocked or granted membership is not "expired" and does not get it — only a lapsed receipt.
+    const resubscribePlan = summary.state === 'expired' ? findResubscribePlan(receiptPlan, sellablePlans) : undefined;
 
     return {
         isOnMobileApp,
         isIOS,
         platform,
-        sellablePlans: selectSellablePlans(plans, platform),
+        sellablePlans,
+        catalogPlans: plans,
         currentPlan,
         // What a tier change would replace AT THE STORE — so it follows the receipt, never an
         // admin grant. Gating this on `isEntitled` was right until overrides existed and is wrong
         // in both directions now: a grant would name a plan the user never bought as Google's
         // `oldPlanId`, and a block would offer a fresh purchase over a live store subscription.
         replaceablePlan,
+        resubscribePlan,
         isOtherStore: !!platform && !!replaceablePlan?.platform && replaceablePlan.platform !== platform,
         pendingPlan,
         summary,

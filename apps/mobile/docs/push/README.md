@@ -413,8 +413,9 @@ four** locale sets. Each has a different consumer, so a missing one only breaks 
 | `ios/assets/locales/{ko,en}.json`                     | iOS app                          | literal key in the app                   |
 | `ios/ChaticNotificationServiceExtension/{ko,en}.json` | the extension                    | literal key on the iOS background banner |
 
-The copy is ko `{0} 클라우드가 준비되었습니다`, en `{0} is ready` — the particle is detached from the
-variable (Korean grammar picks "이" or "가" by the name's final sound, which cannot be fixed for an
+The copy is ko `[클라우드 알림] {0} 생성이 완료되었습니다.`, en `[Cloud] {0} has been created.` — the
+web's in-app banner (`notifications.cloudActivated.title`) says the same sentence. The particle is
+detached from the variable (Korean grammar picks "이" or "가" by the name's final sound, which cannot be fixed for an
 arbitrary name). Every new key that carries a variable follows the same rule.
 
 It is not in `TranslationKey` (`src/app/utils/i18n/types.ts`) — no push key is. They never go through
@@ -437,10 +438,10 @@ Resources, the file exists but only the banner breaks — check manually.
 With no `link`, the app must apply the spec's "empty `link` means root" rule itself, and **the tap's
 route to the web differs per platform, so both need fixing together.**
 
-| Path                             | No-link handling                                                                                                                                                           |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| iOS tap (warm, background, cold) | if the type is in `resolvePushTapPath`'s `ROOTED_PUSH_TYPES` (currently just `cloud`), resolves to `'/'`                                                                   |
-| Android background/killed tap    | `ChaticFirebaseMessagingService.rootTapLinkFor` puts `<scheme>://` on the intent's data URI, and RN `Linking` → `resolveDeepLink` reads it as `{ kind: 'web', path: '/' }` |
+| Path                             | No-link handling                                                                                                                                                                                                                |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iOS tap (warm, background, cold) | if the type is in `resolvePushTapPath`'s `ROOTED_PUSH_TYPES` (currently just `cloud`), resolves to `'/?cid=<cid>'`, or `'/'` when the payload names no cloud                                                                    |
+| Android background/killed tap    | `ChaticFirebaseMessagingService.rootTapLinkFor` puts `<scheme>://?cid=<cid>` (or `<scheme>://` with no cloud) on the intent's data URI, and RN `Linking` → `resolveDeepLink` reads it as `{ kind: 'web', path: '/?cid=<cid>' }` |
 
 **Android needs its own path** because `displayNotification` attaches no data URI to the intent at all
 when the link is empty. RN `Linking` only ever surfaces the data URI (`MainActivity` never reads the
@@ -456,8 +457,12 @@ would steal the screen the user was on. A `link`, when present, always wins rega
 **The two lists are kept in sync by hand** — Kotlin's `PUSH_TYPE_CLOUD` and JS's `ROOTED_PUSH_TYPES`
 share no type. Adding a rooted type means updating both.
 
-The tap does not switch to the activated cloud — product decided the destination is home, and the
-title alone says which cloud (hence no body).
+The tap opens the activated cloud: the web reads `cid` off `'/?cid=<cid>'`, switches to that cloud
+and lands on its main screen. Only the cloud is carried — the push is about the cloud, not a place or
+a chat in it. When the cloud cannot be switched to (it has been released since), the web stays where
+it is and says so rather than landing on the root of the cloud it was already in
+([push-navigation](../../../web/docs/bridge/push-navigation.md#the-cloud-ready-push-tap)). The title
+alone says which cloud (hence no body).
 
 ### Badge and unread
 

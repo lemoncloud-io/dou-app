@@ -69,6 +69,8 @@ import type {
     PrepareVideoPayload,
     ReadAttachmentPayload,
     ReadVideoFramePayload,
+    FetchShareIntakePayload,
+    ReleaseShareIntakePayload,
     OpenSettingsPayload,
     OpenStorePayload,
     GetContactsPayload,
@@ -139,6 +141,10 @@ export type WebMessagePayloadMap = {
     // A received video's first frame, made by the shell from its address. A shell without it answers
     // `NOT_FOUND`, and the web draws the tile another way or leaves it grey.
     ReadVideoFrame: ReadVideoFramePayload;
+    // What another app shared through the OS share sheet, by the id the share URL carried. A shell
+    // without it answers `NOT_FOUND`, and the share page has nothing to show.
+    FetchShareIntake: FetchShareIntakePayload;
+    ReleaseShareIntake: ReleaseShareIntakePayload;
     RequestPermission: RequestPermissionPayload;
     OpenURL: OpenURLPayload;
     SendSms: SendSmsPayload;

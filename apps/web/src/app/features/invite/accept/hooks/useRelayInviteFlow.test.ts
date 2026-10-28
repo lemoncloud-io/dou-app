@@ -467,6 +467,22 @@ describe('useRelayInviteFlow — 스텝 순서', () => {
         expect(getInvite).toHaveBeenCalledTimes(3);
     });
 
+    // The X appears only after a failed save (the view decides that); taking it goes on into the
+    // accept without a profile instead of back to the review screen.
+    it('accepts without a profile when the profile step is skipped', async () => {
+        isPlaceProfileAbsent.mockResolvedValue(true);
+        const { result } = mount();
+        await waitFor(() => expect(result.current.phase).toBe('review'));
+        act(() => result.current.accept());
+        await waitFor(() => expect(result.current.phase).toBe('profiling'));
+        expect(acceptInvite).not.toHaveBeenCalled();
+
+        act(() => result.current.skipProfile());
+
+        await waitFor(() => expect(acceptInvite).toHaveBeenCalledWith(CODE));
+        expect(result.current.phase).not.toBe('review');
+    });
+
     it('저장 뒤에는 판정을 다시 묻지 않는다 — profile.set이 곧바로 읽히지 않을 수 있다', async () => {
         isPlaceProfileAbsent.mockResolvedValue(true);
         const { result } = mount();

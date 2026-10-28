@@ -150,7 +150,16 @@ never saved without asking: the shell skips the dialog for images only (above).
 `ImageViewer` is a modal dialog over a plain scrim. Previously the app was frosted behind it.
 
 - The picture fills the stage and keeps its shape, up to twice its own size, so a small image is not
-  a speck in the middle of the window.
+  a speck in the middle of the window. Its element is sized to the photo itself (container query
+  units), not letterboxed with object-contain, so the zoom-in cursor and click are on the photo only.
+- Zoom runs from that fitted size up to 4×. A click on the photo zooms to 2.5× at that point; while
+  zoomed, dragging pans and a click (a press that moved less than 4px) goes back to fit. The wheel and
+  a trackpad pinch (a wheel with ctrlKey, at a stronger rate) zoom around the cursor. The bottom bar
+  has − / percentage / +: the buttons and the +, − and 0 keys step by 1.5× around the middle, and the
+  percentage, or 0, goes back to fit. A click, button or key glides to its zoom; the wheel and a drag
+  follow the input directly. Stepping to another picture, or closing and opening again, starts at fit.
+- The single-image close button sits on its own surface, like previous/next, because a zoomed photo
+  runs under it.
 - The alt text is the position and the sender ("Image 3 of 10 from Ada"), not the file name.
 - Previous and next, save, copy and delete are always on screen.
 - ←/→ step through the set, and a live region says the new position. The dialog's description says it

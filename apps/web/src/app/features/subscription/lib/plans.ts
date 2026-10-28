@@ -27,13 +27,16 @@ export const selectSellablePlans = (plans: ProductView[], platform: StorePlatfor
     platform ? sortPlansByTier(plans.filter(p => p.platform === platform)) : [];
 
 /**
- * Whether the catalog sells a tier above the one in force — what decides which "no more clouds"
- * dialog the add-cloud flow shows: an offer to change the plan, or a plain "this is the most".
+ * Whether the catalog has a tier above the one in force — what decides which "no more clouds"
+ * dialog the add-cloud flow shows: an offer to change the plan, or "this is the most there is".
  * An unresolved current plan reads as "a higher tier may exist", so the offer is made; the picker
  * then applies the real adjacency rules.
+ *
+ * Pass the whole catalog, not the sellable list. Off-native nothing is sellable, and judging by
+ * that would tell a tier-1 subscriber their own allowance is the product's ceiling.
  */
-export const hasHigherTier = (current: ProductView | undefined, sellable: ProductView[]): boolean =>
-    sellable.some(plan => (plan.sort ?? 0) > (current?.sort ?? 0));
+export const hasHigherTier = (current: ProductView | undefined, catalog: ProductView[]): boolean =>
+    catalog.some(plan => (plan.sort ?? 0) > (current?.sort ?? 0));
 
 /** Joins a `#`-prefixed product id (a membership's `productId`, say) back to its plan. */
 export const findPlanById = (plans: ProductView[], productId?: string | null): ProductView | undefined => {
@@ -70,6 +73,22 @@ export const isOtherStorePlan = (current: ProductView, target: ProductView): boo
     !!current.platform && !!target.platform && current.platform !== target.platform;
 
 /**
+ * The plan an expired subscriber picks up again: this store's tier at the rank of the receipt that
+ * lapsed, or `undefined` when there is none to return to.
+ *
+ * Matched by rank rather than id so a subscription bought on the other store comes back as this
+ * store's equal — the stores' ids differ, the tiers do not. A lapsed tier this store no longer sells
+ * yields nothing, and the picker falls back to the entry-tier rule.
+ */
+export const findResubscribePlan = (
+    lapsed: ProductView | undefined,
+    sellable: ProductView[]
+): ProductView | undefined =>
+    // A plan with no rank cannot be placed on the ladder; matching `undefined` to `undefined` would
+    // preselect a card the adjacency rule then refuses.
+    lapsed?.sort != null ? sellable.find(plan => plan.sort === lapsed.sort) : undefined;
+
+/**
  * Adjacency is purely an app policy — neither store enforces it, and the backend's `calcNeededClouds`
  * only does the arithmetic. The reason is that every cloud carries its own email verification, so a
  * tier1 → tier3 jump would ask for two verifications back to back; downgrades are locked to one step
@@ -78,9 +97,18 @@ export const isOtherStorePlan = (current: ProductView, target: ProductView): boo
  * The same rule governs the first purchase: a new subscription starts on the entry tier and climbs
  * one step at a time. Selling tier 5 outright would hand someone an allowance for five clouds and
  * five email verifications to work through before any of it is usable.
+ *
+ * Someone whose subscription expired starts again where they left off (`resubscribe`, see
+ * `findResubscribePlan`) rather than at the entry tier: their clouds were already verified once, and
+ * sending them back to tier 1 would hold most of those clouds until they had climbed back up. It is
+ * still a new purchase, not a change — nothing is replaced at the store.
  */
-export const getTierChangeKind = (current: ProductView | undefined, target: ProductView): TierChangeKind => {
-    if (!current) return (target.sort ?? 0) === ENTRY_TIER_SORT ? 'new' : 'blocked';
+export const getTierChangeKind = (
+    current: ProductView | undefined,
+    target: ProductView,
+    resubscribe?: ProductView
+): TierChangeKind => {
+    if (!current) return (target.sort ?? 0) === (resubscribe?.sort ?? ENTRY_TIER_SORT) ? 'new' : 'blocked';
     if (stripPlanId(current.id) === stripPlanId(target.id)) return 'current';
     // The other store's tiers are recognised by rank, never sold — see `isOtherStorePlan`.
     if (isOtherStorePlan(current, target)) return current.sort === target.sort ? 'current' : 'blocked';
@@ -95,24 +123,26 @@ export const isSelectableTier = (kind: TierChangeKind): boolean =>
     kind === 'new' || kind === 'upgrade' || kind === 'downgrade';
 
 /** Why a tier cannot be picked. The discriminant the refusal dialog turns into copy. */
-export type TierRefusal = 'current' | 'tierJump' | 'entryTier' | 'otherStore';
+export type TierRefusal = 'current' | 'tierJump' | 'entryTier' | 'resubscribeSame' | 'otherStore';
 
 /**
  * The refusal behind an unpickable tier, or `undefined` when the tier can be picked.
  *
- * `blocked` covers three different refusals that read nothing alike to the user: without a running
- * subscription it is the entry-tier rule, with one bought on the other store it is that store's to
- * change, and otherwise it is a tier jump (see `getTierChangeKind`). Splitting them here is what
- * lets the dialog explain the actual rule instead of one blanket line.
+ * `blocked` covers four different refusals that read nothing alike to the user: without a running
+ * subscription it is the entry-tier rule, or the lapsed tier's rule for someone resubscribing; with
+ * one bought on the other store it is that store's to change, and otherwise it is a tier jump (see
+ * `getTierChangeKind`). Splitting them here is what lets the dialog explain the actual rule instead of
+ * one blanket line.
  */
 export const getTierRefusal = (
     current: ProductView | undefined,
     kind: TierChangeKind,
-    target: ProductView
+    target: ProductView,
+    resubscribe?: ProductView
 ): TierRefusal | undefined => {
     if (kind === 'current') return 'current';
     if (kind !== 'blocked') return undefined;
-    if (!current) return 'entryTier';
+    if (!current) return resubscribe ? 'resubscribeSame' : 'entryTier';
     return isOtherStorePlan(current, target) ? 'otherStore' : 'tierJump';
 };
 
