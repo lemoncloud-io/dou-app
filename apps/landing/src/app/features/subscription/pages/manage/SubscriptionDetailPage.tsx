@@ -201,10 +201,14 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
                             title={t('subscription.manage.detail.paymentCard.title')}
                             line={
                                 card
-                                    ? t('subscription.manage.detail.paymentCard.line', {
-                                          card: fmt.card(card),
-                                          exp: expiryOf(card),
-                                      })
+                                    ? expiryOf(card)
+                                        ? t('subscription.manage.detail.paymentCard.line', {
+                                              card: fmt.card(card),
+                                              exp: expiryOf(card),
+                                          })
+                                        : t('subscription.manage.detail.paymentCard.lineNoExpiry', {
+                                              card: fmt.card(card),
+                                          })
                                     : t('subscription.manage.detail.paymentCard.none')
                             }
                             action={t('subscription.manage.detail.paymentCard.manage')}

@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
-import { BillingEmailChangeDialog, PageLoader, accountLabel } from '../../components';
+import { BillingEmailChangeDialog, PageLoader, PayerFields, accountLabel } from '../../components';
 import { Badge, Banner, Button, Card } from '../../components/ui';
 import { useBillingInfo, usePreviewCheckout } from '../../hooks';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
+import { EMPTY_PAYER, type PayerDraft, payerOf } from '../../lib/payer';
 import { formatDate, formatMoney } from '../../utils';
 import {
     BILLING_COUNTRY_OPTIONS,
@@ -30,8 +31,9 @@ const checkboxClass = 'h-5 w-5 shrink-0 cursor-pointer accent-main-green';
 
 /**
  * W-08 — checkout: the plan and what it costs, which account it applies to, the billing country and
- * email, and the consents. The way on to the payment window opens once the country and the consents
- * are settled.
+ * email, the payer, and the consents. The way on to the payment window opens once the country, the
+ * payer and the consents are settled. The payer's name and number go on with the reader to W-05 and
+ * are not kept anywhere else: the card company asks for them with each card.
  *
  * The billing email is not entered here. It is the primary address verified on W-24, shown as it is;
  * [change] opens the shared popup, which swaps a newly verified address in. A reader without a verified
@@ -45,6 +47,7 @@ export const CheckoutPage = (): JSX.Element => {
     const billing = useBillingInfo();
 
     const [country, setCountry] = useState<string>(BILLING_COUNTRY_OPTIONS[0]);
+    const [payer, setPayer] = useState<PayerDraft>(EMPTY_PAYER);
     const [consents, setConsents] = useState<Consents>(NO_CONSENTS);
     const [changingEmail, setChangingEmail] = useState(false);
 
@@ -64,10 +67,12 @@ export const CheckoutPage = (): JSX.Element => {
     const money = (amount: CheckoutPreview['amountToday']) => formatMoney(amount, i18n.language);
     const { account, withTrial } = preview.data;
     const supported = isSupportedCountry(country);
-    const ready = canContinueCheckout({ country, emailId: email.id, consents });
+    const ready = canContinueCheckout({ country, emailId: email.id, payer, consents });
 
     const onContinue = () => {
-        navigate(checkoutPaymentUrl(plan.id), { state: { checkout: { country, emailId: email.id } } });
+        navigate(checkoutPaymentUrl(plan.id), {
+            state: { checkout: { country, emailId: email.id, payer: payerOf(payer, email.address) } },
+        });
     };
 
     return (
@@ -148,6 +153,11 @@ export const CheckoutPage = (): JSX.Element => {
                             {t('subscription.checkout.billing.comingSoonBody')}
                         </Banner>
                     )}
+                </Card>
+
+                <Card className="flex flex-col gap-4">
+                    <h2 className="text-[15px] font-semibold text-navy">{t('subscription.common.payer.title')}</h2>
+                    <PayerFields idPrefix="checkout-payer" value={payer} onChange={setPayer} />
                 </Card>
 
                 <Card className="flex flex-col gap-4">

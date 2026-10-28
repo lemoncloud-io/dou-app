@@ -4,16 +4,18 @@ import type {
     BillingEmail,
     BillingEmailReceives,
     BillingInfo,
+    CardToken,
     ChangePlanResult,
     ChangePreview,
     CheckoutPreview,
     EmailCodeTicket,
     Invoice,
     PaymentAttempt,
+    Payer,
     PaymentMethod,
     Plan,
     PlanId,
-    RegistrationOutcome,
+    RegistrationResult,
     SignInProvider,
     SignInResult,
     Subscription,
@@ -43,13 +45,23 @@ export interface SubscriptionPort {
     getSubscription(id: string): Promise<Subscription>;
 
     // Checkout. `startPaymentMethodRegistration` stands where the payment provider's own window
-    // opens; the pages only ever see its outcome.
+    // opens; the pages see its outcome, and carry the card it registered on to `startCheckout`
+    // without reading it. Registering a card for anything but a checkout (`addCard`, `retry`) puts it
+    // on the subscription there and then.
     previewCheckout(planId: PlanId): Promise<CheckoutPreview>;
     startPaymentMethodRegistration(input: {
         purpose: AttemptPurpose;
         planId?: PlanId;
-    }): Promise<{ outcome: RegistrationOutcome }>;
-    startCheckout(input: { planId: PlanId; country: string; emailId: string }): Promise<PaymentAttempt>;
+        payer: Payer;
+    }): Promise<RegistrationResult>;
+    startCheckout(input: {
+        planId: PlanId;
+        country: string;
+        emailId: string;
+        payer: Payer;
+        /** The card `startPaymentMethodRegistration` registered for this checkout. */
+        card?: CardToken;
+    }): Promise<PaymentAttempt>;
     getPaymentAttempt(id: string): Promise<PaymentAttempt>;
     previewChange(planId: PlanId): Promise<ChangePreview>;
     changePlan(planId: PlanId): Promise<ChangePlanResult>;

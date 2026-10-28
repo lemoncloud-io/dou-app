@@ -22,6 +22,8 @@ import {
 import { CheckoutSteps, FactRows, LoadError, OrderSummary } from './parts';
 import { usePlanRoute } from './usePlanRoute';
 
+import type { CardToken } from '../../types';
+
 const errorKeyOf = (error: unknown): string => {
     if (isPortError(error, 'limit')) return 'subscription.checkout.payment.error.limit';
     if (isPortError(error, 'conflict')) return 'subscription.checkout.payment.error.conflict';
@@ -34,7 +36,7 @@ const errorKeyOf = (error: unknown): string => {
  * starts and the reader follows it on W-09. A window that fails or is closed has started nothing, so
  * W-09 is told only how it ended.
  *
- * It needs what W-08 settled (country, billing email), carried in the navigation state; without it —
+ * It needs what W-08 settled (country, billing email, payer), carried in the navigation state; without it —
  * a pasted link, or a return after signing in again — it goes back to W-08 rather than skip the
  * consents given there.
  */
@@ -49,8 +51,9 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     const today = toIsoDate(useToday());
     const [error, setError] = useState<string>();
     // Once the window has registered a card for this checkout, trying again goes straight to the
-    // charge: reopening the window would register (and with a real provider, authorise) another card.
-    const [registered, setRegistered] = useState(false);
+    // charge with that card: reopening the window would register (and with a real provider,
+    // authorise) another one.
+    const [card, setCard] = useState<CardToken>();
 
     const details = checkoutDetailsOf(location.state);
 
@@ -72,18 +75,26 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     const onPay = async () => {
         setError(undefined);
         try {
-            if (!registered) {
-                const { outcome } = await registration.mutateAsync({ purpose: 'start', planId: plan.id });
-                if (outcome !== 'registered') {
-                    navigate(registrationOutcomeUrl(plan.id, outcome), withCheckoutDetails(details));
+            let registeredCard = card;
+            if (!registeredCard) {
+                const result = await registration.mutateAsync({
+                    purpose: 'start',
+                    planId: plan.id,
+                    payer: details.payer,
+                });
+                if (result.outcome !== 'registered') {
+                    navigate(registrationOutcomeUrl(plan.id, result.outcome), withCheckoutDetails(details));
                     return;
                 }
-                setRegistered(true);
+                registeredCard = result.card;
+                setCard(registeredCard);
             }
             const attempt = await startCheckout.mutateAsync({
                 planId: plan.id,
                 country: details.country,
                 emailId: details.emailId,
+                payer: details.payer,
+                card: registeredCard,
             });
             // Replaced, not pushed: Back from W-09 should not land on a payment form already paid.
             navigate(statusUrl(attempt.id, plan.id), { replace: true, ...withCheckoutDetails(details) });

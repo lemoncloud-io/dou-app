@@ -1,9 +1,19 @@
 import { ROUTES } from '../../../../routes/paths';
 import { addDays } from '../../lib/calendar';
 import { changeKindOf } from '../../lib/changeKindOf';
+import { type PayerDraft, isPayerComplete } from '../../lib/payer';
 import { formatDate } from '../../utils';
 
-import type { Account, AttemptPurpose, Invoice, PaymentAttempt, Plan, PlanId, RegistrationOutcome } from '../../types';
+import type {
+    Account,
+    AttemptPurpose,
+    Invoice,
+    Payer,
+    PaymentAttempt,
+    Plan,
+    PlanId,
+    RegistrationOutcome,
+} from '../../types';
 
 /**
  * The checkout pages' own decisions: which of a screen's scenes to draw, and where each button goes.
@@ -39,9 +49,20 @@ export const allConsented = (consents: Consents): boolean => CONSENTS.every(key 
 /** "Agree to all" ticks or clears every consent at once; each box can still be changed on its own after. */
 export const setAllConsents = (value: boolean): Consents => ({ terms: value, privacy: value, autoRenew: value });
 
-/** The checkout continues only once the country is one it can bill, the email is verified, and every consent is given. */
-export const canContinueCheckout = (input: { country: string; emailId?: string; consents: Consents }): boolean =>
-    isSupportedCountry(input.country) && !!input.emailId && allConsented(input.consents);
+/**
+ * The checkout continues only once the country is one it can bill, the email is verified, the payer is
+ * filled in, and every consent is given.
+ */
+export const canContinueCheckout = (input: {
+    country: string;
+    emailId?: string;
+    payer: PayerDraft;
+    consents: Consents;
+}): boolean =>
+    isSupportedCountry(input.country) &&
+    !!input.emailId &&
+    isPayerComplete(input.payer) &&
+    allConsented(input.consents);
 
 /**
  * Where a request for `/subscription/checkout?plan=` belongs. A first subscription stays here; a
@@ -66,12 +87,24 @@ export const checkoutRouteFor = (
 export interface CheckoutDetails {
     country: string;
     emailId: string;
+    /** Who pays, for the payment window and the server. It lives in this state and nowhere else. */
+    payer: Payer;
 }
+
+const isPayer = (value: unknown): value is Payer => {
+    const payer = value as Partial<Payer> | undefined;
+    return (
+        !!payer && typeof payer.name === 'string' && typeof payer.phone === 'string' && typeof payer.email === 'string'
+    );
+};
 
 export const checkoutDetailsOf = (state: unknown): CheckoutDetails | undefined => {
     const details = (state as { checkout?: Partial<CheckoutDetails> } | null)?.checkout;
-    return details && typeof details.country === 'string' && typeof details.emailId === 'string'
-        ? { country: details.country, emailId: details.emailId }
+    return details &&
+        typeof details.country === 'string' &&
+        typeof details.emailId === 'string' &&
+        isPayer(details.payer)
+        ? { country: details.country, emailId: details.emailId, payer: details.payer }
         : undefined;
 };
 

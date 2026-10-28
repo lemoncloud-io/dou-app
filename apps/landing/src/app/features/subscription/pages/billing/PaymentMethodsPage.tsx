@@ -5,18 +5,22 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { ROUTES } from '../../../../routes/paths';
-import { ConfirmDialog, PageLoader } from '../../components';
+import { ConfirmDialog, PageLoader, PayerFields } from '../../components';
 import { Badge, Banner, Button, useToast } from '../../components/ui';
 import {
+    useBillingInfo,
     useCurrentSubscription,
     usePaymentMethods,
     useRemovePaymentMethod,
     useRetryPayment,
+    useSession,
     useSetDefaultPaymentMethod,
     useStartPaymentMethodRegistration,
     subscriptionKeys,
 } from '../../hooks';
+import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
+import { EMPTY_PAYER, type PayerDraft, isPayerComplete, payerOf } from '../../lib/payer';
 import { isPortError, useToday } from '../../lib/port';
 import { type SceneBanner, sceneOf } from '../../lib/sceneOf';
 import { cn, formatDate, formatMoney } from '../../utils';
@@ -56,6 +60,12 @@ export const PaymentMethodsPage = (): JSX.Element => {
     const setDefault = useSetDefaultPaymentMethod();
     const remove = useRemovePaymentMethod();
     const retry = useRetryPayment();
+    const session = useSession();
+    const billing = useBillingInfo();
+    // Asked again for every card and kept only while the dialog is open (see `PayerFields`).
+    const [payer, setPayer] = useState<PayerDraft>(EMPTY_PAYER);
+    // Receipts go to the verified billing address; an account that never set one uses its sign-in address.
+    const payerEmail = (billing.data && primaryVerifiedEmail(billing.data)?.address) ?? session.data?.email;
 
     // The dialog's content outlives its closing, so a closing dialog keeps its words until it is gone.
     const [dialog, setDialog] = useState<DialogState | null>(null);
@@ -82,6 +92,7 @@ export const PaymentMethodsPage = (): JSX.Element => {
     if (methods.isError) return <LoadFailed error={methods.error} onRetry={methods.refetch} />;
 
     const openDialog = (next: DialogState) => {
+        if (next.kind === 'add') setPayer(EMPTY_PAYER);
         setDialog(next);
         setDialogOpen(true);
     };
@@ -95,7 +106,10 @@ export const PaymentMethodsPage = (): JSX.Element => {
         setNotice(null);
         setReplacement(null);
         try {
-            const { outcome } = await registration.mutateAsync({ purpose: 'addCard' });
+            const { outcome } = await registration.mutateAsync({
+                purpose: 'addCard',
+                payer: payerOf(payer, payerEmail ?? ''),
+            });
             if (outcome === 'failed') setNotice('declined');
             if (outcome !== 'registered') return;
             // The hook has refreshed the card list by the time it resolves.
@@ -291,8 +305,11 @@ export const PaymentMethodsPage = (): JSX.Element => {
                 description={t('subscription.billing.paymentMethods.addDialog.body')}
                 cancelLabel={t('subscription.common.actions.close')}
                 confirmLabel={t('subscription.billing.paymentMethods.addDialog.open')}
+                confirmDisabled={!isPayerComplete(payer) || !payerEmail}
                 onConfirm={addCard}
-            />
+            >
+                <PayerFields idPrefix="add-card-payer" value={payer} onChange={setPayer} />
+            </ConfirmDialog>
             <ConfirmDialog
                 open={dialogOpen && dialog?.kind === 'makeDefault'}
                 onOpenChange={open => !open && closeDialog()}
@@ -411,9 +428,11 @@ const CardRow = ({
             </span>
             <div className="min-w-0">
                 <p className="text-[15px] font-semibold text-navy">{label}</p>
-                <p className={cn('mt-0.5 text-xs', failing ? 'text-status-danger' : 'text-subtitle')}>
-                    {t('subscription.billing.card.expires', { expiry: cardExpiry(card) })}
-                </p>
+                {cardExpiry(card) && (
+                    <p className={cn('mt-0.5 text-xs', failing ? 'text-status-danger' : 'text-subtitle')}>
+                        {t('subscription.billing.card.expires', { expiry: cardExpiry(card) })}
+                    </p>
+                )}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
                 {card.isDefault && (

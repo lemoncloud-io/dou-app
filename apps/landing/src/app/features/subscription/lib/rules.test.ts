@@ -101,6 +101,10 @@ describe('sceneOf', () => {
         });
     });
 
+    it('offers nothing while a first payment is still being confirmed', () => {
+        expect(sceneOf(sub({ status: 'pending' }), now)).toEqual({ banner: { kind: 'pending' }, actions: [] });
+    });
+
     it('counts down to the restriction when a payment failed', () => {
         const scene = sceneOf(sub({ status: 'pastDue', failedAt: '2026-11-18', restrictAt: '2026-11-25' }), now);
         expect(scene.banner).toEqual({ kind: 'pastDue', date: '2026-11-25', dday: 5 });

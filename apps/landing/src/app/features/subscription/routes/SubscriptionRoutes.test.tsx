@@ -206,14 +206,17 @@ describe('SubscriptionRoutes', () => {
 
         let outcome: Promise<{ outcome: string }> = Promise.resolve({ outcome: '' });
         act(() => {
-            outcome = setup.port.startPaymentMethodRegistration({ purpose: 'addCard' });
+            outcome = setup.port.startPaymentMethodRegistration({
+                purpose: 'addCard',
+                payer: { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' },
+            });
         });
         const registered = await screen.findByRole('button', { name: 'Registered' });
         // The declined card is what the fail flag implies, so that answer is the one marked.
         expect(screen.getByRole('button', { name: 'Registration failed' }).hasAttribute('data-suggested')).toBe(true);
         fireEvent.click(registered);
 
-        expect(await outcome).toEqual({ outcome: 'registered' });
+        expect(await outcome).toMatchObject({ outcome: 'registered' });
         expect(await setup.port.listPaymentMethods()).toHaveLength(3);
     });
 

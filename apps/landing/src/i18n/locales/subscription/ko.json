@@ -32,7 +32,8 @@
                 "restricted": "이용 제한",
                 "cancelScheduled": "종료 예정",
                 "expired": "만료",
-                "downgradeScheduled": "다운그레이드 예정"
+                "downgradeScheduled": "다운그레이드 예정",
+                "pending": "결제 확인 중"
             },
             "actions": {
                 "confirm": "확인",
@@ -109,6 +110,16 @@
                 "confirm": "변경하기",
                 "changed": "청구 메일이 변경되었습니다",
                 "verifiedNote": "인증이 완료되었습니다. 변경하기를 누르시면 바로 이 메일로 변경됩니다."
+            },
+            "payer": {
+                "title": "결제자 정보",
+                "name": "이름",
+                "namePlaceholder": "카드 명의자 이름",
+                "phone": "휴대폰 번호",
+                "phonePlaceholder": "01012345678",
+                "note": "카드사가 카드를 등록할 때 요구하는 정보입니다. 저장하지 않으며, 나중에 카드를 추가할 때 다시 입력합니다.",
+                "nameInvalid": "이름을 입력해 주세요. 한글은 10자, 영문은 30자까지 입력할 수 있습니다.",
+                "phoneInvalid": "01012345678 같은 휴대폰 번호를 입력해 주세요."
             }
         },
         "entry": {
@@ -457,13 +468,13 @@
                     "subtitleFree": "체험 중이라 오늘은 결제되지 않습니다. 바로 {{plan}} 쓰실 수 있습니다.",
                     "pendingTitle": "{{plan}} 변경 예약이 있습니다",
                     "pendingBody": "업그레이드하시면 {{date}} 변경 예약이 취소되고, 오늘부터 {{plan}} 이용하실 수 있습니다.",
-                    "todayLabel": "오늘 결제할 차액",
+                    "todayLabel": "오늘 결제할 예상 차액",
                     "cardLabel": "결제 카드",
                     "cardValue": "{{brand}} ···· {{last4}} (기본)",
                     "nextDateLabel": "다음 결제일",
                     "nextDateValue": "{{date}} (그대로)",
                     "nextAmountLabel": "다음 결제부터",
-                    "prorationNote": "차액은 이번 결제 주기에 남은 기간을 기준으로 합니다.",
+                    "prorationNote": "차액은 이번 결제 주기에 남은 기간으로 추정한 금액이며, 정확한 금액은 결제할 때 확정됩니다.",
                     "ctaPaid": "{{price}} 결제하고 업그레이드",
                     "ctaFree": "업그레이드하기",
                     "ctaPendingPaid": "예약 취소하고 {{price}} 결제",
@@ -613,6 +624,10 @@
                         "title": "청구 메일을 확인해 주세요",
                         "body": "{{address}} 주소로 보낸 청구 메일이 반송되었습니다. 청구 정보에서 주소를 확인해 주세요.",
                         "action": "청구 정보로"
+                    },
+                    "pending": {
+                        "title": "결제를 확인하고 있습니다",
+                        "body": "카드사가 첫 결제 결과를 아직 알려 오지 않았습니다. 결제가 확인되면 바로 이용하실 수 있으며, 그때까지는 상품을 바꾸거나 해지하실 수 없습니다."
                     }
                 },
                 "actions": {
@@ -631,7 +646,8 @@
                     "title": "결제수단",
                     "line": "기본 카드 {{card}} · 만료 {{exp}}",
                     "none": "등록된 카드가 없습니다",
-                    "manage": "결제수단 관리"
+                    "manage": "결제수단 관리",
+                    "lineNoExpiry": "기본 카드 {{card}}"
                 },
                 "periodCard": {
                     "title": "구독 기간",

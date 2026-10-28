@@ -6,7 +6,8 @@
 bounce page that sends an invite link into the installed app or into the web app — with no session,
 no data layer and no backend call of its own. Its **account surface**, `/subscription/*`, is where a
 signed-in account holder buys and manages a subscription outside the stores; it is open only on
-local and dev hosts, and runs on a mock until a server exists (see [Two surfaces](#two-surfaces)) —
+local and dev hosts, and runs against the subscription server, with the mock answering what that server
+does not yet (see [Two surfaces](#two-surfaces) and [The server](#the-server)) —
 except `/subscription/plans`, which lists the published plans on every host from a fixed catalog (see
 [Plans before checkout opens](#plans-before-checkout-opens)).
 
@@ -105,7 +106,9 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    `apps/web`. This is what keeps landing from becoming a second web app.
 9. **The account surface talks to a server through one port.** Pages, hooks and components call
    `SubscriptionPort` (`features/subscription/lib/port/`) and nothing else — no `fetch`, no HTTP
-   client. The implementation behind it (the mock today) is swapped without touching a page.
+   client. Of its implementations, only the HTTP one (`lib/port/http/`) reaches the network: the
+   session runtime, request signing and the payment SDK are imported there and nowhere else
+   (ADR-0248).
 10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountEnabled` is
     false (every host but `localhost`, `127.0.0.1` and `-dev` ones) its routes are not registered,
     and the public pages' links into it render only where the gate is open — today the home header's
@@ -213,7 +216,8 @@ apps/landing/
     └── app/
         ├── app.tsx             the provider assembly: ThemeProvider around the Router
         ├── routes/             the router, the route table, ROUTES (paths.ts), the error screen
-        ├── config/             stage.ts (hostname, import.meta, the subscription gate), links.ts
+        ├── config/             stage.ts (hostname, import.meta, the subscription gate), links.ts,
+        │                       subscriptionServer.ts (the account surface's server addresses, from .env)
         ├── hooks/              useDeviceDetect — the bounce page and the desktop-only notice
         └── features/
             ├── home/           sections, Header, Footer, StoreButton
@@ -239,8 +243,8 @@ which way an import may point). It is not restated here. What it comes to in an 
 - **Absolute paths come from `ROUTES`** in `app/routes/paths.ts`, never a typed string — the web
   app's design principle 5. The route table's own patterns (`policy/*`) stay spelled out, as the web
   app's do.
-- **`import.meta` and the hostname are read in `app/config/stage.ts` only.** No barrel re-exports
-  it; import it by path.
+- **`import.meta` and the hostname are read in `app/config/` only** — the hostname in `stage.ts`,
+  `import.meta` there and in `subscriptionServer.ts`. No barrel re-exports either; import them by path.
 - **A feature is reached through its `index.ts`**, which exports its `<Name>Routes`. Inside, a feature
   uses the subset of `pages/ components/ hooks/ lib/ utils/ types/ consts/ routes/` it needs.
 - **Copy lives in one file per language** (`src/i18n/locales/{ko,en}.json`); `localeParity.test.ts`
@@ -275,10 +279,11 @@ test ! -d apps/landing/src/app/shared   # no shared/ wrapper
 git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|app-runtime|auth-sign)" \
     -- apps/landing/src ':!apps/landing/src/app/features/subscription' ':!apps/landing/src/app/routes'
 
-# an account-surface page, hook or component reaching the network (only lib/port and lib/mock may)
-# (`[^[:alnum:]_]` before fetch: `window.fetch(` is caught, react-query's `refetch(` is not)
-git grep -n -E '(^|[^[:alnum:]_])fetch\(|axios|@chatic/(http|data)' -- apps/landing/src/app/features/subscription/pages \
-    apps/landing/src/app/features/subscription/hooks apps/landing/src/app/features/subscription/components
+# the account surface reaching the network, a session or the payment SDK outside the HTTP port
+# (`[^[:alnum:]_]` before fetch: `window.fetch(` is caught, react-query's `refetch(` is not; the one
+# hit outside the account surface is the orphan in deeplink/utils/fingerprint.ts — see Traps)
+git grep -n -E "@chatic/(http|data|app-runtime|auth-sign)|@portone/|(^|[^[:alnum:]_])fetch\(|axios" \
+    -- apps/landing/src ':!apps/landing/src/app/features/subscription/lib/port/http'
 ```
 
 Give the first command the features folder itself, as above. A pathspec with a trailing glob such
@@ -306,7 +311,8 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 | Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                                               |
 | Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts only (`isSubscriptionAccountEnabled`); W-01 on every host |
 
-Every screen below is drawn on the mock port. None is open on the production host yet except W-01,
+Every screen below runs on the server where the build has its addresses, and on the mock otherwise or
+with `?mock=` (see [The server](#the-server)). None is open on the production host yet except W-01,
 which runs there on the catalog port (see [Plans before checkout opens](#plans-before-checkout-opens)).
 Screen ids (`W-01`, `W-18`, …) are the names of the design frames each screen is drawn from; the route
 table below is their key. `W-23` is the desktop-only notice, which has no route of its own.
@@ -321,6 +327,7 @@ features/subscription/
 ├── routes/           the nested <Routes>, the session and desktop-only guards
 ├── types/            the view types the screens draw (Plan, Subscription, PaymentMethod, …)
 ├── lib/port/         SubscriptionPort, SubscriptionPortError, PortProvider (+ the clock)
+├── lib/port/http/    the HTTP port: the server's shapes, the sign-in, the card window — the only network
 ├── lib/mock/         the mock port: state machine, scenarios, policy values, storage
 ├── lib/catalog.ts    the published plans and prices, read by both ports
 ├── lib/catalogPort.ts the port where the account surface is shut: the plans, no session
@@ -373,8 +380,10 @@ client's error hook at the route root, which sends the reader to
 
 **Sign-in is a redirect round trip.** `startSignIn` returns the provider's address and the browser
 leaves for it; the provider sends it back to `/subscription/login/callback`, whose query goes to
-`completeSignIn`. The mock walks the same trip through its stand-in consent page, so the pages do not
-change when a real provider replaces it.
+`completeSignIn`. Against the server the provider is the OAuth relay and the code becomes the same
+relay session the web app uses; the mock walks the same trip through its stand-in consent page. Signing
+out against the server lands on the home page, and the server makes an account for a sign-in it does
+not know, so W-02b is the mock's alone today.
 
 ### Plans before checkout opens
 
@@ -402,10 +411,39 @@ Two costs are accepted. The production visitor to this page downloads the whole 
 chunk, mock code included, though the mock is never run there. And a phone-width reader sees W-23
 rather than the prices, as on every subscription page.
 
+### The server
+
+`createPortSetup({ account })` (`lib/createPortSetup.ts`) is where the port is chosen, and the only
+place. Where the account surface is open and the build carries the server's addresses, a tab runs on
+the server: the methods it answers (`lib/port/http/methods.ts`) come from the HTTP port, every other
+one — billing emails, invoices, undoing a cancellation or a scheduled downgrade, the default card,
+retrying — from the mock, signed in on the `new` scenario and kept apart from a mock-only tab's state;
+the server's sign-out wipes it. `?mock=<scenario>` switches the tab to the
+mock alone and `?mock=off` back; the choice holds for the tab. Without the addresses it is the mock.
+
+The addresses are the build's `VITE_*` values — copy `.env.example` to `.env` with the dev ones, as for
+the web app — read in `config/subscriptionServer.ts` and nowhere else. `VITE_SUBSCRIPTION_PAYMENTS_MOCK=1`
+asks the server for sample payments (its `?mock`), and the card window is then the mock's stand-in;
+otherwise it is the payment provider's (PortOne V2, KG Inicis), opened with the values the server's
+`issue` returns. The HTTP port and the session runtime load on first use, as a chunk of their own.
+
+What the screens get from the server differs from the mock in a few places, all in `lib/port/http/wire.ts`:
+
+- The web products are `dou-web-tier-0N` on the server and `pro-tier-0N` on the screens, matched by tier.
+- The server keeps one subscription per account. A first payment it has not settled reads `pending`:
+  W-18 says the payment is being confirmed and offers nothing until it settles.
+- It answers a checkout or an upgrade with the subscription; the attempt W-09 follows is made from it,
+  and a `pending` one is settled by reading the subscription again.
+- W-14's charge for an upgrade is an estimate with the server's own proration; the copy says so. The
+  server upgrades a paid period only, so a trial can move down but not up.
+- Its cards carry no expiry, so none is drawn. It removes the one card it holds.
+- Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
+- The payer's name and mobile number, which the card company requires with every card, are asked for
+  on W-08 and in W-12's add-card dialog. They travel with that checkout or card and are not stored.
+
 ### The mock
 
-`createPortSetup({ account })` (`lib/createPortSetup.ts`) is where the port is chosen; where the
-account surface is open it is the mock. The mock is an in-memory server holding one account — its
+The mock is an in-memory server holding one account — its
 subscriptions, cards, invoices and billing emails — kept in `sessionStorage` (memory if that fails),
 so a reload keeps what a flow changed. Each method moves that state the way the server should:
 cancelling schedules an end, a payment attempt settles 1.5 s after it starts (a successful upgrade
@@ -465,23 +503,26 @@ reader walks away.
 
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
-Nx's graph gives this app nine libraries under `libs/` plus the root `assets` project. Only four of
-the ten are imported by a file here. (The account surface adds no `@chatic` library; it imports
-`@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from the workspace root,
-inside its own chunk.)
+Most of the libraries Nx's graph gives this app are not called from it. The public surface imports
+four; the account surface's HTTP port adds two more, `@chatic/app-runtime` and `@chatic/config`, with
+`@portone/browser-sdk` from the workspace root, inside a chunk of their own that loads on first use (see
+[The server](#the-server)) — and through the runtime, much of `libs/` reaches that chunk. The account
+surface also imports `@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from
+the workspace root, inside its own chunk. The table is about the public pages.
 
-| Library                  | Reached how               | Used for                                                    |
-| ------------------------ | ------------------------- | ----------------------------------------------------------- |
-| `@chatic/policy-content` | direct, 1 file            | the three policy tables and their types                     |
-| `@chatic/theme`          | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`  |
-| `@chatic/assets`         | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`) |
-| `@chatic/shared`         | direct, 3 files           | invite-link decoding, the error screen's English defaults   |
-| `@chatic/bridges`        | via `theme` and `shared`  | nothing here calls it                                       |
-| `@chatic/logger`         | transitive, via `bridges` | nothing here calls it                                       |
-| `@chatic/app-messages`   | transitive, via `bridges` | nothing here calls it                                       |
-| `@chatic/ui-kit`         | transitive, via `shared`  | nothing here calls it                                       |
-| `@chatic/config`         | transitive, via `shared`  | nothing here calls it                                       |
-| `@chatic/device-utils`   | transitive, via `shared`  | nothing here calls it                                       |
+| Library                  | Reached how               | Used for                                                       |
+| ------------------------ | ------------------------- | -------------------------------------------------------------- |
+| `@chatic/policy-content` | direct, 1 file            | the three policy tables and their types                        |
+| `@chatic/theme`          | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`     |
+| `@chatic/assets`         | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`)    |
+| `@chatic/shared`         | direct, 3 files           | invite-link decoding, the error screen's English defaults      |
+| `@chatic/bridges`        | via `theme` and `shared`  | nothing here calls it                                          |
+| `@chatic/logger`         | transitive, via `bridges` | nothing here calls it                                          |
+| `@chatic/app-messages`   | transitive, via `bridges` | nothing here calls it                                          |
+| `@chatic/ui-kit`         | transitive, via `shared`  | nothing here calls it                                          |
+| `@chatic/config`         | direct, 1 file            | the account surface's HTTP port configures the session runtime |
+| `@chatic/app-runtime`    | direct, 2 files           | the account surface's HTTP port: sign-in, session, signing     |
+| `@chatic/device-utils`   | transitive, via `shared`  | nothing here calls it                                          |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
 libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain
@@ -512,7 +553,7 @@ The landing app's own diagnostics are plain `console.log` / `console.error` call
 ## Usage
 
 ```bash
-yarn landing:start                 # nx serve landing → http://localhost:5004
+yarn landing:start                 # nx serve landing → http://localhost:5004 (.env: see The server)
 yarn landing:build:dev             # vite build → dist/apps/landing
 yarn landing:deploy:dev            # build, then scripts/deploy-landing.sh dev
 yarn landing:deploy:prod           # build, then scripts/deploy-landing.sh prod
@@ -540,10 +581,13 @@ unless `dist/apps/landing/index.html` and both `.well-known` files exist, syncs 
 `REDACTED_TEAM_ID` in the AASA file with `$APPLE_TEAM_ID` before uploading it as
 `application/json`, and invalidates CloudFront.
 
-The `.env` is mostly theatre for this app: the only `import.meta.env` reference in `src/app` is the
-`DEV` flag in `src/app/config/stage.ts`. Environment selection at runtime is done by sniffing the
-hostname for `-dev` in that same file, which is what picks the `chatic-dev` URL scheme, the
-`io.chatic.dou.dev` package id and the dev web origin.
+The public pages read nothing from the `.env` but the `DEV` flag in `src/app/config/stage.ts`;
+environment selection there is done by sniffing the hostname for `-dev`, which is what picks the
+`chatic-dev` URL scheme, the `io.chatic.dou.dev` package id and the dev web origin. The account
+surface reads its server addresses from it (`src/app/config/subscriptionServer.ts`), so the
+`LANDING_DEV_*` secrets have to carry `ENV`, `PROJECT`, `OAUTH_ENDPOINT`, `SOCIAL_OAUTH_ENDPOINT`,
+`DOU_ENDPOINT` and `WS_ENDPOINT` — without the four addresses a dev deploy runs the account surface on
+the mock.
 
 ## Scenarios
 
@@ -624,11 +668,12 @@ not trigger.
 - **The public surface's tests cover routing, config, copy and the app launch only.** The route
   table, the stage and link config, ko/en key parity, the i18n language handling, the home header's
   subscription links and the app launch (`utils/appLaunch`, `hooks/useAppLauncher`) have tests; the
-  other home and policy components and the other deep-link hooks have none. The account surface tests its rules, its mock, its routes and
-  every screen (a render per scenario).
+  other home and policy components and the other deep-link hooks have none. The account surface tests its rules, its mock, its routes,
+  every screen (a render per scenario), and its HTTP port against the server's response shapes —
+  not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 430 tests
+    npx nx test @chatic/landing   # 498 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
@@ -682,7 +727,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 430 tests pass; in CI
+npx nx test @chatic/landing                               # 498 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```
@@ -690,5 +735,6 @@ yarn landing:start                                        # http://localhost:500
 Then the boundary commands in [Layering](#layering).
 
 Nothing imports this app, so a change here reaches no other project — the reverse is not true:
-`libs/policy-content`, `libs/theme`, `libs/shared` and `assets` all reach it, and
-`tsconfig.app.json` and `tsconfig.spec.json` both reference exactly those four.
+`libs/policy-content`, `libs/theme`, `libs/shared`, `assets`, and — for the account surface's HTTP port —
+`libs/config` and `libs/app-runtime` all reach it, and `tsconfig.app.json` and `tsconfig.spec.json`
+both reference exactly those six.

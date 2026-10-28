@@ -32,7 +32,8 @@
                 "restricted": "Restricted",
                 "cancelScheduled": "Ending",
                 "expired": "Expired",
-                "downgradeScheduled": "Downgrade scheduled"
+                "downgradeScheduled": "Downgrade scheduled",
+                "pending": "Confirming payment"
             },
             "actions": {
                 "confirm": "OK",
@@ -109,6 +110,16 @@
                 "confirm": "Change",
                 "changed": "Billing email changed",
                 "verifiedNote": "Verified. Press Change to switch to this address now."
+            },
+            "payer": {
+                "title": "Payer",
+                "name": "Name",
+                "namePlaceholder": "The cardholder's name",
+                "phone": "Mobile phone",
+                "phonePlaceholder": "01012345678",
+                "note": "The card company asks for these with every card. They are not stored: a card added later asks again.",
+                "nameInvalid": "Enter the name: up to 10 Korean or 30 Latin characters.",
+                "phoneInvalid": "Enter a mobile number such as 01012345678."
             }
         },
         "entry": {
@@ -457,13 +468,13 @@
                     "subtitleFree": "Nothing is charged today during your trial. You can use {{plan}} right away.",
                     "pendingTitle": "A change to {{plan}} is scheduled",
                     "pendingBody": "Upgrading cancels the change scheduled for {{date}}, and you use {{plan}} from today.",
-                    "todayLabel": "Difference due today",
+                    "todayLabel": "Estimated difference today",
                     "cardLabel": "Card",
                     "cardValue": "{{brand}} ···· {{last4}} (default)",
                     "nextDateLabel": "Next payment date",
                     "nextDateValue": "{{date}} (unchanged)",
                     "nextAmountLabel": "From the next payment",
-                    "prorationNote": "The difference covers what is left of the current billing period.",
+                    "prorationNote": "The difference is estimated from the days left in this billing period; the card company confirms the exact amount when it charges.",
                     "ctaPaid": "Pay {{price}} and upgrade",
                     "ctaFree": "Upgrade",
                     "ctaPendingPaid": "Cancel the change and pay {{price}}",
@@ -613,6 +624,10 @@
                         "title": "Check your billing email",
                         "body": "An email sent to {{address}} bounced. Check the address in billing info.",
                         "action": "Billing info"
+                    },
+                    "pending": {
+                        "title": "We are confirming your payment",
+                        "body": "The card company has not reported the result of your first payment yet. The plan becomes usable once it is confirmed; until then it cannot be changed or cancelled."
                     }
                 },
                 "actions": {
@@ -631,7 +646,8 @@
                     "title": "Payment method",
                     "line": "Default card {{card}} · expires {{exp}}",
                     "none": "No card registered",
-                    "manage": "Payment methods"
+                    "manage": "Payment methods",
+                    "lineNoExpiry": "Default card {{card}}"
                 },
                 "periodCard": {
                     "title": "Subscription period",

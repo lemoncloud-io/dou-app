@@ -4,7 +4,7 @@ import { usePort } from '../lib/port';
 import { subscriptionKeys } from './keys';
 import { useInvalidateSubscriptionState } from './subscriptions';
 
-import type { AttemptPurpose, PaymentAttempt, PlanId } from '../types';
+import type { AttemptPurpose, Payer, PaymentAttempt, PlanId } from '../types';
 
 export const usePreviewCheckout = (planId: PlanId | undefined) => {
     const port = usePort();
@@ -24,7 +24,8 @@ export const useStartPaymentMethodRegistration = () => {
     const queryClient = useQueryClient();
     const invalidate = useInvalidateSubscriptionState();
     return useMutation({
-        mutationFn: (input: { purpose: AttemptPurpose; planId?: PlanId }) => port.startPaymentMethodRegistration(input),
+        mutationFn: (input: { purpose: AttemptPurpose; planId?: PlanId; payer: Payer }) =>
+            port.startPaymentMethodRegistration(input),
         onSuccess: () =>
             Promise.all([queryClient.invalidateQueries({ queryKey: subscriptionKeys.paymentMethods() }), invalidate()]),
     });
@@ -33,7 +34,7 @@ export const useStartPaymentMethodRegistration = () => {
 export const useStartCheckout = () => {
     const port = usePort();
     return useMutation({
-        mutationFn: (input: { planId: PlanId; country: string; emailId: string }) => port.startCheckout(input),
+        mutationFn: (input: Parameters<typeof port.startCheckout>[0]) => port.startCheckout(input),
     });
 };
 

@@ -12,3 +12,4 @@ export { ScreenPlaceholder } from './ScreenPlaceholder';
 export { PageLoader } from './PageLoader';
 export { EmailVerificationForm, EmailCodePolicy } from './EmailVerificationForm';
 export { BillingEmailChangeDialog } from './BillingEmailChangeDialog';
+export { PayerFields } from './PayerFields';

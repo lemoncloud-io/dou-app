@@ -1,4 +1,4 @@
-import { type JSX, useEffect, useRef, useState } from 'react';
+import { Fragment, type JSX, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -88,16 +88,21 @@ export const SubscriptionRoutes = ({
     });
 
     const mock = !!setup.mock;
+    // A composed port draws the mock's payment window while the server's payments are samples.
+    const paymentWindow = setup.mock ?? setup.standIn;
+    const Host = setup.Host ?? Fragment;
 
     return (
         <QueryClientProvider client={queryClient}>
             <PortProvider port={setup.port} clock={setup.clock}>
-                <MockControllerProvider controller={setup.mock}>
+                <MockControllerProvider controller={paymentWindow}>
                     <ToastProvider>
-                        <DesktopOnlyGuard account={account}>
-                            {account ? <AccountRoutes mock={mock} /> : <CatalogRoutes />}
-                        </DesktopOnlyGuard>
-                        {mock && <MockPaymentWindow />}
+                        <Host>
+                            <DesktopOnlyGuard account={account}>
+                                {account ? <AccountRoutes mock={mock} /> : <CatalogRoutes />}
+                            </DesktopOnlyGuard>
+                        </Host>
+                        {paymentWindow && <MockPaymentWindow />}
                         {mock && <DevScenarioPanel />}
                     </ToastProvider>
                 </MockControllerProvider>

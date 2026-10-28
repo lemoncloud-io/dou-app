@@ -46,7 +46,18 @@ export interface Account {
     storeSubscription?: { planId: PlanId; nextBillingAt?: string };
 }
 
-export type SubscriptionStatus = 'trial' | 'active' | 'pastDue' | 'restricted' | 'cancelScheduled' | 'expired';
+/**
+ * `pending` is a first payment whose result the payment provider has not reported yet: the plan is not
+ * usable, and nothing can be changed, cancelled or removed until it settles as `active` or `expired`.
+ */
+export type SubscriptionStatus =
+    | 'pending'
+    | 'trial'
+    | 'active'
+    | 'pastDue'
+    | 'restricted'
+    | 'cancelScheduled'
+    | 'expired';
 
 export interface Subscription {
     id: string;
@@ -83,10 +94,14 @@ export interface PaymentMethod {
     id: string;
     brand: string;
     last4: string;
-    expMonth: number;
-    expYear: number;
+    /**
+     * The expiry, and whether it is close. The subscription server's card view does not carry an
+     * expiry yet, so these may be absent; a screen then draws no expiry and no expiry warning.
+     */
+    expMonth?: number;
+    expYear?: number;
+    expiringSoon?: boolean;
     isDefault: boolean;
-    expiringSoon: boolean;
 }
 
 export type InvoiceKind = 'first' | 'renewal' | 'upgrade' | 'retry' | 'refund';
@@ -169,3 +184,23 @@ export type SignInResult =
 export type ChangePlanResult = PaymentAttempt | { scheduled: true; effectiveAt: string };
 
 export type RegistrationOutcome = 'registered' | 'failed' | 'closed';
+
+/**
+ * Who pays, as the payment window and the subscription server both require it: the card company asks
+ * for a name, a phone number and an email with every card. Entered at checkout (W-08) or when a card
+ * is replaced, and never stored — the next card asks again.
+ */
+export interface Payer {
+    name: string;
+    phone: string;
+    /** The verified billing address the receipts go to. */
+    email: string;
+}
+
+/**
+ * The card a registration produced, as the next call needs it. Opaque to the screens: a page only
+ * carries it from `startPaymentMethodRegistration` to `startCheckout`, and only the port reads it.
+ */
+export type CardToken = string & { readonly __cardToken: unique symbol };
+
+export type RegistrationResult = { outcome: 'registered'; card: CardToken } | { outcome: 'failed' | 'closed' };

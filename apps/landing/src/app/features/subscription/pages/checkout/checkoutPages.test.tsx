@@ -233,6 +233,13 @@ describe('W-24 email step', () => {
 
 const consentAll = async () => fireEvent.click(await screen.findByLabelText('Agree to all'));
 
+const PAYER = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
+
+const fillPayer = async () => {
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: PAYER.name } });
+    fireEvent.change(screen.getByLabelText('Mobile phone'), { target: { value: '010-1234-5678' } });
+};
+
 describe('W-08 checkout', () => {
     it('sends a reader without a verified billing email to W-24, keeping the plan', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new'));
@@ -241,7 +248,7 @@ describe('W-08 checkout', () => {
         expect(await screen.findByRole('heading', { name: 'Verify your email' })).toBeTruthy();
     });
 
-    it('opens the way on once every consent is given, carrying the primary address', async () => {
+    it('opens the way on once the payer and every consent are given, carrying them and the primary address', async () => {
         const setup = await withBillingEmail('?mock=new');
         const [primary] = (await setup.port.getBillingInfo()).emails;
         renderAt('/subscription/checkout?plan=pro-tier-01', setup);
@@ -255,6 +262,8 @@ describe('W-08 checkout', () => {
         expect(next.disabled).toBe(true);
 
         await consentAll();
+        expect(next.disabled).toBe(true);
+        await fillPayer();
         expect(next.disabled).toBe(false);
 
         fireEvent.change(screen.getByLabelText('Billing country'), { target: { value: 'US' } });
@@ -265,7 +274,7 @@ describe('W-08 checkout', () => {
         fireEvent.click(next);
         await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
         expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null')).toEqual({
-            checkout: { country: 'KR', emailId: primary.id },
+            checkout: { country: 'KR', emailId: primary.id, payer: PAYER },
         });
     });
 
@@ -305,6 +314,7 @@ describe('W-08 checkout', () => {
 });
 
 const toPayment = async () => {
+    await fillPayer();
     await consentAll();
     fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
     await screen.findByRole('heading', { name: 'Add a payment method' });
