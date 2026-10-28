@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-28] - root@0.122.1, @chatic/desktop-web@0.37.1
+
+### Bug Fixes
+
+- (desktop-web) match viewer control pill to Figma, centre its row
+- (desktop-web) give the viewer pill a white glass surface
+
 ## [2026-10-28] - root@0.122.0, @chatic/desktop-web@0.37.0
 
 ### Features
