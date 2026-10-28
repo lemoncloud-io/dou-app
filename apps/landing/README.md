@@ -570,8 +570,9 @@ A push touching `apps/landing/src/**`, `public/**`, `index.html`, `vite.config.m
 the Tailwind/PostCSS configs sets the `landing` filter output, which:
 
 1. bumps `apps/landing/package.json` version,
-2. adds `landing` to the build-and-deploy matrix with prefix `LANDING`, so the `LANDING_DEV_*`
-   secrets are written to `apps/landing/.env`,
+2. adds `landing` to the build-and-deploy matrix with prefix `WEB`, so the web app's `WEB_DEV_*`
+   secrets are written to `apps/landing/.env` (the `LANDING_*` secrets are only its bucket and
+   distribution),
 3. runs `yarn landing:deploy:dev`,
 4. uploads the build's source maps as a CI artifact (the S3 sync excludes `*.map`),
 5. announces the deploy to Slack with the new version.
@@ -585,10 +586,10 @@ unless `dist/apps/landing/index.html` and both `.well-known` files exist, syncs 
 The public pages read nothing from the `.env` but the `DEV` flag in `src/app/config/stage.ts`;
 environment selection there is done by sniffing the hostname for `-dev`, which is what picks the
 `chatic-dev` URL scheme, the `io.chatic.dou.dev` package id and the dev web origin. The account
-surface reads its server addresses from it (`src/app/config/subscriptionServer.ts`), so the
-`LANDING_DEV_*` secrets have to carry `ENV`, `PROJECT`, `OAUTH_ENDPOINT`, `SOCIAL_OAUTH_ENDPOINT`,
-`DOU_ENDPOINT` and `WS_ENDPOINT` — without the four addresses a dev deploy runs the account surface on
-the mock.
+surface reads its server addresses from it (`src/app/config/subscriptionServer.ts`). They are the web
+app's own (`WEB_DEV_*` / `WEB_PROD_*`), as desktop-web's are: the account surface signs in to the web
+app's relay session, so its OAuth, relay and socket addresses must be the web app's. Without the four
+addresses a build runs the account surface on the mock.
 
 ## Scenarios
 
