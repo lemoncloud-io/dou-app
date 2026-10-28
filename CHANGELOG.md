@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-28] - root@0.122.0, @chatic/desktop-web@0.37.0
+
+### Features
+
+- (desktop-web) image viewer control pill with rotate and slider
+
 ## [2026-10-28] - root@0.121.2, @chatic/desktop-web@0.36.2
 
 ### Bug Fixes
