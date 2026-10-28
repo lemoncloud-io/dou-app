@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 
-import { PAIRED_CLOUD_CHECK_INTERVAL_MS, checkPairedClouds } from '../../pairing/pairedCloudCheck';
+import { PAIRED_CLOUD_CHECK_INTERVAL_MS, pairedCloudSessions } from '../../pairing/pairedCloudSessions';
 import { pairedClouds } from '../../pairing/pairedClouds';
 import { isRelayGuest } from '../../pairing/pairedSession';
 import { useSessionAuth } from '../session/readers/useSessionAuth';
@@ -35,7 +35,7 @@ export const usePairedCloudCheck = (onEnded: (cloudId: string) => void): { check
         }
         running.current = true;
         try {
-            (await checkPairedClouds()).forEach(cloudId => latest.current(cloudId));
+            (await pairedCloudSessions.checkAll()).forEach(cloudId => latest.current(cloudId));
         } finally {
             running.current = false;
         }

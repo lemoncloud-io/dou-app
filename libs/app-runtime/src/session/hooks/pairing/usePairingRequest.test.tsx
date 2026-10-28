@@ -16,9 +16,9 @@ jest.mock('../session/actions/useSwitchCloudSession', () => ({ useSwitchCloudSes
 jest.mock('../../../socket/auth/applySessionToken', () => ({
     applySessionToken: (...args: unknown[]) => applySessionToken(...args),
 }));
-const enterPairedCloud = jest.fn();
-jest.mock('../../pairing/enterPairedCloud', () => ({
-    enterPairedCloud: (...args: unknown[]) => enterPairedCloud(...args),
+const enterPaired = jest.fn();
+jest.mock('../../pairing/pairedCloudSessions', () => ({
+    pairedCloudSessions: { enter: (...args: unknown[]) => enterPaired(...args) },
 }));
 jest.mock('../../pairing/pairingClient', () => ({
     pairingClientOf: () => ({ name: 'Chrome · macOS', platform: 'web' }),
@@ -94,13 +94,13 @@ describe('usePairingRequest', () => {
         expect(result.current.state.phase).toBe('done');
     });
 
-    it("enters a cloud approval through enterPairedCloud with the screen's switch", async () => {
+    it("enters a cloud approval through the paired-cloud lifecycle with the screen's switch", async () => {
         claimPairing.mockResolvedValueOnce({
             status: 'approved',
             target: { type: 'cloud', cloudId: '1000002' },
             approver: {},
         });
-        enterPairedCloud.mockResolvedValueOnce(undefined);
+        enterPaired.mockResolvedValueOnce(undefined);
         const { result } = renderHook(() => usePairingRequest());
         await flush();
         await act(async () => {
@@ -108,7 +108,7 @@ describe('usePairingRequest', () => {
         });
         await flush();
 
-        expect(enterPairedCloud).toHaveBeenCalledWith('1000002', switchCloud);
+        expect(enterPaired).toHaveBeenCalledWith('1000002', switchCloud);
         expect(result.current.state.phase).toBe('done');
     });
 
@@ -118,7 +118,7 @@ describe('usePairingRequest', () => {
             target: { type: 'cloud', cloudId: '1000002' },
             approver: {},
         });
-        enterPairedCloud.mockRejectedValueOnce(new Error('delegate 403'));
+        enterPaired.mockRejectedValueOnce(new Error('delegate 403'));
         const { result } = renderHook(() => usePairingRequest());
         await flush();
         await act(async () => {
