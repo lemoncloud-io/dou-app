@@ -4,7 +4,7 @@ import { useRuntimeRepositories } from '../../../data/hooks/useRuntimeRepositori
 import { applySessionToken } from '../../../socket/auth/applySessionToken';
 import { useDynamicDeviceId } from '../app/useDynamicDeviceId';
 import { useSwitchCloudSession } from '../session/actions/useSwitchCloudSession';
-import { enterPairedCloud } from '../../pairing/enterPairedCloud';
+import { pairedCloudSessions } from '../../pairing/pairedCloudSessions';
 import { pairingClientOf } from '../../pairing/pairingClient';
 import {
     createPairingRequestFlow,
@@ -52,7 +52,7 @@ export const usePairingRequest = (options: PairingRequestOptions = {}) => {
             },
             claim: pairingId => latest.current.pairing.claimPairing(pairingId),
             applySession: session => applySessionToken(session),
-            enterCloud: cloudId => enterPairedCloud(cloudId, latest.current.switchCloud),
+            enterCloud: cloudId => pairedCloudSessions.enter(cloudId, latest.current.switchCloud),
             onChange: setState,
         });
     }
