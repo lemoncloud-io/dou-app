@@ -12,6 +12,7 @@ import { cn } from '@chatic/lib/utils';
 
 import { useIsAccountGuest } from '../../../hooks';
 import { canGoBackInApp } from '../../../navigation';
+import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
 import { useDevicePairingEnabled, useNow } from '../hooks';
@@ -27,13 +28,56 @@ interface ReturnState {
  *
  * Only a guest reaches it: the relay accepts a code request from a guest session alone. The check is
  * taken once, at mount, because a successful pairing turns this very session into an account.
+ *
+ * A device asks for a sign-in only while it is signed out, and a guest inside a cloud it entered on its
+ * own invite is signed in there: an approval of that same cloud would give it a second identity in it.
+ * Such a guest is asked to sign out of the cloud first, and gets the code once it has. DoU Home and a
+ * paired cloud are fine — adding another cloud from one is what "Add a cloud with another device" is.
  */
 export const PairingCodePage = () => {
     const enabled = useDevicePairingEnabled();
     const isGuest = useIsAccountGuest();
     const [allowed] = useState(() => enabled && isGuest);
+    const [inOwnCloud, setInOwnCloud] = useState(() => runtime.session.isInOwnCloudSession());
     if (!allowed) return <Navigate to={ROUTES.mypage.root} replace />;
+    if (inOwnCloud) return <SignOutOfCloudFirst onSignedOut={() => setInOwnCloud(false)} />;
     return <PairingCodeScreen />;
+};
+
+const SignOutOfCloudFirst = ({ onSignedOut }: { onSignedOut: () => void }) => {
+    const { t } = useTranslation();
+    const navigate = useNavigateWithTransition();
+    const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
+
+    const signOut = async () => {
+        try {
+            await logoutCloudSession();
+        } finally {
+            // Re-read rather than assume: a failed sign-out leaves the cloud session, and the screen.
+            if (!runtime.session.isInOwnCloudSession()) onSignedOut();
+        }
+    };
+
+    return (
+        <div className="flex h-full flex-col bg-background">
+            <PageHeader title={t('pairing.code.title')} onBack={() => navigate(-1)} />
+            <div
+                className="flex flex-1 flex-col items-center gap-6 px-6 pt-16 text-center"
+                data-testid="pairing-in-cloud"
+            >
+                <p className="text-[15px] leading-[1.5] text-foreground">{t('pairing.code.inCloud')}</p>
+                <button
+                    type="button"
+                    className="rounded-xl bg-primary px-5 py-3 text-[15px] font-semibold text-primary-foreground disabled:opacity-50"
+                    disabled={isLoggingOutCloudSession}
+                    onClick={() => void signOut()}
+                    data-testid="pairing-in-cloud-signout"
+                >
+                    {t('pairing.code.inCloudSignOut')}
+                </button>
+            </div>
+        </div>
+    );
 };
 
 const PairingCodeScreen = () => {

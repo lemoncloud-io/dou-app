@@ -39,6 +39,7 @@ let accountGuest = false;
 let pairedCloudIds: string[] = [];
 let pairingEnabled = false;
 const forgetRefusedPairedCloud = jest.fn((_id: string, _e: unknown) => false);
+const isRefusedForEndedPairing = jest.fn((_e: unknown) => false);
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -47,6 +48,7 @@ jest.mock('@chatic/app-runtime', () => ({
             useSwitchCloudSession: () => ({ switchCloud, isPending: false }),
             usePairedCloudIds: () => pairedCloudIds,
             forgetRefusedPairedCloud: (id: string, e: unknown) => forgetRefusedPairedCloud(id, e),
+            isRefusedForEndedPairing: (e: unknown) => isRefusedForEndedPairing(e),
         },
     },
 }));
@@ -56,6 +58,8 @@ jest.mock('../../../hooks/useCloudCatalog', () => ({
 jest.mock('../../../runtime/useLogoutCloudSession', () => ({
     useLogoutCloudSession: () => ({ logoutCloudSession, isLoggingOutCloudSession: false }),
 }));
+const logoutSession = jest.fn(() => Promise.resolve());
+jest.mock('../../../runtime/useSessionLogout', () => ({ useSessionLogout: () => logoutSession }));
 jest.mock('../../../hooks', () => ({
     useCachedCloudNames: () => ({}),
     useInvitedClouds: () => ({ invitedClouds: invited }),
@@ -419,7 +423,7 @@ describe('CloudSessionSheet — clouds a guest entered through a pairing', () =>
         await waitFor(() => expect(switchCloud).toHaveBeenCalledWith('1000002'));
     });
 
-    it('says so when a refused switch dropped the paired cloud', async () => {
+    it('says so and signs out when a refused switch dropped the paired cloud', async () => {
         accountGuest = true;
         pairedCloudIds = ['1000002'];
         const refused = new Error('403');
@@ -431,6 +435,33 @@ describe('CloudSessionSheet — clouds a guest entered through a pairing', () =>
 
         await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'pairing.cloud.ended' }));
         expect(forgetRefusedPairedCloud).toHaveBeenCalledWith('1000002', refused);
+        expect(logoutSession).toHaveBeenCalledTimes(1);
+    });
+
+    it("signs out when a revoked pairing blocks the device's own invited cloud", async () => {
+        invited = [{ id: 'i1', cid: 'i1', name: 'Lemon Cloud', owner$: { name: 'sunny' } }];
+        const refused = new Error('403 NOT ALLOWED - pairing revoked');
+        switchCloud.mockRejectedValueOnce(refused);
+        isRefusedForEndedPairing.mockReturnValueOnce(true);
+        renderSheet();
+
+        fireEvent.click(screen.getByText('Lemon Cloud'));
+
+        await waitFor(() => expect(logoutSession).toHaveBeenCalledTimes(1));
+        expect(toast).toHaveBeenCalledWith({ title: 'pairing.cloud.ended' });
+        expect(isRefusedForEndedPairing).toHaveBeenCalledWith(refused);
+    });
+
+    it('stays quiet about any other refused switch', async () => {
+        invited = [{ id: 'i1', cid: 'i1', name: 'Lemon Cloud', owner$: { name: 'sunny' } }];
+        switchCloud.mockRejectedValueOnce(new Error('Network Error'));
+        renderSheet();
+
+        fireEvent.click(screen.getByText('Lemon Cloud'));
+
+        await waitFor(() => expect(isRefusedForEndedPairing).toHaveBeenCalled());
+        expect(toast).not.toHaveBeenCalled();
+        expect(logoutSession).not.toHaveBeenCalled();
     });
 
     it('is not shown to an account, which has its own catalog', () => {

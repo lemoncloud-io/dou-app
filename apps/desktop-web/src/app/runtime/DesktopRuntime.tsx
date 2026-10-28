@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { runtime } from '@chatic/app-runtime';
@@ -10,6 +10,7 @@ import {
     AppToaster,
     ConnectionBanner,
     UpdateBanner,
+    useAccountResetOnLogout,
     useClouds,
     useCrossCloudPushBadge,
     useCrossCloudPushNotifications,
@@ -173,9 +174,23 @@ export const DesktopRuntime = () => {
     //    disable it exactly when it is needed.
     runtime.session.useCloudCredentialGuard();
     // A browser that a phone approved into a cloud re-checks that cloud through the relay at mount and
-    // every ten minutes; one whose approval ended is torn down by the runtime and said here.
+    // every ten minutes; one whose approval ended is torn down by the runtime, said here, and signed
+    // out — an ended approval ends the sign-in it gave, and the relay refuses this auth session's way
+    // into that cloud until a new session replaces it. Several clouds ending in one round sign out once.
     const { t } = useTranslation();
-    runtime.session.usePairedCloudCheck(() => toast({ title: t('pairing.cloud.ended') }));
+    const logout = runtime.session.useSessionLogout();
+    const { resetAccount } = useAccountResetOnLogout();
+    const signingOut = useRef(false);
+    runtime.session.usePairedCloudCheck(() => {
+        toast({ title: t('pairing.cloud.ended') });
+        if (signingOut.current) return;
+        signingOut.current = true;
+        void resetAccount()
+            .finally(() => logout())
+            .finally(() => {
+                signingOut.current = false;
+            });
+    });
 
     return (
         <runtime.connection.RuntimeAuthHost>

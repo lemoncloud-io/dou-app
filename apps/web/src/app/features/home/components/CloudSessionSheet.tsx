@@ -16,6 +16,7 @@ import { BottomSheet, CollapsibleSection, Divider } from '@chatic/web-ui-kit';
 import type { CloudView } from '@lemoncloud/chatic-backend-api';
 
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
+import { useSessionLogout } from '../../../runtime/useSessionLogout';
 import { useCachedCloudNames, useInvitedClouds, useIsAccountGuest } from '../../../hooks';
 import { useEmailBindRequest } from '../../../stores/useEmailBindRequest';
 import { useCloudPushMarkStore } from '../stores/useCloudPushMarkStore';
@@ -76,6 +77,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
     const cachedCloudNames = useCachedCloudNames();
     const { switchCloud, isPending: isSwitching } = runtime.session.useSwitchCloudSession();
     const { logoutCloudSession, isLoggingOutCloudSession } = useLogoutCloudSession();
+    const logoutSession = useSessionLogout();
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const requestEmailBind = useEmailBindRequest(s => s.requestEmailBind);
     // A guest browser's clouds come from pairings, not from a catalog (a guest's is empty). An account
@@ -138,9 +140,14 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
             // Deliberately not logged here: the session service already records the failure and does
             // the cid/sid rollback. A second entry would double the error count — and `error` advances
             // the upload flush, so it would double that too.
-            // A paired cloud the relay no longer delegates (approval revoked) leaves the list.
-            if (runtime.session.forgetRefusedPairedCloud(cloudId, error)) {
+            // A refusal over a revoked approval ends the sign-in that approval gave: a paired cloud the
+            // relay no longer delegates leaves the list, and either way the device signs out. The relay
+            // holds the revoked pairing against this auth session and refuses even the session's own
+            // invite into that cloud until a new session replaces it.
+            const pairedCloudEnded = runtime.session.forgetRefusedPairedCloud(cloudId, error);
+            if (pairedCloudEnded || runtime.session.isRefusedForEndedPairing(error)) {
                 toast({ title: t('pairing.cloud.ended') });
+                void logoutSession();
             }
         }
     };

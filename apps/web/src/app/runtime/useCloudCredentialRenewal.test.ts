@@ -13,6 +13,7 @@ const mockCheck = jest.fn();
 const mockPairedCheck = jest.fn();
 let onPairedCloudEnded: (cloudId: string) => void = () => undefined;
 const toast = jest.fn();
+const mockLogout = jest.fn(() => Promise.resolve());
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -30,6 +31,7 @@ jest.mock('react-i18next', () => ({
 }));
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 jest.mock('../hooks', () => ({ useCachedCloudNames: () => ({ '1000002': 'Lemon' }) }));
+jest.mock('./useSessionLogout', () => ({ useSessionLogout: () => mockLogout }));
 
 const foregroundHandlers: Array<() => void> = [];
 jest.mock('../bridge', () => ({
@@ -46,6 +48,7 @@ const render = () => {
     mockCheck.mockClear();
     mockPairedCheck.mockClear();
     toast.mockClear();
+    mockLogout.mockClear();
     renderHook(() => useCloudCredentialRenewal());
 };
 
@@ -83,5 +86,14 @@ describe('useCloudCredentialRenewal — apps/web 정책', () => {
             [{ title: 'pairing.cloud.endedNamed:{"cloud":"Lemon"}' }],
             [{ title: 'pairing.cloud.ended' }],
         ]);
+    });
+
+    it('signs the device out once when pairings end, however many clouds ended in the round', () => {
+        render();
+
+        onPairedCloudEnded('1000002');
+        onPairedCloudEnded('1000009');
+
+        expect(mockLogout).toHaveBeenCalledTimes(1);
     });
 });

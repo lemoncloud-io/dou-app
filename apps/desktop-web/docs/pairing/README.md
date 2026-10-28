@@ -12,8 +12,9 @@ route exists.
 | `/account/devices`          | `DevicesPage`        | any signed-in account that is not a relay guest |
 
 Which side a client is follows from where it runs. A plain browser (`!isNative()`) requests: the
-desktop app signs in on its own and has nothing to borrow. The desktop app approves, unless its own
-session came from a pairing (`useIsPairedSession`): a session that was lent access does not lend it on.
+desktop app signs in on its own and has nothing to borrow. The desktop app approves when it is signed
+in to an account — approving hands on a sign-in, and a guest holds none of its own — and its session
+did not come from a pairing (`useIsPairedSession`): a session that was lent access does not lend it on.
 
 ## The code screen (`/auth/pair`)
 
@@ -62,8 +63,8 @@ the account, and approval stays off until the person ticks that they started the
 
 What the browser may use is a choice:
 
-- **My whole account** — the relay. Not offered to a relay guest: the relay refuses a guest
-  approving its own session.
+- **My whole account** — the relay. (A relay guest never reaches this page, and the relay would refuse
+  a guest approving its own session anyway.)
 - **One cloud** — one option per cloud in the relay catalog (the owned clouds).
 
 The choice starts where the account is working: the active cloud, or the whole account on the relay.
@@ -105,6 +106,8 @@ open, so a menu that never signs out never reads the cloud catalog.
 **Paired clouds.** A browser that a phone approved into one cloud stays a relay guest; the runtime keeps
 that cloud in its paired-cloud list. `DesktopRuntime` runs `runtime.session.usePairedCloudCheck`, which
 re-issues each paired cloud through the relay's delegation at mount and every ten minutes; a 403 (the
-approval was revoked, or the approver signed out) tears the cloud down and a toast says so. desktop-web
+approval was revoked, or the approver signed out) tears the cloud down, a toast says so, and the
+browser signs out (account reset, then logout) — the approval was its sign-in, and the relay refuses
+the same auth session's way back into the cloud until a new session replaces it. desktop-web
 has no switch-list entry for a paired cloud yet — apps/web's cloud sheet has one — so a browser that
 leaves the cloud it was approved into cannot pick it again without a new code.

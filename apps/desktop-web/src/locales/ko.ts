@@ -1026,7 +1026,7 @@ export const ko: EnTranslation = {
     'pairing.logout.title': '이 앱으로 승인한 로그인 {{count}}개도 함께 끝나요',
     'pairing.logout.cloudNote': '이미 열린 클라우드 화면은 그 기기가 다시 확인할 때까지 남을 수 있어요.',
     'pairing.logout.confirm': '로그아웃',
-    'pairing.cloud.ended': '승인이 끝나 이 브라우저가 클라우드에서 나왔어요.',
+    'pairing.cloud.ended': '승인이 해제돼 이 브라우저가 로그아웃했어요.',
     'pairing.unlink': '해제',
     'pairing.devices.entry': '기기 관리',
     'pairing.devices.entryHint': '이 계정에 로그인된 기기와 내가 승인한 로그인',

@@ -21,14 +21,16 @@ import { scanPairingQr, type PairingQrScan } from '../lib/scanPairingQr';
  * The approving device's screen: a code from a browser (or another phone) typed or scanned in, its
  * requester shown, and an approval for one target.
  *
- * Only inside the app, on a device session that is not itself a secondary device. The server would
- * accept an approval from a browser's phone login too — the rule that approvals come from the apps is
- * the screen's, so the entry and this page are where it is kept.
+ * Only inside the app, signed in to an account, on a session that is not itself a secondary device.
+ * The server would accept an approval from a browser's phone login, and a guest app's approval of its
+ * invited clouds, too — the rule that approvals come from signed-in apps is the screen's, so the entry
+ * and this page are where it is kept.
  */
 export const PairingApprovePage = () => {
     const enabled = useDevicePairingEnabled();
     const paired = runtime.session.useIsPairedSession();
-    if (!enabled || !isNative() || paired) return <Navigate to={ROUTES.mypage.root} replace />;
+    const isGuest = useIsAccountGuest();
+    if (!enabled || !isNative() || isGuest || paired) return <Navigate to={ROUTES.mypage.root} replace />;
     return <PairingApproveScreen />;
 };
 

@@ -10,6 +10,7 @@ import { MAX_PLACES } from '../../../utils';
 // stubbed to markers so the assertions are about which sections mount, not their internals.
 
 let selectedCloudId: string | null = 'default';
+let pairedCloudIds: string[] = [];
 // The active place (site). Mutable so a test can drop to "no place active", where the place-settings
 // route has no id to key off.
 let selectedSiteId: string | null = 'site-1';
@@ -30,7 +31,9 @@ let catalog: { clouds: { id: string; status?: string }[]; hasCloudCatalog: boole
 // invite tests drive; one test turns it off.
 let isPlaceInviteEnabled = true;
 
-jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (o ? `${k}:${JSON.stringify(o)}` : k) }),
+}));
 const navigateMock = jest.fn();
 jest.mock('@chatic/shared', () => ({
     ...jest.requireActual('@chatic/shared'),
@@ -44,6 +47,7 @@ jest.mock('@chatic/app-runtime', () => ({
             useRuntimeProfile: () => ({ isGuest: false }),
             useSessionAuth: () => ({ isAuthenticated }),
             useSessionSelection: () => ({ selectedCloudId, selectedSiteId }),
+            usePairedCloudIds: () => pairedCloudIds,
         },
     },
 }));
@@ -67,11 +71,13 @@ jest.mock('@chatic/web-ui-kit', () => ({
     // to render it — otherwise the menu never mounts.
     AppHeader: ({
         kind,
+        name,
         avatar,
         planTier,
         planLoading,
     }: {
         kind: string;
+        name?: string;
         avatar?: any;
         planTier?: string;
         planLoading?: boolean;
@@ -81,6 +87,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
             data-kind={kind}
             data-plan-tier={planTier ?? ''}
             data-plan-loading={String(!!planLoading)}
+            data-name={name ?? ''}
         >
             {avatar}
         </header>
@@ -411,6 +418,22 @@ describe('HomePage — relay mode', () => {
 describe('HomePage — cloud mode', () => {
     beforeEach(() => {
         selectedCloudId = 'cloud-1';
+        pairedCloudIds = [];
+    });
+
+    it('names a paired cloud it has no name for by its id, as the switch sheet does', () => {
+        selectedCloudId = '1000002';
+        pairedCloudIds = ['1000002'];
+        render(<HomePage />);
+
+        expect(screen.getByTestId('header')).toHaveAttribute('data-name', 'pairing.cloud.unnamed:{"id":"000002"}');
+    });
+
+    it('leaves a cloud that is neither listed nor paired unnamed', () => {
+        selectedCloudId = '1000002';
+        render(<HomePage />);
+
+        expect(screen.getByTestId('header')).toHaveAttribute('data-name', '');
     });
 
     it('renders the Place section and no promo banner', () => {

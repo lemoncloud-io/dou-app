@@ -73,6 +73,7 @@ describe('PairingApprovePage', () => {
     it.each([
         ['in a browser', () => (mockNative = false)],
         ['on a secondary device', () => (mockPaired = true)],
+        ['on a guest app — it has no sign-in of its own to hand on', () => (mockGuest = true)],
         ['with the flag off', () => (mockEnabled = false)],
     ])('is not available %s', (_label, arrange) => {
         arrange();
@@ -153,15 +154,6 @@ describe('PairingApprovePage', () => {
         expect(submit.disabled).toBe(true);
         fireEvent.click(screen.getByTestId('pairing-approve-debug-confirm'));
         expect(submit.disabled).toBe(false);
-    });
-
-    it('has nothing to approve for a guest with no clouds', () => {
-        approval.state = { step: 'confirm', check: CHECK };
-        mockGuest = true;
-        render(<PairingApprovePage />);
-
-        expect(screen.getByTestId('pairing-approve-no-target')).not.toBeNull();
-        expect(screen.queryByTestId('pairing-approve-submit')).toBeNull();
     });
 
     it('says the web will finish and closes after approving', () => {

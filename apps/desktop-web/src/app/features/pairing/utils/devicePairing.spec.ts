@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const env = vi.hoisted(() => ({ flag: undefined as unknown, native: false }));
+const env = vi.hoisted(() => ({ flag: undefined as unknown, native: false, guest: false }));
 
 vi.mock('@chatic/config', () => ({ config: { get: () => env.flag } }));
 vi.mock('@chatic/bridges', () => ({ isNative: () => env.native }));
+vi.mock('../../../shared/hooks/useRelayAccount', () => ({ isRelayGuest: () => env.guest }));
 
 import { canApprovePairing, canRequestPairing, isDevicePairingEnabled } from './devicePairing';
 
@@ -11,6 +12,7 @@ describe('device pairing gates', () => {
     beforeEach(() => {
         env.flag = true;
         env.native = false;
+        env.guest = false;
     });
 
     it('is off unless the registry key is exactly true', () => {
@@ -39,6 +41,12 @@ describe('device pairing gates', () => {
         expect(canApprovePairing(false)).toBe(false);
         env.native = true;
         env.flag = false;
+        expect(canApprovePairing(false)).toBe(false);
+    });
+
+    it('does not let a guest approve — it has no sign-in of its own to hand on', () => {
+        env.native = true;
+        env.guest = true;
         expect(canApprovePairing(false)).toBe(false);
     });
 });

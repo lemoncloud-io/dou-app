@@ -16,8 +16,10 @@ jest.mock('../session/actions/useSwitchCloudSession', () => ({ useSwitchCloudSes
 jest.mock('../../../socket/auth/applySessionToken', () => ({
     applySessionToken: (...args: unknown[]) => applySessionToken(...args),
 }));
-const addPairedCloud = jest.fn();
-jest.mock('../../pairing/pairedClouds', () => ({ pairedClouds: { add: (id: string) => addPairedCloud(id) } }));
+const enterPairedCloud = jest.fn();
+jest.mock('../../pairing/enterPairedCloud', () => ({
+    enterPairedCloud: (...args: unknown[]) => enterPairedCloud(...args),
+}));
 jest.mock('../../pairing/pairingClient', () => ({
     pairingClientOf: () => ({ name: 'Chrome · macOS', platform: 'web' }),
 }));
@@ -92,13 +94,13 @@ describe('usePairingRequest', () => {
         expect(result.current.state.phase).toBe('done');
     });
 
-    it('enters a cloud approval and remembers the cloud only after the switch succeeded', async () => {
+    it("enters a cloud approval through enterPairedCloud with the screen's switch", async () => {
         claimPairing.mockResolvedValueOnce({
             status: 'approved',
             target: { type: 'cloud', cloudId: '1000002' },
             approver: {},
         });
-        switchCloud.mockRejectedValueOnce(new Error('delegate 403'));
+        enterPairedCloud.mockResolvedValueOnce(undefined);
         const { result } = renderHook(() => usePairingRequest());
         await flush();
         await act(async () => {
@@ -106,8 +108,24 @@ describe('usePairingRequest', () => {
         });
         await flush();
 
-        expect(switchCloud).toHaveBeenCalledWith('1000002');
-        expect(addPairedCloud).not.toHaveBeenCalled();
+        expect(enterPairedCloud).toHaveBeenCalledWith('1000002', switchCloud);
+        expect(result.current.state.phase).toBe('done');
+    });
+
+    it('reports a cloud approval it could not enter as lost', async () => {
+        claimPairing.mockResolvedValueOnce({
+            status: 'approved',
+            target: { type: 'cloud', cloudId: '1000002' },
+            approver: {},
+        });
+        enterPairedCloud.mockRejectedValueOnce(new Error('delegate 403'));
+        const { result } = renderHook(() => usePairingRequest());
+        await flush();
+        await act(async () => {
+            jest.advanceTimersByTime(5000);
+        });
+        await flush();
+
         expect(result.current.state.phase).toBe('lost');
     });
 

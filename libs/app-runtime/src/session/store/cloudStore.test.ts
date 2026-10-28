@@ -122,6 +122,24 @@ describe('cloudStore — cloud identities', () => {
         expect(cloudStore.getCloudIdentity('cloud-1')).toEqual({ uid: 'u1' });
     });
 
+    it('dropCloudIdentity forgets one cloud and keeps the others', () => {
+        cloudStore.setCloudIdentity('cloud-1', { uid: 'u1' });
+        cloudStore.setCloudIdentity('cloud-2', { uid: 'u2' });
+
+        cloudStore.dropCloudIdentity('cloud-1');
+
+        expect(cloudStore.getCloudIdentities()).toEqual({ 'cloud-2': { uid: 'u2' } });
+    });
+
+    it('dropCloudIdentity writes nothing for a cloud it never recorded', () => {
+        cloudStore.setCloudIdentity('cloud-1', { uid: 'u1' });
+        const writesBefore = mockSets.length;
+
+        cloudStore.dropCloudIdentity('cloud-9');
+
+        expect(mockSets.length).toBe(writesBefore);
+    });
+
     it('clearCloudIdentities forgets every cloud', () => {
         cloudStore.setCloudIdentity('cloud-1', { uid: 'u1' });
 

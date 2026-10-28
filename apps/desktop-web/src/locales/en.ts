@@ -1035,7 +1035,7 @@ export const en = {
     'pairing.logout.title': 'The {{count}} sign-in(s) this app approved will end too',
     'pairing.logout.cloudNote': 'A cloud screen already open may stay until that device checks again.',
     'pairing.logout.confirm': 'Sign out',
-    'pairing.cloud.ended': 'The approval ended, so this browser left the cloud.',
+    'pairing.cloud.ended': 'The approval was revoked, so this browser was signed out.',
     'pairing.unlink': 'Unlink',
     'pairing.devices.entry': 'Devices',
     'pairing.devices.entryHint': 'Devices signed in to this account, and sign-ins you approved.',

@@ -240,8 +240,14 @@ those clouds would not appear anywhere. Its footer, "Add a cloud with another de
 screen; the section is shown while the device pairing flag is on or a paired cloud exists, and never to
 an account (a relay pairing included — an account has its catalog). A paired row's name comes from the
 cached cloud names, which fill in once the browser has been inside the cloud; until then it shows the
-end of the cloud id. A switch the relay refuses with 403 (the approval was revoked) drops the cloud
-from the list with a toast.
+end of the cloud id.
+
+A switch refused over a revoked approval signs the browser out with a toast ("the approval was
+revoked"): a 403 on a paired cloud (`forgetRefusedPairedCloud`), or `403 … pairing revoked` on any
+other cloud (`runtime.session.isRefusedForEndedPairing`) — the relay holds the revoked grant against
+the auth session and refuses even an invite the same session accepted there, until a new session
+replaces it ([pairing](../pairing/README.md#a-cloud-approval)). Any other refused switch stays quiet,
+as before.
 
 An invited row is titled by its cloud name with the owner caption ("sunny's cloud", else "Invited
 cloud") under it. An invite can carry no cloud name, and the cached row has none until `cloud.get`

@@ -13,6 +13,8 @@ const clear = jest.fn();
 let relayGuest = true;
 jest.mock('../../pairing/pairedClouds', () => ({ pairedClouds: { list: () => paired, clear: () => clear() } }));
 jest.mock('../../pairing/pairedSession', () => ({ isRelayGuest: () => relayGuest }));
+let initialized = true;
+jest.mock('../session/readers/useSessionAuth', () => ({ useSessionAuth: () => ({ isInitialized: initialized }) }));
 
 const flush = async () => {
     await act(async () => {
@@ -25,6 +27,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     paired = ['1000002'];
     relayGuest = true;
+    initialized = true;
     checkPairedClouds.mockResolvedValue([]);
 });
 afterEach(() => jest.useRealTimers());
@@ -40,6 +43,21 @@ describe('usePairedCloudCheck', () => {
         });
         await flush();
         expect(checkPairedClouds).toHaveBeenCalledTimes(2);
+    });
+
+    it('waits for the session to initialise before the first check — the relay is not up before that', async () => {
+        initialized = false;
+        const { rerender, result } = renderHook(() => usePairedCloudCheck(jest.fn()));
+        await flush();
+        await act(async () => {
+            await result.current.check();
+        });
+        expect(checkPairedClouds).not.toHaveBeenCalled();
+
+        initialized = true;
+        rerender();
+        await flush();
+        expect(checkPairedClouds).toHaveBeenCalledTimes(1);
     });
 
     it('tells the app about each cloud that ended', async () => {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import type { runtime } from '@chatic/app-runtime';
 
@@ -13,6 +13,10 @@ let mockState: PairingRequestState = { phase: 'requesting' };
 let mockEnabled = true;
 let mockGuest = true;
 let mockLocationState: unknown = null;
+let mockInOwnCloud = false;
+const logoutCloudSession = jest.fn(async () => {
+    mockInOwnCloud = false;
+});
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (o ? `${k}:${JSON.stringify(o)}` : k) }),
@@ -33,6 +37,7 @@ jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             usePairingRequest: () => ({ state: mockState, restart }),
+            isInOwnCloudSession: () => mockInOwnCloud,
             pairingClientOf: () => ({ name: 'Chrome · macOS', platform: 'web' }),
         },
     },
@@ -40,6 +45,9 @@ jest.mock('@chatic/app-runtime', () => ({
 jest.mock('../../../hooks', () => ({ useIsAccountGuest: () => mockGuest }));
 let mockCanGoBack = false;
 jest.mock('../../../navigation', () => ({ canGoBackInApp: () => mockCanGoBack }));
+jest.mock('../../../runtime/useLogoutCloudSession', () => ({
+    useLogoutCloudSession: () => ({ logoutCloudSession, isLoggingOutCloudSession: false }),
+}));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('../hooks', () => ({ useDevicePairingEnabled: () => mockEnabled, useNow: () => 1_000_000 - 125_000 }));
 
@@ -51,6 +59,7 @@ beforeEach(() => {
     mockLocationState = null;
     mockCanGoBack = false;
     mockNative = false;
+    mockInOwnCloud = false;
 });
 
 describe('PairingCodePage', () => {
@@ -63,6 +72,31 @@ describe('PairingCodePage', () => {
         render(<PairingCodePage />);
 
         expect(screen.getByTestId('redirect').textContent).toBe('/mypage');
+    });
+
+    it('asks a guest inside its own cloud to sign out of it first, then shows the code', async () => {
+        mockInOwnCloud = true;
+        mockState = { phase: 'waiting', code: '07344168', expiredAt: 1_000_000, pairingId: 'p-1' };
+        render(<PairingCodePage />);
+
+        expect(screen.getByTestId('pairing-in-cloud')).not.toBeNull();
+        expect(screen.queryByTestId('pairing-code')).toBeNull();
+
+        fireEvent.click(screen.getByTestId('pairing-in-cloud-signout'));
+
+        expect(await screen.findByTestId('pairing-code')).not.toBeNull();
+        expect(logoutCloudSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays on the notice when signing out of the cloud did not take', async () => {
+        mockInOwnCloud = true;
+        logoutCloudSession.mockImplementationOnce(async () => undefined);
+        render(<PairingCodePage />);
+
+        fireEvent.click(screen.getByTestId('pairing-in-cloud-signout'));
+
+        await waitFor(() => expect(logoutCloudSession).toHaveBeenCalled());
+        expect(screen.getByTestId('pairing-in-cloud')).not.toBeNull();
     });
 
     it('shows the code in two groups, its QR and the time left', () => {

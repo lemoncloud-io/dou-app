@@ -37,9 +37,13 @@ login screen's entry reads the flag itself for the same reason.
 hands its location state on, so leaving after a sign-in goes back past both screens to wherever the user
 started (`navigate(-2)`), or home when the app has nothing behind them.
 
-- **Guests only, decided once.** The relay accepts a code request from a guest session alone, so the
-  screen sends anyone else to My page — but it decides at mount, because a successful pairing turns
-  this very session into an account.
+- **Signed-out devices only.** The device asking for a sign-in must not hold one. The relay accepts a
+  code request from a guest session alone, so the screen sends anyone else to My page — deciding at
+  mount, because a successful pairing turns this very session into an account. A guest inside a cloud
+  it entered on its own invite is signed in there too (`runtime.session.isInOwnCloudSession`): the
+  screen asks it to sign out of that cloud first and shows the code once it has, because an approval
+  of the same cloud would give the browser a second identity in it. DoU Home and a paired cloud are
+  fine; "Add a cloud with another device" opens the screen from either.
 - **What it shows per state:** a spinner while requesting or applying; the code (`0734-4168`), its QR, the
   time left and "check that the app's approval screen shows `<this browser>`" while waiting; the code
   struck through with "get a new code" once it expired; a retry for declined, lost and failed.
@@ -52,10 +56,20 @@ started (`navigate(-2)`), or home when the app has nothing behind them.
 
 When the approver chose one of its clouds, the code screen's flow enters that cloud as a guest through
 the ordinary cloud switch — the relay's delegation answers for the approving account in that cloud —
-and adds the cloud to the paired-cloud list (`runtime.session` docs). The browser stays a relay guest.
-The home switch sheet then lists the cloud under "Approved clouds" (home docs), and "Add a cloud with
-another device" there opens this same screen for a second cloud, leaving the current cloud session as
-it is. A switch the relay refuses with 403 (`forgetRefusedPairedCloud`) takes the cloud off the list.
+and adds the cloud to the paired-cloud list (`runtime.session` docs). The tokens are re-issued through
+the delegation before the switch, so a browser that holds older tokens for the same cloud (an invite
+it accepted earlier, while on DoU Home) becomes the approver there at once, not silently at the next
+check. The browser stays a relay guest. The home switch sheet then lists the cloud under "Approved
+clouds" (home docs), and "Add a cloud with another device" there opens this same screen for a second
+cloud, leaving the current cloud session as it is.
+
+**A revoked approval signs the browser out.** The approval was the sign-in, so when the relay stops
+delegating the cloud — the paired-cloud check (`runtime/useCloudCredentialRenewal`), or a switch the
+relay refuses with 403 — the browser says so and runs the ordinary session logout. It is also the only
+way back in for the browser's own invites: the relay ties the revoked grant to the auth session that
+claimed it and refuses that session's delegation into the cloud (`403 … pairing revoked`) even for an
+invite it accepted there, until a new auth session replaces it. Every paired cloud ends with the
+logout, not only the revoked one.
 
 ### A phone signing in through another phone
 
@@ -70,10 +84,11 @@ a phone. A desktop app has no code screen; it already signs in by phone or Googl
 ## The approval screen
 
 `/mypage/pairing/approve`, from My page's "Approve web sign-in". Both the entry and the page require
-the flag, `isNative()` and a session that is **not** itself a secondary device
-(`runtime.session.useIsPairedSession`). The server would take an approval from a browser's phone login
-as well — keeping approvals in the apps is this screen's rule, not the server's. A guest app sees the
-entry too: it can approve its clouds, just not its relay account.
+the flag, `isNative()`, an **account** (not a guest) and a session that is **not** itself a secondary
+device (`runtime.session.useIsPairedSession`). Approving hands on a sign-in, so the approving device has
+to hold one: the server would take an approval from a browser's phone login, and a guest app's approval
+of its invited clouds, as well — keeping approvals in signed-in apps is this screen's rule, not the
+server's.
 
 1. **The code.** One input keeps digits only (a pasted `0734-4168` or spaced code works) and looks the
    code up once it has eight. The same eight digits are not looked up twice in a row — a lookup claims
@@ -82,8 +97,7 @@ entry too: it can approve its clouds, just not its relay account.
 2. **Who asks.** A large card: the requester's name, phone or browser by `client.platform`, the time
    left, and "approve only if this is the browser you just opened". A developer tool (`purpose:
 'debug'`) adds a warning and a checkbox, and approval stays off until it is ticked.
-3. **What it may use.** "My whole account" (relay) unless the account is a guest, then each cloud in the
-   cloud catalog. The active slot starts selected. With nothing to offer the screen says so and shows no
+3. **What it may use.** "My whole account" (relay), then each cloud in the cloud catalog. The active slot starts selected. With nothing to offer the screen says so and shows no
    approve button. The button repeats the scope ("Approve only Lemon"), the same words the device
    management screen uses later.
 4. **The answer.** Approve or decline, a toast, and back. Errors come from
@@ -102,8 +116,8 @@ is sent back; everyone else gets the first section, and an approving app the sec
   pairing would bring it straight back. `closed` only says a close was sent, so the list is re-read
   rather than trusted. The list is asked for on every open (`devicesKeys`, per cloud), and a server that
   does not answer `user.list-device` shows an error with a retry — dev's customer clouds do not yet.
-- **Approved sign-ins** — inside the app on a non-secondary session only (the relay answers 403 to anyone
-  else). Standing approvals, newest first, each with requester, scope ("my whole account" / "only
+- **Approved sign-ins** — inside the app, on an account that is not a secondary device — the devices
+  that can approve. Standing approvals, newest first, each with requester, scope ("my whole account" / "only
   Lemon", the same words the approval used), approval and sign-in times. A relay approval nobody
   claimed is a lost session and is flagged for removal; a cloud approval never carries a session, so it
   never is. Removing one warns per scope: a relay sign-in ends at once, a cloud one cannot come back but

@@ -14,7 +14,7 @@ session/                              69 source files, 36 tests
 ├── store/    12 files ·  4 tests  relay · cloud · identity tokens, selection, derived contexts
 ├── auth/     10 files ·  7 tests  login · cloud entry · teardown · the SDK delegate's material
 ├── scope/     3 files ·  1 test   ActiveScope — the three views, and the DataContextProvider
-├── pairing/   7 files ·  7 tests  device pairing: the code request flow, paired clouds, the secondary-device check, errors
+├── pairing/   8 files ·  8 tests  device pairing: the code request flow, paired clouds, the secondary-device check, errors
 ├── hooks/    35 files · 14 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 5 pairing
 └── index.ts                       the `session` facade group
 ```
@@ -282,7 +282,14 @@ themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests
 - **`usePairingRequest`** drives the code screen through `createPairingRequestFlow`, a machine with no
   React in it: request a code, poll `claim` every `interval` seconds, then sign in. A relay approval's
   session goes through `applySessionToken` — the same path a phone login takes — and a cloud approval
-  enters that cloud as a guest (`useSwitchCloudSession`) and adds it to the paired clouds.
+  enters that cloud as a guest through `enterPairedCloud`: it lets an exchange for the cloud already on
+  the wire finish, re-issues the cloud's tokens through the relay's delegation (`reissuePairedCloud`: the
+  socket serving the cloud re-registers and the committed cloud is aligned back to the selected place,
+  as a renewal does), then switches
+  (`useSwitchCloudSession`) and adds the cloud to the paired clouds. The re-issue comes first because a
+  switch replays the tokens it already holds for the cloud: a tab that joined the same cloud on an
+  invite of its own would have entered as itself and turned into the approver at the next re-issue,
+  mid-session and without a word.
     - **One claim at a time, and an approval is never dropped.** The session rides only the first
       `approved` answer; the server answers `claimed` afterwards. So the next claim waits for the last to
       settle, a stop and start (strict mode's remount) resumes the same loop instead of opening a second
@@ -292,6 +299,9 @@ themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests
 - **`pairedClouds`** (`chatic-paired-cloud-ids`, in the session's own storage) lists the clouds a guest
   entered through a pairing. A guest's cloud catalog is empty, so this list is what puts those clouds in
   the switch sheet.
+- **`isInOwnCloudSession`** — is this guest signed in to a cloud on its own (the committed cloud is
+  neither the relay nor a paired cloud)? A device asks for a pairing only while signed out, so the code
+  screens ask such a guest to sign out of the cloud first.
 - **`isPairedSession`** — is this a secondary device? A relay pairing's `$auth` carries `purpose` and
   `pairingId`, which no other login writes; a guest holding paired clouds counts too. A secondary device
   signs out with its approver, so it neither approves others nor lists approvals.
@@ -302,14 +312,20 @@ themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests
   next renewal anyway, so nothing may hold a logout hostage.
 - **`usePairedCloudCheck(onEnded)`** re-checks each paired cloud at mount, every ten minutes and when the
   app calls `check` (apps/web does on foreground return) by re-issuing its tokens through the relay's
-  delegation (`checkPairedCloud`). A cloud server knows nothing of the relay's pairings, so a cloud
+  delegation (`checkPairedCloud`, through the same `reissuePairedCloud`). A cloud server knows nothing of the relay's pairings, so a cloud
   session can outlive a revoked approval while it renews itself; the delegation does know, and answers 403. On a 403 the cloud gets the terminal-expiry teardown (cached tokens dropped, the session stores
-  cleared if it is the committed cloud), leaves the list, and `onEnded` lets the app say so. Anything
+  cleared if it is the committed cloud), ends (`endPairedCloud`: off the list, and the uid recorded for
+  it — the approver's — forgotten, so the identity map stops partitioning that cloud's cache under the
+  approver), and `onEnded` lets the app say so and sign the device out — the approval was its sign-in. Anything
   else waits for the next round. The cloud socket's own token refresh is **not** turned off for paired
   clouds, so between two rounds such a session can still renew itself — the ten-minute check is what
   bounds it.
-- **`forgetRefusedPairedCloud`** drops a paired cloud whose delegation the relay refused with 403 (the
+- **`forgetRefusedPairedCloud`** ends a paired cloud whose delegation the relay refused with 403 (the
   approval was revoked); any other failure leaves it for the next try.
+- **`isRefusedForRevokedPairing`** — the relay refused a cloud with `403 … pairing revoked`. The relay
+  keeps a revoked grant tied to the auth session that claimed it and refuses that session's delegation
+  into the cloud even where the session has a membership of its own (an invite). Only a new auth
+  session clears it, which is why an app signs the device out when it meets one.
 - **`classifyPairingError`** names the approval side's failures (`notFound` · `expired` · `codeRefused`
   · `targetRefused` · `alreadyHandled`) so both apps word them the same way.
 - **`pairingClientOf`** is what the request tells the approver about this device: the socket's own

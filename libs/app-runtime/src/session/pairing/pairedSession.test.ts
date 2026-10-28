@@ -1,8 +1,8 @@
 import { setStorageAdapter } from '@chatic/shared';
 
-import { relayStore } from '../store/stores';
+import { cloudStore, relayStore } from '../store/stores';
 import { pairedClouds } from './pairedClouds';
-import { isPairedSession } from './pairedSession';
+import { isInOwnCloudSession, isPairedSession } from './pairedSession';
 
 const store = new Map<string, string>();
 setStorageAdapter({
@@ -45,5 +45,28 @@ describe('isPairedSession', () => {
     it('is false with no session at all', () => {
         jest.spyOn(relayStore, 'getRelayToken').mockReturnValue(null);
         expect(isPairedSession()).toBe(false);
+    });
+});
+
+describe('isInOwnCloudSession', () => {
+    const committed = (cloudId: string | null) =>
+        jest.spyOn(cloudStore, 'getDelegationToken').mockReturnValue(cloudId ? ({ cloudId } as never) : null);
+
+    it('is true inside a cloud the guest entered on its own invite', () => {
+        committed('1000004');
+        expect(isInOwnCloudSession()).toBe(true);
+    });
+
+    it('is false on DoU Home, with no cloud committed or the relay', () => {
+        committed(null);
+        expect(isInOwnCloudSession()).toBe(false);
+        committed('default');
+        expect(isInOwnCloudSession()).toBe(false);
+    });
+
+    it('is false inside a cloud this device entered through a pairing', () => {
+        pairedClouds.add('1000004');
+        committed('1000004');
+        expect(isInOwnCloudSession()).toBe(false);
     });
 });

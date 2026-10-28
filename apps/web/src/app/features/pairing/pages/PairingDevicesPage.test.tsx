@@ -163,6 +163,7 @@ describe('PairingDevicesPage', () => {
     it.each([
         ['in a browser', () => (mockNative = false)],
         ['on a secondary device', () => (mockPaired = true)],
+        ['on a guest app', () => (mockGuest = true)],
     ])('does not show or ask for approvals %s', (_label, arrange) => {
         arrange();
         render(<PairingDevicesPage />);

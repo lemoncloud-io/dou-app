@@ -47,16 +47,10 @@ describe('MyPage — web sign-in approval entry', () => {
         expect(navigate).toHaveBeenCalledWith('/mypage/pairing/approve');
     });
 
-    it('is there for a guest too — a guest app can approve its clouds', () => {
-        mockGuest = true;
-        render(<MyPage />);
-
-        expect(screen.queryByText('pairing.entry.approve')).not.toBeNull();
-    });
-
     it.each([
         ['in a browser', () => (mockNative = false)],
         ['on a secondary device', () => (mockPaired = true)],
+        ['on a guest app', () => (mockGuest = true)],
         ['with the flag off', () => (mockPairingEnabled = false)],
     ])('is hidden %s', (_label, arrange) => {
         arrange();

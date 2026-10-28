@@ -30,10 +30,11 @@ export const MyPage = () => {
     const isGuest = useIsAccountGuest();
     const myUser = useMyUser();
     const pairingEnabled = useConfigValue<boolean>('feature.auth.devicePairing') === true;
-    // Approving is the apps' job, and a device that is itself signed in through an approval never
-    // approves another — it would sign out with its own approver.
+    // Approving is the apps' job, on an account: approving hands on a sign-in, and a guest has none of
+    // its own to give. A device that is itself signed in through an approval never approves another —
+    // it would sign out with its own approver.
     const isPairedSession = runtime.session.useIsPairedSession();
-    const canApprovePairing = pairingEnabled && isNative() && !isPairedSession;
+    const canApprovePairing = pairingEnabled && isNative() && !isGuest && !isPairedSession;
     // A browser guest has no account to list devices for; an app guest does have its own device.
     const canListDevices = pairingEnabled && (!isGuest || isNative());
 

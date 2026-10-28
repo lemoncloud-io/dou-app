@@ -43,7 +43,9 @@ const PairingDevicesScreen = () => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigateWithTransition();
     const isPaired = runtime.session.useIsPairedSession();
-    const showApprovals = isNative() && !isPaired;
+    const isGuest = useIsAccountGuest();
+    // The approvals are an approving app's: an account's, not a secondary device's.
+    const showApprovals = isNative() && !isGuest && !isPaired;
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const onCloud = !!selectedCloudId && selectedCloudId !== RELAY_SELECTION;
     const { clouds } = useCloudSessionCatalog();
