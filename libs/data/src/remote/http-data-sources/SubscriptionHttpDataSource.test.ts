@@ -13,7 +13,16 @@ describe('SubscriptionHttpDataSource', () => {
             markDrops: jest.fn(),
             adminMemberships: jest.fn(),
             updateMembershipByAdmin: jest.fn(),
+            refundSubscriptionByAdmin: jest.fn(),
             adminClouds: jest.fn(),
+            mySubscription: jest.fn(),
+            subscriptionCards: jest.fn(),
+            issueBillingKey: jest.fn(),
+            startSubscription: jest.fn(),
+            changeSubscription: jest.fn(),
+            cancelSubscription: jest.fn(),
+            replaceCard: jest.fn(),
+            removeCard: jest.fn(),
         };
         dataSource = new SubscriptionHttpDataSource(gateway);
     });
@@ -100,5 +109,56 @@ describe('SubscriptionHttpDataSource', () => {
         expect(gateway.updateMembershipByAdmin).toHaveBeenLastCalledWith('1000904', { adminStatus: '' }, undefined, {
             endpoint,
         });
+    });
+
+    it('forwards the web subscription calls, wrapping a product id into the body the gateway sends', async () => {
+        const payer = { name: 'n', phone: '01012345678', email: 'e@x.y' };
+        gateway.mySubscription.mockResolvedValue({ subscription: { id: 'U1:portone' } });
+        gateway.subscriptionCards.mockResolvedValue([{ id: 'c1', isDefault: true }]);
+
+        await expect(dataSource.fetchMySubscription()).resolves.toEqual({ subscription: { id: 'U1:portone' } });
+        await expect(dataSource.fetchSubscriptionCards()).resolves.toEqual([{ id: 'c1', isDefault: true }]);
+
+        await dataSource.issueBillingKey('p1');
+        expect(gateway.issueBillingKey).toHaveBeenCalledWith({ productId: 'p1' });
+
+        await dataSource.startSubscription({ productId: 'p1', billingKey: 'bk', ...payer });
+        expect(gateway.startSubscription).toHaveBeenCalledWith({ productId: 'p1', billingKey: 'bk', ...payer });
+
+        await dataSource.changeSubscription('p2');
+        expect(gateway.changeSubscription).toHaveBeenCalledWith({ productId: 'p2' });
+
+        await dataSource.replaceCard({ billingKey: 'bk', ...payer });
+        expect(gateway.replaceCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer });
+
+        await dataSource.cancelSubscription();
+        await dataSource.removeCard();
+        expect(gateway.cancelSubscription).toHaveBeenCalledTimes(1);
+        expect(gateway.removeCard).toHaveBeenCalledTimes(1);
+    });
+
+    // The refund takes no query params of its own; the relay's `auto`/`dryRun` defaults are what the
+    // console wants, so only the body and the stage's endpoint travel.
+    it('refundSubscriptionByAdmin — forwards the reason and the endpoint, and returns the raw view', async () => {
+        gateway.refundSubscriptionByAdmin.mockResolvedValue({ status: 'expired' });
+        const endpoint = 'https://api.example.com/dou-d1';
+
+        await expect(
+            dataSource.refundSubscriptionByAdmin('1000904', { reason: 'test refund' }, { endpoint })
+        ).resolves.toEqual({ status: 'expired' });
+        expect(gateway.refundSubscriptionByAdmin).toHaveBeenCalledWith(
+            '1000904',
+            { reason: 'test refund' },
+            undefined,
+            { endpoint }
+        );
+
+        await dataSource.refundSubscriptionByAdmin('1000904', { reason: 'r' });
+        expect(gateway.refundSubscriptionByAdmin).toHaveBeenLastCalledWith(
+            '1000904',
+            { reason: 'r' },
+            undefined,
+            undefined
+        );
     });
 });

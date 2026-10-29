@@ -1693,10 +1693,8 @@
         "close": "Close",
         "retry": "Try again",
         "target": {
-            "you": "You",
             "group": "Group chat",
             "oneToOne": "1:1 chat",
-            "place": "Place member",
             "roomFriends": "{{count}} members"
         },
         "expiry": {
@@ -1755,6 +1753,7 @@
         "networkError": "Please check your network connection and try again.",
         "authVerifyFailed": "Authentication failed. Please try again.",
         "expired": "This invite has expired or is invalid.",
+        "alreadyUsed": "You've already joined this invite.",
         "enterFailed": "The invite was accepted but entering failed. Please try again."
     },
     "relayInviteAccept": {

@@ -14,12 +14,6 @@ vi.mock('../lib/mock', async importOriginal => ({
 }));
 
 beforeAll(async () => {
-    window.matchMedia = ((query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-    })) as unknown as typeof window.matchMedia;
     await i18n.changeLanguage('en');
 });
 

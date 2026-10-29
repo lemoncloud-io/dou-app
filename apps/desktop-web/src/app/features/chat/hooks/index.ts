@@ -10,6 +10,7 @@ export * from './useFileDrop';
 export * from './useHydrateDmPeers';
 export * from './usePendingLanding';
 export * from './useNextUnreadShortcut';
+export * from './useRailShortcuts';
 export * from './useComposerSend';
 export * from './useTrailingPanelOwners';
 export * from './useThreadRoot';

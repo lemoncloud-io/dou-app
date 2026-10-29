@@ -19,8 +19,8 @@ inside be rearranged with no blast radius.
 grep -rn "@chatic/app-runtime/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-Four apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-`apps/testbed`. The surface itself is locked symbol by symbol by
+Five apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
+`apps/testbed`, and `apps/landing`'s account surface (sign-in and the subscription repository only). The surface itself is locked symbol by symbol by
 [`src/public-surface.test.ts`](./src/public-surface.test.ts): 81 value exports across the seven
 groups, and a test that fails if an eighth group appears or a symbol moves between them.
 

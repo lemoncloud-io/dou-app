@@ -192,6 +192,39 @@ describe('RichText mentions', () => {
         expect(container.querySelector('button')?.textContent).toBe('@Aiden.');
     });
 
+    it('draws a member whose name has a space as one pill', () => {
+        const container = renderText('@Sunyeop Hwang is the link on GitHub?', {
+            resolveMention: name =>
+                name.toLowerCase() === 'sunyeop hwang' ? { userId: 'u-sy', name: 'Sunyeop Hwang' } : undefined,
+            hasMentionRecord: true,
+        });
+        expect(container.querySelector('button')?.textContent).toBe('@Sunyeop Hwang');
+    });
+
+    it('keeps the words after a spaced name as text, and ends the pill before sentence punctuation', () => {
+        const resolveMention = (name: string) =>
+            name.toLowerCase() === 'sunyeop hwang' ? { userId: 'u-sy', name: 'Sunyeop Hwang' } : undefined;
+        const container = renderText('thanks @Sunyeop Hwang. see you', { resolveMention });
+        expect(container.querySelector('button')?.textContent).toBe('@Sunyeop Hwang.');
+        expect(container.textContent).toBe('thanks @Sunyeop Hwang. see you');
+    });
+
+    it('does not swallow prose after an unknown @word', () => {
+        const container = renderText('@ghost Hwang said hi', {
+            resolveMention: name => (name === 'Sunyeop Hwang' ? { userId: 'u', name } : undefined),
+            hasMentionRecord: true,
+        });
+        expect(ordinary(container)).toEqual(['@ghost']);
+    });
+
+    it('draws my own spaced name as a mention of me', () => {
+        const container = renderText('@Sunyeop Hwang hi', {
+            selfNames: ['sunyeop hwang'],
+            resolveMention: name => (name === 'Sunyeop Hwang' ? { userId: 'u', name } : undefined),
+        });
+        expect(self(container)).toEqual(['@Sunyeop Hwang']);
+    });
+
     it('draws a group word as an ordinary mention', () => {
         const container = renderText('@channel hi');
         expect(ordinary(container)).toEqual(['@channel']);

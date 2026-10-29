@@ -165,7 +165,7 @@ const PlansScene = ({
             )}
 
             {/* Below the widened layout a price no longer fits a fifth of the column, so the cards wrap. */}
-            <div className="grid grid-cols-3 gap-4 min-[1200px]:grid-cols-5">
+            <div className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 md:grid-cols-3 md:gap-4 min-[1200px]:grid-cols-5">
                 {choices.cards.map(choice => (
                     <ChoiceCard
                         key={choice.plan.id}
@@ -185,7 +185,7 @@ const PlansScene = ({
             {!canBuy && <InAppOnly />}
 
             {canBuy && (choices.mode === 'visitor' || choices.mode === 'new') && choices.entry && (
-                <div className="flex items-center gap-5">
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
                     <Button size="lg" className="rounded-full px-7" onClick={subscribe}>
                         {withTrial || !preview.data
                             ? t('subscription.entry.plans.subscribe', { plan: planName(choices.entry) })
@@ -203,7 +203,7 @@ const PlansScene = ({
             )}
 
             {choices.mode === 'change' && (choices.upgrade || choices.downgrade) && (
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                     {choices.upgrade && (
                         <Button
                             size="lg"
@@ -260,7 +260,7 @@ const InAppOnly = (): JSX.Element => {
             tone="info"
             title={t('subscription.entry.plans.inAppOnly.title')}
             action={
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                     <a href={storeUrls.ios} target="_blank" rel="noreferrer" className={store}>
                         App Store
                     </a>

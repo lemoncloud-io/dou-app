@@ -56,7 +56,7 @@ export const NoLinkedAccountPage = (): JSX.Element => {
 
     return (
         <div className="flex justify-center pt-6">
-            <Card className="flex w-[440px] flex-col gap-5 p-10">
+            <Card className="flex w-full max-w-[440px] flex-col gap-5 p-6 sm:p-10">
                 <header className="flex flex-col gap-3">
                     <h1 className="text-2xl font-bold text-navy">{t('subscription.entry.noAccount.title')}</h1>
                     <p className="text-sm leading-relaxed text-subtitle">{body}</p>
@@ -81,7 +81,7 @@ export const NoLinkedAccountPage = (): JSX.Element => {
                 </p>
 
                 <div className="flex flex-col gap-3">
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                         <a href={storeUrls.ios} target="_blank" rel="noopener noreferrer" className={storeLinkClass}>
                             {t('subscription.entry.store.appStore')}
                         </a>

@@ -21,13 +21,16 @@ import type { Clock, SubscriptionPort } from '../port';
 import type {
     AttemptPurpose,
     BillingEmail,
+    CardToken,
     ChangePreview,
     EmailCodeTicket,
     Money,
+    Payer,
     PaymentAttempt,
     PaymentMethod,
     PlanId,
     RegistrationOutcome,
+    RegistrationResult,
     Subscription,
 } from '../../types';
 
@@ -93,6 +96,9 @@ const fail = (code: SubscriptionPortError['code'], message?: string, detail?: Su
 
 const isFailFlag = (value: string | null): value is FailFlag =>
     !!value && (FAIL_FLAGS as readonly string[]).includes(value);
+
+const isCompletePayer = (payer: Payer | undefined): boolean =>
+    !!payer && !!payer.name.trim() && !!payer.phone.trim() && !!payer.email.trim();
 
 const publicAttempt = ({ settleAt: _s, settlesAs: _a, planId: _p, ...attempt }: MockAttempt): PaymentAttempt => attempt;
 
@@ -367,16 +373,14 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                       kind,
                       from,
                       to,
-                      amountToday:
-                          sub.status === 'trial'
-                              ? { amount: 0, currency: to.monthly.currency }
-                              : prorate(from.monthly, to.monthly, s.today, sub.nextBillingAt),
+                      amountToday: prorate(from.monthly, to.monthly, s.today, sub.nextBillingAt),
                       effectiveAt: s.today,
                       nextAmount: to.monthly,
                   }
                 : { kind, from, to, effectiveAt: sub.nextBillingAt ?? s.today, nextAmount: to.monthly };
         if (sub.status === 'pastDue' || sub.status === 'restricted') preview.blocked = 'pastDue';
         else if (changeKindOf(from, to, s.account) === 'blocked') preview.blocked = 'notAdjacent';
+        else if (sub.status === 'trial' && kind === 'upgrade') preview.blocked = 'trialUpgrade';
         else if (sub.pendingChange && sub.pendingChange.effectiveAt === s.today) preview.blocked = 'sameDayAsChange';
         return preview;
     };
@@ -494,8 +498,10 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         // that outcome is taken as is. A declined card fails the window itself only when adding a card
         // is all it is for: ahead of a charge the card registers and the charge that follows is what
         // fails, the way the designs split the two.
-        startPaymentMethodRegistration: async ({ purpose, planId }) => {
+        startPaymentMethodRegistration: async ({ purpose, planId, payer }) => {
             const suggested = await call((s): RegistrationOutcome => {
+                // The card company refuses a card without its holder, as the real window does.
+                if (!isCompletePayer(payer)) fail('conflict', 'mock: payer name, phone and email are required');
                 if (s.fail === 'attempt-limit' || s.failedCardAttempts >= MOCK_POLICY.maxCardAttempts) {
                     fail('limit', 'mock: card registration attempts used up');
                 }
@@ -504,7 +510,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 return 'registered';
             });
             const outcome = paymentWindow ? await paymentWindow({ purpose, planId, suggested }) : suggested;
-            return call(s => {
+            return call((s): RegistrationResult => {
                 if (outcome === 'failed') s.failedCardAttempts += 1;
                 if (outcome !== 'registered') return { outcome };
                 const makeDefault = purpose !== 'addCard' || s.paymentMethods.length === 0;
@@ -522,22 +528,31 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 if (makeDefault) {
                     s.subscriptions.filter(isLive).forEach(sub => (sub.defaultPaymentMethodId = card.id));
                 }
-                return { outcome };
+                return { outcome, card: card.id as CardToken };
             });
         },
 
-        startCheckout: ({ planId, country, emailId }) =>
+        // The stand-in window is a dialog on the page and never leaves it, so nothing comes back from one.
+        completePaymentMethodRegistration: () =>
+            Promise.reject(new SubscriptionPortError('conflict', 'mock: no payment window left the page')),
+
+        startCheckout: ({ planId, country, emailId, payer }) =>
             call(s => {
                 // A second submit while the first is still processing gets the same attempt back,
                 // as a server would, rather than a second subscription when both settle.
                 const pending = s.attempts.find(a => a.purpose === 'start' && a.status === 'processing');
                 if (pending) return publicAttempt(pending);
+                if (!isCompletePayer(payer)) fail('conflict', 'payer name, phone and email are required');
                 if (liveSubscription(s)) fail('conflict', 'already subscribed');
                 if (changeKindOf(undefined, planOf(planId), s.account) !== 'new') fail('conflict', 'plan not sellable');
                 if (country !== 'KR') fail('conflict', 'billing country not supported yet');
                 if (!defaultCard(s)) fail('conflict', 'no payment method');
-                const email = s.billing.emails.find(e => e.id === emailId);
-                if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
+                // A checkout without a billing email (the billing-email screens are hidden) is charged
+                // with the payer's own address, which is all the card company asks for.
+                if (emailId !== undefined) {
+                    const email = s.billing.emails.find(e => e.id === emailId);
+                    if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
+                }
                 return startAttempt(s, { purpose: 'start', planId, withTrial: !s.account.trialUsed });
             }),
 

@@ -1,15 +1,23 @@
-import { type JSX, useState } from 'react';
+import { type JSX, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { isDevStage } from '../../../../config/stage';
 import { ROUTES } from '../../../../routes/paths';
 import { PageLoader } from '../../components';
 import { Banner, Button, Card } from '../../components/ui';
-import { usePreviewCheckout, useStartCheckout, useStartPaymentMethodRegistration } from '../../hooks';
+import {
+    useCompletePaymentMethodRegistration,
+    usePreviewCheckout,
+    useStartCheckout,
+    useStartPaymentMethodRegistration,
+} from '../../hooks';
 import { toIsoDate } from '../../lib/calendar';
+import { clearPendingCheckout, peekPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
 import { isPortError, useToday } from '../../lib/port';
 import { formatDate, formatMoney } from '../../utils';
 import {
+    type CheckoutDetails,
     changePlanUrl,
     checkoutDetailsOf,
     checkoutUrl,
@@ -21,6 +29,12 @@ import {
 } from './flow';
 import { CheckoutSteps, FactRows, LoadError, OrderSummary } from './parts';
 import { usePlanRoute } from './usePlanRoute';
+
+import type { CardToken, PlanId } from '../../types';
+
+/** What an unexpected failure said, for a dev host only: a phone has no console to read it from. */
+const detailOf = (error: unknown): string | undefined =>
+    isDevStage && !isPortError(error) ? (error instanceof Error ? error.message : String(error)) : undefined;
 
 const errorKeyOf = (error: unknown): string => {
     if (isPortError(error, 'limit')) return 'subscription.checkout.payment.error.limit';
@@ -34,7 +48,7 @@ const errorKeyOf = (error: unknown): string => {
  * starts and the reader follows it on W-09. A window that fails or is closed has started nothing, so
  * W-09 is told only how it ended.
  *
- * It needs what W-08 settled (country, billing email), carried in the navigation state; without it —
+ * It needs what W-08 settled (country, billing email, payer), carried in the navigation state; without it —
  * a pasted link, or a return after signing in again — it goes back to W-08 rather than skip the
  * consents given there.
  */
@@ -45,18 +59,81 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     const { loading, error: loadError, retry, target: plan, route } = usePlanRoute();
     const preview = usePreviewCheckout(route === 'checkout' ? plan?.id : undefined);
     const registration = useStartPaymentMethodRegistration();
+    const completeRegistration = useCompletePaymentMethodRegistration();
     const startCheckout = useStartCheckout();
+    const [params] = useSearchParams();
     const today = toIsoDate(useToday());
     const [error, setError] = useState<string>();
+    const [detail, setDetail] = useState<string>();
     // Once the window has registered a card for this checkout, trying again goes straight to the
-    // charge: reopening the window would register (and with a real provider, authorise) another card.
-    const [registered, setRegistered] = useState(false);
+    // charge with that card: reopening the window would register (and with a real provider,
+    // authorise) another one.
+    const [card, setCard] = useState<CardToken>();
 
-    const details = checkoutDetailsOf(location.state);
+    // A phone's payment window is the provider's own page: the browser left for it and came back here
+    // with the result in the query. The state W-08 handed over did not survive the trip, so the checkout
+    // saved when the window opened stands in for it.
+    const [returning] = useState(() => {
+        const comesBack = [...params.keys()].some(key => key !== 'plan');
+        return comesBack ? peekPendingCheckout(params.get('plan')) : undefined;
+    });
+    const [resuming, setResuming] = useState(!!returning);
+    const resumed = useRef(false);
+
+    const details =
+        checkoutDetailsOf(location.state) ??
+        (returning ? checkoutDetailsOf({ checkout: returning.details }) : undefined);
+
+    // From the registration on: a registered card goes straight on to the charge, anything else to the
+    // screen that says how the window ended.
+    const charge = async (planId: PlanId, forDetails: CheckoutDetails, registeredCard: CardToken) => {
+        const attempt = await startCheckout.mutateAsync({
+            planId,
+            country: forDetails.country,
+            emailId: forDetails.emailId,
+            payer: forDetails.payer,
+            card: registeredCard,
+        });
+        // Replaced, not pushed: Back from W-09 should not land on a payment form already paid.
+        navigate(statusUrl(attempt.id, planId), { replace: true, ...withCheckoutDetails(forDetails) });
+    };
+
+    useEffect(() => {
+        if (!returning || resumed.current) return;
+        resumed.current = true;
+        const settled = checkoutDetailsOf({ checkout: returning.details });
+        if (!settled) return;
+        clearPendingCheckout();
+        completeRegistration
+            .mutateAsync({ callback: params, purpose: 'start', payer: settled.payer })
+            .then(result => {
+                if (result.outcome !== 'registered') {
+                    navigate(registrationOutcomeUrl(returning.planId, result.outcome), {
+                        replace: true,
+                        ...withCheckoutDetails(settled),
+                    });
+                    return undefined;
+                }
+                setCard(result.card);
+                return charge(returning.planId, settled, result.card);
+            })
+            .catch((err: unknown) => {
+                // A lost session is the route root's to handle; it has already moved the reader on.
+                if (!isPortError(err, 'unauthenticated')) {
+                    setError(errorKeyOf(err));
+                    setDetail(detailOf(err));
+                }
+                setResuming(false);
+            });
+        // Once per arrival: the saved checkout is taken away above, so a second run would find nothing.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     if (loading) return <PageLoader />;
     if (loadError) return <LoadError error={loadError} onRetry={retry} />;
     if (!plan) return <Navigate to={ROUTES.subscription.plans} replace />;
+    // The window's result is being read and the charge started: nothing for the reader to press yet.
+    if (resuming) return <PageLoader />;
     // Back from W-09 or W-06, or a second tab: a subscriber has nothing left to buy here.
     if (route === 'change') return <Navigate to={changePlanUrl(plan.id)} replace />;
     if (route === 'plans') return <Navigate to={ROUTES.subscription.plans} replace />;
@@ -71,30 +148,38 @@ export const CheckoutPaymentPage = (): JSX.Element => {
 
     const onPay = async () => {
         setError(undefined);
+        setDetail(undefined);
         try {
-            if (!registered) {
-                const { outcome } = await registration.mutateAsync({ purpose: 'start', planId: plan.id });
-                if (outcome !== 'registered') {
-                    navigate(registrationOutcomeUrl(plan.id, outcome), withCheckoutDetails(details));
+            let registeredCard = card;
+            if (!registeredCard) {
+                // On a phone this call never returns: the page leaves for the provider's, and what was
+                // settled here has to be waiting when it comes back.
+                savePendingCheckout({ planId: plan.id, details });
+                const result = await registration.mutateAsync({
+                    purpose: 'start',
+                    planId: plan.id,
+                    payer: details.payer,
+                });
+                clearPendingCheckout();
+                if (result.outcome !== 'registered') {
+                    navigate(registrationOutcomeUrl(plan.id, result.outcome), withCheckoutDetails(details));
                     return;
                 }
-                setRegistered(true);
+                registeredCard = result.card;
+                setCard(registeredCard);
             }
-            const attempt = await startCheckout.mutateAsync({
-                planId: plan.id,
-                country: details.country,
-                emailId: details.emailId,
-            });
-            // Replaced, not pushed: Back from W-09 should not land on a payment form already paid.
-            navigate(statusUrl(attempt.id, plan.id), { replace: true, ...withCheckoutDetails(details) });
+            await charge(plan.id, details, registeredCard);
         } catch (err) {
             // A lost session is the route root's to handle; it has already moved the reader on.
-            if (!isPortError(err, 'unauthenticated')) setError(errorKeyOf(err));
+            if (!isPortError(err, 'unauthenticated')) {
+                setError(errorKeyOf(err));
+                setDetail(detailOf(err));
+            }
         }
     };
 
     return (
-        <div className="grid grid-cols-[minmax(0,1fr)_260px] gap-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_260px] md:gap-8">
             <div className="flex flex-col gap-6">
                 <CheckoutSteps current={4} />
                 <header className="flex flex-col gap-2">
@@ -117,7 +202,11 @@ export const CheckoutPaymentPage = (): JSX.Element => {
                     </div>
                 </Card>
 
-                {error && <Banner tone="danger" title={t(error)} />}
+                {error && (
+                    <Banner tone="danger" title={t(error)}>
+                        {detail}
+                    </Banner>
+                )}
 
                 <Button size="lg" className="w-full rounded-full" disabled={busy} onClick={onPay}>
                     {withTrial

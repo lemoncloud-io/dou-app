@@ -1,4 +1,4 @@
-import { type JSX, useEffect, useRef, useState } from 'react';
+import { Fragment, type JSX, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -10,7 +10,8 @@ import { subscriptionKeys } from '../hooks';
 import { type PortSetup, createPortSetup } from '../lib/createPortSetup';
 import { registerSubscriptionCopy } from '../lib/i18n';
 import { MockControllerProvider } from '../lib/mock';
-import { PortProvider, isPortError } from '../lib/port';
+import { PortProvider, isPortError, useSupports } from '../lib/port';
+import { MANAGEMENT_SCREENS_OPEN, ManagementScreensProvider } from '../lib/screens';
 import { sessionEndedRedirect } from '../lib/sessionEnded';
 import { BillingHistoryPage, BillingInfoPage, PaymentMethodsPage } from '../pages/billing';
 import {
@@ -24,7 +25,7 @@ import {
 import { MockProviderPage, MockReceiptPage } from '../pages/dev';
 import { LoginCallbackPage, LoginPage, NoLinkedAccountPage, PlansPage, StoreManagedPage } from '../pages/entry';
 import { CancelSubscriptionPage, SubscriptionDetailPage, SubscriptionListPage } from '../pages/manage';
-import { DesktopOnlyGuard, RedirectIfSignedIn, RequireSession } from './guards';
+import { RedirectIfSignedIn, RequireSession } from './guards';
 
 // This chunk loading is the moment the subscription copy joins the site's translations.
 registerSubscriptionCopy();
@@ -66,9 +67,12 @@ const createQueryClient = (onUnauthenticated: () => void): QueryClient => {
 export const SubscriptionRoutes = ({
     account = true,
     setup = setupFor(account),
+    management = MANAGEMENT_SCREENS_OPEN,
 }: {
     account?: boolean;
     setup?: PortSetup;
+    /** Whether the card and billing-email screens exist (`lib/screens.tsx`). */
+    management?: boolean;
 }): JSX.Element => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -88,15 +92,18 @@ export const SubscriptionRoutes = ({
     });
 
     const mock = !!setup.mock;
+    const Host = setup.Host ?? Fragment;
 
     return (
         <QueryClientProvider client={queryClient}>
-            <PortProvider port={setup.port} clock={setup.clock}>
+            <PortProvider port={setup.port} clock={setup.clock} supports={setup.supports}>
                 <MockControllerProvider controller={setup.mock}>
                     <ToastProvider>
-                        <DesktopOnlyGuard account={account}>
-                            {account ? <AccountRoutes mock={mock} /> : <CatalogRoutes />}
-                        </DesktopOnlyGuard>
+                        <ManagementScreensProvider open={management}>
+                            <Host>
+                                {account ? <AccountRoutes mock={mock} management={management} /> : <CatalogRoutes />}
+                            </Host>
+                        </ManagementScreensProvider>
                         {mock && <MockPaymentWindow />}
                         {mock && <DevScenarioPanel />}
                     </ToastProvider>
@@ -116,44 +123,61 @@ const CatalogRoutes = (): JSX.Element => (
     </Routes>
 );
 
-const AccountRoutes = ({ mock }: { mock: boolean }): JSX.Element => (
-    <Routes>
-        <Route element={<PublicShell />}>
-            <Route path="plans" element={<PlansPage />} />
-            <Route
-                path="login"
-                element={
-                    <RedirectIfSignedIn>
-                        <LoginPage />
-                    </RedirectIfSignedIn>
-                }
-            />
-            <Route path="login/callback" element={<LoginCallbackPage />} />
-            <Route path="login/no-account" element={<NoLinkedAccountPage />} />
-            <Route element={<RequireSession allowStoreBilled />}>
-                <Route path="store-managed" element={<StoreManagedPage />} />
+const AccountRoutes = ({ mock, management }: { mock: boolean; management: boolean }): JSX.Element => {
+    // The billing history is left out where the port has no server for it, like the hidden screens.
+    const history = useSupports()('listInvoices');
+    return (
+        <Routes>
+            <Route element={<PublicShell />}>
+                <Route path="plans" element={<PlansPage />} />
+                <Route
+                    path="login"
+                    element={
+                        <RedirectIfSignedIn>
+                            <LoginPage />
+                        </RedirectIfSignedIn>
+                    }
+                />
+                <Route path="login/callback" element={<LoginCallbackPage />} />
+                <Route path="login/no-account" element={<NoLinkedAccountPage />} />
+                <Route element={<RequireSession allowStoreBilled />}>
+                    <Route path="store-managed" element={<StoreManagedPage />} />
+                </Route>
+                <Route element={<RequireSession />}>
+                    {management && <Route path="checkout/email" element={<CheckoutEmailPage />} />}
+                    <Route path="checkout" element={<CheckoutPage />} />
+                    <Route path="checkout/payment" element={<CheckoutPaymentPage />} />
+                    <Route path="checkout/status" element={<CheckoutStatusPage />} />
+                    <Route path="checkout/complete" element={<CheckoutCompletePage />} />
+                    <Route path="change" element={<ChangePlanPage />} />
+                </Route>
             </Route>
             <Route element={<RequireSession />}>
-                <Route path="checkout/email" element={<CheckoutEmailPage />} />
-                <Route path="checkout" element={<CheckoutPage />} />
-                <Route path="checkout/payment" element={<CheckoutPaymentPage />} />
-                <Route path="checkout/status" element={<CheckoutStatusPage />} />
-                <Route path="checkout/complete" element={<CheckoutCompletePage />} />
-                <Route path="change" element={<ChangePlanPage />} />
+                <Route element={<AccountShell />}>
+                    <Route index element={<SubscriptionListPage />} />
+                    {management ? (
+                        <Route path="payment-methods" element={<PaymentMethodsPage />} />
+                    ) : (
+                        // Not a screen, but a path the next route would take for a subscription's id.
+                        <Route path="payment-methods" element={<Navigate to={ROUTES.subscription.root} replace />} />
+                    )}
+                    {history ? (
+                        <Route path="history" element={<BillingHistoryPage />} />
+                    ) : (
+                        <Route path="history" element={<Navigate to={ROUTES.subscription.root} replace />} />
+                    )}
+                    {management ? (
+                        <Route path="billing-info" element={<BillingInfoPage />} />
+                    ) : (
+                        <Route path="billing-info" element={<Navigate to={ROUTES.subscription.root} replace />} />
+                    )}
+                    <Route path=":subscriptionId" element={<SubscriptionDetailPage />} />
+                    <Route path=":subscriptionId/cancel" element={<CancelSubscriptionPage />} />
+                </Route>
             </Route>
-        </Route>
-        <Route element={<RequireSession />}>
-            <Route element={<AccountShell />}>
-                <Route index element={<SubscriptionListPage />} />
-                <Route path="payment-methods" element={<PaymentMethodsPage />} />
-                <Route path="history" element={<BillingHistoryPage />} />
-                <Route path="billing-info" element={<BillingInfoPage />} />
-                <Route path=":subscriptionId" element={<SubscriptionDetailPage />} />
-                <Route path=":subscriptionId/cancel" element={<CancelSubscriptionPage />} />
-            </Route>
-        </Route>
-        {mock && <Route path="login/mock-provider" element={<MockProviderPage />} />}
-        {mock && <Route path="mock-receipt" element={<MockReceiptPage />} />}
-        <Route path="*" element={<Navigate to={ROUTES.subscription.root} replace />} />
-    </Routes>
-);
+            {mock && <Route path="login/mock-provider" element={<MockProviderPage />} />}
+            {mock && <Route path="mock-receipt" element={<MockReceiptPage />} />}
+            <Route path="*" element={<Navigate to={ROUTES.subscription.root} replace />} />
+        </Routes>
+    );
+};

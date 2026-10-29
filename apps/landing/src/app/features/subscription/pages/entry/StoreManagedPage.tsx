@@ -37,7 +37,7 @@ export const StoreManagedPage = (): JSX.Element => {
 
     return (
         <div className="flex justify-center pt-6">
-            <Card className="flex w-[500px] flex-col gap-5 p-10">
+            <Card className="flex w-full max-w-[500px] flex-col gap-5 p-6 sm:p-10">
                 <Badge tone="navy" className="self-start">
                     {t('subscription.entry.storeManaged.badge', { store })}
                 </Badge>

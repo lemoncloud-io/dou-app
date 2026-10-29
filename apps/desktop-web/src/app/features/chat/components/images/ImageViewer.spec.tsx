@@ -7,7 +7,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 // Initialises i18next, so the position line reads as the viewer says it.
 import '../../../../../i18n';
 
-import { ImageViewer } from './ImageViewer';
+import { ImageViewer, stageFitStyle } from './ImageViewer';
 import { CLICK_ZOOM_SCALE, MAX_ZOOM_SCALE, ZOOM_STEP } from './imageZoom';
 
 const images = ['a.png', 'b.png', 'c.png'].map((name, index) => ({ id: `i${index}`, name, url: `blob:${name}` }));
@@ -171,17 +171,77 @@ describe('ImageViewer zoom', () => {
         expect(scaleOf()).toBe(CLICK_ZOOM_SCALE);
     });
 
-    it('steps the zoom with the buttons, and the percentage goes back to fit', () => {
+    it('steps the zoom with the buttons, and the fit button goes back to fit', () => {
         renderViewer();
         const zoomOut = screen.getByRole('button', { name: 'Zoom out' });
         expect(zoomOut).toHaveProperty('disabled', true);
 
         fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
         expect(scaleOf()).toBe(ZOOM_STEP);
-        expect(screen.getByRole('button', { name: 'Fit to window' }).textContent).toBe('150%');
+        expect(screen.queryByText('150%')).toBeNull();
 
         fireEvent.click(screen.getByRole('button', { name: 'Fit to window' }));
         expect(scaleOf()).toBe(1);
+    });
+
+    it('sets the zoom from the slider, and the slider follows the buttons', () => {
+        renderViewer();
+        const slider = screen.getByRole('slider', { name: 'Zoom' }) as HTMLInputElement;
+        expect(slider.value).toBe('1');
+
+        fireEvent.change(slider, { target: { value: '2.5' } });
+        expect(scaleOf()).toBe(2.5);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Fit to window' }));
+        expect(slider.value).toBe('1');
+        fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+        expect(slider.value).toBe(String(ZOOM_STEP));
+    });
+
+    it('keeps the arrow keys on the slider from stepping to another picture', () => {
+        renderViewer();
+        fireEvent.keyDown(screen.getByRole('slider', { name: 'Zoom' }), { key: 'ArrowRight' });
+        expect(position()).toBe('');
+    });
+
+    it("pulls a panned, zoomed photo back inside the turned photo's edges when it is rotated", () => {
+        renderViewer();
+        const translateX = () => parseFloat(layer().style.transform.match(/translate3d\(([-\d.]+)px/)?.[1] ?? '');
+        // The 400x200 landscape can be dragged sideways while upright, but turned it is 200 wide.
+        wheelZoomIn(0, 0);
+        expect(translateX()).toBeGreaterThan(0);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Rotate' }));
+        expect(translateX()).toBe(0);
+    });
+
+    it('drops the upright size caps once turned sideways, so the fit style bounds it instead', () => {
+        renderViewer();
+        Object.defineProperty(photo(), 'naturalWidth', { value: 800 });
+        Object.defineProperty(photo(), 'naturalHeight', { value: 400 });
+        fireEvent.load(photo());
+        expect(photo().className).toContain('max-w-full');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Rotate' }));
+        expect(photo().className).not.toContain('max-w-full');
+    });
+
+    it('rotates a quarter turn per press, and starts the next picture upright', () => {
+        renderViewer();
+        const rotate = screen.getByRole('button', { name: 'Rotate' });
+        expect(photo().style.transform).toBe('');
+
+        fireEvent.click(rotate);
+        expect(photo().style.transform).toBe('rotate(90deg)');
+        fireEvent.click(rotate);
+        expect(photo().style.transform).toBe('rotate(180deg)');
+        fireEvent.click(rotate);
+        fireEvent.click(rotate);
+        // The angle keeps counting, so the fourth press does not spin three quarters back.
+        expect(photo().style.transform).toBe('rotate(360deg)');
+
+        fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' });
+        expect(photo().style.transform).toBe('');
     });
 
     it('zooms with + and -, fits with 0, and stops at the maximum', () => {
@@ -220,5 +280,19 @@ describe('ImageViewer zoom', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Open b.png' }));
         expect(scaleOf()).toBe(1);
         expect(position()).toContain('Image 2 of 3');
+    });
+});
+
+describe('stageFitStyle', () => {
+    const natural = { width: 800, height: 400 };
+
+    it('holds the photo by the stage width upright and by the stage height turned sideways', () => {
+        expect(stageFitStyle(natural, 0)?.width).toBe('min(1600px, 100cqw, calc(100cqh * 2))');
+        expect(stageFitStyle(natural, 1)?.width).toBe('min(1600px, 100cqh, calc(100cqw * 2))');
+        expect(stageFitStyle(natural, 2)?.width).toBe(stageFitStyle(natural, 0)?.width);
+    });
+
+    it('draws nothing of its own before the photo has loaded', () => {
+        expect(stageFitStyle(null, 1)).toBeUndefined();
     });
 });

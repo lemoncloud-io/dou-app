@@ -12,7 +12,7 @@ import {
     TableRow,
 } from '../../components/ui';
 import { useInvoices, useSubscriptions } from '../../hooks';
-import { isPortError } from '../../lib/port';
+import { isPortError, useSupports } from '../../lib/port';
 import { splitSubscriptions } from './manageModel';
 
 import type { ManageFormat } from './useManageFormat';
@@ -36,11 +36,12 @@ export const RecentInvoices = ({ sub, fmt }: { sub: Subscription; fmt: ManageFor
     const { t } = useTranslation();
     const invoices = useInvoices();
     const subscriptions = useSubscriptions();
+    const supported = useSupports()('listInvoices');
     const recent = (invoices.data ?? []).slice(0, RECENT_COUNT);
     const key = 'subscription.manage.detail.invoices';
 
     const { live } = splitSubscriptions(subscriptions.data ?? []);
-    if (live && live.id !== sub.id) return null;
+    if (!supported || (live && live.id !== sub.id)) return null;
 
     const notice = invoices.isError
         ? t(`subscription.common.error.${isPortError(invoices.error, 'network') ? 'network' : 'unknown'}`)

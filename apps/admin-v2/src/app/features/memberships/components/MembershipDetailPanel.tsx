@@ -1,7 +1,7 @@
 /**
  * `components/memberships/MembershipDetailPanel.tsx`
- * - The right column: one membership's record, its override, its clouds, and the form that changes
- *   them.
+ * - The right column: one membership's record, its override, its clouds, the form that changes
+ *   them, and — for a web subscription — the refund.
  *
  * A layout column at `xl` and up, an overlay below it — the same switch the log console's detail
  * panel makes, and for the same reason: three columns need width, and the list matters more than
@@ -18,8 +18,10 @@ import { formatDate } from '@chatic/shared';
 
 import { useAdminClouds } from '../api/membershipsQuery';
 import { describeGrade, describeOverrideBadge, hasDerivationMismatch } from '../lib/membershipRow';
+import { isWebSubscription } from '../lib/refund';
 import { CloudPanel } from './CloudPanel';
 import { OverridePanel } from './OverridePanel';
+import { RefundPanel } from './RefundPanel';
 
 import type { RelayStage } from '../lib/targetServer';
 
@@ -56,7 +58,9 @@ export const MembershipDetailPanel = ({ membership, onClose, onUpdated, now, sta
     useEffect(() => {
         if (!membership) return;
         const onKey = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') onClose();
+            // An open confirmation owns Escape. Closing the drawer under it would unmount a panel
+            // whose write may still be in flight, and its outcome would never be shown.
+            if (event.key === 'Escape' && !document.querySelector('[role="alertdialog"]')) onClose();
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
@@ -147,6 +151,13 @@ export const MembershipDetailPanel = ({ membership, onClose, onUpdated, now, sta
             <Section title="Change override">
                 <OverridePanel key={`${userId}@${stage}`} membership={membership} onDone={onUpdated} stage={stage} />
             </Section>
+
+            {/* Store subscriptions are refunded by the store; only a web subscription has a charge here. */}
+            {isWebSubscription(membership) && (
+                <Section title="Web subscription refund">
+                    <RefundPanel key={`${userId}@${stage}`} membership={membership} stage={stage} />
+                </Section>
+            )}
         </aside>
     );
 };

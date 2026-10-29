@@ -16,6 +16,7 @@ import {
     useSubscription,
 } from '../../hooks';
 import { isPortError } from '../../lib/port';
+import { useManagementScreens } from '../../lib/screens';
 import { formatDate, formatMoney } from '../../utils';
 import {
     type AttemptVariant,
@@ -65,6 +66,7 @@ const useQueryPlan = (): Plan | undefined => {
 
 const AttemptStatus = ({ attemptId }: { attemptId: string }): JSX.Element => {
     const location = useLocation();
+    const management = useManagementScreens();
     const plan = useQueryPlan();
     const attempt = usePaymentAttempt(attemptId);
 
@@ -81,7 +83,11 @@ const AttemptStatus = ({ attemptId }: { attemptId: string }): JSX.Element => {
     if (scene.kind === 'complete') {
         return <Navigate to={completeUrl(attempt.data.id, plan?.id)} replace state={location.state} />;
     }
-    if (scene.kind === 'cardAdded') return <Navigate to={ROUTES.subscription.paymentMethods} replace />;
+    // A card added on its own can only have been started from the card screens; with them hidden there is
+    // nothing of theirs to return to.
+    if (scene.kind === 'cardAdded') {
+        return <Navigate to={management ? ROUTES.subscription.paymentMethods : ROUTES.subscription.root} replace />;
+    }
     // The scene changes in place when the attempt settles; a live region lets a screen reader hear it.
     return (
         <div aria-live="polite">
@@ -183,7 +189,7 @@ const StatusScreen = ({
                     title={t(key('retried.title'))}
                     body={sub ? t(key('retried.body'), { day: sub.billingDay }) : undefined}
                 />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <SummaryTile label={t(key('retried.amount'))} value={price ?? '—'} />
                     <SummaryTile label={t(key('retried.card'))} value={cardLabel(facts.card, t) ?? '—'} />
                     <SummaryTile
@@ -251,6 +257,7 @@ const FailedScene = ({
     retry: (label: ReactNode, className: string) => JSX.Element;
 }): JSX.Element => {
     const { t } = useTranslation();
+    const management = useManagementScreens();
     const key = (name: string) => `subscription.checkout.status.failed.${name}`;
     const keepPlan = subscriptionPlan ? t(`subscription.checkout.planEul.${subscriptionPlan.sort}`) : '';
 
@@ -259,14 +266,15 @@ const FailedScene = ({
         next: t(key(variant === 'card' ? 'reasonNext.register' : 'reasonNext.pay')),
     });
 
-    const manageCards = (
+    // The card screens are hidden, so what would have sent the reader to them goes with them.
+    const manageCards = management ? (
         <Link
             to={ROUTES.subscription.paymentMethods}
             className="inline-flex h-12 items-center justify-center rounded-full border border-border bg-white px-7 text-[15px] font-semibold text-navy hover:bg-muted"
         >
             {t(key('manageCards'))}
         </Link>
-    );
+    ) : null;
 
     return (
         <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-8">
@@ -281,7 +289,13 @@ const FailedScene = ({
             </NoteBox>
             <div className="flex flex-wrap gap-3">
                 {variant === 'retry' ? (
-                    retry(t(key('manageCards')), primaryLink)
+                    management ? (
+                        retry(t(key('manageCards')), primaryLink)
+                    ) : (
+                        <Link to={ROUTES.subscription.detail(subscription?.id ?? '')} className={primaryLink}>
+                            {t('subscription.common.actions.close')}
+                        </Link>
+                    )
                 ) : (
                     <>
                         {retry(t('subscription.common.actions.retry'), primaryLink)}

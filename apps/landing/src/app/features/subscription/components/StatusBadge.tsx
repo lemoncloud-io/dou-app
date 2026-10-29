@@ -8,6 +8,7 @@ import type { Subscription } from '../types';
 type BadgeState = Subscription['status'] | 'downgradeScheduled';
 
 const TONE: Record<BadgeState, BadgeTone> = {
+    pending: 'info',
     trial: 'info',
     active: 'navy',
     pastDue: 'danger',

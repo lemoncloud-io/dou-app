@@ -7,10 +7,17 @@ import { Home, MailPlus, Pencil, Plus, SlidersHorizontal, Trash2 } from 'lucide-
 
 import type { DomainPlace } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
-import { applyChannelOrder, usePlaceOrder } from '@chatic/shared';
+import { usePlaceOrder } from '@chatic/shared';
 
 import { ConfirmDialog, useSendInviteStore } from '../../channels';
-import { isAtPlaceLimit, isManagedPlace, PLACE_MAX, placeFailure, type PlaceFailure } from '../utils';
+import {
+    isAtPlaceLimit,
+    isManagedPlace,
+    orderedRailPlaces,
+    PLACE_MAX,
+    placeFailure,
+    type PlaceFailure,
+} from '../utils';
 import {
     ContextMenu,
     ContextMenuContent,
@@ -267,13 +274,10 @@ export const PlaceRail = ({
     const placeScroll = useScrollOverflow<HTMLDivElement>();
 
     // The order the user dragged the tiles into, kept per cloud: a place id means nothing outside
-    // its cloud. Every place on the rail is the active cloud's, so the first one names it.
+    // its cloud. Every place on the rail is the active cloud's, so the first one names it. The
+    // number keys read the same order, so a digit names the tile it is next to on this rail.
     const { storedIds, set: setStoredOrder } = usePlaceOrder(places[0]?.cid ?? null);
-    const placeById = new Map(places.map(place => [place.id, place]));
-    const ordered = applyChannelOrder(
-        places.map(place => place.id),
-        storedIds
-    ).flatMap(id => placeById.get(id) ?? []);
+    const ordered = orderedRailPlaces(places, storedIds);
 
     // At the cap the tile stays and the click says why: a tile that vanished would only raise
     // "where did it go". More room is another cloud, and those are made in the mobile app.

@@ -16,19 +16,22 @@ import { useInviteCountdown } from '../../hooks/useInviteCountdown';
 import type { InviteInfo, InviteParams } from '../types';
 import { useStackNavigate } from '../../../../navigation';
 import { ROUTES } from '../../../../routes/paths';
+import { resolvePlaceDisplayName } from '../../../../utils/resolvePlaceDisplayName';
 
 /** Which notice/error dialog to show over the accept screen (single-action AlertDialog). */
 type InviteDialogVariant = 'expired' | 'alreadyJoined' | 'channelDeleted' | 'inviteCanceled' | 'generic';
 
 /**
- * Map the accept-pipeline error key to a notice-dialog variant. Only `expired` is confidently
- * distinguished today; already-joined / channel-deleted / invite-canceled need backend error codes
- * (their UI/copy is ready — see ADR-0016) so they fall back to `generic` until wired. `missingDelegator`
- * is handled separately (it drives a logout action, not a home dismissal).
+ * Map the accept-pipeline error key to a notice-dialog variant. `expired` and `alreadyJoined` (a link
+ * whose grace period has passed) are the two the backend's messages tell apart today; channel-deleted /
+ * invite-canceled need backend error codes (their UI/copy is ready — see ADR-0016) so they fall back to
+ * `generic` until wired. `missingDelegator` is handled separately (it drives a logout action, not a home
+ * dismissal).
  */
 const resolveDialogVariant = (errorKey: string | null): InviteDialogVariant | null => {
     if (!errorKey) return null;
     if (errorKey === 'inviteAccept.expired') return 'expired';
+    if (errorKey === 'inviteAccept.alreadyUsed') return 'alreadyJoined';
     return 'generic';
 };
 
@@ -113,7 +116,7 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
         return (
             <PlaceProfileCreateDialog
                 open
-                placeName={activePlaceName || info?.site$?.name || ''}
+                placeName={activePlaceName || resolvePlaceDisplayName(info?.site$, { isDefaultCloud: false }, t)}
                 dismissible={profileSaveFailed}
                 onSubmit={submitProfile}
                 onDone={finishProfile}
@@ -160,13 +163,17 @@ export const CloudInviteAccept = ({ params }: CloudInviteAcceptProps): JSX.Eleme
     // up with no further code change (ADR-0089 D1).
     return (
         <InviteAcceptScreen
-            inviterName={info?.inviter$?.name}
+            // The place nickname, never the account name: a number-derived account's name is its masked
+            // digits. With no nickname the screen's nameless line reads better than that.
+            inviterName={info.inviter$?.nick?.trim() || undefined}
             inviterImage={info?.inviter$?.image}
-            placeName={info?.site$?.name}
+            // A cloud invite is never the relay's home place, whatever is selected right now.
+            placeName={resolvePlaceDisplayName(info.site$, { isDefaultCloud: false }, t) || undefined}
             placeIntro={info?.site$?.intro}
             placeThumbnail={info?.site$?.thumbnail}
             memberCount={info?.memberCount}
             targetKind={resolveCloudInviteTargetKind(info)}
+            targetName={info.channelName?.trim() || undefined}
             countdown={countdown}
             isAccepting={isAccepting}
             onAccept={accept}

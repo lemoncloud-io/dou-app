@@ -1,6 +1,6 @@
 {
   "name": "@chatic/source",
-  "version": "0.121.0",
+  "version": "0.124.0",
   "license": "Apache-2.0",
   "scripts": {
     "clean:cache": "(rm -rf ./node_modules/.vite ./node_modules/.cache || true) && (rm -rf ./.nx || true)",
@@ -152,6 +152,7 @@
     "@lexical/utils": "^0.45.0",
     "@notifee/react-native": "^9.1.8",
     "@op-engineering/op-sqlite": "^15.2.7",
+    "@portone/browser-sdk": "0.1.13",
     "@radix-ui/react-alert-dialog": "^1.1.2",
     "@radix-ui/react-avatar": "^1.1.1",
     "@radix-ui/react-checkbox": "^1.1.4",

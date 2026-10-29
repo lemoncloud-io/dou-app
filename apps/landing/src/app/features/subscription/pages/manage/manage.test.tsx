@@ -6,8 +6,11 @@ import i18n from '../../../../../i18n';
 import { ToastProvider } from '../../components/ui';
 import { registerSubscriptionCopy } from '../../lib/i18n';
 import { createMockPort } from '../../lib/mock';
+import { savePendingCardChange } from '../../lib/pendingCheckout';
 import { memoryStateStore } from '../../lib/mock/storage';
-import { PortProvider } from '../../lib/port';
+import { PortProvider, type PortSupports } from '../../lib/port';
+import { HTTP_METHODS } from '../../lib/port/http';
+import { ManagementScreensProvider } from '../../lib/screens';
 import { CancelSubscriptionPage, SubscriptionDetailPage, SubscriptionListPage } from './index';
 
 beforeAll(async () => {
@@ -20,34 +23,60 @@ const Where = () => {
     return <output data-testid="where">{pathname + search}</output>;
 };
 
-/** Renders the three management routes on a fresh mock in the given scenario, starting at `url`. */
-const renderAt = (url: string, search: string) => {
+/**
+ * Renders the three management routes on a fresh mock in the given scenario, starting at `url`. The card
+ * and billing-email screens are open unless `management` says otherwise — they are hidden by default in
+ * the app (`lib/screens.tsx`), and the tests below say what each hides.
+ */
+const renderAt = (
+    url: string,
+    search: string,
+    {
+        management = true,
+        returned,
+        supports,
+    }: {
+        management?: boolean;
+        returned?: ReturnType<typeof createMockPort>['port']['completePaymentMethodRegistration'];
+        supports?: PortSupports;
+    } = {}
+) => {
     const { port, clock } = createMockPort({
         store: memoryStateStore(),
         readSearch: () => `${search}&panel=0`,
         delayMs: 0,
     });
+    // The mock's window never leaves the page, so what a provider's return would say is put in its place.
+    if (returned) port.completePaymentMethodRegistration = returned;
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     return render(
         <QueryClientProvider client={queryClient}>
-            <PortProvider port={port} clock={clock}>
-                <ToastProvider>
-                    <MemoryRouter initialEntries={[url]}>
-                        <Routes>
-                            <Route path="/subscription" element={<SubscriptionListPage />} />
-                            <Route path="/subscription/:subscriptionId" element={<SubscriptionDetailPage />} />
-                            <Route path="/subscription/:subscriptionId/cancel" element={<CancelSubscriptionPage />} />
-                            <Route path="*" element={null} />
-                        </Routes>
-                        <Where />
-                    </MemoryRouter>
-                </ToastProvider>
+            <PortProvider port={port} clock={clock} supports={supports}>
+                <ManagementScreensProvider open={management}>
+                    <ToastProvider>
+                        <MemoryRouter initialEntries={[url]}>
+                            <Routes>
+                                <Route path="/subscription" element={<SubscriptionListPage />} />
+                                <Route path="/subscription/:subscriptionId" element={<SubscriptionDetailPage />} />
+                                <Route
+                                    path="/subscription/:subscriptionId/cancel"
+                                    element={<CancelSubscriptionPage />}
+                                />
+                                <Route path="*" element={null} />
+                            </Routes>
+                            <Where />
+                        </MemoryRouter>
+                    </ToastProvider>
+                </ManagementScreensProvider>
             </PortProvider>
         </QueryClientProvider>
     );
 };
 
 const where = () => screen.getByTestId('where').textContent;
+
+/** What a tab on the server answers: only the methods it has a server for. */
+const onServer: PortSupports = method => (HTTP_METHODS as ReadonlyArray<string>).includes(method);
 const button = (name: string | RegExp) => screen.getByRole('button', { name });
 
 describe('W-10 subscription list', () => {
@@ -181,6 +210,85 @@ describe('W-18 subscription detail', () => {
         expect(where()).toBe('/subscription/billing-info');
     });
 
+    describe('with the card and billing-email screens hidden', () => {
+        it('draws the card tile with a way to change the card, and no way into the card list', async () => {
+            renderAt('/subscription/sub-2', '?mock=active', { management: false });
+
+            await screen.findByText('Automatic payment scheduled');
+            expect(screen.getByText('Payment method')).toBeTruthy();
+            expect(screen.queryByRole('button', { name: 'Payment methods' })).toBeNull();
+            expect(button('Change card')).toBeTruthy();
+            // What stays: the plan change, cancelling and the billing history.
+            expect(button('Change plan')).toBeTruthy();
+            expect(button('Cancel subscription')).toBeTruthy();
+        });
+
+        it('changes the card through the payer form and the payment window', async () => {
+            renderAt('/subscription/sub-2', '?mock=active', { management: false });
+
+            await screen.findByText('Automatic payment scheduled');
+            fireEvent.click(button('Change card'));
+            const dialog = await screen.findByRole('dialog');
+            const open = within(dialog).getByRole('button', { name: 'Open payment window' }) as HTMLButtonElement;
+            expect(open.disabled).toBe(true);
+            fireEvent.change(within(dialog).getByLabelText(/name/i), { target: { value: 'Minji Kim' } });
+            fireEvent.change(within(dialog).getByLabelText(/mobile/i), { target: { value: '01012345678' } });
+            expect(open.disabled).toBe(false);
+            fireEvent.click(open);
+
+            expect(await screen.findByText('Your payment card was changed.')).toBeTruthy();
+        });
+
+        it('reads a payment window that came back through the address, and clears the address', async () => {
+            savePendingCardChange({ name: 'Minji Kim', phone: '01012345678', email: 'minji.kim@gmail.com' });
+            const returned = vi.fn(async () => ({ outcome: 'registered' as const, card: 'pm-9' as never }));
+            renderAt('/subscription/sub-2?billingKey=billing-key-9', '?mock=active', { management: false, returned });
+
+            expect(await screen.findByText('Your payment card was changed.')).toBeTruthy();
+            expect(returned).toHaveBeenCalledWith(
+                expect.objectContaining({ purpose: 'addCard', payer: expect.objectContaining({ name: 'Minji Kim' }) })
+            );
+            expect(where()).toBe('/subscription/sub-2');
+        });
+
+        it('ignores a return it has nothing saved for, but still clears the address', async () => {
+            renderAt('/subscription/sub-2?billingKey=billing-key-9', '?mock=active', { management: false });
+
+            await screen.findByText('Automatic payment scheduled');
+            expect(screen.queryByText('Your payment card was changed.')).toBeNull();
+            expect(where()).toBe('/subscription/sub-2');
+        });
+
+        it('leads a failed payment to the card change instead of the card list', async () => {
+            renderAt('/subscription/sub-2', '?mock=past-due', { management: false });
+
+            expect(await screen.findByText('Payment failed · D-5 until restriction')).toBeTruthy();
+            fireEvent.click(button('Change payment method'));
+            expect(await screen.findByRole('dialog')).toBeTruthy();
+            expect(where()).toBe('/subscription/sub-2');
+        });
+
+        it('does not ask for a billing email check where it cannot be done', async () => {
+            renderAt('/subscription/sub-2', '?mock=email-pending', { management: false });
+
+            await screen.findByText('Automatic payment scheduled');
+            expect(screen.queryByText('Check your billing email')).toBeNull();
+        });
+
+        it('tells a cancelled subscription with no card that nothing can be added, rather than sending it away', async () => {
+            renderAt('/subscription/sub-2', '?mock=cancel-scheduled&cards=0', { management: false });
+
+            await screen.findByText('Your subscription ends on 2026.11.20 · D-19');
+            await waitFor(() => expect(button('Undo cancellation').hasAttribute('disabled')).toBe(false));
+            fireEvent.click(button('Undo cancellation'));
+            const dialog = await screen.findByRole('dialog');
+            expect(within(dialog).getByText('No card to charge')).toBeTruthy();
+            expect(within(dialog).getByText(/cards cannot be added here yet/)).toBeTruthy();
+            expect(within(dialog).queryByRole('button', { name: 'Add a card' })).toBeNull();
+            expect(where()).toBe('/subscription/sub-2');
+        });
+    });
+
     it('gives an expired subscription the last day to restore its clouds', async () => {
         renderAt('/subscription/sub-2', '?mock=expired');
 
@@ -247,5 +355,40 @@ describe('W-15 cancel subscription', () => {
 
         expect(await screen.findByText("You can't cancel right now")).toBeTruthy();
         expect(screen.queryByRole('button', { name: 'Cancel subscription' })).toBeNull();
+    });
+});
+
+describe('against the server, which answers only some of the calls', () => {
+    it('leaves out undoing a cancellation and the recent billing, and does not promise the undo', async () => {
+        renderAt('/subscription/sub-2', '?mock=cancel-scheduled', { supports: onServer });
+
+        await screen.findByText('Your subscription ends on 2026.11.20 · D-19');
+        expect(screen.queryByRole('button', { name: 'Undo cancellation' })).toBeNull();
+        expect(screen.queryByText('Recent billing')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'View billing history' })).toBeNull();
+    });
+
+    it('leaves out cancelling a scheduled downgrade', async () => {
+        renderAt('/subscription/sub-4', '?mock=downgrade-scheduled', { supports: onServer });
+
+        await screen.findByText('DoU Cloud 2 applies from 2026.11.20');
+        expect(screen.queryByRole('button', { name: 'Cancel the change' })).toBeNull();
+    });
+
+    it('lists an ending subscription without saying it can be undone', async () => {
+        renderAt('/subscription', '?mock=cancel-scheduled', { supports: onServer });
+
+        expect(await screen.findByText(/automatic payment stopped$/)).toBeTruthy();
+        expect(screen.queryByText(/undo the cancellation/)).toBeNull();
+    });
+
+    it('confirms a cancellation without the way back', async () => {
+        renderAt('/subscription/sub-2/cancel', '?mock=cancel-scheduled', { supports: onServer });
+
+        expect(await screen.findByText('You cancelled your subscription')).toBeTruthy();
+        expect(
+            screen.getByText("You won't be charged again. You can keep using it as before until it ends.")
+        ).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Undo cancellation' })).toBeNull();
     });
 });

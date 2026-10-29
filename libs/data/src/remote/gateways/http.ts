@@ -53,7 +53,17 @@ export type SubscriptionHttpDomainGateway = Pick<
     //  on purpose — see `SubscriptionHttpDataSource`.
     | 'adminMemberships'
     | 'updateMembershipByAdmin'
+    | 'refundSubscriptionByAdmin'
     | 'adminClouds'
+    // the web subscription, billed through the payment provider
+    | 'mySubscription'
+    | 'subscriptionCards'
+    | 'issueBillingKey'
+    | 'startSubscription'
+    | 'changeSubscription'
+    | 'cancelSubscription'
+    | 'replaceCard'
+    | 'removeCard'
 >;
 
 /**

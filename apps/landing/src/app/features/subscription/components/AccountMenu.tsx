@@ -24,7 +24,10 @@ export const AccountMenu = ({
     className,
 }: {
     account: Account;
-    /** `above` for the sidebar's foot, where there is no room below. */
+    /**
+     * `above` for the sidebar's foot, where there is no room below — on a phone that sidebar is a bar
+     * across the top, and the menu then opens downward.
+     */
     placement?: 'below' | 'above';
     className?: string;
 }): JSX.Element => {
@@ -97,7 +100,9 @@ export const AccountMenu = ({
                     role="menu"
                     className={cn(
                         'absolute z-40 w-64 rounded-xl border border-border bg-card p-2 shadow-lg',
-                        placement === 'below' ? 'right-0 top-full mt-2' : 'bottom-full left-0 mb-2'
+                        placement === 'below'
+                            ? 'right-0 top-full mt-2'
+                            : 'left-0 top-full mt-2 md:bottom-full md:top-auto md:mb-2 md:mt-0'
                     )}
                 >
                     <div className="border-b border-border px-3 pb-3 pt-2">

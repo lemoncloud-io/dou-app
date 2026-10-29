@@ -1,5 +1,100 @@
 # Changelog
 
+## [2026-10-29] - root@0.124.0, @chatic/landing@0.11.0
+
+### Features
+
+- (http,data,landing) carry the web subscription calls in the shared repository
+- (landing) change the card from the subscription, and open the mobile card page
+- (landing) let a phone browse, sign in and pay on the subscription site
+- (landing) hide the card and billing-email screens until their servers exist (ADR-0248)
+- (landing) stop a trial's upgrade on W-14 with the reason, not a failed change
+- (landing) run the account surface on the subscription server, not only the mock (ADR-0248)
+
+### Bug Fixes
+
+- (landing) leave out the last links into the billing history without its server
+- (landing) send an empty object with a POST that carries nothing
+- (landing) read a closed card window as cancelled, not as a declined card
+- (landing) have the mock behind the server speak for the signed-in account, not its scenario's
+
+### Documentation
+
+- (landing) bring the README's test count up to date
+
+### Other
+
+- ci: (landing) build the landing site with the web app's env secrets, not its own
+
+## [2026-10-29] - No version updates
+
+### Features
+
+- (admin-v2) refund a web subscription from the membership console, on Development only
+- (http,data) add the admin refund of a web subscription
+
+## [2026-10-29] - root@0.123.1, @chatic/desktop-web@0.37.2
+
+### Bug Fixes
+
+- (desktop-web) keep Home on Mod+0, clouds on Mod+1-9
+
+## [2026-10-29] - No version updates
+
+### Bug Fixes
+
+- (web/share) open the shared room with its row, as the home list does
+
+## [2026-10-29] - No version updates
+
+### Features
+
+- (desktop-web,desktop) switch cloud and place by number key
+
+## [2026-10-29] - root@0.123.0, @chatic/web@0.82.0
+
+### Features
+
+- (web) name an invite's inviter by place nickname and its room by channel name
+
+### Bug Fixes
+
+- (web) declare the inviter nickname and room name on InviteInfo instead of raising the api types
+
+### Documentation
+
+- (web) bring the invite docs in line with the 24-hour default and the card-less place invite
+
+### Other
+
+- test: (web-e2e) give the pending relay invite fixture the inviter's place nickname
+- build: (web) raise the backend api types to 0.26.1003 for the inviter nickname and room name
+
+## [2026-10-28] - root@0.122.1, @chatic/desktop-web@0.37.1
+
+### Bug Fixes
+
+- (desktop-web) match viewer control pill to Figma, centre its row
+- (desktop-web) give the viewer pill a white glass surface
+
+## [2026-10-28] - root@0.122.0, @chatic/desktop-web@0.37.0
+
+### Features
+
+- (desktop-web) image viewer control pill with rotate and slider
+
+## [2026-10-28] - root@0.121.2, @chatic/desktop-web@0.36.2
+
+### Bug Fixes
+
+- (desktop-web) draw a member name with a space as one mention pill
+
+## [2026-10-28] - root@0.121.1, @chatic/desktop-web@0.36.1
+
+### Bug Fixes
+
+- (desktop-web) draw no link card under a deleted message
+
 ## [2026-10-28] - root@0.121.0, @chatic/desktop-web@0.36.0
 
 ### Features

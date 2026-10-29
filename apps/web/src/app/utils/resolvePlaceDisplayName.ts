@@ -8,8 +8,11 @@ import type { DomainPlace } from '@chatic/data';
  */
 export const HOME_PLACE_ID = '0000';
 
-/** The fields the display-name rule needs; a full {@link DomainPlace} satisfies it. */
-export type PlaceNameSource = Pick<DomainPlace, 'id' | 'name'>;
+/**
+ * The fields the display-name rule needs; a full {@link DomainPlace} satisfies it, and so does an
+ * invite's place card (`SiteHead`), whose fields are all optional.
+ */
+export type PlaceNameSource = Partial<Pick<DomainPlace, 'id' | 'name'>>;
 
 export interface PlaceDisplayNameContext {
     /** True on the relay/default cloud (`selectedCloudId === 'default'`). */

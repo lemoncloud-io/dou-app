@@ -33,8 +33,14 @@ export type InviteInfo = MyInviteView & {
     cloudName?: string;
     /** invited place: intro copy + thumbnail (base64/url). */
     site$?: MyInviteView['site$'] & { intro?: string; thumbnail?: string };
-    /** inviter avatar image url. */
-    inviter$?: MyInviteView['inviter$'] & { image?: string };
+    /**
+     * inviter avatar image url, and the inviter's nickname in the invited place. The backend attaches the
+     * nickname when the invite is looked up and leaves the key out when there is none; the published head
+     * type does not declare it yet.
+     */
+    inviter$?: MyInviteView['inviter$'] & { image?: string; nick?: string };
+    /** name of the target group room (group-room invites only; the key is absent otherwise). */
+    channelName?: string;
     /** member count of the target group room (absent for 1:1). */
     memberCount?: number;
     /** invite-link expiry epoch (ms); drives the validity countdown. */

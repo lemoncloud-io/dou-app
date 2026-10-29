@@ -45,6 +45,31 @@ const LINK_CLASS = 'text-link underline underline-offset-2 hover:no-underline';
 // share one lookup instead of scanning the list twice per mention.
 const GROUP_WORDS = new Set(GROUP_MENTIONS.map(group => group.slice(1)));
 
+// A display name can hold spaces (`Sunyeop Hwang`) but the token class cannot, so the token stops at
+// the first word. The words that follow are tried against the roster to find where the name ends.
+const NEXT_WORD = new RegExp(`^ (${MENTION_TOKEN_SOURCE}+)`, 'u');
+const MAX_EXTRA_WORDS = 3;
+
+/**
+ * The longest roster name that starts with `first` and runs on into the words of `after`, or
+ * undefined when no longer name is known. Only a known member extends a mention: an unknown
+ * `@word` followed by prose must not swallow the prose.
+ */
+const extendToKnownName = (first: string, after: string, resolveMention?: MentionResolver): string | undefined => {
+    if (!resolveMention) return undefined;
+    let best: string | undefined;
+    let candidate = first;
+    let rest = after;
+    for (let i = 0; i < MAX_EXTRA_WORDS; i++) {
+        const next = NEXT_WORD.exec(rest);
+        if (!next) break;
+        candidate += next[0];
+        rest = rest.slice(next[0].length);
+        if (resolveMention(candidate.replace(/\.+$/, ''))) best = candidate;
+    }
+    return best;
+};
+
 const renderInline = (
     text: string,
     keyBase: string,
@@ -60,7 +85,11 @@ const renderInline = (
         renderInline(words, key, selfNames, resolveMention, hasMentionRecord, selfSuffix, true);
     let last = 0;
     for (const match of text.matchAll(INLINE)) {
-        const [token, label, labelHref, bold, italic, strike, url, mention] = match;
+        // Inside a spaced name already drawn as one pill.
+        if (match.index < last) continue;
+        const [token, label, labelHref, bold, italic, strike, url, tokenMention] = match;
+        let mention = tokenMention;
+        let consumed = token.length;
         // Skipped, so it stays inside the surrounding text run.
         if (insideMark && !bold && !italic && !strike) continue;
         if (match.index > last) nodes.push(text.slice(last, match.index));
@@ -92,6 +121,11 @@ const renderInline = (
             // (`lemoncloud@123`), never a mention. Left as the text it is.
             nodes.push(mention);
         } else {
+            const spaced = extendToKnownName(mention.slice(1), text.slice(match.index + token.length), resolveMention);
+            if (spaced) {
+                mention = `@${spaced}`;
+                consumed = mention.length;
+            }
             // A trailing sentence dot belongs to the sentence, not the name: look the
             // name up without it, but render what was written.
             const full = mention.slice(1);
@@ -132,7 +166,7 @@ const renderInline = (
                 );
             }
         }
-        last = match.index + token.length;
+        last = match.index + consumed;
     }
     if (last < text.length) nodes.push(text.slice(last));
     return nodes;

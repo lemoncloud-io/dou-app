@@ -53,6 +53,14 @@ describe('useShareDestinations', () => {
 
         expect(result.current.destinations.find(destination => destination.id === 'ch-2')?.cid).toBe('cloud-a');
     });
+
+    it('carries the row each destination was drawn from, for the room to open with', () => {
+        const { result } = renderHook(() => useShareDestinations());
+
+        expect(result.current.destinations.find(destination => destination.id === 'self')?.channel).toBe(
+            mockSelfChannels[0]
+        );
+    });
 });
 
 describe('matchDestinations', () => {

@@ -5017,6 +5017,11 @@
   resolved "https://registry.yarnpkg.com/@polka/url/-/url-1.0.0-next.29.tgz#5a40109a1ab5f84d6fd8fc928b19f367cbe7e7b1"
   integrity sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==
 
+"@portone/browser-sdk@0.1.13":
+  version "0.1.13"
+  resolved "https://registry.yarnpkg.com/@portone/browser-sdk/-/browser-sdk-0.1.13.tgz#99fa5f748d64213c1c897c6b2cf6caa9653a6445"
+  integrity sha512-zC94/gmMeh5O44iRx/SiIyt8p+1YXxEVRQu+Fhi7WKMlzbERBViwCxY6B6MVO2QprGJS5iQG2bf6e7KoXln5Kg==
+
 "@preact/signals-core@^1.14.1":
   version "1.14.2"
   resolved "https://registry.yarnpkg.com/@preact/signals-core/-/signals-core-1.14.2.tgz#6ccbc1342a52f1175b9e1d9aef67e2cf0ab6d4f0"

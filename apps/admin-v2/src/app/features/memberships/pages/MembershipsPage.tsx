@@ -56,6 +56,9 @@ export const MembershipsPage = () => {
         Object.entries(patch).forEach(([key, value]) => (value ? next.set(key, value) : next.delete(key)));
         // Any filter or stage change invalidates the current offset.
         if (!('page' in patch)) next.delete('page');
+        // A row belongs to the relay it was read from. Kept across a stage switch, its userId would
+        // address a different user on the other relay — an override or a refund would land there.
+        if ('stage' in patch && patch.stage !== stage) setSelected(null);
         setSearchParams(next);
     };
 

@@ -32,6 +32,8 @@ const setup = (search: string) => {
     };
 };
 
+const PAYER = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
+
 const expectCode = async (promise: Promise<unknown>, code: Parameters<typeof isPortError>[1]) => {
     const error = await promise.then(
         () => undefined,
@@ -161,20 +163,24 @@ describe('createMockPort — fail flags', () => {
 
     it('closes the payment window with closed', async () => {
         const { port } = setup('?mock=active&fail=closed');
-        expect(await port.startPaymentMethodRegistration({ purpose: 'addCard' })).toEqual({ outcome: 'closed' });
+        expect(await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER })).toEqual({
+            outcome: 'closed',
+        });
     });
 
     it('refuses card registration with attempt-limit', async () => {
         const { port } = setup('?mock=active&fail=attempt-limit');
-        await expectCode(port.startPaymentMethodRegistration({ purpose: 'addCard' }), 'limit');
+        await expectCode(port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER }), 'limit');
     });
 
     it('fails an added card with card-declined, and stops after the attempt limit', async () => {
         const { port } = setup('?mock=active&fail=card-declined');
         for (let i = 0; i < 5; i++) {
-            expect(await port.startPaymentMethodRegistration({ purpose: 'addCard' })).toEqual({ outcome: 'failed' });
+            expect(await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER })).toEqual({
+                outcome: 'failed',
+            });
         }
-        await expectCode(port.startPaymentMethodRegistration({ purpose: 'addCard' }), 'limit');
+        await expectCode(port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER }), 'limit');
     });
 });
 
@@ -183,7 +189,9 @@ describe('createMockPort — the payment window', () => {
         const { port, controller } = setup('?mock=active&fail=card-declined');
         const presenter = vi.fn().mockResolvedValue('registered');
         controller.setPaymentWindow(presenter);
-        expect(await port.startPaymentMethodRegistration({ purpose: 'addCard' })).toEqual({ outcome: 'registered' });
+        expect(await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER })).toMatchObject({
+            outcome: 'registered',
+        });
         expect(presenter).toHaveBeenCalledWith({ purpose: 'addCard', planId: undefined, suggested: 'failed' });
         expect(await port.listPaymentMethods()).toHaveLength(3);
     });
@@ -191,13 +199,15 @@ describe('createMockPort — the payment window', () => {
     it('adds nothing when the window is closed', async () => {
         const { port, controller } = setup('?mock=active');
         controller.setPaymentWindow(() => Promise.resolve('closed'));
-        expect(await port.startPaymentMethodRegistration({ purpose: 'addCard' })).toEqual({ outcome: 'closed' });
+        expect(await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER })).toEqual({
+            outcome: 'closed',
+        });
         expect(await port.listPaymentMethods()).toHaveLength(2);
     });
 
     it('makes a card registered ahead of a charge the default', async () => {
         const { port } = setup('?mock=past-due');
-        await port.startPaymentMethodRegistration({ purpose: 'retry' });
+        await port.startPaymentMethodRegistration({ purpose: 'retry', payer: PAYER });
         const methods = await port.listPaymentMethods();
         expect(methods.filter(pm => pm.isDefault).map(pm => pm.id)).toEqual([methods[1].id]);
         expect((await port.getSubscription('sub-2')).defaultPaymentMethodId).toBe(methods[1].id);
@@ -291,14 +301,17 @@ describe('createMockPort — the state machine', () => {
         const preview = await port.previewCheckout('pro-tier-01');
         expect(preview).toMatchObject({ withTrial: true, amountToday: { amount: 0 }, trialEndsAt: '2026-11-08' });
 
-        expect(await port.startPaymentMethodRegistration({ purpose: 'start', planId: 'pro-tier-01' })).toEqual({
+        expect(
+            await port.startPaymentMethodRegistration({ purpose: 'start', planId: 'pro-tier-01', payer: PAYER })
+        ).toEqual({
             outcome: 'registered',
+            card: expect.any(String),
         });
         const { emailId } = await port.requestEmailCode('minji.kim@gmail.com');
         await expectCode(port.verifyEmailCode(emailId, '000000'), 'invalidCode');
         expect(await port.verifyEmailCode(emailId, '123456')).toMatchObject({ status: 'verified', primary: true });
 
-        const attempt = await port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId });
+        const attempt = await port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId, payer: PAYER });
         expect(attempt.withTrial).toBe(true);
         const settled = await settle(port, attempt.id, advance);
         expect(settled.status).toBe('succeeded');
@@ -312,7 +325,12 @@ describe('createMockPort — the state machine', () => {
     it('charges at once and restores held clouds when an expired subscriber returns within the window', async () => {
         const { port, advance } = setup('?mock=expired');
         const { emails } = await port.getBillingInfo();
-        const attempt = await port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId: emails[0].id });
+        const attempt = await port.startCheckout({
+            planId: 'pro-tier-01',
+            country: 'KR',
+            emailId: emails[0].id,
+            payer: PAYER,
+        });
         expect(attempt.withTrial).toBe(false);
         await settle(port, attempt.id, advance);
         const [sub] = await port.listSubscriptions();
@@ -322,19 +340,25 @@ describe('createMockPort — the state machine', () => {
 
     it('refuses a checkout outside Korea, and a second subscription', async () => {
         const { port } = setup('?mock=active');
-        await expectCode(port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId: 'em-1' }), 'conflict');
+        await expectCode(
+            port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId: 'em-1', payer: PAYER }),
+            'conflict'
+        );
         const fresh = setup('?mock=new-trial-used');
-        await fresh.port.startPaymentMethodRegistration({ purpose: 'start' });
-        await expectCode(fresh.port.startCheckout({ planId: 'pro-tier-01', country: 'US', emailId: 'x' }), 'conflict');
+        await fresh.port.startPaymentMethodRegistration({ purpose: 'start', payer: PAYER });
+        await expectCode(
+            fresh.port.startCheckout({ planId: 'pro-tier-01', country: 'US', emailId: 'x', payer: PAYER }),
+            'conflict'
+        );
     });
 
     it('returns the same attempt for a second checkout while the first is processing', async () => {
         const { port, advance } = setup('?mock=new-trial-used');
-        await port.startPaymentMethodRegistration({ purpose: 'start' });
+        await port.startPaymentMethodRegistration({ purpose: 'start', payer: PAYER });
         const { emailId } = await port.requestEmailCode('minji.kim@gmail.com');
         await port.verifyEmailCode(emailId, '123456');
-        const first = await port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId });
-        const second = await port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId });
+        const first = await port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId, payer: PAYER });
+        const second = await port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId, payer: PAYER });
         expect(second.id).toBe(first.id);
         await settle(port, first.id, advance);
         expect((await port.listSubscriptions()).filter(s => s.status !== 'expired')).toHaveLength(1);
@@ -346,13 +370,11 @@ describe('createMockPort — the state machine', () => {
         expect((await port.retryPayment('sub-2')).id).toBe(first.id);
     });
 
-    it('charges nothing for an upgrade during a trial', async () => {
-        const { port, advance } = setup('?mock=trial');
-        expect((await port.previewChange('pro-tier-02')).amountToday).toEqual({ amount: 0, currency: 'KRW' });
-        const attempt = await port.changePlan('pro-tier-02');
-        await settle(port, (attempt as { id: string }).id, advance);
-        expect((await port.getSubscription('sub-3')).planId).toBe('pro-tier-02');
-        expect(await port.listInvoices()).toEqual([]);
+    it('refuses an upgrade during a trial, as the server does', async () => {
+        const { port } = setup('?mock=trial');
+        expect((await port.previewChange('pro-tier-02')).blocked).toBe('trialUpgrade');
+        await expectCode(port.changePlan('pro-tier-02'), 'conflict');
+        expect((await port.getSubscription('sub-3')).planId).toBe('pro-tier-01');
     });
 
     it('refuses a plan change on a subscription that is ending', async () => {

@@ -7,6 +7,7 @@ import { ConfirmDialog } from '../../components';
 import { useToast } from '../../components/ui';
 import { usePaymentMethods, useResumeSubscription } from '../../hooks';
 import { isPortError } from '../../lib/port';
+import { useManagementScreens } from '../../lib/screens';
 import { chargeCardOf, resumeDialogOf } from './manageModel';
 
 import type { ManageFormat } from './useManageFormat';
@@ -28,6 +29,7 @@ export const useResumeFlow = (
     const { t } = useTranslation();
     const navigate = useNavigate();
     const toast = useToast();
+    const management = useManagementScreens();
     const methods = usePaymentMethods();
     const resume = useResumeSubscription();
     const [open, setOpen] = useState<'confirm' | 'noCard' | null>(null);
@@ -90,10 +92,19 @@ export const useResumeFlow = (
                 open={open === 'noCard'}
                 onOpenChange={next => !next && setOpen(null)}
                 title={t('subscription.manage.dialogs.resumeNoCard.title')}
-                description={t('subscription.manage.dialogs.resumeNoCard.body')}
+                description={t(
+                    management
+                        ? 'subscription.manage.dialogs.resumeNoCard.body'
+                        : 'subscription.manage.dialogs.resumeNoCard.bodyHidden'
+                )}
                 cancelLabel={t('subscription.common.actions.close')}
-                confirmLabel={t('subscription.manage.dialogs.resumeNoCard.confirm')}
-                onConfirm={() => navigate(ROUTES.subscription.paymentMethods)}
+                confirmLabel={
+                    management
+                        ? t('subscription.manage.dialogs.resumeNoCard.confirm')
+                        : t('subscription.common.actions.close')
+                }
+                // With the card screens hidden there is nowhere to add one: the dialog is a notice.
+                onConfirm={management ? () => navigate(ROUTES.subscription.paymentMethods) : undefined}
             />
         </>
     );
