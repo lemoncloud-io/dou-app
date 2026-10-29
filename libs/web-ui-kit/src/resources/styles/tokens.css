@@ -69,6 +69,7 @@
     --verified: 211 100% 50%; /* #007AFF — blue verified/default check */
     --point-blue: 215 90% 56%; /* #2A7EF4 — Figma point_blue, inline text links */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — Figma Colors/Pink, unread count pill */
+    --code-inline: 20 90% 36%; /* #AE4009 — inline code text, mirrors apps/web */
     /* ui-kit's dialog, alert-dialog and sheet scrims (bg-overlay/80); mirrors apps/web. */
     --overlay: 220 20% 10%;
 }
@@ -126,5 +127,6 @@
     --verified: 211 100% 50%;
     --point-blue: 215 90% 56%; /* #2A7EF4 — same */
     --point-pink: 348.6 100% 58.8%; /* #FF2D55 — same */
+    --code-inline: 32 80% 54%; /* #E8902C — lifted for the dark ground */
     --overlay: 0 0% 0%;
 }

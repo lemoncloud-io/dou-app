@@ -15,12 +15,18 @@ export interface InlineCodeProps {
  * `text-[0.9em]`, not a fixed size: the chip has to sit on the bubble's line without pushing the
  * line box open, and the two bubble variants set different colours around it. On my (navy) bubble the
  * chip is a light tint, read from MessageBubble's `data-variant` — a dark one vanished there.
+ *
+ * A tint alone read as part of the sentence, so the chip also carries a border and the accent
+ * `code-inline` colour. My bubble keeps its own text colour: the accent is tuned for the theme's
+ * ground, and the light-theme value sinks into navy.
  */
 export const InlineCode = ({ children, className }: InlineCodeProps) => (
     <code
         className={cn(
-            'rounded bg-black/[0.07] px-1 py-0.5 font-mono text-[0.9em] dark:bg-white/15',
-            'group-data-[variant=mine]/bubble:bg-white/15',
+            'rounded border border-black/10 bg-black/[0.07] px-1 py-0.5 font-mono text-[0.9em] text-code-inline',
+            'dark:border-white/20 dark:bg-white/15',
+            'group-data-[variant=mine]/bubble:border-white/25 group-data-[variant=mine]/bubble:bg-white/15',
+            'group-data-[variant=mine]/bubble:text-inherit',
             '[overflow-wrap:anywhere]',
             className
         )}

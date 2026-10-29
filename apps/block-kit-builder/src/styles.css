@@ -105,6 +105,7 @@
         --elevated: 96 24% 99%;
         --hairline: 96 14% 89%;
         --well: 96 14% 96%;
+        --code-inline: 20 90% 36%; /* #AE4009 - inline code text, matches the chat apps */
         --shadow-color: 130 35% 12%;
     }
 
@@ -193,6 +194,7 @@
         --elevated: 90 8% 12%;
         --hairline: 90 7% 19%;
         --well: 90 8% 6%;
+        --code-inline: 32 80% 54%; /* #E8902C - same, lifted for the dark ground */
         --shadow-color: 120 50% 2%;
     }
 }

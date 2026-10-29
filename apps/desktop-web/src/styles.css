@@ -187,6 +187,7 @@
         --elevated: 0 0% 100%;
         --hairline: 240 5% 92%; /* #EAEAEC */
         --well: 0 0% 96%; /* #F5F5F5 search bar */
+        --code-inline: 20 90% 36%; /* #AE4009 - inline code text; 5.4:1 on the well chip */
         --shadow-color: 0 0% 0%;
     }
 
@@ -284,6 +285,7 @@
         --elevated: 90 2% 18%; /* #2E2F2D */
         --hairline: 96 4% 26%; /* #424540 */
         --well: 120 3% 7%; /* #121312 search bar */
+        --code-inline: 32 80% 54%; /* #E8902C - inline code text; 7.5:1 on the dark well chip */
         --shadow-color: 0 0% 0%;
     }
 }
