@@ -275,13 +275,6 @@ export const en = {
     'chat.system.join': '{{name}} joined the channel',
     'chat.system.leave': '{{name}} left the channel',
     'chat.newMessages': 'New messages',
-    // Per-message read receipt. `n`, not `count`: these never pluralise the noun
-    // ("Seen by 1"), and a `count` variable would send i18next hunting for
-    // _one/_other forms that do not exist. Not "Unread": the sidebar uses that word
-    // for your own unread messages, and the two sat side by side meaning opposite things.
-    'chat.readReceipt.read': 'Seen by {{n}}',
-    'chat.readReceipt.unread': 'Unseen by {{n}}',
-    'chat.readReceipt.allRead': 'Seen by all',
     'sidebar.dms': 'Direct messages',
     'dm.you': 'You',
     'chat.save': 'Save for later',

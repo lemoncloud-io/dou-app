@@ -31,7 +31,6 @@ import {
     useMentionables,
     useMessageViewer,
     useThreadRoot,
-    type ReadCountOf,
 } from '../hooks';
 import { useThreadStore } from '../stores';
 import { LazyComposer } from './LazyComposer';
@@ -46,13 +45,6 @@ interface ThreadPanelProps {
     /** Roster shared with the chat pane — used to name reply authors. */
     members: ChannelMember[];
     membersLoading?: boolean;
-    /**
-     * Per-message read counts, from the one `useReadCounts` the host mounts per channel.
-     * A reply carries the same channel-wide chatNo the read cursors point at, so its receipt
-     * is the same question the feed asks — and the panel shares the feed's renderer, so a
-     * prop the host forgets here is how `foldReactions` went missing in this file (CLAUDE.md).
-     */
-    readCountOf?: ReadCountOf;
 }
 
 const Spinner = () => (
@@ -75,7 +67,7 @@ const ROOT_NOTICE = {
  * feed. Reuses MessageList for rendering; passes no thread props down, so the
  * pane shows no nested reply affordances (threads are root-only).
  */
-export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCountOf }: ThreadPanelProps) => {
+export const ThreadPanel = ({ channel, rootId, members, membersLoading }: ThreadPanelProps) => {
     const { t } = useTranslation();
     const channelId = channel.id ?? '';
     const closeThread = useThreadStore(s => s.close);
@@ -249,7 +241,6 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading, readCoun
                         onRetry={composer.retry}
                         canRetry={composer.canRetry}
                         onDiscard={composer.discard}
-                        readCountOf={readCountOf}
                     />
                 ) : (
                     <div

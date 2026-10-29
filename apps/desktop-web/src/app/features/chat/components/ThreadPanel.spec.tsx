@@ -352,25 +352,6 @@ describe('ThreadPanel', () => {
         expect(screen.getByRole('heading', { name: /error-report/ })).toBeTruthy();
     });
 
-    // The read counts are mounted once by the host and handed to both surfaces. The panel
-    // shares the feed's renderer, so forgetting to pass them on would leave replies silently
-    // without a receipt — the shape of the three twin bugs in CLAUDE.md.
-    it('passes the read counts through to the replies', () => {
-        messages = [chat(1, { content: 'root' }), chat(2, { content: 'reply', parentId: 'C1:1' })];
-
-        render(
-            <ThreadPanel
-                channel={CHANNEL}
-                rootId="C1:1"
-                members={[]}
-                readCountOf={() => ({ readCount: 2, unreadCount: 1 })}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getAllByText('Seen by 2').length).toBeGreaterThan(0);
-    });
-
     // Addressed to the channel's own cloud, captured at the press, so a cloud switch while the
     // reply is in flight cannot send it through the next cloud's socket.
     it("sends a reply, with its pictures, to the thread in the channel's own cloud and empties the tray", async () => {

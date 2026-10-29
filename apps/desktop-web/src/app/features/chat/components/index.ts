@@ -31,6 +31,5 @@ export * from './lists/ChannelListPanel';
 export * from './lists/DmListPanel';
 export * from './NotificationSnoozeButton';
 export * from './ReactionBar';
-export * from './ReadReceipt';
 export * from './images';
 export * from './WelcomePage';

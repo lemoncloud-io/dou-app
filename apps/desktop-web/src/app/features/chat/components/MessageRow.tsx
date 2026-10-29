@@ -39,7 +39,6 @@ import {
     threadRootId,
     type MessageGroup,
     type ReactionTally,
-    type ReadCount,
 } from '../utils';
 import {
     Hint,
@@ -59,7 +58,6 @@ import { MessageFiles, MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import type { Mentionable } from './MentionAutocomplete';
 import { ReactionBar } from './ReactionBar';
-import { ReadReceipt } from './ReadReceipt';
 import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
 
 import { RichText, type MentionResolver } from './RichText';
@@ -113,22 +111,6 @@ interface MessageRowProps {
     highlightChatNo?: number;
     /** Thread panel: qualify the header time with the day ("Today at 3:28 PM"). */
     withDayInTime?: boolean;
-    /**
-     * Read/unread counts for a message, or null when it gets no receipt (see
-     * `useReadCounts`). Absent on a surface that shows no receipts at all.
-     */
-    /**
-     * The read receipt for this block's last message, as numbers rather than a
-     * getter. A getter keyed on every member's cursor changed identity on each
-     * receipt anywhere in the channel, and re-rendered every row with it.
-     */
-    receiptRead?: number;
-    receiptUnread?: number;
-    /**
-     * Show the receipt only while its message is hovered or focused. Set on every block of mine
-     * but the latest, where a line under each one was the loudest repeated thing in a busy feed.
-     */
-    receiptOnReveal?: boolean;
     /**
      * Hang the first message's toolbar just under the author line instead of over it. The
      * thread panel sets it: its column is about 270px wide and the toolbar about 210px, so
@@ -242,9 +224,6 @@ export const MessageRow = memo(
         mentionables,
         highlightChatNo,
         withDayInTime,
-        receiptRead,
-        receiptUnread,
-        receiptOnReveal,
         toolbarUnderHeader,
     }: MessageRowProps) => {
         const { t } = useTranslation();
@@ -503,26 +482,6 @@ export const MessageRow = memo(
                             const hasActions = showReactions || showReply || showMore;
                             const isEditing = editingKey === key;
                             const wasEdited = isEdited(message);
-                            // One receipt per author block, on its last message — the same
-                            // place the group's own timestamp belongs to. Per-message
-                            // receipts would stack four identical lines under a burst of
-                            // four messages sent a second apart. A message still in flight,
-                            // failed or deleted has no meaningful count.
-                            //
-                            // An older block's receipt waits for its message to be hovered or
-                            // focused. Keyed on the same state as the toolbar, so the arrow keys
-                            // that move focus through the feed reveal it too, not only a pointer.
-                            const isLastInGroup = i === group.messages.length - 1;
-                            const isReceiptRevealed = !receiptOnReveal || hoverKey === key || focusKey === key;
-                            const receipt: ReadCount | null =
-                                receiptRead != null &&
-                                isLastInGroup &&
-                                isReceiptRevealed &&
-                                isSettled &&
-                                !message.hidden &&
-                                message.chatNo
-                                    ? { readCount: receiptRead, unreadCount: receiptUnread ?? 0 }
-                                    : null;
                             // Keep the toolbar up whenever it owns something the reader is
                             // still looking at — the emoji grid, the delete dialog, or the
                             // "Copied" tick that has not timed out yet. All three outlive the
@@ -683,9 +642,6 @@ export const MessageRow = memo(
                                         <span role="status" className="mt-0.5 block text-caption text-destructive">
                                             {t('chat.reaction.failed')}
                                         </span>
-                                    )}
-                                    {receipt && (
-                                        <ReadReceipt readCount={receipt.readCount} unreadCount={receipt.unreadCount} />
                                     )}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the

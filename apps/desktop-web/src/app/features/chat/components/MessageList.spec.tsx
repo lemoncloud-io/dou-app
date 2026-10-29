@@ -272,90 +272,6 @@ describe('MessageList', () => {
         expect(screen.getByText('{"blocks": [')).toBeDefined();
     });
 
-    // One receipt per author block, not one per message: a burst of four messages a second
-    // apart shares a single read position, and four identical lines under it would be four
-    // times the noise for the same fact.
-    it('puts the read receipt on the last message of an author block', () => {
-        render(
-            <MessageList
-                messages={[message(1, 'ada', 'first'), message(2, 'ada', 'second')]}
-                isLoading={false}
-                viewer={VIEWER}
-                names={new Map([['ada', 'Ada']])}
-                // Answers for every message, so the assertion is about which one asked.
-                readCountOf={chatNo => ({ readCount: chatNo, unreadCount: 1 })}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getAllByText(/^Seen by /)).toHaveLength(1);
-        expect(screen.getByText('Seen by 2')).toBeDefined();
-        expect(screen.getByText('Unseen by 1')).toBeDefined();
-    });
-
-    // A receipt under each of my blocks was the loudest repeated line in a busy channel. The
-    // latest block keeps it; an earlier one shows it only while its message is hovered or has
-    // focus, and focus is how the arrow keys move through the feed.
-    it('shows the receipt outright only on the latest block that has one', () => {
-        render(
-            <MessageList
-                messages={[
-                    message(1, 'me', 'mine, older'),
-                    message(2, 'ada', 'reply'),
-                    message(3, 'me', 'mine, latest'),
-                ]}
-                isLoading={false}
-                viewer={VIEWER}
-                names={new Map([['ada', 'Ada']])}
-                readCountOf={(chatNo, senderId) => (senderId === 'me' ? { readCount: chatNo, unreadCount: 1 } : null)}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getAllByText(/^Seen by /).map(node => node.textContent)).toEqual(['Seen by 3']);
-
-        const older = screen.getByText('mine, older').closest('[role="article"]') as HTMLElement;
-        fireEvent.mouseEnter(older);
-        expect(screen.getByText('Seen by 1')).toBeDefined();
-        fireEvent.mouseLeave(older);
-        expect(screen.queryByText('Seen by 1')).toBeNull();
-
-        fireEvent.focus(older);
-        expect(screen.getByText('Seen by 1')).toBeDefined();
-    });
-
-    // "Seen by 10" alone left the reader to compare it with the room size; once nobody is
-    // behind, the counts give way to one phrase that says so.
-    it('collapses the receipt to "Seen by all" once every member has read', () => {
-        render(
-            <MessageList
-                messages={[message(1, 'me', 'hello')]}
-                isLoading={false}
-                viewer={VIEWER}
-                readCountOf={() => ({ readCount: 3, unreadCount: 0 })}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getByText('Seen by all')).toBeDefined();
-        expect(screen.queryByText('Seen by 3')).toBeNull();
-        expect(screen.queryByText(/^Unseen by /)).toBeNull();
-    });
-
-    it('separates the read and unread counts with a bullet', () => {
-        render(
-            <MessageList
-                messages={[message(1, 'me', 'hello')]}
-                isLoading={false}
-                viewer={VIEWER}
-                readCountOf={() => ({ readCount: 2, unreadCount: 1 })}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.getByText('Seen by 2').parentElement?.textContent).toBe('Seen by 2•Unseen by 1');
-    });
-
     // In the thread panel the column is about 270px and the toolbar about 210px, so a toolbar
     // over the author line hid the author's name. There it hangs under the header on a block's
     // first message; the rest keep their place above their own message. jsdom lays nothing out,
@@ -610,24 +526,6 @@ describe('MessageList', () => {
 
         expect(toolbarTops(1)).toEqual(['under-header', 'above']);
         expect(toolbarTops()).toEqual(['above', 'above']);
-    });
-
-    // Null is the hook saying "no receipt for this message" — a self-channel, a channel with
-    // one active member, or nothing synced yet. Rendering "Seen by 0" there states something
-    // false rather than staying quiet.
-    it('shows no receipt when the counts are unavailable', () => {
-        render(
-            <MessageList
-                messages={[message(1, 'ada', 'first')]}
-                isLoading={false}
-                viewer={VIEWER}
-                names={new Map([['ada', 'Ada']])}
-                readCountOf={() => null}
-            />,
-            { wrapper }
-        );
-
-        expect(screen.queryByText(/^Seen by /)).toBeNull();
     });
 
     it('renders a reaction chip without throwing', () => {
