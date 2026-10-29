@@ -1,5 +1,31 @@
 # Changelog
 
+## [2026-10-29] - root@0.124.0, @chatic/landing@0.11.0
+
+### Features
+
+- (http,data,landing) carry the web subscription calls in the shared repository
+- (landing) change the card from the subscription, and open the mobile card page
+- (landing) let a phone browse, sign in and pay on the subscription site
+- (landing) hide the card and billing-email screens until their servers exist (ADR-0248)
+- (landing) stop a trial's upgrade on W-14 with the reason, not a failed change
+- (landing) run the account surface on the subscription server, not only the mock (ADR-0248)
+
+### Bug Fixes
+
+- (landing) leave out the last links into the billing history without its server
+- (landing) send an empty object with a POST that carries nothing
+- (landing) read a closed card window as cancelled, not as a declined card
+- (landing) have the mock behind the server speak for the signed-in account, not its scenario's
+
+### Documentation
+
+- (landing) bring the README's test count up to date
+
+### Other
+
+- ci: (landing) build the landing site with the web app's env secrets, not its own
+
 ## [2026-10-29] - No version updates
 
 ### Features
