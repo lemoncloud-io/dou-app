@@ -28,14 +28,13 @@ interface RailShortcutsOptions {
 }
 
 /**
- * The rail's number keys: Mod+1…Mod+9 count the rows the cloud switcher draws, Home first, and
- * Shift+1…Shift+9 the place tiles — each in the order the rail draws them, so a number means the row
- * the reader is looking at, drags included.
+ * The rail's number keys: Mod+0 goes to Home and Mod+1…Mod+9 to the clouds under it, Shift+1…Shift+9
+ * to the place tiles — each in the order the rail draws them, so a number means the row the reader is
+ * looking at, drags included.
  *
- * Home takes the first number like any other row, and Mod+0 goes there too: 0 is the key Home had
- * before it was numbered, and a reader who counts rows should not have to remember that Home sits
- * outside their count. The cost is the last cloud slot — a row 10 is out of reach either way. A place
- * has no Home row, so its numbers start at its first tile.
+ * Home takes 0 rather than a row number because it is the fixed return row every cloud comes back
+ * through and the one row nobody goes to on purpose, so the key outside the count is cheap there and
+ * leaves 1…9 for the clouds. A place has no Home row, so its numbers start at its first tile.
  *
  * Two chords are told apart by the modifier, and Shift+digit is a character: in a text field it types
  * ("!" for 1), so a place chord never fires there. Mod+digit types nothing, so it works from the
@@ -96,8 +95,7 @@ export const useRailShortcuts = ({
             if (cloudChord) {
                 const home = live.orderedClouds.find(cloud => cloud.kind === 'home');
                 const others = live.orderedClouds.filter(cloud => cloud.kind !== 'home');
-                // Row 1 is Home; 0 is the key it carried before it was numbered.
-                const target = digit <= 1 ? home : others[digit - 2];
+                const target = digit === 0 ? home : others[digit - 1];
                 if (!target) return;
                 // The session names no cloud while it sits on Home, so the Home row is what is open.
                 const currentCloudId = live.activeCloudId ?? (live.isDefaultMode ? (home?.id ?? null) : null);

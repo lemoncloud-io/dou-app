@@ -973,7 +973,7 @@ export const en = {
     'shortcuts.help': 'Show this help',
     'shortcuts.typeToCompose': 'Start typing anywhere to write a message',
     'shortcuts.format': 'Bold · Italic · Strike · Code · Code block',
-    'shortcuts.switchCloud': 'Go to a cloud · in rail order, Home first',
+    'shortcuts.switchCloud': 'Go to a cloud · 0 is Home',
     'shortcuts.switchPlace': 'Go to a place',
     'emoji.recent': 'Recently used',
     'emoji.cat.smileys': 'Smileys',

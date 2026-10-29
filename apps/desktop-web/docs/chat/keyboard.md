@@ -111,18 +111,14 @@ The shortcut sheet (`ShortcutsDialog`) lists both uses of the chord and where ea
 
 ## Cloud and place by number
 
-⌘1…⌘9 (Ctrl off macOS) count the rows of the cloud switcher and Shift+1…Shift+9 the place tiles. Both
-are read in the order the rail draws them — Home first in the switcher whatever was stored, then the
-device's stored order — so a number means the row the reader is looking at, including after a cloud or
-place was dragged somewhere else (`useRailShortcuts`, `features/chat/hooks/`).
+⌘0 (Ctrl+0 off macOS) goes to Home and ⌘1…⌘9 to the clouds after it, Shift+1…Shift+9 to the place
+tiles. Both are read in the order the rail draws them — Home first in the switcher whatever was stored,
+then the device's stored order — so a number means the row the reader is looking at, including after a
+cloud or place was dragged somewhere else (`useRailShortcuts`, `features/chat/hooks/`).
 
-- **Home is row 1, and ⌘0 goes there too.** It is the fixed return row every cloud comes back through,
-  so it sits at the top of the list the numbers count; 0 is the key it carried before it was numbered,
-  kept so a reader who reaches for it still lands there. A place has no such row, so its numbers start
-  at its first tile.
-- **Nine keys number nine rows, and nine rows are Home plus eight clouds.** A ninth cloud is out of
-  reach by number where a tenth row would be anyway — the count starts at Home rather than at the
-  cloud under it.
+- **Home is 0, not 1.** It is the fixed return row every cloud comes back through and the one row
+  nobody goes to on purpose, so it takes the key outside the count and leaves 1…9 for the clouds —
+  nine of them rather than eight. A place has no such row, so its numbers start at 1.
 - The listener is mounted by `HomePage`: the rails are the only place a cloud or place is chosen, and
   the numbers need both lists.
 - A number past the end of either list does nothing and does not take the key. On Home, where the one
