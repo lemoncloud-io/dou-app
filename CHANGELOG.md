@@ -1,5 +1,24 @@
 # Changelog
 
+## [2026-10-29] - root@0.123.0, @chatic/web@0.82.0
+
+### Features
+
+- (web) name an invite's inviter by place nickname and its room by channel name
+
+### Bug Fixes
+
+- (web) declare the inviter nickname and room name on InviteInfo instead of raising the api types
+
+### Documentation
+
+- (web) bring the invite docs in line with the 24-hour default and the card-less place invite
+
+### Other
+
+- test: (web-e2e) give the pending relay invite fixture the inviter's place nickname
+- build: (web) raise the backend api types to 0.26.1003 for the inviter nickname and room name
+
 ## [2026-10-28] - root@0.122.1, @chatic/desktop-web@0.37.1
 
 ### Bug Fixes
