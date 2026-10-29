@@ -30,8 +30,10 @@ consuming it.** The exchange is a separate, later step the person confirms.
 
 - **Looking at an invite creates a device guest even if the person never joins.** The device id is
   fixed per install, so it is the same guest every time, not a new account per look. Backing out signs
-  it out; closing the app at the preview leaves it registered, which is what the Google sign-in start
-  already does.
+  it out. Quitting or reloading the app during the preview does not: the page state, including the
+  note that the preview registered the guest, is in memory only, so the next start finds a guest
+  session and opens the app as that guest. Persisting the note to clean up on the next start was
+  considered and left out as more machinery than this flow justifies.
 - **A bare `invt:` code cannot be previewed.** It names no backend to look up, so it joins without
   details. A pasted string that is not a link is also read as a bare code today, so it passes the
   preview and fails at the exchange.

@@ -177,6 +177,9 @@ session existing before the person has agreed to anything:
   An answer that arrives after the page was left is dropped (each preview carries an attempt number,
   and leaving advances it).
 
+Quitting or reloading the app during the preview is not covered: the page state lives in memory, so
+the next start finds the guest the preview registered and opens the app as that guest.
+
 The in-app "Join with invite" dialog is a different path: it already has a session, shows no preview,
 and still goes straight to the exchange.
 
