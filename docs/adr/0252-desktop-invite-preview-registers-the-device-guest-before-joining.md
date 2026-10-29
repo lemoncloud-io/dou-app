@@ -37,7 +37,12 @@ consuming it.** The exchange is a separate, later step the person confirms.
 - **A bare `invt:` code cannot be previewed.** It names no backend to look up, so it joins without
   details. A pasted string that is not a link is also read as a bare code today, so it passes the
   preview and fails at the exchange.
-- **Whether an expired invite is rejected by the lookup or reported through its state is read both
-  ways.** Either blocks the preview.
+- **Whether an expired invite is rejected by the lookup or reported through its state is read three
+  ways.** A rejected lookup, an `expired` state, or a `pending` state whose `expiredAt` has passed
+  each block the preview.
+- **An already used invite cannot be told apart from a fresh one on the dev backend.** The exchange
+  does not move the invite to `accepted`, so it stays pending, and joinable, until it expires. The
+  `accepted` state is still read as used for a backend that sets it; changing what the backend does
+  is outside this change.
 - **If an unauthenticated lookup ever exists, the guest registration can move to the join step** and
   looking at an invite would create nothing.

@@ -129,6 +129,39 @@ describe('useInviteLogin.preview blocks', () => {
         expect(registerUserWithInviteCode).not.toHaveBeenCalled();
     });
 
+    it('blocks an invite still marked pending whose expiry time has passed', async () => {
+        fetchInviteCodeInfo.mockResolvedValue({
+            id: '1',
+            state: 'pending',
+            cloudName: 'Design Team',
+            expiredAt: Date.now() - 60_000,
+        });
+
+        const outcome = await previewOf(TRUSTED_LINK);
+
+        expect(outcome).toMatchObject({ error: { kind: 'expired' } });
+        expect(outcome).not.toHaveProperty('preview');
+        expect(registerUserWithInviteCode).not.toHaveBeenCalled();
+    });
+
+    it('previews a pending invite whose expiry time is still ahead, or not given', async () => {
+        fetchInviteCodeInfo.mockResolvedValueOnce({
+            id: '1',
+            state: 'pending',
+            cloudName: 'Design Team',
+            expiredAt: Date.now() + 3_600_000,
+        });
+        expect(await previewOf(TRUSTED_LINK)).toMatchObject({ preview: { placeName: 'Design Team' } });
+
+        fetchInviteCodeInfo.mockResolvedValueOnce({
+            id: '1',
+            state: 'pending',
+            cloudName: 'Design Team',
+            expiredAt: 0,
+        });
+        expect(await previewOf(TRUSTED_LINK)).toMatchObject({ preview: { placeName: 'Design Team' } });
+    });
+
     it('blocks when the lookup is rejected, instead of going on as the login does', async () => {
         fetchInviteCodeInfo.mockRejectedValue(new Error('400 INVALID - @code[invt:1:abc] is invalid (not-found)'));
 

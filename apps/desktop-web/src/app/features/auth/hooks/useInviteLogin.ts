@@ -31,9 +31,7 @@ export interface InvitePreview {
     createdGuest: boolean;
 }
 
-export type InvitePreviewResult =
-    | { preview: InvitePreview }
-    | { error: InviteLoginError; createdGuest: boolean };
+export type InvitePreviewResult = { preview: InvitePreview } | { error: InviteLoginError; createdGuest: boolean };
 
 /** Lookup states that are not `pending`, as the failure the person sees. */
 const BLOCKED_STATE: Record<string, 'used' | 'expired' | 'canceled'> = {
@@ -88,25 +86,24 @@ export const useInviteLogin = () => {
      * accepting here would silently downgrade it to a guest — surface that instead of clobbering
      * its identity.
      */
-    const ensureGuest = useCallback(
-        async (): Promise<{ delegatorId: string; createdGuest: boolean } | InviteLoginError> => {
-            await runtime.boot.startWebTransportInit();
-            let delegatorId = runtime.session.getIdentityContext().delegatorId;
-            let createdGuest = false;
-            if (!delegatorId) {
-                // The identity context carries no guest flag; the active token's role is the source
-                // (the same one `useRuntimeProfile().isGuest` reads).
-                const isGuest = runtime.session.getActiveSessionUser()?.userRole === 'guest';
-                if (runtime.session.getIdentityContext().isAuthenticated && !isGuest) return { kind: 'loggedIn' };
-                await loginGuest(deviceId);
-                createdGuest = true;
-                delegatorId = runtime.session.getIdentityContext().delegatorId;
-            }
-            if (!delegatorId) throw new Error('delegatorId unavailable after device registration');
-            return { delegatorId, createdGuest };
-        },
-        [deviceId, loginGuest]
-    );
+    const ensureGuest = useCallback(async (): Promise<
+        { delegatorId: string; createdGuest: boolean } | InviteLoginError
+    > => {
+        await runtime.boot.startWebTransportInit();
+        let delegatorId = runtime.session.getIdentityContext().delegatorId;
+        let createdGuest = false;
+        if (!delegatorId) {
+            // The identity context carries no guest flag; the active token's role is the source
+            // (the same one `useRuntimeProfile().isGuest` reads).
+            const isGuest = runtime.session.getActiveSessionUser()?.userRole === 'guest';
+            if (runtime.session.getIdentityContext().isAuthenticated && !isGuest) return { kind: 'loggedIn' };
+            await loginGuest(deviceId);
+            createdGuest = true;
+            delegatorId = runtime.session.getIdentityContext().delegatorId;
+        }
+        if (!delegatorId) throw new Error('delegatorId unavailable after device registration');
+        return { delegatorId, createdGuest };
+    }, [deviceId, loginGuest]);
 
     /** Exchange the code for the invited cloud and enter it (steps 4-5 of the flow above). */
     const exchange = useCallback(
@@ -230,7 +227,11 @@ export const useInviteLogin = () => {
 
                 // A bare code names no backend, so there is nothing to look up; it goes on without details.
                 const info = backend ? await fetchInviteCodeInfo(code, backend) : null;
-                const blocked = info?.state ? BLOCKED_STATE[info.state] : undefined;
+                // The backend can leave `state` at pending while the expiry time has passed, so the
+                // time is read as well; 0 or a missing value means no expiry was set.
+                const lapsed = !!info?.expiredAt && info.expiredAt < Date.now();
+                const blocked =
+                    (info?.state ? BLOCKED_STATE[info.state] : undefined) ?? (lapsed ? 'expired' : undefined);
                 if (blocked) return { error: { kind: blocked }, createdGuest };
 
                 return {

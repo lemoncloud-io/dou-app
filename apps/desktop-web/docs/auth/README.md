@@ -160,7 +160,14 @@ The lookup is signed, so it needs a device guest session, and the preview is whe
 made: before the person has joined anything. The preview blocks an invite whose lookup is rejected or
 whose state is one of four — `accepted` reads as already used, `expired` as expired, `canceled` and
 `rejected` as no longer available — with the same sentences the exchange uses. A state the list does not
-name, or none at all (an older backend), is read as pending.
+name, or none at all (an older backend), is read as pending. An invite still marked pending whose
+`expiredAt` has passed is read as expired too; an `expiredAt` of 0 or none means no expiry was set.
+
+What the dev backend was seen to do, which the preview cannot change: it does not move an invite to
+`accepted` when it is exchanged, so a link stays pending and joinable until `expiredAt` (a day after
+it was made), and the preview cannot tell a link that was already used from a fresh one. An invite
+made for a phone number also signs the person in as the account of that number, not as a guest;
+the preview only knows the guest session it made itself, so that is the moment the identity changes.
 
 The guest session flips the router to its signed-in branch, so the page state (step, preview, the
 pasted code, whether the preview registered the guest) lives in `useInviteLoginPageStore`, and its
@@ -176,6 +183,9 @@ session existing before the person has agreed to anything:
   would release the hold before it could be signed out. The lookup is seconds long and ends by itself.
   An answer that arrives after the page was left is dropped (each preview carries an attempt number,
   and leaving advances it).
+
+The connection banner stays off while the page is held, because the guest's socket is still coming
+up and nothing on the page uses it; a lost network is still reported there.
 
 Quitting or reloading the app during the preview is not covered: the page state lives in memory, so
 the next start finds the guest the preview registered and opens the app as that guest.
