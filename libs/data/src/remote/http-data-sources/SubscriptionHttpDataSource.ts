@@ -7,12 +7,12 @@ import type {
     MembershipView,
     ProductView,
 } from '@lemoncloud/chatic-backend-api';
-import type { MembershipDropsResult } from '@chatic/http';
+import type { AdminSubscriptionView, MembershipDropsResult, SubscriptionRefundBody } from '@chatic/http';
 import type { SubscriptionHttpDomainGateway } from '../gateways';
 
 // Re-exported so app code reads the drops response type from `@chatic/data` like the rest of this
 // surface, without taking a dependency on the transport lib for one type.
-export type { MembershipDropsResult } from '@chatic/http';
+export type { AdminSubscriptionView, MembershipDropsResult, SubscriptionRefundBody } from '@chatic/http';
 
 export interface ISubscriptionHttpDataSource {
     fetchPlans(params?: Record<string, unknown>): Promise<ListResult<ProductView>>;
@@ -25,6 +25,11 @@ export interface ISubscriptionHttpDataSource {
         opts?: AdminEndpointOptions
     ): Promise<ListResult<MembershipView>>;
     updateMembershipByAdmin(userId: string, body: MembershipBody, opts?: AdminOverrideOptions): Promise<MembershipView>;
+    refundSubscriptionByAdmin(
+        userId: string,
+        body: SubscriptionRefundBody,
+        opts?: AdminEndpointOptions
+    ): Promise<AdminSubscriptionView>;
     fetchAdminClouds(
         ownerId: string,
         params?: Record<string, unknown>,
@@ -98,6 +103,14 @@ export class SubscriptionHttpDataSource implements ISubscriptionHttpDataSource {
         return this.gateway.updateMembershipByAdmin(userId, body, opts?.auto ? { auto: 1 } : undefined, {
             endpoint: opts?.endpoint,
         });
+    }
+
+    refundSubscriptionByAdmin(
+        userId: string,
+        body: SubscriptionRefundBody,
+        opts?: AdminEndpointOptions
+    ): Promise<AdminSubscriptionView> {
+        return this.gateway.refundSubscriptionByAdmin(userId, body, undefined, opts);
     }
 
     fetchAdminClouds(

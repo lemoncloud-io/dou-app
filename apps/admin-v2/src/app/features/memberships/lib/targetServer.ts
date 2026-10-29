@@ -36,6 +36,15 @@ export const relayBaseFor = (endpoint: string | undefined, stage: RelayStage): s
     return host ? `${host}/dou-${stage}` : '';
 };
 
+/** The stage an endpoint's trailing `dou-XX` segment names, or undefined when it names neither. */
+export const relayStageOf = (endpoint: string | undefined): RelayStage | undefined => {
+    const stage = (endpoint ?? '')
+        .trim()
+        .replace(/\/+$/, '')
+        .match(/\/dou-([^/]*)$/)?.[1];
+    return stage === 'v1' || stage === 'd1' ? stage : undefined;
+};
+
 /**
  * Stage read off the endpoint's `dou-XX` segment. An endpoint following neither convention is
  * reported as unknown rather than guessed at — guessing "dev" on a production URL is the expensive
@@ -47,8 +56,8 @@ export const describeTargetServer = (endpoint: string | undefined): TargetServer
         return { endpoint: '(not configured)', isProd: false, label: 'Unknown' };
     }
 
-    const stage = (url.match(/\/dou-([^/]*)$/)?.[1] ?? '') as RelayStage;
-    if (stage === 'v1' || stage === 'd1') {
+    const stage = relayStageOf(url);
+    if (stage) {
         return { endpoint: url, isProd: stage === 'v1', label: STAGE_LABEL[stage] };
     }
 
