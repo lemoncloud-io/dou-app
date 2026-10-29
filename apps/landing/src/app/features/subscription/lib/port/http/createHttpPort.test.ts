@@ -493,6 +493,15 @@ describe('createHttpPort — plan change and cancelling', () => {
             endsAt: '2026-12-01',
         });
     });
+
+    it('sends a POST that carries nothing with an empty object, which the gateway needs', async () => {
+        const { port, calls } = setup({
+            ...ACTIVE,
+            'POST /subscriptions/0/cancel': subscription({ status: 'canceling', autoRenewing: false }),
+        });
+        await port.cancelSubscription('U1:portone');
+        expect(calls.find(call => call.path === '/subscriptions/0/cancel')?.body).toEqual({});
+    });
 });
 
 describe('createHttpPort — cards', () => {

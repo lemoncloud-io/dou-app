@@ -155,7 +155,10 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         if (lost || !session.user()) return Promise.reject(new SubscriptionPortError('unauthenticated', 'no session'));
         // The sample payments are the subscription server's; the plans take no such flag.
         const params = query ?? (paymentsMock ? { mock: '1' } : undefined);
-        return request(method, `${backend}${path}`, { params, body }) as Promise<T>;
+        // A POST with no body at all is refused at the server's gateway (it never answers the browser's
+        // cross-origin check), where the same POST with an empty object reaches the server.
+        const sent = body === undefined && method === 'POST' ? {} : body;
+        return request(method, `${backend}${path}`, { params, body: sent }) as Promise<T>;
     };
 
     /** `send`, with the failure turned into the port's error. */
