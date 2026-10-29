@@ -140,6 +140,7 @@ module.exports = {
                 // message, and the recessed ground under a code block.
                 hairline: 'hsl(var(--hairline))',
                 well: 'hsl(var(--well))',
+                'code-inline': 'hsl(var(--code-inline))',
                 warning: 'hsl(var(--warning))',
             },
             // Semantic type scale for `libs/block-kit`'s renderer, which both apps share.

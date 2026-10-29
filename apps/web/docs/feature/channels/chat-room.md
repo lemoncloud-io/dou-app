@@ -374,6 +374,11 @@ dialog, a thread root on the page) they keep the dark one. A fenced block also c
 so its edge stays visible where the tint is close to the ground, and a header row ruled off from the
 code with the language tag and an icon-and-label copy button.
 
+An inline code chip carries a border and its own colour too (`code-inline` — a burnt orange on the
+light ground, a lighter amber on the dark one), the way Slack sets one off: monospace on a tint alone
+read as part of the sentence. Inside my bubble the chip keeps the bubble's white text instead, since
+the light-theme accent sinks into navy.
+
 Code resolves **before** URLs, so `https://…` inside a code span is neither linked nor offered to
 the unfurl card. Trailing sentence punctuation and unbalanced brackets are trimmed off a matched
 URL, so `…see https://example.com/a.` links to `/a`.

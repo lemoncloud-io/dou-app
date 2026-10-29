@@ -74,6 +74,7 @@
         /* Block Kit message surfaces (libs/block-kit renders with these) */
         --hairline: 240 4% 92%; /* rule inside a message — same weight as a card border */
         --well: 240 5% 96%; /* recessed ground under a code block */
+        --code-inline: 20 90% 36%; /* #AE4009 - inline code text (web-ui-kit parity) */
         --primary-ink: 215 90% 56%; /* = --point-blue; links/mentions in message bodies */
         --link: 250 70% 60%; /* #6A52E0 - links in a Block Kit card (libs/block-kit), the design's purple */
         --warning: 38 92% 50%; /* highlight behind a mention of me (MSG_MENTION_SELF_CLASS) */
@@ -162,6 +163,7 @@
         /* Block Kit message surfaces (dark) */
         --hairline: 0 0% 23%; /* same weight as the dark card border */
         --well: 0 0% 12%; /* recessed against the 7% page ground */
+        --code-inline: 32 80% 54%; /* #E8902C - same, lifted for the dark ground */
         --primary-ink: 215 90% 56%; /* = --point-blue, unchanged on dark */
         --link: 250 90% 76%; /* lifted for the dark card */
         --warning: 43 90% 55%; /* lifted for the dark ground */

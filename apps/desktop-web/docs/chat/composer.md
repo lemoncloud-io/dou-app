@@ -11,6 +11,8 @@ Three rows, in Slack's order:
 1. **Formats** — bold, italic, strikethrough, inline code and link, a rule, then quote and code
    block. Each format button lights up while the caret's text or block carries that format. The row is
    the same component the message editor uses, so the two always offer the same set.
+   Inline code is drawn as a bordered chip in the `code-inline` colour, in the composer and the message
+   view alike (both read `MSG_CODE_INLINE_CLASS`), so it stands apart from the sentence around it.
 2. **Text**, with the attachment tray under it.
 3. **Actions** — attach ("+", only where files are accepted) and emoji on the left; the newline hint
    (shown once there is text) and send on the right.

@@ -77,6 +77,7 @@ module.exports = {
                 verified: 'hsl(var(--verified))',
                 'point-blue': 'hsl(var(--point-blue))',
                 'point-pink': 'hsl(var(--point-pink))',
+                'code-inline': 'hsl(var(--code-inline))',
                 overlay: 'hsl(var(--overlay))',
             },
             borderRadius: {
