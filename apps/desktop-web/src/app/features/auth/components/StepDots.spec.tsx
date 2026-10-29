@@ -18,8 +18,6 @@ describe('StepDots', () => {
     it('names the position for a screen reader instead of leaving three unlabelled dots', () => {
         render(<StepDots current={2} total={3} />);
 
-        expect(
-            screen.getByRole('list', { name: i18n.t('auth.progress', { current: 2, total: 3 }) })
-        ).toBeTruthy();
+        expect(screen.getByRole('list', { name: i18n.t('auth.progress', { current: 2, total: 3 }) })).toBeTruthy();
     });
 });
