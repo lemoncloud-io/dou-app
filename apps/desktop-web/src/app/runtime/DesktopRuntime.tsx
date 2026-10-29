@@ -3,6 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
+import { useInviteLoginPageStore } from '../features/auth/stores/useInviteLoginPageStore';
 import { AppRouter } from '../routes';
 import {
     AppToaster,
@@ -174,6 +175,9 @@ export const DesktopRuntime = () => {
     // A browser a phone approved into clouds re-checks them through the relay — at mount, every ten
     // minutes and on returning to the window — and signs out once an approval ended.
     usePairedCloudSignOut();
+    // The invite page signs the device guest in before its code is checked; that socket is not
+    // the person's concern yet, so the banner stays off the page until the attempt is left.
+    const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
 
     return (
         <runtime.connection.RuntimeAuthHost>
@@ -192,7 +196,7 @@ export const DesktopRuntime = () => {
                     app below gives up exactly their height. */}
                 <div className="flex h-full flex-col">
                     <div className="flex shrink-0 flex-col">
-                        <ConnectionBanner />
+                        <ConnectionBanner quiet={inviteAttemptHeld} />
                         {/* Desktop auto-update banner — always mounted (no-op in browser). */}
                         <UpdateBanner />
                     </div>
