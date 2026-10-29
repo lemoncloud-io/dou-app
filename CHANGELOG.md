@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-29] - root@0.125.0, @chatic/desktop-web@0.38.0
+
+### Features
+
+- (desktop-web) drop the per-message read receipt (ADR-0251)
+
+### Documentation
+
+- (adr) record why desktop shows no read receipt, not a hover line
+
 ## [2026-10-29] - No version updates
 
 ### Features
