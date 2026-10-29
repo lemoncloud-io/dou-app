@@ -90,6 +90,14 @@ const PAIRS: [string, string, number][] = [
     // Switch on: the ink edge against the card it sits on, and the ink thumb on the fill.
     ['primary-ink', 'card', 3],
     ['primary-foreground', 'primary', 3],
+    // A Block Kit card (webhook messages) draws its text on --card rather than the page: the
+    // title in the foreground, the body in the label grey, its context line and field captions
+    // in the description grey — that one also on the well of an inline value chip — and links.
+    ['foreground', 'card', 4.5],
+    ['label', 'card', 4.5],
+    ['description', 'card', 4.5],
+    ['description', 'well', 4.5],
+    ['link', 'card', 4.5],
 ];
 
 describe.each([

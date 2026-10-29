@@ -60,7 +60,13 @@ import { LinkPreviewCard } from './LinkPreviewCard';
 import type { Mentionable } from './MentionAutocomplete';
 import { ReactionBar } from './ReactionBar';
 import { ReadReceipt } from './ReadReceipt';
-import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
+import {
+    BlockKitMessage,
+    blocksToPlainText,
+    hasDrawableBlocks,
+    resolveChatBlocks,
+    takeSourceLink,
+} from '@chatic/block-kit';
 
 import { RichText, type MentionResolver } from './RichText';
 
@@ -343,7 +349,14 @@ export const MessageRow = memo(
                     // (SPEC §6-5); folding `blocks` back through `blocksToPlainText`
                     // there would throw that summary away.
                     const plain = !blocks || source === 'field' ? content : blocksToPlainText(blocks);
-                    return { content, blocks, plain };
+                    // A card only when something in it draws: a message whose every block is
+                    // unknown falls back to its own text, and that text is a message, not a
+                    // card. `sourceUrl` is the webhook's full report, which the card's title
+                    // links to — the server puts it on the card's last line and
+                    // `takeSourceLink` moves it up. Only the drawing moves: `plain` above reads the
+                    // blocks as they came, so Copy and Save say what they said before.
+                    const card = blocks && hasDrawableBlocks(blocks) ? takeSourceLink(blocks) : null;
+                    return { content, blocks, plain, card };
                 }),
             [group.messages]
         );
@@ -456,7 +469,7 @@ export const MessageRow = memo(
                             const isPending = message.isPending && !isStuck;
                             const isFailed = message.isFailed || isStuck;
                             const key = String(message.id ?? message.tempId ?? message.chatNo);
-                            const { content, blocks, plain } = bodies[i];
+                            const { content, blocks, plain, card } = bodies[i];
                             const firstUrl = plain.match(/https?:\/\/[^\s]+/)?.[0];
                             const isCopied = copiedKey === key;
                             const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
@@ -595,13 +608,29 @@ export const MessageRow = memo(
                                         // rather than sitting inside one: a header or a divider
                                         // nested in a paragraph is invalid markup and the browser
                                         // would close the <p> out from under the rest of the row.
-                                        <div className={cn(isPending && 'opacity-50')}>
+                                        //
+                                        // A drawable message sits in a card that hugs its content,
+                                        // so a short alert stays short instead of spanning the
+                                        // column; the design's desktop card is the phone's with more
+                                        // room inside it and a larger type scale. Its links need no
+                                        // `onLinkClick`: the shell hands a `_blank` anchor to the
+                                        // OS browser, as it does for `RichText`'s links.
+                                        <div
+                                            className={cn(
+                                                card &&
+                                                    'w-fit min-w-0 max-w-full rounded-[10px] border border-hairline bg-card p-6',
+                                                isPending && 'opacity-50'
+                                            )}
+                                        >
                                             <BlockKitMessage
-                                                blocks={blocks}
+                                                blocks={card?.blocks ?? blocks}
                                                 raw={content}
+                                                scale="desktop"
+                                                sourceUrl={card?.sourceUrl}
                                                 labels={{
                                                     expandCode: count => t('chat.codeBlock.expand', { count }),
                                                     collapseCode: t('chat.codeBlock.collapse'),
+                                                    openSource: t('chat.webhook.openSource'),
                                                 }}
                                                 renderFallback={raw => (
                                                     <RichText

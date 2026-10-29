@@ -9,6 +9,13 @@ import {
     type BlockKitLabels,
 } from './blockKitLabels';
 import { decodeSlackEntities, hasDrawableBlocks, type BlockTextObject, type KnownBlock } from './blockKit';
+import {
+    BLOCK_KIT_SCALE,
+    BlockKitScaleContext,
+    useBlockKitScale,
+    type BlockKitScale,
+    type BlockKitScaleClasses,
+} from './blockKitScale';
 import { MSG_CODE_BLOCK_CLASS } from './messageClasses';
 import { BlockKitLinkContext, renderMrkdwn } from './renderMrkdwn';
 import { isWebUrl, linkableHeaderIndex } from './sourceLink';
@@ -21,28 +28,21 @@ const textOf = (text: BlockTextObject): ReactNode =>
     text.type === 'mrkdwn' ? renderMrkdwn(text.text) : decodeSlackEntities(text.text);
 
 // The heading is the only line in the card that speaks at full ink; everything under
-// it is the same quieter secondary text, so the title is found first. h1 is the
-// app's body size made bold rather than a step up the scale: it sits under an author
-// line that already carries weight, and in a phone-width card a larger heading wraps
-// a one-line error name onto two.
-const HEADING_CLASS = [
-    'text-body font-semibold',
-    'text-body font-semibold',
-    'text-callout font-semibold',
-    'text-callout font-semibold',
-];
-
+// it is the same quieter secondary text, so the title is found first. Sizes come from
+// the scale (`blockKitScale`); colour and weight are the same at both.
+//
 // Body text of a section, a field value, and the stack under an error all read in
 // the label grey, not the foreground: the card's title is the message, the rest is
 // what supports it.
-const BODY_CLASS = 'text-caption font-medium text-label';
+const BODY_CLASS = 'font-medium text-label';
 
 const Header = ({ text, level, sourceUrl }: { text: BlockTextObject; level?: number; sourceUrl?: string }) => {
     const onLinkClick = useContext(BlockKitLinkContext);
     const labels = useBlockKitLabels();
+    const scale = useBlockKitScale();
     const depth = Math.min(Math.max(level ?? 1, 1), 4);
     const Tag = `h${depth}` as 'h1' | 'h2' | 'h3' | 'h4';
-    const heading = <Tag className={cn('text-foreground', TEXT_FLOW, HEADING_CLASS[depth - 1])}>{textOf(text)}</Tag>;
+    const heading = <Tag className={cn('text-foreground', TEXT_FLOW, scale.heading[depth - 1])}>{textOf(text)}</Tag>;
     if (!sourceUrl) return heading;
     // The title itself is the link, drawn as the title: a webhook card's heading names
     // the event, and the event's full report is what a reader pressing it wants. No
@@ -77,19 +77,22 @@ const FIELD_LABEL = /^\*([^*\n]+)\*\n/;
 const FIELD_FIT = 'min-w-0 max-w-full [overflow-wrap:anywhere]';
 
 const Field = ({ field }: { field: BlockTextObject }): ReactNode => {
+    const scale = useBlockKitScale();
     const label = field.type === 'mrkdwn' ? FIELD_LABEL.exec(field.text) : null;
     // `min-w-0` and `overflow-wrap: anywhere`: a flex item will not shrink below its
     // longest word, so a long hash or URL in a value would push past the card's edge.
-    if (!label) return <span className={cn(BODY_CLASS, FIELD_FIT)}>{textOf(field)}</span>;
+    if (!label) return <span className={cn(BODY_CLASS, scale.body, FIELD_FIT)}>{textOf(field)}</span>;
     return (
         <span className={cn('flex flex-col gap-0.5', FIELD_FIT)}>
-            <span className="text-xs font-semibold text-description">{decodeSlackEntities(label[1])}</span>
-            <span className={BODY_CLASS}>{renderMrkdwn(field.text.slice(label[0].length))}</span>
+            <span className={cn(scale.fieldLabel, 'font-semibold text-description')}>
+                {decodeSlackEntities(label[1])}
+            </span>
+            <span className={cn(BODY_CLASS, scale.body)}>{renderMrkdwn(field.text.slice(label[0].length))}</span>
         </span>
     );
 };
 
-const drawBlock = (block: KnownBlock, key: number, sourceUrl?: string): ReactNode => {
+const drawBlock = (block: KnownBlock, key: number, scale: BlockKitScaleClasses, sourceUrl?: string): ReactNode => {
     switch (block.type) {
         case 'header':
             return <Header key={key} text={block.text} level={block.level} sourceUrl={sourceUrl} />;
@@ -100,7 +103,7 @@ const drawBlock = (block: KnownBlock, key: number, sourceUrl?: string): ReactNod
         case 'section':
             return (
                 <div key={key} className="flex flex-col gap-2">
-                    {block.text && <span className={cn(BODY_CLASS, TEXT_FLOW)}>{textOf(block.text)}</span>}
+                    {block.text && <span className={cn(BODY_CLASS, scale.body, TEXT_FLOW)}>{textOf(block.text)}</span>}
                     {/* Columns as wide as their content, wrapping when the card runs
                         out of room — a phone card fits two short fields side by side,
                         which a fixed two-column grid only allowed from `sm` up. Capped,
@@ -120,7 +123,7 @@ const drawBlock = (block: KnownBlock, key: number, sourceUrl?: string): ReactNod
             // one, and a context line that reads differently in the sidebar preview than
             // in the message is the same value disagreeing with itself.
             return (
-                <div key={key} className={cn('text-caption font-medium text-description', TEXT_FLOW)}>
+                <div key={key} className={cn(scale.context, 'font-medium text-description', TEXT_FLOW)}>
                     {block.elements.map((element, i) => (
                         <span key={i}>
                             {i > 0 && ' '}
@@ -167,6 +170,11 @@ interface BlockKitMessageProps {
      */
     onLinkClick?: (url: string) => void;
     /**
+     * Which of the design's two card sizes to draw; see `BlockKitScale`. Defaults to `phone`.
+     * Only the blocks scale — the all-undrawable fallback is the caller's own message text.
+     */
+    scale?: BlockKitScale;
+    /**
      * Where the whole message can be read in full — a webhook's report, say. The
      * first heading becomes a link to it. Not a block: Slack's
      * `header` carries no URL, so the caller takes it from wherever its message keeps
@@ -191,6 +199,7 @@ export const BlockKitMessage = ({
     renderFallback,
     labels,
     onLinkClick,
+    scale = 'phone',
     sourceUrl,
 }: BlockKitMessageProps): ReactNode => {
     if (!hasDrawableBlocks(blocks)) {
@@ -201,13 +210,18 @@ export const BlockKitMessage = ({
         );
     }
     const linkedHeader = isWebUrl(sourceUrl) ? linkableHeaderIndex(blocks) : -1;
+    const classes = BLOCK_KIT_SCALE[scale];
     return (
         <BlockKitLabelsContext.Provider value={{ ...DEFAULT_BLOCK_KIT_LABELS, ...labels }}>
-            <BlockKitLinkContext.Provider value={onLinkClick}>
-                <div className="flex select-text flex-col gap-3.5 break-words text-body text-foreground">
-                    {blocks.map((block, i) => drawBlock(block, i, i === linkedHeader ? sourceUrl?.trim() : undefined))}
-                </div>
-            </BlockKitLinkContext.Provider>
+            <BlockKitScaleContext.Provider value={classes}>
+                <BlockKitLinkContext.Provider value={onLinkClick}>
+                    <div className="flex select-text flex-col gap-3.5 break-words text-body text-foreground">
+                        {blocks.map((block, i) =>
+                            drawBlock(block, i, classes, i === linkedHeader ? sourceUrl?.trim() : undefined)
+                        )}
+                    </div>
+                </BlockKitLinkContext.Provider>
+            </BlockKitScaleContext.Provider>
         </BlockKitLabelsContext.Provider>
     );
 };

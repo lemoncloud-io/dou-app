@@ -1,9 +1,12 @@
 # ADR-0246: A webhook card's title is the link to its source, moved up from the server's last line
 
-> Status: Accepted · Decided: 2026-10-27 · Implemented: `feat/block-kit-card-restyle`
+> Status: Accepted · Decided: 2026-10-27 · Implemented: `feat/block-kit-card-restyle`, `feat/desktop-webhook-card`
 > · Scope: `libs/block-kit/src/sourceLink.ts` · `libs/block-kit/src/BlockKitMessage.tsx` ·
-> `apps/web/src/app/features/channels/components/ChannelMessageRow.tsx`
-> · The module doc is [apps/web chat room](../../apps/web/docs/feature/channels/chat-room.md)
+> `apps/web/src/app/features/channels/components/ChannelMessageRow.tsx` ·
+> `apps/desktop-web/src/app/features/chat/components/MessageRow.tsx` ·
+> `apps/block-kit-builder/src/app/features/preview/PreviewPane.tsx`
+> · The module docs are [apps/web chat room](../../apps/web/docs/feature/channels/chat-room.md) and
+> [desktop-web webhook messages](../../apps/desktop-web/docs/chat/webhook-messages.md)
 
 ## Context
 
@@ -46,5 +49,6 @@ report on the title instead — the first thing a reader looks at, and the thing
   Nothing in this repository pins the server's output; the shared sample in `sampleWebhookBlocks.ts` is
   a copy.
 - On a touch screen, where nothing hovers, a linked title looks like any title.
-- The move is the caller's: apps/web makes it, apps/desktop-web and the Block Kit builder's preview do
-  not yet, so the same payload draws its link in a different place there until they do.
+- The move is the caller's, so every caller has to make it: apps/web, apps/desktop-web and the Block Kit
+  builder's preview all do. A new surface that draws `BlockKitMessage` without `takeSourceLink` shows
+  the link back on the card's last line.

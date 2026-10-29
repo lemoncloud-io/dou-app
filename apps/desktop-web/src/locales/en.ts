@@ -282,7 +282,8 @@ export const en = {
     'chat.save': 'Save for later',
     'chat.unsave': 'Remove from saved',
     'placeWelcome.title': 'Welcome to {{place}}',
-    'placeWelcome.subtitle': "You haven't joined a channel or started a conversation yet.\nFollow the steps below to start your first one.",
+    'placeWelcome.subtitle':
+        "You haven't joined a channel or started a conversation yet.\nFollow the steps below to start your first one.",
     'placeWelcome.steps': 'Getting started',
     'placeWelcome.progress': '{{done}}/{{total}} done',
     'placeWelcome.done': 'Done',
@@ -389,6 +390,7 @@ export const en = {
     'chat.edited': '(edited)',
     'chat.editedTitle': 'This message was edited after it was sent.',
     'chat.webhook.badge': 'App',
+    'chat.webhook.openSource': 'View source',
     'chat.editFailed': "Couldn't save that change. Try again.",
     'chat.delete': 'Delete message',
     'chat.deleteConfirm.title': 'Delete this message?',
