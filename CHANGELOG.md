@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-29] - No version updates
+
+### Features
+
+- (http,data,landing) reopen card management on the payment service's cards (ADR-0250)
+
 ## [2026-10-29] - root@0.124.0, @chatic/landing@0.11.0
 
 ### Features
