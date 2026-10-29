@@ -309,7 +309,7 @@ const ChangeConfirm = ({
 const PastDue = ({ preview, subscription }: { preview: ChangePreview; subscription: Subscription }): JSX.Element => {
     const { t, i18n } = useTranslation();
     const today = useToday();
-    const management = useManagementScreens();
+    const { cards } = useManagementScreens();
     const key = (name: string) => `subscription.checkout.change.pastDue.${name}`;
     const { from, to } = preview;
     const owed = formatMoney(subscription.nextAmount ?? from.monthly, i18n.language);
@@ -352,7 +352,7 @@ const PastDue = ({ preview, subscription }: { preview: ChangePreview; subscripti
                 />
             </div>
             <div className="flex flex-wrap gap-3">
-                {management && (
+                {cards && (
                     <Link
                         to={ROUTES.subscription.paymentMethods}
                         className="inline-flex h-12 items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-semibold text-navy hover:opacity-90"

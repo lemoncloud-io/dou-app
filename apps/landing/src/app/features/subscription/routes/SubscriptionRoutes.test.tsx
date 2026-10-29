@@ -6,7 +6,7 @@ import { createMockPort } from '../lib/mock';
 import { memoryStateStore } from '../lib/mock/storage';
 import { HTTP_METHODS } from '../lib/port/http';
 
-import { MANAGEMENT_SCREENS_OPEN } from '../lib/screens';
+import { MANAGEMENT_SCREENS_OPEN, type ManagementScreens } from '../lib/screens';
 
 import { SubscriptionRoutes } from './index';
 
@@ -62,7 +62,11 @@ const Where = () => {
 };
 
 // `management` opens the card and billing-email screens, which are hidden by default (`lib/screens.tsx`).
-const renderAt = (url: string, setup: PortSetup, { management = true }: { management?: boolean } = {}) =>
+const renderAt = (
+    url: string,
+    setup: PortSetup,
+    { management = true }: { management?: boolean | ManagementScreens } = {}
+) =>
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
@@ -145,8 +149,35 @@ describe('SubscriptionRoutes', () => {
             expect(where()).toBe('/subscription/history');
         });
 
-        it('is hidden unless asked for: nothing opens them by default', () => {
-            expect(MANAGEMENT_SCREENS_OPEN).toBe(false);
+        it('opens the card screens by default and keeps the billing-email ones shut', () => {
+            expect(MANAGEMENT_SCREENS_OPEN).toEqual({ cards: true, emails: false });
+        });
+    });
+
+    describe('with the card screens open and the billing-email ones shut (the default)', () => {
+        const SCREENS = { cards: true, emails: false };
+
+        it('registers the card list, and leaves the billing emails to the subscription list', async () => {
+            renderAt('/subscription/payment-methods', mockSetup('?mock=active'), { management: SCREENS });
+            expect(await screen.findByText('W-12')).toBeTruthy();
+        });
+
+        it.each([['/subscription/billing-info'], ['/subscription/checkout/email?plan=pro-tier-01']])(
+            'does not register %s',
+            async url => {
+                renderAt(url, mockSetup('?mock=active'), { management: SCREENS });
+
+                expect(await screen.findByText('W-10')).toBeTruthy();
+                expect(where()).toBe('/subscription');
+            }
+        );
+
+        it('lists the card screen in the sidebar and not the billing emails', async () => {
+            renderAt('/subscription', mockSetup('?mock=active'), { management: SCREENS });
+
+            const nav = within(await screen.findByRole('navigation'));
+            expect(nav.getByRole('link', { name: 'Payment methods' })).toBeTruthy();
+            expect(nav.queryByRole('link', { name: 'Billing info' })).toBeNull();
         });
     });
 

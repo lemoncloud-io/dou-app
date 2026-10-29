@@ -68,8 +68,9 @@ const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPor
         startSubscription: body => route('POST', '/subscriptions/0/start', body),
         changeSubscription: productId => route('POST', '/subscriptions/0/change', { productId }),
         cancelSubscription: () => route('POST', '/subscriptions/0/cancel'),
-        replaceCard: body => route('POST', '/subscriptions/0/card', body),
-        removeCard: () => route('POST', '/subscriptions/0/card-delete'),
+        addCard: body => route('POST', '/subscriptions/0/card', body),
+        setDefaultCard: billkeyId => route('POST', '/subscriptions/0/card-default', { billkeyId }),
+        removeCard: billkeyId => route('POST', '/subscriptions/0/card-delete', { billkeyId }),
     };
     const store = new Map<string, string>();
     let user: Record<string, unknown> | null = { id: 'U1', email: 'minji.kim@gmail.com', name: 'Minji' };
@@ -280,7 +281,7 @@ describe('createHttpPort — checkout', () => {
         expect(await port.getPaymentAttempt(attempt.id)).toMatchObject({ status: 'succeeded' });
     });
 
-    it('sends a card added on its own back to the subscription', async () => {
+    it('sends a card added on its own back to the card list', async () => {
         const { port, paymentWindow } = setup({
             ...BASE_ROUTES,
             'GET /subscriptions/0/mine': { subscription: subscription({}) },
@@ -288,7 +289,7 @@ describe('createHttpPort — checkout', () => {
         });
         await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER });
         expect(paymentWindow).toHaveBeenCalledWith(
-            expect.objectContaining({ redirectUrl: 'http://localhost:5004/subscription/U1%3Aportone' })
+            expect.objectContaining({ redirectUrl: 'http://localhost:5004/subscription/payment-methods' })
         );
     });
 
@@ -509,7 +510,7 @@ describe('createHttpPort — cards', () => {
         ]);
     });
 
-    it('puts a card added on its own on the subscription, with the payer', async () => {
+    it('adds a card on its own with the payer', async () => {
         const card = vi.fn(() => CARD);
         const { port, calls } = setup({
             ...BASE_ROUTES,
@@ -525,17 +526,48 @@ describe('createHttpPort — cards', () => {
         expect(card).toHaveBeenCalledWith({ billingKey: 'billing-key-1', ...PAYER });
     });
 
-    it('removes the card and answers with what is left', async () => {
-        let cards = [CARD];
+    const SECOND = {
+        ...CARD,
+        id: 'mock:dev:U1:02',
+        cardIssuer: 'HANA',
+        cardNumber: '532750******9999',
+        isDefault: false,
+    };
+
+    it('removes the card it is given by its id and answers with what is left', async () => {
+        let cards = [CARD, SECOND];
+        const remove = vi.fn((body: unknown) => {
+            cards = cards.filter(card => card.id !== (body as { billkeyId: string }).billkeyId);
+            return SECOND;
+        });
         const { port } = setup({
             ...BASE_ROUTES,
             'GET /subscriptions/0/cards': () => cards,
-            'POST /subscriptions/0/card-delete': () => {
-                cards = [];
-                return subscription({ status: 'expired' });
-            },
+            'POST /subscriptions/0/card-delete': remove,
         });
-        expect(await port.removePaymentMethod(CARD.id)).toEqual([]);
+        expect(await port.removePaymentMethod(SECOND.id)).toEqual([
+            { id: 'mock:dev:U1:01', brand: 'SHINHAN', last4: '5678', isDefault: true },
+        ]);
+        expect(remove).toHaveBeenCalledWith({ billkeyId: SECOND.id });
+    });
+
+    it('makes the card it is given the default and answers with the list as the server now holds it', async () => {
+        let cards = [CARD, SECOND];
+        const setDefault = vi.fn((body: unknown) => {
+            const id = (body as { billkeyId: string }).billkeyId;
+            cards = cards.map(card => ({ ...card, isDefault: card.id === id }));
+            return cards.find(card => card.id === id);
+        });
+        const { port } = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/cards': () => cards,
+            'POST /subscriptions/0/card-default': setDefault,
+        });
+        expect(await port.setDefaultPaymentMethod(SECOND.id)).toEqual([
+            { id: 'mock:dev:U1:01', brand: 'SHINHAN', last4: '5678', isDefault: false },
+            { id: 'mock:dev:U1:02', brand: 'HANA', last4: '9999', isDefault: true },
+        ]);
+        expect(setDefault).toHaveBeenCalledWith({ billkeyId: SECOND.id });
     });
 
     it('reports a card the server will not remove while it is in use as a conflict', async () => {

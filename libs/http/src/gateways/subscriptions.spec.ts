@@ -270,7 +270,7 @@ describe('createSubscriptionHttpGateway', () => {
                 body: { productId: 'p2' },
             });
 
-            await gateway.replaceCard({ billingKey: 'bk', ...payer });
+            await gateway.addCard({ billingKey: 'bk', ...payer });
             expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
                 method: 'POST',
                 baseURL: 'https://relay.test/subscriptions/0/card',
@@ -278,7 +278,7 @@ describe('createSubscriptionHttpGateway', () => {
             });
         });
 
-        it('sends an empty object with the commands that take nothing, which the relay gateway needs', async () => {
+        it('sends an empty object with a command that takes nothing, which the relay gateway needs', async () => {
             executeSignedRelayRequest.mockResolvedValue({});
             const gateway = createSubscriptionHttpGateway(exec);
 
@@ -288,12 +288,24 @@ describe('createSubscriptionHttpGateway', () => {
                 baseURL: 'https://relay.test/subscriptions/0/cancel',
                 body: {},
             });
+        });
 
-            await gateway.removeCard();
+        it('names the card to make the default or to remove by its id', async () => {
+            executeSignedRelayRequest.mockResolvedValue({});
+            const gateway = createSubscriptionHttpGateway(exec);
+
+            await gateway.setDefaultCard({ billkeyId: 'dou:dev:U1:02' });
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
+                method: 'POST',
+                baseURL: 'https://relay.test/subscriptions/0/card-default',
+                body: { billkeyId: 'dou:dev:U1:02' },
+            });
+
+            await gateway.removeCard({ billkeyId: 'dou:dev:U1:02' });
             expect(executeSignedRelayRequest).toHaveBeenLastCalledWith({
                 method: 'POST',
                 baseURL: 'https://relay.test/subscriptions/0/card-delete',
-                body: {},
+                body: { billkeyId: 'dou:dev:U1:02' },
             });
         });
     });

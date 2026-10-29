@@ -1,6 +1,7 @@
 # ADR-0248: Landing's account surface reaches the subscription server through one HTTP port
 
 > Status: Accepted · Decided: 2026-10-28
+> · Decision 7 amended by [ADR-0250](./0250-landing-reopens-card-management-on-the-payment-services-cards.md) (W-12 reopens; the card is no longer changed in place)
 > Scope: `apps/landing` (`README.md` principle 9, § The server, § Layering's boundary checks,
 > `src/app/config/subscriptionServer.ts`, `src/app/features/subscription/lib/port/http/`,
 > `src/app/features/subscription/lib/createPortSetup.ts`), `apps/landing/.env.example`; the web

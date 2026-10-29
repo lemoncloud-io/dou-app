@@ -17,7 +17,8 @@ describe('SubscriptionRepository', () => {
         startSubscription: jest.fn(),
         changeSubscription: jest.fn(),
         cancelSubscription: jest.fn(),
-        replaceCard: jest.fn(),
+        addCard: jest.fn(),
+        setDefaultCard: jest.fn(),
         removeCard: jest.fn(),
     });
 
@@ -78,12 +79,14 @@ describe('SubscriptionRepository', () => {
         expect(http.startSubscription).toHaveBeenCalledWith({ productId: 'p1' });
         await repository.changeSubscription('p2');
         expect(http.changeSubscription).toHaveBeenCalledWith('p2');
-        await repository.replaceCard({ billingKey: 'bk', ...payer });
-        expect(http.replaceCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer });
+        await repository.addCard({ billingKey: 'bk', ...payer });
+        expect(http.addCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer });
+        await repository.setDefaultCard('c2');
+        expect(http.setDefaultCard).toHaveBeenCalledWith('c2');
+        await repository.removeCard('c2');
+        expect(http.removeCard).toHaveBeenCalledWith('c2');
         await repository.fetchSubscriptionCards();
-        await repository.removeCard();
         expect(http.fetchSubscriptionCards).toHaveBeenCalledTimes(1);
-        expect(http.removeCard).toHaveBeenCalledTimes(1);
     });
 
     it('refundSubscriptionByAdmin — delegates the user, reason and endpoint unchanged', async () => {
