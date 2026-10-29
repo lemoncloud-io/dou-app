@@ -28,6 +28,7 @@ export type {
     BillkeyView,
     MembershipDropsResult,
     SubscriptionCardBody,
+    SubscriptionCardIdBody,
     SubscriptionPayer,
     SubscriptionRefundBody,
     SubscriptionStartBody,
@@ -65,8 +66,9 @@ export interface ISubscriptionHttpDataSource {
     startSubscription(body: SubscriptionStartBody): Promise<WebSubscriptionView>;
     changeSubscription(productId: string): Promise<WebSubscriptionView>;
     cancelSubscription(): Promise<WebSubscriptionView>;
-    replaceCard(body: SubscriptionCardBody): Promise<BillkeyView>;
-    removeCard(): Promise<WebSubscriptionView>;
+    addCard(body: SubscriptionCardBody): Promise<BillkeyView>;
+    setDefaultCard(billkeyId: string): Promise<BillkeyView>;
+    removeCard(billkeyId: string): Promise<BillkeyView>;
 }
 
 /**
@@ -177,11 +179,15 @@ export class SubscriptionHttpDataSource implements ISubscriptionHttpDataSource {
         return this.gateway.cancelSubscription();
     }
 
-    replaceCard(body: SubscriptionCardBody): Promise<BillkeyView> {
-        return this.gateway.replaceCard(body);
+    addCard(body: SubscriptionCardBody): Promise<BillkeyView> {
+        return this.gateway.addCard(body);
     }
 
-    removeCard(): Promise<WebSubscriptionView> {
-        return this.gateway.removeCard();
+    setDefaultCard(billkeyId: string): Promise<BillkeyView> {
+        return this.gateway.setDefaultCard({ billkeyId });
+    }
+
+    removeCard(billkeyId: string): Promise<BillkeyView> {
+        return this.gateway.removeCard({ billkeyId });
     }
 }

@@ -66,7 +66,7 @@ const useQueryPlan = (): Plan | undefined => {
 
 const AttemptStatus = ({ attemptId }: { attemptId: string }): JSX.Element => {
     const location = useLocation();
-    const management = useManagementScreens();
+    const { cards: management } = useManagementScreens();
     const plan = useQueryPlan();
     const attempt = usePaymentAttempt(attemptId);
 
@@ -257,7 +257,7 @@ const FailedScene = ({
     retry: (label: ReactNode, className: string) => JSX.Element;
 }): JSX.Element => {
     const { t } = useTranslation();
-    const management = useManagementScreens();
+    const { cards: management } = useManagementScreens();
     const key = (name: string) => `subscription.checkout.status.failed.${name}`;
     const keepPlan = subscriptionPlan ? t(`subscription.checkout.planEul.${subscriptionPlan.sort}`) : '';
 

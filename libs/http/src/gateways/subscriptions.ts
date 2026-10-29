@@ -115,10 +115,15 @@ export interface SubscriptionHttpGateway {
     changeSubscription(body: { productId: string }): Promise<WebSubscriptionView>;
     /** POST {relay}/subscriptions/0/cancel — stops renewing; the paid period runs to its end. */
     cancelSubscription(): Promise<WebSubscriptionView>;
-    /** POST {relay}/subscriptions/0/card — registers a card for the subscription. */
-    replaceCard(body: SubscriptionCardBody): Promise<BillkeyView>;
-    /** POST {relay}/subscriptions/0/card-delete — removes the subscription's card; refused while in use. */
-    removeCard(): Promise<WebSubscriptionView>;
+    /** POST {relay}/subscriptions/0/card — adds a card; the default card stays as it was. */
+    addCard(body: SubscriptionCardBody): Promise<BillkeyView>;
+    /** POST {relay}/subscriptions/0/card-default — makes a card the one charged, and answers it. */
+    setDefaultCard(body: SubscriptionCardIdBody): Promise<BillkeyView>;
+    /**
+     * POST {relay}/subscriptions/0/card-delete — removes a card and answers it. The payment service
+     * refuses the default card and the card a subscription in use is charged to.
+     */
+    removeCard(body: SubscriptionCardIdBody): Promise<BillkeyView>;
 }
 
 /*
@@ -185,6 +190,11 @@ export interface SubscriptionStartBody extends Partial<SubscriptionPayer> {
 
 export interface SubscriptionCardBody extends SubscriptionPayer {
     billingKey: string;
+}
+
+/** A card by its id — `BillkeyView.id`. */
+export interface SubscriptionCardIdBody {
+    billkeyId: string;
 }
 
 /**
@@ -373,7 +383,7 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
             }),
 
         // The relay's gateway refuses a POST with no body at all — the browser sees it as a failed
-        // cross-origin check — so the two commands that take nothing send an empty object.
+        // cross-origin check — so a command that takes nothing sends an empty object.
         cancelSubscription: () =>
             exec.executeSignedRelayRequest<WebSubscriptionView, Record<string, never>>({
                 method: 'POST',
@@ -381,18 +391,25 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
                 body: {},
             }),
 
-        replaceCard: body =>
+        addCard: body =>
             exec.executeSignedRelayRequest<BillkeyView, SubscriptionCardBody>({
                 method: 'POST',
                 baseURL: `${relay()}/subscriptions/0/card`,
                 body,
             }),
 
-        removeCard: () =>
-            exec.executeSignedRelayRequest<WebSubscriptionView, Record<string, never>>({
+        setDefaultCard: body =>
+            exec.executeSignedRelayRequest<BillkeyView, SubscriptionCardIdBody>({
+                method: 'POST',
+                baseURL: `${relay()}/subscriptions/0/card-default`,
+                body,
+            }),
+
+        removeCard: body =>
+            exec.executeSignedRelayRequest<BillkeyView, SubscriptionCardIdBody>({
                 method: 'POST',
                 baseURL: `${relay()}/subscriptions/0/card-delete`,
-                body: {},
+                body,
             }),
     };
 };

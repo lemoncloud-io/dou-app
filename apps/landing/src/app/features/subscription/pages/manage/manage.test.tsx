@@ -6,7 +6,6 @@ import i18n from '../../../../../i18n';
 import { ToastProvider } from '../../components/ui';
 import { registerSubscriptionCopy } from '../../lib/i18n';
 import { createMockPort } from '../../lib/mock';
-import { savePendingCardChange } from '../../lib/pendingCheckout';
 import { memoryStateStore } from '../../lib/mock/storage';
 import { PortProvider, type PortSupports } from '../../lib/port';
 import { HTTP_METHODS } from '../../lib/port/http';
@@ -33,11 +32,9 @@ const renderAt = (
     search: string,
     {
         management = true,
-        returned,
         supports,
     }: {
         management?: boolean;
-        returned?: ReturnType<typeof createMockPort>['port']['completePaymentMethodRegistration'];
         supports?: PortSupports;
     } = {}
 ) => {
@@ -46,8 +43,6 @@ const renderAt = (
         readSearch: () => `${search}&panel=0`,
         delayMs: 0,
     });
-    // The mock's window never leaves the page, so what a provider's return would say is put in its place.
-    if (returned) port.completePaymentMethodRegistration = returned;
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
     return render(
         <QueryClientProvider client={queryClient}>
@@ -211,61 +206,22 @@ describe('W-18 subscription detail', () => {
     });
 
     describe('with the card and billing-email screens hidden', () => {
-        it('draws the card tile with a way to change the card, and no way into the card list', async () => {
+        it('draws no card tile and no way into the card screens', async () => {
             renderAt('/subscription/sub-2', '?mock=active', { management: false });
 
             await screen.findByText('Automatic payment scheduled');
-            expect(screen.getByText('Payment method')).toBeTruthy();
+            expect(screen.queryByText('Payment method')).toBeNull();
             expect(screen.queryByRole('button', { name: 'Payment methods' })).toBeNull();
-            expect(button('Change card')).toBeTruthy();
             // What stays: the plan change, cancelling and the billing history.
             expect(button('Change plan')).toBeTruthy();
             expect(button('Cancel subscription')).toBeTruthy();
         });
 
-        it('changes the card through the payer form and the payment window', async () => {
-            renderAt('/subscription/sub-2', '?mock=active', { management: false });
-
-            await screen.findByText('Automatic payment scheduled');
-            fireEvent.click(button('Change card'));
-            const dialog = await screen.findByRole('dialog');
-            const open = within(dialog).getByRole('button', { name: 'Open payment window' }) as HTMLButtonElement;
-            expect(open.disabled).toBe(true);
-            fireEvent.change(within(dialog).getByLabelText(/name/i), { target: { value: 'Minji Kim' } });
-            fireEvent.change(within(dialog).getByLabelText(/mobile/i), { target: { value: '01012345678' } });
-            expect(open.disabled).toBe(false);
-            fireEvent.click(open);
-
-            expect(await screen.findByText('Your payment card was changed.')).toBeTruthy();
-        });
-
-        it('reads a payment window that came back through the address, and clears the address', async () => {
-            savePendingCardChange({ name: 'Minji Kim', phone: '01012345678', email: 'minji.kim@gmail.com' });
-            const returned = vi.fn(async () => ({ outcome: 'registered' as const, card: 'pm-9' as never }));
-            renderAt('/subscription/sub-2?billingKey=billing-key-9', '?mock=active', { management: false, returned });
-
-            expect(await screen.findByText('Your payment card was changed.')).toBeTruthy();
-            expect(returned).toHaveBeenCalledWith(
-                expect.objectContaining({ purpose: 'addCard', payer: expect.objectContaining({ name: 'Minji Kim' }) })
-            );
-            expect(where()).toBe('/subscription/sub-2');
-        });
-
-        it('ignores a return it has nothing saved for, but still clears the address', async () => {
-            renderAt('/subscription/sub-2?billingKey=billing-key-9', '?mock=active', { management: false });
-
-            await screen.findByText('Automatic payment scheduled');
-            expect(screen.queryByText('Your payment card was changed.')).toBeNull();
-            expect(where()).toBe('/subscription/sub-2');
-        });
-
-        it('leads a failed payment to the card change instead of the card list', async () => {
+        it('offers no button to a failed payment that leads to the card screens', async () => {
             renderAt('/subscription/sub-2', '?mock=past-due', { management: false });
 
             expect(await screen.findByText('Payment failed · D-5 until restriction')).toBeTruthy();
-            fireEvent.click(button('Change payment method'));
-            expect(await screen.findByRole('dialog')).toBeTruthy();
-            expect(where()).toBe('/subscription/sub-2');
+            expect(screen.queryByRole('button', { name: 'Change payment method' })).toBeNull();
         });
 
         it('does not ask for a billing email check where it cannot be done', async () => {

@@ -11,7 +11,12 @@ import { type PortSetup, createPortSetup } from '../lib/createPortSetup';
 import { registerSubscriptionCopy } from '../lib/i18n';
 import { MockControllerProvider } from '../lib/mock';
 import { PortProvider, isPortError, useSupports } from '../lib/port';
-import { MANAGEMENT_SCREENS_OPEN, ManagementScreensProvider } from '../lib/screens';
+import {
+    MANAGEMENT_SCREENS_OPEN,
+    type ManagementScreens,
+    ManagementScreensProvider,
+    useManagementScreens,
+} from '../lib/screens';
 import { sessionEndedRedirect } from '../lib/sessionEnded';
 import { BillingHistoryPage, BillingInfoPage, PaymentMethodsPage } from '../pages/billing';
 import {
@@ -71,8 +76,8 @@ export const SubscriptionRoutes = ({
 }: {
     account?: boolean;
     setup?: PortSetup;
-    /** Whether the card and billing-email screens exist (`lib/screens.tsx`). */
-    management?: boolean;
+    /** Which of the card and billing-email screens exist (`lib/screens.tsx`); a boolean for both. */
+    management?: boolean | ManagementScreens;
 }): JSX.Element => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -100,9 +105,7 @@ export const SubscriptionRoutes = ({
                 <MockControllerProvider controller={setup.mock}>
                     <ToastProvider>
                         <ManagementScreensProvider open={management}>
-                            <Host>
-                                {account ? <AccountRoutes mock={mock} management={management} /> : <CatalogRoutes />}
-                            </Host>
+                            <Host>{account ? <AccountRoutes mock={mock} /> : <CatalogRoutes />}</Host>
                         </ManagementScreensProvider>
                         {mock && <MockPaymentWindow />}
                         {mock && <DevScenarioPanel />}
@@ -123,7 +126,8 @@ const CatalogRoutes = (): JSX.Element => (
     </Routes>
 );
 
-const AccountRoutes = ({ mock, management }: { mock: boolean; management: boolean }): JSX.Element => {
+const AccountRoutes = ({ mock }: { mock: boolean }): JSX.Element => {
+    const screens = useManagementScreens();
     // The billing history is left out where the port has no server for it, like the hidden screens.
     const history = useSupports()('listInvoices');
     return (
@@ -144,7 +148,7 @@ const AccountRoutes = ({ mock, management }: { mock: boolean; management: boolea
                     <Route path="store-managed" element={<StoreManagedPage />} />
                 </Route>
                 <Route element={<RequireSession />}>
-                    {management && <Route path="checkout/email" element={<CheckoutEmailPage />} />}
+                    {screens.emails && <Route path="checkout/email" element={<CheckoutEmailPage />} />}
                     <Route path="checkout" element={<CheckoutPage />} />
                     <Route path="checkout/payment" element={<CheckoutPaymentPage />} />
                     <Route path="checkout/status" element={<CheckoutStatusPage />} />
@@ -155,7 +159,7 @@ const AccountRoutes = ({ mock, management }: { mock: boolean; management: boolea
             <Route element={<RequireSession />}>
                 <Route element={<AccountShell />}>
                     <Route index element={<SubscriptionListPage />} />
-                    {management ? (
+                    {screens.cards ? (
                         <Route path="payment-methods" element={<PaymentMethodsPage />} />
                     ) : (
                         // Not a screen, but a path the next route would take for a subscription's id.
@@ -166,7 +170,7 @@ const AccountRoutes = ({ mock, management }: { mock: boolean; management: boolea
                     ) : (
                         <Route path="history" element={<Navigate to={ROUTES.subscription.root} replace />} />
                     )}
-                    {management ? (
+                    {screens.emails ? (
                         <Route path="billing-info" element={<BillingInfoPage />} />
                     ) : (
                         <Route path="billing-info" element={<Navigate to={ROUTES.subscription.root} replace />} />

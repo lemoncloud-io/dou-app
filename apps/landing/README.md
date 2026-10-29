@@ -312,17 +312,22 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 | Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                                               |
 | Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts only (`isSubscriptionAccountEnabled`); W-01 on every host |
 
-**The card and billing-email screens are hidden** — W-12, W-16 and the email step W-24 — until their
-servers exist (ADR-0248, `lib/screens.tsx`). Their rows are kept in the table, marked _hidden_: the routes
-are not registered, every link into them is gone, and the port methods, the HTTP port and the mock are
-left as they were. Opening them again is the one value `MANAGEMENT_SCREENS_OPEN`. What that costs: a
-subscriber cannot remove the card or choose among several, and receipts go to the sign-in address alone.
+**The billing-email screens are hidden** — W-16 and the email step W-24 — until their server exists
+(ADR-0248, `lib/screens.tsx`). Their rows are kept in the table, marked _hidden_: the routes are not
+registered, every link into them is gone, and the port methods, the HTTP port and the mock are left as
+they were. What that costs: receipts go to the sign-in address alone.
 
-One entry stays open: **changing the card**. W-18's payment tile shows the masked card with a "Change card"
-button, and a failed payment's "Change payment method" opens the same flow — the payer's name and number
-(`PayerFields`), then the provider's window, then the card is put on the subscription, which the server
-replaces. It is `pages/manage/useChangeCard.tsx`; on a phone the reader comes back to W-18 with the
-result in the query and the payer is read from `sessionStorage` (`savePendingCardChange`).
+**The card screen, W-12, is open** (ADR-0250). `MANAGEMENT_SCREENS_OPEN` is two values, `{ cards, emails }`,
+and only `emails` is shut. W-12 lists the cards the payment service holds, the default marked as the
+server marks it; every other card has [Make default] and [Remove], and [Add card] opens the payer's name
+and number (`PayerFields`) and then the provider's window. A card added this way is not charged until it
+is made the default. The payment service decides what may be removed: the default card has no [Remove],
+and a refusal of any other card is the card a subscription in use is charged to, which W-12 says. It is
+reached from the account menu, from W-18's card tile and from a failed payment's button. On a phone the
+provider's window comes back to W-12 with its result in the query, and the payer waits in
+`sessionStorage` meanwhile (`savePendingCardChange`, read by `pages/billing/useCardWindowReturn.ts`).
+Retrying a failed payment has no server, so W-12 does not offer to charge the overdue amount on the
+server; against the mock it still does.
 
 Every screen below runs on the server where the build has its addresses, and on the mock otherwise or
 with `?mock=` (see [The server](#the-server)). None is open on the production host yet except W-01,
@@ -375,7 +380,7 @@ above it. The primitives use this site's Tailwind tokens (plus the `status-*` co
 | `/subscription`                                                  | W-10 subscriptions                                                                                       | account | 〃                                                            |
 | `/subscription/:subscriptionId`                                  | W-18 one subscription                                                                                    | account | 〃                                                            |
 | `/subscription/:subscriptionId/cancel`                           | W-15 cancel                                                                                              | account | 〃                                                            |
-| `/subscription/payment-methods`                                  | W-12 cards _(hidden)_                                                                                    | account | 〃                                                            |
+| `/subscription/payment-methods`                                  | W-12 cards                                                                                               | account | 〃                                                            |
 | `/subscription/history`                                          | W-13 invoices                                                                                            | account | 〃                                                            |
 | `/subscription/billing-info`                                     | W-16 billing emails _(hidden)_                                                                           | account | 〃                                                            |
 | `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                                                |
@@ -430,8 +435,8 @@ chunk, mock code included, though the mock is never run there.
 `createPortSetup({ account })` (`lib/createPortSetup.ts`) is where the port is chosen, and the only
 place. Where the account surface is open and the build carries the server's addresses, a tab runs on
 the server alone. The methods it answers (`lib/port/http/methods.ts`) come from the HTTP port; every
-other one — billing emails, invoices, undoing a cancellation or a scheduled downgrade, the default
-card, retrying — refuses, and nothing stands in for it. The port's `supports` says which methods are
+other one — billing emails, invoices, undoing a cancellation or a scheduled downgrade,
+retrying — refuses, and nothing stands in for it. The port's `supports` says which methods are
 real (`PortSupports`, read with `useSupports()`), and the screens leave out what would call the rest:
 the billing history (its menu entry and route, and the recent billing on W-18), "Undo cancellation" on
 W-18 and after cancelling, and "Cancel the change" for a scheduled downgrade. Where the copy promised
@@ -462,7 +467,7 @@ What the screens get from the server differs from the mock in a few places, all 
 - W-14's charge for an upgrade is an estimate with the server's own proration; the copy says so. The
   server upgrades a paid period only, so a trial can move down but not up — W-14 says so before
   anything is tried, and the mock refuses the same way.
-- Its cards carry no expiry, so none is drawn. It removes the one card it holds.
+- Its cards carry no expiry, so none is drawn. A card is named to the server by its id (`billkeyId`).
 - Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
 - The payment provider's window opens in the page (an iframe) on a computer, not as a pop-up, about
   0.8 s after the click. On a phone it is the provider's own page: the browser leaves for it and comes
@@ -477,7 +482,7 @@ What the screens get from the server differs from the mock in a few places, all 
   tells the two apart by that message, for the window's answer and for a phone's query alike, so a
   closed window reads as cancelled, not as a declined card.
 - The payer's name and mobile number, which the card company requires with every card, are asked for
-  on W-08 (and in W-12's add-card dialog when W-12 is open). They travel with that checkout or card and
+  on W-08 and in W-12's add-card dialog. They travel with that checkout or card and
   are not stored. The payer's address is the account's own while the billing-email screens are hidden.
 
 ### The mock
@@ -716,7 +721,7 @@ not trigger.
   not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 540 tests
+    npx nx test @chatic/landing   # 545 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
@@ -776,7 +781,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 540 tests pass; in CI
+npx nx test @chatic/landing                               # 545 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

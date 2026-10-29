@@ -45,7 +45,7 @@ export const CheckoutPage = (): JSX.Element => {
     const navigate = useNavigate();
     const { loading, error, retry, target: plan, route } = usePlanRoute();
     const preview = usePreviewCheckout(route === 'checkout' ? plan?.id : undefined);
-    const management = useManagementScreens();
+    const { emails: management } = useManagementScreens();
     // The billing-email screens are hidden: nothing here reads the billing emails then.
     const billing = useBillingInfo({ enabled: management });
 

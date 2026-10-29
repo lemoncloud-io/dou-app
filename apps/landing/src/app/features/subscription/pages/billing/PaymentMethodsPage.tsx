@@ -21,11 +21,14 @@ import {
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
 import { EMPTY_PAYER, type PayerDraft, isPayerComplete, payerOf } from '../../lib/payer';
-import { isPortError, useToday } from '../../lib/port';
+import { savePendingCardChange, takePendingCardChange } from '../../lib/pendingCheckout';
+import { isPortError, useSupports, useToday } from '../../lib/port';
+import { useManagementScreens } from '../../lib/screens';
 import { type SceneBanner, sceneOf } from '../../lib/sceneOf';
 import { cn, formatDate, formatMoney } from '../../utils';
 import { BillingPageHeader, LoadFailed, useReportPortError } from './BillingPage';
 import { addedCardOf, cardExpiry, cardExpiryMonth } from './display';
+import { useCardWindowReturn } from './useCardWindowReturn';
 
 import type { Money, PaymentMethod, Subscription } from '../../types';
 
@@ -61,7 +64,10 @@ export const PaymentMethodsPage = (): JSX.Element => {
     const remove = useRemovePaymentMethod();
     const retry = useRetryPayment();
     const session = useSession();
-    const billing = useBillingInfo();
+    const supports = useSupports();
+    // The billing addresses are read only where their screens exist; elsewhere the payer's address is
+    // the sign-in one.
+    const billing = useBillingInfo({ enabled: useManagementScreens().emails });
     // Asked again for every card and kept only while the dialog is open (see `PayerFields`).
     const [payer, setPayer] = useState<PayerDraft>(EMPTY_PAYER);
     // Receipts go to the verified billing address; an account that never set one uses its sign-in address.
@@ -74,6 +80,19 @@ export const PaymentMethodsPage = (): JSX.Element => {
     const [replacement, setReplacement] = useState<PaymentMethod | null>(null);
     const replacementHeading = useRef<HTMLParagraphElement>(null);
 
+    const failToAdd = (error: unknown) => {
+        if (isPortError(error, 'limit')) setNotice('attemptLimit');
+        else report(error);
+    };
+    // A phone's card window comes back here with its result in the address.
+    const returning = useCardWindowReturn({
+        onResult: ({ outcome }) => {
+            if (outcome === 'failed') setNotice('declined');
+            if (outcome === 'registered') toast(t('subscription.billing.paymentMethods.addedBack'));
+        },
+        onError: failToAdd,
+    });
+
     // The panel appears below the list, out of sight of the button that opened it.
     useEffect(() => {
         if (replacement) replacementHeading.current?.focus();
@@ -82,13 +101,14 @@ export const PaymentMethodsPage = (): JSX.Element => {
     const scene = subscription ? sceneOf(subscription, today) : undefined;
     const failing = !!scene?.actions.includes('updatePaymentMethod');
     const overdue = subscription?.nextAmount ?? plan?.monthly;
-    // Paying needs the amount; without it, choosing a card falls back to an ordinary default change.
-    const offersPayment = failing && !!overdue;
+    // Paying needs the amount, and a server for the retried charge; without either, choosing a card
+    // falls back to an ordinary default change.
+    const offersPayment = failing && !!overdue && supports('retryPayment');
     const label = (card: PaymentMethod) =>
         t('subscription.billing.card.label', { brand: card.brand, last4: card.last4 });
     const money = (value: Money) => formatMoney(value, i18n.language);
 
-    if (methods.isPending) return <PageLoader />;
+    if (methods.isPending || returning) return <PageLoader />;
     if (methods.isError) return <LoadFailed error={methods.error} onRetry={methods.refetch} />;
 
     const openDialog = (next: DialogState) => {
@@ -105,11 +125,12 @@ export const PaymentMethodsPage = (): JSX.Element => {
         closeDialog();
         setNotice(null);
         setReplacement(null);
+        const holder = payerOf(payer, payerEmail ?? '');
+        // On a phone the window is the provider's own page and this call never returns: the payer waits
+        // for the way back (`useCardWindowReturn`).
+        savePendingCardChange(holder);
         try {
-            const { outcome } = await registration.mutateAsync({
-                purpose: 'addCard',
-                payer: payerOf(payer, payerEmail ?? ''),
-            });
+            const { outcome } = await registration.mutateAsync({ purpose: 'addCard', payer: holder });
             if (outcome === 'failed') setNotice('declined');
             if (outcome !== 'registered') return;
             // The hook has refreshed the card list by the time it resolves.
@@ -121,8 +142,9 @@ export const PaymentMethodsPage = (): JSX.Element => {
             toast(t('subscription.billing.paymentMethods.added', { card: label(card) }));
             if (offersPayment) setReplacement(card);
         } catch (error) {
-            if (isPortError(error, 'limit')) setNotice('attemptLimit');
-            else report(error);
+            failToAdd(error);
+        } finally {
+            takePendingCardChange();
         }
     };
 
@@ -142,7 +164,13 @@ export const PaymentMethodsPage = (): JSX.Element => {
                 if (replacement?.id === card.id) setReplacement(null);
                 toast(t('subscription.billing.paymentMethods.removed'));
             },
-            onError: report,
+            // The payment service decides what may go; past the default card, which has no button here,
+            // its refusal is the card a subscription in use is charged to.
+            onError: error => {
+                closeDialog();
+                if (isPortError(error, 'conflict')) toast(t('subscription.billing.paymentMethods.removeRefused'));
+                else report(error);
+            },
         });
 
     // The default is switched first, so the retried charge lands on the card the reader chose.
@@ -458,16 +486,18 @@ const CardRow = ({
                         {t('subscription.billing.paymentMethods.makeDefault')}
                     </Button>
                 )}
-                {/* The default card's button stays clickable: it answers with why it cannot go. */}
-                <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={busy}
-                    className={card.isDefault ? 'text-subtitle' : 'text-status-danger'}
-                    onClick={onRemove}
-                >
-                    {t('subscription.billing.paymentMethods.remove')}
-                </Button>
+                {/* The default card cannot go — the payment service refuses it — so it has no button. */}
+                {!card.isDefault && (
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={busy}
+                        className="text-status-danger"
+                        onClick={onRemove}
+                    >
+                        {t('subscription.billing.paymentMethods.remove')}
+                    </Button>
+                )}
             </div>
         </li>
     );
