@@ -149,7 +149,7 @@ describe('PairedCloudSessions.reissue', () => {
 });
 
 describe('PairedCloudSessions.enter', () => {
-    it('settles an exchange already on the wire, re-issues, then switches and remembers the cloud', async () => {
+    it('settles an exchange already on the wire, re-issues, remembers the cloud, then switches', async () => {
         const { sessions, calls, switchCloud } = harness();
 
         await sessions.enter('1000004', switchCloud);
@@ -159,8 +159,8 @@ describe('PairedCloudSessions.enter', () => {
             'reissue:1000004',
             'reauth:1000004',
             'align:1000004',
-            'switch:1000004',
             'add:1000004',
+            'switch:1000004',
         ]);
     });
 
@@ -173,12 +173,12 @@ describe('PairedCloudSessions.enter', () => {
         expect(deps.clouds.add).not.toHaveBeenCalled();
     });
 
-    it('does not remember the cloud when the switch fails', async () => {
-        const { sessions, deps, switchCloud } = harness();
+    it("keeps the cloud on the list when the switch fails — the tab holds the approver's tokens for it", async () => {
+        const { sessions, ids, switchCloud } = harness();
         switchCloud.mockRejectedValueOnce(new Error('switch failed'));
 
         await expect(sessions.enter('1000004', switchCloud)).rejects.toThrow('switch failed');
-        expect(deps.clouds.add).not.toHaveBeenCalled();
+        expect(ids).toEqual(['1000004']);
     });
 });
 

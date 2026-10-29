@@ -309,7 +309,9 @@ the approval side's failures.
   a paired cloud, with its collaborators — the list, the identity map, the token exchange, the socket
   re-registration, the place alignment, the credential teardown — passed to its constructor:
     - `enter(cloudId, switchCloud)` — lets an exchange for the cloud already on the wire finish,
-      re-issues the cloud's tokens, then switches and adds the cloud. The re-issue comes first because a
+      re-issues the cloud's tokens, adds the cloud, then switches. The cloud joins the list before the
+      switch: from the re-issue on, the tab holds the approver's tokens for it, so a switch that fails
+      must still leave it where the check watches it. The re-issue comes first because a
       switch replays the tokens it already holds for the cloud: a tab holding older tokens of its own
       there (an invite) would have entered as itself and turned into the approver at the next re-issue,
       mid-session and without a word.

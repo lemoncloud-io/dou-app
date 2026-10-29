@@ -125,13 +125,18 @@ export class PairedCloudSessions {
      * whoever this tab was then, and a re-issue would join it rather than start its own. It is let finish
      * first.
      *
+     * The cloud joins the list as soon as the re-issue succeeds, before the switch. From then on this tab
+     * holds the approver's tokens and uid for it, and the relay keeps answering for the approver while the
+     * approval stands — even through an invite of the tab's own — so whatever the switch does, the cloud
+     * has to be one the check watches and the sheet offers. A switch that fails leaves it there to retry.
+     *
      * Throws when the re-issue or the switch does, so the code screen can say the approval was lost.
      */
     async enter(cloudId: string, switchCloud: (cloudId: string) => Promise<unknown>): Promise<void> {
         await this.deps.settleExchangeInFlight(cloudId);
         await this.reissue(cloudId);
-        await switchCloud(cloudId);
         this.deps.clouds.add(cloudId);
+        await switchCloud(cloudId);
     }
 
     /**
