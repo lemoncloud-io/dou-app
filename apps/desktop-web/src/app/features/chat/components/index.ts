@@ -26,6 +26,7 @@ export * from './MentionAutocomplete';
 export * from './QuickSwitcher';
 export * from './LinkPreviewCard';
 export * from './SavedPage';
+export * from './ThreadsPage';
 export * from './notifications/NotificationsPanel';
 export * from './lists/ChannelListPanel';
 export * from './lists/DmListPanel';

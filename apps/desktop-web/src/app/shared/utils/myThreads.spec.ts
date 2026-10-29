@@ -8,6 +8,7 @@ import {
     recordThreadReply,
     threadChannel,
     threadRootNo,
+    threadsInScope,
     type MyThreads,
     type ThreadReply,
 } from './myThreads';
@@ -166,5 +167,47 @@ describe('threadChannel', () => {
             channelName: 'general',
         });
         expect(threadChannel({ id: 'b', name: 'x', stereo: 'dm' } as DomainChannel)).toEqual({ channelKind: 'dm' });
+    });
+});
+
+describe('threadsInScope', () => {
+    const entry = (rootNo: string, over: Partial<MyThreads[string]> = {}): MyThreads[string] => ({
+        cid: 'c1',
+        channelId: 'ch1',
+        placeId: 'p1',
+        rootNo,
+        rootPreview: '',
+        lastReplyNo: 5,
+        lastReplyPreview: '',
+        lastReplyOwnerName: '',
+        lastActivityAt: 1,
+        seenReplyNo: 5,
+        ...over,
+    });
+    const listOf = (...entries: MyThreads[string][]): MyThreads =>
+        Object.fromEntries(entries.map(e => [myThreadKey(e.cid, e.channelId, e.rootNo), e]));
+
+    it('keeps the cloud and the place scope, and a thread with no place everywhere', () => {
+        const threads = listOf(
+            entry('1'),
+            entry('2', { cid: 'c2' }),
+            entry('3', { placeId: 'p2' }),
+            entry('4', { placeId: undefined })
+        );
+        const rootNos = threadsInScope(threads, 'c1', new Set(['p1'])).map(([, t]) => t.rootNo);
+        expect(rootNos.sort()).toEqual(['1', '4']);
+    });
+
+    it('orders unread first, then the most recently active', () => {
+        const threads = listOf(
+            entry('old', { lastActivityAt: 1 }),
+            entry('new', { lastActivityAt: 3 }),
+            entry('unread', { lastActivityAt: 0, lastReplyNo: 6 })
+        );
+        expect(threadsInScope(threads, 'c1', new Set(['p1'])).map(([, t]) => t.rootNo)).toEqual([
+            'unread',
+            'new',
+            'old',
+        ]);
     });
 });
