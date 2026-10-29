@@ -118,12 +118,6 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
     const onScreen = useIntersecting(ref, '0px');
 
     const unread = isThreadUnread(thread);
-    useEffect(() => {
-        if (!onScreen || !unread) return;
-        const timer = setTimeout(() => markSeen(thread.cid, thread.channelId, thread.rootNo), SEEN_DWELL_MS);
-        return () => clearTimeout(timer);
-    }, [onScreen, unread, markSeen, thread.cid, thread.channelId, thread.rootNo]);
-
     const { state, retry } = useThreadCard({
         cid: thread.cid,
         channelId: thread.channelId,
@@ -133,6 +127,13 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
         joinedNo,
         enabled: read,
     });
+    // Seen only once the card shows the thread: a card still loading, or one that failed to read, has not.
+    const shown = state.status === 'ready';
+    useEffect(() => {
+        if (!onScreen || !unread || !shown) return;
+        const timer = setTimeout(() => markSeen(thread.cid, thread.channelId, thread.rootNo), SEEN_DWELL_MS);
+        return () => clearTimeout(timer);
+    }, [onScreen, unread, shown, markSeen, thread.cid, thread.channelId, thread.rootNo]);
     const where = channelLabel ?? t('threads.dm');
     const [replying, setReplying] = useState(false);
     const { retryMessage, discardMessage } = useChatMutations();
@@ -264,19 +265,22 @@ export const ThreadsPage = ({ cloudId, channels, placeScope, onOpen }: ThreadsPa
     const { t } = useTranslation();
     const threads = useMyThreadsStore(s => s.threads);
     const isScanning = useNotificationsPanelStore(s => s.scanningCid === cloudId);
-    // Unread when the page opened: a thread read while the page is open keeps its place, not jumping down.
-    const [unreadAtOpen] = useState(
-        () => new Set(Object.entries(threads).flatMap(([key, thread]) => (isThreadUnread(thread) ? [key] : [])))
+    // The order the page opened with is kept: a thread read, or replied in, while the page is open stays in
+    // place. A thread first listed after opening goes on top.
+    const [openOrder] = useState(
+        () => new Map(threadsInScope(threads, cloudId, placeScope).map(([key], index) => [key, index]))
     );
     const listed = useMemo(
         () =>
             threadsInScope(threads, cloudId, placeScope).sort(([a, ta], [b, tb]) => {
-                const pinned = Number(unreadAtOpen.has(b)) - Number(unreadAtOpen.has(a));
-                if (pinned) return pinned;
-                // Within the pinned group, reading a thread must not move it: order by activity alone.
-                return unreadAtOpen.has(a) ? tb.lastActivityAt - ta.lastActivityAt : 0;
+                const ia = openOrder.get(a);
+                const ib = openOrder.get(b);
+                if (ia === undefined && ib === undefined) return tb.lastActivityAt - ta.lastActivityAt;
+                if (ia === undefined) return -1;
+                if (ib === undefined) return 1;
+                return ia - ib;
             }),
-        [threads, cloudId, placeScope, unreadAtOpen]
+        [threads, cloudId, placeScope, openOrder]
     );
     const channelById = useMemo(() => new Map(channels.map(channel => [channel.id ?? '', channel])), [channels]);
 

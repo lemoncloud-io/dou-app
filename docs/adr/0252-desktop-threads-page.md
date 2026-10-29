@@ -23,7 +23,7 @@ Threads view asked for the threads gathered in one place, read without opening e
    does not jump while it is read.
 3. **A card shows the root and the newest three replies**, read from the chat cache of the thread's
    own cloud and drawn by the thread panel's message row, with a link to the thread panel for anything
-   earlier. A card on screen for a second marks its thread seen.
+   earlier. A card showing its thread on screen for a second marks it seen.
 4. **A card has a text-only reply box**, mounted when asked for. Files and @ suggestions stay in the
    thread panel.
 5. **The inbox's Threads tab stays.** The page is for reading threads; the tab is for being told.

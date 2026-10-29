@@ -35,7 +35,7 @@ export const ThreadCardReply = ({ channel, root, rootNo, onSettled }: ThreadCard
     const record = useMyThreadsStore(s => s.record);
     const { sendMessage } = useChatMutations();
 
-    const handleSend = (content: string, files: File[]) => {
+    const handleSend = (content: string) => {
         if (!content) return;
         // The server takes the root's full id, as the thread panel's composer does.
         void sendMessage(cid, { channelId, content, parentId: root.id })
@@ -49,7 +49,7 @@ export const ThreadCardReply = ({ channel, root, rootNo, onSettled }: ThreadCard
                 ...threadChannel(channel),
                 rootNo,
                 replyNo: 0,
-                preview: outgoingMessagePreview(content, files),
+                preview: outgoingMessagePreview(content, []),
                 ownerName: viewer.name,
                 at: Date.now(),
                 mine: true,

@@ -198,6 +198,10 @@ describe('ThreadsPage cards', () => {
             renderPage();
             const key = myThreadKey('K1', 'C1', '5');
             expect(useMyThreadsStore.getState().threads[key].seenReplyNo).toBe(10);
+            // The card reads first; the dwell starts once it shows the thread.
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(0);
+            });
             await act(async () => {
                 await vi.advanceTimersByTimeAsync(1500);
             });
@@ -254,8 +258,32 @@ describe('ThreadsPage cards', () => {
             // Thread 2 is read first; it keeps the top instead of dropping below thread 1.
             act(() => useMyThreadsStore.getState().markSeen('K1', 'C1', '2'));
             expect(order()).toEqual(['root 2', 'root 1', 'root 3']);
+            // A new reply in a read thread does not lift it above the others either.
+            act(() =>
+                useMyThreadsStore.setState(state => {
+                    const key = myThreadKey('K1', 'C1', '3');
+                    const t3 = state.threads[key];
+                    return { threads: { ...state.threads, [key]: { ...t3, lastActivityAt: 9000, lastReplyNo: 20 } } };
+                })
+            );
+            expect(order()).toEqual(['root 2', 'root 1', 'root 3']);
         } finally {
             startVisible = true;
+        }
+    });
+
+    it('does not mark a thread seen while its card failed to read', async () => {
+        vi.useFakeTimers();
+        try {
+            cacheReadList.mockRejectedValue(new Error('db'));
+            seed(thread('5', { lastReplyNo: 12, seenReplyNo: 10 }));
+            renderPage();
+            await act(async () => {
+                await vi.advanceTimersByTimeAsync(1500);
+            });
+            expect(useMyThreadsStore.getState().threads[myThreadKey('K1', 'C1', '5')].seenReplyNo).toBe(10);
+        } finally {
+            vi.useRealTimers();
         }
     });
 

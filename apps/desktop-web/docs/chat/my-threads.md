@@ -11,7 +11,8 @@ The Home sidebar's Threads row, above Saved, opens `ThreadsPage` in the main pan
 page uses (`useSavedPageStore` `page: 'threads'`). A dot on the row means a listed thread has replies
 not yet seen. The page lists this cloud's threads in the current place (`threadsInScope`; a thread
 with no place is listed in every place), unread first, then by latest activity. The order is the one
-the page opened with, so a card does not move while it is read; the header counts every thread.
+the page opened with, so a card does not move while it is read or gets a reply; a thread first listed
+after opening goes on top. The header counts every thread.
 
 Each card (`useThreadCard`) reads, once it nears the screen, the root and the newest three replies
 from the chat cache of the thread's cloud, the root from the server when the cache lacks it. They are drawn by the
@@ -19,7 +20,8 @@ thread panel's `MessageRow` (`ThreadCardMessages`), so a card names an author by
 their avatar, and shows images and files as the panel does. A root
 from before my join, or one the server says is gone, is a notice in its place, in the thread panel's
 words. Earlier replies are a link to the thread panel; when the cached window is full the link has no
-count, since the thread may start before it. A card on screen for a second marks its thread seen.
+count, since the thread may start before it. A card that shows its thread on screen for a second marks it seen;
+one still loading, or one that failed to read, does not.
 
 Reply mounts a text-only composer (`ThreadCardReply`); files and @ suggestions stay in the panel. The
 reply shows as the cache's own row for it: dimmed while it sends, with Retry and Delete if it fails.
