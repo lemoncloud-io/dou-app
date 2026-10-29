@@ -36,7 +36,7 @@ import {
     useSavedPageStore,
     useMyThreadsStore,
     isThreadUnread,
-    threadsInScope,
+    isThreadInScope,
     useMentionsStore,
     inboxPlaceScope,
     isInInboxScope,
@@ -251,7 +251,9 @@ export const HomePage = () => {
     const mainPage = useSavedPageStore(s => s.page);
     const threadsCloudId = activeCloudId ?? RELAY_CLOUD_ID;
     const hasUnreadThreads = useMyThreadsStore(s =>
-        threadsInScope(s.threads, threadsCloudId, inboxScope).some(([, thread]) => isThreadUnread(thread))
+        Object.values(s.threads).some(
+            thread => isThreadUnread(thread) && isThreadInScope(thread, threadsCloudId, inboxScope)
+        )
     );
     // Select the boolean, not the items: the dot only re-renders on false↔true.
     const hasInboxUnread = useMentionsStore(s =>
