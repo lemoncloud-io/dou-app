@@ -55,6 +55,9 @@ Three things had to be settled to connect them:
    routes are not registered and every link into them is gone, behind one value
    (`MANAGEMENT_SCREENS_OPEN`); the port methods, the HTTP port and the mock stay. The card company gets
    the signed-in account's own address in place of a verified billing email.
+   One entry is open anyway: changing the card from W-18 (and from a failed payment), which needs no list —
+   the payer form and the provider's window put a new card on the subscription, and the server replaces
+   the old one. Choosing among cards, removing one and retrying a charge stay with the hidden screens.
 8. **The account surface is laid out for a phone, and a phone pays in its browser.** The desktop-only
    notice is gone. The card window is an iframe on a computer but the provider's own page on a phone,
    which the browser leaves for and comes back from with the result in the address. The port gains
@@ -88,8 +91,8 @@ Three things had to be settled to connect them:
   tab that runs against the server.
 - **Methods move from the mock to the server one by one**: a method joins `HTTP_METHODS` the day its
   server exists. The production build keeps the account surface shut until every method has one.
-- **Shutting them costs two things.** A subscriber cannot change or remove the card (a failed payment or
-  an expired card has no fix on the page), and receipts and notices go to the sign-in address alone.
+- **Shutting them costs two things.** A subscriber cannot remove the card or pick among several (changing
+  it is the one thing left open, so a failed payment or an expired card can be fixed), and receipts and notices go to the sign-in address alone.
   Both are settled before the account surface opens on the production host.
 - **The server's view of the signed-in account decides who may subscribe.** An account the relay
   still holds as a guest (a device account that linked a social login later) is refused by the

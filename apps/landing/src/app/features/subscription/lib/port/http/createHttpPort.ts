@@ -107,11 +107,16 @@ interface PendingSignIn {
 /** Codes shorter than this are the OAuth relay reporting a failure in the code's place. */
 const MIN_CODE_LENGTH = 6;
 
-/** The page a window that left comes back to: the checkout's card step, or the card list. */
-const returnPathOf = (purpose: AttemptPurpose, planId: PlanId | undefined): string =>
+/**
+ * The page a window that left comes back to: the checkout's card step, or the subscription a card was
+ * added to (the card list is not always open).
+ */
+const returnPathOf = (purpose: AttemptPurpose, planId: PlanId | undefined, subscriptionId?: string): string =>
     purpose === 'start' && planId
         ? `${ROUTES.subscription.checkoutPayment}?plan=${planId}`
-        : ROUTES.subscription.paymentMethods;
+        : subscriptionId
+          ? ROUTES.subscription.detail(subscriptionId)
+          : ROUTES.subscription.paymentMethods;
 
 const fail = (code: SubscriptionPortError['code'], message?: string, detail?: SubscriptionPortError['detail']) => {
     throw new SubscriptionPortError(code, message, detail);
@@ -350,14 +355,24 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         startPaymentMethodRegistration: async ({ purpose, planId, payer }) => {
             // The window is opened for a product, whose platform picks the payment provider. A card
             // added on its own goes with the plan already held, or the first plan if none is.
+            const held = planId ? undefined : (await readMine()).wire;
             const productId = planId
                 ? (await catalogPlan(planId)).productId
-                : (planOfProduct(await loadCatalog(), (await readMine()).wire?.productId)?.productId ??
+                : (planOfProduct(await loadCatalog(), held?.productId)?.productId ??
                   (await loadCatalog())[0]?.productId);
             if (!productId) return fail('notFound', 'no product to register a card for');
             const issue = await call<IssueParams>('POST', '/subscriptions/0/issue', { productId });
-            const redirectUrl = `${options.origin}${returnPathOf(purpose, planId)}`;
-            return registered(await paymentWindow({ issue, payer, purpose, planId, redirectUrl }), purpose, payer);
+            const redirectUrl = `${options.origin}${returnPathOf(purpose, planId, held?.id)}`;
+            let outcome: PaymentWindowResult;
+            try {
+                outcome = await paymentWindow({ issue, payer, purpose, planId, redirectUrl });
+            } catch (error) {
+                // The provider's script refusing to open — not a closed window, which answers `closed`. Its
+                // own words go to the console, where a phone's remote inspector can read them.
+                console.warn('payment window failed to open', error);
+                throw error;
+            }
+            return registered(outcome, purpose, payer);
         },
 
         // A window that left the page answers in the query of the address it came back to.

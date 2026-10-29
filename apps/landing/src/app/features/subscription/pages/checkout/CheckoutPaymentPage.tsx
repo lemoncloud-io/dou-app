@@ -2,6 +2,7 @@ import { type JSX, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { isDevStage } from '../../../../config/stage';
 import { ROUTES } from '../../../../routes/paths';
 import { PageLoader } from '../../components';
 import { Banner, Button, Card } from '../../components/ui';
@@ -31,6 +32,10 @@ import { usePlanRoute } from './usePlanRoute';
 
 import type { CardToken, PlanId } from '../../types';
 
+/** What an unexpected failure said, for a dev host only: a phone has no console to read it from. */
+const detailOf = (error: unknown): string | undefined =>
+    isDevStage && !isPortError(error) ? (error instanceof Error ? error.message : String(error)) : undefined;
+
 const errorKeyOf = (error: unknown): string => {
     if (isPortError(error, 'limit')) return 'subscription.checkout.payment.error.limit';
     if (isPortError(error, 'conflict')) return 'subscription.checkout.payment.error.conflict';
@@ -59,6 +64,7 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     const [params] = useSearchParams();
     const today = toIsoDate(useToday());
     const [error, setError] = useState<string>();
+    const [detail, setDetail] = useState<string>();
     // Once the window has registered a card for this checkout, trying again goes straight to the
     // charge with that card: reopening the window would register (and with a real provider,
     // authorise) another one.
@@ -113,7 +119,10 @@ export const CheckoutPaymentPage = (): JSX.Element => {
             })
             .catch((err: unknown) => {
                 // A lost session is the route root's to handle; it has already moved the reader on.
-                if (!isPortError(err, 'unauthenticated')) setError(errorKeyOf(err));
+                if (!isPortError(err, 'unauthenticated')) {
+                    setError(errorKeyOf(err));
+                    setDetail(detailOf(err));
+                }
                 setResuming(false);
             });
         // Once per arrival: the saved checkout is taken away above, so a second run would find nothing.
@@ -139,6 +148,7 @@ export const CheckoutPaymentPage = (): JSX.Element => {
 
     const onPay = async () => {
         setError(undefined);
+        setDetail(undefined);
         try {
             let registeredCard = card;
             if (!registeredCard) {
@@ -161,7 +171,10 @@ export const CheckoutPaymentPage = (): JSX.Element => {
             await charge(plan.id, details, registeredCard);
         } catch (err) {
             // A lost session is the route root's to handle; it has already moved the reader on.
-            if (!isPortError(err, 'unauthenticated')) setError(errorKeyOf(err));
+            if (!isPortError(err, 'unauthenticated')) {
+                setError(errorKeyOf(err));
+                setDetail(detailOf(err));
+            }
         }
     };
 
@@ -189,7 +202,11 @@ export const CheckoutPaymentPage = (): JSX.Element => {
                     </div>
                 </Card>
 
-                {error && <Banner tone="danger" title={t(error)} />}
+                {error && (
+                    <Banner tone="danger" title={t(error)}>
+                        {detail}
+                    </Banner>
+                )}
 
                 <Button size="lg" className="w-full rounded-full" disabled={busy} onClick={onPay}>
                     {withTrial

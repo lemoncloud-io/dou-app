@@ -273,7 +273,7 @@ describe('createHttpPort — checkout', () => {
         expect(await port.getPaymentAttempt(attempt.id)).toMatchObject({ status: 'succeeded' });
     });
 
-    it('sends a card added on its own back to the card list', async () => {
+    it('sends a card added on its own back to the subscription', async () => {
         const { port, paymentWindow } = setup({
             ...BASE_ROUTES,
             'GET /subscriptions/0/mine': { subscription: subscription({}) },
@@ -281,7 +281,7 @@ describe('createHttpPort — checkout', () => {
         });
         await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER });
         expect(paymentWindow).toHaveBeenCalledWith(
-            expect.objectContaining({ redirectUrl: 'http://localhost:5004/subscription/payment-methods' })
+            expect.objectContaining({ redirectUrl: 'http://localhost:5004/subscription/U1%3Aportone' })
         );
     });
 

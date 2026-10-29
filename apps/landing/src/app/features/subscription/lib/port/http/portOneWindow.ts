@@ -18,6 +18,9 @@ export const portOneWindow: PaymentWindow = async ({ issue, payer, redirectUrl }
         // On a phone the provider opens its window by leaving the page, and comes back here with the result;
         // where the window stays in the page this is not used.
         redirectUrl,
+        // KG Inicis asks for how long the card is used for when it opens its mobile page; a monthly
+        // subscription is a one-month period.
+        offerPeriod: { interval: '1m' },
         customer: {
             customerId: issue.customerId,
             fullName: payer.name,

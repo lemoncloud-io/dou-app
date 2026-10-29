@@ -69,3 +69,32 @@ export const clearPendingCheckout = (): void => {
         // Nothing to clear.
     }
 };
+
+const CARD_KEY = 'subscription.pendingCardChange';
+
+/**
+ * A card change has less to remember than a checkout — only the payer, which the port needs to put the
+ * new card on the subscription once the provider's page sends the reader back. Kept and taken away on
+ * the same terms as a checkout.
+ */
+export const savePendingCardChange = (payer: Payer, now: number = Date.now()): void => {
+    try {
+        storageOf()?.setItem(CARD_KEY, JSON.stringify({ payer, savedAt: now }));
+    } catch {
+        // Without storage a phone's card change cannot come back; a desktop window never needed it.
+    }
+};
+
+/** The payer of a card change that left the page, if a fresh one is waiting. Taken away when read. */
+export const takePendingCardChange = (now: number = Date.now()): Payer | undefined => {
+    try {
+        const raw = storageOf()?.getItem(CARD_KEY);
+        storageOf()?.removeItem(CARD_KEY);
+        if (!raw) return undefined;
+        const saved = JSON.parse(raw) as { payer?: Payer; savedAt?: unknown };
+        const fresh = typeof saved.savedAt === 'number' && now - saved.savedAt <= MAX_AGE_MS;
+        return fresh ? saved.payer : undefined;
+    } catch {
+        return undefined;
+    }
+};

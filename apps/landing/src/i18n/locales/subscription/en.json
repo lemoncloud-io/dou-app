@@ -649,7 +649,8 @@
                     "line": "Default card {{card}} · expires {{exp}}",
                     "none": "No card registered",
                     "manage": "Payment methods",
-                    "lineNoExpiry": "Default card {{card}}"
+                    "lineNoExpiry": "Default card {{card}}",
+                    "change": "Change card"
                 },
                 "periodCard": {
                     "title": "Subscription period",
@@ -757,6 +758,14 @@
                     "resume": "Undo cancellation",
                     "note": "After the end date, subscribing again starts a new subscription instead of undoing the cancellation. If you removed your card after cancelling, add one first."
                 }
+            },
+            "changeCard": {
+                "title": "Change payment card",
+                "body": "This registers a new card for your subscription — nothing is charged now. You enter the card details in the payment provider's window.",
+                "open": "Open payment window",
+                "done": "Your payment card was changed.",
+                "declined": "We could not register that card. Please try another one.",
+                "limit": "Too many card attempts. Please try again later."
             }
         },
         "billing": {

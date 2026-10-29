@@ -315,7 +315,13 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 servers exist (ADR-0248, `lib/screens.tsx`). Their rows are kept in the table, marked _hidden_: the routes
 are not registered, every link into them is gone, and the port methods, the HTTP port and the mock are
 left as they were. Opening them again is the one value `MANAGEMENT_SCREENS_OPEN`. What that costs: a
-subscriber cannot change or remove the card, and receipts go to the sign-in address alone.
+subscriber cannot remove the card or choose among several, and receipts go to the sign-in address alone.
+
+One entry stays open: **changing the card**. W-18's payment tile shows the masked card with a "Change card"
+button, and a failed payment's "Change payment method" opens the same flow — the payer's name and number
+(`PayerFields`), then the provider's window, then the card is put on the subscription, which the server
+replaces. It is `pages/manage/useChangeCard.tsx`; on a phone the reader comes back to W-18 with the
+result in the query and the payer is read from `sessionStorage` (`savePendingCardChange`).
 
 Every screen below runs on the server where the build has its addresses, and on the mock otherwise or
 with `?mock=` (see [The server](#the-server)). None is open on the production host yet except W-01,
@@ -453,7 +459,8 @@ What the screens get from the server differs from the mock in a few places, all 
   keeps it in `sessionStorage` from the click until the return is read (taken away on use, stale after
   15 minutes); W-05 reads it, `completePaymentMethodRegistration` turns the query into the same result
   the window would have answered, and the charge goes on as usual. A return with no saved checkout goes
-  back to W-08. On a computer, closing the window and confirming the card company's "cancel?" question answers `FAILURE_TYPE_PG`
+  back to W-08. The window opens with `offerPeriod: { interval: '1m' }`, which KG Inicis requires for its
+  mobile page. On a computer, closing the window and confirming the card company's "cancel?" question answers `FAILURE_TYPE_PG`
   — the code a refused card also gets — with a message that the user cancelled; `windowReturn.ts`
   tells the two apart by that message, for the window's answer and for a phone's query alike, so a
   closed window reads as cancelled, not as a declined card.
@@ -696,7 +703,7 @@ not trigger.
   not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 532 tests
+    npx nx test @chatic/landing   # 538 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
@@ -756,7 +763,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 532 tests pass; in CI
+npx nx test @chatic/landing                               # 538 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```
