@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,7 +20,10 @@ const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheReadList, c
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
-        data: { getCloudRepositories: (cid: string) => getCloudRepositories(cid) },
+        data: {
+            getCloudRepositories: (cid: string) => getCloudRepositories(cid),
+            useRuntimeRepositories: () => ({ user: { observeItem: () => () => undefined } }),
+        },
         session: {
             useSessionIdentity: () => ({ userId: 'me' }),
             useRuntimeProfile: () => ({ userName: 'Me', photo: '' }),
@@ -90,7 +94,11 @@ const chat = (chatNo: number, over: Partial<DomainChat> = {}): DomainChat =>
         ...over,
     }) as DomainChat;
 
-const wrapper = ({ children }: { children: ReactNode }) => <TooltipProvider>{children}</TooltipProvider>;
+const wrapper = ({ children }: { children: ReactNode }) => (
+    <QueryClientProvider client={new QueryClient()}>
+        <TooltipProvider>{children}</TooltipProvider>
+    </QueryClientProvider>
+);
 
 const thread = (rootNo: string, over: Partial<MyThread> = {}): MyThread => ({
     cid: 'K1',

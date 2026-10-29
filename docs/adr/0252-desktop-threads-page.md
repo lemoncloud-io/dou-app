@@ -22,8 +22,8 @@ Threads view asked for the threads gathered in one place, read without opening e
    place, unread first, then by latest activity. The order is the one the page opened with, so a card
    does not jump while it is read.
 3. **A card shows the root and the newest three replies**, read from the chat cache of the thread's
-   own cloud, with a link to the thread panel for anything earlier. A card on screen for a second
-   marks its thread seen.
+   own cloud and drawn by the thread panel's message row, with a link to the thread panel for anything
+   earlier. A card on screen for a second marks its thread seen.
 4. **A card has a text-only reply box**, mounted when asked for. Files and @ suggestions stay in the
    thread panel.
 5. **The inbox's Threads tab stays.** The page is for reading threads; the tab is for being told.
@@ -32,8 +32,9 @@ Threads view asked for the threads gathered in one place, read without opening e
 
 - **A nav rail destination.** Rejected: the rail holds the app's top-level places, and threads are
   read per place, like Saved.
-- **Cards built from `MessageRow`.** Rejected for now: a full row brings reactions, menus and media into
-  every card. Cards show text previews; the panel shows the full messages.
+- **Text previews on a card.** Tried first and dropped: a photo read as "Photo", and an author showed
+  by account name with no avatar while the thread panel showed their place nickname and picture. Cards
+  draw their messages with the panel's own `MessageRow`, so the two cannot disagree.
 
 ## Consequences
 

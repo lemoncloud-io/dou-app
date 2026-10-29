@@ -14,7 +14,9 @@ with no place is listed in every place), unread first, then by latest activity. 
 the page opened with, so a card does not move while it is read; the header counts every thread.
 
 Each card (`useThreadCard`) reads, once it nears the screen, the root and the newest three replies
-from the chat cache of the thread's cloud, the root from the server when the cache lacks it. A root
+from the chat cache of the thread's cloud, the root from the server when the cache lacks it. They are drawn by the
+thread panel's `MessageRow` (`ThreadCardMessages`), so a card names an author by place nickname, with
+their avatar, and shows images and files as the panel does. A root
 from before my join, or one the server says is gone, is a notice in its place, in the thread panel's
 words. Earlier replies are a link to the thread panel; when the cached window is full the link has no
 count, since the thread may start before it. A card on screen for a second marks its thread seen.

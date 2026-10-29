@@ -19,6 +19,7 @@ import {
 } from '../../../shared';
 import { useChatMutations } from '../../../shared/hooks/useChatMutations';
 import { useThreadCard } from '../hooks/useThreadCard';
+import { ThreadCardMessages } from './ThreadCardMessages';
 import { ThreadCardReply } from './ThreadCardReply';
 
 const CARD_LINK =
@@ -164,7 +165,16 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
             {state.status === 'ready' ? (
                 <>
                     {state.root ? (
-                        <ReplyLine message={state.root} />
+                        channel ? (
+                            <ThreadCardMessages
+                                channel={channel}
+                                messages={[state.root]}
+                                onRetry={message => settle(retryMessage(message))}
+                                onDiscard={message => settle(discardMessage(message))}
+                            />
+                        ) : (
+                            <ReplyLine message={state.root} />
+                        )
                     ) : (
                         <p className="text-caption text-muted-foreground">
                             {t(state.rootNotice === 'beforeJoin' ? 'chat.thread.beforeJoin' : 'chat.thread.gone')}
@@ -178,14 +188,23 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
                                     : t('threads.earlier', { count: state.earlier })}
                             </button>
                         )}
-                        {state.replies.map(reply => (
-                            <ReplyLine
-                                key={reply.id ?? reply.tempId ?? reply.chatNo}
-                                message={reply}
-                                onRetry={() => settle(retryMessage(reply))}
-                                onDiscard={() => settle(discardMessage(reply))}
+                        {channel ? (
+                            <ThreadCardMessages
+                                channel={channel}
+                                messages={state.replies}
+                                onRetry={message => settle(retryMessage(message))}
+                                onDiscard={message => settle(discardMessage(message))}
                             />
-                        ))}
+                        ) : (
+                            state.replies.map(reply => (
+                                <ReplyLine
+                                    key={reply.id ?? reply.tempId ?? reply.chatNo}
+                                    message={reply}
+                                    onRetry={() => settle(retryMessage(reply))}
+                                    onDiscard={() => settle(discardMessage(reply))}
+                                />
+                            ))
+                        )}
                     </div>
                     {channel && state.root?.id ? (
                         replying ? (
