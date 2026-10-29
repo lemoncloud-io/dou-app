@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-29] - No version updates
+
+### Features
+
+- (admin-v2) refund a web subscription from the membership console, on Development only
+- (http,data) add the admin refund of a web subscription
+
 ## [2026-10-29] - root@0.123.1, @chatic/desktop-web@0.37.2
 
 ### Bug Fixes
