@@ -23,11 +23,12 @@ never offers a tile that would open an empty column.
 
 ### The Home sidebar
 
-Under the place title and the channel search, a hairline, then **Saved** leads the action rows
-(`SidebarHeader`). It opens the Saved items page in the main pane and stays marked while the page is
+Under the place title and the channel search, a hairline, then **Threads** and **Saved** lead the action rows
+(`SidebarHeader`). Threads opens the Threads page in the main pane, with a dot while a thread has
+unseen replies ([my-threads.md](../chat/my-threads.md#the-threads-page)). Saved opens the Saved items page in the main pane and stays marked while the page is
 there ([saved.md](../chat/saved.md)). In a place with no conversation yet, Home's main pane is the welcome page
 ([onboarding.md](../chat/onboarding.md#the-place-welcome-page)). Edit my profile in this place follows it: the design drops that row, but nothing
-else opens the place profile editor. Mentions, threads and the snooze live in the Notifications
+else opens the place profile editor. Mentions, thread replies and the snooze live in the Notifications
 destination.
 
 The sections below (`ChannelList`, `SortableSection`) are Favorites, Channels and DM. Each section has

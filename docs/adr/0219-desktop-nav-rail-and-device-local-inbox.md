@@ -1,6 +1,6 @@
 # ADR-0219: The desktop navigates by a nav rail, and its inbox gathers four sources on the device
 
-> Status: Accepted · Decided: 2026-10-20 · Implemented: `feat/desktop-nav-rail` and the PRs stacked on it
+> Status: Accepted, decision 5 partly superseded by [ADR-0252](./0252-desktop-threads-page.md) · Decided: 2026-10-20 · Implemented: `feat/desktop-nav-rail` and the PRs stacked on it
 > · The nav rail and rails (decisions 1–3) land first; the inbox (decisions 4–5) lands with the Notifications pull request
 > · Scope: `apps/desktop-web` — `DesktopLayout`, `HomePage`, `NavRail`, `AccountMenu`, `useNavStore`
 > · The module docs are [apps/desktop-web shell](../../apps/desktop-web/docs/shell/nav-rail.md)
