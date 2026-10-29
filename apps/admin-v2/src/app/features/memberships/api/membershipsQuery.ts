@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { runtime } from '@chatic/app-runtime';
 import { createQueryKeys } from '@chatic/shared';
 
-import { endpointOverrideFor, type RelayStage } from '../lib/targetServer';
+import { endpointOverrideFor, relayStageOf, type RelayStage } from '../lib/targetServer';
 
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { MembershipBody, MembershipView } from '@lemoncloud/chatic-backend-api';
@@ -170,6 +170,45 @@ export const useUpdateMembershipByAdmin = () => {
             queryClient.setQueriesData<ListResult<MembershipView>>({ queryKey: membershipsKeys.lists() }, previous =>
                 patchMembershipRow(previous, userId, updated)
             );
+            void queryClient.invalidateQueries({ queryKey: adminCloudsKeys.all });
+        },
+    });
+};
+
+export interface RefundByAdminInput {
+    userId: string;
+    reason: string;
+    /**
+     * The relay this refund lands on, spelled out rather than derived from a stage. The refund panel
+     * gates on this exact value and names it in the confirmation; resolving it again here could let
+     * the client's dynamic relay resolution send it somewhere the dialog did not show.
+     */
+    endpoint: string;
+}
+
+/**
+ * The admin refund of a web subscription — full, immediate, no undo.
+ *
+ * The response is the payments-side subscription, not a membership, so there is no row to patch in
+ * place. The list and the cloud panel are invalidated instead: the refund expires the membership and,
+ * through it, the user's clouds. The list is an ES search and can still return the pre-refund row for
+ * a moment, which is why the panel reports the outcome from the response itself.
+ */
+export const useRefundSubscriptionByAdmin = () => {
+    const { subscription } = runtime.data.useRuntimeRepositories();
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ userId, reason, endpoint }: RefundByAdminInput) => {
+            // The gateway falls back to the client's own relay on an empty endpoint, which may be
+            // Production. The panel already gates on this; the hook refuses too rather than trust it.
+            if (relayStageOf(endpoint) !== 'd1') {
+                throw new Error(`Refunds are open on Development only — refusing ${endpoint || '(no endpoint)'}.`);
+            }
+            return subscription.refundSubscriptionByAdmin(userId, { reason: reason.trim() }, { endpoint });
+        },
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: membershipsKeys.lists() });
             void queryClient.invalidateQueries({ queryKey: adminCloudsKeys.all });
         },
     });

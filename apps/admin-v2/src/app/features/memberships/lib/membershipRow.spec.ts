@@ -4,7 +4,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { describeGrade, describeOverrideBadge, hasDerivationMismatch } from './membershipRow';
-import { configuredStage, describeTargetServer, endpointOverrideFor, relayBaseFor, relayHost } from './targetServer';
+import {
+    configuredStage,
+    describeTargetServer,
+    endpointOverrideFor,
+    relayBaseFor,
+    relayHost,
+    relayStageOf,
+} from './targetServer';
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
@@ -116,6 +123,20 @@ describe('describeTargetServer', () => {
     it('비어 있으면 미설정으로 표시한다', () => {
         expect(describeTargetServer(undefined).endpoint).toBe('(not configured)');
         expect(describeTargetServer('  ').label).toBe('Unknown');
+    });
+});
+
+describe('relayStageOf', () => {
+    it('reads the stage off a trailing dou segment, slash or not', () => {
+        expect(relayStageOf('https://api.example.com/dou-d1')).toBe('d1');
+        expect(relayStageOf('https://api.example.com/dou-v1/')).toBe('v1');
+    });
+
+    it('is undefined for anything else, including an empty value', () => {
+        expect(relayStageOf('https://api.example.com/v1')).toBeUndefined();
+        expect(relayStageOf('https://api.example.com/dou-x9')).toBeUndefined();
+        expect(relayStageOf(undefined)).toBeUndefined();
+        expect(relayStageOf('')).toBeUndefined();
     });
 });
 

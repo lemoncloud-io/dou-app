@@ -68,9 +68,18 @@ export const zoomAround = (zoom: Zoom, scale: number, focal: Point): Zoom => {
 export const wheelZoom = (zoom: Zoom, deltaY: number, focal: Point, pinch = false): Zoom =>
     zoomAround(zoom, zoom.scale * Math.exp(-deltaY * (pinch ? PINCH_ZOOM_INTENSITY : WHEEL_ZOOM_INTENSITY)), focal);
 
+/** The slider: an exact scale, around the middle of the view. */
+export const zoomTo = (zoom: Zoom, scale: number): Zoom => zoomAround(zoom, scale, { x: 0, y: 0 });
+
 /** A zoom button or key: one `ZOOM_STEP` in (`1`) or out (`-1`), around the middle of the view. */
-export const stepZoom = (zoom: Zoom, direction: 1 | -1): Zoom =>
-    zoomAround(zoom, zoom.scale * ZOOM_STEP ** direction, { x: 0, y: 0 });
+export const stepZoom = (zoom: Zoom, direction: 1 | -1): Zoom => zoomTo(zoom, zoom.scale * ZOOM_STEP ** direction);
+
+/**
+ * The photo's size as it appears once turned `turns` quarter turns: a sideways photo is as wide as it
+ * is tall unturned, so the pan bounds must swap the two.
+ */
+export const turnedContent = (content: Size, turns: number): Size =>
+    turns % 2 === 0 ? content : { width: content.height, height: content.width };
 
 /** A click zooms in on the clicked point, or back out to fit if the photo is already zoomed. */
 export const toggleZoom = (zoom: Zoom, at: Point): Zoom =>

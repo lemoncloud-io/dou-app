@@ -1693,10 +1693,8 @@
         "close": "닫기",
         "retry": "다시 시도",
         "target": {
-            "you": "You",
             "group": "그룹 대화",
             "oneToOne": "1:1 대화",
-            "place": "플레이스 친구",
             "roomFriends": "방 친구 {{count}}"
         },
         "expiry": {
@@ -1755,6 +1753,7 @@
         "networkError": "네트워크 연결을 확인한 후 다시 시도해 주세요.",
         "authVerifyFailed": "인증에 실패했습니다. 다시 시도해 주세요.",
         "expired": "만료되었거나 유효하지 않은 초대입니다.",
+        "alreadyUsed": "이미 참여한 초대입니다.",
         "enterFailed": "초대는 수락되었지만 입장에 실패했습니다. 다시 시도해 주세요."
     },
     "relayInviteAccept": {

@@ -7,6 +7,9 @@ with a small chip of its initial. Picking a row switches to that cloud. When the
 cloud, the tile shows Home, the same reading `HomePage` gives it. The place tiles sit under it, past a
 divider ([place-rail.md](./place-rail.md)).
 
+The rows are also reachable by number — Mod+0 for Home, Mod+1…Mod+9 for the rest, in this order
+([`../chat/keyboard.md`](../chat/keyboard.md#cloud-and-place-by-number)).
+
 The clouds used to be a rail of their own, one tile each. The design folds them into one rail with the
 places, so the tiles became rows and their right-click menus became items in the switcher's menu.
 

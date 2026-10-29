@@ -58,6 +58,20 @@ export interface SubscriptionHttpGateway {
         options?: AdminEndpointOptions
     ): Promise<MembershipView>;
     /**
+     * POST {relay}/subscriptions/{userId}/refund — the admin refund of a web (payments-side) subscription.
+     *
+     * Full refund of the last paid charge, and the subscription expires at once; there is no partial
+     * refund and no undo. Admin-only on the relay (`hasAdminRole`). The relay answers 409 when there is
+     * no paid charge to refund — a trial, a first charge still pending, or one already refunded — and
+     * 404 when the user has no web subscription at all.
+     */
+    refundSubscriptionByAdmin(
+        userId: string,
+        body: SubscriptionRefundBody,
+        params?: Record<string, unknown>,
+        options?: AdminEndpointOptions
+    ): Promise<AdminSubscriptionView>;
+    /**
      * GET {relay}/clouds/0/list?view=admin&valid=0 — one user's clouds, with a status aggregation.
      *
      * Separate from `CloudHttpGateway.list` rather than a looser version of it: that one pins
@@ -174,7 +188,7 @@ export interface SubscriptionCardBody extends SubscriptionPayer {
 }
 
 /**
- * Lets the admin console aim these three at a relay other than the configured one.
+ * Lets the admin console aim these calls at a relay other than the configured one.
  *
  * Only the admin calls take it. The app's own calls must never leave the relay they were
  * authenticated against, and the console needs to compare stages the way the log console does —
@@ -199,6 +213,33 @@ export interface MembershipDropsResult {
     owned: number;
     maxClouds?: number;
     excess?: number;
+}
+
+/**
+ * Body of `POST {relay}/subscriptions/{userId}/refund`. The relay refuses an empty `reason` (400).
+ *
+ * Declared here because the installed backend package predates the web subscription and publishes
+ * neither this nor the response below. Once that package is bumped, both give way to its own
+ * `SubscriptionRefundBody` / `SubscriptionView`.
+ */
+export interface SubscriptionRefundBody {
+    reason: string;
+}
+
+/**
+ * The relay's view of a web subscription, as returned by the admin refund — only the fields the
+ * console reads. `status` is the payments-side one (`pending` / `trial` / `active` / `canceling` /
+ * `expired`), not the membership's; after a refund it is `expired`.
+ */
+export interface AdminSubscriptionView {
+    id?: string;
+    userId?: string;
+    platform?: string;
+    status?: string;
+    productId?: string;
+    validFrom?: number;
+    validUntil?: number;
+    autoRenewing?: boolean;
 }
 
 export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): SubscriptionHttpGateway => {
@@ -275,6 +316,14 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
             exec.executeSignedRelayRequest<MembershipView, MembershipBody, Record<string, unknown>>({
                 method: 'PUT',
                 baseURL: `${options?.endpoint || relay()}/memberships/${userId}/admin`,
+                params: { ...params },
+                body,
+            }),
+
+        refundSubscriptionByAdmin: (userId, body, params, options) =>
+            exec.executeSignedRelayRequest<AdminSubscriptionView, SubscriptionRefundBody, Record<string, unknown>>({
+                method: 'POST',
+                baseURL: `${options?.endpoint || relay()}/subscriptions/${userId}/refund`,
                 params: { ...params },
                 body,
             }),

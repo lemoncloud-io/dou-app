@@ -266,6 +266,17 @@ describe('useChannel', () => {
             await waitFor(() => expect(result.current.channel?.id).toBe('ch-1'));
             expect(result.current.isForbidden).toBe(false);
         });
+
+        // An entry that hands its row across (the home list, a share) has the room on screen before
+        // the cache answers, so a refusal recorded in that gap does not evict the reader from it.
+        it('does not call a seeded room refused before the cache answers', () => {
+            (runtime.sync.isChannelRefused as jest.Mock).mockReturnValue(true);
+
+            const { result } = renderHook(() => useChannel('ch-1', { seed: channelRow() }));
+
+            expect(result.current.channel?.id).toBe('ch-1');
+            expect(result.current.isForbidden).toBe(false);
+        });
     });
 
     describe('isOwner', () => {

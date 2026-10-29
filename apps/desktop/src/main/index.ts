@@ -588,7 +588,15 @@ const buildAppMenu = (): Menu => {
     const viewSubmenu: MenuItemConstructorOptions[] = [
         { role: 'reload' },
         { type: 'separator' },
-        { role: 'resetZoom' },
+        // Not the `resetZoom` role: that role registers Mod+0 with the menu bar, and the app uses
+        // that chord for Home (the renderer binds it). A registered accelerator would swallow it
+        // before the page saw it, so the item resets the zoom itself and claims no key.
+        {
+            label: labels.resetZoom,
+            click: () => {
+                BrowserWindow.getFocusedWindow()?.webContents.setZoomLevel(0);
+            },
+        },
         { role: 'zoomIn' },
         { role: 'zoomOut' },
         { type: 'separator' },

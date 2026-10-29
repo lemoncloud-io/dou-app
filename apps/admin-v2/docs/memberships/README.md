@@ -4,8 +4,9 @@
 Before this screen existed, the only way to do any of this was to call the backend directly. It does
 three things in one place: **view** a membership, **override** its period/status/tier separately
 from the store receipt (grant, block, clear), and **confirm** how that override landed on the user's
-clouds. The server contract this screen consumes is canonical in the backend repo's own spec; this
-document only covers how the console uses it. Feature code:
+clouds. For a web subscription it also **refunds** — Development only, see
+[Web subscription refund](#web-subscription-refund). The server contract this screen consumes is
+canonical in the backend repo's own spec; this document only covers how the console uses it. Feature code:
 `apps/admin-v2/src/app/features/memberships/`.
 
 ## Design principles
@@ -45,7 +46,11 @@ user's cloud list; an override form for grant/block/clear; four safeguards (reas
 confirmation dialog, `auto` off by default, a badge naming the target server); and a matching change
 to `apps/web`'s own subscription-status derivation so the app agrees with what the console did.
 
-**Out:** cancelling a subscription (no backend endpoint yet); showing a user's name or email (not in
+**In, for web subscriptions:** a full refund of the last paid charge, on Development only — see
+[Web subscription refund](#web-subscription-refund).
+
+**Out:** cancelling a subscription (no backend endpoint yet); partial refunds, refunds on Production,
+store-subscription refunds and refund history; showing a user's name or email (not in
 the membership response — `userId` is the only identifier available); stage resolution logic (the
 gateway resolves one relay endpoint; the console only displays the result); override history beyond
 the single most recent entry (the server keeps only one); physically removing the legacy `isSuper`
@@ -77,6 +82,57 @@ set it has quietly expired. `isValid` from the server is still not trusted, for 
 already-established reason: it cuts the cancel-scheduled window wrong. `blocked` is worded distinctly
 from `expired` in the UI because **billing keeps charging while blocked** — the two are not the same
 failure to a user reading the screen.
+
+## Web subscription refund
+
+A web subscription — one paid through the payments service rather than a store, recorded with
+`platform: portone` — can be refunded from the detail drawer. The call is the relay's admin route
+`POST /subscriptions/{userId}/refund { reason }`. **The refund is full and immediate**: the relay
+refunds the last paid charge, and the subscription expires on the spot with auto-renew off. There is
+no partial refund, nothing to undo, and the user has to subscribe again to come back. Store
+subscriptions (`apple`, `google`) get no refund section; the store refunds those.
+
+**Development only.** The button works only when the relay the call will hit is `dou-d1`. On
+Production it stays disabled with a line saying so: no refund policy exists yet, and the console
+usually runs against Production because that is what an operator's `.env` names. The refund
+resolves its relay once, explicitly: the configured `VITE_DOU_ENDPOINT` with its `dou-XX` segment
+swapped for the selected stage. That one value is what the gate checks, what the confirmation
+dialog names and what the call is sent to, so the server shown is the server written to. **A
+configured endpoint that follows neither `dou-v1` nor `dou-d1` produces no refund endpoint at all**
+— the console will not append `/dou-d1` to a host it cannot identify — and the button says there is
+no relay to refund on. The mutation hook refuses any endpoint that is not `dou-d1` as well, because
+the gateway would otherwise fall back to the client's own relay on an empty one.
+
+**Switching stage closes the open row.** A row belongs to the relay it was read from; its `userId`
+on the other relay is someone else. Kept open across a switch, an override or a refund would land
+on that other user. This applies to the override form too.
+
+**The screen blocks only what the membership view can tell.** A membership whose `status` is
+`pending` (first charge not confirmed yet) or `expired` gets a disabled button and a one-line reason.
+A trial cannot be told apart from a paid subscription: the membership view carries no period axis,
+and a trial reads `status: active`. So for a trial the button stays enabled and the relay decides. It
+refuses with `409 nothing to refund` whenever there is no paid charge (a trial, an unconfirmed first
+charge, an already-refunded one), and the console shows that as "No paid charge to refund", followed
+by the relay's own text. `404` (no web subscription) and `403` (not an admin on that relay) get the
+same treatment.
+
+**Confirmation.** The dialog names the user, the product, the current term's end date, the target
+server badge, and the warning that this is a full, immediate and irreversible refund. A reason is
+required, and the relay also refuses an empty one with `400`. A cancelled reason is cleared, and
+while the refund is in flight neither Escape nor Cancel closes the dialog or the drawer under it.
+A `403` also trips the console's session-refused banner, because the transport reads every `403`
+as an auth failure; the refund section's own line says what it most likely means here.
+
+**After a refund**, the response is the payments-side subscription, not a membership, so there is no
+row to patch in place. The membership list and the cloud panel are invalidated, and the refund
+section reports the outcome from the response itself. The list is an ES search and can show the
+pre-refund row until the index catches up, so reselect or refresh to see `expired`.
+
+**Types are declared locally.** The installed backend package predates the web subscription. It has
+no refund body or `SubscriptionView`, its `MembershipPlatform` has no `portone`, and its
+`MembershipStatus` has no `pending`. So `libs/http` declares `SubscriptionRefundBody` and
+`AdminSubscriptionView` itself, and the console compares `platform`/`status` as strings. Once the
+package is bumped, these give way to its own types.
 
 ## Known gap: the cloud list endpoint has no server-side admin check
 
@@ -124,8 +180,10 @@ npx tsc -b libs/{http,data,shared}/tsconfig.lib.json
 Typecheck needs the **build** invocation (`tsc -b`), not `--noEmit` — a referenced lib without a
 built `dist/*.d.ts` throws a wall of TS6305 that is a missing build, not a real error.
 
-What the suite actually has to cover, beyond the obvious CRUD path: a caller-supplied `view`/`valid`
-never overrides the pinned gateway values; the three override-form modes reject a missing reason, a
+What the suite actually has to cover, beyond the obvious CRUD path: the refund is enabled only for a
+`dou-d1` relay and never for an endpoint naming no stage, it is blocked on `pending`/`expired` but
+left to the relay for a trial, and a 409 reads as "no paid charge to refund" with the relay's text
+kept; a caller-supplied `view`/`valid` never overrides the pinned gateway values; the three override-form modes reject a missing reason, a
 past `adminUntil`, and a tier on a block; the confirmation copy states that billing continues on a
 block; `blocked` is rejected as `notEntitled` by the quota check (a new status is an easy place to
 fall through a default branch); and a granted user's store purchase path reads `hasLiveReceipt` as

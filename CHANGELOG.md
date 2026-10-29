@@ -1,5 +1,67 @@
 # Changelog
 
+## [2026-10-29] - root@0.123.1, @chatic/desktop-web@0.37.2
+
+### Bug Fixes
+
+- (desktop-web) keep Home on Mod+0, clouds on Mod+1-9
+
+## [2026-10-29] - No version updates
+
+### Bug Fixes
+
+- (web/share) open the shared room with its row, as the home list does
+
+## [2026-10-29] - No version updates
+
+### Features
+
+- (desktop-web,desktop) switch cloud and place by number key
+
+## [2026-10-29] - root@0.123.0, @chatic/web@0.82.0
+
+### Features
+
+- (web) name an invite's inviter by place nickname and its room by channel name
+
+### Bug Fixes
+
+- (web) declare the inviter nickname and room name on InviteInfo instead of raising the api types
+
+### Documentation
+
+- (web) bring the invite docs in line with the 24-hour default and the card-less place invite
+
+### Other
+
+- test: (web-e2e) give the pending relay invite fixture the inviter's place nickname
+- build: (web) raise the backend api types to 0.26.1003 for the inviter nickname and room name
+
+## [2026-10-28] - root@0.122.1, @chatic/desktop-web@0.37.1
+
+### Bug Fixes
+
+- (desktop-web) match viewer control pill to Figma, centre its row
+- (desktop-web) give the viewer pill a white glass surface
+
+## [2026-10-28] - root@0.122.0, @chatic/desktop-web@0.37.0
+
+### Features
+
+- (desktop-web) image viewer control pill with rotate and slider
+
+## [2026-10-28] - root@0.121.2, @chatic/desktop-web@0.36.2
+
+### Bug Fixes
+
+- (desktop-web) draw a member name with a space as one mention pill
+
+## [2026-10-28] - root@0.121.1, @chatic/desktop-web@0.36.1
+
+### Bug Fixes
+
+- (desktop-web) draw no link card under a deleted message
+
 ## [2026-10-28] - root@0.121.0, @chatic/desktop-web@0.36.0
 
 ### Features

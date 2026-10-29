@@ -48,10 +48,11 @@ export interface InviteCountdownOptions {
  * day/hour/minute/second breakdown plus expired / imminent flags, or `null` when no expiry is
  * provided (the validity card is then hidden).
  *
- * The lifetime is the record's: links this client issues live 24 hours, while the server's own
- * default — what a link issued without one gets — is 3 days. So the day field can be non-zero, and
- * the caller decides how to show it: the accept screen reads `n days n hours n minutes` until the last
- * ten minutes and a clock after; the waiting screen and the 1:1 strip are a clock throughout.
+ * The lifetime is the record's: links this client issues live 24 hours, and so does the server's own
+ * default — what a link issued without one gets. The day field is still counted, so a longer-lived link
+ * (one issued by an older server) reads correctly, and the caller decides how to show it: the accept
+ * screen reads `n days n hours n minutes` until the last ten minutes and a clock after; the waiting
+ * screen and the 1:1 strip are a clock throughout.
  *
  * The tick follows what is on screen: every second by default, or by the minute until the last ten
  * minutes when `minuteUntilImminent` is set, and it stops entirely at expiry — the same

@@ -154,6 +154,37 @@ describe('createSubscriptionHttpGateway', () => {
         });
     });
 
+    it('refundSubscriptionByAdmin — POST {relay}/subscriptions/{userId}/refund with the reason as body', async () => {
+        executeSignedRelayRequest.mockResolvedValue({ status: 'expired' });
+        const gateway = createSubscriptionHttpGateway(exec);
+
+        await expect(gateway.refundSubscriptionByAdmin('1000904', { reason: 'test refund' })).resolves.toEqual({
+            status: 'expired',
+        });
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith({
+            method: 'POST',
+            baseURL: 'https://relay.test/subscriptions/1000904/refund',
+            params: {},
+            body: { reason: 'test refund' },
+        });
+    });
+
+    // The console's stage switch: a refund aimed at another relay must land there, not on the
+    // configured one, or the confirmation dialog would name the wrong server.
+    it('refundSubscriptionByAdmin — an endpoint override replaces the configured relay', async () => {
+        executeSignedRelayRequest.mockResolvedValue({});
+        const gateway = createSubscriptionHttpGateway(exec);
+
+        await gateway.refundSubscriptionByAdmin('1000904', { reason: 'r' }, undefined, {
+            endpoint: 'https://api.example.com/dou-d1',
+        });
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith(
+            expect.objectContaining({ baseURL: 'https://api.example.com/dou-d1/subscriptions/1000904/refund' })
+        );
+    });
+
     it('adminClouds — GET {relay}/clouds/0/list, filtered by ownerId', async () => {
         executeSignedRelayRequest.mockResolvedValue({});
         const gateway = createSubscriptionHttpGateway(exec);

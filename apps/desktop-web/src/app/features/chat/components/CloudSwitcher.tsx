@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, ChevronDown, Pencil, RefreshCw, Trash2 } from 'lucide-react';
 
 import { cn } from '@chatic/lib/utils';
-import { applyChannelOrder, useCloudOrder } from '@chatic/shared';
+import { useCloudOrder } from '@chatic/shared';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
@@ -30,7 +30,6 @@ import {
 } from '@chatic/ui-kit/components/ui/alert-dialog';
 
 import {
-    MobileAppPointer,
     cloudTiles,
     isLapsedCloud,
     type RailCloud,
@@ -38,6 +37,7 @@ import {
     useRemoveCloud,
     toastFailure,
 } from '../../../shared';
+import { orderedRailClouds, selectRailCloud } from '../utils';
 import { RenameCloudDialog } from './RenameCloudDialog';
 
 /**
@@ -183,18 +183,10 @@ export const CloudSwitcher = ({
     };
 
     // The order the user arranged the clouds in, kept from the old rail. Home is the way back from
-    // every cloud, so it is listed first whatever was stored.
+    // every cloud, so it is listed first whatever was stored. The number keys read the same order,
+    // so a digit names the row it is next to in this menu.
     const { storedIds } = useCloudOrder();
-    const home = clouds.find(cloud => cloud.kind === 'home');
-    const movable = clouds.filter(cloud => cloud.kind !== 'home');
-    const cloudById = new Map(movable.map(cloud => [cloud.id, cloud]));
-    const ordered = [
-        ...(home ? [home] : []),
-        ...applyChannelOrder(
-            movable.map(cloud => cloud.id),
-            storedIds
-        ).flatMap(id => cloudById.get(id) ?? []),
-    ];
+    const ordered = orderedRailClouds(clouds, storedIds);
 
     const active = clouds.find(cloud => cloud.id === activeCloudId);
     const activeTile = active ? tileByCloud.get(active.id) : undefined;
@@ -205,15 +197,7 @@ export const CloudSwitcher = ({
     const renamable = active && canRename(active, activeCloudId) ? active : null;
     const removable = ordered.filter(canDelete);
 
-    const select = (cloud: RailCloud) => {
-        if (!isLapsedCloud(cloud)) {
-            if (cloud.id !== activeCloudId) onSelectCloud(cloud.id);
-            return;
-        }
-        // Only a subscription reopens a lapsed cloud, and that is bought in the
-        // mobile app, so the row and the click both say where to go.
-        toast({ title: t('cloud.lapsed.title'), description: <MobileAppPointer /> });
-    };
+    const select = (cloud: RailCloud) => selectRailCloud(cloud, activeCloudId, onSelectCloud, t);
 
     return (
         <>

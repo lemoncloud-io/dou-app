@@ -43,6 +43,15 @@ export const ShortcutsDialog = () => {
         {
             keys: (
                 <>
+                    <Kbd>{MOD} 0</Kbd> <Kbd>{MOD} 1–9</Kbd>
+                </>
+            ),
+            label: t('shortcuts.switchCloud'),
+        },
+        { keys: <Kbd>⇧ 1–9</Kbd>, label: t('shortcuts.switchPlace') },
+        {
+            keys: (
+                <>
                     <Kbd>↑</Kbd> <Kbd>↓</Kbd>
                 </>
             ),

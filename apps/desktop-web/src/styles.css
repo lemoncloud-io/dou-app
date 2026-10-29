@@ -414,6 +414,43 @@
     }
 }
 
+/* The image viewer's zoom slider: a thin neutral track the whole way, and a round brand-coloured thumb.
+   A native range input, so the keyboard and the screen reader keep working; the track and thumb need
+   a rule per engine because there is no shared pseudo-element. */
+@layer components {
+    .zoom-slider {
+        appearance: none;
+        background: transparent;
+        height: 20px;
+    }
+    .zoom-slider::-webkit-slider-runnable-track {
+        height: 2px;
+        border-radius: 1px;
+        background: hsl(var(--foreground) / 0.7);
+    }
+    .zoom-slider::-moz-range-track {
+        height: 2px;
+        border-radius: 1px;
+        background: hsl(var(--foreground) / 0.7);
+    }
+    .zoom-slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        margin-top: -8px;
+        border: 0;
+        border-radius: 9999px;
+        background: hsl(var(--primary));
+    }
+    .zoom-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border: 0;
+        border-radius: 9999px;
+        background: hsl(var(--primary));
+    }
+}
+
 /* Honor prefers-reduced-motion globally (PRODUCT.md commitment). Neutralizes the
    tactile press, ease-tactile transitions, and tailwindcss-animate keyframes
    (slide/fade/cloud-bounce) for users who ask for less motion. State still changes
