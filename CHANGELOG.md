@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-10-29] - root@0.127.0, @chatic/desktop-web@0.40.0
+
+### Features
+
+- (desktop-web) list the threads I take part in on a Threads page
+- (desktop-web) show each thread's root and newest replies on a card
+- (desktop-web) reply to a thread from its Threads page card
+
+### Bug Fixes
+
+- (desktop-web) draw Threads page cards with the thread panel row
+- (desktop-web) keep Threads page order and mark seen only when shown
+
+### Documentation
+
+- (desktop-web) document the Threads page and record ADR-0252
+
+### Refactor
+
+- (desktop-web) check the Threads unread dot without sorting
+
 ## [2026-10-29] - No version updates
 
 ### Bug Fixes
