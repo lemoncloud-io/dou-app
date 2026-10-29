@@ -313,6 +313,7 @@ export const en = {
     'threads.dm': 'Direct message',
     'threads.unread': 'Unread',
     'threads.open': 'Open thread',
+    'threads.reply': 'Reply',
     'threads.earlierUncounted': 'Show earlier replies',
     'threads.earlier_one': 'Show {{count}} earlier reply',
     'threads.earlier_other': 'Show {{count}} earlier replies',

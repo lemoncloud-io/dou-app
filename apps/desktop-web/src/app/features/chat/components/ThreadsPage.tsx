@@ -12,11 +12,14 @@ import {
     isThreadUnread,
     messagePreview,
     threadsInScope,
+    toastFailure,
     useMyThreadsStore,
     useNotificationsPanelStore,
     type MyThread,
 } from '../../../shared';
+import { useChatMutations } from '../../../shared/hooks/useChatMutations';
 import { useThreadCard } from '../hooks/useThreadCard';
+import { ThreadCardReply } from './ThreadCardReply';
 
 const CARD_LINK =
     'focus-ring tactile shrink-0 rounded-md px-2 py-1 text-micro font-medium text-foreground transition-colors ease-tactile hover:bg-accent';
@@ -35,6 +38,8 @@ interface ThreadsPageProps {
 interface ThreadCardProps {
     thread: MyThread;
     channelLabel: string | undefined;
+    /** The thread's channel when this place lists it — replying needs it. */
+    channel?: DomainChannel;
     /** My join in the thread's channel, when this place lists it. */
     joinedNo?: number;
     onOpen: () => void;
@@ -43,21 +48,48 @@ interface ThreadCardProps {
 /** How long a card stays on screen before its thread counts as looked at — a scroll past is not a read. */
 const SEEN_DWELL_MS = 1000;
 
-const ReplyLine = ({ message }: { message: DomainChat }) => (
-    <div className="flex flex-col gap-0.5">
-        <span className="flex items-baseline gap-2">
-            <span className="truncate text-caption font-semibold text-foreground">{message.owner$?.name ?? ''}</span>
-            {message.createdAt !== undefined && (
-                <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
-                    {formatListTime(message.createdAt)}
+interface ReplyLineProps {
+    message: DomainChat;
+    /** A failed row of mine offers what the room's row does: send again, or drop it. */
+    onRetry?: () => void;
+    onDiscard?: () => void;
+}
+
+const ReplyLine = ({ message, onRetry, onDiscard }: ReplyLineProps) => {
+    const { t } = useTranslation();
+    return (
+        <div className={cn('flex flex-col gap-0.5', message.isPending && 'opacity-60')}>
+            <span className="flex items-baseline gap-2">
+                <span className="truncate text-caption font-semibold text-foreground">
+                    {message.owner$?.name ?? ''}
+                </span>
+                {message.createdAt !== undefined && (
+                    <span className="shrink-0 text-micro tabular-nums text-muted-foreground">
+                        {formatListTime(message.createdAt)}
+                    </span>
+                )}
+            </span>
+            <p className="line-clamp-4 whitespace-pre-wrap break-words text-callout text-foreground">
+                {messagePreview(message)}
+            </p>
+            {message.isFailed && (
+                <span className="flex items-center gap-2 text-micro text-destructive">
+                    {t('chat.failed')}
+                    {onRetry && (
+                        <button type="button" onClick={onRetry} className={CARD_LINK}>
+                            {t('chat.retry')}
+                        </button>
+                    )}
+                    {onDiscard && (
+                        <button type="button" onClick={onDiscard} className={CARD_LINK}>
+                            {t('chat.deleteUnsent')}
+                        </button>
+                    )}
                 </span>
             )}
-        </span>
-        <p className="line-clamp-4 whitespace-pre-wrap break-words text-callout text-foreground">
-            {messagePreview(message)}
-        </p>
-    </div>
-);
+        </div>
+    );
+};
 
 /** Whether `ref` intersects the viewport grown by `rootMargin`. */
 const useIntersecting = (ref: RefObject<Element | null>, rootMargin: string): boolean => {
@@ -72,7 +104,7 @@ const useIntersecting = (ref: RefObject<Element | null>, rootMargin: string): bo
     return intersecting;
 };
 
-const ThreadCard = ({ thread, channelLabel, joinedNo, onOpen }: ThreadCardProps) => {
+const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadCardProps) => {
     const { t } = useTranslation();
     const markSeen = useMyThreadsStore(s => s.markSeen);
     const ref = useRef<HTMLElement>(null);
@@ -96,10 +128,17 @@ const ThreadCard = ({ thread, channelLabel, joinedNo, onOpen }: ThreadCardProps)
         channelId: thread.channelId,
         rootNo: thread.rootNo,
         lastReplyNo: thread.lastReplyNo,
+        lastActivityAt: thread.lastActivityAt,
         joinedNo,
         enabled: read,
     });
     const where = channelLabel ?? t('threads.dm');
+    const [replying, setReplying] = useState(false);
+    const { retryMessage, discardMessage } = useChatMutations();
+    // Retried or dropped, the row changes in the cache; the card reads it again once that is done.
+    const settle = (work: Promise<unknown>) => {
+        void work.catch(error => toastFailure(t('toast.messageFailed'), error)).finally(retry);
+    };
 
     return (
         <article
@@ -140,9 +179,32 @@ const ThreadCard = ({ thread, channelLabel, joinedNo, onOpen }: ThreadCardProps)
                             </button>
                         )}
                         {state.replies.map(reply => (
-                            <ReplyLine key={reply.id ?? reply.chatNo} message={reply} />
+                            <ReplyLine
+                                key={reply.id ?? reply.tempId ?? reply.chatNo}
+                                message={reply}
+                                onRetry={() => settle(retryMessage(reply))}
+                                onDiscard={() => settle(discardMessage(reply))}
+                            />
                         ))}
                     </div>
+                    {channel && state.root?.id ? (
+                        replying ? (
+                            <ThreadCardReply
+                                channel={channel}
+                                root={{ ...state.root, id: state.root.id }}
+                                rootNo={thread.rootNo}
+                                onSettled={retry}
+                            />
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => setReplying(true)}
+                                className={cn(CARD_LINK, 'self-start')}
+                            >
+                                {t('threads.reply')}
+                            </button>
+                        )
+                    ) : null}
                 </>
             ) : state.status === 'failed' ? (
                 <p role="alert" className="flex items-center gap-2 text-caption text-muted-foreground">
@@ -236,6 +298,7 @@ export const ThreadsPage = ({ cloudId, channels, placeScope, onOpen }: ThreadsPa
                             key={key}
                             thread={thread}
                             channelLabel={channelLabel(thread)}
+                            channel={channelById.get(thread.channelId)}
                             joinedNo={channelById.get(thread.channelId)?.$join?.joinedNo}
                             onOpen={() => onOpen(thread.channelId, undefined, thread.placeId, thread.rootNo)}
                         />

@@ -31,6 +31,8 @@ interface ThreadCardArgs {
     rootNo: string;
     /** The newest reply the my-threads record has seen — a change means there is more to read. */
     lastReplyNo: number;
+    /** When the record last moved — my own reply moves it before the server numbers that reply. */
+    lastActivityAt: number;
     /** My current join, when the channel is loaded: a root before it is not shown, and not asked for. */
     joinedNo?: number;
     /** The card has come near the screen: nothing is read before. */
@@ -40,9 +42,17 @@ interface ThreadCardArgs {
 /**
  * The root and newest replies of one thread on the Threads page. Read from the chat cache of the
  * thread's own cloud (a channel id means nothing across clouds), the root fetched from the server only
- * when the cache does not hold it. Read again whenever the record's newest reply moves.
+ * when the cache does not hold it. Read again whenever the record moves (a new reply, or mine).
  */
-export const useThreadCard = ({ cid, channelId, rootNo, lastReplyNo, joinedNo, enabled }: ThreadCardArgs) => {
+export const useThreadCard = ({
+    cid,
+    channelId,
+    rootNo,
+    lastReplyNo,
+    lastActivityAt,
+    joinedNo,
+    enabled,
+}: ThreadCardArgs) => {
     const [state, setState] = useState<ThreadCardState>({ status: 'idle' });
     const [attempt, setAttempt] = useState(0);
 
@@ -103,7 +113,7 @@ export const useThreadCard = ({ cid, channelId, rootNo, lastReplyNo, joinedNo, e
         return () => {
             active = false;
         };
-    }, [cid, channelId, rootNo, lastReplyNo, joinedNo, enabled, attempt]);
+    }, [cid, channelId, rootNo, lastReplyNo, lastActivityAt, joinedNo, enabled, attempt]);
 
     const retry = useCallback(() => setAttempt(n => n + 1), []);
     return { state, retry };

@@ -18,9 +18,45 @@ const getChat = vi.fn();
 const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheReadList, cacheRead, getChat } }));
 
 vi.mock('@chatic/app-runtime', () => ({
-    runtime: { data: { getCloudRepositories: (cid: string) => getCloudRepositories(cid) } },
+    runtime: {
+        data: { getCloudRepositories: (cid: string) => getCloudRepositories(cid) },
+        session: {
+            useSessionIdentity: () => ({ userId: 'me' }),
+            useRuntimeProfile: () => ({ userName: 'Me', photo: '' }),
+        },
+    },
 }));
 vi.mock('@chatic/bridges', () => ({ logger: { warn: vi.fn() } }));
+
+const sendMessage = vi.fn();
+const retryMessage = vi.fn();
+const discardMessage = vi.fn();
+vi.mock('../../../shared/hooks/useChatMutations', () => ({
+    useChatMutations: () => ({ sendMessage, retryMessage, discardMessage }),
+}));
+const composerKeys: string[] = [];
+// The editor is Lexical in its own chunk; a stand-in that sends what was typed is enough here.
+vi.mock('./LazyComposer', () => ({
+    LazyComposer: ({
+        onSend,
+        placeholder,
+        channelId,
+    }: {
+        onSend: (content: string, files: File[]) => void;
+        placeholder: string;
+        channelId: string;
+    }) => (
+        <button
+            type="button"
+            ref={node => {
+                if (node) composerKeys.push(channelId);
+            }}
+            onClick={() => onSend('my inline reply', [])}
+        >
+            {`send: ${placeholder}`}
+        </button>
+    ),
+}));
 
 // jsdom has no layout. Every card starts on screen unless a test holds them off it, then brings them in.
 let startVisible = true;
@@ -282,5 +318,90 @@ describe('ThreadsPage', () => {
         expect(screen.getByRole('status').textContent).toMatch(/threads you reply in/i);
         act(() => useNotificationsPanelStore.setState({ scanningCid: 'K1' }));
         expect(screen.getByRole('status').textContent).toMatch(/looking/i);
+    });
+});
+
+const C1 = { id: 'C1', cid: 'K1', sid: 'P1', name: 'general', stereo: 'public' } as DomainChannel;
+const renderWithChannel = () =>
+    render(<ThreadsPage cloudId="K1" channels={[C1]} placeScope={new Set(['P1'])} onOpen={vi.fn()} />, { wrapper });
+
+describe('ThreadsPage inline reply', () => {
+    beforeEach(() => {
+        sendMessage.mockReset().mockResolvedValue({});
+        retryMessage.mockReset().mockResolvedValue({});
+        discardMessage.mockReset().mockResolvedValue(undefined);
+        composerKeys.length = 0;
+    });
+
+    it('opens an inline reply box only on demand, and sends to the thread with its full root id', async () => {
+        seed(thread('5', { lastReplyNo: 12, seenReplyNo: 10 }));
+        // The send writes its row to the cache; the card's next read holds it.
+        cacheReadList.mockResolvedValueOnce({ list: [chat(5)] }).mockResolvedValue({
+            list: [
+                chat(5),
+                {
+                    ...chat(0, { parentId: 'C1:5', content: 'my inline reply' }),
+                    chatNo: undefined,
+                    id: 'tmp-1',
+                    isPending: true,
+                },
+            ],
+        });
+        renderWithChannel();
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 5')).toBeTruthy());
+        expect(within(card).queryByText(/^send:/)).toBeNull();
+
+        fireEvent.click(within(card).getByRole('button', { name: /^reply$/i }));
+        fireEvent.click(within(card).getByText('send: Reply in thread'));
+
+        expect(sendMessage).toHaveBeenCalledWith('K1', {
+            channelId: 'C1',
+            content: 'my inline reply',
+            parentId: 'C1:5',
+        });
+        await waitFor(() => expect(within(card).getByText('my inline reply')).toBeTruthy());
+        // I just answered it: the thread counts as read.
+        const listed = useMyThreadsStore.getState().threads[myThreadKey('K1', 'C1', '5')];
+        expect(listed.seenReplyNo).toBe(listed.lastReplyNo);
+        expect(listed.lastReplyPreview).toBe('my inline reply');
+    });
+
+    it('shows an inline reply that failed with the room row retry and delete', async () => {
+        seed(thread('5'));
+        const failed = {
+            ...chat(0, { parentId: 'C1:5', content: 'lost reply' }),
+            chatNo: undefined,
+            id: 'tmp-2',
+            isFailed: true,
+        };
+        cacheReadList.mockResolvedValue({ list: [chat(5), failed] });
+        renderWithChannel();
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText(/not delivered/i)).toBeTruthy());
+
+        fireEvent.click(within(card).getByRole('button', { name: /^retry$/i }));
+        expect(retryMessage).toHaveBeenCalledWith(failed);
+        await waitFor(() => expect(cacheReadList.mock.calls.length).toBeGreaterThan(1));
+        fireEvent.click(within(card).getByRole('button', { name: /delete message/i }));
+        expect(discardMessage).toHaveBeenCalledWith(failed);
+    });
+
+    it('keeps each card inline reply draft under its own thread', async () => {
+        seed(thread('5'), thread('6'));
+        cacheReadList.mockResolvedValue({ list: [chat(5), chat(6)] });
+        renderWithChannel();
+        const cards = screen.getAllByRole('article');
+        for (const card of cards) {
+            fireEvent.click(await within(card).findByRole('button', { name: /^reply$/i }));
+        }
+        expect(new Set(composerKeys)).toEqual(new Set(['C1::threads-page::5', 'C1::threads-page::6']));
+    });
+    it('offers no inline reply when the thread channel is not loaded in this place', async () => {
+        seed(thread('5', { channelId: 'C9' }));
+        renderPage();
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(cacheReadList).toHaveBeenCalled());
+        expect(within(card).queryByRole('button', { name: /^reply$/i })).toBeNull();
     });
 });

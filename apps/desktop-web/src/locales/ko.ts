@@ -321,6 +321,7 @@ export const ko: EnTranslation = {
     'threads.dm': '다이렉트 메시지',
     'threads.unread': '읽지 않음',
     'threads.open': '스레드 열기',
+    'threads.reply': '답글 달기',
     'threads.earlierUncounted': '이전 답글 보기',
     'threads.earlier_one': '이전 답글 {{count}}개 보기',
     'threads.earlier_other': '이전 답글 {{count}}개 보기',
