@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-29] - No version updates
+
+### Bug Fixes
+
+- (block-kit,web-ui-kit) draw inline code as a bordered accent chip
+
 ## [2026-10-29] - root@0.126.0, @chatic/web@0.83.0, @chatic/desktop-web@0.39.0
 
 ### Features
