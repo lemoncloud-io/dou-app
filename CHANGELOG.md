@@ -1,5 +1,52 @@
 # Changelog
 
+## [2026-10-29] - root@0.126.0, @chatic/web@0.83.0, @chatic/desktop-web@0.39.0
+
+### Features
+
+- (desktop-web) re-check paired clouds on returning to the window, not only every ten minutes
+- (web,app-runtime,desktop-web) pair a signed-out device, approve from an account (ADR-0247)
+- (desktop-web) add device pairing — browser code screen, approval, devices, logout
+- (shell-adapter) sign the virtual shell in from a phone with yarn local:pair
+- (web,app-runtime) re-check paired clouds through the relay and leave a revoked one
+- (web,app-runtime) end the sign-ins an approving app approved when it signs out
+- (web) tell a phone signed in by another phone that it is a secondary device
+- (web,app-runtime) list a guest's paired clouds in the switch sheet
+- (web) add device management with my devices and the sign-ins this app approved
+- (web,app-runtime) add the approval screen a signed-in app approves a web sign-in from
+- (web,app-runtime) add the code screen a guest signs in from another device with
+- (http,data,app-runtime,config) add the pairing rest layer behind a dev-only flag
+- (mobile,web) pass the page's camera options to the picker, and read a pairing qr
+- (app-runtime) send each shell's own platform on device.save, not web for every client
+- (data,app-runtime) list and unlink my devices on the active slot, not the relay
+
+### Bug Fixes
+
+- (app-runtime) bind the paired-cloud store's subscribe, which hooks pass detached
+- (web) say when removing a device or an approval fails, and read the pairing flag in one place
+- (app-runtime) keep a paired cloud on the list when its switch fails after the re-issue
+- (desktop-web) still log out after releasing the active cloud when the confirm is cancelled
+- (web,app-runtime,desktop-web) name a device by its system, not the user agent the server kept
+
+### Documentation
+
+- (app-runtime) say what each of the four pairing files is, since their names are close
+- (adr) device pairing screens follow the session kind (ADR-0246)
+
+### Refactor
+
+- (app-runtime) narrow the relay token's auth record instead of asserting it
+- (app-runtime) hold the paired-cloud list and the code request flow in classes
+- (app-runtime) keep the paired-cloud lifecycle in one class, not three modules
+
+### Chores
+
+- (deps) bump chatic sockets sdk for user.list-device and user.unlink-device
+
+### Other
+
+- test: (web-e2e) pin the web code screen's approved and expired paths
+
 ## [2026-10-29] - root@0.125.0, @chatic/desktop-web@0.38.0
 
 ### Features
