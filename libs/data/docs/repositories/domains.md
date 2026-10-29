@@ -172,12 +172,12 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 `fetchPlans` · `fetchMembershipInfo` · `validateMembership` · `fetchAdminMemberships` ·
 `updateMembershipByAdmin` · `refundSubscriptionByAdmin` · `fetchAdminClouds` · `fetchMySubscription` ·
 `fetchSubscriptionCards` · `issueBillingKey` · `startSubscription` · `changeSubscription` ·
-`cancelSubscription` · `replaceCard` · `removeCard`
+`cancelSubscription` · `addCard` · `setDefaultCard` · `removeCard`
 
 - **Remote-only and HTTP-only.** The same shape as `Report`.
 - Tiers and quotas are decided by the server (ADR-0060). The cache semantics belong to a react-query adapter on the consumer side.
 - `fetchAdminMemberships` through `fetchAdminClouds` are the admin console surface (ADR-0101). Being remote-only is the point for them: these calls touch other users' records and must never reach a local cache. `fetchAdminClouds` rides this repository rather than `Cloud` on purpose → [http.md's admin console surface](../remote/http.md#the-admin-console-surface).
-- The last eight are the **web subscription** — the one billed through the payment provider rather than a store, one per account, on the relay's `/subscriptions/0/*`. The landing site's account pages are its caller. The server's package does not carry this module yet, so its shapes (`WebSubscriptionView`, `BillkeyView`, `BillingIssueParams`, …) are declared in `libs/http` from the contract and re-exported here. `cancelSubscription` and `removeCard` send an empty object as their body: the relay's gateway refuses a POST with none, and the browser sees that refusal as a failed cross-origin check.
+- The last nine are the **web subscription** — the one billed through the payment provider rather than a store, one per account, on the relay's `/subscriptions/0/*`. The landing site's account pages are its caller. The server's package does not carry this module yet, so its shapes (`WebSubscriptionView`, `BillkeyView`, `BillingIssueParams`, …) are declared in `libs/http` from the contract and re-exported here. An account holds several cards: `addCard` adds one and leaves the default as it was, `setDefaultCard` picks the one charged, and `removeCard` takes a card's id — the payment service refuses the default card and the card a subscription in use is charged to. `cancelSubscription` sends an empty object as its body: the relay's gateway refuses a POST with none, and the browser sees that refusal as a failed cross-origin check.
 
 ### SyncMeta
 

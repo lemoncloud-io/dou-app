@@ -34,6 +34,7 @@ import type {
     ChangePreview,
     Payer,
     PaymentAttempt,
+    PaymentMethod,
     PlanId,
     RegistrationResult,
     SignInProvider,
@@ -54,8 +55,9 @@ export interface SubscriptionApi {
     startSubscription(body: { productId: string; billingKey?: string } & Partial<Payer>): Promise<SubscriptionWire>;
     changeSubscription(productId: string): Promise<SubscriptionWire>;
     cancelSubscription(): Promise<SubscriptionWire>;
-    replaceCard(body: { billingKey: string } & Payer): Promise<CardWire>;
-    removeCard(): Promise<SubscriptionWire>;
+    addCard(body: { billingKey: string } & Payer): Promise<CardWire>;
+    setDefaultCard(billkeyId: string): Promise<CardWire>;
+    removeCard(billkeyId: string): Promise<CardWire>;
 }
 
 /** The relay session the reader signs in to, as this port needs it. */
@@ -115,16 +117,11 @@ interface PendingSignIn {
 /** Codes shorter than this are the OAuth relay reporting a failure in the code's place. */
 const MIN_CODE_LENGTH = 6;
 
-/**
- * The page a window that left comes back to: the checkout's card step, or the subscription a card was
- * added to (the card list is not always open).
- */
-const returnPathOf = (purpose: AttemptPurpose, planId: PlanId | undefined, subscriptionId?: string): string =>
+/** The page a window that left comes back to: the checkout's card step, or the card list (W-12). */
+const returnPathOf = (purpose: AttemptPurpose, planId: PlanId | undefined): string =>
     purpose === 'start' && planId
         ? `${ROUTES.subscription.checkoutPayment}?plan=${planId}`
-        : subscriptionId
-          ? ROUTES.subscription.detail(subscriptionId)
-          : ROUTES.subscription.paymentMethods;
+        : ROUTES.subscription.paymentMethods;
 
 const fail = (code: SubscriptionPortError['code'], message?: string, detail?: SubscriptionPortError['detail']) => {
     throw new SubscriptionPortError(code, message, detail);
@@ -262,9 +259,14 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     ): Promise<RegistrationResult> => {
         if (result.outcome !== 'registered') return { outcome: result.outcome };
         if (purpose !== 'start') {
-            await call(server => server.replaceCard({ billingKey: result.billingKey, ...payer }));
+            await call(server => server.addCard({ billingKey: result.billingKey, ...payer }));
         }
         return { outcome: 'registered', card: result.billingKey as CardToken };
+    };
+
+    const listPaymentMethods = async (): Promise<PaymentMethod[]> => {
+        const cards = await call(server => server.fetchSubscriptionCards());
+        return (cards ?? []).map(toPaymentMethod).filter((card): card is NonNullable<typeof card> => !!card);
     };
 
     const failedAttempt = (purpose: AttemptPurpose, withTrial: boolean): PaymentAttempt => {
@@ -358,7 +360,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
                   (await loadCatalog())[0]?.productId);
             if (!productId) return fail('notFound', 'no product to register a card for');
             const issue = await call(server => server.issueBillingKey(productId));
-            const redirectUrl = `${options.origin}${returnPathOf(purpose, planId, held?.id)}`;
+            const redirectUrl = `${options.origin}${returnPathOf(purpose, planId)}`;
             let outcome: PaymentWindowResult;
             try {
                 outcome = await paymentWindow({ issue, payer, purpose, planId, redirectUrl });
@@ -433,16 +435,19 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             return toSubscription(view, await loadCatalog()) ?? fail('notFound', `no subscription ${id}`);
         },
 
-        listPaymentMethods: async () => {
-            const cards = await call(server => server.fetchSubscriptionCards());
-            return (cards ?? []).map(toPaymentMethod).filter((card): card is NonNullable<typeof card> => !!card);
+        listPaymentMethods,
+
+        // The payment service decides what can change — it refuses to remove the default card or the
+        // card a subscription in use is charged to — and answers the card it changed; the list is read
+        // again either way, since a new default changes two cards at once.
+        setDefaultPaymentMethod: async id => {
+            await call(server => server.setDefaultCard(id));
+            return listPaymentMethods();
         },
 
-        // The server holds one card per subscription and removes that one; it takes no id.
-        removePaymentMethod: async () => {
-            await call(server => server.removeCard());
-            const cards = await call(server => server.fetchSubscriptionCards());
-            return (cards ?? []).map(toPaymentMethod).filter((card): card is NonNullable<typeof card> => !!card);
+        removePaymentMethod: async id => {
+            await call(server => server.removeCard(id));
+            return listPaymentMethods();
         },
     };
 };

@@ -12,12 +12,13 @@ import { sceneOf } from '../lib/sceneOf';
 import { cn, formatDate } from '../utils';
 import { AccountMenu } from './AccountMenu';
 
+// `screen` names the screens an entry belongs to (`lib/screens.tsx`); `needs`, the port method it is
+// left out without.
 const MENU = [
-    { to: ROUTES.subscription.root, key: 'manage', end: true, management: false },
-    { to: ROUTES.subscription.paymentMethods, key: 'paymentMethods', end: false, management: true },
-    // Left out where the port has no server for the billing history.
-    { to: ROUTES.subscription.history, key: 'history', end: false, management: false, needs: 'listInvoices' },
-    { to: ROUTES.subscription.billingInfo, key: 'billingInfo', end: false, management: true },
+    { to: ROUTES.subscription.root, key: 'manage', end: true },
+    { to: ROUTES.subscription.paymentMethods, key: 'paymentMethods', end: false, screen: 'cards' },
+    { to: ROUTES.subscription.history, key: 'history', end: false, needs: 'listInvoices' },
+    { to: ROUTES.subscription.billingInfo, key: 'billingInfo', end: false, screen: 'emails' },
 ] as const;
 
 /**
@@ -30,7 +31,7 @@ export const AccountShell = (): JSX.Element => {
     const session = useSession();
     const { subscription, plan } = useCurrentSubscription();
     const today = useToday();
-    const management = useManagementScreens();
+    const screens = useManagementScreens();
     const supports = useSupports();
     // The same rule as the detail screen's buttons, so the sidebar never offers what the screen
     // would refuse (a scheduled downgrade, for one, is cancelled from its own card first).
@@ -65,7 +66,9 @@ export const AccountShell = (): JSX.Element => {
                 </div>
                 <nav className="flex flex-row flex-wrap gap-1 md:flex-col">
                     {MENU.filter(
-                        item => (management || !item.management) && (!('needs' in item) || supports(item.needs))
+                        item =>
+                            (!('screen' in item) || screens[item.screen]) &&
+                            (!('needs' in item) || supports(item.needs))
                     ).map(item => (
                         <NavLink
                             key={item.key}

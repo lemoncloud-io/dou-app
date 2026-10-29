@@ -21,7 +21,6 @@ import { LoadFailure } from './LoadFailure';
 import { RecentInvoices } from './RecentInvoices';
 import { SceneBannerView } from './SceneBannerView';
 import { type ManageFormat, useManageFormat } from './useManageFormat';
-import { useChangeCard } from './useChangeCard';
 import { useResumeFlow } from './useResumeFlow';
 
 import type { SubscriptionPort } from '../../lib/port';
@@ -67,29 +66,30 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
     const toast = useToast();
     const today = useToday();
     const methods = usePaymentMethods();
-    const management = useManagementScreens();
-    const billingInfo = useBillingInfo({ enabled: management });
+    const screens = useManagementScreens();
+    // `management` is the card screens: the card tile and a failed payment lead to them.
+    const management = screens.cards;
+    const billingInfo = useBillingInfo({ enabled: screens.emails });
     const session = useSession();
     const plans = usePlans();
     const cancelChange = useCancelScheduledChange();
     const resume = useResumeFlow(sub, fmt);
-    const changeCard = useChangeCard();
     const [dialog, setDialog] = useState<'changePlan' | 'chooseClouds' | 'cancelChange' | 'sameDay' | null>(null);
 
     const scene = sceneOf(sub, today);
     const { banner } = scene;
-    // The card list is hidden, so the button that leads to it goes with it; changing the card is not.
-    // An action whose call the port has no server for is left out the same way.
+    // With the card screens hidden, the buttons that lead to them go with them. An action whose call
+    // the port has no server for is left out the same way.
     const supports = useSupports();
     const actions = scene.actions.filter(
         action =>
-            (management || action !== 'paymentMethods') &&
+            (management || (action !== 'paymentMethods' && action !== 'updatePaymentMethod')) &&
             (!(action in SERVER_CALL) || supports(SERVER_CALL[action as keyof typeof SERVER_CALL]))
     );
     const plan = fmt.planOf(sub.planId);
     const target = fmt.planOf(sub.pendingChange?.planId);
     const card = chargeCardOf(sub, methods.data ?? []);
-    const bounced = management
+    const bounced = screens.emails
         ? billingInfo.data?.emails.find(email => email.primary && email.status === 'bounced')
         : undefined;
     const changeTargets = plan ? changeTargetsOf(plan, plans.data ?? [], session.data ?? null) : [];
@@ -116,9 +116,8 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             case 'changePlan':
                 return setDialog('changePlan');
             case 'paymentMethods':
-                return navigate(ROUTES.subscription.paymentMethods);
             case 'updatePaymentMethod':
-                return management ? navigate(ROUTES.subscription.paymentMethods) : changeCard.open();
+                return navigate(ROUTES.subscription.paymentMethods);
             case 'invoices':
                 return navigate(ROUTES.subscription.history);
             case 'cancel':
@@ -221,26 +220,25 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             ) : (
                 banner.kind !== 'restricted' && (
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <InfoCard
-                            title={t('subscription.manage.detail.paymentCard.title')}
-                            line={
-                                card
-                                    ? expiryOf(card)
-                                        ? t('subscription.manage.detail.paymentCard.line', {
-                                              card: fmt.card(card),
-                                              exp: expiryOf(card),
-                                          })
-                                        : t('subscription.manage.detail.paymentCard.lineNoExpiry', {
-                                              card: fmt.card(card),
-                                          })
-                                    : t('subscription.manage.detail.paymentCard.none')
-                            }
-                            action={t(`subscription.manage.detail.paymentCard.${management ? 'manage' : 'change'}`)}
-                            disabled={changeCard.busy}
-                            onAction={() =>
-                                management ? navigate(ROUTES.subscription.paymentMethods) : changeCard.open()
-                            }
-                        />
+                        {management && (
+                            <InfoCard
+                                title={t('subscription.manage.detail.paymentCard.title')}
+                                line={
+                                    card
+                                        ? expiryOf(card)
+                                            ? t('subscription.manage.detail.paymentCard.line', {
+                                                  card: fmt.card(card),
+                                                  exp: expiryOf(card),
+                                              })
+                                            : t('subscription.manage.detail.paymentCard.lineNoExpiry', {
+                                                  card: fmt.card(card),
+                                              })
+                                        : t('subscription.manage.detail.paymentCard.none')
+                                }
+                                action={t('subscription.manage.detail.paymentCard.manage')}
+                                onAction={() => navigate(ROUTES.subscription.paymentMethods)}
+                            />
+                        )}
                         <InfoCard
                             title={t('subscription.manage.detail.periodCard.title')}
                             line={
@@ -303,7 +301,6 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
                     </div>
                 )}
             </Dialog>
-            {changeCard.dialog}
             <ConfirmDialog
                 open={dialog === 'chooseClouds'}
                 onOpenChange={close}
@@ -389,20 +386,18 @@ const InfoCard = ({
     line,
     action,
     onAction,
-    disabled = false,
 }: {
     title: string;
     line: string;
     /** Left out, the card has no button. */
     action?: string;
     onAction: () => void;
-    disabled?: boolean;
 }): JSX.Element => (
     <Card className="flex flex-col items-start gap-3 px-5 py-5">
         <h2 className="text-sm font-semibold text-navy">{title}</h2>
         <p className="text-[13px] text-subtitle">{line}</p>
         {action && (
-            <Button size="sm" variant="secondary" disabled={disabled} onClick={onAction}>
+            <Button size="sm" variant="secondary" onClick={onAction}>
                 {action}
             </Button>
         )}

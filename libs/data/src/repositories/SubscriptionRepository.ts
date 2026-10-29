@@ -68,8 +68,12 @@ export interface ISubscriptionRepository extends DisposableRepository {
     startSubscription(body: SubscriptionStartBody): Promise<WebSubscriptionView>;
     changeSubscription(productId: string): Promise<WebSubscriptionView>;
     cancelSubscription(): Promise<WebSubscriptionView>;
-    replaceCard(body: SubscriptionCardBody): Promise<BillkeyView>;
-    removeCard(): Promise<WebSubscriptionView>;
+    /** Adds a card; the default card stays as it was. */
+    addCard(body: SubscriptionCardBody): Promise<BillkeyView>;
+    /** Makes a card the one charged. */
+    setDefaultCard(billkeyId: string): Promise<BillkeyView>;
+    /** The payment service refuses the default card and the card a subscription in use is charged to. */
+    removeCard(billkeyId: string): Promise<BillkeyView>;
 }
 
 /**
@@ -171,11 +175,15 @@ export class SubscriptionRepository extends BaseRepository implements ISubscript
         return this.requireHttp().cancelSubscription();
     }
 
-    public async replaceCard(body: SubscriptionCardBody): Promise<BillkeyView> {
-        return this.requireHttp().replaceCard(body);
+    public async addCard(body: SubscriptionCardBody): Promise<BillkeyView> {
+        return this.requireHttp().addCard(body);
     }
 
-    public async removeCard(): Promise<WebSubscriptionView> {
-        return this.requireHttp().removeCard();
+    public async setDefaultCard(billkeyId: string): Promise<BillkeyView> {
+        return this.requireHttp().setDefaultCard(billkeyId);
+    }
+
+    public async removeCard(billkeyId: string): Promise<BillkeyView> {
+        return this.requireHttp().removeCard(billkeyId);
     }
 }

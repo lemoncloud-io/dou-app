@@ -21,7 +21,8 @@ describe('SubscriptionHttpDataSource', () => {
             startSubscription: jest.fn(),
             changeSubscription: jest.fn(),
             cancelSubscription: jest.fn(),
-            replaceCard: jest.fn(),
+            addCard: jest.fn(),
+            setDefaultCard: jest.fn(),
             removeCard: jest.fn(),
         };
         dataSource = new SubscriptionHttpDataSource(gateway);
@@ -128,13 +129,16 @@ describe('SubscriptionHttpDataSource', () => {
         await dataSource.changeSubscription('p2');
         expect(gateway.changeSubscription).toHaveBeenCalledWith({ productId: 'p2' });
 
-        await dataSource.replaceCard({ billingKey: 'bk', ...payer });
-        expect(gateway.replaceCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer });
+        await dataSource.addCard({ billingKey: 'bk', ...payer });
+        expect(gateway.addCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer });
+
+        await dataSource.setDefaultCard('c2');
+        expect(gateway.setDefaultCard).toHaveBeenCalledWith({ billkeyId: 'c2' });
+        await dataSource.removeCard('c2');
+        expect(gateway.removeCard).toHaveBeenCalledWith({ billkeyId: 'c2' });
 
         await dataSource.cancelSubscription();
-        await dataSource.removeCard();
         expect(gateway.cancelSubscription).toHaveBeenCalledTimes(1);
-        expect(gateway.removeCard).toHaveBeenCalledTimes(1);
     });
 
     // The refund takes no query params of its own; the relay's `auto`/`dryRun` defaults are what the

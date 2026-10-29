@@ -62,7 +62,8 @@ export type SubscriptionHttpDomainGateway = Pick<
     | 'startSubscription'
     | 'changeSubscription'
     | 'cancelSubscription'
-    | 'replaceCard'
+    | 'addCard'
+    | 'setDefaultCard'
     | 'removeCard'
 >;
 
