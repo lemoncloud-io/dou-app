@@ -1,9 +1,30 @@
 # My threads
 
 The device's record of the threads the user takes part in — a thread they replied in, or one whose
-root they wrote. It has no screen of its own: it decides which threads are the user's, so that
-someone else's reply in one reaches the inbox's Threads tab, and it keeps each thread's root
-preview, which a reply's card quotes ([inbox.md](./inbox.md#the-panel)).
+root they wrote. It decides which threads are the user's, so that someone else's reply in one reaches
+the inbox's Threads tab, and it keeps each thread's root preview, which a reply's card quotes
+([inbox.md](./inbox.md#the-panel)). The Threads page shows the list itself.
+
+## The Threads page
+
+The Home sidebar's Threads row, above Saved, opens `ThreadsPage` in the main pane — the slot the Saved
+page uses (`useSavedPageStore` `page: 'threads'`). A dot on the row means a listed thread has replies
+not yet seen. The page lists this cloud's threads in the current place (`threadsInScope`; a thread
+with no place is listed in every place), unread first, then by latest activity. The order is the one
+the page opened with, so a card does not move while it is read or gets a reply; a thread first listed
+after opening goes on top. The header counts every thread.
+
+Each card (`useThreadCard`) reads, once it nears the screen, the root and the newest three replies
+from the chat cache of the thread's cloud, the root from the server when the cache lacks it. They are drawn by the
+thread panel's `MessageRow` (`ThreadCardMessages`), so a card names an author by place nickname, with
+their avatar, and shows images and files as the panel does. A root
+from before my join, or one the server says is gone, is a notice in its place, in the thread panel's
+words. Earlier replies are a link to the thread panel; when the cached window is full the link has no
+count, since the thread may start before it. A card that shows its thread on screen for a second marks it seen;
+one still loading, or one that failed to read, does not.
+
+Reply mounts a text-only composer (`ThreadCardReply`); files and @ suggestions stay in the panel. The
+reply shows as the cache's own row for it: dimmed while it sends, with Retry and Delete if it fails.
 
 ## Why the list is this device's own
 
@@ -44,8 +65,8 @@ under the same channel ids.
 ## Read and unread
 
 An entry remembers the reply number it was last looked at up to, and the thread panel being open marks
-it seen. Nothing shows that state since the list's own pane left: what is unread about a thread is the
-inbox's reply items, which reading the channel or opening the item clears.
+it seen, as does a Threads page card on screen. The Threads page shows that state; the inbox's reply
+items are cleared separately, by reading the channel or opening the item.
 
 ## What it cannot know
 

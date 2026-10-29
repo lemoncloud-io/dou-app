@@ -136,3 +136,23 @@ export const markThreadSeen = (threads: MyThreads, key: string): MyThreads => {
     if (!thread || !isThreadUnread(thread)) return threads;
     return { ...threads, [key]: { ...thread, seenReplyNo: thread.lastReplyNo } };
 };
+
+/** A thread of this cloud listed in this place — one with no place is listed in every place. */
+export const isThreadInScope = (thread: MyThread, cid: string, placeScope: ReadonlySet<string>): boolean =>
+    thread.cid === cid && (!thread.placeId || placeScope.has(thread.placeId));
+
+/**
+ * The threads the Threads page lists for one cloud and place scope: unread ones first, then the most
+ * recently active. A thread recorded without a place (the Self Channel's) shows in every place.
+ */
+export const threadsInScope = (
+    threads: MyThreads,
+    cid: string,
+    placeScope: ReadonlySet<string>
+): Array<[key: string, thread: MyThread]> =>
+    Object.entries(threads)
+        .filter(([, thread]) => isThreadInScope(thread, cid, placeScope))
+        .sort(
+            ([, a], [, b]) =>
+                Number(isThreadUnread(b)) - Number(isThreadUnread(a)) || b.lastActivityAt - a.lastActivityAt
+        );

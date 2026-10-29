@@ -26,22 +26,31 @@ const renderHeader = (props: Partial<ComponentProps<typeof SidebarHeader>> = {})
                 onQueryChange={vi.fn()}
                 onEditPlaceProfile={vi.fn()}
                 onOpenSaved={vi.fn()}
+                onOpenThreads={vi.fn()}
                 {...props}
             />
         </MemoryRouter>
     );
 
 describe('Home sidebar header', () => {
-    it('puts Saved first, ahead of the place actions', () => {
+    it('puts Threads then Saved first, ahead of the place actions', () => {
         renderHeader();
         const labels = screen.getAllByRole('button').map(button => button.textContent);
-        expect(labels[0]).toBe(i18next.t('saved.title'));
+        expect(labels.slice(0, 2)).toEqual([i18next.t('threads.title'), i18next.t('saved.title')]);
     });
 
-    // Mentions, threads and the snooze moved to the Notifications destination of the nav rail.
-    it('holds no Mentions, Threads or snooze rows', () => {
+    // Mentions and the snooze moved to the Notifications destination of the nav rail.
+    it('holds no Mentions or snooze rows', () => {
         renderHeader();
-        expect(screen.queryByRole('button', { name: /Mentions|Threads|Pause notifications/ })).toBeNull();
+        expect(screen.queryByRole('button', { name: /Mentions|Pause notifications/ })).toBeNull();
+    });
+
+    it('opens Threads from its entry, and says when a thread has an unread reply', () => {
+        const onOpenThreads = vi.fn();
+        renderHeader({ onOpenThreads, hasUnreadThreads: true });
+        const row = screen.getByRole('button', { name: i18next.t('nav.unread', { name: i18next.t('threads.title') }) });
+        fireEvent.click(row);
+        expect(onOpenThreads).toHaveBeenCalledTimes(1);
     });
 
     it('opens Saved from its entry', () => {

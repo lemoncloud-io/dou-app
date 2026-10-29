@@ -72,20 +72,29 @@ export const useSavedItemsStore = create<SavedItemsState>()(
     )
 );
 
+/** The pages that take the main pane in place of a conversation. */
+export type MainPanePage = 'saved' | 'threads';
+
 interface SavedPageState {
     isOpen: boolean;
+    /** Which page holds the main pane while `isOpen`. */
+    page: MainPanePage;
     /** The card last opened from the page; marked when the page opens again. */
     openedId: string | null;
-    open: () => void;
+    open: (page?: MainPanePage) => void;
     close: () => void;
     markOpened: (id: string) => void;
 }
 
-/** Whether the Saved items page holds the main pane (HomePage closes it when a conversation opens). */
+/**
+ * Whether a page — Saved items or Threads — holds the main pane (HomePage closes it when a conversation
+ * opens). One store for both, so every move that leaves the Saved page leaves the Threads page too.
+ */
 export const useSavedPageStore = create<SavedPageState>(set => ({
     isOpen: false,
+    page: 'saved',
     openedId: null,
-    open: () => set({ isOpen: true }),
+    open: (page = 'saved') => set({ isOpen: true, page }),
     close: () => set({ isOpen: false }),
     markOpened: id => set({ openedId: id }),
 }));

@@ -86,6 +86,8 @@ sidebar column. What it lists is one pure function, `inboxView`.
   meanwhile stays gone, and one read before keeps its own time.
 - **Empty.** A bell, "No new notifications", and that the list is this device's. On the Threads tab,
   while the first launch is still reading the cache for threads (`scanningCid`), it says so instead.
+- The Threads tab tells of new replies one at a time; reading the threads themselves, side by side, is
+  the Threads page ([my-threads.md](./my-threads.md#the-threads-page)).
 - With Notifications open and no conversation chosen, the main pane says a notification opens its
   conversation there.
 - The snooze menu sits in the panel header as a bell. Tab, filter and order live in memory

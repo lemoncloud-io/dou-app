@@ -34,6 +34,9 @@ import {
     usePlaces,
     useProfilePanelStore,
     useSavedPageStore,
+    useMyThreadsStore,
+    isThreadUnread,
+    isThreadInScope,
     useMentionsStore,
     inboxPlaceScope,
     isInInboxScope,
@@ -69,6 +72,7 @@ import {
     PlaceRail,
     SidebarHeader,
     SavedPage,
+    ThreadsPage,
     NotificationsPanel,
     ChannelListPanel,
     DmListPanel,
@@ -243,6 +247,13 @@ export const HomePage = () => {
     const inboxScope = useMemo(
         () => inboxPlaceScope({ isDefaultMode, selectedPlaceId, placeIds }),
         [isDefaultMode, selectedPlaceId, placeIds]
+    );
+    const mainPage = useSavedPageStore(s => s.page);
+    const threadsCloudId = activeCloudId ?? RELAY_CLOUD_ID;
+    const hasUnreadThreads = useMyThreadsStore(s =>
+        Object.values(s.threads).some(
+            thread => isThreadUnread(thread) && isThreadInScope(thread, threadsCloudId, inboxScope)
+        )
     );
     // Select the boolean, not the items: the dot only re-renders on false↔true.
     const hasInboxUnread = useMentionsStore(s =>
@@ -920,8 +931,11 @@ export const HomePage = () => {
                                     query={query}
                                     onQueryChange={setQuery}
                                     onEditPlaceProfile={openEditPlaceProfile}
-                                    onOpenSaved={openSaved}
-                                    isSavedOpen={savedOpen}
+                                    onOpenSaved={() => openSaved('saved')}
+                                    isSavedOpen={savedOpen && mainPage === 'saved'}
+                                    onOpenThreads={() => openSaved('threads')}
+                                    isThreadsOpen={savedOpen && mainPage === 'threads'}
+                                    hasUnreadThreads={hasUnreadThreads}
                                 />
                                 <div className="flex-1 overflow-y-auto scrollbar-hide">
                                     <ChannelList
@@ -957,7 +971,14 @@ export const HomePage = () => {
                     />
                 }
                 main={
-                    savedOpen ? (
+                    savedOpen && mainPage === 'threads' ? (
+                        <ThreadsPage
+                            cloudId={threadsCloudId}
+                            channels={channels}
+                            placeScope={inboxScope}
+                            onOpen={jumpToSaved}
+                        />
+                    ) : savedOpen ? (
                         <SavedPage
                             channels={channels}
                             places={places}
