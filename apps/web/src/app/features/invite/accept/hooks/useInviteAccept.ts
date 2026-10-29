@@ -69,6 +69,10 @@ export const resolveInviteErrorKey = (step: InviteAcceptStep, err: Error): strin
 
     // The lookup and the login are asked about the same code, so a 4xx from either is the same verdict.
     if (step === 'read-invite' || step === 'login-invite') {
+        // A link whose first login's grace period has passed. Checked BEFORE the generic 400 below: the
+        // backend's message (`grace-timeout by invite`) contains its expiry message (`timeout by invite`),
+        // so any looser check would read a used link as an expired one.
+        if (message.includes('grace-timeout')) return 'inviteAccept.alreadyUsed';
         // The invite itself is bad: expired, revoked, or a malformed code.
         if (message.includes('400') || message.includes('404')) return 'inviteAccept.expired';
         // Authentication/authorization rejected the invite login.
