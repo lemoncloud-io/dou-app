@@ -6,11 +6,7 @@ import { useDynamicDeviceId } from '../app/useDynamicDeviceId';
 import { useSwitchCloudSession } from '../session/actions/useSwitchCloudSession';
 import { pairedCloudSessions } from '../../pairing/pairedCloudSessions';
 import { pairingClientOf } from '../../pairing/pairingClient';
-import {
-    createPairingRequestFlow,
-    type PairingRequestFlow,
-    type PairingRequestState,
-} from '../../pairing/pairingRequestFlow';
+import { PairingRequestFlow, type PairingRequestState } from '../../pairing/pairingRequestFlow';
 
 export interface PairingRequestOptions {
     /**
@@ -26,7 +22,7 @@ export interface PairingRequestOptions {
  * approval by entering that cloud as a guest and remembering it as a paired cloud.
  *
  * The flow is built once per mount and survives strict mode's unmount/remount without sending a second
- * request or overlapping claims (see `createPairingRequestFlow`).
+ * request or overlapping claims (see `PairingRequestFlow`).
  */
 export const usePairingRequest = (options: PairingRequestOptions = {}) => {
     const { pairing } = useRuntimeRepositories();
@@ -40,7 +36,7 @@ export const usePairingRequest = (options: PairingRequestOptions = {}) => {
 
     const flowRef = useRef<PairingRequestFlow | null>(null);
     if (!flowRef.current) {
-        flowRef.current = createPairingRequestFlow({
+        flowRef.current = new PairingRequestFlow({
             request: async () => {
                 const { ensureGuestSession } = latest.current.options;
                 if (ensureGuestSession) await ensureGuestSession();

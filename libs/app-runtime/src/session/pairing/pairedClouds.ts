@@ -1,5 +1,7 @@
 import { storage } from '@chatic/shared';
 
+import { type StorageLike } from '../store/jsonSlot';
+
 /**
  * The clouds this guest session entered through a pairing — kept under the same storage as the
  * session itself (per tab in a browser, the device's `localStorage` inside a shell), so it lives and
@@ -13,39 +15,62 @@ import { storage } from '@chatic/shared';
 const PAIRED_CLOUDS_KEY = 'chatic-paired-cloud-ids';
 
 type Listener = (ids: readonly string[]) => void;
-const listeners = new Set<Listener>();
 
-const read = (): string[] => {
-    try {
-        const parsed: unknown = JSON.parse(storage.get(PAIRED_CLOUDS_KEY) ?? '[]');
-        return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string' && !!id) : [];
-    } catch {
-        return [];
+/**
+ * The stored list of paired clouds. A plain store with nothing but its storage behind it, so
+ * `isPairedSession`, the relay logout and the hooks can read and clear it without pulling the socket
+ * runtime in — the lifecycle that acts on it is `PairedCloudSessions`.
+ */
+export class PairedCloudStore {
+    private readonly listeners = new Set<Listener>();
+
+    constructor(
+        private readonly storage: StorageLike,
+        private readonly key: string = PAIRED_CLOUDS_KEY
+    ) {}
+
+    list(): string[] {
+        return this.read();
     }
-};
 
-const write = (ids: string[]): void => {
-    if (ids.length) storage.set(PAIRED_CLOUDS_KEY, JSON.stringify(ids));
-    else storage.remove(PAIRED_CLOUDS_KEY);
-    listeners.forEach(listener => listener(ids));
-};
+    has(cloudId: string): boolean {
+        return this.read().includes(cloudId);
+    }
 
-export const pairedClouds = {
-    list: (): string[] => read(),
-    has: (cloudId: string): boolean => read().includes(cloudId),
     add(cloudId: string): void {
-        const ids = read();
-        if (!ids.includes(cloudId)) write([...ids, cloudId]);
-    },
+        const ids = this.read();
+        if (!ids.includes(cloudId)) this.write([...ids, cloudId]);
+    }
+
     remove(cloudId: string): void {
-        const ids = read();
-        if (ids.includes(cloudId)) write(ids.filter(id => id !== cloudId));
-    },
+        const ids = this.read();
+        if (ids.includes(cloudId)) this.write(ids.filter(id => id !== cloudId));
+    }
+
     clear(): void {
-        if (read().length) write([]);
-    },
+        if (this.read().length) this.write([]);
+    }
+
+    /** Hears every change to the list; returns the unsubscribe. */
     subscribe(listener: Listener): () => void {
-        listeners.add(listener);
-        return () => listeners.delete(listener);
-    },
-};
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
+    }
+
+    private read(): string[] {
+        try {
+            const parsed: unknown = JSON.parse(this.storage.get(this.key) ?? '[]');
+            return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string' && !!id) : [];
+        } catch {
+            return [];
+        }
+    }
+
+    private write(ids: string[]): void {
+        if (ids.length) this.storage.set(this.key, JSON.stringify(ids));
+        else this.storage.remove(this.key);
+        this.listeners.forEach(listener => listener(ids));
+    }
+}
+
+export const pairedClouds = new PairedCloudStore(storage);

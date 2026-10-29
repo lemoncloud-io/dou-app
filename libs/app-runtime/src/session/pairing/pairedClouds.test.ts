@@ -1,6 +1,6 @@
 import { setStorageAdapter } from '@chatic/shared';
 
-import { pairedClouds } from './pairedClouds';
+import { PairedCloudStore, pairedClouds } from './pairedClouds';
 
 const store = new Map<string, string>();
 setStorageAdapter({
@@ -50,5 +50,24 @@ describe('pairedClouds', () => {
         pairedClouds.add('1000004');
 
         expect(listener.mock.calls).toEqual([[['1000002']], [[]]]);
+    });
+});
+
+describe('PairedCloudStore', () => {
+    it('keeps its list in the storage it was given, apart from the shared instance', () => {
+        const own = new Map<string, string>();
+        const list = new PairedCloudStore({
+            get: key => own.get(key) ?? null,
+            set: (key, value) => void own.set(key, value),
+            remove: key => void own.delete(key),
+        });
+        const heard: Array<readonly string[]> = [];
+        list.subscribe(ids => heard.push(ids));
+
+        list.add('1000002');
+
+        expect(own.get('chatic-paired-cloud-ids')).toBe('["1000002"]');
+        expect(pairedClouds.list()).toEqual([]);
+        expect(heard).toEqual([['1000002']]);
     });
 });

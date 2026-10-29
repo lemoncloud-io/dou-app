@@ -1,4 +1,4 @@
-import { createPairingRequestFlow, type PairingRequestState } from './pairingRequestFlow';
+import { PairingRequestFlow, type PairingRequestState } from './pairingRequestFlow';
 
 const CODE = { pairingId: 'p-1', code: '07344168', expiredAt: 1_000_000, interval: 5 };
 const httpError = (status?: number) => Object.assign(new Error(`status ${status}`), { response: { status } });
@@ -25,7 +25,7 @@ const setup = () => {
             if (i >= 0) timers.splice(i, 1);
         },
     };
-    const flow = createPairingRequestFlow(deps);
+    const flow = new PairingRequestFlow(deps);
     /** Lets every pending promise settle. */
     const settle = async () => {
         for (let i = 0; i < 10; i++) await Promise.resolve();
@@ -46,7 +46,7 @@ const setup = () => {
     return { flow, deps, states, settle, advance, timers, setClock: (t: number) => (clock = t) };
 };
 
-describe('createPairingRequestFlow', () => {
+describe('PairingRequestFlow', () => {
     it('requests a code and shows it', async () => {
         const { flow, deps, settle } = setup();
 

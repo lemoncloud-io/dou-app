@@ -279,7 +279,7 @@ A device that is not signed in (a browser tab, or a phone) shows an 8-digit code
 approves it. `session/pairing/` holds the requesting side and the facts both sides need; the REST calls
 themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests.
 
-- **`usePairingRequest`** drives the code screen through `createPairingRequestFlow`, a machine with no
+- **`usePairingRequest`** drives the code screen through `PairingRequestFlow`, a class with no
   React in it: request a code, poll `claim` every `interval` seconds, then sign in. A relay approval's
   session goes through `applySessionToken` — the same path a phone login takes — and a cloud approval
   enters that cloud as a guest through `pairedCloudSessions.enter` (below).
@@ -289,7 +289,7 @@ themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests
       one, and stopping only stops scheduling — a claim already on the wire is handled to the end.
     - A network failure keeps polling until the code expires; a 4xx ends it. A 503 on the request means
       the drawn code was taken, and one more request is enough.
-- **`pairedClouds`** (`chatic-paired-cloud-ids`, in the session's own storage) lists the clouds a guest
+- **`pairedClouds`** (a `PairedCloudStore` over `chatic-paired-cloud-ids`, in the session's own storage) lists the clouds a guest
   entered through a pairing. A guest's cloud catalog is empty, so this list is what puts those clouds in
   the switch sheet. It is a plain store with no other dependency, so `isPairedSession` and the relay
   logout can read and clear it without pulling the socket runtime in.
