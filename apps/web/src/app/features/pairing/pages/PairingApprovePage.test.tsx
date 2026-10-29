@@ -39,12 +39,12 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 jest.mock('../../../hooks', () => ({
+    useDevicePairingEnabled: () => mockEnabled,
     useIsAccountGuest: () => mockGuest,
     useCloudSessionCatalog: () => ({ clouds: mockClouds }),
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('../hooks', () => ({
-    useDevicePairingEnabled: () => mockEnabled,
     useNow: () => 0,
     usePairingApproval: () => approval,
 }));

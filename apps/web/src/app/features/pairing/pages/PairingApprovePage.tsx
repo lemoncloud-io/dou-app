@@ -9,10 +9,10 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
 
-import { useCloudSessionCatalog, useIsAccountGuest } from '../../../hooks';
+import { useCloudSessionCatalog, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
-import { useDevicePairingEnabled, useNow, usePairingApproval } from '../hooks';
+import { useNow, usePairingApproval } from '../hooks';
 import { formatPairingCode, formatRemaining } from '../lib/pairingCode';
 import { pairingTargetOptions, type PairingTargetOption } from '../lib/pairingTargets';
 import { scanPairingQr, type PairingQrScan } from '../lib/scanPairingQr';

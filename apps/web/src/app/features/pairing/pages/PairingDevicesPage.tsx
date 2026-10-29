@@ -6,19 +6,14 @@ import { Navigate } from 'react-router-dom';
 import { isNative } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { MenuCard } from '@chatic/web-ui-kit';
 
-import { useCloudSessionCatalog, useIsAccountGuest } from '../../../hooks';
+import { useCloudSessionCatalog, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
-import {
-    useApprovedPairings,
-    useDevicePairingEnabled,
-    useMyDevices,
-    useRevokePairing,
-    useUnlinkDevice,
-} from '../hooks';
+import { useApprovedPairings, useMyDevices, useRevokePairing, useUnlinkDevice } from '../hooks';
 import { approvedPairingRows, deviceKindKey } from '../lib/deviceRows';
 
 const RELAY_SELECTION = 'default';
@@ -56,6 +51,7 @@ const PairingDevicesScreen = () => {
     const pairings = useApprovedPairings(showApprovals);
     const revoke = useRevokePairing();
     const [pending, setPending] = useState<Pending>(null);
+    const { toast } = useToast();
 
     const time = (ms?: number) =>
         ms ? new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(ms) : '';
@@ -65,6 +61,12 @@ const PairingDevicesScreen = () => {
         try {
             if (pending.kind === 'device') await unlink.mutateAsync(pending.id);
             else await revoke.mutateAsync(pending.id);
+        } catch {
+            // Removing a device or an approval is a security step; one that did not happen has to say so.
+            toast({
+                title: t(pending.kind === 'device' ? 'pairing.devices.unlinkFailed' : 'pairing.devices.revokeFailed'),
+                variant: 'destructive',
+            });
         } finally {
             setPending(null);
         }

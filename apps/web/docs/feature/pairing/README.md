@@ -16,7 +16,7 @@ features/pairing/
 │   ├── PairingCodePage.tsx     the requesting device's code screen — /mypage/login/pair
 │   ├── PairingApprovePage.tsx  the approving app's screen — /mypage/pairing/approve
 │   └── PairingDevicesPage.tsx  my devices and the sign-ins I approved — /mypage/devices
-├── hooks/                      useDevicePairingEnabled (the flag) · useNow (a countdown's clock) ·
+├── hooks/                      useNow (a countdown's clock) ·
 │                               usePairingApproval (look up → approve or decline) ·
 │                               usePairingDevices (the two lists and their removals)
 └── lib/
@@ -28,8 +28,9 @@ features/pairing/
 ```
 
 The routes are registered in `routes/PrivateRoutes.tsx`, not in `features/mypage`: the addresses sit
-under `/mypage`, but a static path outranks `mypage/*`, and one feature does not import another. The
-login screen's entry reads the flag itself for the same reason.
+under `/mypage`, but a static path outranks `mypage/*`, and one feature does not import another. For the
+same reason the flag hook, `useDevicePairingEnabled`, lives in `src/app/hooks`: every entry — the login
+screen, My page, settings, withdrawal, the home switch sheet and these pages — reads the flag through it.
 
 ## The code screen
 
@@ -116,7 +117,8 @@ is sent back; everyone else gets the first section, and an approving app the sec
   online or last activity, "this device" on `current`. Every other row can be removed after a confirm;
   in a cloud the confirm adds that a web sign-in also has to be removed from the approvals, because the
   pairing would bring it straight back. `closed` only says a close was sent, so the list is re-read
-  rather than trusted. The list is asked for on every open (`devicesKeys`, per cloud), and a server that
+  rather than trusted. A removal that fails — a device or an approval — says so in a toast; it is a
+  security step, and closing the confirm as if it worked would leave the person believing it did. The list is asked for on every open (`devicesKeys`, per cloud), and a server that
   does not answer `user.list-device` shows an error with a retry — dev's customer clouds do not yet.
 - **Approved sign-ins** — inside the app, on an account that is not a secondary device — the devices
   that can approve. Standing approvals, newest first, each with requester, scope ("my whole account" / "only

@@ -2195,6 +2195,8 @@
             "unlinkCloudNote": "To end a web sign-in, remove it from approved sign-ins too",
             "revokeRelayBody": "This browser will be signed out right away",
             "revokeCloudBody": "It can't get back in. Screens already open may stay for up to 30 days — to cut them now, remove it in that cloud's devices too",
+            "unlinkFailed": "Couldn't remove the device. Try again",
+            "revokeFailed": "Couldn't remove the approval. Try again",
             "kind": {
                 "mobile": "Phone",
                 "desktop": "Desktop",

@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
-import { useConfigValue } from '@chatic/config/react';
 
 import { PageHeader } from '../../../ui/components';
 import { KeyboardAwareLayout } from '../../../ui/layouts';
@@ -12,6 +11,7 @@ import { WithdrawalDialog } from '../components/WithdrawalDialog';
 import { PairingLogoutDialog } from '../components/PairingLogoutDialog';
 import { useMyUser } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
+import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
 
 export const WithdrawalPage = () => {
     const { t } = useTranslation();
@@ -29,7 +29,7 @@ export const WithdrawalPage = () => {
 
     const goToLogout = () => navigate(ROUTES.auth.logout);
     // Withdrawing signs this device out too, so an approving app ends its approved sign-ins first.
-    const pairingEnabled = useConfigValue<boolean>('feature.auth.devicePairing') === true;
+    const pairingEnabled = useDevicePairingEnabled();
     const pairingLogout = runtime.session.usePairingAwareLogout(goToLogout);
 
     const handleWithdrawal = () => {

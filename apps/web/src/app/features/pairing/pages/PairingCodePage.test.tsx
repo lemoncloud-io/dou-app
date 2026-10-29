@@ -42,14 +42,14 @@ jest.mock('@chatic/app-runtime', () => ({
         },
     },
 }));
-jest.mock('../../../hooks', () => ({ useIsAccountGuest: () => mockGuest }));
+jest.mock('../../../hooks', () => ({ useDevicePairingEnabled: () => mockEnabled, useIsAccountGuest: () => mockGuest }));
 let mockCanGoBack = false;
 jest.mock('../../../navigation', () => ({ canGoBackInApp: () => mockCanGoBack }));
 jest.mock('../../../runtime/useLogoutCloudSession', () => ({
     useLogoutCloudSession: () => ({ logoutCloudSession, isLoggingOutCloudSession: false }),
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
-jest.mock('../hooks', () => ({ useDevicePairingEnabled: () => mockEnabled, useNow: () => 1_000_000 - 125_000 }));
+jest.mock('../hooks', () => ({ useNow: () => 1_000_000 - 125_000 }));
 
 beforeEach(() => {
     jest.clearAllMocks();

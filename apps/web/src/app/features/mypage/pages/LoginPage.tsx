@@ -7,7 +7,6 @@ import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
 import { BrandMark } from '@chatic/web-ui-kit';
 import { runtime } from '@chatic/app-runtime';
-import { useConfigValue } from '@chatic/config/react';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative, logger } from '@chatic/bridges';
@@ -19,6 +18,7 @@ import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
 import { canGoBackInApp, readHistoryIndex } from '../../../navigation';
 import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
+import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
 
 export const LoginPage = () => {
     const { t } = useTranslation();
@@ -28,7 +28,7 @@ export const LoginPage = () => {
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
     const [isPhoneOpen, setIsPhoneOpen] = useState(false);
-    const pairingEnabled = useConfigValue<boolean>('feature.auth.devicePairing') === true;
+    const pairingEnabled = useDevicePairingEnabled();
 
     const isOnMobileApp = isNative();
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';

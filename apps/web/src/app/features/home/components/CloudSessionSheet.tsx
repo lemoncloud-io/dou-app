@@ -7,7 +7,6 @@ import { logger } from '@chatic/bridges';
 import { useInterval, useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { runtime } from '@chatic/app-runtime';
-import { useConfigValue } from '@chatic/config/react';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { useJoinedCloudIds } from '../../../hooks/useJoinedCloudIds';
 
@@ -33,6 +32,7 @@ import {
     PairedCloudItem,
     sortCloudsForSwitcher,
 } from './cloud-session';
+import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
 
 interface CloudSessionSheetProps {
     open: boolean;
@@ -84,7 +84,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
     // — a relay pairing included — has its catalog and never shows this section.
     const isAccountGuest = useIsAccountGuest();
     const pairedCloudIds = runtime.session.usePairedCloudIds();
-    const pairingEnabled = useConfigValue<boolean>('feature.auth.devicePairing') === true;
+    const pairingEnabled = useDevicePairingEnabled();
     const showPairedClouds = isAccountGuest && (pairingEnabled || pairedCloudIds.length > 0);
 
     // Active selection is derived from the session; relay mode reads as 'default'.

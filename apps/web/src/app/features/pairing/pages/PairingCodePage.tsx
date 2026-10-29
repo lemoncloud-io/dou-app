@@ -10,12 +10,12 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
 
-import { useIsAccountGuest } from '../../../hooks';
+import { useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
 import { canGoBackInApp } from '../../../navigation';
 import { useLogoutCloudSession } from '../../../runtime/useLogoutCloudSession';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
-import { useDevicePairingEnabled, useNow } from '../hooks';
+import { useNow } from '../hooks';
 import { formatPairingCode, formatRemaining } from '../lib/pairingCode';
 
 interface ReturnState {

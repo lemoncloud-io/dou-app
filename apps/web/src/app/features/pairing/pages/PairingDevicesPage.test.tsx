@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { PairingDevicesPage } from './PairingDevicesPage';
 
@@ -13,6 +13,8 @@ let pairingsQuery: Record<string, unknown> = {};
 const unlink = { mutateAsync: jest.fn().mockResolvedValue(undefined), isPending: false };
 const revoke = { mutateAsync: jest.fn().mockResolvedValue(undefined), isPending: false };
 const useApprovedPairings = jest.fn((_enabled: boolean) => pairingsQuery);
+const toast = jest.fn();
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({
@@ -36,6 +38,7 @@ jest.mock('@chatic/app-runtime', () => ({
     },
 }));
 jest.mock('../../../hooks', () => ({
+    useDevicePairingEnabled: () => mockEnabled,
     useIsAccountGuest: () => mockGuest,
     useCloudSessionCatalog: () => ({ clouds: [{ id: '1000002', name: 'Lemon' }] }),
 }));
@@ -60,7 +63,6 @@ jest.mock('../../channels/components/ConfirmDialog', () => ({
         ) : null,
 }));
 jest.mock('../hooks', () => ({
-    useDevicePairingEnabled: () => mockEnabled,
     useMyDevices: () => devicesQuery,
     useUnlinkDevice: () => unlink,
     useApprovedPairings: (enabled: boolean) => useApprovedPairings(enabled),
@@ -137,6 +139,45 @@ describe('PairingDevicesPage', () => {
         fireEvent.click(screen.getByText('confirm'));
 
         expect(unlink.mutateAsync).toHaveBeenCalledWith('old');
+    });
+
+    it('says so when removing a device fails, instead of closing as if it worked', async () => {
+        unlink.mutateAsync.mockRejectedValueOnce(new Error('socket down'));
+        render(<PairingDevicesPage />);
+
+        fireEvent.click(screen.getByTestId('device-unlink-old'));
+        fireEvent.click(screen.getByText('confirm'));
+
+        await waitFor(() =>
+            expect(toast).toHaveBeenCalledWith({ title: 'pairing.devices.unlinkFailed', variant: 'destructive' })
+        );
+    });
+
+    it('says so when removing an approval fails', async () => {
+        pairingsQuery = {
+            data: {
+                list: [
+                    {
+                        pairingId: 'r',
+                        purpose: 'web',
+                        client: { name: 'Chrome' },
+                        target: { type: 'relay' },
+                        status: 'approved',
+                        approvedAt: 2,
+                        claimedAt: 3,
+                    },
+                ],
+            },
+        };
+        revoke.mutateAsync.mockRejectedValueOnce(new Error('403'));
+        render(<PairingDevicesPage />);
+
+        fireEvent.click(screen.getByTestId('pairing-revoke-r'));
+        fireEvent.click(screen.getByText('confirm'));
+
+        await waitFor(() =>
+            expect(toast).toHaveBeenCalledWith({ title: 'pairing.devices.revokeFailed', variant: 'destructive' })
+        );
     });
 
     it('offers a retry when the list fails', () => {

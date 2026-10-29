@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { isNative } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { useConfigValue } from '@chatic/config/react';
 
 import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
 
@@ -11,6 +10,7 @@ import { BottomNavSpacer } from '../../../ui/components';
 import { useIsAccountGuest, useMyUser } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
+import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
 
 const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
 
@@ -29,7 +29,7 @@ export const MyPage = () => {
     // would answer for the delegated cloud user instead (see useIsAccountGuest).
     const isGuest = useIsAccountGuest();
     const myUser = useMyUser();
-    const pairingEnabled = useConfigValue<boolean>('feature.auth.devicePairing') === true;
+    const pairingEnabled = useDevicePairingEnabled();
     // Approving is the apps' job, on an account: approving hands on a sign-in, and a guest has none of
     // its own to give. A device that is itself signed in through an approval never approves another —
     // it would sign out with its own approver.
