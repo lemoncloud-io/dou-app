@@ -51,11 +51,14 @@ export class PairedCloudStore {
         if (this.read().length) this.write([]);
     }
 
-    /** Hears every change to the list; returns the unsubscribe. */
-    subscribe(listener: Listener): () => void {
+    /**
+     * Hears every change to the list; returns the unsubscribe. A bound field rather than a method:
+     * `useSyncExternalStore(pairedClouds.subscribe, …)` hands it over detached from the store.
+     */
+    readonly subscribe = (listener: Listener): (() => void) => {
         this.listeners.add(listener);
         return () => this.listeners.delete(listener);
-    }
+    };
 
     private read(): string[] {
         try {

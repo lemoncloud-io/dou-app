@@ -54,6 +54,18 @@ describe('pairedClouds', () => {
 });
 
 describe('PairedCloudStore', () => {
+    it('can be subscribed to through a detached subscribe, as useSyncExternalStore passes it', () => {
+        const { subscribe } = pairedClouds;
+        const heard: Array<readonly string[]> = [];
+
+        const off = subscribe(ids => heard.push(ids));
+        pairedClouds.add('1000002');
+        off();
+        pairedClouds.add('1000004');
+
+        expect(heard).toEqual([['1000002']]);
+    });
+
     it('keeps its list in the storage it was given, apart from the shared instance', () => {
         const own = new Map<string, string>();
         const list = new PairedCloudStore({
