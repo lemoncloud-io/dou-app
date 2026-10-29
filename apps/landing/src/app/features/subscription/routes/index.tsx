@@ -10,7 +10,7 @@ import { subscriptionKeys } from '../hooks';
 import { type PortSetup, createPortSetup } from '../lib/createPortSetup';
 import { registerSubscriptionCopy } from '../lib/i18n';
 import { MockControllerProvider } from '../lib/mock';
-import { PortProvider, isPortError } from '../lib/port';
+import { PortProvider, isPortError, useSupports } from '../lib/port';
 import { MANAGEMENT_SCREENS_OPEN, ManagementScreensProvider } from '../lib/screens';
 import { sessionEndedRedirect } from '../lib/sessionEnded';
 import { BillingHistoryPage, BillingInfoPage, PaymentMethodsPage } from '../pages/billing';
@@ -92,21 +92,19 @@ export const SubscriptionRoutes = ({
     });
 
     const mock = !!setup.mock;
-    // A composed port draws the mock's payment window while the server's payments are samples.
-    const paymentWindow = setup.mock ?? setup.standIn;
     const Host = setup.Host ?? Fragment;
 
     return (
         <QueryClientProvider client={queryClient}>
-            <PortProvider port={setup.port} clock={setup.clock}>
-                <MockControllerProvider controller={paymentWindow}>
+            <PortProvider port={setup.port} clock={setup.clock} supports={setup.supports}>
+                <MockControllerProvider controller={setup.mock}>
                     <ToastProvider>
                         <ManagementScreensProvider open={management}>
                             <Host>
                                 {account ? <AccountRoutes mock={mock} management={management} /> : <CatalogRoutes />}
                             </Host>
                         </ManagementScreensProvider>
-                        {paymentWindow && <MockPaymentWindow />}
+                        {mock && <MockPaymentWindow />}
                         {mock && <DevScenarioPanel />}
                     </ToastProvider>
                 </MockControllerProvider>
@@ -125,53 +123,61 @@ const CatalogRoutes = (): JSX.Element => (
     </Routes>
 );
 
-const AccountRoutes = ({ mock, management }: { mock: boolean; management: boolean }): JSX.Element => (
-    <Routes>
-        <Route element={<PublicShell />}>
-            <Route path="plans" element={<PlansPage />} />
-            <Route
-                path="login"
-                element={
-                    <RedirectIfSignedIn>
-                        <LoginPage />
-                    </RedirectIfSignedIn>
-                }
-            />
-            <Route path="login/callback" element={<LoginCallbackPage />} />
-            <Route path="login/no-account" element={<NoLinkedAccountPage />} />
-            <Route element={<RequireSession allowStoreBilled />}>
-                <Route path="store-managed" element={<StoreManagedPage />} />
+const AccountRoutes = ({ mock, management }: { mock: boolean; management: boolean }): JSX.Element => {
+    // The billing history is left out where the port has no server for it, like the hidden screens.
+    const history = useSupports()('listInvoices');
+    return (
+        <Routes>
+            <Route element={<PublicShell />}>
+                <Route path="plans" element={<PlansPage />} />
+                <Route
+                    path="login"
+                    element={
+                        <RedirectIfSignedIn>
+                            <LoginPage />
+                        </RedirectIfSignedIn>
+                    }
+                />
+                <Route path="login/callback" element={<LoginCallbackPage />} />
+                <Route path="login/no-account" element={<NoLinkedAccountPage />} />
+                <Route element={<RequireSession allowStoreBilled />}>
+                    <Route path="store-managed" element={<StoreManagedPage />} />
+                </Route>
+                <Route element={<RequireSession />}>
+                    {management && <Route path="checkout/email" element={<CheckoutEmailPage />} />}
+                    <Route path="checkout" element={<CheckoutPage />} />
+                    <Route path="checkout/payment" element={<CheckoutPaymentPage />} />
+                    <Route path="checkout/status" element={<CheckoutStatusPage />} />
+                    <Route path="checkout/complete" element={<CheckoutCompletePage />} />
+                    <Route path="change" element={<ChangePlanPage />} />
+                </Route>
             </Route>
             <Route element={<RequireSession />}>
-                {management && <Route path="checkout/email" element={<CheckoutEmailPage />} />}
-                <Route path="checkout" element={<CheckoutPage />} />
-                <Route path="checkout/payment" element={<CheckoutPaymentPage />} />
-                <Route path="checkout/status" element={<CheckoutStatusPage />} />
-                <Route path="checkout/complete" element={<CheckoutCompletePage />} />
-                <Route path="change" element={<ChangePlanPage />} />
+                <Route element={<AccountShell />}>
+                    <Route index element={<SubscriptionListPage />} />
+                    {management ? (
+                        <Route path="payment-methods" element={<PaymentMethodsPage />} />
+                    ) : (
+                        // Not a screen, but a path the next route would take for a subscription's id.
+                        <Route path="payment-methods" element={<Navigate to={ROUTES.subscription.root} replace />} />
+                    )}
+                    {history ? (
+                        <Route path="history" element={<BillingHistoryPage />} />
+                    ) : (
+                        <Route path="history" element={<Navigate to={ROUTES.subscription.root} replace />} />
+                    )}
+                    {management ? (
+                        <Route path="billing-info" element={<BillingInfoPage />} />
+                    ) : (
+                        <Route path="billing-info" element={<Navigate to={ROUTES.subscription.root} replace />} />
+                    )}
+                    <Route path=":subscriptionId" element={<SubscriptionDetailPage />} />
+                    <Route path=":subscriptionId/cancel" element={<CancelSubscriptionPage />} />
+                </Route>
             </Route>
-        </Route>
-        <Route element={<RequireSession />}>
-            <Route element={<AccountShell />}>
-                <Route index element={<SubscriptionListPage />} />
-                {management ? (
-                    <Route path="payment-methods" element={<PaymentMethodsPage />} />
-                ) : (
-                    // Not a screen, but a path the next route would take for a subscription's id.
-                    <Route path="payment-methods" element={<Navigate to={ROUTES.subscription.root} replace />} />
-                )}
-                <Route path="history" element={<BillingHistoryPage />} />
-                {management ? (
-                    <Route path="billing-info" element={<BillingInfoPage />} />
-                ) : (
-                    <Route path="billing-info" element={<Navigate to={ROUTES.subscription.root} replace />} />
-                )}
-                <Route path=":subscriptionId" element={<SubscriptionDetailPage />} />
-                <Route path=":subscriptionId/cancel" element={<CancelSubscriptionPage />} />
-            </Route>
-        </Route>
-        {mock && <Route path="login/mock-provider" element={<MockProviderPage />} />}
-        {mock && <Route path="mock-receipt" element={<MockReceiptPage />} />}
-        <Route path="*" element={<Navigate to={ROUTES.subscription.root} replace />} />
-    </Routes>
-);
+            {mock && <Route path="login/mock-provider" element={<MockProviderPage />} />}
+            {mock && <Route path="mock-receipt" element={<MockReceiptPage />} />}
+            <Route path="*" element={<Navigate to={ROUTES.subscription.root} replace />} />
+        </Routes>
+    );
+};

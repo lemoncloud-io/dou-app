@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { usePort } from '../lib/port';
+import { usePort, useSupports } from '../lib/port';
 import { subscriptionKeys } from './keys';
 
 import type { BillingEmailReceives, BillingInfo, PaymentMethod } from '../types';
@@ -39,9 +39,11 @@ export const useRetryPayment = () => {
     return useMutation({ mutationFn: (subscriptionId: string) => port.retryPayment(subscriptionId) });
 };
 
+/** Asks nothing where the port has no server for invoices: the screens then read none. */
 export const useInvoices = () => {
     const port = usePort();
-    return useQuery({ queryKey: subscriptionKeys.invoices(), queryFn: () => port.listInvoices() });
+    const enabled = useSupports()('listInvoices');
+    return useQuery({ queryKey: subscriptionKeys.invoices(), queryFn: () => port.listInvoices(), enabled });
 };
 
 /** `enabled: false` where no screen reads the billing emails (they are hidden — `lib/screens.tsx`). */

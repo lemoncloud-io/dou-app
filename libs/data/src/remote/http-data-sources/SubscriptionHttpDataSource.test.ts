@@ -14,6 +14,14 @@ describe('SubscriptionHttpDataSource', () => {
             adminMemberships: jest.fn(),
             updateMembershipByAdmin: jest.fn(),
             adminClouds: jest.fn(),
+            mySubscription: jest.fn(),
+            subscriptionCards: jest.fn(),
+            issueBillingKey: jest.fn(),
+            startSubscription: jest.fn(),
+            changeSubscription: jest.fn(),
+            cancelSubscription: jest.fn(),
+            replaceCard: jest.fn(),
+            removeCard: jest.fn(),
         };
         dataSource = new SubscriptionHttpDataSource(gateway);
     });
@@ -100,5 +108,31 @@ describe('SubscriptionHttpDataSource', () => {
         expect(gateway.updateMembershipByAdmin).toHaveBeenLastCalledWith('1000904', { adminStatus: '' }, undefined, {
             endpoint,
         });
+    });
+
+    it('forwards the web subscription calls, wrapping a product id into the body the gateway sends', async () => {
+        const payer = { name: 'n', phone: '01012345678', email: 'e@x.y' };
+        gateway.mySubscription.mockResolvedValue({ subscription: { id: 'U1:portone' } });
+        gateway.subscriptionCards.mockResolvedValue([{ id: 'c1', isDefault: true }]);
+
+        await expect(dataSource.fetchMySubscription()).resolves.toEqual({ subscription: { id: 'U1:portone' } });
+        await expect(dataSource.fetchSubscriptionCards()).resolves.toEqual([{ id: 'c1', isDefault: true }]);
+
+        await dataSource.issueBillingKey('p1');
+        expect(gateway.issueBillingKey).toHaveBeenCalledWith({ productId: 'p1' });
+
+        await dataSource.startSubscription({ productId: 'p1', billingKey: 'bk', ...payer });
+        expect(gateway.startSubscription).toHaveBeenCalledWith({ productId: 'p1', billingKey: 'bk', ...payer });
+
+        await dataSource.changeSubscription('p2');
+        expect(gateway.changeSubscription).toHaveBeenCalledWith({ productId: 'p2' });
+
+        await dataSource.replaceCard({ billingKey: 'bk', ...payer });
+        expect(gateway.replaceCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer });
+
+        await dataSource.cancelSubscription();
+        await dataSource.removeCard();
+        expect(gateway.cancelSubscription).toHaveBeenCalledTimes(1);
+        expect(gateway.removeCard).toHaveBeenCalledTimes(1);
     });
 });

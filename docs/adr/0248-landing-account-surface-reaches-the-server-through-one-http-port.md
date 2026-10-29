@@ -3,7 +3,9 @@
 > Status: Accepted · Decided: 2026-10-28
 > Scope: `apps/landing` (`README.md` principle 9, § The server, § Layering's boundary checks,
 > `src/app/config/subscriptionServer.ts`, `src/app/features/subscription/lib/port/http/`,
-> `src/app/features/subscription/lib/createPortSetup.ts`), `apps/landing/.env.example`
+> `src/app/features/subscription/lib/createPortSetup.ts`), `apps/landing/.env.example`; the web
+> subscription calls in `libs/http` (`gateways/subscriptions.ts`) and `libs/data`
+> (`SubscriptionHttpDataSource`, `SubscriptionRepository`)
 > Amends: decision 3 of [ADR-0227](./0227-landing-serves-a-public-surface-and-a-signed-in-subscription-surface.md)
 > (the account surface runs on a mock behind one port, with no network). Its other decisions stand.
 
@@ -38,15 +40,23 @@ Three things had to be settled to connect them:
    W-02's callback with a code, and the shared session runtime turns it into a relay session (`config`
    init, the runtime boot, `RuntimeAuthHost` without a guest session); every request is signed with it.
    Signing out is the runtime's logout, which lands on the home page.
-3. **The network lives in `lib/port/http/` and nowhere else.** The session runtime, the request
-   signing and the payment SDK are imported there only, and loaded on first use, so neither the
-   production host's plans page nor a mock-only tab downloads them.
-4. **While the account surface is in development the port is composed.** The server's methods come
-   from the HTTP port and the rest from the mock, signed in on a fresh account. A tab runs on the server
-   by default; `?mock=<scenario>` switches it to the mock alone and `?mock=off` back.
+3. **The server's calls are the shared libraries', the translation is the landing site's.** The eight
+   `/subscriptions/0/*` requests join `libs/http`'s subscription gateway, with their shapes declared
+   there from the server's contract (its package does not carry the module yet), and `libs/data`'s
+   `SubscriptionRepository` carries them, as it carries the store membership's. The landing site's
+   HTTP port calls that repository through the runtime and keeps only what is its own: turning the
+   answers into the screens' view types, and the rules around the calls. Inside the landing app the
+   network lives in `lib/port/http/` and nowhere else: the session runtime and the payment SDK are
+   imported there only, and loaded on first use, so neither the production host's plans page nor a
+   mock-only tab downloads them.
+4. **A tab runs on the server alone, or on the mock alone — never both.** The server's methods come
+   from the HTTP port; every other one refuses, and the port says which are real (`supports`), so the
+   screens leave out what would call the rest — the billing history, undoing a cancellation,
+   cancelling a scheduled downgrade — and copy that promised the undo says only what holds. A tab runs
+   on the server by default; `?mock=<scenario>` switches it to the mock alone and `?mock=off` back.
 5. **The addresses come from the build's untracked `.env`**, read in `config/` only, as the other web
    apps do; `.env.example` holds placeholders. Without them the account surface runs on the mock as
-   before. A variable asks the server for sample payments, with the in-page stand-in as the card window.
+   before.
 6. **The card company's required payer fields are asked for on the screens.** The name and mobile number
    go on W-08 and in the add-card dialog, travel with that one checkout or card, and are not stored.
 7. **The card and billing-email screens are hidden until their servers exist.** W-12, W-16 and W-24 have
@@ -67,13 +77,17 @@ Three things had to be settled to connect them:
 
 ## Alternatives
 
+- **Keep the server's calls in the landing app**, as its own signed requests. It was the first
+  version: fewer libraries touched, but a second way to reach the relay beside the repositories every
+  other app uses, and calls no other app could reuse.
 - **Call the server from the hooks or pages directly.** Fewer files, but the screens would have to know
   which methods have a server and handle two error vocabularies; the port was built so that swapping
   its implementation touches nothing under `pages/`.
 - **A landing-only sign-in** (its own token exchange and refresh). It would duplicate the session
   runtime's credential and renewal logic, which renews only over the socket, and drift from it.
-- **Hide or mock the screens with no server.** Hiding breaks the flows the composed port keeps whole
-  (W-24 needs billing emails before W-08); mocking all of them would test nothing against the server.
+- **Compose the server with the mock** for the methods it lacks. It was the second version: every
+  screen kept working, but a tab on the server then showed an empty billing history no server holds
+  and undid cancellations that never happened, and kept a second account's state beside the server's.
 - **Write the dev addresses in source, chosen by host.** It keeps the site free of runtime
   environment, but puts addresses the other apps keep out of this public repository into it.
 - **Keep the screens and answer them from the mock.** It keeps every flow whole, but a production-bound
@@ -85,12 +99,19 @@ Three things had to be settled to connect them:
 
 - **The account surface now has a session and a network**, but only inside `lib/port/http/`; the
   boundary checks name that folder, and the public surface is unchanged.
+- **The web subscription is part of the shared data layer.** Another app reaches it the way the landing
+  site does, through the runtime's `SubscriptionRepository`. Its shapes live in `libs/http` until the
+  server's package carries them, and move out then.
 - **The account surface's server addresses are build configuration.** A dev deploy needs them in its
   `.env`; without them it falls back to the mock rather than failing.
 - **The session runtime is a lazily loaded chunk of its own** (about 0.7 MB minified), paid only by a
   tab that runs against the server.
-- **Methods move from the mock to the server one by one**: a method joins `HTTP_METHODS` the day its
-  server exists. The production build keeps the account surface shut until every method has one.
+- **Methods join the server one by one**: a method joins `HTTP_METHODS` the day its server exists, and
+  what the screens left out for it comes back with it. Until then a tab on the server offers less than
+  the designs — no billing history, no undoing a cancellation or a scheduled downgrade. The production
+  build keeps the account surface shut until every method has one.
+- **The server's sample payments are not used.** They needed the mock's stand-in window beside the
+  server, which this decision removes; the provider's own test channel is the way to try a payment.
 - **Shutting them costs two things.** A subscriber cannot remove the card or pick among several (changing
   it is the one thing left open, so a failed payment or an expired card can be fixed), and receipts and notices go to the sign-in address alone.
   Both are settled before the account surface opens on the production host.

@@ -1,17 +1,16 @@
 import { PLAN_CATALOG } from '../../catalog';
 import { isPortError } from '../errors';
-import { type HttpPortOptions, type HttpRequest, createHttpPort } from './createHttpPort';
+import { type HttpPortOptions, type SubscriptionApi, createHttpPort } from './createHttpPort';
 
 import type { SubscriptionWire } from './wire';
 import type { CardToken } from '../../../types';
 
 /**
  * The port against the subscription server's contract: every response below is the shape that
- * server answers with (its `?mock` samples, which follow the same views). The network is a table of
- * routes, so each test says what the server holds and reads what the port made of it.
+ * server answers with (its `?mock` samples, which follow the same views). The server's calls are a
+ * table of routes, each call standing for the request the runtime's repository makes, so each test
+ * says what the server holds and reads what the port made of it.
  */
-
-const BACKEND = 'https://api.example.com/dou-d1';
 const PAYER = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
 const at = (iso: string) => new Date(`${iso}T12:00:00`).getTime();
 const NOW = at('2026-11-10');
@@ -53,13 +52,24 @@ const DECLINED = '403 INVALID PAYMENT - card declined @start(subscriptions/0)';
 type Route = (body: unknown) => unknown;
 
 const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPortOptions> = {}) => {
-    const calls: Array<{ method: string; path: string; params?: Record<string, string>; body?: unknown }> = [];
-    const request: HttpRequest = async (method, url, { params, body } = {}) => {
-        const path = url.replace(BACKEND, '');
+    const calls: Array<{ method: string; path: string; params?: Record<string, unknown>; body?: unknown }> = [];
+    const route = async <T>(method: string, path: string, body?: unknown, params?: Record<string, unknown>) => {
         calls.push({ method, path, params, body });
-        const route = routes[`${method} ${path}`];
-        if (route === undefined) throw httpError(404);
-        return typeof route === 'function' ? (route as Route)(body) : route;
+        const answer = routes[`${method} ${path}`];
+        if (answer === undefined) throw httpError(404);
+        return (typeof answer === 'function' ? (answer as Route)(body) : answer) as T;
+    };
+    const api: SubscriptionApi = {
+        fetchPlans: params => route('GET', '/products/0/plans', undefined, params),
+        fetchMembershipInfo: () => route('GET', '/memberships/0/mine'),
+        fetchMySubscription: () => route('GET', '/subscriptions/0/mine'),
+        fetchSubscriptionCards: () => route('GET', '/subscriptions/0/cards'),
+        issueBillingKey: productId => route('POST', '/subscriptions/0/issue', { productId }),
+        startSubscription: body => route('POST', '/subscriptions/0/start', body),
+        changeSubscription: productId => route('POST', '/subscriptions/0/change', { productId }),
+        cancelSubscription: () => route('POST', '/subscriptions/0/cancel'),
+        replaceCard: body => route('POST', '/subscriptions/0/card', body),
+        removeCard: () => route('POST', '/subscriptions/0/card-delete'),
     };
     const store = new Map<string, string>();
     let user: Record<string, unknown> | null = { id: 'U1', email: 'minji.kim@gmail.com', name: 'Minji' };
@@ -69,11 +79,9 @@ const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPor
     });
     const paymentWindow = vi.fn(async () => ({ outcome: 'registered' as const, billingKey: 'billing-key-1' }));
     const port = createHttpPort({
-        backend: BACKEND,
-        paymentsMock: true,
         socialOauth: 'https://oauth2.example.com',
         origin: 'http://localhost:5004',
-        request,
+        api,
         session: { user: () => user, exchange, signOut },
         paymentWindow,
         storage: {
@@ -200,15 +208,14 @@ describe('createHttpPort — plans and subscription', () => {
         expect(calls[0]).toMatchObject({ path: '/products/0/plans', params: { platform: 'portone' } });
     });
 
-    it('has one subscription at most, charged to its card, and asks for sample payments while they are on', async () => {
-        const { port, calls } = setup({
+    it('has one subscription at most, charged to its card', async () => {
+        const { port } = setup({
             ...BASE_ROUTES,
             'GET /subscriptions/0/mine': { subscription: subscription({}) },
         });
         expect(await port.listSubscriptions()).toMatchObject([
             { id: 'U1:portone', planId: 'pro-tier-02', status: 'active', defaultPaymentMethodId: 'mock:dev:U1:01' },
         ]);
-        expect(calls.find(call => call.path === '/subscriptions/0/mine')?.params).toEqual({ mock: '1' });
         expect(await port.getSubscription('U1:portone')).toMatchObject({ id: 'U1:portone' });
         expect(isPortError(await port.getSubscription('other').catch(e => e), 'notFound')).toBe(true);
         expect(await setup(BASE_ROUTES).port.listSubscriptions()).toEqual([]);
@@ -492,15 +499,6 @@ describe('createHttpPort — plan change and cancelling', () => {
             status: 'cancelScheduled',
             endsAt: '2026-12-01',
         });
-    });
-
-    it('sends a POST that carries nothing with an empty object, which the gateway needs', async () => {
-        const { port, calls } = setup({
-            ...ACTIVE,
-            'POST /subscriptions/0/cancel': subscription({ status: 'canceling', autoRenewing: false }),
-        });
-        await port.cancelSubscription('U1:portone');
-        expect(calls.find(call => call.path === '/subscriptions/0/cancel')?.body).toEqual({});
     });
 });
 

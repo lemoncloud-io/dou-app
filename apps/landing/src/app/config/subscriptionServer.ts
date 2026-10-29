@@ -11,13 +11,6 @@ import { isSubscriptionAccountEnabled } from './stage';
  * was a server, rather than failing on its first call.
  */
 export interface SubscriptionServer {
-    /** The subscription API — chatic-backend-api, the same relay the sign-in issues the session for. */
-    backend: string;
-    /**
-     * The server answers payments with samples instead of calling the payment provider (its `?mock`).
-     * The card window is then the in-page stand-in, since a sample payment has no real window to open.
-     */
-    paymentsMock: boolean;
     /** The OAuth relay the browser is sent to for a social sign-in. */
     socialOauth: string;
     /** The build's `VITE_*` values, which the shared session runtime is configured from. */
@@ -37,8 +30,6 @@ export const readSubscriptionServer = (
     };
     if (!accountEnabled || REQUIRED.some(name => !env(name))) return undefined;
     return {
-        backend: env('VITE_DOU_ENDPOINT') as string,
-        paymentsMock: env('VITE_SUBSCRIPTION_PAYMENTS_MOCK') === '1',
         // Lower-cased as the shared configuration reads it, so the two never name different hosts.
         socialOauth: (env('VITE_SOCIAL_OAUTH_ENDPOINT') as string).toLowerCase(),
         env,

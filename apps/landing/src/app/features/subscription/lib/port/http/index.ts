@@ -2,7 +2,6 @@ import { type ComponentType, type ReactNode, createElement, lazy, Suspense } fro
 
 import { HTTP_METHODS, type HttpPort } from './methods';
 
-import type { PaymentWindow } from './createHttpPort';
 import type * as Live from './live';
 import type { SubscriptionServer } from '../../../../../config/subscriptionServer';
 
@@ -20,7 +19,7 @@ export interface HttpSetup {
  * payment SDK, which neither the production host's plans page nor a mock-only tab needs, so this
  * module holds only a stand-in that loads the real one when it is first called or rendered.
  */
-export const createHttpSetup = (server: SubscriptionServer, standInWindow: PaymentWindow): HttpSetup => {
+export const createHttpSetup = (server: SubscriptionServer): HttpSetup => {
     let live: Promise<typeof Live> | undefined;
     let port: Promise<HttpPort> | undefined;
     // A failed load is forgotten, so the next call tries again instead of failing until a reload —
@@ -32,7 +31,7 @@ export const createHttpSetup = (server: SubscriptionServer, standInWindow: Payme
         }));
     const loadPort = () =>
         (port ??= load()
-            .then(module => module.createLiveHttpPort(server, standInWindow))
+            .then(module => module.createLiveHttpPort(server))
             .catch(error => {
                 port = undefined;
                 throw error;

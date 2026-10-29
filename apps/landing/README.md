@@ -106,9 +106,10 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    `apps/web`. This is what keeps landing from becoming a second web app.
 9. **The account surface talks to a server through one port.** Pages, hooks and components call
    `SubscriptionPort` (`features/subscription/lib/port/`) and nothing else — no `fetch`, no HTTP
-   client. Of its implementations, only the HTTP one (`lib/port/http/`) reaches the network: the
-   session runtime, request signing and the payment SDK are imported there and nowhere else
-   (ADR-0248).
+   client. Of its implementations, only the HTTP one (`lib/port/http/`) reaches the network, and it
+   does so through the runtime's subscription repository (`libs/data`, over `libs/http`'s gateway),
+   as every other app's server calls do: the session runtime and the payment SDK are imported there
+   and nowhere else (ADR-0248).
 10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountEnabled` is
     false (every host but `localhost`, `127.0.0.1` and `-dev` ones) its routes are not registered,
     and the public pages' links into it render only where the gate is open — today the home header's
@@ -428,17 +429,28 @@ chunk, mock code included, though the mock is never run there.
 
 `createPortSetup({ account })` (`lib/createPortSetup.ts`) is where the port is chosen, and the only
 place. Where the account surface is open and the build carries the server's addresses, a tab runs on
-the server: the methods it answers (`lib/port/http/methods.ts`) come from the HTTP port, every other
-one — billing emails, invoices, undoing a cancellation or a scheduled downgrade, the default card,
-retrying — from the mock, signed in on the `new` scenario and kept apart from a mock-only tab's state;
-the server's sign-out wipes it. `?mock=<scenario>` switches the tab to the
-mock alone and `?mock=off` back; the choice holds for the tab. Without the addresses it is the mock.
+the server alone. The methods it answers (`lib/port/http/methods.ts`) come from the HTTP port; every
+other one — billing emails, invoices, undoing a cancellation or a scheduled downgrade, the default
+card, retrying — refuses, and nothing stands in for it. The port's `supports` says which methods are
+real (`PortSupports`, read with `useSupports()`), and the screens leave out what would call the rest:
+the billing history (its menu entry and route, and the recent billing on W-18), "Undo cancellation" on
+W-18 and after cancelling, and "Cancel the change" for a scheduled downgrade. Where the copy promised
+the undo — the list's status line, the cancel confirmation, W-14's notice for an ending subscription —
+a `…NoUndo` line says only what holds. `?mock=<scenario>` switches the tab to the mock alone and
+`?mock=off` back; the choice holds for the tab. Without the addresses it is the mock, whole.
 
 The addresses are the build's `VITE_*` values — copy `.env.example` to `.env` with the dev ones, as for
-the web app — read in `config/subscriptionServer.ts` and nowhere else. `VITE_SUBSCRIPTION_PAYMENTS_MOCK=1`
-asks the server for sample payments (its `?mock`), and the card window is then the mock's stand-in;
-otherwise it is the payment provider's (PortOne V2, KG Inicis), opened with the values the server's
-`issue` returns. The HTTP port and the session runtime load on first use, as a chunk of their own.
+the web app — read in `config/subscriptionServer.ts` and nowhere else; the session runtime takes the
+relay's address from them too. The card window is the payment provider's (PortOne V2, KG Inicis),
+opened with the values the server's `issue` returns. The HTTP port and the session runtime load on
+first use, as a chunk of their own.
+
+The server's calls themselves live in the shared libraries, not here: `libs/http`'s subscription
+gateway names the eight `/subscriptions/0/*` requests and declares their shapes, and `libs/data`'s
+`SubscriptionRepository` (`fetchMySubscription`, `startSubscription`, `cancelSubscription`, …) is what
+`lib/port/http/runtime.ts` hands the port as its `SubscriptionApi`. What stays in this app is the
+translation into the screens' view types and the rules around the calls (`createHttpPort.ts`,
+`wire.ts`, `errors.ts`).
 
 What the screens get from the server differs from the mock in a few places, all in `lib/port/http/wire.ts`:
 
@@ -533,7 +545,8 @@ reader walks away.
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
 Most of the libraries Nx's graph gives this app are not called from it. The public surface imports
-four; the account surface's HTTP port adds two more, `@chatic/app-runtime` and `@chatic/config`, with
+four; the account surface's HTTP port adds two more, `@chatic/app-runtime` (which reaches the server
+through `libs/data` and `libs/http`) and `@chatic/config`, with
 `@portone/browser-sdk` from the workspace root, inside a chunk of their own that loads on first use (see
 [The server](#the-server)) — and through the runtime, much of `libs/` reaches that chunk. The account
 surface also imports `@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from
@@ -550,7 +563,7 @@ the workspace root, inside its own chunk. The table is about the public pages.
 | `@chatic/app-messages`   | transitive, via `bridges` | nothing here calls it                                          |
 | `@chatic/ui-kit`         | transitive, via `shared`  | nothing here calls it                                          |
 | `@chatic/config`         | direct, 1 file            | the account surface's HTTP port configures the session runtime |
-| `@chatic/app-runtime`    | direct, 2 files           | the account surface's HTTP port: sign-in, session, signing     |
+| `@chatic/app-runtime`    | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository  |
 | `@chatic/device-utils`   | transitive, via `shared`  | nothing here calls it                                          |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
@@ -703,7 +716,7 @@ not trigger.
   not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 539 tests
+    npx nx test @chatic/landing   # 540 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
@@ -763,7 +776,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 539 tests pass; in CI
+npx nx test @chatic/landing                               # 540 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

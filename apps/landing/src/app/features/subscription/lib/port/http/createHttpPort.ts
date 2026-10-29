@@ -40,11 +40,23 @@ import type {
     Subscription,
 } from '../../../types';
 
-export type HttpRequest = (
-    method: 'GET' | 'POST',
-    url: string,
-    options?: { params?: Record<string, string>; body?: unknown }
-) => Promise<unknown>;
+/**
+ * The subscription server's calls, named as the runtime's subscription repository names them — in the
+ * app that repository is passed as it is (`runtime.ts`). A call rejects with whatever the transport
+ * rejected with; `errors.ts` reads it.
+ */
+export interface SubscriptionApi {
+    fetchPlans(params?: Record<string, unknown>): Promise<{ list?: ProductWire[] }>;
+    fetchMembershipInfo(): Promise<MembershipWire>;
+    fetchMySubscription(): Promise<{ subscription?: SubscriptionWire }>;
+    fetchSubscriptionCards(): Promise<CardWire[]>;
+    issueBillingKey(productId: string): Promise<IssueParams>;
+    startSubscription(body: { productId: string; billingKey?: string } & Partial<Payer>): Promise<SubscriptionWire>;
+    changeSubscription(productId: string): Promise<SubscriptionWire>;
+    cancelSubscription(): Promise<SubscriptionWire>;
+    replaceCard(body: { billingKey: string } & Payer): Promise<CardWire>;
+    removeCard(): Promise<SubscriptionWire>;
+}
 
 /** The relay session the reader signs in to, as this port needs it. */
 export interface SessionAccess {
@@ -58,7 +70,7 @@ export interface SessionAccess {
 
 export type PaymentWindowResult = { outcome: 'registered'; billingKey: string } | { outcome: 'failed' | 'closed' };
 
-/** Where a card is entered: the payment provider's window, or the stand-in while payments are samples. */
+/** Where a card is entered: the payment provider's window. */
 export type PaymentWindow = (request: {
     issue: IssueParams;
     payer: Payer;
@@ -75,15 +87,11 @@ export interface KeyValueStore {
 }
 
 export interface HttpPortOptions {
-    /** The subscription API's base address. */
-    backend: string;
-    /** Ask the server for sample payments (its `?mock`) on every subscription call. */
-    paymentsMock: boolean;
     /** The OAuth relay the browser leaves for to sign in. */
     socialOauth: string;
     /** This site's origin, which the OAuth relay sends the reader back to. */
     origin: string;
-    request: HttpRequest;
+    api: SubscriptionApi;
     session: SessionAccess;
     paymentWindow: PaymentWindow;
     /** Holds the sign-in in flight across the trip to the provider. Session storage in the browser. */
@@ -132,11 +140,11 @@ const fail = (code: SubscriptionPortError['code'], message?: string, detail?: Su
  * screens draw has one entry at most, and it answers a checkout with the subscription rather than an
  * attempt — the attempt the screens follow is made up here from it (`wire.ts`).
  *
- * The network, the session and the payment window are passed in, so this file is the whole
+ * The server's calls, the session and the payment window are passed in, so this file is the whole
  * translation and can be tested against the server's response shapes alone.
  */
 export const createHttpPort = (options: HttpPortOptions): HttpPort => {
-    const { backend, paymentsMock, request, session, paymentWindow, storage } = options;
+    const { api, session, paymentWindow, storage } = options;
     const now = options.now ?? (() => Date.now());
     const nonce = options.nonce ?? (() => Math.random().toString(36).slice(2, 12));
 
@@ -145,26 +153,16 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     let lost = false;
     let catalog: Promise<CatalogPlan[]> | undefined;
 
-    /** Sends a signed request as it is, rejecting with whatever the transport rejects with. */
-    const send = <T>(
-        method: 'GET' | 'POST',
-        path: string,
-        body?: unknown,
-        query?: Record<string, string>
-    ): Promise<T> => {
+    /** Makes a call with the session, rejecting with whatever the transport rejects with. */
+    const send = <T>(work: (server: SubscriptionApi) => Promise<T>): Promise<T> => {
         if (lost || !session.user()) return Promise.reject(new SubscriptionPortError('unauthenticated', 'no session'));
-        // The sample payments are the subscription server's; the plans take no such flag.
-        const params = query ?? (paymentsMock ? { mock: '1' } : undefined);
-        // A POST with no body at all is refused at the server's gateway (it never answers the browser's
-        // cross-origin check), where the same POST with an empty object reaches the server.
-        const sent = body === undefined && method === 'POST' ? {} : body;
-        return request(method, `${backend}${path}`, { params, body: sent }) as Promise<T>;
+        return work(api);
     };
 
     /** `send`, with the failure turned into the port's error. */
-    const call = async <T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> => {
+    const call = async <T>(work: (server: SubscriptionApi) => Promise<T>): Promise<T> => {
         try {
-            return await send<T>(method, path, body);
+            return await send(work);
         } catch (error) {
             throw lostIf(portErrorOf(error));
         }
@@ -178,9 +176,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     // The server lists its plans to a signed request only, so the catalog is read once there is a
     // session; a visitor is shown the published catalog instead (`listPlans`).
     const loadCatalog = (): Promise<CatalogPlan[]> => {
-        catalog ??= send<{ list?: ProductWire[] }>('GET', '/products/0/plans', undefined, {
-            platform: 'portone',
-        }).then(
+        catalog ??= send(server => server.fetchPlans({ platform: 'portone' })).then(
             result => toCatalog(result?.list ?? []),
             error => {
                 catalog = undefined;
@@ -200,16 +196,13 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     const readMineWithCard = async (): Promise<Subscription | undefined> => {
         const { sub } = await readMine();
         if (!sub || sub.status === 'expired') return sub;
-        const cards = await call<CardWire[]>('GET', '/subscriptions/0/cards');
+        const cards = await call(server => server.fetchSubscriptionCards());
         const card = (cards ?? []).find(each => each.isDefault && each.id);
         return card ? { ...sub, defaultPaymentMethodId: card.id } : sub;
     };
 
     const readMine = async (): Promise<{ wire?: SubscriptionWire; sub?: Subscription }> => {
-        const [mine, plans] = await Promise.all([
-            call<{ subscription?: SubscriptionWire }>('GET', '/subscriptions/0/mine'),
-            loadCatalog(),
-        ]);
+        const [mine, plans] = await Promise.all([call(server => server.fetchMySubscription()), loadCatalog()]);
         const wire = mine?.subscription;
         return { wire, sub: wire ? toSubscription(wire, plans) : undefined };
     };
@@ -219,7 +212,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         if (!user) return null;
         let membership: MembershipWire | undefined;
         try {
-            membership = await call<MembershipWire>('GET', '/memberships/0/mine');
+            membership = await call(server => server.fetchMembershipInfo());
         } catch (error) {
             if ((error as SubscriptionPortError).code === 'unauthenticated') return null;
             // An account that never bought anything may have no membership to read.
@@ -269,7 +262,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     ): Promise<RegistrationResult> => {
         if (result.outcome !== 'registered') return { outcome: result.outcome };
         if (purpose !== 'start') {
-            await call<CardWire>('POST', '/subscriptions/0/card', { billingKey: result.billingKey, ...payer });
+            await call(server => server.replaceCard({ billingKey: result.billingKey, ...payer }));
         }
         return { outcome: 'registered', card: result.billingKey as CardToken };
     };
@@ -364,7 +357,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
                 : (planOfProduct(await loadCatalog(), held?.productId)?.productId ??
                   (await loadCatalog())[0]?.productId);
             if (!productId) return fail('notFound', 'no product to register a card for');
-            const issue = await call<IssueParams>('POST', '/subscriptions/0/issue', { productId });
+            const issue = await call(server => server.issueBillingKey(productId));
             const redirectUrl = `${options.origin}${returnPathOf(purpose, planId, held?.id)}`;
             let outcome: PaymentWindowResult;
             try {
@@ -391,7 +384,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
                 ? { productId: plan.productId, billingKey: card, ...payer }
                 : { productId: plan.productId };
             try {
-                const view = await send<SubscriptionWire>('POST', '/subscriptions/0/start', body);
+                const view = await send(server => server.startSubscription(body));
                 const sub = toSubscription(view, await loadCatalog());
                 return attemptFromSubscription({ purpose: 'start', withTrial: view.status === 'trial' }, sub, {
                     unread: true,
@@ -416,9 +409,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             if (preview.blocked) return fail('conflict', `change blocked: ${preview.blocked}`);
             const plan = await catalogPlan(planId);
             try {
-                const view = await send<SubscriptionWire>('POST', '/subscriptions/0/change', {
-                    productId: plan.productId,
-                });
+                const view = await send(server => server.changeSubscription(plan.productId));
                 if (preview.kind === 'downgrade') {
                     return { scheduled: true as const, effectiveAt: dayOf(view.validUntil) ?? preview.effectiveAt };
                 }
@@ -438,19 +429,19 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         },
 
         cancelSubscription: async id => {
-            const view = await call<SubscriptionWire>('POST', '/subscriptions/0/cancel');
+            const view = await call(server => server.cancelSubscription());
             return toSubscription(view, await loadCatalog()) ?? fail('notFound', `no subscription ${id}`);
         },
 
         listPaymentMethods: async () => {
-            const cards = await call<CardWire[]>('GET', '/subscriptions/0/cards');
+            const cards = await call(server => server.fetchSubscriptionCards());
             return (cards ?? []).map(toPaymentMethod).filter((card): card is NonNullable<typeof card> => !!card);
         },
 
         // The server holds one card per subscription and removes that one; it takes no id.
         removePaymentMethod: async () => {
-            await call<SubscriptionWire>('POST', '/subscriptions/0/card-delete');
-            const cards = await call<CardWire[]>('GET', '/subscriptions/0/cards');
+            await call(server => server.removeCard());
+            const cards = await call(server => server.fetchSubscriptionCards());
             return (cards ?? []).map(toPaymentMethod).filter((card): card is NonNullable<typeof card> => !!card);
         },
     };

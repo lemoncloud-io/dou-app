@@ -13,7 +13,7 @@ import {
     useSession,
     useSubscription,
 } from '../../hooks';
-import { isPortError, useToday } from '../../lib/port';
+import { isPortError, useSupports, useToday } from '../../lib/port';
 import { type SceneAction, type SceneBanner, sceneOf } from '../../lib/sceneOf';
 import { useManagementScreens } from '../../lib/screens';
 import { chargeCardOf, changeTargetsOf, expiryOf, scheduledChangeDialogOf } from './manageModel';
@@ -24,10 +24,18 @@ import { type ManageFormat, useManageFormat } from './useManageFormat';
 import { useChangeCard } from './useChangeCard';
 import { useResumeFlow } from './useResumeFlow';
 
+import type { SubscriptionPort } from '../../lib/port';
 import type { PaymentMethod, Subscription } from '../../types';
 import type { TFunction } from 'i18next';
 
 const PILL = 'rounded-full';
+
+/** The actions that call a port method of their own, which the port may have no server for. */
+const SERVER_CALL = {
+    invoices: 'listInvoices',
+    resume: 'resumeSubscription',
+    cancelScheduledChange: 'cancelScheduledChange',
+} as const satisfies Partial<Record<SceneAction, keyof SubscriptionPort>>;
 
 /** W-18 — one subscription: banner and actions from `sceneOf`, recent invoices. */
 export const SubscriptionDetailPage = (): JSX.Element => {
@@ -71,7 +79,13 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
     const scene = sceneOf(sub, today);
     const { banner } = scene;
     // The card list is hidden, so the button that leads to it goes with it; changing the card is not.
-    const actions = scene.actions.filter(action => management || action !== 'paymentMethods');
+    // An action whose call the port has no server for is left out the same way.
+    const supports = useSupports();
+    const actions = scene.actions.filter(
+        action =>
+            (management || action !== 'paymentMethods') &&
+            (!(action in SERVER_CALL) || supports(SERVER_CALL[action as keyof typeof SERVER_CALL]))
+    );
     const plan = fmt.planOf(sub.planId);
     const target = fmt.planOf(sub.pendingChange?.planId);
     const card = chargeCardOf(sub, methods.data ?? []);

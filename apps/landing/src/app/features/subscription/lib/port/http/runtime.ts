@@ -1,7 +1,7 @@
 import { runtime } from '@chatic/app-runtime';
 import { config, createWebEnvAdapter } from '@chatic/config';
 
-import type { HttpRequest, SessionAccess } from './createHttpPort';
+import type { SessionAccess, SubscriptionApi } from './createHttpPort';
 
 let booted = false;
 
@@ -22,13 +22,12 @@ export const bootSessionRuntime = (env: (name: string) => string | undefined): v
     runtime.session.authFailureReaction.register(() => undefined);
 };
 
-/** A request signed with the relay session — the web app's own signing, through its one transport. */
-export const signedRequest: HttpRequest = async (method, url, { params, body } = {}) => {
-    const builder = runtime.boot.webTransport.buildSignedRequest({ method, baseURL: url });
-    if (params) builder.setParams(params);
-    if (body !== undefined) builder.setBody(body);
-    return (await builder.execute<unknown>()).data;
-};
+/**
+ * The subscription server's calls: the runtime's subscription repository, signed with the relay
+ * session like every other call the apps make. `useRuntimeRepositories` only reads the runtime's
+ * repository graph — it holds no React state — so it is read here, outside a component.
+ */
+export const subscriptionApi = (): SubscriptionApi => runtime.data.useRuntimeRepositories().subscription;
 
 export const relaySession: SessionAccess = {
     user: () => runtime.session.getRelaySessionUser(),

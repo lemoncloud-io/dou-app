@@ -457,6 +457,7 @@
                 "ending": {
                     "title": "해지 예정인 구독은 상품을 바꾸실 수 없습니다",
                     "body": "구독 정보에서 해지를 취소한 뒤 다시 시도해 주세요.",
+                    "bodyNoUndo": "지금 구독이 종료된 뒤 다시 구독하실 수 있습니다.",
                     "action": "구독 정보로"
                 },
                 "upgrade": {
@@ -550,6 +551,7 @@
                     "pastDue": "밀린 금액 {{amount}} · {{date}}({{dday}})부터 클라우드 이용 제한",
                     "restricted": "밀린 금액 {{amount}} · {{date}}부터 클라우드 이용 제한",
                     "cancelScheduled": "{{date}}까지 이용 · 자동 결제가 중지되었습니다 · 종료일 전까지 해지를 취소하실 수 있습니다",
+                    "cancelScheduledNoUndo": "{{date}}까지 이용 · 자동 결제가 중지되었습니다",
                     "downgradeScheduled": "{{date}}부터 DoU Cloud {{to}} · 월 {{amount}}"
                 },
                 "empty": {
@@ -754,6 +756,7 @@
                     "title": "해지를 신청하셨습니다",
                     "bannerTitle": "{{date}}까지 이용하실 수 있습니다",
                     "bannerBody": "더 이상 결제되지 않습니다. 마음이 바뀌시면 종료일 전까지 해지를 취소하실 수 있습니다.",
+                    "bannerBodyNoUndo": "더 이상 결제되지 않습니다. 종료일까지는 지금처럼 사용하실 수 있습니다.",
                     "toDetail": "구독 정보로",
                     "resume": "해지 취소",
                     "note": "종료일이 지난 뒤에는 해지를 취소하실 수 없으며, 다시 구독하셔야 합니다. 해지 뒤 카드를 삭제하셨다면 카드를 먼저 등록해 주세요."

@@ -6,7 +6,7 @@ import { Logo } from '@chatic/assets';
 
 import { ROUTES } from '../../../routes/paths';
 import { useCurrentSubscription, useSession } from '../hooks';
-import { useToday } from '../lib/port';
+import { useSupports, useToday } from '../lib/port';
 import { useManagementScreens } from '../lib/screens';
 import { sceneOf } from '../lib/sceneOf';
 import { cn, formatDate } from '../utils';
@@ -15,7 +15,8 @@ import { AccountMenu } from './AccountMenu';
 const MENU = [
     { to: ROUTES.subscription.root, key: 'manage', end: true, management: false },
     { to: ROUTES.subscription.paymentMethods, key: 'paymentMethods', end: false, management: true },
-    { to: ROUTES.subscription.history, key: 'history', end: false, management: false },
+    // Left out where the port has no server for the billing history.
+    { to: ROUTES.subscription.history, key: 'history', end: false, management: false, needs: 'listInvoices' },
     { to: ROUTES.subscription.billingInfo, key: 'billingInfo', end: false, management: true },
 ] as const;
 
@@ -30,6 +31,7 @@ export const AccountShell = (): JSX.Element => {
     const { subscription, plan } = useCurrentSubscription();
     const today = useToday();
     const management = useManagementScreens();
+    const supports = useSupports();
     // The same rule as the detail screen's buttons, so the sidebar never offers what the screen
     // would refuse (a scheduled downgrade, for one, is cancelled from its own card first).
     const cancellable = !!subscription && sceneOf(subscription, today).actions.includes('cancel');
@@ -62,7 +64,9 @@ export const AccountShell = (): JSX.Element => {
                     )}
                 </div>
                 <nav className="flex flex-row flex-wrap gap-1 md:flex-col">
-                    {MENU.filter(item => management || !item.management).map(item => (
+                    {MENU.filter(
+                        item => (management || !item.management) && (!('needs' in item) || supports(item.needs))
+                    ).map(item => (
                         <NavLink
                             key={item.key}
                             to={item.to}

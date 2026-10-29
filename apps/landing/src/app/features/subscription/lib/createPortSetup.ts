@@ -2,23 +2,17 @@ import { type ComponentType, type ReactNode } from 'react';
 
 import { subscriptionServer, type SubscriptionServer } from '../../../config/subscriptionServer';
 import { createCatalogPort } from './catalogPort';
-import { createMockPort, type MockController, type MockSetup } from './mock';
-import { sessionStateStore } from './mock/storage';
-import { systemClock, type Clock, type SubscriptionPort } from './port';
-import { HTTP_METHODS, type HttpPort, type HttpSetup, type PaymentWindow, createHttpSetup } from './port/http';
-
-import type { Account, CardToken } from '../types';
+import { createMockPort, type MockController } from './mock';
+import { SubscriptionPortError, systemClock, type Clock, type PortSupports, type SubscriptionPort } from './port';
+import { HTTP_METHODS, type HttpMethod, type HttpPort, type HttpSetup, createHttpSetup } from './port/http';
 
 export interface PortSetup {
     port: SubscriptionPort;
     clock: Clock;
+    /** What the port really answers; everything when omitted (see `PortSupports`). */
+    supports?: PortSupports;
     /** Present only when the port is the mock: turns on the dev panel and the stand-in pages. */
     mock?: MockController;
-    /**
-     * The mock behind a composed port: the stand-in payment window is drawn from it, nothing else —
-     * no dev panel, no stand-in sign-in.
-     */
-    standIn?: MockController;
     /** Wraps the routes when the port needs a session host above them. */
     Host?: ComponentType<{ children: ReactNode }>;
 }
@@ -26,8 +20,6 @@ export interface PortSetup {
 export type PortMode = 'mock' | 'server';
 
 const MODE_KEY = 'subscription.portMode';
-/** The composed mock's state, apart from the mock-only tab's, so neither inherits the other's account. */
-const COMPOSED_MOCK_KEY = '@landing.subscription.mock.composed';
 
 /**
  * Which port a development tab runs on. The server is the default; `?mock=<scenario>` switches the tab
@@ -41,26 +33,23 @@ export const portModeOf = (search: string, stored: string | null): PortMode => {
     return stored === 'mock' ? 'mock' : 'server';
 };
 
-/**
- * One port out of two: the server's methods from the HTTP port, every other one from the mock. The
- * screens see a single port; which of its methods have a server is `HTTP_METHODS`.
- */
-export const composePort = (http: HttpPort, rest: SubscriptionPort): SubscriptionPort => ({
-    ...rest,
-    ...Object.fromEntries(HTTP_METHODS.map(method => [method, http[method]])),
-});
+const isHttpMethod = (method: keyof SubscriptionPort): method is HttpMethod =>
+    (HTTP_METHODS as ReadonlyArray<keyof SubscriptionPort>).includes(method);
 
 /**
- * The payment window while the server's payments are samples: the mock's own stand-in dialog answers,
- * and a card it registers is given a key the sample server accepts.
+ * The whole port over the server: its methods from the HTTP port, and every other one refusing. Nothing
+ * stands in for a method with no server — the screens leave out what would call it (`supports`). The
+ * catalog port is the list of every method, since it implements each one.
  */
-const standInWindowOf =
-    (mock: MockSetup): PaymentWindow =>
-    async ({ purpose, planId, payer }) => {
-        const result = await mock.port.startPaymentMethodRegistration({ purpose, planId, payer });
-        if (result.outcome !== 'registered') return { outcome: result.outcome };
-        return { outcome: 'registered', billingKey: `mock-billing-key-${result.card as CardToken}` };
-    };
+export const serverPortOf = (http: HttpPort): SubscriptionPort => {
+    const refusing = Object.fromEntries(
+        Object.keys(createCatalogPort()).map(method => [
+            method,
+            () => Promise.reject(new SubscriptionPortError('conflict', `no server for ${method} yet`)),
+        ])
+    ) as unknown as SubscriptionPort;
+    return { ...refusing, ...http };
+};
 
 const readMode = (): string | null => {
     try {
@@ -84,9 +73,8 @@ const saveMode = (mode: PortMode): void => {
  * - Where the account surface is shut it is the catalog port, which knows the plans and nothing else.
  * - Where it is open but the build carries no server addresses, it is the mock, as before there was a
  *   server.
- * - Otherwise a tab runs on the server, composed with the mock for the methods that have no server
- *   yet (`portModeOf` for switching a tab to the mock alone). The mock it composes with is signed in
- *   on the `new` scenario, so the methods it answers have an account to answer for.
+ * - Otherwise a tab runs on the server alone (`portModeOf` for switching a tab to the mock alone). The
+ *   methods with no server yet refuse, and `supports` tells the screens which they are.
  *
  * The mock is only created where it is used: it reads the URL and session storage as it starts, and
  * on the production host neither should happen.
@@ -101,7 +89,7 @@ export const createPortSetup = ({
     /** `null`: the build has no server. */
     server?: SubscriptionServer | null;
     search?: string;
-    createHttp?: (server: SubscriptionServer, standInWindow: PaymentWindow) => HttpSetup;
+    createHttp?: (server: SubscriptionServer) => HttpSetup;
 }): PortSetup => {
     if (!account) return { port: createCatalogPort(), clock: systemClock };
     const mode = server ? portModeOf(search, readMode()) : 'mock';
@@ -111,37 +99,11 @@ export const createPortSetup = ({
         return { port: mock.port, clock: mock.clock, mock: mock.controller };
     }
 
-    // The composed mock answers for the account signed in to the server, so it starts as a fresh one
-    // and is wiped with the server's sign-out; it ignores the URL, which belongs to the mock-only tab.
-    const mock = createMockPort({ store: sessionStateStore(undefined, COMPOSED_MOCK_KEY), readSearch: () => '' });
-    const fresh = () => mock.controller.setScenario('new');
-    const held = mock.controller.peek();
-    if (!held.signedIn || held.scenario !== 'new') fresh();
-    const http = createHttp(server, standInWindowOf(mock));
-    const port = composePort(http.port, mock.port);
-    // The mock answers for the account the server knows, so what it derives from the account — the
-    // billing email taken from the sign-in address — is that account's, not the scenario's.
-    const known = (account: Account | null): Account | null => {
-        if (account) mock.controller.setAccount(account);
-        return account;
-    };
+    const http = createHttp(server);
     return {
-        port: {
-            ...port,
-            getSession: async () => known(await http.port.getSession()),
-            completeSignIn: async callback => {
-                const result = await http.port.completeSignIn(callback);
-                if ('account' in result) known(result.account);
-                return result;
-            },
-            signOut: () => {
-                fresh();
-                return http.port.signOut();
-            },
-        },
-        // The server's dates are real ones; the mock's pinned today stays with the mock.
+        port: serverPortOf(http.port),
         clock: systemClock,
-        standIn: server.paymentsMock ? mock.controller : undefined,
+        supports: isHttpMethod,
         Host: http.Host,
     };
 };

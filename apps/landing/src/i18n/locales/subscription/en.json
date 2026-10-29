@@ -457,6 +457,7 @@
                 "ending": {
                     "title": "A subscription that is ending cannot change plan",
                     "body": "Undo the cancellation on the subscription page, then try again.",
+                    "bodyNoUndo": "You can subscribe again once the current subscription ends.",
                     "action": "Go to subscription"
                 },
                 "upgrade": {
@@ -550,6 +551,7 @@
                     "pastDue": "{{amount}} overdue · clouds restricted from {{date}} ({{dday}})",
                     "restricted": "{{amount}} overdue · clouds restricted since {{date}}",
                     "cancelScheduled": "In use until {{date}} · automatic payment stopped · you can undo the cancellation until then",
+                    "cancelScheduledNoUndo": "In use until {{date}} · automatic payment stopped",
                     "downgradeScheduled": "DoU Cloud {{to}} from {{date}} · {{amount}} a month"
                 },
                 "empty": {
@@ -754,6 +756,7 @@
                     "title": "You cancelled your subscription",
                     "bannerTitle": "You can use it until {{date}}",
                     "bannerBody": "You won't be charged again. If you change your mind, you can undo the cancellation until it ends.",
+                    "bannerBodyNoUndo": "You won't be charged again. You can keep using it as before until it ends.",
                     "toDetail": "Subscription details",
                     "resume": "Undo cancellation",
                     "note": "After the end date, subscribing again starts a new subscription instead of undoing the cancellation. If you removed your card after cancelling, add one first."

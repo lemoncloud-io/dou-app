@@ -19,7 +19,6 @@ import { type StateStore, sessionStateStore } from './storage';
 
 import type { Clock, SubscriptionPort } from '../port';
 import type {
-    Account,
     AttemptPurpose,
     BillingEmail,
     CardToken,
@@ -49,12 +48,6 @@ export interface MockController {
     /** `null` goes back to the scenario's own today. */
     setToday(today: string | null): void;
     setPanelHidden(hidden: boolean): void;
-    /**
-     * Makes the mock's account the one signed in to the server, for a composed port: the methods the
-     * mock still answers (the billing email taken from the sign-in address, for one) must speak for
-     * that account, not for the scenario's own. Only who the account is changes, never what it holds.
-     */
-    setAccount(identity: Pick<Account, 'id' | 'provider' | 'email' | 'emailHint' | 'displayName'>): void;
     /** Registers the stand-in payment window that answers `startPaymentMethodRegistration`. */
     setPaymentWindow(presenter: PaymentWindowPresenter | null): void;
 }
@@ -805,10 +798,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         setFail: flag => commit({ ...state, fail: flag }),
         setToday: today => commit({ ...state, today: today ?? buildScenario(state.scenario).today }),
         setPanelHidden: hidden => commit({ ...state, panelHidden: hidden }),
-        setAccount: identity => {
-            const next = { ...state.account, ...identity };
-            if (JSON.stringify(next) !== JSON.stringify(state.account)) commit({ ...state, account: next });
-        },
         setPaymentWindow: presenter => {
             paymentWindow = presenter;
         },

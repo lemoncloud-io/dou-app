@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import i18n from '../../../../i18n';
 import { createMockPort } from '../lib/mock';
 import { memoryStateStore } from '../lib/mock/storage';
+import { HTTP_METHODS } from '../lib/port/http';
 
 import { MANAGEMENT_SCREENS_OPEN } from '../lib/screens';
 
@@ -146,6 +147,28 @@ describe('SubscriptionRoutes', () => {
 
         it('is hidden unless asked for: nothing opens them by default', () => {
             expect(MANAGEMENT_SCREENS_OPEN).toBe(false);
+        });
+    });
+
+    describe('against the server, which has no billing history yet', () => {
+        const onServer = (search: string): PortSetup => ({
+            ...mockSetup(search),
+            supports: method => (HTTP_METHODS as ReadonlyArray<string>).includes(method),
+        });
+
+        it('leaves the billing history out of the sidebar', async () => {
+            renderAt('/subscription', onServer('?mock=active'), { management: false });
+
+            const nav = within(await screen.findByRole('navigation'));
+            expect(nav.getByRole('link', { name: 'Subscription' })).toBeTruthy();
+            expect(nav.queryByRole('link', { name: 'Billing history' })).toBeNull();
+        });
+
+        it('does not register the billing history: it falls to the subscription list', async () => {
+            renderAt('/subscription/history', onServer('?mock=active'), { management: false });
+
+            expect(await screen.findByText('W-10')).toBeTruthy();
+            expect(where()).toBe('/subscription');
         });
     });
 

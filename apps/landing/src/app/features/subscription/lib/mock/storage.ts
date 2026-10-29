@@ -14,15 +14,12 @@ const KEY = '@landing.subscription.mock';
  * a private window, a quota, a blocked origin — falls back to memory for the rest of the page's life
  * rather than breaking the screens.
  */
-export const sessionStateStore = (
-    storage: () => Storage = () => window.sessionStorage,
-    key: string = KEY
-): StateStore => {
+export const sessionStateStore = (storage: () => Storage = () => window.sessionStorage): StateStore => {
     let memory: MockState | null = null;
     return {
         load() {
             try {
-                const raw = storage().getItem(key);
+                const raw = storage().getItem(KEY);
                 if (raw) return JSON.parse(raw) as MockState;
             } catch {
                 // Unreadable or unparsable — fall through to memory.
@@ -32,7 +29,7 @@ export const sessionStateStore = (
         save(state) {
             memory = state;
             try {
-                storage().setItem(key, JSON.stringify(state));
+                storage().setItem(KEY, JSON.stringify(state));
             } catch {
                 // Memory already holds it.
             }
@@ -40,7 +37,7 @@ export const sessionStateStore = (
         clear() {
             memory = null;
             try {
-                storage().removeItem(key);
+                storage().removeItem(KEY);
             } catch {
                 // Nothing stored to clear.
             }

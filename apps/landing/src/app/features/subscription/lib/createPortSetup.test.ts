@@ -1,32 +1,18 @@
-import { composePort, createPortSetup, portModeOf } from './createPortSetup';
-import { createCatalogPort } from './catalogPort';
+import { createPortSetup, portModeOf, serverPortOf } from './createPortSetup';
+import { isPortError } from './port';
 import { HTTP_METHODS, type HttpPort, type HttpSetup } from './port/http';
 
 import type { SubscriptionServer } from '../../../config/subscriptionServer';
 
 const SERVER: SubscriptionServer = {
-    backend: 'https://api.example.com/dou-d1',
-    paymentsMock: true,
     socialOauth: 'https://oauth2.example.com',
     env: () => undefined,
 };
 
-const SERVER_ACCOUNT = {
-    id: 'U9',
-    provider: 'google' as const,
-    email: 'real.user@example.com',
-    displayName: 'Real User',
-    billingSource: 'none' as const,
-    trialUsed: false,
-};
-
 const fakeHttp = (): HttpSetup => ({
-    port: {
-        ...(Object.fromEntries(
-            HTTP_METHODS.map(method => [method, vi.fn(async () => `http:${method}`)])
-        ) as unknown as HttpPort),
-        getSession: async () => SERVER_ACCOUNT,
-    },
+    port: Object.fromEntries(
+        HTTP_METHODS.map(method => [method, vi.fn(async () => `http:${method}`)])
+    ) as unknown as HttpPort,
     Host: ({ children }) => children as never,
 });
 
@@ -48,14 +34,13 @@ describe('portModeOf', () => {
     });
 });
 
-describe('composePort', () => {
-    it('takes the server methods from the HTTP port and every other one from the rest', async () => {
-        const rest = createCatalogPort();
-        const port = composePort(fakeHttp().port, rest);
+describe('serverPortOf', () => {
+    it('answers the server methods from the HTTP port and refuses every other one', async () => {
+        const port = serverPortOf(fakeHttp().port);
         expect(await port.listPlans()).toBe('http:listPlans');
         expect(await port.signOut()).toBe('http:signOut');
-        expect(port.listInvoices).toBe(rest.listInvoices);
-        expect(port.getBillingInfo).toBe(rest.getBillingInfo);
+        expect(isPortError(await port.listInvoices().catch(error => error), 'conflict')).toBe(true);
+        expect(isPortError(await port.getBillingInfo().catch(error => error), 'conflict')).toBe(true);
     });
 });
 
@@ -68,57 +53,16 @@ describe('createPortSetup', () => {
         expect(createHttp).not.toHaveBeenCalled();
     });
 
-    it('composes the server with a signed-in mock, drawing only the stand-in window from it', async () => {
+    it('runs on the server alone, with no mock behind it, and says which methods it answers', async () => {
         const setup = createPortSetup({ account: true, server: SERVER, search: '', createHttp: fakeHttp });
         expect(setup.mock).toBeUndefined();
-        expect(setup.standIn).toBeDefined();
         expect(setup.Host).toBeDefined();
         expect(await setup.port.listPlans()).toBe('http:listPlans');
-        // The mock answers what the server cannot, as the account it was signed in with.
-        expect((await setup.port.getBillingInfo()).emails).toEqual([]);
+        expect(setup.supports?.('listPlans')).toBe(true);
+        expect(setup.supports?.('listInvoices')).toBe(false);
+        expect(setup.supports?.('resumeSubscription')).toBe(false);
+        expect(isPortError(await setup.port.listInvoices().catch(error => error), 'conflict')).toBe(true);
         expect(window.sessionStorage.getItem('subscription.portMode')).toBe('server');
-    });
-
-    it('does not carry a mock-only tab into the server account, and wipes it with the sign-out', async () => {
-        // A mock-only tab that ran the `active` scenario, with its own billing email. The mock reads the
-        // live URL, so the page is put there.
-        window.history.replaceState(null, '', '/subscription?mock=active');
-        const mockOnly = createPortSetup({
-            account: true,
-            server: SERVER,
-            search: '?mock=active',
-            createHttp: fakeHttp,
-        });
-        expect((await mockOnly.port.getBillingInfo()).emails.length).toBeGreaterThan(0);
-
-        window.history.replaceState(null, '', '/subscription?mock=off');
-        const composed = createPortSetup({ account: true, server: SERVER, search: '?mock=off', createHttp: fakeHttp });
-        expect((await composed.port.getBillingInfo()).emails).toEqual([]);
-        await composed.port.requestEmailCode('minji.kim@gmail.com');
-        expect((await composed.port.getBillingInfo()).emails).toHaveLength(1);
-        expect(await composed.port.signOut()).toBe('http:signOut');
-        expect((await composed.port.getBillingInfo()).emails).toEqual([]);
-    });
-
-    it('has the mock speak for the account the server signed in, not the scenario account', async () => {
-        const setup = createPortSetup({ account: true, server: SERVER, search: '', createHttp: fakeHttp });
-        expect(await setup.port.getSession()).toEqual(SERVER_ACCOUNT);
-        // The billing email taken from the sign-in address is the server account's.
-        const adopted = await setup.port.adoptSignInEmail();
-        expect(adopted.address).toBe('real.user@example.com');
-        expect((await setup.port.getBillingInfo()).emails.map(email => email.address)).toEqual([
-            'real.user@example.com',
-        ]);
-    });
-
-    it('opens the provider window, not the stand-in, when the server takes real payments', () => {
-        const setup = createPortSetup({
-            account: true,
-            server: { ...SERVER, paymentsMock: false },
-            search: '',
-            createHttp: fakeHttp,
-        });
-        expect(setup.standIn).toBeUndefined();
     });
 
     it('switches a tab to the mock alone and remembers it', () => {

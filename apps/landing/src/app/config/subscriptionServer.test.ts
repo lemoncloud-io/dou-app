@@ -9,17 +9,10 @@ const ENV = {
 
 describe('readSubscriptionServer', () => {
     it('reads the server from the build values where the account surface is open', () => {
-        const server = readSubscriptionServer({ ...ENV, VITE_SUBSCRIPTION_PAYMENTS_MOCK: '1' }, true);
-        expect(server).toMatchObject({
-            backend: 'https://api.example.com/dou-d1',
-            paymentsMock: true,
-            socialOauth: 'https://oauth2.example.com',
-        });
+        const server = readSubscriptionServer(ENV, true);
+        expect(server).toMatchObject({ socialOauth: 'https://oauth2.example.com' });
+        expect(server?.env('VITE_DOU_ENDPOINT')).toBe('https://api.example.com/dou-d1');
         expect(server?.env('VITE_WS_ENDPOINT')).toBe('wss://wss.example.com/cht-d1');
-    });
-
-    it('takes real payments unless the samples are asked for', () => {
-        expect(readSubscriptionServer(ENV, true)?.paymentsMock).toBe(false);
     });
 
     it('has no server where the account surface is shut, or where an address is missing', () => {

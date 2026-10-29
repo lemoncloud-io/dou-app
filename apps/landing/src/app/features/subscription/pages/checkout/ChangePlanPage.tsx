@@ -7,7 +7,7 @@ import { PageLoader, SummaryTile } from '../../components';
 import { Banner, Button } from '../../components/ui';
 import { useChangePlan, usePaymentMethods, usePlans, usePreviewChange } from '../../hooks';
 import { ddayOf } from '../../lib/ddayOf';
-import { isPortError, useToday } from '../../lib/port';
+import { isPortError, useSupports, useToday } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
 import { cn, formatDate, formatMoney } from '../../utils';
 import { DOWNGRADE_COMPLETE_URL, checkoutUrl, formatShortDate, statusUrl } from './flow';
@@ -37,6 +37,8 @@ export const ChangePlanPage = (): JSX.Element => {
     // An ending subscription has no next period to change; it is resumed first, on its own page. Read
     // from its status rather than from the preview's refusal, which could have other causes.
     const ending = subscription?.status === 'cancelScheduled';
+    // Where a cancellation cannot be undone, the notice does not send the reader to undo it.
+    const resumable = useSupports()('resumeSubscription');
     const preview = usePreviewChange(route === 'change' && !ending ? target?.id : undefined);
 
     if (loading) return <PageLoader />;
@@ -56,7 +58,7 @@ export const ChangePlanPage = (): JSX.Element => {
                     </Link>
                 }
             >
-                {t('subscription.checkout.change.ending.body')}
+                {t(`subscription.checkout.change.ending.${resumable ? 'body' : 'bodyNoUndo'}`)}
             </Banner>
         );
     }
