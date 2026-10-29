@@ -109,6 +109,46 @@ Alt+Shift+↓ and Alt+Shift+↑ open the next or previous channel with unread, w
 
 The shortcut sheet (`ShortcutsDialog`) lists both uses of the chord and where each applies.
 
+## Cloud and place by number
+
+⌘1…⌘9 (Ctrl off macOS) count the rows of the cloud switcher and Shift+1…Shift+9 the place tiles. Both
+are read in the order the rail draws them — Home first in the switcher whatever was stored, then the
+device's stored order — so a number means the row the reader is looking at, including after a cloud or
+place was dragged somewhere else (`useRailShortcuts`, `features/chat/hooks/`).
+
+- **Home is row 1, and ⌘0 goes there too.** It is the fixed return row every cloud comes back through,
+  so it sits at the top of the list the numbers count; 0 is the key it carried before it was numbered,
+  kept so a reader who reaches for it still lands there. A place has no such row, so its numbers start
+  at its first tile.
+- **Nine keys number nine rows, and nine rows are Home plus eight clouds.** A ninth cloud is out of
+  reach by number where a tenth row would be anyway — the count starts at Home rather than at the
+  cloud under it.
+- The listener is mounted by `HomePage`: the rails are the only place a cloud or place is chosen, and
+  the numbers need both lists.
+- A number past the end of either list does nothing and does not take the key. On Home, where the one
+  place tile is not a place switch, no place number does anything.
+- A switch in flight locks the keys along with both rails. A socket that has not verified yet locks the
+  keys and the cloud rows — a switch sent over a half-open socket fails without saying why — while the
+  place tiles still take a click, so a place number can be ignored while its own tile would not be.
+- A cloud its subscription no longer keeps open is not entered: its number shows the same mobile-app
+  toast its row does. The cloud already open is left alone.
+- **Shift+digit is a character.** In a text field it types ("!" for 1), so a place chord never fires
+  there; a cloud chord types nothing, so it works from the composer too. On the page, Shift+digit does
+  not start a message the way a letter does — it is the place chord. Neither chord fires over a dialog
+  or an open menu, which own the keyboard while they are up. The one `role="dialog"` that is not
+  counted is the sidebar drawer: in the compact layout the rails are inside it, so treating it as an
+  overlay would take the keys away exactly where the tiles they name are drawn.
+- **A room opened by a number keeps the reader's keys.** Opening a room normally drops the caret in
+  its composer (`ChannelDraftPlugin`), which is what a click there wants; a chord user is stepping
+  through the rail, and the next Shift+digit would type into that box instead of moving. The chord
+  asks the room it opens not to take the caret (`useComposerFocusStore.skipNext`), and `HomePage`
+  drops the request when the switch settles so it cannot leak onto a click that comes later. A
+  switch can land on more than one room, so the request holds for the whole switch rather than being
+  spent on the first one.
+- On macOS the app menu's Reset Zoom gave up its ⌘0 accelerator for this — the menu registers an
+  accelerator before the page sees the key, so it would have swallowed Home. The item still resets the
+  zoom when clicked.
+
 ## Announcements
 
 - The viewer says the new position when you step.

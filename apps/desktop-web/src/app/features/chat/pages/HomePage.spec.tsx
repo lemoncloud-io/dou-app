@@ -103,6 +103,7 @@ vi.mock('../hooks', async importOriginal => ({
     useHydrateDmPeers: () => undefined,
     useMessageViewer: () => null,
     useNextUnreadShortcut: () => undefined,
+    useRailShortcuts: () => undefined,
     useReadCounts: () => () => undefined,
 }));
 

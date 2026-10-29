@@ -964,6 +964,8 @@ export const ko: EnTranslation = {
     'shortcuts.help': '이 도움말 보기',
     'shortcuts.typeToCompose': '아무 곳에서나 입력을 시작하면 메시지를 쓸 수 있어요',
     'shortcuts.format': '굵게 · 기울임 · 취소선 · 코드 · 코드 블록',
+    'shortcuts.switchCloud': '클라우드로 이동 · 레일 순서대로, 홈부터',
+    'shortcuts.switchPlace': '플레이스로 이동',
     'emoji.recent': '최근 사용',
     'emoji.cat.smileys': '표정',
     'emoji.cat.gestures': '손동작',

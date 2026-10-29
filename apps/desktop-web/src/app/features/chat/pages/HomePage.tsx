@@ -54,6 +54,7 @@ import {
     type NavDestination,
     useUnreadStore,
     useCloudProfiles,
+    useComposerFocusStore,
 } from '../../../shared';
 import {
     ChannelList,
@@ -80,6 +81,7 @@ import {
     useHeldChannel,
     useNextUnreadShortcut,
     usePendingLanding,
+    useRailShortcuts,
     useReadCounts,
     usePlaceWelcome,
     useTrailingPanelOwners,
@@ -154,6 +156,21 @@ export const HomePage = () => {
     // the switch/reconnect window.
     const { isVerified } = runtime.connection.useRuntimeSocketState();
     const railLocked = isSwitching || !isVerified;
+
+    // A rail chord asks the room it opens not to take the caret, so the chord after it moves the
+    // rail instead of typing into the box. Drop the request when the switch settles, and a moment
+    // after the chord when no switch follows (the cloud is closed, the place is already open) — it
+    // must not outlive the switch it was made for and swallow the focus of a later click.
+    const skipComposerFocus = useComposerFocusStore(s => s.skipNext);
+    useEffect(() => {
+        if (!skipComposerFocus) return;
+        const timer = setTimeout(
+            () => useComposerFocusStore.getState().clearSkip(),
+            // Long enough for a slow switch to land, short enough to let go of a chord that starts none.
+            isSwitching ? 15000 : 3000
+        );
+        return () => clearTimeout(timer);
+    }, [isSwitching, skipComposerFocus]);
 
     // Place Profiles: mirror the current place's overrides into the store (one
     // subscription). Delta pulls are owned by the runtime (useBackgroundSync +
@@ -812,6 +829,28 @@ export const HomePage = () => {
         }
     }, [selectedChannelId, selectedLastChatNo, markRead]);
 
+    // Picking a cloud or a place is a deliberate move, like picking a channel from the list, so it
+    // retires any return point. The tile and the number key that stands for it run the same handler.
+    const selectCloudFromRail = (cloudId: string) => {
+        clearJumpOrigin();
+        void switchCloud(cloudId);
+    };
+    const selectPlaceFromRail = (placeId: string) => {
+        clearJumpOrigin();
+        switchPlace(placeId);
+    };
+    // Locked until the socket re-verifies on the new cloud, as the cloud tiles are: a switch sent over a
+    // half-open socket fails without saying anything about the cloud or place it was asked for.
+    useRailShortcuts({
+        clouds,
+        places,
+        activeCloudId,
+        onSelectCloud: selectCloudFromRail,
+        onSelectPlace: selectPlaceFromRail,
+        isSwitching: railLocked,
+        isDefaultMode,
+    });
+
     return (
         <>
             <DesktopLayout
@@ -822,12 +861,7 @@ export const HomePage = () => {
                             activeCloudId={activeCloudId}
                             hasUnread={cloudHasUnread}
                             badgedClouds={badgedClouds}
-                            // Switching from the rail is a deliberate move, like picking a
-                            // channel from the list, so it retires any return point.
-                            onSelectCloud={cloudId => {
-                                clearJumpOrigin();
-                                void switchCloud(cloudId);
-                            }}
+                            onSelectCloud={selectCloudFromRail}
                             isSwitching={railLocked}
                             isCatalogError={isCloudsError}
                             isRetryingCatalog={isFetchingClouds}
@@ -839,10 +873,7 @@ export const HomePage = () => {
                             unreadByPlace={unreadByPlace}
                             isDefaultMode={isDefaultMode}
                             isSwitching={isSwitching}
-                            onSelectPlace={placeId => {
-                                clearJumpOrigin();
-                                switchPlace(placeId);
-                            }}
+                            onSelectPlace={selectPlaceFromRail}
                             canManagePlaces={mayManagePlacesHere}
                             onCreatePlace={() => setCreatePlaceOpen(true)}
                             onEditPlace={openEditPlace}
