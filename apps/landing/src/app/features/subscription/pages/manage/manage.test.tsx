@@ -365,6 +365,7 @@ describe('against the server, which answers only some of the calls', () => {
         await screen.findByText('Your subscription ends on 2026.11.20 · D-19');
         expect(screen.queryByRole('button', { name: 'Undo cancellation' })).toBeNull();
         expect(screen.queryByText('Recent billing')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'View billing history' })).toBeNull();
     });
 
     it('leaves out cancelling a scheduled downgrade', async () => {

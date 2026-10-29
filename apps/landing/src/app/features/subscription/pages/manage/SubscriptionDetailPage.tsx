@@ -254,7 +254,11 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
                                           day: sub.billingDay,
                                       })
                             }
-                            action={t('subscription.manage.detail.periodCard.history')}
+                            action={
+                                supports('listInvoices')
+                                    ? t('subscription.manage.detail.periodCard.history')
+                                    : undefined
+                            }
                             onAction={() => navigate(ROUTES.subscription.history)}
                         />
                     </div>
@@ -389,16 +393,19 @@ const InfoCard = ({
 }: {
     title: string;
     line: string;
-    action: string;
+    /** Left out, the card has no button. */
+    action?: string;
     onAction: () => void;
     disabled?: boolean;
 }): JSX.Element => (
     <Card className="flex flex-col items-start gap-3 px-5 py-5">
         <h2 className="text-sm font-semibold text-navy">{title}</h2>
         <p className="text-[13px] text-subtitle">{line}</p>
-        <Button size="sm" variant="secondary" disabled={disabled} onClick={onAction}>
-            {action}
-        </Button>
+        {action && (
+            <Button size="sm" variant="secondary" disabled={disabled} onClick={onAction}>
+                {action}
+            </Button>
+        )}
     </Card>
 );
 

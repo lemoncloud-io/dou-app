@@ -14,7 +14,7 @@ import {
     useSubscriptions,
 } from '../../hooks';
 import { toIsoDate } from '../../lib/calendar';
-import { useToday } from '../../lib/port';
+import { useSupports, useToday } from '../../lib/port';
 import { formatDate, formatMoney } from '../../utils';
 import { type CompleteScene, chargedToday, completeSceneOf, dayBefore, formatShortDate, statusUrl } from './flow';
 import { AppStoreLink, CheckoutSteps, FactRows, LoadError, NoteBox, ResultHeader } from './parts';
@@ -182,6 +182,8 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
     const today = toIsoDate(useToday());
     const key = (name: string) => `subscription.checkout.complete.${name}`;
     const charge = chargedToday(invoices.data, 'upgrade', plan.id, today);
+    // The receipt lives in the billing history, which is left out where the port has no server for it.
+    const receipts = useSupports()('listInvoices');
 
     // Whether anything was charged is read from the invoices; until they arrive the line would guess.
     if (invoices.isLoading) return <PageLoader />;
@@ -215,15 +217,19 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
                             price: formatMoney(subscription.nextAmount ?? plan.monthly, i18n.language),
                         }),
                     },
-                    {
-                        key: 'receipt',
-                        label: t(key('receiptLabel')),
-                        value: (
-                            <Link to={ROUTES.subscription.history} className="underline">
-                                {t(key('receiptValue'))}
-                            </Link>
-                        ),
-                    },
+                    ...(receipts
+                        ? [
+                              {
+                                  key: 'receipt',
+                                  label: t(key('receiptLabel')),
+                                  value: (
+                                      <Link to={ROUTES.subscription.history} className="underline">
+                                          {t(key('receiptValue'))}
+                                      </Link>
+                                  ),
+                              },
+                          ]
+                        : []),
                 ]}
             />
             <div className="flex flex-wrap justify-center gap-3">
