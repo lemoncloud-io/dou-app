@@ -2,6 +2,12 @@
 
 ## [2026-10-29] - No version updates
 
+### Bug Fixes
+
+- (web/share) open the shared room with its row, as the home list does
+
+## [2026-10-29] - No version updates
+
 ### Features
 
 - (desktop-web,desktop) switch cloud and place by number key
