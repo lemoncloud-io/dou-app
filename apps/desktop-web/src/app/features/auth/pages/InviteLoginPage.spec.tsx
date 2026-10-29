@@ -23,15 +23,18 @@ vi.mock('../components', () => ({
         subtitle,
         children,
         onBack,
+        progress,
     }: {
         title: string;
         subtitle: string;
         children: React.ReactNode;
         onBack?: () => void;
+        progress?: { current: number; total: number };
     }) => (
         <div>
             <h1>{title}</h1>
             <p>{subtitle}</p>
+            {progress && <span data-testid="progress">{`${progress.current}/${progress.total}`}</span>}
             {onBack && <button onClick={onBack}>back</button>}
             {children}
         </div>
@@ -78,6 +81,21 @@ describe('InviteLoginPage', () => {
         expect(screen.getByText(i18n.t('auth.invite.preview.invitedBy', { name: 'Mina' }))).toBeTruthy();
         expect(state.preview).toHaveBeenCalledWith(LINK);
         expect(state.enter).not.toHaveBeenCalled();
+    });
+
+    it('advances the progress indicator with the step', async () => {
+        state.preview.mockResolvedValue({ preview: previewed });
+        state.enter.mockReturnValue(new Promise(() => undefined));
+        render(<InviteLoginPage />);
+        expect(screen.getByTestId('progress').textContent).toBe('1/3');
+
+        paste();
+        await screen.findByText('Design Team');
+        expect(screen.getByTestId('progress').textContent).toBe('2/3');
+
+        fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.invite.preview.join') }));
+        await settle();
+        expect(screen.getByTestId('progress').textContent).toBe('3/3');
     });
 
     it('stays on the paste step and announces a blocked link', async () => {

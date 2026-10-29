@@ -28,6 +28,7 @@ export const en = {
     'auth.invite.failed.canceled': 'That invite is no longer available. Ask whoever invited you for a new link.',
     'auth.invite.continue': 'Continue',
     'auth.invite.checking': 'Checking...',
+    'auth.progress': 'Step {{current}} of {{total}}',
     'auth.invite.preview.title': 'Join this place?',
     'auth.invite.preview.subtitle': 'Check where this invite leads before you join.',
     'auth.invite.preview.invitedBy': 'Invited by {{name}}',

@@ -41,6 +41,7 @@ export const ko: EnTranslation = {
     'auth.invite.failed.canceled': '더 이상 사용할 수 없는 초대예요. 초대한 분께 새 링크를 요청해 주세요.',
     'auth.invite.continue': '계속',
     'auth.invite.checking': '확인 중...',
+    'auth.progress': '{{total}}단계 중 {{current}}단계',
     'auth.invite.preview.title': '이 플레이스에 참여할까요?',
     'auth.invite.preview.subtitle': '참여하기 전에 초대가 어디로 이어지는지 확인해 주세요.',
     'auth.invite.preview.invitedBy': '{{name}} 님이 초대했어요',
