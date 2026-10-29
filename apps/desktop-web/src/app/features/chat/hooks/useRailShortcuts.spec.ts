@@ -79,14 +79,11 @@ describe('useRailShortcuts', () => {
         document.body.innerHTML = '';
     });
 
-    // The numbers are the rows the switcher draws, Home first; 0 still goes Home as well.
-    it('counts the cloud rows from Home, and sends Mod+0 to Home too', () => {
-        const { onSelectCloud } = renderShortcuts({ activeCloudId: null });
-        press('1', { metaKey: true });
-        expect(onSelectCloud).toHaveBeenLastCalledWith('default');
+    it('sends Mod+0 to Home and Mod+1… to the clouds after it', () => {
+        const { onSelectCloud } = renderShortcuts();
         press('0', { metaKey: true });
         expect(onSelectCloud).toHaveBeenLastCalledWith('default');
-        press('3', { metaKey: true });
+        press('2', { metaKey: true });
         expect(onSelectCloud).toHaveBeenLastCalledWith('b');
     });
 
@@ -105,29 +102,29 @@ describe('useRailShortcuts', () => {
     it('counts the rows the reader sees, so a stored order moves the numbers with the rows', () => {
         railOrder.clouds = ['c', 'b'];
         const { onSelectCloud } = renderShortcuts();
-        press('2', { ctrlKey: true });
+        press('1', { ctrlKey: true });
         expect(onSelectCloud).toHaveBeenLastCalledWith('c');
-        press('3', { ctrlKey: true });
+        press('2', { ctrlKey: true });
         expect(onSelectCloud).toHaveBeenLastCalledWith('b');
     });
 
     it('leaves the cloud already open alone', () => {
         const { onSelectCloud } = renderShortcuts();
-        press('2', { metaKey: true });
+        press('1', { metaKey: true });
         expect(onSelectCloud).not.toHaveBeenCalled();
     });
 
     // The session names no cloud on Home, and Mod+0 there must not clear the jump origin either.
     it('treats Home as the open cloud when the session names none', () => {
         const { onSelectCloud } = renderShortcuts({ activeCloudId: null, isDefaultMode: true });
-        press('1', { metaKey: true });
+        press('0', { metaKey: true });
         expect(onSelectCloud).not.toHaveBeenCalled();
     });
 
     it('does not enter a cloud only a subscription can reopen', () => {
         const withLapsed: RailCloud[] = [...clouds, { id: 'lapsed', kind: 'owned', status: 'suspended' }];
         const { onSelectCloud } = renderShortcuts({ clouds: withLapsed });
-        press('5', { metaKey: true });
+        press('4', { metaKey: true });
         expect(onSelectCloud).not.toHaveBeenCalled();
         expect(toast).toHaveBeenCalled();
     });
@@ -154,7 +151,7 @@ describe('useRailShortcuts', () => {
         const input = document.createElement('input');
         document.body.appendChild(input);
         const { onSelectCloud } = renderShortcuts();
-        press('3', { metaKey: true }, input);
+        press('2', { metaKey: true }, input);
         expect(onSelectCloud).toHaveBeenCalledWith('b');
     });
 
