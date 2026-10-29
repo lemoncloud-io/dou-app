@@ -37,6 +37,8 @@ export const ko: EnTranslation = {
     'auth.invite.failed.unmarked':
         '어느 서버의 초대인지 알 수 없는 링크라서 열지 않았어요. 초대한 사람에게 새 링크를 받아 주세요.',
     'auth.invite.failed.loggedIn': '계정으로 로그인된 상태예요. 먼저 로그아웃한 뒤 초대로 참여해 주세요.',
+    'auth.invite.failed.used': '이미 사용된 초대예요. 초대한 분께 새 링크를 요청해 주세요.',
+    'auth.invite.failed.canceled': '더 이상 사용할 수 없는 초대예요. 초대한 분께 새 링크를 요청해 주세요.',
     'auth.invite.failed.generic': '이 코드로 참여하지 못했어요. 코드를 확인하고 다시 시도해 주세요.',
     'auth.debug.title': '디버그 로그인',
     'auth.debug.subtitle': '개발용 이메일·비밀번호 로그인이에요.',
