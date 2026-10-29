@@ -25,6 +25,13 @@ describe('isPairedSession', () => {
         expect(isPairedSession()).toBe(true);
     });
 
+    it('is false for a token with no auth record, or one that is not an object', () => {
+        jest.spyOn(relayStore, 'getRelayToken').mockReturnValue({ userRole: 'user' } as never);
+        expect(isPairedSession()).toBe(false);
+        jest.spyOn(relayStore, 'getRelayToken').mockReturnValue({ userRole: 'user', $auth: 'web' } as never);
+        expect(isPairedSession()).toBe(false);
+    });
+
     it('is false for a session from any other login', () => {
         tokenWith({ id: 'a-1' });
         expect(isPairedSession()).toBe(false);

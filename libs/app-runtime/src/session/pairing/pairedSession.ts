@@ -10,7 +10,16 @@ export const isRelayGuest = (): boolean => {
     return !user || user.userRole === 'guest';
 };
 
-type AuthRecord = { purpose?: unknown; pairingId?: unknown };
+/**
+ * Whether a relay token was issued by a pairing: its `$auth` carries `purpose` or `pairingId`. The token
+ * type does not declare `$auth`, so it is narrowed here rather than asserted.
+ */
+const issuedByPairing = (token: unknown): boolean => {
+    if (typeof token !== 'object' || token === null || !('$auth' in token)) return false;
+    const auth = token.$auth;
+    if (typeof auth !== 'object' || auth === null) return false;
+    return ('purpose' in auth && !!auth.purpose) || ('pairingId' in auth && !!auth.pairingId);
+};
 
 /**
  * Is this device signed in through somebody else's approval — a secondary device?
@@ -21,9 +30,7 @@ type AuthRecord = { purpose?: unknown; pairingId?: unknown };
  * its approver does, so it may neither approve other devices nor list the approvals it never made.
  */
 export const isPairedSession = (): boolean => {
-    const token = relayStore.getRelayToken() as unknown as { $auth?: AuthRecord } | null;
-    const auth = token?.$auth;
-    if (auth && (!!auth.purpose || !!auth.pairingId)) return true;
+    if (issuedByPairing(relayStore.getRelayToken())) return true;
     // Paired clouds make a secondary device of a relay GUEST only: once the device signs in to an
     // account of its own (a phone number, Google), its clouds come from that account.
     return isRelayGuest() && pairedClouds.list().length > 0;
