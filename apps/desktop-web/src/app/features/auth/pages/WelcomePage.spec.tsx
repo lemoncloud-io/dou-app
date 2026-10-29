@@ -101,6 +101,22 @@ describe('WelcomePage', () => {
         expect(note?.textContent).toBe(i18n.t('auth.social.phoneSignupNotePhone'));
     });
 
+    // Someone who installed the app without a link came for an invite; the other ways in follow it.
+    it('leads with the invite link, ahead of every other way in', () => {
+        render(<WelcomePage />);
+
+        const buttons = screen.getAllByRole('button').map(b => b.textContent);
+        expect(buttons[0]).toBe(i18n.t('welcome.haveInvite'));
+    });
+
+    it('opens the invite page from the invite button', () => {
+        render(<WelcomePage />);
+
+        screen.getByRole('button', { name: i18n.t('welcome.haveInvite') }).click();
+
+        expect(state.navigate).toHaveBeenCalledWith('/auth/login');
+    });
+
     it('opens phone sign-in from its button', () => {
         render(<WelcomePage />);
 

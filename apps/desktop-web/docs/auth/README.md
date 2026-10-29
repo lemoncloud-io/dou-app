@@ -143,6 +143,43 @@ The join entry reads the role from the relay token (`isRelayGuest`), not from `u
 inside a cloud the active session is that cloud's user, and its role says nothing about the account.
 No relay user counts as a guest, as on the account hub.
 
+## Joining with an invite link
+
+A signed-out person who installed the app without a link lands on Welcome, where "I have an invite
+link" is the first and only filled button. It opens `/auth/login`, which is one card in three steps,
+shown as three dots above the heading. Each screen slides in; the card around it stays put.
+
+1. **Paste.** The link or code goes in a large field at the middle of the screen. Pressing Continue
+   parses it, refuses an untrusted backend, and looks the invite up. Nothing is joined yet.
+2. **Preview.** The card names the place and who invited the person, read from the lookup. A bare
+   `invt:` code names no backend, so there is nothing to look up and the card says it has no details;
+   joining is still allowed. Join exchanges the code.
+3. **Entering.** The exchange runs; on a refusal the card returns to the preview with the reason.
+
+The lookup is signed, so it needs a device guest session, and the preview is where that session is
+made: before the person has joined anything. The preview blocks an invite whose lookup is rejected or
+whose state is one of four — `accepted` reads as already used, `expired` as expired, `canceled` and
+`rejected` as no longer available — with the same sentences the exchange uses. A state the list does not
+name, or none at all (an older backend), is read as pending.
+
+The guest session flips the router to its signed-in branch, so the page state (step, preview, the
+pasted code, whether the preview registered the guest) lives in `useInviteLoginPageStore`, and its
+`held` flag keeps `/auth/login` mounted until the person leaves or finishes. Two rules follow from that
+session existing before the person has agreed to anything:
+
+- **Leaving signs out a guest the preview made.** Back from the paste step signs that guest out, which
+  reloads to Welcome; without it the signed-in router would drop the person into the app as a guest
+  they never chose. A session that was there before the page opened is never signed out. The device id
+  is fixed per install, so a later start registers the same guest again; backing out creates no extra
+  account.
+- **Back is withheld while the lookup runs.** The guest is not yet known to the page then, and leaving
+  would release the hold before it could be signed out. The lookup is seconds long and ends by itself.
+  An answer that arrives after the page was left is dropped (each preview carries an attempt number,
+  and leaving advances it).
+
+The in-app "Join with invite" dialog is a different path: it already has a session, shows no preview,
+and still goes straight to the exchange.
+
 ## Linking Google
 
 A signed-in account (not a guest) with no social account linked gets **Link Google** on the account
