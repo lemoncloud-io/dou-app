@@ -470,7 +470,9 @@ export const MessageRow = memo(
                             const isFailed = message.isFailed || isStuck;
                             const key = String(message.id ?? message.tempId ?? message.chatNo);
                             const { content, blocks, plain, card } = bodies[i];
-                            const firstUrl = plain.match(/https?:\/\/[^\s]+/)?.[0];
+                            // A deleted message keeps its `content` (soft delete), so the
+                            // link would otherwise unfurl under "This message was deleted."
+                            const firstUrl = message.hidden ? undefined : plain.match(/https?:\/\/[^\s]+/)?.[0];
                             const isCopied = copiedKey === key;
                             const msgTime = formatTime(message.createdAt ?? message.createdAtMs);
                             // The attachments' viewers repeat the message header.

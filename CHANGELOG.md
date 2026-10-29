@@ -1,5 +1,42 @@
 # Changelog
 
+## [2026-10-28] - root@0.122.1, @chatic/desktop-web@0.37.1
+
+### Bug Fixes
+
+- (desktop-web) match viewer control pill to Figma, centre its row
+- (desktop-web) give the viewer pill a white glass surface
+
+## [2026-10-28] - root@0.122.0, @chatic/desktop-web@0.37.0
+
+### Features
+
+- (desktop-web) image viewer control pill with rotate and slider
+
+## [2026-10-28] - root@0.121.2, @chatic/desktop-web@0.36.2
+
+### Bug Fixes
+
+- (desktop-web) draw a member name with a space as one mention pill
+
+## [2026-10-28] - root@0.121.1, @chatic/desktop-web@0.36.1
+
+### Bug Fixes
+
+- (desktop-web) draw no link card under a deleted message
+
+## [2026-10-28] - root@0.121.0, @chatic/desktop-web@0.36.0
+
+### Features
+
+- (desktop-web) zoom the image viewer around the cursor
+- (desktop-web) pan a zoomed photo and double-click to zoom
+- (desktop-web) zoom the image viewer on click, with zoom controls
+
+### Refactor
+
+- (desktop-web) cheapen image-viewer zoom and pan hot paths
+
 ## [2026-10-27] - No version updates
 
 ### Features
