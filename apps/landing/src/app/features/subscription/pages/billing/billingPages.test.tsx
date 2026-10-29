@@ -13,13 +13,6 @@ import type { PortSetup } from '../../lib/createPortSetup';
 // the query client, the toasts and the stand-in payment window exactly as a reader meets them.
 
 beforeAll(async () => {
-    // jsdom has no matchMedia; a desktop-width viewport keeps the phone-width notice away.
-    window.matchMedia = ((query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-    })) as unknown as typeof window.matchMedia;
     await i18n.changeLanguage('en');
 });
 

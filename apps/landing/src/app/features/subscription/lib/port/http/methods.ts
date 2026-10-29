@@ -19,6 +19,7 @@ export const HTTP_METHODS = [
     'getSubscription',
     'previewCheckout',
     'startPaymentMethodRegistration',
+    'completePaymentMethodRegistration',
     'startCheckout',
     'getPaymentAttempt',
     'previewChange',

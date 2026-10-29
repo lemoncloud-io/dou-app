@@ -3,19 +3,13 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
 import { createMockPort } from '../../lib/mock';
+import { clearPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
 import { memoryStateStore } from '../../lib/mock/storage';
 import { SubscriptionRoutes } from '../../routes';
 
 import type { PortSetup } from '../../lib/createPortSetup';
 
-// jsdom has no matchMedia; these are desktop screens.
 beforeAll(async () => {
-    window.matchMedia = ((query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-    })) as unknown as typeof window.matchMedia;
     await i18n.changeLanguage('en');
 });
 
@@ -426,6 +420,76 @@ describe('W-05 card, W-09 and W-06', () => {
         // The retry carries W-08's details along, so W-05 opens instead of sending the reader back.
         fireEvent.click(screen.getByRole('link', { name: 'Pay again' }));
         expect(await screen.findByRole('heading', { name: 'Add a payment method' })).toBeTruthy();
+    });
+
+    describe('back from a payment window that left the page', () => {
+        const RETURN = '/subscription/checkout/payment?plan=pro-tier-01';
+        const PAYER = { name: 'Minji Kim', phone: '01012345678', email: 'minji.kim@gmail.com' };
+
+        afterEach(() => clearPendingCheckout());
+
+        /** The mock never leaves the page, so what the provider's return would say is put in its place. */
+        const returnedWith = async (
+            result: Awaited<ReturnType<PortSetup['port']['completePaymentMethodRegistration']>>
+        ) => {
+            const setup = await withBillingEmail('?mock=new');
+            const complete = vi.fn(async () => result);
+            setup.port.completePaymentMethodRegistration = complete;
+            return { setup, complete };
+        };
+
+        /** A card the mock really holds, so the charge that follows the return has one to use. */
+        const returnedRegistered = async () => {
+            const setup = await withBillingEmail('?mock=new');
+            const registered = await setup.port.startPaymentMethodRegistration({
+                purpose: 'start',
+                planId: 'pro-tier-01',
+                payer: PAYER,
+            });
+            const complete = vi.fn(async () => registered);
+            setup.port.completePaymentMethodRegistration = complete;
+            return { setup, complete };
+        };
+
+        it('reads the result, charges with that card and lands on W-06', async () => {
+            savePendingCheckout({ planId: 'pro-tier-01', details: { country: 'KR', payer: PAYER } });
+            const { setup, complete } = await returnedRegistered();
+            renderAt(`${RETURN}&billingKey=billing-key-1`, setup);
+
+            expect(await screen.findByText('Your DoU Cloud 1 free trial has started')).toBeTruthy();
+            expect(complete).toHaveBeenCalledWith({
+                callback: expect.any(URLSearchParams),
+                purpose: 'start',
+                payer: PAYER,
+            });
+            expect(where()).toMatch(/^\/subscription\/checkout\/complete\?attempt=att-\d+&plan=pro-tier-01$/);
+        });
+
+        it('shows a window closed on the provider page as cancelled, with the details kept for a retry', async () => {
+            savePendingCheckout({ planId: 'pro-tier-01', details: { country: 'KR', payer: PAYER } });
+            const { setup } = await returnedWith({ outcome: 'closed' });
+            renderAt(`${RETURN}&code=FAILURE_TYPE_PG`, setup);
+
+            expect(await screen.findByText('Card registration canceled')).toBeTruthy();
+            expect(where()).toBe('/subscription/checkout/status?plan=pro-tier-01&outcome=closed');
+        });
+
+        it('goes back to W-08 when the saved checkout is gone', async () => {
+            const { setup, complete } = await returnedRegistered();
+            renderAt(`${RETURN}&billingKey=billing-key-1`, setup);
+
+            await waitFor(() => expect(where()).toBe('/subscription/checkout?plan=pro-tier-01'));
+            expect(complete).not.toHaveBeenCalled();
+        });
+
+        it('takes the saved checkout away once it is used, so a reload does not charge twice', async () => {
+            savePendingCheckout({ planId: 'pro-tier-01', details: { country: 'KR', payer: PAYER } });
+            const { setup } = await returnedRegistered();
+            renderAt(`${RETURN}&billingKey=billing-key-1`, setup);
+            await screen.findByText('Your DoU Cloud 1 free trial has started');
+
+            expect(window.sessionStorage.getItem('subscription.pendingCheckout')).toBeNull();
+        });
     });
 
     it('sends a subscriber who comes back to W-05 on to the plan change, without opening the window', async () => {

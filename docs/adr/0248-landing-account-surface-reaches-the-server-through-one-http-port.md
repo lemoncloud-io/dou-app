@@ -55,6 +55,12 @@ Three things had to be settled to connect them:
    routes are not registered and every link into them is gone, behind one value
    (`MANAGEMENT_SCREENS_OPEN`); the port methods, the HTTP port and the mock stay. The card company gets
    the signed-in account's own address in place of a verified billing email.
+8. **The account surface is laid out for a phone, and a phone pays in its browser.** The desktop-only
+   notice is gone. The card window is an iframe on a computer but the provider's own page on a phone,
+   which the browser leaves for and comes back from with the result in the address. The port gains
+   `completePaymentMethodRegistration` to read that return, and the checkout W-08 settled is kept in
+   session storage across the trip (short-lived, taken away on use) because the navigation state does
+   not survive it. A subscriber billed through a store is still told to manage it there.
 
 ## Alternatives
 

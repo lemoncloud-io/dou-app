@@ -50,7 +50,10 @@ export const LoginCallbackPage = (): JSX.Element => {
 
     return (
         <div className="flex justify-center pt-6">
-            <Card role="status" className="flex w-[440px] flex-col items-center gap-2 px-10 py-12 text-center">
+            <Card
+                role="status"
+                className="flex w-full max-w-[440px] flex-col items-center gap-2 px-6 py-10 sm:px-10 sm:py-12 text-center"
+            >
                 {/* Larger than the inline spinner, in the brand green: this is the whole page while it lasts. */}
                 <span
                     aria-hidden

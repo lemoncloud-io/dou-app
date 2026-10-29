@@ -24,6 +24,8 @@ import {
     type CardWire,
 } from './wire';
 
+import { windowResultOfQuery } from './windowReturn';
+
 import type { HttpPort } from './methods';
 import type {
     Account,
@@ -33,6 +35,7 @@ import type {
     Payer,
     PaymentAttempt,
     PlanId,
+    RegistrationResult,
     SignInProvider,
     Subscription,
 } from '../../../types';
@@ -61,6 +64,8 @@ export type PaymentWindow = (request: {
     payer: Payer;
     purpose: AttemptPurpose;
     planId?: PlanId;
+    /** Where a window that leaves the page (a phone's) comes back to, with its result in the query. */
+    redirectUrl: string;
 }) => Promise<PaymentWindowResult>;
 
 export interface KeyValueStore {
@@ -101,6 +106,12 @@ interface PendingSignIn {
 
 /** Codes shorter than this are the OAuth relay reporting a failure in the code's place. */
 const MIN_CODE_LENGTH = 6;
+
+/** The page a window that left comes back to: the checkout's card step, or the card list. */
+const returnPathOf = (purpose: AttemptPurpose, planId: PlanId | undefined): string =>
+    purpose === 'start' && planId
+        ? `${ROUTES.subscription.checkoutPayment}?plan=${planId}`
+        : ROUTES.subscription.paymentMethods;
 
 const fail = (code: SubscriptionPortError['code'], message?: string, detail?: SubscriptionPortError['detail']) => {
     throw new SubscriptionPortError(code, message, detail);
@@ -239,6 +250,22 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         return preview;
     };
 
+    /**
+     * What a window's result means: a checkout's card goes with the start that follows, any other card
+     * replaces the one the subscription holds right away.
+     */
+    const registered = async (
+        result: PaymentWindowResult,
+        purpose: AttemptPurpose,
+        payer: Payer
+    ): Promise<RegistrationResult> => {
+        if (result.outcome !== 'registered') return { outcome: result.outcome };
+        if (purpose !== 'start') {
+            await call<CardWire>('POST', '/subscriptions/0/card', { billingKey: result.billingKey, ...payer });
+        }
+        return { outcome: 'registered', card: result.billingKey as CardToken };
+    };
+
     const failedAttempt = (purpose: AttemptPurpose, withTrial: boolean): PaymentAttempt => {
         const attempt: PaymentAttempt = { id: '', purpose, status: 'failed', failure: 'declined', withTrial };
         return { ...attempt, id: attemptId(attempt) };
@@ -329,13 +356,15 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
                   (await loadCatalog())[0]?.productId);
             if (!productId) return fail('notFound', 'no product to register a card for');
             const issue = await call<IssueParams>('POST', '/subscriptions/0/issue', { productId });
-            const result = await paymentWindow({ issue, payer, purpose, planId });
-            if (result.outcome !== 'registered') return { outcome: result.outcome };
-            // A checkout's card goes with the start that follows; any other card replaces the one held.
-            if (purpose !== 'start') {
-                await call<CardWire>('POST', '/subscriptions/0/card', { billingKey: result.billingKey, ...payer });
-            }
-            return { outcome: 'registered', card: result.billingKey as CardToken };
+            const redirectUrl = `${options.origin}${returnPathOf(purpose, planId)}`;
+            return registered(await paymentWindow({ issue, payer, purpose, planId, redirectUrl }), purpose, payer);
+        },
+
+        // A window that left the page answers in the query of the address it came back to.
+        completePaymentMethodRegistration: async ({ callback, purpose, payer }) => {
+            const result = windowResultOfQuery(callback);
+            if (!result) return fail('conflict', 'the return carries no result from the payment window');
+            return registered(result, purpose, payer);
         },
 
         startCheckout: async ({ planId, payer, card }) => {

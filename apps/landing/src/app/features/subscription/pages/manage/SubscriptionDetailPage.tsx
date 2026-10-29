@@ -148,7 +148,7 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             )}
             <SceneBannerView sub={sub} banner={banner} card={card} fmt={fmt} />
 
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <SummaryTile label={t('subscription.manage.detail.tiles.product')} value={fmt.planName(sub.planId)} />
                 <SummaryTile
                     label={t('subscription.manage.detail.tiles.status')}
@@ -179,7 +179,7 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
             </div>
 
             {banner.kind === 'downgradeScheduled' && plan && target ? (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <PlanChangeCard
                         tag={<Badge tone="warning">{t('subscription.manage.detail.plans.ending')}</Badge>}
                         name={fmt.planName(plan.id)}
@@ -205,7 +205,7 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
                 </div>
             ) : (
                 banner.kind !== 'restricted' && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {management && (
                             <InfoCard
                                 title={t('subscription.manage.detail.paymentCard.title')}
@@ -263,7 +263,7 @@ const SubscriptionDetail = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat
                 {changeTargets.length === 0 ? (
                     <p className="text-sm text-subtitle">{t('subscription.manage.dialogs.changePlan.none')}</p>
                 ) : (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         {changeTargets.map(({ plan: option, kind }) => (
                             <PlanCard
                                 key={option.id}

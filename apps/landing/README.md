@@ -218,7 +218,7 @@ apps/landing/
         ├── routes/             the router, the route table, ROUTES (paths.ts), the error screen
         ├── config/             stage.ts (hostname, import.meta, the subscription gate), links.ts,
         │                       subscriptionServer.ts (the account surface's server addresses, from .env)
-        ├── hooks/              useDeviceDetect — the bounce page and the desktop-only notice
+        ├── hooks/              useDeviceDetect — the bounce page
         └── features/
             ├── home/           sections, Header, Footer, StoreButton
             ├── policy/         4 pages over one PolicyPageLayout; the 3 versioned ones add a VersionSelector
@@ -239,7 +239,7 @@ which way an import may point). It is not restated here. What it comes to in an 
   imports no feature; only `app.tsx` and `routes/` do.
 - **No `shared/` folder, and nothing promoted ahead of time.** A file moves up on its second
   consumer. `Header`, `Footer` and `StoreButton` have one consumer, so they live in `home`;
-  `useDeviceDetect` moved up when the desktop-only notice became its second.
+  `useDeviceDetect` sits at the app level for the bounce page, which no feature owns.
 - **Absolute paths come from `ROUTES`** in `app/routes/paths.ts`, never a typed string — the web
   app's design principle 5. The route table's own patterns (`policy/*`) stay spelled out, as the web
   app's do.
@@ -321,7 +321,7 @@ Every screen below runs on the server where the build has its addresses, and on 
 with `?mock=` (see [The server](#the-server)). None is open on the production host yet except W-01,
 which runs there on the catalog port (see [Plans before checkout opens](#plans-before-checkout-opens)).
 Screen ids (`W-01`, `W-18`, …) are the names of the design frames each screen is drawn from; the route
-table below is their key. `W-23` is the desktop-only notice, which has no route of its own.
+table below is their key. `W-23`, the desktop-only notice, is retired: every screen is laid out for a phone too.
 
 ### The account surface
 
@@ -330,7 +330,7 @@ Everything lives in `src/app/features/subscription/`, laid out like a web app fe
 ```text
 features/subscription/
 ├── index.ts          SubscriptionRoutes — the only thing the route table imports, lazily
-├── routes/           the nested <Routes>, the session and desktop-only guards
+├── routes/           the nested <Routes>, the session and store-subscriber guards
 ├── types/            the view types the screens draw (Plan, Subscription, PaymentMethod, …)
 ├── lib/port/         SubscriptionPort, SubscriptionPortError, PortProvider (+ the clock)
 ├── lib/port/http/    the HTTP port: the server's shapes, the sign-in, the card window — the only network
@@ -340,10 +340,10 @@ features/subscription/
 ├── lib/              decisions as pure functions: sceneOf, changeKindOf, ddayOf,
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
 ├── utils/            formatMoney, formatDate, cn, countdowns, isEmailAddress
-├── hooks/            one react-query hook per port method, useCurrentSubscription, useNarrowViewport, useNow
+├── hooks/            one react-query hook per port method, useCurrentSubscription, useNow
 ├── components/       PublicShell, AccountShell, AccountMenu, StatusBadge, PlanCard, SummaryTile,
 │                     ConfirmDialog, EmailVerificationForm, BillingEmailChangeDialog, MockPaymentWindow,
-│                     DevScenarioPanel, DesktopOnlyNotice, …
+│                     DevScenarioPanel, …
 ├── components/ui/    Button, Card, Badge, Banner, Table, Dialog, Spinner, Toast — landing tokens
 └── pages/            entry/ checkout/ manage/ billing/ (the screens), dev/ (mock-only pages)
 ```
@@ -375,7 +375,10 @@ above it. The primitives use this site's Tailwind tokens (plus the `status-*` co
 | `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                                                |
 | any other `/subscription/…`                                      | redirect to `/subscription` (gate shut: see [Routes](#routes))                                           |         |                                                               |
 
-Below the `md` breakpoint (768 px) every one of these shows W-23, the desktop-only notice, instead.
+Every one of these is laid out for a phone as well as a computer: the shells stack, grids fall to a
+single column under the `md` breakpoint (768 px), tables scroll sideways inside their card. A reader on
+a phone signs in and pays in the mobile browser like anyone else; the store-subscriber page (W-17)
+and the double-payment notes still tell someone already billed through a store to manage it there.
 Without a session a guarded page sends the reader to `/subscription/login?next=<the page>`; a
 store subscriber is sent to W-17. A `next` is only ever a path under `/subscription` that is not a
 sign-in page (`lib/safeNext.ts`) — anything else falls back to the subscription list.
@@ -407,15 +410,13 @@ The pages read the same flag where it changes what they offer:
   Store and Google Play links, and the note about not paying twice on the web left out.
 - `PublicShell` keeps the plans and the policy links and drops "Manage subscription" and "Sign in",
   which lead to pages that do not exist on that host.
-- W-23, on a phone, keeps the open-the-app card and drops the "subscribe from a computer" one.
 
 `lib/catalog.ts` is therefore a published price list, not mock data: the mock sells exactly this
 catalog, and a price changes there together with the stores' prices. When the server and the payment
 provider arrive, the account surface opens by the gate and the catalog port is no longer used.
 
-Two costs are accepted. The production visitor to this page downloads the whole account-surface
-chunk, mock code included, though the mock is never run there. And a phone-width reader sees W-23
-rather than the prices, as on every subscription page.
+One cost is accepted: the production visitor to this page downloads the whole account-surface
+chunk, mock code included, though the mock is never run there.
 
 ### The server
 
@@ -445,10 +446,17 @@ What the screens get from the server differs from the mock in a few places, all 
   anything is tried, and the mock refuses the same way.
 - Its cards carry no expiry, so none is drawn. It removes the one card it holds.
 - Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
-- The payment provider's window opens in the page (an iframe), not as a pop-up, about 0.8 s after the
-  click. Closing it and confirming the card company's "cancel?" question answers `FAILURE_TYPE_PG`
-  — the code a refused card also gets — with a message that the user cancelled; `portOneWindow.ts`
-  tells the two apart by that message, so a closed window reads as cancelled, not as a declined card.
+- The payment provider's window opens in the page (an iframe) on a computer, not as a pop-up, about
+  0.8 s after the click. On a phone it is the provider's own page: the browser leaves for it and comes
+  back to W-05 (or the card list, for a card added alone) with the result in the query — `billingKey`,
+  or `code` and `message`. The checkout W-08 settled does not survive that trip, so `lib/pendingCheckout.ts`
+  keeps it in `sessionStorage` from the click until the return is read (taken away on use, stale after
+  15 minutes); W-05 reads it, `completePaymentMethodRegistration` turns the query into the same result
+  the window would have answered, and the charge goes on as usual. A return with no saved checkout goes
+  back to W-08. On a computer, closing the window and confirming the card company's "cancel?" question answers `FAILURE_TYPE_PG`
+  — the code a refused card also gets — with a message that the user cancelled; `windowReturn.ts`
+  tells the two apart by that message, for the window's answer and for a phone's query alike, so a
+  closed window reads as cancelled, not as a declined card.
 - The payer's name and mobile number, which the card company requires with every card, are asked for
   on W-08 (and in W-12's add-card dialog when W-12 is open). They travel with that checkout or card and
   are not stored. The payer's address is the account's own while the billing-email screens are hidden.
@@ -688,7 +696,7 @@ not trigger.
   not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 517 tests
+    npx nx test @chatic/landing   # 532 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
@@ -697,6 +705,12 @@ not trigger.
   table test builds both sides with `createAppRoutes`. To see the shut side in a browser, serve the
   production build under a host that is neither, mapping one to the local server in Chromium with
   `--host-resolver-rules="MAP app.chatic.test 127.0.0.1"`. `?mock=` does nothing there, by design.
+- **A phone on the local network needs a `-dev` name, not the machine's IP.** The gate reads the
+  hostname, so `http://192.168.x.y:<port>` shows the plans page alone. Reach the dev server by a name
+  that contains `-dev` and resolves to the machine (for example `app-dev.192.168.x.y.nip.io`, served
+  with the dev server's host allow-list opened for it), and the sign-in, the checkout and the provider's
+  redirect back all run in the phone's browser. Stop that server when the test is over: it serves the
+  source and the build's `VITE_*` values to everyone on the network.
 - **The mock reads the URL once per query.** Opening the same `?mock=…` again does not reset the
   state (it is how a reload keeps a flow's changes); use the dev panel's Reset, or a different
   scenario.
@@ -742,7 +756,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 517 tests pass; in CI
+npx nx test @chatic/landing                               # 532 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

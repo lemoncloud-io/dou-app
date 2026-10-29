@@ -539,6 +539,10 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             });
         },
 
+        // The stand-in window is a dialog on the page and never leaves it, so nothing comes back from one.
+        completePaymentMethodRegistration: () =>
+            Promise.reject(new SubscriptionPortError('conflict', 'mock: no payment window left the page')),
+
         startCheckout: ({ planId, country, emailId, payer }) =>
             call(s => {
                 // A second submit while the first is still processing gets the same attempt back,

@@ -87,7 +87,7 @@ export const CheckoutEmailPage = (): JSX.Element => {
     const canContinue = (scene !== 'verify' || !!verified) && !busy;
 
     return (
-        <div className="grid grid-cols-[minmax(0,1fr)_260px] gap-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_260px] md:gap-8">
             <div className="flex flex-col gap-6">
                 <CheckoutSteps current={3} />
                 <header className="flex flex-col gap-2">
@@ -113,7 +113,7 @@ export const CheckoutEmailPage = (): JSX.Element => {
                             <label htmlFor="checkout-email-address">
                                 <FieldLabel />
                             </label>
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 <div className="relative flex min-w-0 flex-1">
                                     <input
                                         id="checkout-email-address"

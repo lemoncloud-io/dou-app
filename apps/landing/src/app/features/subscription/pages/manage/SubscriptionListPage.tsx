@@ -115,7 +115,7 @@ const LiveCard = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX.E
                     <StatusBadge subscription={sub} />
                     <Badge tone="neutral">{t('subscription.manage.list.source')}</Badge>
                 </div>
-                <div className="grid w-full grid-cols-4 gap-3">
+                <div className="grid w-full grid-cols-2 gap-3 lg:grid-cols-4">
                     <SummaryTile
                         label={t('subscription.manage.list.clouds')}
                         value={

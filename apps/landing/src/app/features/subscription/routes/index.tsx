@@ -25,7 +25,7 @@ import {
 import { MockProviderPage, MockReceiptPage } from '../pages/dev';
 import { LoginCallbackPage, LoginPage, NoLinkedAccountPage, PlansPage, StoreManagedPage } from '../pages/entry';
 import { CancelSubscriptionPage, SubscriptionDetailPage, SubscriptionListPage } from '../pages/manage';
-import { DesktopOnlyGuard, RedirectIfSignedIn, RequireSession } from './guards';
+import { RedirectIfSignedIn, RequireSession } from './guards';
 
 // This chunk loading is the moment the subscription copy joins the site's translations.
 registerSubscriptionCopy();
@@ -103,13 +103,7 @@ export const SubscriptionRoutes = ({
                     <ToastProvider>
                         <ManagementScreensProvider open={management}>
                             <Host>
-                                <DesktopOnlyGuard account={account}>
-                                    {account ? (
-                                        <AccountRoutes mock={mock} management={management} />
-                                    ) : (
-                                        <CatalogRoutes />
-                                    )}
-                                </DesktopOnlyGuard>
+                                {account ? <AccountRoutes mock={mock} management={management} /> : <CatalogRoutes />}
                             </Host>
                         </ManagementScreensProvider>
                         {paymentWindow && <MockPaymentWindow />}

@@ -189,7 +189,7 @@ const StatusScreen = ({
                     title={t(key('retried.title'))}
                     body={sub ? t(key('retried.body'), { day: sub.billingDay }) : undefined}
                 />
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <SummaryTile label={t(key('retried.amount'))} value={price ?? '—'} />
                     <SummaryTile label={t(key('retried.card'))} value={cardLabel(facts.card, t) ?? '—'} />
                     <SummaryTile

@@ -1,6 +1,4 @@
-import { windowResultOf } from './portOneWindow';
-
-vi.mock('@portone/browser-sdk/v2', () => ({ requestIssueBillingKey: vi.fn() }));
+import { windowResultOf, windowResultOfQuery } from './windowReturn';
 
 describe('windowResultOf', () => {
     it('takes a billing key as the registered card', () => {
@@ -28,5 +26,35 @@ describe('windowResultOf', () => {
         expect(windowResultOf({ code: 'FAILURE_TYPE_PG', message: '카드 정보가 올바르지 않습니다' })).toEqual({
             outcome: 'failed',
         });
+    });
+});
+
+describe('windowResultOfQuery', () => {
+    it('reads the card from a return that carries a billing key', () => {
+        expect(
+            windowResultOfQuery(
+                new URLSearchParams('plan=pro-tier-01&billingKey=bk-1&transactionType=ISSUE_BILLING_KEY')
+            )
+        ).toEqual({
+            outcome: 'registered',
+            billingKey: 'bk-1',
+        });
+    });
+
+    it('reads a return with a code as the failure it says, a cancel included', () => {
+        expect(
+            windowResultOfQuery(
+                new URLSearchParams(
+                    'plan=pro-tier-01&code=FAILURE_TYPE_PG&message=%EC%82%AC%EC%9A%A9%EC%9E%90%EA%B0%80+%EC%B7%A8%EC%86%8C'
+                )
+            )
+        ).toEqual({ outcome: 'closed' });
+        expect(windowResultOfQuery(new URLSearchParams('code=FAILURE_TYPE_PG&message=declined'))).toEqual({
+            outcome: 'failed',
+        });
+    });
+
+    it('says nothing for a return with no result, instead of taking it for a closed window', () => {
+        expect(windowResultOfQuery(new URLSearchParams('plan=pro-tier-01'))).toBeUndefined();
     });
 });

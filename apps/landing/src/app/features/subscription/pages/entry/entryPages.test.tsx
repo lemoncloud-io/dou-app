@@ -11,14 +11,7 @@ import { SubscriptionRoutes } from '../../routes';
 
 import type { PortSetup } from '../../lib/createPortSetup';
 
-// jsdom has no matchMedia; these pages are drawn at desktop width.
 beforeAll(async () => {
-    window.matchMedia = ((query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-    })) as unknown as typeof window.matchMedia;
     await i18n.changeLanguage('en');
 });
 

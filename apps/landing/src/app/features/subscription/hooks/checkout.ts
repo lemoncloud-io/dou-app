@@ -31,6 +31,19 @@ export const useStartPaymentMethodRegistration = () => {
     });
 };
 
+/** The return from a payment window that left the page (a phone's): its result, as if it had stayed. */
+export const useCompletePaymentMethodRegistration = () => {
+    const port = usePort();
+    const queryClient = useQueryClient();
+    const invalidate = useInvalidateSubscriptionState();
+    return useMutation({
+        mutationFn: (input: { callback: URLSearchParams; purpose: AttemptPurpose; payer: Payer }) =>
+            port.completePaymentMethodRegistration(input),
+        onSuccess: () =>
+            Promise.all([queryClient.invalidateQueries({ queryKey: subscriptionKeys.paymentMethods() }), invalidate()]),
+    });
+};
+
 export const useStartCheckout = () => {
     const port = usePort();
     return useMutation({

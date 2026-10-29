@@ -251,6 +251,7 @@ describe('createHttpPort — checkout', () => {
             payer: PAYER,
             purpose: 'start',
             planId: 'pro-tier-01',
+            redirectUrl: 'http://localhost:5004/subscription/checkout/payment?plan=pro-tier-01',
         });
         // A checkout's card goes with the start, not on its own.
         expect(calls.some(call => call.path === '/subscriptions/0/card')).toBe(false);
@@ -270,6 +271,76 @@ describe('createHttpPort — checkout', () => {
             subscriptionId: 'U1:portone',
         });
         expect(await port.getPaymentAttempt(attempt.id)).toMatchObject({ status: 'succeeded' });
+    });
+
+    it('sends a card added on its own back to the card list', async () => {
+        const { port, paymentWindow } = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': { subscription: subscription({}) },
+            'POST /subscriptions/0/card': () => CARD,
+        });
+        await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER });
+        expect(paymentWindow).toHaveBeenCalledWith(
+            expect.objectContaining({ redirectUrl: 'http://localhost:5004/subscription/payment-methods' })
+        );
+    });
+
+    it('reads the card of a window that came back through the address, and starts nothing', async () => {
+        const { port, calls } = setup(BASE_ROUTES);
+        expect(
+            await port.completePaymentMethodRegistration({
+                callback: new URLSearchParams('plan=pro-tier-01&billingKey=billing-key-9'),
+                purpose: 'start',
+                payer: PAYER,
+            })
+        ).toEqual({ outcome: 'registered', card: 'billing-key-9' });
+        expect(calls.some(call => call.path === '/subscriptions/0/card')).toBe(false);
+    });
+
+    it('puts a card that came back through the address on the subscription when it was added on its own', async () => {
+        const card = vi.fn(() => CARD);
+        const { port } = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': { subscription: subscription({}) },
+            'POST /subscriptions/0/card': card,
+        });
+        expect(
+            await port.completePaymentMethodRegistration({
+                callback: new URLSearchParams('billingKey=billing-key-9'),
+                purpose: 'addCard',
+                payer: PAYER,
+            })
+        ).toMatchObject({ outcome: 'registered' });
+        expect(card).toHaveBeenCalledWith({ billingKey: 'billing-key-9', ...PAYER });
+    });
+
+    it('reads a window closed on its way back as cancelled, and a refusal as failed', async () => {
+        const { port } = setup(BASE_ROUTES);
+        const back = (query: string) =>
+            port.completePaymentMethodRegistration({
+                callback: new URLSearchParams(query),
+                purpose: 'start',
+                payer: PAYER,
+            });
+        expect(
+            await back(
+                'code=FAILURE_TYPE_PG&message=%EB%B9%8C%EB%A7%81%ED%82%A4%20%EB%B0%9C%EA%B8%89%EC%9D%84%20%EC%B7%A8%EC%86%8C'
+            )
+        ).toEqual({
+            outcome: 'closed',
+        });
+        expect(await back('code=FAILURE_TYPE_PG&message=declined')).toMatchObject({ outcome: 'failed' });
+    });
+
+    it('refuses a return that carries no result from the window', async () => {
+        const { port } = setup(BASE_ROUTES);
+        await expect(
+            port.completePaymentMethodRegistration({
+                callback: new URLSearchParams('plan=pro-tier-01'),
+                purpose: 'start',
+                payer: PAYER,
+            })
+        ).rejects.toMatchObject({ code: 'conflict' });
     });
 
     it('ends without a start when the window does', async () => {

@@ -54,6 +54,16 @@ export interface SubscriptionPort {
         planId?: PlanId;
         payer: Payer;
     }): Promise<RegistrationResult>;
+    /**
+     * Where a payment window that left the page comes back to — a phone's, which the provider opens by
+     * going to its page and returning to ours with the result in the query. `callback` is that query;
+     * the answer is what `startPaymentMethodRegistration` would have answered had the window stayed.
+     */
+    completePaymentMethodRegistration(input: {
+        callback: URLSearchParams;
+        purpose: AttemptPurpose;
+        payer: Payer;
+    }): Promise<RegistrationResult>;
     startCheckout(input: {
         planId: PlanId;
         country: string;

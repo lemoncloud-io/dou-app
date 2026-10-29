@@ -113,7 +113,7 @@ const CancelForm = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
                 <h2 className="text-[13px] font-semibold text-navy">{t(`${key}.after.title`)}</h2>
                 <p className="text-[13px] leading-relaxed text-desc-alt">{t(`${key}.after.body`)}</p>
             </section>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
                 <Button
                     size="lg"
                     variant="secondary"
@@ -153,7 +153,7 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
             <Banner tone="warning" title={t(`${key}.bannerTitle`, { date: fmt.date(sub.endsAt) })}>
                 {t(`${key}.bannerBody`)}
             </Banner>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
                 <Button
                     size="lg"
                     variant="secondary"
@@ -180,7 +180,7 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
                         {t('subscription.manage.dialogs.resume.body', resume.copyValues)}{' '}
                         {t('subscription.manage.dialogs.resume.sameAsBefore')}
                     </p>
-                    <div className="mt-3 flex gap-3">
+                    <div className="mt-3 flex flex-wrap gap-3">
                         <Button
                             size="lg"
                             variant="secondary"

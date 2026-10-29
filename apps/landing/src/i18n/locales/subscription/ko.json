@@ -46,14 +46,6 @@
                 "network": "연결이 불안정합니다. 잠시 후 다시 시도해 주세요.",
                 "unknown": "문제가 발생했습니다. 다시 시도해 주세요."
             },
-            "desktopOnly": {
-                "title": "DoU 구독",
-                "appTitle": "휴대폰에서는 앱에서 구독하실 수 있습니다",
-                "appBody": "DoU 앱 › MY › 구독 관리에서 App Store · Google Play로 구독하실 수 있습니다.",
-                "openApp": "DoU 앱 열기",
-                "pcTitle": "웹 구독은 PC에서 하실 수 있습니다",
-                "pcBody": "데스크톱 브라우저로 이 페이지에 오시면 웹 결제로 구독하실 수 있습니다. 어느 쪽으로 구독하셔도 휴대폰과 PC 모두에서 사용하실 수 있습니다."
-            },
             "paymentWindow": {
                 "title": "카드 등록",
                 "description": "테스트 결제창입니다. 실제 카드 정보는 받지 않습니다. 결과를 골라 주세요.",

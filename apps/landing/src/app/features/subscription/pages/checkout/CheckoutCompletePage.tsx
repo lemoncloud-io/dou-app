@@ -156,7 +156,7 @@ const Started = ({
                     ]}
                 />
             ) : (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <SummaryTile label={t(key('paidLabel'))} value={paid ? money(paid) : '—'} />
                     <SummaryTile
                         label={t(key('nextLabel'))}
@@ -260,7 +260,7 @@ const DowngradeScheduled = (): JSX.Element => {
                     plan: t(`subscription.checkout.planEul.${plan.sort}`),
                 })}
             />
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SummaryTile label={t(key('effectiveLabel'))} value={formatDate(change.effectiveAt)} />
                 <SummaryTile
                     label={t(key('thatDayLabel'))}

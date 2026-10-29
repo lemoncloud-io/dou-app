@@ -35,13 +35,15 @@ export const AccountShell = (): JSX.Element => {
     const cancellable = !!subscription && sceneOf(subscription, today).actions.includes('cancel');
 
     return (
-        <div className="flex h-full bg-background">
-            <aside className="flex w-[200px] shrink-0 flex-col border-r border-border px-3 py-6">
-                <Link to={ROUTES.root} className="mb-6 flex items-center gap-2 px-2 hover:opacity-80">
+        // On a phone the sidebar is a bar across the top and the page scrolls as one; from `md` it is
+        // the fixed column with its own scrolling main beside it.
+        <div className="flex h-full flex-col overflow-auto bg-background md:flex-row md:overflow-hidden">
+            <aside className="flex shrink-0 flex-col border-b border-border px-4 py-3 md:w-[200px] md:border-b-0 md:border-r md:px-3 md:py-6">
+                <Link to={ROUTES.root} className="mb-3 flex items-center gap-2 px-2 hover:opacity-80 md:mb-6">
                     <img src={Logo.logo} alt="DoU" className="h-7 w-7" />
                     <img src={Logo.douBk} alt="D.U" className="h-4" />
                 </Link>
-                <div className="mb-6 px-2">
+                <div className="mb-3 px-2 md:mb-6">
                     {subscription && plan ? (
                         <>
                             <p className="text-sm font-semibold text-navy">
@@ -59,7 +61,7 @@ export const AccountShell = (): JSX.Element => {
                         <p className="text-xs text-subtitle">{t('subscription.common.sidebar.noSubscription')}</p>
                     )}
                 </div>
-                <nav className="flex flex-col gap-1">
+                <nav className="flex flex-row flex-wrap gap-1 md:flex-col">
                     {MENU.filter(item => management || !item.management).map(item => (
                         <NavLink
                             key={item.key}
@@ -78,7 +80,7 @@ export const AccountShell = (): JSX.Element => {
                         </NavLink>
                     ))}
                 </nav>
-                <div className="mt-auto flex flex-col gap-3">
+                <div className="mt-3 flex flex-row flex-wrap items-center gap-3 md:mt-auto md:flex-col md:items-stretch">
                     {cancellable && (
                         <Link
                             to={ROUTES.subscription.cancel(subscription.id)}
@@ -90,7 +92,7 @@ export const AccountShell = (): JSX.Element => {
                     {session.data && <AccountMenu account={session.data} placement="above" />}
                 </div>
             </aside>
-            <main className="min-w-0 flex-1 overflow-auto px-8 py-8">
+            <main className="min-w-0 flex-1 px-4 py-6 md:overflow-auto md:px-8 md:py-8">
                 <Outlet />
             </main>
         </div>

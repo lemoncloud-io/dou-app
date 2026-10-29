@@ -268,7 +268,7 @@ export const PaymentMethodsPage = (): JSX.Element => {
                                 </dd>
                             </div>
                         </dl>
-                        <div className="mt-5 flex gap-2">
+                        <div className="mt-5 flex flex-wrap gap-2">
                             <Button
                                 variant="secondary"
                                 size="lg"

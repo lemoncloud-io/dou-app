@@ -162,7 +162,7 @@ const ChangeConfirm = ({
     );
 
     return (
-        <div className="grid grid-cols-[minmax(0,1fr)_260px] gap-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_260px] md:gap-8">
             <div className="flex flex-col gap-6">
                 <header className="flex flex-col gap-2">
                     <h1 className="text-[28px] font-bold text-navy">{t(key(`${kind}.title`))}</h1>
@@ -329,7 +329,7 @@ const PastDue = ({ preview, subscription }: { preview: ChangePreview; subscripti
                     ? t(key('bannerBody'), { date: formatDate(subscription.failedAt), price: owed })
                     : t(key('bannerBodyNoDate'))}
             </Banner>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SummaryTile
                     label={t(key('now'))}
                     value={t(key('nowValue'), {

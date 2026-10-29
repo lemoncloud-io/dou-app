@@ -47,7 +47,7 @@ export const LoginPage = (): JSX.Element => {
 
     return (
         <div className="flex justify-center pt-6">
-            <Card className="flex w-[440px] flex-col gap-5 p-10">
+            <Card className="flex w-full max-w-[440px] flex-col gap-5 p-6 sm:p-10">
                 <header className="flex flex-col gap-3">
                     <h1 className="text-2xl font-bold text-navy">{t('subscription.entry.login.title')}</h1>
                     <p className="text-[15px] leading-relaxed text-subtitle">{t('subscription.entry.login.body')}</p>

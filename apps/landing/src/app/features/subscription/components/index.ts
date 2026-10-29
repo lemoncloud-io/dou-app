@@ -7,7 +7,6 @@ export { SummaryTile } from './SummaryTile';
 export { ConfirmDialog } from './ConfirmDialog';
 export { MockPaymentWindow } from './MockPaymentWindow';
 export { DevScenarioPanel } from './DevScenarioPanel';
-export { DesktopOnlyNotice } from './DesktopOnlyNotice';
 export { ScreenPlaceholder } from './ScreenPlaceholder';
 export { PageLoader } from './PageLoader';
 export { EmailVerificationForm, EmailCodePolicy } from './EmailVerificationForm';

@@ -22,15 +22,18 @@ const STEPS = ['plan', 'signIn', 'details', 'payment', 'done'] as const;
 export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element => {
     const { t } = useTranslation();
     return (
-        <ol className="flex items-center gap-2 whitespace-nowrap" aria-label={t('subscription.checkout.steps.label')}>
+        <ol
+            className="flex items-center gap-1.5 whitespace-nowrap sm:gap-2"
+            aria-label={t('subscription.checkout.steps.label')}
+        >
             {STEPS.map((step, index) => {
                 const number = index + 1;
                 // The last step is ticked, not numbered, once the reader is on it: it is the finish.
                 const done = number < current || (current === 5 && number === 5);
                 const active = number === current;
                 return (
-                    <li key={step} className="flex items-center gap-2">
-                        {index > 0 && <span aria-hidden className="h-px w-4 bg-border" />}
+                    <li key={step} className="flex items-center gap-1.5 sm:gap-2">
+                        {index > 0 && <span aria-hidden className="h-px w-3 bg-border sm:w-4" />}
                         <span
                             aria-current={active ? 'step' : undefined}
                             className={cn(
@@ -47,7 +50,10 @@ export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element 
                             >
                                 {done ? '✓' : number}
                             </span>
-                            {t(`subscription.checkout.steps.${step}`)}
+                            {/* On a phone only the step the reader is on keeps its name, so the five fit one line. */}
+                            <span className={active ? undefined : 'hidden sm:inline'}>
+                                {t(`subscription.checkout.steps.${step}`)}
+                            </span>
                         </span>
                     </li>
                 );

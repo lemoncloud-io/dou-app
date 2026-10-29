@@ -87,7 +87,7 @@ export const CheckoutPage = (): JSX.Element => {
     };
 
     return (
-        <div className="grid grid-cols-[minmax(0,1fr)_260px] gap-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_260px] md:gap-8">
             <div className="flex flex-col gap-6">
                 <CheckoutSteps current={3} />
                 <header className="flex flex-col gap-2">
@@ -121,7 +121,7 @@ export const CheckoutPage = (): JSX.Element => {
 
                 <Card className="flex flex-col gap-4">
                     <h2 className="text-[15px] font-semibold text-navy">{t('subscription.checkout.billing.title')}</h2>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="flex flex-col gap-2">
                             <label htmlFor="checkout-country" className="text-[13px] text-desc-alt">
                                 {t('subscription.checkout.billing.country')}
