@@ -84,7 +84,9 @@ written leaves nothing in the room, so the page says so with a notice instead. E
 have its send mounted before anything is read — otherwise nothing is sent and the composer stays. Like any send whose screen was left before it
 settled, that row can be deleted but not retried: the runtime lets go of the files of a send nobody is
 attached to once it fails, rather than holding them for a screen that may never come back. After one
-room the page opens it; after several it says how many and goes home.
+room the page opens it, handing over the room's row as the home list does — the room is on screen
+before its cache answers, so a refusal the sync layer records in that gap does not evict the reader
+from their own room until the cache has answered; after several it says how many and goes home.
 
 ### Leaving
 
