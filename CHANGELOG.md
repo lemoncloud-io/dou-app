@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-29] - root@0.123.1, @chatic/desktop-web@0.37.2
+
+### Bug Fixes
+
+- (desktop-web) keep Home on Mod+0, clouds on Mod+1-9
+
 ## [2026-10-29] - No version updates
 
 ### Bug Fixes
