@@ -13,6 +13,7 @@ describe('SubscriptionHttpDataSource', () => {
             markDrops: jest.fn(),
             adminMemberships: jest.fn(),
             updateMembershipByAdmin: jest.fn(),
+            refundSubscriptionByAdmin: jest.fn(),
             adminClouds: jest.fn(),
         };
         dataSource = new SubscriptionHttpDataSource(gateway);
@@ -100,5 +101,30 @@ describe('SubscriptionHttpDataSource', () => {
         expect(gateway.updateMembershipByAdmin).toHaveBeenLastCalledWith('1000904', { adminStatus: '' }, undefined, {
             endpoint,
         });
+    });
+
+    // The refund takes no query params of its own; the relay's `auto`/`dryRun` defaults are what the
+    // console wants, so only the body and the stage's endpoint travel.
+    it('refundSubscriptionByAdmin — forwards the reason and the endpoint, and returns the raw view', async () => {
+        gateway.refundSubscriptionByAdmin.mockResolvedValue({ status: 'expired' });
+        const endpoint = 'https://api.example.com/dou-d1';
+
+        await expect(
+            dataSource.refundSubscriptionByAdmin('1000904', { reason: 'test refund' }, { endpoint })
+        ).resolves.toEqual({ status: 'expired' });
+        expect(gateway.refundSubscriptionByAdmin).toHaveBeenCalledWith(
+            '1000904',
+            { reason: 'test refund' },
+            undefined,
+            { endpoint }
+        );
+
+        await dataSource.refundSubscriptionByAdmin('1000904', { reason: 'r' });
+        expect(gateway.refundSubscriptionByAdmin).toHaveBeenLastCalledWith(
+            '1000904',
+            { reason: 'r' },
+            undefined,
+            undefined
+        );
     });
 });

@@ -10,8 +10,10 @@ import type {
 import type {
     AdminEndpointOptions,
     AdminOverrideOptions,
+    AdminSubscriptionView,
     ISubscriptionHttpDataSource,
     MembershipDropsResult,
+    SubscriptionRefundBody,
 } from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
@@ -36,6 +38,12 @@ export interface ISubscriptionRepository extends DisposableRepository {
         opts?: AdminEndpointOptions
     ): Promise<ListResult<MembershipView>>;
     updateMembershipByAdmin(userId: string, body: MembershipBody, opts?: AdminOverrideOptions): Promise<MembershipView>;
+    /** Full refund of a web subscription's last paid charge; the subscription expires at once. */
+    refundSubscriptionByAdmin(
+        userId: string,
+        body: SubscriptionRefundBody,
+        opts?: AdminEndpointOptions
+    ): Promise<AdminSubscriptionView>;
     fetchAdminClouds(
         ownerId: string,
         params?: Record<string, unknown>,
@@ -100,6 +108,14 @@ export class SubscriptionRepository extends BaseRepository implements ISubscript
         opts?: AdminOverrideOptions
     ): Promise<MembershipView> {
         return this.requireHttp().updateMembershipByAdmin(userId, body, opts);
+    }
+
+    public async refundSubscriptionByAdmin(
+        userId: string,
+        body: SubscriptionRefundBody,
+        opts?: AdminEndpointOptions
+    ): Promise<AdminSubscriptionView> {
+        return this.requireHttp().refundSubscriptionByAdmin(userId, body, opts);
     }
 
     public async fetchAdminClouds(

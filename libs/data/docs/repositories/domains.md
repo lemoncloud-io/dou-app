@@ -157,11 +157,11 @@ Some domains have no `local` and some have no `socket`. Which domain receives wh
 ### Subscription
 
 `fetchPlans` · `fetchMembershipInfo` · `validateMembership` · `fetchAdminMemberships` ·
-`updateMembershipByAdmin` · `fetchAdminClouds`
+`updateMembershipByAdmin` · `refundSubscriptionByAdmin` · `fetchAdminClouds`
 
 - **Remote-only and HTTP-only.** The same shape as `Report`.
 - Tiers and quotas are decided by the server (ADR-0060). The cache semantics belong to a react-query adapter on the consumer side.
-- The last three are the admin console surface (ADR-0101). Being remote-only is the point for them: these reads are other users' records and must never reach a local cache. `fetchAdminClouds` rides this repository rather than `Cloud` on purpose → [http.md's admin console surface](../remote/http.md#the-admin-console-surface).
+- The last four are the admin console surface (ADR-0101). Being remote-only is the point for them: these calls touch other users' records and must never reach a local cache. `fetchAdminClouds` rides this repository rather than `Cloud` on purpose → [http.md's admin console surface](../remote/http.md#the-admin-console-surface).
 
 ### SyncMeta
 

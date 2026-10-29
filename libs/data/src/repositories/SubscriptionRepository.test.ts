@@ -9,6 +9,7 @@ describe('SubscriptionRepository', () => {
         markDrops: jest.fn(),
         fetchAdminMemberships: jest.fn(),
         updateMembershipByAdmin: jest.fn(),
+        refundSubscriptionByAdmin: jest.fn(),
         fetchAdminClouds: jest.fn(),
     });
 
@@ -22,6 +23,7 @@ describe('SubscriptionRepository', () => {
         await expect(repository.fetchPlans()).rejects.toThrow('not injected');
         await expect(repository.fetchMembershipInfo()).rejects.toThrow('not injected');
         await expect(repository.markDrops({ cloudIds: [] })).rejects.toThrow('not injected');
+        await expect(repository.refundSubscriptionByAdmin('1000904', { reason: 'r' })).rejects.toThrow('not injected');
     });
 
     it('delegates every method to the injected http data source', async () => {
@@ -48,6 +50,20 @@ describe('SubscriptionRepository', () => {
             excess: 0,
         });
         expect(http.markDrops).toHaveBeenCalledWith({ cloudIds: ['c1', 'c2'] });
+    });
+
+    it('refundSubscriptionByAdmin — delegates the user, reason and endpoint unchanged', async () => {
+        const http = createHttpDataSource();
+        http.refundSubscriptionByAdmin.mockResolvedValue({ status: 'expired' });
+        const repository = new SubscriptionRepository(contextProvider as any, http as any);
+        const opts = { endpoint: 'https://api.example.com/dou-d1' };
+
+        await expect(repository.refundSubscriptionByAdmin('1000904', { reason: 'test refund' }, opts)).resolves.toEqual(
+            {
+                status: 'expired',
+            }
+        );
+        expect(http.refundSubscriptionByAdmin).toHaveBeenCalledWith('1000904', { reason: 'test refund' }, opts);
     });
 
     it('dispose() is a no-op inherited from BaseRepository (nothing acquired to release)', () => {
