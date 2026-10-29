@@ -1,5 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 
+import type { DomainChannel } from '@chatic/data';
+
 import { releaseShareIntake } from '../../../bridge/shareIntake';
 import type { ShareDestination } from './useShareDestinations';
 import { useShareSend, type SendFiles } from './useShareSend';
@@ -38,6 +40,7 @@ const room = (id: string, kind: ShareDestination['kind'] = 'group'): ShareDestin
     cid: 'cloud-a',
     kind,
     title: id,
+    channel: { id, cid: 'cloud-a' } as DomainChannel,
 });
 
 /** Mounts the hook with a sender registered for each room, as `DestinationSender` would. */
@@ -139,7 +142,11 @@ describe('useShareSend', () => {
 
         await act(async () => result.current.send({ destinations: [room('a')], files: [file('a.pdf')], content: '' }));
 
-        expect(mockNavigate).toHaveBeenCalledWith('/channels/a/room', { replace: true });
+        // The row goes along, so the room is on screen before its cache answers — as from the home list.
+        expect(mockNavigate).toHaveBeenCalledWith('/channels/a/room', {
+            replace: true,
+            state: { channel: expect.objectContaining({ id: 'a' }) },
+        });
         expect(mockToast).not.toHaveBeenCalled();
     });
 
