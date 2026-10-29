@@ -276,8 +276,11 @@ jobs:
                       prefix: WEB
                     - project: admin-v2
                       prefix: ADMIN
+                    # landing reuses WEB_* env secrets too: its account surface signs in to the web app's
+                    # relay session, so every address must match the web app's. Only its S3/CloudFront
+                    # target differs (LANDING_* in the deploy step).
                     - project: landing
-                      prefix: LANDING
+                      prefix: WEB
                     # desktop-web reuses WEB_* env secrets (same backend/firebase config);
                     # only its S3/CloudFront target differs (DESKTOP_* in the deploy step).
                     - project: desktop-web

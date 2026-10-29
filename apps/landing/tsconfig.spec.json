@@ -23,6 +23,12 @@
     // The same libraries tsconfig.app.json references, for the same reason (TS6307 otherwise).
     "references": [
         {
+            "path": "../../libs/config/tsconfig.lib.json"
+        },
+        {
+            "path": "../../libs/app-runtime/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/policy-content/tsconfig.lib.json"
         },
         {

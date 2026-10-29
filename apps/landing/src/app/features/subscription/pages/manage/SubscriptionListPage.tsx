@@ -6,7 +6,7 @@ import { ROUTES } from '../../../../routes/paths';
 import { PageLoader, StatusBadge, SummaryTile } from '../../components';
 import { Badge, Banner, Button, Card } from '../../components/ui';
 import { usePaymentMethods, usePlans, useSubscriptions } from '../../hooks';
-import { isPortError, useToday } from '../../lib/port';
+import { isPortError, useSupports, useToday } from '../../lib/port';
 import { sceneOf } from '../../lib/sceneOf';
 import { chargeCardOf, endedOn, listCardOf, splitSubscriptions } from './manageModel';
 import { type ManageFormat, useManageFormat } from './useManageFormat';
@@ -99,6 +99,7 @@ export const SubscriptionListPage = (): JSX.Element => {
  */
 const LiveCard = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX.Element => {
     const { t } = useTranslation();
+    const resumable = useSupports()('resumeSubscription');
     const navigate = useNavigate();
     const today = useToday();
     const methods = usePaymentMethods();
@@ -115,7 +116,7 @@ const LiveCard = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX.E
                     <StatusBadge subscription={sub} />
                     <Badge tone="neutral">{t('subscription.manage.list.source')}</Badge>
                 </div>
-                <div className="grid w-full grid-cols-4 gap-3">
+                <div className="grid w-full grid-cols-2 gap-3 lg:grid-cols-4">
                     <SummaryTile
                         label={t('subscription.manage.list.clouds')}
                         value={
@@ -153,7 +154,7 @@ const LiveCard = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX.E
                     </h2>
                     <StatusBadge subscription={sub} />
                 </div>
-                <p className="text-[13px] text-subtitle">{statusLine(sub, banner, fmt, t)}</p>
+                <p className="text-[13px] text-subtitle">{statusLine(sub, banner, fmt, t, resumable)}</p>
             </div>
             <Button size="lg" variant="secondary" className="shrink-0 rounded-full" onClick={toDetail}>
                 {t('subscription.manage.list.detail')}
@@ -162,7 +163,14 @@ const LiveCard = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX.E
     );
 };
 
-const statusLine = (sub: Subscription, banner: SceneBanner, fmt: ManageFormat, t: TFunction): string => {
+const statusLine = (
+    sub: Subscription,
+    banner: SceneBanner,
+    fmt: ManageFormat,
+    t: TFunction,
+    /** Whether the cancellation can be undone here; the line says so only when it can. */
+    resumable: boolean
+): string => {
     const key = 'subscription.manage.list.status';
     switch (banner.kind) {
         case 'trial':
@@ -180,7 +188,9 @@ const statusLine = (sub: Subscription, banner: SceneBanner, fmt: ManageFormat, t
         case 'restricted':
             return t(`${key}.restricted`, { amount: fmt.money(sub.nextAmount), date: fmt.date(banner.date) });
         case 'cancelScheduled':
-            return t(`${key}.cancelScheduled`, { date: fmt.date(banner.date) });
+            return t(`${key}.${resumable ? 'cancelScheduled' : 'cancelScheduledNoUndo'}`, {
+                date: fmt.date(banner.date),
+            });
         case 'downgradeScheduled':
             return t(`${key}.downgradeScheduled`, {
                 date: fmt.date(banner.date),

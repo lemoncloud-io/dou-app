@@ -20,6 +20,7 @@ export const createCatalogPort = (): SubscriptionPort => ({
     getSubscription: shut,
     previewCheckout: shut,
     startPaymentMethodRegistration: shut,
+    completePaymentMethodRegistration: shut,
     startCheckout: shut,
     getPaymentAttempt: shut,
     previewChange: shut,

@@ -7,12 +7,34 @@ import type {
     MembershipView,
     ProductView,
 } from '@lemoncloud/chatic-backend-api';
-import type { AdminSubscriptionView, MembershipDropsResult, SubscriptionRefundBody } from '@chatic/http';
+import type {
+    AdminSubscriptionView,
+    BillingIssueParams,
+    BillkeyView,
+    MembershipDropsResult,
+    SubscriptionCardBody,
+    SubscriptionRefundBody,
+    SubscriptionStartBody,
+    WebSubscriptionMineView,
+    WebSubscriptionView,
+} from '@chatic/http';
 import type { SubscriptionHttpDomainGateway } from '../gateways';
 
 // Re-exported so app code reads the drops response type from `@chatic/data` like the rest of this
 // surface, without taking a dependency on the transport lib for one type.
-export type { AdminSubscriptionView, MembershipDropsResult, SubscriptionRefundBody } from '@chatic/http';
+export type {
+    AdminSubscriptionView,
+    BillingIssueParams,
+    BillkeyView,
+    MembershipDropsResult,
+    SubscriptionCardBody,
+    SubscriptionPayer,
+    SubscriptionRefundBody,
+    SubscriptionStartBody,
+    WebSubscriptionMineView,
+    WebSubscriptionStatus,
+    WebSubscriptionView,
+} from '@chatic/http';
 
 export interface ISubscriptionHttpDataSource {
     fetchPlans(params?: Record<string, unknown>): Promise<ListResult<ProductView>>;
@@ -35,6 +57,16 @@ export interface ISubscriptionHttpDataSource {
         params?: Record<string, unknown>,
         opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>>;
+
+    // The web subscription — one per account, billed through the payment provider.
+    fetchMySubscription(): Promise<WebSubscriptionMineView>;
+    fetchSubscriptionCards(): Promise<BillkeyView[]>;
+    issueBillingKey(productId: string): Promise<BillingIssueParams>;
+    startSubscription(body: SubscriptionStartBody): Promise<WebSubscriptionView>;
+    changeSubscription(productId: string): Promise<WebSubscriptionView>;
+    cancelSubscription(): Promise<WebSubscriptionView>;
+    replaceCard(body: SubscriptionCardBody): Promise<BillkeyView>;
+    removeCard(): Promise<WebSubscriptionView>;
 }
 
 /**
@@ -119,5 +151,37 @@ export class SubscriptionHttpDataSource implements ISubscriptionHttpDataSource {
         opts?: AdminEndpointOptions
     ): Promise<ListResult<CloudView, AggrResult>> {
         return this.gateway.adminClouds(ownerId, params, opts);
+    }
+
+    fetchMySubscription(): Promise<WebSubscriptionMineView> {
+        return this.gateway.mySubscription();
+    }
+
+    fetchSubscriptionCards(): Promise<BillkeyView[]> {
+        return this.gateway.subscriptionCards();
+    }
+
+    issueBillingKey(productId: string): Promise<BillingIssueParams> {
+        return this.gateway.issueBillingKey({ productId });
+    }
+
+    startSubscription(body: SubscriptionStartBody): Promise<WebSubscriptionView> {
+        return this.gateway.startSubscription(body);
+    }
+
+    changeSubscription(productId: string): Promise<WebSubscriptionView> {
+        return this.gateway.changeSubscription({ productId });
+    }
+
+    cancelSubscription(): Promise<WebSubscriptionView> {
+        return this.gateway.cancelSubscription();
+    }
+
+    replaceCard(body: SubscriptionCardBody): Promise<BillkeyView> {
+        return this.gateway.replaceCard(body);
+    }
+
+    removeCard(): Promise<WebSubscriptionView> {
+        return this.gateway.removeCard();
     }
 }

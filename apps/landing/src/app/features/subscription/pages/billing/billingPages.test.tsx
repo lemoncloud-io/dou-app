@@ -13,13 +13,6 @@ import type { PortSetup } from '../../lib/createPortSetup';
 // the query client, the toasts and the stand-in payment window exactly as a reader meets them.
 
 beforeAll(async () => {
-    // jsdom has no matchMedia; a desktop-width viewport keeps the phone-width notice away.
-    window.matchMedia = ((query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-    })) as unknown as typeof window.matchMedia;
     await i18n.changeLanguage('en');
 });
 
@@ -41,7 +34,7 @@ const renderAt = (url: string, search: string, setup: PortSetup = mockSetup(sear
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
-                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} />} />
+                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management />} />
             </Routes>
             <Where />
         </MemoryRouter>
@@ -61,6 +54,14 @@ const emailRow = (address: string) =>
         expect(row).toBeTruthy();
         return row as HTMLElement;
     });
+
+/** Fills in the payer the add-card dialog asks for, then opens the payment window from it. */
+const openPaymentWindow = async () => {
+    const dialog = await screen.findByRole('dialog', { name: 'Add card' });
+    fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: '김민지' } });
+    fireEvent.change(within(dialog).getByLabelText('Mobile phone'), { target: { value: '010-1234-5678' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Open payment window' }));
+};
 
 describe('W-12 payment methods', () => {
     const url = '/subscription/payment-methods';
@@ -129,11 +130,7 @@ describe('W-12 payment methods', () => {
         renderAt(url, '?mock=active');
 
         fireEvent.click(await screen.findByRole('button', { name: 'Add card' }));
-        fireEvent.click(
-            within(await screen.findByRole('dialog', { name: 'Add card' })).getByRole('button', {
-                name: 'Open payment window',
-            })
-        );
+        await openPaymentWindow();
         fireEvent.click(
             within(await screen.findByRole('dialog', { name: 'Add a card' })).getByRole('button', {
                 name: 'Registered',
@@ -149,11 +146,7 @@ describe('W-12 payment methods', () => {
         renderAt(url, '?mock=active&fail=card-declined');
 
         fireEvent.click(await screen.findByRole('button', { name: 'Add card' }));
-        fireEvent.click(
-            within(await screen.findByRole('dialog', { name: 'Add card' })).getByRole('button', {
-                name: 'Open payment window',
-            })
-        );
+        await openPaymentWindow();
         fireEvent.click(
             within(await screen.findByRole('dialog', { name: 'Add a card' })).getByRole('button', {
                 name: 'Registration failed',
@@ -167,11 +160,7 @@ describe('W-12 payment methods', () => {
         renderAt(url, '?mock=active&fail=attempt-limit');
 
         fireEvent.click(await screen.findByRole('button', { name: 'Add card' }));
-        fireEvent.click(
-            within(await screen.findByRole('dialog', { name: 'Add card' })).getByRole('button', {
-                name: 'Open payment window',
-            })
-        );
+        await openPaymentWindow();
 
         expect(await screen.findByText('Too many attempts')).toBeTruthy();
         expect(screen.queryByRole('dialog', { name: 'Add a card' })).toBeNull();
@@ -196,11 +185,7 @@ describe('W-12 payment methods', () => {
         expect(within(await cardRow('신한 ···· 1234')).getByText('Payment failed · 카드 한도 초과')).toBeTruthy();
 
         fireEvent.click(screen.getByRole('button', { name: 'Add card' }));
-        fireEvent.click(
-            within(await screen.findByRole('dialog', { name: 'Add card' })).getByRole('button', {
-                name: 'Open payment window',
-            })
-        );
+        await openPaymentWindow();
         fireEvent.click(
             within(await screen.findByRole('dialog', { name: 'Add a card' })).getByRole('button', {
                 name: 'Registered',

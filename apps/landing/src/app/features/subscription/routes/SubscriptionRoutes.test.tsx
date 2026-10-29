@@ -2,9 +2,11 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../i18n';
-import { createPortSetup } from '../lib/createPortSetup';
 import { createMockPort } from '../lib/mock';
 import { memoryStateStore } from '../lib/mock/storage';
+import { HTTP_METHODS } from '../lib/port/http';
+
+import { MANAGEMENT_SCREENS_OPEN } from '../lib/screens';
 
 import { SubscriptionRoutes } from './index';
 
@@ -39,20 +41,8 @@ vi.mock('../pages/billing', () => ({
     BillingInfoPage: () => <p>W-16</p>,
 }));
 
-// jsdom has no matchMedia; each test says whether the viewport is phone-width.
-let narrow = false;
 beforeAll(async () => {
-    window.matchMedia = ((query: string) => ({
-        matches: narrow,
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-    })) as unknown as typeof window.matchMedia;
     await i18n.changeLanguage('en');
-});
-
-beforeEach(() => {
-    narrow = false;
 });
 
 // The dev panel re-renders on every mock commit, including the ones a test makes outside React; it
@@ -71,11 +61,12 @@ const Where = () => {
     return <output data-testid="where">{pathname + search}</output>;
 };
 
-const renderAt = (url: string, setup: PortSetup) =>
+// `management` opens the card and billing-email screens, which are hidden by default (`lib/screens.tsx`).
+const renderAt = (url: string, setup: PortSetup, { management = true }: { management?: boolean } = {}) =>
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
-                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} />} />
+                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management={management} />} />
             </Routes>
             <Where />
         </MemoryRouter>
@@ -125,6 +116,62 @@ describe('SubscriptionRoutes', () => {
         expect(await screen.findByText('W-24')).toBeTruthy();
     });
 
+    describe('with the card and billing-email screens hidden (the default)', () => {
+        it.each([
+            ['/subscription/payment-methods'],
+            ['/subscription/billing-info'],
+            ['/subscription/checkout/email?plan=pro-tier-01'],
+        ])('does not register %s: it falls to the subscription list', async url => {
+            renderAt(url, mockSetup('?mock=active'), { management: false });
+
+            expect(await screen.findByText('W-10')).toBeTruthy();
+            expect(where()).toBe('/subscription');
+        });
+
+        it('leaves the card and billing-email screens out of the sidebar, and keeps the rest', async () => {
+            renderAt('/subscription', mockSetup('?mock=active'), { management: false });
+
+            const nav = within(await screen.findByRole('navigation'));
+            expect(nav.getByRole('link', { name: 'Subscription' })).toBeTruthy();
+            expect(nav.getByRole('link', { name: 'Billing history' })).toBeTruthy();
+            expect(nav.queryByRole('link', { name: 'Payment methods' })).toBeNull();
+            expect(nav.queryByRole('link', { name: 'Billing info' })).toBeNull();
+        });
+
+        it('keeps the screens that stay open', async () => {
+            renderAt('/subscription/history', mockSetup('?mock=active'), { management: false });
+
+            expect(await screen.findByText('W-13')).toBeTruthy();
+            expect(where()).toBe('/subscription/history');
+        });
+
+        it('is hidden unless asked for: nothing opens them by default', () => {
+            expect(MANAGEMENT_SCREENS_OPEN).toBe(false);
+        });
+    });
+
+    describe('against the server, which has no billing history yet', () => {
+        const onServer = (search: string): PortSetup => ({
+            ...mockSetup(search),
+            supports: method => (HTTP_METHODS as ReadonlyArray<string>).includes(method),
+        });
+
+        it('leaves the billing history out of the sidebar', async () => {
+            renderAt('/subscription', onServer('?mock=active'), { management: false });
+
+            const nav = within(await screen.findByRole('navigation'));
+            expect(nav.getByRole('link', { name: 'Subscription' })).toBeTruthy();
+            expect(nav.queryByRole('link', { name: 'Billing history' })).toBeNull();
+        });
+
+        it('does not register the billing history: it falls to the subscription list', async () => {
+            renderAt('/subscription/history', onServer('?mock=active'), { management: false });
+
+            expect(await screen.findByText('W-10')).toBeTruthy();
+            expect(where()).toBe('/subscription');
+        });
+    });
+
     it('sends a store subscriber to the store notice instead of checkout', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=store-ios'));
 
@@ -155,31 +202,6 @@ describe('SubscriptionRoutes', () => {
         expect(await screen.findByText('W-02')).toBeTruthy();
     });
 
-    it('shows the desktop-only notice on a phone-width screen', async () => {
-        narrow = true;
-        renderAt('/subscription/plans', mockSetup('?mock=visitor'));
-
-        expect(await screen.findByText('On a phone, subscribe in the app')).toBeTruthy();
-        expect(screen.queryByText('W-01')).toBeNull();
-    });
-
-    it('drops the desktop card from the phone notice where nothing can be bought on the web yet', async () => {
-        narrow = true;
-        render(
-            <MemoryRouter initialEntries={['/subscription/plans']}>
-                <Routes>
-                    <Route
-                        path="/subscription/plans/*"
-                        element={<SubscriptionRoutes account={false} setup={createPortSetup({ account: false })} />}
-                    />
-                </Routes>
-            </MemoryRouter>
-        );
-
-        expect(await screen.findByText('On a phone, subscribe in the app')).toBeTruthy();
-        expect(screen.queryByText('Subscribe on the web from a computer')).toBeNull();
-    });
-
     it('sends an unknown deeper path to the subscription list', async () => {
         renderAt('/subscription/a/b/c', mockSetup('?mock=active'));
 
@@ -206,14 +228,17 @@ describe('SubscriptionRoutes', () => {
 
         let outcome: Promise<{ outcome: string }> = Promise.resolve({ outcome: '' });
         act(() => {
-            outcome = setup.port.startPaymentMethodRegistration({ purpose: 'addCard' });
+            outcome = setup.port.startPaymentMethodRegistration({
+                purpose: 'addCard',
+                payer: { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' },
+            });
         });
         const registered = await screen.findByRole('button', { name: 'Registered' });
         // The declined card is what the fail flag implies, so that answer is the one marked.
         expect(screen.getByRole('button', { name: 'Registration failed' }).hasAttribute('data-suggested')).toBe(true);
         fireEvent.click(registered);
 
-        expect(await outcome).toEqual({ outcome: 'registered' });
+        expect(await outcome).toMatchObject({ outcome: 'registered' });
         expect(await setup.port.listPaymentMethods()).toHaveLength(3);
     });
 

@@ -5,4 +5,12 @@ export {
     type SubscriptionPortErrorCode,
     type SubscriptionPortErrorDetail,
 } from './errors';
-export { PortProvider, usePort, useToday, systemClock, type Clock } from './PortProvider';
+export {
+    PortProvider,
+    usePort,
+    useSupports,
+    useToday,
+    systemClock,
+    type Clock,
+    type PortSupports,
+} from './PortProvider';

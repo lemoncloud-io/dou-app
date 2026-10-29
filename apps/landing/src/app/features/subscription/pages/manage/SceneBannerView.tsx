@@ -8,6 +8,7 @@ import type { SceneBanner } from '../../lib/sceneOf';
 import type { PaymentMethod, Subscription } from '../../types';
 
 const TONE: Record<SceneBanner['kind'] | 'replaced', BannerTone> = {
+    pending: 'info',
     trial: 'info',
     active: 'info',
     restored: 'success',
@@ -40,6 +41,8 @@ export const SceneBannerView = ({
 
     const copy = ((): { title: string; body: string } => {
         switch (banner.kind) {
+            case 'pending':
+                return { title: t(`${key}.title`), body: t(`${key}.body`) };
             case 'trial':
                 return {
                     title: t(`${key}.title`, { date: fmt.date(banner.date) }),

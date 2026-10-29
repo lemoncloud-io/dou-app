@@ -183,7 +183,7 @@ export const EmailVerificationForm = ({
             <label htmlFor={`${idPrefix}-address`} className="text-[13px] font-medium text-navy">
                 {label}
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
                 <div className="relative flex min-w-0 flex-1">
                     <input
                         id={`${idPrefix}-address`}

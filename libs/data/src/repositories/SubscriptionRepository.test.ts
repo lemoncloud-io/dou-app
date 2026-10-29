@@ -11,6 +11,14 @@ describe('SubscriptionRepository', () => {
         updateMembershipByAdmin: jest.fn(),
         refundSubscriptionByAdmin: jest.fn(),
         fetchAdminClouds: jest.fn(),
+        fetchMySubscription: jest.fn(),
+        fetchSubscriptionCards: jest.fn(),
+        issueBillingKey: jest.fn(),
+        startSubscription: jest.fn(),
+        changeSubscription: jest.fn(),
+        cancelSubscription: jest.fn(),
+        replaceCard: jest.fn(),
+        removeCard: jest.fn(),
     });
 
     it('is remote-only — constructs with no local/socket data source, matching AuthRepository/DeviceRepository', () => {
@@ -50,6 +58,32 @@ describe('SubscriptionRepository', () => {
             excess: 0,
         });
         expect(http.markDrops).toHaveBeenCalledWith({ cloudIds: ['c1', 'c2'] });
+    });
+
+    it('delegates the web subscription calls to the http data source unchanged', async () => {
+        const http = createHttpDataSource();
+        const payer = { name: 'n', phone: '01012345678', email: 'e@x.y' };
+        http.fetchMySubscription.mockResolvedValue({ subscription: { id: 'U1:portone', status: 'trial' } });
+        http.cancelSubscription.mockResolvedValue({ id: 'U1:portone', status: 'canceling' });
+        const repository = new SubscriptionRepository(contextProvider as any, http as any);
+
+        await expect(repository.fetchMySubscription()).resolves.toEqual({
+            subscription: { id: 'U1:portone', status: 'trial' },
+        });
+        await expect(repository.cancelSubscription()).resolves.toEqual({ id: 'U1:portone', status: 'canceling' });
+
+        await repository.issueBillingKey('p1');
+        expect(http.issueBillingKey).toHaveBeenCalledWith('p1');
+        await repository.startSubscription({ productId: 'p1' });
+        expect(http.startSubscription).toHaveBeenCalledWith({ productId: 'p1' });
+        await repository.changeSubscription('p2');
+        expect(http.changeSubscription).toHaveBeenCalledWith('p2');
+        await repository.replaceCard({ billingKey: 'bk', ...payer });
+        expect(http.replaceCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer });
+        await repository.fetchSubscriptionCards();
+        await repository.removeCard();
+        expect(http.fetchSubscriptionCards).toHaveBeenCalledTimes(1);
+        expect(http.removeCard).toHaveBeenCalledTimes(1);
     });
 
     it('refundSubscriptionByAdmin — delegates the user, reason and endpoint unchanged', async () => {

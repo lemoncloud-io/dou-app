@@ -1,9 +1,10 @@
 /**
  * Which deployment this page is running on.
  *
- * The only module under `src/app` that reads `import.meta` or the hostname. The `.env` the deploy
- * writes carries nothing this site reads at runtime: the stage is told apart by the host it is
- * served from (`app-dev.chatic.io` against `app.chatic.io`) and, in `vite` dev, by the dev flag.
+ * With `subscriptionServer.ts`, the only module under `src/app` that reads `import.meta`, and the only
+ * one that reads the hostname. The stage is told apart by the host it is served from
+ * (`app-dev.chatic.io` against `app.chatic.io`) and, in `vite` dev, by the dev flag; the `.env` the
+ * deploy writes is read only for the account surface's server addresses.
  *
  * Not re-exported from any barrel: import it, and `links.ts` which reads it, by their own paths, so
  * no barrel carries `import.meta` into a module that never asked for it.

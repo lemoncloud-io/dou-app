@@ -6,7 +6,8 @@
 bounce page that sends an invite link into the installed app or into the web app — with no session,
 no data layer and no backend call of its own. Its **account surface**, `/subscription/*`, is where a
 signed-in account holder buys and manages a subscription outside the stores; it is open only on
-local and dev hosts, and runs on a mock until a server exists (see [Two surfaces](#two-surfaces)) —
+local and dev hosts, and runs against the subscription server, with the mock answering what that server
+does not yet (see [Two surfaces](#two-surfaces) and [The server](#the-server)) —
 except `/subscription/plans`, which lists the published plans on every host from a fixed catalog (see
 [Plans before checkout opens](#plans-before-checkout-opens)).
 
@@ -105,7 +106,10 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    `apps/web`. This is what keeps landing from becoming a second web app.
 9. **The account surface talks to a server through one port.** Pages, hooks and components call
    `SubscriptionPort` (`features/subscription/lib/port/`) and nothing else — no `fetch`, no HTTP
-   client. The implementation behind it (the mock today) is swapped without touching a page.
+   client. Of its implementations, only the HTTP one (`lib/port/http/`) reaches the network, and it
+   does so through the runtime's subscription repository (`libs/data`, over `libs/http`'s gateway),
+   as every other app's server calls do: the session runtime and the payment SDK are imported there
+   and nowhere else (ADR-0248).
 10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountEnabled` is
     false (every host but `localhost`, `127.0.0.1` and `-dev` ones) its routes are not registered,
     and the public pages' links into it render only where the gate is open — today the home header's
@@ -213,8 +217,9 @@ apps/landing/
     └── app/
         ├── app.tsx             the provider assembly: ThemeProvider around the Router
         ├── routes/             the router, the route table, ROUTES (paths.ts), the error screen
-        ├── config/             stage.ts (hostname, import.meta, the subscription gate), links.ts
-        ├── hooks/              useDeviceDetect — the bounce page and the desktop-only notice
+        ├── config/             stage.ts (hostname, import.meta, the subscription gate), links.ts,
+        │                       subscriptionServer.ts (the account surface's server addresses, from .env)
+        ├── hooks/              useDeviceDetect — the bounce page
         └── features/
             ├── home/           sections, Header, Footer, StoreButton
             ├── policy/         4 pages over one PolicyPageLayout; the 3 versioned ones add a VersionSelector
@@ -235,12 +240,12 @@ which way an import may point). It is not restated here. What it comes to in an 
   imports no feature; only `app.tsx` and `routes/` do.
 - **No `shared/` folder, and nothing promoted ahead of time.** A file moves up on its second
   consumer. `Header`, `Footer` and `StoreButton` have one consumer, so they live in `home`;
-  `useDeviceDetect` moved up when the desktop-only notice became its second.
+  `useDeviceDetect` sits at the app level for the bounce page, which no feature owns.
 - **Absolute paths come from `ROUTES`** in `app/routes/paths.ts`, never a typed string — the web
   app's design principle 5. The route table's own patterns (`policy/*`) stay spelled out, as the web
   app's do.
-- **`import.meta` and the hostname are read in `app/config/stage.ts` only.** No barrel re-exports
-  it; import it by path.
+- **`import.meta` and the hostname are read in `app/config/` only** — the hostname in `stage.ts`,
+  `import.meta` there and in `subscriptionServer.ts`. No barrel re-exports either; import them by path.
 - **A feature is reached through its `index.ts`**, which exports its `<Name>Routes`. Inside, a feature
   uses the subset of `pages/ components/ hooks/ lib/ utils/ types/ consts/ routes/` it needs.
 - **Copy lives in one file per language** (`src/i18n/locales/{ko,en}.json`); `localeParity.test.ts`
@@ -275,10 +280,11 @@ test ! -d apps/landing/src/app/shared   # no shared/ wrapper
 git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|app-runtime|auth-sign)" \
     -- apps/landing/src ':!apps/landing/src/app/features/subscription' ':!apps/landing/src/app/routes'
 
-# an account-surface page, hook or component reaching the network (only lib/port and lib/mock may)
-# (`[^[:alnum:]_]` before fetch: `window.fetch(` is caught, react-query's `refetch(` is not)
-git grep -n -E '(^|[^[:alnum:]_])fetch\(|axios|@chatic/(http|data)' -- apps/landing/src/app/features/subscription/pages \
-    apps/landing/src/app/features/subscription/hooks apps/landing/src/app/features/subscription/components
+# the account surface reaching the network, a session or the payment SDK outside the HTTP port
+# (`[^[:alnum:]_]` before fetch: `window.fetch(` is caught, react-query's `refetch(` is not; the one
+# hit outside the account surface is the orphan in deeplink/utils/fingerprint.ts — see Traps)
+git grep -n -E "@chatic/(http|data|app-runtime|auth-sign)|@portone/|(^|[^[:alnum:]_])fetch\(|axios" \
+    -- apps/landing/src ':!apps/landing/src/app/features/subscription/lib/port/http'
 ```
 
 Give the first command the features folder itself, as above. A pathspec with a trailing glob such
@@ -306,10 +312,23 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 | Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                                               |
 | Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts only (`isSubscriptionAccountEnabled`); W-01 on every host |
 
-Every screen below is drawn on the mock port. None is open on the production host yet except W-01,
+**The card and billing-email screens are hidden** — W-12, W-16 and the email step W-24 — until their
+servers exist (ADR-0248, `lib/screens.tsx`). Their rows are kept in the table, marked _hidden_: the routes
+are not registered, every link into them is gone, and the port methods, the HTTP port and the mock are
+left as they were. Opening them again is the one value `MANAGEMENT_SCREENS_OPEN`. What that costs: a
+subscriber cannot remove the card or choose among several, and receipts go to the sign-in address alone.
+
+One entry stays open: **changing the card**. W-18's payment tile shows the masked card with a "Change card"
+button, and a failed payment's "Change payment method" opens the same flow — the payer's name and number
+(`PayerFields`), then the provider's window, then the card is put on the subscription, which the server
+replaces. It is `pages/manage/useChangeCard.tsx`; on a phone the reader comes back to W-18 with the
+result in the query and the payer is read from `sessionStorage` (`savePendingCardChange`).
+
+Every screen below runs on the server where the build has its addresses, and on the mock otherwise or
+with `?mock=` (see [The server](#the-server)). None is open on the production host yet except W-01,
 which runs there on the catalog port (see [Plans before checkout opens](#plans-before-checkout-opens)).
 Screen ids (`W-01`, `W-18`, …) are the names of the design frames each screen is drawn from; the route
-table below is their key. `W-23` is the desktop-only notice, which has no route of its own.
+table below is their key. `W-23`, the desktop-only notice, is retired: every screen is laid out for a phone too.
 
 ### The account surface
 
@@ -318,19 +337,20 @@ Everything lives in `src/app/features/subscription/`, laid out like a web app fe
 ```text
 features/subscription/
 ├── index.ts          SubscriptionRoutes — the only thing the route table imports, lazily
-├── routes/           the nested <Routes>, the session and desktop-only guards
+├── routes/           the nested <Routes>, the session and store-subscriber guards
 ├── types/            the view types the screens draw (Plan, Subscription, PaymentMethod, …)
 ├── lib/port/         SubscriptionPort, SubscriptionPortError, PortProvider (+ the clock)
+├── lib/port/http/    the HTTP port: the server's shapes, the sign-in, the card window — the only network
 ├── lib/mock/         the mock port: state machine, scenarios, policy values, storage
 ├── lib/catalog.ts    the published plans and prices, read by both ports
 ├── lib/catalogPort.ts the port where the account surface is shut: the plans, no session
 ├── lib/              decisions as pure functions: sceneOf, changeKindOf, ddayOf,
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
 ├── utils/            formatMoney, formatDate, cn, countdowns, isEmailAddress
-├── hooks/            one react-query hook per port method, useCurrentSubscription, useNarrowViewport, useNow
+├── hooks/            one react-query hook per port method, useCurrentSubscription, useNow
 ├── components/       PublicShell, AccountShell, AccountMenu, StatusBadge, PlanCard, SummaryTile,
 │                     ConfirmDialog, EmailVerificationForm, BillingEmailChangeDialog, MockPaymentWindow,
-│                     DevScenarioPanel, DesktopOnlyNotice, …
+│                     DevScenarioPanel, …
 ├── components/ui/    Button, Card, Badge, Banner, Table, Dialog, Spinner, Toast — landing tokens
 └── pages/            entry/ checkout/ manage/ billing/ (the screens), dev/ (mock-only pages)
 ```
@@ -346,7 +366,7 @@ above it. The primitives use this site's Tailwind tokens (plus the `status-*` co
 | `/subscription/login/callback`                                   | W-02 sign-in return                                                                                      | public  | —                                                             |
 | `/subscription/login/no-account`                                 | W-02b no linked account                                                                                  | public  | —                                                             |
 | `/subscription/store-managed`                                    | W-17 billed by a store                                                                                   | public  | signed in                                                     |
-| `/subscription/checkout/email?plan=`                             | W-24 email step                                                                                          | public  | signed in, not store-billed                                   |
+| `/subscription/checkout/email?plan=`                             | W-24 email step _(hidden)_                                                                               | public  | signed in, not store-billed                                   |
 | `/subscription/checkout?plan=`                                   | W-08 checkout                                                                                            | public  | signed in, not store-billed; no verified primary email → W-24 |
 | `/subscription/checkout/payment?plan=`                           | W-05 card registration                                                                                   | public  | 〃                                                            |
 | `/subscription/checkout/status?attempt=` · `?plan=&outcome=`     | W-09 payment in progress — or, with `outcome`, a payment window that closed or failed before any attempt | public  | 〃                                                            |
@@ -355,14 +375,17 @@ above it. The primitives use this site's Tailwind tokens (plus the `status-*` co
 | `/subscription`                                                  | W-10 subscriptions                                                                                       | account | 〃                                                            |
 | `/subscription/:subscriptionId`                                  | W-18 one subscription                                                                                    | account | 〃                                                            |
 | `/subscription/:subscriptionId/cancel`                           | W-15 cancel                                                                                              | account | 〃                                                            |
-| `/subscription/payment-methods`                                  | W-12 cards                                                                                               | account | 〃                                                            |
+| `/subscription/payment-methods`                                  | W-12 cards _(hidden)_                                                                                    | account | 〃                                                            |
 | `/subscription/history`                                          | W-13 invoices                                                                                            | account | 〃                                                            |
-| `/subscription/billing-info`                                     | W-16 billing emails                                                                                      | account | 〃                                                            |
+| `/subscription/billing-info`                                     | W-16 billing emails _(hidden)_                                                                           | account | 〃                                                            |
 | `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                                                |
 | `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                                                |
 | any other `/subscription/…`                                      | redirect to `/subscription` (gate shut: see [Routes](#routes))                                           |         |                                                               |
 
-Below the `md` breakpoint (768 px) every one of these shows W-23, the desktop-only notice, instead.
+Every one of these is laid out for a phone as well as a computer: the shells stack, grids fall to a
+single column under the `md` breakpoint (768 px), tables scroll sideways inside their card. A reader on
+a phone signs in and pays in the mobile browser like anyone else; the store-subscriber page (W-17)
+and the double-payment notes still tell someone already billed through a store to manage it there.
 Without a session a guarded page sends the reader to `/subscription/login?next=<the page>`; a
 store subscriber is sent to W-17. A `next` is only ever a path under `/subscription` that is not a
 sign-in page (`lib/safeNext.ts`) — anything else falls back to the subscription list.
@@ -373,8 +396,10 @@ client's error hook at the route root, which sends the reader to
 
 **Sign-in is a redirect round trip.** `startSignIn` returns the provider's address and the browser
 leaves for it; the provider sends it back to `/subscription/login/callback`, whose query goes to
-`completeSignIn`. The mock walks the same trip through its stand-in consent page, so the pages do not
-change when a real provider replaces it.
+`completeSignIn`. Against the server the provider is the OAuth relay and the code becomes the same
+relay session the web app uses; the mock walks the same trip through its stand-in consent page. Signing
+out against the server lands on the home page, and the server makes an account for a sign-in it does
+not know, so W-02b is the mock's alone today.
 
 ### Plans before checkout opens
 
@@ -392,20 +417,72 @@ The pages read the same flag where it changes what they offer:
   Store and Google Play links, and the note about not paying twice on the web left out.
 - `PublicShell` keeps the plans and the policy links and drops "Manage subscription" and "Sign in",
   which lead to pages that do not exist on that host.
-- W-23, on a phone, keeps the open-the-app card and drops the "subscribe from a computer" one.
 
 `lib/catalog.ts` is therefore a published price list, not mock data: the mock sells exactly this
 catalog, and a price changes there together with the stores' prices. When the server and the payment
 provider arrive, the account surface opens by the gate and the catalog port is no longer used.
 
-Two costs are accepted. The production visitor to this page downloads the whole account-surface
-chunk, mock code included, though the mock is never run there. And a phone-width reader sees W-23
-rather than the prices, as on every subscription page.
+One cost is accepted: the production visitor to this page downloads the whole account-surface
+chunk, mock code included, though the mock is never run there.
+
+### The server
+
+`createPortSetup({ account })` (`lib/createPortSetup.ts`) is where the port is chosen, and the only
+place. Where the account surface is open and the build carries the server's addresses, a tab runs on
+the server alone. The methods it answers (`lib/port/http/methods.ts`) come from the HTTP port; every
+other one — billing emails, invoices, undoing a cancellation or a scheduled downgrade, the default
+card, retrying — refuses, and nothing stands in for it. The port's `supports` says which methods are
+real (`PortSupports`, read with `useSupports()`), and the screens leave out what would call the rest:
+the billing history (its menu entry and route, and the recent billing on W-18), "Undo cancellation" on
+W-18 and after cancelling, and "Cancel the change" for a scheduled downgrade. Where the copy promised
+the undo — the list's status line, the cancel confirmation, W-14's notice for an ending subscription —
+a `…NoUndo` line says only what holds. `?mock=<scenario>` switches the tab to the mock alone and
+`?mock=off` back; the choice holds for the tab. Without the addresses it is the mock, whole.
+
+The addresses are the build's `VITE_*` values — copy `.env.example` to `.env` with the dev ones, as for
+the web app — read in `config/subscriptionServer.ts` and nowhere else; the session runtime takes the
+relay's address from them too. The card window is the payment provider's (PortOne V2, KG Inicis),
+opened with the values the server's `issue` returns. The HTTP port and the session runtime load on
+first use, as a chunk of their own.
+
+The server's calls themselves live in the shared libraries, not here: `libs/http`'s subscription
+gateway names the eight `/subscriptions/0/*` requests and declares their shapes, and `libs/data`'s
+`SubscriptionRepository` (`fetchMySubscription`, `startSubscription`, `cancelSubscription`, …) is what
+`lib/port/http/runtime.ts` hands the port as its `SubscriptionApi`. What stays in this app is the
+translation into the screens' view types and the rules around the calls (`createHttpPort.ts`,
+`wire.ts`, `errors.ts`).
+
+What the screens get from the server differs from the mock in a few places, all in `lib/port/http/wire.ts`:
+
+- The web products are `dou-web-tier-0N` on the server and `pro-tier-0N` on the screens, matched by tier.
+- The server keeps one subscription per account. A first payment it has not settled reads `pending`:
+  W-18 says the payment is being confirmed and offers nothing until it settles.
+- It answers a checkout or an upgrade with the subscription; the attempt W-09 follows is made from it,
+  and a `pending` one is settled by reading the subscription again.
+- W-14's charge for an upgrade is an estimate with the server's own proration; the copy says so. The
+  server upgrades a paid period only, so a trial can move down but not up — W-14 says so before
+  anything is tried, and the mock refuses the same way.
+- Its cards carry no expiry, so none is drawn. It removes the one card it holds.
+- Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
+- The payment provider's window opens in the page (an iframe) on a computer, not as a pop-up, about
+  0.8 s after the click. On a phone it is the provider's own page: the browser leaves for it and comes
+  back to W-05 (or the card list, for a card added alone) with the result in the query — `billingKey`,
+  or `code` and `message`. The checkout W-08 settled does not survive that trip, so `lib/pendingCheckout.ts`
+  keeps it in `sessionStorage` from the click until the return is read (taken away on use, stale after
+  15 minutes); W-05 reads it, `completePaymentMethodRegistration` turns the query into the same result
+  the window would have answered, and the charge goes on as usual. A return with no saved checkout goes
+  back to W-08. The window opens with `offerPeriod: { interval: '1m' }`, which KG Inicis requires for its
+  mobile page. On a computer, closing the window and confirming the card company's "cancel?" question answers `FAILURE_TYPE_PG`
+  — the code a refused card also gets — with a message that the user cancelled; `windowReturn.ts`
+  tells the two apart by that message, for the window's answer and for a phone's query alike, so a
+  closed window reads as cancelled, not as a declined card.
+- The payer's name and mobile number, which the card company requires with every card, are asked for
+  on W-08 (and in W-12's add-card dialog when W-12 is open). They travel with that checkout or card and
+  are not stored. The payer's address is the account's own while the billing-email screens are hidden.
 
 ### The mock
 
-`createPortSetup({ account })` (`lib/createPortSetup.ts`) is where the port is chosen; where the
-account surface is open it is the mock. The mock is an in-memory server holding one account — its
+The mock is an in-memory server holding one account — its
 subscriptions, cards, invoices and billing emails — kept in `sessionStorage` (memory if that fails),
 so a reload keeps what a flow changed. Each method moves that state the way the server should:
 cancelling schedules an end, a payment attempt settles 1.5 s after it starts (a successful upgrade
@@ -453,7 +530,9 @@ Figma frames drawn before that rule still show the softer register — the copy 
 the plan in force and its neighbours there, and reaches the subscription list from the account menu.
 A cancelled or timed-out sign-in keeps its `next` (the port returns it with the error).
 
-**Billing emails.** A first checkout verifies its billing address on the email step (W-24) before
+**Billing emails (hidden).** While the billing-email screens are hidden, a checkout skips all of this: W-08
+has no billing-email block and hands the card company the signed-in account's own address, and an account
+with none cannot start one. The rest of this paragraph is what opening them restores. A first checkout verifies its billing address on the email step (W-24) before
 the payment details (W-08): a Google sign-in address can be used as it is (`adoptSignInEmail`), any
 other address is verified by code, and W-08 sends a reader without a verified primary address
 (`primaryVerifiedEmail`) back to W-24. W-24, the add flow on W-16 and the change popup all use
@@ -465,23 +544,27 @@ reader walks away.
 
 ## Dependencies: why a marketing site pulls a bridge and a logger
 
-Nx's graph gives this app nine libraries under `libs/` plus the root `assets` project. Only four of
-the ten are imported by a file here. (The account surface adds no `@chatic` library; it imports
-`@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from the workspace root,
-inside its own chunk.)
+Most of the libraries Nx's graph gives this app are not called from it. The public surface imports
+four; the account surface's HTTP port adds two more, `@chatic/app-runtime` (which reaches the server
+through `libs/data` and `libs/http`) and `@chatic/config`, with
+`@portone/browser-sdk` from the workspace root, inside a chunk of their own that loads on first use (see
+[The server](#the-server)) — and through the runtime, much of `libs/` reaches that chunk. The account
+surface also imports `@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from
+the workspace root, inside its own chunk. The table is about the public pages.
 
-| Library                  | Reached how               | Used for                                                    |
-| ------------------------ | ------------------------- | ----------------------------------------------------------- |
-| `@chatic/policy-content` | direct, 1 file            | the three policy tables and their types                     |
-| `@chatic/theme`          | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`  |
-| `@chatic/assets`         | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`) |
-| `@chatic/shared`         | direct, 3 files           | invite-link decoding, the error screen's English defaults   |
-| `@chatic/bridges`        | via `theme` and `shared`  | nothing here calls it                                       |
-| `@chatic/logger`         | transitive, via `bridges` | nothing here calls it                                       |
-| `@chatic/app-messages`   | transitive, via `bridges` | nothing here calls it                                       |
-| `@chatic/ui-kit`         | transitive, via `shared`  | nothing here calls it                                       |
-| `@chatic/config`         | transitive, via `shared`  | nothing here calls it                                       |
-| `@chatic/device-utils`   | transitive, via `shared`  | nothing here calls it                                       |
+| Library                  | Reached how               | Used for                                                       |
+| ------------------------ | ------------------------- | -------------------------------------------------------------- |
+| `@chatic/policy-content` | direct, 1 file            | the three policy tables and their types                        |
+| `@chatic/theme`          | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`     |
+| `@chatic/assets`         | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`)    |
+| `@chatic/shared`         | direct, 3 files           | invite-link decoding, the error screen's English defaults      |
+| `@chatic/bridges`        | via `theme` and `shared`  | nothing here calls it                                          |
+| `@chatic/logger`         | transitive, via `bridges` | nothing here calls it                                          |
+| `@chatic/app-messages`   | transitive, via `bridges` | nothing here calls it                                          |
+| `@chatic/ui-kit`         | transitive, via `shared`  | nothing here calls it                                          |
+| `@chatic/config`         | direct, 1 file            | the account surface's HTTP port configures the session runtime |
+| `@chatic/app-runtime`    | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository  |
+| `@chatic/device-utils`   | transitive, via `shared`  | nothing here calls it                                          |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
 libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain
@@ -512,7 +595,7 @@ The landing app's own diagnostics are plain `console.log` / `console.error` call
 ## Usage
 
 ```bash
-yarn landing:start                 # nx serve landing → http://localhost:5004
+yarn landing:start                 # nx serve landing → http://localhost:5004 (.env: see The server)
 yarn landing:build:dev             # vite build → dist/apps/landing
 yarn landing:deploy:dev            # build, then scripts/deploy-landing.sh dev
 yarn landing:deploy:prod           # build, then scripts/deploy-landing.sh prod
@@ -528,8 +611,9 @@ A push touching `apps/landing/src/**`, `public/**`, `index.html`, `vite.config.m
 the Tailwind/PostCSS configs sets the `landing` filter output, which:
 
 1. bumps `apps/landing/package.json` version,
-2. adds `landing` to the build-and-deploy matrix with prefix `LANDING`, so the `LANDING_DEV_*`
-   secrets are written to `apps/landing/.env`,
+2. adds `landing` to the build-and-deploy matrix with prefix `WEB`, so the web app's `WEB_DEV_*`
+   secrets are written to `apps/landing/.env` (the `LANDING_*` secrets are only its bucket and
+   distribution),
 3. runs `yarn landing:deploy:dev`,
 4. uploads the build's source maps as a CI artifact (the S3 sync excludes `*.map`),
 5. announces the deploy to Slack with the new version.
@@ -540,10 +624,13 @@ unless `dist/apps/landing/index.html` and both `.well-known` files exist, syncs 
 `REDACTED_TEAM_ID` in the AASA file with `$APPLE_TEAM_ID` before uploading it as
 `application/json`, and invalidates CloudFront.
 
-The `.env` is mostly theatre for this app: the only `import.meta.env` reference in `src/app` is the
-`DEV` flag in `src/app/config/stage.ts`. Environment selection at runtime is done by sniffing the
-hostname for `-dev` in that same file, which is what picks the `chatic-dev` URL scheme, the
-`io.chatic.dou.dev` package id and the dev web origin.
+The public pages read nothing from the `.env` but the `DEV` flag in `src/app/config/stage.ts`;
+environment selection there is done by sniffing the hostname for `-dev`, which is what picks the
+`chatic-dev` URL scheme, the `io.chatic.dou.dev` package id and the dev web origin. The account
+surface reads its server addresses from it (`src/app/config/subscriptionServer.ts`). They are the web
+app's own (`WEB_DEV_*` / `WEB_PROD_*`), as desktop-web's are: the account surface signs in to the web
+app's relay session, so its OAuth, relay and socket addresses must be the web app's. Without the four
+addresses a build runs the account surface on the mock.
 
 ## Scenarios
 
@@ -624,11 +711,12 @@ not trigger.
 - **The public surface's tests cover routing, config, copy and the app launch only.** The route
   table, the stage and link config, ko/en key parity, the i18n language handling, the home header's
   subscription links and the app launch (`utils/appLaunch`, `hooks/useAppLauncher`) have tests; the
-  other home and policy components and the other deep-link hooks have none. The account surface tests its rules, its mock, its routes and
-  every screen (a render per scenario).
+  other home and policy components and the other deep-link hooks have none. The account surface tests its rules, its mock, its routes,
+  every screen (a render per scenario), and its HTTP port against the server's response shapes —
+  not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 430 tests
+    npx nx test @chatic/landing   # 540 tests
     ```
 
 - **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
@@ -637,6 +725,12 @@ not trigger.
   table test builds both sides with `createAppRoutes`. To see the shut side in a browser, serve the
   production build under a host that is neither, mapping one to the local server in Chromium with
   `--host-resolver-rules="MAP app.chatic.test 127.0.0.1"`. `?mock=` does nothing there, by design.
+- **A phone on the local network needs a `-dev` name, not the machine's IP.** The gate reads the
+  hostname, so `http://192.168.x.y:<port>` shows the plans page alone. Reach the dev server by a name
+  that contains `-dev` and resolves to the machine (for example `app-dev.192.168.x.y.nip.io`, served
+  with the dev server's host allow-list opened for it), and the sign-in, the checkout and the provider's
+  redirect back all run in the phone's browser. Stop that server when the test is over: it serves the
+  source and the build's `VITE_*` values to everyone on the network.
 - **The mock reads the URL once per query.** Opening the same `?mock=…` again does not reset the
   state (it is how a reload keeps a flow's changes); use the dev panel's Reset, or a different
   scenario.
@@ -682,7 +776,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 430 tests pass; in CI
+npx nx test @chatic/landing                               # 540 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```
@@ -690,5 +784,6 @@ yarn landing:start                                        # http://localhost:500
 Then the boundary commands in [Layering](#layering).
 
 Nothing imports this app, so a change here reaches no other project — the reverse is not true:
-`libs/policy-content`, `libs/theme`, `libs/shared` and `assets` all reach it, and
-`tsconfig.app.json` and `tsconfig.spec.json` both reference exactly those four.
+`libs/policy-content`, `libs/theme`, `libs/shared`, `assets`, and — for the account surface's HTTP port —
+`libs/config` and `libs/app-runtime` all reach it, and `tsconfig.app.json` and `tsconfig.spec.json`
+both reference exactly those six.

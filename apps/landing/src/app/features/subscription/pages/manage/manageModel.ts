@@ -30,9 +30,11 @@ export const endedOn = (sub: Subscription): string | undefined => sub.expiredAt 
 export const chargeCardOf = (sub: Subscription, methods: PaymentMethod[]): PaymentMethod | undefined =>
     sub.defaultPaymentMethodId ? methods.find(pm => pm.id === sub.defaultPaymentMethodId) : undefined;
 
-/** `08/28` — a card's expiry as the card itself prints it. */
-export const expiryOf = (pm: PaymentMethod): string =>
-    `${String(pm.expMonth).padStart(2, '0')}/${String(pm.expYear % 100).padStart(2, '0')}`;
+/** `08/28` — a card's expiry as the card itself prints it; `undefined` when the server does not say. */
+export const expiryOf = (pm: PaymentMethod): string | undefined =>
+    pm.expMonth && pm.expYear
+        ? `${String(pm.expMonth).padStart(2, '0')}/${String(pm.expYear % 100).padStart(2, '0')}`
+        : undefined;
 
 /**
  * How the list draws the live subscription: an untroubled one as the full card with its facts, any

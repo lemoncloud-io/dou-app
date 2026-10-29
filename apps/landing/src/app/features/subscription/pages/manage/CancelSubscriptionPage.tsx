@@ -6,7 +6,7 @@ import { ROUTES } from '../../../../routes/paths';
 import { PageLoader } from '../../components';
 import { Banner, Button, Card, useToast } from '../../components/ui';
 import { useCancelSubscription, usePlans, useSubscription } from '../../hooks';
-import { isPortError, useToday } from '../../lib/port';
+import { isPortError, useSupports, useToday } from '../../lib/port';
 import { LoadFailure } from './LoadFailure';
 import { cancelSceneOf } from './manageModel';
 import { type ManageFormat, useManageFormat } from './useManageFormat';
@@ -113,7 +113,7 @@ const CancelForm = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
                 <h2 className="text-[13px] font-semibold text-navy">{t(`${key}.after.title`)}</h2>
                 <p className="text-[13px] leading-relaxed text-desc-alt">{t(`${key}.after.body`)}</p>
             </section>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
                 <Button
                     size="lg"
                     variant="secondary"
@@ -146,14 +146,16 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
         onResumed: () => navigate(ROUTES.subscription.detail(sub.id)),
     });
     const key = 'subscription.manage.cancel.done';
+    // The way back is left out where the port has no server for undoing a cancellation.
+    const resumable = useSupports()('resumeSubscription');
 
     return (
         <div className="flex max-w-[1072px] flex-col gap-5">
             <h1 className="mb-2 text-[28px] font-bold text-navy">{t(`${key}.title`)}</h1>
             <Banner tone="warning" title={t(`${key}.bannerTitle`, { date: fmt.date(sub.endsAt) })}>
-                {t(`${key}.bannerBody`)}
+                {t(`${key}.${resumable ? 'bannerBody' : 'bannerBodyNoUndo'}`)}
             </Banner>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
                 <Button
                     size="lg"
                     variant="secondary"
@@ -162,14 +164,16 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
                 >
                     {t(`${key}.toDetail`)}
                 </Button>
-                <Button
-                    size="lg"
-                    className="rounded-full"
-                    disabled={!resume.ready}
-                    onClick={() => resume.request() === 'confirm' && setAsking(true)}
-                >
-                    {t(`${key}.resume`)}
-                </Button>
+                {resumable && (
+                    <Button
+                        size="lg"
+                        className="rounded-full"
+                        disabled={!resume.ready}
+                        onClick={() => resume.request() === 'confirm' && setAsking(true)}
+                    >
+                        {t(`${key}.resume`)}
+                    </Button>
+                )}
             </div>
             {asking && (
                 <Card className="flex max-w-[640px] flex-col items-start gap-3">
@@ -180,7 +184,7 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
                         {t('subscription.manage.dialogs.resume.body', resume.copyValues)}{' '}
                         {t('subscription.manage.dialogs.resume.sameAsBefore')}
                     </p>
-                    <div className="mt-3 flex gap-3">
+                    <div className="mt-3 flex flex-wrap gap-3">
                         <Button
                             size="lg"
                             variant="secondary"

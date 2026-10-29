@@ -7,7 +7,8 @@ import { PageLoader, SummaryTile } from '../../components';
 import { Banner, Button } from '../../components/ui';
 import { useChangePlan, usePaymentMethods, usePlans, usePreviewChange } from '../../hooks';
 import { ddayOf } from '../../lib/ddayOf';
-import { isPortError, useToday } from '../../lib/port';
+import { isPortError, useSupports, useToday } from '../../lib/port';
+import { useManagementScreens } from '../../lib/screens';
 import { cn, formatDate, formatMoney } from '../../utils';
 import { DOWNGRADE_COMPLETE_URL, checkoutUrl, formatShortDate, statusUrl } from './flow';
 import { FactRows, LoadError } from './parts';
@@ -36,6 +37,8 @@ export const ChangePlanPage = (): JSX.Element => {
     // An ending subscription has no next period to change; it is resumed first, on its own page. Read
     // from its status rather than from the preview's refusal, which could have other causes.
     const ending = subscription?.status === 'cancelScheduled';
+    // Where a cancellation cannot be undone, the notice does not send the reader to undo it.
+    const resumable = useSupports()('resumeSubscription');
     const preview = usePreviewChange(route === 'change' && !ending ? target?.id : undefined);
 
     if (loading) return <PageLoader />;
@@ -55,7 +58,7 @@ export const ChangePlanPage = (): JSX.Element => {
                     </Link>
                 }
             >
-                {t('subscription.checkout.change.ending.body')}
+                {t(`subscription.checkout.change.ending.${resumable ? 'body' : 'bodyNoUndo'}`)}
             </Banner>
         );
     }
@@ -64,6 +67,21 @@ export const ChangePlanPage = (): JSX.Element => {
 
     if (preview.data.blocked === 'pastDue') return <PastDue preview={preview.data} subscription={subscription} />;
     if (preview.data.blocked === 'notAdjacent') return <Navigate to={ROUTES.subscription.plans} replace />;
+    if (preview.data.blocked === 'trialUpgrade') {
+        return (
+            <Banner
+                tone="warning"
+                title={t('subscription.checkout.change.trialUpgrade.title')}
+                action={
+                    <Link to={ROUTES.subscription.detail(subscription.id)} className="text-sm font-semibold underline">
+                        {t('subscription.checkout.change.trialUpgrade.action')}
+                    </Link>
+                }
+            >
+                {t('subscription.checkout.change.trialUpgrade.body')}
+            </Banner>
+        );
+    }
     return <ChangeConfirm preview={preview.data} subscription={subscription} />;
 };
 
@@ -146,7 +164,7 @@ const ChangeConfirm = ({
     );
 
     return (
-        <div className="grid grid-cols-[minmax(0,1fr)_260px] gap-8">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_260px] md:gap-8">
             <div className="flex flex-col gap-6">
                 <header className="flex flex-col gap-2">
                     <h1 className="text-[28px] font-bold text-navy">{t(key(`${kind}.title`))}</h1>
@@ -291,6 +309,7 @@ const ChangeConfirm = ({
 const PastDue = ({ preview, subscription }: { preview: ChangePreview; subscription: Subscription }): JSX.Element => {
     const { t, i18n } = useTranslation();
     const today = useToday();
+    const management = useManagementScreens();
     const key = (name: string) => `subscription.checkout.change.pastDue.${name}`;
     const { from, to } = preview;
     const owed = formatMoney(subscription.nextAmount ?? from.monthly, i18n.language);
@@ -312,7 +331,7 @@ const PastDue = ({ preview, subscription }: { preview: ChangePreview; subscripti
                     ? t(key('bannerBody'), { date: formatDate(subscription.failedAt), price: owed })
                     : t(key('bannerBodyNoDate'))}
             </Banner>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SummaryTile
                     label={t(key('now'))}
                     value={t(key('nowValue'), {
@@ -333,12 +352,14 @@ const PastDue = ({ preview, subscription }: { preview: ChangePreview; subscripti
                 />
             </div>
             <div className="flex flex-wrap gap-3">
-                <Link
-                    to={ROUTES.subscription.paymentMethods}
-                    className="inline-flex h-12 items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-semibold text-navy hover:opacity-90"
-                >
-                    {t(key('manageCards'))}
-                </Link>
+                {management && (
+                    <Link
+                        to={ROUTES.subscription.paymentMethods}
+                        className="inline-flex h-12 items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-semibold text-navy hover:opacity-90"
+                    >
+                        {t(key('manageCards'))}
+                    </Link>
+                )}
                 <Link to={ROUTES.subscription.detail(subscription.id)} className={secondaryLink}>
                     {t(key('back'))}
                 </Link>

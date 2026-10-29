@@ -3,19 +3,13 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
 import { createMockPort } from '../../lib/mock';
+import { clearPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
 import { memoryStateStore } from '../../lib/mock/storage';
 import { SubscriptionRoutes } from '../../routes';
 
 import type { PortSetup } from '../../lib/createPortSetup';
 
-// jsdom has no matchMedia; these are desktop screens.
 beforeAll(async () => {
-    window.matchMedia = ((query: string) => ({
-        matches: false,
-        media: query,
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-    })) as unknown as typeof window.matchMedia;
     await i18n.changeLanguage('en');
 });
 
@@ -47,11 +41,13 @@ const Where = () => {
     );
 };
 
-const renderAt = (url: string, setup: PortSetup) =>
+// The card and billing-email screens are open unless `management` says otherwise: they are hidden by
+// default in the app (`lib/screens.tsx`), and the last describe below is about that.
+const renderAt = (url: string, setup: PortSetup, { management = true }: { management?: boolean } = {}) =>
     render(
         <MemoryRouter initialEntries={[url]}>
             <Routes>
-                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} />} />
+                <Route path="/subscription/*" element={<SubscriptionRoutes setup={setup} management={management} />} />
             </Routes>
             <Where />
         </MemoryRouter>
@@ -233,6 +229,13 @@ describe('W-24 email step', () => {
 
 const consentAll = async () => fireEvent.click(await screen.findByLabelText('Agree to all'));
 
+const PAYER = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
+
+const fillPayer = async () => {
+    fireEvent.change(await screen.findByLabelText('Name'), { target: { value: PAYER.name } });
+    fireEvent.change(screen.getByLabelText('Mobile phone'), { target: { value: '010-1234-5678' } });
+};
+
 describe('W-08 checkout', () => {
     it('sends a reader without a verified billing email to W-24, keeping the plan', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new'));
@@ -241,7 +244,7 @@ describe('W-08 checkout', () => {
         expect(await screen.findByRole('heading', { name: 'Verify your email' })).toBeTruthy();
     });
 
-    it('opens the way on once every consent is given, carrying the primary address', async () => {
+    it('opens the way on once the payer and every consent are given, carrying them and the primary address', async () => {
         const setup = await withBillingEmail('?mock=new');
         const [primary] = (await setup.port.getBillingInfo()).emails;
         renderAt('/subscription/checkout?plan=pro-tier-01', setup);
@@ -255,6 +258,8 @@ describe('W-08 checkout', () => {
         expect(next.disabled).toBe(true);
 
         await consentAll();
+        expect(next.disabled).toBe(true);
+        await fillPayer();
         expect(next.disabled).toBe(false);
 
         fireEvent.change(screen.getByLabelText('Billing country'), { target: { value: 'US' } });
@@ -265,7 +270,7 @@ describe('W-08 checkout', () => {
         fireEvent.click(next);
         await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
         expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null')).toEqual({
-            checkout: { country: 'KR', emailId: primary.id },
+            checkout: { country: 'KR', emailId: primary.id, payer: PAYER },
         });
     });
 
@@ -305,10 +310,58 @@ describe('W-08 checkout', () => {
 });
 
 const toPayment = async () => {
+    await fillPayer();
     await consentAll();
     fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
     await screen.findByRole('heading', { name: 'Add a payment method' });
 };
+
+describe('checkout with the card and billing-email screens hidden', () => {
+    const hidden = { management: false };
+
+    it('goes straight to the details, with no billing email to verify or change', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new'), hidden);
+
+        expect(await screen.findByRole('heading', { name: 'Review your order' })).toBeTruthy();
+        expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
+        expect(screen.queryByText('Billing email')).toBeNull();
+        expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+        expect(screen.getByText("Receipts and notices go to your account's email address.")).toBeTruthy();
+    });
+
+    it('hands the card company the account address, and carries no billing email on', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new'), hidden);
+        await fillPayer();
+        await consentAll();
+        fireEvent.click(await screen.findByRole('button', { name: 'Next · Add a payment method' }));
+
+        await waitFor(() => expect(where()).toBe('/subscription/checkout/payment?plan=pro-tier-01'));
+        expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null')).toEqual({
+            checkout: { country: 'KR', payer: { ...PAYER, email: 'minji.kim@gmail.com' } },
+        });
+    });
+
+    it('starts the trial without a billing email', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new'), hidden);
+        await toPayment();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Add card and start free trial' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
+
+        expect(await screen.findByText('Your DoU Cloud 1 free trial has started')).toBeTruthy();
+    });
+
+    it('says an account with no address cannot subscribe, instead of asking for one', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new-apple'), hidden);
+
+        expect(await screen.findByText('Your account has no email address')).toBeTruthy();
+        await fillPayer();
+        await consentAll();
+        expect(
+            (screen.getByRole('button', { name: 'Next · Add a payment method' }) as HTMLButtonElement).disabled
+        ).toBe(true);
+    });
+});
 
 describe('W-05 card, W-09 and W-06', () => {
     it('goes back to W-08 when reached without its details', async () => {
@@ -369,6 +422,76 @@ describe('W-05 card, W-09 and W-06', () => {
         expect(await screen.findByRole('heading', { name: 'Add a payment method' })).toBeTruthy();
     });
 
+    describe('back from a payment window that left the page', () => {
+        const RETURN = '/subscription/checkout/payment?plan=pro-tier-01';
+        const PAYER = { name: 'Minji Kim', phone: '01012345678', email: 'minji.kim@gmail.com' };
+
+        afterEach(() => clearPendingCheckout());
+
+        /** The mock never leaves the page, so what the provider's return would say is put in its place. */
+        const returnedWith = async (
+            result: Awaited<ReturnType<PortSetup['port']['completePaymentMethodRegistration']>>
+        ) => {
+            const setup = await withBillingEmail('?mock=new');
+            const complete = vi.fn(async () => result);
+            setup.port.completePaymentMethodRegistration = complete;
+            return { setup, complete };
+        };
+
+        /** A card the mock really holds, so the charge that follows the return has one to use. */
+        const returnedRegistered = async () => {
+            const setup = await withBillingEmail('?mock=new');
+            const registered = await setup.port.startPaymentMethodRegistration({
+                purpose: 'start',
+                planId: 'pro-tier-01',
+                payer: PAYER,
+            });
+            const complete = vi.fn(async () => registered);
+            setup.port.completePaymentMethodRegistration = complete;
+            return { setup, complete };
+        };
+
+        it('reads the result, charges with that card and lands on W-06', async () => {
+            savePendingCheckout({ planId: 'pro-tier-01', details: { country: 'KR', payer: PAYER } });
+            const { setup, complete } = await returnedRegistered();
+            renderAt(`${RETURN}&billingKey=billing-key-1`, setup);
+
+            expect(await screen.findByText('Your DoU Cloud 1 free trial has started')).toBeTruthy();
+            expect(complete).toHaveBeenCalledWith({
+                callback: expect.any(URLSearchParams),
+                purpose: 'start',
+                payer: PAYER,
+            });
+            expect(where()).toMatch(/^\/subscription\/checkout\/complete\?attempt=att-\d+&plan=pro-tier-01$/);
+        });
+
+        it('shows a window closed on the provider page as cancelled, with the details kept for a retry', async () => {
+            savePendingCheckout({ planId: 'pro-tier-01', details: { country: 'KR', payer: PAYER } });
+            const { setup } = await returnedWith({ outcome: 'closed' });
+            renderAt(`${RETURN}&code=FAILURE_TYPE_PG`, setup);
+
+            expect(await screen.findByText('Card registration canceled')).toBeTruthy();
+            expect(where()).toBe('/subscription/checkout/status?plan=pro-tier-01&outcome=closed');
+        });
+
+        it('goes back to W-08 when the saved checkout is gone', async () => {
+            const { setup, complete } = await returnedRegistered();
+            renderAt(`${RETURN}&billingKey=billing-key-1`, setup);
+
+            await waitFor(() => expect(where()).toBe('/subscription/checkout?plan=pro-tier-01'));
+            expect(complete).not.toHaveBeenCalled();
+        });
+
+        it('takes the saved checkout away once it is used, so a reload does not charge twice', async () => {
+            savePendingCheckout({ planId: 'pro-tier-01', details: { country: 'KR', payer: PAYER } });
+            const { setup } = await returnedRegistered();
+            renderAt(`${RETURN}&billingKey=billing-key-1`, setup);
+            await screen.findByText('Your DoU Cloud 1 free trial has started');
+
+            expect(window.sessionStorage.getItem('subscription.pendingCheckout')).toBeNull();
+        });
+    });
+
     it('sends a subscriber who comes back to W-05 on to the plan change, without opening the window', async () => {
         renderAt('/subscription/checkout/payment?plan=pro-tier-01', mockSetup('?mock=active'));
 
@@ -403,6 +526,16 @@ describe('W-14 plan change', () => {
         expect(screen.getByText('Card used: 신한 ···· 1234')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Try again' }).getAttribute('href')).toBe(
             '/subscription/change?plan=pro-tier-03'
+        );
+    });
+
+    it('says a trial moves up only once it ends, with the way back to the subscription', async () => {
+        renderAt('/subscription/change?plan=pro-tier-02', mockSetup('?mock=trial'));
+
+        expect(await screen.findByText('You can move up once the trial ends')).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /upgrade/i })).toBeNull();
+        expect(screen.getByRole('link', { name: 'Back to the subscription' }).getAttribute('href')).toBe(
+            '/subscription/sub-3'
         );
     });
 
