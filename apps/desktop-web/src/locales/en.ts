@@ -395,6 +395,7 @@ export const en = {
     'chat.edited': '(edited)',
     'chat.editedTitle': 'This message was edited after it was sent.',
     'chat.webhook.badge': 'App',
+    'chat.webhook.openSource': 'View source',
     'chat.editFailed': "Couldn't save that change. Try again.",
     'chat.delete': 'Delete message',
     'chat.deleteConfirm.title': 'Delete this message?',
