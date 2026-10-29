@@ -30,6 +30,7 @@ import {
 import { BackgroundCloudsRunner } from './BackgroundCloudsRunner';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
+import { usePairedCloudSignOut } from './usePairedCloudSignOut';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 
 // Debug frame log: start recording inbound socket envelopes for the whole session, so the
@@ -170,6 +171,9 @@ export const DesktopRuntime = () => {
     //    this guard exists for. Gating it the way the relay hook gates its visibility trigger would
     //    disable it exactly when it is needed.
     runtime.session.useCloudCredentialGuard();
+    // A browser a phone approved into clouds re-checks them through the relay — at mount, every ten
+    // minutes and on returning to the window — and signs out once an approval ended.
+    usePairedCloudSignOut();
 
     return (
         <runtime.connection.RuntimeAuthHost>

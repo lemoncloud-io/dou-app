@@ -14,6 +14,7 @@ are in [`docs/adr/`](../../../docs/adr/).
 | [`settings/`](./settings/) | The Settings page: appearance, notifications, About and reporting a problem             |
 | [`account/`](./account/)   | The account hub: the relay profile, owned clouds, and the terms and privacy policy      |
 | [`places/`](./places/)     | One place from outside the rail: its settings page and the bulk channel manager         |
+| [`pairing/`](./pairing/)   | Device pairing: a browser's sign-in code, approving it, and the account's devices       |
 
 A document goes in the category whose name answers "is this about that?" on its own. A topic that
 fits none of them is a new category with its own `README.md`, not a file directly in this folder.

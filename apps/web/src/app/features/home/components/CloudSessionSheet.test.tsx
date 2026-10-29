@@ -35,12 +35,20 @@ let catalog: {
 let selectedCloudId: string | null = 'default';
 let invited: unknown[] = [];
 let promoVisible = true;
+let accountGuest = false;
+let pairedCloudIds: string[] = [];
+let pairingEnabled = false;
+const forgetRefusedPairedCloud = jest.fn((_id: string, _e: unknown) => false);
+const isRefusedForEndedPairing = jest.fn((_e: unknown) => false);
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useSessionSelection: () => ({ selectedCloudId }),
             useSwitchCloudSession: () => ({ switchCloud, isPending: false }),
+            usePairedCloudIds: () => pairedCloudIds,
+            forgetRefusedPairedCloud: (id: string, e: unknown) => forgetRefusedPairedCloud(id, e),
+            isRefusedForEndedPairing: (e: unknown) => isRefusedForEndedPairing(e),
         },
     },
 }));
@@ -50,9 +58,15 @@ jest.mock('../../../hooks/useCloudCatalog', () => ({
 jest.mock('../../../runtime/useLogoutCloudSession', () => ({
     useLogoutCloudSession: () => ({ logoutCloudSession, isLoggingOutCloudSession: false }),
 }));
+const logoutSession = jest.fn(() => Promise.resolve());
+jest.mock('../../../runtime/useSessionLogout', () => ({ useSessionLogout: () => logoutSession }));
 jest.mock('../../../hooks', () => ({
     useCachedCloudNames: () => ({}),
     useInvitedClouds: () => ({ invitedClouds: invited }),
+    useIsAccountGuest: () => accountGuest,
+}));
+jest.mock('@chatic/config/react', () => ({
+    useConfigValue: (key: string) => (key === 'feature.auth.devicePairing' ? pairingEnabled : undefined),
 }));
 // The real CloudPromoBanner is kept (so the 0-cloud branch is exercised); only its decision hook,
 // which reaches into the preference store and thus the app bridge, is stubbed.
@@ -90,6 +104,9 @@ beforeEach(() => {
     promoVisible = true;
     cloudUnread = {};
     useCloudPushMarkStore.setState({ badged: {} });
+    accountGuest = false;
+    pairedCloudIds = [];
+    pairingEnabled = false;
 });
 
 describe('CloudSessionSheet — section layout', () => {
@@ -380,5 +397,78 @@ describe('CloudSessionSheet — failed cloud row', () => {
             error: rawError,
         });
         expect(screen.queryByText(rawError)).not.toBeInTheDocument();
+    });
+});
+
+describe('CloudSessionSheet — clouds a guest entered through a pairing', () => {
+    it('lists them for a guest, with the way to add another', () => {
+        accountGuest = true;
+        pairingEnabled = true;
+        pairedCloudIds = ['1000002'];
+        renderSheet();
+
+        expect(screen.getByText('pairing.cloud.section')).toBeInTheDocument();
+        expect(screen.getByTestId('paired-cloud-1000002')).toBeInTheDocument();
+        fireEvent.click(screen.getByTestId('paired-cloud-add'));
+        expect(navigate).toHaveBeenCalledWith('/mypage/login/pair');
+    });
+
+    it('enters a paired cloud through the ordinary switch', async () => {
+        accountGuest = true;
+        pairedCloudIds = ['1000002'];
+        renderSheet();
+
+        fireEvent.click(screen.getByTestId('paired-cloud-1000002'));
+
+        await waitFor(() => expect(switchCloud).toHaveBeenCalledWith('1000002'));
+    });
+
+    it('says so and signs out when a refused switch dropped the paired cloud', async () => {
+        accountGuest = true;
+        pairedCloudIds = ['1000002'];
+        const refused = new Error('403');
+        switchCloud.mockRejectedValueOnce(refused);
+        forgetRefusedPairedCloud.mockReturnValueOnce(true);
+        renderSheet();
+
+        fireEvent.click(screen.getByTestId('paired-cloud-1000002'));
+
+        await waitFor(() => expect(toast).toHaveBeenCalledWith({ title: 'pairing.cloud.ended' }));
+        expect(forgetRefusedPairedCloud).toHaveBeenCalledWith('1000002', refused);
+        expect(logoutSession).toHaveBeenCalledTimes(1);
+    });
+
+    it("signs out when a revoked pairing blocks the device's own invited cloud", async () => {
+        invited = [{ id: 'i1', cid: 'i1', name: 'Lemon Cloud', owner$: { name: 'sunny' } }];
+        const refused = new Error('403 NOT ALLOWED - pairing revoked');
+        switchCloud.mockRejectedValueOnce(refused);
+        isRefusedForEndedPairing.mockReturnValueOnce(true);
+        renderSheet();
+
+        fireEvent.click(screen.getByText('Lemon Cloud'));
+
+        await waitFor(() => expect(logoutSession).toHaveBeenCalledTimes(1));
+        expect(toast).toHaveBeenCalledWith({ title: 'pairing.cloud.ended' });
+        expect(isRefusedForEndedPairing).toHaveBeenCalledWith(refused);
+    });
+
+    it('stays quiet about any other refused switch', async () => {
+        invited = [{ id: 'i1', cid: 'i1', name: 'Lemon Cloud', owner$: { name: 'sunny' } }];
+        switchCloud.mockRejectedValueOnce(new Error('Network Error'));
+        renderSheet();
+
+        fireEvent.click(screen.getByText('Lemon Cloud'));
+
+        await waitFor(() => expect(isRefusedForEndedPairing).toHaveBeenCalled());
+        expect(toast).not.toHaveBeenCalled();
+        expect(logoutSession).not.toHaveBeenCalled();
+    });
+
+    it('is not shown to an account, which has its own catalog', () => {
+        pairingEnabled = true;
+        pairedCloudIds = ['1000002'];
+        renderSheet();
+
+        expect(screen.queryByText('pairing.cloud.section')).toBeNull();
     });
 });

@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
         isError: false,
     } as Record<string, unknown>,
     phoneLogin: true,
+    pairing: false,
     navigate: vi.fn(),
 }));
 
@@ -24,6 +25,7 @@ vi.mock('../utils', () => ({
     isPhoneLoginEnabled: () => state.phoneLogin,
     phoneSignupNoteKey: () => (state.phoneLogin ? 'auth.social.phoneSignupNotePhone' : 'auth.social.phoneSignupNote'),
 }));
+vi.mock('../../pairing/utils/devicePairing', () => ({ canRequestPairing: () => state.pairing }));
 vi.mock('../components', () => ({
     AuthCard: ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
         <div>
@@ -45,6 +47,7 @@ describe('WelcomePage', () => {
         state.social = { start: vi.fn(), reopen: vi.fn(), cancel: vi.fn(), isStarting: false, isError: false };
         useOAuthAttemptStore.setState({ attempt: null, failed: false, linkFailure: null, completing: false });
         state.phoneLogin = true;
+        state.pairing = false;
         state.navigate = vi.fn();
     });
 
@@ -121,6 +124,22 @@ describe('WelcomePage', () => {
         render(<WelcomePage />);
 
         expect(screen.queryByText(i18n.t('auth.phone.start'))).toBeNull();
+    });
+
+    // `canRequestPairing` is the flag and "a plain browser, not the desktop app" together.
+    it('offers sign-in with another device where a browser can request it', () => {
+        state.pairing = true;
+        render(<WelcomePage />);
+
+        screen.getByText(i18n.t('pairing.welcome.start')).click();
+
+        expect(state.navigate).toHaveBeenCalledWith('/auth/pair');
+    });
+
+    it('offers no sign-in with another device where it cannot be requested', () => {
+        render(<WelcomePage />);
+
+        expect(screen.queryByText(i18n.t('pairing.welcome.start'))).toBeNull();
     });
 
     describe('while the Google sign-in is out in the browser', () => {

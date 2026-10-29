@@ -4,8 +4,40 @@ import { FileManagerBridge } from '../../bridge';
 import { useServices } from '../../hooks';
 import { toContactInfo } from '../../utils';
 import { isOpenableUrl } from '../utils/urlTrust';
-import type { WebMessageData } from '@chatic/app-messages';
-import type { Asset } from 'react-native-image-picker';
+import type { OpenCameraPayload, WebMessageData } from '@chatic/app-messages';
+import type { Asset, CameraOptions } from 'react-native-image-picker';
+
+/**
+ * The capture options the web may set — exactly the fields of `OpenCameraPayload`. Anything else on the
+ * message (`saveToPhotos`, `durationLimit`, …) is the picker's to decide, not the page's.
+ */
+const CAMERA_OPTION_FIELDS: Record<keyof OpenCameraPayload, true> = {
+    mediaType: true,
+    quality: true,
+    maxWidth: true,
+    maxHeight: true,
+    includeBase64: true,
+    cameraType: true,
+};
+// A record rather than a list, so a field added to `OpenCameraPayload` fails to compile here instead of
+// being dropped without a word.
+const CAMERA_OPTION_KEYS = Object.keys(CAMERA_OPTION_FIELDS) as Array<keyof OpenCameraPayload>;
+
+/**
+ * The message's capture options, or `undefined` when it sets none — so a bare request opens the camera
+ * exactly as it did before options were read. Undefined fields are dropped rather than spread, or they
+ * would overwrite the service's own defaults.
+ */
+const toCameraOptions = (payload: OpenCameraPayload | undefined): CameraOptions | undefined => {
+    const options: Partial<OpenCameraPayload> = {};
+    for (const key of CAMERA_OPTION_KEYS) {
+        const value = payload?.[key];
+        if (value !== undefined) Object.assign(options, { [key]: value });
+    }
+    if (Object.keys(options).length === 0) return undefined;
+    // `CameraOptions` requires a media type; the service defaults to a photo, and so does this.
+    return { ...options, mediaType: options.mediaType ?? 'photo' };
+};
 
 export const useDeviceHandler = () => {
     const { deviceService, logService: logger } = useServices();
@@ -93,9 +125,11 @@ export const useDeviceHandler = () => {
     );
 
     const handleOpenCamera = useCallback(
-        async (_message: WebMessageData<'OpenCamera'>) => {
+        async (message: WebMessageData<'OpenCamera'>) => {
             try {
-                const assets: Asset[] = await deviceService.openCamera();
+                // Options used to be dropped here, so `includeBase64` never reached the picker and the page got
+                // only a `uri` it cannot read. Reading a QR code from a photo needs the base64.
+                const assets: Asset[] = await deviceService.openCamera(toCameraOptions(message.data));
                 return {
                     type: 'OnOpenCamera' as const,
                     success: true,

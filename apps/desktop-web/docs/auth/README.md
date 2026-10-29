@@ -297,6 +297,14 @@ The route is registered on both sides of the router's signed-in switch, because 
 step 1 flips it while the form is open. There is no development bypass code on desktop; a code
 always arrives by text. The number and the code stay in the request body and are never logged.
 
+## Sign-in with another device
+
+In a plain browser, where device pairing is on (`feature.auth.devicePairing`, off by default), Welcome
+also offers **Sign in with another device**: the browser shows a code that the signed-in desktop or
+mobile app approves. Like phone sign-in it registers a guest first and holds its page across the
+router's switch. The flow, the approving side and the device list are in
+[pairing](../pairing/README.md).
+
 ## On in production
 
 Both `feature.auth.socialLogin` and `feature.auth.phoneLogin` are on in every build, production

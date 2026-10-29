@@ -2,10 +2,11 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
-import { Smartphone } from 'lucide-react';
+import { QrCode, Smartphone } from 'lucide-react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
+import { canRequestPairing } from '../../pairing/utils/devicePairing';
 import { AuthCard, GoogleIcon } from '../components';
 import { useGuestLogin } from '../hooks/useGuestLogin';
 import { useAttemptExpired } from '../hooks/useAttemptExpired';
@@ -156,6 +157,14 @@ export const WelcomePage = () => {
                             {t(phoneSignupNoteKey())}
                         </p>
                     </>
+                )}
+                {/* A browser can borrow the session of an app that is already signed in, by showing a code
+                    that app approves. Not in the desktop app, which is the approving side. */}
+                {canRequestPairing() && (
+                    <Button variant="outline" size="lg" onClick={() => navigate('/auth/pair')} disabled={isBusy}>
+                        <QrCode className="h-4 w-4" />
+                        {t('pairing.welcome.start')}
+                    </Button>
                 )}
                 <Button variant="link" onClick={() => navigate('/auth/login')} disabled={isBusy}>
                     {t('welcome.haveInvite')}

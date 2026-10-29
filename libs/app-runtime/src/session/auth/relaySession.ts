@@ -14,6 +14,7 @@ import {
     webTransport,
 } from '../../http/transport';
 import { cloudStore, identityStore, relayStore } from '../store/stores';
+import { pairedClouds } from '../pairing/pairedClouds';
 import { clearRelaySession, sessionSignal, setSessionAuthenticated, setSessionIdentityState } from '../store';
 // NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
 // session barrel now publishes only the app surface (ADR-0076 decision 6).
@@ -300,6 +301,8 @@ class RelaySession implements IRelaySession {
             cloudStore.clearCloudIdentities();
             cloudStore.clearRecentClouds();
             cloudStore.clearReclaimedClouds();
+            // The clouds a guest entered through a pairing belong to that guest session.
+            pairedClouds.clear();
             relayStore.clearSelectedSite();
             // Replaces `clearRelayTransportOverrides()` — drop the deeplinked `?_backend`/`?_wss`
             // local overrides so a future boot resolves the build's own endpoint again instead of

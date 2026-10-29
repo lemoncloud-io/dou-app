@@ -21,6 +21,9 @@ const PlaceRoutes = lazy(() => import('../features/place').then(m => ({ default:
 const InviteRoutes = lazy(() => import('../features/invite').then(m => ({ default: m.InviteRoutes })));
 const SearchRoutes = lazy(() => import('../features/search').then(m => ({ default: m.SearchRoutes })));
 const OnboardingRoutes = lazy(() => import('../features/onboarding').then(m => ({ default: m.OnboardingRoutes })));
+const PairingCodePage = lazy(() => import('../features/pairing').then(m => ({ default: m.PairingCodePage })));
+const PairingApprovePage = lazy(() => import('../features/pairing').then(m => ({ default: m.PairingApprovePage })));
+const PairingDevicesPage = lazy(() => import('../features/pairing').then(m => ({ default: m.PairingDevicesPage })));
 const ShareRoutes = lazy(() => import('../features/share').then(m => ({ default: m.ShareRoutes })));
 
 const RouteFallback = () => {
@@ -112,6 +115,11 @@ export const privateRoutes = [
                     </InviteEntryGate>
                 ),
             },
+            // Device pairing sits under `/mypage` in the address bar but is its own feature; a static
+            // path outranks `mypage/*`, so the router picks these first.
+            { path: 'mypage/login/pair', element: withSuspense(PairingCodePage) },
+            { path: 'mypage/pairing/approve', element: withSuspense(PairingApprovePage) },
+            { path: 'mypage/devices', element: withSuspense(PairingDevicesPage) },
             { path: 'mypage/*', element: withSuspense(MyPageRoutes) },
             { path: 'subscription/*', element: withSuspense(SubscriptionRoutes) },
             { path: 'account/*', element: withSuspense(AccountRoutes) },

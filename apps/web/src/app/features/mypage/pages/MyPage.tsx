@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 
 import { useNavigateWithTransition } from '@chatic/shared';
+import { isNative } from '@chatic/bridges';
+import { runtime } from '@chatic/app-runtime';
 
 import { DefaultAvatar, IconChevronRight, IconSettings, IconUserOutline, ListRow, MenuCard } from '@chatic/web-ui-kit';
 
@@ -8,6 +10,7 @@ import { BottomNavSpacer } from '../../../ui/components';
 import { useIsAccountGuest, useMyUser } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { useNavigateToLogin } from '../../auth/hooks';
+import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
 
 const Chevron = () => <IconChevronRight className="size-[18px] text-description" />;
 
@@ -26,6 +29,14 @@ export const MyPage = () => {
     // would answer for the delegated cloud user instead (see useIsAccountGuest).
     const isGuest = useIsAccountGuest();
     const myUser = useMyUser();
+    const pairingEnabled = useDevicePairingEnabled();
+    // Approving is the apps' job, on an account: approving hands on a sign-in, and a guest has none of
+    // its own to give. A device that is itself signed in through an approval never approves another —
+    // it would sign out with its own approver.
+    const isPairedSession = runtime.session.useIsPairedSession();
+    const canApprovePairing = pairingEnabled && isNative() && !isGuest && !isPairedSession;
+    // A browser guest has no account to list devices for; an app guest does have its own device.
+    const canListDevices = pairingEnabled && (!isGuest || isNative());
 
     const displayName = myUser?.name;
     const displayImageUrl = myUser?.photo;
@@ -99,6 +110,36 @@ export const MyPage = () => {
                             // `isValid` sent a scheduled cancellation — still paid for — to the pitch.
                             onClick={() => navigate(ROUTES.subscription.root)}
                         />
+                    </MenuCard>
+                )}
+
+                {/* A secondary device signs out with the app that approved it — said here, where the
+                    user looks for who they are signed in as, since nothing else on the screen shows it. */}
+                {pairingEnabled && isNative() && isPairedSession && (
+                    <p
+                        className="px-1 text-[13px] leading-[1.5] text-description"
+                        data-testid="mypage-secondary-device"
+                    >
+                        {t('pairing.secondary.notice')}
+                    </p>
+                )}
+
+                {(canApprovePairing || canListDevices) && (
+                    <MenuCard>
+                        {canApprovePairing && (
+                            <ListRow
+                                title={t('pairing.entry.approve')}
+                                trailing={<Chevron />}
+                                onClick={() => navigate(ROUTES.mypage.pairing.approve)}
+                            />
+                        )}
+                        {canListDevices && (
+                            <ListRow
+                                title={t('pairing.entry.devices')}
+                                trailing={<Chevron />}
+                                onClick={() => navigate(ROUTES.mypage.pairing.devices)}
+                            />
+                        )}
                     </MenuCard>
                 )}
 

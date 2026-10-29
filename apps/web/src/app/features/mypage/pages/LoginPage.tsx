@@ -1,4 +1,4 @@
-import { Loader2, Smartphone } from 'lucide-react';
+import { Loader2, MonitorSmartphone, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
@@ -18,6 +18,7 @@ import type { LoginLocationState } from '../../auth/hooks/useNavigateToLogin';
 import { canGoBackInApp, readHistoryIndex } from '../../../navigation';
 import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
+import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
 
 export const LoginPage = () => {
     const { t } = useTranslation();
@@ -27,6 +28,7 @@ export const LoginPage = () => {
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
     const [isPhoneOpen, setIsPhoneOpen] = useState(false);
+    const pairingEnabled = useDevicePairingEnabled();
 
     const isOnMobileApp = isNative();
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
@@ -222,6 +224,21 @@ export const LoginPage = () => {
                         <Smartphone size={20} aria-hidden />
                         {t('mypageLogin.continueWithPhone')}
                     </button>
+
+                    {/* Signing in with another, already signed-in device: this screen shows a code and
+                        that device approves it. The login state rides along so the code screen can
+                        leave the same way this one would. */}
+                    {pairingEnabled && (
+                        <button
+                            onClick={() => navigate(ROUTES.mypage.pairing.code, { state: location.state })}
+                            disabled={isLoading}
+                            data-testid="login-pairing"
+                            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input-border bg-transparent py-[14px] text-[15px] font-medium text-foreground disabled:opacity-50 dark:border-[#3A3A3A]"
+                        >
+                            <MonitorSmartphone size={20} aria-hidden />
+                            {t('pairing.entry.login')}
+                        </button>
+                    )}
                 </div>
 
                 {/* The translation marks which words are the links, since they sit in a different

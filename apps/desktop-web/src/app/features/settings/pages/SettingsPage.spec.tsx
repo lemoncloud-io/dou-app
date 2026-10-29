@@ -1,9 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
+
+import type * as AppRuntimeModule from '@chatic/app-runtime';
 
 import type * as SharedModule from '../../../shared';
+
+const pairingEnv = vi.hoisted(() => ({ native: false, paired: false }));
+
+vi.mock('@chatic/app-runtime', async () => {
+    const actual = await vi.importActual<typeof AppRuntimeModule>('@chatic/app-runtime');
+    return {
+        ...actual,
+        runtime: {
+            ...actual.runtime,
+            session: { ...actual.runtime.session, useIsPairedSession: () => pairingEnv.paired },
+        },
+    };
+});
+// The flag and the platform, as `canApprovePairing` reads them; the paired session is the page's to pass.
+vi.mock('../../pairing/utils/devicePairing', () => ({
+    canApprovePairing: (isPairedSession: boolean) => pairingEnv.native && !isPairedSession,
+}));
 
 vi.mock('@chatic/theme', () => ({
     useTheme: () => ({ theme: 'system', setTheme: vi.fn() }),
@@ -95,5 +114,45 @@ describe('SettingsPage notifications', () => {
         renderPage();
 
         expect(screen.getByText(/10:00 PM.*7:00 AM/)).toBeTruthy();
+    });
+});
+
+describe('SettingsPage web sign-in approval entry', () => {
+    beforeEach(() => {
+        cleanup();
+        pairingEnv.native = true;
+        pairingEnv.paired = false;
+    });
+
+    const renderWithApproval = () =>
+        render(
+            <MemoryRouter initialEntries={['/settings']}>
+                <Routes>
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/settings/pairing/approve" element={<p>approve page</p>} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+    it('opens the approval screen from the desktop app', () => {
+        renderWithApproval();
+
+        fireEvent.click(screen.getByRole('button', { name: /Approve web sign-in/ }));
+
+        expect(screen.getByText('approve page')).toBeTruthy();
+    });
+
+    it('is not offered in a browser', () => {
+        pairingEnv.native = false;
+        renderWithApproval();
+
+        expect(screen.queryByText('Approve web sign-in')).toBeNull();
+    });
+
+    it('is not offered to a session that was itself paired', () => {
+        pairingEnv.paired = true;
+        renderWithApproval();
+
+        expect(screen.queryByText('Approve web sign-in')).toBeNull();
     });
 });

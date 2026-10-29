@@ -143,6 +143,9 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
             listPlaceUser: placeGateway.listUser,
             invite: userGateway.invite,
             inviteBatch: userGateway.inviteBatch,
+            // The active slot, not the relay: on a cloud the device list is that cloud's.
+            listDevice: userGateway.listDevice,
+            unlinkDevice: userGateway.unlinkDevice,
             syncUsers: observeMembershipRefusal(channelGateway.syncUsers),
         },
         invite: inviteGateway,

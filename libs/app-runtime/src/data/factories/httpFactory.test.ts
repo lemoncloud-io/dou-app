@@ -13,6 +13,7 @@ const userGateway = jest.fn(() => ({ tag: 'user-gateway' }));
 const cloudGateway = jest.fn(() => ({ tag: 'cloud-gateway' }));
 const subscriptionGateway = jest.fn(() => ({ tag: 'subscription-gateway' }));
 const reportGateway = jest.fn(() => ({ tag: 'report-gateway' }));
+const pairingGateway = jest.fn(() => ({ tag: 'pairing-gateway' }));
 
 jest.mock('../../http/gateways', () => ({
     oauthGateway: () => oauthGateway(),
@@ -20,6 +21,7 @@ jest.mock('../../http/gateways', () => ({
     cloudGateway: () => cloudGateway(),
     subscriptionGateway: () => subscriptionGateway(),
     reportGateway: () => reportGateway(),
+    pairingGateway: () => pairingGateway(),
 }));
 
 // Named after the alias `httpFactory` imports it under, so it does not collide with the
@@ -42,6 +44,7 @@ describe('createHttpDataSources', () => {
                 cloud: { tag: 'cloud-gateway' },
                 subscription: { tag: 'subscription-gateway' },
                 report: { tag: 'report-gateway' },
+                pairing: { tag: 'pairing-gateway' },
             },
         });
     });

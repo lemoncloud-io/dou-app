@@ -175,3 +175,50 @@ describe('createSocketDataSources — bound to one slot', () => {
         expect(slotRequest).not.toHaveBeenCalled();
     });
 });
+
+/**
+ * My own devices are read and unlinked on whichever server the session is on. While a cloud is active
+ * that is the cloud — the active facade forwards there — so pinning these to the relay would list the
+ * relay's devices to someone working in a cloud.
+ */
+describe('createSocketDataSources — my devices follow the active slot', () => {
+    const slotRequest = jest.fn().mockResolvedValue({ list: [], at: 0 });
+    const slotClient = { request: slotRequest, send: jest.fn(), onType: jest.fn().mockReturnValue(() => undefined) };
+
+    beforeEach(() => {
+        activeRequest.mockClear();
+        relayRequest.mockClear();
+        slotRequest.mockClear();
+    });
+
+    it('sends user.list-device through the active facade, not the relay slot', async () => {
+        const { socketDataSources } = createSocketDataSources();
+
+        await socketDataSources.user.listDevices();
+
+        expect(activeRequest).toHaveBeenCalledWith('user.list-device', null, undefined);
+        expect(relayRequest).not.toHaveBeenCalled();
+    });
+
+    it('sends user.unlink-device through the active facade, not the relay slot', async () => {
+        const { socketDataSources } = createSocketDataSources();
+
+        await socketDataSources.user.unlinkDevice('dev-2');
+
+        expect(activeRequest).toHaveBeenCalledWith('user.unlink-device', { deviceId: 'dev-2' }, undefined);
+        expect(relayRequest).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['listDevices', 'user.list-device', [], null],
+        ['unlinkDevice', 'user.unlink-device', ['dev-2'], { deviceId: 'dev-2' }],
+    ])('sends %s to the cloud a scoped graph was built for', async (method, type, args, data) => {
+        const { socketDataSources } = createSocketDataSources(slotClient);
+
+        await (socketDataSources.user as any)[method](...args);
+
+        expect(slotRequest).toHaveBeenCalledWith(type, data, undefined);
+        expect(activeRequest).not.toHaveBeenCalled();
+        expect(relayRequest).not.toHaveBeenCalled();
+    });
+});

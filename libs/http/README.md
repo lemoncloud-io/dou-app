@@ -61,7 +61,7 @@ signature ([`@chatic/auth-sign`](../auth-sign/README.md)); the socket transport
 
 **In** — the request path (`client.ts`), the lemon adapter, error classification and credential
 attribution/recovery, the structured network log and the `bypass` contract, the sealed transport's
-construction and boot, and the wire vocabulary for 5 domains — plus `TelemetryPolicyHttpGateway`,
+construction and boot, and the wire vocabulary for 6 domains — plus `TelemetryPolicyHttpGateway`,
 the port the statistics sampling policy is read through. The server has no route for it yet, so its
 only implementation is a static stand-in that answers "statistics off"
 (`createStaticTelemetryPolicyHttpGateway`); the HTTP one replaces it behind the same port.
@@ -75,12 +75,12 @@ cache writes (`@chatic/data`), `calcSignature` (`@chatic/auth-sign`), and the so
 flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    DS["HttpDataSource × 5<br/>@chatic/data"]:::ext
+    DS["HttpDataSource × 6<br/>@chatic/data"]:::ext
     SA["session/auth · report<br/>libs/app-runtime"]:::ext
     HM["HttpManager · transport.ts<br/>libs/app-runtime"]:::ext
     LWC["@lemoncloud/lemon-web-core"]:::ext
 
-    GW["gateways/ × 5<br/><i>path · method · pinned params</i>"]
+    GW["gateways/ × 6<br/><i>path · method · pinned params</i>"]
     CL["client.ts — HttpClient<br/><i>attribute · recover once · report</i>"]
     ERR["error/<br/><i>classify · stamp · recover</i>"]
     LOG["log/withNetworkLog"]
@@ -166,7 +166,7 @@ libs/http/src/
 ├── ports.ts                     HttpRoute + HttpRuntimePorts — the whole injection surface
 ├── adapters/lemonWebCore.ts     the 3-method lemon builder surface + LemonHttpExecutor
 ├── transport/lemonTransport.ts  SDK construction, the sealed boot, read-only session probes
-├── gateways/                    5 domain gateways + the telemetry-policy port + types.ts + index.ts
+├── gateways/                    6 domain gateways + the telemetry-policy port + types.ts + index.ts
 ├── error/                       classify · credentialStale · attribution · recovery (4 files)
 ├── log/networkLog.ts            withNetworkLog + the HttpLogSink contract
 ├── log/apiRequest.ts            endpointTemplateOf · apiBackendOf · statusClassOf · toApiRequestSample · createPerMinuteCap
@@ -174,8 +174,12 @@ libs/http/src/
 └── utils/browserNetwork.ts      isBrowserOffline — the only place this lib reads `navigator`
 ```
 
-22 production files, 16 spec files. Names you cannot guess from a filename:
+24 production files, 17 spec files. Names you cannot guess from a filename:
 
+- **`gateways/pairingTypes.ts` is temporary.** It holds the `/pairings/**` wire types, copied from
+  the backend because no published `@lemoncloud/chatic-backend-api` carries them yet. The app keeps no
+  copies of server types otherwise: when a release with them is published, the file is deleted and
+  its importers switch to the package. It must not grow past what the server declares.
 - **`HttpClientImpl` has no file of its own.** It is private to `client.ts`, and `createHttpClient`
   is the only thing that constructs it.
 - **`HttpLogSink`, `NetworkLogFields` and `HttpMethod` live in `log/networkLog.ts`**, not in

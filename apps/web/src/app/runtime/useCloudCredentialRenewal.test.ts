@@ -10,14 +10,28 @@ import { renderHook } from '@testing-library/react';
  */
 const mockGuard = jest.fn(() => ({ check: mockCheck }));
 const mockCheck = jest.fn();
+const mockPairedCheck = jest.fn();
+let onPairedCloudEnded: (cloudId: string) => void = () => undefined;
+const toast = jest.fn();
+const mockLogout = jest.fn(() => Promise.resolve());
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
         session: {
             useCloudCredentialGuard: (...args: unknown[]) => mockGuard(...(args as [])),
+            usePairedCloudCheck: (onEnded: (cloudId: string) => void) => {
+                onPairedCloudEnded = onEnded;
+                return { check: mockPairedCheck };
+            },
         },
     },
 }));
+jest.mock('react-i18next', () => ({
+    useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (o ? `${k}:${JSON.stringify(o)}` : k) }),
+}));
+jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ useToast: () => ({ toast }) }));
+jest.mock('../hooks', () => ({ useCachedCloudNames: () => ({ '1000002': 'Lemon' }) }));
+jest.mock('./useSessionLogout', () => ({ useSessionLogout: () => mockLogout }));
 
 const foregroundHandlers: Array<() => void> = [];
 jest.mock('../bridge', () => ({
@@ -32,6 +46,9 @@ const render = () => {
     foregroundHandlers.length = 0;
     mockGuard.mockClear();
     mockCheck.mockClear();
+    mockPairedCheck.mockClear();
+    toast.mockClear();
+    mockLogout.mockClear();
     renderHook(() => useCloudCredentialRenewal());
 };
 
@@ -49,5 +66,34 @@ describe('useCloudCredentialRenewal — apps/web 정책', () => {
 
         expect(mockGuard).toHaveBeenCalledTimes(1);
         expect(foregroundHandlers).toHaveLength(1);
+    });
+
+    it('re-checks the paired clouds on the same foreground return', () => {
+        render();
+
+        foregroundHandlers.forEach(h => h());
+
+        expect(mockPairedCheck).toHaveBeenCalledTimes(1);
+    });
+
+    it('says which cloud a pairing that ended took this device out of', () => {
+        render();
+
+        onPairedCloudEnded('1000002');
+        onPairedCloudEnded('1000009');
+
+        expect(toast.mock.calls).toEqual([
+            [{ title: 'pairing.cloud.endedNamed:{"cloud":"Lemon"}' }],
+            [{ title: 'pairing.cloud.ended' }],
+        ]);
+    });
+
+    it('signs the device out once when pairings end, however many clouds ended in the round', () => {
+        render();
+
+        onPairedCloudEnded('1000002');
+        onPairedCloudEnded('1000009');
+
+        expect(mockLogout).toHaveBeenCalledTimes(1);
     });
 });

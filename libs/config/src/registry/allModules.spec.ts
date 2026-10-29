@@ -18,7 +18,7 @@ describe('ALL_MODULES — the full registry', () => {
     it('declares the expected number of keys', () => {
         const registry = ConfigRegistry.merge(ALL_MODULES);
 
-        expect(registry.keys()).toHaveLength(92);
+        expect(registry.keys()).toHaveLength(93);
     });
 
     it('도메인 사이에 중복 키가 없다', () => {
@@ -54,7 +54,15 @@ describe('ALL_MODULES — the full registry', () => {
             if (surface) counts[surface] = (counts[surface] ?? 0) + 1;
         }
 
-        expect(counts).toEqual({ user: 4, labs: 2, dev: 67, internal: 19 });
+        expect(counts).toEqual({ user: 4, labs: 2, dev: 68, internal: 19 });
+    });
+
+    it.each<[Stage, boolean]>([
+        ['LOCAL', true],
+        ['DEV', true],
+        ['PROD', false],
+    ])('shows device pairing in %s: %s', (stage, on) => {
+        expect(resolveInStage('feature.auth.devicePairing', stage)).toBe(on);
     });
 
     it.each<[Stage, string]>([

@@ -20,6 +20,14 @@ vi.mock('@chatic/app-runtime', () => ({
             getRelaySessionUser: () => relayUser,
             useRuntimeProfile: () => profile,
             useSessionLogout: () => vi.fn(),
+            // The pairing-aware logout with nothing approved: it signs out straight away.
+            usePairingAwareLogout: (onLogout: () => void) => ({
+                start: async () => onLogout(),
+                pending: null,
+                confirm: async () => undefined,
+                cancel: () => undefined,
+                busy: false,
+            }),
         },
     },
 }));

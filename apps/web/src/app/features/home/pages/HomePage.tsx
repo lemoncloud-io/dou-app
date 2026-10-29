@@ -119,9 +119,18 @@ export const HomePage = () => {
     // just-edited subscription-cloud name shows immediately, before the catalog refetch catches up.
     const cachedCloudNames = useCachedCloudNames();
     const cachedCloudName = selectedCloudId ? cachedCloudNames[selectedCloudId] : undefined;
+    // A cloud this browser entered through a pairing is in neither list, and its name is cached only if
+    // the browser met it some other way; it is named by its id the way the switch sheet's row is.
+    const pairedCloudIds = runtime.session.usePairedCloudIds();
+    const pairedCloudFallback =
+        selectedCloudId && pairedCloudIds.includes(selectedCloudId)
+            ? t('pairing.cloud.unnamed', { id: selectedCloudId.slice(-6) })
+            : '';
     const cloudName =
         cachedCloudName ??
-        (activeCloud ? getCloudDisplayName(activeCloud) || activeCloud.id || activeInvitedCloud?.cid || '' : '');
+        (activeCloud
+            ? getCloudDisplayName(activeCloud) || activeCloud.id || activeInvitedCloud?.cid || ''
+            : pairedCloudFallback);
     // Cold start on a cloud: the catalog has not answered yet AND nothing was cached locally, so
     // there is no name to print. The header shows a pulsing placeholder for that window instead of
     // a blank circle beside blank text — which otherwise reads as a nameless cloud, not a pending

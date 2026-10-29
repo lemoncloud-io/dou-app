@@ -2111,6 +2111,119 @@
             "photoLabel": "Profile photo"
         }
     },
+    "pairing": {
+        "entry": {
+            "login": "Sign in with another device",
+            "approve": "Approve web sign-in",
+            "devices": "Devices"
+        },
+        "code": {
+            "title": "Sign in with another device",
+            "inCloud": "You can't sign in with another device while you're signed in to a cloud. Sign out of this cloud to continue",
+            "inCloudSignOut": "Sign out of the cloud and continue",
+            "requesting": "Getting a code",
+            "applying": "Signing in",
+            "instruction": "On a signed-in phone or desktop app, enter this code or scan the QR in Settings › Approve web sign-in",
+            "remaining": "{{time}} left",
+            "checkBrowser": "Check that the app's approval screen shows \"{{name}}\"",
+            "checkBrowserUnnamed": "Check that the app's approval screen shows this browser",
+            "expired": "This code has expired",
+            "newCode": "Get a new code",
+            "denied": "The sign-in was declined",
+            "lost": "The sign-in could not be finished. Please start over",
+            "failed": "Could not get a code",
+            "retry": "Try again",
+            "startOver": "Start over",
+            "doneRelayTitle": "Signed in as {{name}}",
+            "doneRelayBody": "This browser can use your whole account. Closing the tab ends the sign-in",
+            "doneCloud": "You're in the approved cloud",
+            "doneSecondaryBody": "This device is a secondary device of the one that approved it. Signing out there signs this device out too"
+        },
+        "scope": {
+            "relayOption": "My whole account — this browser can use all my clouds and account settings",
+            "cloudOption": "Only {{cloud}} — this browser can use {{cloud}} only",
+            "relayApprove": "Approve my whole account",
+            "cloudApprove": "Approve only {{cloud}}",
+            "relayLabel": "My whole account",
+            "cloudLabel": "Only {{cloud}}"
+        },
+        "approve": {
+            "title": "Approve web sign-in",
+            "instruction": "Enter the 8 digits shown on the web, or scan its QR",
+            "codeLabel": "Sign-in code",
+            "scan": "Scan QR",
+            "scanOldApp": "Update the app to scan QR codes. For now, type the digits",
+            "scanNotOurs": "This isn't a DoU web sign-in QR",
+            "scanNoQr": "Couldn't read a QR code. Try again or type the digits",
+            "requesterBrowser": "Browser asking to sign in",
+            "requesterPhone": "Phone asking to sign in",
+            "unknownClient": "Unknown device",
+            "onlyYours": "Approve only if this is the browser you just opened",
+            "debugWarning": "A developer token with every permission of this account will be issued",
+            "debugConfirm": "I confirm I started this developer tool myself",
+            "noTarget": "There is no account you can approve for",
+            "deny": "Decline",
+            "otherCode": "Enter another code",
+            "approved": "The web sign-in will finish now",
+            "denied": "Declined",
+            "errors": {
+                "notFound": "Code not found. Check the code on the web screen",
+                "expired": "The code has expired. Get a new one on the web",
+                "codeRefused": "This code can't be approved",
+                "targetRefused": "You can't approve for this target",
+                "alreadyHandled": "This request was already handled. Request again on the web",
+                "unknown": "Couldn't complete the request. Try again shortly"
+            }
+        },
+        "devices": {
+            "title": "Devices",
+            "header": "Devices",
+            "cloudHeader": "Devices in this cloud",
+            "thisDevice": "This device",
+            "online": "Online",
+            "lastActive": "Last active {{time}}",
+            "unlink": "Remove",
+            "loadFailed": "Couldn't load the list",
+            "approvedHeader": "Approved sign-ins",
+            "noApprovals": "No approved sign-ins",
+            "approvedAt": "Approved {{time}}",
+            "claimedAt": "Signed in {{time}}",
+            "unclaimed": "Never signed in · removal recommended",
+            "confirmTitle": "Remove?",
+            "unlinkBody": "This device will be signed out",
+            "unlinkCloudNote": "To end a web sign-in, remove it from approved sign-ins too",
+            "revokeRelayBody": "This browser will be signed out right away",
+            "revokeCloudBody": "It can't get back in. Screens already open may stay for up to 30 days — to cut them now, remove it in that cloud's devices too",
+            "unlinkFailed": "Couldn't remove the device. Try again",
+            "revokeFailed": "Couldn't remove the approval. Try again",
+            "kind": {
+                "mobile": "Phone",
+                "desktop": "Desktop",
+                "web": "Browser",
+                "cli": "Developer tool",
+                "unknown": "Unknown device"
+            }
+        },
+        "cloud": {
+            "section": "Approved clouds",
+            "sectionDescription": "This browser can use only the clouds approved from your phone",
+            "add": "Add a cloud with another device",
+            "pairedLabel": "Approved on another device",
+            "unnamed": "Cloud …{{id}}",
+            "ended": "The approval was revoked, so you were signed out",
+            "endedNamed": "The approval for {{cloud}} was revoked, so you were signed out"
+        },
+        "secondary": {
+            "notice": "Signed in as a secondary device — signing out on the approving device signs this one out too"
+        },
+        "logout": {
+            "title": "The {{count}} sign-in(s) this device approved will end too",
+            "withdrawTitle": "Withdrawing ends the {{count}} sign-in(s) this device approved too",
+            "cloudNote": "A cloud screen already open may stay until that device checks again",
+            "confirm": "Sign out",
+            "withdrawConfirm": "Withdraw"
+        }
+    },
     "share": {
         "title": "Share to Dou",
         "close": "Close",

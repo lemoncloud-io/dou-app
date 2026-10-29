@@ -8,6 +8,7 @@ import { CloudRepository, type ICloudRepository } from './CloudRepository';
 import { DeviceRepository, type IDeviceRepository } from './DeviceRepository';
 import { InviteRepository, type IInviteRepository } from './InviteRepository';
 import { JoinRepository, type IJoinRepository } from './JoinRepository';
+import { PairingRepository, type IPairingRepository } from './PairingRepository';
 import { ProfileRepository, type IProfileRepository } from './ProfileRepository';
 import { ReportRepository, type IReportRepository } from './ReportRepository';
 import { PlaceRepository, type IPlaceRepository } from './PlaceRepository';
@@ -29,6 +30,7 @@ export * from './CloudRepository';
 export * from './DeviceRepository';
 export * from './InviteRepository';
 export * from './JoinRepository';
+export * from './PairingRepository';
 export * from './ProfileRepository';
 export * from './ReportRepository';
 export * from './PlaceRepository';
@@ -56,6 +58,7 @@ export interface DataRepositories {
     device: IDeviceRepository;
     invite: IInviteRepository;
     join: IJoinRepository;
+    pairing: IPairingRepository;
     profile: IProfileRepository;
     report: IReportRepository;
     place: IPlaceRepository;
@@ -102,6 +105,8 @@ const buildRepositories = (
         device: new DeviceRepository(socketDataSources.device, context),
         invite: new InviteRepository(socketDataSources.invite, localDataSources.invite, context),
         join: new JoinRepository(socketDataSources.join, localDataSources.join, context, outbox),
+        // Remote-only and HTTP-only like `subscription` — a pairing is a handshake, not a cached entity.
+        pairing: new PairingRepository(context, httpDataSources?.pairing),
         profile,
         // Remote-only and HTTP-only like `subscription` — a report has nothing to cache.
         report: new ReportRepository(context, httpDataSources?.report),
@@ -169,6 +174,7 @@ export const createRepositories = ({
             repositories.device.dispose();
             repositories.invite.dispose();
             repositories.join.dispose();
+            repositories.pairing.dispose();
             repositories.profile.dispose();
             repositories.report.dispose();
             repositories.place.dispose();

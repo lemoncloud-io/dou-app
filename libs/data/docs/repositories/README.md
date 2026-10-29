@@ -178,6 +178,7 @@ have no local source and some have no socket source.
 | `device`       | ✓      | —                         | —              |
 | `invite`       | ✓      | `invite`                  | —              |
 | `join`         | ✓      | `join`                    | —              |
+| `pairing`      | —      | —                         | `pairing`      |
 | `place`        | ✓      | `place`                   | —              |
 | `profile`      | ✓      | `profile`                 | —              |
 | `report`       | —      | —                         | `report`       |
@@ -186,7 +187,7 @@ have no local source and some have no socket source.
 | `syncMeta`     | —      | `syncMeta`                | —              |
 
 - `auth` and `device` are remote-only surfaces with nothing to cache (session identity commands, lookup signals).
-- `report` and `subscription` are remote-only **and** HTTP-only — they do not even have a socket data source.
+- `pairing`, `report` and `subscription` are remote-only **and** HTTP-only — they do not even have a socket data source.
 - `channel` also takes the `chat` local source because leaving has to empty that room's messages, not just the channel row (ADR-0067).
 - `user` takes the `join` and `place` local sources because assembling invite candidates reads all three caches together.
 - `user` also takes the **`profile` repository** — one of the two repository-to-repository dependencies here. `listPlaceMembers` stores each page's place profiles, and a `profile.sync` answer has exactly one save path (`ProfileRepository`'s upsert and `null` delete); taking the profile data sources instead would have made a second copy of it. The dependency runs one way, and both are built in the same `buildRepositories` call from the same context provider, so a scoped graph (`withContext`) keeps them on the same scope. `index.ts` builds `profile` first for that reason.

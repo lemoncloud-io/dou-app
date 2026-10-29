@@ -26,6 +26,9 @@
             "path": "../../libs/logger/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/http/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/policy-content/tsconfig.lib.json"
         },
         {
@@ -47,10 +50,10 @@
             "path": "../../libs/perf/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/app-runtime/tsconfig.lib.json"
+            "path": "../../libs/data/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/data/tsconfig.lib.json"
+            "path": "../../libs/app-runtime/tsconfig.lib.json"
         },
         {
             "path": "../../libs/app-messages/tsconfig.lib.json"

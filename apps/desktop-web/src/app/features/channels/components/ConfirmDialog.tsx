@@ -20,6 +20,11 @@ interface ConfirmDialogProps {
     onConfirm: () => void;
     isPending?: boolean;
     variant?: 'danger' | 'default';
+    /**
+     * The description is the app's own explanation, not quoted user content, so it is shown whole
+     * instead of clamped — cutting it would cut the consequence the person is confirming.
+     */
+    fullDescription?: boolean;
 }
 
 /**
@@ -35,6 +40,7 @@ export const ConfirmDialog = ({
     onConfirm,
     isPending = false,
     variant = 'danger',
+    fullDescription = false,
 }: ConfirmDialogProps) => {
     const { t } = useTranslation();
 
@@ -49,7 +55,7 @@ export const ConfirmDialog = ({
                 {/* Clamped: the description quotes user content — a message, a channel
                     name — and it is here to identify the thing, not to reproduce it. A
                     long message would otherwise push the buttons off the dialog. */}
-                <AlertDialogDescription className={cn(description ? 'line-clamp-3' : 'sr-only')}>
+                <AlertDialogDescription className={cn(description ? !fullDescription && 'line-clamp-3' : 'sr-only')}>
                     {description ?? title}
                 </AlertDialogDescription>
                 <AlertDialogFooter className="gap-2 pt-2 sm:space-x-0">

@@ -84,6 +84,24 @@ export {
     useUidInCloud,
 } from './hooks/session';
 
+// --- device pairing ---------------------------------------------------------------------------------
+// The code screen's request flow, the paired-cloud list a guest browser entered clouds through, and the
+// secondary-device check the screens gate their entries on.
+export {
+    useIsPairedSession,
+    usePairedCloudCheck,
+    usePairedCloudIds,
+    usePairingAwareLogout,
+    usePairingRequest,
+} from './hooks/pairing';
+export type { PairingAwareLogout, PairingRequestOptions } from './hooks/pairing';
+export { isInOwnCloudSession, isPairedSession } from './pairing/pairedSession';
+export { forgetRefusedPairedCloud, isRefusedForEndedPairing } from './pairing/pairedCloudSessions';
+export { deviceDisplayName, pairingClientOf } from './pairing/pairingClient';
+export { classifyPairingError } from './pairing/pairingErrors';
+export type { PairingApprovalError } from './pairing/pairingErrors';
+export type { PairingRequestState } from './pairing/pairingRequestFlow';
+
 // --- session actions · profile (live in other folders but belong to the session group) -----------------------------------------
 // The facade groups by what a CONSUMER is doing, not by which folder the file sits in. These three
 // are session concepts whose implementations belong to other modules for good reasons — the two

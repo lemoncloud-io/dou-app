@@ -101,7 +101,7 @@ flowchart TD
     Main["main.tsx<br/><i>log wiring · config.init · runtime boot · bridge handshake</i>"]:::app
     App["app/app.tsx → app/runtime/AppRuntime.tsx<br/><i>providers · RuntimeConnectionHost · background runners</i>"]:::app
     Routes["app/routes/<br/><i>public · private · common</i>"]:::app
-    Feat["app/features/ × 13"]:::app
+    Feat["app/features/ × 14"]:::app
     SharedDirs["app/ui · hooks · stores · utils · bridge · config"]:::app
 
     Runtime["@chatic/app-runtime<br/><i>runtime.session · connection · data · sync · boot · push · report</i>"]:::lib
@@ -182,7 +182,7 @@ apps/web/src/
     ├── app.tsx         provider assembly only — no session logic
     ├── routes/         12 files: three route tables, the ROUTES builder, entry gates
     ├── runtime/        66 files: RuntimeConnectionHost wiring, background runners, log and perf-trace wiring, PUT senders
-    ├── features/       615 files across 13 feature groups
+    ├── features/       617 files across 14 feature groups
     ├── hooks/          71 files: hooks shared by more than one feature
     ├── ui/             39 files: components/, layouts/, hooks/
     ├── utils/          30 files: pure helpers

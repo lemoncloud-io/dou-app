@@ -12,6 +12,7 @@ and leaves through its back button, one level up each time.
 | `/account/clouds/:cloudId/places`     | `CloudPlacesPage`          | the places of that cloud            |
 | `/account/policies`                   | `PolicyListPage`           | terms, privacy                      |
 | `/account/policies/terms`, `/privacy` | `TermsPage`, `PrivacyPage` | the policy text                     |
+| `/account/devices`                    | `DevicesPage`              | devices and approved sign-ins       |
 
 ## The account is the relay account
 
@@ -34,6 +35,10 @@ ask what the person may do in the current cloud read the session's profile inste
   the **Join** button stands in. There is no clouds entry, since a guest owns none. Notifications and
   Policies are still offered. A signed-in account that can join by invite does so from the profile
   menu in the rail; the hub keeps the join link on the guest card only.
+
+Where device pairing is on, a signed-in account also gets **Devices**, its devices and the browser
+sign-ins it approved ([pairing](../pairing/README.md#devices-accountdevices)). A guest does not: its
+only device is this one.
 
 Notifications is a link to `/settings`, where the notification controls live; the hub holds none of
 its own.

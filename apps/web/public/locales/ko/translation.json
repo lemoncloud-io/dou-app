@@ -2111,6 +2111,119 @@
             "photoLabel": "프로필 사진"
         }
     },
+    "pairing": {
+        "entry": {
+            "login": "다른 기기로 로그인",
+            "approve": "웹 로그인 승인",
+            "devices": "기기 관리"
+        },
+        "code": {
+            "title": "다른 기기로 로그인",
+            "inCloud": "클라우드에 로그인된 상태에서는 다른 기기로 로그인할 수 없어요. 이 클라우드에서 로그아웃한 뒤 진행해 주세요",
+            "inCloudSignOut": "클라우드에서 로그아웃하고 계속",
+            "requesting": "코드를 받는 중이에요",
+            "applying": "로그인하는 중이에요",
+            "instruction": "로그인된 휴대폰이나 데스크톱 앱의 설정 › 웹 로그인 승인에서 이 코드를 입력하거나 QR을 찍으세요",
+            "remaining": "{{time}} 남음",
+            "checkBrowser": "앱 승인 화면에 \"{{name}}\"이(가) 보이는지 확인하세요",
+            "checkBrowserUnnamed": "앱 승인 화면에 이 브라우저가 보이는지 확인하세요",
+            "expired": "코드가 만료됐어요",
+            "newCode": "새 코드 받기",
+            "denied": "승인이 거부됐어요",
+            "lost": "로그인을 마치지 못했어요. 처음부터 다시 해 주세요",
+            "failed": "코드를 받지 못했어요",
+            "retry": "다시 시도",
+            "startOver": "처음부터 다시",
+            "doneRelayTitle": "{{name}} 계정으로 로그인했어요",
+            "doneRelayBody": "이 브라우저에서 내 계정 전체를 쓸 수 있어요. 탭을 닫으면 로그인이 끝나요",
+            "doneCloud": "승인한 클라우드에 들어왔어요",
+            "doneSecondaryBody": "이 기기는 승인한 기기에 연결된 보조 기기예요. 그 기기에서 로그아웃하면 이 기기도 함께 로그아웃돼요"
+        },
+        "scope": {
+            "relayOption": "내 계정 전체 — 이 브라우저에서 내 모든 클라우드와 계정 설정을 쓸 수 있어요",
+            "cloudOption": "{{cloud}}만 — 이 브라우저는 {{cloud}}만 쓸 수 있어요",
+            "relayApprove": "내 계정 전체 승인",
+            "cloudApprove": "{{cloud}}만 승인",
+            "relayLabel": "내 계정 전체",
+            "cloudLabel": "{{cloud}}만"
+        },
+        "approve": {
+            "title": "웹 로그인 승인",
+            "instruction": "웹 화면에 보이는 숫자 8자리를 입력하거나 QR을 찍으세요",
+            "codeLabel": "로그인 코드",
+            "scan": "QR 찍기",
+            "scanOldApp": "앱을 업데이트하면 QR로 읽을 수 있어요. 지금은 숫자를 입력하세요",
+            "scanNotOurs": "두유 웹 로그인 QR이 아니에요",
+            "scanNoQr": "QR을 읽지 못했어요. 다시 찍거나 숫자를 입력하세요",
+            "requesterBrowser": "로그인을 요청한 브라우저",
+            "requesterPhone": "로그인을 요청한 휴대폰",
+            "unknownClient": "알 수 없는 기기",
+            "onlyYours": "지금 내가 연 브라우저가 맞을 때만 승인하세요",
+            "debugWarning": "이 계정의 모든 권한을 가진 개발용 토큰이 발급됩니다",
+            "debugConfirm": "내가 직접 실행한 개발 도구임을 확인했어요",
+            "noTarget": "승인할 수 있는 계정이 없어요",
+            "deny": "거부",
+            "otherCode": "다른 코드 입력",
+            "approved": "웹에서 로그인이 완료됩니다",
+            "denied": "거부했어요",
+            "errors": {
+                "notFound": "코드를 찾을 수 없어요. 웹 화면의 코드를 다시 확인하세요",
+                "expired": "코드가 만료됐어요. 웹에서 새 코드를 받으세요",
+                "codeRefused": "이 코드는 승인할 수 없어요",
+                "targetRefused": "이 대상으로 승인할 수 없어요",
+                "alreadyHandled": "이미 처리된 요청이에요. 웹에서 다시 요청해 주세요",
+                "unknown": "요청을 처리하지 못했어요. 잠시 뒤 다시 시도하세요"
+            }
+        },
+        "devices": {
+            "title": "기기 관리",
+            "header": "기기",
+            "cloudHeader": "이 클라우드의 기기",
+            "thisDevice": "이 기기",
+            "online": "접속 중",
+            "lastActive": "마지막 활동 {{time}}",
+            "unlink": "해제",
+            "loadFailed": "목록을 불러오지 못했어요",
+            "approvedHeader": "승인한 로그인",
+            "noApprovals": "승인한 로그인이 없어요",
+            "approvedAt": "승인 {{time}}",
+            "claimedAt": "로그인 {{time}}",
+            "unclaimed": "로그인되지 않음 · 해제 권장",
+            "confirmTitle": "해제할까요?",
+            "unlinkBody": "이 기기의 로그인이 끝나요",
+            "unlinkCloudNote": "웹 로그인을 끝내려면 승인한 로그인에서도 해제하세요",
+            "revokeRelayBody": "이 브라우저의 로그인이 바로 끝나요",
+            "revokeCloudBody": "다시 들어오지 못해요. 이미 열린 화면은 최대 30일까지 남을 수 있어요 — 바로 끊으려면 그 클라우드의 기기 관리에서도 해제하세요",
+            "unlinkFailed": "기기를 해제하지 못했어요. 다시 시도해 주세요",
+            "revokeFailed": "승인을 해제하지 못했어요. 다시 시도해 주세요",
+            "kind": {
+                "mobile": "휴대폰",
+                "desktop": "데스크톱",
+                "web": "브라우저",
+                "cli": "개발 도구",
+                "unknown": "알 수 없는 기기"
+            }
+        },
+        "cloud": {
+            "section": "승인받은 클라우드",
+            "sectionDescription": "이 브라우저는 휴대폰에서 승인한 클라우드만 쓸 수 있어요",
+            "add": "다른 기기로 클라우드 추가",
+            "pairedLabel": "다른 기기에서 승인함",
+            "unnamed": "클라우드 …{{id}}",
+            "ended": "승인이 해제돼 로그아웃했어요",
+            "endedNamed": "{{cloud}} 승인이 해제돼 로그아웃했어요"
+        },
+        "secondary": {
+            "notice": "보조 기기로 로그인됨 — 승인한 기기에서 로그아웃하면 이 기기도 함께 로그아웃돼요"
+        },
+        "logout": {
+            "title": "이 기기로 승인한 로그인 {{count}}개도 함께 끝나요",
+            "withdrawTitle": "탈퇴하면 이 기기로 승인한 로그인 {{count}}개도 함께 끝나요",
+            "cloudNote": "이미 열린 클라우드 화면은 그 기기가 다시 확인할 때까지 남을 수 있어요",
+            "confirm": "로그아웃",
+            "withdrawConfirm": "탈퇴"
+        }
+    },
     "share": {
         "title": "Dou에 공유",
         "close": "닫기",

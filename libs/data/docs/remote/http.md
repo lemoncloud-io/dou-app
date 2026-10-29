@@ -2,7 +2,7 @@
 
 > Status: Live · Last updated: 2026-10-06 · Shared contract in the [remote README](./README.md) · Canonical code: [gateways/http.ts](../../src/remote/gateways/http.ts) · [http-data-sources/](../../src/remote/http-data-sources/)
 
-The remote axis that uses HTTP transport. It has 5 domains. For the socket axis see
+The remote axis that uses HTTP transport. It has 6 domains. For the socket axis see
 [socket.md](./socket.md).
 
 It is the **same file layout and the same pattern** as the socket axis — the same file placement, the
@@ -20,7 +20,7 @@ remote/
 
 ## gateway Pick
 
-`HttpGatewayBundle` in `gateways/http.ts` has 5 domains.
+`HttpGatewayBundle` in `gateways/http.ts` has 6 domains.
 
 | Domain gateway                  | Picked from                                                                                                                                                                                                                                                                                                                                                                                                                   | Consumed by                  |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
@@ -29,6 +29,7 @@ remote/
 | `CloudHttpDomainGateway`        | `CloudHttpGateway` — `list` · `update` · `make` · `release` · `workspace` · `verifyEmail`                                                                                                                                                                                                                                                                                                                                     | `CloudHttpDataSource`        |
 | `SubscriptionHttpDomainGateway` | `SubscriptionHttpGateway` — `plans` · `membership` · `validateMembership` · `markDrops`, the admin console's `adminMemberships` · `updateMembershipByAdmin` · `refundSubscriptionByAdmin` · `adminClouds` (ADR-0101), and the web subscription's `mySubscription` · `subscriptionCards` · `issueBillingKey` · `startSubscription` · `changeSubscription` · `cancelSubscription` · `addCard` · `setDefaultCard` · `removeCard` | `SubscriptionHttpDataSource` |
 | `ReportHttpDomainGateway`       | `ReportHttpGateway` — `reportIssue` · `uploadLogBatch` (all of it)                                                                                                                                                                                                                                                                                                                                                            | `ReportHttpDataSource`       |
+| `PairingHttpDomainGateway`      | `PairingHttpGateway` — `request` · `check` · `approve` · `deny` · `claim` · `revoke` · `list` (all of it)                                                                                                                                                                                                                                                                                                                     | `PairingHttpDataSource`      |
 
 The point of `Pick<>` is that the consumer owns the contract. The socket bundle goes further and uses
 **absence as a seal** — it leaves `@deprecated` packets out so callers cannot reach the old vocabulary
@@ -52,6 +53,11 @@ comment: `gateways/refreshAbsence.spec.ts` in `@chatic/http`.
 `ReportHttpDomainGateway` also takes everything. There is nothing on this gateway to withhold, and the
 `Pick<>` remains only to keep the contract consumer-owned.
 
+`PairingHttpDomainGateway` takes everything too. The requesting device (a guest session) uses
+`request` · `claim`, the approving device the rest, and which half a session may use is the server's
+check — a guest asking to approve is refused there — so withholding a method here would only hide it
+from the session that is allowed it.
+
 ## Calls by HttpDataSource
 
 | HttpDataSource               | Public methods → gateway call                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -61,6 +67,7 @@ comment: `gateways/refreshAbsence.spec.ts` in `@chatic/http`.
 | `CloudHttpDataSource`        | `listClouds()` · `updateCloud()` · `makeCloud()` (`make`) · `releaseCloud()` (`release`) · `retryCloudSetup()` (`workspace`) · `verifyEmail()`                                                                                                                                                                                                                                                                                                                |
 | `SubscriptionHttpDataSource` | `fetchPlans()` (`plans`) · `fetchMembershipInfo()` (`membership`) · `validateMembership()` · `markDrops()` · `fetchAdminMemberships()` · `updateMembershipByAdmin()` · `refundSubscriptionByAdmin()` · `fetchAdminClouds()` · the web subscription's `fetchMySubscription()` · `fetchSubscriptionCards()` · `issueBillingKey()` · `startSubscription()` · `changeSubscription()` · `cancelSubscription()` · `addCard()` · `setDefaultCard()` · `removeCard()` |
 | `ReportHttpDataSource`       | `submitIssue()` (`reportIssue`) · `uploadLogBatch()`                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `PairingHttpDataSource`      | `requestPairing()` (`request`) · `checkPairing()` (`check`) · `approvePairing()` (`approve`) · `denyPairing()` (`deny`) · `claimPairing()` (`claim`) · `revokePairing()` (`revoke`) · `listPairings()` (`list`)                                                                                                                                                                                                                                               |
 
 In `AuthHttpDataSource`, only `registerUser` and `registerUserV2` map to `DomainUser`. The rest **pass
 through untouched**, because mapping drops `Token` and `cloudId` and those two are exactly what the
@@ -134,6 +141,21 @@ OAuth-internal markers the socket domain never sees). The identity fields are th
 `toDomainUserFromHttp` in `http-data-sources/httpUserMapping.ts` joins them with an explicit cast — using
 the existing mapper as a bridge rather than creating a new one. The day something needs to branch on the
 `stereo` value is the signal to **give the HTTP axis its own `toDomainUser`**, not to widen the cast.
+
+## The pairing lane
+
+`PairingHttpDataSource` passes everything through, like the report lane: a pairing is a handshake, not an
+entity, so nothing is mapped and nothing is cached here — the one list (`GET /pairings`) is
+react-query's to cache in the app.
+
+- **Every operation is a signed relay request**, whichever cloud the session is working in. The pairing
+  records live on the relay and a cloud server does not serve `/pairings`; the gateway builds every
+  address from `resolveEndpoint('relay')`.
+- **`claimPairing`'s answer is returned untouched.** On a relay approval its first `approved` answer
+  carries the session, and only that one does — every later claim answers `claimed`. Applying that
+  session is `app-runtime`'s, the same path a phone login takes; nothing under `data/` reads it.
+- **The wire types are temporary copies** (`@chatic/http`'s `gateways/pairingTypes.ts`) until a
+  published `@lemoncloud/chatic-backend-api` carries them.
 
 ## The report lane
 

@@ -77,6 +77,11 @@ export interface ICloudStore {
     setCloudIdentity(cloudId: string, identity: CloudIdentity): void;
     /** Every recorded cloud identity, keyed by cloud id. */
     getCloudIdentities(): Record<string, CloudIdentity>;
+    /**
+     * Forgets one cloud's identity. Only for a uid this account no longer has there — a paired cloud
+     * whose approval ended named the approver's uid, which would go on partitioning that cloud's cache.
+     */
+    dropCloudIdentity(cloudId: string): void;
     /** Forgets every cloud identity — the account is changing, and its uids change with it. */
     clearCloudIdentities(): void;
     /** Moves `cloudId` to the front of the recently entered clouds. */
@@ -206,6 +211,13 @@ class CloudStore implements ICloudStore {
         // A copy: the slot memoises the parsed object, and a caller mutating it would corrupt what
         // the next read (and `setCloudIdentity`'s no-op guard) sees.
         return { ...(this.identities.read() ?? {}) };
+    }
+
+    dropCloudIdentity(cloudId: string): void {
+        const map = this.identities.read();
+        if (!map || !(cloudId in map)) return;
+        delete map[cloudId];
+        this.identities.write(map);
     }
 
     clearCloudIdentities(): void {
