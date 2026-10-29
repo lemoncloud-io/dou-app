@@ -24,7 +24,6 @@ import {
     isViewerId,
     type MessageViewer,
     type ReactionTally,
-    type ReadCount,
     type ThreadMeta,
 } from '../utils';
 import { DateSeparator } from './DateSeparator';
@@ -92,8 +91,6 @@ interface MessageListProps {
     onJumpConsumed?: () => void;
     /** The first message in view as the reader scrolls; null at the latest. */
     onReadingPosition?: (chatNo: number | null) => void;
-    /** Read/unread counts per message (see `useReadCounts`); absent shows no receipts. */
-    readCountOf?: (chatNo: number, senderId?: string) => ReadCount | null;
     /**
      * What sits above the first message once the whole history is loaded (and in place of
      * the empty state): the channel's "this is the start of …" block. Absent in threads.
@@ -157,7 +154,6 @@ export const MessageList = ({
     jumpTarget,
     onJumpConsumed,
     onReadingPosition,
-    readCountOf,
     intro,
     loadFailed,
     onRetryLoad,
@@ -227,20 +223,6 @@ export const MessageList = ({
         () => buildMessageRows(messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount),
         [messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount]
     );
-
-    // Only my latest block shows its receipt outright; every earlier one shows it on hover or
-    // focus. The newest count is the one people check, and a line under each of my blocks was
-    // the loudest repeated element in a busy channel. Walks back to the first block with a count.
-    let latestReceiptKey: string | null = null;
-    for (let i = rows.length - 1; i >= 0 && readCountOf; i--) {
-        const row = rows[i];
-        if (row.kind !== 'group') continue;
-        const last = row.group.messages[row.group.messages.length - 1];
-        if (last?.chatNo && readCountOf(last.chatNo, last.ownerId)) {
-            latestReceiptKey = row.group.key;
-            break;
-        }
-    }
 
     // --- Feed windowing: mount the viewport window, hold the rest as spacers. ---
     // A 500-message channel used to mount 500 RichText/BlockKit subtrees, and every
@@ -861,8 +843,6 @@ export const MessageList = ({
                             </div>
                         );
                     }
-                    const last = row.group.messages[row.group.messages.length - 1];
-                    const receipt = readCountOf && last?.chatNo ? readCountOf(last.chatNo, last.ownerId) : null;
                     // Only the block holding the target gets it: handed to every row, a
                     // jump re-rendered the whole feed twice (on the flash and on its clear).
                     const highlight =
@@ -885,9 +865,6 @@ export const MessageList = ({
                             withDayInTime={threadReplyCount !== undefined}
                             reactions={reactions}
                             reactorName={reactorName}
-                            receiptRead={receipt?.readCount}
-                            receiptUnread={receipt?.unreadCount}
-                            receiptOnReveal={row.group.key !== latestReceiptKey}
                             toolbarUnderHeader={threadReplyCount !== undefined}
                         />
                     );

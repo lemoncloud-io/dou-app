@@ -45,7 +45,6 @@ import {
     useImageAttachments,
     useMentionables,
     useMessageViewer,
-    type ReadCountOf,
 } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
@@ -63,8 +62,6 @@ interface ChatPaneProps {
     members: ChannelMember[];
     /** Roster still loading — message headers show a name skeleton, not "Unknown". */
     membersLoading?: boolean;
-    /** Per-message read counts, from the one `useReadCounts` the host mounts per channel. */
-    readCountOf?: ReadCountOf;
     /**
      * Where a jump brought the reader from, and how to go back. Supplied by the
      * host, which owns both the channel list (for the name) and the jump itself.
@@ -82,7 +79,6 @@ export const ChatPane = ({
     channel,
     members,
     membersLoading,
-    readCountOf,
     jumpReturn,
     emptyState = { mode: 'pick' },
 }: ChatPaneProps) => {
@@ -412,7 +408,6 @@ export const ChatPane = ({
                     jumpTarget={jumpTarget}
                     onJumpConsumed={clearJump}
                     onReadingPosition={reportPosition}
-                    readCountOf={readCountOf}
                     intro={intro}
                     loadFailed={loadFailed}
                     onRetryLoad={retryLoad}
