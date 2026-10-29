@@ -106,8 +106,11 @@ when the list cannot be read, the logout happens at once. The dialog mounts only
 open, so a menu that never signs out never reads the cloud catalog.
 
 **Paired clouds.** A browser that a phone approved into one cloud stays a relay guest; the runtime keeps
-that cloud in its paired-cloud list. `DesktopRuntime` runs `runtime.session.usePairedCloudCheck`, which
-re-issues each paired cloud through the relay's delegation at mount and every ten minutes; a 403 (the
+that cloud in its paired-cloud list. `DesktopRuntime` runs `usePairedCloudSignOut`
+(`runtime/usePairedCloudSignOut.ts`) over `runtime.session.usePairedCloudCheck`, which re-issues each
+paired cloud through the relay's delegation at mount, every ten minutes and whenever the window becomes
+visible again — a browser left in the background would otherwise show a revoked cloud until the next
+ten-minute round; a 403 (the
 approval was revoked, or the approver signed out) tears the cloud down, a toast says so, and the
 browser signs out (account reset, then logout) — the approval was its sign-in, and the relay refuses
 the same auth session's way back into the cloud until a new session replaces it. desktop-web

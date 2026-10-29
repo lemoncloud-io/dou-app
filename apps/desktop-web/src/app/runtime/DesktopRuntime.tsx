@@ -1,16 +1,13 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useEffect, useMemo } from 'react';
 
 import { runtime } from '@chatic/app-runtime';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
-import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { AppRouter } from '../routes';
 import {
     AppToaster,
     ConnectionBanner,
     UpdateBanner,
-    useAccountResetOnLogout,
     useClouds,
     useCrossCloudPushBadge,
     useCrossCloudPushNotifications,
@@ -33,6 +30,7 @@ import {
 import { BackgroundCloudsRunner } from './BackgroundCloudsRunner';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { useRealtimeProfileSync } from './useRealtimeProfileSync';
+import { usePairedCloudSignOut } from './usePairedCloudSignOut';
 import { useRelayCredentialRefresh } from './useRelayCredentialRefresh';
 
 // Debug frame log: start recording inbound socket envelopes for the whole session, so the
@@ -173,24 +171,9 @@ export const DesktopRuntime = () => {
     //    this guard exists for. Gating it the way the relay hook gates its visibility trigger would
     //    disable it exactly when it is needed.
     runtime.session.useCloudCredentialGuard();
-    // A browser that a phone approved into a cloud re-checks that cloud through the relay at mount and
-    // every ten minutes; one whose approval ended is torn down by the runtime, said here, and signed
-    // out — an ended approval ends the sign-in it gave, and the relay refuses this auth session's way
-    // into that cloud until a new session replaces it. Several clouds ending in one round sign out once.
-    const { t } = useTranslation();
-    const logout = runtime.session.useSessionLogout();
-    const { resetAccount } = useAccountResetOnLogout();
-    const signingOut = useRef(false);
-    runtime.session.usePairedCloudCheck(() => {
-        toast({ title: t('pairing.cloud.ended') });
-        if (signingOut.current) return;
-        signingOut.current = true;
-        void resetAccount()
-            .finally(() => logout())
-            .finally(() => {
-                signingOut.current = false;
-            });
-    });
+    // A browser a phone approved into clouds re-checks them through the relay — at mount, every ten
+    // minutes and on returning to the window — and signs out once an approval ended.
+    usePairedCloudSignOut();
 
     return (
         <runtime.connection.RuntimeAuthHost>
