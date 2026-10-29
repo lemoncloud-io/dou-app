@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-29] - No version updates
+
+### Features
+
+- (desktop-web,desktop) switch cloud and place by number key
+
 ## [2026-10-29] - root@0.123.0, @chatic/web@0.82.0
 
 ### Features
