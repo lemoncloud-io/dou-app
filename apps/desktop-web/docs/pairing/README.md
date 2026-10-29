@@ -102,7 +102,9 @@ unlinked in that cloud's device list.
 approved web sign-ins that still stand, `components/PairingLogoutDialog` lists them (requester and
 scope, plus a caveat when a cloud approval is among them); confirming revokes them all and then runs
 the ordinary account reset and logout. With nothing approved, in a browser, on a secondary device, or
-when the list cannot be read, the logout happens at once. The dialog mounts only while a confirm is
+when the list cannot be read, the logout happens at once. Releasing the active cloud is the one case where
+the logout is not the person's to cancel — there is no cloud left to stand in — so cancelling that confirm
+only keeps the approvals standing, and the reset and logout still run. The dialog mounts only while a confirm is
 open, so a menu that never signs out never reads the cloud catalog.
 
 **Paired clouds.** A browser that a phone approved into one cloud stays a relay guest; the runtime keeps

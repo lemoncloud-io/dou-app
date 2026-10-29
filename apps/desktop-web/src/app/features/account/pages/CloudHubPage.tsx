@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 
@@ -41,7 +41,23 @@ export const CloudHubPage = () => {
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const logout = runtime.session.useSessionLogout();
     const { resetAccount } = useAccountResetOnLogout();
-    const pairingLogout = runtime.session.usePairingAwareLogout(() => void resetAccount().finally(() => logout()));
+    const signOut = () => void resetAccount().finally(() => logout());
+    const pairingLogout = runtime.session.usePairingAwareLogout(signOut);
+    // Releasing the cloud the session stands in leaves nothing to stand in, so here the sign-out is not
+    // the person's to cancel: cancelling the confirm only keeps the approvals standing. The dialog also
+    // closes (and calls `cancel`) when its confirm is pressed, so a confirm under way is told apart.
+    const approvalsConfirmed = useRef(false);
+    const releaseLogout: runtime.session.PairingAwareLogout = {
+        ...pairingLogout,
+        confirm: async () => {
+            approvalsConfirmed.current = true;
+            await pairingLogout.confirm();
+        },
+        cancel: () => {
+            pairingLogout.cancel();
+            if (!approvalsConfirmed.current) signOut();
+        },
+    };
     const [name, setName] = useState('');
     const [confirmingRelease, setConfirmingRelease] = useState(false);
 
@@ -100,7 +116,7 @@ export const CloudHubPage = () => {
                 // The session stood in this cloud: release the account state with it — and, on an
                 // approving app, the web sign-ins it approved.
                 if (isDevicePairingEnabled()) void pairingLogout.start();
-                else void resetAccount().finally(() => logout());
+                else signOut();
                 return;
             }
             toast({ title: t(result === 'already-gone' ? 'cloud.hub.alreadyReleased' : 'cloud.hub.released') });
@@ -181,7 +197,7 @@ export const CloudHubPage = () => {
                 isPending={isDeleting}
                 variant="danger"
             />
-            <PairingLogoutDialog logout={pairingLogout} />
+            <PairingLogoutDialog logout={releaseLogout} />
         </PageShell>
     );
 };
