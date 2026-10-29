@@ -8,7 +8,8 @@ lists that place's channels. On Home, and for a guest, the rail shows a single H
 default cloud has no places to choose between.
 
 The tiles come from the place cache (`usePlaces`), which the runtime's background sync keeps
-current. Nothing on the rail fetches.
+current. Nothing on the rail fetches. Shift+1…Shift+9 select a tile by the position it is drawn in
+([`../chat/keyboard.md`](../chat/keyboard.md#cloud-and-place-by-number)).
 
 ## Order
 

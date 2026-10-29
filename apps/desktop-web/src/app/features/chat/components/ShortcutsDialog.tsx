@@ -40,6 +40,8 @@ export const ShortcutsDialog = () => {
     const rows: Array<{ keys: ReactNode; label: string }> = [
         { keys: <Kbd>{MOD} K</Kbd>, label: t('shortcuts.search') },
         { keys: <Kbd>{MOD} ⇧ F</Kbd>, label: t('shortcuts.messageSearch') },
+        { keys: <Kbd>{MOD} 0–9</Kbd>, label: t('shortcuts.switchCloud') },
+        { keys: <Kbd>⇧ 1–9</Kbd>, label: t('shortcuts.switchPlace') },
         {
             keys: (
                 <>

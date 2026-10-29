@@ -8,7 +8,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import '../../../../i18n';
 
-import { useComposerDraftStore } from '../../../shared';
+import { useComposerDraftStore, useComposerFocusStore } from '../../../shared';
 import type { ComposerAttachment } from '../hooks';
 import { Composer } from './Composer';
 import { $createMentionNode } from './editor/MentionNode';
@@ -32,6 +32,18 @@ describe('Composer autoFocus', () => {
         const { container } = render(<Composer onSend={() => undefined} channelId="C2" />, { wrapper });
         await settle();
         expect(document.activeElement).not.toBe(container.querySelector('[data-composer-input]'));
+    });
+
+    // A rail chord opens the room from the keyboard: taking the caret would make the next chord
+    // type its character ("!" for Shift+1) into the box instead of moving.
+    it('does not take the caret when the rail asked it not to', async () => {
+        useComposerFocusStore.getState().requestSkip();
+        const blur = vi.spyOn(HTMLElement.prototype, 'blur');
+        const { container } = render(<Composer onSend={() => undefined} channelId="C5" />, { wrapper });
+        await settle();
+        const input = container.querySelector('[data-composer-input]');
+        expect(blur.mock.instances).toContain(input);
+        useComposerFocusStore.getState().clearSkip();
     });
 
     // A thread can open seconds after the click, once its channel loads; by then the reader
