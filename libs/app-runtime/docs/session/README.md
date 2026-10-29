@@ -279,6 +279,18 @@ A device that is not signed in (a browser tab, or a phone) shows an 8-digit code
 approves it. `session/pairing/` holds the requesting side and the facts both sides need; the REST calls
 themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests.
 
+Four files carry most of it, and their names are close, so this is what each one is:
+
+| File                     | What it is                                                                                                                                                                                                                         | Holds state   |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `pairedSession.ts`       | **The checks.** Is this device signed in through someone else's approval — a secondary device (`isPairedSession`)? Is the relay session a guest (`isRelayGuest`)? Is this guest inside a cloud of its own (`isInOwnCloudSession`)? | no            |
+| `pairedClouds.ts`        | **The list.** `PairedCloudStore`: the ids of the clouds this guest entered through a pairing (`chatic-paired-cloud-ids`)                                                                                                           | the list only |
+| `pairedCloudSessions.ts` | **What acts on the list.** `PairedCloudSessions`: enter a paired cloud, re-issue it, re-check it, end it                                                                                                                           | uses the list |
+| `pairingClient.ts`       | **The device's label.** What a requester tells the approver about itself (`Chrome · macOS`, `iPhone`), and how a device-list row is named (`deviceDisplayName`). Not a network client                                              | no            |
+
+The rest: `pairingRequestFlow.ts` is the code screen's request-and-poll loop, `pairingErrors.ts` names
+the approval side's failures.
+
 - **`usePairingRequest`** drives the code screen through `PairingRequestFlow`, a class with no
   React in it: request a code, poll `claim` every `interval` seconds, then sign in. A relay approval's
   session goes through `applySessionToken` — the same path a phone login takes — and a cloud approval
