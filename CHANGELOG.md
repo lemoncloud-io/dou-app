@@ -2,6 +2,12 @@
 
 ## [2026-10-30] - No version updates
 
+### Refactor
+
+- (auth,app-runtime) move the session use cases, pairing and socket auth into @chatic/auth
+
+## [2026-10-30] - No version updates
+
 ### Features
 
 - (desktop-web,data,web) send voice files from desktop as file cards
