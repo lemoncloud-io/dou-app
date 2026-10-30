@@ -321,8 +321,10 @@ they were. What that costs: receipts go to the sign-in address alone.
 and only `emails` is shut. W-12 lists the cards the payment service holds, the default marked as the
 server marks it; every other card has [Make default] and [Remove], and [Add card] opens the payer's name
 and number (`PayerFields`) and then the provider's window. A card added this way is not charged until it
-is made the default. The payment service decides what may be removed: the default card has no [Remove],
-and a refusal of any other card is the card a subscription in use is charged to, which W-12 says. It is
+is made the default. The payment service decides what may be removed: the default card's [Remove] is
+greyed and only opens the explanation (make another card the default first; for a live subscription's
+only card, add one first), and a refusal of any other card is the card a subscription in use is charged
+to, which W-12 says. It is
 reached from the account menu, from W-18's card tile and from a failed payment's button. On a phone the
 provider's window comes back to W-12 with its result in the query, and the payer waits in
 `sessionStorage` meanwhile (`savePendingCardChange`, read by `pages/billing/useCardWindowReturn.ts`).

@@ -1,26 +1,13 @@
-import { type JSX, type ReactNode } from 'react';
+import { type ComponentProps, type JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { PageHeader } from '../../components';
 import { Banner, Button, useToast } from '../../components/ui';
 import { isPortError } from '../../lib/port';
 
 /** The heading every billing page opens with: title, one line under it, and an optional action. */
-export const BillingPageHeader = ({
-    title,
-    subtitle,
-    action,
-}: {
-    title: ReactNode;
-    subtitle?: ReactNode;
-    action?: ReactNode;
-}): JSX.Element => (
-    <header className="mb-6 flex items-start justify-between gap-6">
-        <div>
-            <h1 className="text-[28px] font-bold text-navy">{title}</h1>
-            {subtitle && <p className="mt-2 text-sm text-subtitle">{subtitle}</p>}
-        </div>
-        {action && <div className="shrink-0">{action}</div>}
-    </header>
+export const BillingPageHeader = (props: Omit<ComponentProps<typeof PageHeader>, 'className'>): JSX.Element => (
+    <PageHeader {...props} className="mb-5 md:mb-6" />
 );
 
 /** The common copy for a port error a billing page does not have its own words for. */

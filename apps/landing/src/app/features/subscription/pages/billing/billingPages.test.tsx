@@ -79,13 +79,17 @@ describe('W-12 payment methods', () => {
         expect(within(second).getByRole('button', { name: 'Make default' })).toBeTruthy();
     });
 
-    it('offers no way to remove the default card, which the payment service refuses', async () => {
+    it('explains why the default card, which the payment service refuses, cannot be removed', async () => {
         renderAt(url, '?mock=active');
 
         const row = await cardRow('신한 ···· 1234');
         expect(within(row).getByText('Default')).toBeTruthy();
-        expect(within(row).queryByRole('button', { name: 'Remove' })).toBeNull();
+        // An open dialog hides the page behind it, so the other card is read first.
         expect(within(await cardRow('현대 ···· 5678')).getByRole('button', { name: 'Remove' })).toBeTruthy();
+        fireEvent.click(within(row).getByRole('button', { name: 'Remove' }));
+
+        const dialog = await screen.findByRole('dialog', { name: "Your default card can't be removed yet" });
+        expect(within(dialog).getByText('Make another card the default, then remove this one.')).toBeTruthy();
     });
 
     it('says why the server would not remove a card', async () => {
@@ -144,8 +148,9 @@ describe('W-12 payment methods', () => {
     it('keeps the last card of a live subscription, which is its default, and offers to add another', async () => {
         renderAt(url, '?mock=past-due');
 
-        expect(within(await cardRow('신한 ···· 1234')).queryByRole('button', { name: 'Remove' })).toBeNull();
-        fireEvent.click(screen.getAllByRole('button', { name: 'Add card' })[0]);
+        fireEvent.click(within(await cardRow('신한 ···· 1234')).getByRole('button', { name: 'Remove' }));
+        const refusal = await screen.findByRole('dialog', { name: "Your last card can't be removed" });
+        fireEvent.click(within(refusal).getByRole('button', { name: 'Add card' }));
         expect(await screen.findByRole('dialog', { name: 'Add card' })).toBeTruthy();
     });
 
