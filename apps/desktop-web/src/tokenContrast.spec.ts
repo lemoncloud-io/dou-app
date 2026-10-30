@@ -102,6 +102,88 @@ describe.each([
 });
 
 /**
+ * Shell palettes (Settings › Theme), light mode only. Each rail is measured with the tokens it
+ * actually draws with: the palette's root values, plus the dark-ground remap for a rail the palette
+ * makes dark. The blocks are found by their last selector, the one `tokensOf` can name.
+ */
+const DARK_RAIL = tokensOf(":root[data-palette='lemon']:not(.dark) [data-shell-rail='cloud']");
+const LEMON_NAV = tokensOf(":root[data-palette='lemon']:not(.dark) [data-shell-rail='nav']");
+
+type Tokens = Record<string, string>;
+
+/** The page outside the shell (the chat), the list with its own hover, then the cloud rail and the nav rail. */
+const paletteSurfaces = (
+    name: string,
+    darkNav: boolean
+): { page: Tokens; list: Tokens; cloud: Tokens; nav: Tokens } => {
+    const page = name === 'mist' ? light : { ...light, ...tokensOf(`[data-palette-preview='${name}']`) };
+    const list = {
+        ...page,
+        ...tokensOf(':root:not(.dark) [data-shell-sidebar]'),
+        ...(name === 'mist' ? {} : tokensOf(`:root[data-palette='${name}']:not(.dark) [data-shell-sidebar]`)),
+    };
+    if (name === 'mist') return { page, list, cloud: page, nav: page };
+    const cloud = { ...page, ...DARK_RAIL };
+    return { page, list, cloud, nav: darkNav ? cloud : { ...page, ...LEMON_NAV } };
+};
+
+const PALETTES: [string, ReturnType<typeof paletteSurfaces>][] = [
+    ['mist', paletteSurfaces('mist', false)],
+    ['midnight', paletteSurfaces('midnight', true)],
+    ['forest', paletteSurfaces('forest', true)],
+    ['ocean', paletteSurfaces('ocean', true)],
+    ['plum', paletteSurfaces('plum', true)],
+    ['lemon', paletteSurfaces('lemon', false)],
+];
+
+describe.each(PALETTES)('%s palette', (_, surfaces) => {
+    it.each([
+        // Place and cloud names on the cloud rail, and on the tile behind an inactive cloud.
+        ['cloud', 'rail-foreground', 'rail', 4.5],
+        ['cloud', 'rail-foreground', 'background', 4.5],
+        ['cloud', 'focus-ring', 'rail', 3],
+        // Destination labels on the nav rail, its hover, and the open one's icon on its tile.
+        ['nav', 'rail-foreground', 'rail-elevated', 4.5],
+        ['nav', 'foreground', 'rail-elevated', 4.5],
+        ['nav', 'rail-foreground', 'accent', 4.5],
+        ['nav', 'rail-active-foreground', 'rail-active', 3],
+        ['nav', 'focus-ring', 'rail-elevated', 3],
+        // The list: titles and their secondary lines.
+        ['page', 'sidebar-foreground', 'sidebar', 4.5],
+        ['page', 'muted-foreground', 'sidebar', 4.5],
+    ] as const)('%s: --%s on --%s clears %s:1', (surface, fg, bg, minimum) => {
+        expect(ratio(surfaces[surface], fg, bg)).toBeGreaterThanOrEqual(minimum);
+    });
+
+    // A list row's hover and the loading bars are page tokens drawn on the tinted list. They have
+    // to stay a step darker than it, or hovering a row shows nothing.
+    it.each(['accent', 'muted'])('list: --%s reads a step darker than --sidebar', token => {
+        const list = surfaces.list;
+        expect(luminance(resolve(list, token))).toBeLessThan(luminance(resolve(list, 'sidebar')));
+        expect(ratio(list, 'sidebar', token)).toBeGreaterThanOrEqual(1.08);
+    });
+
+    it('list: --muted-foreground on the --accent hover clears 4.5:1', () => {
+        expect(ratio(surfaces.list, 'muted-foreground', 'accent')).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('leaves the chat ground as light mode has it', () => {
+        expect(resolve(surfaces.page, 'background')).toBe(resolve(light, 'background'));
+    });
+});
+
+it('draws the Mist preview card with the default shell', () => {
+    const preview = tokensOf("[data-palette-preview='mist']");
+    for (const name of ['rail', 'rail-elevated', 'sidebar']) expect(preview[name]).toBe(light[name]);
+});
+
+it('keeps every palette out of dark mode', () => {
+    const selectors = css.match(/^\s*:root\[data-palette=[^{,]+/gm) ?? [];
+    expect(selectors.length).toBeGreaterThan(0);
+    for (const selector of selectors) expect(selector).toContain(':not(.dark)');
+});
+
+/**
  * Avatar initials sit on a fill whose hue is derived per user, so no single pair covers
  * them: every hue has to clear 4.5:1 against --avatar-fg. The fill formula is read from
  * avatarStyle itself, so a change to its saturation is measured here too.

@@ -12,7 +12,7 @@ export const AppShellSkeleton = () => {
     return (
         <div className="flex h-full bg-background" role="status" aria-label={t('common.loading')}>
             {/* cloud and place rail */}
-            <div className="flex w-rail shrink-0 flex-col items-center gap-3 bg-rail pt-6">
+            <div data-shell-rail="cloud" className="flex w-rail shrink-0 flex-col items-center gap-3 bg-rail pt-6">
                 {Array.from({ length: 4 }).map((_, i) => (
                     <div
                         key={i}
@@ -22,14 +22,20 @@ export const AppShellSkeleton = () => {
             </div>
 
             {/* nav rail */}
-            <div className="flex w-rail shrink-0 flex-col items-center gap-4 bg-rail-elevated pt-6">
+            <div
+                data-shell-rail="nav"
+                className="flex w-rail shrink-0 flex-col items-center gap-4 bg-rail-elevated pt-6"
+            >
                 {Array.from({ length: 4 }).map((_, i) => (
                     <div key={i} className="h-11 w-11 animate-pulse rounded-xl bg-rail motion-reduce:animate-none" />
                 ))}
             </div>
 
             {/* sidebar */}
-            <div className="flex w-60 shrink-0 flex-col gap-3 border-x border-border bg-sidebar px-4 pt-7 lg:w-[286px]">
+            <div
+                data-shell-sidebar
+                className="flex w-60 shrink-0 flex-col gap-3 border-x border-border bg-sidebar px-4 pt-7 lg:w-[286px]"
+            >
                 <Skeleton className="h-6 w-32" />
                 <Skeleton className="h-10 w-full rounded-full" />
                 <div className="mt-2 flex flex-col gap-2">

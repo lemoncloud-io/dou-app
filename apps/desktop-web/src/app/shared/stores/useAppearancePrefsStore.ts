@@ -7,6 +7,12 @@ export type MessageDensity = 'compact' | 'comfy' | 'spacious';
 export const FONT_SIZES: readonly FontSize[] = ['small', 'default', 'large'];
 export const MESSAGE_DENSITIES: readonly MessageDensity[] = ['compact', 'comfy', 'spacious'];
 
+/** Shell colour palettes, in picker order. `mist` is the default and the look of `:root` in `styles.css`. */
+export const PALETTES = ['mist', 'midnight', 'forest', 'ocean', 'plum', 'lemon'] as const;
+export type Palette = (typeof PALETTES)[number];
+
+const isPalette = (value: unknown): value is Palette => PALETTES.includes(value as Palette);
+
 /** Root font-size per choice. `default` is absent on purpose: it clears the override so the browser's own base applies. */
 const ROOT_FONT_PX: Record<Exclude<FontSize, 'default'>, number> = { small: 14, large: 17 };
 
@@ -24,20 +30,26 @@ const DENSITY_VARS: Record<MessageDensity, { rowPy: string; gap: string }> = {
 interface AppearancePrefsState {
     fontSize: FontSize;
     density: MessageDensity;
+    palette: Palette;
     setFontSize: (fontSize: FontSize) => void;
     setDensity: (density: MessageDensity) => void;
+    setPalette: (palette: Palette) => void;
 }
 
-type AppearancePrefs = Pick<AppearancePrefsState, 'fontSize' | 'density'>;
+type AppearancePrefs = Pick<AppearancePrefsState, 'fontSize' | 'density' | 'palette'>;
 
-/** Writes the preferences onto the document root: app-wide font size, and the message row variables. */
-export const applyAppearance = ({ fontSize, density }: AppearancePrefs): void => {
+/**
+ * Writes the preferences onto the document root: app-wide font size, the message row variables,
+ * and `data-palette`, which `styles.css` reads to recolour the rails and sidebar.
+ */
+export const applyAppearance = ({ fontSize, density, palette }: AppearancePrefs): void => {
     const root = document.documentElement;
     if (fontSize === 'default') root.style.removeProperty('font-size');
     else root.style.fontSize = `${ROOT_FONT_PX[fontSize]}px`;
     const vars = DENSITY_VARS[density] ?? DENSITY_VARS.comfy;
     root.style.setProperty('--message-row-py', vars.rowPy);
     root.style.setProperty('--message-gap', vars.gap);
+    root.dataset.palette = palette;
 };
 
 /**
@@ -50,10 +62,21 @@ export const useAppearancePrefsStore = create<AppearancePrefsState>()(
         set => ({
             fontSize: 'default',
             density: 'comfy',
+            palette: 'mist',
             setFontSize: fontSize => set({ fontSize }),
             setDensity: density => set({ density }),
+            setPalette: palette => set({ palette }),
         }),
-        { name: 'chatic-appearance-prefs', partialize: ({ fontSize, density }) => ({ fontSize, density }) }
+        {
+            name: 'chatic-appearance-prefs',
+            partialize: ({ fontSize, density, palette }) => ({ fontSize, density, palette }),
+            // A palette this build does not know (stored by a newer one) reads as Mist, so the shell
+            // and the picker agree on one, rather than the root carrying a name no CSS answers to.
+            merge: (persisted, current) => {
+                const stored = (persisted ?? {}) as Partial<AppearancePrefs>;
+                return { ...current, ...stored, palette: isPalette(stored.palette) ? stored.palette : current.palette };
+            },
+        }
     )
 );
 

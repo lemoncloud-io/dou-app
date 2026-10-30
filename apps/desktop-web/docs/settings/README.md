@@ -8,6 +8,30 @@ the Account entry is followed by **Approve web sign-in**, which opens the approv
 ([pairing](../pairing/README.md#approving-settingspairingapprove)). The browser's code screen names
 this place, so the entry stays here.
 
+## Appearance: display mode and theme
+
+**Display mode** is light, dark or system (`@chatic/theme` puts `light` or `dark` on the root).
+
+**Theme** picks one of six shell palettes: Mist (the default), Midnight, Forest, Ocean, Plum and Lemon.
+A palette recolours the cloud rail, the nav rail and the channel list only; the chat stays on the light
+ground. Each choice is a card with the shell in miniature, and picking one applies it at once and shows a
+"Theme applied" toast (picking the one already on does nothing).
+
+- The choice is kept with the other appearance preferences (`palette` in `chatic-appearance-prefs`) and
+  written to the root as `data-palette`, before the first render like the rest. A palette name this build
+  does not know reads as Mist.
+- `styles.css` holds the colours: Mist is `:root`, and every other palette is a block on
+  `:root[data-palette=…]:not(.dark)`. **Palettes are light mode only**: in dark mode the shell keeps its
+  dark colours, whatever is picked.
+- The four dark palettes (and Lemon's cloud rail) put dark rails under a light page. The rails also draw
+  with page tokens, such as a tile's ground, a hover, a divider and the focus ring, so the rail elements
+  carry `data-shell-rail="cloud"` or `"nav"` and those tokens are remapped to dark-ground values inside
+  them only.
+- The list keeps its hover the same way: the sidebar carries `data-shell-sidebar`, and inside it the
+  row hover (`--accent`) and loading bars (`--muted`) are a shade darker than the palette's list colour.
+- The preview cards read the same blocks through `data-palette-preview`, so a card always shows its own
+  palette. `src/tokenContrast.spec.ts` measures every palette's rail and list text against AA.
+
 ## Appearance: text size and message density
 
 Two reading preferences sit between Theme and Language, each a radio group (arrow keys move the choice),

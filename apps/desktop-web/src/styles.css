@@ -94,13 +94,17 @@
         --accent: 180 5% 96%; /* #F4F5F5 hover */
         --accent-foreground: 0 0% 10%;
 
-        /* Shell: light cloud-and-place rail, white nav rail + sidebar, separated by hairlines. */
-        --rail: 0 0% 96%; /* #F5F5F5 Icon Rail */
+        /* Shell: the Mist palette, the default — three cool grays that step lighter from the cloud
+           rail to the sidebar. Other palettes override these under `data-palette` (end of this layer). */
+        --rail: 220 12% 86%; /* #D6D9DF cloud rail */
         --rail-foreground: 220 5% 24%; /* #3A3C40 BK_800 */
-        --rail-muted: 0 0% 96%; /* #F5F5F5 active place tile */
-        --rail-elevated: 0 0% 100%; /* #FFFFFF Workspace Rail */
-        --sidebar: 0 0% 100%; /* #FFFFFF Channel List Panel */
+        --rail-muted: 220 12% 86%; /* active place tile */
+        --rail-elevated: 220 13% 91%; /* #E5E7EB nav rail */
+        --sidebar: 220 20% 97%; /* #F6F7F9 channel list */
         --sidebar-foreground: 0 0% 0%;
+        /* The open destination's tile on the nav rail: the full lime, dark ink on it. */
+        --rail-active: 76 87% 49%;
+        --rail-active-foreground: 0 0% 10%;
 
         /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme).
            White initials at 40% measured 3.33:1 on the yellow hues; 32% holds 4.91:1 on the
@@ -292,6 +296,118 @@
         --well: 120 3% 7%; /* #121312 search bar */
         --code-inline: 32 80% 54%; /* #E8902C - inline code text; 7.5:1 on the dark well chip */
         --shadow-color: 0 0% 0%;
+    }
+
+    /* Shell palettes, picked in Settings › Theme (useAppearancePrefsStore writes `data-palette` on
+       the root). They recolour the cloud rail, the nav rail and the sidebar only — the chat stays on
+       the light ground — and only in light mode: dark mode keeps its own shell, whatever is picked.
+       Each block also answers to `data-palette-preview`, so the picker's sample cards draw every
+       palette from these same values whichever one is on. Mist is `:root` itself; its preview block
+       repeats the three values for the card. */
+    [data-palette-preview='mist'] {
+        --rail: 220 12% 86%; /* #D6D9DF */
+        --rail-elevated: 220 13% 91%; /* #E5E7EB */
+        --sidebar: 220 20% 97%; /* #F6F7F9 */
+    }
+
+    :root[data-palette='midnight']:not(.dark),
+    [data-palette-preview='midnight'] {
+        --rail: 230 25% 9%; /* #12141E */
+        --rail-muted: 230 25% 9%;
+        --rail-elevated: 229 23% 14%; /* #1B1E2B */
+        --sidebar: 225 20% 96%; /* #F3F4F7 */
+    }
+
+    :root[data-palette='forest']:not(.dark),
+    [data-palette-preview='forest'] {
+        --rail: 157 52% 13%; /* #103225 */
+        --rail-muted: 157 52% 13%;
+        --rail-elevated: 157 47% 21%; /* #1C4D3A */
+        --sidebar: 150 23% 95%; /* #EFF5F2 */
+    }
+
+    :root[data-palette='ocean']:not(.dark),
+    [data-palette-preview='ocean'] {
+        --rail: 216 71% 16%; /* #0C2448 */
+        --rail-muted: 216 71% 16%;
+        --rail-elevated: 214 69% 28%; /* #164078 */
+        --sidebar: 215 55% 96%; /* #EEF3FA */
+    }
+
+    :root[data-palette='plum']:not(.dark),
+    [data-palette-preview='plum'] {
+        --rail: 284 45% 13%; /* #281230 */
+        --rail-muted: 284 45% 13%;
+        --rail-elevated: 284 45% 23%; /* #462054 */
+        --sidebar: 283 30% 95%; /* #F5F0F7 */
+    }
+
+    /* Lemon: a near-black cloud rail beside a lime nav rail. The lime keeps the dark ink, so its open
+       destination turns the other way round — a near-black tile with a white icon. */
+    :root[data-palette='lemon']:not(.dark),
+    [data-palette-preview='lemon'] {
+        --rail: 232 18% 9%; /* #12131A */
+        --rail-muted: 232 18% 9%;
+        --rail-elevated: 76 87% 49%; /* #B0EA10 */
+        --sidebar: 75 73% 96%; /* #F8FCEC */
+        --rail-active: 232 18% 9%;
+        --rail-active-foreground: 0 0% 100%;
+    }
+
+    /* A dark rail under a light page. The rails draw with page tokens too (a tile's ground, a hover,
+       a divider, the focus ring, the open destination's label), so inside a dark rail those turn to
+       dark-ground values. Scoped to the rail elements (`data-shell-rail`), never the page. */
+    :root[data-palette='midnight']:not(.dark) [data-shell-rail],
+    :root[data-palette='forest']:not(.dark) [data-shell-rail],
+    :root[data-palette='ocean']:not(.dark) [data-shell-rail],
+    :root[data-palette='plum']:not(.dark) [data-shell-rail],
+    :root[data-palette='lemon']:not(.dark) [data-shell-rail='cloud'] {
+        --rail-foreground: 0 0% 100%;
+        --foreground: 0 0% 100%;
+        --muted-foreground: 0 0% 72%;
+        --background: 232 6% 24%; /* #3A3B42 cloud and place tiles */
+        --accent: 232 6% 24%;
+        --border: 232 6% 30%;
+        --hairline: 232 6% 30%;
+        --focus-ring: 76 87% 49%;
+    }
+
+    /* The list on a tinted ground. A row's hover (--accent) and the loading bars (--muted) are page
+       grays made for white; on a tinted list they would vanish or even read lighter than the list.
+       Inside the sidebar they step a shade darker than the palette's own list colour. */
+    :root:not(.dark) [data-shell-sidebar] {
+        --accent: 220 16% 92%;
+        --muted: 220 16% 92%;
+    }
+
+    :root[data-palette='midnight']:not(.dark) [data-shell-sidebar] {
+        --accent: 225 16% 91%;
+        --muted: 225 16% 91%;
+    }
+
+    :root[data-palette='forest']:not(.dark) [data-shell-sidebar] {
+        --accent: 150 18% 90%;
+        --muted: 150 18% 90%;
+    }
+
+    :root[data-palette='ocean']:not(.dark) [data-shell-sidebar] {
+        --accent: 215 40% 91%;
+        --muted: 215 40% 91%;
+    }
+
+    :root[data-palette='plum']:not(.dark) [data-shell-sidebar] {
+        --accent: 283 22% 91%;
+        --muted: 283 22% 91%;
+    }
+
+    :root[data-palette='lemon']:not(.dark) [data-shell-sidebar] {
+        --accent: 75 45% 90%;
+        --muted: 75 45% 90%;
+    }
+
+    /* Hover on the lime nav rail: a deeper lime, where the page's near-white would wash it out. */
+    :root[data-palette='lemon']:not(.dark) [data-shell-rail='nav'] {
+        --accent: 76 88% 44%; /* #9FD30E */
     }
 }
 
