@@ -322,7 +322,10 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             requireSession(),
             readMine(),
         ]);
-        const withTrial = plan.trialDays > 0 && !account.trialUsed && !wire?.trialUsed;
+        // The server says whether its checkout would start a trial; a server that does not say is read
+        // off the trial-used flags, as before.
+        const eligible = account.trialEligible ?? (!account.trialUsed && !wire?.trialUsed);
+        const withTrial = plan.trialDays > 0 && eligible;
         const today = toIsoDate(new Date(now()));
         const trialEndsAt = addDays(today, plan.trialDays);
         return {

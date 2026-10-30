@@ -59,6 +59,13 @@ card is always typed into the provider's own window.
    outside Korea). A subscriber sees their own subscription's currency. What a checkout charges is the
    billing country's, shown on W-08.
 
+7. **The server decides who gets the free trial.** The trial stays at each product's `trialDays`
+   (seven days), but whether a first subscription starts with it is read from the membership's
+   `trialEligible` — the rule the server's own `start` applies — rather than worked out here from the
+   trial-used flags, which disagreed with the server for an account that had never used a trial but held
+   a payment record: it was shown the trial and then charged at once. A server without the field is read
+   the old way.
+
 ## Alternatives
 
 - **Split by the kind of card (domestic / overseas) and let the reader pick.** It names the providers'

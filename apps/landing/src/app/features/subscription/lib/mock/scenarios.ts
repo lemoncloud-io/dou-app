@@ -36,6 +36,7 @@ const ACCOUNT: Account = {
     displayName: 'Minji Kim',
     billingSource: 'web',
     trialUsed: true,
+    trialEligible: false,
 };
 
 const CARDS: PaymentMethod[] = [
@@ -129,14 +130,17 @@ interface ScenarioData {
     emails?: BillingEmail[];
 }
 
-const NEW_ACCOUNT: Account = { ...ACCOUNT, billingSource: 'none', trialUsed: false };
+const NEW_ACCOUNT: Account = { ...ACCOUNT, billingSource: 'none', trialUsed: false, trialEligible: true };
 
 const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
     visitor: () => ({ signedIn: false, account: NEW_ACCOUNT }),
     // Signed in with Apple, which shares no address: the email step starts from an empty field.
     'new-apple': () => ({ signedIn: true, account: { ...NEW_ACCOUNT, provider: 'apple', email: undefined } }),
     new: () => ({ signedIn: true, account: NEW_ACCOUNT }),
-    'new-trial-used': () => ({ signedIn: true, account: { ...NEW_ACCOUNT, trialUsed: true } }),
+    'new-trial-used': () => ({
+        signedIn: true,
+        account: { ...NEW_ACCOUNT, trialUsed: true, trialEligible: false },
+    }),
     'no-linked-account': () => ({
         signedIn: false,
         account: NEW_ACCOUNT,

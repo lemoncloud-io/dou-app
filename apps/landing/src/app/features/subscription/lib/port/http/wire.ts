@@ -72,6 +72,8 @@ export interface MembershipWire {
     validUntil?: number;
     trialUsed?: boolean;
     isValid?: boolean;
+    /** Whether a web subscription started now begins with a trial — the server's `start` rule. */
+    trialEligible?: boolean;
 }
 
 /**
@@ -308,6 +310,7 @@ export const toAccount = (input: {
         billingSource,
         trialUsed: !!membership?.trialUsed,
     };
+    if (typeof membership?.trialEligible === 'boolean') account.trialEligible = membership.trialEligible;
     const storePlan = bareProductId(membership?.productId);
     if ((billingSource === 'appStore' || billingSource === 'googlePlay') && STORE_PLAN.test(storePlan)) {
         account.storeSubscription = { planId: storePlan as PlanId, nextBillingAt: dayOf(membership?.validUntil) };

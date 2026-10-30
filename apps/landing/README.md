@@ -529,6 +529,13 @@ What the screens get from the server differs from the mock in a few places, all 
 - Every amount is in its currency's minor unit, as the server sends it: won for won, cents for dollars
   (`600` is $6). `formatMoney` divides by the currency's fraction digits; nothing else converts.
 - Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
+- Whether a first subscription starts with the free trial is the server's to say: the membership
+  (`GET /memberships/0/mine`) carries `trialEligible`, the same rule its `start` applies, and the HTTP
+  port reads it into the account (`Account.trialEligible`). The checkout preview offers the trial only
+  when it is true and the product has `trialDays`; false is charged at once, and W-01, W-08 and W-05
+  draw no trial copy. A server that does not send it is read off the trial-used flags as before. A
+  visitor's eligibility is not known, so W-01 tells them a first subscription comes with the trial. The
+  mock's scenario accounts carry the same value.
 - The rest of this list is the won provider's window. The dollar provider's card field never leaves the
   page, on a phone either: `confirmSetup` runs with `redirect: 'if_required'`, and a card has no
   redirect, so there is no return trip, no saved checkout and no query to read.

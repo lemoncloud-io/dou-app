@@ -212,6 +212,17 @@ describe('isExpiringSoon', () => {
 });
 
 describe('the account', () => {
+    it("carries the server's trial eligibility where it says, and leaves it out where it does not", () => {
+        const user = { id: 'U1' };
+        expect(
+            toAccount({ user, provider: 'google', membership: { trialUsed: false, trialEligible: false } })
+                .trialEligible
+        ).toBe(false);
+        expect(toAccount({ user, provider: 'google', membership: { trialUsed: false } })).not.toHaveProperty(
+            'trialEligible'
+        );
+    });
+
     it('is billed by the store its live membership came from, with the plan held there', () => {
         const account = toAccount({
             user: { id: 'U1', email: 'minji.kim@gmail.com', name: 'Minji' },

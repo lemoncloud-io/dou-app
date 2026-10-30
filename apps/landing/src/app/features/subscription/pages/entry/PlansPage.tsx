@@ -94,7 +94,9 @@ const PlansScene = ({
         return <Banner tone="danger" title={t('subscription.common.error.unknown')} />;
     }
 
-    const withTrial = preview.data ? preview.data.withTrial : !account?.trialUsed;
+    // The checkout preview decides once there is one; before it, the account's own answer, and for a
+    // visitor — whose answer is unknown until they sign in — the trial a first subscription comes with.
+    const withTrial = preview.data ? preview.data.withTrial : (account?.trialEligible ?? !account?.trialUsed);
     const canChange = !subscription || sceneOf(subscription, today).actions.includes('changePlan');
     const choices = planChoicesOf({ plans: plans.data, current, account, withTrial, canChange });
     const trialDays = choices.entry?.trialDays ?? entryPlan?.trialDays ?? 0;

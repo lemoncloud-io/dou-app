@@ -57,6 +57,11 @@ export interface Account {
     displayName?: string;
     billingSource: BillingSource;
     trialUsed: boolean;
+    /**
+     * Whether a first web subscription started now would begin with the free trial, as the server judges
+     * it for its own checkout. Absent from a server that does not say, where `trialUsed` is read instead.
+     */
+    trialEligible?: boolean;
     /** A store subscriber's plan and next charge, for the store notice. Absent for anyone else. */
     storeSubscription?: { planId: PlanId; nextBillingAt?: string };
 }

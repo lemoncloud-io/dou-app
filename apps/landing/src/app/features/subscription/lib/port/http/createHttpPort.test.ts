@@ -283,6 +283,29 @@ describe('createHttpPort — plans and subscription', () => {
         }).port.previewCheckout('pro-tier-01');
         expect(used).toMatchObject({ withTrial: false, amountToday: { amount: 8600 }, firstChargeAt: '2026-11-10' });
     });
+
+    const previewWith = (membership: Record<string, unknown>) =>
+        setup({ ...BASE_ROUTES, 'GET /memberships/0/mine': membership }).port.previewCheckout('pro-tier-01');
+
+    it("follows the server's trialEligible over the trial-used flags", async () => {
+        // Never used a trial, yet not eligible (the server has a payments record): charged at once.
+        expect(
+            await previewWith({ platform: 'portone', status: 'expired', trialUsed: false, trialEligible: false })
+        ).toMatchObject({ withTrial: false, amountToday: { amount: 8600 }, firstChargeAt: '2026-11-10' });
+        // Eligible by the server's rule even with the flag set: the trial, for the product's length.
+        expect(
+            await previewWith({ platform: 'portone', status: 'expired', trialUsed: true, trialEligible: true })
+        ).toMatchObject({ withTrial: true, trialEndsAt: '2026-11-17' });
+    });
+
+    it('offers no trial for a product with no trial days, whatever the server says', async () => {
+        const { port } = setup({
+            ...BASE_ROUTES,
+            'GET /products/0/plans': { list: PLANS.list.map(plan => ({ ...plan, trialDays: 0 })) },
+            'GET /memberships/0/mine': { platform: 'portone', status: 'expired', trialEligible: true },
+        });
+        expect(await port.previewCheckout('pro-tier-01')).toMatchObject({ withTrial: false });
+    });
 });
 
 describe('createHttpPort — checkout', () => {

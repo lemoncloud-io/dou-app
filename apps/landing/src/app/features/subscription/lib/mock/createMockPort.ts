@@ -184,6 +184,9 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
     const findSubscription = (s: MockState, id: string): Subscription =>
         s.subscriptions.find(sub => sub.id === id) ?? fail('notFound', `no subscription ${id}`);
 
+    /** Whether a first subscription now starts with the trial: the account's own answer, as the server gives it. */
+    const trialEligible = (s: MockState): boolean => s.account.trialEligible ?? !s.account.trialUsed;
+
     /** The card `provider` charges: each provider keeps a default of its own. */
     const defaultCard = (s: MockState, provider: PaymentProvider): PaymentMethod | undefined =>
         s.paymentMethods.find(pm => pm.provider === provider && pm.isDefault);
@@ -304,7 +307,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 receiptUrl: mockReceiptUrl(id),
             });
         }
-        s.account = { ...s.account, trialUsed: true, billingSource: 'web' };
+        s.account = { ...s.account, trialUsed: true, trialEligible: false, billingSource: 'web' };
         attempt.subscriptionId = sub.id;
     };
 
@@ -501,7 +504,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         previewCheckout: (planId, input) =>
             call(s => {
                 const plan = planOf(planId, input?.currency ?? 'KRW');
-                const withTrial = !s.account.trialUsed;
+                const withTrial = plan.trialDays > 0 && trialEligible(s);
                 const trialEndsAt = addDays(s.today, plan.trialDays);
                 return {
                     plan,
@@ -591,7 +594,8 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                     if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
                 }
                 s.billing.country = country;
-                return startAttempt(s, { purpose: 'start', planId, provider, withTrial: !s.account.trialUsed });
+                const withTrial = planOf(planId).trialDays > 0 && trialEligible(s);
+                return startAttempt(s, { purpose: 'start', planId, provider, withTrial });
             }),
 
         getPaymentAttempt: id =>
