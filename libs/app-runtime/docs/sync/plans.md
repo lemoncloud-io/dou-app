@@ -104,5 +104,5 @@ A plain "I am online" needs no call at all — the runtime's connect-driven save
 ## Further reading
 
 - [README.md](./README.md) — `SyncManager`, the registry, and chat prime
-- [docs/socket/](../socket/README.md) — the slots these runtimes attach to
+- [transport docs/socket/](../../../transport/docs/socket/README.md) — the slots these runtimes attach to
 - [`libs/data`](../../../data/README.md) — the repositories the callbacks write through, and the device repository behind `saveDevice`/`syncDevice`

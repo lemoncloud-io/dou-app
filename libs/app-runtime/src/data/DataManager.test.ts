@@ -30,7 +30,7 @@ const mockGetScopedClient = jest.fn((key: string) => {
     if (!mockScopedClients.has(key)) mockScopedClients.set(key, { slot: key });
     return mockScopedClients.get(key);
 });
-jest.mock('../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({ getScopedClient: mockGetScopedClient, getBoundCid: () => 'cloud-a' }),
 }));
 

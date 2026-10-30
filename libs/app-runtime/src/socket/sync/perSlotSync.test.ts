@@ -10,8 +10,8 @@
 import type { ClientSocketRuntime, ClientSocketV2, DomainSyncPlan } from '@lemoncloud/chatic-sockets-lib';
 
 import { SyncManager } from './SyncManager';
-import type { ISocketManager, SlotKey, SocketSlotClientListener } from '../types';
-import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
+import type { ISocketManager, SlotKey, SocketSlotClientListener } from '@chatic/transport/socket/types';
+import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 

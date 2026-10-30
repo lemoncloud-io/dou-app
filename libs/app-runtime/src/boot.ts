@@ -3,7 +3,7 @@
 // It has no module of its own on purpose: booting is not an engine (see libs/app-runtime/README.md's
 // engine table — session · socket · http · sync · data), it is the act of handing those engines
 // their configuration. So this file is a barrel and nothing else; the logic stays in the module
-// that OWNS each piece (`init.ts` for the wiring, `data/` for the data policies, `http/transport`
+// that OWNS each piece (`init.ts` for the wiring, `data/` for the data policies, `@chatic/transport`
 // for the transport, `@chatic/config` for env).
 //
 // Everything an app must decide at boot is reachable from `AppRuntimeConfig` below — including the
@@ -37,4 +37,4 @@ export type { NativeCacheSupport } from './data/nativeCacheSupport';
 // The sealed web transport. `startWebTransportInit` is a boot primitive that apps should NOT need:
 // `connection.RuntimeConnectionHost` is the single init driver (see its doc). desktop-web's three
 // auth hooks are the last callers, and it stays here only until they route through the host.
-export { startWebTransportInit, webTransport } from './http/transport';
+export { startWebTransportInit, webTransport } from '@chatic/transport';

@@ -1,7 +1,7 @@
 import { logoutSession } from './logoutSession';
 import { relaySession } from '../../session/auth/relaySession';
-import { getSocketManager } from '../runtime';
-import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
+import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -11,7 +11,7 @@ jest.mock('../../session/auth/relaySession', () => ({
     relaySession: { clearAndRedirect: jest.fn().mockResolvedValue(undefined) },
 }));
 
-jest.mock('../runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 

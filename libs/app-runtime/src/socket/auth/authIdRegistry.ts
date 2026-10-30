@@ -1,7 +1,7 @@
 import { logger } from '@chatic/bridges';
 
-import type { SlotKey } from '../types';
-import { kindOf } from '../utils/slotKey';
+import { kindOf } from '@chatic/transport';
+import type { SlotKey } from '@chatic/transport';
 import type { AuthRegistration } from '../../session/auth/sessionAuthAdapter';
 
 /** The sign callback shape `auth.register()` takes (the SDK's `AuthSignCallback`). */

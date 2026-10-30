@@ -13,7 +13,7 @@ jest.mock('../../../auth/cloudSession', () => ({
 }));
 
 const mockSlotKeys = jest.fn((): string[] => []);
-jest.mock('../../../../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({ getSlotKeys: () => mockSlotKeys() }),
 }));
 

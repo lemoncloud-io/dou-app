@@ -3,8 +3,7 @@ import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 import { logger } from '@chatic/bridges';
 import { relaySession } from '../../session/auth/relaySession';
 
-import { getSocketManager } from '../runtime';
-import { RELAY_SLOT } from '../utils/slotKey';
+import { getSocketManager, RELAY_SLOT } from '@chatic/transport';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
 import { createReauthDelegate } from './reauthDelegate';
 

@@ -1,7 +1,7 @@
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import { backgroundClouds, resetBackgroundClouds } from '../socket/backgroundClouds';
-import { slotKeyOf } from '../socket/utils/slotKey';
+import { backgroundClouds, resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds';
+import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import {
     CLOUD_SOCKET_WAIT_MS,
     getCloudRepositories,
@@ -16,7 +16,7 @@ jest.mock('./runtime', () => ({
 }));
 
 const mockWaitUntilSlotVerified = jest.fn();
-jest.mock('../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({ waitUntilSlotVerified: mockWaitUntilSlotVerified }),
 }));
 

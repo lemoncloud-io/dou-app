@@ -5,7 +5,7 @@
 // dependency this test doesn't actually use.
 import { logger } from '@chatic/bridges';
 
-import { slotKeyOf } from '../utils/slotKey';
+import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import { createSyncPlans } from './plans';
 import { clearRefusedChannels, isChannelRefused } from './refusedChannels';
 

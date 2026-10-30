@@ -9,19 +9,19 @@ import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { SocketBinder } from './SocketBinder';
-import { SocketManager } from '../socket/SocketManager';
+import { SocketManager } from '@chatic/transport/socket/SocketManager';
 import { bootstrapSocketConnection } from '../socket/auth';
-import { getSocketManager } from '../socket/runtime';
-import type { SocketBindingConfig } from '../socket';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
+import type { SocketBindingConfig } from '@chatic/transport/socket/types';
 import type { SocketSessionDelegate } from '../socket/auth';
 import type { RuntimeSocketSlots } from './types';
-import { slotKeyOf } from '../socket/utils/slotKey';
+import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@lemoncloud/chatic-sockets-lib', () => ({ createClientSocketV2: jest.fn() }));
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('../socket/runtime', () => ({ getSocketManager: jest.fn() }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('../socket/sync/runtime', () => ({ getSyncManager: jest.fn() }));
 jest.mock('../socket/auth', () => ({ bootstrapSocketConnection: jest.fn() }));
 

@@ -62,9 +62,9 @@ jest.mock('./authRepository', () => ({
 // needs a mock (ADR-0079, replacing `@chatic/web-config`).
 
 // Transport + sealed boot control. The instance moved out of `@chatic/web-config` into the
-// `http/transport` assembly point (built by `@chatic/http`), so the mock follows it — the env leaf
+// transport's `http/transport` assembly point (built by `@chatic/http`), so the mock follows it — the env leaf
 // above keeps only env.
-jest.mock('../../http/transport', () => ({
+jest.mock('@chatic/transport/http/transport', () => ({
     startWebTransportInit: (...args: unknown[]) => mockStartWebCoreInit(...args),
     resetWebTransportInit: jest.fn(),
     hasStoredRelaySession: (...args: unknown[]) => mockHasStoredRelaySession(...args),

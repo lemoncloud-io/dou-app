@@ -40,14 +40,14 @@ A library upgrade opens that path:
 
 - Every gateway binds to `SocketManager`'s **active-slot facade**
   (`libs/app-runtime/src/data/factories/socketFactory.ts:21-26` — now `socketFactory.ts`,
-  [SocketManager.ts:239](../../libs/app-runtime/src/socket/SocketManager.ts)). `request()` always goes
+  [SocketManager.ts:239](../../libs/transport/src/socket/SocketManager.ts)). `request()` always goes
   to the active slot — **the cloud slot whenever a cloud is on**.
 - So calling lib 0.4.8's `DeviceGateway.updateRemote` through the existing device gateway would go out
   over the cloud socket while a cloud is active, **violating the "request from relay only"
   requirement**.
 - `SocketManager` owns two slots, `relay` (always on) and `cloud` (only while active), and the one
   escape hatch that names a slot is `getClient(kind)`
-  ([SocketManager.ts:124-129](../../libs/app-runtime/src/socket/SocketManager.ts)). The only precedent
+  ([SocketManager.ts:124-129](../../libs/transport/src/socket/SocketManager.ts)). The only precedent
   for forcing relay is in the auth layer (logoutSession, reauthenticateActiveSocket), and both bypass
   the facade with `getClient('relay')`.
 - **Nothing in the front end reads `muted`** — `device.read` returns the local device model (no muted),

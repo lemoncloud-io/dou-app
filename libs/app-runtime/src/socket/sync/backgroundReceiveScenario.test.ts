@@ -17,11 +17,11 @@ import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { DataManager } from '../../data/DataManager';
 import { getGlobalSessionContext, getUidInCloud } from '@chatic/session/store';
-import { SocketManager } from '../SocketManager';
-import { getSocketManager } from '../runtime';
+import { SocketManager } from '@chatic/transport/socket/SocketManager';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { syncDataGraph } from './dataGraph';
-import type { SocketBindingConfig } from '../types';
-import { slotKeyOf } from '../utils/slotKey';
+import type { SocketBindingConfig } from '@chatic/transport/socket/types';
+import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import { BackgroundReceiver } from './BackgroundReceiver';
 import { subscribeBackgroundDeltas } from './backgroundDeltas';
 import type { BackgroundDelta } from './types';
@@ -40,7 +40,7 @@ jest.mock('@chatic/bridges', () => ({
     ...jest.requireActual('@chatic/bridges'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('../runtime', () => ({ getSocketManager: jest.fn() }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('./dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
 jest.mock('../../data/factories/httpFactory', () => ({ createHttpDataSources: () => ({ httpDataSources: {} }) }));
 jest.mock('@chatic/session/store', () => ({

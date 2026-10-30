@@ -8,7 +8,7 @@ import type {
 
 import type { DataRepositories } from '@chatic/data';
 
-import type { SlotKey } from '../types';
+import type { SlotKey } from '@chatic/transport';
 
 export interface SyncWatchEntry {
     target: SyncTargetDescriptor;

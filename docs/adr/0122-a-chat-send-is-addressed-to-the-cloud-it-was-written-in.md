@@ -12,7 +12,7 @@
 > write is in flight to keeps its slot outside the cap · decision 5 — going home does not sign off a
 > cloud a write is in flight to
 > · The module docs are [libs/app-runtime/docs/data](../../libs/app-runtime/docs/data/README.md#writes-addressed-to-a-cloud)
-> and [docs/socket](../../libs/app-runtime/docs/socket/README.md#holding-a-slot-for-a-write)
+> and [docs/socket](../../libs/app-runtime/docs/connection/README.md#holding-a-slot-for-a-write)
 
 ## Context
 

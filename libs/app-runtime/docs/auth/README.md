@@ -30,8 +30,9 @@ because `socket/auth → session` is an existing edge and the reverse is not; pu
 | The signature formula, and the backend refresh endpoint                              | `libs/auth-sign` and the server. The SDK forwards both without reading them |
 
 **Nothing in this package calls a refresh endpoint and nothing builds an `auth.update` packet.**
-[`http/refreshAbsence.test.ts`](../../src/http/refreshAbsence.test.ts) and
-[`socket/authUpdateAbsence.test.ts`](../../src/socket/authUpdateAbsence.test.ts) walk `src/**`,
+[`refreshAbsence.test.ts`](../../src/refreshAbsence.test.ts) and
+[`authUpdateAbsence.test.ts`](../../src/authUpdateAbsence.test.ts) walk this package's source and
+every package cut from it,
 strip comments, and fail on the string. Absence checks, not lint rules: a path-based rule was tried
 first and died silently the moment the symbols moved, letting a violating file pass.
 
@@ -65,7 +66,7 @@ and the first thing to check on an SDK upgrade.
 
 ### `AUTH_OPTIONS`
 
-Every client gets the same options, from [`socket/constants.ts`](../../src/socket/constants.ts):
+Every client gets the same options, from [`socket/constants.ts`](../../../transport/src/socket/constants.ts):
 
 ```ts
 export const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 * 60 * 1000 } as const;
@@ -149,7 +150,7 @@ that same key — it seeds, signs and writes back for the cloud the slot serves.
 only in the log lines. The order is the contract:
 
 1. `manager.ensure(config)` — creates the client, which attaches the controller. A slot with no `auth` logs an error, connects anyway, and returns a no-op cleanup.
-2. Attach `observeSocketVerify` — the `socket_verify` sample ([docs/socket/](../socket/README.md#how-long-a-slot-takes-to-verify-socket_verify)) — before connecting, so the first attempt's `connecting` is seen.
+2. Attach `observeSocketVerify` — the `socket_verify` sample ([transport docs/socket/](../../../transport/docs/socket/README.md#how-long-a-slot-takes-to-verify-socket_verify)) — before connecting, so the first attempt's `connecting` is seen.
 3. Subscribe `onAuthState` → `manager.setAuthenticated(key, state === 'authenticated')`; `'authenticated'` resets the resume throttle; `'expired'` calls `delegate.onAuthExpired?.(key)`.
 4. Subscribe `onTokenRefresh` → `delegate.commitRefreshedToken(key, view)`, then re-read the registration and hand it to the `authId` registry ([signing.md](./signing.md#the-authid-registry)).
 5. `delegate.getAuthRegistration(key)` → `auth.register({ token, authId, sign })`, then **`gate.stop()` immediately** — before connecting.
@@ -257,7 +258,7 @@ it does not act on the first `expired`. That state means two different things at
 that is genuinely stuck, and three consecutive failures on a link that is dropping. The verdict needs
 two answers:
 
-1. **Is the link dead?** `navigator.onLine === false` means the failures are not the session's fault. Hold. This is the one offline check that does **not** go through `isLinkKnownDown()` ([socket § When is the link down](../socket/README.md#when-is-the-link-down)): a socket that still reads verified right after a real drop must not be enough to end the session, so a latched `false` here only postpones the verdict. If it is still stuck when the link returns, `expired` arrives again, online this time.
+1. **Is the link dead?** `navigator.onLine === false` means the failures are not the session's fault. Hold. This is the one offline check that does **not** go through `isLinkKnownDown()` ([transport socket § When is the link down](../../../transport/docs/socket/README.md#when-is-the-link-down)): a socket that still reads verified right after a real drop must not be enough to end the session, so a latched `false` here only postpones the verdict. If it is still stuck when the link returns, `expired` arrives again, online this time.
 2. **Is it still `expired` after two 30-second rounds?** A stuck signature persists by definition; an exhausted backoff does not. `'handshaking'` is deliberately **not** counted as resolved — the point is to see the slot actually recover, not to see it try.
 
 The window schedules nothing and kicks nothing. It buys time for the recovery paths that already
@@ -504,7 +505,7 @@ SDK keep-alive it closes 40–80 s later, and every refetch sent on that foregro
   an answer; a 499 or 503 means the socket already closed and its reconnect controller has it.
 - **The recycle is the kick's**: `noteResumeKick`, disconnect, connect, `clearResumeKick` — with close
   code 1000 and reason `wake-probe` instead of `wake-recovery`, so `socket_request` can tell a probe's
-  recycle from a kick's ([socket § closeReason](../socket/README.md#why-a-socket-closed-closereason)).
+  recycle from a kick's ([transport socket § closeReason](../../../transport/docs/socket/README.md#why-a-socket-closed-closereason)).
   A verified slot's controller is not `expired`, so nothing is re-seeded.
 - **Nothing waits for the probe.** The app's foreground refetches go out at once. On a zombie they fail
   when the probe recycles the slot, about 3 s in, and the re-verify edge the screens already listen to
@@ -544,7 +545,7 @@ SDK keep-alive it closes 40–80 s later, and every refetch sent on that foregro
 ## Further reading
 
 - [signing.md](./signing.md) — the per-server `authId`, the signature, the writeback, and the `authId` registry
-- [docs/socket/](../socket/README.md) — the slots these controllers sit on, and the binders that call this wiring
+- [transport docs/socket/](../../../transport/docs/socket/README.md) — the slots these controllers sit on, and the binders that call this wiring
 - [docs/session/](../session/README.md) — where the registration material and the writeback land
-- [docs/http/](../http/README.md) — the staleness port that asks this layer whether a signature can be trusted
+- [transport docs/http/](../../../transport/docs/http/README.md) — the staleness port that asks this layer whether a signature can be trusted
 - [`libs/auth-sign`](../../../auth-sign/README.md) — the HMAC itself

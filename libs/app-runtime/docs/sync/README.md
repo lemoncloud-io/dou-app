@@ -413,6 +413,6 @@ that finished before it began; it sends its own.
 ## Further reading
 
 - [plans.md](./plans.md) — what the SDK scheduler underneath does, and the behaviours only its source shows
-- [docs/socket/](../socket/README.md) — `subscribeSlotClients` and slot keys
+- [transport docs/socket/](../../../transport/docs/socket/README.md) — `subscribeSlotClients` and slot keys
 - [docs/data/](../data/README.md) — the scoped repository graph every plan writes through
 - [`libs/data`](../../../data/README.md) — the repositories every plan callback writes through

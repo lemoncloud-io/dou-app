@@ -12,10 +12,10 @@ import { join } from 'path';
  * The old device (ESLint no-restricted-imports) relied on path strings and died silently once the
  * symbol moved. An absence check has no such failure mode.
  */
-// This package and the session package cut from it. A module that leaves app-runtime takes
-// no exemption with it, so each one extracted is added here.
-const LIBS = join(__dirname, '..', '..', '..');
-const ROOTS = [join(LIBS, 'app-runtime', 'src'), join(LIBS, 'session', 'src')];
+// This package and the packages cut from it. A module that leaves app-runtime takes no exemption
+// with it, so each one extracted is added here.
+const LIBS = join(__dirname, '..', '..');
+const ROOTS = ['app-runtime', 'session', 'transport'].map(lib => join(LIBS, lib, 'src'));
 
 const walk = (dir: string): string[] =>
     readdirSync(dir).flatMap(entry => {

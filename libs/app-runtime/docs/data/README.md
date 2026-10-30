@@ -118,7 +118,7 @@ an upload, then the send) runs inside one `runInCloud` so the hold covers the wh
 ([image-send.md](./image-send.md) — `data.useSendImages`, the one image send every shell runs):
 
 - It sends through `getScopedRepositories(cid)`, so the row, the uid it is stamped with and the socket are all that cloud's. Failure is the repository's usual contract: the row stays in `cid`'s partition marked failed, and the error is rethrown.
-- It **holds** the cloud's socket slot for as long as the work is in flight ([docs/socket/](../socket/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
+- It **holds** the cloud's socket slot for as long as the work is in flight ([docs/connection/](../connection/README.md#holding-a-slot-for-a-write)), and releases it on settle — success or failure. The ack is the last thing that needs the socket, and every later send takes its own hold, so there is no grace period to tune.
 - The cloud is the caller's to name, and it is the cloud of the row the user was looking at — the channel row for a new message, the failed message's own `cid` for a retry. The selected cloud is the wrong answer: it moves before the session does, so during a switch it names the cloud the user is going to, not the one they pressed send in.
 
 A cloud with no slot bound fails the send at once rather than waiting for one, and the hold does not
@@ -134,7 +134,7 @@ of write, and moving them is the same change made again.
 Each returns only the interfaces a repository consumes; no gateway instance escapes.
 
 - **`socketFactory`** builds the socket gateway bundle over a socket client — the active facade by default, one slot's `getScopedClient(key)` for a scoped graph. The auth, invite and cloud gateways are pinned to relay with `getScopedClient(RELAY_SLOT)` whichever client is passed, and `device` is a routed pair (`{ active, relay }`) so the one relay-only device write can name its destination without every caller learning about routing. `upload` rides the passed client like the other cloud domains — an image message's uploads go to the cloud it is sent in. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
-- **`httpFactory`** builds five HTTP data sources over the gateways in [docs/http/](../http/README.md): auth, user, cloud, subscription, report.
+- **`httpFactory`** builds five HTTP data sources over the gateways in [transport docs/http/](../../../transport/docs/http/README.md): auth, user, cloud, subscription, report.
 - **`localFactory`** materializes `resolveCacheBackend`'s verdict as an adapter and wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta`. It holds the package's only module-level mutable state, a shared `IndexedDBDatabase`, because a database connection is a physical shared resource.
 
 `localFactory` also produces two side outputs. It logs **one line per boot** naming the domains a
@@ -308,6 +308,6 @@ belongs to [`libs/data`](../../../data/README.md).
 - [cache-storage-routing.md](./cache-storage-routing.md) — where a cache type lands, and the version negotiation behind it
 - [image-send.md](./image-send.md) — `useSendImages`: the pending row, the file memory, retry, leftovers and upload progress
 - [docs/session/](../session/README.md) — `ActiveScope`, the thing injected into every repository
-- [docs/http/](../http/README.md) — the gateways `httpFactory` builds over
+- [transport docs/http/](../../../transport/docs/http/README.md) — the gateways `httpFactory` builds over
 - [docs/sync/](../sync/README.md) — what writes into these repositories without a screen asking
 - [`libs/data`](../../../data/README.md) · [`libs/db`](../../../db/README.md) — the repository layer and the storage engines

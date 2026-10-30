@@ -2,15 +2,13 @@ import { useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
 
-import { getSocketManager } from '../socket/runtime';
+import { getSocketManager, hasLiveJoinedSession, RELAY_SLOT, kindOf, slotKeyOf } from '@chatic/transport';
+import type { ISocketManager, SlotKey, SocketBindingConfig } from '@chatic/transport';
 import { getSyncManager } from '../socket/sync/runtime';
 import { bootstrapSocketConnection } from '../socket/auth';
-import type { ISocketManager, SlotKey, SocketBindingConfig } from '../socket';
 import type { SocketSessionDelegate } from '../socket/auth';
 // Concrete paths, not the ../socket/auth barrel: connection tests intercept that barrel to stub bootstrap.
 import { notifySocketLogout } from '../socket/auth/logoutSession';
-import { hasLiveJoinedSession } from '../socket/backgroundClouds';
-import { RELAY_SLOT, kindOf, slotKeyOf } from '../socket/utils/slotKey';
 import type { RuntimeSocketSlots } from './types';
 import { socketRebootKey } from './utils/socketRebootKey';
 

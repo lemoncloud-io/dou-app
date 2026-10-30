@@ -3,9 +3,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { issueCloudTokens } from '../../session/auth/cloudTokens';
 import { getSocketSlotContext } from '@chatic/session';
 import { BackgroundCloudTokens } from '../../socket/auth/backgroundCloudTokens';
-import { backgroundClouds } from '../../socket/backgroundClouds';
-import { isLinkKnownDown } from '../../socket/linkState';
-import { getSocketManager } from '../../socket/runtime';
+import { backgroundClouds, isLinkKnownDown, getSocketManager } from '@chatic/transport';
 import { currentBackgroundSelection, liveBackgroundReadiness } from '../utils/backgroundSlots';
 import { subscribeSlotSignals } from '../utils/slotSignals';
 

@@ -18,7 +18,7 @@ jest.mock('../../connection/hooks/useRuntimeSocketState', () => ({
 jest.mock('../../connection/hooks/useSlotVerified', () => ({
     useSlotVerified: (slot: string) => (slot === 'relay-slot' ? isRelayVerified : false),
 }));
-jest.mock('../../socket/utils/slotKey', () => ({ RELAY_SLOT: 'relay-slot' }));
+jest.mock('@chatic/transport/socket/utils/slotKey', () => ({ RELAY_SLOT: 'relay-slot' }));
 jest.mock('../../session', () => ({ useSessionSelection: () => ({ selectedCloudId }) }));
 jest.mock('../../utils/isNativeApp', () => ({ isNativeApp: () => true }));
 

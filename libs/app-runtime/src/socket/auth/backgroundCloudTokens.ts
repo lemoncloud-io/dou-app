@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 
-import { SDK_REFRESH_CYCLE_MS } from '../constants';
+import { SDK_REFRESH_CYCLE_MS } from '@chatic/transport';
 
 /**
  * Gets a background cloud's tokens into the per-cloud cache BEFORE its slot boots, so the slot never

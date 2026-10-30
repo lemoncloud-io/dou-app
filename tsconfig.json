@@ -82,6 +82,9 @@
             "path": "./libs/session"
         },
         {
+            "path": "./libs/transport"
+        },
+        {
             "path": "./apps/web-e2e"
         },
         {

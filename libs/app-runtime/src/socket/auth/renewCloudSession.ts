@@ -3,11 +3,10 @@ import { logger } from '@chatic/bridges';
 import { reissueCloudTokens } from '../../session/auth/cloudTokens';
 import { Coalescer } from '../../utils/coalescer';
 
-import { getSocketManager } from '../runtime';
+import { getSocketManager, slotKeyOf } from '@chatic/transport';
 import { alignSessionSite } from './alignSessionSite';
 import { reauthenticateActiveSocket } from './reauthenticateActiveSocket';
 import { createReauthDelegate } from './reauthDelegate';
-import { slotKeyOf } from '../utils/slotKey';
 
 /**
  * Renews one cloud's socket session end to end: re-issue that cloud's tokens, then hand the new

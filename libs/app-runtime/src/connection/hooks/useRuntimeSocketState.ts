@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
-import { getSocketManager } from '../../socket/runtime';
-import type { SocketState } from '../../socket/types';
+import { getSocketManager } from '@chatic/transport';
+import type { SocketState } from '@chatic/transport';
 
 export const useRuntimeSocketState = (): SocketState => {
     const manager = getSocketManager();

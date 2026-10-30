@@ -5,7 +5,7 @@
 // engines in libs/app-runtime/README.md's table). `SessionProfile` moved with its hook, to
 // `session/hooks/session/readers/useRuntimeProfile.ts`.
 
-import type { SocketBindingConfig } from '../socket/types';
+import type { SocketBindingConfig } from '@chatic/transport';
 
 /** One socket slot's binding config (undefined when that slot is gated off). */
 export interface RuntimeSocketSlot {
@@ -21,7 +21,7 @@ export interface RuntimeSocketSlot {
 /**
  * Relay is always-on (once a relay token exists), cloud is present only while a cloud session is
  * committed, and `background` holds one slot for each other cloud the account belongs to, up to the
- * cap (`socket/backgroundClouds`). SocketBinder reconciles every slot and the active pointer in one
+ * cap (the transport's `socket/backgroundClouds`). SocketBinder reconciles every slot and the active pointer in one
  * pass; only `cloud` is ever made active.
  *
  * This used to be `RuntimeBinding` and carried a second field, `context: DataContext` — the cache

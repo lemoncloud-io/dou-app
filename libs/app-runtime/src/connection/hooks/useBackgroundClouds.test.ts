@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 
-import { backgroundClouds, resetBackgroundClouds } from '../../socket/backgroundClouds';
+import { backgroundClouds, resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds';
 import { useBackgroundClouds } from './useBackgroundClouds';
 
 describe('useBackgroundClouds', () => {

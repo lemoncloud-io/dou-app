@@ -1,7 +1,8 @@
 # ADR-0253: app-runtime is cut into layered modules, starting with the layers inside it
 
 > Status: Accepted · Decided: 2026-10-30 · Implemented: `refactor/app-runtime-layers` (step 1 of 5),
-> `refactor/session-module` (step 2 — `libs/session`) · Scope: `libs/app-runtime/`, `libs/session/`
+> `refactor/session-module` (step 2 — `libs/session`), `refactor/transport-module` (step 3 —
+> `libs/transport`) · Scope: `libs/app-runtime/`, `libs/session/`, `libs/transport/`
 
 ## Context
 
@@ -74,3 +75,8 @@ socket manager and the session they sit beside.
   only; app-runtime's tests may name one of its files (`@chatic/session/store/stores`), because a
   mock must replace the file the package's own modules import; and the root eslint config closes the
   package to apps and every other lib.
+- Step 3 moved the transport whole and nothing else. `utils/` stayed: no transport file imports it,
+  so it leaves with sync and auth, its only users below the app layer. The `/refresh` and
+  `auth.update` absence gates stayed in app-runtime and walk every package cut from it — the top
+  package is the one that knows them all, and a gate inside a lower package would have to reach up
+  into the source of the package above it.

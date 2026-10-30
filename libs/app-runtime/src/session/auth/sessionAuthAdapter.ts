@@ -3,7 +3,7 @@ import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import { webTransport } from '../../http/transport';
+import { webTransport } from '@chatic/transport';
 import { cloudStore, relayStore, rebuildSessionIdentity } from '@chatic/session';
 import { recordCloudIdentity } from './cloudIdentity';
 import { calcSignature } from './utils/calcSignature';
@@ -34,7 +34,7 @@ import { mergeRefreshedCloudToken, mergeRefreshedRelayToken } from './utils/toke
  * `socket/auth → session` edge and close a cycle. `socket/auth/sessionDelegate.ts` composes this
  * adapter with the renewers into the full delegate instead.
  *
- * Contract + branching rationale live in `docs/socket/auth/signing.md`. The lemon-hmac signature
+ * Contract + branching rationale live in `docs/auth/signing.md`. The lemon-hmac signature
  * never depends on the token string (the signer signs an empty identityToken slot), so the
  * SDK-injected token argument is ignored and the signature is recomputed from the server's stored
  * fields.

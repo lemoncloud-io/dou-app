@@ -11,11 +11,8 @@ import type {
 import { isPageHidden, pageHideCount, perfNow } from '@chatic/perf';
 
 import { getUidInCloud } from '@chatic/session';
-import { backgroundClouds } from '../../socket/backgroundClouds';
-import { getSocketManager } from '../../socket/runtime';
-import { getSocketErrorCode } from '../../socket/utils/socketErrorCode';
-import { kindOf, slotKeyOf } from '../../socket/utils/slotKey';
-import type { SocketKind } from '../../socket/types';
+import { backgroundClouds, getSocketManager, getSocketErrorCode, kindOf, slotKeyOf } from '@chatic/transport';
+import type { SocketKind } from '@chatic/transport';
 
 /** Short enough to beat the next user action, few enough that a dead socket costs three requests. */
 export const OUTBOX_RETRY_DELAYS_MS: readonly number[] = [2_000, 5_000, 15_000];

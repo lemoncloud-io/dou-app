@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { backgroundClouds } from '../../socket/backgroundClouds';
+import { backgroundClouds } from '@chatic/transport/socket/backgroundClouds';
 import { useRuntimeSocketSlots } from './useRuntimeSocketSlots';
 import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
 import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '@chatic/session/store';

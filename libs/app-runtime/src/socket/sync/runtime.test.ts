@@ -9,7 +9,7 @@ jest.mock('./BackgroundReceiver', () => ({
         return instance;
     }),
 }));
-jest.mock('../runtime', () => ({ getSocketManager: jest.fn(() => ({})) }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn(() => ({})) }));
 jest.mock('./SyncManager', () => ({ SyncManager: jest.fn() }));
 
 describe('startBackgroundReceive / refreshBackgroundClouds', () => {

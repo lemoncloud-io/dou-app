@@ -15,11 +15,12 @@ module.exports = {
         // Before the generic rule: it would capture `config/react` and resolve a path that does not
         // exist (`libs/config/react/src`). Same rule as libs/shared/jest.config.js.
         '^@chatic/config/(.*)$': '<rootDir>/../config/src/$1/index.ts',
-        // Tests only. A test that used to mock `session/store/stores` still names that exact file, so
-        // the mock still replaces it for every importer — the package's own modules included. The
-        // barrel would not: mocking it leaves the package's internal imports on the real module.
-        // Production code imports the barrel alone; eslint keeps it that way.
+        // Tests only. A test that used to mock `session/store/stores` or `socket/runtime` still names
+        // that exact file, so the mock still replaces it for every importer — the package's own
+        // modules included. The barrel would not: mocking it leaves the package's internal imports on
+        // the real module. Production code imports the barrels alone; eslint keeps it that way.
         '^@chatic/session/(.*)$': '<rootDir>/../session/src/$1',
+        '^@chatic/transport/(.*)$': '<rootDir>/../transport/src/$1',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/../web-ui-kit/src/__mocks__/styleMock.js',
         '\\.(png|jpe?g|gif|svg|webp)$': '<rootDir>/../web-ui-kit/src/__mocks__/fileMock.js',

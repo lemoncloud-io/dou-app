@@ -1,7 +1,7 @@
 import { useMemo, useSyncExternalStore } from 'react';
 
-import { getSocketManager } from '../../socket/runtime';
-import type { SlotKey } from '../../socket/types';
+import { getSocketManager } from '@chatic/transport';
+import type { SlotKey } from '@chatic/transport';
 
 /**
  * The clouds whose socket slot is bound and verified right now — the relay among them — in slot

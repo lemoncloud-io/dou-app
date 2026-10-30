@@ -1,6 +1,6 @@
 import { createSocketSessionDelegate } from './sessionDelegate';
 import { credentialRenewers } from './renewers';
-import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
+import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import { sessionAuthAdapter } from '../../session/auth/sessionAuthAdapter';
 import { alignSessionSite, alignStoredSessionSite } from './alignSessionSite';
 
@@ -20,7 +20,9 @@ jest.mock('../../session', () => ({
 const mockRelayExpiry = jest.fn().mockResolvedValue(undefined);
 const mockCloudExpiry = jest.fn();
 jest.mock('./renewers', () => {
-    const { RELAY_SLOT: relaySlot } = jest.requireActual<{ RELAY_SLOT: string }>('../utils/slotKey');
+    const { RELAY_SLOT: relaySlot } = jest.requireActual<{ RELAY_SLOT: string }>(
+        '@chatic/transport/socket/utils/slotKey'
+    );
     return {
         credentialRenewers: {
             relay: { onTerminalExpiry: (...args: unknown[]) => mockRelayExpiry(...args) },

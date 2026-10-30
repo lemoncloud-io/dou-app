@@ -13,7 +13,7 @@
 > too · [ADR-0117](./0117-socket-auth-is-keyed-by-the-slot-s-cloud.md) decision 4 — terminal expiry
 > drops the cloud's own cached tokens whether or not it is committed, and leaving a cloud keeps the
 > other clouds' cache
-> · The module docs are [libs/app-runtime/docs/socket](../../libs/app-runtime/docs/socket/README.md#background-slots)
+> · The module docs are [libs/app-runtime/docs/socket](../../libs/app-runtime/docs/connection/README.md#background-slots)
 > and [docs/auth](../../libs/app-runtime/docs/auth/README.md#tokens-for-a-background-slot-before-it-boots)
 
 ## Context

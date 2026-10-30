@@ -2,9 +2,8 @@ import { logger } from '@chatic/bridges';
 
 import { Coalescer } from '../../utils/coalescer';
 import { canRefreshThroughSocket, getAuthSnapshot } from './authStatus';
-import { getSocketManager } from '../runtime';
-import { RELAY_SLOT } from '../utils/slotKey';
-import type { ISocketManager } from '../types';
+import { getSocketManager, RELAY_SLOT } from '@chatic/transport';
+import type { ISocketManager } from '@chatic/transport';
 
 /**
  * How long a finished attempt answers for the next caller.

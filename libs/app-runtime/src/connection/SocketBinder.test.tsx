@@ -3,11 +3,11 @@ import { render } from '@testing-library/react';
 
 import { SocketBinder } from './SocketBinder';
 import { bootstrapSocketConnection } from '../socket/auth';
-import { getSocketManager } from '../socket/runtime';
-import type { SlotKey, SocketBindingConfig } from '../socket';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
+import type { SlotKey, SocketBindingConfig } from '@chatic/transport/socket/types';
 import type { SocketSessionDelegate } from '../socket/auth';
 import type { RuntimeSocketSlots } from './types';
-import { RELAY_SLOT, slotKeyOf } from '../socket/utils/slotKey';
+import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 import { logger } from '@chatic/bridges';
 
@@ -15,7 +15,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
-jest.mock('../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 
@@ -30,7 +30,7 @@ jest.mock('../socket/auth', () => ({
 }));
 
 const mockHasLiveJoinedSession = jest.fn((_cid: string) => false);
-jest.mock('../socket/backgroundClouds', () => ({
+jest.mock('@chatic/transport/socket/backgroundClouds', () => ({
     hasLiveJoinedSession: (cid: string) => mockHasLiveJoinedSession(cid),
 }));
 const mockNotifySocketLogout = jest.fn();

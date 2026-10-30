@@ -245,6 +245,6 @@ those are the ones an app should reach for.
 ## Further reading
 
 - [docs/auth/](../auth/README.md) — what consumes `sessionAuthAdapter` and `credentialFreshness`, and the policy that ends a session
-- [docs/socket/](../socket/README.md) — how `useRuntimeSocketSlots` turns this state into two socket slots
+- [docs/connection/](../connection/README.md#how-a-slot-is-derived) — how `useRuntimeSocketSlots` turns this state into socket slots: relay, the committed cloud and the background ones
 - [docs/data/](../data/README.md) — what `ActiveScope` is injected into
 - [`libs/data`](../../../data/README.md) — `DataContextProvider`, `scopeGuards`, and `contextOverride`

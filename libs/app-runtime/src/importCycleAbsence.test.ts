@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import { dirname, join, normalize, relative } from 'path';
 
 /**
- * There is no import cycle inside this package.
+ * There is no import cycle inside this package, or inside any package cut from it.
  *
  * **Why an absence check and not a lint rule.** Both cycles this test was written for were invisible
  * until the graph was drawn. `sessionDelegate` → `renewers` → `renewCloudSession` → `sessionDelegate`
@@ -17,8 +17,8 @@ import { dirname, join, normalize, relative } from 'path';
  * makes them dangerous: the failure appears later, when someone moves one of those reads to module
  * scope and gets `undefined` in an order-dependent way.
  *
- * Same reasoning as [`refreshAbsence.test.ts`](./http/refreshAbsence.test.ts) and
- * [`authUpdateAbsence.test.ts`](./socket/authUpdateAbsence.test.ts): the path-based lint rule this
+ * Same reasoning as [`refreshAbsence.test.ts`](./refreshAbsence.test.ts) and
+ * [`authUpdateAbsence.test.ts`](./authUpdateAbsence.test.ts): the path-based lint rule this
  * package used to carry died silently when a symbol moved, and an absence check has no such failure
  * mode — it re-measures the tree every run. The one-off script that first found these cycles got the
  * count WRONG (a greedy regex swallowed intermediate import lines), which is the other half of the
@@ -26,11 +26,16 @@ import { dirname, join, normalize, relative } from 'path';
  *
  * Scope: relative `import` statements between source files, which is where a cycle can carry a value.
  * Statement-level `import type` is erased at compile time (that erasure is load-bearing — see
- * [`http/credentialRecovery.ts`](./http/credentialRecovery.ts), whose type-only import is the one
+ * `http/credentialRecovery.ts`, now in `@chatic/transport`, whose type-only import was the one
  * thing keeping `data` → `http` → `session` open) and is therefore not an edge. Tests are excluded:
  * a test importing its own subject is not a cycle in the shipped graph.
+ *
+ * The packages cut from this one are walked too, each as its own graph: a package import is not an
+ * edge here, and the package graph already refuses a cycle between packages. A module that leaves
+ * app-runtime takes no exemption with it, so each one extracted is added to the list.
  */
-const SRC = join(__dirname);
+const LIBS = join(__dirname, '..', '..');
+const ROOTS = ['app-runtime', 'session', 'transport'].map(lib => join(LIBS, lib, 'src'));
 
 const sourceFiles = (dir: string): string[] =>
     readdirSync(dir).flatMap(entry => {
@@ -128,11 +133,11 @@ const findCycles = (graph: Map<string, string[]>): string[][] => {
 
 describe('app-runtime — 순환 import 부재', () => {
     it('소스 파일 사이에 값 import 순환이 없다', () => {
-        const files = sourceFiles(SRC);
+        const files = ROOTS.flatMap(sourceFiles);
         const graph = new Map(files.map(file => [file, valueImports(file)]));
 
         const cycles = findCycles(graph)
-            .map(component => component.map(file => relative(SRC, file)).sort())
+            .map(component => component.map(file => relative(LIBS, file)).sort())
             .sort((left, right) => left[0].localeCompare(right[0]));
 
         // Compared as whole components so a regression names the ring instead of only failing a count.

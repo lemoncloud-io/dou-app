@@ -6,7 +6,7 @@
 > `apps/admin-v2/src/app/features/report-logs/api/reportLogApi.ts` · `.github/workflows/deploy-*.yml`
 > · The module docs are [libs/http/README.md](../../libs/http/README.md),
 > [libs/data/docs/remote/http.md](../../libs/data/docs/remote/http.md) and
-> [libs/app-runtime/docs/http/README.md](../../libs/app-runtime/docs/http/README.md)
+> [libs/app-runtime/docs/http/README.md](../../libs/transport/docs/http/README.md)
 
 ## Context
 

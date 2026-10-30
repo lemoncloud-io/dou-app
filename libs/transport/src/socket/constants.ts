@@ -3,10 +3,9 @@ import type { SocketState } from './types';
 /**
  * The socket module's value constants — tuning and defaults.
  *
- * **Why not `types.ts`.** That file (and the other six `types.ts` in this package) declares types and
- * nothing else: measured 7/7 with zero value exports. It is also re-exported wholesale by
- * [`socket/index.ts`](./index.ts) (`export * from './types'`), so a value placed there lands on the
- * socket barrel for every internal consumer — surface creep inside the package. Values get their own
+ * **Why not `types.ts`.** That file declares types and nothing else. It is also re-exported
+ * wholesale by the package barrel [`src/index.ts`](../index.ts) (`export * from './socket/types'`), so
+ * a value placed there would ship to every runtime module that imports the package. Values get their own
  * file so `types.ts` stays type-only and fully erasable.
  */
 
@@ -36,8 +35,8 @@ export const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshInterval
  * margins follow, which is the point: before this they would have silently gone stale while their
  * comments still claimed to be "one SDK refresh cycle".
  *
- * This file imports no runtime module, which is what lets `session/hooks/app/**` read the cadence
- * without importing `SocketManager` (and through it the SDK).
+ * This file imports no runtime module. Its readers reach it through the package barrel, which also
+ * loads `SocketManager`, so that alone no longer keeps the SDK out of a reader's import graph.
  */
 export const SDK_REFRESH_CYCLE_MS = AUTH_OPTIONS.refreshIntervalMs;
 

@@ -3,7 +3,7 @@ import { useMemo, useSyncExternalStore } from 'react';
 import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import { backgroundClouds } from '../../socket/backgroundClouds';
+import { backgroundClouds } from '@chatic/transport';
 import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
 // Off the session barrel (ADR-0076 Decision 6): the committed cloud id and the narrowed slot snapshot
 // are runtime-internal.
@@ -15,7 +15,7 @@ import { subscribeSlotSignals } from '../utils/slotSignals';
 
 /**
  * Derives the socket slots from the live session: relay, the committed cloud, and a background slot
- * for each other cloud the account belongs to (`socket/backgroundClouds` decides which). This is
+ * for each other cloud the account belongs to (the transport's `socket/backgroundClouds` decides which). This is
  * the whole job — it used to ALSO derive the cache scope (`{cid, sid, uid}`) and hand it back as `RuntimeBinding.context`, which no
  * production code read: `deriveSelectedContext` owns that formula now and consumers READ it from the
  * store instead of receiving a pushed copy (ADR-0070 Decision 7 · ADR-0076 Decision 1). The duplicate was

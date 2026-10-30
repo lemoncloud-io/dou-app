@@ -12,7 +12,7 @@ import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import { logger } from '@chatic/bridges';
 
-import type { SlotKey } from '../types';
+import type { SlotKey } from '@chatic/transport';
 import { clearRefusedChannel, recordRefusedChannel } from './refusedChannels';
 
 /**

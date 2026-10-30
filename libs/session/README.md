@@ -12,15 +12,17 @@ they are the only writers of these stores.
 
 ## Who imports it
 
-`@chatic/app-runtime` and the modules cut from it. **Apps do not**: they read the session through
+`@chatic/app-runtime` and the modules cut from it that sit above this one — `@chatic/transport`
+today. **Apps do not**: they read the session through
 `runtime.session`, which publishes readers and no writers. The barrel sells the raw stores
 (`cloudStore`, `relayStore`, `identityStore`) because the use cases above have to write them; keeping
 apps off this package is what keeps those writers out of reach.
 
-Production code imports the barrel only. A test in app-runtime may name a file —
+Production code imports the barrel only. A test in app-runtime or transport may name a file —
 `jest.mock('@chatic/session/store/stores', …)` — because mocking the barrel would leave this
 package's own internal imports on the real module. The root eslint config closes both forms to
-everything else, and app-runtime's own config re-opens the barrel and, in tests only, the deep form.
+everything else, and each importing package's own config re-opens the barrel and, in tests only,
+the deep form.
 
 ## Layout
 
@@ -92,7 +94,7 @@ which uid this account has in each cloud and outlives the tokens. It is what a r
 cloud's cache partition addresses that partition by. The recent-cloud order — `recordCloudUse` ·
 `getRecentClouds` · `clearRecentClouds`, most recent first, at most 20 — is written by every
 successful switch and decides which clouds keep a background socket session when there are more of
-them than the cap ([docs/socket/](../app-runtime/docs/socket/README.md#background-slots)). The reclaim records —
+them than the cap ([app-runtime docs/connection/](../app-runtime/docs/connection/README.md#background-slots)). The reclaim records —
 `getReclaimedFor` · `setReclaimedFor` · `clearReclaimedClouds` — map an owned cloud the device also
 cached as invited to the relay user it was last re-issued for, so the owned-cloud reclaim asks
 `delegate-cloud` once per account rather than on every trigger

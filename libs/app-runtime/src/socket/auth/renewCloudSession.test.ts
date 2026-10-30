@@ -1,5 +1,5 @@
 import { renewCloudSession } from './renewCloudSession';
-import { slotKeyOf } from '../utils/slotKey';
+import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 const mockReissue = jest.fn();
 const mockReauthenticate = jest.fn();
@@ -19,7 +19,7 @@ jest.mock('./alignSessionSite', () => ({
 jest.mock('./reauthDelegate', () => ({
     createReauthDelegate: () => ({ delegate: true }),
 }));
-jest.mock('../runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: (...args: unknown[]) => mockGetSocketManager(...args),
 }));
 jest.mock('@chatic/bridges', () => ({

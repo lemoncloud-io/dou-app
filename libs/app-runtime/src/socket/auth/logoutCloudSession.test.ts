@@ -1,9 +1,9 @@
 import { logoutCloudSession } from './logoutCloudSession';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getCommittedCloudId } from '@chatic/session/store';
-import { backgroundClouds, resetBackgroundClouds } from '../backgroundClouds';
-import { getSocketManager } from '../runtime';
-import { RELAY_SLOT } from '../utils/slotKey';
+import { backgroundClouds, resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
+import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -30,7 +30,7 @@ jest.mock('@chatic/session/store/stores', () => ({
     },
 }));
 
-jest.mock('../runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 

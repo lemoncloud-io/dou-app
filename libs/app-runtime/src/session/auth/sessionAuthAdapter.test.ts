@@ -36,9 +36,9 @@ const mockNotifySessionStateChanged = jest.fn();
 const mockLoggerWarn = jest.fn();
 
 // Transport + sealed boot control. The instance moved out of `@chatic/web-config` into the
-// `http/transport` assembly point (built by `@chatic/http`), so the mock follows it — the env leaf
+// transport's `http/transport` assembly point (built by `@chatic/http`), so the mock follows it — the env leaf
 // above keeps only env.
-jest.mock('../../http/transport', () => ({
+jest.mock('@chatic/transport/http/transport', () => ({
     startWebTransportInit: jest.fn(),
     resetWebTransportInit: jest.fn(),
     hasStoredRelaySession: jest.fn(),

@@ -1,6 +1,6 @@
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import { slotKeyOf } from '../../socket/utils/slotKey';
+import { slotKeyOf } from '@chatic/transport';
 import { useSlotVerified } from './useSlotVerified';
 
 /**

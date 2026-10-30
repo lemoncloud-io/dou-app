@@ -4,15 +4,18 @@ import { perfNow } from '@chatic/perf';
 
 import { Coalescer } from '../../utils/coalescer';
 import { authIdRegistry } from './authIdRegistry';
-import { clearResumeKick, noteResumeKick } from '../socketVerifyTrace';
+import {
+    clearResumeKick,
+    noteResumeKick,
+    getSocketManager,
+    APP_CLOSE_REASON,
+    kindOf,
+    getSocketErrorCode,
+} from '@chatic/transport';
+import type { ISocketManager, SlotKey, SocketKind } from '@chatic/transport';
 import { type AuthStatus, getAuthStatus, needsLivenessProbe, needsSocketKick } from './authStatus';
-import { getSocketManager } from '../runtime';
 import { createSocketSessionDelegate } from './sessionDelegate';
 import type { AuthActivationGate } from './bootstrapSocketConnection';
-import type { ISocketManager, SlotKey, SocketKind } from '../types';
-import { APP_CLOSE_REASON } from '../utils/closeReason';
-import { kindOf } from '../utils/slotKey';
-import { getSocketErrorCode } from '../utils/socketErrorCode';
 import type { SocketSessionDelegate } from './types';
 
 export interface RecoverUnverifiedSocketsDeps {
