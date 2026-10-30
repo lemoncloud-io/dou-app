@@ -51,7 +51,14 @@ export type MessageRowItem =
     | { kind: 'date'; key: string; timestamp: number }
     | { kind: 'unread'; key: string }
     | { kind: 'replies'; key: string; count: number }
-    | { kind: 'system'; key: string; chat: DomainChat; authorName: string }
+    | {
+          kind: 'system';
+          key: string;
+          chat: DomainChat;
+          authorName: string;
+          /** Every actor of a run of adjacent joins, in order; set only once a second join has folded in. */
+          joinedNames?: string[];
+      }
     | { kind: 'group'; group: MessageGroup };
 
 /** Floor to the clock minute — the unit the group header prints its time in. */
@@ -181,11 +188,29 @@ export const buildMessageRows = (
         // event is worse than landing on the first real message below it.
         if (message.stereo === 'system') {
             flush();
+            const authorName = resolveOwnerName(message, viewer, names) ?? '';
+            // Adjacent joins on the same day fold into the first notice's row. A date row or any other
+            // row in between ends the run, so the previous row being a join is the whole same-day test.
+            // The folded row keeps the first notice's key so the feed window does not see a new row
+            // appear (and shift scroll) each time another join arrives. Unnamed joins stay separate:
+            // they fall back to the server's raw text, which cannot be merged into a name list.
+            const previous = rows[rows.length - 1];
+            if (
+                previous?.kind === 'system' &&
+                previous.chat.subType === 'join' &&
+                message.subType === 'join' &&
+                previous.authorName &&
+                authorName
+            ) {
+                previous.joinedNames = [...(previous.joinedNames ?? [previous.authorName]), authorName];
+                lastTimestamp = timestamp;
+                continue;
+            }
             rows.push({
                 kind: 'system',
                 key: message.id ?? message.tempId ?? `system:${message.channelId}:${message.chatNo}`,
                 chat: message,
-                authorName: resolveOwnerName(message, viewer, names) ?? '',
+                authorName,
             });
             lastTimestamp = timestamp;
             continue;

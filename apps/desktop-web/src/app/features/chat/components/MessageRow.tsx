@@ -371,7 +371,7 @@ export const MessageRow = memo(
                 data-roving-group=""
                 data-row-key={group.key}
                 className={cn(
-                    'group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70',
+                    'group -mx-2 flex gap-2.5 rounded-lg px-2 py-[var(--message-row-py)] transition-colors ease-tactile hover:bg-accent/70',
                     // The pointer is in the editor, not over the band: keep the band so the row reads as open.
                     editingKey !== null && 'bg-accent/70'
                 )}
@@ -422,7 +422,7 @@ export const MessageRow = memo(
                             {withDayInTime ? formatDayTime(group.timestamp, t) : formatTime(group.timestamp)}
                         </span>
                     </div>
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-[var(--message-gap)]">
                         {group.messages.map((message, i) => {
                             // A long-pending row is an unsent artifact, not an in-flight
                             // send — treat it as failed so Retry/Delete are offered. Pictures

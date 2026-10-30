@@ -49,6 +49,11 @@
 
 @layer base {
     :root {
+        /* Message row spacing. `comfy` density — the rows' look before the setting existed; the
+           appearance preference overrides these on the root (useAppearancePrefsStore). */
+        --message-row-py: 0.375rem;
+        --message-gap: 0.125rem;
+
         /* DoU PC light theme — Figma "DoU PC" file (node 247:10714). Neutral grays
            from the Solid/Secondary BK ramp; the lime (#B0EA10, main color/GR1) is
            the only hue. Hex beside each value is the Figma source. */
