@@ -223,7 +223,8 @@
                 "signIn": "Sign in",
                 "details": "Details",
                 "payment": "Payment method",
-                "done": "Done"
+                "done": "Done",
+                "progress": "{{current}}/5 · {{name}}"
             },
             "planRo": {
                 "1": "DoU Cloud 1",

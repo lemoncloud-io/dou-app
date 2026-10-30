@@ -9,7 +9,7 @@ import { useAdoptSignInEmail, useBillingInfo, usePreviewCheckout, useSetPrimaryE
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { isPortError } from '../../lib/port';
 import { changePlanUrl, checkoutUrl } from './flow';
-import { CheckoutSteps, CheckoutSummary, LoadError } from './parts';
+import { CheckoutLayout, CheckoutSteps, CheckoutSummary, LoadError } from './parts';
 import { usePlanRoute } from './usePlanRoute';
 
 import type { BillingEmail } from '../../types';
@@ -17,7 +17,7 @@ import type { BillingEmail } from '../../types';
 const k = (key: string) => `subscription.checkout.emailStep.${key}`;
 
 const READ_ONLY_FIELD =
-    'h-12 min-w-0 flex-1 rounded-lg border border-border bg-muted px-3 pr-40 text-sm text-navy outline-none';
+    'h-[47px] min-w-0 flex-1 rounded-lg border border-[#d9dbe0] bg-note px-4 pr-40 text-sm font-medium text-ink outline-none';
 
 /**
  * W-24 — the email step between sign-in and W-08. The address verified here becomes the primary
@@ -87,90 +87,88 @@ export const CheckoutEmailPage = (): JSX.Element => {
     const canContinue = (scene !== 'verify' || !!verified) && !busy;
 
     return (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_260px] md:gap-8">
-            <div className="flex flex-col gap-6">
-                <CheckoutSteps current={3} />
-                <header className="flex flex-col gap-2">
-                    <h1 className="text-[28px] font-bold text-navy">{t(k('title'))}</h1>
-                    <p className="text-[15px] text-subtitle">{t(k('subtitle'))}</p>
-                </header>
-
-                <Card className="flex flex-col gap-2">
-                    {scene === 'verify' ? (
-                        <EmailVerificationForm
-                            idPrefix="checkout-email"
-                            label={<FieldLabel />}
-                            onVerified={onVerified}
-                            onReset={() => setVerified(undefined)}
-                            addressNote={
-                                account.provider === 'apple' ? (
-                                    <p className="text-xs text-subtitle">ⓘ {t(k('appleNote'))}</p>
-                                ) : undefined
-                            }
-                        />
-                    ) : (
-                        <>
-                            <label htmlFor="checkout-email-address">
-                                <FieldLabel />
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                                <div className="relative flex min-w-0 flex-1">
-                                    <input
-                                        id="checkout-email-address"
-                                        type="email"
-                                        readOnly
-                                        className={READ_ONLY_FIELD}
-                                        value={scene === 'verified' ? primary?.address : signInAddress}
-                                    />
-                                    <Badge tone="success" className="absolute right-3 top-1/2 -translate-y-1/2">
-                                        ✓{' '}
-                                        {scene === 'verified'
-                                            ? t('subscription.common.email.verified')
-                                            : t(k('signInChip'))}
-                                    </Badge>
-                                </div>
-                                {scene === 'verified' ? (
-                                    <Button variant="secondary" size="lg" onClick={() => setChanging(true)}>
-                                        {t(k('change'))}
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        variant="secondary"
-                                        size="lg"
-                                        disabled={busy}
-                                        onClick={() => setTyping(true)}
-                                    >
-                                        {t(k('useOther'))}
-                                    </Button>
-                                )}
+        <CheckoutLayout
+            head={
+                <>
+                    <CheckoutSteps current={3} />
+                    <header className="flex flex-col gap-2">
+                        <h1 className="text-[22px] font-bold leading-[1.5] text-ink md:text-[28px]">{t(k('title'))}</h1>
+                        <p className="text-sm font-medium leading-[1.5] text-mute md:text-[15px]">{t(k('subtitle'))}</p>
+                    </header>
+                </>
+            }
+            summary={<CheckoutSummary preview={preview.data} />}
+        >
+            <Card className="flex flex-col gap-2 rounded-[14px] border-line p-4 md:rounded-2xl md:px-[25px] md:py-[21px]">
+                {scene === 'verify' ? (
+                    <EmailVerificationForm
+                        idPrefix="checkout-email"
+                        label={<FieldLabel />}
+                        onVerified={onVerified}
+                        onReset={() => setVerified(undefined)}
+                        addressNote={
+                            account.provider === 'apple' ? (
+                                <p className="text-xs font-medium text-mute">ⓘ {t(k('appleNote'))}</p>
+                            ) : undefined
+                        }
+                    />
+                ) : (
+                    <>
+                        <label htmlFor="checkout-email-address">
+                            <FieldLabel />
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            <div className="relative flex min-w-0 flex-1">
+                                <input
+                                    id="checkout-email-address"
+                                    type="email"
+                                    readOnly
+                                    className={READ_ONLY_FIELD}
+                                    value={scene === 'verified' ? primary?.address : signInAddress}
+                                />
+                                <Badge className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#e5f7eb] px-2 py-0.5 font-semibold text-[#218c4d]">
+                                    ✓{' '}
+                                    {scene === 'verified'
+                                        ? t('subscription.common.email.verified')
+                                        : t(k('signInChip'))}
+                                </Badge>
                             </div>
-                            <p className="text-xs text-status-success">
-                                {t(k(scene === 'verified' ? 'verifiedNote' : 'signInNote'))}
-                            </p>
-                            <EmailCodePolicy />
-                        </>
-                    )}
-                    {stepError && (
-                        <p role="alert" className="text-xs text-status-danger">
-                            {t(stepError)}
+                            {scene === 'verified' ? (
+                                <Button variant="secondary" size="lg" onClick={() => setChanging(true)}>
+                                    {t(k('change'))}
+                                </Button>
+                            ) : (
+                                <Button variant="secondary" size="lg" disabled={busy} onClick={() => setTyping(true)}>
+                                    {t(k('useOther'))}
+                                </Button>
+                            )}
+                        </div>
+                        <p className="text-xs font-medium text-[#218c4d]">
+                            {t(k(scene === 'verified' ? 'verifiedNote' : 'signInNote'))}
                         </p>
-                    )}
-                </Card>
+                        <EmailCodePolicy />
+                    </>
+                )}
+                {stepError && (
+                    <p role="alert" className="text-xs font-medium text-[#c1292e]">
+                        {t(stepError)}
+                    </p>
+                )}
+            </Card>
 
-                <div className="flex flex-col items-center gap-3">
-                    <Button size="lg" className="w-full" disabled={!canContinue} onClick={next}>
-                        {t(k('next'))}
-                    </Button>
-                    {!canContinue && scene === 'verify' && <p className="text-xs text-subtitle">{t(k('nextHint'))}</p>}
-                </div>
+            <div className="flex flex-col items-center gap-3">
+                <Button size="lg" className="w-full max-md:h-[54px]" disabled={!canContinue} onClick={next}>
+                    {t(k('next'))}
+                </Button>
+                {!canContinue && scene === 'verify' && (
+                    <p className="text-xs font-medium text-mute">{t(k('nextHint'))}</p>
+                )}
             </div>
-
-            <CheckoutSummary preview={preview.data} />
 
             {changing && primary && (
                 <BillingEmailChangeDialog current={primary} where="checkout" onClose={() => setChanging(false)} />
             )}
-        </div>
+        </CheckoutLayout>
     );
 };
 
@@ -185,13 +183,13 @@ const FieldLabel = (): JSX.Element => {
     const { t } = useTranslation();
     return (
         <span className="mb-2 flex flex-col gap-3">
-            <span className="flex items-center gap-2 text-[15px] font-semibold text-navy">
+            <span className="flex items-center gap-2 text-[13px] font-bold text-ink">
                 {t(k('label'))}
-                <span className="text-xs font-normal text-status-danger">
+                <span className="text-xs font-semibold text-[#c1292e]">
                     {t('subscription.checkout.consent.required')}
                 </span>
             </span>
-            <span className="text-[13px] font-normal text-subtitle">{t(k('description'))}</span>
+            <span className="text-[13px] font-medium leading-[1.6] text-mute">{t(k('description'))}</span>
         </span>
     );
 };

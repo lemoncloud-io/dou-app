@@ -223,7 +223,8 @@
                 "signIn": "로그인",
                 "details": "결제 정보",
                 "payment": "결제수단",
-                "done": "완료"
+                "done": "완료",
+                "progress": "{{current}}/5 · {{name}}"
             },
             "planRo": {
                 "1": "DoU Cloud 1로",

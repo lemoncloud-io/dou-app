@@ -11,8 +11,8 @@ import type { BillingEmail, EmailCodeTicket } from '../types';
 type Step = 'address' | 'code' | 'verified';
 
 const INPUT =
-    'h-12 min-w-0 flex-1 rounded-lg border bg-card px-3 text-sm text-navy outline-none ' +
-    'placeholder:text-subtitle/60 focus:border-navy read-only:bg-muted';
+    'h-[47px] min-w-0 flex-1 rounded-lg border bg-card px-4 text-sm font-medium text-ink outline-none ' +
+    'placeholder:text-[#b4b6bc] focus:border-navy read-only:bg-note';
 
 const k = (key: string) => `subscription.common.email.${key}`;
 
@@ -180,7 +180,7 @@ export const EmailVerificationForm = ({
 
     return (
         <div className="flex flex-col gap-2">
-            <label htmlFor={`${idPrefix}-address`} className="text-[13px] font-medium text-navy">
+            <label htmlFor={`${idPrefix}-address`} className="text-[13px] font-medium text-ink">
                 {label}
             </label>
             <div className="flex flex-wrap gap-2">
@@ -191,7 +191,7 @@ export const EmailVerificationForm = ({
                         autoComplete="email"
                         className={cn(
                             INPUT,
-                            error && step === 'address' ? 'border-status-danger' : 'border-border',
+                            error && step === 'address' ? 'border-status-danger' : 'border-[#d9dbe0]',
                             step === 'verified' && 'pr-24'
                         )}
                         placeholder={t(k('placeholder'))}
@@ -201,7 +201,7 @@ export const EmailVerificationForm = ({
                         onKeyDown={event => event.key === 'Enter' && step === 'address' && !pending && sendCode()}
                     />
                     {step === 'verified' && (
-                        <Badge tone="success" className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Badge className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#e5f7eb] px-2 py-0.5 font-semibold text-[#218c4d]">
                             ✓ {t(k('verified'))}
                         </Badge>
                     )}
@@ -239,7 +239,7 @@ export const EmailVerificationForm = ({
                             className={cn(
                                 INPUT,
                                 'max-w-[200px] disabled:bg-muted',
-                                error && !codeShut ? 'border-status-danger' : 'border-border'
+                                error && !codeShut ? 'border-status-danger' : 'border-[#d9dbe0]'
                             )}
                             disabled={codeShut}
                             placeholder={t(k('code'))}
@@ -266,10 +266,10 @@ export const EmailVerificationForm = ({
                                   : t(k('remaining'), { time: formatMinutesSeconds(remaining) })}
                         </span>
                     </div>
-                    <p className="text-xs text-desc-alt">
+                    <p className="text-xs font-medium text-ink">
                         {t(k('sent'), { address: address.trim(), minutes: sentFor })}
                     </p>
-                    <p className="text-xs text-subtitle">
+                    <p className="text-xs font-medium text-mute">
                         {t(k('spam'))} {/* A mistyped address is fixed here, before any code is checked. */}
                         <button
                             type="button"
@@ -286,7 +286,7 @@ export const EmailVerificationForm = ({
             {step === 'verified' && verifiedNote}
             {/* A code that ran out says so by itself, without waiting for a check to fail. */}
             {(error || expired) && (
-                <p role="alert" className="text-xs text-status-danger">
+                <p role="alert" className="text-xs font-medium text-[#c1292e]">
                     {expired && !error ? t(k('error.expired')) : error}
                 </p>
             )}
@@ -302,7 +302,7 @@ export const EmailVerificationForm = ({
 export const EmailCodePolicy = ({ extra }: { extra?: ReactNode }): JSX.Element => {
     const { t } = useTranslation();
     return (
-        <div className="mt-1 rounded-lg bg-muted px-4 py-3 text-xs leading-5 text-desc-alt">
+        <div className="mt-1 rounded-lg bg-note px-4 py-3 text-xs font-medium leading-5 text-[#666b78]">
             <p>{t(k('policyCode'))}</p>
             <p>{t(k('policyResend'))}</p>
             {extra}

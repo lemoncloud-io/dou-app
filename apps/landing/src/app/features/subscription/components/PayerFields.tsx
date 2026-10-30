@@ -5,7 +5,7 @@ import { type PayerDraft, isMobilePhone, isPayerName } from '../lib/payer';
 import { cn } from '../utils';
 
 const INPUT =
-    'h-12 rounded-xl border bg-white px-4 text-[15px] text-navy outline-none placeholder:text-subtitle/60 ' +
+    'h-[47px] rounded-lg border bg-white px-4 text-sm font-medium text-ink outline-none placeholder:text-[#b4b6bc] ' +
     'focus:border-navy/40';
 
 /**
@@ -31,7 +31,7 @@ export const PayerFields = ({
         <div className="flex flex-col gap-3">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
-                    <label htmlFor={`${idPrefix}-name`} className="text-[13px] text-desc-alt">
+                    <label htmlFor={`${idPrefix}-name`} className="text-[13px] font-semibold text-[#4d4f57]">
                         {t('subscription.common.payer.name')}
                     </label>
                     <input
@@ -39,7 +39,7 @@ export const PayerFields = ({
                         autoComplete="name"
                         aria-required
                         aria-invalid={nameError}
-                        className={cn(INPUT, nameError ? 'border-status-danger' : 'border-border')}
+                        className={cn(INPUT, nameError ? 'border-status-danger' : 'border-[#d9dbe0]')}
                         placeholder={t('subscription.common.payer.namePlaceholder')}
                         value={value.name}
                         onChange={event => onChange({ ...value, name: event.target.value })}
@@ -52,7 +52,7 @@ export const PayerFields = ({
                     )}
                 </div>
                 <div className="flex flex-col gap-2">
-                    <label htmlFor={`${idPrefix}-phone`} className="text-[13px] text-desc-alt">
+                    <label htmlFor={`${idPrefix}-phone`} className="text-[13px] font-semibold text-[#4d4f57]">
                         {t('subscription.common.payer.phone')}
                     </label>
                     <input
@@ -62,7 +62,7 @@ export const PayerFields = ({
                         autoComplete="tel-national"
                         aria-required
                         aria-invalid={phoneError}
-                        className={cn(INPUT, phoneError ? 'border-status-danger' : 'border-border')}
+                        className={cn(INPUT, phoneError ? 'border-status-danger' : 'border-[#d9dbe0]')}
                         placeholder={t('subscription.common.payer.phonePlaceholder')}
                         value={value.phone}
                         onChange={event => onChange({ ...value, phone: event.target.value })}
