@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-30] - No version updates
+
+### Refactor
+
+- (sync,app-runtime) move the sync manager, plans and background receive into @chatic/sync
+
+### Other
+
+- test: (app-runtime) load the sync data graph without a dynamic import in init.test
+
 ## [2026-10-30] - root@0.136.2, @chatic/desktop-web@0.43.2
 
 ### Bug Fixes
