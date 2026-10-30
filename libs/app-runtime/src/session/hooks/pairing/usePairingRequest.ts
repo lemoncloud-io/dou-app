@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useRuntimeRepositories } from '../../../data/hooks/useRuntimeRepositories';
-import { applySessionToken } from '../../../socket/auth/applySessionToken';
+import { applySessionToken, pairedCloudSessions, pairingClientOf, PairingRequestFlow } from '@chatic/auth';
+import type { PairingRequestState } from '@chatic/auth';
 import { useDynamicDeviceId } from '../app/useDynamicDeviceId';
 import { useSwitchCloudSession } from '../session/actions/useSwitchCloudSession';
-import { pairedCloudSessions } from '../../pairing/pairedCloudSessions';
-import { pairingClientOf } from '../../pairing/pairingClient';
-import { PairingRequestFlow, type PairingRequestState } from '../../pairing/pairingRequestFlow';
 
 export interface PairingRequestOptions {
     /**

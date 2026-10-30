@@ -11,7 +11,7 @@ jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
 jest.mock('../../../data/hooks/useRuntimeRepositories', () => ({
     useRuntimeRepositories: () => ({ pairing: { listPairings, revokePairing } }),
 }));
-jest.mock('../../pairing/pairedSession', () => ({ isPairedSession: () => mockPaired }));
+jest.mock('@chatic/auth/pairing/pairedSession', () => ({ isPairedSession: () => mockPaired }));
 
 const row = (pairingId: string, status = 'approved') => ({
     pairingId,

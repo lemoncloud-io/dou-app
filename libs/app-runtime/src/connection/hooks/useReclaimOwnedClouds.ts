@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react';
 
 import { sessionSignal } from '@chatic/session';
-import { reclaimOwnedClouds } from '../../socket/auth/reclaimOwnedClouds';
+import { reclaimOwnedClouds } from '@chatic/auth';
 
 /**
  * Hands the runtime the clouds this account OWNS, so any of them the device holds as an invitee is
- * re-issued as the owner (`socket/auth/reclaimOwnedClouds`). Ownership is the app's to know — its
+ * re-issued as the owner (`@chatic/auth`'s `socket/reclaimOwnedClouds`). Ownership is the app's to know — its
  * owned catalog — while which identity a cloud's token names is the runtime's.
  *
  * `alsoInvitedCloudIds` are the owned clouds this device has also cached as invited clouds: the ones

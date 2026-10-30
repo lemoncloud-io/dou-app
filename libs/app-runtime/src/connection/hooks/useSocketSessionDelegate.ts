@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 
-// Concrete module import (not the ../socket/auth barrel): connection tests intercept that barrel to
-// stub bootstrap/reauth, and the delegate factory must stay real there.
-import { createSocketSessionDelegate } from '../../socket/auth/sessionDelegate';
-import type { SocketSessionDelegate } from '../../socket/auth';
+// Connection tests mock the bootstrap and re-auth modules by their own paths, so the delegate factory,
+// which lives in a module of its own, stays real there.
+import { createSocketSessionDelegate } from '@chatic/auth';
+import type { SocketSessionDelegate } from '@chatic/auth';
 
 /**
- * React wrapper over createSocketSessionDelegate (socket/auth/sessionDelegate.ts) — see that
+ * React wrapper over createSocketSessionDelegate (`@chatic/auth`'s socket/sessionDelegate.ts) — see that
  * factory for the delegate contract. This lives inside app-runtime — which already depends on
  * web-core — so apps no longer inject a delegate.
  *

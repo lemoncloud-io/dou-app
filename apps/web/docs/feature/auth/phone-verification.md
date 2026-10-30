@@ -235,5 +235,5 @@ the jsdom test setup. Keep it that way when adding an import to either file.
   how a typed number becomes E.164.
 - [README.md](./README.md) — the auth feature overview, and where login returns to.
 - [invite](../invite/README.md) — the issue and accept flows that open these shells.
-- [`libs/app-runtime`](../../../../../libs/app-runtime/docs/auth/README.md) — the controller that
+- [`libs/auth`](../../../../../libs/auth/docs/socket/README.md) — the controller that
   owns the socket handshake `applySessionToken` drives.

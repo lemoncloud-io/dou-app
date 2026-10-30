@@ -9,11 +9,10 @@
 // directly" while `public-surface.test.ts` locked those symbols in as a contract; the rule was prose
 // and the test worked against it.
 //
-// "Internal" now means: NOT on this list. Runtime code reaches those symbols through the session
-// package (`@chatic/session`) or by concrete module path (`../session/auth/relaySession`,
-// `../session/hooks/app/...`) — the convention `connection/hooks/useSocketSessionDelegate.ts`
-// already followed to bypass a barrel. No second barrel and no subpath export for apps: the one
-// deep path the session package allows is for test mocks.
+// "Internal" now means: NOT on this list. Runtime code reaches those symbols through the packages
+// below (`@chatic/session`, `@chatic/auth`) or by concrete module path (`../session/hooks/app/...`).
+// No second barrel and no subpath export for apps: the one deep path those packages allow is for
+// test mocks.
 
 // --- store readers (session state the app reads) ---------------------------------------------------------
 export {
@@ -44,20 +43,20 @@ export type {
 } from '@chatic/session';
 
 // --- auth use-cases (non-React) -----------------------------------------------------------------
-export type { LogoutOptions } from './auth/relaySession';
+export type { LogoutOptions } from '@chatic/auth';
 // The invite login answer `useSwitchCloudSession().switchCloud` can enter a cloud with.
-export type { InviteLoginEntry } from './auth/cloudTokens';
+export type { InviteLoginEntry } from '@chatic/auth';
 // Only these two. The other use-cases reach apps through their hooks (`useLogin` ·
 // `useLoginRelaySocial` · `useSwitchCloudSession` · `useRelaySessionInit`), and Decision 6's rule is
 // "the barrel sells what apps import" — so the raw functions stay internal. OAuth exchange and the
 // logout-callback registry have no hook because their callers are not React (an OAuth redirect
 // page's effect, a log uploader's module init).
-export { createCredentialsByProvider, registerSessionLogoutCallback } from './auth/relaySession';
+export { createCredentialsByProvider, registerSessionLogoutCallback } from '@chatic/auth';
 // Invite login/lookup — ordinary auth actions; the module they live in is what stays off the barrel.
-export { fetchInviteInfoWithCode, registerUserWithInviteCode } from './auth/authActions';
+export { fetchInviteInfoWithCode, registerUserWithInviteCode } from '@chatic/auth';
 // Empties the place selection without a switch — for a cloud whose last place the user just left,
 // where there is nothing to switch to. Not a hook: the caller already decides when, in an effect.
-export { clearSiteSelection } from './auth/clearSiteSelection';
+export { clearSiteSelection } from '@chatic/auth';
 
 // --- React surface --------------------------------------------------------------------------------
 export { SWITCH_CLOUD_MUTATION_KEY, SWITCH_SITE_MUTATION_KEY } from './hooks/mutationKeys';
@@ -96,12 +95,12 @@ export {
     usePairingRequest,
 } from './hooks/pairing';
 export type { PairingAwareLogout, PairingRequestOptions } from './hooks/pairing';
-export { isInOwnCloudSession, isPairedSession } from './pairing/pairedSession';
-export { forgetRefusedPairedCloud, isRefusedForEndedPairing } from './pairing/pairedCloudSessions';
-export { deviceDisplayName, pairingClientOf } from './pairing/pairingClient';
-export { classifyPairingError } from './pairing/pairingErrors';
-export type { PairingApprovalError } from './pairing/pairingErrors';
-export type { PairingRequestState } from './pairing/pairingRequestFlow';
+export { isInOwnCloudSession, isPairedSession } from '@chatic/auth';
+export { forgetRefusedPairedCloud, isRefusedForEndedPairing } from '@chatic/auth';
+export { deviceDisplayName, pairingClientOf } from '@chatic/auth';
+export { classifyPairingError } from '@chatic/auth';
+export type { PairingApprovalError } from '@chatic/auth';
+export type { PairingRequestState } from '@chatic/auth';
 
 // --- session actions · profile (live in other folders but belong to the session group) -----------------------------------------
 // The facade groups by what a CONSUMER is doing, not by which folder the file sits in. These three
@@ -111,14 +110,14 @@ export type { PairingRequestState } from './pairing/pairingRequestFlow';
 
 // verify-hash-alias `$token` → session store commit + same-connection relay socket re-auth. Consumed
 // by the phone-verification flow, which apps/web imports.
-export { applySessionToken } from '../socket/auth/applySessionToken';
-export type { ApplySessionTokenOptions } from '../socket/auth/applySessionToken';
+export { applySessionToken } from '@chatic/auth';
+export type { ApplySessionTokenOptions } from '@chatic/auth';
 // The app-facing relay LOGOUT — the socket half. It notifies the server's socket (`auth.logout`)
 // before the local store teardown, which is why it and not the `session/auth` primitive is the
 // public name (ADR-0076 Decision 7). The cloud half is reached through `useLogoutCloudSession`, so the raw
 // `logoutCloudSession` stays internal (Decision 6); admin-v2's `useRelaySessionGuard` is the one non-React
 // caller of this one.
-export { logoutSession } from '../socket/auth/logoutSession';
+export { logoutSession } from '@chatic/auth';
 // The session user's profile, assembled from the user repository + the live session context.
 export { useRuntimeProfile } from './hooks/session/readers/useRuntimeProfile';
 export type { SessionProfile } from './hooks/session/readers/useRuntimeProfile';

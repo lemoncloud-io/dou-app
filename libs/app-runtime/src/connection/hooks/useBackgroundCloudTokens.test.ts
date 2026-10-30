@@ -5,7 +5,7 @@ import { useBackgroundCloudTokens } from './useBackgroundCloudTokens';
 
 const mockSync = jest.fn();
 const mockDispose = jest.fn();
-jest.mock('../../socket/auth/backgroundCloudTokens', () => ({
+jest.mock('@chatic/auth/socket/backgroundCloudTokens', () => ({
     BackgroundCloudTokens: jest.fn().mockImplementation(() => ({ sync: mockSync, dispose: mockDispose })),
 }));
 const mockSelection = jest.fn((): string[] => ['cloud-a']);
@@ -13,7 +13,7 @@ jest.mock('../utils/backgroundSlots', () => ({
     currentBackgroundSelection: () => mockSelection(),
     liveBackgroundReadiness: {},
 }));
-jest.mock('../../session/auth/cloudTokens', () => ({ issueCloudTokens: jest.fn() }));
+jest.mock('@chatic/auth/session/cloudTokens', () => ({ issueCloudTokens: jest.fn() }));
 let mockSlotListener: (() => void) | null = null;
 const mockUnsubscribeSlots = jest.fn();
 jest.mock('@chatic/transport/socket/runtime', () => ({

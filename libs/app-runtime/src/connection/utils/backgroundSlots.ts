@@ -1,6 +1,6 @@
 import { backgroundClouds, selectBackgroundClouds, usableBackgroundEntryOf, getSocketManager } from '@chatic/transport';
 import type { SocketBindingConfig } from '@chatic/transport';
-import { isBackgroundCloudReady } from '../../socket/auth/backgroundCloudTokens';
+import { isBackgroundCloudReady } from '@chatic/auth';
 // The session package, not the `session` facade group: the committed cloud id and the stores are
 // runtime-internal, and the group publishes to apps.
 import { credentialFreshness, getCommittedCloudId, cloudStore } from '@chatic/session';

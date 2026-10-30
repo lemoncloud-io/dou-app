@@ -76,8 +76,8 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     DS["HttpDataSource × 6<br/>@chatic/data"]:::ext
-    SA["session/auth · report<br/>libs/app-runtime"]:::ext
-    HM["HttpManager · transport.ts<br/>libs/app-runtime"]:::ext
+    SA["@chatic/auth · app-runtime report"]:::ext
+    HM["HttpManager · transport.ts<br/>@chatic/transport"]:::ext
     LWC["@lemoncloud/lemon-web-core"]:::ext
 
     GW["gateways/ × 6<br/><i>path · method · pinned params</i>"]

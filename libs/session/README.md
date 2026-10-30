@@ -7,18 +7,18 @@ was cut out of `@chatic/app-runtime` as the bottom layer of that package (ADR-02
 there reads from it, and it reads nothing there.
 
 Logging in, switching cloud, renewing a credential and ending a session are not here. Those are the
-use cases in `@chatic/app-runtime` — [its session doc](../app-runtime/docs/session/README.md) — and
+use cases in `@chatic/auth` — [its session doc](../auth/docs/session/README.md) — and
 they are the only writers of these stores.
 
 ## Who imports it
 
-`@chatic/app-runtime` and the modules cut from it that sit above this one — `@chatic/transport`
-and `@chatic/sync` today. **Apps do not**: they read the session through
+`@chatic/app-runtime` and the modules cut from it that sit above this one — `@chatic/transport`,
+`@chatic/sync` and `@chatic/auth`. **Apps do not**: they read the session through
 `runtime.session`, which publishes readers and no writers. The barrel sells the raw stores
 (`cloudStore`, `relayStore`, `identityStore`) because the use cases above have to write them; keeping
 apps off this package is what keeps those writers out of reach.
 
-Production code imports the barrel only. A test in app-runtime, transport or sync may name a file —
+Production code imports the barrel only. A test in app-runtime, transport, sync or auth may name a file —
 `jest.mock('@chatic/session/store/stores', …)` — because mocking the barrel would leave this
 package's own internal imports on the real module. The root eslint config closes both forms to
 everything else, and each importing package's own config re-opens the barrel and, in tests only,
@@ -98,7 +98,7 @@ them than the cap ([app-runtime docs/connection/](../app-runtime/docs/connection
 `getReclaimedFor` · `setReclaimedFor` · `clearReclaimedClouds` — map an owned cloud the device also
 cached as invited to the relay user it was last re-issued for, so the owned-cloud reclaim asks
 `delegate-cloud` once per account rather than on every trigger
-([docs/auth/](../app-runtime/docs/auth/README.md#an-owned-cloud-held-as-its-invitee)).
+([auth docs/socket/](../auth/docs/socket/README.md#an-owned-cloud-held-as-its-invitee)).
 
 **Leaving the committed cloud is not the end of the account**, so `clearSession` clears the committed
 session and the selection and keeps the rest: the token cache (the other clouds' background sessions

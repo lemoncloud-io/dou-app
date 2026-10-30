@@ -10,7 +10,7 @@
 > · Amends: [ADR-0169](./0169-an-owned-cloud-is-never-held-as-its-invitee.md) decisions 2 and 3
 > · Second attempt at what [ADR-0207](./0207-an-owned-cloud-is-reclaimed-by-whom-its-token-was-issued-for.md)
 > tried and withdrew
-> · The module docs are [libs/app-runtime auth](../../libs/app-runtime/docs/auth/README.md#an-owned-cloud-held-as-its-invitee)
+> · The module docs are [libs/auth docs/socket](../../libs/auth/docs/socket/README.md#an-owned-cloud-held-as-its-invitee)
 > and [apps/web invite](../../apps/web/docs/feature/invite/README.md#accepting-a-cloud-invite), and for desktop-web
 > [the cloud rail](../../apps/desktop-web/docs/shell/cloud-rail.md#an-owned-cloud-that-a-guest-entered-first)
 

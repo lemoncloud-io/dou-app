@@ -2,10 +2,10 @@ import { StrictMode } from 'react';
 import { render } from '@testing-library/react';
 
 import { SocketBinder } from './SocketBinder';
-import { bootstrapSocketConnection } from '../socket/auth';
+import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
 import type { SlotKey, SocketBindingConfig } from '@chatic/transport/socket/types';
-import type { SocketSessionDelegate } from '../socket/auth';
+import type { SocketSessionDelegate } from '@chatic/auth/socket/types';
 import type { RuntimeSocketSlots } from './types';
 import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
@@ -25,7 +25,7 @@ jest.mock('@chatic/sync/runtime', () => ({
     getSyncManager: jest.fn(),
 }));
 
-jest.mock('../socket/auth', () => ({
+jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({
     bootstrapSocketConnection: jest.fn(),
 }));
 
@@ -34,7 +34,7 @@ jest.mock('@chatic/transport/socket/backgroundClouds', () => ({
     hasLiveJoinedSession: (cid: string) => mockHasLiveJoinedSession(cid),
 }));
 const mockNotifySocketLogout = jest.fn();
-jest.mock('../socket/auth/logoutSession', () => ({
+jest.mock('@chatic/auth/socket/logoutSession', () => ({
     notifySocketLogout: (...args: unknown[]) => mockNotifySocketLogout(...args),
 }));
 

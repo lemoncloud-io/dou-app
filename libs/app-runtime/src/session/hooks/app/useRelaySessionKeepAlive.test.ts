@@ -4,7 +4,7 @@ const mockLoginRelayGuestByDevice = jest.fn();
 const mockUseSessionAuth = jest.fn();
 const mockUseDynamicDeviceId = jest.fn();
 
-jest.mock('../../auth/relaySession', () => ({
+jest.mock('@chatic/auth/session/relaySession', () => ({
     relaySession: { loginGuestByDevice: (...args: unknown[]) => mockLoginRelayGuestByDevice(...args) },
 }));
 

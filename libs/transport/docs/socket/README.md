@@ -34,8 +34,8 @@ socket/                              14 source files, 10 tests
 `export * from './socket/types'`, so a value placed there would land on the barrel every runtime
 module imports. `constants.ts` exists to hold those values instead, and it imports no runtime module.
 
-The authentication wiring on these slots stays in app-runtime's `socket/auth/`
-([docs/auth/](../../../app-runtime/docs/auth/README.md)), and the sync runtimes on them are
+The authentication wiring on these slots is [`@chatic/auth`](../../../auth/docs/socket/README.md)'s,
+and the sync runtimes on them are
 [`@chatic/sync`](../../../sync/README.md)'s.
 
 ## Responsibilities
@@ -46,7 +46,7 @@ active facade; re-binding listeners across a client swap; reporting the active s
 naming the call that produced a failed request.
 
 It does **not** own: token acquisition or renewal, expiry refresh, reconnect re-authentication or the
-`auth.update` handshake — all the SDK's ([docs/auth/](../../../app-runtime/docs/auth/README.md)); 401 detection and retry,
+`auth.update` handshake — all the SDK's ([auth docs/socket/](../../../auth/docs/socket/README.md)); 401 detection and retry,
 which no longer exist anywhere; waiting for a connection before a request; or creating a sync runtime
 ([libs/sync](../../../sync/README.md)).
 
@@ -436,6 +436,6 @@ skips one failed attempt at most, but here it could log the user out over a dead
 ## Further reading
 
 - [docs/connection/](../../../app-runtime/docs/connection/README.md) — the host, the slot derivation and the two binders that drive this manager
-- [docs/auth/](../../../app-runtime/docs/auth/README.md) — what `bootstrapSocketConnection` and `reauthenticateActiveSocket` do on these slots
+- [auth docs/socket/](../../../auth/docs/socket/README.md) — what `bootstrapSocketConnection` and `reauthenticateActiveSocket` do on these slots
 - [libs/sync](../../../sync/README.md) — the per-slot runtimes `subscribeSlotClients` exists for
 - [`libs/data`](../../../data/README.md) — the gateways that bind to the active facade, and the relay-pinned ones

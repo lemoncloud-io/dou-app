@@ -25,7 +25,7 @@ const GROUPS: Record<string, readonly string[]> = {
     // (ADR-0079) — their two consumers read `import.meta.env` directly now, and neither value was a
     // setting.
     boot: ['initAppRuntime', 'isNativeApp', 'setNativeCacheSupport', 'startWebTransportInit', 'webTransport'],
-    // Session state · auth. `applySessionToken`/`logoutSession` live in socket/auth —
+    // Session state · auth. `applySessionToken`/`logoutSession` live in `@chatic/auth`'s socket/ —
     // to a consumer, all three are "session".
     session: [
         'SWITCH_CLOUD_MUTATION_KEY',

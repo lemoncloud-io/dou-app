@@ -8,7 +8,7 @@ import type { PerfTraceBackend } from '@chatic/perf';
 
 const mockSwitchCloudSession = jest.fn();
 
-jest.mock('../../../auth/cloudSession', () => ({
+jest.mock('@chatic/auth/session/cloudSession', () => ({
     cloudSession: { switchTo: (...args: unknown[]) => mockSwitchCloudSession(...args) },
 }));
 
@@ -19,15 +19,15 @@ jest.mock('@chatic/transport/socket/runtime', () => ({
 
 const mockTimeToExpiry = jest.fn((): number | null => 60 * 60_000);
 const mockRenew = jest.fn(async () => true);
-jest.mock('../../../../socket/auth/renewers', () => ({
+jest.mock('@chatic/auth/socket/renewers', () => ({
     credentialRenewers: { forSlot: () => ({ timeToExpiry: () => mockTimeToExpiry(), renew: () => mockRenew() }) },
 }));
 
 const mockReauthenticate = jest.fn(async () => undefined);
-jest.mock('../../../../socket/auth/reauthenticateActiveSocket', () => ({
+jest.mock('@chatic/auth/socket/reauthenticateActiveSocket', () => ({
     reauthenticateActiveSocket: (...args: unknown[]) => mockReauthenticate(...(args as [])),
 }));
-jest.mock('../../../../socket/auth/reauthDelegate', () => ({ createReauthDelegate: () => ({}) }));
+jest.mock('@chatic/auth/socket/reauthDelegate', () => ({ createReauthDelegate: () => ({}) }));
 
 const { useSwitchCloudSession } = require('./useSwitchCloudSession');
 

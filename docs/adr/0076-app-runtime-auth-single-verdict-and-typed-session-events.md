@@ -41,8 +41,8 @@ Answering one question requires reading seven different values from seven differ
 
 The rule for combining these seven is rewritten **in two places** —
 [`useSessionStalenessGuard`](../../libs/app-runtime/src/session/hooks/app/useSessionStalenessGuard.ts) ·
-[`requestRelaySessionRefresh`](../../libs/app-runtime/src/socket/auth/requestRelaySessionRefresh.ts) ·
-[`recoverUnverifiedSockets`](../../libs/app-runtime/src/socket/auth/recoverUnverifiedSockets.ts). Both
+[`requestRelaySessionRefresh`](../../libs/auth/src/socket/requestRelaySessionRefresh.ts) ·
+[`recoverUnverifiedSockets`](../../libs/auth/src/socket/recoverUnverifiedSockets.ts). Both
 ask the same question — "can this slot's socket auth be used right now" — and each justifies itself
 with 20-40 lines of comments that never reference each other. Neither the debug overlay nor the logs
 can reuse this verdict, so reproducing an incident means a human has to line up all seven by hand.
@@ -77,7 +77,7 @@ connection state only, not to auth state.**
 contextStore · 4 in use cases). Subscribers only hear "something changed" and re-derive everything.
 
 The notifications a single cloud switch (at the time, `switchCloudSession` in `services.ts` — now
-[`cloudSession.ts`](../../libs/app-runtime/src/session/auth/cloudSession.ts)) fires on its success
+[`cloudSession.ts`](../../libs/auth/src/session/cloudSession.ts)) fires on its success
 path:
 
 ```
@@ -179,10 +179,10 @@ _"when two barrels emit the same name, the call site has no way to know which on
 the entry point singular is itself the fix for this defect."_ `web-core` is gone. But **the same
 collision is still there, inside the merged package.**
 
-| Name                                   | Weak version (store only)                         | Strong version (socket notification + store)                                                        | What the root barrel exports |
-| -------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `logoutCloudSession`                   | `session/auth/services.ts` (deleted)              | [`socket/auth/logoutCloudSession.ts`](../../libs/app-runtime/src/socket/auth/logoutCloudSession.ts) | **weak version**             |
-| `logoutRelaySession` / `logoutSession` | `session/auth/services.ts` (`logoutRelaySession`) | `socket/auth/logoutSession.ts` (`logoutSession`)                                                    | **weak version**             |
+| Name                                   | Weak version (store only)                         | Strong version (socket notification + store)                                            | What the root barrel exports |
+| -------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------- |
+| `logoutCloudSession`                   | `session/auth/services.ts` (deleted)              | [`socket/auth/logoutCloudSession.ts`](../../libs/auth/src/socket/logoutCloudSession.ts) | **weak version**             |
+| `logoutRelaySession` / `logoutSession` | `session/auth/services.ts` (`logoutRelaySession`) | `socket/auth/logoutSession.ts` (`logoutSession`)                                        | **weak version**             |
 
 The hooks (`useLogoutCloudSession` · `useSessionLogout`) use the strong version, so the screen path
 is fine. But with public-surface.md declaring the strong version "internal", **the root barrel
@@ -265,8 +265,8 @@ export const getAuthStatus = (kind: SocketKind, deps?: AuthSignalDeps): AuthStat
 
 Taking `*Deps` as optional and resolving defaults lazily is the shape already used in the same
 folder by
-[`requestRelaySessionRefresh`](../../libs/app-runtime/src/socket/auth/requestRelaySessionRefresh.ts) ·
-[`recoverUnverifiedSockets`](../../libs/app-runtime/src/socket/auth/recoverUnverifiedSockets.ts).
+[`requestRelaySessionRefresh`](../../libs/auth/src/socket/requestRelaySessionRefresh.ts) ·
+[`recoverUnverifiedSockets`](../../libs/auth/src/socket/recoverUnverifiedSockets.ts).
 This projection also needs to know both the store and the `SocketManager`, so it cannot be assembled
 at module load time — but deferring that to the function argument means no lazy singleton
 (`get*`/`reset*`) is needed. Tests pass `deps` directly.
@@ -381,7 +381,7 @@ Two implementations live here: `RelayCredentialRenewer` and `CloudCredentialRene
 > window, the session survives. The window is a verdict deferral, not a retry loop (no scheduling,
 > no kick), and repeated reports are folded into one verdict by Decision 4's `Coalescer`. The
 > contract is locked by
-> [`renewers.test.ts`](../../libs/app-runtime/src/socket/auth/renewers.test.ts).
+> [`renewers.test.ts`](../../libs/auth/src/socket/renewers.test.ts).
 >
 > **Amended by [ADR-0204](./0204-a-verified-socket-outranks-a-browser-that-says-it-is-offline.md):**
 > for `deriveConnectivity` and the renewal guards, a verified socket on any slot now overrules

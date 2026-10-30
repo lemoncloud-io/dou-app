@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 const mockRegisterUserWithInviteCode = jest.fn();
 const mockUseSessionIdentity = jest.fn();
 
-jest.mock('../../../auth/authActions', () => ({
+jest.mock('@chatic/auth/session/authActions', () => ({
     registerUserWithInviteCode: (...args: unknown[]) => mockRegisterUserWithInviteCode(...args),
 }));
 

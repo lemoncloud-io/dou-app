@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { relaySession } from '../../auth/relaySession';
+import { relaySession } from '@chatic/auth';
 
 /**
  * Creates a guest relay session from a device identifier.

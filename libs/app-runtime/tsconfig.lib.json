@@ -31,9 +31,6 @@
             "path": "../perf/tsconfig.lib.json"
         },
         {
-            "path": "../auth-sign/tsconfig.lib.json"
-        },
-        {
             "path": "../http/tsconfig.lib.json"
         },
         {
@@ -65,6 +62,9 @@
         },
         {
             "path": "../sync/tsconfig.lib.json"
+        },
+        {
+            "path": "../auth/tsconfig.lib.json"
         }
     ]
 }

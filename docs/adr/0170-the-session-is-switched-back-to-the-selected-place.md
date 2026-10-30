@@ -4,7 +4,7 @@
 > · Scope: libs/app-runtime `socket/auth` (`alignSessionSite`, `renewCloudSession`, `sessionDelegate`,
 > `bootstrapSocketConnection`, `switchSite`), `session/store` (`getCommittedSessionSiteId`), apps/web
 > `features/invite` (`PlaceInvitePage`)
-> · The module docs are [app-runtime auth](../../libs/app-runtime/docs/auth/README.md) and
+> · The module docs are [libs/auth docs/socket](../../libs/auth/docs/socket/README.md) and
 > [apps/web invite/place-invite.md](../../apps/web/docs/feature/invite/place-invite.md)
 
 ## Context
