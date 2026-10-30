@@ -2184,6 +2184,7 @@
             "lastActive": "Last active {{time}}",
             "unlink": "Remove",
             "loadFailed": "Couldn't load the list",
+            "noDevices": "No devices connected",
             "approvedHeader": "Approved sign-ins",
             "noApprovals": "No approved sign-ins",
             "approvedAt": "Approved {{time}}",

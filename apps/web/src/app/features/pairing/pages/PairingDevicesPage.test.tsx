@@ -26,7 +26,7 @@ jest.mock('react-router-dom', () => ({ Navigate: ({ to }: { to: string }) => <di
 jest.mock('@chatic/bridges', () => ({ isNative: () => mockNative }));
 jest.mock('@chatic/shared', () => ({ useNavigateWithTransition: () => navigate }));
 jest.mock('@chatic/web-ui-kit', () => ({
-    MenuCard: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+    MenuCard: ({ children }: { children: React.ReactNode }) => <div data-testid="menu-card">{children}</div>,
 }));
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -178,6 +178,15 @@ describe('PairingDevicesPage', () => {
         await waitFor(() =>
             expect(toast).toHaveBeenCalledWith({ title: 'pairing.devices.revokeFailed', variant: 'destructive' })
         );
+    });
+
+    it('says there are no devices and no approvals instead of showing empty cards', () => {
+        devicesQuery = { data: { list: [], at: 0 } };
+        render(<PairingDevicesPage />);
+
+        expect(screen.getByTestId('pairing-devices-empty').textContent).toBe('pairing.devices.noDevices');
+        expect(screen.getByTestId('pairing-approvals-empty').textContent).toBe('pairing.devices.noApprovals');
+        expect(screen.queryByTestId('menu-card')).toBeNull();
     });
 
     it('offers a retry when the list fails', () => {

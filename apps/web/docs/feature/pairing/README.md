@@ -118,14 +118,18 @@ is sent back; everyone else gets the first section, and an approving app the sec
   in a cloud the confirm adds that a web sign-in also has to be removed from the approvals, because the
   pairing would bring it straight back. `closed` only says a close was sent, so the list is re-read
   rather than trusted. A removal that fails — a device or an approval — says so in a toast; it is a
-  security step, and closing the confirm as if it worked would leave the person believing it did. The list is asked for on every open (`devicesKeys`, per cloud), and a server that
-  does not answer `user.list-device` shows an error with a retry — dev's customer clouds do not yet.
+  security step, and closing the confirm as if it worked would leave the person believing it did. The
+  list is asked for on every open (`devicesKeys`, per cloud), and a server that does not answer
+  `user.list-device` shows an error with a retry — dev's customer clouds do not yet. An empty list
+  says "No devices connected" rather than leaving an empty card; a cloud may hold none for this
+  account until one of its devices saves itself there.
 - **Approved sign-ins** — inside the app, on an account that is not a secondary device — the devices
   that can approve. Standing approvals, newest first, each with requester, scope ("my whole account" / "only
   Lemon", the same words the approval used), approval and sign-in times. A relay approval nobody
   claimed is a lost session and is flagged for removal; a cloud approval never carries a session, so it
   never is. Removing one warns per scope: a relay sign-in ends at once, a cloud one cannot come back but
-  an open screen may last until its tokens expire. The header links to the approval screen.
+  an open screen may last until its tokens expire. The header links to the approval screen. With
+  none standing, the section says "No approved sign-ins" in place of the list.
 
 ## Signing out of an approving app
 
