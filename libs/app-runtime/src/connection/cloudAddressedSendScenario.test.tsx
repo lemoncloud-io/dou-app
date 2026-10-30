@@ -22,7 +22,7 @@ import type { SocketSessionDelegate } from '../socket/auth';
 import { resetBackgroundClouds } from '../socket/backgroundClouds';
 import { getSocketManager } from '../socket/runtime';
 import { slotKeyOf } from '../socket/utils/slotKey';
-import { getCommittedCloudId } from '../session/store';
+import { getCommittedCloudId } from '@chatic/session/store';
 import { sendChatInCloud } from '../data/cloudChat';
 import type { RuntimeSocketSlots } from './types';
 
@@ -33,8 +33,8 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('../socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('../socket/sync/runtime', () => ({ getSyncManager: jest.fn() }));
 jest.mock('../socket/auth', () => ({ bootstrapSocketConnection: jest.fn() }));
-jest.mock('../session/store', () => ({ getCommittedCloudId: jest.fn() }));
-jest.mock('../session/store/stores', () => ({
+jest.mock('@chatic/session/store', () => ({ getCommittedCloudId: jest.fn() }));
+jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: {
         getRecentClouds: () => [],
         peekCachedCloudTokens: (cid: string) => ({
@@ -43,7 +43,7 @@ jest.mock('../session/store/stores', () => ({
         }),
     },
 }));
-jest.mock('../session/store/credentialFreshness', () => ({
+jest.mock('@chatic/session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 60 * 60_000 },
 }));
 jest.mock('../data/runtime', () => ({

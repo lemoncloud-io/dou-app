@@ -10,7 +10,7 @@ import type {
 } from '@chatic/data';
 import { isPageHidden, pageHideCount, perfNow } from '@chatic/perf';
 
-import { getUidInCloud } from '../../session/store';
+import { getUidInCloud } from '@chatic/session';
 import { backgroundClouds } from '../../socket/backgroundClouds';
 import { getSocketManager } from '../../socket/runtime';
 import { getSocketErrorCode } from '../../socket/utils/socketErrorCode';

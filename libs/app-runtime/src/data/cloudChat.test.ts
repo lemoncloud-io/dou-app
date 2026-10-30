@@ -20,7 +20,7 @@ jest.mock('../socket/runtime', () => ({
     getSocketManager: () => ({ waitUntilSlotVerified: mockWaitUntilSlotVerified }),
 }));
 
-jest.mock('../session/store/stores', () => ({ cloudStore: { peekCachedCloudTokens: () => null } }));
+jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { peekCachedCloudTokens: () => null } }));
 
 const payload = { channelId: 'ch-1', content: 'hello' };
 

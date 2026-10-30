@@ -91,7 +91,7 @@ observers as-is.** (Numbers 5 and 8 are the same function — `setSelectedCloudI
 `cloudStore.saveSelectedCloudId`. Pure duplication.)
 
 `rebuildSessionIdentity` knows about this problem and has hand-installed an
-[equality gate](../../libs/app-runtime/src/session/store/contextStore.ts). But the other four entry
+[equality gate](../../libs/session/src/store/contextStore.ts). But the other four entry
 points that use the same state (`setSessionAuthenticated` · `clearRelaySession` ·
 `setSessionIdentityState` · `markSessionInitialized`) notify unconditionally. One state, five entry
 points, two notification policies. And `sessionContextStore.setIdentityState` **does not notify at
@@ -304,7 +304,7 @@ wiring the extra subscriptions becomes worth paying.
 
 Payload-less global broadcasts are replaced with typed signals, with a **batch boundary** provided.
 This reuses the vocabulary already used by
-[`session/store/signal.ts`](../../libs/app-runtime/src/session/store/signal.ts) ("session signal"),
+[`session/store/signal.ts`](../../libs/session/src/store/signal.ts) ("session signal"),
 so no new concept term is introduced.
 
 ```ts
@@ -455,7 +455,7 @@ expressed as `backoff: 'exponential'`. Its values (initial 30 seconds · 5-minut
 ### 5. Reorganize `session/auth/services.ts` into classes
 
 The suffix isn't the repo's zero-occurrence `*Service`, but **the bare concept noun**, as
-[`ActiveScope`](../../libs/app-runtime/src/session/scope/ActiveScope.ts) does. `*Manager` isn't used
+[`ActiveScope`](../../libs/session/src/scope/ActiveScope.ts) does. `*Manager` isn't used
 either — ADR-0070 fixed that name to mean "there are four engines", and adding two more would blur
 that boundary.
 
@@ -503,7 +503,7 @@ change.
 
 `patchRelaySessionUser` / `getRelaySessionUser` are kept on the public surface as an exception — they
 are the read/write pair for the account profile, a
-[question the local cache can't answer](../../libs/app-runtime/src/session/store/contextStore.ts),
+[question the local cache can't answer](../../libs/session/src/store/contextStore.ts),
 documented as such, and `apps/web` actually uses them (ADR-0062).
 
 ### 7. Remove the name collision — what is published is the strong version

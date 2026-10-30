@@ -1,6 +1,6 @@
 import { startPerfTrace } from '@chatic/perf';
 import { cloudSession } from '../../session/auth/cloudSession';
-import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
+import { getGlobalSessionContext, getSelectedSiteId } from '@chatic/session';
 
 import { getSocketManager } from '../runtime';
 import { handleRevokedRelaySession, isRevokedSessionError } from './revokedSession';

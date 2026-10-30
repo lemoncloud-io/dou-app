@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { subscribeSessionSignal } from '../../../store';
-import { getGlobalSessionContext } from '../../../store';
+import { subscribeSessionSignal, getGlobalSessionContext } from '@chatic/session';
 
 /**
  * Subscribes to the assembled global session context.

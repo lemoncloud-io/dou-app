@@ -1,8 +1,13 @@
 import { logger } from '@chatic/bridges';
 
-import { cloudStore } from '../store/stores';
-import { getCloudSessionSnapshot, rebuildSessionIdentity, sessionSignal, setSelectedSiteId } from '../store';
-import type { CloudSessionSnapshot } from '../store';
+import {
+    cloudStore,
+    getCloudSessionSnapshot,
+    rebuildSessionIdentity,
+    sessionSignal,
+    setSelectedSiteId,
+} from '@chatic/session';
+import type { CloudSessionSnapshot } from '@chatic/session';
 import { issueCloudTokens, type IssuedCloudTokens } from './cloudTokens';
 import { recordCloudIdentity } from './cloudIdentity';
 

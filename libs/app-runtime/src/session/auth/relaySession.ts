@@ -13,9 +13,16 @@ import {
     startWebTransportInit,
     webTransport,
 } from '../../http/transport';
-import { cloudStore, identityStore, relayStore } from '../store/stores';
+import {
+    cloudStore,
+    identityStore,
+    relayStore,
+    clearRelaySession,
+    sessionSignal,
+    setSessionAuthenticated,
+    setSessionIdentityState,
+} from '@chatic/session';
 import { pairedClouds } from '../pairing/pairedClouds';
-import { clearRelaySession, sessionSignal, setSessionAuthenticated, setSessionIdentityState } from '../store';
 // NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
 // session barrel now publishes only the app surface (ADR-0076 decision 6).
 
@@ -251,7 +258,7 @@ class RelaySession implements IRelaySession {
      * `socket/auth/logoutSession`, which notifies both sockets first and then calls this.
      *
      * Named for what it clears (the whole session, not just relay) and for the redirect, because the
-     * store-level [`clearRelaySession`](../store/contextStore.ts) is a DIFFERENT and much smaller
+     * store-level `clearRelaySession` (`@chatic/session`) is a DIFFERENT and much smaller
      * operation — it drops the relay token and rebuilds identity, nothing else. An earlier pass
      * called this `clearRelaySessionLocal`, one suffix away from that one; a near-collision is the
      * weak form of the very defect decision 7 removed.

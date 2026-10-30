@@ -8,7 +8,7 @@ jest.mock('../../auth/relaySession', () => ({
     relaySession: { initialize: (...args: unknown[]) => mockInitialize(...args) },
 }));
 
-jest.mock('../../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     markSessionInitialized: (...args: unknown[]) => mockMarkSessionInitialized(...args),
 }));
 

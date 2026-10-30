@@ -5,14 +5,14 @@ import { useUidInCloud } from './useUidInCloud';
 
 const mockUids: Record<string, string | null> = {};
 const mockSessionListeners = new Set<() => void>();
-jest.mock('../../../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getUidInCloud: (cid: string) => mockUids[cid] ?? null,
     subscribeSessionSignal: (listener: () => void) => {
         mockSessionListeners.add(listener);
         return () => mockSessionListeners.delete(listener);
     },
 }));
-jest.mock('../../../store/stores', () => ({ cloudStore: { peekCachedCloudTokens: () => null } }));
+jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { peekCachedCloudTokens: () => null } }));
 
 beforeEach(() => {
     resetBackgroundClouds();

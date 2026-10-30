@@ -1,6 +1,6 @@
 import { storage } from '@chatic/shared';
 
-import { type StorageLike } from '../store/jsonSlot';
+import type { StorageLike } from '@chatic/session';
 
 /**
  * The clouds this guest session entered through a pairing — kept under the same storage as the

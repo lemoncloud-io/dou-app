@@ -21,9 +21,9 @@ jest.mock('../../socket/runtime', () => ({
 }));
 
 const mockGetUidInCloud = jest.fn();
-jest.mock('../../session/store', () => ({ getUidInCloud: (cid: string) => mockGetUidInCloud(cid) }));
+jest.mock('@chatic/session/store', () => ({ getUidInCloud: (cid: string) => mockGetUidInCloud(cid) }));
 
-jest.mock('../../session/store/stores', () => ({ cloudStore: { peekCachedCloudTokens: () => null } }));
+jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { peekCachedCloudTokens: () => null } }));
 
 const setVisibility = (state: 'hidden' | 'visible') => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });

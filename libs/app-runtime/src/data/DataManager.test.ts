@@ -35,12 +35,12 @@ jest.mock('../socket/runtime', () => ({
 }));
 
 const mockUids: Record<string, string | null> = {};
-jest.mock('../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: () => 'cloud-a',
     getUidInCloud: (cid: string) => mockUids[cid] ?? null,
 }));
 
-jest.mock('../session/scope', () => ({
+jest.mock('@chatic/session/scope', () => ({
     deriveSelectedContext: () => ({ cid: 'cloud-a', uid: 'uid-a' }),
     ActiveScope: jest.fn().mockImplementation(() => ({ tag: 'active-scope' })),
 }));

@@ -4,7 +4,7 @@ import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost'
 import { getSocketManager } from '../socket/runtime';
 import { bootstrapSocketConnection } from '../socket/auth';
 import { useDynamicDeviceId } from '../session/hooks/app/useDynamicDeviceId';
-import { getSocketSlotContext } from '../session/store';
+import { getSocketSlotContext } from '@chatic/session/store';
 import { useBackgroundReceive } from './hooks/useBackgroundReceive';
 
 // The boot gate now comes from its concrete module (the session barrel stopped selling it), so it
@@ -15,7 +15,7 @@ jest.mock('../session/hooks/app/useRelaySessionInit', () => ({
 
 // Mocked at its concrete path (the host's own import) so the ONE difference between the two hosts is
 // observable as an argument. The real hook ran here before, incidentally — nothing asserted it, and
-// it only reached the store snapshot the `../session/store` mock below already supplies.
+// it only reached the store snapshot the `@chatic/session/store` mock below already supplies.
 const mockKeepAlive = jest.fn();
 jest.mock('../session/hooks/app/useRelaySessionKeepAlive', () => ({
     useRelaySessionKeepAlive: (enabled: boolean) => mockKeepAlive(enabled),
@@ -23,7 +23,7 @@ jest.mock('../session/hooks/app/useRelaySessionKeepAlive', () => ({
 
 // The host derives its own slots now (ADR-0076 G5), so `useRuntimeSocketSlots` runs even when a
 // test passes `slots` explicitly. The device id is one of its two inputs; the other is the narrow
-// session snapshot, overridden on `../session/store` below. Mocked at the hook's CONCRETE path
+// session snapshot, overridden on `@chatic/session/store` below. Mocked at the hook's CONCRETE path
 // because that is what the slots hook imports — the session barrel publishes it outward only.
 jest.mock('../session/hooks/app/useDynamicDeviceId', () => ({
     useDynamicDeviceId: jest.fn(() => ({ deviceId: 'device-1' })),
@@ -60,8 +60,8 @@ jest.mock('./hooks/useBackgroundReceive', () => ({ useBackgroundReceive: jest.fn
 // reaches `useSessionAuth` → `subscribeSessionSignal` + `getSessionAuthSnapshot`, which live here. A
 // narrow mock leaves those undefined and `useSyncExternalStore` fails with "getSnapshot is not a
 // function" — a crash three frames away from the mock that caused it.
-jest.mock('../session/store', () => ({
-    ...jest.requireActual('../session/store'),
+jest.mock('@chatic/session/store', () => ({
+    ...jest.requireActual('@chatic/session/store'),
     getCommittedCloudId: jest.fn().mockReturnValue(null),
     getSocketSlotContext: jest.fn(),
 }));

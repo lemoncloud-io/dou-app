@@ -1,7 +1,7 @@
 # ADR-0253: app-runtime is cut into layered modules, starting with the layers inside it
 
-> Status: Accepted · Decided: 2026-10-30 · Implemented: `refactor/app-runtime-layers` (step 1 of 5)
-> · Scope: `libs/app-runtime/`
+> Status: Accepted · Decided: 2026-10-30 · Implemented: `refactor/app-runtime-layers` (step 1 of 5),
+> `refactor/session-module` (step 2 — `libs/session`) · Scope: `libs/app-runtime/`, `libs/session/`
 
 ## Context
 
@@ -70,3 +70,7 @@ socket manager and the session they sit beside.
   there; one of them, `credentialFreshness`, now sits beside it in `store/`, which holds that decision
   rather than reopening it.
 - Four more changes follow, one per module, each moving its folders, their docs and their tests.
+  Step 2 set the import pattern the others copy: production code takes the new package's barrel
+  only; app-runtime's tests may name one of its files (`@chatic/session/store/stores`), because a
+  mock must replace the file the package's own modules import; and the root eslint config closes the
+  package to apps and every other lib.

@@ -79,6 +79,9 @@
             "path": "./libs/perf"
         },
         {
+            "path": "./libs/session"
+        },
+        {
             "path": "./apps/web-e2e"
         },
         {

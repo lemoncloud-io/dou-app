@@ -16,11 +16,11 @@ let mockReclaimed: Record<string, string> = {};
 jest.mock('./renewCloudSession', () => ({
     renewCloudSession: (...args: unknown[]) => mockRenewCloudSession(...args),
 }));
-jest.mock('../../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: () => mockGetCommittedCloudId(),
     getUidInCloud: (cloudId: string) => mockGetUidInCloud(cloudId),
 }));
-jest.mock('../../session/store/stores', () => ({
+jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: {
         getDelegationToken: () => mockGetDelegationToken(),
         peekCachedCloudTokens: (cloudId: string) => mockPeekCachedCloudTokens(cloudId),

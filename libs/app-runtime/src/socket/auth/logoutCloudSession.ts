@@ -1,5 +1,5 @@
 import { cloudSession } from '../../session/auth/cloudSession';
-import { getCommittedCloudId } from '../../session/store';
+import { getCommittedCloudId } from '@chatic/session';
 import { backgroundClouds, hasLiveJoinedSession } from '../backgroundClouds';
 import { slotKeyOf } from '../utils/slotKey';
 

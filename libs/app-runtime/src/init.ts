@@ -6,7 +6,7 @@ import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { credentialRecovery } from './http/credentialRecovery';
 import { authRepositorySource } from './session/auth/authRepository';
 import { logoutStorageSweeper } from './session/auth/logoutStorageSweep';
-import { configureSessionStore } from './session/store/configure';
+import { configureSessionStore } from '@chatic/session';
 import { credentialRenewers } from './socket/auth/renewers';
 import { syncDataGraph } from './socket/sync/dataGraph';
 

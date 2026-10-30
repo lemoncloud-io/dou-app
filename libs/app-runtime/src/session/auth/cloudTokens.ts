@@ -3,9 +3,7 @@ import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic
 import { logger } from '@chatic/bridges';
 
 import { authRepositorySource } from './authRepository';
-import { cloudStore } from '../store/stores';
-import { msUntilExpiration } from '../store/expiry';
-import { getUidInCloud, rebuildSessionIdentity, sessionSignal } from '../store';
+import { cloudStore, msUntilExpiration, getUidInCloud, rebuildSessionIdentity, sessionSignal } from '@chatic/session';
 import { recordCloudIdentity, uidOfCloudToken } from './cloudIdentity';
 import { RELAY_CLOUD_ID, type IAuthRepository } from '@chatic/data';
 

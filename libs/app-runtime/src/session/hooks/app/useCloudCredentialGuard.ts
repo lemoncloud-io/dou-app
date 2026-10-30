@@ -7,7 +7,7 @@ import { credentialRenewers } from '../../../socket/auth/renewers';
 import { isLinkKnownDown } from '../../../socket/linkState';
 import { getSocketManager } from '../../../socket/runtime';
 import { kindOf, slotKeyOf } from '../../../socket/utils/slotKey';
-import { getCommittedCloudId } from '../../store';
+import { getCommittedCloudId } from '@chatic/session';
 
 /**
  * Keeps every cloud SOCKET session alive — the cloud counterpart of `useSessionStalenessGuard`, and

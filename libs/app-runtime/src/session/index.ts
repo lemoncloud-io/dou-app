@@ -9,10 +9,11 @@
 // directly" while `public-surface.test.ts` locked those symbols in as a contract; the rule was prose
 // and the test worked against it.
 //
-// "Internal" now means: NOT on this list. Runtime code reaches those symbols by concrete module path
-// (`../session/store`, `../session/auth/relaySession`, `../session/hooks/app/...`) — the convention
-// `connection/hooks/useSocketSessionDelegate.ts` already followed to bypass a barrel. No second barrel and
-// no subpath export: no lib in this repo exposes one.
+// "Internal" now means: NOT on this list. Runtime code reaches those symbols through the session
+// package (`@chatic/session`) or by concrete module path (`../session/auth/relaySession`,
+// `../session/hooks/app/...`) — the convention `connection/hooks/useSocketSessionDelegate.ts`
+// already followed to bypass a barrel. No second barrel and no subpath export for apps: the one
+// deep path the session package allows is for test mocks.
 
 // --- store readers (session state the app reads) ---------------------------------------------------------
 export {
@@ -32,7 +33,7 @@ export {
     // the live scope, so while a cloud is active the relay `user` row is out of their reach
     // (apps/web/docs/feature/mypage/README.md). apps/web uses both.
     patchRelaySessionUser,
-} from './store';
+} from '@chatic/session';
 export type {
     ActiveServerContext,
     CloudContext,
@@ -40,7 +41,7 @@ export type {
     GlobalSessionContext,
     IdentityContext,
     RelayContext,
-} from './store';
+} from '@chatic/session';
 
 // --- auth use-cases (non-React) -----------------------------------------------------------------
 export type { LogoutOptions } from './auth/relaySession';
@@ -108,8 +109,8 @@ export type { PairingRequestState } from './pairing/pairingRequestFlow';
 // actions drive a socket, and the profile hook assembles from repositories — so the barrel is where
 // that gap closes instead of making an app know the split.
 
-// verify-hash-alias `$token` → session/store commit + same-connection relay socket re-auth. Consumed
-// by the phone-verification flow (roadmap ADR-0089 Track A contract; Track C imports it via apps/web).
+// verify-hash-alias `$token` → session store commit + same-connection relay socket re-auth. Consumed
+// by the phone-verification flow, which apps/web imports.
 export { applySessionToken } from '../socket/auth/applySessionToken';
 export type { ApplySessionTokenOptions } from '../socket/auth/applySessionToken';
 // The app-facing relay LOGOUT — the socket half. It notifies the server's socket (`auth.logout`)

@@ -2,8 +2,7 @@ import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { cloudSession } from '../../session/auth/cloudSession';
-import { getCommittedCloudId, getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
-import { cloudStore } from '../../session/store/stores';
+import { getCommittedCloudId, getGlobalSessionContext, getSelectedSiteId, cloudStore } from '@chatic/session';
 import { getSocketManager } from '../runtime';
 import { isSiteSwitchInFlight } from './switchSite';
 

@@ -2,7 +2,7 @@ import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';
 
-import { cloudStore } from '../store/stores';
+import { cloudStore } from '@chatic/session';
 
 /**
  * The uid a cloud token identifies — the same derivation `buildIdentityContext` uses for the active

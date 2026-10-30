@@ -3,7 +3,7 @@ import { clearSiteSelection } from './clearSiteSelection';
 const mockSetSelectedSiteId = jest.fn();
 const mockSwitchSite = jest.fn();
 
-jest.mock('../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     setSelectedSiteId: (...args: unknown[]) => mockSetSelectedSiteId(...args),
 }));
 // The switch path, so the test can say it is never taken.

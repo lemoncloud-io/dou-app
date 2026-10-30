@@ -9,7 +9,7 @@ just to render lists. Screen code: `apps/testbed/src/app/pages/ChatHomePage.tsx`
 
 Every list on this screen — clouds, places, channels — is scoped by the current
 `activeServer` (`runtime.session.useGlobalSession()`, type in
-[`../../../../libs/app-runtime/src/session/store/contextStore.ts`](../../../../libs/app-runtime/src/session/store/contextStore.ts)):
+[`libs/session/src/store/contextStore.ts`](../../../../libs/session/src/store/contextStore.ts)):
 
 - `activeServer.kind === 'relay'` → query under the relay context (`cid: 'default'`).
 - `activeServer.kind === 'cloud'` → query under `activeServer.cloudId`.

@@ -2,7 +2,7 @@ import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DataRepositories } from '@chatic/data';
 
-import { getCommittedCloudId, getRecordedCloudIds } from '../session/store';
+import { getCommittedCloudId, getRecordedCloudIds } from '@chatic/session';
 import { getDataManager } from './runtime';
 import { requestSyncCursorReset } from './syncCursorWatermark';
 

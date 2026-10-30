@@ -2,8 +2,7 @@ import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { isExchangeInFlight, isInviteLoginEntry, lastIssuedForOf } from '../../session/auth/cloudTokens';
-import { getCommittedCloudId, getUidInCloud } from '../../session/store';
-import { cloudStore } from '../../session/store/stores';
+import { getCommittedCloudId, getUidInCloud, cloudStore } from '@chatic/session';
 import { renewCloudSession } from './renewCloudSession';
 
 /**

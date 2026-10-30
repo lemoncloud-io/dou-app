@@ -12,7 +12,10 @@ import { join } from 'path';
  * The old device (ESLint no-restricted-imports) relied on path strings and died silently once the
  * symbol moved. An absence check has no such failure mode.
  */
-const SRC = join(__dirname, '..');
+// This package and the session package cut from it. A module that leaves app-runtime takes
+// no exemption with it, so each one extracted is added here.
+const LIBS = join(__dirname, '..', '..', '..');
+const ROOTS = [join(LIBS, 'app-runtime', 'src'), join(LIBS, 'session', 'src')];
 
 const walk = (dir: string): string[] =>
     readdirSync(dir).flatMap(entry => {
@@ -23,14 +26,14 @@ const walk = (dir: string): string[] =>
 
 describe('refresh 부재 게이트', () => {
     it('app-runtime 어디에도 refresh 엔드포인트 경로가 없다', () => {
-        const offenders = walk(SRC)
+        const offenders = ROOTS.flatMap(walk)
             .filter(file => !file.endsWith(__filename.split('/').pop() as string))
             .filter(file => {
                 const content = readFileSync(file, 'utf8');
                 // Only real path strings, not comments — `/refresh` inside a template/string literal.
                 return /["'`][^"'`\n]*\/refresh\b/.test(content);
             })
-            .map(file => file.slice(SRC.length + 1));
+            .map(file => file.slice(LIBS.length + 1));
 
         expect(offenders).toEqual([]);
     });

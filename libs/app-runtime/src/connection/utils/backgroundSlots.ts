@@ -2,10 +2,9 @@ import type { SocketBindingConfig } from '../../socket';
 import { backgroundClouds, selectBackgroundClouds, usableBackgroundEntryOf } from '../../socket/backgroundClouds';
 import { isBackgroundCloudReady } from '../../socket/auth/backgroundCloudTokens';
 import { getSocketManager } from '../../socket/runtime';
-// Concrete paths, off the session barrel: the committed cloud id and the stores are runtime-internal.
-import { credentialFreshness } from '../../session/store/credentialFreshness';
-import { getCommittedCloudId } from '../../session/store';
-import { cloudStore } from '../../session/store/stores';
+// The session package, not the `session` facade group: the committed cloud id and the stores are
+// runtime-internal, and the group publishes to apps.
+import { credentialFreshness, getCommittedCloudId, cloudStore } from '@chatic/session';
 
 /**
  * The live reads behind background slots, shared by the slot derivation and the token preparer so

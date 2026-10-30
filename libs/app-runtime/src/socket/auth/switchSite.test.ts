@@ -1,7 +1,7 @@
 import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 import { isSiteSwitchInFlight, switchSite } from './switchSite';
 import { cloudSession } from '../../session/auth/cloudSession';
-import { getGlobalSessionContext, getSelectedSiteId } from '../../session/store';
+import { getGlobalSessionContext, getSelectedSiteId } from '@chatic/session/store';
 import { getSocketManager } from '../runtime';
 import { handleRevokedRelaySession } from './revokedSession';
 
@@ -10,7 +10,7 @@ import type { PerfTraceBackend } from '@chatic/perf';
 // Mocked at the CONCRETE modules, not the session barrel: these three are runtime-internal and off
 // that barrel now (ADR-0076 Decision 6).
 jest.mock('../../session/auth/cloudSession', () => ({ cloudSession: { applySelectedSite: jest.fn() } }));
-jest.mock('../../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getGlobalSessionContext: jest.fn(),
     getSelectedSiteId: jest.fn(),
 }));

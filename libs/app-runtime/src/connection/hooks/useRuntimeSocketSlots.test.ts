@@ -3,7 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { backgroundClouds } from '../../socket/backgroundClouds';
 import { useRuntimeSocketSlots } from './useRuntimeSocketSlots';
 import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
-import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '../../session/store';
+import { getCommittedCloudId, getSocketSlotContext, sessionSignal } from '@chatic/session/store';
 
 jest.mock('../../session/hooks/app/useDynamicDeviceId', () => ({
     useDynamicDeviceId: jest.fn(),
@@ -19,7 +19,7 @@ jest.mock('../utils/backgroundSlots', () => ({
     readyBackgroundConfigs: (deviceId: string) => mockReadyBackgroundConfigs(deviceId),
 }));
 
-jest.mock('../../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: jest.fn(),
     getSocketSlotContext: jest.fn(),
     sessionSignal: { subscribe: jest.fn(() => () => undefined) },

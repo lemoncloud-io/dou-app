@@ -26,7 +26,7 @@ jest.mock('../../socket/runtime', () => ({
 }));
 // A stable snapshot: `useSyncExternalStore` re-renders forever on a fresh object per read.
 const mockSlotContext = {};
-jest.mock('../../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getSocketSlotContext: () => mockSlotContext,
     sessionSignal: { subscribe: jest.fn(() => () => undefined) },
 }));

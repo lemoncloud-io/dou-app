@@ -22,7 +22,7 @@ relay logout is the superset.
 ([`useLogoutCloudSession.ts`](../../../../libs/app-runtime/src/session/hooks/session/actions/useLogoutCloudSession.ts)).
 Ends only the current cloud session; the relay session is untouched. Internally this clears the
 cloud slot, which flips `cloud.isActive` to `false`; `resolveActiveServerContext`
-([`contextStore.ts`](../../../../libs/app-runtime/src/session/store/contextStore.ts)) reads that flag
+([`contextStore.ts`](../../../../libs/session/src/store/contextStore.ts)) reads that flag
 and switches `activeServer.kind` back to `'relay'` on its own — nothing on this screen has to drive
 that transition explicitly. Chat home reacts to the same signal: it discards the cloud-scoped
 place/channel lists and re-queries under the relay (`default`) context (see

@@ -4,7 +4,7 @@ import { alignSessionSite } from '../../socket/auth/alignSessionSite';
 import { credentialRenewers } from '../../socket/auth/renewers';
 import { reauthenticateActiveSocket } from '../../socket/auth/reauthenticateActiveSocket';
 import { isExchangeInFlight, issueCloudTokens, reissueCloudTokens } from '../auth/cloudTokens';
-import { cloudStore } from '../store/stores';
+import { cloudStore } from '@chatic/session/store/stores';
 import { pairedClouds } from './pairedClouds';
 import {
     PairedCloudSessions,

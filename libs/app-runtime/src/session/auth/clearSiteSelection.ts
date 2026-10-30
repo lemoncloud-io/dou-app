@@ -1,4 +1,4 @@
-import { setSelectedSiteId } from '../store';
+import { setSelectedSiteId } from '@chatic/session';
 
 /**
  * Forgets which place of the active cloud is selected, and does nothing else: no `auth.switch`, no

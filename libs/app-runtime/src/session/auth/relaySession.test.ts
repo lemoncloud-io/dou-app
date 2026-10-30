@@ -79,9 +79,9 @@ jest.mock('../../http/transport', () => ({
 
 // Before the migration, this mock was split across four web-core modules — `./contexts`,
 // `./core`, `./contextStore`, `./utils` — and has now been merged into one; they all sit behind
-// the `session/store` barrel now.
+// the `@chatic/session/store` barrel now.
 
-jest.mock('../store/stores', () => ({
+jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: {
         saveDelegationToken: jest.fn(),
         getDelegationToken: jest.fn(),
@@ -116,7 +116,7 @@ jest.mock('../store/stores', () => ({
     },
 }));
 
-jest.mock('../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCloudSessionSnapshot: (...args: unknown[]) => mockGetCloudSessionSnapshot(...args),
     getActiveServerContext: (...args: unknown[]) => mockGetActiveServerContext(...args),
     setSessionIdentityState: (...args: unknown[]) => mockSetSessionIdentityState(...args),

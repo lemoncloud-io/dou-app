@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 import { backgroundClouds } from '../../../../socket/backgroundClouds';
-import { getUidInCloud, subscribeSessionSignal } from '../../../store';
+import { getUidInCloud, subscribeSessionSignal } from '@chatic/session';
 
 /**
  * Both moments the answer can move: a session change, and a cloud's tokens being issued or dropped —

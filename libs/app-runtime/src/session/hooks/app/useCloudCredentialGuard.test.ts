@@ -12,7 +12,7 @@ const mockGetCommittedCloudId = jest.fn();
 const mockGetSlotKeys = jest.fn();
 const mockIsSlotVerified = jest.fn();
 
-jest.mock('../../store/credentialFreshness', () => ({
+jest.mock('@chatic/session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: (...args: unknown[]) => mockTimeToExpiry(...args) },
 }));
 jest.mock('../../../socket/auth/renewCloudSession', () => ({
@@ -24,13 +24,13 @@ jest.mock('../../../socket/runtime', () => ({
         isSlotVerified: (...args: unknown[]) => mockIsSlotVerified(...args),
     }),
 }));
-jest.mock('../../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: (...args: unknown[]) => mockGetCommittedCloudId(...args),
 }));
 // The renewers reach these at module load; nothing here exercises them.
 jest.mock('../../auth/cloudSession', () => ({ cloudSession: { clearStores: jest.fn() } }));
 jest.mock('../../auth/relaySession', () => ({ relaySession: { clearAndRedirect: jest.fn() } }));
-jest.mock('../../store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
+jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
 jest.mock('@chatic/bridges', () => ({
     logger: {
         debug: jest.fn(),

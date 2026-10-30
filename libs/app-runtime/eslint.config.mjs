@@ -11,43 +11,46 @@ export default [
         rules: {},
     },
     // ---------------------------------------------------------------------------------------------
-    // ADR-0070 결정 1 규칙 1 — 스토어의 수동성.
+    // `@chatic/session` is open to this package, through its barrel.
     //
-    // `session/store/**` stores and notifies. It must not reach sideways into the socket, data or
-    // HTTP layers, nor into its sibling folders (auth · hooks · scope) — the direction runs the other
-    // way, and opening the reverse would make the store a participant in the flows it is supposed to
-    // merely record. `scope` is in the ban list even though the ADR text names only five folders:
-    // scope subscribes to the store, so the reverse edge would be a cycle by the same reasoning.
-    //
-    // `configure.ts` is the one exemption: it is the deliberate env seam that injects the relay
-    // endpoint resolvers, which is what keeps `relayStore` itself free of the dependency.
+    // The root config closes the package to everything else; these two blocks set the same rule again
+    // for this package's files, keeping the root's `@chatic/data/*` ban. Production code takes the
+    // barrel only. Tests may also name a file as `@chatic/session/<path>`, for one reason: a test that
+    // mocks a store file must name that file, or the package's internal imports keep the real one.
     // ---------------------------------------------------------------------------------------------
     {
-        files: ['src/session/store/**/*.ts'],
-        ignores: ['src/session/store/configure.ts'],
+        files: ['src/**/*.ts', 'src/**/*.tsx'],
+        ignores: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.spec.ts', 'src/**/*.spec.tsx'],
         rules: {
-            'no-restricted-imports': [
+            '@typescript-eslint/no-restricted-imports': [
                 'error',
                 {
                     patterns: [
                         {
-                            group: [
-                                '**/socket/**',
-                                '**/data/**',
-                                '**/http/**',
-                                '../auth',
-                                '../auth/*',
-                                '../hooks',
-                                '../hooks/*',
-                                '../scope',
-                                '../scope/*',
-                            ],
-                            message: 'session/store는 수동적이다 — 저장과 통지만 한다 (ADR-0070 결정 1 규칙 1).',
+                            group: ['@chatic/data/*'],
+                            message:
+                                'Import from the `@chatic/data` barrel. Paths inside it are closed — see libs/data/README.md.',
                         },
                         {
-                            group: ['@chatic/config'],
+                            group: ['@chatic/session/*'],
+                            message: 'Import @chatic/session through its barrel. Deep paths are for test mocks only.',
+                        },
+                    ],
+                },
+            ],
+        },
+    },
+    {
+        files: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.spec.ts', 'src/**/*.spec.tsx'],
+        rules: {
+            '@typescript-eslint/no-restricted-imports': [
+                'error',
+                {
+                    patterns: [
+                        {
+                            group: ['@chatic/data/*'],
                             message:
-                                'env·설정 직접 import 금지 — 부팅이 주입한 값을 받아라. 주입 지점은 session/store/configure.ts (ADR-0070 결정 1 규칙 2 · ADR-0079).',
+                                'Import from the `@chatic/data` barrel. Paths inside it are closed — see libs/data/README.md.',
                         },
                     ],
                 },

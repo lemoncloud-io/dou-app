@@ -89,7 +89,7 @@ interface CredentialStalenessPort {
 ```
 
 This is the one question `@chatic/http` cannot answer for itself — the credentials live in
-`session/store`, which `http/**` must not import — and cannot skip either. **Without it a signature
+`@chatic/session`, which `@chatic/http` cannot import — and cannot skip either. **Without it a signature
 rejection is indistinguishable from a network outage**, because the API Gateway 403 that carries it
 has no CORS header and reaches the browser as a bare transport failure with no status at all.
 

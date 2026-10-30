@@ -5,7 +5,7 @@ import { storage } from '@chatic/shared';
  *
  * `uid` is the RELAY account id, never the active slot's — `users/0/reg-dev` registers the token
  * against the account, and a uid that followed the slot into a cloud would turn "once per install"
- * into "once per cloud switch". See `getRelaySessionUser` in `session/store/contextStore.ts`.
+ * into "once per cloud switch". See `getRelaySessionUser` in `@chatic/session` (`store/contextStore.ts`).
  */
 export interface RegistrationIdentity {
     uid: string;

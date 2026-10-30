@@ -1,7 +1,7 @@
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import type { CachedCloudTokens } from '../session/store/cloudStore';
-import { cloudStore } from '../session/store/stores';
+import { cloudStore } from '@chatic/session';
+import type { CachedCloudTokens } from '@chatic/session';
 
 /**
  * Which clouds keep a socket session while the user is not looking at them — the policy half of

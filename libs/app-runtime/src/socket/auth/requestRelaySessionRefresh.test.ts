@@ -10,11 +10,11 @@ jest.mock('@chatic/bridges', () => ({
 // socket, so both have to be seeded here. That is a real input the pre-refactor condition did NOT
 // have — see the commit message; a bound socket with no stored token now reads `absent`, which is
 // the safe direction.
-jest.mock('../../session/store/stores', () => ({
+jest.mock('@chatic/session/store/stores', () => ({
     relayStore: { getIdentityToken: () => 'relay-idt' },
     cloudStore: { getIdentityToken: () => 'cloud-idt' },
 }));
-jest.mock('../../session/store/credentialFreshness', () => ({
+jest.mock('@chatic/session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 30 * 60_000, isStale: () => false },
 }));
 

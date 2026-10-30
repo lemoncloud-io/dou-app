@@ -43,7 +43,7 @@ jest.mock('../../../session/hooks/session/readers/useSessionSelection', () => {
         }),
     };
 });
-jest.mock('../../../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getUidInCloud: (cid: string) => mockUids[cid] ?? null,
     subscribeSessionSignal: (listener: () => void) => {
         sessionListeners.push(listener);
