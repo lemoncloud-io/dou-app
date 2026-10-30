@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - root@0.128.0, @chatic/landing@0.12.0
+
+### Features
+
+- (landing) redesign subscription shells, plans, list and detail to the new specs
+
 ## [2026-10-30] - root@0.127.1, @chatic/web@0.83.1
 
 ### Bug Fixes
