@@ -550,11 +550,17 @@ export const appBridge = {
         return webClient.request({ type: 'CopyToClipboard', data: { text } });
     },
 
-    /** Ask the OS for a permission. Idempotent once granted, and the response carries the status. */
+    /**
+     * Ask the OS for a permission. Idempotent once granted, and the response carries the status.
+     *
+     * 60s, as for contacts: the answer waits on the OS prompt, and the default timeout would drop it for
+     * someone still reading that prompt.
+     */
     requestPermission(
-        permission: Payload<'RequestPermission'>['permission']
+        permission: Payload<'RequestPermission'>['permission'],
+        timeoutMs = 60_000
     ): Promise<WebMessageResponse<'RequestPermission'>> {
-        return webClient.request({ type: 'RequestPermission', data: { permission } });
+        return webClient.request({ type: 'RequestPermission', data: { permission } }, { timeoutMs });
     },
 
     // ---------------------------------------------------------------

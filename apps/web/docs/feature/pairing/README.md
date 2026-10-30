@@ -164,11 +164,13 @@ DoU QR" for two seconds while scanning goes on.
   jsqr 1.4's own `onlyInvert` throws (it never builds the inverted image), so `readQrText` inverts the
   pixels itself.
 - **When the camera cannot be opened.** No `getUserMedia` (`canScanLive()` is false) goes straight to
-  the photo. A refusal of the camera (`getUserMedia`'s `NotAllowedError`) is the person's answer: a
-  note says to allow the camera or type the digits, and no photo camera is put up next. Anything else
-  — no camera, one in use, a stream whose `play()` is refused — falls back to the photo. A refused
-  `play()` is never read as a refusal of the camera: the iOS WebView keeps
-  `mediaPlaybackRequiresUserAction`, an autoplay rule, and by then the camera was already granted.
+  the photo. A refusal of the camera (`getUserMedia`'s `NotAllowedError`) is the person's answer: no
+  photo camera is put up next. Only Settings can undo it, so a prompt offers the way there at once
+  ("Open Settings" → `OpenSettings`), and a note saying to allow the camera or type the digits stays
+  after the prompt is closed. Anything else — no camera, one in use, a stream whose `play()` is
+  refused — falls back to the photo. A refused `play()` is never read as a refusal of the camera: the
+  iOS WebView keeps `mediaPlaybackRequiresUserAction`, an autoplay rule, and by then the camera was
+  already granted.
 - **It lets go of the camera** on a code, on close, on unmount and when the page is hidden (iOS
   suspends the camera in the background, and returning to a frozen picture reads as broken).
 

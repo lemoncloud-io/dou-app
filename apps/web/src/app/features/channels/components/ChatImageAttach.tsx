@@ -46,6 +46,7 @@ import {
     type AttachmentPick,
     type AttachmentPicker,
 } from '../../../bridge/attachmentPicker';
+import { cameraAccess as shellCameraAccess, type CameraAccessGate } from '../../../bridge/cameraAccess';
 import { useAttachPanelSlot } from '../hooks/useAttachPanelSlot';
 import { usePhotoGridColumns } from '../hooks/usePhotoGridColumns';
 import { editsDiffer, usePhotoPicker, type PhotoPicker } from '../hooks/usePhotoPicker';
@@ -123,6 +124,8 @@ interface UseChatImageAttachInput {
     shellPicker?: AttachmentPicker;
     /** Test seam — the clock the tap window is measured with. */
     now?: () => number;
+    /** Test seam — the app's answer about the camera, asked before the camera entry opens it. */
+    cameraAccess?: CameraAccessGate;
 }
 
 interface ChatImageAttach {
@@ -207,8 +210,10 @@ interface ChatImageAttach {
  *   The app's WebView hands a file input to the OS chooser (the profile and channel photo fields
  *   already rely on it) and it returns real bytes, which that older app's own photo bridge does not.
  *
- * The camera entry is a capturing file input in every shell: it opens the camera directly and needs
- * nothing from the app.
+ * The camera entry is a capturing file input in every shell. In a browser it opens the camera straight
+ * from the tap. Inside the app it first asks the app for the camera permission, because Android's
+ * WebView opens nothing at all for that input without it, and says nothing either: a refusal shows the
+ * settings prompt instead, and a grant answered after the tap window asks for another tap.
  *
  * The files entry opens a sheet — choose from the album (photos and videos) or from files
  * (documents). In an app that has the attachment picker both open the OS pickers through the shell,
@@ -228,11 +233,17 @@ export const useChatImageAttach = ({
     picker: injected,
     shellPicker = shellAttachmentPicker,
     now = Date.now,
+    cameraAccess = shellCameraAccess,
 }: UseChatImageAttachInput): ChatImageAttach => {
     const { t } = useTranslation();
     const slot = useAttachPanelSlot({ inputRef, composerRef, onComposerSlide });
     const { hide: hidePanel } = slot;
-    const [permissionOpen, setPermissionOpen] = useState(false);
+    // The settings prompt for a refused permission. Its kind outlives `open`, so the title does not
+    // change under the prompt while it fades out.
+    const [permission, setPermission] = useState<{ open: boolean; kind: 'photos' | 'camera' }>({
+        open: false,
+        kind: 'photos',
+    });
     const [sourceOpen, setSourceOpen] = useState(false);
     // A probe asked and not answered yet. Its answer is what `supported` turns into, but a probe that
     // fails on the way leaves `supported` unknown, and the panel should stop waiting for it all the same.
@@ -251,6 +262,13 @@ export const useChatImageAttach = ({
     const [held, setHeldState] = useState<readonly HeldFile[]>(() => heldIn(scope));
     const heldRef = useRef<readonly HeldFile[]>(held);
     const scopeRef = useRef(scope);
+    const mountedRef = useRef(true);
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
     const setHeld = useCallback((next: readonly HeldFile[]) => {
         heldRef.current = next;
         setHeldState(next);
@@ -489,6 +507,28 @@ export const useChatImageAttach = ({
     };
 
     /**
+     * The camera entry. Inside the app the permission is asked for first (see the hook's description),
+     * until a grant has been seen: from then on the tap opens the camera itself, so only the tap that
+     * raised the OS prompt costs a second one. An answer that lands after the composer left, or moved
+     * to another conversation, is dropped — its prompt or toast would be about a tap on another screen.
+     */
+    const openCamera = () => {
+        hidePanel();
+        if (!isNative() || cameraAccess.isGranted()) {
+            cameraRef.current?.click();
+            return;
+        }
+        const tappedAt = now();
+        const tappedIn = scopeRef.current;
+        void cameraAccess.request().then(access => {
+            if (!mountedRef.current || scopeRef.current !== tappedIn) return;
+            if (access === 'refused') setPermission({ open: true, kind: 'camera' });
+            else if (now() - tappedAt <= INPUT_CLICK_WINDOW_MS) cameraRef.current?.click();
+            else toast({ title: t('chat.attach.tapAgain') });
+        });
+    };
+
+    /**
      * Opens the app's picker for this source, or the page's input when the shell has none. Once the page
      * knows the shell has none it opens the input straight from the tap. What the album gives is sent at
      * once; what the files picker gives waits above the composer.
@@ -534,7 +574,7 @@ export const useChatImageAttach = ({
     // The grid opens over the panel and closes back onto it, on the same pick.
     const openGrid = () => {
         if (picker.access === 'denied') {
-            setPermissionOpen(true);
+            setPermission({ open: true, kind: 'photos' });
             return;
         }
         picker.openGrid();
@@ -874,7 +914,7 @@ export const useChatImageAttach = ({
                 exit={slot.panel.exit}
                 recent={recent}
                 onPhoto={inGrid ? openGrid : pickFrom(libraryRef)}
-                onCamera={pickFrom(cameraRef)}
+                onCamera={openCamera}
                 onFile={openSources}
                 onClose={dismissPanel}
                 labels={{
@@ -922,8 +962,7 @@ export const useChatImageAttach = ({
                     max={photoMax}
                     onCamera={() => {
                         picker.closeGrid();
-                        hidePanel();
-                        cameraRef.current?.click();
+                        openCamera();
                     }}
                     sendLabel={sendLabel}
                     sending={picker.preparing}
@@ -988,14 +1027,18 @@ export const useChatImageAttach = ({
                 onConfirm={discardEdits}
             />
             <AlertDialog
-                open={permissionOpen}
-                onOpenChange={setPermissionOpen}
-                title={t('chat.attach.permission.photosTitle')}
+                open={permission.open}
+                onOpenChange={open => setPermission(current => ({ ...current, open }))}
+                title={t(
+                    permission.kind === 'camera'
+                        ? 'chat.attach.permission.cameraTitle'
+                        : 'chat.attach.permission.photosTitle'
+                )}
                 description={t('chat.attach.permission.description')}
                 cancelLabel={t('chat.attach.permission.cancel')}
                 confirmLabel={t('chat.attach.permission.settings')}
                 onConfirm={() => {
-                    setPermissionOpen(false);
+                    setPermission(current => ({ ...current, open: false }));
                     appBridge.openSettings();
                 }}
             />

@@ -104,7 +104,8 @@ feature itself ([image-send.md](./image-send.md)): the photo grid through `bridg
 (`ListPhotos`, `ReadPhoto`, and `KeepLibraryVideo` for a picked video), the
 app's own picker through `bridge/attachmentPicker.ts` (`PickAttachments`, `PrepareVideo` and
 `ReadAttachment`; an app built before the picker answers `NOT_FOUND`, and the page opens its own file
-input instead), and the uploads through `bridge/shellUpload.ts` (the shell's file-transfer messages).
+input instead), the uploads through `bridge/shellUpload.ts` (the shell's file-transfer messages), and
+the camera entry's permission check through `bridge/cameraAccess.ts` (`RequestPermission`).
 The viewer's save and share download through `bridge/shellDownload.ts`, and show only when the app's
 handshake lists both messages ([image-export.md](./image-export.md)).
 

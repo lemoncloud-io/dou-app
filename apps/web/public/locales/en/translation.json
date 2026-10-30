@@ -2154,6 +2154,11 @@
             "scan": "Scan QR",
             "scanHint": "Hold the QR on the web screen inside the square",
             "scanDenied": "Camera access is off. Allow it in Settings, or type the digits",
+            "cameraRefused": {
+                "title": "No access to the camera",
+                "description": "Allow the camera in Settings to scan QR codes",
+                "settings": "Open Settings"
+            },
             "scanOldApp": "Update the app to scan QR codes. For now, type the digits",
             "scanNotOurs": "This isn't a DoU web sign-in QR",
             "scanNoQr": "Couldn't read a QR code. Try again or type the digits",

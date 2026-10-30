@@ -8,6 +8,9 @@ import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
+import { AlertDialog } from '@chatic/web-ui-kit';
+
+import { appBridge } from '../../../bridge';
 
 import { useCloudSessionCatalog, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
@@ -53,6 +56,7 @@ const PairingApproveScreen = () => {
     const [scanNote, setScanNote] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
     const [liveScan, setLiveScan] = useState(false);
+    const [cameraRefused, setCameraRefused] = useState(false);
 
     const { options, defaultKey } = useMemo(
         () => pairingTargetOptions({ isRelayGuest, clouds, activeCloudId: selectedCloudId }),
@@ -84,9 +88,12 @@ const PairingApproveScreen = () => {
     const onLiveUnavailable = (reason: LiveQrOpenFailure) => {
         setLiveScan(false);
         // A refusal is the person's answer, so the photo camera is not put in front of them next; any
-        // other failure (no stream, a camera in use) still has the photo bridge to try.
-        if (reason === 'denied') setScanNote(t('pairing.approve.scanDenied'));
-        else void scanPhoto();
+        // other failure (no stream, a camera in use) still has the photo bridge to try. Only Settings can
+        // undo a refusal, so the way there is offered at once; the note stays for after it is closed.
+        if (reason === 'denied') {
+            setScanNote(t('pairing.approve.scanDenied'));
+            setCameraRefused(true);
+        } else void scanPhoto();
     };
 
     const scanPhoto = async () => {
@@ -162,6 +169,18 @@ const PairingApproveScreen = () => {
                         onUnavailable={onLiveUnavailable}
                     />
                 )}
+                <AlertDialog
+                    open={cameraRefused}
+                    onOpenChange={setCameraRefused}
+                    title={t('pairing.approve.cameraRefused.title')}
+                    description={t('pairing.approve.cameraRefused.description')}
+                    cancelLabel={t('common.cancel')}
+                    confirmLabel={t('pairing.approve.cameraRefused.settings')}
+                    onConfirm={() => {
+                        setCameraRefused(false);
+                        appBridge.openSettings();
+                    }}
+                />
 
                 {check && (
                     <ConfirmStep
