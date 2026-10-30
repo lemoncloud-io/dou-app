@@ -1,4 +1,4 @@
-import { pairingTargetOptions } from './pairingTargets';
+import { pairingClouds, pairingTargetOptions } from './pairingTargets';
 
 const clouds = [
     { id: '1000002', name: 'Lemon' },
@@ -35,5 +35,24 @@ describe('pairingTargetOptions', () => {
             options: [],
             defaultKey: null,
         });
+    });
+});
+
+describe('pairingClouds', () => {
+    it('lists the owned clouds first, then the invited ones', () => {
+        expect(pairingClouds([{ id: '1000002', name: 'Lemon' }], [{ id: '1000009', name: 'Lime' }])).toEqual([
+            { id: '1000002', name: 'Lemon' },
+            { id: '1000009', name: 'Lime' },
+        ]);
+    });
+
+    it('keeps a cloud that is both owned and invited once, as owned', () => {
+        expect(pairingClouds([{ id: '1000002', name: 'Lemon' }], [{ id: '1000002', name: 'Old name' }])).toEqual([
+            { id: '1000002', name: 'Lemon' },
+        ]);
+    });
+
+    it('offers the invited clouds alone when the catalog has none', () => {
+        expect(pairingClouds([], [{ id: '1000009', name: 'Lime' }])).toEqual([{ id: '1000009', name: 'Lime' }]);
     });
 });
