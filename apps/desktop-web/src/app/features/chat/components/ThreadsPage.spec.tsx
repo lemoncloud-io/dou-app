@@ -38,6 +38,14 @@ const discardMessage = vi.fn();
 vi.mock('../../../shared/hooks/useChatMutations', () => ({
     useChatMutations: () => ({ sendMessage, retryMessage, discardMessage }),
 }));
+const channelMembers = vi.fn((_channelId: string | null, _ownerId?: string) => ({
+    members: [{ id: 'ada', name: 'Ada', isOwner: false }],
+    isLoading: false,
+}));
+vi.mock('../../channels', async importOriginal => ({
+    ...(await importOriginal<object>()),
+    useChannelMembers: (channelId: string | null, ownerId?: string) => channelMembers(channelId, ownerId),
+}));
 const composerKeys: string[] = [];
 // The editor is Lexical in its own chunk; a stand-in that sends what was typed is enough here.
 vi.mock('./LazyComposer', () => ({
@@ -45,20 +53,33 @@ vi.mock('./LazyComposer', () => ({
         onSend,
         placeholder,
         channelId,
+        mentionables,
     }: {
-        onSend: (content: string, files: File[]) => void;
+        onSend: (content: string, files: File[], mention?: { userIds?: string[] }) => void;
         placeholder: string;
         channelId: string;
+        mentionables?: { id: string; name: string }[];
     }) => (
-        <button
-            type="button"
-            ref={node => {
-                if (node) composerKeys.push(channelId);
-            }}
-            onClick={() => onSend('my inline reply', [])}
-        >
-            {`send: ${placeholder}`}
-        </button>
+        <>
+            <button
+                type="button"
+                ref={node => {
+                    if (node) composerKeys.push(channelId);
+                }}
+                onClick={() => onSend('my inline reply', [])}
+            >
+                {`send: ${placeholder}`}
+            </button>
+            {mentionables?.map(person => (
+                <button
+                    key={person.id}
+                    type="button"
+                    onClick={() => onSend(`@${person.name} look`, [], { userIds: [person.id] })}
+                >
+                    {`send with @${person.name}`}
+                </button>
+            ))}
+        </>
     ),
 }));
 
@@ -367,6 +388,7 @@ describe('ThreadsPage inline reply', () => {
         retryMessage.mockReset().mockResolvedValue({});
         discardMessage.mockReset().mockResolvedValue(undefined);
         composerKeys.length = 0;
+        channelMembers.mockClear();
     });
 
     it('opens an inline reply box only on demand, and sends to the thread with its full root id', async () => {
@@ -401,6 +423,46 @@ describe('ThreadsPage inline reply', () => {
         const listed = useMyThreadsStore.getState().threads[myThreadKey('K1', 'C1', '5')];
         expect(listed.seenReplyNo).toBe(listed.lastReplyNo);
         expect(listed.lastReplyPreview).toBe('my inline reply');
+    });
+
+    it('offers the room members as @ suggestions in an inline reply', async () => {
+        seed(thread('5', { lastReplyNo: 12, seenReplyNo: 10 }));
+        cacheReadList.mockResolvedValue({ list: [chat(5)] });
+        renderWithChannel();
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 5')).toBeTruthy());
+
+        fireEvent.click(within(card).getByRole('button', { name: /^reply$/i }));
+        // A public room always offers the everyone row; the member's own row is what shows the roster arrived.
+        expect(within(card).getByText('send with @Ada')).toBeTruthy();
+        // The card's own room, not whichever room the sidebar has selected.
+        expect(channelMembers).toHaveBeenCalledWith('C1', C1.ownerId);
+    });
+
+    it('sends the picked mention with an inline reply, and none without a pick', async () => {
+        seed(thread('5', { lastReplyNo: 12, seenReplyNo: 10 }));
+        cacheReadList.mockResolvedValue({ list: [chat(5)] });
+        renderWithChannel();
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 5')).toBeTruthy());
+
+        fireEvent.click(within(card).getByRole('button', { name: /^reply$/i }));
+        fireEvent.click(within(card).getByText('send with @Ada'));
+        expect(sendMessage).toHaveBeenLastCalledWith('K1', {
+            channelId: 'C1',
+            content: '@Ada look',
+            parentId: 'C1:5',
+            mention: { userIds: ['ada'] },
+        });
+
+        fireEvent.click(within(card).getByText('send: Reply in thread'));
+        expect(sendMessage).toHaveBeenLastCalledWith('K1', {
+            channelId: 'C1',
+            content: 'my inline reply',
+            parentId: 'C1:5',
+        });
+        // No `mention` key at all without a pick, not even an undefined one.
+        expect(sendMessage.mock.lastCall?.[1]).not.toHaveProperty('mention');
     });
 
     it('shows an inline reply that failed with the room row retry and delete', async () => {
