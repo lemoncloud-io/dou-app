@@ -100,14 +100,27 @@ server's.
 2. **Who asks.** A large card: the requester's name, phone or browser by `client.platform`, the time
    left, and "approve only if this is the browser you just opened". A developer tool (`purpose:
 'debug'`) adds a warning and a checkbox, and approval stays off until it is ticked.
-3. **What it may use.** "My whole account" (relay), then each cloud the account can switch to: the
-   owned clouds from the relay catalog, then the invited ones, which live only in this device's cloud
-   cache (`useInvitedClouds`) because the catalog lists owned clouds alone. The relay checks a cloud
-   approval the way it checks the approver's own switch, so an invited cloud the app can enter can be
-   approved too. The active slot starts selected, an invited cloud included. With nothing to offer
-   the screen says so and shows no approve button. The button repeats the scope ("Approve only
-   Lemon"), the same words the device management screen and the sign-out confirm use later — all
-   three name a cloud through `useCloudName` (below).
+3. **What it may use.** Two sections, one per kind of approval, each headed by what that kind gives
+   the browser:
+    - **Sign in as my account** — "My whole account" (relay): DoU Home, the clouds the account
+      created, and the account settings. The invited clouds are **not** part of it — the relay's
+      answer is the account's session, and an invited cloud's membership belongs to the device user
+      that accepted the invite, which the account session does not carry. When the account holds an
+      invited cloud, the option says so and points at the section below.
+    - **Use one cloud only** — each cloud the account can switch to, marked "Cloud" and, under its
+      name, whether the account created it or was invited to it. The owned clouds come from the relay
+      catalog, then the invited ones, which live only in this device's cloud cache
+      (`useInvitedClouds`) because the catalog lists owned clouds alone. The relay checks a cloud
+      approval the way it checks the approver's own switch, so an invited cloud the app can enter can
+      be approved too. The browser stays a relay guest with no account settings, and more clouds are
+      added one approval at a time from its "Add a cloud with another device".
+
+    One approval carries one target, so a single radio group spans both sections. The active slot
+    starts selected, an invited cloud included. With nothing to offer the screen says so and shows no
+    approve button. The button repeats the scope ("Approve only the Lemon cloud"), the same words the
+    device management screen and the sign-out confirm use later — all three name a cloud through
+    `useCloudName` (below).
+
 4. **The answer.** Approve or decline, a toast, and back. Errors come from
    `runtime.session.classifyPairingError` (404 not found, `400 … pairing expired`, 403 on the code or on
    the target, 409 already handled), each with its own sentence.

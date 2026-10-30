@@ -1,5 +1,5 @@
 import { Camera, Globe, Loader2, Smartphone } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 
@@ -62,7 +62,7 @@ const PairingApproveScreen = () => {
     const cloudName = useCloudName();
     // Named the way the devices screen and the sign-out confirm name them, so the scope reads the same.
     const clouds = pairingClouds(ownedClouds, invitedClouds).map(cloud => ({
-        id: cloud.id,
+        ...cloud,
         name: cloudName(cloud.id),
     }));
     const { selectedCloudId } = runtime.session.useSessionSelection();
@@ -233,6 +233,10 @@ const ConfirmStep = ({
     const isPhone = check.client.platform === 'ios' || check.client.platform === 'android';
     const isDebug = check.purpose === 'debug';
     const choice = options.find(option => option.key === selected) ?? null;
+    const relayOptions = options.filter(option => option.target.type === 'relay');
+    const cloudOptions = options.filter(option => option.target.type === 'cloud');
+    // A relay approval carries the owned clouds and not the invited ones, so say so where it matters.
+    const hasInvited = cloudOptions.some(option => option.cloudKind === 'invited');
 
     return (
         <div className="flex flex-col gap-5" data-testid="pairing-approve-confirm">
@@ -273,30 +277,51 @@ const ConfirmStep = ({
                     {t('pairing.approve.noTarget')}
                 </p>
             ) : (
-                <div className="flex flex-col gap-2" role="radiogroup">
-                    {options.map(option => (
-                        <label
-                            key={option.key}
-                            className={cn(
-                                'flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3',
-                                selected === option.key ? 'border-primary' : 'border-input-border'
-                            )}
+                <div className="flex flex-col gap-6" role="radiogroup">
+                    {relayOptions.length > 0 && (
+                        <TargetSection
+                            id="pairing-section-account"
+                            title={t('pairing.scope.accountSection')}
+                            hint={t('pairing.scope.accountSectionHint')}
                         >
-                            <input
-                                type="radio"
-                                name="pairing-target"
-                                checked={selected === option.key}
-                                onChange={() => setSelected(option.key)}
-                                data-testid={`pairing-target-${option.key}`}
-                                className="mt-1"
-                            />
-                            <span className="text-[14px] leading-[1.5] text-foreground">
-                                {option.target.type === 'relay'
-                                    ? t('pairing.scope.relayOption')
-                                    : t('pairing.scope.cloudOption', { cloud: option.cloudName })}
-                            </span>
-                        </label>
-                    ))}
+                            {relayOptions.map(option => (
+                                <TargetOption
+                                    key={option.key}
+                                    option={option}
+                                    selected={selected === option.key}
+                                    onSelect={setSelected}
+                                    title={t('pairing.scope.relayTitle')}
+                                    description={t('pairing.scope.relayDescription')}
+                                    note={hasInvited ? t('pairing.scope.relayInvitedNote') : undefined}
+                                />
+                            ))}
+                        </TargetSection>
+                    )}
+                    {cloudOptions.length > 0 && (
+                        <TargetSection
+                            id="pairing-section-cloud"
+                            title={t('pairing.scope.cloudSection')}
+                            hint={t('pairing.scope.cloudSectionHint')}
+                        >
+                            {cloudOptions.map(option => (
+                                <TargetOption
+                                    key={option.key}
+                                    option={option}
+                                    selected={selected === option.key}
+                                    onSelect={setSelected}
+                                    title={option.cloudName ?? option.key}
+                                    badge={t('pairing.scope.cloudBadge')}
+                                    description={
+                                        option.cloudKind === 'invited'
+                                            ? t('pairing.scope.cloudInvited')
+                                            : option.cloudKind === 'owned'
+                                              ? t('pairing.scope.cloudOwned')
+                                              : undefined
+                                    }
+                                />
+                            ))}
+                        </TargetSection>
+                    )}
                 </div>
             )}
 
@@ -330,3 +355,74 @@ const ConfirmStep = ({
         </div>
     );
 };
+
+/** One kind of approval: a heading, what that kind means, and its options. */
+const TargetSection = ({
+    id,
+    title,
+    hint,
+    children,
+}: {
+    id: string;
+    title: string;
+    hint: string;
+    children: ReactNode;
+}) => (
+    <section className="flex flex-col gap-2" role="group" aria-labelledby={id} data-testid={id}>
+        <h2 id={id} className="text-[15px] font-semibold text-foreground">
+            {title}
+        </h2>
+        <p className="text-[13px] leading-[1.5] text-description">{hint}</p>
+        <div className="mt-1 flex flex-col gap-2">{children}</div>
+    </section>
+);
+
+const TargetOption = ({
+    option,
+    selected,
+    onSelect,
+    title,
+    badge,
+    description,
+    note,
+}: {
+    option: PairingTargetOption;
+    selected: boolean;
+    onSelect: (key: string) => void;
+    title: string;
+    badge?: string;
+    description?: string;
+    note?: string;
+}) => (
+    <label
+        className={cn(
+            'flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3',
+            selected ? 'border-primary' : 'border-input-border'
+        )}
+    >
+        <input
+            type="radio"
+            name="pairing-target"
+            checked={selected}
+            onChange={() => onSelect(option.key)}
+            data-testid={`pairing-target-${option.key}`}
+            className="mt-1"
+        />
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-[15px] font-medium text-foreground">{title}</span>
+                {badge && (
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium leading-none text-muted-foreground">
+                        {badge}
+                    </span>
+                )}
+            </span>
+            {description && <span className="text-[13px] leading-[1.5] text-description">{description}</span>}
+            {note && (
+                <span className="text-[13px] leading-[1.5] text-foreground" data-testid="pairing-target-note">
+                    {note}
+                </span>
+            )}
+        </span>
+    </label>
+);
