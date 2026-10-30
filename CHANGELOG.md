@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - No version updates
+
+### Refactor
+
+- (transport,app-runtime) move the socket manager and http into @chatic/transport
+
 ## [2026-10-30] - root@0.132.0, @chatic/landing@0.14.0
 
 ### Features
