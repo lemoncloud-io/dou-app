@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 
-import { markSessionInitialized } from '../../store';
+import { markSessionInitialized } from '@chatic/session';
 import { relaySession } from '../../auth/relaySession';
 import { useSessionAuth } from '../session/readers/useSessionAuth';
 

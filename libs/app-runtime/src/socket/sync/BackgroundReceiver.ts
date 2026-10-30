@@ -1,7 +1,7 @@
 import { logger } from '@chatic/bridges';
 
 import { syncDataGraph } from './dataGraph';
-import { getUidInCloud } from '../../session/store';
+import { getUidInCloud } from '@chatic/session';
 import { unrefTimer } from '../../utils/unrefTimer';
 import type { ISocketManager, SlotKey } from '../types';
 import { emitBackgroundDelta } from './backgroundDeltas';

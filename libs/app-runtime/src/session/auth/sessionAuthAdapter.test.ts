@@ -53,7 +53,7 @@ jest.mock('../../http/transport', () => ({
 
 // Before the migration this mock was split across four web-core modules — `./contexts` · `./core` ·
 // `./contextStore` · `./utils`. It's merged into one now that everything sits behind the
-// `session/store` barrel.
+// `@chatic/session/store` barrel.
 // `signServerAuth` now calls `@chatic/auth-sign` directly instead of web-core's `calcSignature`
 // shim. The mock keeps the old assertion shape — (payload, current, userAgent) — so the kind-specific
 // authId contract stays pinned by the same two cases.
@@ -68,7 +68,7 @@ jest.mock('@chatic/auth-sign', () => ({
     },
 }));
 
-jest.mock('../store/stores', () => ({
+jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: {
         saveDelegationToken: jest.fn(),
         getDelegationToken: (...args: unknown[]) => mockGetDelegationToken(...args),
@@ -102,7 +102,7 @@ jest.mock('../store/stores', () => ({
     },
 }));
 
-jest.mock('../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCloudSessionSnapshot: jest.fn(),
     getActiveServerContext: (...args: unknown[]) => mockGetActiveServerContext(...args),
     setSessionIdentityState: jest.fn(),

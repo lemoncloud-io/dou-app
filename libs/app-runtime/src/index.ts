@@ -24,7 +24,7 @@
 // per-symbol list of its own and no bare `export *`.
 //
 // **What "internal" means.** NOT in a group barrel. Runtime code reaches those symbols by concrete
-// module path (`./session/store`, `./socket/auth/switchSite`, `./connection/hooks/useRuntimeSocketSlots`),
+// module path (`./socket/auth/switchSite`, `./connection/hooks/useRuntimeSocketSlots`),
 // which is both the pre-existing convention and what keeps the group barrels cycle-free: a barrel
 // publishes outward, and nothing inside the package imports one.
 //

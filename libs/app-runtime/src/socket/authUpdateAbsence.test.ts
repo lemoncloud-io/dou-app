@@ -19,7 +19,10 @@ import { join } from 'path';
  * packet itself. So this check only needs to catch code that constructs the string `'auth.update'`
  * (the packet name).
  */
-const SRC = join(__dirname, '..');
+// This package and the session package cut from it. A module that leaves app-runtime takes
+// no exemption with it, so each one extracted is added here.
+const LIBS = join(__dirname, '..', '..', '..');
+const ROOTS = [join(LIBS, 'app-runtime', 'src'), join(LIBS, 'session', 'src')];
 
 const SELF = __filename.split('/').pop() as string;
 
@@ -42,7 +45,7 @@ const stripComments = (source: string): string =>
 
 describe('auth.update 부재 게이트', () => {
     it('app-runtime 어디에도 auth.update 패킷을 짓는 코드가 없다', () => {
-        const offenders = walk(SRC)
+        const offenders = ROOTS.flatMap(walk)
             .filter(file => !file.endsWith(SELF))
             .filter(file => {
                 const code = stripComments(readFileSync(file, 'utf8'));
@@ -50,7 +53,7 @@ describe('auth.update 부재 게이트', () => {
                 // excluded because it's an acknowledgement message name (a subscription isn't a send).
                 return /["'`]auth\.update(?!:)["'`]/.test(code);
             })
-            .map(file => file.slice(SRC.length + 1));
+            .map(file => file.slice(LIBS.length + 1));
 
         expect(offenders).toEqual([]);
     });

@@ -8,7 +8,7 @@ let mockCommitListeners: Array<{ kinds: readonly string[]; listener: () => void 
 jest.mock('../../socket/auth/reclaimOwnedClouds', () => ({
     reclaimOwnedClouds: (...args: unknown[]) => mockReclaimOwnedClouds(...args),
 }));
-jest.mock('../../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     sessionSignal: {
         subscribe: (kinds: readonly string[], listener: () => void) => {
             const entry = { kinds, listener };

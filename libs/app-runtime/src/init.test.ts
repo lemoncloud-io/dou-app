@@ -10,6 +10,8 @@
  * Every case reloads the modules: the resolvers and the boot flag are module state, so a case that
  * inherited a previous one's would be testing the wrong tree.
  */
+import type * as Session from '@chatic/session';
+
 // The spy is held OUTSIDE the factory (hence the `mock` prefix jest requires) so it survives
 // `resetModules`: the factory re-runs per reload, and a reference captured from the module would
 // point at the previous run's object.
@@ -22,8 +24,10 @@ jest.mock('@chatic/bridges', () => ({
 const load = async () => {
     jest.resetModules();
     const init = await import('./init');
-    // Reached through the store barrel, the way a consumer reads it — not the raw store file.
-    const store = await import('./session/store');
+    // Reached through the package barrel, the way a consumer reads it — not the raw store file. Not a
+    // dynamic `import()`: Nx reads one as a lazy-loaded dependency and then rejects every static import
+    // of the package. After `resetModules` this loads the same fresh copy `./init` just did.
+    const store = jest.requireActual<typeof Session>('@chatic/session');
     return { ...init, ...store };
 };
 

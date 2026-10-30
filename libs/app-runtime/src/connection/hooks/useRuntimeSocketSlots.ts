@@ -7,7 +7,7 @@ import { backgroundClouds } from '../../socket/backgroundClouds';
 import { useDynamicDeviceId } from '../../session/hooks/app/useDynamicDeviceId';
 // Off the session barrel (ADR-0076 Decision 6): the committed cloud id and the narrowed slot snapshot
 // are runtime-internal.
-import { getCommittedCloudId, getSocketSlotContext } from '../../session/store';
+import { getCommittedCloudId, getSocketSlotContext } from '@chatic/session';
 
 import type { RuntimeSocketSlots } from '../types';
 import { readyBackgroundConfigs } from '../utils/backgroundSlots';

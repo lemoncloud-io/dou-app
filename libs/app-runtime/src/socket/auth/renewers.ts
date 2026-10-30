@@ -3,11 +3,9 @@ import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { Coalescer } from '../../utils/coalescer';
-import { credentialFreshness } from '../../session/store/credentialFreshness';
+import { credentialFreshness, cloudStore, getCommittedCloudId } from '@chatic/session';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { relaySession } from '../../session/auth/relaySession';
-import { cloudStore } from '../../session/store/stores';
-import { getCommittedCloudId } from '../../session/store';
 import type { SlotKey } from '../types';
 import { backgroundClouds } from '../backgroundClouds';
 import { readBrowserOnline } from '../linkState';

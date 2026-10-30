@@ -1,7 +1,6 @@
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import { relayStore } from '../store/stores';
-import { getCommittedCloudId, getRelaySessionUser } from '../store';
+import { relayStore, getCommittedCloudId, getRelaySessionUser } from '@chatic/session';
 import { pairedClouds } from './pairedClouds';
 
 /** The relay session is a guest's (or there is none). */

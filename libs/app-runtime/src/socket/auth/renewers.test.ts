@@ -2,8 +2,8 @@ import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { RelayCredentialRenewer, credentialRenewers } from './renewers';
 import { cloudSession } from '../../session/auth/cloudSession';
-import { cloudStore } from '../../session/store/stores';
-import { getCommittedCloudId } from '../../session/store';
+import { cloudStore } from '@chatic/session/store/stores';
+import { getCommittedCloudId } from '@chatic/session/store';
 import { backgroundClouds } from '../backgroundClouds';
 import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
 
@@ -14,12 +14,12 @@ jest.mock('@chatic/bridges', () => ({
 // Module-load stubs only: the relay policy under test takes every collaborator it actually consults
 // through `RelayExpiryDeps`, so these keep the import graph light without steering a case.
 jest.mock('../../session/auth/cloudSession', () => ({ cloudSession: { clearStores: jest.fn() } }));
-jest.mock('../../session/store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
-jest.mock('../../session/store', () => ({ getCommittedCloudId: jest.fn() }));
+jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { dropCachedCloudTokens: jest.fn() } }));
+jest.mock('@chatic/session/store', () => ({ getCommittedCloudId: jest.fn() }));
 jest.mock('../../session/auth/relaySession', () => ({
     relaySession: { clearAndRedirect: jest.fn().mockResolvedValue(undefined) },
 }));
-jest.mock('../../session/store/credentialFreshness', () => ({ credentialFreshness: { timeToExpiry: jest.fn() } }));
+jest.mock('@chatic/session/store/credentialFreshness', () => ({ credentialFreshness: { timeToExpiry: jest.fn() } }));
 jest.mock('../backgroundClouds', () => ({ backgroundClouds: { noteExpired: jest.fn() } }));
 jest.mock('./authStatus', () => ({ getAuthStatus: jest.fn() }));
 jest.mock('./renewCloudSession', () => ({ renewCloudSession: jest.fn() }));

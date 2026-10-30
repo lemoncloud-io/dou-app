@@ -38,7 +38,7 @@ jest.mock('./authRepository', () => ({
     },
 }));
 
-jest.mock('../store/stores', () => ({
+jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: {
         getDelegationToken: (...args: unknown[]) => mockGetDelegationToken(...args),
         saveDelegationToken: (...args: unknown[]) => mockSaveDelegationToken(...args),
@@ -53,7 +53,7 @@ jest.mock('../store/stores', () => ({
     },
 }));
 
-jest.mock('../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     rebuildSessionIdentity: (...args: unknown[]) => mockRebuildSessionIdentity(...args),
     getUidInCloud: (...args: unknown[]) => mockGetUidInCloud(...args),
     // The store announces KINDS now (ADR-0076 decision 2). `mockNotifySessionStateChanged` stands for

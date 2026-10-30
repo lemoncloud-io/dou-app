@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { sessionSignal } from '../../session/store';
+import { sessionSignal } from '@chatic/session';
 import { reclaimOwnedClouds } from '../../socket/auth/reclaimOwnedClouds';
 
 /**

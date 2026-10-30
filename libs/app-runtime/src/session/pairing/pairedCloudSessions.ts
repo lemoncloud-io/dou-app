@@ -7,7 +7,7 @@ import { createReauthDelegate } from '../../socket/auth/reauthDelegate';
 import { getSocketManager } from '../../socket/runtime';
 import { slotKeyOf } from '../../socket/utils/slotKey';
 import { isExchangeInFlight, issueCloudTokens, reissueCloudTokens } from '../auth/cloudTokens';
-import { cloudStore } from '../store/stores';
+import { cloudStore } from '@chatic/session';
 import { pairedClouds } from './pairedClouds';
 import { pairingErrorReason, pairingErrorStatus } from './pairingRequestFlow';
 

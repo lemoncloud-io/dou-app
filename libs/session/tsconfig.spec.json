@@ -1,0 +1,23 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // Its own subdirectory, for the reason libs/app-runtime/tsconfig.spec.json gives: spec projects
+        // sharing one `dist/out-tsc` root overwrite each other's declaration output and build info.
+        "outDir": "../../dist/out-tsc/session-spec",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    // The same sibling projects tsconfig.lib.json references. A composite project has to reach its
+    // dependencies through references, or their sources come in as unlisted files (TS6307).
+    "references": [
+        {
+            "path": "../shared/tsconfig.lib.json"
+        },
+        {
+            "path": "../config/tsconfig.lib.json"
+        },
+        {
+            "path": "../data/tsconfig.lib.json"
+        }
+    ]
+}

@@ -50,7 +50,7 @@ re-fires whenever the cache changes, from either a local refresh or a sync push.
 
 **Scope pinning.** Re-emit routing keys on `{cid, uid}` (the same partition as cache storage; place
 and channel exclude `sid` from the key). `ActiveScope` derives this on every read from the session
-store (`libs/app-runtime/src/session/scope/ActiveScope.ts`) — there is no ancestor binder pushing it
+store (`libs/session/src/scope/ActiveScope.ts`) — there is no ancestor binder pushing it
 into a context on a delay, so there is no window where a descendant subscribes under a stale scope.
 The list hooks (`useActiveCloudPlaces`, and its siblings for channels) still pass an explicit
 `{ cid, uid }` override to `observeList` rather than relying on the ambient provider, because

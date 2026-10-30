@@ -1,6 +1,6 @@
 import { setStorageAdapter } from '@chatic/shared';
 
-import { cloudStore, relayStore } from '../store/stores';
+import { cloudStore, relayStore } from '@chatic/session/store/stores';
 import { pairedClouds } from './pairedClouds';
 import { isInOwnCloudSession, isPairedSession } from './pairedSession';
 

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { subscribeSessionSignal } from '../../store';
+import { subscribeSessionSignal } from '@chatic/session';
 import { pairedClouds } from '../../pairing/pairedClouds';
 import { isPairedSession } from '../../pairing/pairedSession';
 

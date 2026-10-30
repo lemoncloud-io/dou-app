@@ -16,7 +16,7 @@ import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { DataManager } from '../../data/DataManager';
-import { getGlobalSessionContext, getUidInCloud } from '../../session/store';
+import { getGlobalSessionContext, getUidInCloud } from '@chatic/session/store';
 import { SocketManager } from '../SocketManager';
 import { getSocketManager } from '../runtime';
 import { syncDataGraph } from './dataGraph';
@@ -43,8 +43,8 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('../runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('./dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
 jest.mock('../../data/factories/httpFactory', () => ({ createHttpDataSources: () => ({ httpDataSources: {} }) }));
-jest.mock('../../session/store', () => ({
-    ...jest.requireActual('../../session/store'),
+jest.mock('@chatic/session/store', () => ({
+    ...jest.requireActual('@chatic/session/store'),
     getGlobalSessionContext: jest.fn(),
     getUidInCloud: jest.fn(),
     getCommittedCloudId: jest.fn(),

@@ -1,6 +1,6 @@
 import { logoutCloudSession } from './logoutCloudSession';
 import { cloudSession } from '../../session/auth/cloudSession';
-import { getCommittedCloudId } from '../../session/store';
+import { getCommittedCloudId } from '@chatic/session/store';
 import { backgroundClouds, resetBackgroundClouds } from '../backgroundClouds';
 import { getSocketManager } from '../runtime';
 import { RELAY_SLOT } from '../utils/slotKey';
@@ -13,7 +13,7 @@ jest.mock('../../session/auth/cloudSession', () => ({
     cloudSession: { clearStores: jest.fn() },
 }));
 
-jest.mock('../../session/store', () => ({
+jest.mock('@chatic/session/store', () => ({
     getCommittedCloudId: jest.fn(),
 }));
 
@@ -23,7 +23,7 @@ const mockPeekCached = jest.fn((_cid: string): unknown => ({
     delegationToken: { wss: 'wss://cloud' },
     cloudToken: { Token: { identityToken: 'token' } },
 }));
-jest.mock('../../session/store/stores', () => ({
+jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: {
         getRecentClouds: () => mockRecentClouds(),
         peekCachedCloudTokens: (cid: string) => mockPeekCached(cid),

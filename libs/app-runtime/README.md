@@ -34,7 +34,7 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 
 ## Design principles
 
-1. **Session state has one home and one writer, and that writer is passive.** `session/store/**` stores and announces; it knows nothing about sockets, data, HTTP or its own sibling folders. The rule is not a convention — [`eslint.config.mjs`](./eslint.config.mjs) bans those imports inside `store/**`, with exactly one exempt file.
+1. **Session state has one home and one writer, and that writer is passive.** The store lives in [`@chatic/session`](../session/README.md), the package below this one; it stores and announces and knows nothing about sockets, data, HTTP or the use cases here. The package graph refuses the reverse edge, and that package's eslint config bans the rest inside `store/**`, with exactly one exempt file.
 2. **Every engine has one creation point.** `getSocketManager()` · `getSyncManager()` · `getHttpManager()` · `getDataRuntime()`. A second `new` for any of them is a bug, and the sync manager deliberately gets its own file so `socket/` never imports `socket/sync/`.
 3. **Nothing here calls a refresh endpoint, and nothing here builds an `auth.update` packet.** The SDK's auth controller owns both. Two tests walk the source tree and fail on the string: [`http/refreshAbsence.test.ts`](./src/http/refreshAbsence.test.ts) and [`socket/authUpdateAbsence.test.ts`](./src/socket/authUpdateAbsence.test.ts). Path-based lint was tried first and died silently when the symbols moved.
 4. **Every server call is a repository call.** Gateway instances are known only inside `data/` and `http/`; even the login and token-exchange use cases in `session/auth/` go through `AuthRepository` (ADR-0036). There is no direct-gateway escape hatch.
@@ -49,15 +49,15 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 
 ## Scope
 
-**In** — the session store and its signal, the login/logout/switch use cases, the scope owner, the
-React session surface, the socket manager and its slots (relay, the committed cloud, and a background slot per other
+**In** — the login/logout/switch use cases and device pairing, the React session surface, the socket manager and its slots (relay, the committed cloud, and a background slot per other
 joined cloud), socket authentication wiring and
 credential renewal, the sync manager and the app's sync plans, the receive loops that keep the clouds off screen
 current, the HTTP manager and its route
 endpoints, the repository graph and cache-storage routing, the offline chat outbox, device-token
 registration, the user issue report and the log-batch upload, and the boot call that wires them.
 
-**Out** — the socket transport and its `AuthController`
+**Out** — the session's state: the three stores, their signal, the derived contexts and the scope
+([`libs/session`](../session/README.md)); the socket transport and its `AuthController`
 (`@lemoncloud/chatic-sockets-lib`); repositories, data sources and mappers
 ([`libs/data`](../data/README.md)); the HTTP executor, retry and error classification
 ([`libs/http`](../http/README.md)); IndexedDB and native SQLite adapters
@@ -80,8 +80,8 @@ flowchart TD
 
     Hooks["session/hooks<br/><i>readers · actions · guards</i>"]:::sess
     Auth["session/auth · socket/auth<br/><i>login · sign · renew · expiry</i>"]:::sess
-    Store["session/store<br/><i>relay · cloud · identity · signal</i>"]:::sess
-    Scope["session/scope<br/><i>ActiveScope — selected · bound · committed</i>"]:::sess
+    Store["@chatic/session · store<br/><i>relay · cloud · identity · signal</i>"]:::sess
+    Scope["@chatic/session · scope<br/><i>ActiveScope — selected · bound · committed</i>"]:::sess
 
     SM["SocketManager<br/><i>relay + cloud slots</i>"]:::eng
     SyncM["SyncManager<br/><i>slot runtimes · target registry</i>"]:::eng
@@ -120,7 +120,7 @@ Three rules the arrows cannot draw. **The store is a leaf** — every arrow touc
 **The status path only reads** — `deriveAuthStatus` and `ActiveScope` observe the store and the
 socket and write to neither. And **`http/` reaches no further than the store**:
 [`http/factory.ts`](./src/http/factory.ts) is the only file under `http/` that imports the session,
-and it imports `session/store` alone, which is what lets `session/auth` and `data/` both depend on
+and it imports `@chatic/session` alone, which is what lets `session/auth` and `data/` both depend on
 HTTP without closing a cycle.
 
 ### Layers
@@ -128,14 +128,16 @@ HTTP without closing a cycle.
 Every folder belongs to one layer, and a layer imports only the layers below it. The layers are the
 packages this one is being cut into — `session`, `transport`, `sync` and `auth` move out one at a time,
 and what stays here is the app layer — so the line is held here first, and each later extraction is
-then a move rather than a redesign.
+then a move rather than a redesign. The session layer has already moved:
+[`@chatic/session`](../session/README.md) is a package of its own, and every layer in this package may
+import it.
 
 | Layer       | Folders                                                                                             | May import              |
 | ----------- | --------------------------------------------------------------------------------------------------- | ----------------------- |
-| `session`   | `session/store`, `session/scope`, `utils`                                                           | nothing in this package |
-| `transport` | the files directly in `socket/`, `socket/utils`, `http`                                             | `session`               |
-| `sync`      | `socket/sync` (not its `hooks/`)                                                                    | `session`, `transport`  |
-| `auth`      | `session/auth`, `session/pairing`, `socket/auth`                                                    | `session`, `transport`  |
+| `base`      | `utils` — helpers that import nothing here; they leave with the first module that needs them        | nothing in this package |
+| `transport` | the files directly in `socket/`, `socket/utils`, `http`                                             | `base`                  |
+| `sync`      | `socket/sync` (not its `hooks/`)                                                                    | `base`, `transport`     |
+| `auth`      | `session/auth`, `session/pairing`, `socket/auth`                                                    | `base`, `transport`     |
 | `app`       | `data`, `connection`, every `hooks/`, `push`, `report`, `config`, the group barrels, the root files | every layer             |
 
 `sync` and `auth` sit side by side and never import each other. A type-only import counts as an
@@ -160,7 +162,7 @@ sequenceDiagram
     participant B as SocketBinder
     participant M as SocketManager
     participant A as client.auth (SDK)
-    participant S as session/store
+    participant S as @chatic/session
 
     App->>App: config.init() · logging wiring
     App->>App: initAppRuntime({ data })
@@ -193,7 +195,7 @@ libs/app-runtime/src/
 ├── init.ts           initAppRuntime — seven boot steps, in order
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       19 files — the host, SocketBinder, SocketReauthBinder, 11 hooks, 3 utils
-├── session/          68 files — store (13) · auth (11) · scope (3) · pairing (6) · hooks (34)
+├── session/          52 files — auth (11) · pairing (6) · hooks (34); the store and scope are @chatic/session
 ├── socket/           47 files — SocketManager and its slot core (10) + utils (5) + auth wiring (20) + sync (12)
 ├── http/             6 files — HttpManager, transport, gateways, 2 late-bound registries
 ├── data/             24 files — DataManager, 4 factories (one is the state outbox's transport), cache routing, cloud-addressed sends, the chat outbox, the cache-clear sweep and its cursor watermark, 5 hooks
@@ -203,7 +205,7 @@ libs/app-runtime/src/
 └── utils/            4 files — Coalescer · Throttle · unrefTimer · isNativeApp
 ```
 
-181 source files, 129 test files, 16,761 lines of non-test code.
+165 source files, 121 test files, about 15,300 lines of non-test code.
 
 Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
 `ScopedSocketClient` all live in [`socket/types.ts`](./src/socket/types.ts) — there is no

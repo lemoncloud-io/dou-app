@@ -60,9 +60,9 @@ jest.mock('./authRepository', () => ({
 
 // Before the migration, this mock was split across four web-core modules — `./contexts`,
 // `./core`, `./contextStore`, `./utils` — and has now been merged into one; they all sit behind
-// the `session/store` barrel now.
+// the `@chatic/session/store` barrel now.
 
-jest.mock('../store/stores', () => ({
+jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: {
         saveDelegationToken: (...args: unknown[]) => mockSaveDelegationToken(...args),
         getDelegationToken: jest.fn(),
@@ -96,7 +96,7 @@ jest.mock('../store/stores', () => ({
     },
 }));
 
-jest.mock('../store', () => ({
+jest.mock('@chatic/session/store', () => ({
     // The exchange notes which relay user it was asked as; nothing here reads it back.
     getUidInCloud: () => null,
     getCloudSessionSnapshot: (...args: unknown[]) => mockGetCloudSessionSnapshot(...args),
@@ -304,7 +304,7 @@ describe('session/auth/cloudSession', () => {
 
     it('replaces, not merges, the token of the cloud already entered when issued tokens name another user', async () => {
         mockGetSelectedCloudId.mockReturnValue('cloud-1');
-        const { cloudStore } = jest.requireMock('../store/stores') as {
+        const { cloudStore } = jest.requireMock('@chatic/session/store/stores') as {
             cloudStore: { getCloudToken: jest.Mock };
         };
         cloudStore.getCloudToken.mockReturnValue({ id: 'empty-user', nick: 'Empty', Token: { identityToken: 'old' } });

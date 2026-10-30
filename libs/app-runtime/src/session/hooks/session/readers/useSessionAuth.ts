@@ -1,6 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { subscribeSessionSignal } from '../../../store';
-import { getSessionAuthSnapshot } from '../../../store';
+import { subscribeSessionSignal, getSessionAuthSnapshot } from '@chatic/session';
 
 /**
  * Subscribes to the runtime authentication snapshot of the current session.

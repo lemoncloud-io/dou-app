@@ -8,8 +8,7 @@ import type {
 } from '@chatic/data';
 import { createRepositories } from '@chatic/data';
 
-import { ActiveScope, deriveSelectedContext } from '../session/scope';
-import { getCommittedCloudId, getUidInCloud } from '../session/store';
+import { ActiveScope, deriveSelectedContext, getCommittedCloudId, getUidInCloud } from '@chatic/session';
 import { createHttpDataSources } from './factories/httpFactory';
 import { createLocalDataSources } from './factories/localFactory';
 import { createRuntimeOutbox } from './factories/outboxFactory';

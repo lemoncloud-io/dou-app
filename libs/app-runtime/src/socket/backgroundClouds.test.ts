@@ -7,7 +7,7 @@ import {
 } from './backgroundClouds';
 
 const mockPeekCached = jest.fn((_cid: string): unknown => null);
-jest.mock('../session/store/stores', () => ({
+jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: { peekCachedCloudTokens: (cid: string) => mockPeekCached(cid) },
 }));
 

@@ -4,8 +4,7 @@ import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { webTransport } from '../../http/transport';
-import { cloudStore, relayStore } from '../store/stores';
-import { rebuildSessionIdentity } from '../store';
+import { cloudStore, relayStore, rebuildSessionIdentity } from '@chatic/session';
 import { recordCloudIdentity } from './cloudIdentity';
 import { calcSignature } from './utils/calcSignature';
 import { mergeRefreshedCloudToken, mergeRefreshedRelayToken } from './utils/tokenMerge';
