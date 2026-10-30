@@ -299,6 +299,7 @@ export const ko: EnTranslation = {
     'dm.you': '나',
     'chat.save': '저장한 항목에 추가',
     'chat.unsave': '저장한 항목에서 제거',
+    'chat.savedTag': '저장됨',
     'placeWelcome.title': '{{place}}에 오신 것을 환영해요',
     'placeWelcome.subtitle': '아직 참여한 채널과 대화가 없어요.\n아래 단계를 따라 첫 대화를 시작해 보세요.',
     'placeWelcome.steps': '시작하기',

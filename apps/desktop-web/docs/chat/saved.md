@@ -4,6 +4,14 @@ Save for later, in a message's "More" menu, keeps that message on this device. T
 bookmark model, so nothing follows the account to another device, and the page says so. The items
 live in `useSavedItemsStore` (`shared/stores/`), persisted to localStorage.
 
+## The tag
+
+A saved message carries a red **Saved** tag above its content wherever a message row draws it: the
+channel feed, the thread panel and the Threads page cards. It sits above the content rather than in
+the left gutter, because the gutter already holds the avatar on a block's first message and the hover
+time on the rest. `MessageRow` reads the flag from `useSavedItemsStore` per message, and a surface
+that only lists saved messages passes `hideSavedMark` to leave it out.
+
 ## What an item keeps
 
 An item is a snapshot taken when the message is saved, not a pointer to it: the source row can page out

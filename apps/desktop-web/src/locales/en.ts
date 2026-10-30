@@ -290,6 +290,7 @@ export const en = {
     'dm.you': 'You',
     'chat.save': 'Save for later',
     'chat.unsave': 'Remove from saved',
+    'chat.savedTag': 'Saved',
     'placeWelcome.title': 'Welcome to {{place}}',
     'placeWelcome.subtitle':
         "You haven't joined a channel or started a conversation yet.\nFollow the steps below to start your first one.",
