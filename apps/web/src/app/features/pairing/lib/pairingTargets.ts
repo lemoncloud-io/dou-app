@@ -1,6 +1,9 @@
 import type { PairingTarget } from '@chatic/http';
 
-type PairingCloud = { id?: string; name?: string };
+/** `owned` comes from the relay catalog, `invited` from this device's cloud cache. */
+export type PairingCloudKind = 'owned' | 'invited';
+
+type PairingCloud = { id?: string; name?: string; kind?: PairingCloudKind };
 
 /**
  * Every cloud the account can switch to: the relay catalog's (owned) first, then the invited ones.
@@ -9,14 +12,18 @@ type PairingCloud = { id?: string; name?: string };
  * a screen reading the catalog by itself leaves out every cloud the account was invited to. The relay
  * delegates an approval into an invited cloud the same way it delegates the approver's own switch,
  * so both lists are offered. A cloud in both is kept once, as owned — `useInvitedClouds` already
- * hides those, so this only guards against a duplicate option should that ever change.
+ * hides those, so this only guards against a duplicate option should that ever change. Each cloud
+ * keeps which list it came from, because a relay approval carries the owned ones and not the invited.
  */
 export const pairingClouds = (
     owned: ReadonlyArray<PairingCloud>,
     invited: ReadonlyArray<PairingCloud>
 ): PairingCloud[] => {
     const ownedIds = new Set(owned.map(cloud => cloud.id));
-    return [...owned, ...invited.filter(cloud => !ownedIds.has(cloud.id))];
+    return [
+        ...owned.map(cloud => ({ ...cloud, kind: 'owned' as const })),
+        ...invited.filter(cloud => !ownedIds.has(cloud.id)).map(cloud => ({ ...cloud, kind: 'invited' as const })),
+    ];
 };
 
 export interface PairingTargetOption {
@@ -25,6 +32,8 @@ export interface PairingTargetOption {
     target: PairingTarget;
     /** The cloud's name, for a cloud option. */
     cloudName?: string;
+    /** Where a cloud option came from, when known. */
+    cloudKind?: PairingCloudKind;
 }
 
 /**
@@ -47,6 +56,7 @@ export const pairingTargetOptions = (input: {
             key: cloud.id,
             target: { type: 'cloud', cloudId: cloud.id },
             cloudName: cloud.name || cloud.id,
+            ...(cloud.kind && { cloudKind: cloud.kind }),
         });
     }
     const active = input.activeCloudId && options.find(option => option.key === input.activeCloudId);

@@ -2140,12 +2140,20 @@
             "doneSecondaryBody": "이 기기는 승인한 기기에 연결된 보조 기기예요. 그 기기에서 로그아웃하면 이 기기도 함께 로그아웃돼요"
         },
         "scope": {
-            "relayOption": "내 계정 전체 — 이 브라우저에서 내 모든 클라우드와 계정 설정을 쓸 수 있어요",
-            "cloudOption": "{{cloud}}만 — 이 브라우저는 {{cloud}}만 쓸 수 있어요",
+            "accountSection": "계정으로 로그인",
+            "accountSectionHint": "이 브라우저가 내 계정으로 로그인해요. 휴대폰에서 쓰는 것처럼 계정 설정까지 쓸 수 있어요",
+            "relayTitle": "내 계정 전체",
+            "relayDescription": "DoU 홈, 내가 만든 클라우드, 계정 설정을 이 브라우저에서 모두 쓸 수 있어요",
+            "relayInvitedNote": "초대받은 클라우드는 포함되지 않아요. 초대받은 클라우드를 쓰려면 아래에서 그 클라우드를 골라 승인하세요",
+            "cloudSection": "클라우드 하나만 쓰기",
+            "cloudSectionHint": "이 브라우저는 고른 클라우드 하나에만 내 계정으로 들어가요. 계정 설정은 쓸 수 없고, 다른 클라우드는 웹 홈의 ‘다른 기기로 클라우드 추가’로 하나씩 더 승인할 수 있어요",
+            "cloudBadge": "클라우드",
+            "cloudOwned": "내가 만든 클라우드",
+            "cloudInvited": "초대받은 클라우드",
             "relayApprove": "내 계정 전체 승인",
-            "cloudApprove": "{{cloud}}만 승인",
+            "cloudApprove": "{{cloud}} 클라우드만 승인",
             "relayLabel": "내 계정 전체",
-            "cloudLabel": "{{cloud}}만"
+            "cloudLabel": "{{cloud}} 클라우드만"
         },
         "approve": {
             "title": "웹 로그인 승인",

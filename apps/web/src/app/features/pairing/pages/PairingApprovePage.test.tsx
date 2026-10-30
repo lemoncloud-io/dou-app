@@ -251,6 +251,34 @@ describe('PairingApprovePage', () => {
         expect(approval.approve).toHaveBeenCalledWith({ type: 'cloud', cloudId: '1000009' });
     });
 
+    it('splits the account from the clouds, and marks each cloud as a cloud, owned or invited', () => {
+        approval.state = { step: 'confirm', check: CHECK };
+        mockClouds = [{ id: '1000002', name: 'Lemon' }];
+        mockInvited = [{ id: '1000009', name: 'Lime' }];
+        render(<PairingApprovePage />);
+
+        const account = screen.getByTestId('pairing-section-account');
+        const cloud = screen.getByTestId('pairing-section-cloud');
+        expect(account.contains(screen.getByTestId('pairing-target-relay'))).toBe(true);
+        expect(cloud.contains(screen.getByTestId('pairing-target-1000002'))).toBe(true);
+        expect(cloud.contains(screen.getByTestId('pairing-target-1000009'))).toBe(true);
+
+        const lemon = screen.getByTestId('pairing-target-1000002').closest('label');
+        const lime = screen.getByTestId('pairing-target-1000009').closest('label');
+        expect(lemon?.textContent).toBe('Lemonpairing.scope.cloudBadgepairing.scope.cloudOwned');
+        expect(lime?.textContent).toBe('Limepairing.scope.cloudBadgepairing.scope.cloudInvited');
+        // The account option says invited clouds are not part of it, since there is one to name.
+        expect(account.textContent).toContain('pairing.scope.relayInvitedNote');
+    });
+
+    it('drops the invited-cloud note when the account has no invited cloud', () => {
+        approval.state = { step: 'confirm', check: CHECK };
+        mockClouds = [{ id: '1000002', name: 'Lemon' }];
+        render(<PairingApprovePage />);
+
+        expect(screen.queryByTestId('pairing-target-note')).toBeNull();
+    });
+
     it('keeps approval off for a developer tool until it is confirmed', () => {
         approval.state = { step: 'confirm', check: { ...CHECK, purpose: 'debug' } };
         render(<PairingApprovePage />);

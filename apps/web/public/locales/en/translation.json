@@ -2140,12 +2140,20 @@
             "doneSecondaryBody": "This device is a secondary device of the one that approved it. Signing out there signs this device out too"
         },
         "scope": {
-            "relayOption": "My whole account — this browser can use all my clouds and account settings",
-            "cloudOption": "Only {{cloud}} — this browser can use {{cloud}} only",
+            "accountSection": "Sign in as my account",
+            "accountSectionHint": "This browser signs in to your account, with your account settings, as on your phone",
+            "relayTitle": "My whole account",
+            "relayDescription": "This browser can use DoU Home, the clouds you created and your account settings",
+            "relayInvitedNote": "Clouds you were invited to aren't included. To use one, pick it below and approve it",
+            "cloudSection": "Use one cloud only",
+            "cloudSectionHint": "This browser enters only the cloud you pick, as you. Account settings stay off, and more clouds can be approved one at a time from \"Add a cloud with another device\" on the web home",
+            "cloudBadge": "Cloud",
+            "cloudOwned": "A cloud you created",
+            "cloudInvited": "A cloud you were invited to",
             "relayApprove": "Approve my whole account",
-            "cloudApprove": "Approve only {{cloud}}",
+            "cloudApprove": "Approve only the {{cloud}} cloud",
             "relayLabel": "My whole account",
-            "cloudLabel": "Only {{cloud}}"
+            "cloudLabel": "Only the {{cloud}} cloud"
         },
         "approve": {
             "title": "Approve web sign-in",
