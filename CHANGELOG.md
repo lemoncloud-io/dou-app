@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - root@0.136.1, @chatic/desktop-web@0.43.1
+
+### Bug Fixes
+
+- (desktop-web) show my place photo on the rail avatar at sign-in
+
 ## [2026-10-30] - root@0.136.0, @chatic/desktop-web@0.43.0
 
 ### Features
