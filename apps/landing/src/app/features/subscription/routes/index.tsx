@@ -1,5 +1,5 @@
 import { Fragment, type JSX, useEffect, useRef, useState } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -22,6 +22,7 @@ import { BillingHistoryPage, BillingInfoPage, PaymentMethodsPage } from '../page
 import {
     ChangePlanPage,
     CheckoutCompletePage,
+    DowngradeScheduled,
     CheckoutEmailPage,
     CheckoutPage,
     CheckoutPaymentPage,
@@ -116,6 +117,24 @@ export const SubscriptionRoutes = ({
     );
 };
 
+/**
+ * The end of a checkout sits in two frames: a downgrade scheduled is an account page — the plan is
+ * still in force, and the sidebar is where the reader goes next — while a purchase or an upgrade
+ * finishes in the purchase flow's own frame.
+ */
+const CheckoutCompleteRoute = (): JSX.Element => {
+    const [params] = useSearchParams();
+    return params.get('change') === 'downgrade' ? (
+        <AccountShell>
+            <DowngradeScheduled />
+        </AccountShell>
+    ) : (
+        <PublicShell>
+            <CheckoutCompletePage />
+        </PublicShell>
+    );
+};
+
 /** Where the account surface is shut: the plans, mounted at `/subscription/plans`, and nothing else. */
 const CatalogRoutes = (): JSX.Element => (
     <Routes>
@@ -152,11 +171,11 @@ const AccountRoutes = ({ mock }: { mock: boolean }): JSX.Element => {
                     <Route path="checkout" element={<CheckoutPage />} />
                     <Route path="checkout/payment" element={<CheckoutPaymentPage />} />
                     <Route path="checkout/status" element={<CheckoutStatusPage />} />
-                    <Route path="checkout/complete" element={<CheckoutCompletePage />} />
                     <Route path="change" element={<ChangePlanPage />} />
                 </Route>
             </Route>
             <Route element={<RequireSession />}>
+                <Route path="checkout/complete" element={<CheckoutCompleteRoute />} />
                 <Route element={<AccountShell />}>
                     <Route index element={<SubscriptionListPage />} />
                     {screens.cards ? (

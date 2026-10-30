@@ -40,7 +40,8 @@ jest.mock('@chatic/app-runtime', () => ({
 jest.mock('../../../hooks', () => ({
     useDevicePairingEnabled: () => mockEnabled,
     useIsAccountGuest: () => mockGuest,
-    useCloudSessionCatalog: () => ({ clouds: [{ id: '1000002', name: 'Lemon' }] }),
+    useCloudName: () => (id?: string) =>
+        (({ '1000002': 'Lemon', '1000009': 'Lime' }) as Record<string, string>)[id ?? ''] ?? id ?? '',
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('../../channels/components/ConfirmDialog', () => ({
@@ -231,6 +232,26 @@ describe('PairingDevicesPage', () => {
         expect(screen.getByTestId('confirm-body').textContent).toBe('pairing.devices.revokeCloudBody');
         fireEvent.click(screen.getByText('confirm'));
         expect(revoke.mutateAsync).toHaveBeenCalledWith('c');
+    });
+
+    it('names an approval into an invited cloud by its name', () => {
+        pairingsQuery = {
+            data: {
+                list: [
+                    {
+                        pairingId: 'i',
+                        purpose: 'web',
+                        client: { name: 'Safari' },
+                        target: { type: 'cloud', cloudId: '1000009' },
+                        status: 'approved',
+                        approvedAt: 1,
+                    },
+                ],
+            },
+        };
+        render(<PairingDevicesPage />);
+
+        expect(screen.getByTestId('pairing-row-i').textContent).toContain('pairing.scope.cloudLabel:{"cloud":"Lime"}');
     });
 
     it.each([

@@ -22,7 +22,7 @@ features/pairing/
 │                               usePairingDevices (the two lists and their removals)
 └── lib/
     ├── pairingCode.ts          0734-4168 formatting, m:ss for the time left
-    ├── pairingTargets.ts       what an approval can let the requester into, and the default
+    ├── pairingTargets.ts       approvable clouds (owned + invited), the options, the default
     ├── liveQrScanner.ts        the camera stream in the page → a code (LiveQrScanner)
     ├── scanPairingQr.ts        the camera bridge's photo → a code, or why there is none
     ├── deviceRows.ts           kind labels; standing approvals, newest first, unclaimed flagged
@@ -100,9 +100,14 @@ server's.
 2. **Who asks.** A large card: the requester's name, phone or browser by `client.platform`, the time
    left, and "approve only if this is the browser you just opened". A developer tool (`purpose:
 'debug'`) adds a warning and a checkbox, and approval stays off until it is ticked.
-3. **What it may use.** "My whole account" (relay), then each cloud in the cloud catalog. The active slot starts selected. With nothing to offer the screen says so and shows no
-   approve button. The button repeats the scope ("Approve only Lemon"), the same words the device
-   management screen uses later.
+3. **What it may use.** "My whole account" (relay), then each cloud the account can switch to: the
+   owned clouds from the relay catalog, then the invited ones, which live only in this device's cloud
+   cache (`useInvitedClouds`) because the catalog lists owned clouds alone. The relay checks a cloud
+   approval the way it checks the approver's own switch, so an invited cloud the app can enter can be
+   approved too. The active slot starts selected, an invited cloud included. With nothing to offer
+   the screen says so and shows no approve button. The button repeats the scope ("Approve only
+   Lemon"), the same words the device management screen and the sign-out confirm use later — all
+   three name a cloud through `useCloudName` (below).
 4. **The answer.** Approve or decline, a toast, and back. Errors come from
    `runtime.session.classifyPairingError` (404 not found, `400 … pairing expired`, 403 on the code or on
    the target, 409 already handled), each with its own sentence.
@@ -126,8 +131,8 @@ is sent back; everyone else gets the first section, and an approving app the sec
   says "No devices connected" rather than leaving an empty card; a cloud may hold none for this
   account until one of its devices saves itself there.
 - **Approved sign-ins** — inside the app, on an account that is not a secondary device — the devices
-  that can approve. Standing approvals, newest first, each with requester, scope ("my whole account" / "only
-  Lemon", the same words the approval used), approval and sign-in times. A relay approval nobody
+  that can approve. Standing approvals, newest first, each with requester, scope ("my whole account" /
+  "only Lemon", the same words the approval used), approval and sign-in times. A relay approval nobody
   claimed is a lost session and is flagged for removal; a cloud approval never carries a session, so it
   never is. Removing one warns per scope: a relay sign-in ends at once, a cloud one cannot come back but
   an open screen may last until its tokens expire. The header links to the approval screen. With
@@ -141,6 +146,15 @@ flag is on: an approving app with approvals still standing shows `mypage/compone
 cloud approval is among them), revokes them all on confirm and then opens `/auth/logout` as before. With
 nothing approved, in a browser, on a secondary device, or when the list cannot be read, the logout
 happens at once.
+
+## Naming a cloud
+
+The approval screen, the approved sign-ins and the sign-out confirm all name a cloud through
+`useCloudName` (`src/app/hooks`): the cached name, then the relay catalog's, then the id. The cache
+comes first because an invited cloud is not in the catalog at all, and because an owned cloud's cached
+name is the fresh one right after a rename. Naming is not narrowed to the clouds this session can
+switch to — an approval made earlier can point at an invited cloud this session no longer lists, and it
+still reads as that cloud's name.
 
 ## Reading a pairing QR
 
@@ -164,11 +178,13 @@ DoU QR" for two seconds while scanning goes on.
   jsqr 1.4's own `onlyInvert` throws (it never builds the inverted image), so `readQrText` inverts the
   pixels itself.
 - **When the camera cannot be opened.** No `getUserMedia` (`canScanLive()` is false) goes straight to
-  the photo. A refusal of the camera (`getUserMedia`'s `NotAllowedError`) is the person's answer: a
-  note says to allow the camera or type the digits, and no photo camera is put up next. Anything else
-  — no camera, one in use, a stream whose `play()` is refused — falls back to the photo. A refused
-  `play()` is never read as a refusal of the camera: the iOS WebView keeps
-  `mediaPlaybackRequiresUserAction`, an autoplay rule, and by then the camera was already granted.
+  the photo. A refusal of the camera (`getUserMedia`'s `NotAllowedError`) is the person's answer: no
+  photo camera is put up next. Only Settings can undo it, so a prompt offers the way there at once
+  ("Open Settings" → `OpenSettings`), and a note saying to allow the camera or type the digits stays
+  after the prompt is closed. Anything else — no camera, one in use, a stream whose `play()` is
+  refused — falls back to the photo. A refused `play()` is never read as a refusal of the camera: the
+  iOS WebView keeps `mediaPlaybackRequiresUserAction`, an autoplay rule, and by then the camera was
+  already granted.
 - **It lets go of the camera** on a code, on close, on unmount and when the page is hidden (iOS
   suspends the camera in the background, and returning to a frozen picture reads as broken).
 

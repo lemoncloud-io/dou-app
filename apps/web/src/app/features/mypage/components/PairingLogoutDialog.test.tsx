@@ -5,7 +5,10 @@ import { PairingLogoutDialog } from './PairingLogoutDialog';
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (o ? `${k}:${JSON.stringify(o)}` : k) }),
 }));
-jest.mock('../../../hooks', () => ({ useCloudSessionCatalog: () => ({ clouds: [{ id: '1000002', name: 'Lemon' }] }) }));
+jest.mock('../../../hooks', () => ({
+    useCloudName: () => (id?: string) =>
+        (({ '1000002': 'Lemon', '1000009': 'Lime' }) as Record<string, string>)[id ?? ''] ?? id ?? '',
+}));
 jest.mock('../../channels/components/ConfirmDialog', () => ({
     ConfirmDialog: (p: {
         open: boolean;
@@ -51,6 +54,24 @@ describe('PairingLogoutDialog', () => {
         );
         fireEvent.click(screen.getByText('pairing.logout.confirm'));
         expect(value.confirm).toHaveBeenCalled();
+    });
+
+    it('names an approval into an invited cloud by its name', () => {
+        render(
+            <PairingLogoutDialog
+                logout={logout([
+                    {
+                        pairingId: 'i',
+                        client: { name: 'Safari' },
+                        target: { type: 'cloud', cloudId: '1000009' },
+                        status: 'approved',
+                    },
+                ])}
+                action="logout"
+            />
+        );
+
+        expect(screen.getByTestId('body').textContent).toContain('Safari · pairing.scope.cloudLabel:{"cloud":"Lime"}');
     });
 
     it('words it as withdrawing, without the cloud caveat for relay approvals only', () => {

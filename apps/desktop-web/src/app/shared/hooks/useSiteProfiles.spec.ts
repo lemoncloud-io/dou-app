@@ -13,6 +13,7 @@ vi.mock('@chatic/app-runtime', () => ({
         data: {
             useRuntimeRepositories: () => ({
                 profile: {
+                    getMyProfile: async () => null,
                     observeList: (query: Query, callback: (result: { list: Row[] }) => void) => {
                         callback({ list: state.rows.filter(row => !query?.sid || row.sid === query.sid) });
                         return () => undefined;
@@ -20,6 +21,7 @@ vi.mock('@chatic/app-runtime', () => ({
                 },
             }),
         },
+        connection: { useRuntimeSocketState: () => ({ isVerified: true }) },
         session: { useGlobalSession: () => ({ activeServer: { siteId: state.siteId } }) },
     },
 }));

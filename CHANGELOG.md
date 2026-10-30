@@ -1,5 +1,70 @@
 # Changelog
 
+## [2026-10-30] - root@0.136.1, @chatic/desktop-web@0.43.1
+
+### Bug Fixes
+
+- (desktop-web) show my place photo on the rail avatar at sign-in
+
+## [2026-10-30] - root@0.136.0, @chatic/desktop-web@0.43.0
+
+### Features
+
+- (desktop-web) tag saved messages and draw Saved like Threads
+- (desktop-web) tag saved messages in the row, not only in the menu
+- (desktop-web) draw saved messages live on the Saved page, by thread
+
+## [2026-10-30] - root@0.135.2, @chatic/web@0.85.3
+
+### Bug Fixes
+
+- (web) offer invited clouds as pairing approval targets, not owned clouds only
+
+## [2026-10-30] - root@0.135.1, @chatic/web@0.85.2
+
+### Bug Fixes
+
+- (web) ask for the camera before opening it in the app, and point a refusal at settings
+
+## [2026-10-30] - root@0.135.0, @chatic/landing@0.15.0
+
+### Features
+
+- (landing) redesign alert dialogs and the plan-change completion screens
+- (landing) redesign the store-subscriber notice to the new spec
+
+## [2026-10-30] - root@0.134.0, @chatic/desktop-web@0.42.0
+
+### Features
+
+- (desktop-web) group join notices and add text size and density settings
+- (desktop-web) group adjacent join notices into one line
+- (desktop-web) add text size and message density preferences
+
+## [2026-10-30] - root@0.133.0, @chatic/desktop-web@0.41.0
+
+### Features
+
+- (desktop-web) invite-link-first onboarding with a preview step
+- (desktop-web) preview an invite before joining it
+- (desktop-web) walk the invite page through paste, preview and join
+- (desktop-web) show invite progress dots and slide between steps
+- (desktop-web) lead Welcome with the invite link, document the join
+
+### Bug Fixes
+
+- (desktop-web) block a previewed invite whose expiry time has passed
+- (desktop-web) keep the reconnecting banner off the held invite page
+- (desktop-web) block a previewed invite past its grace window
+
+### Documentation
+
+- (desktop-web) note a quit during the invite preview keeps the guest
+
+### Other
+
+- test: (desktop-web) drive the invite router spec through preview and join
+
 ## [2026-10-30] - No version updates
 
 ### Refactor

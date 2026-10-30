@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { runtime } from '@chatic/app-runtime';
 
-import { useCloudSessionCatalog } from '../../../hooks';
+import { useCloudName } from '../../../hooks';
 import { ConfirmDialog } from '../../channels/components/ConfirmDialog';
 
 interface PairingLogoutDialogProps {
@@ -19,9 +19,8 @@ interface PairingLogoutDialogProps {
  */
 export const PairingLogoutDialog = ({ logout, action }: PairingLogoutDialogProps) => {
     const { t } = useTranslation();
-    const { clouds } = useCloudSessionCatalog();
+    const cloudName = useCloudName();
     const rows = logout.pending ?? [];
-    const cloudName = (cloudId?: string) => clouds.find(cloud => cloud.id === cloudId)?.name || cloudId || '';
     const lines = rows.map(row =>
         [
             row.client.name || t('pairing.approve.unknownClient'),

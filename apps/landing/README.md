@@ -356,7 +356,9 @@ features/subscription/
 ├── utils/            formatMoney, formatDate, cn, countdowns, isEmailAddress
 ├── hooks/            one react-query hook per port method, useCurrentSubscription, useNow
 ├── components/       PublicShell (logo + account bar, SiteFooter; in a purchase flow a back button and no footer), AuthCard, AccountShell (sidebar; on a phone a
-│                     back/title bar and a row of tabs), PageHeader, AccountMenu, StatusBadge, PlanCard,
+│                     back/title bar and a row of tabs; both shells take `children` for a page outside their
+│                     routes — a scheduled downgrade's confirmation is framed by AccountShell, an upgrade's by
+│                     PublicShell with its back button), PageHeader, AccountMenu, StatusBadge, PlanCard,
 │                     SummaryTile, ConfirmDialog, EmailVerificationForm, BillingEmailChangeDialog,
 │                     MockPaymentWindow, DevScenarioPanel, …
 ├── components/ui/    Button, Card, Badge, Banner, Table, Dialog, Spinner, Toast — landing tokens

@@ -1,5 +1,5 @@
 import { Camera, Globe, Loader2, Smartphone } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 
@@ -8,15 +8,24 @@ import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { cn } from '@chatic/lib/utils';
+import { AlertDialog } from '@chatic/web-ui-kit';
 
-import { useCloudSessionCatalog, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
+import { appBridge } from '../../../bridge';
+
+import {
+    useCloudName,
+    useCloudSessionCatalog,
+    useDevicePairingEnabled,
+    useInvitedClouds,
+    useIsAccountGuest,
+} from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
 import { QrScannerSheet } from '../components/QrScannerSheet';
 import { useNow, usePairingApproval } from '../hooks';
 import { canScanLive, type LiveQrOpenFailure } from '../lib/liveQrScanner';
 import { formatPairingCode, formatRemaining } from '../lib/pairingCode';
-import { pairingTargetOptions, type PairingTargetOption } from '../lib/pairingTargets';
+import { pairingClouds, pairingTargetOptions, type PairingTargetOption } from '../lib/pairingTargets';
 import { scanPairingQr, type PairingQrScan } from '../lib/scanPairingQr';
 
 /**
@@ -48,16 +57,22 @@ const PairingApproveScreen = () => {
     const navigate = useNavigateWithTransition();
     const { code, setCode, state, error, approve, deny, retry, reset } = usePairingApproval();
     const isRelayGuest = useIsAccountGuest();
-    const { clouds } = useCloudSessionCatalog();
+    const { clouds: ownedClouds } = useCloudSessionCatalog();
+    const { invitedClouds } = useInvitedClouds();
+    const cloudName = useCloudName();
+    // Named the way the devices screen and the sign-out confirm name them, so the scope reads the same.
+    const clouds = pairingClouds(ownedClouds, invitedClouds).map(cloud => ({
+        id: cloud.id,
+        name: cloudName(cloud.id),
+    }));
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const [scanNote, setScanNote] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
     const [liveScan, setLiveScan] = useState(false);
+    const [cameraRefused, setCameraRefused] = useState(false);
 
-    const { options, defaultKey } = useMemo(
-        () => pairingTargetOptions({ isRelayGuest, clouds, activeCloudId: selectedCloudId }),
-        [isRelayGuest, clouds, selectedCloudId]
-    );
+    // The selection is seeded once from `defaultKey`, so rebuilding the options each render is harmless.
+    const { options, defaultKey } = pairingTargetOptions({ isRelayGuest, clouds, activeCloudId: selectedCloudId });
 
     useEffect(() => {
         if (state.step === 'approved') {
@@ -84,9 +99,12 @@ const PairingApproveScreen = () => {
     const onLiveUnavailable = (reason: LiveQrOpenFailure) => {
         setLiveScan(false);
         // A refusal is the person's answer, so the photo camera is not put in front of them next; any
-        // other failure (no stream, a camera in use) still has the photo bridge to try.
-        if (reason === 'denied') setScanNote(t('pairing.approve.scanDenied'));
-        else void scanPhoto();
+        // other failure (no stream, a camera in use) still has the photo bridge to try. Only Settings can
+        // undo a refusal, so the way there is offered at once; the note stays for after it is closed.
+        if (reason === 'denied') {
+            setScanNote(t('pairing.approve.scanDenied'));
+            setCameraRefused(true);
+        } else void scanPhoto();
     };
 
     const scanPhoto = async () => {
@@ -162,6 +180,18 @@ const PairingApproveScreen = () => {
                         onUnavailable={onLiveUnavailable}
                     />
                 )}
+                <AlertDialog
+                    open={cameraRefused}
+                    onOpenChange={setCameraRefused}
+                    title={t('pairing.approve.cameraRefused.title')}
+                    description={t('pairing.approve.cameraRefused.description')}
+                    cancelLabel={t('common.cancel')}
+                    confirmLabel={t('pairing.approve.cameraRefused.settings')}
+                    onConfirm={() => {
+                        setCameraRefused(false);
+                        appBridge.openSettings();
+                    }}
+                />
 
                 {check && (
                     <ConfirmStep

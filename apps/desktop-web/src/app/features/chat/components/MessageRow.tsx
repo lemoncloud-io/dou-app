@@ -111,6 +111,11 @@ interface MessageRowProps {
     highlightChatNo?: number;
     /** Thread panel: qualify the header time with the day ("Today at 3:28 PM"). */
     withDayInTime?: boolean;
+    /**
+     * Leave out the red "Saved" tag a saved message carries. The Saved page sets it: every row
+     * there is saved, so the tag would say nothing.
+     */
+    hideSavedMark?: boolean;
 }
 
 /**
@@ -218,6 +223,7 @@ export const MessageRow = memo(
         mentionables,
         highlightChatNo,
         withDayInTime,
+        hideSavedMark,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         // Pointer devices hide the toolbar until hover; touch shows it always, so it is
@@ -364,7 +370,7 @@ export const MessageRow = memo(
                 data-roving-group=""
                 data-row-key={group.key}
                 className={cn(
-                    'group -mx-2 flex gap-2.5 rounded-lg px-2 py-1.5 transition-colors ease-tactile hover:bg-accent/70',
+                    'group -mx-2 flex gap-2.5 rounded-lg px-2 py-[var(--message-row-py)] transition-colors ease-tactile hover:bg-accent/70',
                     // The pointer is in the editor, not over the band: keep the band so the row reads as open.
                     editingKey !== null && 'bg-accent/70'
                 )}
@@ -415,7 +421,7 @@ export const MessageRow = memo(
                             {withDayInTime ? formatDayTime(group.timestamp, t) : formatTime(group.timestamp)}
                         </span>
                     </div>
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-[var(--message-gap)]">
                         {group.messages.map((message, i) => {
                             // A long-pending row is an unsent artifact, not an in-flight
                             // send — treat it as failed so Retry/Delete are offered. Pictures
@@ -517,6 +523,14 @@ export const MessageRow = memo(
                                     {i > 0 && msgTime && (
                                         <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground group-focus-within/msg:block group-hover/msg:block">
                                             {msgTime}
+                                        </span>
+                                    )}
+                                    {!hideSavedMark && isSavedKey(key) && (
+                                        // Above the content, not in the gutter: the gutter holds the
+                                        // avatar on a block's first message and the hover time on the rest.
+                                        <span className="mb-0.5 flex w-fit items-center gap-1 rounded bg-destructive/10 px-1.5 py-px text-micro font-semibold text-destructive">
+                                            <Bookmark size={11} aria-hidden className="fill-current" />
+                                            {t('chat.savedTag')}
                                         </span>
                                     )}
                                     {message.hidden ? (

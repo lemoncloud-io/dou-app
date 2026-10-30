@@ -12,6 +12,8 @@ interface ThreadCardMessagesProps {
     messages: DomainChat[];
     onRetry: (message: DomainChat) => void;
     onDiscard: (message: DomainChat) => void;
+    /** Leave out the rows' "Saved" tag — the Saved page, where every row is saved. */
+    hideSavedMark?: boolean;
 }
 
 /**
@@ -19,7 +21,13 @@ interface ThreadCardMessagesProps {
  * nickname and avatar, images and files, and a failed send's Retry and Delete. Rows are grouped the way
  * the panel groups them, so consecutive messages from one person share a header.
  */
-export const ThreadCardMessages = ({ channel, messages, onRetry, onDiscard }: ThreadCardMessagesProps) => {
+export const ThreadCardMessages = ({
+    channel,
+    messages,
+    onRetry,
+    onDiscard,
+    hideSavedMark,
+}: ThreadCardMessagesProps) => {
     const viewer = useMessageViewer(channel);
     const placeProfiles = useSiteProfileMap();
     const ownerIds = useMemo(() => messages.map(message => message.ownerId), [messages]);
@@ -49,6 +57,7 @@ export const ThreadCardMessages = ({ channel, messages, onRetry, onDiscard }: Th
                         onDiscard={onDiscard}
                         reactorName={reactorName}
                         withDayInTime
+                        hideSavedMark={hideSavedMark}
                     />
                 ) : null
             )}

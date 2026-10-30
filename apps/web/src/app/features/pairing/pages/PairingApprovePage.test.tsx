@@ -9,6 +9,7 @@ let mockPaired = false;
 let mockEnabled = true;
 let mockGuest = false;
 let mockClouds: Array<{ id: string; name: string }> = [];
+let mockInvited: Array<{ id: string; name: string }> = [];
 let mockSelected = 'default';
 const approval = {
     code: '',
@@ -21,6 +22,7 @@ const approval = {
     reset: jest.fn(),
 };
 const scanPairingQr = jest.fn();
+const openSettings = jest.fn();
 let mockLive = false;
 
 jest.mock('react-i18next', () => ({
@@ -43,6 +45,8 @@ jest.mock('../../../hooks', () => ({
     useDevicePairingEnabled: () => mockEnabled,
     useIsAccountGuest: () => mockGuest,
     useCloudSessionCatalog: () => ({ clouds: mockClouds }),
+    useInvitedClouds: () => ({ invitedClouds: mockInvited }),
+    useCloudName: () => (id?: string) => [...mockClouds, ...mockInvited].find(c => c.id === id)?.name || id || '',
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('../hooks', () => ({
@@ -50,6 +54,7 @@ jest.mock('../hooks', () => ({
     usePairingApproval: () => approval,
 }));
 jest.mock('../lib/scanPairingQr', () => ({ scanPairingQr: () => scanPairingQr() }));
+jest.mock('../../../bridge', () => ({ appBridge: { openSettings: () => openSettings() } }));
 jest.mock('../lib/liveQrScanner', () => ({ canScanLive: () => mockLive }));
 // The sheet's own behaviour is tested beside it; here it only has to report back.
 jest.mock('../components/QrScannerSheet', () => ({
@@ -78,6 +83,7 @@ beforeEach(() => {
     mockEnabled = true;
     mockGuest = false;
     mockClouds = [];
+    mockInvited = [];
     mockSelected = 'default';
     mockLive = false;
     Object.assign(approval, { code: '', state: { step: 'input' }, error: null });
@@ -141,6 +147,31 @@ describe('PairingApprovePage', () => {
 
             expect(screen.getByText('pairing.approve.scanDenied')).not.toBeNull();
             expect(scanPairingQr).not.toHaveBeenCalled();
+        });
+
+        it('offers Settings for a refused camera, the only place it can be allowed again', () => {
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-denied'));
+            expect(screen.getByText('pairing.approve.cameraRefused.title')).not.toBeNull();
+            fireEvent.click(screen.getByRole('button', { name: 'pairing.approve.cameraRefused.settings' }));
+
+            expect(openSettings).toHaveBeenCalledTimes(1);
+            expect(screen.queryByText('pairing.approve.cameraRefused.title')).toBeNull();
+            // The note outlives the prompt, for whoever closes it and types the digits instead.
+            expect(screen.getByText('pairing.approve.scanDenied')).not.toBeNull();
+        });
+
+        it('does not offer Settings when the camera failed for another reason', async () => {
+            scanPairingQr.mockResolvedValue({ kind: 'cancel' });
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-failed'));
+            await Promise.resolve();
+
+            expect(screen.queryByText('pairing.approve.cameraRefused.title')).toBeNull();
         });
     });
 
@@ -206,6 +237,18 @@ describe('PairingApprovePage', () => {
         expect(screen.getByTestId('pairing-approve-submit').textContent).toBe(
             'pairing.scope.cloudApprove:{"cloud":"Lemon"}'
         );
+    });
+
+    it('offers an invited cloud and starts on it while the app is in it', () => {
+        approval.state = { step: 'confirm', check: CHECK };
+        mockClouds = [{ id: '1000002', name: 'Lemon' }];
+        mockInvited = [{ id: '1000009', name: 'Lime' }];
+        mockSelected = '1000009';
+        render(<PairingApprovePage />);
+
+        expect((screen.getByTestId('pairing-target-1000009') as HTMLInputElement).checked).toBe(true);
+        fireEvent.click(screen.getByTestId('pairing-approve-submit'));
+        expect(approval.approve).toHaveBeenCalledWith({ type: 'cloud', cloudId: '1000009' });
     });
 
     it('keeps approval off for a developer tool until it is confirmed', () => {

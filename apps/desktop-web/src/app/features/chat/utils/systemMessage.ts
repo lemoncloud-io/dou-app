@@ -40,3 +40,17 @@ export const systemMessageText = (chat: DomainChat, authorName: string): SystemM
     const text = chat.content?.trim();
     return text ? { kind: 'raw', text } : null;
 };
+
+/** Names listed in full before a grouped join collapses the rest into "N others". */
+const MAX_LISTED_JOINS = 3;
+
+/**
+ * The i18n key and params for a run of two or more adjacent joins: "A joined along with B and C" up
+ * to three names, "A, B and N others joined" beyond that.
+ */
+export const groupedJoinText = (names: readonly string[]): { key: string; params: Record<string, string | number> } => {
+    const [a, b, c] = names;
+    if (names.length === 2) return { key: 'chat.system.joinGroup2', params: { a, b } };
+    if (names.length <= MAX_LISTED_JOINS) return { key: 'chat.system.joinGroup3', params: { a, b, c } };
+    return { key: 'chat.system.joinGroupMany', params: { a, b, count: names.length - 2 } };
+};
