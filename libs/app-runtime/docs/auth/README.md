@@ -13,7 +13,7 @@ per-cloud token cache, and `cloudStore.getCloudTokenOf(cid)` answers for either.
 slot for a cloud the user is not looking at seed, sign, refresh and renew on its own (ADR-0117).
 
 It is spread across three folders on purpose, and the split follows dependency direction rather than
-subject: `socket/auth/` holds the wiring and the policy (21 source files, 18 tests), `session/auth/`
+subject: `socket/auth/` holds the wiring and the policy (20 source files, 17 tests), `session/auth/`
 holds the material it reads and writes ([docs/session/](../session/README.md)), and the two guards
 that _trigger_ renewal are React hooks in `session/hooks/app/`. The renewers live with the socket
 because `socket/auth → session` is an existing edge and the reverse is not; putting them under
@@ -534,7 +534,7 @@ SDK keep-alive it closes 40–80 s later, and every refetch sent on that foregro
 
 ## Notes for implementers and tests
 
-- Eighteen of the twenty-one source files here have a matching `*.test.ts`; `reauthDelegate.ts`, `types.ts` and `index.ts` do not. The command is what answers whether they pass.
+- Seventeen of the twenty source files here have a matching `*.test.ts`; `reauthDelegate.ts`, `types.ts` and `index.ts` do not. The command is what answers whether they pass.
 - Everything takes its dependencies as an argument with a lazily resolved default — `AuthSignalDeps`, `RecoverUnverifiedSocketsDeps` (shared by both wake passes), `RequestRelaySessionRefreshDeps`, `RelayExpiryDeps`. A test injects; it does not reset a module. The two that do need a reset seam expose one: `resetRelayRefreshCoalescing()` and `resetRevokedSessionHandling()`.
 - `deriveAuthStatus` is pure and its test is a truth table. If you change a branch, change the table — it is the drawing above in executable form.
 - The terminal-expiry confirmation uses real waits. Inject `wait` and `readStatus` through `RelayExpiryDeps` rather than reaching for fake timers across a `Coalescer`.

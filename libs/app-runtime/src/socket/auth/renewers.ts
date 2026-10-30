@@ -3,7 +3,7 @@ import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { Coalescer } from '../../utils/coalescer';
-import { credentialFreshness } from '../../session/auth/credentialFreshness';
+import { credentialFreshness } from '../../session/store/credentialFreshness';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { relaySession } from '../../session/auth/relaySession';
 import { cloudStore } from '../../session/store/stores';

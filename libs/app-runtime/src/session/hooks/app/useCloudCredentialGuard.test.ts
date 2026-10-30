@@ -12,7 +12,7 @@ const mockGetCommittedCloudId = jest.fn();
 const mockGetSlotKeys = jest.fn();
 const mockIsSlotVerified = jest.fn();
 
-jest.mock('../../auth/credentialFreshness', () => ({
+jest.mock('../../store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: (...args: unknown[]) => mockTimeToExpiry(...args) },
 }));
 jest.mock('../../../socket/auth/renewCloudSession', () => ({

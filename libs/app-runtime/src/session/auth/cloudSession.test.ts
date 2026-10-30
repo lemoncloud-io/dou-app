@@ -44,9 +44,9 @@ const mockIsNative = jest.fn();
 // `data` is this class's only HTTP path — this is the mock seam for every session-material call.
 // The argument shape is validated exactly as the repository contract has it (an object). The
 // `auth/api.ts` adapter that used to rename it is gone, so this mock is now the real boundary.
-jest.mock('../../data/runtime', () => ({
-    getRepositories: () => ({
-        auth: {
+jest.mock('./authRepository', () => ({
+    authRepositorySource: {
+        get: () => ({
             delegateCloud: (...args: unknown[]) => mockIssueCloudDelegationToken(...args),
             exchangeToken: (...args: unknown[]) => mockIssueCloudToken(...args),
             login: jest.fn(),
@@ -54,8 +54,8 @@ jest.mock('../../data/runtime', () => ({
             verifyNativeToken: jest.fn(),
             exchangeCode: jest.fn(),
             verifyOAuthCode: jest.fn(),
-        },
-    }),
+        }),
+    },
 }));
 
 // Before the migration, this mock was split across four web-core modules — `./contexts`,

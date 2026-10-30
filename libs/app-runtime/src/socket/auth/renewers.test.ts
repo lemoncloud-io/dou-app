@@ -19,7 +19,7 @@ jest.mock('../../session/store', () => ({ getCommittedCloudId: jest.fn() }));
 jest.mock('../../session/auth/relaySession', () => ({
     relaySession: { clearAndRedirect: jest.fn().mockResolvedValue(undefined) },
 }));
-jest.mock('../../session/auth/credentialFreshness', () => ({ credentialFreshness: { timeToExpiry: jest.fn() } }));
+jest.mock('../../session/store/credentialFreshness', () => ({ credentialFreshness: { timeToExpiry: jest.fn() } }));
 jest.mock('../backgroundClouds', () => ({ backgroundClouds: { noteExpired: jest.fn() } }));
 jest.mock('./authStatus', () => ({ getAuthStatus: jest.fn() }));
 jest.mock('./renewCloudSession', () => ({ renewCloudSession: jest.fn() }));

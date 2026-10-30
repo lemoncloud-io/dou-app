@@ -15,7 +15,7 @@ a target's, and it is described under [Background receive](#background-receive).
 ## Layout
 
 ```text
-socket/sync/                          11 source files, 10 tests
+socket/sync/                          12 source files, 11 tests
 ├── SyncManager.ts          436 lines  the class — 10 public methods
 ├── plans.ts                280 lines  createSyncPlans — the five app-domain plans
 ├── BackgroundReceiver.ts   285 lines  the receive loop of every bound slot that is not the active one
@@ -24,6 +24,7 @@ socket/sync/                          11 source files, 10 tests
 ├── constants.ts                       UNREGISTER_GRACE_MS · BACKGROUND_RECEIVE_INTERVAL_MS · BACKGROUND_RECEIVE_DEBOUNCE_MS · BACKGROUND_PLACE_REFRESH_MS
 ├── refusedChannels.ts                 what the server refused, for a room to read
 ├── roomFeed.ts                        fetchRoomFeed · prefetchRoomFeed — one chat.feed per room entry, 2s reuse
+├── dataGraph.ts                       syncDataGraph — the scoped repository graphs, handed down by initAppRuntime()
 ├── runtime.ts                         getSyncManager — the one creation point · startBackgroundReceive · refreshBackgroundClouds
 ├── index.ts                           the `sync` facade group
 └── hooks/useSyncTarget.ts             useSyncTarget + the three named wrappers
@@ -108,9 +109,11 @@ is a request or two.
 `createSyncPlans(slot)` returns exactly five, in this order: `ChannelSyncPlan`, `PlaceSyncPlan`,
 `ProfileSyncPlan`, `ChatSyncPlan`, `JoinSyncPlan`. Each callback writes through a repository —
 `cacheWrite`, `cacheWriteMany`, `cacheDelete` — of the **slot's own cloud's scoped graph**
-(`getDataManager().getScopedRepositories(cid)`), under that graph's context: that cloud, and the uid
+(`syncDataGraph.get().getScopedRepositories(cid)`), under that graph's context: that cloud, and the uid
 this account has there. Not the selected cloud's graph: a frame from a slot is data of that slot's
-cloud whatever the screen is showing. See [docs/data/](../data/README.md#scoped-repository-graphs)
+cloud whatever the screen is showing. The graph is assembled in `data/`, a layer above sync, so
+`initAppRuntime()` hands it down through `socket/sync/dataGraph.ts` rather than sync importing
+`data/runtime` ([Layers](../../README.md#layers)). See [docs/data/](../data/README.md#scoped-repository-graphs)
 for what a scoped graph is.
 
 **A failed cache write is logged, not retried here.** The sync library advances its own snapshot

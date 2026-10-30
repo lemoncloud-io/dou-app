@@ -1,4 +1,4 @@
-import { getRepositories } from '../../data/runtime';
+import { authRepositorySource } from './authRepository';
 
 import type { IAuthRepository } from '@chatic/data';
 
@@ -11,12 +11,12 @@ import type { IAuthRepository } from '@chatic/data';
  * desktop-web and testbed with POSITIONAL arguments, while the repository takes an object. Keeping
  * that translation in one named place is the whole reason the file exists. The session-material
  * commands used to sit here too and no longer do — they had exactly one consumer, so they live
- * inline in `services.ts` where `getRepositories()` is now called directly.
+ * inline in `services.ts` where the repository is now called directly.
  *
- * `getRepositories()` (not the `useRuntimeRepositories` hook) so a non-React caller can use these
+ * `authRepositorySource` (not the `useRuntimeRepositories` hook) so a non-React caller can use these
  * as well; the hooks that wrap them add react-query, nothing else.
  */
-const auth = (): IAuthRepository => getRepositories().auth;
+const auth = (): IAuthRepository => authRepositorySource.get();
 
 export const registerUser = (...args: Parameters<IAuthRepository['registerUser']>) => auth().registerUser(...args);
 

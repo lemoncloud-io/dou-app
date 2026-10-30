@@ -24,7 +24,7 @@ import type {
     SocketStateListener,
 } from './types';
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
-import { hasResumeKick } from './auth/socketVerifyTrace';
+import { hasResumeKick } from './socketVerifyTrace';
 import { resolveSocketDevice } from './devicePlatform';
 import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';

@@ -2,8 +2,8 @@ import { isPageHidden, pageHideCount, perfNow, recordPerfSample } from '@chatic/
 
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
-import type { SlotKey } from '../types';
-import { kindOf } from '../utils/slotKey';
+import type { SlotKey } from './types';
+import { kindOf } from './utils/slotKey';
 
 /**
  * At most this many `socket_verify` samples per minute, across every slot.

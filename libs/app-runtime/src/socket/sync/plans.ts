@@ -7,7 +7,7 @@ import {
     ProfileSyncPlan,
 } from '@lemoncloud/chatic-sockets-lib';
 import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
-import { getDataManager } from '../../data/runtime';
+import { syncDataGraph } from './dataGraph';
 import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import { logger } from '@chatic/bridges';
@@ -154,8 +154,8 @@ export const createSyncPlans = (slot: SlotKey): DomainSyncPlan[] => {
     const cid: string = slot;
     // Resolved per frame, not captured: the uid in the context is read live (it can land after the
     // slot binds), and the data runtime is assembled lazily.
-    const getRepositories = () => getDataManager().getScopedRepositories(cid);
-    const getContext = () => getDataManager().getScopedContext(cid);
+    const getRepositories = () => syncDataGraph.get().getScopedRepositories(cid);
+    const getContext = () => syncDataGraph.get().getScopedContext(cid);
 
     return [
         reportRefusal(

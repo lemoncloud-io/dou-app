@@ -4,7 +4,7 @@ import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import { logger } from '@chatic/bridges';
 
 import { SocketManager } from './SocketManager';
-import { clearResumeKick, noteResumeKick } from './auth/socketVerifyTrace';
+import { clearResumeKick, noteResumeKick } from './socketVerifyTrace';
 import { socketFailureReporter } from './socketFailureReporter';
 import type { SocketBindingConfig } from './types';
 import { RELAY_SLOT, slotKeyOf } from './utils/slotKey';

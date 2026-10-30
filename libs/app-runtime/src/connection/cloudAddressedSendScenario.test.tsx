@@ -16,8 +16,9 @@ import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import { SocketBinder } from './SocketBinder';
 import { readyBackgroundConfigs } from './utils/backgroundSlots';
 import { SocketManager } from '../socket/SocketManager';
-import { bootstrapSocketConnection } from '../socket';
-import type { SocketBindingConfig, SocketSessionDelegate } from '../socket';
+import { bootstrapSocketConnection } from '../socket/auth';
+import type { SocketBindingConfig } from '../socket';
+import type { SocketSessionDelegate } from '../socket/auth';
 import { resetBackgroundClouds } from '../socket/backgroundClouds';
 import { getSocketManager } from '../socket/runtime';
 import { slotKeyOf } from '../socket/utils/slotKey';
@@ -31,7 +32,7 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('../socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('../socket/sync/runtime', () => ({ getSyncManager: jest.fn() }));
-jest.mock('../socket', () => ({ bootstrapSocketConnection: jest.fn() }));
+jest.mock('../socket/auth', () => ({ bootstrapSocketConnection: jest.fn() }));
 jest.mock('../session/store', () => ({ getCommittedCloudId: jest.fn() }));
 jest.mock('../session/store/stores', () => ({
     cloudStore: {
@@ -42,7 +43,7 @@ jest.mock('../session/store/stores', () => ({
         }),
     },
 }));
-jest.mock('../session/auth/credentialFreshness', () => ({
+jest.mock('../session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 60 * 60_000 },
 }));
 jest.mock('../data/runtime', () => ({

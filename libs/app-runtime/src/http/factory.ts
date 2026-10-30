@@ -3,15 +3,16 @@ import { RELAY_CLOUD_ID } from '@chatic/data';
 import { webTransport } from './transport';
 
 import { createHttpManager } from './HttpManager';
-// The composition root's ONLY session imports. `http/**` is otherwise a leaf inside app-runtime,
-// which is what lets `session/auth` and `data` both depend on it without closing a cycle. The rule
-// mirrors `session/store/configure.ts`, the single file exempt from that folder's own import ban:
-// wiring is allowed to know both sides, the modules being wired are not.
-import { credentialFreshness } from '../session/auth/credentialFreshness';
+// The composition root's ONLY session imports, and they reach no further than `session/store` — the
+// one layer below `http/`. That is what lets `session/auth` and `data` both depend on `http/` without
+// closing a cycle: nothing here knows the use cases that sit above it. The rule mirrors
+// `session/store/configure.ts`, the single file exempt from that folder's own import ban: wiring is
+// allowed to know both sides, the modules being wired are not.
+import { credentialFreshness } from '../session/store/credentialFreshness';
 import { credentialRecovery } from './credentialRecovery';
 
 import type { HttpClient, HttpRoute } from '@chatic/http';
-import type { ICredentialFreshness } from '../session/auth/credentialFreshness';
+import type { ICredentialFreshness } from '../session/store/credentialFreshness';
 import type { CredentialStalenessPort } from './HttpManager';
 
 /**

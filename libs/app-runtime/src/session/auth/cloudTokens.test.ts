@@ -29,13 +29,13 @@ const mockNotifySessionStateChanged = jest.fn();
 /** Counts `sessionSignal.batch` — a re-issue must be one observable change. */
 const mockBatch = jest.fn();
 
-jest.mock('../../data/runtime', () => ({
-    getRepositories: () => ({
-        auth: {
+jest.mock('./authRepository', () => ({
+    authRepositorySource: {
+        get: () => ({
             delegateCloud: (...args: unknown[]) => mockDelegateCloud(...args),
             exchangeToken: (...args: unknown[]) => mockExchangeToken(...args),
-        },
-    }),
+        }),
+    },
 }));
 
 jest.mock('../store/stores', () => ({

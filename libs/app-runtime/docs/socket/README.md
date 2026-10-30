@@ -16,17 +16,18 @@ covered here because the two halves only make sense together.
 ## Layout
 
 ```text
-socket/                              46 source files, 38 tests
+socket/                              47 source files, 39 tests
 ├── SocketManager.ts   1039 lines   the class. Nothing else is exported from this file
 ├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · SocketRequestSample · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
 ├── runtime.ts                     getSocketManager — the one creation point
 ├── devicePlatform.ts              resolveSocketDevice — the platform and name `device.save` sends
 ├── socketFailureReporter.ts       classifies and reports rejected requests
+├── socketVerifyTrace.ts           observeSocketVerify — the `socket_verify` sample · the resume-kick marks SocketManager reads
 ├── backgroundClouds.ts            the app's cloud list · holds · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
 ├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode · errorCodeLedger · closeReason (classifySocketClose · APP_CLOSE_REASON · SocketCloseReason)
-├── auth/          21 files        → docs/auth/
-└── sync/          11 files        → docs/sync/
+├── auth/          20 files        → docs/auth/
+└── sync/          12 files        → docs/sync/
 
 connection/                          19 source files
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
@@ -306,7 +307,7 @@ and keeps the last one on the slot's entry, named by `classifySocketClose` (`uti
 
 ### How long a slot takes to verify: `socket_verify`
 
-`bootstrapSocketConnection` attaches `observeSocketVerify` (`auth/socketVerifyTrace.ts`) to every slot
+`bootstrapSocketConnection` attaches `observeSocketVerify` (`socketVerifyTrace.ts`) to every slot
 it boots. Each connection attempt — from `connecting` to its end — becomes a `socket_verify` Firebase
 Performance sample:
 

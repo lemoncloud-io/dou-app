@@ -6,7 +6,7 @@ import type { IAuthRepository } from '@chatic/data';
 
 import { config } from '@chatic/config';
 
-import { getRepositories } from '../../data/runtime';
+import { authRepositorySource } from './authRepository';
 import {
     hasStoredRelaySession,
     resetWebTransportInit,
@@ -84,9 +84,8 @@ class RelaySession implements IRelaySession {
     private readonly logoutCallbacks = new Set<() => void>();
 
     /**
-     * `getRepositories()` (not the `useRuntimeRepositories` hook) because this class is not React —
-     * the same accessor `socket/sync/plans.ts` uses. Resolved per action, so import order never
-     * matters.
+     * `authRepositorySource` (not the `useRuntimeRepositories` hook) because this class is not React.
+     * Resolved per action, so import order never matters.
      *
      * **Endpoint note.** `web-core/api/users.ts` pinned `delegate-cloud` / `verify-native-token` to
      * the STATIC build-time host (`getCoreEndpoint()` → `VITE_DOU_ENDPOINT`), while every other relay
@@ -97,7 +96,7 @@ class RelaySession implements IRelaySession {
      * override is the point.
      */
     private get repository(): IAuthRepository {
-        return getRepositories().auth;
+        return authRepositorySource.get();
     }
 
     /**

@@ -59,6 +59,10 @@ const mockGetScopedRepositories = jest.fn((_cid: string) => ({
 jest.mock('../../../data/runtime', () => ({
     getDataManager: () => ({ getScopedRepositories: mockGetScopedRepositories }),
 }));
+// The room feed this hook primes through reads the same graph, handed down at boot.
+jest.mock('../dataGraph', () => ({
+    syncDataGraph: { get: () => ({ getScopedRepositories: mockGetScopedRepositories }) },
+}));
 
 jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
 

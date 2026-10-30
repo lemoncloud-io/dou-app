@@ -1,13 +1,13 @@
 import { logger } from '@chatic/bridges';
 
 import { RESUME_PROBE_TIMEOUT_MS, recoverSocketsOnResume, recoverUnverifiedSockets } from './recoverUnverifiedSockets';
-import { clearResumeKick, noteResumeKick } from './socketVerifyTrace';
+import { clearResumeKick, noteResumeKick } from '../socketVerifyTrace';
 import type { AuthIdReseedTarget } from './authIdRegistry';
 import type { ISocketManager } from '../types';
 import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
 import type { SocketSessionDelegate } from './types';
 
-jest.mock('./socketVerifyTrace', () => ({ noteResumeKick: jest.fn(), clearResumeKick: jest.fn() }));
+jest.mock('../socketVerifyTrace', () => ({ noteResumeKick: jest.fn(), clearResumeKick: jest.fn() }));
 
 const RELAY = RELAY_SLOT;
 const CLOUD = slotKeyOf('cloud-1');
@@ -29,7 +29,7 @@ jest.mock('../../session/store/stores', () => ({
     relayStore: { getIdentityToken: () => 'relay-idt' },
     cloudStore: { getCloudTokenOf: () => ({ Token: { identityToken: 'cloud-idt' } }) },
 }));
-jest.mock('../../session/auth/credentialFreshness', () => ({
+jest.mock('../../session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 30 * 60_000, isStale: () => false },
 }));
 

@@ -5,7 +5,7 @@ import {
     resetSocketVerifyTrace,
     SOCKET_VERIFY_SAMPLES_PER_MINUTE,
 } from './socketVerifyTrace';
-import { slotKeyOf } from '../utils/slotKey';
+import { slotKeyOf } from './utils/slotKey';
 
 type Listener<T> = (value: T) => void;
 

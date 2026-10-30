@@ -3,7 +3,7 @@ import { backgroundClouds, selectBackgroundClouds, usableBackgroundEntryOf } fro
 import { isBackgroundCloudReady } from '../../socket/auth/backgroundCloudTokens';
 import { getSocketManager } from '../../socket/runtime';
 // Concrete paths, off the session barrel: the committed cloud id and the stores are runtime-internal.
-import { credentialFreshness } from '../../session/auth/credentialFreshness';
+import { credentialFreshness } from '../../session/store/credentialFreshness';
 import { getCommittedCloudId } from '../../session/store';
 import { cloudStore } from '../../session/store/stores';
 

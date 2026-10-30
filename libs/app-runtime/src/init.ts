@@ -1,12 +1,14 @@
 import { logger } from '@chatic/bridges';
 
 import { attachConfigStateLog } from './config/configStateLog';
-import { configureDataRuntime } from './data/runtime';
+import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { credentialRecovery } from './http/credentialRecovery';
+import { authRepositorySource } from './session/auth/authRepository';
 import { logoutStorageSweeper } from './session/auth/logoutStorageSweep';
 import { configureSessionStore } from './session/store/configure';
 import { credentialRenewers } from './socket/auth/renewers';
+import { syncDataGraph } from './socket/sync/dataGraph';
 
 import type { HttpRoute } from '@chatic/http';
 import type { DataRuntimeConfig } from './data/runtime';
@@ -92,6 +94,14 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     if (config.data) {
         configureDataRuntime(config.data);
     }
+
+    // Hands the repository graph down to the two layers that read it but sit below where it is
+    // assembled: the auth use cases and the sync plans. Same reasoning as the credential recovery
+    // above — the graph is built from the socket manager and the session, so the layers beside those
+    // cannot import it, and the wiring belongs to the root. Accessors, not instances: the graph is
+    // still built lazily on first access, and nothing here builds it.
+    authRepositorySource.provide(() => getRepositories().auth);
+    syncDataGraph.provide(getDataManager);
 
     // Records this device's effective settings in the logs (ADR-0079 Decision 16). Last, because the
     // boot line should describe the registry as the app will actually run with it, and unconditional

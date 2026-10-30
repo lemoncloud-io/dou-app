@@ -14,7 +14,7 @@ jest.mock('../../session/store/stores', () => ({
     relayStore: { getIdentityToken: () => 'relay-idt' },
     cloudStore: { getIdentityToken: () => 'cloud-idt' },
 }));
-jest.mock('../../session/auth/credentialFreshness', () => ({
+jest.mock('../../session/store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: () => 30 * 60_000, isStale: () => false },
 }));
 

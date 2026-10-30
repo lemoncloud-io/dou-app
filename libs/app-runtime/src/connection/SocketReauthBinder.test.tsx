@@ -1,16 +1,16 @@
 import { render } from '@testing-library/react';
 
 import { SocketReauthBinder } from './SocketReauthBinder';
-import { reauthenticateActiveSocket } from '../socket';
+import { reauthenticateActiveSocket } from '../socket/auth';
 import type { RuntimeSocketSlots } from './types';
-import type { SocketSessionDelegate } from '../socket';
+import type { SocketSessionDelegate } from '../socket/auth';
 import { RELAY_SLOT } from '../socket/utils/slotKey';
 
 jest.mock('../socket/runtime', () => ({
     getSocketManager: jest.fn().mockReturnValue({ id: 'manager' }),
 }));
 
-jest.mock('../socket', () => ({
+jest.mock('../socket/auth', () => ({
     reauthenticateActiveSocket: jest.fn().mockResolvedValue(undefined),
 }));
 

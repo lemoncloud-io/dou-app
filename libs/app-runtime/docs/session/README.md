@@ -10,12 +10,12 @@ Nothing in this folder authenticates a socket or renews a credential. That is
 ## Layout
 
 ```text
-session/                              67 source files, 36 tests
-├── store/    12 files ·  4 tests  relay · cloud · identity tokens, selection, derived contexts
-├── auth/     10 files ·  7 tests  login · cloud entry · teardown · the SDK delegate's material
+session/                              68 source files, 37 tests
+├── store/    13 files ·  7 tests  relay · cloud · identity tokens, selection, derived contexts, credential freshness
+├── auth/     11 files ·  8 tests  login · cloud entry · teardown · the SDK delegate's material
 ├── scope/     3 files ·  1 test   ActiveScope — the three views, and the DataContextProvider
 ├── pairing/   6 files ·  6 tests  device pairing: the code request flow, paired clouds, the secondary-device check, errors
-├── hooks/    35 files · 14 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 5 pairing
+├── hooks/    34 files · 15 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 5 pairing
 └── index.ts                       the `session` facade group
 ```
 
@@ -41,9 +41,17 @@ captured after module load and still be picked up, because every access re-resol
 naming that function. A loud failure beats a request going out to an empty host.
 
 **`auth/` runs the use cases, and it does not reach the network directly.** Login, token exchange,
-site selection and teardown all go through `getRepositories().auth` (ADR-0036). No file here holds a
-gateway. It is not React, so it uses the synchronous `getRepositories()` accessor rather than the
-`useRuntimeRepositories` hook.
+site selection and teardown all go through the `AuthRepository` (ADR-0036). No file here holds a
+gateway. It is not React, so it reads the repository through a synchronous accessor rather than the
+`useRuntimeRepositories` hook — `authRepositorySource.get()`, which `initAppRuntime()` wires. The
+graph that holds the repository is assembled in `data/`, a layer above this one, so it is handed down
+at boot rather than imported ([Layers](../../README.md#layers)); unwired, `get()` throws a message
+naming `initAppRuntime()`.
+
+**`credentialFreshness` sits in `store/`, not `auth/`.** It answers "how long is left on this
+server's credential" by reading the stores and nothing else, and the HTTP transport and the socket
+auth status both ask it. Both sit below the use cases here, so the reader lives in the bottom layer
+beside `expiry.ts`.
 
 **`scope/` owns the answer to "which cloud/site/user are we operating as"** and implements
 `@chatic/data`'s `DataContextProvider`. It never judges — the judgement (`isForeignContext`) is a
@@ -193,7 +201,9 @@ switch — tagged for one site, sent under another's session.
 
 ### The use cases
 
-Each is a class with a single exported singleton; the class itself stays private.
+Each is a class with a single exported singleton; the class itself stays private. All live in
+`auth/` except `credentialFreshness`, a reader of the stores that lives in `store/` (see
+[Responsibilities](#responsibilities)).
 
 | Singleton              | Methods                                                                                                                                                                            |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -2,7 +2,7 @@ import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic
 
 import { logger } from '@chatic/bridges';
 
-import { getRepositories } from '../../data/runtime';
+import { authRepositorySource } from './authRepository';
 import { cloudStore } from '../store/stores';
 import { msUntilExpiration } from '../store/expiry';
 import { getUidInCloud, rebuildSessionIdentity, sessionSignal } from '../store';
@@ -26,7 +26,7 @@ import { RELAY_CLOUD_ID, type IAuthRepository } from '@chatic/data';
  *    is about to lapse. Never replays the cache (that is where the lapsing copy lives) and never
  *    touches the selection: the user has not navigated anywhere.
  */
-const authRepository = (): IAuthRepository => getRepositories().auth;
+const authRepository = (): IAuthRepository => authRepositorySource.get();
 
 export interface IssuedCloudTokens {
     delegationToken: CloudDelegationTokenView;

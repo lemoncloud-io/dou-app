@@ -7,7 +7,7 @@ jest.mock('./HttpManager', () => ({ createHttpManager: jest.fn(() => ({ client: 
 jest.mock('./transport', () => ({ webTransport: { surface: true } }));
 
 const mockIsStale = jest.fn(() => false);
-jest.mock('../session/auth/credentialFreshness', () => ({
+jest.mock('../session/store/credentialFreshness', () => ({
     credentialFreshness: { isStale: (...a: unknown[]) => mockIsStale(...(a as [])), timeToExpiry: jest.fn() },
 }));
 
