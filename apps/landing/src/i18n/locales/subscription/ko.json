@@ -39,6 +39,7 @@
                 "confirm": "확인",
                 "cancel": "취소",
                 "close": "닫기",
+                "back": "뒤로",
                 "retry": "다시 시도"
             },
             "loading": "불러오는 중…",
@@ -57,8 +58,8 @@
             "plan": {
                 "clouds_one": "클라우드 {{count}}개",
                 "clouds_other": "클라우드 {{count}}개",
-                "perMonth": "<price>월 {{price}}</price>",
-                "vatNote": "VAT 포함 · 1개월"
+                "perMonth": "<price>{{price}}/월</price>",
+                "vatNote": "(VAT 포함)"
             },
             "email": {
                 "placeholder": "name@example.com",
@@ -533,38 +534,54 @@
             "cardLabel": "{{brand}} ···· {{last4}}",
             "list": {
                 "title": "구독 관리",
-                "subtitle": "지금 구독과 끝난 구독을 확인하실 수 있습니다. 카드를 누르시면 자세히 보실 수 있습니다.",
-                "source": "결제 수단 · 웹",
-                "clouds": "클라우드",
+                "subtitle": "지금 구독과 끝난 구독을 확인하실 수 있습니다. 항목을 누르시면 구독 정보를 자세히 보실 수 있습니다.",
                 "cloudsValue_one": "{{count}}개",
                 "cloudsValue_other": "{{count}}개",
-                "nextBilling": "다음 결제일",
-                "nextAmount": "다음 결제 금액",
-                "paymentMethod": "결제수단",
-                "viewDetail": "구독 정보 보기 ›",
-                "detail": "구독 정보",
                 "ended": "끝난 구독",
-                "endedLine": "{{from}} – {{to}} · 웹",
                 "downgradeTitle": "DoU Cloud {{from}} → DoU Cloud {{to}}",
-                "status": {
-                    "trial": "무료 체험 {{date}}까지 · {{chargeAt}}부터 매월 {{amount}} 자동 결제",
-                    "pastDue": "밀린 금액 {{amount}} · {{date}}({{dday}})부터 클라우드 이용 제한",
-                    "restricted": "밀린 금액 {{amount}} · {{date}}부터 클라우드 이용 제한",
-                    "cancelScheduled": "{{date}}까지 이용 · 자동 결제가 중지되었습니다 · 종료일 전까지 해지를 취소하실 수 있습니다",
-                    "cancelScheduledNoUndo": "{{date}}까지 이용 · 자동 결제가 중지되었습니다",
-                    "downgradeScheduled": "{{date}}부터 DoU Cloud {{to}} · 월 {{amount}}"
-                },
                 "empty": {
                     "title": "이용 중인 구독이 없습니다",
                     "body": "DoU Cloud를 구독하시면 클라우드를 만들어 친구들과 그룹방을 여실 수 있습니다.",
                     "subscribe": "구독하기"
                 },
-                "endedLineWithReason": "{{from}} – {{to}} · 웹 · {{reason}}",
                 "endedReason": {
                     "canceled": "해지로 끝남",
                     "replaced": "다음 구독으로 바뀜",
                     "paymentFailed": "결제 실패로 끝남"
-                }
+                },
+                "live": "이용 중인 구독",
+                "columns": {
+                    "product": "상품",
+                    "status": "상태",
+                    "clouds": "클라우드",
+                    "amount": "결제 금액",
+                    "next": "다음 결제 · 기한",
+                    "end": "종료"
+                },
+                "row": {
+                    "source": "웹 결제",
+                    "sourceCard": "웹 결제 · {{card}}",
+                    "amount": "월 {{amount}}",
+                    "amountChange": "월 {{from}} → {{to}}",
+                    "cloudsChange": "{{from}}개 → {{to}}개",
+                    "cloudsLine": "클라우드 {{clouds}} · {{amount}}",
+                    "autoCharge": "{{amount}} 자동 결제",
+                    "trialEnds": "체험 종료 {{date}}",
+                    "trialThen": "{{date}}부터 {{amount}} 자동 결제",
+                    "nextBilling": "다음 결제 {{date}}",
+                    "restoredNote": "기존 클라우드를 이어서 이용하실 수 있습니다",
+                    "restrictAt": "이용 제한 {{date}}",
+                    "restrictAtDday": "이용 제한 {{date}} ({{dday}})",
+                    "checkPayment": "결제 정보를 확인해 주세요",
+                    "endsAt": "이용 종료 {{date}} ({{dday}})",
+                    "autoStopped": "자동 결제가 중지되었습니다",
+                    "changesAt": "변경 적용 {{date}}",
+                    "changeCharge": "그날 {{amount}} 결제",
+                    "endedOn": "종료일 {{date}}",
+                    "startedOn": "{{date}}부터 이용",
+                    "startedOnWithReason": "{{date}}부터 이용 · {{reason}}"
+                },
+                "downgradeTitleShort": "DoU Cloud {{from}} → {{to}}"
             },
             "detail": {
                 "title": "구독 정보",

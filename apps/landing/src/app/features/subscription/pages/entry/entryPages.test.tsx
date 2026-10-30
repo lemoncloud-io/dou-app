@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
@@ -50,8 +50,10 @@ describe('W-01 plans', () => {
         renderAt('/subscription/plans', setup);
 
         expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
-        expect(screen.getByText('First plan · 7 days free')).toBeTruthy();
-        expect(screen.getAllByText('After subscribing')).toHaveLength(4);
+        // The first-subscription list is drawn without tags; the entry plan is the one already picked.
+        expect(screen.queryByText('First plan · 7 days free')).toBeNull();
+        expect(screen.queryByText('After subscribing')).toBeNull();
+        expect(screen.getByRole('button', { name: /DoU Cloud 1/, pressed: true })).toBeTruthy();
         // Asking for a visitor's subscriptions would read as a lost session and bounce them to sign in.
         expect(listSubscriptions).not.toHaveBeenCalled();
         expect(where()).toBe('/subscription/plans');
@@ -356,7 +358,8 @@ describe('W-02b no linked account', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Return to DoU' }));
 
         expect(await screen.findByText(/No DoU account is linked to this Apple account/)).toBeTruthy();
-        expect(screen.queryByText(/@/)).toBeNull();
+        // The footer carries the company's mail address; the page itself names none.
+        expect(within(screen.getByRole('main')).queryByText(/@/)).toBeNull();
         expect(screen.getByText('Sign in to the app with the same Apple account')).toBeTruthy();
     });
 

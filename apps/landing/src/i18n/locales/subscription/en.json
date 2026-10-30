@@ -39,6 +39,7 @@
                 "confirm": "OK",
                 "cancel": "Cancel",
                 "close": "Close",
+                "back": "Back",
                 "retry": "Try again"
             },
             "loading": "Loading…",
@@ -58,7 +59,7 @@
                 "clouds_one": "{{count}} cloud",
                 "clouds_other": "{{count}} clouds",
                 "perMonth": "<price>{{price}}</price> / month",
-                "vatNote": "VAT included · 1 month"
+                "vatNote": "(VAT included)"
             },
             "email": {
                 "placeholder": "name@example.com",
@@ -533,38 +534,54 @@
             "cardLabel": "{{brand}} ···· {{last4}}",
             "list": {
                 "title": "Subscriptions",
-                "subtitle": "Your current and ended subscriptions. Select one to see the details.",
-                "source": "Billed on the web",
-                "clouds": "Clouds",
+                "subtitle": "Your current and ended subscriptions. Select a row to see the details.",
                 "cloudsValue_one": "{{count}}",
                 "cloudsValue_other": "{{count}}",
-                "nextBilling": "Next payment",
-                "nextAmount": "Next amount",
-                "paymentMethod": "Payment method",
-                "viewDetail": "View subscription ›",
-                "detail": "Details",
                 "ended": "Ended subscriptions",
-                "endedLine": "{{from}} – {{to}} · Web",
                 "downgradeTitle": "DoU Cloud {{from}} → DoU Cloud {{to}}",
-                "status": {
-                    "trial": "Free trial until {{date}} · {{amount}} a month from {{chargeAt}}",
-                    "pastDue": "{{amount}} overdue · clouds restricted from {{date}} ({{dday}})",
-                    "restricted": "{{amount}} overdue · clouds restricted since {{date}}",
-                    "cancelScheduled": "In use until {{date}} · automatic payment stopped · you can undo the cancellation until then",
-                    "cancelScheduledNoUndo": "In use until {{date}} · automatic payment stopped",
-                    "downgradeScheduled": "DoU Cloud {{to}} from {{date}} · {{amount}} a month"
-                },
                 "empty": {
                     "title": "You have no subscription",
                     "body": "Subscribe to DoU Cloud to create clouds and open group chats with your friends.",
                     "subscribe": "Subscribe"
                 },
-                "endedLineWithReason": "{{from}} – {{to}} · Web · {{reason}}",
                 "endedReason": {
                     "canceled": "Cancelled",
                     "replaced": "Replaced by the next subscription",
                     "paymentFailed": "Ended after a failed payment"
-                }
+                },
+                "live": "Current subscriptions",
+                "columns": {
+                    "product": "Plan",
+                    "status": "Status",
+                    "clouds": "Clouds",
+                    "amount": "Amount",
+                    "next": "Next payment · deadline",
+                    "end": "Ended"
+                },
+                "row": {
+                    "source": "Paid on the web",
+                    "sourceCard": "Paid on the web · {{card}}",
+                    "amount": "{{amount}} / month",
+                    "amountChange": "{{from}} → {{to}} / month",
+                    "cloudsChange": "{{from}} → {{to}}",
+                    "cloudsLine": "Clouds {{clouds}} · {{amount}}",
+                    "autoCharge": "{{amount}} charged automatically",
+                    "trialEnds": "Trial ends {{date}}",
+                    "trialThen": "{{amount}} charged automatically from {{date}}",
+                    "nextBilling": "Next payment {{date}}",
+                    "restoredNote": "Your existing clouds carry on",
+                    "restrictAt": "Restricted from {{date}}",
+                    "restrictAtDday": "Restricted from {{date}} ({{dday}})",
+                    "checkPayment": "Please check your payment details",
+                    "endsAt": "Ends {{date}} ({{dday}})",
+                    "autoStopped": "Automatic payment has stopped",
+                    "changesAt": "Change applies {{date}}",
+                    "changeCharge": "{{amount}} is charged that day",
+                    "endedOn": "Ended {{date}}",
+                    "startedOn": "Used from {{date}}",
+                    "startedOnWithReason": "Used from {{date}} · {{reason}}"
+                },
+                "downgradeTitleShort": "DoU Cloud {{from}} → {{to}}"
             },
             "detail": {
                 "title": "Subscription",

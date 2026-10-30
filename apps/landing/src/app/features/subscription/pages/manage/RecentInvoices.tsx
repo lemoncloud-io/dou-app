@@ -1,16 +1,7 @@
 import { type JSX } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import {
-    Badge,
-    type BadgeTone,
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeaderCell,
-    TableRow,
-} from '../../components/ui';
+import { Badge, type BadgeTone } from '../../components/ui';
 import { useInvoices, useSubscriptions } from '../../hooks';
 import { isPortError, useSupports } from '../../lib/port';
 import { splitSubscriptions } from './manageModel';
@@ -52,41 +43,51 @@ export const RecentInvoices = ({ sub, fmt }: { sub: Subscription; fmt: ManageFor
             : null;
 
     return (
-        <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-navy">{t(`${key}.title`)}</h2>
-            <div className="overflow-hidden rounded-xl border border-border">
+        <section className="flex flex-col gap-2 md:gap-5">
+            <h2 className="text-[15px] font-bold text-ink md:text-sm">{t(`${key}.title`)}</h2>
+            <div className="overflow-hidden rounded-[14px] border border-line md:rounded-lg">
                 {notice ? (
-                    <p className="px-5 py-6 text-sm text-subtitle">{notice}</p>
+                    <p className="px-5 py-6 text-sm text-mute">{notice}</p>
                 ) : (
-                    <Table>
-                        <TableHead className="bg-muted">
-                            <TableRow>
-                                <TableHeaderCell className="w-[160px] px-5">{t(`${key}.date`)}</TableHeaderCell>
-                                <TableHeaderCell>{t(`${key}.item`)}</TableHeaderCell>
-                                <TableHeaderCell className="w-[160px]">{t(`${key}.amount`)}</TableHeaderCell>
-                                <TableHeaderCell className="w-[440px]">{t(`${key}.status`)}</TableHeaderCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {recent.map(invoice => (
-                                <TableRow key={invoice.id}>
-                                    <TableCell className="px-5">{fmt.date(invoice.issuedAt)}</TableCell>
-                                    <TableCell>
-                                        {t(`${key}.line`, {
-                                            sort: fmt.planOf(invoice.planId)?.sort,
-                                            kind: t(`${key}.kind.${invoice.kind}`),
-                                        })}
-                                    </TableCell>
-                                    <TableCell>{fmt.money(invoice.amount)}</TableCell>
-                                    <TableCell>
-                                        <Badge tone={STATUS_TONE[invoice.status]}>
-                                            {t(`${key}.statusLabel.${invoice.status}`)}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                    <div>
+                        <div className="hidden h-[38px] grid-cols-[160px_300px_160px_1fr] items-center bg-note px-5 text-xs font-semibold text-mute md:grid">
+                            <span>{t(`${key}.date`)}</span>
+                            <span>{t(`${key}.item`)}</span>
+                            <span>{t(`${key}.amount`)}</span>
+                            <span>{t(`${key}.status`)}</span>
+                        </div>
+                        {/* One row layout for both widths: a phone stacks the item over its date on the left and the
+                            amount over its status on the right; from `md` the four sit in a line, date first. */}
+                        {recent.map(invoice => (
+                            <div
+                                key={invoice.id}
+                                className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 border-t border-line p-4 first:border-t-0 md:grid-cols-[160px_300px_160px_1fr] md:items-center md:px-5 md:py-3.5 md:first:border-t"
+                            >
+                                <span className="text-xs font-medium text-mute max-md:col-start-1 max-md:row-start-2 md:order-1 md:text-sm md:text-ink">
+                                    {fmt.date(invoice.issuedAt)}
+                                </span>
+                                <span className="text-sm font-semibold text-ink max-md:col-start-1 max-md:row-start-1 md:order-2 md:font-medium">
+                                    {t(`${key}.line`, {
+                                        sort: fmt.planOf(invoice.planId)?.sort,
+                                        kind: t(`${key}.kind.${invoice.kind}`),
+                                    })}
+                                </span>
+                                <span className="text-sm font-bold text-ink max-md:col-start-2 max-md:row-start-1 max-md:justify-self-end md:order-3 md:font-medium">
+                                    {fmt.money(invoice.amount)}
+                                </span>
+                                <span className="max-md:col-start-2 max-md:row-start-2 max-md:justify-self-end md:order-4">
+                                    <Badge
+                                        tone={STATUS_TONE[invoice.status]}
+                                        className={
+                                            invoice.status === 'paid' ? 'bg-note font-semibold text-ink' : undefined
+                                        }
+                                    >
+                                        {t(`${key}.statusLabel.${invoice.status}`)}
+                                    </Badge>
+                                </span>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
         </section>

@@ -3,6 +3,7 @@ export { AccountShell } from './AccountShell';
 export { AccountMenu, accountLabel } from './AccountMenu';
 export { StatusBadge } from './StatusBadge';
 export { PlanCard } from './PlanCard';
+export { PageHeader } from './PageHeader';
 export { SummaryTile } from './SummaryTile';
 export { ConfirmDialog } from './ConfirmDialog';
 export { MockPaymentWindow } from './MockPaymentWindow';

@@ -75,35 +75,41 @@ const onServer: PortSupports = method => (HTTP_METHODS as ReadonlyArray<string>)
 const button = (name: string | RegExp) => screen.getByRole('button', { name });
 
 describe('W-10 subscription list', () => {
-    it('shows the subscription in force with its facts, and the ended one below', async () => {
+    // Each row is drawn twice — a line of columns from `md`, a stacked block below — and CSS hides the
+    // one not in use, so a jsdom run (no CSS) finds both: these tests read the first, the wide one.
+    const wide = (text: string | RegExp) => screen.getAllByText(text)[0];
+
+    it('lists the subscription in force with its figures, and the ended one below', async () => {
         renderAt('/subscription', '?mock=active');
 
-        expect(await screen.findByRole('heading', { name: 'DoU Cloud 2' })).toBeTruthy();
-        expect(screen.getByText('2026.11.20')).toBeTruthy();
-        expect(screen.getByText('₩17,200')).toBeTruthy();
-        expect(await screen.findByText('신한 ···· 1234')).toBeTruthy();
+        expect(await screen.findByText('Current subscriptions')).toBeTruthy();
+        expect(wide('DoU Cloud 2')).toBeTruthy();
+        expect(wide('Next payment 2026.11.20')).toBeTruthy();
+        expect(wide('₩17,200 charged automatically')).toBeTruthy();
+        expect((await screen.findAllByText('Paid on the web · 신한 ···· 1234'))[0]).toBeTruthy();
         expect(screen.getByText('Ended subscriptions')).toBeTruthy();
-        expect(screen.getByText('2026.08.20 – 2026.09.19 · Web · Replaced by the next subscription')).toBeTruthy();
+        expect(wide('Ended 2026.09.19')).toBeTruthy();
+        expect(wide('Used from 2026.08.20 · Replaced by the next subscription')).toBeTruthy();
 
-        fireEvent.click(button('View subscription ›'));
+        fireEvent.click(wide('DoU Cloud 2'));
         expect(where()).toBe('/subscription/sub-2');
     });
 
-    it('draws a subscription with a failed payment as a status line', async () => {
+    it('says in a row what a failed payment puts at risk', async () => {
         renderAt('/subscription', '?mock=past-due');
 
-        expect(await screen.findByText('₩17,200 overdue · clouds restricted from 2026.11.06 (D-5)')).toBeTruthy();
-        fireEvent.click(button('Details'));
+        expect(await screen.findByText('Current subscriptions')).toBeTruthy();
+        expect(wide('Restricted from 2026.11.06 (D-5)')).toBeTruthy();
+        expect(wide('Please check your payment details')).toBeTruthy();
+        fireEvent.click(wide('Restricted from 2026.11.06 (D-5)'));
         expect(where()).toBe('/subscription/sub-2');
     });
 
     it('says why each ended subscription ended', async () => {
         renderAt('/subscription', '?mock=history-mixed');
 
-        expect(
-            await screen.findByText('2026.08.20 – 2026.09.19 · Web · Replaced by the next subscription')
-        ).toBeTruthy();
-        expect(screen.getByText('2026.05.10 – 2026.07.17 · Web · Ended after a failed payment')).toBeTruthy();
+        expect(await screen.findByText('Used from 2026.08.20 · Replaced by the next subscription')).toBeTruthy();
+        expect(wide('Used from 2026.05.10 · Ended after a failed payment')).toBeTruthy();
     });
 
     it('sends a reader with no subscription to the plans', async () => {
@@ -334,8 +340,8 @@ describe('against the server, which answers only some of the calls', () => {
     it('lists an ending subscription without saying it can be undone', async () => {
         renderAt('/subscription', '?mock=cancel-scheduled', { supports: onServer });
 
-        expect(await screen.findByText(/automatic payment stopped$/)).toBeTruthy();
-        expect(screen.queryByText(/undo the cancellation/)).toBeNull();
+        expect((await screen.findAllByText('Automatic payment has stopped'))[0]).toBeTruthy();
+        expect(screen.queryByText(/undo/i)).toBeNull();
     });
 
     it('confirms a cancellation without the way back', async () => {

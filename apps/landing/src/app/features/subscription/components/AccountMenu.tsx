@@ -13,6 +13,8 @@ import type { Account } from '../types';
 export const accountLabel = (account: Account, t: (key: string) => string): string =>
     account.email ?? account.emailHint ?? t(`subscription.common.account.${account.provider}`);
 
+const MENU_ITEM = 'block w-full rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-ink hover:bg-muted';
+
 /**
  * The signed-in reader's menu, shared by both shells: who is signed in and how, the way to the
  * subscription list, and signing out. Signing out asks nothing — it is undone by signing in — and
@@ -25,8 +27,9 @@ export const AccountMenu = ({
 }: {
     account: Account;
     /**
-     * `above` for the sidebar's foot, where there is no room below — on a phone that sidebar is a bar
-     * across the top, and the menu then opens downward.
+     * `above` for the sidebar's foot, where there is no room below, so the menu opens upward and the
+     * address shows beside the avatar. On a phone that avatar sits in the shell's top bar instead, and
+     * the menu opens downward from it.
      */
     placement?: 'below' | 'above';
     className?: string;
@@ -72,48 +75,43 @@ export const AccountMenu = ({
                 aria-expanded={open}
                 aria-label={t('subscription.common.account.menu')}
                 onClick={() => setOpen(value => !value)}
-                className={
-                    placement === 'below'
-                        ? 'flex max-w-[220px] items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-navy hover:bg-muted'
-                        : 'flex max-w-full items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm text-navy hover:bg-muted'
-                }
+                className={cn('flex items-center gap-2.5', placement === 'above' && 'max-w-full')}
             >
-                {/* The top bar shows who by name, the sidebar foot by avatar and address. */}
-                {placement === 'below' ? (
-                    <>
-                        <span className="truncate">{account.displayName ?? label}</span>
-                        <span aria-hidden className="text-[10px]">
-                            ▾
-                        </span>
-                    </>
-                ) : (
-                    <>
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-semibold text-white">
-                            {(account.displayName ?? label).slice(0, 1).toUpperCase()}
-                        </span>
-                        <span className="truncate">{label}</span>
-                    </>
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-[#dfe0e2] bg-white text-lg font-bold text-ink">
+                    {(account.displayName ?? label).slice(0, 1).toUpperCase()}
+                </span>
+                {/* The sidebar foot says who by address too; the top bar's avatar stands alone. */}
+                {placement === 'above' && (
+                    <span className="truncate text-[13px] font-semibold text-[#4d4f57] max-md:hidden">{label}</span>
                 )}
             </button>
             {open && (
                 <div
                     role="menu"
                     className={cn(
-                        'absolute z-40 w-64 rounded-xl border border-border bg-card p-2 shadow-lg',
-                        placement === 'below'
-                            ? 'right-0 top-full mt-2'
-                            : 'left-0 top-full mt-2 md:bottom-full md:top-auto md:mb-2 md:mt-0'
+                        'absolute right-0 top-full z-40 mt-2 w-[220px] rounded-2xl border border-line bg-card p-2 shadow-lg',
+                        placement === 'above' && 'md:bottom-full md:left-0 md:right-auto md:top-auto md:mb-2 md:mt-0'
                     )}
                 >
-                    <div className="border-b border-border px-3 pb-3 pt-2">
-                        <p className="truncate text-sm font-semibold text-navy">{label}</p>
-                        <p className="text-xs text-subtitle">{t(`subscription.common.account.${account.provider}`)}</p>
+                    <div className="border-b border-line px-3 pb-3 pt-2">
+                        <p className="truncate text-sm font-bold text-ink">{label}</p>
+                        <p className="mt-0.5 text-xs text-mute">
+                            {t(`subscription.common.account.${account.provider}`)}
+                        </p>
                     </div>
+                    <Link
+                        role="menuitem"
+                        to={ROUTES.subscription.plans}
+                        onClick={() => setOpen(false)}
+                        className={cn(MENU_ITEM, 'mt-1')}
+                    >
+                        {t('subscription.common.nav.plans')}
+                    </Link>
                     <Link
                         role="menuitem"
                         to={ROUTES.subscription.root}
                         onClick={() => setOpen(false)}
-                        className="mt-1 block rounded-lg px-3 py-2 text-sm text-navy hover:bg-muted"
+                        className={MENU_ITEM}
                     >
                         {t('subscription.common.account.manage')}
                     </Link>
@@ -122,7 +120,7 @@ export const AccountMenu = ({
                         type="button"
                         onClick={onSignOut}
                         disabled={signOut.isPending}
-                        className="block w-full rounded-lg px-3 py-2 text-left text-sm text-status-danger hover:bg-muted"
+                        className={MENU_ITEM}
                     >
                         {t('subscription.common.account.signOut')}
                     </button>

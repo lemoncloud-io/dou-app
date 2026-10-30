@@ -10,7 +10,7 @@ import { useCurrentSubscription, usePlans, usePreviewCheckout, useSession, useSu
 import { ENTRY_PLAN_SORT } from '../../lib/changeKindOf';
 import { useToday } from '../../lib/port';
 import { sceneOf } from '../../lib/sceneOf';
-import { cn, formatMoney } from '../../utils';
+import { formatMoney } from '../../utils';
 import { type PlanChoice, type PlanTag, planChoicesOf } from './planChoices';
 
 import type { Plan, Subscription } from '../../types';
@@ -117,14 +117,13 @@ const PlansScene = ({
                 : 'subtitleTrialUsed';
 
     return (
-        // Five plan cards need more room than the shell's reading column gives a page, so on a window
-        // wide enough to hold them this one widens past the column, centred on it. Margins rather than
-        // a transform: a transformed box still counts at its untransformed place and scrolls sideways.
-        <section className="flex flex-col gap-8 min-[1200px]:mx-[calc(50%_-_550px)] min-[1200px]:w-[1100px]">
-            <header className="flex flex-col gap-3">
-                <h1 className="text-[28px] font-bold text-navy">{t(`subscription.entry.plans.${title}`)}</h1>
+        <section className="flex flex-col gap-10">
+            <header className="flex flex-col gap-2">
+                <h1 className="text-[22px] font-bold tracking-[-0.01em] text-ink sm:text-[28px]">
+                    {t(`subscription.entry.plans.${title}`)}
+                </h1>
                 {subtitle && (
-                    <p className="text-[15px] text-subtitle">
+                    <p className="text-sm font-medium tracking-[-0.01em] text-mute sm:text-[15px]">
                         {t(`subscription.entry.plans.${subtitle}`, { days: trialDays })}
                     </p>
                 )}
@@ -165,12 +164,19 @@ const PlansScene = ({
             )}
 
             {/* Below the widened layout a price no longer fits a fifth of the column, so the cards wrap. */}
-            <div className="grid grid-cols-1 gap-3 min-[440px]:grid-cols-2 md:grid-cols-3 md:gap-4 min-[1200px]:grid-cols-5">
+            <div className="grid grid-cols-1 gap-[18px] min-[440px]:grid-cols-2 md:grid-cols-3 md:gap-4 min-[1200px]:grid-cols-5">
                 {choices.cards.map(choice => (
                     <ChoiceCard
                         key={choice.plan.id}
                         choice={canBuy ? choice : listed(choice)}
-                        tagLabel={choice.tag && t(`subscription.entry.plans.tag.${choice.tag}`, { days: trialDays })}
+                        // The first-subscription plan list is drawn bare: its rules are already in the title,
+                        // the hint and the notes. The tags earn their place once there is a plan to compare —
+                        // and "trial used", which no other line on a first-subscription page says.
+                        tagLabel={
+                            choice.tag && (changing || choice.tag === 'trialUsed')
+                                ? t(`subscription.entry.plans.tag.${choice.tag}`, { days: trialDays })
+                                : undefined
+                        }
                         onPick={
                             !canBuy
                                 ? undefined
@@ -185,8 +191,8 @@ const PlansScene = ({
             {!canBuy && <InAppOnly />}
 
             {canBuy && (choices.mode === 'visitor' || choices.mode === 'new') && choices.entry && (
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-                    <Button size="lg" className="rounded-full px-7" onClick={subscribe}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-[22px]">
+                    <Button size="lg" className="h-[54px] w-full sm:h-[46px] sm:w-auto" onClick={subscribe}>
                         {withTrial || !preview.data
                             ? t('subscription.entry.plans.subscribe', { plan: planName(choices.entry) })
                             : t('subscription.entry.plans.subscribePaid', {
@@ -195,7 +201,7 @@ const PlansScene = ({
                               })}
                     </Button>
                     {choices.mode === 'visitor' && (
-                        <p className="text-[13px] text-subtitle">
+                        <p className="text-xs font-medium leading-normal text-mute sm:text-[13px]">
                             {t('subscription.entry.plans.entryHint', { plan: planName(choices.entry) })}
                         </p>
                     )}
@@ -205,11 +211,7 @@ const PlansScene = ({
             {choices.mode === 'change' && (choices.upgrade || choices.downgrade) && (
                 <div className="flex flex-wrap items-center gap-4">
                     {choices.upgrade && (
-                        <Button
-                            size="lg"
-                            className="rounded-full px-7"
-                            onClick={() => navigate(changePath(choices.upgrade as Plan))}
-                        >
+                        <Button size="lg" onClick={() => navigate(changePath(choices.upgrade as Plan))}>
                             {t('subscription.entry.plans.upgradeTo', {
                                 plan: planName(choices.upgrade),
                                 context: String(choices.upgrade.sort),
@@ -220,7 +222,6 @@ const PlansScene = ({
                         <Button
                             size="lg"
                             variant="secondary"
-                            className="rounded-full px-7"
                             onClick={() => navigate(changePath(choices.downgrade as Plan))}
                         >
                             {t('subscription.entry.plans.downgradeTo', {
@@ -291,7 +292,8 @@ const ChoiceCard = ({
             disabled={!choice.pickable && choice.tag !== 'current'}
             onSelect={choice.pickable ? onPick : undefined}
             tag={
-                choice.tag && (
+                choice.tag &&
+                tagLabel && (
                     <Badge tone={TAG_TONES[choice.tag]} className={TAG_CLASSES[choice.tag]}>
                         {tagLabel}
                     </Badge>
@@ -303,7 +305,7 @@ const ChoiceCard = ({
     return choice.tag === 'current' ? (
         <div className="grid rounded-2xl ring-2 ring-navy [&>button]:border-transparent">{card}</div>
     ) : (
-        <div className={cn('grid', choice.selected && '[&>button]:bg-status-success-bg')}>{card}</div>
+        <div className="grid">{card}</div>
     );
 };
 
@@ -335,9 +337,9 @@ const Notes = ({
               ...(entryName ? [t('subscription.entry.plans.notes.startAtEntry', { plan: entryName })] : []),
           ];
     return (
-        <div className="rounded-2xl bg-muted px-6 py-5">
-            <p className="text-sm font-semibold text-navy">{t('subscription.entry.plans.notesTitle')}</p>
-            <ul className="mt-3 flex flex-col gap-1.5 text-[13px] text-desc-alt">
+        <div className="rounded-[14px] bg-note p-4 sm:rounded-2xl sm:px-6 sm:py-5">
+            <p className="text-sm font-bold text-ink">{t('subscription.entry.plans.notesTitle')}</p>
+            <ul className="mt-1.5 flex flex-col text-[13px] font-medium leading-[1.6] text-[#666b78] sm:leading-normal">
                 {lines.map(line => (
                     <li key={line}>• {line}</li>
                 ))}
