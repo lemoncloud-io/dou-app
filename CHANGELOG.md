@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - root@0.137.1, @chatic/desktop-web@0.43.3
+
+### Bug Fixes
+
+- (desktop-web) tint the whole saved message around its tag
+
 ## [2026-10-30] - root@0.137.0, @chatic/landing@0.16.0
 
 ### Features
