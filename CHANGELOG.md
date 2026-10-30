@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - root@0.135.2, @chatic/web@0.85.3
+
+### Bug Fixes
+
+- (web) offer invited clouds as pairing approval targets, not owned clouds only
+
 ## [2026-10-30] - root@0.135.1, @chatic/web@0.85.2
 
 ### Bug Fixes
