@@ -1,6 +1,11 @@
 import i18next from 'i18next';
 
-import { chatAttachmentFormat, chatAttachmentSummary, type ChatAttachmentKind, type DomainChat } from '@chatic/data';
+import {
+    chatAttachmentStoredKind,
+    chatAttachmentSummary,
+    type ChatAttachmentKind,
+    type DomainChat,
+} from '@chatic/data';
 
 import { messagePlainText } from './messagePlainText';
 
@@ -38,7 +43,9 @@ export const messagePreview = (chat: Pick<DomainChat, 'content' | 'upload$$' | '
 export const outgoingMessagePreview = (content: string, files: File[]): string => {
     const text = messagePlainText(content).trim();
     if (text || files.length === 0) return text;
-    const kinds = new Set(files.map(file => chatAttachmentFormat(file)?.kind ?? 'file'));
-    const kind: ChatAttachmentKind = kinds.size === 1 ? ([...kinds][0] as ChatAttachmentKind) : 'mixed';
+    const kinds = new Set(files.map(file => chatAttachmentStoredKind(file) ?? 'file'));
+    // Audio has no noun of its own, so even one voice file reads as an attachment, as it will once sent.
+    const [only] = kinds;
+    const kind: ChatAttachmentKind = kinds.size === 1 && only !== 'audio' ? only : 'mixed';
     return attachmentLabel({ kind, count: files.length });
 };

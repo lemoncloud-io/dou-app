@@ -239,6 +239,13 @@ describe('chatAttachmentSummary', () => {
         expect(chatAttachmentSummary({ upload$$: sending })).toEqual({ kind: 'file', count: 1 });
     });
 
+    // The server stores a voice file as `audio`; read as a document while sending, the row would flip
+    // from "File" to "Attachment" the moment the server had it.
+    it('calls a voice file still being sent mixed, as it reads once sent', () => {
+        const sending = [{ localStatus: 'sending', localName: 'memo.m4a', localContentType: 'audio/x-m4a' }] as never;
+        expect(chatAttachmentSummary({ upload$$: sending })).toEqual({ kind: 'mixed', count: 1 });
+    });
+
     it('calls kinds that differ mixed', () => {
         expect(chatAttachmentSummary({ upload$$: slots('image', 'video') })).toEqual({ kind: 'mixed', count: 2 });
     });

@@ -27,7 +27,7 @@ export type AttachmentMaxBytes = {
  * - `media`: iOS `PHPickerViewController` (images and videos, the asset's current representation);
  *   Android Photo Picker (images and videos, no permission), falling back to the documents picker on
  *   devices without one.
- * - `document`: the documents picker, filtered to the thirteen formats the server takes — its four
+ * - `document`: the documents picker, filtered to the thirteen formats the app sends — its four
  *   photo formats, MP4, its seven document formats and a ZIP archive. Every item it returns is a
  *   `file`, under the type the OS gave it; the web tells a photo or a video among them by its format.
  *   An app built before the phone sent archives leaves the ZIP out; the request is the same.

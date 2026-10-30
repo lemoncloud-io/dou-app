@@ -64,13 +64,14 @@ const keyOf = (cid: string, slot: UploadSlot, index: number): string => {
  * A server slot that failed, carries an error, or came back with no address to open is `broken`: the
  * sender picked it, so it keeps its place and the count still says so. A slot still on its way draws from
  * what the page kept: an image from its local preview, a video from its poster once the shell made one.
- * Audio, which the server does not take, is dropped.
+ * An `audio` slot is a file: the server names the kind from a slot's content type, so a voice file sent
+ * from desktop arrives as one, and there is no player for it — it is saved like any document.
  */
 export const chatMediaItems = (cid: string, slots: readonly UploadSlot[] | null | undefined): ChatMediaSplit => {
     const split: ChatMediaSplit = { media: [], files: [], mediaSlots: [], fileSlots: [] };
     (slots ?? []).forEach((slot, index) => {
-        const kind = uploadSlotKind(slot);
-        if (kind === 'audio') return;
+        const slotKind = uploadSlotKind(slot);
+        const kind = slotKind === 'audio' ? 'file' : slotKind;
         const key = keyOf(cid, slot, index);
         if (isPendingUploadSlot(slot)) {
             const local = slot.localThumbUrl || undefined;

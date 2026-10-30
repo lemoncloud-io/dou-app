@@ -111,8 +111,36 @@ describe('chatMediaItems', () => {
         expect(files[0]).not.toHaveProperty('name');
     });
 
-    it('drops audio, which the server does not take, and answers nothing for no uploads', () => {
-        expect(chatMediaItems('c1', [server({ id: 'a', stereo: 'audio', orgUrl: 'https://s/a' })]).media).toEqual([]);
+    // The server names a voice file's kind `audio` from its content type; this page has no player for it.
+    it('shows an audio upload as a file to save, in its place', () => {
+        const { media, files, fileSlots } = chatMediaItems('c1', [
+            server({ id: 'p', stereo: 'image', orgUrl: 'https://s/p' }),
+            server({
+                id: 'a',
+                stereo: 'audio',
+                name: 'memo.m4a',
+                contentSize: 1024,
+                contentType: 'audio/mp4',
+                orgUrl: 'https://s/a',
+            }),
+        ]);
+
+        expect(media.map(item => item.key)).toEqual(['c1/p']);
+        expect(files).toEqual([
+            {
+                key: 'c1/a',
+                uploadId: 'a',
+                name: 'memo.m4a',
+                size: 1024,
+                contentType: 'audio/mp4',
+                url: 'https://s/a',
+                state: 'ready',
+            },
+        ]);
+        expect(fileSlots).toEqual([1]);
+    });
+
+    it('answers nothing for no uploads', () => {
         expect(chatMediaItems('c1', undefined)).toEqual({ media: [], files: [], mediaSlots: [], fileSlots: [] });
     });
 

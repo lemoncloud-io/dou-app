@@ -28,7 +28,10 @@ refusals by reason:
 
 - `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
   PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX and TXT documents,
-  and ZIP archives. An empty or generic type (HWP arrives untyped on most systems) is read from the
+  ZIP archives, and M4A, MP3, WAV and OGG audio. Audio goes as a document (kind `file`):
+  the message shows a file card to save, not a player, and the web app does not send it at all. AAC
+  and WebM audio are refused: the server does not keep them, and Chromium types a WebM from disk
+  `video/webm`, a video the server does not take either. An empty or generic type (HWP arrives untyped on most systems) is read from the
   extension. A video or document whose extension names another format is refused, because the
   receiver saves it under that name. That is also why an office file never goes up as an archive:
   DOCX, XLSX, PPTX and HWPX are ZIP containers and a system without their apps may type them as one,
@@ -36,7 +39,7 @@ refusals by reason:
   it is sent as `application/zip`. Nothing reads an archive's bytes here: an empty one, which the
   server refuses when its upload completes, passes the tray and its upload fails.
 - `too-large`: over its kind's limit, the same as the server's: images 20 MB, videos 300 MB,
-  documents and archives 50 MB. The server would refuse it with a 413 only after the whole transfer.
+  documents, archives and audio 50 MB. The server would refuse it with a 413 only after the whole transfer.
 - `name-too-long`: the name as it will be sent (a document without an extension is given its
   format's) is over 255 UTF-8 bytes, the server's limit. Hangul is three bytes a character and an
   emoji four, so about 85 Hangul characters is already too many. The server measures the name
@@ -231,8 +234,9 @@ for a PDF too, because the server now stores videos and documents as well.
 
 The kind and count come from `chatAttachmentSummary` in `@chatic/data`. It counts from `upload$$`,
 or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo` (`image`, `video`,
-`audio` or `file`), read by `uploadSlotKind`. A slot still being sent has no `stereo`: a video or
-document is read from the content type its slot kept, and an image slot, which keeps none, counts as
+`audio` or `file`), read by `uploadSlotKind`. A slot still being sent has no `stereo`: a video,
+document or voice file is read from the content type its slot kept (a voice file as `audio`, the kind
+the server will store it under, so its row does not change wording once sent), and an image slot, which keeps none, counts as
 an image, so a photo on its way never reads as an attachment. A head that only has `uploadIds`
 counts as images too. Kinds
 that differ, and `audio`, read as attachments (a single one as "Attachment"). The rule is meant

@@ -25,7 +25,7 @@ describe('useImageAttachments', () => {
         expect(toast.mock.calls[0][0]).toMatchObject({
             variant: 'destructive',
             description:
-                "1 file was already attached. 1 file wasn't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP and text documents, and ZIP archives can be attached.",
+                "1 file was already attached. 1 file wasn't added. Images (PNG, JPEG, GIF, WebP), MP4 videos and PDF, Word, Excel, PowerPoint, HWP and text documents, ZIP archives and audio files (M4A, MP3, WAV, OGG) can be attached.",
         });
     });
 

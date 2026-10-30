@@ -94,7 +94,7 @@ const judge = <T extends ChatAttachmentSource>(
 };
 
 /**
- * Sorts a pick into what can be sent and what cannot, and why: the server's thirteen formats, each
+ * Sorts a pick into what can be sent and what cannot, and why: the server's seventeen formats, each
  * kind's own size limit, the same item picked twice, and the per-message limit.
  *
  * `max` is the per-message limit. It is passed in rather than imported so this module does not depend

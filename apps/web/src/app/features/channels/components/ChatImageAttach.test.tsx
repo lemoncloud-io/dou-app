@@ -609,6 +609,24 @@ describe('useChatImageAttach — videos and documents', () => {
         expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
     });
 
+    // Audio is a desktop-only send: a voice memo the generic type lets through is refused here.
+    it('refuses an audio file from the files input, by its type or its extension', async () => {
+        const sendImages = jest.fn().mockResolvedValue(undefined);
+        render(<Harness sendImages={sendImages} />);
+
+        pick('chat-attach-files', [
+            photo('memo.m4a', 'audio/x-m4a'),
+            photo('song.mp3', 'application/octet-stream'),
+            photo('a.pdf', 'application/pdf'),
+        ]);
+        fireEvent.click(screen.getByTestId('composer-send'));
+        await flush();
+
+        expect(sendImages.mock.calls[0][0].map((f: File) => f.name)).toEqual(['a.pdf']);
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(toast.mock.calls[0][0].title).toContain('chat.attach.rejected.unsupported');
+    });
+
     it('sends a ZIP archive from the files input, typed as one, under an alias or generically', async () => {
         const sendImages = jest.fn().mockResolvedValue(undefined);
         render(<Harness sendImages={sendImages} />);

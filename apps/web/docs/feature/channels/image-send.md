@@ -130,7 +130,8 @@ all, and the sheet says so: inside the app, that an update sends videos
 (`chat.attach.source.videoNeedsUpdate`); in a browser, that videos can be sent from the DoU app
 (`chat.attach.source.videoInApp`).
 
-The files input asks for every format the server takes — a ZIP archive included; photos and `mp4`
+The files input asks for every format the server takes but audio (`sendsNoAudio`: only the desktop app
+sends a voice memo; picked here, one is refused as unsupported) — a ZIP archive included; photos and `mp4`
 kept among files can go from there too — by type and by extension, and for the generic
 `application/octet-stream` as well (`documentAccept`). On iOS and iPadOS WebKit it names the eight file
 formats only (the seven documents and ZIP), since an image or video type there makes the system offer
@@ -415,7 +416,7 @@ thumbnails above the field stays, faded. A `NOT_FOUND` from
 for the page: lists stop asking for videos, and the grid lists afresh without them when it next opens.
 
 What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
-entry's file input and the camera use its image-only form, `judgeChatImages`): the server's thirteen formats, a ZIP archive included, each kind's
+entry's file input and the camera use its image-only form, `judgeChatImages`): the server's formats less audio (thirteen, a ZIP archive included; a shared voice memo is listed as not sent), each kind's
 own limit (20MB a photo, 300MB a video, 50MB a document or archive), the same item picked twice, and ten a message
 (`IMAGE_MESSAGE_SLOT_MAX`). What the app's picker would not copy is reported the same way: each of its
 refusals carries the item's `kind`, so a too-large one names that kind's limit, and an unsupported
@@ -612,6 +613,12 @@ The trade-offs, and the server-side fix that would make the address itself cache
 A card shows the format's icon, the name in two lines with its extension always visible, the size, and
 a download button at its right edge. An upload older than names says "File". A pending card draws from
 the slot's `localName` / `localSize`, a server-failed one is dimmed and says it cannot be opened.
+
+A voice file sent from desktop (M4A, MP3, WAV, OGG) arrives with `stereo: 'audio'` and is drawn as a
+document card too (`chatMediaItems`); there is no player. The shells do not know these formats yet:
+`OpenFile` refuses an MP3, WAV or OGG by its bytes (`UNSUPPORTED_TYPE`) and `SaveFile` refuses every
+audio name (`INVALID`), so inside the app those presses end in the failure toast. In a browser the
+download works like any document's.
 
 In a browser the button and the card both download (`lib/fileDownload.ts`): the bytes are fetched into
 a `Blob` and saved from a local address under the upload's own name, since an anchor's `download`
