@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-10-30] - root@0.136.0, @chatic/desktop-web@0.43.0
+
+### Features
+
+- (desktop-web) tag saved messages and draw Saved like Threads
+- (desktop-web) tag saved messages in the row, not only in the menu
+- (desktop-web) draw saved messages live on the Saved page, by thread
+
 ## [2026-10-30] - root@0.135.2, @chatic/web@0.85.3
 
 ### Bug Fixes
