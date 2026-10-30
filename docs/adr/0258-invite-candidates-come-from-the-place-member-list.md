@@ -1,4 +1,4 @@
-# ADR-0195: Invite candidates come from the place member list, with profiles loaded by id
+# ADR-0258: Invite candidates come from the place member list, with profiles loaded by id
 
 > Status: Accepted · Decided: 2026-10-13 · Implemented: `feat/place-members`
 > · **Narrows** [ADR-0072](./0072-desktop-channel-member-add-and-join-cursor-placement.md) decision 1 and

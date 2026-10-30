@@ -1,10 +1,10 @@
-# ADR-0122: A chat send is addressed to the cloud it was written in
+# ADR-0256: A chat send is addressed to the cloud it was written in
 
 > Status: Accepted · Decided: 2026-09-28 · Implemented: `feat/cloud-addressed-chat-send`
 > · Scope: `libs/app-runtime/src/data/cloudChat.ts` · `libs/app-runtime/src/data/outbox.ts` ·
 > `libs/app-runtime/src/socket/backgroundClouds.ts` · the apps' chat send, image send, retry and outbox
 > wiring · the apps' sync registrations
-> · Builds on: [ADR-0118](./0118-a-sync-target-belongs-to-its-cloud-s-slot.md) (scoped repository
+> · Builds on: [ADR-0255](./0255-a-sync-target-belongs-to-its-cloud-s-slot.md) (scoped repository
 > graphs) · [ADR-0119](./0119-every-joined-cloud-keeps-a-socket-session.md) (every joined cloud keeps
 > a socket session) · [ADR-0121](./0121-an-image-send-runs-in-the-data-layer-over-a-put-port.md) (the
 > image send sequence)

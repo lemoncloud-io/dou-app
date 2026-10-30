@@ -1,6 +1,6 @@
 # ADR-0075: Add web channel members via a place-profile picker, placed as the invite page's default tab
 
-> Status: Accepted · Decided: 2026-09-07 · **Decision 2 narrowed by [ADR-0195](./0195-invite-candidates-come-from-the-place-member-list.md):**
+> Status: Accepted · Decided: 2026-09-07 · **Decision 2 narrowed by [ADR-0258](./0258-invite-candidates-come-from-the-place-member-list.md):**
 > the pool is now the place member list; the union below is its failure fallback
 > · [ADR-0072](./0072-desktop-channel-member-add-and-join-cursor-placement.md) (desktop member add — **the first implementation of the same problem**. This ADR is the "second client" that document foreshadowed)
 > · [ADR-0022](./0022-channel-invite-page-web-ui-kit.md) (apps/web invite page — batch contact invites, invite links. This ADR adds a tab onto that page)

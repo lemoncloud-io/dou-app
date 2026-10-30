@@ -7,7 +7,7 @@
 > [ADR-0139](./0139-an-owner-invites-into-a-place-without-a-room.md) recorded ("there is still no way to leave a
 > place") and [ADR-0166](./0166-place-invite-is-a-lab-experiment-off-until-a-device-turns-it-on.md) gave as one
 > reason for the Lab switch ("a member cannot leave a place"). The switch itself is not changed here.
-> · Related: [ADR-0195](./0195-invite-candidates-come-from-the-place-member-list.md) (the place member list this
+> · Related: [ADR-0258](./0258-invite-candidates-come-from-the-place-member-list.md) (the place member list this
 > screen reads) · [ADR-0067](./0067-rejoin-hides-prior-messages.md) (what a left room loses) ·
 > [ADR-0185](./0185-desktop-place-management-is-limited-to-admins.md) (desktop's admin menu, left as it is)
 > · Scope: `libs/data` (`PlaceSocketDomainGateway`, `PlaceSocketDataSource.leavePlace` / `getPlace`,
@@ -37,7 +37,7 @@ The server now offers one action for both (`@lemoncloud/chatic-sockets-lib` 0.5.
   removing the owner. If the membership goes but some room clean-up fails, the call fails, and
   repeating it redoes only the clean-up.
 
-ADR-0195 had already brought the place's member list (`place.list-user`) into the data layer, so a
+ADR-0258 had already brought the place's member list (`place.list-user`) into the data layer, so a
 screen listing everyone in a place — people with no room included — became possible at the same
 time.
 
