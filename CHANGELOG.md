@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-30] - root@0.136.2, @chatic/desktop-web@0.43.2
+
+### Bug Fixes
+
+- (desktop-web) keep the thread toolbar off the first line of text
+- (desktop-web) offer room members as @ suggestions in thread cards
+
 ## [2026-10-30] - root@0.136.1, @chatic/desktop-web@0.43.1
 
 ### Bug Fixes
