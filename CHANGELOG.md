@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - root@0.130.0, @chatic/web@0.85.0
+
+### Features
+
+- (web) scan the pairing qr live in the page instead of from a photo
+
 ## [2026-10-30] - No version updates
 
 ### Features
