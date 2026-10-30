@@ -299,6 +299,13 @@ describe('buildMessageRows — grouped join notices', () => {
         expect(kinds(rows)).toEqual(['date', 'system', 'group', 'system']);
     });
 
+    it("keeps the viewer's own join in order inside a grouped run", () => {
+        const rows = buildMessageRows([join(1, 'ada'), join(2, 'me'), join(3, 'bo')], VIEWER, NAMES);
+
+        expect(kinds(rows)).toEqual(['date', 'system']);
+        expect(systemRows(rows)[0].joinedNames).toEqual(['Ada', 'Me', 'Bo']);
+    });
+
     it('leaves a join with no resolvable name ungrouped', () => {
         const rows = buildMessageRows([join(1, 'ada'), join(2, 'ghost')], VIEWER, NAMES);
 

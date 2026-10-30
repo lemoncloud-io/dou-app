@@ -15,6 +15,9 @@ import {
     formatHourMinute,
     parseHourMinute,
     radioGroupOptions,
+    FONT_SIZES,
+    MESSAGE_DENSITIES,
+    useAppearancePrefsStore,
     useNotificationPrefsStore,
     VersionInfo,
 } from '../../../shared';
@@ -26,6 +29,14 @@ import { ReportIssueDialog } from '../components';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 import { QuietHoursMentionSection } from './QuietHoursMentionSection';
+
+// Segmented text choice shared by the font size and density radio groups.
+const SEGMENT_BUTTON =
+    'focus-ring tactile flex-1 rounded-lg border px-4 py-2 text-callout transition-colors ease-tactile';
+const segmentTone = (checked: boolean): string =>
+    checked
+        ? 'border-primary-ink bg-primary/10 font-semibold text-foreground'
+        : 'border-control-border text-muted-foreground hover:bg-accent';
 
 const THEME_OPTIONS: Theme[] = ['light', 'dark', 'system'];
 
@@ -60,6 +71,12 @@ export const SettingsPage = () => {
     const { theme, setTheme } = useTheme();
     const themeProps = radioGroupOptions(THEME_OPTIONS, theme, setTheme);
     const languageProps = radioGroupOptions(LANGUAGE_OPTIONS, i18n.language, setLanguage);
+    const fontSize = useAppearancePrefsStore(s => s.fontSize);
+    const setFontSize = useAppearancePrefsStore(s => s.setFontSize);
+    const density = useAppearancePrefsStore(s => s.density);
+    const setDensity = useAppearancePrefsStore(s => s.setDensity);
+    const fontSizeProps = radioGroupOptions(FONT_SIZES, fontSize, setFontSize);
+    const densityProps = radioGroupOptions(MESSAGE_DENSITIES, density, setDensity);
     const pushMute = useDevicePushMute();
     const reopenOnboarding = useOnboardingStore(s => s.reopen);
     const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
@@ -137,6 +154,65 @@ export const SettingsPage = () => {
                                     </span>
                                     {t(`settings.theme.${option}`)}
                                 </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5">
+                        <span id="settings-font-size-label" className="text-callout font-medium text-foreground">
+                            {t('settings.fontSize')}
+                        </span>
+                        <div role="radiogroup" aria-labelledby="settings-font-size-label" className="flex gap-2">
+                            {FONT_SIZES.map(option => (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    {...fontSizeProps(option)}
+                                    className={cn(SEGMENT_BUTTON, segmentTone(fontSize === option))}
+                                >
+                                    {t(`settings.fontSize.${option}`)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5">
+                        <span id="settings-density-label" className="text-callout font-medium text-foreground">
+                            {t('settings.density')}
+                        </span>
+                        <div role="radiogroup" aria-labelledby="settings-density-label" className="flex gap-2">
+                            {MESSAGE_DENSITIES.map(option => (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    {...densityProps(option)}
+                                    className={cn(SEGMENT_BUTTON, segmentTone(density === option))}
+                                >
+                                    {t(`settings.density.${option}`)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Two static sample messages drawn with the live font size and the same row
+                        spacing variables the feed uses, so a change shows here without a reload. */}
+                    <div className="flex flex-col gap-2.5">
+                        <span className="text-callout font-medium text-foreground">{t('settings.preview')}</span>
+                        <div
+                            data-testid="appearance-preview"
+                            data-font-size={fontSize}
+                            data-density={density}
+                            className="flex flex-col rounded-lg border border-border bg-background px-3 py-2"
+                        >
+                            {(['A', 'B'] as const).map(id => (
+                                <div key={id} className="flex flex-col py-[var(--message-row-py)]">
+                                    <span className="text-lead font-bold leading-tight text-foreground">
+                                        {t(`settings.preview.name${id}`)}
+                                    </span>
+                                    <span className="text-body text-foreground">
+                                        {t(`settings.preview.message${id}`)}
+                                    </span>
+                                </div>
                             ))}
                         </div>
                     </div>
