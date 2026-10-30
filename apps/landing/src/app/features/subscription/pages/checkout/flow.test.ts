@@ -52,6 +52,20 @@ describe('planFromQuery', () => {
     });
 });
 
+describe('checkout details', () => {
+    const payer = { name: '김민지', phone: '01012345678', email: 'minji.kim@gmail.com' };
+
+    it('carries a payer for Korea and refuses Korea without one', () => {
+        expect(checkoutDetailsOf({ checkout: { country: 'KR', payer } })).toEqual({ country: 'KR', payer });
+        expect(checkoutDetailsOf({ checkout: { country: 'KR' } })).toBeUndefined();
+    });
+
+    it('carries no payer for another country, and refuses a country the picker does not offer', () => {
+        expect(checkoutDetailsOf({ checkout: { country: 'US' } })).toEqual({ country: 'US' });
+        expect(checkoutDetailsOf({ checkout: { country: 'ZZ' } })).toBeUndefined();
+    });
+});
+
 describe('checkout readiness', () => {
     const allIn = setAllConsents(true);
     const payer = { name: '김민지', phone: '010-1234-5678' };
@@ -60,10 +74,18 @@ describe('checkout readiness', () => {
         expect(canContinueCheckout({ country: 'KR', email: 'minji.kim@gmail.com', payer, consents: allIn })).toBe(true);
     });
 
-    it('stops for a country outside Korea, even with everything else done', () => {
-        expect(canContinueCheckout({ country: 'US', email: 'minji.kim@gmail.com', payer, consents: allIn })).toBe(
+    it('stops until a billing country is chosen', () => {
+        expect(canContinueCheckout({ country: '', email: 'minji.kim@gmail.com', payer, consents: allIn })).toBe(false);
+        expect(canContinueCheckout({ country: 'XX', email: 'minji.kim@gmail.com', payer, consents: allIn })).toBe(
             false
         );
+    });
+
+    it('continues outside Korea with the consents alone: no payer, and no address for a card company', () => {
+        const none = { name: '', phone: '' };
+        expect(canContinueCheckout({ country: 'US', payer: none, consents: allIn })).toBe(true);
+        expect(canContinueCheckout({ country: 'OTHER', payer: none, consents: allIn })).toBe(true);
+        expect(canContinueCheckout({ country: 'US', payer: none, consents: NO_CONSENTS })).toBe(false);
     });
 
     it('stops without a verified email or with any consent missing', () => {

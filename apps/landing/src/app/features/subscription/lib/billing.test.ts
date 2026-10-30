@@ -1,6 +1,18 @@
-import { currencyOfLanguage, currencyOfProvider, providerOfCurrency } from './billingCountry';
+import {
+    BILLING_COUNTRY_OPTIONS,
+    currencyOfCountry,
+    currencyOfLanguage,
+    currencyOfProvider,
+    isBillingCountry,
+    lockedCountryOf,
+    payerRequiredFor,
+    payerRequiredIn,
+    providerOfCountry,
+    providerOfCurrency,
+} from './billingCountry';
 import { PLAN_CATALOG, planCatalogIn } from './catalog';
 import { cardGroupsOf, cardsOf, defaultCardOf } from './paymentMethods';
+import { type CardEntryRequest, createCardEntryChannel } from './port/cardEntry';
 
 import type { PaymentMethod } from '../types';
 
@@ -60,5 +72,63 @@ describe('cards by provider', () => {
         expect(cardGroupsOf([card('d1', 'stripe')], 'portone')).toEqual([
             { provider: 'stripe', cards: [card('d1', 'stripe')] },
         ]);
+    });
+});
+
+describe('billing country', () => {
+    it('bills Korea in won with a payer, and every other country in dollars without one', () => {
+        expect(currencyOfCountry('KR')).toBe('KRW');
+        expect(providerOfCountry('KR')).toBe('portone');
+        expect(payerRequiredIn('KR')).toBe(true);
+        for (const country of ['US', 'JP', 'OTHER']) {
+            expect(currencyOfCountry(country)).toBe('USD');
+            expect(providerOfCountry(country)).toBe('stripe');
+            expect(payerRequiredIn(country)).toBe(false);
+        }
+    });
+
+    it('holds a running subscription to its own country', () => {
+        expect(lockedCountryOf('portone')).toBe('KR');
+        expect(lockedCountryOf('stripe')).toBe('OTHER');
+        expect(payerRequiredFor('portone')).toBe(true);
+        expect(payerRequiredFor('stripe')).toBe(false);
+    });
+
+    it('offers Korea first, and knows only the countries it offers', () => {
+        expect(BILLING_COUNTRY_OPTIONS[0]).toBe('KR');
+        expect(isBillingCountry('US')).toBe(true);
+        expect(isBillingCountry('')).toBe(false);
+        expect(isBillingCountry('IN')).toBe(false);
+    });
+});
+
+describe('the card entry channel', () => {
+    const request = (): CardEntryRequest => ({
+        terms: {},
+        mount: async () => undefined,
+        confirm: async () => ({ outcome: 'registered' }),
+        unmount: () => undefined,
+    });
+
+    it('shows one request and resolves it with how the dialog ended', async () => {
+        const channel = createCardEntryChannel();
+        const listener = vi.fn();
+        channel.subscribe(listener);
+        const first = request();
+        const done = channel.open(first);
+        expect(channel.pending()).toBe(first);
+        channel.finish('registered');
+        expect(await done).toBe('registered');
+        expect(channel.pending()).toBeNull();
+        expect(listener).toHaveBeenCalledTimes(2);
+    });
+
+    it('closes a request still open when another arrives', async () => {
+        const channel = createCardEntryChannel();
+        const first = channel.open(request());
+        const second = channel.open(request());
+        expect(await first).toBe('closed');
+        channel.finish('failed');
+        expect(await second).toBe('failed');
     });
 });

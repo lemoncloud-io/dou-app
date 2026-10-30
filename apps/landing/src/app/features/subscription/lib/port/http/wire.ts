@@ -5,6 +5,7 @@ import type {
     AttemptPurpose,
     BillingSource,
     Money,
+    Payer,
     PaymentAttempt,
     PaymentMethod,
     PaymentProvider,
@@ -73,14 +74,83 @@ export interface MembershipWire {
     isValid?: boolean;
 }
 
-/** `IssueParams` — what the payment window opens with. */
-export interface IssueParams {
-    storeId: string;
-    channelKey: string;
+/**
+ * `IssueParams` as the server sends it — what a card is registered with, which differs by provider
+ * (`provider`). Read loosely here and checked by `toIssue`.
+ */
+export interface IssueWire {
+    provider?: string;
+    storeId?: string;
+    channelKey?: string;
+    publishableKey?: string;
+    /** The dollar provider's one-time secret for this registration. Never stored or logged. */
+    clientSecret?: string;
+    customerId?: string;
+    issueId?: string;
+    issueName?: string;
+    /** The payer fields the provider requires with the card. */
+    required?: string[];
+}
+
+export type PayerField = keyof Payer;
+
+interface IssueBase {
     customerId: string;
     issueId: string;
     issueName: string;
+    required: PayerField[];
 }
+
+/** The won provider's card window. */
+export interface PortOneIssue extends IssueBase {
+    provider: 'portone';
+    storeId: string;
+    channelKey: string;
+}
+
+/** The dollar provider's card field, opened in our own dialog. */
+export interface StripeIssue extends IssueBase {
+    provider: 'stripe';
+    publishableKey: string;
+    clientSecret: string;
+}
+
+export type Issue = PortOneIssue | StripeIssue;
+
+const PAYER_FIELDS: PayerField[] = ['name', 'phone', 'email'];
+
+/**
+ * The server's `issue` answer as one of the two registrations, or `undefined` when it is neither. An
+ * answer from before the server named providers is the won provider's. An answer that lists no required
+ * payer fields gets its provider's own: every field for the won provider, none for the dollar one.
+ */
+export const toIssue = (wire: IssueWire | undefined): Issue | undefined => {
+    if (!wire) return undefined;
+    const provider = wire.provider ?? 'portone';
+    const required = Array.isArray(wire.required)
+        ? PAYER_FIELDS.filter(field => wire.required?.includes(field))
+        : provider === 'portone'
+          ? PAYER_FIELDS
+          : [];
+    const base = { customerId: wire.customerId ?? '', issueId: wire.issueId ?? '', issueName: wire.issueName ?? '' };
+    if (provider === 'portone' && wire.storeId && wire.channelKey && base.issueId) {
+        return { provider, storeId: wire.storeId, channelKey: wire.channelKey, required, ...base };
+    }
+    if (provider === 'stripe' && wire.publishableKey && wire.clientSecret) {
+        return {
+            provider,
+            publishableKey: wire.publishableKey,
+            clientSecret: wire.clientSecret,
+            required,
+            ...base,
+        };
+    }
+    return undefined;
+};
+
+/** The payer fields a registration requires that `payer` leaves empty. */
+export const missingPayerFields = (required: PayerField[], payer: Partial<Payer> | undefined): PayerField[] =>
+    required.filter(field => !payer?.[field]?.trim());
 
 /** A plan the screens know, beside the server product it is sold as and who sells it. */
 export interface CatalogPlan extends Plan {

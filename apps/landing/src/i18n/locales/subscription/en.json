@@ -113,6 +113,22 @@
                 "note": "The card company asks for these with every card. They are not stored: a card added later asks again.",
                 "nameInvalid": "Enter the name: up to 10 Korean or 30 Latin characters.",
                 "phoneInvalid": "Enter a mobile number such as 01012345678."
+            },
+            "cardEntry": {
+                "title": "Add a card",
+                "description": "You enter your card in the payment processor's secure field. DoU does not store card numbers.",
+                "terms": {
+                    "trial": "When your trial ends on {{date}}, {{price}} is charged to this card, then the same amount on day {{day}} of every month.",
+                    "paid": "{{price}} is charged to this card today, then the same amount on day {{day}} of every month.",
+                    "card": "Once this card is the one you pay with, your subscription is charged to it on each billing day.",
+                    "cancel": "You can cancel any time in subscription management; nothing is charged after your current period ends."
+                },
+                "consent": "I agree to recurring charges to this card on these terms.",
+                "submit": "Add card",
+                "unavailable": {
+                    "title": "The card field didn't load",
+                    "body": "Please try again in a moment."
+                }
             }
         },
         "entry": {
@@ -260,7 +276,8 @@
                 "firstChargeShort": "First payment",
                 "today": "{{date}} (today)",
                 "dateAndPrice": "{{date}} · {{price}}",
-                "chargeToday": "Due today"
+                "chargeToday": "Due today",
+                "unpriced": "Choose a country to see what you pay."
             },
             "emailStep": {
                 "title": "Verify your email",
@@ -288,7 +305,7 @@
                 "next": "Next · Add a payment method"
             },
             "billing": {
-                "title": "Billing details",
+                "title": "① Billing country",
                 "country": "Billing country",
                 "email": "Billing email",
                 "change": "Change",
@@ -298,14 +315,19 @@
                     "JP": "Japan",
                     "OTHER": "Another country"
                 },
-                "countryNote": "The billing country decides how you pay. It cannot be changed after you subscribe.",
-                "comingSoonTitle": "Paying from outside Korea is coming soon",
-                "comingSoonBody": "For now you can subscribe only with South Korea as the billing country.",
+                "countryNote": "The billing country decides the currency you pay in: Korean won in South Korea, US dollars everywhere else. It cannot be changed after you subscribe.",
                 "noAccountEmail": {
                     "title": "Your account has no email address",
                     "body": "The card company needs an email address with every card, and this account has none to give. Sign in with an account that has one to subscribe."
                 },
-                "noticeEmail": "Receipts and notices go to your account's email address."
+                "noticeEmail": "Receipts and notices go to your account's email address.",
+                "countryPlaceholder": "Choose a country",
+                "countryMissing": "Choose your billing country first.",
+                "currency": {
+                    "KRW": "You pay in Korean won (₩).",
+                    "USD": "You pay in US dollars ($)."
+                },
+                "payerTitle": "② Payer"
             },
             "consent": {
                 "all": "Agree to all",
@@ -322,9 +344,12 @@
                 "subtitleTrial": "Your free trial starts once a card is added. Nothing is charged today.",
                 "subtitlePaid": "Once a card is added, {{price}} is charged and your subscription starts.",
                 "card": "Card",
-                "cardNote": "You enter your card in the payment provider's window. DoU does not store card numbers.",
-                "windowTitle": "Korean card payment window (shown by the payment provider)",
-                "windowSteps": "Card issuer · Card number · Expiry · First 2 digits of PIN · Identity check",
+                "cardNote": "You enter your card on the payment processor's secure screen. DoU does not store card numbers.",
+                "windowTitle": "Card entry (shown by the payment processor)",
+                "windowSteps": {
+                    "KRW": "Card issuer · Card number · Expiry · First 2 digits of PIN · Identity check",
+                    "USD": "Card number · Expiry · Security check"
+                },
                 "ctaTrial": "Add card and start free trial",
                 "ctaPaid": "Pay {{price}}",
                 "renewTrial": "From {{date}}, {{price}} is charged on day {{day}} of every month. You can cancel at any time in subscription management.",
@@ -332,7 +357,8 @@
                 "back": "Back",
                 "error": {
                     "limit": "Too many card attempts. Please try again later.",
-                    "conflict": "This subscription cannot be started right now. Check your current subscription in subscription management."
+                    "conflict": "This subscription cannot be started right now. Check your current subscription in subscription management.",
+                    "invalid": "The payer details are missing. Go back and enter them again."
                 }
             },
             "status": {
@@ -804,7 +830,7 @@
                     "title": "Good to know",
                     "removeDefault": "To remove your default card, make another card the default first.",
                     "removeLast": "While subscribed you can't remove your last card — add a new one, then swap.",
-                    "domestic": "Only cards issued in Korea can be added for now.",
+                    "currency": "Cards are added for your subscription's currency only.",
                     "noCharge": "Adding a card only registers it — nothing is charged."
                 },
                 "declined": {
@@ -842,8 +868,13 @@
                 "removeRefused": "This card can't be removed while your subscription is charged to it. Make another card the default first.",
                 "addDialog": {
                     "title": "Add card",
-                    "body": "This only registers a card — nothing is charged. You enter the card details in the payment provider's window.",
-                    "open": "Open payment window"
+                    "body": "This only registers a card — nothing is charged. You enter the card on the next screen.",
+                    "open": "Open card entry",
+                    "lock": {
+                        "label": "Billing country",
+                        "note": "The billing country can't be changed while you're subscribed.",
+                        "OTHER": "Outside South Korea"
+                    }
                 },
                 "defaultDialog": {
                     "title": "Change your default card?",
@@ -864,7 +895,7 @@
                 },
                 "barTitle": "Manage payment methods",
                 "group": {
-                    "KRW": "Cards for payments in won",
+                    "KRW": "Cards for payments in Korean won",
                     "USD": "Cards for payments in US dollars"
                 }
             },

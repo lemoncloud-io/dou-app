@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { usePort } from '../lib/port';
 import { subscriptionKeys } from './keys';
@@ -6,26 +6,32 @@ import { useInvalidateSubscriptionState } from './subscriptions';
 
 import type { AttemptPurpose, Currency, Payer, PaymentAttempt, PlanId } from '../types';
 
-/** What a first subscription to `planId` would cost, priced in `currency` (won when omitted). */
+/**
+ * What a first subscription to `planId` would cost, priced in `currency` (won when omitted). A change of
+ * currency keeps the previous answer on screen while the new one loads (`isPlaceholderData`), so the page
+ * does not drop back to a loader; its amounts are in the old currency meanwhile.
+ */
 export const usePreviewCheckout = (planId: PlanId | undefined, currency?: Currency) => {
     const port = usePort();
     return useQuery({
         queryKey: subscriptionKeys.checkoutPreview(planId ?? '', currency),
         queryFn: () => port.previewCheckout(planId as PlanId, currency ? { currency } : undefined),
         enabled: !!planId,
+        placeholderData: keepPreviousData,
     });
 };
 
 /**
- * The payment provider's window. A registered card shows up in the payment methods, and may become
- * the default card the subscriptions carry.
+ * The payment provider's card entry — its own window, or its card field in a dialog of ours. A
+ * registered card shows up in the payment methods, and may become the default card the subscriptions
+ * carry.
  */
 export const useStartPaymentMethodRegistration = () => {
     const port = usePort();
     const queryClient = useQueryClient();
     const invalidate = useInvalidateSubscriptionState();
     return useMutation({
-        mutationFn: (input: { purpose: AttemptPurpose; planId?: PlanId; payer: Payer }) =>
+        mutationFn: (input: { purpose: AttemptPurpose; planId?: PlanId; country?: string; payer?: Payer }) =>
             port.startPaymentMethodRegistration(input),
         onSuccess: () =>
             Promise.all([queryClient.invalidateQueries({ queryKey: subscriptionKeys.paymentMethods() }), invalidate()]),
@@ -38,7 +44,7 @@ export const useCompletePaymentMethodRegistration = () => {
     const queryClient = useQueryClient();
     const invalidate = useInvalidateSubscriptionState();
     return useMutation({
-        mutationFn: (input: { callback: URLSearchParams; purpose: AttemptPurpose; payer: Payer }) =>
+        mutationFn: (input: { callback: URLSearchParams; purpose: AttemptPurpose; payer?: Payer }) =>
             port.completePaymentMethodRegistration(input),
         onSuccess: () =>
             Promise.all([queryClient.invalidateQueries({ queryKey: subscriptionKeys.paymentMethods() }), invalidate()]),

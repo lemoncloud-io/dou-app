@@ -295,6 +295,7 @@ describe('createHttpPort — checkout', () => {
         const registered = await port.startPaymentMethodRegistration({
             purpose: 'start',
             planId: 'pro-tier-01',
+            country: 'KR',
             payer: PAYER,
         });
         expect(registered).toEqual({ outcome: 'registered', card: 'billing-key-1' });
@@ -302,10 +303,14 @@ describe('createHttpPort — checkout', () => {
             productId: 'dou-web-tier-01_dev',
         });
         expect(paymentWindow).toHaveBeenCalledWith({
-            issue: ISSUE,
+            // An answer that lists no required fields is from before the server listed them: all three.
+            issue: { ...ISSUE, required: ['name', 'phone', 'email'] },
             payer: PAYER,
             purpose: 'start',
             planId: 'pro-tier-01',
+            country: 'KR',
+            // Only a card field of ours states the terms; the won provider's window draws its own.
+            terms: {},
             redirectUrl: 'http://localhost:5004/subscription/checkout/payment?plan=pro-tier-01',
         });
         // A checkout's card goes with the start, not on its own.
@@ -326,6 +331,105 @@ describe('createHttpPort — checkout', () => {
             subscriptionId: 'U1:portone',
         });
         expect(await port.getPaymentAttempt(attempt.id)).toMatchObject({ status: 'succeeded' });
+    });
+
+    // The dollar provider's registration: a card field in our dialog, with no payer.
+    const STRIPE_ISSUE = {
+        provider: 'stripe',
+        publishableKey: 'pk_test_0000',
+        clientSecret: 'seti_0000_secret_0000',
+        customerId: 'cus_0000',
+        issueId: 'U1:1761800000000',
+        issueName: 'DoU 구독',
+        required: [],
+    };
+
+    it('bills a country outside Korea through the dollar products, with no payer anywhere', async () => {
+        const start = vi.fn(() =>
+            subscription({
+                id: 'U1:stripe',
+                platform: 'stripe',
+                status: 'trial',
+                productId: 'dou-web-stripe-tier-01_dev',
+                validUntil: at('2026-11-17'),
+            })
+        );
+        const paymentWindow = vi.fn(async () => ({ outcome: 'registered' as const, billingKey: 'pm_0001' }));
+        const { port, calls } = setup(
+            { ...BASE_ROUTES, 'POST /subscriptions/0/issue': STRIPE_ISSUE, 'POST /subscriptions/0/start': start },
+            { paymentWindow }
+        );
+
+        const registered = await port.startPaymentMethodRegistration({
+            purpose: 'start',
+            planId: 'pro-tier-01',
+            country: 'US',
+        });
+        expect(registered).toEqual({ outcome: 'registered', card: 'pm_0001' });
+        expect(calls.find(call => call.path === '/subscriptions/0/issue')?.body).toEqual({
+            productId: 'dou-web-stripe-tier-01_dev',
+        });
+        expect(paymentWindow).toHaveBeenCalledWith(
+            expect.objectContaining({
+                issue: { ...STRIPE_ISSUE, provider: 'stripe' },
+                payer: undefined,
+                country: 'US',
+                terms: { amount: { amount: 600, currency: 'USD' }, firstChargeAt: '2026-11-17', withTrial: true },
+            })
+        );
+
+        const attempt = await port.startCheckout({
+            planId: 'pro-tier-01',
+            country: 'US',
+            card: 'pm_0001' as CardToken,
+        });
+        expect(start).toHaveBeenCalledWith({ productId: 'dou-web-stripe-tier-01_dev', billingKey: 'pm_0001' });
+        expect(attempt).toMatchObject({ status: 'succeeded', withTrial: true, subscriptionId: 'U1:stripe' });
+    });
+
+    it('refuses to open the won window without the payer it requires', async () => {
+        const { port, paymentWindow } = setup(BASE_ROUTES);
+        const error = await port
+            .startPaymentMethodRegistration({ purpose: 'start', planId: 'pro-tier-01', country: 'KR' })
+            .catch(e => e);
+        expect(isPortError(error, 'invalid')).toBe(true);
+        expect(paymentWindow).not.toHaveBeenCalled();
+    });
+
+    it('refuses an issue answer it cannot open', async () => {
+        const { port, paymentWindow } = setup({
+            ...BASE_ROUTES,
+            'POST /subscriptions/0/issue': { provider: 'stripe', publishableKey: 'pk_test_0000' },
+        });
+        const error = await port
+            .startPaymentMethodRegistration({ purpose: 'start', planId: 'pro-tier-01', country: 'US' })
+            .catch(e => e);
+        expect(isPortError(error, 'conflict')).toBe(true);
+        expect(paymentWindow).not.toHaveBeenCalled();
+    });
+
+    it('adds a card to a dollar subscription with its key alone', async () => {
+        const card = vi.fn(() => ({ ...CARD, id: 'pm_0002', provider: 'stripe' }));
+        const { port, calls } = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': {
+                subscription: subscription({
+                    id: 'U1:stripe',
+                    platform: 'stripe',
+                    productId: 'dou-web-stripe-tier-02_dev',
+                }),
+            },
+            'POST /subscriptions/0/issue': STRIPE_ISSUE,
+            'POST /subscriptions/0/card': card,
+        });
+        expect(await port.startPaymentMethodRegistration({ purpose: 'addCard' })).toMatchObject({
+            outcome: 'registered',
+        });
+        // The card goes to the provider the subscription is charged by, so the issue names its product.
+        expect(calls.find(call => call.path === '/subscriptions/0/issue')?.body).toEqual({
+            productId: 'dou-web-stripe-tier-02_dev',
+        });
+        expect(card).toHaveBeenCalledWith({ billingKey: 'billing-key-1' });
     });
 
     it('sends a card added on its own back to the card list', async () => {

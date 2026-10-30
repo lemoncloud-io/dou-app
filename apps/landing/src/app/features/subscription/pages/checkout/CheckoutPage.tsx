@@ -1,4 +1,4 @@
-import { type JSX, useState } from 'react';
+import { type JSX, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 
@@ -6,6 +6,7 @@ import { ROUTES } from '../../../../routes/paths';
 import { BillingEmailChangeDialog, PageLoader, PayerFields, accountLabel } from '../../components';
 import { Badge, Banner, Button, Card } from '../../components/ui';
 import { useBillingInfo, usePreviewCheckout } from '../../hooks';
+import { currencyOfCountry, payerRequiredIn } from '../../lib/billingCountry';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
 import { useManagementScreens } from '../../lib/screens';
 import { EMPTY_PAYER, type PayerDraft, payerOf } from '../../lib/payer';
@@ -20,7 +21,6 @@ import {
     changePlanUrl,
     checkoutEmailUrl,
     checkoutPaymentUrl,
-    isSupportedCountry,
     setAllConsents,
 } from './flow';
 import { CheckoutLayout, CheckoutSteps, CheckoutSummary, LoadError } from './parts';
@@ -38,6 +38,12 @@ const CARD_TITLE = 'text-sm font-bold text-ink';
  * payer and the consents are settled. The payer's name and number go on with the reader to W-05 and
  * are not kept anywhere else: the card company asks for them with each card.
  *
+ * The billing country comes first and starts empty — nothing is picked for the reader. It decides the
+ * currency (won for Korea, US dollars for any other country), so until it is chosen the summary shows no
+ * amount and the payer is not asked for; once it is, the summary is priced in its currency and, for
+ * Korea only, the payer fields appear. Which payment provider that means is the port's business, and
+ * the page never names one.
+ *
  * The billing email is not entered here. It is the primary address verified on W-24, shown as it is;
  * [change] opens the shared popup, which swaps a newly verified address in. A reader without a verified
  * primary address — a link pasted past W-24, or one removed since — is sent to W-24 with the plan kept.
@@ -46,12 +52,20 @@ export const CheckoutPage = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
     const { loading, error, retry, target: plan, route } = usePlanRoute();
-    const preview = usePreviewCheckout(route === 'checkout' ? plan?.id : undefined);
+    const [country, setCountry] = useState('');
+    const [countryMissing, setCountryMissing] = useState(false);
+    const countryField = useRef<HTMLSelectElement>(null);
+    // The account and the trial come from a preview in won; the amounts from one in the country's currency,
+    // once there is a country. A failure of the second stays in the summary, so another country can be picked.
+    const base = usePreviewCheckout(route === 'checkout' ? plan?.id : undefined);
+    const pricedPreview = usePreviewCheckout(
+        route === 'checkout' && country ? plan?.id : undefined,
+        country ? currencyOfCountry(country) : undefined
+    );
     const { emails: management } = useManagementScreens();
     // The billing-email screens are hidden: nothing here reads the billing emails then.
     const billing = useBillingInfo({ enabled: management });
 
-    const [country, setCountry] = useState<string>(BILLING_COUNTRY_OPTIONS[0]);
     const [payer, setPayer] = useState<PayerDraft>(EMPTY_PAYER);
     const [consents, setConsents] = useState<Consents>(NO_CONSENTS);
     const [changingEmail, setChangingEmail] = useState(false);
@@ -62,27 +76,35 @@ export const CheckoutPage = (): JSX.Element => {
     if (route === 'change') return <Navigate to={changePlanUrl(plan.id)} replace />;
     if (route === 'plans') return <Navigate to={ROUTES.subscription.plans} replace />;
 
-    if (preview.isError) return <LoadError error={preview.error} onRetry={preview.refetch} />;
+    if (base.isError) return <LoadError error={base.error} onRetry={base.refetch} />;
     if (management && billing.isError) return <LoadError error={billing.error} onRetry={billing.refetch} />;
-    if (!preview.data || (management && !billing.data)) return <PageLoader />;
+    if (!base.data || (management && !billing.data)) return <PageLoader />;
 
     const billingEmail = management ? primaryVerifiedEmail(billing.data) : undefined;
     if (management && !billingEmail) return <Navigate to={checkoutEmailUrl(plan.id)} replace />;
 
     const money = (amount: CheckoutPreview['amountToday']) => formatMoney(amount, i18n.language);
-    const { account, withTrial } = preview.data;
+    const { account, withTrial } = base.data;
     // With the billing-email screens hidden, the card company gets the account's own address.
     const emailAddress = management ? billingEmail?.address : account.email;
-    const supported = isSupportedCountry(country);
+    const needsPayer = !!country && payerRequiredIn(country);
+    // The amounts are the country's only once its own preview is in, not the one before it.
+    const priced = !!country && !!pricedPreview.data && !pricedPreview.isPlaceholderData;
+    const preview = { data: priced && pricedPreview.data ? pricedPreview.data : base.data };
     const ready = canContinueCheckout({ country, email: emailAddress, payer, consents });
 
     const onContinue = () => {
+        if (!country) {
+            setCountryMissing(true);
+            countryField.current?.focus();
+            return;
+        }
         navigate(checkoutPaymentUrl(plan.id), {
             state: {
                 checkout: {
                     country,
                     ...(billingEmail ? { emailId: billingEmail.id } : {}),
-                    payer: payerOf(payer, emailAddress ?? ''),
+                    ...(needsPayer ? { payer: payerOf(payer, emailAddress ?? '') } : {}),
                 },
             },
         });
@@ -103,7 +125,22 @@ export const CheckoutPage = (): JSX.Element => {
                     </header>
                 </>
             }
-            summary={<CheckoutSummary preview={preview.data} />}
+            summary={
+                <div className="flex flex-col gap-3">
+                    <CheckoutSummary preview={preview.data} priced={priced} />
+                    {country && pricedPreview.isError && (
+                        <Banner
+                            tone="danger"
+                            title={t('subscription.common.error.unknown')}
+                            action={
+                                <Button size="sm" variant="secondary" onClick={() => void pricedPreview.refetch()}>
+                                    {t('subscription.common.actions.retry')}
+                                </Button>
+                            }
+                        />
+                    )}
+                </div>
+            }
         >
             <Card className={CARD}>
                 <h2 className={CARD_TITLE}>{t('subscription.checkout.details.accountTitle')}</h2>
@@ -133,18 +170,37 @@ export const CheckoutPage = (): JSX.Element => {
                 <h2 className={CARD_TITLE}>{t('subscription.checkout.billing.title')}</h2>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
                     <div className="flex flex-col gap-2">
+                        {/* The card's title already says it; the label stays for screen readers unless the email
+                            field beside it needs the two told apart. */}
                         <label
                             htmlFor="checkout-country"
-                            className="text-[13px] font-semibold leading-6 text-[#4d4f57]"
+                            className={cn(
+                                'text-[13px] font-semibold leading-6 text-[#4d4f57]',
+                                !billingEmail && 'sr-only'
+                            )}
                         >
                             {t('subscription.checkout.billing.country')}
                         </label>
                         <select
+                            ref={countryField}
                             id="checkout-country"
                             value={country}
-                            onChange={event => setCountry(event.target.value)}
-                            className="h-[47px] rounded-lg border border-[#d9dbe0] bg-white px-4 text-sm font-medium text-ink outline-none focus:border-navy/40"
+                            aria-required
+                            aria-invalid={countryMissing}
+                            aria-describedby={countryMissing ? 'checkout-country-missing' : undefined}
+                            onChange={event => {
+                                setCountry(event.target.value);
+                                setCountryMissing(false);
+                            }}
+                            className={cn(
+                                'h-[47px] rounded-lg border bg-white px-4 text-sm font-medium outline-none focus:border-navy/40',
+                                country ? 'text-ink' : 'text-[#b4b6bc]',
+                                countryMissing ? 'border-status-danger' : 'border-[#d9dbe0]'
+                            )}
                         >
+                            <option value="" disabled>
+                                {t('subscription.checkout.billing.countryPlaceholder')}
+                            </option>
                             {BILLING_COUNTRY_OPTIONS.map(code => (
                                 <option key={code} value={code}>
                                     {t(`subscription.checkout.billing.countries.${code}`)}
@@ -178,30 +234,37 @@ export const CheckoutPage = (): JSX.Element => {
                         </div>
                     )}
                 </div>
+                {countryMissing && (
+                    <p id="checkout-country-missing" role="alert" className="text-xs text-status-danger">
+                        {t('subscription.checkout.billing.countryMissing')}
+                    </p>
+                )}
+                {country && (
+                    <p className="text-sm font-semibold text-ink">
+                        {t(`subscription.checkout.billing.currency.${currencyOfCountry(country)}`)}
+                    </p>
+                )}
                 <p className="text-xs font-medium leading-normal text-mute">
                     {t('subscription.checkout.billing.countryNote')}
                 </p>
-                {!management && emailAddress && (
+                {needsPayer && !management && emailAddress && (
                     <p className="text-xs font-medium leading-normal text-mute">
                         {t('subscription.checkout.billing.noticeEmail')}
                     </p>
                 )}
-                {!management && !emailAddress && (
+                {needsPayer && !management && !emailAddress && (
                     <Banner tone="warning" title={t('subscription.checkout.billing.noAccountEmail.title')}>
                         {t('subscription.checkout.billing.noAccountEmail.body')}
                     </Banner>
                 )}
-                {!supported && (
-                    <Banner tone="info" title={t('subscription.checkout.billing.comingSoonTitle')}>
-                        {t('subscription.checkout.billing.comingSoonBody')}
-                    </Banner>
-                )}
             </Card>
 
-            <Card className={CARD}>
-                <h2 className={CARD_TITLE}>{t('subscription.common.payer.title')}</h2>
-                <PayerFields idPrefix="checkout-payer" value={payer} onChange={setPayer} />
-            </Card>
+            {needsPayer && (
+                <Card className={CARD}>
+                    <h2 className={CARD_TITLE}>{t('subscription.checkout.billing.payerTitle')}</h2>
+                    <PayerFields idPrefix="checkout-payer" value={payer} onChange={setPayer} />
+                </Card>
+            )}
 
             <Card className={cn(CARD, 'gap-3')}>
                 <label className="flex items-center gap-2 text-sm font-medium text-ink">
@@ -242,21 +305,24 @@ export const CheckoutPage = (): JSX.Element => {
                         </div>
                     ))}
                 </div>
-                <p className="rounded-2xl bg-note px-4 py-3 text-[13px] font-medium leading-normal text-[#666b78]">
-                    {withTrial
-                        ? t('subscription.checkout.consent.noticeTrial', {
-                              date: formatDate(preview.data.firstChargeAt),
-                              day: Number(preview.data.firstChargeAt.slice(8, 10)),
-                              price: money(plan.monthly),
-                          })
-                        : t('subscription.checkout.consent.noticePaid', {
-                              day: Number(preview.data.firstChargeAt.slice(8, 10)),
-                              price: money(plan.monthly),
-                          })}
-                </p>
+                {priced && (
+                    <p className="rounded-2xl bg-note px-4 py-3 text-[13px] font-medium leading-normal text-[#666b78]">
+                        {withTrial
+                            ? t('subscription.checkout.consent.noticeTrial', {
+                                  date: formatDate(preview.data.firstChargeAt),
+                                  day: Number(preview.data.firstChargeAt.slice(8, 10)),
+                                  price: money(preview.data.plan.monthly),
+                              })
+                            : t('subscription.checkout.consent.noticePaid', {
+                                  day: Number(preview.data.firstChargeAt.slice(8, 10)),
+                                  price: money(preview.data.plan.monthly),
+                              })}
+                    </p>
+                )}
             </Card>
 
-            <Button size="lg" className="w-full max-md:h-[54px]" disabled={!ready} onClick={onContinue}>
+            {/* Without a country the button stays pressable, so pressing it can say what is missing. */}
+            <Button size="lg" className="w-full max-md:h-[54px]" disabled={!!country && !ready} onClick={onContinue}>
                 {t('subscription.checkout.details.next')}
             </Button>
 

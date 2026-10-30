@@ -1,6 +1,6 @@
 import { ROUTES } from '../../../../routes/paths';
 import { addDays, addMonths, dayNumber } from '../calendar';
-import { currencyOfProvider, providerOfCountry } from '../billingCountry';
+import { KOREA, currencyOfProvider, payerRequiredFor, providerOfCountry } from '../billingCountry';
 import { canRemovePaymentMethod } from '../canRemovePaymentMethod';
 import { planCatalogIn } from '../catalog';
 import { changeKindOf } from '../changeKindOf';
@@ -518,10 +518,19 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         // that outcome is taken as is. A declined card fails the window itself only when adding a card
         // is all it is for: ahead of a charge the card registers and the charge that follows is what
         // fails, the way the designs split the two.
-        startPaymentMethodRegistration: async ({ purpose, planId, payer }) => {
+        startPaymentMethodRegistration: async ({ purpose, planId, country, payer }) => {
+            // A checkout's card goes to the provider of its billing country; any other card to the
+            // provider of the account's subscription, ended or not, as the server does.
+            const providerFor = (s: MockState): PaymentProvider =>
+                purpose === 'start'
+                    ? providerOfCountry(country ?? KOREA)
+                    : ((liveSubscription(s) ?? s.subscriptions[0])?.provider ??
+                      (country ? providerOfCountry(country) : 'portone'));
             const suggested = await call((s): RegistrationOutcome => {
-                // The card company refuses a card without its holder, as the real window does.
-                if (!isCompletePayer(payer)) fail('conflict', 'mock: payer name, phone and email are required');
+                // The won provider's card company refuses a card without its holder, as the real window does.
+                if (payerRequiredFor(providerFor(s)) && !isCompletePayer(payer)) {
+                    fail('invalid', 'mock: payer name, phone and email are required');
+                }
                 if (s.fail === 'attempt-limit' || s.failedCardAttempts >= MOCK_POLICY.maxCardAttempts) {
                     fail('limit', 'mock: card registration attempts used up');
                 }
@@ -533,8 +542,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             return call((s): RegistrationResult => {
                 if (outcome === 'failed') s.failedCardAttempts += 1;
                 if (outcome !== 'registered') return { outcome };
-                // A card goes to the provider of the subscription it is for.
-                const provider = liveSubscription(s)?.provider ?? 'portone';
+                const provider = providerFor(s);
                 const makeDefault = purpose !== 'addCard' || !defaultCard(s, provider);
                 if (makeDefault) {
                     s.paymentMethods.filter(pm => pm.provider === provider).forEach(pm => (pm.isDefault = false));
@@ -569,11 +577,12 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 // as a server would, rather than a second subscription when both settle.
                 const pending = s.attempts.find(a => a.purpose === 'start' && a.status === 'processing');
                 if (pending) return publicAttempt(pending);
-                if (!isCompletePayer(payer)) fail('conflict', 'payer name, phone and email are required');
+                const provider = providerOfCountry(country);
+                if (payerRequiredFor(provider) && !isCompletePayer(payer)) {
+                    fail('invalid', 'payer name, phone and email are required');
+                }
                 if (liveSubscription(s)) fail('conflict', 'already subscribed');
                 if (changeKindOf(undefined, planOf(planId), s.account) !== 'new') fail('conflict', 'plan not sellable');
-                if (country !== 'KR') fail('conflict', 'billing country not supported yet');
-                const provider = providerOfCountry(country);
                 if (!defaultCard(s, provider)) fail('conflict', 'no payment method');
                 // A checkout without a billing email (the billing-email screens are hidden) is charged
                 // with the payer's own address, which is all the card company asks for.
@@ -581,6 +590,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                     const email = s.billing.emails.find(e => e.id === emailId);
                     if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
                 }
+                s.billing.country = country;
                 return startAttempt(s, { purpose: 'start', planId, provider, withTrial: !s.account.trialUsed });
             }),
 

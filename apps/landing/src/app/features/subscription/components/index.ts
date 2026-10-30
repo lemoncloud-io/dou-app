@@ -14,3 +14,4 @@ export { PageLoader } from './PageLoader';
 export { EmailVerificationForm, EmailCodePolicy } from './EmailVerificationForm';
 export { BillingEmailChangeDialog } from './BillingEmailChangeDialog';
 export { PayerFields } from './PayerFields';
+export { CardEntryWindow } from './CardEntryWindow';

@@ -13,7 +13,32 @@ export const KOREA = 'KR';
 /** What the country picker offers, Korea first. `OTHER` stands for every country not listed. */
 export const BILLING_COUNTRY_OPTIONS = ['KR', 'US', 'JP', 'OTHER'] as const;
 
+export type BillingCountryOption = (typeof BILLING_COUNTRY_OPTIONS)[number];
+
+export const isBillingCountry = (value: string): value is BillingCountryOption =>
+    (BILLING_COUNTRY_OPTIONS as readonly string[]).includes(value);
+
 export const currencyOfCountry = (country: string): Currency => (country === KOREA ? 'KRW' : 'USD');
+
+/**
+ * Whether a card billed in this country is registered with the payer's name and mobile number. The won
+ * provider's card company asks for both when the card is registered and again with every charge on it,
+ * so in Korea they are required; the dollar provider asks for neither, so elsewhere there are no payer
+ * fields at all.
+ */
+export const payerRequiredIn = (country: string): boolean => country === KOREA;
+
+/** The same, for a card added to a subscription already charged by `provider`. */
+export const payerRequiredFor = (provider: PaymentProvider): boolean => provider === 'portone';
+
+/**
+ * The billing country a running subscription is held to. A subscription stays with the provider that
+ * charges it — a plan change or a new card cannot move it to the other currency — so its country is
+ * shown fixed: Korea for won, and "another country" for dollars, since the dollar provider is not told
+ * which.
+ */
+export const lockedCountryOf = (provider: PaymentProvider): BillingCountryOption =>
+    provider === 'portone' ? KOREA : 'OTHER';
 
 export const providerOfCountry = (country: string): PaymentProvider => (country === KOREA ? 'portone' : 'stripe');
 

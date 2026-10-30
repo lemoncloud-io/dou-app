@@ -12,6 +12,7 @@ import {
     useStartCheckout,
     useStartPaymentMethodRegistration,
 } from '../../hooks';
+import { currencyOfCountry } from '../../lib/billingCountry';
 import { toIsoDate } from '../../lib/calendar';
 import { clearPendingCheckout, peekPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
 import { isPortError, useToday } from '../../lib/port';
@@ -38,6 +39,7 @@ const detailOf = (error: unknown): string | undefined =>
 
 const errorKeyOf = (error: unknown): string => {
     if (isPortError(error, 'limit')) return 'subscription.checkout.payment.error.limit';
+    if (isPortError(error, 'invalid')) return 'subscription.checkout.payment.error.invalid';
     if (isPortError(error, 'conflict')) return 'subscription.checkout.payment.error.conflict';
     if (isPortError(error, 'network')) return 'subscription.common.error.network';
     return 'subscription.common.error.unknown';
@@ -57,7 +59,6 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     const navigate = useNavigate();
     const location = useLocation();
     const { loading, error: loadError, retry, target: plan, route } = usePlanRoute();
-    const preview = usePreviewCheckout(route === 'checkout' ? plan?.id : undefined);
     const registration = useStartPaymentMethodRegistration();
     const completeRegistration = useCompletePaymentMethodRegistration();
     const startCheckout = useStartCheckout();
@@ -79,10 +80,24 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     });
     const [resuming, setResuming] = useState(!!returning);
     const resumed = useRef(false);
+    // A card dialog left open when the reader goes elsewhere ends as closed; by then this page is gone and
+    // has nowhere to send them.
+    const mounted = useRef(true);
+    useEffect(() => {
+        mounted.current = true;
+        return () => {
+            mounted.current = false;
+        };
+    }, []);
 
     const details =
         checkoutDetailsOf(location.state) ??
         (returning ? checkoutDetailsOf({ checkout: returning.details }) : undefined);
+    // Priced in the billing country's currency, as W-08 showed it.
+    const preview = usePreviewCheckout(
+        route === 'checkout' && details ? plan?.id : undefined,
+        details && currencyOfCountry(details.country)
+    );
 
     // From the registration on: a registered card goes straight on to the charge, anything else to the
     // screen that says how the window ended.
@@ -139,9 +154,10 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     if (route === 'plans') return <Navigate to={ROUTES.subscription.plans} replace />;
     if (!details) return <Navigate to={checkoutUrl(plan.id)} replace />;
     if (preview.isError) return <LoadError error={preview.error} onRetry={preview.refetch} />;
-    if (!preview.data) return <PageLoader />;
+    if (!preview.data || preview.isPlaceholderData) return <PageLoader />;
 
     const { withTrial, firstChargeAt, amountToday } = preview.data;
+    const { monthly } = preview.data.plan;
     const money = (amount: typeof amountToday) => formatMoney(amount, i18n.language);
     const busy = registration.isPending || startCheckout.isPending;
     const day = Number(firstChargeAt.slice(8, 10));
@@ -158,9 +174,11 @@ export const CheckoutPaymentPage = (): JSX.Element => {
                 const result = await registration.mutateAsync({
                     purpose: 'start',
                     planId: plan.id,
+                    country: details.country,
                     payer: details.payer,
                 });
                 clearPendingCheckout();
+                if (!mounted.current) return;
                 if (result.outcome !== 'registered') {
                     navigate(registrationOutcomeUrl(plan.id, result.outcome), withCheckoutDetails(details));
                     return;
@@ -219,7 +237,7 @@ export const CheckoutPaymentPage = (): JSX.Element => {
                                 label: t('subscription.checkout.summary.firstChargeShort'),
                                 value: t('subscription.checkout.summary.dateAndPrice', {
                                     date: formatShortDate(firstChargeAt),
-                                    price: money(plan.monthly),
+                                    price: money(monthly),
                                 }),
                             },
                             {
@@ -243,7 +261,7 @@ export const CheckoutPaymentPage = (): JSX.Element => {
                         {t('subscription.checkout.payment.windowTitle')}
                     </span>
                     <span className="text-xs font-medium text-mute">
-                        {t('subscription.checkout.payment.windowSteps')}
+                        {t(`subscription.checkout.payment.windowSteps.${currencyOfCountry(details.country)}`)}
                     </span>
                 </div>
             </Card>
@@ -265,9 +283,9 @@ export const CheckoutPaymentPage = (): JSX.Element => {
                         ? t('subscription.checkout.payment.renewTrial', {
                               date: formatDate(firstChargeAt),
                               day,
-                              price: money(plan.monthly),
+                              price: money(monthly),
                           })
-                        : t('subscription.checkout.payment.renewPaid', { day, price: money(plan.monthly) })}
+                        : t('subscription.checkout.payment.renewPaid', { day, price: money(monthly) })}
                 </p>
             </div>
             <Link

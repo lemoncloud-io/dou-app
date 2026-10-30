@@ -3,10 +3,12 @@ import {
     attemptId,
     billingSourceOf,
     isExpiringSoon,
+    missingPayerFields,
     parseAttemptId,
     prorate,
     toAccount,
     toCatalog,
+    toIssue,
     toPaymentMethod,
     toSubscription,
 } from './wire';
@@ -279,5 +281,40 @@ describe('payment attempts', () => {
             status: 'failed',
             failure: 'declined',
         });
+    });
+});
+
+describe('toIssue', () => {
+    const base = { customerId: 'c', issueId: 'i', issueName: 'DoU 구독' };
+
+    it('reads the won provider window, requiring every payer field when the answer lists none', () => {
+        expect(toIssue({ provider: 'portone', storeId: 's', channelKey: 'k', ...base })).toEqual({
+            provider: 'portone',
+            storeId: 's',
+            channelKey: 'k',
+            required: ['name', 'phone', 'email'],
+            ...base,
+        });
+        expect(toIssue({ storeId: 's', channelKey: 'k', ...base })?.provider).toBe('portone');
+    });
+
+    it('reads the dollar provider card field with the payer fields it lists — none', () => {
+        expect(
+            toIssue({ provider: 'stripe', publishableKey: 'pk', clientSecret: 'secret', required: [], ...base })
+        ).toEqual({ provider: 'stripe', publishableKey: 'pk', clientSecret: 'secret', required: [], ...base });
+    });
+
+    it('has nothing for an answer missing what its provider opens with', () => {
+        expect(toIssue({ provider: 'stripe', publishableKey: 'pk', ...base })).toBeUndefined();
+        expect(toIssue({ provider: 'portone', ...base })).toBeUndefined();
+        expect(toIssue({ provider: 'paypal', ...base })).toBeUndefined();
+        expect(toIssue(undefined)).toBeUndefined();
+    });
+
+    it('names the required payer fields left empty', () => {
+        expect(missingPayerFields(['name', 'phone', 'email'], { name: '김민지', phone: ' ', email: 'a@b.c' })).toEqual([
+            'phone',
+        ]);
+        expect(missingPayerFields([], undefined)).toEqual([]);
     });
 });

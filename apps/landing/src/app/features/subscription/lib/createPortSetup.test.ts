@@ -1,5 +1,6 @@
 import { createPortSetup, portModeOf, serverPortOf } from './createPortSetup';
 import { isPortError } from './port';
+import { createCardEntryChannel } from './port/cardEntry';
 import { HTTP_METHODS, type HttpPort, type HttpSetup } from './port/http';
 
 import type { SubscriptionServer } from '../../../config/subscriptionServer';
@@ -14,6 +15,7 @@ const fakeHttp = (): HttpSetup => ({
         HTTP_METHODS.map(method => [method, vi.fn(async () => `http:${method}`)])
     ) as unknown as HttpPort,
     Host: ({ children }) => children as never,
+    cardEntry: createCardEntryChannel(),
 });
 
 beforeEach(() => {

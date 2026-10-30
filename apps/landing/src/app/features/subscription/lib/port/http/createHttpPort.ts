@@ -1,18 +1,20 @@
 import { ROUTES } from '../../../../../routes/paths';
 import { addDays, toIsoDate } from '../../calendar';
-import { providerOfCountry, providerOfCurrency } from '../../billingCountry';
+import { KOREA, payerRequiredFor, providerOfCountry, providerOfCurrency } from '../../billingCountry';
 import { planCatalogIn } from '../../catalog';
 import { changeKindOf } from '../../changeKindOf';
 import { SubscriptionPortError } from '../errors';
 import { failureOf, isDeclinedPayment, portErrorOf } from './errors';
 import {
     type CatalogPlan,
-    type IssueParams,
+    type Issue,
+    type IssueWire,
     type MembershipWire,
     type ProductWire,
     type SubscriptionWire,
     attemptFromSubscription,
     attemptId,
+    missingPayerFields,
     planOfProduct,
     dayOf,
     parseAttemptId,
@@ -20,6 +22,7 @@ import {
     prorate,
     toAccount,
     toCatalog,
+    toIssue,
     toPaymentMethod,
     toPlan,
     toSubscription,
@@ -29,11 +32,13 @@ import {
 import { windowResultOfQuery } from './windowReturn';
 
 import type { HttpPort } from './methods';
+import type { CardEntryTerms } from '../cardEntry';
 import type {
     Account,
     AttemptPurpose,
     CardToken,
     ChangePreview,
+    CheckoutPreview,
     Payer,
     PaymentAttempt,
     PaymentMethod,
@@ -54,11 +59,12 @@ export interface SubscriptionApi {
     fetchMembershipInfo(): Promise<MembershipWire>;
     fetchMySubscription(): Promise<{ subscription?: SubscriptionWire }>;
     fetchSubscriptionCards(): Promise<CardWire[]>;
-    issueBillingKey(productId: string): Promise<IssueParams>;
+    issueBillingKey(productId: string): Promise<IssueWire>;
     startSubscription(body: { productId: string; billingKey?: string } & Partial<Payer>): Promise<SubscriptionWire>;
     changeSubscription(productId: string): Promise<SubscriptionWire>;
     cancelSubscription(): Promise<SubscriptionWire>;
-    addCard(body: { billingKey: string } & Payer): Promise<CardWire>;
+    /** The payer goes with the card only where its provider requires one. */
+    addCard(body: { billingKey: string } & Partial<Payer>): Promise<CardWire>;
     setDefaultCard(billkeyId: string): Promise<CardWire>;
     removeCard(billkeyId: string): Promise<CardWire>;
 }
@@ -75,12 +81,21 @@ export interface SessionAccess {
 
 export type PaymentWindowResult = { outcome: 'registered'; billingKey: string } | { outcome: 'failed' | 'closed' };
 
-/** Where a card is entered: the payment provider's window. */
+/**
+ * Where a card is entered: the won provider's own window, or the dollar provider's card field in our
+ * dialog — `issue.provider` says which. A card the dollar provider registers answers with its payment
+ * method id in `billingKey`, which the server takes in the same place.
+ */
 export type PaymentWindow = (request: {
-    issue: IssueParams;
-    payer: Payer;
+    issue: Issue;
+    /** Present where the provider requires one (`issue.required`). */
+    payer?: Payer;
     purpose: AttemptPurpose;
     planId?: PlanId;
+    /** The billing country the reader chose, which the card field starts from. */
+    country?: string;
+    /** What the consent under a card field of ours states. */
+    terms: CardEntryTerms;
     /** Where a window that leaves the page (a phone's) comes back to, with its result in the query. */
     redirectUrl: string;
 }) => Promise<PaymentWindowResult>;
@@ -283,7 +298,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     const registered = async (
         result: PaymentWindowResult,
         purpose: AttemptPurpose,
-        payer: Payer
+        payer: Payer | undefined
     ): Promise<RegistrationResult> => {
         if (result.outcome !== 'registered') return { outcome: result.outcome };
         if (purpose !== 'start') {
@@ -298,6 +313,26 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         return (cards ?? [])
             .map(card => toPaymentMethod(card, today))
             .filter((card): card is NonNullable<typeof card> => !!card);
+    };
+
+    /** A first subscription to `planId` with `provider`: the trial, if the account may have one, and the charges. */
+    const checkoutPreview = async (planId: PlanId, provider: PaymentProvider): Promise<CheckoutPreview> => {
+        const [plan, account, { wire }] = await Promise.all([
+            catalogPlan(planId, provider),
+            requireSession(),
+            readMine(),
+        ]);
+        const withTrial = plan.trialDays > 0 && !account.trialUsed && !wire?.trialUsed;
+        const today = toIsoDate(new Date(now()));
+        const trialEndsAt = addDays(today, plan.trialDays);
+        return {
+            plan: toPlan(plan),
+            account,
+            withTrial,
+            amountToday: withTrial ? { amount: 0, currency: plan.monthly.currency } : plan.monthly,
+            trialEndsAt: withTrial ? trialEndsAt : undefined,
+            firstChargeAt: withTrial ? trialEndsAt : today,
+        };
     };
 
     const failedAttempt = (purpose: AttemptPurpose, withTrial: boolean): PaymentAttempt => {
@@ -370,40 +405,46 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             return sub && sub.id === id ? sub : fail('notFound', `no subscription ${id}`);
         },
 
-        previewCheckout: async (planId, input) => {
-            const [plan, account, { wire }] = await Promise.all([
-                catalogPlan(planId, providerOfCurrency(input?.currency ?? 'KRW')),
-                requireSession(),
-                readMine(),
-            ]);
-            const withTrial = plan.trialDays > 0 && !account.trialUsed && !wire?.trialUsed;
-            const today = toIsoDate(new Date(now()));
-            const trialEndsAt = addDays(today, plan.trialDays);
-            return {
-                plan: toPlan(plan),
-                account,
-                withTrial,
-                amountToday: withTrial ? { amount: 0, currency: plan.monthly.currency } : plan.monthly,
-                trialEndsAt: withTrial ? trialEndsAt : undefined,
-                firstChargeAt: withTrial ? trialEndsAt : today,
-            };
-        },
+        previewCheckout: (planId, input) => checkoutPreview(planId, providerOfCurrency(input?.currency ?? 'KRW')),
 
-        startPaymentMethodRegistration: async ({ purpose, planId, payer }) => {
-            // The window is opened for a product, whose platform picks the payment provider. A card
-            // added on its own goes with the plan already held, or the first plan if none is.
+        startPaymentMethodRegistration: async ({ purpose, planId, country, payer }) => {
+            // The window is opened for a product, whose platform picks the payment provider: a checkout's
+            // from its billing country, a card added on its own the provider of the account's subscription
+            // record, expired or not — the server adds a card to that record's provider only — or the
+            // first plan's if there is none.
             const held = planId ? undefined : (await readMine()).wire;
-            const heldProvider = providerOfPlatform(held?.platform) ?? 'portone';
+            const provider = planId
+                ? providerOfCountry(country ?? KOREA)
+                : (providerOfPlatform(held?.platform) ?? (country ? providerOfCountry(country) : 'portone'));
             const productId = planId
-                ? (await catalogPlan(planId, 'portone')).productId
-                : (planOfProduct(await loadCatalog(heldProvider), held?.productId)?.productId ??
-                  (await loadCatalog(heldProvider))[0]?.productId);
+                ? (await catalogPlan(planId, provider)).productId
+                : (planOfProduct(await loadCatalog(provider), held?.productId)?.productId ??
+                  (await loadCatalog(provider))[0]?.productId);
             if (!productId) return fail('notFound', 'no product to register a card for');
-            const issue = await call(server => server.issueBillingKey(productId));
+            // A payer the provider is known to need is checked before anything is asked of the server; the
+            // `issue` answer's own list is checked again after, and the server checks once more when the
+            // card arrives. A payer missing would only open the window to fail behind it.
+            if (payerRequiredFor(provider) && missingPayerFields(['name', 'phone', 'email'], payer).length > 0) {
+                return fail('invalid', 'payer name, phone and email required');
+            }
+            const issue = toIssue(await call(server => server.issueBillingKey(productId)));
+            if (!issue) return fail('conflict', 'the server answered with no card registration this side can open');
+            const missing = missingPayerFields(issue.required, payer);
+            if (missing.length > 0) return fail('invalid', `payer ${missing.join(', ')} required`);
+            // Only a card field of ours states the terms, so only then are they worked out. A card added on
+            // its own is charged only once it is the default, so its consent states no date or amount.
+            const terms: CardEntryTerms =
+                issue.provider === 'stripe' && planId
+                    ? await checkoutPreview(planId, provider).then(preview => ({
+                          amount: preview.plan.monthly,
+                          firstChargeAt: preview.firstChargeAt,
+                          withTrial: preview.withTrial,
+                      }))
+                    : {};
             const redirectUrl = `${options.origin}${returnPathOf(purpose, planId)}`;
             let outcome: PaymentWindowResult;
             try {
-                outcome = await paymentWindow({ issue, payer, purpose, planId, redirectUrl });
+                outcome = await paymentWindow({ issue, payer, purpose, planId, country, terms, redirectUrl });
             } catch (error) {
                 // The provider's script refusing to open — not a closed window, which answers `closed`. Its
                 // own words go to the console, where a phone's remote inspector can read them.

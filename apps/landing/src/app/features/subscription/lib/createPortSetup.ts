@@ -3,6 +3,7 @@ import { type ComponentType, type ReactNode } from 'react';
 import { subscriptionServer, type SubscriptionServer } from '../../../config/subscriptionServer';
 import { createCatalogPort } from './catalogPort';
 import { createMockPort, type MockController } from './mock';
+import { type CardEntryChannel } from './port/cardEntry';
 import { SubscriptionPortError, systemClock, type Clock, type PortSupports, type SubscriptionPort } from './port';
 import { HTTP_METHODS, type HttpMethod, type HttpPort, type HttpSetup, createHttpSetup } from './port/http';
 
@@ -15,6 +16,8 @@ export interface PortSetup {
     mock?: MockController;
     /** Wraps the routes when the port needs a session host above them. */
     Host?: ComponentType<{ children: ReactNode }>;
+    /** Present when the port may ask for a card typed into our own dialog (`CardEntryWindow`). */
+    cardEntry?: CardEntryChannel;
 }
 
 export type PortMode = 'mock' | 'server';
@@ -105,5 +108,6 @@ export const createPortSetup = ({
         clock: systemClock,
         supports: isHttpMethod,
         Host: http.Host,
+        cardEntry: http.cardEntry,
     };
 };

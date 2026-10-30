@@ -207,9 +207,10 @@ export type ChangePlanResult = PaymentAttempt | { scheduled: true; effectiveAt: 
 export type RegistrationOutcome = 'registered' | 'failed' | 'closed';
 
 /**
- * Who pays, as the payment window and the subscription server both require it: the card company asks
- * for a name, a phone number and an email with every card. Entered at checkout (W-08) or when a card
- * is replaced, and never stored — the next card asks again.
+ * Who pays, as the won provider's card company requires it: a name, a phone number and an email with
+ * every card, and again with every charge on it. Entered at checkout (W-08) or when a card is added,
+ * only where the billing is in Korea, and never stored — the next card asks again. The dollar provider
+ * asks for none of it.
  */
 export interface Payer {
     name: string;
