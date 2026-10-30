@@ -2152,6 +2152,8 @@
             "instruction": "Enter the 8 digits shown on the web, or scan its QR",
             "codeLabel": "Sign-in code",
             "scan": "Scan QR",
+            "scanHint": "Hold the QR on the web screen inside the square",
+            "scanDenied": "Camera access is off. Allow it in Settings, or type the digits",
             "scanOldApp": "Update the app to scan QR codes. For now, type the digits",
             "scanNotOurs": "This isn't a DoU web sign-in QR",
             "scanNoQr": "Couldn't read a QR code. Try again or type the digits",

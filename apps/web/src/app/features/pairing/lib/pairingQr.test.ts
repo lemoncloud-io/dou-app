@@ -192,6 +192,14 @@ describe('readQrText', () => {
     it('answers null when there is no QR code', () => {
         expect(readQrText(blankPhoto())).toBeNull();
     });
+
+    it('tries only the image as given, or only its inverse, when asked to', () => {
+        const dark = inverted(pixelsOf('07344168', 'numeric'));
+
+        expect(readQrText(dark, 'dontInvert')).toBeNull();
+        expect(readQrText(dark, 'onlyInvert')).toBe('07344168');
+        expect(readQrText(pixelsOf('07344168', 'numeric'), 'dontInvert')).toBe('07344168');
+    });
 });
 
 describe('toPairingCode', () => {

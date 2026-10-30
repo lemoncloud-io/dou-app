@@ -12,7 +12,9 @@ import { cn } from '@chatic/lib/utils';
 import { useCloudSessionCatalog, useDevicePairingEnabled, useIsAccountGuest } from '../../../hooks';
 import { ROUTES } from '../../../routes/paths';
 import { PageHeader } from '../../../ui/components';
+import { QrScannerSheet } from '../components/QrScannerSheet';
 import { useNow, usePairingApproval } from '../hooks';
+import { canScanLive, type LiveQrOpenFailure } from '../lib/liveQrScanner';
 import { formatPairingCode, formatRemaining } from '../lib/pairingCode';
 import { pairingTargetOptions, type PairingTargetOption } from '../lib/pairingTargets';
 import { scanPairingQr, type PairingQrScan } from '../lib/scanPairingQr';
@@ -50,6 +52,7 @@ const PairingApproveScreen = () => {
     const { selectedCloudId } = runtime.session.useSessionSelection();
     const [scanNote, setScanNote] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
+    const [liveScan, setLiveScan] = useState(false);
 
     const { options, defaultKey } = useMemo(
         () => pairingTargetOptions({ isRelayGuest, clouds, activeCloudId: selectedCloudId }),
@@ -66,8 +69,27 @@ const PairingApproveScreen = () => {
         }
     }, [state.step, t, toast, navigate]);
 
-    const scan = async () => {
+    // A live scan first; a page that cannot open a camera stream falls back to taking a photo.
+    const scan = () => {
         setScanNote(null);
+        if (canScanLive()) setLiveScan(true);
+        else void scanPhoto();
+    };
+
+    const onLiveCode = (scanned: string) => {
+        setLiveScan(false);
+        setCode(scanned);
+    };
+
+    const onLiveUnavailable = (reason: LiveQrOpenFailure) => {
+        setLiveScan(false);
+        // A refusal is the person's answer, so the photo camera is not put in front of them next; any
+        // other failure (no stream, a camera in use) still has the photo bridge to try.
+        if (reason === 'denied') setScanNote(t('pairing.approve.scanDenied'));
+        else void scanPhoto();
+    };
+
+    const scanPhoto = async () => {
         setScanning(true);
         try {
             const result = await scanPairingQr();
@@ -102,7 +124,7 @@ const PairingApproveScreen = () => {
                         />
                         <button
                             type="button"
-                            onClick={() => void scan()}
+                            onClick={scan}
                             disabled={scanning || state.step === 'checking'}
                             data-testid="pairing-approve-scan"
                             className="flex items-center justify-center gap-2 rounded-2xl border border-input-border py-3 text-[15px] font-medium text-foreground disabled:opacity-50"
@@ -131,6 +153,14 @@ const PairingApproveScreen = () => {
                     >
                         {t('pairing.code.retry')}
                     </button>
+                )}
+
+                {liveScan && (
+                    <QrScannerSheet
+                        onCode={onLiveCode}
+                        onClose={() => setLiveScan(false)}
+                        onUnavailable={onLiveUnavailable}
+                    />
                 )}
 
                 {check && (

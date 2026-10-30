@@ -15,15 +15,18 @@ features/pairing/
 │   ├── PairingCodePage.tsx     the requesting device's code screen — /mypage/login/pair
 │   ├── PairingApprovePage.tsx  the approving app's screen — /mypage/pairing/approve
 │   └── PairingDevicesPage.tsx  my devices and the sign-ins I approved — /mypage/devices
+├── components/
+│   └── QrScannerSheet.tsx      the full-screen live scanner the approve screen opens
 ├── hooks/                      useNow (a countdown's clock) ·
 │                               usePairingApproval (look up → approve or decline) ·
 │                               usePairingDevices (the two lists and their removals)
 └── lib/
     ├── pairingCode.ts          0734-4168 formatting, m:ss for the time left
     ├── pairingTargets.ts       what an approval can let the requester into, and the default
-    ├── scanPairingQr.ts        the camera bridge → a code, or why there is none
+    ├── liveQrScanner.ts        the camera stream in the page → a code (LiveQrScanner)
+    ├── scanPairingQr.ts        the camera bridge's photo → a code, or why there is none
     ├── deviceRows.ts           kind labels; standing approvals, newest first, unclaimed flagged
-    └── pairingQr.ts            photo (base64) → the eight-digit code, or null
+    └── pairingQr.ts            pixels (a photo or a frame) → the eight-digit code, or null
 ```
 
 The routes are registered in `routes/PrivateRoutes.tsx`, not in `features/mypage`: the addresses sit
@@ -139,19 +142,47 @@ cloud approval is among them), revokes them all on confirm and then opens `/auth
 nothing approved, in a browser, on a secondary device, or when the list cannot be read, the logout
 happens at once.
 
-## Reading a pairing QR from a photo
+## Reading a pairing QR
 
-The mobile app has no live QR scanner, and adding one would mean a new native dependency and camera
-settings in the WebView. The approval screen takes a photo through the existing camera bridge instead
-and reads the code from it in the page:
+"Scan QR" opens a live scanner first and falls back to a photo.
+
+### Live, in the page
+
+`QrScannerSheet` covers the screen with the back camera and a guide square; `LiveQrScanner` behind it
+opens the stream with `getUserMedia` (`facingMode: environment`, about 1280×720, no audio), and every
+150 ms draws the current frame on a canvas at 640 px on its longest edge and reads it. The first frame
+holding a pairing code fills the input and closes the sheet; a QR holding anything else shows "not a
+DoU QR" for two seconds while scanning goes on.
+
+- **It needs no newer app.** The camera stream is the WebView's own: Android's
+  (react-native-webview) answers the page's camera request with the app's `CAMERA` permission, asking
+  for it when it is not granted yet, and iOS's WKWebView asks the person once per page. Both app
+  builds already declare the camera permission, so the scanner works on shells that predate it —
+  unlike the photo path below, whose base64 answer needs a newer one.
+- **Frames alternate between the image and its inverse.** A code on a dark-mode screen only reads
+  inverted; decoding both on every frame would double the main-thread cost, so each frame tries one.
+  jsqr 1.4's own `onlyInvert` throws (it never builds the inverted image), so `readQrText` inverts the
+  pixels itself.
+- **When the camera cannot be opened.** No `getUserMedia` (`canScanLive()` is false) goes straight to
+  the photo. A refusal of the camera (`getUserMedia`'s `NotAllowedError`) is the person's answer: a
+  note says to allow the camera or type the digits, and no photo camera is put up next. Anything else
+  — no camera, one in use, a stream whose `play()` is refused — falls back to the photo. A refused
+  `play()` is never read as a refusal of the camera: the iOS WebView keeps
+  `mediaPlaybackRequiresUserAction`, an autoplay rule, and by then the camera was already granted.
+- **It lets go of the camera** on a code, on close, on unmount and when the page is hidden (iOS
+  suspends the camera in the background, and returning to a frozen picture reads as broken).
+
+### From a photo
+
+The fallback takes a photo through the existing camera bridge and reads the code from it in the page:
 
 1. `appBridge.openCamera({ mediaType: 'photo', includeBase64: true, maxWidth: 1024, quality: 0.7 })`.
    Always send `maxWidth` and `quality` with `includeBase64`: an original-size photo is several MB of
    base64 crossing the bridge, and 1024 px is plenty for a QR code.
-2. `decodePairingQr(asset.base64, { mimeType: asset.type })` draws the photo on a canvas — scaled to 1024 px on its longest edge, so a photo sent without
-   `maxWidth` still costs a bounded buffer — finds a QR
-   code with `jsqr` (trying the inverted image too, for a code shown on a dark screen) and keeps its
-   text only if it is exactly eight digits.
+2. `decodePairingQr(asset.base64, { mimeType: asset.type })` draws the photo on a canvas — scaled to
+   1024 px on its longest edge, so a photo sent without `maxWidth` still costs a bounded buffer — finds
+   a QR code with `jsqr` (trying the inverted image too, for a code shown on a dark screen) and keeps
+   its text only if it is exactly eight digits.
 
 The contract of the reader:
 
