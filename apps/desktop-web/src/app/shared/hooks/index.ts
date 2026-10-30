@@ -2,6 +2,7 @@ export * from './usePlaces';
 export * from './useCurrentPlace';
 export * from './useChannels';
 export * from './useStartDm';
+export * from './useChannelReadCounts';
 export * from './useChannelReadCursors';
 export * from './useChats';
 export * from './useChannelChatFeeds';

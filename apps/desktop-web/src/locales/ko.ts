@@ -9,7 +9,7 @@ import type { EnTranslation } from './en';
  * One Korean term per English term, held across the whole file:
  * cloud `클라우드` · place `플레이스` · channel `채널` ·
  * thread `스레드` · reply `답글` · saved items `저장한 항목` · mentions `멘션` ·
- * unread `안 읽음` · mention `멘션` · reaction `반응` · invite `초대` · guest `게스트` ·
+ * unread `안 읽음` · seen `읽음` · not seen `미확인` · mention `멘션` · reaction `반응` · invite `초대` · guest `게스트` ·
  * member `멤버` · favorites `즐겨찾기` · quiet hours `방해 금지 시간` · rail `레일`.
  * A cloud is `클라우드` everywhere, as in the mobile app; `워크스페이스` is not a
  * second name for it. Product nouns, keys and tokens stay verbatim: DoU,
@@ -418,6 +418,8 @@ export const ko: EnTranslation = {
     'chat.reaction.who': '{{emoji}} · {{names}}',
     'chat.reaction.quick': '{{emoji}} 반응 추가',
     'chat.reaction.failed': '반응을 추가하지 못했어요. 다시 시도해 주세요.',
+    'chat.readCount.summary': '읽음 {{read}} · 미확인 {{unread}}',
+    'chat.readCount.allSeen': '읽음 {{read}}',
     'chat.edit': '메시지 수정',
     'chat.editHint': 'Enter로 저장 · Esc로 취소',
     'chat.editSave': '저장',
@@ -744,10 +746,20 @@ export const ko: EnTranslation = {
     'invite.waiting.reissueMissing': '다시 보낼 정보가 없어요.',
     'settings.title': '설정',
     'settings.appearance': '화면',
-    'settings.theme': '테마',
+    'settings.theme': '화면 모드',
     'settings.theme.light': '라이트',
     'settings.theme.dark': '다크',
     'settings.theme.system': '시스템',
+    'settings.palette': '테마',
+    'settings.palette.hint': '라이트 모드에서 왼쪽 목록 영역의 색을 바꿔요. 대화 영역은 그대로 밝게 보여요.',
+    'settings.palette.default': '{{name}} (기본)',
+    'settings.palette.mist': 'Mist',
+    'settings.palette.midnight': 'Midnight',
+    'settings.palette.forest': 'Forest',
+    'settings.palette.ocean': 'Ocean',
+    'settings.palette.plum': 'Plum',
+    'settings.palette.lemon': 'Lemon',
+    'settings.palette.applied': '테마 적용 완료',
     'settings.language': '언어',
     'settings.fontSize': '글자 크기',
     'settings.fontSize.small': '작게',

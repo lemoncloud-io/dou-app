@@ -28,6 +28,7 @@ import {
     useComposerFocusStore,
     useMessageJumpStore,
     useOpenAtBottomStore,
+    useChannelReadCounts,
     useReadCursorStore,
     useReadReceipts,
     useSelectedChannelStore,
@@ -39,13 +40,7 @@ import type { ChannelMember } from '../../channels';
 import { useChannelActions, useChannelSettingsStore } from '../../channels';
 import { useSearchDialogStore } from '../../search';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
-import {
-    useComposerSend,
-    useFileDrop,
-    useImageAttachments,
-    useMentionables,
-    useMessageViewer,
-} from '../hooks';
+import { useComposerSend, useFileDrop, useImageAttachments, useMentionables, useMessageViewer } from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { ChannelIntro } from './ChannelIntro';
@@ -188,6 +183,8 @@ export const ChatPane = ({
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages, channel ? channel.cid || RELAY_CLOUD_ID : '');
+    // How far each member has read, for the count under each author block.
+    const readCountOf = useChannelReadCounts(channel);
 
     // A notification click asks this channel to open at its latest message (the pinged
     // one) rather than the unread divider. Read the one-shot flag for THIS channel and
@@ -394,6 +391,7 @@ export const ChatPane = ({
                     mentionables={mentionables}
                     membersLoading={membersLoading}
                     baselineReadNo={baselineReadNo}
+                    readCountOf={readCountOf}
                     onRetry={composer.retry}
                     canRetry={composer.canRetry}
                     onDiscard={composer.discard}
