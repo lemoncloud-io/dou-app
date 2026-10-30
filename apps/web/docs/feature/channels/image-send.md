@@ -71,9 +71,32 @@ timeout is not learned from. The older app's own photo bridge is not used as a f
 what the page asks for and returns a device path the page cannot read, while the file input returns
 real bytes — the profile and channel photo fields already rely on it inside the app.
 
-The camera entry is a capturing file input in every shell, so it opens the camera directly and needs
-nothing from the app. The photos entry's file input and the camera take photos only; the grid lists
-videos too, in an app that has them (below).
+The camera entry is a capturing file input in every shell. In a browser the tap opens it directly.
+Inside the app the page first asks for the camera permission (`RequestPermission` `CAMERA`,
+`bridge/cameraAccess.ts`): Android's WebView never asks for itself when that input is tapped. Without
+the permission it leaves the camera out and opens nothing, and the page hears nothing back. So:
+
+- **Granted** (already, or at the OS prompt) opens the input when the answer comes back inside the tap
+  window (`INPUT_CLICK_WINDOW_MS`), which a grant that was already there does in one bridge round
+  trip. A grant given at a prompt comes after it and asks for another tap ("tap again"), because a late
+  `click()` would open nothing. A grant is remembered for the page — both OSes end the app's process
+  when a permission is taken back in Settings — so from then on the tap opens the camera itself, with
+  no round trip in front of it. That makes the second tap the last one asked for.
+- **Refused** (`DENIED` or `BLOCKED`) shows the settings prompt the grid shows for photos, titled for
+  the camera ("No access to the camera"). A refusal is not remembered: the next tap asks again, in
+  case the person allowed the camera in Settings meanwhile.
+- **No answer** (an error, no camera to ask about) opens the input as before when it still comes back
+  inside the tap window, and lets the OS have its say. A timeout, or a failure that comes later, asks
+  for another tap.
+- An answer that lands after the composer unmounted or moved to another conversation is dropped; its
+  prompt or toast would be about a tap on another screen.
+
+iOS asks once more than it used to on the very first use: its WebView would raise the camera prompt
+itself and open the camera, where the page now raises it and asks for another tap. That is kept
+deliberately, for one rule on both platforms and the same settings prompt for a refusal.
+
+The photos entry's file input and the camera take photos only; the grid lists videos too, in an app
+that has them (below).
 
 The second sheet's two entries depend on the shell too:
 

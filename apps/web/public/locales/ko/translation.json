@@ -2154,6 +2154,11 @@
             "scan": "QR 스캔",
             "scanHint": "웹 화면의 QR을 네모 안에 비춰 주세요",
             "scanDenied": "카메라를 쓸 수 없어요. 설정에서 카메라를 허용하거나 숫자를 입력하세요",
+            "cameraRefused": {
+                "title": "카메라에 대한 액세스 권한이 없어요",
+                "description": "설정 앱에서 카메라를 허용하면 QR을 스캔할 수 있어요",
+                "settings": "설정하기"
+            },
             "scanOldApp": "앱을 업데이트하면 QR로 읽을 수 있어요. 지금은 숫자를 입력하세요",
             "scanNotOurs": "두유 웹 로그인 QR이 아니에요",
             "scanNoQr": "QR을 읽지 못했어요. 다시 찍거나 숫자를 입력하세요",

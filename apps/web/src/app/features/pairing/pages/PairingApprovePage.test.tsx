@@ -21,6 +21,7 @@ const approval = {
     reset: jest.fn(),
 };
 const scanPairingQr = jest.fn();
+const openSettings = jest.fn();
 let mockLive = false;
 
 jest.mock('react-i18next', () => ({
@@ -50,6 +51,7 @@ jest.mock('../hooks', () => ({
     usePairingApproval: () => approval,
 }));
 jest.mock('../lib/scanPairingQr', () => ({ scanPairingQr: () => scanPairingQr() }));
+jest.mock('../../../bridge', () => ({ appBridge: { openSettings: () => openSettings() } }));
 jest.mock('../lib/liveQrScanner', () => ({ canScanLive: () => mockLive }));
 // The sheet's own behaviour is tested beside it; here it only has to report back.
 jest.mock('../components/QrScannerSheet', () => ({
@@ -141,6 +143,31 @@ describe('PairingApprovePage', () => {
 
             expect(screen.getByText('pairing.approve.scanDenied')).not.toBeNull();
             expect(scanPairingQr).not.toHaveBeenCalled();
+        });
+
+        it('offers Settings for a refused camera, the only place it can be allowed again', () => {
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-denied'));
+            expect(screen.getByText('pairing.approve.cameraRefused.title')).not.toBeNull();
+            fireEvent.click(screen.getByRole('button', { name: 'pairing.approve.cameraRefused.settings' }));
+
+            expect(openSettings).toHaveBeenCalledTimes(1);
+            expect(screen.queryByText('pairing.approve.cameraRefused.title')).toBeNull();
+            // The note outlives the prompt, for whoever closes it and types the digits instead.
+            expect(screen.getByText('pairing.approve.scanDenied')).not.toBeNull();
+        });
+
+        it('does not offer Settings when the camera failed for another reason', async () => {
+            scanPairingQr.mockResolvedValue({ kind: 'cancel' });
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-failed'));
+            await Promise.resolve();
+
+            expect(screen.queryByText('pairing.approve.cameraRefused.title')).toBeNull();
         });
     });
 
