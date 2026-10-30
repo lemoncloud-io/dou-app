@@ -27,17 +27,17 @@ export const Dialog = ({
 }): JSX.Element => (
     <RadixDialog.Root open={open} onOpenChange={onOpenChange}>
         <RadixDialog.Portal>
-            <RadixDialog.Overlay className="fixed inset-0 z-50 bg-navy/40 animate-fadeIn" />
+            <RadixDialog.Overlay className="fixed inset-0 z-50 bg-[#5b5f66]/70 animate-fadeIn" />
             <RadixDialog.Content
                 className={cn(
-                    'fixed left-1/2 top-1/2 z-50 w-[calc(100%-32px)] max-w-[420px] -translate-x-1/2 -translate-y-1/2',
-                    'rounded-2xl bg-card p-6 shadow-xl animate-scaleIn focus:outline-none',
+                    'fixed left-1/2 top-1/2 z-50 w-[calc(100%-32px)] max-w-[440px] -translate-x-1/2 -translate-y-1/2',
+                    'rounded-2xl border border-line bg-white p-6 animate-scaleIn focus:outline-none sm:p-8',
                     className
                 )}
             >
-                <RadixDialog.Title className="text-lg font-semibold text-navy">{title}</RadixDialog.Title>
+                <RadixDialog.Title className="text-xl font-bold leading-[1.4] text-ink">{title}</RadixDialog.Title>
                 {description ? (
-                    <RadixDialog.Description className="mt-2 text-sm text-subtitle">
+                    <RadixDialog.Description className="mt-2 text-sm font-medium leading-[1.5] text-[#666b78]">
                         {description}
                     </RadixDialog.Description>
                 ) : (
@@ -45,7 +45,7 @@ export const Dialog = ({
                     <RadixDialog.Description className="sr-only" />
                 )}
                 {children && <div className="mt-4">{children}</div>}
-                {footer && <div className="mt-6 flex justify-end gap-2">{footer}</div>}
+                {footer && <div className="mt-6 flex justify-end gap-3 max-sm:flex-col-reverse">{footer}</div>}
             </RadixDialog.Content>
         </RadixDialog.Portal>
     </RadixDialog.Root>

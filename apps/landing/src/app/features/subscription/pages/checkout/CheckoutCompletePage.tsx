@@ -1,9 +1,11 @@
-import { type JSX } from 'react';
+import { type JSX, useContext, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
 import { PageLoader, SummaryTile } from '../../components';
+import { AccountTitleContext } from '../../components/PageHeader';
+import { useShellBack } from '../../components/PublicShell';
 import {
     useCurrentSubscription,
     useInvoices,
@@ -32,15 +34,15 @@ import {
 import type { Account, Plan, Subscription } from '../../types';
 
 /**
- * W-06 — the end of a checkout: a trial started, a first payment made, an upgrade made (`?attempt=`),
- * or a downgrade scheduled (`?change=downgrade`, which has no attempt — nothing is charged). An attempt
- * that has not gone through is sent back to W-09, which knows how to show it.
+ * W-06 — the end of a checkout: a trial started, a first payment made, or an upgrade made
+ * (`?attempt=`). An attempt that has not gone through is sent back to W-09, which knows how to show it.
+ * A downgrade scheduled (`?change=downgrade`, no attempt — nothing is charged) is `DowngradeScheduled`,
+ * which the route frames as an account page.
  */
 export const CheckoutCompletePage = (): JSX.Element => {
     const [params] = useSearchParams();
     const attemptId = params.get('attempt');
     if (attemptId) return <AttemptComplete attemptId={attemptId} />;
-    if (params.get('change') === 'downgrade') return <DowngradeScheduled />;
     return <Navigate to={ROUTES.subscription.root} replace />;
 };
 
@@ -186,6 +188,7 @@ const Started = ({
 
 const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Plan }): JSX.Element => {
     const { t, i18n } = useTranslation();
+    useShellBack();
     const invoices = useInvoices();
     const today = toIsoDate(useToday());
     const key = (name: string) => `subscription.checkout.complete.${name}`;
@@ -250,11 +253,21 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
     );
 };
 
-const DowngradeScheduled = (): JSX.Element => {
+/**
+ * The scheduled-downgrade confirmation, inside the account frame: on a phone the bar names the page
+ * "Change plan" like the screen that led here.
+ */
+export const DowngradeScheduled = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const { subscription, plan, isLoading } = useCurrentSubscription();
     const plans = usePlans();
     const subscriptions = useSubscriptions();
+    const setBarTitle = useContext(AccountTitleContext);
+    const barTitle = t('subscription.entry.plans.changeTitle');
+    useEffect(() => {
+        setBarTitle(barTitle);
+        return () => setBarTitle(undefined);
+    }, [barTitle, setBarTitle]);
     const key = (name: string) => `subscription.checkout.complete.${name}`;
 
     if (isLoading || plans.isLoading) return <PageLoader />;
@@ -265,7 +278,7 @@ const DowngradeScheduled = (): JSX.Element => {
     if (!subscription || !plan || !change || !target) return <Navigate to={ROUTES.subscription.root} replace />;
 
     return (
-        <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-6">
+        <section className="mx-auto flex max-w-[600px] flex-col gap-6 pt-6 md:pt-14">
             <ResultHeader
                 tone="success"
                 title={t(key('downgradeTitle'), { plan: t(`subscription.checkout.planRo.${target.sort}`) })}
@@ -274,22 +287,29 @@ const DowngradeScheduled = (): JSX.Element => {
                     plan: t(`subscription.checkout.planEul.${plan.sort}`),
                 })}
             />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <SummaryTile label={t(key('effectiveLabel'))} value={formatDate(change.effectiveAt)} />
-                <SummaryTile
-                    label={t(key('thatDayLabel'))}
-                    value={formatMoney(subscription.nextAmount ?? target.monthly, i18n.language)}
-                />
-                <SummaryTile label={t(key('currentLabel'))} value={t(key('currentValue'))} />
-            </div>
-            <NoteBox title={t(key('chooseClouds.title'))}>
+            <FactRows
+                className="rounded-2xl bg-note px-5 py-4 md:px-6 md:py-5"
+                rows={[
+                    { key: 'effective', label: t(key('effectiveLabel')), value: formatDate(change.effectiveAt) },
+                    {
+                        key: 'thatDay',
+                        label: t(key('thatDayLabel')),
+                        value: formatMoney(subscription.nextAmount ?? target.monthly, i18n.language),
+                    },
+                    { key: 'current', label: t(key('currentLabel')), value: t(key('currentValue')) },
+                ]}
+            />
+            <NoteBox
+                className="items-start text-left md:border md:border-line md:bg-white md:p-5"
+                title={t(key('chooseClouds.title'))}
+            >
                 {t(key('chooseClouds.body'), { count: target.maxClouds })}
             </NoteBox>
-            <div>
+            <ResultActions>
                 <Link to={ROUTES.subscription.detail(subscription.id)} className={primaryLink}>
                     {t(key('toSubscription'))}
                 </Link>
-            </div>
+            </ResultActions>
         </section>
     );
 };
