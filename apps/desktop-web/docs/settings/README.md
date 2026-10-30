@@ -27,8 +27,9 @@ ground. Each choice is a card with the shell in miniature, and picking one appli
   with page tokens, such as a tile's ground, a hover, a divider and the focus ring, so the rail elements
   carry `data-shell-rail="cloud"` or `"nav"` and those tokens are remapped to dark-ground values inside
   them only.
-- The list keeps its hover the same way: the sidebar carries `data-shell-sidebar`, and inside it the
-  row hover (`--accent`) and loading bars (`--muted`) are a shade darker than the palette's list colour.
+- The list keeps its hover and search field the same way: the sidebar carries `data-shell-sidebar`, and
+  inside it the row hover (`--accent`), loading bars (`--muted`) and search field (`--well`) are a shade
+  darker than the palette's list colour.
 - The preview cards read the same blocks through `data-palette-preview`, so a card always shows its own
   palette. `src/tokenContrast.spec.ts` measures every palette's rail and list text against AA.
 
