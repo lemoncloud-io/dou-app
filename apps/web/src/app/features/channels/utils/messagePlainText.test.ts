@@ -1,4 +1,10 @@
-import { deleteConfirmQuote, messagePlainText, messagePreview, messageSearchText } from './messagePlainText';
+import {
+    chatPlainText,
+    deleteConfirmQuote,
+    messagePlainText,
+    messagePreview,
+    messageSearchText,
+} from './messagePlainText';
 import { toPlainPreview } from './messageTokens';
 
 describe('messagePlainText', () => {
@@ -99,5 +105,23 @@ describe('deleteConfirmQuote', () => {
     it('is empty for a message with no text to quote', () => {
         expect(deleteConfirmQuote('  \n ')).toBe('');
         expect(deleteConfirmQuote(undefined)).toBe('');
+    });
+});
+
+describe('chatPlainText', () => {
+    const payload = JSON.stringify({ blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*503* upstream' } }] });
+
+    it("flattens a webhook send's Block Kit body", () => {
+        expect(chatPlainText({ stereo: 'webhook', content: payload })).toBe('503 upstream');
+    });
+
+    // The row shows a person's pasted payload as written; the surfaces that hold the whole message
+    // must say the same thing the row does.
+    it.each(['user', undefined])("leaves a %s message's payload as the text it is", stereo => {
+        expect(chatPlainText({ stereo, content: payload })).toBe(payload);
+    });
+
+    it('is empty for a message with no body', () => {
+        expect(chatPlainText({ stereo: 'user' })).toBe('');
     });
 });

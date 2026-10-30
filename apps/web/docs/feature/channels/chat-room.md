@@ -94,9 +94,12 @@ The order of the first two is the argument for the whole list: `attach$` is part
 sent, the unfurl is something the client found. The last three sit **outside** the long-press
 target, or the gesture would eat taps on them.
 
-**Block Kit or a bubble.** A webhook send arrives as an ordinary `stereo: 'user'` chat carrying
-Block Kit in `blocks$`, or as JSON in `content`. `resolveChatBlocks` + `hasDrawableBlocks` (both
-from `@chatic/block-kit`, so the row and the renderer cannot disagree) decide whether the row draws
+**Block Kit or a bubble.** A webhook send arrives as a `stereo: 'webhook'` chat carrying Block Kit
+in `blocks$`, or as JSON in `content`. Only a webhook send is a card: a person who pastes a Block Kit
+payload into the composer wrote text, and a card from them would look exactly like an integration's
+alert, so `resolveChatBlocks` reads no blocks from any other `stereo` and their message stays the
+bubble they sent. `resolveChatBlocks` + `hasDrawableBlocks` (both from `@chatic/block-kit`, so the
+row and the renderer cannot disagree) decide whether the row draws
 a `BlockKitMessage` card instead of a bubble. Nothing drawable falls back to the plain body in a
 bubble. Three states never reach the card: a tombstone, a pending send and a failed send — the
 bubble draws those states, and a card would show a finished-looking message for a send that has not
@@ -186,8 +189,10 @@ What the sheet then holds is the page's call, through `utils/messageActions.ts`:
 Copy, so a text message opens even before it lands; an image-only message has no text to copy or
 edit, so it opens only once persisted, when a reaction, a thread and delete apply.
 
-Copy puts on the clipboard what was sent, markup included (a Block Kit body as its text), and the
-expanded view draws it with `MessageText` like a text bubble — both read `messagePlainText`. The delete
+Copy puts on the clipboard what was sent, markup included (a webhook's Block Kit body as its text),
+and the expanded view draws it with `MessageText` like a text bubble — both read `chatPlainText`,
+which reads the body as Block Kit only for a webhook send, the same rule the row follows. A person's
+pasted payload is copied and expanded as the text they wrote. The thread root's body reads it too. The delete
 confirmation only prints, so it quotes the message the way the home list previews it: markers
 dropped, a link as its words, one line cut at 60 characters (`deleteConfirmQuote`). The thread
 screen shares all three.
@@ -246,7 +251,9 @@ over the peer through `resolveUserName` and the peer's place-profile photo. The 
 person opened after the sheet closes, so the name stays on screen while the sheet slides away.
 
 Only a row that shows its sender is tappable. My own rows, system notices and grouped follow-up rows
-(which draw a spacer instead of an avatar) are inert, and so is a row with no owner id. The avatar is
+(which draw a spacer instead of an avatar) are inert, and so is a row with no owner id. So is a
+webhook send's (`isWebhookChat` from `@chatic/data`): its sender is not a member, and its system
+account has no profile to show. The avatar is
 a real `<button>` labelled `chat.room.openProfile`, in the row's avatar slot, outside the bubble's
 long-press target. A tap on it can't open the action sheet or the image viewer. The name is a second
 target for the same action. It is left out of the tab order, so keyboard users reach the action

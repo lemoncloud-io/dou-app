@@ -169,7 +169,7 @@ describe('MessageList', () => {
 
         render(
             <MessageList
-                messages={[message(1, 'ada', payload)]}
+                messages={[{ ...message(1, 'ada', payload), stereo: 'webhook' } as DomainChat]}
                 isLoading={false}
                 viewer={VIEWER}
                 names={new Map([['ada', 'Ada']])}
@@ -217,51 +217,57 @@ describe('MessageList', () => {
     // `content` on a `blocks$` message is already the server's plain-text summary
     // (SPEC §6-5). Folding `blocks$` through `blocksToPlainText` here instead would
     // pull this fixture's context line ("hello-alarm") and section-3 raw error JSON
-    // into the dialog — neither is in `content`, so their absence proves which one
-    // the dialog quotes. Scoped to the dialog: the row underneath legitimately shows
-    // both, since they are real section/context content, not a leak.
-    it('quotes the server summary, not the folded blocks, when deleting a blocks$ message', () => {
+    // into what Save keeps — neither is in `content`, so their absence proves which one
+    // it reads. A webhook message is never mine, so Save is the action that reaches it.
+    it('saves the server summary, not the folded blocks, for a blocks$ message', () => {
+        useSavedItemsStore.setState({ items: {} });
         const withBlocksField = {
-            ...message(1, 'me', WEBHOOK_SEND_ERROR_REPORT.content),
-            // Mine, so the delete menu is reachable: a webhook message is never mine, and what this
-            // pins is the dialog's quoting, which does not depend on the sender.
+            ...message(1, 'ada', WEBHOOK_SEND_ERROR_REPORT.content),
+            stereo: WEBHOOK_SEND_ERROR_REPORT.stereo,
             blocks$: [...WEBHOOK_BLOCKS_ERROR_REPORT],
         } as DomainChat;
 
         render(<MessageList messages={[withBlocksField]} isLoading={false} viewer={VIEWER} names={new Map()} />, {
             wrapper,
         });
-        clickRowMenuItem('Delete message');
+        clickRowMenuItem('Save for later');
 
-        const dialog = within(screen.getByRole('alertdialog'));
-        expect(dialog.getByText(/TypeError: Cannot read properties/)).toBeDefined();
-        expect(dialog.queryByText(/hello-alarm/)).toBeNull();
-        expect(dialog.queryByText(/"service":/)).toBeNull();
+        const saved = useSavedItemsStore.getState().items['C1:1'];
+        expect(saved).toMatchObject({ content: WEBHOOK_SEND_ERROR_REPORT.content });
+        expect(saved?.content).not.toMatch(/hello-alarm|"service":/);
+        // The store is module state; the file-only cases further down expect nothing saved.
+        useSavedItemsStore.setState({ items: {} });
     });
 
-    // The dialog quotes the message so the answer is about *this* message. Quoting the
-    // payload instead answers nothing and buries the buttons under 1900 characters of
-    // JSON — this was the fourth place reading `content` where it meant "what it says".
-    it('quotes what a block message says when asking to delete it', () => {
+    // Only an integration's post is a card. A person who pastes a Block Kit payload wrote that
+    // text, and a card from the composer would look exactly like an alert.
+    it("draws a person's Block Kit payload as the text they sent, not as a card", () => {
         const payload = JSON.stringify({
             blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*403* denied' } }],
         });
 
         render(
-            <MessageList messages={[message(1, 'me', payload)]} isLoading={false} viewer={VIEWER} names={new Map()} />,
+            <MessageList
+                messages={[{ ...message(1, 'ada', payload), stereo: 'user' } as DomainChat]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+            />,
             { wrapper }
         );
-        clickRowMenuItem('Delete message');
 
-        expect(screen.queryByText(payload)).toBeNull();
-        expect(screen.getByText('403 denied')).toBeDefined();
+        // The composer's own dialect reads the payload (it makes `*403*` italic), so the row is
+        // matched by what it still says rather than by one text node.
+        const row = screen.getByText((_, node) => node?.tagName === 'P' && !!node.textContent?.includes('{"blocks":['));
+        expect(row.textContent).toContain('"type":"section"');
+        expect(screen.queryByText('403', { selector: 'strong' })).toBeNull();
     });
 
     // A payload we cannot read must not take the pane down or blank the row.
     it('falls back to the raw text when the payload is broken', () => {
         render(
             <MessageList
-                messages={[message(1, 'ada', '{"blocks": [')]}
+                messages={[{ ...message(1, 'ada', '{"blocks": ['), stereo: 'webhook' } as DomainChat]}
                 isLoading={false}
                 viewer={VIEWER}
                 names={new Map([['ada', 'Ada']])}

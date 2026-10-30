@@ -1,4 +1,5 @@
 import { blocksToPlainText, parseBlocks } from '@chatic/block-kit';
+import { isWebhookChat } from '@chatic/data';
 
 import { toPlainPreview, toPlainText } from './messageTokens';
 
@@ -22,6 +23,15 @@ export const messagePlainText = (content?: string): string => {
     const blocks = parseBlocks(content);
     return blocks ? blocksToPlainText(blocks) : (content ?? '');
 };
+
+/**
+ * `messagePlainText` for a surface that holds the whole message: only a webhook send's body is read
+ * as Block Kit. A person who pasted a payload wrote that text, and their row shows it as written, so
+ * the thread root, the expanded view and Copy must say the same thing the row does. Surfaces with
+ * only a body to go on — a push, a preview row — keep `messagePlainText`.
+ */
+export const chatPlainText = (chat: { content?: string; stereo?: string }): string =>
+    isWebhookChat(chat) ? messagePlainText(chat.content) : (chat.content ?? '');
 
 /**
  * A message body for a surface that prints text but cannot draw it — markers dropped, a labelled
