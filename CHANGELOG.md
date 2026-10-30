@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - No version updates
+
+### Features
+
+- (desktop-web,data,web) send voice files from desktop as file cards
+
 ## [2026-10-30] - root@0.138.0, @chatic/desktop-web@0.44.0
 
 ### Features
