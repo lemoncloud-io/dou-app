@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - root@0.135.1, @chatic/web@0.85.2
+
+### Bug Fixes
+
+- (web) ask for the camera before opening it in the app, and point a refusal at settings
+
 ## [2026-10-30] - root@0.135.0, @chatic/landing@0.15.0
 
 ### Features
