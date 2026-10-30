@@ -4,10 +4,8 @@ import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { credentialRecovery } from '@chatic/transport';
-import { authRepositorySource } from './session/auth/authRepository';
-import { logoutStorageSweeper } from './session/auth/logoutStorageSweep';
+import { authRepositorySource, logoutStorageSweeper, credentialRenewers } from '@chatic/auth';
 import { configureSessionStore } from '@chatic/session';
-import { credentialRenewers } from './socket/auth/renewers';
 import { syncDataGraph } from '@chatic/sync';
 
 import type { HttpRoute } from '@chatic/http';

@@ -22,9 +22,6 @@
     // dependencies through references, or their sources come in as unlisted files (TS6307).
     "references": [
         {
-            "path": "../auth-sign/tsconfig.lib.json"
-        },
-        {
             "path": "../http/tsconfig.lib.json"
         },
         {
@@ -53,6 +50,9 @@
         },
         {
             "path": "../sync/tsconfig.lib.json"
+        },
+        {
+            "path": "../auth/tsconfig.lib.json"
         },
         {
             "path": "../bridges/tsconfig.lib.json"

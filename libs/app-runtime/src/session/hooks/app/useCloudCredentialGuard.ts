@@ -3,7 +3,7 @@ import { useCallback, useEffect } from 'react';
 import { logger } from '@chatic/bridges';
 
 import { SDK_REFRESH_CYCLE_MS, isLinkKnownDown, getSocketManager, kindOf, slotKeyOf } from '@chatic/transport';
-import { credentialRenewers } from '../../../socket/auth/renewers';
+import { credentialRenewers } from '@chatic/auth';
 import { getCommittedCloudId } from '@chatic/session';
 
 /**

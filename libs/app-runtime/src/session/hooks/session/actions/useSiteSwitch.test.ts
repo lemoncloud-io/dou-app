@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useSiteSwitch } from './useSiteSwitch';
 
 jest.mock('@tanstack/react-query', () => ({ useMutation: jest.fn() }));
-jest.mock('../../../../socket/auth', () => ({ switchSite: jest.fn() }));
+jest.mock('@chatic/auth/socket/switchSite', () => ({ switchSite: jest.fn() }));
 jest.mock('../../mutationKeys', () => ({ SWITCH_SITE_MUTATION_KEY: ['session', 'switch-site'] }));
 
 describe('useSiteSwitch — memo 안정성 (#10)', () => {

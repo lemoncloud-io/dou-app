@@ -88,6 +88,9 @@
             "path": "./libs/sync"
         },
         {
+            "path": "./libs/auth"
+        },
+        {
             "path": "./apps/web-e2e"
         },
         {

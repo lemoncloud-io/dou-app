@@ -9,7 +9,7 @@
 > `apps/web/src/app/features/invite/accept/hooks/useInviteAccept.ts`
 > · Amends: [ADR-0156](./0156-an-invited-cloud-is-entered-with-the-invite-login-answer.md) decision 1 —
 > an invite into a cloud the account owns is not entered with the invite login's answer
-> · The module docs are [libs/app-runtime auth](../../libs/app-runtime/docs/auth/README.md#an-owned-cloud-held-as-its-invitee)
+> · The module docs are [libs/auth docs/socket](../../libs/auth/docs/socket/README.md#an-owned-cloud-held-as-its-invitee)
 > and [apps/web invite](../../apps/web/docs/feature/invite/README.md#accepting-a-cloud-invite)
 
 ## Context

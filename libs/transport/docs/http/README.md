@@ -5,8 +5,8 @@ classifying what came back. This folder owns everything that executor cannot kno
 host a route resolves to, which transport signs it, whether the signing credential has already
 lapsed, and what the app should do when the server refuses for good.
 
-It sits in `@chatic/transport`, below everything in app-runtime, which is what lets app-runtime's
-`session/auth` and `data/` both depend on it without closing a cycle.
+It sits in `@chatic/transport`, below everything in app-runtime, which is what lets
+`@chatic/auth` and app-runtime's `data/` both depend on it without closing a cycle.
 
 ## Layout
 
@@ -168,7 +168,7 @@ of a run are over-represented. The log batch upload bypasses this sink, so measu
 ## Usage
 
 Apps do not call into this package. app-runtime's `data/factories/httpFactory.ts` builds its data
-sources over the gateways, and its `session/auth` reaches the transport for one thing —
+sources over the gateways, and `@chatic/auth` reaches the transport for one thing —
 `buildCredentialsByToken`, which is a local credential reconstruction rather than a request.
 
 The one app-facing surface is the reaction:
@@ -196,7 +196,7 @@ runtime.session.authFailureReaction.register((error, message) => showBanner(mess
 
 ## Further reading
 
-- [docs/auth/](../../../app-runtime/docs/auth/README.md) — what `recover()` actually runs, and why relay answers for every route
+- [auth docs/socket/](../../../auth/docs/socket/README.md) — what `recover()` actually runs, and why relay answers for every route
 - [`libs/session`](../../../session/README.md) — `credentialFreshness`, the source of `isStale`
 - [docs/data/](../../../app-runtime/docs/data/README.md) — the data sources built over these gateways
 - [`libs/http`](../../../http/README.md) — the executor, retry, bypass and error classification

@@ -9,7 +9,7 @@
 > — the `socket_request` samples that measure it
 > · Amends ADR-0181 decision 1 (the `socket_request` attributes gain `close_reason`)
 > · The module docs are [`libs/app-runtime` socket](../../libs/transport/docs/socket/README.md) and
-> [auth § Waking a wedged socket](../../libs/app-runtime/docs/auth/README.md#waking-a-wedged-socket),
+> [auth § Waking a wedged socket](../../libs/auth/docs/socket/README.md#waking-a-wedged-socket),
 > and [apps/web observability/performance.md](../../apps/web/docs/observability/performance.md#close_reason)
 
 ## Context

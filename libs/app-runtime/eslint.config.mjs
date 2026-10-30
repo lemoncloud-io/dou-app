@@ -11,8 +11,8 @@ export default [
         rules: {},
     },
     // ---------------------------------------------------------------------------------------------
-    // `@chatic/session`, `@chatic/transport` and `@chatic/sync` are open to this package, through
-    // their barrels.
+    // `@chatic/session`, `@chatic/transport`, `@chatic/sync` and `@chatic/auth` are open to this
+    // package, through their barrels.
     //
     // The root config closes them to everything else; these two blocks set the same rule
     // again for this package's files, keeping the root's `@chatic/data/*` ban. Production code takes
@@ -44,6 +44,10 @@ export default [
                         {
                             group: ['@chatic/sync/*'],
                             message: 'Import @chatic/sync through its barrel. Deep paths are for test mocks only.',
+                        },
+                        {
+                            group: ['@chatic/auth/*'],
+                            message: 'Import @chatic/auth through its barrel. Deep paths are for test mocks only.',
                         },
                     ],
                 },

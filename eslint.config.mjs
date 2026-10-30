@@ -136,13 +136,14 @@ export default [
         // run on every lint. `libs/data` itself is exempt: inside the lib, relative paths are how
         // the layers talk.
         //
-        // `@chatic/session`, `@chatic/transport` and `@chatic/sync` are closed to everything but the
-        // runtime modules cut from app-runtime. The session barrel sells the raw stores, because the
-        // use cases in app-runtime write them; the transport barrel sells the socket manager and the
-        // HTTP gateways; the sync barrel sells the manager and the refusal writers. An app that
-        // imported one could go around the use cases built on them. Apps read all three through
-        // `runtime`. A lib config that extends this one and may import one of the packages —
-        // transport, sync, app-runtime — sets the rule again for its own files.
+        // `@chatic/session`, `@chatic/transport`, `@chatic/sync` and `@chatic/auth` are closed to
+        // everything but the runtime modules cut from app-runtime. The session barrel sells the raw
+        // stores, because the use cases write them; the transport barrel sells the socket manager and
+        // the HTTP gateways; the sync barrel sells the manager and the refusal writers; the auth barrel
+        // sells the session writers and the renewers. An app that imported one could go around the use
+        // cases built on them. Apps read all four through `runtime`. A lib config that extends this
+        // one and may import one of the packages — transport, sync, auth, app-runtime — sets the rule
+        // again for its own files.
         files: ['**/*.ts', '**/*.tsx'],
         ignores: ['libs/data/**', 'libs/session/**'],
         rules: {
@@ -154,6 +155,11 @@ export default [
                             name: '@chatic/session',
                             message:
                                 'Read the session through `runtime.session` from @chatic/app-runtime. @chatic/session is for the runtime modules — see libs/session/README.md.',
+                        },
+                        {
+                            name: '@chatic/auth',
+                            message:
+                                'Use the session through `runtime.session` from @chatic/app-runtime. @chatic/auth is for the runtime modules — see libs/auth/README.md.',
                         },
                         {
                             name: '@chatic/sync',
@@ -176,6 +182,11 @@ export default [
                             group: ['@chatic/session/*'],
                             message:
                                 'Read the session through `runtime.session` from @chatic/app-runtime. @chatic/session is for the runtime modules — see libs/session/README.md.',
+                        },
+                        {
+                            group: ['@chatic/auth/*'],
+                            message:
+                                'Use the session through `runtime.session` from @chatic/app-runtime. @chatic/auth is for the runtime modules — see libs/auth/README.md.',
                         },
                         {
                             group: ['@chatic/sync/*'],

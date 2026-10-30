@@ -10,10 +10,7 @@ import {
 } from '@chatic/transport';
 
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
-import { canRefreshThroughSocket, getAuthStatus } from '../../../socket/auth/authStatus';
-import { credentialRenewers } from '../../../socket/auth/renewers';
-import { Coalescer } from '../../../utils/coalescer';
-import { Throttle } from '../../../utils/throttle';
+import { canRefreshThroughSocket, getAuthStatus, credentialRenewers, Coalescer, Throttle } from '@chatic/auth';
 
 /**
  * Keeps the relay HTTP signing credentials fresh, as one hook instead of two app-local copies.
@@ -34,7 +31,7 @@ import { Throttle } from '../../../utils/throttle';
  * recover by different means: relay can only be REFRESHED (its token has no parent to be minted
  * from), while a cloud token is re-issued from the relay identity whenever it lapses. The cloud
  * counterpart is `useCloudCredentialGuard`, which re-issues instead of refreshing; the reasoning
- * lives in `session/auth/cloudTokens`. Adding a `kind` option here would put two unrelated recovery
+ * lives in `@chatic/auth`'s `session/cloudTokens`. Adding a `kind` option here would put two unrelated recovery
  * strategies behind one switch — and inventing a second relay guard in an app is what this hook was
  * created to stop (admin-v2 had one).
  *

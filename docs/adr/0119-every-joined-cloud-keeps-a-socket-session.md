@@ -14,7 +14,7 @@
 > drops the cloud's own cached tokens whether or not it is committed, and leaving a cloud keeps the
 > other clouds' cache
 > · The module docs are [libs/app-runtime/docs/socket](../../libs/app-runtime/docs/connection/README.md#background-slots)
-> and [docs/auth](../../libs/app-runtime/docs/auth/README.md#tokens-for-a-background-slot-before-it-boots)
+> and [libs/auth docs/socket](../../libs/auth/docs/socket/README.md#tokens-for-a-background-slot-before-it-boots)
 
 ## Context
 

@@ -7,8 +7,8 @@
 > [ADR-0116](./0116-the-active-socket-slot-is-a-pointer-the-binder-sets.md) (the active slot is a pointer)
 > · Related: [ADR-0076](./0076-app-runtime-auth-single-verdict-and-typed-session-events.md) (the per-kind delegate and
 > the two renewers this generalises)
-> · The module docs are [libs/app-runtime/docs/auth](../../libs/app-runtime/docs/auth/README.md) and
-> [signing.md](../../libs/app-runtime/docs/auth/signing.md)
+> · The module docs are [libs/auth/docs/socket](../../libs/auth/docs/socket/README.md) and
+> [signing.md](../../libs/auth/docs/socket/signing.md)
 
 ## Context
 

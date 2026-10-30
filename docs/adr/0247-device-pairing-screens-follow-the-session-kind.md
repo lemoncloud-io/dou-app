@@ -5,7 +5,7 @@
 > `libs/app-runtime/src/session/pairing/`, `libs/data` (`PairingRepository`, `UserRepository.listDevices`)
 > · The module docs are [apps/web pairing](../../apps/web/docs/feature/pairing/README.md),
 > [apps/desktop-web pairing](../../apps/desktop-web/docs/pairing/README.md) and
-> [app-runtime session](../../libs/app-runtime/docs/session/README.md#device-pairing)
+> [libs/auth pairing](../../libs/auth/docs/pairing/README.md)
 
 ## Context
 

@@ -3,10 +3,10 @@ import { useCallback } from 'react';
 
 import { SWITCH_SITE_MUTATION_KEY } from '../../mutationKeys';
 
-import { switchSite } from '../../../../socket/auth';
+import { switchSite } from '@chatic/auth';
 
 /**
- * Switches the active site via the socket (SDK `auth.switch`, owned by app-runtime's
+ * Switches the active site via the socket (SDK `auth.switch`, owned by `@chatic/auth`'s
  * `switchSite`). Thin react-query wrapper: exposes `isSwitching` and registers under the
  * shared `SWITCH_SITE_MUTATION_KEY` so the global in-flight observer (useBackgroundSync) can pause
  * periodic sync during a switch. Optimistic sid pre-apply + rollback live in `switchSite`.

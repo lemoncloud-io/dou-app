@@ -146,7 +146,7 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   already holds an invitee token, and a guest that accepted and later signed in to the owning account
   are all caught by `BackgroundCloudsRunner`, which hands the owned catalog to
   `runtime.connection.useReclaimOwnedClouds`: an owned cloud whose held token came from an invite
-  login is re-issued as the owner, socket included (`libs/app-runtime` docs/auth, "An owned cloud
+  login is re-issued as the owner, socket included (`libs/auth` docs/socket, "An owned cloud
   held as its invitee"). The runner also hands over the owned clouds still cached as invited
   (`useInvitedClouds().ownedAlsoInvitedIds`). A guest who used the cloud for a while had its invite
   token renewed through `delegate-cloud` as the guest before signing in, and that token no longer

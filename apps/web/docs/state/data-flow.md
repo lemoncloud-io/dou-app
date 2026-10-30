@@ -222,7 +222,7 @@ there rather than hand that cache's baseline to another cloud.
 call — is what clears the react-query cache; there is no `DataManager.destroy()` in this codebase.
 On the next boot, `initAppRuntime` reads the `logout=1` flag and sweeps every `@`-prefixed storage
 key except the i18n language key and `@chatic/config`'s own lane
-(`libs/app-runtime/src/session/auth/logoutStorageSweep.ts`) — because the actor that decides to log
+(`libs/auth/src/session/logoutStorageSweep.ts`) — because the actor that decides to log
 out and the code that can safely clear storage run in two different page lifetimes.
 
 Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/docs/session/README.md).

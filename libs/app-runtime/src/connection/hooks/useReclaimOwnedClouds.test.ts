@@ -5,7 +5,7 @@ import { useReclaimOwnedClouds } from './useReclaimOwnedClouds';
 const mockReclaimOwnedClouds = jest.fn();
 let mockCommitListeners: Array<{ kinds: readonly string[]; listener: () => void }> = [];
 
-jest.mock('../../socket/auth/reclaimOwnedClouds', () => ({
+jest.mock('@chatic/auth/socket/reclaimOwnedClouds', () => ({
     reclaimOwnedClouds: (...args: unknown[]) => mockReclaimOwnedClouds(...args),
 }));
 jest.mock('@chatic/session/store', () => ({

@@ -1,7 +1,7 @@
 import { logger } from '@chatic/bridges';
 
-import { findAlias, verifyAlias } from '../../auth/authActions';
-import type { VerifyAliasBody } from '../../auth/authActions';
+import { findAlias, verifyAlias } from '@chatic/auth/session/authActions';
+import type { VerifyAliasBody } from '@chatic/auth/session/authActions';
 import { useFindAlias } from './useFindAlias';
 import { useVerifyAlias } from './useVerifyAlias';
 
@@ -19,7 +19,7 @@ jest.mock('@chatic/bridges', () => ({
 jest.mock('@chatic/shared', () => ({
     useCustomMutation: (mutationFn: unknown) => mutationFn,
 }));
-jest.mock('../../auth/authActions', () => ({
+jest.mock('@chatic/auth/session/authActions', () => ({
     verifyAlias: jest.fn(),
     findAlias: jest.fn(),
 }));
