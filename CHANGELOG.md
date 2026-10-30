@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - root@0.127.1, @chatic/web@0.83.1
+
+### Bug Fixes
+
+- (web) say so when the device or approval list is empty
+
 ## [2026-10-29] - root@0.127.0, @chatic/desktop-web@0.40.0
 
 ### Features
