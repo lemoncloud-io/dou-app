@@ -353,7 +353,7 @@ features/subscription/
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
 ├── utils/            formatMoney, formatDate, cn, countdowns, isEmailAddress
 ├── hooks/            one react-query hook per port method, useCurrentSubscription, useNow
-├── components/       PublicShell (logo + account bar, SiteFooter), AccountShell (sidebar; on a phone a
+├── components/       PublicShell (logo + account bar, SiteFooter; in a purchase flow a back button and no footer), AuthCard, AccountShell (sidebar; on a phone a
 │                     back/title bar and a row of tabs), PageHeader, AccountMenu, StatusBadge, PlanCard,
 │                     SummaryTile, ConfirmDialog, EmailVerificationForm, BillingEmailChangeDialog,
 │                     MockPaymentWindow, DevScenarioPanel, …

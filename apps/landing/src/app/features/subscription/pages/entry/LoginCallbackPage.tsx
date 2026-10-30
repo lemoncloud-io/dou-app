@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
-import { Card } from '../../components/ui';
+import { AuthCard } from '../../components';
 import { useCompleteSignIn } from '../../hooks';
 import { isPortError } from '../../lib/port';
 import { landingAfterSignIn, safeNext } from '../../lib/safeNext';
@@ -49,19 +49,14 @@ export const LoginCallbackPage = (): JSX.Element => {
     }, [completeSignIn, navigate, search]);
 
     return (
-        <div className="flex justify-center pt-6">
-            <Card
-                role="status"
-                className="flex w-full max-w-[440px] flex-col items-center gap-2 px-6 py-10 sm:px-10 sm:py-12 text-center"
-            >
-                {/* Larger than the inline spinner, in the brand green: this is the whole page while it lasts. */}
-                <span
-                    aria-hidden
-                    className="mb-4 h-11 w-11 animate-spin rounded-full border-[3px] border-main-green border-t-transparent"
-                />
-                <h1 className="text-xl font-bold text-navy">{t('subscription.entry.login.completing')}</h1>
-                <p className="text-sm text-subtitle">{t('subscription.entry.login.completingBody')}</p>
-            </Card>
-        </div>
+        <AuthCard role="status" className="items-center gap-2 pt-10 text-center md:py-12">
+            {/* Larger than the inline spinner, in the brand green: this is the whole page while it lasts. */}
+            <span
+                aria-hidden
+                className="mb-3 size-9 animate-spin rounded-full border-[3px] border-main-green border-t-transparent"
+            />
+            <h1 className="text-lg font-bold text-ink">{t('subscription.entry.login.completing')}</h1>
+            <p className="text-[13px] font-medium text-mute">{t('subscription.entry.login.completingBody')}</p>
+        </AuthCard>
     );
 };

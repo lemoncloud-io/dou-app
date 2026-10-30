@@ -1,12 +1,12 @@
 import { type JSX, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { Logo } from '@chatic/assets';
 
 import chevronLeft from '../../../../assets/subscription/chevron-left.svg';
 import { ROUTES } from '../../../routes/paths';
-import { useCurrentSubscription, useSession } from '../hooks';
+import { useCurrentSubscription, useGoBack, useSession } from '../hooks';
 import { useSupports, useToday } from '../lib/port';
 import { useManagementScreens } from '../lib/screens';
 import { sceneOf } from '../lib/sceneOf';
@@ -42,7 +42,6 @@ const itemClass = ({ isActive }: { isActive: boolean }) =>
  */
 export const AccountShell = (): JSX.Element => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
     const location = useLocation();
     const session = useSession();
     const { subscription, plan } = useCurrentSubscription();
@@ -55,8 +54,7 @@ export const AccountShell = (): JSX.Element => {
     const cancellable = !!subscription && sceneOf(subscription, today).actions.includes('cancel');
     const inManage = !MENU.slice(1).some(item => location.pathname.startsWith(item.to));
 
-    // A page opened straight from a link has nothing behind it to go back to; the plans are the way out.
-    const back = () => (location.key === 'default' ? navigate(ROUTES.subscription.plans) : navigate(-1));
+    const back = useGoBack();
 
     return (
         <AccountTitleContext.Provider value={setPageTitle}>
