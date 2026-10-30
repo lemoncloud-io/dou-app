@@ -29,6 +29,10 @@ row in place for all of those changes, and adding the delta by hand on top of it
 second time. Setting `overflow-anchor: none` on the feed would make that manual correction necessary
 again, for spacer shifts as well as row heights.
 
+## Grouped join notices
+
+Adjacent join notices on the same day fold into one system row that prints a single text line ("Ada joined along with Bo and Cy", then "Ada, Bo and 3 others joined" from four names). The folded row keeps the **first** notice's key, so a join arriving later changes the row's text but never adds a row or changes a key, and the window has nothing to re-anchor. Any other row between two joins (a date divider, a message, a leave) ends the run, and a join whose author has no resolved name stays on its own row with the server's text. Leave notices are never folded.
+
 ## Jumping to a row outside the window
 
 A jump target that is loaded but not mounted cannot be scrolled into view, because there is no node
