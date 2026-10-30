@@ -1,5 +1,24 @@
 import type { PairingTarget } from '@chatic/http';
 
+type PairingCloud = { id?: string; name?: string };
+
+/**
+ * Every cloud the account can switch to: the relay catalog's (owned) first, then the invited ones.
+ *
+ * The catalog holds owned clouds only; an invited cloud lives in this device's cloud cache alone, so
+ * a screen reading the catalog by itself leaves out every cloud the account was invited to. The relay
+ * delegates an approval into an invited cloud the same way it delegates the approver's own switch,
+ * so both lists are offered. A cloud in both is kept once, as owned — `useInvitedClouds` already
+ * hides those, so this only guards against a duplicate option should that ever change.
+ */
+export const pairingClouds = (
+    owned: ReadonlyArray<PairingCloud>,
+    invited: ReadonlyArray<PairingCloud>
+): PairingCloud[] => {
+    const ownedIds = new Set(owned.map(cloud => cloud.id));
+    return [...owned, ...invited.filter(cloud => !ownedIds.has(cloud.id))];
+};
+
 export interface PairingTargetOption {
     /** `relay`, or the cloud id. */
     key: string;
@@ -17,7 +36,7 @@ export interface PairingTargetOption {
  */
 export const pairingTargetOptions = (input: {
     isRelayGuest: boolean;
-    clouds: ReadonlyArray<{ id?: string; name?: string }>;
+    clouds: ReadonlyArray<PairingCloud>;
     activeCloudId: string | null;
 }): { options: PairingTargetOption[]; defaultKey: string | null } => {
     const options: PairingTargetOption[] = [];

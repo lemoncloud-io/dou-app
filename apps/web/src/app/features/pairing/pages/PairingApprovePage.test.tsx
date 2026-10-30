@@ -9,6 +9,7 @@ let mockPaired = false;
 let mockEnabled = true;
 let mockGuest = false;
 let mockClouds: Array<{ id: string; name: string }> = [];
+let mockInvited: Array<{ id: string; name: string }> = [];
 let mockSelected = 'default';
 const approval = {
     code: '',
@@ -43,6 +44,8 @@ jest.mock('../../../hooks', () => ({
     useDevicePairingEnabled: () => mockEnabled,
     useIsAccountGuest: () => mockGuest,
     useCloudSessionCatalog: () => ({ clouds: mockClouds }),
+    useInvitedClouds: () => ({ invitedClouds: mockInvited }),
+    useCloudName: () => (id?: string) => [...mockClouds, ...mockInvited].find(c => c.id === id)?.name || id || '',
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }));
 jest.mock('../hooks', () => ({
@@ -78,6 +81,7 @@ beforeEach(() => {
     mockEnabled = true;
     mockGuest = false;
     mockClouds = [];
+    mockInvited = [];
     mockSelected = 'default';
     mockLive = false;
     Object.assign(approval, { code: '', state: { step: 'input' }, error: null });
@@ -206,6 +210,18 @@ describe('PairingApprovePage', () => {
         expect(screen.getByTestId('pairing-approve-submit').textContent).toBe(
             'pairing.scope.cloudApprove:{"cloud":"Lemon"}'
         );
+    });
+
+    it('offers an invited cloud and starts on it while the app is in it', () => {
+        approval.state = { step: 'confirm', check: CHECK };
+        mockClouds = [{ id: '1000002', name: 'Lemon' }];
+        mockInvited = [{ id: '1000009', name: 'Lime' }];
+        mockSelected = '1000009';
+        render(<PairingApprovePage />);
+
+        expect((screen.getByTestId('pairing-target-1000009') as HTMLInputElement).checked).toBe(true);
+        fireEvent.click(screen.getByTestId('pairing-approve-submit'));
+        expect(approval.approve).toHaveBeenCalledWith({ type: 'cloud', cloudId: '1000009' });
     });
 
     it('keeps approval off for a developer tool until it is confirmed', () => {
