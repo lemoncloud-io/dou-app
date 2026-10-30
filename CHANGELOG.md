@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-30] - root@0.138.0, @chatic/desktop-web@0.44.0
+
+### Features
+
+- (desktop-web) add shell theme palettes to Settings
+- (desktop-web) show seen and not-seen counts under each author block
+
 ## [2026-10-30] - root@0.137.1, @chatic/desktop-web@0.43.3
 
 ### Bug Fixes
