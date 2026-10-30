@@ -515,21 +515,32 @@ export const MessageRow = memo(
                                     }}
                                     className={cn(
                                         'group/msg relative rounded-md outline-none transition-colors ease-tactile focus-visible:ring-2 focus-visible:ring-ring',
+                                        // A tint around the whole message, tag included: a tag alone between
+                                        // two messages reads as belonging to whichever sits above it.
+                                        !hideSavedMark && isSavedKey(key) && '-mx-2 bg-destructive/5 px-2 py-1',
                                         message.chatNo != null &&
                                             message.chatNo === highlightChatNo &&
                                             'bg-primary/10 ring-1 ring-ring'
                                     )}
                                 >
                                     {i > 0 && msgTime && (
-                                        <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground group-focus-within/msg:block group-hover/msg:block">
+                                        <span
+                                            className={cn(
+                                                'absolute top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground group-focus-within/msg:block group-hover/msg:block',
+                                                // The saved tint widens the row by 8px on the left.
+                                                !hideSavedMark && isSavedKey(key) ? '-left-14' : '-left-12'
+                                            )}
+                                        >
                                             {msgTime}
                                         </span>
                                     )}
                                     {!hideSavedMark && isSavedKey(key) && (
                                         // Above the content, not in the gutter: the gutter holds the
                                         // avatar on a block's first message and the hover time on the rest.
-                                        <span className="mb-0.5 flex w-fit items-center gap-1 rounded bg-destructive/10 px-1.5 py-px text-micro font-semibold text-destructive">
-                                            <Bookmark size={11} aria-hidden className="fill-current" />
+                                        // Plain label, no filled pill: a tinted chip read as an error badge
+                                        // and outweighed the author line beneath it.
+                                        <span className="mb-0.5 flex w-fit items-center gap-1 text-micro font-medium text-destructive">
+                                            <Bookmark size={11} aria-hidden />
                                             {t('chat.savedTag')}
                                         </span>
                                     )}
