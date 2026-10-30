@@ -226,3 +226,89 @@ describe('buildMessageRows — time headers', () => {
         expect(groupsOf(rows).map(group => group.timestamp)).toEqual([at('09:00'), at('05:00')]);
     });
 });
+
+describe('buildMessageRows — grouped join notices', () => {
+    const NAMES = new Map([
+        ['ada', 'Ada'],
+        ['bo', 'Bo'],
+        ['cy', 'Cy'],
+        ['di', 'Di'],
+    ]);
+    const join = (no: number, ownerId: string, over: Partial<DomainChat> = {}) =>
+        chat({ id: `C1:${no}`, chatNo: no, ownerId, stereo: 'system', subType: 'join', ...over });
+    const systemRows = (rows: ReturnType<typeof buildMessageRows>) =>
+        rows.flatMap(row => (row.kind === 'system' ? [row] : []));
+
+    it('groups adjacent join notices into one row listing every actor', () => {
+        const rows = buildMessageRows([join(1, 'ada'), join(2, 'bo'), join(3, 'cy')], VIEWER, NAMES);
+
+        expect(kinds(rows)).toEqual(['date', 'system']);
+        expect(systemRows(rows)[0].joinedNames).toEqual(['Ada', 'Bo', 'Cy']);
+    });
+
+    it('keeps the first notice key when a join is appended', () => {
+        const before = buildMessageRows([join(1, 'ada'), join(2, 'bo')], VIEWER, NAMES);
+        const after = buildMessageRows([join(1, 'ada'), join(2, 'bo'), join(3, 'cy')], VIEWER, NAMES);
+
+        expect(systemRows(after)[0].key).toBe(systemRows(before)[0].key);
+        expect(systemRows(after)[0].key).toBe('C1:1');
+    });
+
+    it('leaves a single join as it was', () => {
+        const rows = buildMessageRows([join(1, 'ada')], VIEWER, NAMES);
+
+        expect(systemRows(rows)[0].joinedNames).toBeUndefined();
+    });
+
+    it('does not group across a leave notice', () => {
+        const rows = buildMessageRows(
+            [
+                join(1, 'ada'),
+                chat({ id: 'C1:2', chatNo: 2, ownerId: 'bo', stereo: 'system', subType: 'leave' }),
+                join(3, 'cy'),
+            ],
+            VIEWER,
+            NAMES
+        );
+
+        expect(kinds(rows)).toEqual(['date', 'system', 'system', 'system']);
+    });
+
+    it('does not group leave notices', () => {
+        const leave = (no: number, ownerId: string) =>
+            chat({ id: `C1:${no}`, chatNo: no, ownerId, stereo: 'system', subType: 'leave' });
+        const rows = buildMessageRows([leave(1, 'ada'), leave(2, 'bo')], VIEWER, NAMES);
+
+        expect(kinds(rows)).toEqual(['date', 'system', 'system']);
+    });
+
+    it('does not group across a day boundary', () => {
+        const nextDay = DAY + 24 * 60 * 60 * 1000;
+        const rows = buildMessageRows([join(1, 'ada'), join(2, 'bo', { createdAt: nextDay })], VIEWER, NAMES);
+
+        expect(kinds(rows)).toEqual(['date', 'system', 'date', 'system']);
+    });
+
+    it('does not group across a message', () => {
+        const rows = buildMessageRows(
+            [join(1, 'ada'), chat({ id: 'C1:2', chatNo: 2, ownerId: 'di', content: 'hi' }), join(3, 'bo')],
+            VIEWER,
+            NAMES
+        );
+
+        expect(kinds(rows)).toEqual(['date', 'system', 'group', 'system']);
+    });
+
+    it("keeps the viewer's own join in order inside a grouped run", () => {
+        const rows = buildMessageRows([join(1, 'ada'), join(2, 'me'), join(3, 'bo')], VIEWER, NAMES);
+
+        expect(kinds(rows)).toEqual(['date', 'system']);
+        expect(systemRows(rows)[0].joinedNames).toEqual(['Ada', 'Me', 'Bo']);
+    });
+
+    it('leaves a join with no resolvable name ungrouped', () => {
+        const rows = buildMessageRows([join(1, 'ada'), join(2, 'ghost')], VIEWER, NAMES);
+
+        expect(kinds(rows)).toEqual(['date', 'system', 'system']);
+    });
+});

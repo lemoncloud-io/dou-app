@@ -8,6 +8,7 @@ import { setStorageAdapter } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { webConfigPorts } from './app/config/adapters';
+import { applyAppearance, useAppearancePrefsStore } from './app/shared/stores/useAppearancePrefsStore';
 import { migrateLegacyPushMuted } from './app/config/legacyNotificationPrefsMigration';
 
 import App from './app/app';
@@ -43,6 +44,10 @@ runtime.boot.initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } });
 // Desktop persistent storage (localStorage) is decided by `isNative()` above (ADR-0079, replacing
 // `@chatic/web-config`'s `usePersistentWebStorage`), which the lemon transport and the session
 // stores share via the explicit `setStorageAdapter` call — no longer an import side effect.
+
+// Reading preferences go onto the document root before the first paint. The store hydrates
+// localStorage synchronously, so a reader who picked a larger size never sees the default one flash.
+applyAppearance(useAppearancePrefsStore.getState());
 
 const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
 

@@ -804,7 +804,13 @@ export const MessageList = ({
                     }
                     if (row.kind === 'system') {
                         return (
-                            <SystemNotice key={row.key} rowKey={row.key} chat={row.chat} authorName={row.authorName} />
+                            <SystemNotice
+                                key={row.key}
+                                rowKey={row.key}
+                                chat={row.chat}
+                                authorName={row.authorName}
+                                joinedNames={row.joinedNames}
+                            />
                         );
                     }
                     if (row.kind === 'unread') {

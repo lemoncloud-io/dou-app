@@ -1,5 +1,43 @@
 # Changelog
 
+## [2026-10-30] - root@0.134.0, @chatic/desktop-web@0.42.0
+
+### Features
+
+- (desktop-web) group join notices and add text size and density settings
+- (desktop-web) group adjacent join notices into one line
+- (desktop-web) add text size and message density preferences
+
+## [2026-10-30] - root@0.133.0, @chatic/desktop-web@0.41.0
+
+### Features
+
+- (desktop-web) invite-link-first onboarding with a preview step
+- (desktop-web) preview an invite before joining it
+- (desktop-web) walk the invite page through paste, preview and join
+- (desktop-web) show invite progress dots and slide between steps
+- (desktop-web) lead Welcome with the invite link, document the join
+
+### Bug Fixes
+
+- (desktop-web) block a previewed invite whose expiry time has passed
+- (desktop-web) keep the reconnecting banner off the held invite page
+- (desktop-web) block a previewed invite past its grace window
+
+### Documentation
+
+- (desktop-web) note a quit during the invite preview keeps the guest
+
+### Other
+
+- test: (desktop-web) drive the invite router spec through preview and join
+
+## [2026-10-30] - No version updates
+
+### Refactor
+
+- (transport,app-runtime) move the socket manager and http into @chatic/transport
+
 ## [2026-10-30] - root@0.132.0, @chatic/landing@0.14.0
 
 ### Features
