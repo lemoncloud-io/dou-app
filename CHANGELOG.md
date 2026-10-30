@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - No version updates
+
+### Refactor
+
+- (app-runtime) hold the layers the package will split along (ADR-0253)
+
 ## [2026-10-30] - root@0.128.0, @chatic/landing@0.12.0
 
 ### Features
