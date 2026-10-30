@@ -8,6 +8,7 @@ import { cn } from '@chatic/lib/utils';
 import douMark from '../../../../assets/dou-mark.png';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
 import { radioGroupOptions } from '../../../shared';
+import { StepDots } from './StepDots';
 
 interface AuthCardProps {
     title: string;
@@ -21,6 +22,8 @@ interface AuthCardProps {
      * out instead of happening silently under a screen reader's focus.
      */
     live?: boolean;
+    /** For a screen that is one step of a short sequence: draws the dots above the heading. */
+    progress?: { current: number; total: number };
 }
 
 /**
@@ -38,7 +41,7 @@ interface AuthCardProps {
  * Settings exists: someone whose system language is not the one they read had
  * no way to change it until after signing in.
  */
-export const AuthCard = ({ title, subtitle, children, onBack, live }: AuthCardProps) => {
+export const AuthCard = ({ title, subtitle, children, onBack, live, progress }: AuthCardProps) => {
     const { t, i18n } = useTranslation();
     const languageProps = radioGroupOptions(SUPPORTED_LANGUAGES, i18n.language, setLanguage);
 
@@ -80,6 +83,7 @@ export const AuthCard = ({ title, subtitle, children, onBack, live }: AuthCardPr
                         {t('common.back')}
                     </button>
                 )}
+                {progress && <StepDots current={progress.current} total={progress.total} />}
                 <div className="flex flex-col gap-3">
                     <img src={douMark} alt="" width={48} height={48} className="h-12 w-12 rounded-xl" />
                     <div

@@ -8,12 +8,14 @@ import { classifyWireError, type WireErrorKind } from '../../../shared';
  *    `format` (unparseable paste), `backend` (the link names a server this build does not trust,
  *    see `isTrustedInviteBackend`), `relay` (a phone-to-phone invite this screen cannot accept),
  *    `unmarked` (an encoded link that names no server) and `loggedIn` (an account is signed in, and
- *    joining as a guest would replace it).
+ *    joining as a guest would replace it). The preview step adds three read from the lookup's
+ *    `state`: `used` (already accepted), `expired`, and `canceled` (the inviter withdrew it or the
+ *    invitee declined).
  *  - `server` — the API/socket rejected it; the dialog gets a sentence that says what to do next,
  *    with the raw text under it and in the failure toast.
  */
 export type InviteLoginError =
-    | { kind: 'format' | 'backend' | 'relay' | 'unmarked' | 'loggedIn' }
+    | { kind: 'format' | 'backend' | 'relay' | 'unmarked' | 'loggedIn' | 'used' | 'expired' | 'canceled' }
     | { kind: 'server'; message: string };
 
 type InviteErrorKey =
@@ -22,6 +24,8 @@ type InviteErrorKey =
     | 'auth.invite.failed.relay'
     | 'auth.invite.failed.unmarked'
     | 'auth.invite.failed.loggedIn'
+    | 'auth.invite.failed.used'
+    | 'auth.invite.failed.canceled'
     | 'auth.invite.failed.notFound'
     | 'auth.invite.failed.expired'
     | 'auth.invite.failed.already'
@@ -53,6 +57,9 @@ const KEY_BY_LOCAL_KIND: Record<Exclude<InviteLoginError['kind'], 'server'>, Inv
     relay: 'auth.invite.failed.relay',
     unmarked: 'auth.invite.failed.unmarked',
     loggedIn: 'auth.invite.failed.loggedIn',
+    used: 'auth.invite.failed.used',
+    expired: 'auth.invite.failed.expired',
+    canceled: 'auth.invite.failed.canceled',
 };
 
 /** Resolve the user-facing line for an invite-login error. */

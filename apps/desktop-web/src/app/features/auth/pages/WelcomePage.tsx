@@ -84,9 +84,9 @@ const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed
 };
 
 /**
- * First-run landing. Offers a one-tap guest start (device-register into the
- * Default Cloud's Self Channel) plus a secondary path for users who hold an
- * Invite Code. Replaces the invite-only gate as the default unauthenticated screen.
+ * First-run landing. Leads with the invite link, then offers a one-tap guest start
+ * (device-register into the Default Cloud's Self Channel) and the sign-in paths. Replaces the
+ * invite-only gate as the default unauthenticated screen.
  */
 export const WelcomePage = () => {
     const { t } = useTranslation();
@@ -110,10 +110,19 @@ export const WelcomePage = () => {
                 </p>
             )}
 
-            {/* One filled primary leads; the alternatives sit under it, and the
-                invite path is a link rather than a fourth identical pill. */}
+            {/* One filled primary leads and it is the invite link: someone who installed the app without
+                a link is here to join something, and the other ways in sit under it. */}
             <div className="flex flex-col gap-2">
-                <Button size="lg" onClick={() => void submit()} disabled={isBusy} aria-describedby="welcome-guest-note">
+                <Button size="lg" onClick={() => navigate('/auth/login')} disabled={isBusy}>
+                    {t('welcome.haveInvite')}
+                </Button>
+                <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => void submit()}
+                    disabled={isBusy}
+                    aria-describedby="welcome-guest-note"
+                >
                     {isSubmitting ? t('welcome.starting') : isError ? t('welcome.retry') : t('welcome.start')}
                 </Button>
                 {/* The button mints a guest account. Saying so here, not only in the
@@ -166,9 +175,6 @@ export const WelcomePage = () => {
                         {t('pairing.welcome.start')}
                     </Button>
                 )}
-                <Button variant="link" onClick={() => navigate('/auth/login')} disabled={isBusy}>
-                    {t('welcome.haveInvite')}
-                </Button>
                 {/* Dev-only email/password sign-in. Gated on import.meta.env.DEV so it's
                     dead-code-eliminated from production builds — mirrors the /auth/debug
                     route guard in routes.tsx; never ships in the installed app. */}
