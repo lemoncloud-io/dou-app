@@ -11,6 +11,7 @@
  * inherited a previous one's would be testing the wrong tree.
  */
 import type * as Session from '@chatic/session';
+import type * as SyncDataGraph from '@chatic/sync/dataGraph';
 
 // The spy is held OUTSIDE the factory (hence the `mock` prefix jest requires) so it survives
 // `resetModules`: the factory re-runs per reload, and a reference captured from the module would
@@ -74,7 +75,9 @@ describe('initAppRuntime', () => {
         jest.doMock('./data/runtime', () => ({ configureDataRuntime: jest.fn(), getRepositories, getDataManager }));
         const { initAppRuntime } = await import('./init');
         const { authRepositorySource } = await import('./session/auth/authRepository');
-        const { syncDataGraph } = await import('./socket/sync/dataGraph');
+        // Not `await import(…)`: Nx would then call @chatic/sync lazy-loaded and fail every static
+        // import of it. After `resetModules`, `requireActual` returns the same fresh copy.
+        const { syncDataGraph } = jest.requireActual<typeof SyncDataGraph>('@chatic/sync/dataGraph');
 
         initAppRuntime();
 

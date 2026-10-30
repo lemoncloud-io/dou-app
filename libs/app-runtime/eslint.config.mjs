@@ -11,9 +11,10 @@ export default [
         rules: {},
     },
     // ---------------------------------------------------------------------------------------------
-    // `@chatic/session` and `@chatic/transport` are open to this package, through their barrels.
+    // `@chatic/session`, `@chatic/transport` and `@chatic/sync` are open to this package, through
+    // their barrels.
     //
-    // The root config closes both packages to everything else; these two blocks set the same rule
+    // The root config closes them to everything else; these two blocks set the same rule
     // again for this package's files, keeping the root's `@chatic/data/*` ban. Production code takes
     // the barrels only. Tests may also name a file as `@chatic/<package>/<path>`. The reason is the
     // mock: a test that mocks a module must name that file, or the package's internal imports keep
@@ -39,6 +40,10 @@ export default [
                         {
                             group: ['@chatic/transport/*'],
                             message: 'Import @chatic/transport through its barrel. Deep paths are for test mocks only.',
+                        },
+                        {
+                            group: ['@chatic/sync/*'],
+                            message: 'Import @chatic/sync through its barrel. Deep paths are for test mocks only.',
                         },
                     ],
                 },

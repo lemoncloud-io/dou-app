@@ -34,9 +34,9 @@ socket/                              14 source files, 10 tests
 `export * from './socket/types'`, so a value placed there would land on the barrel every runtime
 module imports. `constants.ts` exists to hold those values instead, and it imports no runtime module.
 
-`socket/auth/` and `socket/sync/` — the authentication wiring and the sync runtimes on these slots —
-stay in app-runtime: [docs/auth/](../../../app-runtime/docs/auth/README.md) and
-[docs/sync/](../../../app-runtime/docs/sync/README.md).
+The authentication wiring on these slots stays in app-runtime's `socket/auth/`
+([docs/auth/](../../../app-runtime/docs/auth/README.md)), and the sync runtimes on them are
+[`@chatic/sync`](../../../sync/README.md)'s.
 
 ## Responsibilities
 
@@ -48,7 +48,7 @@ naming the call that produced a failed request.
 It does **not** own: token acquisition or renewal, expiry refresh, reconnect re-authentication or the
 `auth.update` handshake — all the SDK's ([docs/auth/](../../../app-runtime/docs/auth/README.md)); 401 detection and retry,
 which no longer exist anywhere; waiting for a connection before a request; or creating a sync runtime
-([docs/sync/](../../../app-runtime/docs/sync/README.md)).
+([libs/sync](../../../sync/README.md)).
 
 **`request` does not wait for the socket to open.** Called before connect, the SDK rejects
 immediately with `503 SOCKET NOT CONNECTED`. Gating is the caller's job, through `isVerified`,
@@ -437,5 +437,5 @@ skips one failed attempt at most, but here it could log the user out over a dead
 
 - [docs/connection/](../../../app-runtime/docs/connection/README.md) — the host, the slot derivation and the two binders that drive this manager
 - [docs/auth/](../../../app-runtime/docs/auth/README.md) — what `bootstrapSocketConnection` and `reauthenticateActiveSocket` do on these slots
-- [docs/sync/](../../../app-runtime/docs/sync/README.md) — the per-slot runtimes `subscribeSlotClients` exists for
+- [libs/sync](../../../sync/README.md) — the per-slot runtimes `subscribeSlotClients` exists for
 - [`libs/data`](../../../data/README.md) — the gateways that bind to the active facade, and the relay-pinned ones

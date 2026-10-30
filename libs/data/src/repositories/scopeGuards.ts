@@ -7,8 +7,8 @@ import type { DataContext } from './types';
  * **`data` owns them, not `session/scope`.** The ADR sketches `session/scope/predicates.ts`, but four
  * of the six call sites live inside `@chatic/data`, which is a leaf and cannot import
  * `@chatic/app-runtime` — so that home makes the consolidation impossible. Taking `DataContext` and
- * plain values as input keeps them pure, keeps `data` a leaf, and lets `session/scope` and
- * `socket/sync` be callers (the design doc's §session/scope).
+ * plain values as input keeps them pure, keeps `data` a leaf, and lets `@chatic/session`'s scope and
+ * `@chatic/sync` be callers.
  */
 
 /**

@@ -123,7 +123,7 @@ not through the page. The page only calls `refreshList({ channelId, cursorNo, li
 thing — paging further into the past — and widens its `observeList` window to match.
 
 The registration mechanics (ref-counting, per-slot runtimes, plan cadence) are
-[libs/app-runtime/docs/sync/](../../../../libs/app-runtime/docs/sync/README.md)'s.
+[libs/sync](../../../../libs/sync/README.md)'s.
 
 ## 4. Writing data — through a repository, always
 

@@ -11,15 +11,16 @@ import { dirname, join, normalize, relative, sep } from 'path';
  * the wrong way is an edge the split would have to break. Holding the line here first is what turns
  * each later extraction into a move rather than a redesign.
  *
- * The layers, bottom up. Two have already left as packages every layer here may import, and the
+ * The layers, bottom up. Three have already left as packages every layer here may import, and the
  * package graph keeps them below: the session — the store, its signal and the scope views — is
- * `@chatic/session`, and the transport — the socket manager and its slots, and the HTTP manager — is
- * `@chatic/transport`.
+ * `@chatic/session`; the transport — the socket manager and its slots, and the HTTP manager — is
+ * `@chatic/transport`; and sync — the sync manager, its plans and the background receive — is
+ * `@chatic/sync`.
  *
  * - `base` — `utils/`: helpers that import nothing from this package. They leave with the first
  *   module that needs them.
- * - `sync` and `auth` — side by side. Sync keeps clouds current; auth logs in, switches, renews and
- *   pairs. Neither may import the other, because each will be a package of its own.
+ * - `auth` — logs in, switches, renews and pairs. It will be a package of its own, and sync sits
+ *   beside it, not below: auth imports nothing from `@chatic/sync`.
  * - `app` — what stays here: the repository graph's assembly, every React hook and component, push,
  *   report and boot. It may import everything.
  *
@@ -29,13 +30,12 @@ import { dirname, join, normalize, relative, sep } from 'path';
  */
 const SRC = join(__dirname);
 
-type Layer = 'base' | 'sync' | 'auth' | 'app';
+type Layer = 'base' | 'auth' | 'app';
 
 const ALLOWED: Record<Layer, readonly Layer[]> = {
     base: [],
-    sync: ['base'],
     auth: ['base'],
-    app: ['base', 'sync', 'auth'],
+    app: ['base', 'auth'],
 };
 
 /**
@@ -54,7 +54,6 @@ const layerOf = (file: string): Layer => {
     const path = relative(SRC, file).split(sep).join('/');
     if (GROUP_BARRELS.has(path) || /(^|\/)hooks\//.test(path)) return 'app';
     if (path.startsWith('utils/')) return 'base';
-    if (path.startsWith('socket/sync/')) return 'sync';
     if (/^(session\/(auth|pairing)|socket\/auth)\//.test(path)) return 'auth';
     return 'app';
 };
@@ -93,7 +92,6 @@ describe('app-runtime — layering', () => {
     it('places a few known files in the layer the split gives them', () => {
         const at = (path: string) => layerOf(join(SRC, path));
         expect(at('utils/coalescer.ts')).toBe('base');
-        expect(at('socket/sync/plans.ts')).toBe('sync');
         expect(at('socket/sync/hooks/useSyncTarget.ts')).toBe('app');
         expect(at('socket/sync/index.ts')).toBe('app');
         expect(at('session/auth/relaySession.ts')).toBe('auth');
@@ -107,7 +105,6 @@ describe('app-runtime — layering', () => {
         // A positive control: if the statement pattern or the resolver broke, every file would have
         // no edges and the check below would pass on nothing.
         const edges = (path: string) => relativeEdges(join(SRC, path)).map(target => relative(SRC, target));
-        expect(edges('socket/sync/plans.ts')).toContain('socket/sync/dataGraph.ts');
         expect(edges('session/auth/cloudTokens.ts')).toContain('session/auth/authRepository.ts');
         expect(edges('connection/index.ts')).toContain('socket/auth/recoverUnverifiedSockets.ts');
     });
@@ -125,5 +122,24 @@ describe('app-runtime — layering', () => {
 
         // Listed whole so a regression names the edge instead of only failing a count.
         expect(violations.sort()).toEqual([]);
+    });
+
+    it('keeps auth off @chatic/sync, which sits beside it rather than below', () => {
+        // A package import is not a relative edge, so the check above cannot see this one.
+        // `from`, a bare side-effect import and a dynamic `import()` all count.
+        const importsSync = (source: string) => /(?:from\s*|import\s*\(?\s*)'@chatic\/sync(?:\/[^']*)?'/.test(source);
+        expect(importsSync("import { getSyncManager } from '@chatic/sync';")).toBe(true);
+        expect(importsSync("import '@chatic/sync/runtime';")).toBe(true);
+        expect(importsSync("await import('@chatic/sync')")).toBe(true);
+        expect(importsSync("import { x } from '@chatic/syncx';")).toBe(false);
+
+        const authFiles = sourceFiles(SRC).filter(file => layerOf(file) === 'auth');
+        // If the layer mapping broke, an empty list would pass on nothing.
+        expect(authFiles.length).toBeGreaterThan(0);
+
+        const offenders = authFiles
+            .filter(file => importsSync(readFileSync(file, 'utf8')))
+            .map(file => relative(SRC, file));
+        expect(offenders).toEqual([]);
     });
 });

@@ -6,7 +6,7 @@ builds the three data-source bundles, injects the scope, and hands the result to
 The output is what `useRuntimeRepositories()` returns.
 
 It owns nothing about _reading_ data. Streams, merges and cursors are the data layer's; sync timing
-is [docs/sync/](../sync/README.md)'s.
+is [libs/sync](../../../sync/README.md)'s.
 
 ## Layout
 
@@ -70,7 +70,7 @@ splices `socketCid` in for.
 `getScopedRepositories(cid)` is a second repository graph pinned to one cloud, built on first use and
 kept for the session. It exists for work that belongs to a cloud other than — or independently of —
 the selected one: the sync plans, each writing its slot's frames; the background receive loops, each
-asking its cloud's delta ([docs/sync/](../sync/README.md#background-receive)); chat prime's cache read
+asking its cloud's delta ([libs/sync](../../../sync/README.md#background-receive)); chat prime's cache read
 and first page; and every chat send (below). Apps reach it as `data.getCloudRepositories(cid)`.
 
 | Part          | App graph (`getRepositories`)               | Scoped graph (`getScopedRepositories(cid)`)                       |
@@ -309,5 +309,5 @@ belongs to [`libs/data`](../../../data/README.md).
 - [image-send.md](./image-send.md) — `useSendImages`: the pending row, the file memory, retry, leftovers and upload progress
 - [docs/session/](../session/README.md) — `ActiveScope`, the thing injected into every repository
 - [transport docs/http/](../../../transport/docs/http/README.md) — the gateways `httpFactory` builds over
-- [docs/sync/](../sync/README.md) — what writes into these repositories without a screen asking
+- [libs/sync](../../../sync/README.md) — what writes into these repositories without a screen asking
 - [`libs/data`](../../../data/README.md) · [`libs/db`](../../../db/README.md) — the repository layer and the storage engines

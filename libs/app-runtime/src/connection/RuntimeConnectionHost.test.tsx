@@ -49,8 +49,8 @@ jest.mock('@chatic/transport/socket/runtime', () => {
     const mockManager = { destroy: jest.fn(), setActiveSlot: jest.fn(), getSlotKeys: jest.fn(() => []) };
     return { getSocketManager: jest.fn().mockReturnValue(mockManager) };
 });
-// Sync has its own creation point now (socket/sync/runtime.ts); SocketBinder reaches it directly.
-jest.mock('../socket/sync/runtime', () => ({ getSyncManager: jest.fn() }));
+// Sync has its own creation point now (`@chatic/sync`'s runtime.ts); SocketBinder reaches it directly.
+jest.mock('@chatic/sync/runtime', () => ({ getSyncManager: jest.fn() }));
 // Background clouds' token preparation has its own tests; the host's job here is only the sockets.
 jest.mock('./hooks/useBackgroundCloudTokens', () => ({ useBackgroundCloudTokens: jest.fn() }));
 // The receive loops have their own tests too; here only whether the host turns them on.

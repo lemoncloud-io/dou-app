@@ -9,7 +9,7 @@ import { createDeviceRuntime } from '@lemoncloud/chatic-sockets-lib';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import { getGlobalSessionContext, getUidInCloud, subscribeSessionSignal } from '@chatic/session';
-import { unrefTimer } from '../../utils/unrefTimer';
+import { unrefTimer } from './unrefTimer';
 import { slotKeyOf } from '@chatic/transport';
 import type { ISocketManager, SlotKey } from '@chatic/transport';
 import { UNREGISTER_GRACE_MS } from './constants';

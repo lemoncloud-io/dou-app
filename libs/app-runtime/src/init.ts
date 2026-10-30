@@ -8,7 +8,7 @@ import { authRepositorySource } from './session/auth/authRepository';
 import { logoutStorageSweeper } from './session/auth/logoutStorageSweep';
 import { configureSessionStore } from '@chatic/session';
 import { credentialRenewers } from './socket/auth/renewers';
-import { syncDataGraph } from './socket/sync/dataGraph';
+import { syncDataGraph } from '@chatic/sync';
 
 import type { HttpRoute } from '@chatic/http';
 import type { DataRuntimeConfig } from './data/runtime';

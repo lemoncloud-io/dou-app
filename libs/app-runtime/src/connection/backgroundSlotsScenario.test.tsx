@@ -22,7 +22,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
-jest.mock('../socket/sync/runtime', () => ({ getSyncManager: jest.fn() }));
+jest.mock('@chatic/sync/runtime', () => ({ getSyncManager: jest.fn() }));
 jest.mock('../socket/auth', () => ({ bootstrapSocketConnection: jest.fn() }));
 
 const mockedCreate = createClientSocketV2 as jest.MockedFunction<typeof createClientSocketV2>;

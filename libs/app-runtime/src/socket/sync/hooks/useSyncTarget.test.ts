@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
 import { useChatSync, useSyncTarget } from './useSyncTarget';
-import { resetRoomFeeds } from '../roomFeed';
+import { resetRoomFeeds } from '@chatic/sync/roomFeed';
 import {
     clearActivePerfTrace,
     configurePerfTraces,
@@ -13,7 +13,7 @@ import {
 const mockDispose = jest.fn();
 const mockRegister = jest.fn().mockReturnValue(mockDispose);
 const mockUpdateLocalSnapshot = jest.fn();
-jest.mock('../runtime', () => ({
+jest.mock('@chatic/sync/runtime', () => ({
     getSyncManager: () => ({ register: mockRegister, updateLocalSnapshot: mockUpdateLocalSnapshot }),
 }));
 
@@ -60,7 +60,7 @@ jest.mock('../../../data/runtime', () => ({
     getDataManager: () => ({ getScopedRepositories: mockGetScopedRepositories }),
 }));
 // The room feed this hook primes through reads the same graph, handed down at boot.
-jest.mock('../dataGraph', () => ({
+jest.mock('@chatic/sync/dataGraph', () => ({
     syncDataGraph: { get: () => ({ getScopedRepositories: mockGetScopedRepositories }) },
 }));
 

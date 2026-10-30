@@ -21,7 +21,7 @@ import {
 
 import { getSocketManager, getSocketErrorCode, RELAY_SLOT } from '@chatic/transport';
 import type { ScopedSocketClient } from '@chatic/transport';
-import { clearRefusedChannel, recordRefusedChannel } from '../../socket/sync/refusedChannels';
+import { clearRefusedChannel, recordRefusedChannel } from '@chatic/sync';
 
 /**
  * Wraps `channel.sync-users` so its verdict on my membership is not thrown away.

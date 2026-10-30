@@ -36,7 +36,7 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 ## Design principles
 
 1. **Session state has one home and one writer, and that writer is passive.** The store lives in [`@chatic/session`](../session/README.md), the package below this one; it stores and announces and knows nothing about sockets, data, HTTP or the use cases here. The package graph refuses the reverse edge, and that package's eslint config bans the rest inside `store/**`, with exactly one exempt file.
-2. **Every engine has one creation point.** `getSocketManager()` · `getSyncManager()` · `getHttpManager()` · `getDataRuntime()`. A second `new` for any of them is a bug. The socket and HTTP ones live in [`@chatic/transport`](../transport/README.md), the package below this one.
+2. **Every engine has one creation point.** `getSocketManager()` · `getSyncManager()` · `getHttpManager()` · `getDataRuntime()`. A second `new` for any of them is a bug. The socket and HTTP ones live in [`@chatic/transport`](../transport/README.md) and the sync one in [`@chatic/sync`](../sync/README.md), the packages below this one.
 3. **Nothing here calls a refresh endpoint, and nothing here builds an `auth.update` packet.** The SDK's auth controller owns both. Two tests walk this package's source and every package cut from it, and fail on the string: [`refreshAbsence.test.ts`](./src/refreshAbsence.test.ts) and [`authUpdateAbsence.test.ts`](./src/authUpdateAbsence.test.ts). Path-based lint was tried first and died silently when the symbols moved.
 4. **Every server call is a repository call.** Gateway instances are known only inside `data/` and `@chatic/transport`'s `http/`; even the login and token-exchange use cases in `session/auth/` go through `AuthRepository` (ADR-0036). There is no direct-gateway escape hatch.
 5. **The three scope views are never collapsed.** `selected` flips optimistically, `bound` is observed from the live socket, `committed` follows the token. Their disagreement _is_ optimistic cloud switching; merging them brings back cross-cloud cache poisoning.
@@ -52,13 +52,13 @@ the HMAC signer (`libs/auth-sign`) and the logging core ([`libs/logger`](../logg
 
 **In** — the login/logout/switch use cases and device pairing, the React session surface, the host and the binders that decide which socket slots exist (relay, the committed cloud, and a
 background slot per other joined cloud), socket authentication wiring and
-credential renewal, the sync manager and the app's sync plans, the receive loops that keep the clouds off screen
-current, the repository graph and cache-storage routing, the offline chat outbox, device-token
+credential renewal, the hooks a screen registers sync targets with, the repository graph and cache-storage routing, the offline chat outbox, device-token
 registration, the user issue report and the log-batch upload, and the boot call that wires them.
 
 **Out** — the session's state: the three stores, their signal, the derived contexts and the scope
 ([`libs/session`](../session/README.md)); the socket manager and its slots, and the HTTP manager
-and its routes ([`libs/transport`](../transport/README.md)); the socket transport and its `AuthController`
+and its routes ([`libs/transport`](../transport/README.md)); the sync manager, the app's sync plans and
+the receive loops that keep the clouds off screen current ([`libs/sync`](../sync/README.md)); the socket transport and its `AuthController`
 (`@lemoncloud/chatic-sockets-lib`); repositories, data sources and mappers
 ([`libs/data`](../data/README.md)); the HTTP executor, retry and error classification
 ([`libs/http`](../http/README.md)); IndexedDB and native SQLite adapters
@@ -85,7 +85,7 @@ flowchart TD
     Scope["@chatic/session · scope<br/><i>ActiveScope — selected · bound · committed</i>"]:::sess
 
     SM["@chatic/transport · SocketManager<br/><i>relay + cloud slots</i>"]:::eng
-    SyncM["SyncManager<br/><i>slot runtimes · target registry</i>"]:::eng
+    SyncM["@chatic/sync · SyncManager<br/><i>slot runtimes · target registry</i>"]:::eng
     HM["@chatic/transport · HttpManager<br/><i>route endpoints · staleness port</i>"]:::eng
     DM["DataManager<br/><i>3 data-source bundles → repositories</i>"]:::eng
 
@@ -130,24 +130,24 @@ HTTP without closing a cycle.
 Every folder belongs to one layer, and a layer imports only the layers below it. The layers are the
 packages this one is being cut into — `session`, `transport`, `sync` and `auth` move out one at a time,
 and what stays here is the app layer — so the line is held here first, and each later extraction is
-then a move rather than a redesign. Two layers have already moved, and every layer in this package
-may import them: [`@chatic/session`](../session/README.md), the session's state, and
-[`@chatic/transport`](../transport/README.md), the socket manager and its slots and the HTTP manager.
+then a move rather than a redesign. Three layers have already moved, and every layer in this
+package may import them: [`@chatic/session`](../session/README.md), the session's state;
+[`@chatic/transport`](../transport/README.md), the socket manager and its slots and the HTTP manager;
+and [`@chatic/sync`](../sync/README.md), the sync manager, its plans and the background receive.
 
 | Layer  | Folders                                                                                             | May import              |
 | ------ | --------------------------------------------------------------------------------------------------- | ----------------------- |
 | `base` | `utils` — helpers that import nothing here; they leave with the first module that needs them        | nothing in this package |
-| `sync` | `socket/sync` (not its `hooks/`)                                                                    | `base`                  |
 | `auth` | `session/auth`, `session/pairing`, `socket/auth`                                                    | `base`                  |
 | `app`  | `data`, `connection`, every `hooks/`, `push`, `report`, `config`, the group barrels, the root files | every layer             |
 
-`sync` and `auth` sit side by side and never import each other. A type-only import counts as an
-edge, because a package that names another's type has to depend on it. Every `hooks/` folder is the
+`auth` sits beside `@chatic/sync`, not above it: nothing in the auth layer imports the sync
+package, and `layering.test.ts` checks that too. A type-only import counts as an edge, because a package that names another's type has to depend on it. Every `hooks/` folder is the
 app layer wherever it sits — hooks are React, and React stays here.
 
 The repository graph is assembled in `data/`, above the two layers that read it. So it is **handed
 down at boot** instead of imported: `initAppRuntime()` gives `session/auth/authRepository.ts` an
-accessor for the `AuthRepository`, and `socket/sync/dataGraph.ts` one for the scoped graphs. Both are
+accessor for the `AuthRepository`, and `@chatic/sync`'s `syncDataGraph` one for the scoped graphs. Both are
 read on every call — the graph is still built lazily — and both throw a message naming
 `initAppRuntime()` when nothing was handed in.
 
@@ -197,22 +197,22 @@ libs/app-runtime/src/
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       19 files — the host, SocketBinder, SocketReauthBinder, 11 hooks, 3 utils
 ├── session/          52 files — auth (11) · pairing (6) · hooks (34); the store and scope are @chatic/session
-├── socket/           32 files — auth wiring (20) + sync (12); the manager and its slots are @chatic/transport
+├── socket/           22 files — auth wiring (20) + the `sync` group and its hooks (2); the manager is @chatic/transport, sync is @chatic/sync
 ├── data/             24 files — DataManager, 4 factories (one is the state outbox's transport), cache routing, cloud-addressed sends, the chat outbox, the cache-clear sweep and its cursor watermark, 5 hooks
 ├── push/             3 files — device-token registration and its record
 ├── report/           5 files — user issue report + log-batch upload
 ├── config/           1 file — records the effective settings in the logs
-└── utils/            4 files — Coalescer · Throttle · unrefTimer · isNativeApp
+└── utils/            3 files — Coalescer · Throttle · isNativeApp
 ```
 
-144 source files, 106 test files, about 12,500 lines of non-test code.
+133 source files, 97 test files, about 10,900 lines of non-test code.
 
 Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
 `ScopedSocketClient` all live in `@chatic/transport`'s
 [`socket/types.ts`](../transport/src/socket/types.ts) — there is no `ISocketManager.ts`. `SocketSessionDelegate` and `ReauthDelegate` live in
 [`socket/auth/types.ts`](./src/socket/auth/types.ts); `IDataManager` and `CacheAssemblyOptions` in
-[`data/types.ts`](./src/data/types.ts); `ISyncManager` in
-[`socket/sync/types.ts`](./src/socket/sync/types.ts). The `boot` group is a **file**,
+[`data/types.ts`](./src/data/types.ts); `ISyncManager` in `@chatic/sync`'s
+[`types.ts`](../sync/src/types.ts). The `boot` group is a **file**,
 `boot.ts`, not a directory — booting is not an engine, so the logic stays in whichever module owns
 each piece. `config/` and `utils/` have no `index.ts` at all: they are not facade groups
 and in-package callers reach them by concrete path.
@@ -336,7 +336,7 @@ registered with instead of exchanging new ones, and the reconcile pass only move
 log reads `active moved`, nothing reconnects, and the cloud just left stays up as a background slot.
 Its receive loop takes over from the app's own sync as the pointer leaves it, and the target's loop
 stops as the pointer arrives: the target's list and cursor are already in its partition, so the app's
-first delta there continues from where the loop left off ([docs/sync/](./docs/sync/README.md#background-receive)).
+first delta there continues from where the loop left off ([libs/sync](../sync/README.md#background-receive)).
 A target without one is bound fresh, the pointer moves, and a left cloud that is not kept is torn
 down — `slot bound` → `active moved` → `slot torn down`. The relay slot is untouched throughout.
 
@@ -373,26 +373,27 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 
 ## Documents
 
-| Folder                                                                     | What it covers                                                                                                                             |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| [docs/session/](./docs/session/README.md)                                  | The use cases, pairing and hooks over `@chatic/session` — the state itself is documented in [`libs/session`](../session/README.md)         |
-| [docs/auth/](./docs/auth/README.md)                                        | Staying authenticated. Who owns what, the five-state truth table, boot and re-auth wiring, the renewers per server, the two guards         |
-| [docs/auth/signing.md](./docs/auth/signing.md)                             | The per-server `authId` / signature / writeback contract, and the registry that catches an `authId` drifting out from under the SDK        |
-| [docs/connection/](./docs/connection/README.md)                            | The host, how the slots are derived, background slots and write holds, the two binders, the connection-state hooks                         |
-| [docs/sync/](./docs/sync/README.md)                                        | `SyncManager`. Per-slot runtimes, the ref-counted target registry, the five plans, chat prime, the room-feed dedupe, `updateLocalSnapshot` |
-| [docs/sync/plans.md](./docs/sync/plans.md)                                 | What the SDK scheduler does under the plans — the two plan families, the triggers, and the behaviours only the source shows                |
-| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the four factories, the chat outbox, the state outbox transport, invited-cloud durability                                |
-| [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it         |
-| [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                               |
+| Folder                                                                     | What it covers                                                                                                                      |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/session/](./docs/session/README.md)                                  | The use cases, pairing and hooks over `@chatic/session` — the state itself is documented in [`libs/session`](../session/README.md)  |
+| [docs/auth/](./docs/auth/README.md)                                        | Staying authenticated. Who owns what, the five-state truth table, boot and re-auth wiring, the renewers per server, the two guards  |
+| [docs/auth/signing.md](./docs/auth/signing.md)                             | The per-server `authId` / signature / writeback contract, and the registry that catches an `authId` drifting out from under the SDK |
+| [docs/connection/](./docs/connection/README.md)                            | The host, how the slots are derived, background slots and write holds, the two binders, the connection-state hooks                  |
+| [docs/sync/](./docs/sync/README.md)                                        | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                        |
+| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the four factories, the chat outbox, the state outbox transport, invited-cloud durability                         |
+| [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it  |
+| [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                        |
 
 The socket manager and the HTTP manager are documented with `@chatic/transport`:
 [transport docs/socket/](../transport/docs/socket/README.md) and [transport docs/http/](../transport/docs/http/README.md).
+The sync manager, its plans and the background receive are documented with
+[`@chatic/sync`](../sync/README.md).
 
 ## How to verify
 
 ```bash
 npx tsc -b libs/app-runtime/tsconfig.json         # every project tsconfig.json references
-npx jest --config libs/app-runtime/jest.config.js # 106 test files
+npx jest --config libs/app-runtime/jest.config.js # 97 test files
 cd libs/app-runtime && npx eslint src             # flat config — run it from this directory
 ```
 

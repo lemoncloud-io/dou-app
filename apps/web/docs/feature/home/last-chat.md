@@ -181,5 +181,5 @@ the same map at page level; and search deliberately reads it without registering
 - [unread-dot](./unread-dot.md) — the unread formula and its surfaces
 - [`libs/data`](../../../../../libs/data/README.md) — the chat cache, `observeLastList` and the
   channel mapper
-- [`libs/app-runtime`](../../../../../libs/app-runtime/README.md) — `SyncManager`, `registerChat`
+- [`libs/sync`](../../../../../libs/sync/README.md) — `SyncManager`, `registerChat`
   and `ChatSyncPlan`

@@ -6,8 +6,7 @@ import { RELAY_CLOUD_ID } from '@chatic/data';
 import { logger } from '@chatic/bridges';
 import { getActivePerfTrace } from '@chatic/perf';
 
-import { getSyncManager } from '../runtime';
-import { fetchRoomFeed } from '../roomFeed';
+import { getSyncManager, fetchRoomFeed } from '@chatic/sync';
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
 import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
 import { useUidInCloud } from '../../../session/hooks/session/readers/useUidInCloud';
