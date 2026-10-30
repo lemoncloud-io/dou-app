@@ -1,3 +1,5 @@
+import { isWebhookChat } from '@chatic/data';
+
 import type { PlaceProfileEntry } from '../stores/useSiteProfilesStore';
 
 /** Identity of the signed-in user, used to name their own (and optimistic) messages. */
@@ -41,8 +43,8 @@ export const viewerPlaceProfile = (
     (viewer.cloudUid ? placeProfiles[viewer.cloudUid] : undefined) ??
     (viewer.uid ? placeProfiles[viewer.uid] : undefined);
 
-/** A message an integration sent (`stereo: 'webhook'`), as opposed to one a person wrote. */
-export const isWebhookChat = (chat: { stereo?: string }): boolean => chat.stereo === 'webhook';
+// One definition for both apps: apps/web asks the same question of the same server field.
+export { isWebhookChat };
 
 /**
  * Whether a message is mine. A webhook never is, whatever owner id the server stamped on it: an id

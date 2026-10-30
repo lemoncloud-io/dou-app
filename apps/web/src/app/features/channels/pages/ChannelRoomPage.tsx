@@ -83,7 +83,7 @@ import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
 import { resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { canModifyMessage } from '@chatic/data';
-import { deleteConfirmQuote, messagePlainText } from '../utils/messagePlainText';
+import { chatPlainText, deleteConfirmQuote } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
 import { mentionViewerOf } from '../utils/mentionHighlight';
 import { buildMentionCandidates } from '../utils/mentionInput';
@@ -816,8 +816,8 @@ export const ChannelRoomPage = () => {
 
     /** Copies what the message SAYS, not what it is made of: a Block Kit body is flattened
      *  here rather than at the call site, so its payload cannot reach the clipboard. */
-    const handleCopyMessage = async (rawContent?: string) => {
-        const text = messagePlainText(rawContent);
+    const handleCopyMessage = async (message?: ClientChatView | null) => {
+        const text = message ? chatPlainText(message) : '';
         if (!text || isCopyingMessage) return;
 
         setIsCopyingMessage(true);
@@ -1413,7 +1413,7 @@ export const ChannelRoomPage = () => {
                                                                 onLongPress={() => handleOpenMessageActions(message)}
                                                                 onExpand={() =>
                                                                     setExpandedMessage({
-                                                                        content: messagePlainText(message.content),
+                                                                        content: chatPlainText(message),
                                                                         ownerName: message.ownerName,
                                                                     })
                                                                 }
@@ -1600,7 +1600,7 @@ export const ChannelRoomPage = () => {
                 isCopying={isCopyingMessage}
                 onPickEmoji={handlePickEmoji}
                 onMoreEmoji={() => setEmojiPickerOpen(true)}
-                onCopy={() => void handleCopyMessage(actionMessage?.content)}
+                onCopy={() => void handleCopyMessage(actionMessage)}
                 onReply={handleReplyAction}
                 onEdit={handleEditAction}
                 onDelete={handleDeleteAction}

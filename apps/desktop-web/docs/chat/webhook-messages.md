@@ -10,9 +10,12 @@ looks and behaves on the reader's side.
 
 The message body is drawn by `@chatic/block-kit` (`BlockKitMessage`), through the same path as any
 structured message: `resolveChatBlocks` prefers the server's `blocks$` field, then a Block Kit JSON
-payload in `content`, and a message with neither is plain text. The subset is the one the server
-produces — `header`, `section` (with `fields`), `divider` and `context`. A block type this build does
-not know is shown as a short `unsupported block` line rather than dropped, so the card still reads.
+payload in `content`, and a message with neither is plain text. It reads blocks only from a webhook
+send (`stereo === 'webhook'`): a person who pastes a Block Kit payload wrote text, and a card from
+the composer would look exactly like an integration's alert, so their message stays that text. The
+subset is the one the server produces — `header`, `section` (with `fields`), `divider` and
+`context`. A block type this build does not know is shown as a short `unsupported block` line
+rather than dropped, so the card still reads.
 Links in the mrkdwn text, including the "view source" link the sender may attach, open in a new window.
 
 In the message only the heading speaks at full ink; section text, field values and the context line
@@ -39,7 +42,13 @@ and saved like a person's message.
 
 ## The sender
 
-The sender is a system user, not a channel member, so none of the person-shaped lookups apply:
+The sender is a system user, not a channel member, so none of the person-shaped lookups apply. The
+row knows it is one from the message itself (`isWebhookChat`, `@chatic/data`, shared with apps/web).
+The account's own record (`stereo: 'system'`, looked up by `ownerId`) would be the better source, and
+the one per-integration bots will need, but the client cannot read it yet: the account is not a
+member, so the member sync never brings it into the user cache, and the server has no call that
+reads a user by id. The `owner$` a message carries is no substitute — the server stores only its id
+and name.
 
 - **Badge.** The name is followed by an "App" badge (`chat.webhook.badge`), which tells an
   integration's card apart from a person with the same name.

@@ -11,7 +11,7 @@ import {
     takeSourceLink,
 } from '@chatic/block-kit';
 import { cn } from '@chatic/ui-kit';
-import { isMessageEdited } from '@chatic/data';
+import { isMessageEdited, isWebhookChat } from '@chatic/data';
 
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
@@ -177,10 +177,10 @@ export const ChannelMessageRow = ({
     // there is nothing to re-check here. An optimistic edit shows its new text at once and picks
     // the marker up when the server's record lands; that lag is intended (see `isMessageEdited`).
     const wasEdited = !edit && isMessageEdited(message);
-    // A structured message — a webhook send, which arrives as an ordinary `stereo: 'user'`
-    // chat carrying Block Kit either in `blocks$` or as JSON in `content`
-    // (docs/specs/block-kit-messages.md §2). Null for everything else, which is nearly all
-    // of them.
+    // A structured message — a webhook send (`stereo: 'webhook'`), carrying Block Kit either in
+    // `blocks$` or as JSON in `content`. `resolveChatBlocks` reads none from anyone else, so a
+    // person who pastes a payload keeps the text they sent. Null for everything else, which is
+    // nearly all of them.
     //
     // Three states never reach the card. A tombstone renders nothing of the original body.
     // Pending and failed are states the bubble draws — the sending spinner, the retry button,
@@ -342,9 +342,10 @@ export const ChannelMessageRow = ({
         <DefaultAvatar size={32} />
     );
     // Only a row that shows its sender opens the sender: mine never does, a grouped follow-up has
-    // no avatar to press, and a row with no owner id has nobody to open.
+    // no avatar to press, a row with no owner id has nobody to open, and a webhook's sender is not
+    // a member — its system account has no profile to show.
     const openProfile =
-        onOpenProfile && !mine && showProfileAndName && message.ownerId
+        onOpenProfile && !mine && showProfileAndName && message.ownerId && !isWebhookChat(message)
             ? () => onOpenProfile({ id: message.ownerId as string, name: ownerDisplayName, avatar: ownerAvatar })
             : undefined;
     const avatar = mine ? undefined : showProfileAndName ? (

@@ -515,6 +515,7 @@ describe('ThreadPage — 긴 메시지 전체보기', () => {
                 id: 'ch1:9',
                 chatNo: 9,
                 parentId: '7',
+                stereo: 'webhook',
                 content: JSON.stringify({
                     blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*503* upstream timeout' } }],
                 }),

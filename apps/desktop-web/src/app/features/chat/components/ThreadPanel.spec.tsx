@@ -320,6 +320,7 @@ describe('ThreadPanel', () => {
             chat(1, { content: 'root' }),
             chat(2, {
                 parentId: 'C1:1',
+                stereo: 'webhook',
                 content: JSON.stringify({
                     blocks: [{ type: 'header', text: { type: 'plain_text', text: 'Error report' } }],
                 }),
