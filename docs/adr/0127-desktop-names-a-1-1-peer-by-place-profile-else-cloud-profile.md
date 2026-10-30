@@ -64,6 +64,6 @@ mount, for rows the cache can usually already name.
   change to `resolveDmTitle` and `useDmPeers`, and has to weigh the phone-placeholder concern web
   recorded. Whether that placeholder can appear in a cloud user record is not verified.
   _Update 2026-10-22: for the name of a cloud 1:1 peer they no longer differ —
-  [ADR-0221](./0221-web-names-a-cloud-1-1-peer-by-cloud-profile-without-a-place-profile.md) brought web
+  [ADR-0259](./0259-web-names-a-cloud-1-1-peer-by-cloud-profile-without-a-place-profile.md) brought web
   onto this chain. The photo still differs._
 - A new 1:1 shows its raw room id in the header for a fraction of a second, until its members load.

@@ -8,7 +8,7 @@
 > Supersedes: [ADR-0082](./0082-desktop-message-images-client-side-seam.md) Decision 2 (sending with
 > attachments is rejected), and changes what Decision 1's reader reads
 > Related: [ADR-0121](./0121-an-image-send-runs-in-the-data-layer-over-a-put-port.md) (the send
-> sequence and its PUT port) · [ADR-0122](./0122-a-chat-send-is-addressed-to-the-cloud-it-was-written-in.md)
+> sequence and its PUT port) · [ADR-0256](./0256-a-chat-send-is-addressed-to-the-cloud-it-was-written-in.md)
 > (a send is addressed to the cloud it was written in)
 
 ## Context

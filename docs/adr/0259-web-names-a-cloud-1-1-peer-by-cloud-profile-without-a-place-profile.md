@@ -1,4 +1,4 @@
-# ADR-0221: Web names a cloud 1:1 peer by their cloud profile when they have no place profile
+# ADR-0259: Web names a cloud 1:1 peer by their cloud profile when they have no place profile
 
 > Status: Accepted · Decided: 2026-10-22 · Implemented: `fix/cloud-dm-peer-name`
 > · Scope: `apps/web/src/app/features/channels/lib/resolveChannelTitle.ts` · `utils/dmTitle.ts` ·

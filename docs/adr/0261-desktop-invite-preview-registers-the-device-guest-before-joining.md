@@ -1,4 +1,4 @@
-# ADR-0252: Desktop invite preview registers the device guest before the person joins
+# ADR-0261: Desktop invite preview registers the device guest before the person joins
 
 > Status: Accepted · Decided: 2026-10-29 · Implemented: `feat/desktop-invite-onboarding`
 > · Scope: `apps/desktop-web/src/app/features/auth/`
