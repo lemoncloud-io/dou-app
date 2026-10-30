@@ -10,9 +10,15 @@ import { useGoBack, useSession } from '../hooks';
 import { AccountMenu } from './AccountMenu';
 import { SiteFooter } from './SiteFooter';
 
-// The steps of a purchase: sign in, the checkout, a plan change. Their bar has a back button and
-// their page no footer — the reader is in the middle of something and has one way on.
-const FLOW_PATHS = [ROUTES.subscription.login, ROUTES.subscription.checkout, ROUTES.subscription.change];
+// The steps of a purchase: sign in, the checkout, a plan change — and the notice that a store
+// subscription is not changed here. Their bar has a back button and their page no footer — the
+// reader is in the middle of something and has one way on.
+const FLOW_PATHS = [
+    ROUTES.subscription.login,
+    ROUTES.subscription.checkout,
+    ROUTES.subscription.change,
+    ROUTES.subscription.storeManaged,
+];
 
 /**
  * The frame for the pages a reader reaches before or while buying: a bar with the logo and either
