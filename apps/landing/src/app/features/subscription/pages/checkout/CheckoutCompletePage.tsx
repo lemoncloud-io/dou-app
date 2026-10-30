@@ -17,14 +17,19 @@ import { toIsoDate } from '../../lib/calendar';
 import { useSupports, useToday } from '../../lib/port';
 import { formatDate, formatMoney } from '../../utils';
 import { type CompleteScene, chargedToday, completeSceneOf, dayBefore, formatShortDate, statusUrl } from './flow';
-import { AppStoreLink, CheckoutSteps, FactRows, LoadError, NoteBox, ResultHeader } from './parts';
+import {
+    AppStoreLink,
+    CheckoutSteps,
+    FactRows,
+    LoadError,
+    NoteBox,
+    ResultActions,
+    ResultHeader,
+    primaryLink,
+    secondaryLink,
+} from './parts';
 
 import type { Account, Plan, Subscription } from '../../types';
-
-const primaryLink =
-    'inline-flex h-12 items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-semibold text-navy hover:opacity-90';
-const secondaryLink =
-    'inline-flex h-12 items-center justify-center rounded-full border border-border bg-white px-7 text-[15px] font-semibold text-navy hover:bg-muted';
 
 /**
  * W-06 — the end of a checkout: a trial started, a first payment made, an upgrade made (`?attempt=`),
@@ -81,7 +86,10 @@ const useAccountName = (account: Account): string => {
 const AppSetupBox = ({ plan }: { plan: Plan }): JSX.Element => {
     const { t } = useTranslation();
     return (
-        <NoteBox className="border border-border bg-white" title={t('subscription.checkout.complete.appSetup.title')}>
+        <NoteBox
+            className="items-start text-left md:border md:border-line md:bg-white md:p-5"
+            title={t('subscription.checkout.complete.appSetup.title')}
+        >
             <ol className="list-inside list-decimal">
                 <li>{t('subscription.checkout.complete.appSetup.open')}</li>
                 <li>
@@ -132,7 +140,7 @@ const Started = ({
             />
             {scene === 'trialStarted' ? (
                 <FactRows
-                    className="rounded-2xl bg-muted px-6 py-5"
+                    className="rounded-2xl bg-note px-5 py-4 md:px-6 md:py-5"
                     rows={[
                         {
                             key: 'trial',
@@ -166,12 +174,12 @@ const Started = ({
                 </div>
             )}
             <AppSetupBox plan={plan} />
-            <div className="flex flex-wrap justify-center gap-3">
+            <ResultActions>
                 <Link to={ROUTES.subscription.root} className={secondaryLink}>
                     {t(key('toManage'))}
                 </Link>
                 <AppStoreLink>{t(key('setUpInApp'))}</AppStoreLink>
-            </div>
+            </ResultActions>
         </section>
     );
 };
@@ -203,7 +211,7 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
                 }
             />
             <FactRows
-                className="rounded-2xl bg-muted px-6 py-5"
+                className="rounded-2xl bg-note px-5 py-4 md:px-6 md:py-5"
                 rows={[
                     {
                         key: 'next',
@@ -232,12 +240,12 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
                         : []),
                 ]}
             />
-            <div className="flex flex-wrap justify-center gap-3">
+            <ResultActions>
                 <Link to={ROUTES.subscription.detail(subscription.id)} className={secondaryLink}>
                     {t(key('toSubscription'))}
                 </Link>
                 <AppStoreLink>{t(key('addInApp'))}</AppStoreLink>
-            </div>
+            </ResultActions>
         </section>
     );
 };

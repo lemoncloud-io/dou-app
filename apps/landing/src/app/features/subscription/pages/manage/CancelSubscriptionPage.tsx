@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
-import { PageLoader } from '../../components';
+import { PageHeader, PageLoader } from '../../components';
 import { Banner, Button, Card, useToast } from '../../components/ui';
 import { useCancelSubscription, usePlans, useSubscription } from '../../hooks';
 import { isPortError, useSupports, useToday } from '../../lib/port';
@@ -51,7 +51,7 @@ export const CancelSubscriptionPage = (): JSX.Element => {
         case 'unavailable':
             return (
                 <div className="flex max-w-[640px] flex-col gap-5">
-                    <h1 className="text-[28px] font-bold text-navy">{t('subscription.manage.cancel.title')}</h1>
+                    <PageHeader title={t('subscription.manage.cancel.title')} />
                     <Banner tone="neutral" title={t('subscription.manage.cancel.unavailable.title')}>
                         {t('subscription.manage.cancel.unavailable.body')}
                     </Banner>
@@ -90,34 +90,31 @@ const CancelForm = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
 
     return (
         <div className="flex max-w-[640px] flex-col gap-5">
-            <header className="mb-2 flex flex-col gap-2">
-                <h1 className="text-[28px] font-bold text-navy">{t(`${key}.title`)}</h1>
-                <p className="text-sm text-subtitle">{t(`${key}.subtitle`)}</p>
-            </header>
-            <Card className="flex flex-col gap-4 py-5">
+            <PageHeader title={t(`${key}.title`)} subtitle={t(`${key}.subtitle`)} className="mb-1" />
+            <Card className="flex flex-col gap-3.5 rounded-[14px] border-line p-4 md:rounded-2xl md:px-[19px] md:py-[19px]">
                 {rows.map(row => (
-                    <div key={row.label} className="flex items-center justify-between text-sm">
-                        <span className="text-subtitle">{row.label}</span>
-                        <span className="font-semibold text-navy">{row.value}</span>
+                    <div key={row.label} className="flex items-center justify-between gap-4 text-sm">
+                        <span className="font-medium text-mute">{row.label}</span>
+                        <span className="text-right font-bold text-ink">{row.value}</span>
                     </div>
                 ))}
             </Card>
-            <section className="flex flex-col gap-2 rounded-2xl bg-muted px-6 py-5">
-                <h2 className="text-[13px] font-semibold text-navy">{t(`${key}.refund.title`)}</h2>
-                <p className="text-[13px] leading-relaxed text-desc-alt">{t(`${key}.refund.body`)}</p>
-                <Link to={ROUTES.policy.refund} className="text-[13px] font-semibold text-navy underline">
+            <section className="flex flex-col gap-2 rounded-2xl bg-note px-5 py-4 md:px-6 md:py-5">
+                <h2 className="text-[13px] font-bold text-ink">{t(`${key}.refund.title`)}</h2>
+                <p className="text-[13px] font-medium leading-[1.6] text-[#666b78]">{t(`${key}.refund.body`)}</p>
+                <Link to={ROUTES.policy.refund} className="text-[13px] font-semibold text-ink underline">
                     {t(`${key}.refund.link`)}
                 </Link>
             </section>
-            <section className="flex flex-col gap-2 rounded-2xl bg-muted px-6 py-5">
-                <h2 className="text-[13px] font-semibold text-navy">{t(`${key}.after.title`)}</h2>
-                <p className="text-[13px] leading-relaxed text-desc-alt">{t(`${key}.after.body`)}</p>
+            <section className="flex flex-col gap-2 rounded-2xl bg-note px-5 py-4 md:px-6 md:py-5">
+                <h2 className="text-[13px] font-bold text-ink">{t(`${key}.after.title`)}</h2>
+                <p className="text-[13px] font-medium leading-[1.6] text-[#666b78]">{t(`${key}.after.body`)}</p>
             </section>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-3 md:flex-row">
                 <Button
                     size="lg"
                     variant="secondary"
-                    className="rounded-full"
+                    className="max-md:h-[54px]"
                     disabled={cancel.isPending}
                     onClick={() => navigate(ROUTES.subscription.detail(sub.id))}
                 >
@@ -126,7 +123,7 @@ const CancelForm = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
                 <Button
                     size="lg"
                     variant="secondary"
-                    className="rounded-full border-status-danger/40 text-status-danger hover:bg-status-danger-bg"
+                    className="border-[#f3c2c4] text-[#c1292e] hover:bg-status-danger-bg max-md:h-[54px]"
                     disabled={cancel.isPending}
                     onClick={submit}
                 >
@@ -151,15 +148,15 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
 
     return (
         <div className="flex max-w-[1072px] flex-col gap-5">
-            <h1 className="mb-2 text-[28px] font-bold text-navy">{t(`${key}.title`)}</h1>
+            <PageHeader title={t(`${key}.title`)} className="mb-1" />
             <Banner tone="warning" title={t(`${key}.bannerTitle`, { date: fmt.date(sub.endsAt) })}>
                 {t(`${key}.${resumable ? 'bannerBody' : 'bannerBodyNoUndo'}`)}
             </Banner>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col gap-3 md:flex-row">
                 <Button
                     size="lg"
                     variant="secondary"
-                    className="rounded-full"
+                    className="max-md:h-[54px]"
                     onClick={() => navigate(ROUTES.subscription.detail(sub.id))}
                 >
                     {t(`${key}.toDetail`)}
@@ -167,7 +164,7 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
                 {resumable && (
                     <Button
                         size="lg"
-                        className="rounded-full"
+                        className="max-md:h-[54px]"
                         disabled={!resume.ready}
                         onClick={() => resume.request() === 'confirm' && setAsking(true)}
                     >
@@ -176,11 +173,9 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
                 )}
             </div>
             {asking && (
-                <Card className="flex max-w-[640px] flex-col items-start gap-3">
-                    <h2 className="text-base font-semibold text-navy">
-                        {t('subscription.manage.dialogs.resume.title')}
-                    </h2>
-                    <p className="text-[13px] text-desc-alt">
+                <Card className="flex max-w-[640px] flex-col items-start gap-3 rounded-2xl border-line p-5">
+                    <h2 className="text-[15px] font-bold text-ink">{t('subscription.manage.dialogs.resume.title')}</h2>
+                    <p className="text-[13px] font-medium leading-[1.6] text-mute">
                         {t('subscription.manage.dialogs.resume.body', resume.copyValues)}{' '}
                         {t('subscription.manage.dialogs.resume.sameAsBefore')}
                     </p>
@@ -188,19 +183,18 @@ const CancelDone = ({ sub, fmt }: { sub: Subscription; fmt: ManageFormat }): JSX
                         <Button
                             size="lg"
                             variant="secondary"
-                            className="rounded-full"
                             disabled={resume.pending}
                             onClick={() => setAsking(false)}
                         >
                             {t('subscription.common.actions.close')}
                         </Button>
-                        <Button size="lg" className="rounded-full" disabled={resume.pending} onClick={resume.confirm}>
+                        <Button size="lg" disabled={resume.pending} onClick={resume.confirm}>
                             {t('subscription.manage.dialogs.resume.confirm')}
                         </Button>
                     </div>
                 </Card>
             )}
-            <p className="text-xs text-subtitle">{t(`${key}.note`)}</p>
+            <p className="text-xs font-medium leading-normal text-mute">{t(`${key}.note`)}</p>
             {resume.dialogs}
         </div>
     );

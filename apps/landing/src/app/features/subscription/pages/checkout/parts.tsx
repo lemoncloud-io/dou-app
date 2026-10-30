@@ -18,49 +18,102 @@ import type { CheckoutPreview } from '../../types';
 
 const STEPS = ['plan', 'signIn', 'details', 'payment', 'done'] as const;
 
-/** The five-step strip above W-24, W-08, W-05 and W-06. Steps before `current` are ticked. */
+/**
+ * The five-step strip above W-24, W-08, W-05 and W-06. Steps before `current` are ticked. From `md` it
+ * is the row of dots and names; on a phone a five-segment bar with "3/5 · name" under it, so the five
+ * fit and only the step the reader is on is named.
+ */
 export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element => {
     const { t } = useTranslation();
+    const label = t('subscription.checkout.steps.label');
     return (
-        <ol
-            className="flex items-center gap-1.5 whitespace-nowrap sm:gap-2"
-            aria-label={t('subscription.checkout.steps.label')}
-        >
-            {STEPS.map((step, index) => {
-                const number = index + 1;
-                // The last step is ticked, not numbered, once the reader is on it: it is the finish.
-                const done = number < current || (current === 5 && number === 5);
-                const active = number === current;
-                return (
-                    <li key={step} className="flex items-center gap-1.5 sm:gap-2">
-                        {index > 0 && <span aria-hidden className="h-px w-3 bg-border sm:w-4" />}
-                        <span
-                            aria-current={active ? 'step' : undefined}
-                            className={cn(
-                                'flex items-center gap-2 text-[13px]',
-                                done || active ? 'font-semibold text-navy' : 'text-subtitle'
-                            )}
-                        >
+        <>
+            <ol className="hidden items-center gap-2.5 whitespace-nowrap md:flex" aria-label={label}>
+                {STEPS.map((step, index) => {
+                    const number = index + 1;
+                    // The last step is ticked, not numbered, once the reader is on it: it is the finish.
+                    const done = number < current || (current === 5 && number === 5);
+                    const active = number === current;
+                    return (
+                        <li key={step} className="flex items-center gap-2.5">
+                            {index > 0 && <span aria-hidden className="h-px w-5 bg-line" />}
                             <span
-                                aria-hidden
+                                aria-current={active ? 'step' : undefined}
                                 className={cn(
-                                    'flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold',
-                                    done || active ? 'bg-main-green text-navy' : 'border border-border text-subtitle'
+                                    'flex items-center gap-1.5 text-[13px] tracking-[-0.005em]',
+                                    done
+                                        ? 'font-medium text-ink'
+                                        : active
+                                          ? 'font-semibold text-black'
+                                          : 'font-medium text-[#999ca3]'
                                 )}
                             >
-                                {done ? '✓' : number}
-                            </span>
-                            {/* On a phone only the step the reader is on keeps its name, so the five fit one line. */}
-                            <span className={active ? undefined : 'hidden sm:inline'}>
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        'flex size-6 items-center justify-center rounded-full text-xs font-bold',
+                                        done || active ? 'bg-main-green text-navy' : 'border border-line text-[#999ca3]'
+                                    )}
+                                >
+                                    {/* The design ticks the details step while it is open and numbers the payment step. */}
+                                    {done || (active && number === 3) ? '✓' : number}
+                                </span>
                                 {t(`subscription.checkout.steps.${step}`)}
                             </span>
-                        </span>
-                    </li>
-                );
-            })}
-        </ol>
+                        </li>
+                    );
+                })}
+            </ol>
+            <div className="w-full md:hidden" role="img" aria-label={label}>
+                <div className="flex gap-1">
+                    {STEPS.map((step, index) => (
+                        <span
+                            key={step}
+                            className={cn('h-1 flex-1 rounded-full', index < current ? 'bg-main-green' : 'bg-line')}
+                        />
+                    ))}
+                </div>
+                <p className="mt-2 text-xs font-medium text-mute">
+                    {t('subscription.checkout.steps.progress', {
+                        current,
+                        name: t(`subscription.checkout.steps.${STEPS[current - 1]}`),
+                    })}
+                </p>
+            </div>
+        </>
     );
 };
+
+/**
+ * Where the checkout screens sit: from `lg` the form at 640px with the order summary beside it at the
+ * top, below it one column with the summary between the heading and the form. The three are separate
+ * slots so that order costs no second copy of anything.
+ */
+export const CheckoutLayout = ({
+    head,
+    summary,
+    summaryLast = false,
+    children,
+}: {
+    head: ReactNode;
+    summary: ReactNode;
+    /** On a phone, the summary goes under the form instead of above it (an aside, not a bill). */
+    summaryLast?: boolean;
+    children: ReactNode;
+}): JSX.Element => (
+    <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-[minmax(0,1fr)_280px] lg:mx-auto lg:grid-cols-[640px_360px] lg:gap-x-16">
+        <div className="flex flex-col gap-[22px] md:col-start-1 md:row-start-1">{head}</div>
+        <div
+            className={cn(
+                'md:order-none md:col-start-2 md:row-span-2 md:row-start-1 md:self-start',
+                summaryLast && 'max-md:order-last'
+            )}
+        >
+            {summary}
+        </div>
+        <div className="flex flex-col gap-6 md:col-start-1 md:row-start-2">{children}</div>
+    </div>
+);
 
 /** Label-and-value rows, as in the order summary and the detail boxes. */
 export const FactRows = ({
@@ -70,11 +123,11 @@ export const FactRows = ({
     rows: Array<{ label: ReactNode; value: ReactNode; key: string; strong?: boolean }>;
     className?: string;
 }): JSX.Element => (
-    <dl className={cn('flex flex-col gap-3', className)}>
+    <dl className={cn('flex flex-col gap-2', className)}>
         {rows.map(row => (
-            <div key={row.key} className="flex items-baseline justify-between gap-4 text-sm">
-                <dt className="text-subtitle">{row.label}</dt>
-                <dd className={cn('text-right text-navy', row.strong && 'font-semibold')}>{row.value}</dd>
+            <div key={row.key} className="flex items-center justify-between gap-4 text-sm tracking-[-0.01em]">
+                <dt className="font-medium text-mute">{row.label}</dt>
+                <dd className={cn('text-right text-ink', row.strong ? 'font-bold' : 'font-semibold')}>{row.value}</dd>
             </div>
         ))}
     </dl>
@@ -84,8 +137,8 @@ export const FactRows = ({
 export const OrderSummary = ({ children }: { children: ReactNode }): JSX.Element => {
     const { t } = useTranslation();
     return (
-        <aside className="flex flex-col gap-4 self-start rounded-2xl bg-muted p-6">
-            <h2 className="font-semibold text-navy">{t('subscription.checkout.summary.title')}</h2>
+        <aside className="flex flex-col gap-3.5 self-start rounded-2xl bg-note px-5 py-4">
+            <h2 className="text-base font-bold text-ink">{t('subscription.checkout.summary.title')}</h2>
             {children}
         </aside>
     );
@@ -154,8 +207,8 @@ export type ResultTone = 'success' | 'checking' | 'progress' | 'danger' | 'neutr
 const ICON_TONES: Record<Exclude<ResultTone, 'checking'>, string> = {
     success: 'bg-main-green text-navy',
     progress: 'bg-navy text-white',
-    danger: 'bg-status-danger text-white',
-    neutral: 'bg-subtitle text-white',
+    danger: 'bg-[#fdeced] text-[#c1292e]',
+    neutral: 'bg-note text-mute',
 };
 
 const ICONS: Record<Exclude<ResultTone, 'checking'>, string> = {
@@ -170,34 +223,69 @@ export const ResultHeader = ({
     tone,
     title,
     body,
-    centered = false,
+    centered = true,
 }: {
     tone: ResultTone;
     title: ReactNode;
     body?: ReactNode;
     centered?: boolean;
 }): JSX.Element => (
-    <header className={cn('flex flex-col gap-3', centered && 'items-center text-center')}>
+    <header className={cn('flex flex-col gap-2', centered ? 'items-center text-center' : 'items-start')}>
         {tone === 'checking' ? (
             <span
                 aria-hidden
-                className="mb-3 h-16 w-16 animate-spin rounded-full border-[5px] border-muted border-t-main-green"
+                className="mb-3 size-12 animate-spin rounded-full border-[5px] border-line border-t-main-green"
             />
         ) : (
             <span
                 aria-hidden
                 className={cn(
-                    'mb-3 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold',
+                    'mb-3 flex size-14 items-center justify-center rounded-full text-2xl font-bold',
                     ICON_TONES[tone]
                 )}
             >
                 {ICONS[tone]}
             </span>
         )}
-        <h1 className="text-2xl font-bold text-navy">{title}</h1>
-        {body && <p className="text-[15px] text-subtitle">{body}</p>}
+        <h1 className="text-xl font-bold leading-[1.4] text-ink md:text-2xl">{title}</h1>
+        {body && <p className="text-sm font-medium leading-[1.6] text-mute md:text-[15px]">{body}</p>}
     </header>
 );
+
+/**
+ * The column a payment status sits in: from `md` a bordered card centred under the bar, on a phone
+ * the bare page. Everything inside is centred.
+ */
+export const ResultCard = ({
+    children,
+    busy,
+    className,
+}: {
+    children: ReactNode;
+    busy?: boolean;
+    className?: string;
+}): JSX.Element => (
+    <section
+        aria-busy={busy}
+        className={cn(
+            'mx-auto flex w-full max-w-[480px] flex-col gap-5 pt-6 md:rounded-2xl md:border md:border-line md:p-8 md:pt-8',
+            className
+        )}
+    >
+        {children}
+    </section>
+);
+
+/** Two buttons at most: stacked full width on a phone, side by side and centred from `md`. */
+export const ResultActions = ({ children }: { children: ReactNode }): JSX.Element => (
+    <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:justify-center">{children}</div>
+);
+
+/** The lime and the outlined pill a result offers, as links. */
+export const primaryLink =
+    'inline-flex h-[46px] items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-bold text-navy hover:opacity-90 max-md:h-[54px]';
+export const secondaryLink =
+    'inline-flex h-[46px] items-center justify-center rounded-full border-[1.5px] border-[#d9dbe0] bg-white px-7 text-[15px] font-semibold text-ink hover:bg-muted max-md:h-[54px]';
 
 /** A grey box with a bold heading, for the reason a payment failed or what to do next. */
 export const NoteBox = ({
@@ -209,9 +297,9 @@ export const NoteBox = ({
     children: ReactNode;
     className?: string;
 }): JSX.Element => (
-    <section className={cn('flex flex-col gap-2 rounded-2xl bg-muted px-5 py-4', className)}>
-        <h2 className="text-sm font-semibold text-navy">{title}</h2>
-        <div className="text-[13px] leading-relaxed text-desc-alt">{children}</div>
+    <section className={cn('flex flex-col gap-2 rounded-2xl bg-note px-5 py-4 text-center', className)}>
+        <h2 className="text-[13px] font-bold text-ink">{title}</h2>
+        <div className="text-[13px] font-medium leading-[1.6] text-[#666b78]">{children}</div>
     </section>
 );
 
@@ -227,7 +315,7 @@ export const AppStoreLink = ({ children }: { children: ReactNode }): JSX.Element
             href={device === 'android' ? storeUrls.android : storeUrls.ios}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-12 items-center justify-center rounded-full bg-main-green px-6 text-[15px] font-semibold text-navy hover:opacity-90"
+            className={primaryLink}
         >
             {children}
         </a>

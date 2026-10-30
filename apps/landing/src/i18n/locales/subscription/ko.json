@@ -177,7 +177,8 @@
                     "session-ended": "로그인이 만료되었습니다. 다시 로그인하시면 보시던 화면으로 돌아갑니다."
                 },
                 "completing": "로그인하고 있습니다",
-                "completingBody": "잠시만 기다려 주세요."
+                "completingBody": "잠시만 기다려 주세요.",
+                "or": "또는"
             },
             "noAccount": {
                 "title": "연동된 DoU 계정을 찾지 못했습니다",
@@ -222,7 +223,8 @@
                 "signIn": "로그인",
                 "details": "결제 정보",
                 "payment": "결제수단",
-                "done": "완료"
+                "done": "완료",
+                "progress": "{{current}}/5 · {{name}}"
             },
             "planRo": {
                 "1": "DoU Cloud 1로",

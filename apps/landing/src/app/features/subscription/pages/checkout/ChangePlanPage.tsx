@@ -11,7 +11,7 @@ import { isPortError, useSupports, useToday } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
 import { cn, formatDate, formatMoney } from '../../utils';
 import { DOWNGRADE_COMPLETE_URL, checkoutUrl, formatShortDate, statusUrl } from './flow';
-import { FactRows, LoadError } from './parts';
+import { CheckoutLayout, FactRows, LoadError, primaryLink, secondaryLink } from './parts';
 import { usePlanRoute } from './usePlanRoute';
 
 import type { ChangePreview, Money, Plan, Subscription } from '../../types';
@@ -21,9 +21,6 @@ const errorKeyOf = (error: unknown): string => {
     if (isPortError(error, 'network')) return 'subscription.common.error.network';
     return 'subscription.common.error.unknown';
 };
-
-const secondaryLink =
-    'inline-flex h-12 items-center justify-center rounded-full border border-border bg-white px-7 text-[15px] font-semibold text-navy hover:bg-muted';
 
 /**
  * W-14 — confirms a change to the plan directly above or below (`?plan=`). An upgrade is charged the
@@ -91,23 +88,23 @@ const PlanPair = ({ from, to }: { from: Plan; to: Plan }): JSX.Element => {
     const card = (plan: Plan, label: string, highlighted: boolean) => (
         <div
             className={cn(
-                'flex flex-1 flex-col gap-1 rounded-2xl px-5 py-4',
-                highlighted ? 'border-2 border-main-green bg-main-green/10' : 'bg-muted'
+                'flex min-w-0 flex-1 flex-col gap-1 rounded-2xl px-4 py-3.5 md:px-5 md:py-4',
+                highlighted ? 'border-2 border-main-green bg-[#f5ffe5]' : 'bg-note'
             )}
         >
-            <span className="text-xs text-subtitle">{label}</span>
-            <span className="text-lg font-semibold text-navy">
+            <span className="text-[11px] font-medium text-mute">{label}</span>
+            <span className="text-base font-bold text-ink md:text-lg md:font-semibold">
                 {t('subscription.common.planName', { sort: plan.sort })}
             </span>
-            <span className="text-sm text-desc-alt">
+            <span className="text-[13px] font-medium text-[#666b78] md:text-sm">
                 {t('subscription.checkout.perMonth', { price: formatMoney(plan.monthly, i18n.language) })}
             </span>
         </div>
     );
     return (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
             {card(from, t('subscription.checkout.change.now'), false)}
-            <span aria-hidden className="text-xl text-subtitle">
+            <span aria-hidden className="text-xl text-mute">
                 →
             </span>
             {card(to, t('subscription.checkout.change.after'), true)}
@@ -116,9 +113,9 @@ const PlanPair = ({ from, to }: { from: Plan; to: Plan }): JSX.Element => {
 };
 
 const Aside = ({ title, children }: { title: string; children: ReactNode }): JSX.Element => (
-    <aside className="flex flex-col gap-3 self-start rounded-2xl bg-muted p-6">
-        <h2 className="font-semibold text-navy">{title}</h2>
-        <div className="text-[13px] leading-relaxed text-desc-alt">{children}</div>
+    <aside className="flex flex-col gap-3 self-start rounded-2xl bg-note px-5 py-4 md:px-6 md:py-5">
+        <h2 className="text-sm font-bold text-ink">{title}</h2>
+        <div className="text-[13px] font-medium leading-[1.6] text-[#666b78]">{children}</div>
     </aside>
 );
 
@@ -164,145 +161,152 @@ const ChangeConfirm = ({
     );
 
     return (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_260px] md:gap-8">
-            <div className="flex flex-col gap-6">
-                <header className="flex flex-col gap-2">
-                    <h1 className="text-[28px] font-bold text-navy">{t(key(`${kind}.title`))}</h1>
-                    <p className="text-[15px] text-subtitle">
-                        {kind === 'upgrade'
-                            ? t(key(charge ? 'upgrade.subtitlePaid' : 'upgrade.subtitleFree'), {
-                                  plan: t(`subscription.checkout.planEul.${to.sort}`),
-                              })
-                            : t(key('downgrade.subtitle'), { plan: t(`subscription.checkout.planRo.${to.sort}`) })}
-                    </p>
-                </header>
-
-                {kind === 'upgrade' && pending && pendingPlan && (
-                    <Banner
-                        tone="warning"
-                        title={t(key('upgrade.pendingTitle'), {
-                            plan: t('subscription.common.planName', { sort: pendingPlan.sort }),
-                        })}
-                    >
-                        {t(key('upgrade.pendingBody'), {
-                            date: formatShortDate(pending.effectiveAt),
-                            plan: t(`subscription.checkout.planEul.${to.sort}`),
-                        })}
-                    </Banner>
-                )}
-                {sameDay && <Banner tone="warning" title={t(key('sameDay'))} />}
-
-                <PlanPair from={from} to={to} />
-
-                <FactRows
-                    className="rounded-2xl border border-border px-6 py-5"
-                    rows={
-                        kind === 'upgrade'
-                            ? [
-                                  {
-                                      key: 'today',
-                                      label: t(key('upgrade.todayLabel')),
-                                      value: money(preview.amountToday ?? { ...to.monthly, amount: 0 }),
-                                      strong: true,
-                                  },
-                                  {
-                                      key: 'card',
-                                      label: t(key('upgrade.cardLabel')),
-                                      value: card
-                                          ? t(key('upgrade.cardValue'), { brand: card.brand, last4: card.last4 })
-                                          : '—',
-                                  },
-                                  {
-                                      key: 'nextDate',
-                                      label: t(key('upgrade.nextDateLabel')),
-                                      value: subscription.nextBillingAt
-                                          ? t(key('upgrade.nextDateValue'), {
-                                                date: formatDate(subscription.nextBillingAt),
-                                            })
-                                          : '—',
-                                  },
-                                  {
-                                      key: 'nextAmount',
-                                      label: t(key('upgrade.nextAmountLabel')),
-                                      value: t('subscription.checkout.perMonth', {
-                                          price: money(preview.nextAmount),
-                                      }),
-                                  },
-                              ]
-                            : [
-                                  {
-                                      key: 'effective',
-                                      label: t(key('downgrade.effectiveLabel')),
-                                      value: formatDate(preview.effectiveAt),
-                                  },
-                                  {
-                                      key: 'thatDay',
-                                      label: t(key('downgrade.thatDayLabel')),
-                                      value: money(preview.nextAmount),
-                                      strong: true,
-                                  },
-                                  {
-                                      key: 'until',
-                                      label: t(key('downgrade.untilLabel')),
-                                      value: t(key('downgrade.untilValue'), {
-                                          plan: t('subscription.common.planName', { sort: from.sort }),
-                                      }),
-                                  },
-                                  {
-                                      key: 'today',
-                                      label: t(key('downgrade.todayLabel')),
-                                      value: t(key('downgrade.todayValue')),
-                                  },
-                              ]
-                    }
-                />
-
-                {kind === 'upgrade' && charge && (
-                    <p className="text-[13px] text-subtitle">{t(key('upgrade.prorationNote'))}</p>
-                )}
-                {kind === 'downgrade' && (
-                    <Banner
-                        tone="warning"
-                        title={t(key('downgrade.keepTitle'), { from: from.maxClouds, to: to.maxClouds })}
-                    >
-                        {t(key('downgrade.keepBody'))}
-                    </Banner>
-                )}
-                {error && <Banner tone="danger" title={t(error)} />}
-
-                <div className="flex flex-wrap gap-3">
-                    {cancelLink}
-                    <Button
-                        size="lg"
-                        className="rounded-full"
-                        disabled={sameDay || changePlan.isPending}
-                        onClick={onConfirm}
-                    >
-                        {kind === 'downgrade'
-                            ? t(key('downgrade.cta'))
-                            : pending
-                              ? t(key(charge ? 'upgrade.ctaPendingPaid' : 'upgrade.ctaPendingFree'), {
-                                    price: charge && money(charge),
-                                })
-                              : t(key(charge ? 'upgrade.ctaPaid' : 'upgrade.ctaFree'), {
-                                    price: charge && money(charge),
-                                })}
-                    </Button>
-                </div>
-            </div>
-
-            {kind === 'upgrade' ? (
-                <Aside title={t(key('upgrade.asideTitle'))}>
-                    <ul className="list-disc pl-4">
-                        <li>{t(key('upgrade.asideClouds'), { count: to.maxClouds })}</li>
-                        <li>{t(key('upgrade.asideApp'))}</li>
-                        <li>{t(key('upgrade.asideFailure'))}</li>
-                    </ul>
-                </Aside>
-            ) : (
-                <Aside title={t(key('downgrade.asideTitle'))}>{t(key('downgrade.asideBody'))}</Aside>
+        <CheckoutLayout
+            summaryLast
+            summary={
+                kind === 'upgrade' ? (
+                    <Aside title={t(key('upgrade.asideTitle'))}>
+                        <ul className="list-disc pl-4">
+                            <li>{t(key('upgrade.asideClouds'), { count: to.maxClouds })}</li>
+                            <li>{t(key('upgrade.asideApp'))}</li>
+                            <li>{t(key('upgrade.asideFailure'))}</li>
+                        </ul>
+                    </Aside>
+                ) : (
+                    <Aside title={t(key('downgrade.asideTitle'))}>{t(key('downgrade.asideBody'))}</Aside>
+                )
+            }
+            head={
+                <>
+                    <header className="flex flex-col gap-2">
+                        <h1 className="text-[22px] font-bold leading-[1.5] text-ink md:text-[28px]">
+                            {t(key(`${kind}.title`))}
+                        </h1>
+                        <p className="text-sm font-medium leading-[1.5] text-mute md:text-[15px]">
+                            {kind === 'upgrade'
+                                ? t(key(charge ? 'upgrade.subtitlePaid' : 'upgrade.subtitleFree'), {
+                                      plan: t(`subscription.checkout.planEul.${to.sort}`),
+                                  })
+                                : t(key('downgrade.subtitle'), { plan: t(`subscription.checkout.planRo.${to.sort}`) })}
+                        </p>
+                    </header>
+                    <PlanPair from={from} to={to} />
+                </>
+            }
+        >
+            {kind === 'upgrade' && pending && pendingPlan && (
+                <Banner
+                    tone="warning"
+                    title={t(key('upgrade.pendingTitle'), {
+                        plan: t('subscription.common.planName', { sort: pendingPlan.sort }),
+                    })}
+                >
+                    {t(key('upgrade.pendingBody'), {
+                        date: formatShortDate(pending.effectiveAt),
+                        plan: t(`subscription.checkout.planEul.${to.sort}`),
+                    })}
+                </Banner>
             )}
-        </div>
+            {sameDay && <Banner tone="warning" title={t(key('sameDay'))} />}
+
+            <FactRows
+                className="rounded-2xl border border-line px-5 py-4 md:px-6 md:py-5"
+                rows={
+                    kind === 'upgrade'
+                        ? [
+                              {
+                                  key: 'today',
+                                  label: t(key('upgrade.todayLabel')),
+                                  value: money(preview.amountToday ?? { ...to.monthly, amount: 0 }),
+                                  strong: true,
+                              },
+                              {
+                                  key: 'card',
+                                  label: t(key('upgrade.cardLabel')),
+                                  value: card
+                                      ? t(key('upgrade.cardValue'), { brand: card.brand, last4: card.last4 })
+                                      : '—',
+                              },
+                              {
+                                  key: 'nextDate',
+                                  label: t(key('upgrade.nextDateLabel')),
+                                  value: subscription.nextBillingAt
+                                      ? t(key('upgrade.nextDateValue'), {
+                                            date: formatDate(subscription.nextBillingAt),
+                                        })
+                                      : '—',
+                              },
+                              {
+                                  key: 'nextAmount',
+                                  label: t(key('upgrade.nextAmountLabel')),
+                                  value: t('subscription.checkout.perMonth', {
+                                      price: money(preview.nextAmount),
+                                  }),
+                              },
+                          ]
+                        : [
+                              {
+                                  key: 'effective',
+                                  label: t(key('downgrade.effectiveLabel')),
+                                  value: formatDate(preview.effectiveAt),
+                              },
+                              {
+                                  key: 'thatDay',
+                                  label: t(key('downgrade.thatDayLabel')),
+                                  value: money(preview.nextAmount),
+                                  strong: true,
+                              },
+                              {
+                                  key: 'until',
+                                  label: t(key('downgrade.untilLabel')),
+                                  value: t(key('downgrade.untilValue'), {
+                                      plan: t('subscription.common.planName', { sort: from.sort }),
+                                  }),
+                              },
+                              {
+                                  key: 'today',
+                                  label: t(key('downgrade.todayLabel')),
+                                  value: t(key('downgrade.todayValue')),
+                              },
+                          ]
+                }
+            />
+
+            {kind === 'upgrade' && charge && (
+                <p className="text-xs font-medium leading-normal text-mute md:text-[13px]">
+                    {t(key('upgrade.prorationNote'))}
+                </p>
+            )}
+            {kind === 'downgrade' && (
+                <Banner
+                    tone="warning"
+                    title={t(key('downgrade.keepTitle'), { from: from.maxClouds, to: to.maxClouds })}
+                >
+                    {t(key('downgrade.keepBody'))}
+                </Banner>
+            )}
+            {error && <Banner tone="danger" title={t(error)} />}
+
+            <div className="flex flex-col gap-3 md:flex-row">
+                {cancelLink}
+                <Button
+                    size="lg"
+                    className="max-md:h-[54px]"
+                    disabled={sameDay || changePlan.isPending}
+                    onClick={onConfirm}
+                >
+                    {kind === 'downgrade'
+                        ? t(key('downgrade.cta'))
+                        : pending
+                          ? t(key(charge ? 'upgrade.ctaPendingPaid' : 'upgrade.ctaPendingFree'), {
+                                price: charge && money(charge),
+                            })
+                          : t(key(charge ? 'upgrade.ctaPaid' : 'upgrade.ctaFree'), {
+                                price: charge && money(charge),
+                            })}
+                </Button>
+            </div>
+        </CheckoutLayout>
     );
 };
 
@@ -353,10 +357,7 @@ const PastDue = ({ preview, subscription }: { preview: ChangePreview; subscripti
             </div>
             <div className="flex flex-wrap gap-3">
                 {cards && (
-                    <Link
-                        to={ROUTES.subscription.paymentMethods}
-                        className="inline-flex h-12 items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-semibold text-navy hover:opacity-90"
-                    >
+                    <Link to={ROUTES.subscription.paymentMethods} className={primaryLink}>
                         {t(key('manageCards'))}
                     </Link>
                 )}

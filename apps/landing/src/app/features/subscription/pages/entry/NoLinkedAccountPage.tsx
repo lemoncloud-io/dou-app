@@ -4,7 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { storeUrls } from '../../../../config/links';
 import { ROUTES } from '../../../../routes/paths';
-import { Card } from '../../components/ui';
+import { AuthCard } from '../../components';
 import { cn } from '../../utils';
 
 import type { SignInProvider } from '../../types';
@@ -28,11 +28,11 @@ const readState = (state: unknown): NoLinkedAccountState | undefined => {
 // Button looks on anchors: the store links leave the site and the other account is a route, so
 // they are links, not buttons.
 const linkButtonClass = cn(
-    'inline-flex h-12 items-center justify-center rounded-xl px-5 text-[15px] font-semibold transition-all',
+    'inline-flex h-[50px] items-center justify-center rounded-full px-5 text-[15px] font-semibold transition-all',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy/40'
 );
 const storeLinkClass = cn(linkButtonClass, 'flex-1 bg-navy text-white hover:opacity-90');
-const otherAccountClass = cn(linkButtonClass, 'border border-border bg-white text-navy hover:bg-muted');
+const otherAccountClass = cn(linkButtonClass, 'border-[1.5px] border-[#d9dbe0] bg-white text-ink hover:bg-muted');
 
 /**
  * W-02b — the provider signed the reader in, but no DoU account is linked to that sign-in. Nothing is
@@ -55,50 +55,45 @@ export const NoLinkedAccountPage = (): JSX.Element => {
     ];
 
     return (
-        <div className="flex justify-center pt-6">
-            <Card className="flex w-full max-w-[440px] flex-col gap-5 p-6 sm:p-10">
-                <header className="flex flex-col gap-3">
-                    <h1 className="text-2xl font-bold text-navy">{t('subscription.entry.noAccount.title')}</h1>
-                    <p className="text-sm leading-relaxed text-subtitle">{body}</p>
-                </header>
+        <AuthCard>
+            <header className="flex flex-col gap-2">
+                <h1 className="text-[22px] font-bold leading-[1.5] text-ink md:text-xl">
+                    {t('subscription.entry.noAccount.title')}
+                </h1>
+                <p className="text-sm font-medium leading-[1.5] text-mute">{body}</p>
+            </header>
 
-                <ol className="flex flex-col gap-2.5 rounded-xl bg-muted px-4 py-4 text-sm font-medium text-desc-alt">
-                    {steps.map((step, index) => (
-                        <li key={step} className="flex items-center gap-2">
-                            <span
-                                aria-hidden
-                                className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-desc-alt text-[10px] leading-none"
-                            >
-                                {index + 1}
-                            </span>
-                            {step}
-                        </li>
-                    ))}
-                </ol>
-
-                <p className="text-[13px] leading-relaxed text-subtitle">
-                    {t('subscription.entry.noAccount.phoneUser')} {t('subscription.entry.noAccount.otherProvider')}
-                </p>
-
-                <div className="flex flex-col gap-3">
-                    <div className="flex flex-wrap gap-3">
-                        <a href={storeUrls.ios} target="_blank" rel="noopener noreferrer" className={storeLinkClass}>
-                            {t('subscription.entry.store.appStore')}
-                        </a>
-                        <a
-                            href={storeUrls.android}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={storeLinkClass}
+            <ol className="flex flex-col gap-2.5 rounded-xl border border-line bg-white px-4 py-4 text-sm font-semibold text-ink md:border-0 md:bg-note">
+                {steps.map((step, index) => (
+                    <li key={step} className="flex items-center gap-2">
+                        <span
+                            aria-hidden
+                            className="inline-flex size-4 shrink-0 items-center justify-center rounded-full border border-ink text-[10px] leading-none"
                         >
-                            {t('subscription.entry.store.googlePlay')}
-                        </a>
-                    </div>
-                    <Link to={ROUTES.subscription.login} className={otherAccountClass}>
-                        {t('subscription.entry.noAccount.otherAccount')}
-                    </Link>
+                            {index + 1}
+                        </span>
+                        {step}
+                    </li>
+                ))}
+            </ol>
+
+            <p className="text-[13px] font-medium leading-[1.6] text-mute">
+                {t('subscription.entry.noAccount.phoneUser')} {t('subscription.entry.noAccount.otherProvider')}
+            </p>
+
+            <div className="flex flex-col gap-3">
+                <div className="flex gap-3">
+                    <a href={storeUrls.ios} target="_blank" rel="noopener noreferrer" className={storeLinkClass}>
+                        {t('subscription.entry.store.appStore')}
+                    </a>
+                    <a href={storeUrls.android} target="_blank" rel="noopener noreferrer" className={storeLinkClass}>
+                        {t('subscription.entry.store.googlePlay')}
+                    </a>
                 </div>
-            </Card>
-        </div>
+                <Link to={ROUTES.subscription.login} className={otherAccountClass}>
+                    {t('subscription.entry.noAccount.otherAccount')}
+                </Link>
+            </div>
+        </AuthCard>
     );
 };

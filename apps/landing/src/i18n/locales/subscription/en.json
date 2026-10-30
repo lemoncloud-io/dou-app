@@ -177,7 +177,8 @@
                     "session-ended": "Your sign-in has expired. Sign in again to return to the page you were on."
                 },
                 "completing": "Signing you in",
-                "completingBody": "This will only take a moment."
+                "completingBody": "This will only take a moment.",
+                "or": "or"
             },
             "noAccount": {
                 "title": "No DoU account found",
@@ -222,7 +223,8 @@
                 "signIn": "Sign in",
                 "details": "Details",
                 "payment": "Payment method",
-                "done": "Done"
+                "done": "Done",
+                "progress": "{{current}}/5 · {{name}}"
             },
             "planRo": {
                 "1": "DoU Cloud 1",

@@ -29,14 +29,9 @@ import {
     statusSceneOf,
     withCheckoutDetails,
 } from './flow';
-import { LoadError, NoteBox, ResultHeader } from './parts';
+import { LoadError, NoteBox, ResultActions, ResultCard, ResultHeader, primaryLink, secondaryLink } from './parts';
 
 import type { Money, PaymentMethod, Plan, Subscription } from '../../types';
-
-const primaryLink =
-    'inline-flex h-12 items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-semibold text-navy hover:opacity-90';
-const secondaryLink =
-    'inline-flex h-12 items-center justify-center rounded-full border border-border bg-white px-7 text-[15px] font-semibold text-navy hover:bg-muted';
 
 /**
  * W-09 — a payment attempt (`?attempt=`) followed until it settles. The attempt's purpose picks the
@@ -173,17 +168,17 @@ const StatusScreen = ({
                 ? t(key('processing.bodyUpgrade'), { plan: t(`subscription.checkout.planRo.${plan.sort}`) })
                 : t(key('processing.body'));
         return (
-            <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-8" aria-busy="true">
+            <ResultCard busy>
                 <ResultHeader tone={variant === 'card' ? 'checking' : 'progress'} title={title} body={body} />
                 <NoteBox title={t(key('processing.waitTitle'))}>{t(key('processing.waitBody'))}</NoteBox>
-            </section>
+            </ResultCard>
         );
     }
 
     if (scene.kind === 'retried') {
         const sub = facts.subscription;
         return (
-            <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-8">
+            <ResultCard>
                 <ResultHeader
                     tone="success"
                     title={t(key('retried.title'))}
@@ -205,27 +200,27 @@ const StatusScreen = ({
                         {t(key('toSubscription'))}
                     </Link>
                 </div>
-            </section>
+            </ResultCard>
         );
     }
 
     if (scene.kind === 'canceled') {
         return (
-            <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-8">
+            <ResultCard>
                 <ResultHeader
                     tone="neutral"
                     title={t(key(`canceled.title.${variant}`))}
                     body={t(key(`canceled.body.${variant}`))}
                 />
-                <div className="flex flex-wrap gap-3">
+                <ResultActions>
                     {retry(t(key(`canceled.retry.${variant}`)), primaryLink)}
                     {(variant === 'card' || variant === 'payment') && (
                         <Link to={ROUTES.subscription.plans} className={secondaryLink}>
                             {t(key('canceled.choosePlan'))}
                         </Link>
                     )}
-                </div>
-            </section>
+                </ResultActions>
+            </ResultCard>
         );
     }
 
@@ -277,7 +272,7 @@ const FailedScene = ({
     ) : null;
 
     return (
-        <section className="mx-auto flex max-w-[640px] flex-col gap-6 pt-8">
+        <ResultCard>
             <ResultHeader
                 tone="danger"
                 title={t(key(`title.${variant}`))}
@@ -287,7 +282,7 @@ const FailedScene = ({
                 <p>{reason}</p>
                 {variant === 'upgrade' && card && <p>{t(key('chargedCard'), { card })}</p>}
             </NoteBox>
-            <div className="flex flex-wrap gap-3">
+            <ResultActions>
                 {variant === 'retry' ? (
                     management ? (
                         retry(t(key('manageCards')), primaryLink)
@@ -298,12 +293,12 @@ const FailedScene = ({
                     )
                 ) : (
                     <>
-                        {retry(t('subscription.common.actions.retry'), primaryLink)}
                         {variant === 'upgrade' ? manageCards : retry(t(key(`otherCard.${variant}`)), secondaryLink)}
+                        {retry(t('subscription.common.actions.retry'), primaryLink)}
                     </>
                 )}
-            </div>
+            </ResultActions>
             {variant === 'retry' && subscription && <Banner tone="neutral">{t(key('retryStillDue'))}</Banner>}
-        </section>
+        </ResultCard>
     );
 };

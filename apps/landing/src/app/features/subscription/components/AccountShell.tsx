@@ -1,12 +1,12 @@
 import { type JSX, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 
 import { Logo } from '@chatic/assets';
 
 import chevronLeft from '../../../../assets/subscription/chevron-left.svg';
 import { ROUTES } from '../../../routes/paths';
-import { useCurrentSubscription, useSession } from '../hooks';
+import { useCurrentSubscription, useGoBack, useSession } from '../hooks';
 import { useSupports, useToday } from '../lib/port';
 import { useManagementScreens } from '../lib/screens';
 import { sceneOf } from '../lib/sceneOf';
@@ -42,7 +42,6 @@ const itemClass = ({ isActive }: { isActive: boolean }) =>
  */
 export const AccountShell = (): JSX.Element => {
     const { t } = useTranslation();
-    const navigate = useNavigate();
     const location = useLocation();
     const session = useSession();
     const { subscription, plan } = useCurrentSubscription();
@@ -53,10 +52,11 @@ export const AccountShell = (): JSX.Element => {
     // The same rule as the detail screen's buttons, so the sidebar never offers what the screen
     // would refuse (a scheduled downgrade, for one, is cancelled from its own card first).
     const cancellable = !!subscription && sceneOf(subscription, today).actions.includes('cancel');
-    const inManage = !MENU.slice(1).some(item => location.pathname.startsWith(item.to));
+    // The cancel page is the sidebar's own last entry, not part of "manage".
+    const onCancel = location.pathname.endsWith('/cancel');
+    const inManage = !onCancel && !MENU.slice(1).some(item => location.pathname.startsWith(item.to));
 
-    // A page opened straight from a link has nothing behind it to go back to; the plans are the way out.
-    const back = () => (location.key === 'default' ? navigate(ROUTES.subscription.plans) : navigate(-1));
+    const back = useGoBack();
 
     return (
         <AccountTitleContext.Provider value={setPageTitle}>
@@ -128,7 +128,12 @@ export const AccountShell = (): JSX.Element => {
                             {cancellable && (
                                 <Link
                                     to={ROUTES.subscription.cancel(subscription.id)}
-                                    className="shrink-0 whitespace-nowrap rounded-full bg-line px-4 py-2 text-[13px] font-semibold leading-[1.3] text-mute md:mt-auto md:rounded-lg md:bg-transparent md:px-3.5 md:py-2.5 md:font-medium md:leading-normal md:hover:text-ink"
+                                    className={cn(
+                                        'shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-[13px] leading-[1.3] md:mt-auto md:rounded-lg md:px-3.5 md:py-2.5 md:leading-normal',
+                                        onCancel
+                                            ? 'bg-navy font-bold text-white md:bg-[#f7fbe6] md:text-ink'
+                                            : 'bg-line font-semibold text-mute md:bg-transparent md:font-medium md:hover:text-ink'
+                                    )}
                                 >
                                     {t('subscription.common.sidebar.cancel')}
                                 </Link>
