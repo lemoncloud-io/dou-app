@@ -980,6 +980,7 @@ export const HomePage = () => {
                         />
                     ) : savedOpen ? (
                         <SavedPage
+                            cloudId={threadsCloudId}
                             channels={channels}
                             places={places}
                             currentPlaceId={selectedPlaceId ?? undefined}

@@ -35,6 +35,30 @@ conversation, and the row stays marked while it is there.
   the time it was sent, the text, and a tile for its first file.
 - A file-only message's text is only the line it was saved with ("Photo"), so the tile stands in for it.
 
+### Live cards
+
+The page reads like the Threads page ([threads.md](./threads.md)): where it can, a card draws the saved
+messages themselves, with the row the thread panel uses — pictures, files, reactions and all — instead
+of the snapshot.
+
+- Saved replies of one thread share a card, under the thread's root; a saved root joins that card
+  rather than getting its own, so it is not drawn twice. Any other saved message is a card of its own.
+- Only the replies that were saved are shown, not the rest of the thread. **Open** goes to the
+  thread, at the message saved last.
+- The rows leave out the Saved tag: everything on this page is saved.
+- A card reads its messages once, when it comes near the screen (`useSavedCard`), from the active
+  cloud's chat cache, then from the server. Until then it shows the snapshot cards. A change made
+  afterwards — a reaction, an edit — shows the next time the page opens.
+- It stays on the snapshots for good when none of its saved messages can be read: gone, no longer
+  readable, the read failed, or deleted since. A deleted message stays in the cache as a hidden row,
+  and the snapshot still holds the words it was saved for, so it counts as unreadable. A readable
+  root alone does not make a card live, since it may not be one of the saved messages. A saved message
+  that cannot be read while others can keeps its snapshot card, under the live one.
+- Only a message saved in this very place is read live. Channel ids repeat across places and clouds,
+  so a message saved elsewhere, or recorded without a place, always shows its snapshot.
+- The bookmark on a live card unsaves every message on it. A single row's own menu unsaves just that
+  one, and the card shrinks.
+
 ## Leaving it
 
 Opening a card jumps to the message, or opens its thread, through `HomePage`'s `jumpToSaved`, the same
