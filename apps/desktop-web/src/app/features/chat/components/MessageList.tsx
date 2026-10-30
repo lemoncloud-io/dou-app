@@ -767,7 +767,8 @@ export const MessageList = ({
                 aria-relevant="additions"
                 aria-busy={isLoadingOlder || undefined}
                 aria-label={t('chat.feedLabel')}
-                className="scrollbar-thin flex flex-1 flex-col gap-2 overflow-y-auto px-6 py-5"
+                // The column is the container the row toolbar's narrow rule measures (see MessageRow).
+                className="scrollbar-thin flex flex-1 flex-col gap-2 overflow-y-auto px-6 py-5 [container-type:inline-size]"
             >
                 {isLoadingOlder && (
                     <div className="flex justify-center py-2" role="status" aria-label={t('chat.loading')}>
@@ -865,7 +866,6 @@ export const MessageList = ({
                             withDayInTime={threadReplyCount !== undefined}
                             reactions={reactions}
                             reactorName={reactorName}
-                            toolbarUnderHeader={threadReplyCount !== undefined}
                         />
                     );
                 })}

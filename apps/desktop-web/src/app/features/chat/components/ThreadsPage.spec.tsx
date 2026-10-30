@@ -425,6 +425,20 @@ describe('ThreadsPage inline reply', () => {
         expect(listed.lastReplyPreview).toBe('my inline reply');
     });
 
+    it("measures a card's toolbar against the card's own column, so its quick reactions fold in a narrow card", async () => {
+        seed(thread('5'));
+        cacheReadList.mockResolvedValue({ list: [chat(5)] });
+        renderWithChannel();
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 5')).toBeTruthy());
+
+        const quick = within(card).getAllByRole('button', { name: /^React with/ });
+        for (const button of quick) {
+            expect(button.className).toContain('[@container(max-width:480px)]:hidden');
+            expect(button.closest('[class*="[container-type:inline-size]"]')).not.toBeNull();
+        }
+    });
+
     it('offers the room members as @ suggestions in an inline reply', async () => {
         seed(thread('5', { lastReplyNo: 12, seenReplyNo: 10 }));
         cacheReadList.mockResolvedValue({ list: [chat(5)] });

@@ -505,8 +505,8 @@ describe('MessageList', () => {
         expect(container.querySelector('[data-row-actions]')).toBeNull();
     });
 
-    it('hangs the first toolbar under the author line in a thread, not over it', () => {
-        const toolbarTops = (threadReplyCount?: number) => {
+    it('keeps every toolbar over the header, in a thread too, and folds quick reactions in a narrow column', () => {
+        const inspect = (threadReplyCount?: number) => {
             const { container, unmount } = render(
                 <MessageList
                     messages={[message(1, 'ada', 'first'), message(2, 'ada', 'second')]}
@@ -517,15 +517,29 @@ describe('MessageList', () => {
                 />,
                 { wrapper }
             );
+            // Over the header is -top-10; a toolbar hung lower sits on the first line of text, where a
+            // reader dragging to select it runs under the toolbar.
             const tops = [...container.querySelectorAll('[data-row-actions]')].map(node =>
-                node.className.includes('-top-1.5') ? 'under-header' : 'above'
+                node.className.includes('-top-10') ? 'over-header' : 'lower'
             );
+            // The column is the container the narrow rule measures, so a 360px thread panel folds the
+            // quick reactions away and the toolbar stays short enough to leave the author name visible.
+            const column = container.querySelector('[role="log"]');
+            const quick = [...container.querySelectorAll('button[aria-label^="React with"]')];
+            const result = {
+                tops,
+                columnIsContainer: !!column?.className.includes('[container-type:inline-size]'),
+                quickFold:
+                    quick.length > 0 &&
+                    quick.every(button => button.className.includes('[@container(max-width:480px)]:hidden')),
+            };
             unmount();
-            return tops;
+            return result;
         };
 
-        expect(toolbarTops(1)).toEqual(['under-header', 'above']);
-        expect(toolbarTops()).toEqual(['above', 'above']);
+        const expected = { tops: ['over-header', 'over-header'], columnIsContainer: true, quickFold: true };
+        expect(inspect(1)).toEqual(expected);
+        expect(inspect()).toEqual(expected);
     });
 
     it('renders a reaction chip without throwing', () => {
