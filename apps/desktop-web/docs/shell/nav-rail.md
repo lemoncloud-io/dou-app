@@ -68,5 +68,10 @@ The avatar at the bottom of the rail (`AccountMenu`) opens profile, account, joi
 and accounts linked to the device guest), settings, the debug overlay when debug mode is on, and log
 out. Logging out of a guest is a delete, so it asks first and offers to connect an account instead.
 
+The avatar draws my photo for the current place when I set one, else the account photo. A fresh
+sign-in has no row of mine in the profile cache (the place-wide delta carries other members), so
+`useSiteProfiles` reads it once with `profile.get-mine` as soon as the socket is verified; the photo
+therefore shows on the home screen without opening the profile page first.
+
 The hidden debug-mode gesture (seven taps on the divider between the cloud switcher and the place tiles) stays with the place
 tiles. Only the menu moved.
