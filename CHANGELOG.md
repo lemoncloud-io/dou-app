@@ -1,5 +1,14 @@
 # Changelog
 
+## [2026-10-30] - root@0.131.0, @chatic/landing@0.13.0
+
+### Features
+
+- (landing) redesign plan change and cancellation to the new specs
+- (landing) redesign the payment status and completion screens to the new specs
+- (landing) redesign checkout details and the email step to the new specs
+- (landing) redesign the sign-in screens and the purchase-flow header
+
 ## [2026-10-30] - root@0.130.1, @chatic/web@0.85.1
 
 ### Refactor
