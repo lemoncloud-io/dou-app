@@ -1,4 +1,4 @@
-import { type JSX } from 'react';
+import { type JSX, type ReactNode, createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 
@@ -20,6 +20,17 @@ const FLOW_PATHS = [
     ROUTES.subscription.storeManaged,
 ];
 
+const ShellBackContext = createContext<() => () => void>(() => () => undefined);
+
+/**
+ * Asks the shell for its back button on a page it would otherwise hide it on. The upgrade
+ * confirmation shares a path with the first-subscription one, which has nowhere to go back to.
+ */
+export const useShellBack = (): void => {
+    const claim = useContext(ShellBackContext);
+    useEffect(() => claim(), [claim]);
+};
+
 /**
  * The frame for the pages a reader reaches before or while buying: a bar with the logo and either
  * `로그인` or the account menu — 60px on a phone, 64px from `sm` — over the page, with the company
@@ -32,7 +43,7 @@ const FLOW_PATHS = [
  * Where the account surface is shut (`account` false) there is no sign-in to offer, so the bar keeps
  * the logo alone.
  */
-export const PublicShell = ({ account = true }: { account?: boolean }): JSX.Element => {
+export const PublicShell = ({ account = true, children }: { account?: boolean; children?: ReactNode }): JSX.Element => {
     const { t } = useTranslation();
     const session = useSession();
     const { pathname } = useLocation();
@@ -41,12 +52,17 @@ export const PublicShell = ({ account = true }: { account?: boolean }): JSX.Elem
     const onSignIn = pathname === ROUTES.subscription.login || pathname.startsWith(`${ROUTES.subscription.login}/`);
     // Where a payment ended — settling or settled — there is nothing to go back to.
     const ended = pathname === ROUTES.subscription.checkoutStatus || pathname === ROUTES.subscription.checkoutComplete;
+    const [backClaims, setBackClaims] = useState(0);
+    const claimBack = useCallback(() => {
+        setBackClaims(count => count + 1);
+        return () => setBackClaims(count => count - 1);
+    }, []);
 
     return (
         <div className="flex h-full flex-col overflow-auto bg-background">
             <header className="sticky top-0 z-30 border-b border-line bg-background">
                 <div className="flex h-[60px] items-center gap-6 px-2 sm:h-16 sm:px-12">
-                    {flow && !ended && (
+                    {flow && (!ended || backClaims > 0) && (
                         <button
                             type="button"
                             aria-label={t('subscription.common.actions.back')}
@@ -79,7 +95,7 @@ export const PublicShell = ({ account = true }: { account?: boolean }): JSX.Elem
                 </div>
             </header>
             <main className="mx-auto w-full max-w-[1100px] flex-1 px-4 pb-[62px] pt-6 sm:px-8 sm:pb-[68px] sm:pt-10 min-[1200px]:px-0">
-                <Outlet />
+                <ShellBackContext.Provider value={claimBack}>{children ?? <Outlet />}</ShellBackContext.Provider>
             </main>
             {!flow && <SiteFooter />}
         </div>

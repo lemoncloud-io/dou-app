@@ -1,4 +1,4 @@
-import { type JSX, useState } from 'react';
+import { type JSX, type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 
@@ -39,8 +39,11 @@ const itemClass = ({ isActive }: { isActive: boolean }) =>
  * — a back button and the page's title (which the page hands up through `PageHeader`), then the same
  * links as pills — with the account menu in the bar's empty right-hand slot. There is no usage or
  * credits entry — that is a later piece of work.
+ *
+ * It frames the routes nested under it; a page outside them that belongs in the same frame (the
+ * scheduled-downgrade confirmation) passes itself as `children`.
  */
-export const AccountShell = (): JSX.Element => {
+export const AccountShell = ({ children }: { children?: ReactNode }): JSX.Element => {
     const { t } = useTranslation();
     const location = useLocation();
     const session = useSession();
@@ -147,9 +150,7 @@ export const AccountShell = (): JSX.Element => {
                         </div>
                     )}
                 </aside>
-                <main className="min-w-0 flex-1 px-4 pb-8 pt-6 md:overflow-auto md:p-10">
-                    <Outlet />
-                </main>
+                <main className="min-w-0 flex-1 px-4 pb-8 pt-6 md:overflow-auto md:p-10">{children ?? <Outlet />}</main>
             </div>
         </AccountTitleContext.Provider>
     );

@@ -515,6 +515,8 @@ describe('W-14 plan change', () => {
 
         expect(await screen.findByText('You have upgraded to DoU Cloud 3')).toBeTruthy();
         expect(screen.getByText('₩25,800', { exact: false })).toBeTruthy();
+        // The upgrade confirmation keeps the bar's back button; the first subscription's has none.
+        expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
     });
 
     it('shows a failed upgrade with the card it tried', async () => {
@@ -555,6 +557,8 @@ describe('W-14 plan change', () => {
         expect(await screen.findByText('Change to DoU Cloud 1 scheduled')).toBeTruthy();
         expect(where()).toBe('/subscription/checkout/complete?change=downgrade');
         expect(screen.getByText('You keep DoU Cloud 2 until 2026.11.19.')).toBeTruthy();
+        // A scheduled downgrade is an account page: the sidebar is there, the purchase flow's back button is not.
+        expect(screen.getAllByRole('link', { name: 'Payment methods' }).length).toBeGreaterThan(0);
     });
 
     it('blocks a change while a payment is overdue and points at the payment methods', async () => {
