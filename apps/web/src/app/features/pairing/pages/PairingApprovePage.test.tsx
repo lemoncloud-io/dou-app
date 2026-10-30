@@ -21,6 +21,7 @@ const approval = {
     reset: jest.fn(),
 };
 const scanPairingQr = jest.fn();
+let mockLive = false;
 
 jest.mock('react-i18next', () => ({
     useTranslation: () => ({ t: (k: string, o?: Record<string, unknown>) => (o ? `${k}:${JSON.stringify(o)}` : k) }),
@@ -49,6 +50,18 @@ jest.mock('../hooks', () => ({
     usePairingApproval: () => approval,
 }));
 jest.mock('../lib/scanPairingQr', () => ({ scanPairingQr: () => scanPairingQr() }));
+jest.mock('../lib/liveQrScanner', () => ({ canScanLive: () => mockLive }));
+// The sheet's own behaviour is tested beside it; here it only has to report back.
+jest.mock('../components/QrScannerSheet', () => ({
+    QrScannerSheet: (p: { onCode: (c: string) => void; onClose: () => void; onUnavailable: (r: string) => void }) => (
+        <div data-testid="live-scanner">
+            <button onClick={() => p.onCode('07344168')}>live-code</button>
+            <button onClick={p.onClose}>live-close</button>
+            <button onClick={() => p.onUnavailable('denied')}>live-denied</button>
+            <button onClick={() => p.onUnavailable('failed')}>live-failed</button>
+        </div>
+    ),
+}));
 
 const CHECK = {
     pairingId: 'p-1',
@@ -66,6 +79,7 @@ beforeEach(() => {
     mockGuest = false;
     mockClouds = [];
     mockSelected = 'default';
+    mockLive = false;
     Object.assign(approval, { code: '', state: { step: 'input' }, error: null });
 });
 
@@ -82,7 +96,55 @@ describe('PairingApprovePage', () => {
         expect(screen.getByTestId('redirect').textContent).toBe('/mypage');
     });
 
-    it('fills the input from a scanned QR', async () => {
+    describe('with a camera stream', () => {
+        beforeEach(() => (mockLive = true));
+
+        it('scans live and fills the input with the code it reads', () => {
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-code'));
+
+            expect(approval.setCode).toHaveBeenCalledWith('07344168');
+            expect(screen.queryByTestId('live-scanner')).toBeNull();
+            expect(scanPairingQr).not.toHaveBeenCalled();
+        });
+
+        it('closes without a word or a photo when the person closes it', () => {
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-close'));
+
+            expect(screen.queryByTestId('live-scanner')).toBeNull();
+            expect(scanPairingQr).not.toHaveBeenCalled();
+            expect(screen.queryByText(/pairing.approve.scan(Denied|OldApp|NotOurs|NoQr)/)).toBeNull();
+        });
+
+        it('falls back to a photo when the camera stream cannot be opened', async () => {
+            scanPairingQr.mockResolvedValue({ kind: 'code', code: '07344168' });
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-failed'));
+            await Promise.resolve();
+
+            expect(scanPairingQr).toHaveBeenCalled();
+            expect(approval.setCode).toHaveBeenCalledWith('07344168');
+        });
+
+        it('takes a refused camera as the answer: a note, no photo camera', () => {
+            render(<PairingApprovePage />);
+
+            fireEvent.click(screen.getByTestId('pairing-approve-scan'));
+            fireEvent.click(screen.getByText('live-denied'));
+
+            expect(screen.getByText('pairing.approve.scanDenied')).not.toBeNull();
+            expect(scanPairingQr).not.toHaveBeenCalled();
+        });
+    });
+
+    it('fills the input from a photographed QR where no camera stream exists', async () => {
         scanPairingQr.mockResolvedValue({ kind: 'code', code: '07344168' });
         render(<PairingApprovePage />);
 

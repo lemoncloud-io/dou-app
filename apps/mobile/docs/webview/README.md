@@ -319,6 +319,14 @@ the service's defaults, as it did before the options were read. Earlier builds d
 entirely, so `includeBase64` never reached the picker and the page got only a `uri` it cannot read —
 the web has to expect an asset without `base64` from an app that has not updated.
 
+The page can also open the camera itself, with no bridge message: the pairing QR scanner reads a live
+`getUserMedia` stream. That rests on three things the shell already has, and removing any of them
+breaks it without a compile error — the `CAMERA` permission in `AndroidManifest.xml` (react-native-
+webview's Android client grants the page's camera request only when the app holds it, and asks for it
+when it does not), `NSCameraUsageDescription` in `Info.plist`, and `allowsInlineMediaPlayback` (without
+it iOS hands the `<video>` to its full-screen player). `mediaCapturePermissionGrantType` is left at its
+default, so iOS asks the person once per page load.
+
 ## Device contacts
 
 `GetContacts` is answered by `useDeviceHandler` through `DeviceService.getContacts`, which returns
