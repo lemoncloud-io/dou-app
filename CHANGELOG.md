@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - root@0.132.0, @chatic/landing@0.14.0
+
+### Features
+
+- (landing) redesign payment methods, billing history and billing info to the new specs
+
 ## [2026-10-30] - root@0.131.0, @chatic/landing@0.13.0
 
 ### Features
