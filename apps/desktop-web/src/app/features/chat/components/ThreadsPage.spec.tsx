@@ -9,7 +9,7 @@ import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
 
 import '../../../../i18n';
 
-import { useMyThreadsStore, useNotificationsPanelStore } from '../../../shared';
+import { useMyThreadsStore, useNotificationsPanelStore, useSavedItemsStore } from '../../../shared';
 import { myThreadKey, type MyThread } from '../../../shared/utils/myThreads';
 import { ThreadsPage } from './ThreadsPage';
 
@@ -138,6 +138,7 @@ beforeEach(() => {
     cacheRead.mockReset().mockResolvedValue(null);
     getChat.mockReset().mockResolvedValue(null);
     getCloudRepositories.mockClear();
+    useSavedItemsStore.setState({ items: {} });
 });
 
 describe('ThreadsPage cards', () => {
@@ -169,6 +170,21 @@ describe('ThreadsPage cards', () => {
 
         fireEvent.click(within(card).getByRole('button', { name: /1 earlier reply/i }));
         expect(onOpen).toHaveBeenCalledWith('C1', undefined, 'P1', '5');
+    });
+
+    it('puts a saved tag in front of a saved message, and only that one', async () => {
+        seed(thread('5'));
+        cacheReadList.mockResolvedValue({ list: [chat(5), chat(6, { parentId: '5' }), chat(7, { parentId: '5' })] });
+        useSavedItemsStore.setState({
+            items: { 'C1:6': { id: 'C1:6', channelId: 'C1', chatNo: 6, content: 'message 6', ownerName: 'A', savedAt: 1 } },
+        });
+        renderPage();
+
+        const card = screen.getAllByRole('article')[0];
+        await waitFor(() => expect(within(card).getByText('message 7')).toBeTruthy());
+        const tags = within(card).getAllByText('Saved');
+        expect(tags).toHaveLength(1);
+        expect(tags[0].closest('[data-chat-no]')?.getAttribute('data-chat-no')).toBe('6');
     });
 
     it('shows the latest replies under a root fetched when the cache lacks it', async () => {

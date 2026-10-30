@@ -117,6 +117,11 @@ interface MessageRowProps {
      * over the header the toolbar hid the name of the person whose message it acts on.
      */
     toolbarUnderHeader?: boolean;
+    /**
+     * Leave out the red "Saved" tag a saved message carries. The Saved page sets it: every row
+     * there is saved, so the tag would say nothing.
+     */
+    hideSavedMark?: boolean;
 }
 
 /**
@@ -225,6 +230,7 @@ export const MessageRow = memo(
         highlightChatNo,
         withDayInTime,
         toolbarUnderHeader,
+        hideSavedMark,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         // Pointer devices hide the toolbar until hover; touch shows it always, so it is
@@ -524,6 +530,14 @@ export const MessageRow = memo(
                                     {i > 0 && msgTime && (
                                         <span className="absolute -left-12 top-0.5 hidden w-10 text-right text-nano tabular-nums text-muted-foreground group-focus-within/msg:block group-hover/msg:block">
                                             {msgTime}
+                                        </span>
+                                    )}
+                                    {!hideSavedMark && isSavedKey(key) && (
+                                        // Above the content, not in the gutter: the gutter holds the
+                                        // avatar on a block's first message and the hover time on the rest.
+                                        <span className="mb-0.5 flex w-fit items-center gap-1 rounded bg-destructive/10 px-1.5 py-px text-micro font-semibold text-destructive">
+                                            <Bookmark size={11} aria-hidden className="fill-current" />
+                                            {t('chat.savedTag')}
                                         </span>
                                     )}
                                     {message.hidden ? (
