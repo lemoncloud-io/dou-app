@@ -10,21 +10,21 @@ registerSubscriptionCopy();
 describe('PlanCard', () => {
     afterAll(() => i18n.changeLanguage('en'));
 
-    it('sets only the amount large in English, with the period beside it', async () => {
+    it('shows the amount with the period beside it, then the VAT note, in English', async () => {
         await i18n.changeLanguage('en');
         render(<PlanCard plan={MOCK_PLANS[4]} />);
 
         const amount = screen.getByText('₩43,000');
-        expect(amount.className).toContain('text-2xl');
-        expect(amount.parentElement?.textContent).toBe('₩43,000 / month');
+        expect(amount.parentElement?.textContent).toBe('₩43,000 / month(VAT included)');
         expect(screen.getByText('5 clouds')).toBeTruthy();
     });
 
-    it('sets the whole price large in Korean', async () => {
+    it('shows the whole price and the VAT note in Korean', async () => {
         await i18n.changeLanguage('ko');
         render(<PlanCard plan={MOCK_PLANS[0]} />);
 
-        expect(screen.getByText('월 ₩8,600').className).toContain('text-2xl');
+        expect(screen.getByText('₩8,600/월')).toBeTruthy();
+        expect(screen.getByText('(VAT 포함)')).toBeTruthy();
         expect(screen.getByText('클라우드 1개')).toBeTruthy();
     });
 

@@ -353,9 +353,10 @@ features/subscription/
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
 ├── utils/            formatMoney, formatDate, cn, countdowns, isEmailAddress
 ├── hooks/            one react-query hook per port method, useCurrentSubscription, useNow
-├── components/       PublicShell, AccountShell, AccountMenu, StatusBadge, PlanCard, SummaryTile,
-│                     ConfirmDialog, EmailVerificationForm, BillingEmailChangeDialog, MockPaymentWindow,
-│                     DevScenarioPanel, …
+├── components/       PublicShell (logo + account bar, SiteFooter), AccountShell (sidebar; on a phone a
+│                     back/title bar and a row of tabs), PageHeader, AccountMenu, StatusBadge, PlanCard,
+│                     SummaryTile, ConfirmDialog, EmailVerificationForm, BillingEmailChangeDialog,
+│                     MockPaymentWindow, DevScenarioPanel, …
 ├── components/ui/    Button, Card, Badge, Banner, Table, Dialog, Spinner, Toast — landing tokens
 └── pages/            entry/ checkout/ manage/ billing/ (the screens), dev/ (mock-only pages)
 ```
@@ -420,8 +421,8 @@ The pages read the same flag where it changes what they offer:
   subscribing" tags are rules of the web checkout, and a plan greyed by them would read as
   unavailable), none pickable, the subscribe button replaced by "web checkout is coming" with the App
   Store and Google Play links, and the note about not paying twice on the web left out.
-- `PublicShell` keeps the plans and the policy links and drops "Manage subscription" and "Sign in",
-  which lead to pages that do not exist on that host.
+- `PublicShell`'s bar keeps the logo alone and drops "Sign in", which leads to a page that does not
+  exist on that host; its footer is the same everywhere and carries the refund policy link.
 
 `lib/catalog.ts` is therefore a published price list, not mock data: the mock sells exactly this
 catalog, and a price changes there together with the stores' prices. When the server and the payment
