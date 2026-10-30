@@ -15,7 +15,7 @@ import { join } from 'path';
 // This package and the packages cut from it. A module that leaves app-runtime takes no exemption
 // with it, so each one extracted is added here.
 const LIBS = join(__dirname, '..', '..');
-const ROOTS = ['app-runtime', 'session', 'transport'].map(lib => join(LIBS, lib, 'src'));
+const ROOTS = ['app-runtime', 'session', 'transport', 'sync'].map(lib => join(LIBS, lib, 'src'));
 
 const walk = (dir: string): string[] =>
     readdirSync(dir).flatMap(entry => {

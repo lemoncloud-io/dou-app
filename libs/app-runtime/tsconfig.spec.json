@@ -52,6 +52,9 @@
             "path": "../transport/tsconfig.lib.json"
         },
         {
+            "path": "../sync/tsconfig.lib.json"
+        },
+        {
             "path": "../bridges/tsconfig.lib.json"
         },
         {

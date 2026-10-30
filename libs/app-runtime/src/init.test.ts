@@ -74,7 +74,7 @@ describe('initAppRuntime', () => {
         jest.doMock('./data/runtime', () => ({ configureDataRuntime: jest.fn(), getRepositories, getDataManager }));
         const { initAppRuntime } = await import('./init');
         const { authRepositorySource } = await import('./session/auth/authRepository');
-        const { syncDataGraph } = await import('./socket/sync/dataGraph');
+        const { syncDataGraph } = await import('@chatic/sync/dataGraph');
 
         initAppRuntime();
 

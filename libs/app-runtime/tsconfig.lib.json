@@ -62,6 +62,9 @@
         },
         {
             "path": "../transport/tsconfig.lib.json"
+        },
+        {
+            "path": "../sync/tsconfig.lib.json"
         }
     ]
 }

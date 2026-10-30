@@ -4,7 +4,7 @@ import { logger } from '@chatic/bridges';
 
 import { getSocketManager, hasLiveJoinedSession, RELAY_SLOT, kindOf, slotKeyOf } from '@chatic/transport';
 import type { ISocketManager, SlotKey, SocketBindingConfig } from '@chatic/transport';
-import { getSyncManager } from '../socket/sync/runtime';
+import { getSyncManager } from '@chatic/sync';
 import { bootstrapSocketConnection } from '../socket/auth';
 import type { SocketSessionDelegate } from '../socket/auth';
 // Concrete paths, not the ../socket/auth barrel: connection tests intercept that barrel to stub bootstrap.
@@ -171,7 +171,7 @@ export const SocketBinder = ({ slots, delegate }: SocketBinderProps) => {
     // and that runtime owns the slot's connect-driven `device.save` (whose `:ok` is what opens the
     // bootstrap's auth gate). Render runs before the binding effects below, so naming it here is the
     // guarantee. It used to be luck — the first repository read built the DataManager, which built
-    // the socket runtime, which built the sync manager (see socket/sync/runtime.ts).
+    // the socket runtime, which built the sync manager (see `@chatic/sync`'s runtime.ts).
     getSyncManager();
 
     const bootedRef = useRef(new Map<SlotKey, BootedSlot>());

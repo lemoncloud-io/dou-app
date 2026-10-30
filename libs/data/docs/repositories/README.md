@@ -322,4 +322,4 @@ whatever rows remain.
 
 ## Further reading
 
-- [socket sync usage](../../../app-runtime/docs/sync/README.md) — the path by which a join row's removal becomes a purge signal (owned by app-runtime).
+- [libs/sync](../../../sync/README.md) — the path by which a join row's removal becomes a purge signal (owned by `@chatic/sync`).

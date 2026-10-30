@@ -6,7 +6,7 @@
 > apps/web `useSocketWakeRecovery`
 > · Builds on: [ADR-0118](./0118-a-sync-target-belongs-to-its-cloud-s-slot.md) (scoped repository graphs) ·
 > [ADR-0119](./0119-every-joined-cloud-keeps-a-socket-session.md) (every joined cloud keeps a socket session)
-> · The module doc is [libs/app-runtime/docs/sync](../../libs/app-runtime/docs/sync/README.md#background-receive)
+> · The module doc is [libs/sync](../../libs/sync/README.md#background-receive)
 
 ## Context
 

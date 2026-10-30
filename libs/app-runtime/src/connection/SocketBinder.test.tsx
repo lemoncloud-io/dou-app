@@ -21,7 +21,7 @@ jest.mock('@chatic/transport/socket/runtime', () => ({
 
 // The binder reaches the sync engine so it exists before slots bind; the assertion here is only that
 // a slot boots, so the engine itself is stubbed.
-jest.mock('../socket/sync/runtime', () => ({
+jest.mock('@chatic/sync/runtime', () => ({
     getSyncManager: jest.fn(),
 }));
 

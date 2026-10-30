@@ -1,15 +1,9 @@
-// plans.ts → data/runtime.ts → DataManager.ts → httpFactory.ts imports `@chatic/http`'s transport as
-// a value (webTransport). That chain used to lead to `@chatic/web-config` (an import.meta holder that
-// ts-jest's CJS parser can't handle), but now leads to `@chatic/config` (import.meta count 0), so
-// parsing is no longer the problem — this mock is kept anyway, to cut and isolate the session
-// dependency this test doesn't actually use.
 import { logger } from '@chatic/bridges';
 
 import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import { createSyncPlans } from './plans';
 import { clearRefusedChannels, isChannelRefused } from './refusedChannels';
 
-jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 // Only the data-runtime accessors are cut — `toDomainChat` has to be the real thing, because that's
 // the only way to see whether `hidden` survives the mapping. The socket runtime needs no mock: the
 // slot's cloud comes in as `createSyncPlans`'s argument. `jest.mock` only hoists from the top of the

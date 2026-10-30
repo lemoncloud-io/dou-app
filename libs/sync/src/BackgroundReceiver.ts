@@ -2,7 +2,7 @@ import { logger } from '@chatic/bridges';
 
 import { syncDataGraph } from './dataGraph';
 import { getUidInCloud } from '@chatic/session';
-import { unrefTimer } from '../../utils/unrefTimer';
+import { unrefTimer } from './unrefTimer';
 import type { ISocketManager, SlotKey } from '@chatic/transport';
 import { emitBackgroundDelta } from './backgroundDeltas';
 import {

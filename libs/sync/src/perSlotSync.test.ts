@@ -13,8 +13,6 @@ import { SyncManager } from './SyncManager';
 import type { ISocketManager, SlotKey, SocketSlotClientListener } from '@chatic/transport/socket/types';
 import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
-jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
-
 /** One spy graph per cloud, as `getScopedRepositories(cid)` hands them out. */
 const mockGraphs = new Map<string, { channel: { cacheWrite: jest.Mock; cacheDelete: jest.Mock } }>();
 const mockUids: Record<string, string> = { default: 'relay-uid', 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };

@@ -8,7 +8,7 @@
 > [ADR-0117](./0117-socket-auth-is-keyed-by-the-slot-s-cloud.md) (auth keyed by the slot's cloud)
 > · Amends: [ADR-0058](./0058-navigation-churn-grace-and-seeding.md) decision 1 — grace entries are
 > purged when their own cloud's slot rebinds, not on an active client swap
-> · The module docs are [libs/app-runtime/docs/sync](../../libs/app-runtime/docs/sync/README.md) and
+> · The module docs are [libs/sync](../../libs/sync/README.md) and
 > [docs/data](../../libs/app-runtime/docs/data/README.md#scoped-repository-graphs)
 
 ## Context

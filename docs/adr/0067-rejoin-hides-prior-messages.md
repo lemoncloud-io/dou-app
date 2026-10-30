@@ -21,7 +21,7 @@ The message stream is [`useChats`](../../apps/web/src/app/features/channels/hook
 
 - [`ChannelRepository.leaveChannel`](../../libs/data/src/repositories/ChannelRepository.ts) only clears the
   **channel** cache.
-- `ChatSyncPlan` has no `onRemove` — a comment in [`plans.ts`](../../libs/app-runtime/src/socket/sync/plans.ts)
+- `ChatSyncPlan` has no `onRemove` — a comment in [`plans.ts`](../../libs/sync/src/plans.ts)
   deliberately states the design: "message history is kept for lazy-load/offline."
 - `ChatRepository.refreshList` only does `cacheWriteMany` and doesn't prune. Rows the server no longer sends stay
   put.

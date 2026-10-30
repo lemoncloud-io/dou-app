@@ -5,7 +5,7 @@ supplies five plan instances and a manager around them; everything on this page 
 library, and it is written down here because none of it is visible from a plan's constructor and all
 of it changes what a callback means.
 
-Read [README.md](./README.md) first for who owns what.
+Read [the package README](../../README.md) first for who owns what.
 
 ## Where the boundary sits
 
@@ -68,7 +68,7 @@ content.
 2. **Polling plans stop themselves; Device never does.** The scheduler classifies 403 and 404 as `gone`; after two the target is stopped and `onRemove` fires. So `onRemove` on a channel, place or profile means "deleted, or you lost access" and must be wired to that, not treated as an error. Device overrides the policy to always retry — it is your own device.
 3. **Polling slows down on its own.** If `run` does not change the snapshot the interval doubles, up to 60 seconds (30 for device). A `*.sync` push or a failure resets it immediately. A channel poll that started at 2 seconds and drifted to a minute is working as designed.
 4. **A `*.sync` push is broadcast to every target of that domain.** The scheduler fires `onTrigger` on all of them whenever a message type starts with `<domain>.` and ends with `.sync`; filtering to the right id is each plan's own job.
-5. **A manual gateway call never reaches a plan.** A response type ends in `:ok`, so it does not pass the trigger filter — only a bare `<domain>.sync` push from the server does. The delta comes back on your promise and nowhere else, which is why [`updateLocalSnapshot`](./README.md#updatelocalsnapshot-is-the-bridge-and-it-is-domain-agnostic) exists.
+5. **A manual gateway call never reaches a plan.** A response type ends in `:ok`, so it does not pass the trigger filter — only a bare `<domain>.sync` push from the server does. The delta comes back on your promise and nowhere else, which is why [`updateLocalSnapshot`](../../README.md#updatelocalsnapshot-is-the-bridge-and-it-is-domain-agnostic) exists.
 6. **Re-registering an existing target merges, it does not restart.** Matching keys have their fields merged and nothing else happens — safe to call on every mount. A changed `intervalMs` takes effect on the next tick rather than immediately.
 7. **A single dropped push on a live connection is not self-healing.** Reconnect catch-up covers a reconnect; a push lost while the socket stayed up, with no message after it, stays lost until the next message or the next reconnect.
 
@@ -103,6 +103,6 @@ A plain "I am online" needs no call at all — the runtime's connect-driven save
 
 ## Further reading
 
-- [README.md](./README.md) — `SyncManager`, the registry, and chat prime
+- [the package README](../../README.md) — `SyncManager`, the registry, and the room feed
 - [transport docs/socket/](../../../transport/docs/socket/README.md) — the slots these runtimes attach to
 - [`libs/data`](../../../data/README.md) — the repositories the callbacks write through, and the device repository behind `saveDevice`/`syncDevice`

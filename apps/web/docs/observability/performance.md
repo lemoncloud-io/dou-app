@@ -259,8 +259,10 @@ background, rather than when its timer resumes. Its attributes are at the same c
 - Unit tests: `npx jest src/app/runtime/perf src/app/features/channels/hooks/useChatMutations src/app/features/channels/hooks/useRoomOpenTrace
 src/app/features/channels/hooks/useRoomSyncTrace src/app/features/channels/hooks/useForegroundChatRefresh`
   from `apps/web`;
-  `npx jest src/socket/sync/roomFeed src/socket/sync/hooks/useSyncTarget src/socket/socketVerifyTrace src/socket/SocketManager src/data/mediaSendTrace src/data/hooks/useSendImages`
+  `npx jest src/socket/sync/hooks/useSyncTarget src/data/mediaSendTrace src/data/hooks/useSendImages`
   from `libs/app-runtime`, plus `src/data/factories/outboxFactory` there for `state_outbox`;
+  `npx jest src/roomFeed` from `libs/sync`;
+  `npx jest src/socket/socketVerifyTrace src/socket/SocketManager` from `libs/transport`;
   `npx jest src/repositories/ChatRepository src/outbox/stateOutbox` from `libs/data`;
   `npx jest src/activeTraces src/pageHides` from `libs/perf`; and `npx jest src/app/services/perf` from
   `apps/mobile` (`first_screen`).

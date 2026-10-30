@@ -5,19 +5,18 @@ import { SyncManager } from './SyncManager';
 import type { ISyncManager } from './types';
 
 /**
- * The sync engine's creation point — its own file, not `socket/runtime.ts`'s.
+ * The sync engine's creation point — its own file, not the transport's `socket/runtime.ts`.
  *
- * **Why it moved out.** `socket/runtime.ts` used to build both managers in one `SocketRuntime`
- * assembly, which made `socket/` import `socket/sync/`, and sync writes frames into repositories
- * (`plans` → `data/runtime`) while data binds its sources to the socket (`socketFactory` →
- * `socket/runtime`). Those four edges closed a ring across both engines:
- * `socket/runtime` → `SyncManager` → `plans` → `data/runtime` → `DataManager` → `socketFactory` →
- * `socket/runtime`. Splitting the two creation points removes the `socket → socket/sync` edge and
- * the ring opens — nothing in `data/**` reaches sync, and `socket/runtime` is now a leaf for it.
+ * **Why it is separate.** The socket runtime once built both managers in one assembly, so the socket
+ * imported sync; sync's plans imported the data runtime to write frames; and data bound its sources
+ * to the socket. Those edges closed a ring: socket runtime → `SyncManager` → `plans` → data runtime →
+ * `DataManager` → `socketFactory` → socket runtime. Two things keep it open now: the socket manager
+ * is `@chatic/transport`, a package below this one, and `plans` reads the graph through
+ * `syncDataGraph`, which app-runtime hands down at boot. app-runtime's data layer does import this
+ * package, which is the direction the package graph allows.
  *
- * It also states what the architecture doc already claims: `SocketManager` and `SyncManager` are two
- * of the four engine axes, and each axis owns ONE creation point (design principle 2). One file
- * building two axes was the odd one out.
+ * Each engine owns ONE creation point (app-runtime README, design principle 2), and this is
+ * `SyncManager`'s.
  *
  * **Creation order still matters, and is no longer accidental.** A `SyncManager` attaches a device
  * runtime per bound slot, and that runtime owns the slot's connect-driven `device.save` — so it must

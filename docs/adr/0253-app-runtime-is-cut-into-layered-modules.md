@@ -2,7 +2,8 @@
 
 > Status: Accepted · Decided: 2026-10-30 · Implemented: `refactor/app-runtime-layers` (step 1 of 5),
 > `refactor/session-module` (step 2 — `libs/session`), `refactor/transport-module` (step 3 —
-> `libs/transport`) · Scope: `libs/app-runtime/`, `libs/session/`, `libs/transport/`
+> `libs/transport`), `refactor/sync-module` (step 4 — `libs/sync`) · Scope:
+> `libs/app-runtime/`, `libs/session/`, `libs/transport/`, `libs/sync/`
 
 ## Context
 
@@ -80,3 +81,8 @@ socket manager and the session they sit beside.
   `auth.update` absence gates stayed in app-runtime and walk every package cut from it — the top
   package is the one that knows them all, and a gate inside a lower package would have to reach up
   into the source of the package above it.
+- Step 4 moved sync and took `unrefTimer`, its only user, with it. `Coalescer` and `Throttle` go with
+  auth in step 5: the guards they generalise were auth's, and their other callers are app-runtime
+  hooks that depend on auth anyway, so no new edge appears. `isNativeApp` stays, an app-layer helper.
+  Sync and auth were drawn side by side, so once sync is a package `layering.test.ts` also checks
+  that the auth layer does not import it — a package import is not an edge the folder check sees.

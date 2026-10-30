@@ -69,7 +69,7 @@ cloud, or home. A write addressed to a cloud then has a live socket to go to whi
 screen (and a cloud past the cap is held for the length of the write — below), and switching back to a kept cloud costs no reconnect and no token exchange. These slots have no sync
 targets — no screen of theirs is mounted — but they do receive: a receive loop keeps each background
 cloud's room list, last messages and `$join` current with one `channel.sync` a minute, so entering a
-kept cloud finds its list already cached ([docs/sync/](../sync/README.md#background-receive)).
+kept cloud finds its list already cached ([libs/sync](../../../sync/README.md#background-receive)).
 
 The pieces, and who owns each:
 
@@ -207,5 +207,5 @@ has been attempted yet. When the link counts as down is the transport's rule:
 
 - [`@chatic/transport` socket doc](../../../transport/docs/socket/README.md) — the manager these binders drive, slot keys, the active pointer, state and failure reporting
 - [docs/auth/](../auth/README.md) — what `bootstrapSocketConnection` and `reauthenticateActiveSocket` do on these slots
-- [docs/sync/](../sync/README.md) — the per-slot runtimes, and the background receive loop
+- [libs/sync](../../../sync/README.md) — the per-slot runtimes, and the background receive loop
 - [`libs/session`](../../../session/README.md) — the signals `useRuntimeSocketSlots` subscribes to

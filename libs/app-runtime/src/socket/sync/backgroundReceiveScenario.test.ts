@@ -19,12 +19,12 @@ import { DataManager } from '../../data/DataManager';
 import { getGlobalSessionContext, getUidInCloud } from '@chatic/session/store';
 import { SocketManager } from '@chatic/transport/socket/SocketManager';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
-import { syncDataGraph } from './dataGraph';
+import { syncDataGraph } from '@chatic/sync/dataGraph';
 import type { SocketBindingConfig } from '@chatic/transport/socket/types';
 import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
-import { BackgroundReceiver } from './BackgroundReceiver';
-import { subscribeBackgroundDeltas } from './backgroundDeltas';
-import type { BackgroundDelta } from './types';
+import { BackgroundReceiver } from '@chatic/sync/BackgroundReceiver';
+import { subscribeBackgroundDeltas } from '@chatic/sync/backgroundDeltas';
+import type { BackgroundDelta } from '@chatic/sync/types';
 
 // fake-indexeddb clones every value it stores, and jsdom has no structuredClone — the shim libs/db's
 // own IndexedDB suites use.
@@ -41,7 +41,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
-jest.mock('./dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
+jest.mock('@chatic/sync/dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
 jest.mock('../../data/factories/httpFactory', () => ({ createHttpDataSources: () => ({ httpDataSources: {} }) }));
 jest.mock('@chatic/session/store', () => ({
     ...jest.requireActual('@chatic/session/store'),
