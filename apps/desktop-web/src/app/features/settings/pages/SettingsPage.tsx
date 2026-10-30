@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CircleCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +20,12 @@ import {
     FONT_SIZES,
     MESSAGE_DENSITIES,
     PALETTES,
-    type Palette,
+    PALETTE_CHOICES,
+    PRESET_COLORS,
+    type PaletteChoice,
+    type ShellColors,
+    colorsOf,
+    shellPaletteCss,
     useAppearancePrefsStore,
     useNotificationPrefsStore,
     VersionInfo,
@@ -29,7 +34,7 @@ import { NotificationSnoozeButton } from '../../chat/components/NotificationSnoo
 import { canApprovePairing } from '../../pairing/utils/devicePairing';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
-import { ReportIssueDialog } from '../components';
+import { CustomPaletteFields, ReportIssueDialog } from '../components';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 import { QuietHoursMentionSection } from './QuietHoursMentionSection';
@@ -82,14 +87,32 @@ export const SettingsPage = () => {
     const fontSizeProps = radioGroupOptions(FONT_SIZES, fontSize, setFontSize);
     const densityProps = radioGroupOptions(MESSAGE_DENSITIES, density, setDensity);
     const palette = useAppearancePrefsStore(s => s.palette);
+    const customPalette = useAppearancePrefsStore(s => s.customPalette);
     const setPalette = useAppearancePrefsStore(s => s.setPalette);
+    const setCustomPalette = useAppearancePrefsStore(s => s.setCustomPalette);
+    // Custom's colours, or what it would start from: the colours of the palette that is on.
+    const customColors = customPalette ?? colorsOf({ palette, customPalette });
+    const announcePalette = useCallback(() => toast({ title: t('settings.palette.applied') }), [t]);
     // The shell recolours the moment a card is picked; the toast says so for the one who looked away.
-    const pickPalette = (next: Palette) => {
+    const pickPalette = (next: PaletteChoice) => {
         if (next === palette) return;
-        setPalette(next);
-        toast({ title: t('settings.palette.applied') });
+        if (next === 'custom') setCustomPalette(customColors);
+        else setPalette(next);
+        announcePalette();
     };
-    const paletteProps = radioGroupOptions(PALETTES, palette, pickPalette);
+    const paletteProps = radioGroupOptions(PALETTE_CHOICES, palette, pickPalette);
+    // Each sample card draws its own palette, whichever one is on, from the rule the shell uses.
+    const presetPreviewCss = useMemo(
+        () =>
+            PALETTES.map(option =>
+                shellPaletteCss(PRESET_COLORS[option], `[data-palette-preview='${option}']`, {
+                    dark: option !== 'mist',
+                })
+            ).join('\n'),
+        []
+    );
+    const previewCss = `${presetPreviewCss}\n${shellPaletteCss(customColors, "[data-palette-preview='custom']", { dark: true })}`;
+    const pickCustomColors = (colors: ShellColors) => setCustomPalette(colors);
     const pushMute = useDevicePushMute();
     const reopenOnboarding = useOnboardingStore(s => s.reopen);
     const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
@@ -180,13 +203,14 @@ export const SettingsPage = () => {
                                 {t('settings.palette.hint')}
                             </span>
                         </div>
+                        <style>{previewCss}</style>
                         <div
                             role="radiogroup"
                             aria-labelledby="settings-palette-label"
                             aria-describedby="settings-palette-hint"
                             className="flex flex-wrap gap-2"
                         >
-                            {PALETTES.map(option => {
+                            {PALETTE_CHOICES.map(option => {
                                 const name = t(`settings.palette.${option}`);
                                 return (
                                     <button
@@ -208,7 +232,7 @@ export const SettingsPage = () => {
                                             <span className="w-[9px] bg-rail" />
                                             <span className="w-3 bg-rail-elevated" />
                                             <span className="flex flex-1 bg-sidebar py-1.5 pl-5 pr-1.5">
-                                                <span className="flex-1 rounded-sm bg-swatch-light" />
+                                                <span className="flex-1 rounded-sm bg-background" />
                                             </span>
                                         </span>
                                         <span className="flex items-center justify-between gap-1 px-0.5">
@@ -225,6 +249,13 @@ export const SettingsPage = () => {
                                 );
                             })}
                         </div>
+                        {palette === 'custom' && (
+                            <CustomPaletteFields
+                                colors={customColors}
+                                onPick={pickCustomColors}
+                                onSet={announcePalette}
+                            />
+                        )}
                     </div>
 
                     <div className="flex flex-col gap-2.5">
