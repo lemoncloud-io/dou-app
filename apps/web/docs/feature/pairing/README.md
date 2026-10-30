@@ -2,8 +2,7 @@
 
 `apps/web/src/app/features/pairing` is device pairing on the web: a browser (or a phone that is not
 signed in) shows an eight-digit code and its QR, and a signed-in app approves it. Every entry sits
-behind `feature.auth.devicePairing`, which is on in LOCAL and DEV only until the design and wording are
-settled.
+behind `feature.auth.devicePairing`, which is on in every stage; turning it off hides every entry again.
 
 The flow itself is `@chatic/app-runtime`'s (`runtime.session.usePairingRequest`, documented in its
 session docs); this feature is the screens around it.
