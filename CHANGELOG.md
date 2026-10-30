@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-10-30] - root@0.134.0, @chatic/desktop-web@0.42.0
+
+### Features
+
+- (desktop-web) group join notices and add text size and density settings
+- (desktop-web) group adjacent join notices into one line
+- (desktop-web) add text size and message density preferences
+
 ## [2026-10-30] - root@0.133.0, @chatic/desktop-web@0.41.0
 
 ### Features
