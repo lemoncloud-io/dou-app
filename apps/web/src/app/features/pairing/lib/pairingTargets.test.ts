@@ -30,6 +30,20 @@ describe('pairingTargetOptions', () => {
         expect(defaultKey).toBe('1000002');
     });
 
+    it('carries where each cloud came from onto its option', () => {
+        const { options } = pairingTargetOptions({
+            isRelayGuest: false,
+            clouds: pairingClouds([{ id: '1000002', name: 'Lemon' }], [{ id: '1000009', name: 'Lime' }]),
+            activeCloudId: null,
+        });
+
+        expect(options.map(option => [option.key, option.cloudKind])).toEqual([
+            ['relay', undefined],
+            ['1000002', 'owned'],
+            ['1000009', 'invited'],
+        ]);
+    });
+
     it('has nothing to offer a guest with no clouds', () => {
         expect(pairingTargetOptions({ isRelayGuest: true, clouds: [], activeCloudId: null })).toEqual({
             options: [],
@@ -41,18 +55,20 @@ describe('pairingTargetOptions', () => {
 describe('pairingClouds', () => {
     it('lists the owned clouds first, then the invited ones', () => {
         expect(pairingClouds([{ id: '1000002', name: 'Lemon' }], [{ id: '1000009', name: 'Lime' }])).toEqual([
-            { id: '1000002', name: 'Lemon' },
-            { id: '1000009', name: 'Lime' },
+            { id: '1000002', name: 'Lemon', kind: 'owned' },
+            { id: '1000009', name: 'Lime', kind: 'invited' },
         ]);
     });
 
     it('keeps a cloud that is both owned and invited once, as owned', () => {
         expect(pairingClouds([{ id: '1000002', name: 'Lemon' }], [{ id: '1000002', name: 'Old name' }])).toEqual([
-            { id: '1000002', name: 'Lemon' },
+            { id: '1000002', name: 'Lemon', kind: 'owned' },
         ]);
     });
 
     it('offers the invited clouds alone when the catalog has none', () => {
-        expect(pairingClouds([], [{ id: '1000009', name: 'Lime' }])).toEqual([{ id: '1000009', name: 'Lime' }]);
+        expect(pairingClouds([], [{ id: '1000009', name: 'Lime' }])).toEqual([
+            { id: '1000009', name: 'Lime', kind: 'invited' },
+        ]);
     });
 });
