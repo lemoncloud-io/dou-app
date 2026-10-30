@@ -4,13 +4,14 @@ import { usePort } from '../lib/port';
 import { subscriptionKeys } from './keys';
 import { useInvalidateSubscriptionState } from './subscriptions';
 
-import type { AttemptPurpose, Payer, PaymentAttempt, PlanId } from '../types';
+import type { AttemptPurpose, Currency, Payer, PaymentAttempt, PlanId } from '../types';
 
-export const usePreviewCheckout = (planId: PlanId | undefined) => {
+/** What a first subscription to `planId` would cost, priced in `currency` (won when omitted). */
+export const usePreviewCheckout = (planId: PlanId | undefined, currency?: Currency) => {
     const port = usePort();
     return useQuery({
-        queryKey: subscriptionKeys.checkoutPreview(planId ?? ''),
-        queryFn: () => port.previewCheckout(planId as PlanId),
+        queryKey: subscriptionKeys.checkoutPreview(planId ?? '', currency),
+        queryFn: () => port.previewCheckout(planId as PlanId, currency ? { currency } : undefined),
         enabled: !!planId,
     });
 };

@@ -1,6 +1,7 @@
 import { ROUTES } from '../../../../../routes/paths';
 import { addDays, toIsoDate } from '../../calendar';
-import { PLAN_CATALOG } from '../../catalog';
+import { providerOfCountry, providerOfCurrency } from '../../billingCountry';
+import { planCatalogIn } from '../../catalog';
 import { changeKindOf } from '../../changeKindOf';
 import { SubscriptionPortError } from '../errors';
 import { failureOf, isDeclinedPayment, portErrorOf } from './errors';
@@ -15,6 +16,7 @@ import {
     planOfProduct,
     dayOf,
     parseAttemptId,
+    providerOfPlatform,
     prorate,
     toAccount,
     toCatalog,
@@ -35,6 +37,7 @@ import type {
     Payer,
     PaymentAttempt,
     PaymentMethod,
+    PaymentProvider,
     PlanId,
     RegistrationResult,
     SignInProvider,
@@ -148,7 +151,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     // A session the server refused stays refused for this page: the stored credentials are still
     // there, so without this the sign-in page would see a session and send the reader straight back.
     let lost = false;
-    let catalog: Promise<CatalogPlan[]> | undefined;
+    const catalogs = new Map<PaymentProvider, Promise<CatalogPlan[]>>();
 
     /** Makes a call with the session, rejecting with whatever the transport rejects with. */
     const send = <T>(work: (server: SubscriptionApi) => Promise<T>): Promise<T> => {
@@ -170,38 +173,61 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         return error;
     };
 
-    // The server lists its plans to a signed request only, so the catalog is read once there is a
-    // session; a visitor is shown the published catalog instead (`listPlans`).
-    const loadCatalog = (): Promise<CatalogPlan[]> => {
-        catalog ??= send(server => server.fetchPlans({ platform: 'portone' })).then(
-            result => toCatalog(result?.list ?? []),
-            error => {
-                catalog = undefined;
-                throw lostIf(portErrorOf(error));
-            }
-        );
+    // The server lists its plans to a signed request only, so a catalog is read once there is a
+    // session; a visitor is shown the published catalog instead (`listPlans`). Each provider sells the
+    // same tiers in its own currency, as products of its own, so each has a catalog of its own and the
+    // tier pairs them (`toCatalogPlan`).
+    const loadCatalog = (provider: PaymentProvider): Promise<CatalogPlan[]> => {
+        let catalog = catalogs.get(provider);
+        if (!catalog) {
+            catalog = send(server => server.fetchPlans({ platform: provider })).then(
+                result => toCatalog(result?.list ?? [], provider),
+                error => {
+                    catalogs.delete(provider);
+                    throw lostIf(portErrorOf(error));
+                }
+            );
+            catalogs.set(provider, catalog);
+        }
         return catalog;
     };
 
-    const catalogPlan = async (planId: PlanId): Promise<CatalogPlan> =>
-        (await loadCatalog()).find(plan => plan.id === planId) ?? fail('notFound', `no plan ${planId}`);
+    const catalogPlan = async (planId: PlanId, provider: PaymentProvider): Promise<CatalogPlan> =>
+        (await loadCatalog(provider)).find(plan => plan.id === planId) ?? fail('notFound', `no plan ${planId}`);
 
     /**
-     * The subscription with the card it is charged to. The server keeps one card per subscription and
-     * names it the default, so that is the card the screens show beside it.
+     * The subscription with the card it is charged to. The card list holds every provider's cards with a
+     * default for each, so the card beside a subscription is the default of its own provider.
      */
     const readMineWithCard = async (): Promise<Subscription | undefined> => {
         const { sub } = await readMine();
         if (!sub || sub.status === 'expired') return sub;
         const cards = await call(server => server.fetchSubscriptionCards());
-        const card = (cards ?? []).find(each => each.isDefault && each.id);
+        const card = (cards ?? [])
+            .map(each => toPaymentMethod(each, new Date(now())))
+            .find(each => each?.isDefault && each.provider === sub.provider);
         return card ? { ...sub, defaultPaymentMethodId: card.id } : sub;
     };
 
+    /** The account's subscription, read against the catalog of the provider that charges it. */
     const readMine = async (): Promise<{ wire?: SubscriptionWire; sub?: Subscription }> => {
-        const [mine, plans] = await Promise.all([call(server => server.fetchMySubscription()), loadCatalog()]);
+        const mine = await call(server => server.fetchMySubscription());
         const wire = mine?.subscription;
-        return { wire, sub: wire ? toSubscription(wire, plans) : undefined };
+        const provider = providerOfPlatform(wire?.platform);
+        if (!wire || !provider) return { wire };
+        return { wire, sub: toSubscription(wire, await loadCatalog(provider)) };
+    };
+
+    /** The provider of the subscription in force, if there is one. */
+    const heldProvider = async (): Promise<PaymentProvider | undefined> => {
+        const { sub } = await readMine();
+        return sub && sub.status !== 'expired' ? sub.provider : undefined;
+    };
+
+    /** A subscription the server answered with, read against its provider's catalog. */
+    const subscriptionOf = async (view: SubscriptionWire): Promise<Subscription | undefined> => {
+        const provider = providerOfPlatform(view.platform);
+        return provider ? toSubscription(view, await loadCatalog(provider)) : undefined;
     };
 
     const getSession = async (): Promise<Account | null> => {
@@ -222,12 +248,14 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     const requireSession = async (): Promise<Account> => (await getSession()) ?? fail('unauthenticated');
 
     const previewChange = async (planId: PlanId): Promise<ChangePreview> => {
-        const [{ wire, sub }, plans, account] = await Promise.all([readMine(), loadCatalog(), requireSession()]);
+        const [{ wire, sub }, account] = await Promise.all([readMine(), requireSession()]);
         if (!wire || !sub || (sub.status !== 'trial' && sub.status !== 'active')) {
             return fail('conflict', 'no subscription that can change plan');
         }
+        // A plan changes within the provider that charges it.
+        const plans = await loadCatalog(sub.provider);
         const from = plans.find(plan => plan.id === sub.planId) as CatalogPlan;
-        const to = await catalogPlan(planId);
+        const to = await catalogPlan(planId, sub.provider);
         const kind = changeKindOf(toPlan(from), toPlan(to), account);
         if (kind === 'new' || kind === 'current') return fail('conflict', `cannot change to ${planId}`);
         const direction = to.sort > from.sort ? 'upgrade' : 'downgrade';
@@ -266,7 +294,10 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
 
     const listPaymentMethods = async (): Promise<PaymentMethod[]> => {
         const cards = await call(server => server.fetchSubscriptionCards());
-        return (cards ?? []).map(toPaymentMethod).filter((card): card is NonNullable<typeof card> => !!card);
+        const today = new Date(now());
+        return (cards ?? [])
+            .map(card => toPaymentMethod(card, today))
+            .filter((card): card is NonNullable<typeof card> => !!card);
     };
 
     const failedAttempt = (purpose: AttemptPurpose, withTrial: boolean): PaymentAttempt => {
@@ -323,7 +354,11 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             await session.signOut();
         },
 
-        listPlans: async () => (lost || !session.user() ? PLAN_CATALOG : (await loadCatalog()).map(toPlan)),
+        listPlans: async input => {
+            if (lost || !session.user()) return planCatalogIn(input?.currency ?? 'KRW');
+            const provider = input?.currency ? providerOfCurrency(input.currency) : await heldProvider();
+            return (await loadCatalog(provider ?? 'portone')).map(toPlan);
+        },
 
         listSubscriptions: async () => {
             const sub = await readMineWithCard();
@@ -335,8 +370,12 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             return sub && sub.id === id ? sub : fail('notFound', `no subscription ${id}`);
         },
 
-        previewCheckout: async planId => {
-            const [plan, account, { wire }] = await Promise.all([catalogPlan(planId), requireSession(), readMine()]);
+        previewCheckout: async (planId, input) => {
+            const [plan, account, { wire }] = await Promise.all([
+                catalogPlan(planId, providerOfCurrency(input?.currency ?? 'KRW')),
+                requireSession(),
+                readMine(),
+            ]);
             const withTrial = plan.trialDays > 0 && !account.trialUsed && !wire?.trialUsed;
             const today = toIsoDate(new Date(now()));
             const trialEndsAt = addDays(today, plan.trialDays);
@@ -354,10 +393,11 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             // The window is opened for a product, whose platform picks the payment provider. A card
             // added on its own goes with the plan already held, or the first plan if none is.
             const held = planId ? undefined : (await readMine()).wire;
+            const heldProvider = providerOfPlatform(held?.platform) ?? 'portone';
             const productId = planId
-                ? (await catalogPlan(planId)).productId
-                : (planOfProduct(await loadCatalog(), held?.productId)?.productId ??
-                  (await loadCatalog())[0]?.productId);
+                ? (await catalogPlan(planId, 'portone')).productId
+                : (planOfProduct(await loadCatalog(heldProvider), held?.productId)?.productId ??
+                  (await loadCatalog(heldProvider))[0]?.productId);
             if (!productId) return fail('notFound', 'no product to register a card for');
             const issue = await call(server => server.issueBillingKey(productId));
             const redirectUrl = `${options.origin}${returnPathOf(purpose, planId)}`;
@@ -380,14 +420,14 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             return registered(result, purpose, payer);
         },
 
-        startCheckout: async ({ planId, payer, card }) => {
-            const plan = await catalogPlan(planId);
+        startCheckout: async ({ planId, country, payer, card }) => {
+            const plan = await catalogPlan(planId, providerOfCountry(country));
             const body = card
                 ? { productId: plan.productId, billingKey: card, ...payer }
                 : { productId: plan.productId };
             try {
                 const view = await send(server => server.startSubscription(body));
-                const sub = toSubscription(view, await loadCatalog());
+                const sub = await subscriptionOf(view);
                 return attemptFromSubscription({ purpose: 'start', withTrial: view.status === 'trial' }, sub, {
                     unread: true,
                 });
@@ -409,17 +449,16 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         changePlan: async planId => {
             const preview = await previewChange(planId);
             if (preview.blocked) return fail('conflict', `change blocked: ${preview.blocked}`);
-            const plan = await catalogPlan(planId);
+            const { sub } = await readMine();
+            const plan = await catalogPlan(planId, sub?.provider ?? 'portone');
             try {
                 const view = await send(server => server.changeSubscription(plan.productId));
                 if (preview.kind === 'downgrade') {
                     return { scheduled: true as const, effectiveAt: dayOf(view.validUntil) ?? preview.effectiveAt };
                 }
-                return attemptFromSubscription(
-                    { purpose: 'upgrade', withTrial: false },
-                    toSubscription(view, await loadCatalog()),
-                    { unread: true }
-                );
+                return attemptFromSubscription({ purpose: 'upgrade', withTrial: false }, await subscriptionOf(view), {
+                    unread: true,
+                });
             } catch (error) {
                 if (preview.kind === 'upgrade' && isDeclinedPayment(error)) {
                     return failedAttempt('upgrade', false);
@@ -432,7 +471,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
 
         cancelSubscription: async id => {
             const view = await call(server => server.cancelSubscription());
-            return toSubscription(view, await loadCatalog()) ?? fail('notFound', `no subscription ${id}`);
+            return (await subscriptionOf(view)) ?? fail('notFound', `no subscription ${id}`);
         },
 
         listPaymentMethods,

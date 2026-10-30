@@ -19,8 +19,10 @@ import {
     subscriptionKeys,
 } from '../../hooks';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
+import { currencyOfProvider } from '../../lib/billingCountry';
 import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
 import { EMPTY_PAYER, type PayerDraft, isPayerComplete, payerOf } from '../../lib/payer';
+import { cardGroupsOf, defaultCardOf } from '../../lib/paymentMethods';
 import { savePendingCardChange, takePendingCardChange } from '../../lib/pendingCheckout';
 import { isPortError, useSupports, useToday } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
@@ -45,6 +47,11 @@ type RegistrationNotice = 'declined' | 'attemptLimit';
 /**
  * W-12 — the cards the subscription is charged to: add one through the payment provider's window,
  * make one the default, remove one.
+ *
+ * Cards belong to the provider that registered them — one for payments in won, one for payments in
+ * dollars — and each provider has a default of its own. The cards of the provider the subscription is
+ * charged by come first; any of the other's are listed under their own heading, named by currency, and
+ * their default is changed among themselves.
  *
  * While a payment is failing the page is also where the reader fixes it: choosing another card (or
  * adding one) offers to make it the default and charge the overdue amount there and then, and the
@@ -119,7 +126,12 @@ export const PaymentMethodsPage = (): JSX.Element => {
     const closeDialog = () => setDialogOpen(false);
 
     const cards = methods.data;
-    const defaultCard = cards.find(card => card.isDefault);
+    const groups = cardGroupsOf(cards, subscription?.provider);
+    // The card that matters is the default of the provider in use — or, with nothing in use, of the
+    // first group.
+    const inUse = subscription?.provider ?? groups[0]?.provider;
+    const defaultCard = inUse ? defaultCardOf(cards, inUse) : undefined;
+    const chargesSubscription = (card: PaymentMethod) => !!subscription && card.provider === subscription.provider;
 
     const addCard = async () => {
         closeDialog();
@@ -185,7 +197,7 @@ export const PaymentMethodsPage = (): JSX.Element => {
     };
 
     const askMakeDefault = (card: PaymentMethod) => {
-        if (offersPayment) setReplacement(card);
+        if (offersPayment && chargesSubscription(card)) setReplacement(card);
         else openDialog({ kind: 'makeDefault', card });
     };
 
@@ -255,21 +267,38 @@ export const PaymentMethodsPage = (): JSX.Element => {
                         </p>
                     </div>
                 ) : (
-                    <ul className="flex flex-col gap-4" aria-label={t('subscription.billing.paymentMethods.title')}>
-                        {cards.map(card => (
-                            <CardRow
-                                key={card.id}
-                                card={card}
-                                label={label(card)}
-                                failing={failing && card.isDefault}
-                                failureReason={subscription?.failureReason}
-                                urgeDefault={!!defaultCard?.expiringSoon && !card.isDefault}
-                                busy={busy}
-                                onMakeDefault={() => askMakeDefault(card)}
-                                onRemove={() => askRemove(card)}
-                            />
-                        ))}
-                    </ul>
+                    groups.map(group => {
+                        const heading = t(
+                            `subscription.billing.paymentMethods.group.${currencyOfProvider(group.provider)}`
+                        );
+                        const inUseGroup = group.provider === inUse;
+                        return (
+                            <div key={group.provider} className="flex flex-col gap-2.5">
+                                {/* One provider's cards need no heading; two do, to keep their defaults apart. */}
+                                {groups.length > 1 && <h2 className="text-[13px] font-bold text-mute">{heading}</h2>}
+                                <ul
+                                    className="flex flex-col gap-4"
+                                    aria-label={
+                                        groups.length > 1 ? heading : t('subscription.billing.paymentMethods.title')
+                                    }
+                                >
+                                    {group.cards.map(card => (
+                                        <CardRow
+                                            key={card.id}
+                                            card={card}
+                                            label={label(card)}
+                                            failing={failing && card.isDefault && chargesSubscription(card)}
+                                            failureReason={subscription?.failureReason}
+                                            urgeDefault={inUseGroup && !!defaultCard?.expiringSoon && !card.isDefault}
+                                            busy={busy}
+                                            onMakeDefault={() => askMakeDefault(card)}
+                                            onRemove={() => askRemove(card)}
+                                        />
+                                    ))}
+                                </ul>
+                            </div>
+                        );
+                    })
                 )}
 
                 {replacement && subscription && overdue && (
@@ -347,7 +376,7 @@ export const PaymentMethodsPage = (): JSX.Element => {
                 title={t('subscription.billing.paymentMethods.defaultDialog.title')}
                 description={
                     dialog?.kind === 'makeDefault' &&
-                    (subscription?.nextBillingAt && subscription.nextAmount
+                    (subscription?.nextBillingAt && subscription.nextAmount && chargesSubscription(dialog.card)
                         ? t('subscription.billing.paymentMethods.defaultDialog.body', {
                               date: formatDate(subscription.nextBillingAt),
                               amount: money(subscription.nextAmount),

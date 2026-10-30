@@ -15,6 +15,7 @@ import {
     usePreviewCheckout,
     useSubscription,
 } from '../../hooks';
+import { defaultCardOf } from '../../lib/paymentMethods';
 import { isPortError } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
 import { formatDate, formatMoney } from '../../utils';
@@ -126,7 +127,11 @@ const useSceneFacts = (variant: AttemptVariant, plan: Plan | undefined, subscrip
         amount,
         subscription: subscription.data,
         subscriptionPlan,
-        card: methods.data?.find(method => method.isDefault),
+        // The card is the default of the provider the subscription is charged by; before there is a
+        // subscription to ask, whichever default there is.
+        card: subscription.data
+            ? methods.data && defaultCardOf(methods.data, subscription.data.provider)
+            : methods.data?.find(method => method.isDefault),
     };
 };
 

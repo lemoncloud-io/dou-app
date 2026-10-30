@@ -862,7 +862,11 @@
                     "title": "Your last card can't be removed",
                     "body": "A subscription needs a card to charge. Add a new card, then remove this one."
                 },
-                "barTitle": "Manage payment methods"
+                "barTitle": "Manage payment methods",
+                "group": {
+                    "KRW": "Cards for payments in won",
+                    "USD": "Cards for payments in US dollars"
+                }
             },
             "history": {
                 "title": "Billing history",

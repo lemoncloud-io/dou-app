@@ -1,4 +1,4 @@
-import { PLAN_CATALOG } from '../../catalog';
+import { PLAN_CATALOG, planCatalogIn } from '../../catalog';
 import { isPortError } from '../errors';
 import { type HttpPortOptions, type SubscriptionApi, createHttpPort } from './createHttpPort';
 
@@ -23,6 +23,20 @@ const PLANS = {
         maxClouds: sort,
         price: 8600 * sort,
         currency: 'KRW',
+        trialDays: 7,
+    })),
+};
+
+// The dollar products, priced in cents.
+const STRIPE_PLANS = {
+    total: 5,
+    list: [1, 2, 3, 4, 5].map(sort => ({
+        id: `dou-web-stripe-tier-0${sort}_dev`,
+        platform: 'stripe',
+        sort,
+        maxClouds: sort,
+        price: 600 * sort,
+        currency: 'USD',
         trialDays: 7,
     })),
 };
@@ -57,7 +71,8 @@ const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPor
         calls.push({ method, path, params, body });
         const answer = routes[`${method} ${path}`];
         if (answer === undefined) throw httpError(404);
-        return (typeof answer === 'function' ? (answer as Route)(body) : answer) as T;
+        // A GET has no body; its route reads the query instead.
+        return (typeof answer === 'function' ? (answer as Route)(body ?? params) : answer) as T;
     };
     const api: SubscriptionApi = {
         fetchPlans: params => route('GET', '/products/0/plans', undefined, params),
@@ -107,7 +122,8 @@ const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPor
 };
 
 const BASE_ROUTES = {
-    'GET /products/0/plans': PLANS,
+    'GET /products/0/plans': (query: unknown) =>
+        (query as { platform?: string })?.platform === 'stripe' ? STRIPE_PLANS : PLANS,
     'GET /memberships/0/mine': { platform: 'portone', status: 'expired', trialUsed: false },
     'GET /subscriptions/0/mine': {},
     'GET /subscriptions/0/cards': [CARD],
@@ -192,7 +208,35 @@ describe('createHttpPort — plans and subscription', () => {
         const { port, signOutLocally, calls } = setup(BASE_ROUTES);
         signOutLocally();
         expect(await port.listPlans()).toEqual(PLAN_CATALOG);
+        expect(await port.listPlans({ currency: 'USD' })).toEqual(planCatalogIn('USD'));
         expect(calls).toEqual([]);
+    });
+
+    it('lists the dollar plans from the dollar products when asked for dollars', async () => {
+        const { port, calls } = setup(BASE_ROUTES);
+        const plans = await port.listPlans({ currency: 'USD' });
+        expect(plans[1]).toEqual({
+            id: 'pro-tier-02',
+            sort: 2,
+            maxClouds: 2,
+            monthly: { amount: 1200, currency: 'USD' },
+            trialDays: 7,
+        });
+        expect(calls).toEqual([expect.objectContaining({ path: '/products/0/plans', params: { platform: 'stripe' } })]);
+    });
+
+    it('lists the plans in the currency of the subscription in force when none is asked for', async () => {
+        const { port } = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': {
+                subscription: subscription({
+                    id: 'U1:stripe',
+                    platform: 'stripe',
+                    productId: 'dou-web-stripe-tier-02_dev',
+                }),
+            },
+        });
+        expect((await port.listPlans()).map(plan => plan.monthly.currency)).toEqual(Array(5).fill('USD'));
     });
 
     it('lists the web plans under the names the screens use once signed in', async () => {
@@ -206,7 +250,10 @@ describe('createHttpPort — plans and subscription', () => {
             'pro-tier-05',
         ]);
         expect(plans[0]).not.toHaveProperty('productId');
-        expect(calls[0]).toMatchObject({ path: '/products/0/plans', params: { platform: 'portone' } });
+        expect(plans[0]).not.toHaveProperty('provider');
+        expect(calls.find(call => call.path === '/products/0/plans')).toMatchObject({
+            params: { platform: 'portone' },
+        });
     });
 
     it('has one subscription at most, charged to its card', async () => {
@@ -506,7 +553,61 @@ describe('createHttpPort — plan change and cancelling', () => {
 describe('createHttpPort — cards', () => {
     it('lists the card the subscription is charged to', async () => {
         expect(await setup(BASE_ROUTES).port.listPaymentMethods()).toEqual([
-            { id: 'mock:dev:U1:01', brand: 'SHINHAN', last4: '5678', isDefault: true },
+            { id: 'mock:dev:U1:01', provider: 'portone', brand: 'SHINHAN', last4: '5678', isDefault: true },
+        ]);
+    });
+
+    // The card list carries every provider's cards, and each provider marks a default of its own.
+    const DOLLAR_CARD = {
+        id: 'pm_1',
+        provider: 'stripe',
+        cardIssuer: 'visa',
+        cardNumber: '**** 4242',
+        cardExpMonth: 8,
+        cardExpYear: 2030,
+        isDefault: true,
+    };
+
+    it("puts beside a subscription the default card of its own provider, not the other provider's", async () => {
+        const won = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': { subscription: subscription({}) },
+            'GET /subscriptions/0/cards': [DOLLAR_CARD, CARD],
+        });
+        expect((await won.port.listSubscriptions())[0].defaultPaymentMethodId).toBe(CARD.id);
+
+        const dollars = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': {
+                subscription: subscription({
+                    id: 'U1:stripe',
+                    platform: 'stripe',
+                    productId: 'dou-web-stripe-tier-02_dev',
+                }),
+            },
+            'GET /subscriptions/0/cards': [CARD, DOLLAR_CARD],
+        });
+        expect((await dollars.port.listSubscriptions())[0]).toMatchObject({
+            provider: 'stripe',
+            defaultPaymentMethodId: 'pm_1',
+            nextAmount: { amount: 1200, currency: 'USD' },
+        });
+    });
+
+    it("lists every provider's cards, each with its own default and the expiry where there is one", async () => {
+        const { port } = setup({ ...BASE_ROUTES, 'GET /subscriptions/0/cards': [CARD, DOLLAR_CARD] });
+        expect(await port.listPaymentMethods()).toEqual([
+            { id: 'mock:dev:U1:01', provider: 'portone', brand: 'SHINHAN', last4: '5678', isDefault: true },
+            {
+                id: 'pm_1',
+                provider: 'stripe',
+                brand: 'visa',
+                last4: '4242',
+                expMonth: 8,
+                expYear: 2030,
+                expiringSoon: false,
+                isDefault: true,
+            },
         ]);
     });
 
@@ -546,7 +647,7 @@ describe('createHttpPort — cards', () => {
             'POST /subscriptions/0/card-delete': remove,
         });
         expect(await port.removePaymentMethod(SECOND.id)).toEqual([
-            { id: 'mock:dev:U1:01', brand: 'SHINHAN', last4: '5678', isDefault: true },
+            { id: 'mock:dev:U1:01', provider: 'portone', brand: 'SHINHAN', last4: '5678', isDefault: true },
         ]);
         expect(remove).toHaveBeenCalledWith({ billkeyId: SECOND.id });
     });
@@ -564,8 +665,8 @@ describe('createHttpPort — cards', () => {
             'POST /subscriptions/0/card-default': setDefault,
         });
         expect(await port.setDefaultPaymentMethod(SECOND.id)).toEqual([
-            { id: 'mock:dev:U1:01', brand: 'SHINHAN', last4: '5678', isDefault: false },
-            { id: 'mock:dev:U1:02', brand: 'HANA', last4: '9999', isDefault: true },
+            { id: 'mock:dev:U1:01', provider: 'portone', brand: 'SHINHAN', last4: '5678', isDefault: false },
+            { id: 'mock:dev:U1:02', provider: 'portone', brand: 'HANA', last4: '9999', isDefault: true },
         ]);
         expect(setDefault).toHaveBeenCalledWith({ billkeyId: SECOND.id });
     });

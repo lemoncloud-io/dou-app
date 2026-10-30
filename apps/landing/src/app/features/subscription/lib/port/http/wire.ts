@@ -7,6 +7,7 @@ import type {
     Money,
     PaymentAttempt,
     PaymentMethod,
+    PaymentProvider,
     Plan,
     PlanId,
     Subscription,
@@ -21,9 +22,10 @@ import type {
  * fields read here are written down from its contract, and only those.
  */
 
-/** A product from `GET /products/0/plans?platform=portone`. */
+/** A product from `GET /products/0/plans?platform=<provider>`. Prices are in the currency's minor unit. */
 export interface ProductWire {
     id?: string;
+    platform?: string;
     sort?: number;
     maxClouds?: number;
     price?: number;
@@ -46,12 +48,18 @@ export interface SubscriptionWire {
     trialUsed?: boolean;
 }
 
-/** `BillkeyView` — the payment server's card. It has no expiry. */
+/**
+ * A card the payment server holds, for any of its providers. The list carries every provider's cards
+ * and marks one default per provider. Only some providers report the expiry.
+ */
 export interface CardWire {
     id?: string;
+    provider?: string;
     cardIssuer?: string;
-    /** Masked: `123412******5678`. */
+    /** Masked as its provider gives it: `123412******5678`, `**** 4242`. */
     cardNumber?: string;
+    cardExpMonth?: number;
+    cardExpYear?: number;
     isDefault?: boolean;
 }
 
@@ -74,10 +82,15 @@ export interface IssueParams {
     issueName: string;
 }
 
-/** A plan the screens know, beside the server product it is sold as. */
+/** A plan the screens know, beside the server product it is sold as and who sells it. */
 export interface CatalogPlan extends Plan {
     productId: string;
+    provider: PaymentProvider;
 }
+
+/** The server's payment platform as a provider this side knows; anything else is none. */
+export const providerOfPlatform = (platform: string | undefined): PaymentProvider | undefined =>
+    platform === 'portone' || platform === 'stripe' ? platform : undefined;
 
 /** The server prefixes some product ids with `#`; both spellings name the same product. */
 export const bareProductId = (id: string | undefined): string => (id ?? '').replace(/^#/, '');
@@ -87,31 +100,36 @@ export const bareProductId = (id: string | undefined): string => (id ?? '').repl
  * `pro-tier-0N` after the app's products. The tier number — the product's `sort` — is what both agree
  * on, so it is the key; a product outside tiers 1 to 5 is not one the screens can sell.
  */
-export const toCatalogPlan = (product: ProductWire): CatalogPlan | undefined => {
+export const toCatalogPlan = (product: ProductWire, provider: PaymentProvider): CatalogPlan | undefined => {
     const sort = product.sort;
     if (sort !== 1 && sort !== 2 && sort !== 3 && sort !== 4 && sort !== 5) return undefined;
     if (!product.id || typeof product.price !== 'number') return undefined;
+    // The list was asked for one provider's products; one that says it is another's is not sold here.
+    if (product.platform && providerOfPlatform(product.platform) !== provider) return undefined;
     return {
         id: `pro-tier-0${sort}` as PlanId,
         sort,
         maxClouds: product.maxClouds ?? sort,
+        // Carried as the server gives it — in the currency's minor unit, cents for dollars.
         monthly: { amount: product.price, currency: product.currency === 'USD' ? 'USD' : 'KRW' },
         trialDays: product.trialDays ?? 0,
         productId: bareProductId(product.id),
+        provider,
     };
 };
 
-export const toCatalog = (products: ProductWire[]): CatalogPlan[] =>
+/** One provider's products as the plans it sells, by tier. */
+export const toCatalog = (products: ProductWire[], provider: PaymentProvider): CatalogPlan[] =>
     products
-        .map(toCatalogPlan)
+        .map(product => toCatalogPlan(product, provider))
         .filter((plan): plan is CatalogPlan => !!plan)
         .sort((a, b) => a.sort - b.sort);
 
 export const planOfProduct = (catalog: CatalogPlan[], productId: string | undefined): CatalogPlan | undefined =>
     catalog.find(plan => plan.productId === bareProductId(productId));
 
-/** A plan as the screens take it, without the server id they never see. */
-export const toPlan = ({ productId: _productId, ...plan }: CatalogPlan): Plan => plan;
+/** A plan as the screens take it, without the server id and the provider they never see. */
+export const toPlan = ({ productId: _productId, provider: _provider, ...plan }: CatalogPlan): Plan => plan;
 
 const STATUS: Record<SubscriptionStatusWire, SubscriptionStatus> = {
     pending: 'pending',
@@ -142,6 +160,7 @@ export const toSubscription = (wire: SubscriptionWire, catalog: CatalogPlan[]): 
         status,
         startedAt,
         billingDay: Number((until ?? startedAt).slice(8, 10)),
+        provider: plan.provider,
     };
     if (status === 'trial' || status === 'active') {
         sub.nextBillingAt = until;
@@ -154,16 +173,38 @@ export const toSubscription = (wire: SubscriptionWire, catalog: CatalogPlan[]): 
     return sub;
 };
 
-/** The payment server's card. The default is the one the subscription is charged to. */
-export const toPaymentMethod = (card: CardWire): PaymentMethod | undefined =>
-    card.id
-        ? {
-              id: card.id,
-              brand: card.cardIssuer ?? '',
-              last4: (card.cardNumber ?? '').slice(-4),
-              isDefault: !!card.isDefault,
-          }
-        : undefined;
+const isMonth = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 12;
+
+/**
+ * A card is expiring soon when its last valid month is this month or the next: the next monthly charge
+ * may already fall after it.
+ */
+export const isExpiringSoon = (expMonth: number, expYear: number, today: Date): boolean =>
+    expYear * 12 + expMonth - (today.getFullYear() * 12 + today.getMonth() + 1) <= 1;
+
+/**
+ * The payment server's card. Its default is the one its provider charges. A card of a provider this
+ * side does not know is not one the screens can use, and is left out.
+ */
+export const toPaymentMethod = (card: CardWire, today: Date): PaymentMethod | undefined => {
+    // A card from before the server named providers is the won provider's: it was the only one.
+    const provider = card.provider ? providerOfPlatform(card.provider) : 'portone';
+    if (!card.id || !provider) return undefined;
+    const method: PaymentMethod = {
+        id: card.id,
+        provider,
+        brand: card.cardIssuer ?? '',
+        last4: (card.cardNumber ?? '').slice(-4),
+        isDefault: !!card.isDefault,
+    };
+    if (isMonth(card.cardExpMonth) && typeof card.cardExpYear === 'number' && card.cardExpYear > 0) {
+        method.expMonth = card.cardExpMonth;
+        method.expYear = card.cardExpYear;
+        method.expiringSoon = isExpiringSoon(card.cardExpMonth, card.cardExpYear, today);
+    }
+    return method;
+};
 
 const STORE_SOURCES: Record<string, BillingSource> = { apple: 'appStore', google: 'googlePlay' };
 

@@ -8,6 +8,7 @@ import type {
     ChangePlanResult,
     ChangePreview,
     CheckoutPreview,
+    Currency,
     EmailCodeTicket,
     Invoice,
     PaymentAttempt,
@@ -39,8 +40,9 @@ export interface SubscriptionPort {
     completeSignIn(callback: URLSearchParams): Promise<SignInResult>;
     signOut(): Promise<void>;
 
-    // Plans and subscriptions.
-    listPlans(): Promise<Plan[]>;
+    // Plans and subscriptions. `currency` asks for the plans priced in it; without one they come in the
+    // currency the subscription in force is charged in, or in won when there is none.
+    listPlans(input?: { currency?: Currency }): Promise<Plan[]>;
     listSubscriptions(): Promise<Subscription[]>;
     getSubscription(id: string): Promise<Subscription>;
 
@@ -48,7 +50,8 @@ export interface SubscriptionPort {
     // opens; the pages see its outcome, and carry the card it registered on to `startCheckout`
     // without reading it. Registering a card for anything but a checkout (`addCard`, `retry`) puts it
     // on the subscription there and then.
-    previewCheckout(planId: PlanId): Promise<CheckoutPreview>;
+    /** `currency` prices the preview — the billing country's at checkout; won when omitted. */
+    previewCheckout(planId: PlanId, input?: { currency?: Currency }): Promise<CheckoutPreview>;
     startPaymentMethodRegistration(input: {
         purpose: AttemptPurpose;
         planId?: PlanId;

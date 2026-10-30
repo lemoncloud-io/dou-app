@@ -6,8 +6,10 @@ describe('formatMoney', () => {
         expect(formatMoney({ amount: 17200, currency: 'KRW' }, 'en')).toBe('₩17,200');
     });
 
-    it('prints dollars with cents', () => {
-        expect(formatMoney({ amount: 12, currency: 'USD' }, 'en')).toBe('$12.00');
+    it('reads a dollar amount as cents', () => {
+        expect(formatMoney({ amount: 600, currency: 'USD' }, 'en')).toBe('$6.00');
+        expect(formatMoney({ amount: 1250, currency: 'USD' }, 'ko')).toBe('$12.50');
+        expect(formatMoney({ amount: 49, currency: 'USD' }, 'en')).toBe('$0.49');
     });
 });
 

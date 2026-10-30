@@ -319,7 +319,12 @@ they were. What that costs: receipts go to the sign-in address alone.
 
 **The card screen, W-12, is open** (ADR-0250). `MANAGEMENT_SCREENS_OPEN` is two values, `{ cards, emails }`,
 and only `emails` is shut. W-12 lists the cards the payment service holds, the default marked as the
-server marks it; every other card has [Make default] and [Remove], and [Add card] opens the payer's name
+server marks it. Cards belong to the provider that registered them — one provider takes payments in
+won, another in US dollars — and each provider has a default of its own, so the cards are grouped by
+provider (`lib/paymentMethods.ts`): the provider the subscription is charged by first, and a second group
+under a heading named by its currency only when the account holds cards of both. Wherever a screen
+speaks of "the card" — W-18's tile, W-14, W-09, the removal rule — it means the default of the
+subscription's own provider. Every other card has [Make default] and [Remove], and [Add card] opens the payer's name
 and number (`PayerFields`) and then the provider's window. A card added this way is not charged until it
 is made the default. The payment service decides what may be removed: the default card's [Remove] is
 greyed and only opens the explanation (make another card the default first; for a live subscription's
@@ -349,7 +354,7 @@ features/subscription/
 ├── lib/port/         SubscriptionPort, SubscriptionPortError, PortProvider (+ the clock)
 ├── lib/port/http/    the HTTP port: the server's shapes, the sign-in, the card window — the only network
 ├── lib/mock/         the mock port: state machine, scenarios, policy values, storage
-├── lib/catalog.ts    the published plans and prices, read by both ports
+├── lib/catalog.ts    the published plans and prices, in won and in dollars, read by both ports
 ├── lib/catalogPort.ts the port where the account surface is shut: the plans, no session
 ├── lib/              decisions as pure functions: sceneOf, changeKindOf, ddayOf,
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
@@ -429,7 +434,10 @@ The pages read the same flag where it changes what they offer:
   exist on that host; its footer is the same everywhere and carries the refund policy link.
 
 `lib/catalog.ts` is therefore a published price list, not mock data: the mock sells exactly this
-catalog, and a price changes there together with the stores' prices. When the server and the payment
+catalog, and a price changes there together with the stores' prices. It holds each tier in won and in
+dollars (the stores' price outside Korea, $6 a step); W-01 shows the currency of the page's language —
+won in Korean, dollars otherwise — or, for a subscriber, the subscription's own. What a checkout
+charges is decided by its billing country, not by the language. When the server and the payment
 provider arrive, the account surface opens by the gate and the catalog port is no longer used.
 
 One cost is accepted: the production visitor to this page downloads the whole account-surface
@@ -472,7 +480,14 @@ What the screens get from the server differs from the mock in a few places, all 
 - W-14's charge for an upgrade is an estimate with the server's own proration; the copy says so. The
   server upgrades a paid period only, so a trial can move down but not up — W-14 says so before
   anything is tried, and the mock refuses the same way.
-- Its cards carry no expiry, so none is drawn. A card is named to the server by its id (`billkeyId`).
+- Its card list carries every provider's cards, each marked with its provider and one default per
+  provider; a card is named to the server by its id (`billkeyId`). The expiry is drawn where the
+  provider reports one (`cardExpMonth` · `cardExpYear`) and left out where it does not.
+- Each provider sells the same five tiers as products of its own — `platform=portone` in won,
+  `platform=stripe` in dollars — so the HTTP port reads a catalog per provider and pairs them by tier.
+  A subscription is read against its own provider's catalog.
+- Every amount is in its currency's minor unit, as the server sends it: won for won, cents for dollars
+  (`600` is $6). `formatMoney` divides by the currency's fraction digits; nothing else converts.
 - Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
 - The payment provider's window opens in the page (an iframe) on a computer, not as a pop-up, about
   0.8 s after the click. On a phone it is the provider's own page: the browser leaves for it and comes
