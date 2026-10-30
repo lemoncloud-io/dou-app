@@ -61,6 +61,26 @@ describe('initAppRuntime', () => {
         expect(configureDataRuntime).toHaveBeenCalledWith(data);
     });
 
+    it('hands the repository graph to auth and sync without building it', async () => {
+        jest.resetModules();
+        const auth = { delegateCloud: jest.fn() };
+        const manager = { getScopedRepositories: jest.fn(), getScopedContext: jest.fn() };
+        const getRepositories = jest.fn(() => ({ auth }));
+        const getDataManager = jest.fn(() => manager);
+        jest.doMock('./data/runtime', () => ({ configureDataRuntime: jest.fn(), getRepositories, getDataManager }));
+        const { initAppRuntime } = await import('./init');
+        const { authRepositorySource } = await import('./session/auth/authRepository');
+        const { syncDataGraph } = await import('./socket/sync/dataGraph');
+
+        initAppRuntime();
+
+        // Boot only installs the accessors; the graph is still built on first use.
+        expect(getRepositories).not.toHaveBeenCalled();
+        expect(getDataManager).not.toHaveBeenCalled();
+        expect(authRepositorySource.get()).toBe(auth);
+        expect(syncDataGraph.get()).toBe(manager);
+    });
+
     it('registers nothing with the data runtime when no policy is given', async () => {
         jest.resetModules();
         const configureDataRuntime = jest.fn();

@@ -28,14 +28,16 @@ const mockScopedContext: { current: (cid: string) => { cid: string; uid?: string
 const mockRepositories: { current: Record<string, unknown> | null } = { current: null };
 /** Every cloud a plan asked for a scoped graph of, in order. */
 const mockGraphRequests: string[] = [];
-jest.mock('../../data/runtime', () => ({
-    getDataManager: () => ({
-        getScopedContext: (cid: string) => mockScopedContext.current(cid),
-        getScopedRepositories: (cid: string) => {
-            mockGraphRequests.push(cid);
-            return mockRepositories.current ?? { chat: { cacheWrite: mockCacheWrite, cacheWriteMany: jest.fn() } };
-        },
-    }),
+jest.mock('./dataGraph', () => ({
+    syncDataGraph: {
+        get: () => ({
+            getScopedContext: (cid: string) => mockScopedContext.current(cid),
+            getScopedRepositories: (cid: string) => {
+                mockGraphRequests.push(cid);
+                return mockRepositories.current ?? { chat: { cacheWrite: mockCacheWrite, cacheWriteMany: jest.fn() } };
+            },
+        }),
+    },
 }));
 const CLOUD_1 = slotKeyOf('cloud-1');
 // createSyncPlans reads its runtime dependencies lazily inside callbacks (see the file-top comment),

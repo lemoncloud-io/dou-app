@@ -13,8 +13,8 @@ const mockCacheReadList = jest.fn();
 const mockGetScopedRepositories = jest.fn((_cid: string) => ({
     chat: { refreshList: mockRefreshList, cacheReadList: mockCacheReadList },
 }));
-jest.mock('../../data/runtime', () => ({
-    getDataManager: () => ({ getScopedRepositories: mockGetScopedRepositories }),
+jest.mock('./dataGraph', () => ({
+    syncDataGraph: { get: () => ({ getScopedRepositories: mockGetScopedRepositories }) },
 }));
 
 const mockIsSlotVerified = jest.fn();

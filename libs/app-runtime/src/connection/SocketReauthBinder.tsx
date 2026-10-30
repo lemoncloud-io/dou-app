@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 
 import { getSocketManager } from '../socket/runtime';
-import { reauthenticateActiveSocket } from '../socket';
-import type { SocketKind, SocketSessionDelegate } from '../socket';
+import { reauthenticateActiveSocket } from '../socket/auth';
+import type { SocketKind } from '../socket';
+import type { SocketSessionDelegate } from '../socket/auth';
 import { slotKeyOf } from '../socket/utils/slotKey';
 import type { RuntimeSocketSlots, RuntimeSocketSlot } from './types';
 import { socketRebootKey } from './utils/socketRebootKey';

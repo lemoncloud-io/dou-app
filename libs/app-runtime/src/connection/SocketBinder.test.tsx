@@ -2,9 +2,10 @@ import { StrictMode } from 'react';
 import { render } from '@testing-library/react';
 
 import { SocketBinder } from './SocketBinder';
-import { bootstrapSocketConnection } from '../socket';
+import { bootstrapSocketConnection } from '../socket/auth';
 import { getSocketManager } from '../socket/runtime';
-import type { SlotKey, SocketBindingConfig, SocketSessionDelegate } from '../socket';
+import type { SlotKey, SocketBindingConfig } from '../socket';
+import type { SocketSessionDelegate } from '../socket/auth';
 import type { RuntimeSocketSlots } from './types';
 import { RELAY_SLOT, slotKeyOf } from '../socket/utils/slotKey';
 
@@ -24,7 +25,7 @@ jest.mock('../socket/sync/runtime', () => ({
     getSyncManager: jest.fn(),
 }));
 
-jest.mock('../socket', () => ({
+jest.mock('../socket/auth', () => ({
     bootstrapSocketConnection: jest.fn(),
 }));
 

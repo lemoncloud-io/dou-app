@@ -1,7 +1,7 @@
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import { msUntilExpiration } from '../store/expiry';
-import { cloudStore, relayStore } from '../store/stores';
+import { msUntilExpiration } from './expiry';
+import { cloudStore, relayStore } from './stores';
 
 /**
  * "How much life is left on this server's credential?"
@@ -39,9 +39,12 @@ export interface ICredentialFreshness {
 }
 
 /**
- * Relay and cloud read different stores but answer the same question, which is why this sits beside
- * the cloud token helper instead of inside either store — and why acting on the answer still belongs
- * to the caller: relay re-mints by refresh, cloud by re-issue.
+ * Relay and cloud read different stores but answer the same question, which is why this is its own
+ * reader beside `expiry.ts` instead of a method on either store — and why acting on the answer still
+ * belongs to the caller: relay re-mints by refresh, cloud by re-issue.
+ *
+ * It lives in `store/`, the bottom layer, because it reads nothing else: the HTTP transport and the
+ * socket auth status both ask it, and both sit below the use cases in `session/auth/`.
  */
 class CredentialFreshness implements ICredentialFreshness {
     timeToExpiry(cid: string, now: number = Date.now()): number | null {

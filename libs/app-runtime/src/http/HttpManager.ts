@@ -32,7 +32,7 @@ const ENDPOINT_RESOLVERS: Record<HttpRoute, () => string> = {
 
 /**
  * "Has this route's signing credential already lapsed?" — the one question `@chatic/http` cannot
- * answer for itself (the credentials live in `session/store`, which `http/**` must not import) and
+ * answer for itself (the credentials live in `session/store`, which `@chatic/http` cannot import) and
  * cannot skip either: without it a signature rejection is indistinguishable from a network outage,
  * because the API Gateway 403 that carries it has no CORS header and never reaches the app as a
  * status. Still route-keyed to match the port, though relay is the only signed route today.

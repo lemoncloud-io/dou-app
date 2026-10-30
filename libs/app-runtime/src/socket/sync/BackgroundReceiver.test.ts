@@ -8,7 +8,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 // The defaults reach the data runtime and the session store; every test injects its own instead.
-jest.mock('../../data/runtime', () => ({ getDataManager: jest.fn() }));
+jest.mock('./dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
 jest.mock('../../session/store', () => ({ getUidInCloud: jest.fn() }));
 
 const RELAY = 'default' as SlotKey;

@@ -4,7 +4,7 @@ import { perfNow } from '@chatic/perf';
 
 import { Coalescer } from '../../utils/coalescer';
 import { authIdRegistry } from './authIdRegistry';
-import { clearResumeKick, noteResumeKick } from './socketVerifyTrace';
+import { clearResumeKick, noteResumeKick } from '../socketVerifyTrace';
 import { type AuthStatus, getAuthStatus, needsLivenessProbe, needsSocketKick } from './authStatus';
 import { getSocketManager } from '../runtime';
 import { createSocketSessionDelegate } from './sessionDelegate';

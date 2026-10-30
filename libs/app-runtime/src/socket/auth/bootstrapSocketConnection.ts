@@ -2,7 +2,7 @@ import { logger } from '@chatic/bridges';
 
 import { Throttle } from '../../utils/throttle';
 import { authIdRegistry } from './authIdRegistry';
-import { observeSocketVerify } from './socketVerifyTrace';
+import { observeSocketVerify } from '../socketVerifyTrace';
 
 import type { ISocketManager, SocketBindingConfig } from '../types';
 import { kindOf, slotKeyOf } from '../utils/slotKey';

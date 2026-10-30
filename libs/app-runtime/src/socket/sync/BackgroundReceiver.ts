@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 
-import { getDataManager } from '../../data/runtime';
+import { syncDataGraph } from './dataGraph';
 import { getUidInCloud } from '../../session/store';
 import { unrefTimer } from '../../utils/unrefTimer';
 import type { ISocketManager, SlotKey } from '../types';
@@ -72,7 +72,7 @@ export class BackgroundReceiver {
         private readonly manager: ISocketManager,
         deps: BackgroundReceiverDeps = {}
     ) {
-        this.getRepositories = deps.getRepositories ?? (cid => getDataManager().getScopedRepositories(cid));
+        this.getRepositories = deps.getRepositories ?? (cid => syncDataGraph.get().getScopedRepositories(cid));
         this.getUid = deps.getUid ?? getUidInCloud;
         this.now = deps.now ?? Date.now;
         this.intervalMs = deps.intervalMs ?? BACKGROUND_RECEIVE_INTERVAL_MS;

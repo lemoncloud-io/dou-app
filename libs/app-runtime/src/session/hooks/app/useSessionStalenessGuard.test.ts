@@ -28,7 +28,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 const mockTimeToExpiry = jest.fn();
-jest.mock('../../auth/credentialFreshness', () => ({
+jest.mock('../../store/credentialFreshness', () => ({
     credentialFreshness: { timeToExpiry: (...a: unknown[]) => mockTimeToExpiry(...(a as [])), isStale: jest.fn() },
 }));
 

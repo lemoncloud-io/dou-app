@@ -10,7 +10,7 @@ import { credentialFreshness } from './credentialFreshness';
 const mockGetRelayToken = jest.fn();
 const mockGetCloudTokenOf = jest.fn();
 
-jest.mock('../store/stores', () => ({
+jest.mock('./stores', () => ({
     relayStore: { getRelayToken: (...a: unknown[]) => mockGetRelayToken(...a) },
     cloudStore: { getCloudTokenOf: (...a: unknown[]) => mockGetCloudTokenOf(...a) },
 }));

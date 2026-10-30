@@ -2,7 +2,7 @@ import type { ChatRefreshResult } from '@chatic/data';
 import type { PerfTrace } from '@chatic/perf';
 import { endPerfTrace, getActivePerfTrace } from '@chatic/perf';
 
-import { getDataManager } from '../../data/runtime';
+import { syncDataGraph } from './dataGraph';
 import { getSocketManager } from '../runtime';
 import { slotKeyOf } from '../utils/slotKey';
 import { getSyncManager } from './runtime';
@@ -107,7 +107,8 @@ const startOrJoin = (
     const onReceived: Array<() => void> = [];
     const entry = { onReceived } as RoomFeedEntry;
     if (trace) beginTrace(trace, entry, cache);
-    entry.promise = getDataManager()
+    entry.promise = syncDataGraph
+        .get()
         .getScopedRepositories(cid)
         .chat.refreshList(
             { channelId },
@@ -174,7 +175,8 @@ export const prefetchRoomFeed = async (cid: string, channelId: string): Promise<
     if (!getSocketManager().isSlotVerified(slotKeyOf(cid))) return;
     getSyncManager().registerChat(channelId, undefined, { cid })();
     // Never rejects: a failed read only leaves the trace without its `cache` attribute.
-    const cache = getDataManager()
+    const cache = syncDataGraph
+        .get()
         .getScopedRepositories(cid)
         .chat.cacheReadList({ channelId })
         .then(

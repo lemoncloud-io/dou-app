@@ -118,9 +118,38 @@ flowchart TD
 
 Three rules the arrows cannot draw. **The store is a leaf** — every arrow touching it points in.
 **The status path only reads** — `deriveAuthStatus` and `ActiveScope` observe the store and the
-socket and write to neither. And **`http/` is a leaf too, with one exception**:
+socket and write to neither. And **`http/` reaches no further than the store**:
 [`http/factory.ts`](./src/http/factory.ts) is the only file under `http/` that imports the session,
-which is what lets `session/auth` and `data/` both depend on HTTP without closing a cycle.
+and it imports `session/store` alone, which is what lets `session/auth` and `data/` both depend on
+HTTP without closing a cycle.
+
+### Layers
+
+Every folder belongs to one layer, and a layer imports only the layers below it. The layers are the
+packages this one is being cut into — `session`, `transport`, `sync` and `auth` move out one at a time,
+and what stays here is the app layer — so the line is held here first, and each later extraction is
+then a move rather than a redesign.
+
+| Layer       | Folders                                                                                             | May import              |
+| ----------- | --------------------------------------------------------------------------------------------------- | ----------------------- |
+| `session`   | `session/store`, `session/scope`, `utils`                                                           | nothing in this package |
+| `transport` | the files directly in `socket/`, `socket/utils`, `http`                                             | `session`               |
+| `sync`      | `socket/sync` (not its `hooks/`)                                                                    | `session`, `transport`  |
+| `auth`      | `session/auth`, `session/pairing`, `socket/auth`                                                    | `session`, `transport`  |
+| `app`       | `data`, `connection`, every `hooks/`, `push`, `report`, `config`, the group barrels, the root files | every layer             |
+
+`sync` and `auth` sit side by side and never import each other. A type-only import counts as an
+edge, because a package that names another's type has to depend on it. Every `hooks/` folder is the
+app layer wherever it sits — hooks are React, and React stays here.
+
+The repository graph is assembled in `data/`, above the two layers that read it. So it is **handed
+down at boot** instead of imported: `initAppRuntime()` gives `session/auth/authRepository.ts` an
+accessor for the `AuthRepository`, and `socket/sync/dataGraph.ts` one for the scoped graphs. Both are
+read on every call — the graph is still built lazily — and both throw a message naming
+`initAppRuntime()` when nothing was handed in.
+
+[`layering.test.ts`](./src/layering.test.ts) holds the table above, and lists every edge that crosses
+it the wrong way.
 
 ### Booting one slot
 
@@ -161,11 +190,11 @@ device is registered on that connection, and the SDK sends both on the same `con
 libs/app-runtime/src/
 ├── index.ts          public barrel — one export, `runtime`
 ├── facade.ts         the seven groups, assembled from group barrels
-├── init.ts           initAppRuntime — five boot steps, in order
+├── init.ts           initAppRuntime — seven boot steps, in order
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       19 files — the host, SocketBinder, SocketReauthBinder, 11 hooks, 3 utils
-├── session/          55 files — store (12) · auth (10) · scope (3) · hooks (30)
-├── socket/           39 files — SocketManager (7) + utils (4) + auth wiring (19) + sync (9)
+├── session/          68 files — store (13) · auth (11) · scope (3) · pairing (6) · hooks (34)
+├── socket/           47 files — SocketManager and its slot core (10) + utils (5) + auth wiring (20) + sync (12)
 ├── http/             6 files — HttpManager, transport, gateways, 2 late-bound registries
 ├── data/             24 files — DataManager, 4 factories (one is the state outbox's transport), cache routing, cloud-addressed sends, the chat outbox, the cache-clear sweep and its cursor watermark, 5 hooks
 ├── push/             3 files — device-token registration and its record
@@ -174,7 +203,7 @@ libs/app-runtime/src/
 └── utils/            4 files — Coalescer · Throttle · unrefTimer · isNativeApp
 ```
 
-154 source files, 100 test files, 13,002 lines of non-test code.
+181 source files, 129 test files, 16,761 lines of non-test code.
 
 Names that are not where a filename suggests. `ISocketManager`, `SlotKey`, `SocketKind`, `SocketState` and
 `ScopedSocketClient` all live in [`socket/types.ts`](./src/socket/types.ts) — there is no
@@ -230,11 +259,14 @@ Four rules hold.
 apps/*/src/main.tsx
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ data? })            ↓ five steps, in this order
+  ├─ initAppRuntime({ data? })            ↓ seven steps, in this order
   │    ├─ logoutStorageSweeper.sweep()    honors ?logout=1, drops the signed-out account's keys
+  │    ├─ applyPendingSyncCursorReset()   a cache clear on the last page retires every saved sync cursor
   │    ├─ configureSessionStore()         env → relay endpoint RESOLVERS (functions, not values)
   │    ├─ credentialRecovery.register()   HTTP recovery → the relay renewer
   │    ├─ configureDataRuntime(config)    app cache/repository policy, only if passed
+  │    ├─ authRepositorySource.provide()  the repository graph, handed down to auth
+  │    │  syncDataGraph.provide()         … and to sync (accessors — nothing is built yet)
   │    └─ attachConfigStateLog()          one boot line naming every overridden setting
   └─ render
        └─ <RuntimeConnectionHost>
@@ -255,10 +287,11 @@ logging wiring, because it logs; **before** anything that can read the session, 
 `relayStore.getBackend()` throws rather than guessing when its resolvers are missing — a loud
 failure that names `initAppRuntime()` beats a request going out with an empty host.
 
-Three of the five steps delegate to the module that owns the thing being configured. Credential
+Most of the steps delegate to the module that owns the thing being configured. Credential
 recovery does not, because it owns nothing: it joins the HTTP registry to the socket renewers, and
-the registry imports nothing at runtime precisely so the two sides never meet. A wiring with no owner
-belongs to the composition root.
+the registry imports nothing at runtime precisely so the two sides never meet. Handing the repository
+graph down is the same kind of wiring — the graph sits above the layers that read it ([Layers](#layers)).
+A wiring with no owner belongs to the composition root.
 
 ## Scenarios
 
@@ -361,7 +394,7 @@ cd libs/app-runtime && npx eslint src             # flat config — run it from 
 
 - Type checking must be `tsc -b`. Inside `libs/app-runtime`, `tsconfig.json` is a solution file (`files: []`, `include: []`), so `tsc --noEmit` checks zero files and exits 0. `tsc -b tsconfig.json` builds what that file references — the lib project, and the spec project when it is on the reference list. `tsc -b tsconfig.lib.json` checks only the lib.
 - Jest does not type check: the base sets `isolatedModules`, so ts-jest transpiles. A fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime unless the spec project is checked too.
-- Four tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 81 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk `src/**` for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
+- Six tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 81 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk `src/**` for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph), `layering.test.ts` (no folder imports a layer above it — [Layers](#layers)), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
 - Do not run `yarn install` in a worktree. Node resolution walks up to the parent repo's `node_modules`, so the binaries are already reachable; installing here rewrites `apps/mobile/ios/Podfile.lock` and a leftover symlink poisons the parent on the next install.
 - `.github/workflows/verify.yml` runs `lint`, `typecheck` and `test` for this project on every pull request, so a red gate here is a red CI.
 - Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `apps/testbed` and `libs/data`. That workflow type checks all of them.

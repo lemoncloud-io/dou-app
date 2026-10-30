@@ -16,10 +16,10 @@ import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { DataManager } from '../../data/DataManager';
-import { getDataManager } from '../../data/runtime';
 import { getGlobalSessionContext, getUidInCloud } from '../../session/store';
 import { SocketManager } from '../SocketManager';
 import { getSocketManager } from '../runtime';
+import { syncDataGraph } from './dataGraph';
 import type { SocketBindingConfig } from '../types';
 import { slotKeyOf } from '../utils/slotKey';
 import { BackgroundReceiver } from './BackgroundReceiver';
@@ -41,7 +41,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 jest.mock('../runtime', () => ({ getSocketManager: jest.fn() }));
-jest.mock('../../data/runtime', () => ({ getDataManager: jest.fn() }));
+jest.mock('./dataGraph', () => ({ syncDataGraph: { get: jest.fn() } }));
 jest.mock('../../data/factories/httpFactory', () => ({ createHttpDataSources: () => ({ httpDataSources: {} }) }));
 jest.mock('../../session/store', () => ({
     ...jest.requireActual('../../session/store'),
@@ -151,7 +151,7 @@ describe('background receive — a cloud off screen keeps its own partition curr
         }));
         (getUidInCloud as jest.Mock).mockImplementation(uidOf);
         data = new DataManager();
-        (getDataManager as jest.Mock).mockReturnValue(data);
+        (syncDataGraph.get as jest.Mock).mockReturnValue(data);
     });
 
     afterEach(() => {

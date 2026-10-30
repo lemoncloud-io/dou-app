@@ -2,7 +2,7 @@ import { render, waitFor } from '@testing-library/react';
 
 import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost';
 import { getSocketManager } from '../socket/runtime';
-import { bootstrapSocketConnection } from '../socket';
+import { bootstrapSocketConnection } from '../socket/auth';
 import { useDynamicDeviceId } from '../session/hooks/app/useDynamicDeviceId';
 import { getSocketSlotContext } from '../session/store';
 import { useBackgroundReceive } from './hooks/useBackgroundReceive';
@@ -40,7 +40,7 @@ jest.mock('../session', () => ({
 
 // SocketBinder boots through the pure bootstrapSocketConnection; intercept it to assert wiring.
 // SocketReauthBinder calls reauthenticateActiveSocket on same-socket identity changes.
-jest.mock('../socket', () => ({
+jest.mock('../socket/auth', () => ({
     bootstrapSocketConnection: jest.fn().mockResolvedValue(jest.fn()),
     reauthenticateActiveSocket: jest.fn().mockResolvedValue(undefined),
 }));

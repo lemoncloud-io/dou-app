@@ -1,5 +1,5 @@
 import { backgroundClouds, resetBackgroundClouds } from '../../socket/backgroundClouds';
-import { credentialFreshness } from '../../session/auth/credentialFreshness';
+import { credentialFreshness } from '../../session/store/credentialFreshness';
 import { getCommittedCloudId } from '../../session/store';
 import { cloudStore } from '../../session/store/stores';
 import { getSocketManager } from '../../socket/runtime';
@@ -9,7 +9,7 @@ jest.mock('../../session/store', () => ({ getCommittedCloudId: jest.fn() }));
 jest.mock('../../session/store/stores', () => ({
     cloudStore: { getRecentClouds: jest.fn(), peekCachedCloudTokens: jest.fn() },
 }));
-jest.mock('../../session/auth/credentialFreshness', () => ({ credentialFreshness: { timeToExpiry: jest.fn() } }));
+jest.mock('../../session/store/credentialFreshness', () => ({ credentialFreshness: { timeToExpiry: jest.fn() } }));
 jest.mock('../../socket/runtime', () => ({ getSocketManager: jest.fn() }));
 
 const HOUR = 60 * 60_000;

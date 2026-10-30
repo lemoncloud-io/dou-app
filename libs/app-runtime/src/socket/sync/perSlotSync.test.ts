@@ -18,16 +18,18 @@ jest.mock('../../session', () => new Proxy({}, { get: () => jest.fn() }));
 /** One spy graph per cloud, as `getScopedRepositories(cid)` hands them out. */
 const mockGraphs = new Map<string, { channel: { cacheWrite: jest.Mock; cacheDelete: jest.Mock } }>();
 const mockUids: Record<string, string> = { default: 'relay-uid', 'cloud-a': 'uid-a', 'cloud-b': 'uid-b' };
-jest.mock('../../data/runtime', () => ({
-    getDataManager: () => ({
-        getScopedRepositories: (cid: string) => {
-            if (!mockGraphs.has(cid)) {
-                mockGraphs.set(cid, { channel: { cacheWrite: jest.fn(), cacheDelete: jest.fn() } });
-            }
-            return mockGraphs.get(cid);
-        },
-        getScopedContext: (cid: string) => ({ cid, uid: mockUids[cid], socketCid: cid }),
-    }),
+jest.mock('./dataGraph', () => ({
+    syncDataGraph: {
+        get: () => ({
+            getScopedRepositories: (cid: string) => {
+                if (!mockGraphs.has(cid)) {
+                    mockGraphs.set(cid, { channel: { cacheWrite: jest.fn(), cacheDelete: jest.fn() } });
+                }
+                return mockGraphs.get(cid);
+            },
+            getScopedContext: (cid: string) => ({ cid, uid: mockUids[cid], socketCid: cid }),
+        }),
+    },
 }));
 
 const CLOUD_A = slotKeyOf('cloud-a');

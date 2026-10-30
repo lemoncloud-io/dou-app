@@ -4,9 +4,10 @@ import { logger } from '@chatic/bridges';
 
 import { getSocketManager } from '../socket/runtime';
 import { getSyncManager } from '../socket/sync/runtime';
-import { bootstrapSocketConnection } from '../socket';
-import type { ISocketManager, SlotKey, SocketBindingConfig, SocketSessionDelegate } from '../socket';
-// Concrete paths, not the ../socket barrel: connection tests intercept the barrel to stub bootstrap.
+import { bootstrapSocketConnection } from '../socket/auth';
+import type { ISocketManager, SlotKey, SocketBindingConfig } from '../socket';
+import type { SocketSessionDelegate } from '../socket/auth';
+// Concrete paths, not the ../socket/auth barrel: connection tests intercept that barrel to stub bootstrap.
 import { notifySocketLogout } from '../socket/auth/logoutSession';
 import { hasLiveJoinedSession } from '../socket/backgroundClouds';
 import { RELAY_SLOT, kindOf, slotKeyOf } from '../socket/utils/slotKey';

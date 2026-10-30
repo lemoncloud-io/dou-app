@@ -1,7 +1,7 @@
 import type { AuthControllerState, ClientSocketState } from '@lemoncloud/chatic-sockets-lib';
 
-import { credentialFreshness } from '../../session/auth/credentialFreshness';
-import type { ICredentialFreshness } from '../../session/auth/credentialFreshness';
+import { credentialFreshness } from '../../session/store/credentialFreshness';
+import type { ICredentialFreshness } from '../../session/store/credentialFreshness';
 import { cloudStore, relayStore } from '../../session/store/stores';
 import { SDK_REFRESH_CYCLE_MS } from '../constants';
 import { getSocketManager } from '../runtime';
