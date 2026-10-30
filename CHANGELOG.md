@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - root@0.137.0, @chatic/landing@0.16.0
+
+### Features
+
+- (landing) align the home header, hero and pricing with the new spec
+
 ## [2026-10-30] - No version updates
 
 ### Refactor
