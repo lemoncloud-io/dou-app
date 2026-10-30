@@ -1,4 +1,9 @@
-import { chatAttachmentAccept, type ChatAttachmentRejection, type ChatAttachmentSource } from '@chatic/data';
+import {
+    chatAttachmentAccept,
+    sendsNoAudio,
+    type ChatAttachmentRejection,
+    type ChatAttachmentSource,
+} from '@chatic/data';
 
 /**
  * Whether the page runs in iOS or iPadOS WebKit — Safari, or the app's own WebView. An iPad asks for
@@ -26,7 +31,7 @@ export const albumAccept = (appleTouchWebKit: boolean): string =>
  * takes or refuses. It keeps the document picker opening directly, where no `accept` at all, or an
  * image or video type in it, would first offer the photo library and the camera.
  */
-const APPLE_DOCUMENT_ACCEPT = `${chatAttachmentAccept(['file'])},application/octet-stream`;
+const APPLE_DOCUMENT_ACCEPT = `${chatAttachmentAccept(['file'], sendsNoAudio)},application/octet-stream`;
 
 /**
  * What the page's own "choose from files" input takes: every format the server takes, so a photo or an
@@ -34,12 +39,13 @@ const APPLE_DOCUMENT_ACCEPT = `${chatAttachmentAccept(['file'])},application/oct
  * `APPLE_DOCUMENT_ACCEPT`, which already lets any Files item through by the generic type, and must not name
  * an image or video type (see there). Elsewhere — Android's WebView, desktop browsers — the thirteen
  * formats are named outright, plus the generic type, under which a system that does not know HWP
- * offers it.
+ * offers it. The server's audio formats are left out on both: only the desktop app sends audio, so a
+ * voice memo picked here is refused rather than sent.
  */
 export const documentAccept = (appleTouchWebKit: boolean): string =>
     appleTouchWebKit
         ? APPLE_DOCUMENT_ACCEPT
-        : `${chatAttachmentAccept(['image', 'video', 'file'])},application/octet-stream`;
+        : `${chatAttachmentAccept(['image', 'video', 'file'], sendsNoAudio)},application/octet-stream`;
 
 const typeOf = (item: ChatAttachmentSource): string => item.type;
 

@@ -293,6 +293,21 @@ describe('SharePage — sending', () => {
         expect(mockSend.mock.calls[0][0].files).toEqual(many.slice(0, 10));
     });
 
+    // The phone sends no audio, so a shared voice memo is named as not sent and stays out of the send.
+    it('names a shared audio file as not sent and sends the rest', async () => {
+        const memo = { uri: `${dir}/memo.m4a`, name: 'memo.m4a', type: 'audio/mp4', size: 1, kind: 'file' };
+        const doc = pdf('a.pdf');
+        (fetchShareIntake as jest.Mock).mockResolvedValue({ items: [memo, doc], refused: [] });
+        renderAt(`/share?id=${id}`);
+        await screen.findByText('a.pdf');
+
+        expect(screen.getByText(/share\.notSent/).textContent).toMatch(/memo\.m4a/);
+        pick('General');
+        fireEvent.click(screen.getByRole('button', { name: 'share.send' }));
+
+        expect(mockSend.mock.calls[0][0].files).toEqual([doc]);
+    });
+
     it('keeps the picks a cancelled "To" list made from reaching the composer', async () => {
         (fetchShareIntake as jest.Mock).mockResolvedValue({ items: [pdf('a.pdf')], refused: [] });
         renderAt(`/share?id=${id}`);

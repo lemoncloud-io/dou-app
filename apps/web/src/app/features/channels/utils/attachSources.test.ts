@@ -1,4 +1,4 @@
-import { CHAT_ATTACHMENT_ACCEPT } from '@chatic/data';
+import { chatAttachmentAccept, sendsNoAudio } from '@chatic/data';
 
 import { albumAccept, documentAccept, isAppleTouchWebKit, rejectionKey } from './attachSources';
 
@@ -46,8 +46,18 @@ describe('page input accept lists', () => {
         expect(accept).toEqual(
             expect.arrayContaining(['image/png', '.webp', 'video/mp4', '.mp4', 'application/pdf', '.hwpx'])
         );
-        expect(accept).toEqual([...CHAT_ATTACHMENT_ACCEPT.split(','), 'application/octet-stream']);
+        expect(accept).toEqual([
+            ...chatAttachmentAccept(['image', 'video', 'file'], sendsNoAudio).split(','),
+            'application/octet-stream',
+        ]);
         expect(accept.some(type => type.includes('*'))).toBe(false);
+    });
+
+    // Audio is a desktop-only send; the web pickers offer none of it, on either system.
+    it('offers no audio format from any page input', () => {
+        for (const accept of [documentAccept(false), documentAccept(true), albumAccept(false), albumAccept(true)]) {
+            expect(accept).not.toMatch(/audio\/|\.m4a|\.mp3|\.wav|\.aac|\.ogg|\.webm/);
+        }
     });
 
     it('keeps the documents-only list on iOS WebKit, so its input still opens Files directly', () => {

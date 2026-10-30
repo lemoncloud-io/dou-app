@@ -97,7 +97,7 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   `selectionLimit` below 1 is raised to 1, since 0 means "no limit" to PHPicker. An item that offers
   both an image and a video — a Live Photo — goes as its still. `document` is
   `UIDocumentPickerViewController(forOpeningContentTypes:asCopy: true)` with the UTTypes of the
-  thirteen formats the server takes — PNG, JPEG, GIF, WebP, MP4, the seven document formats and ZIP
+  thirteen formats the app sends — PNG, JPEG, GIF, WebP, MP4, the seven document formats and ZIP
   (`AttachmentPickerCore.documentTypes`) — so a photo or video kept in Files can be sent too; it
   cannot cap a selection, so a pick past the limit is cut by the web's own count. ZIP is `UTType.zip`
   (`public.zip-archive`), whose MIME type is `application/zip`; its parent, `UTType.archive`, is not
@@ -107,7 +107,7 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
 - **Android.** `media` is the Photo Picker (`PickMultipleVisualMedia`, images and videos), which needs
   no permission. A device without the system picker (API 30 without the SDK extension) falls back to
   `ACTION_OPEN_DOCUMENT` through androidx, and the result is read by the same code. `document` is
-  `ACTION_OPEN_DOCUMENT` with the MIME types of the thirteen formats the server takes (`image/png`,
+  `ACTION_OPEN_DOCUMENT` with the MIME types of the thirteen formats the app sends (`image/png`,
   `image/jpeg`, `image/gif`, `image/webp`, `video/mp4`, the seven document types and
   `application/zip`) plus `application/octet-stream`, which is how an HWP usually arrives, the four
   labels Hancom's own apps declare for HWP and HWPX, and the two older names a ZIP still arrives under
@@ -138,7 +138,7 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   rotation.
 - **A `document` pick is a `file`, whatever it is.** Neither shell looks inside it: a PNG from Files
   is copied as it is, not prepared, and answered as `{ kind: 'file', contentType: 'image/png', … }`
-  under the type the OS gave it. The documents picker offers the server's thirteen formats and, on
+  under the type the OS gave it. The documents picker offers the thirteen formats the app sends and, on
   Android, the other names a file of them arrives under (`application/octet-stream`, the Hancom labels
   and the two ZIP aliases) — no wildcard, and no photo, video or archive type the server would refuse
   (HEIC, QuickTime, 7z). An item typed by an alias is normalised by the web (`chatAttachmentFormat`),

@@ -7,12 +7,13 @@ import {
     CHAT_ATTACHMENT_MAX_NAME_BYTES,
     CHAT_ATTACHMENT_ZIP_TYPE,
     isChatAttachmentNameTooLong,
+    sendsNoAudio,
 } from './chatAttachments';
 
 const MiB = 1024 * 1024;
 
 describe('chatAttachmentFormat', () => {
-    it('takes the thirteen server formats by their type', () => {
+    it('takes the seventeen server formats by their type', () => {
         expect(chatAttachmentFormat({ name: 'a.png', type: 'image/png' })).toEqual({
             type: 'image/png',
             kind: 'image',
@@ -28,6 +29,10 @@ describe('chatAttachmentFormat', () => {
             ['a.hwpx', 'application/hwp+zip'],
             ['a.txt', 'text/plain'],
             ['a.zip', 'application/zip'],
+            ['a.m4a', 'audio/mp4'],
+            ['a.mp3', 'audio/mpeg'],
+            ['a.wav', 'audio/wav'],
+            ['a.ogg', 'audio/ogg'],
         ]) {
             expect(chatAttachmentFormat({ name, type })).toEqual({ type, kind: 'file', name });
         }
@@ -75,6 +80,30 @@ describe('chatAttachmentFormat', () => {
     });
 
     // The server refuses a video or document whose name does not end in its format's extension.
+    // A voice memo goes as a document: the receiver gets a file to save, not a player.
+    it('takes an audio file under the names systems type it with, as a document', () => {
+        for (const [name, type, sent] of [
+            ['memo.m4a', 'audio/x-m4a', 'audio/mp4'],
+            ['memo.m4a', 'audio/m4a', 'audio/mp4'],
+            ['song.mp3', 'audio/mp3', 'audio/mpeg'],
+            ['take.wav', 'audio/x-wav', 'audio/wav'],
+            ['take.wav', 'audio/wave', 'audio/wav'],
+            ['take.wav', 'audio/vnd.wave', 'audio/wav'],
+            ['memo.m4a', '', 'audio/mp4'],
+        ]) {
+            expect(chatAttachmentFormat({ name, type })).toEqual({ type: sent, kind: 'file', name });
+        }
+    });
+
+    // The server keeps four audio formats: AAC and WebM are not among them, however they are typed.
+    it('refuses AAC and WebM audio, and an MP4 video named as audio', () => {
+        expect(chatAttachmentFormat({ name: 'clip.aac', type: 'audio/aac' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'clip.aac', type: 'audio/x-aac' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'voice.webm', type: 'audio/webm' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'screen.webm', type: 'video/webm' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'clip.m4a', type: 'video/mp4' })).toBeNull();
+    });
+
     it('adds the extension to a video or document that has none', () => {
         expect(chatAttachmentFormat({ name: 'report', type: 'application/pdf' })?.name).toBe('report.pdf');
         expect(chatAttachmentFormat({ name: 'minutes v1.2', type: 'text/plain' })?.name).toBe('minutes v1.2.txt');
@@ -158,7 +187,7 @@ describe('CHAT_ATTACHMENT_ACCEPT', () => {
                 '.zip',
             ])
         );
-        expect(accept).toHaveLength(13 + 14);
+        expect(accept).toHaveLength(17 + 18);
     });
 });
 
@@ -192,6 +221,17 @@ describe('chatAttachmentAccept', () => {
         expect(accept).not.toContain('application/zip');
         expect(accept).not.toContain('.zip');
         expect(accept).toEqual(expect.arrayContaining(['application/pdf', '.hwpx']));
+    });
+
+    // The web app does not send audio, so its pickers leave every audio format out.
+    it('leaves audio out for an app that does not send it', () => {
+        const accept = chatAttachmentAccept(['image', 'video', 'file'], sendsNoAudio).split(',');
+
+        expect(accept.filter(entry => entry.startsWith('audio/'))).toEqual([]);
+        for (const extension of ['.m4a', '.mp3', '.wav', '.ogg']) {
+            expect(accept).not.toContain(extension);
+        }
+        expect(accept).toEqual(expect.arrayContaining(['image/png', 'video/mp4', 'application/pdf', '.zip']));
     });
 
     it('keeps the full list the same as asking for every kind', () => {

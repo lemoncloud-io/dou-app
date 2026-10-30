@@ -48,6 +48,12 @@ describe('messagePreview', () => {
 describe('outgoingMessagePreview', () => {
     const file = (type: string) => new File(['x'], 'f', { type });
 
+    it('names a voice file the way the sent message will', () => {
+        expect(outgoingMessagePreview('', [file('audio/mpeg')])).toBe(
+            messagePreview({ content: '', upload$$: [{ stereo: 'audio' }] as never })
+        );
+    });
+
     it('is the text when the reply has any', () => {
         expect(outgoingMessagePreview('**hi**', [file('image/png')])).toBe('hi');
     });
