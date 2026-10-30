@@ -299,7 +299,7 @@ always arrives by text. The number and the code stay in the request body and are
 
 ## Sign-in with another device
 
-In a plain browser, where device pairing is on (`feature.auth.devicePairing`, off by default), Welcome
+In a plain browser, where device pairing is on (`feature.auth.devicePairing`, on by default), Welcome
 also offers **Sign in with another device**: the browser shows a code that the signed-in desktop or
 mobile app approves. Like phone sign-in it registers a guest first and holds its page across the
 router's switch. The flow, the approving side and the device list are in

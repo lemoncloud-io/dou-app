@@ -60,7 +60,7 @@ describe('ALL_MODULES — the full registry', () => {
     it.each<[Stage, boolean]>([
         ['LOCAL', true],
         ['DEV', true],
-        ['PROD', false],
+        ['PROD', true],
     ])('shows device pairing in %s: %s', (stage, on) => {
         expect(resolveInStage('feature.auth.devicePairing', stage)).toBe(on);
     });

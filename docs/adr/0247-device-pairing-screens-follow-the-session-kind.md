@@ -74,8 +74,9 @@ out. None of it is enforced by the server in the way a user would expect from th
   until they are upgraded.
 - The `/pairings/**` wire types are a temporary copy in `@chatic/http` until
   `@lemoncloud/chatic-backend-api` publishes them.
-- Every entry stays behind `feature.auth.devicePairing` (on in LOCAL and DEV) until the screens' design
-  and wording are settled.
+- Every entry stays behind `feature.auth.devicePairing`. It was on in LOCAL and DEV only at first, and
+  was turned on in PROD as well once the feature was opened to everyone; the key remains as the way to
+  hide the screens again.
 
 ## Alternatives
 
