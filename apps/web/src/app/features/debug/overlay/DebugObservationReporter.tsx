@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { useActiveCloudData, useOtherCloudUnread } from '../../../hooks';
 import { useDebugMode } from '../hooks';
-import { clearDebugObservation, publishDebugObservation } from './sharedObservationStore';
+import { publishDebugObservation } from './sharedObservationStore';
 
 /**
  * Mirrors the app-wide shared observations into `sharedObservationStore` so the out-of-tree overlay
@@ -27,7 +27,9 @@ const ObservationMirror = () => {
         publishDebugObservation({ activeCloud, otherCloud });
     }, [activeCloud, otherCloud]);
 
-    useEffect(() => clearDebugObservation, []);
+    // Only its own slots: the room slot belongs to the page that publishes it, and a reporter
+    // remount must not blank an inspector pointed at a room that is still open.
+    useEffect(() => () => publishDebugObservation({ activeCloud: null, otherCloud: null }), []);
 
     return null;
 };

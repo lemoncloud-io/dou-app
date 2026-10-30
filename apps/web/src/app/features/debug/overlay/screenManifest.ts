@@ -201,6 +201,14 @@ export const DEBUG_SCREENS = [
 
     // Data — direct reads and edits of stored rows.
     {
+        // The open room's channel and messages as the page holds them, beside their cache rows and a
+        // server copy. Fed by the room and thread pages themselves, so it is empty until one is open.
+        key: 'Room',
+        icon: 'MessageSquareCode',
+        section: 'data',
+        load: () => import('./screens/RoomScreen').then(m => ({ default: m.RoomScreen })),
+    },
+    {
         key: 'DBBrowser',
         icon: 'Database',
         section: 'data',

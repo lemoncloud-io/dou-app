@@ -92,6 +92,7 @@ import { buildThreadIndex, countUnseenReplies } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useMenuNavigate } from '../../../hooks/useMenuNavigate';
+import { useDebugRoomMirror } from '../../debug';
 import { toCloudId } from '../../../hooks/useCloudScope';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
@@ -441,6 +442,9 @@ export const ChannelRoomPage = () => {
         fetchThrough,
         isFetched,
     } = useChats(memoizedChatParams);
+
+    // Debug mode only: hands what this room holds to the overlay's Room screen.
+    useDebugRoomMirror('room', { channelId, channel, rendered: messages, rows: rawChats, focused: actionMessage });
 
     /**
      * Push-tap entry chain (ADR-0099). Only rooms reached by tapping a push record anything: the

@@ -669,6 +669,10 @@ history pushes them up in WebKit, just as an arrival does.
   ([channel-settings.md](./channel-settings.md#the-notification-level)). The client does nothing
   special for it; `isSystem` is `stereo === 'system'` alone, which is why it
   draws as an ordinary bubble.
+- With debug mode unlocked, the room and the thread publish their channel and message lists to the
+  debug panel's Room screen through `useDebugRoomMirror`, and a long-press points that screen at the
+  message. Locked, the hook does nothing. What the screen shows and why is the debug feature's
+  ([debug § The Room screen](../debug/README.md#the-room-screen-shows-what-the-open-room-holds-not-a-second-read-of-it)).
 - The room suite:
 
 ```bash

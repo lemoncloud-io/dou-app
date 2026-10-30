@@ -1,6 +1,6 @@
 # debug — the developer overlay and the gate in front of it
 
-`apps/web/src/app/features/debug` is the app's only developer surface: a floating panel of **23
+`apps/web/src/app/features/debug` is the app's only developer surface: a floating panel of **24
 screens** that inspect runtime state, drive native bridge commands and read cached rows directly,
 plus the hidden gate that decides whether that panel exists at all. There is no `/debug` route —
 the panel is an overlay mounted beside the router, and the only way in is the gate.
@@ -22,7 +22,7 @@ Things that sound like they are here and are not:
 
 ## Responsibilities
 
-**In** — the unlock gate and its dialog; the panel's navigation, sizing and chrome; the 23 screens
+**In** — the unlock gate and its dialog; the panel's navigation, sizing and chrome; the 24 screens
 and their copy; the runtime metric collectors.
 
 **Out** —
@@ -138,8 +138,41 @@ providers in `AppRuntime`, gated on debug mode, it publishes the same objects in
 exact bug the inspector exists to find. With debug mode locked the reporter renders null and adds no
 consumer at all.
 
+The reporter takes only its own two slots down when it unmounts. The room slot below belongs to the
+page that publishes it, and a reporter remount must not blank an inspector pointed at a room that is
+still open.
+
 The host also wraps the panel in its own `ErrorBoundary`. A crashing screen used to reach the
 app-wide boundary and replace the entire UI — a read-only inspector taking the app down with it.
+
+### The Room screen shows what the open room holds, not a second read of it
+
+Chasing a wrong bubble means telling three copies of one record apart: what the screen holds, what
+the cache holds, and what the server says. The DB browser reaches only the second, and only by typing
+a channel id. The Room screen starts from the room that is open.
+
+- **The pages publish themselves.** `ChannelRoomPage` and `ThreadPage` call `useDebugRoomMirror`,
+  which writes the channel and both message lists into the `room` slot of `sharedObservationStore`,
+  tagged with which of the two it is. No reporter in `AppRuntime` can do this, because the lists exist
+  only inside the page. With debug mode locked every effect in the hook returns early, so the cost is
+  reading the debug-mode flag on each render.
+- **One slot, because the routes are exclusive.** The room and its thread never render together, so
+  there is one open surface at a time. A page clears the slot on unmount only while the slot is still
+  its own, so a cleanup that lands after the next page published cannot blank it.
+- **Two lists, because the room filters.** `rendered` is what the bubbles are drawn from (`messages`
+  in the room; the root and its replies in a thread). `rows` is `useChats`' `rawChats`, the feed window
+  before that filter: reaction events, replies and hidden rows are there and nowhere on screen. A
+  message that never shows up is usually the one being chased, so the list can browse either.
+- **A long-press points the screen at a message.** Whatever opens the action sheet on a message (a
+  long-press, or a reaction chip's add button) publishes `roomFocus`,
+  and the screen opens that message at the top, from either list. The focus outlives the sheet, so
+  the panel can be opened afterwards. It names the surface and channel it came from and is ignored
+  anywhere else, so moving to another room does not carry it along.
+- **Cache and server copies are fetched on request, per record.** The cache read is a one-shot
+  `cacheRead`. The server read goes through the repository (`chat.getChat`, `channel.refreshOneInCloud`),
+  which writes what comes back into the cache like every other read in the app; the screen says so
+  under the result. Both go to the record's own cloud (`getCloudRepositories(cid)`), not the selected
+  one. A row with no chat number has not reached the server, so it gets no server button.
 
 ### The Storage screen shows two stores because the device keeps two
 
@@ -187,9 +220,13 @@ build cannot report instead of offering a button that cannot work.
 
 ## Usage
 
-The panel opens itself. The only calls from outside this feature are the Lab page's `useDebugUnlock`
-— handed the `debug.entryCode` row — and `debugOverlayActions.open(size)` to jump straight to a size
-once unlocked.
+The panel opens itself. The calls from outside this feature are:
+
+- the Lab page's `useDebugUnlock`, handed the `debug.entryCode` row, and
+  `debugOverlayActions.open(size)` to jump straight to a size once unlocked;
+- `AppRuntime` mounting `DebugObservationReporter` inside its providers;
+- the room and thread pages calling `useDebugRoomMirror`
+  ([§ The Room screen](#the-room-screen-shows-what-the-open-room-holds-not-a-second-read-of-it)).
 
 ### How to add a screen
 

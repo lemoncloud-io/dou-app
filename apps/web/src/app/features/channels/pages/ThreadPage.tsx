@@ -56,6 +56,7 @@ import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { toCloudId } from '../../../hooks/useCloudScope';
+import { useDebugRoomMirror } from '../../debug';
 
 const MAX_INPUT_LENGTH = 5000;
 
@@ -417,8 +418,20 @@ export const ThreadPage = () => {
     // The cache wins once it has the row: it carries later edits and the tombstone flag, which a
     // snapshot taken at navigation time cannot.
     const rootSource = thread.root ?? seededRoot;
-    const root = rootSource ? toClientView(rootSource) : undefined;
+    // Memoised so the thread hands the debug mirror a stable list; a fresh root on every render
+    // would republish it on every keystroke while the panel is open.
+    const root = useMemo(() => (rootSource ? toClientView(rootSource) : undefined), [rootSource, toClientView]);
     const replies = useMemo(() => thread.replies.map(toClientView), [thread.replies, toClientView]);
+
+    const debugRendered = useMemo(() => (root ? [root, ...replies] : replies), [root, replies]);
+    // Debug mode only: hands what this thread holds to the overlay's Room screen.
+    useDebugRoomMirror('thread', {
+        channelId,
+        channel,
+        rendered: debugRendered,
+        rows: rawChats,
+        focused: actionMessage,
+    });
 
     // Every reply is newer than its root, so a stretch of the channel nobody fetched that lies above
     // the root can hold replies this list does not show. Each such gap gets the room's divider, above
