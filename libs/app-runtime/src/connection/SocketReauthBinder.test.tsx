@@ -4,9 +4,9 @@ import { SocketReauthBinder } from './SocketReauthBinder';
 import { reauthenticateActiveSocket } from '../socket/auth';
 import type { RuntimeSocketSlots } from './types';
 import type { SocketSessionDelegate } from '../socket/auth';
-import { RELAY_SLOT } from '../socket/utils/slotKey';
+import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 
-jest.mock('../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: jest.fn().mockReturnValue({ id: 'manager' }),
 }));
 

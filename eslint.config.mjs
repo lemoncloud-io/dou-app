@@ -136,11 +136,12 @@ export default [
         // run on every lint. `libs/data` itself is exempt: inside the lib, relative paths are how
         // the layers talk.
         //
-        // `@chatic/session` is closed to everything but the runtime modules cut from app-runtime. Its
-        // barrel sells the raw stores, because the use cases in app-runtime write them; an app that
-        // imported it could write the session behind those use cases. Apps read the session through
-        // `runtime.session`. A lib config that extends this one and may import the package —
-        // app-runtime — sets the rule again for its own files.
+        // `@chatic/session` and `@chatic/transport` are closed to everything but the runtime modules
+        // cut from app-runtime. The session barrel sells the raw stores, because the use cases in
+        // app-runtime write them; the transport barrel sells the socket manager and the HTTP
+        // gateways. An app that imported either could go around the use cases built on them. Apps
+        // read both through `runtime`. A lib config that extends this one and may import one of the
+        // packages — transport, app-runtime — sets the rule again for its own files.
         files: ['**/*.ts', '**/*.tsx'],
         ignores: ['libs/data/**', 'libs/session/**'],
         rules: {
@@ -153,6 +154,11 @@ export default [
                             message:
                                 'Read the session through `runtime.session` from @chatic/app-runtime. @chatic/session is for the runtime modules — see libs/session/README.md.',
                         },
+                        {
+                            name: '@chatic/transport',
+                            message:
+                                'Reach sockets and HTTP through `runtime` from @chatic/app-runtime. @chatic/transport is for the runtime modules — see libs/transport/README.md.',
+                        },
                     ],
                     patterns: [
                         {
@@ -164,6 +170,11 @@ export default [
                             group: ['@chatic/session/*'],
                             message:
                                 'Read the session through `runtime.session` from @chatic/app-runtime. @chatic/session is for the runtime modules — see libs/session/README.md.',
+                        },
+                        {
+                            group: ['@chatic/transport/*'],
+                            message:
+                                'Reach sockets and HTTP through `runtime` from @chatic/app-runtime. @chatic/transport is for the runtime modules — see libs/transport/README.md.',
                         },
                     ],
                 },

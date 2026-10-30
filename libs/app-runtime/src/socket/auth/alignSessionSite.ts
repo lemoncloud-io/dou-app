@@ -3,7 +3,7 @@ import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getCommittedCloudId, getGlobalSessionContext, getSelectedSiteId, cloudStore } from '@chatic/session';
-import { getSocketManager } from '../runtime';
+import { getSocketManager } from '@chatic/transport';
 import { isSiteSwitchInFlight } from './switchSite';
 
 /** One alignment at a time: its own `auth.switch` writes a token back, which calls in here again. */

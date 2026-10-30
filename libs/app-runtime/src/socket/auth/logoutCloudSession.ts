@@ -1,7 +1,6 @@
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getCommittedCloudId } from '@chatic/session';
-import { backgroundClouds, hasLiveJoinedSession } from '../backgroundClouds';
-import { slotKeyOf } from '../utils/slotKey';
+import { backgroundClouds, hasLiveJoinedSession, slotKeyOf } from '@chatic/transport';
 
 import { notifySocketLogout } from './logoutSession';
 

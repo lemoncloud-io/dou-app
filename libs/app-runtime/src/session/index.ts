@@ -123,8 +123,8 @@ export { logoutSession } from '../socket/auth/logoutSession';
 export { useRuntimeProfile } from './hooks/session/readers/useRuntimeProfile';
 export type { SessionProfile } from './hooks/session/readers/useRuntimeProfile';
 // What the app does when the SERVER has confirmed the session is over — the credential was
-// re-minted and the request replayed once, and it was still refused. It lives under `http/`
-// because that is where the verdict is produced, but an app reaches for it as session policy:
+// re-minted and the request replayed once, and it was still refused. It lives in `@chatic/transport`'s
+// `http/` because that is where the verdict is produced, but an app reaches for it as session policy:
 // admin-v2 registers a banner instead of the default alert + logout redirect.
-export { authFailureReaction } from '../http/authFailureReaction';
-export type { AuthFailureReactionFn, IAuthFailureReaction } from '../http/authFailureReaction';
+export { authFailureReaction } from '@chatic/transport';
+export type { AuthFailureReactionFn, IAuthFailureReaction } from '@chatic/transport';

@@ -7,12 +7,7 @@ import type { IAuthRepository } from '@chatic/data';
 import { config } from '@chatic/config';
 
 import { authRepositorySource } from './authRepository';
-import {
-    hasStoredRelaySession,
-    resetWebTransportInit,
-    startWebTransportInit,
-    webTransport,
-} from '../../http/transport';
+import { hasStoredRelaySession, resetWebTransportInit, startWebTransportInit, webTransport } from '@chatic/transport';
 import {
     cloudStore,
     identityStore,

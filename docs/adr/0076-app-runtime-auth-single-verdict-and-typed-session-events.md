@@ -473,7 +473,7 @@ that boundary.
 | pure functions                                        | `session/auth/utils/tokenMerge.ts`   | `mergeRefreshedRelayToken` · `mergeRefreshedCloudToken`                         |
 
 The grounds for `SessionAuthAdapter`'s suffix are
-[`SessionCredentialAdapter implements CredentialStalenessPort`](../../libs/app-runtime/src/http/factory.ts)
+[`SessionCredentialAdapter implements CredentialStalenessPort`](../../libs/transport/src/http/factory.ts)
 — the same package already uses this name for a class that fits session state to a port.
 `*Impl` has 0 occurrences in the repo.
 

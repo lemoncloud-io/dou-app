@@ -2,9 +2,9 @@ import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { applySessionToken } from './applySessionToken';
-import { SocketManager } from '../SocketManager';
-import { getSocketManager } from '../runtime';
-import { RELAY_SLOT } from '../utils/slotKey';
+import { SocketManager } from '@chatic/transport/socket/SocketManager';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
+import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -34,7 +34,7 @@ jest.mock('../../session/auth/sessionAuthAdapter', () => ({
     },
 }));
 
-jest.mock('../runtime', () => ({ getSocketManager: jest.fn() }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('@lemoncloud/chatic-sockets-lib', () => ({ createClientSocketV2: jest.fn() }));
 
 const mockedGetSocketManager = getSocketManager as jest.MockedFunction<typeof getSocketManager>;

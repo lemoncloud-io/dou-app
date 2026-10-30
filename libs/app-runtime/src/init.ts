@@ -3,7 +3,7 @@ import { logger } from '@chatic/bridges';
 import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
-import { credentialRecovery } from './http/credentialRecovery';
+import { credentialRecovery } from '@chatic/transport';
 import { authRepositorySource } from './session/auth/authRepository';
 import { logoutStorageSweeper } from './session/auth/logoutStorageSweep';
 import { configureSessionStore } from '@chatic/session';
@@ -86,7 +86,7 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     // **Wired here rather than in a module of its own.** The two wirings above and below delegate to
     // the module that OWNS the thing being configured (the store, the data runtime). This one owns
     // nothing: it joins the HTTP registry to the socket renewers, and the registry deliberately
-    // imports nothing at runtime so the two sides never meet (see `http/credentialRecovery.ts`). A
+    // imports nothing at runtime so the two sides never meet (see the transport's `http/credentialRecovery.ts`). A
     // wiring with no owner belongs to the composition root, which is this function — it used to sit
     // in `connection/` only because that folder happened to be downstream of both.
     credentialRecovery.register((_route: HttpRoute) => credentialRenewers.relay.renew());

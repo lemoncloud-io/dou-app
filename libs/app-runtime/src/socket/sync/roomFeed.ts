@@ -3,8 +3,7 @@ import type { PerfTrace } from '@chatic/perf';
 import { endPerfTrace, getActivePerfTrace } from '@chatic/perf';
 
 import { syncDataGraph } from './dataGraph';
-import { getSocketManager } from '../runtime';
-import { slotKeyOf } from '../utils/slotKey';
+import { getSocketManager, slotKeyOf } from '@chatic/transport';
 import { getSyncManager } from './runtime';
 
 /**

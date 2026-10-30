@@ -14,8 +14,7 @@ import { createLocalDataSources } from './factories/localFactory';
 import { createRuntimeOutbox } from './factories/outboxFactory';
 import { createSocketDataSources } from './factories/socketFactory';
 import type { CacheAssemblyOptions, IDataManager } from './types';
-import { getSocketManager } from '../socket/runtime';
-import { slotKeyOf } from '../socket/utils/slotKey';
+import { getSocketManager, slotKeyOf } from '@chatic/transport';
 
 export class DataManager implements IDataManager {
     private readonly repositories: DataRepositories;

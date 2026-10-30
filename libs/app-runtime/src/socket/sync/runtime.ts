@@ -1,4 +1,4 @@
-import { getSocketManager } from '../runtime';
+import { getSocketManager } from '@chatic/transport';
 import { BackgroundReceiver } from './BackgroundReceiver';
 import { SyncManager } from './SyncManager';
 

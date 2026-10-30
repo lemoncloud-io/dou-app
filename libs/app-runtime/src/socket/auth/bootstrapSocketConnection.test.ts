@@ -1,9 +1,9 @@
 import { authIdRegistry } from './authIdRegistry';
 import type { AuthIdReseedTarget } from './authIdRegistry';
 import { bootstrapSocketConnection } from './bootstrapSocketConnection';
-import { observeSocketVerify } from '../socketVerifyTrace';
-import type { ISocketManager, SocketBindingConfig } from '../types';
-import { RELAY_SLOT } from '../utils/slotKey';
+import { observeSocketVerify } from '@chatic/transport/socket/socketVerifyTrace';
+import type { ISocketManager, SocketBindingConfig } from '@chatic/transport/socket/types';
+import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 import type { SocketSessionDelegate } from './types';
 
 jest.mock('@chatic/bridges', () => ({
@@ -12,7 +12,9 @@ jest.mock('@chatic/bridges', () => ({
 // The `socket_verify` observer has its own suite. Stubbed here, so the subscription counts below stay
 // about the bootstrap's own wiring.
 const stopObservingVerify = jest.fn();
-jest.mock('../socketVerifyTrace', () => ({ observeSocketVerify: jest.fn(() => stopObservingVerify) }));
+jest.mock('@chatic/transport/socket/socketVerifyTrace', () => ({
+    observeSocketVerify: jest.fn(() => stopObservingVerify),
+}));
 
 const RELAY = RELAY_SLOT;
 

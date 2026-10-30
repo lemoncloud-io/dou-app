@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import { hasStoredRelaySession, isStoredSessionExpired } from '../../../http/transport';
+import {
+    hasStoredRelaySession,
+    isStoredSessionExpired,
+    RELAY_SLOT,
+    SDK_REFRESH_CYCLE_MS,
+    isLinkKnownDown,
+} from '@chatic/transport';
 
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
-import { RELAY_SLOT } from '../../../socket/utils/slotKey';
-import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
 import { canRefreshThroughSocket, getAuthStatus } from '../../../socket/auth/authStatus';
 import { credentialRenewers } from '../../../socket/auth/renewers';
-import { isLinkKnownDown } from '../../../socket/linkState';
 import { Coalescer } from '../../../utils/coalescer';
 import { Throttle } from '../../../utils/throttle';
 
@@ -121,7 +124,7 @@ const FORCE_REFRESH_COOLDOWN_MS = 60_000;
  * needs no help. Below it, the socket is demonstrably not keeping up — which is exactly the boot
  * window and the wake-from-sleep case.
  *
- * Read from the cadence itself rather than restated: see `socket/constants.ts`.
+ * Read from the cadence itself rather than restated: see the transport's `socket/constants.ts`.
  */
 const PREEMPTIVE_MARGIN_MS = SDK_REFRESH_CYCLE_MS;
 

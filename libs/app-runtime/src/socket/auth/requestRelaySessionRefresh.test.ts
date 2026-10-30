@@ -1,6 +1,6 @@
 import { requestRelaySessionRefresh, resetRelayRefreshCoalescing } from './requestRelaySessionRefresh';
-import type { ISocketManager } from '../types';
-import { RELAY_SLOT } from '../utils/slotKey';
+import type { ISocketManager } from '@chatic/transport/socket/types';
+import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },

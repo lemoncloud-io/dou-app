@@ -19,11 +19,9 @@ import {
     type RoutedGateway,
 } from '@chatic/data';
 
-import { getSocketManager } from '../../socket/runtime';
+import { getSocketManager, getSocketErrorCode, RELAY_SLOT } from '@chatic/transport';
+import type { ScopedSocketClient } from '@chatic/transport';
 import { clearRefusedChannel, recordRefusedChannel } from '../../socket/sync/refusedChannels';
-import { getSocketErrorCode } from '../../socket/utils/socketErrorCode';
-import type { ScopedSocketClient } from '../../socket/types';
-import { RELAY_SLOT } from '../../socket/utils/slotKey';
 
 /**
  * Wraps `channel.sync-users` so its verdict on my membership is not thrown away.
@@ -110,7 +108,7 @@ export const createSocketDataSources = (socketClient: ScopedSocketClient = getSo
         auth: {
             // The identity packet stays on relay. `auth.update` is deliberately absent: the socket
             // handshake belongs to the SDK's AuthController, so this bundle offers no way to send it
-            // (see AuthSocketDomainGateway · socket/authUpdateAbsence.test.ts).
+            // (see AuthSocketDomainGateway · authUpdateAbsence.test.ts).
             linkAccount: relayAuthGateway.linkAccount,
         },
         channel: {

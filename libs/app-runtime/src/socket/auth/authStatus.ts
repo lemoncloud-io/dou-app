@@ -2,10 +2,8 @@ import type { AuthControllerState, ClientSocketState } from '@lemoncloud/chatic-
 
 import { credentialFreshness, cloudStore, relayStore } from '@chatic/session';
 import type { ICredentialFreshness } from '@chatic/session';
-import { SDK_REFRESH_CYCLE_MS } from '../constants';
-import { getSocketManager } from '../runtime';
-import type { ISocketManager, SlotKey, SocketKind } from '../types';
-import { kindOf } from '../utils/slotKey';
+import { SDK_REFRESH_CYCLE_MS, getSocketManager, kindOf } from '@chatic/transport';
+import type { ISocketManager, SlotKey, SocketKind } from '@chatic/transport';
 
 /**
  * What the runtime should DO about one socket kind's authentication, as a single named value

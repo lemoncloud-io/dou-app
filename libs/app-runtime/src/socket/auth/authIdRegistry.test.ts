@@ -1,5 +1,5 @@
 import { authIdRegistry } from './authIdRegistry';
-import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
+import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },

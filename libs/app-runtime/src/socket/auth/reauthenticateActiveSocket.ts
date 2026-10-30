@@ -3,7 +3,7 @@ import { logger } from '@chatic/bridges';
 import { authIdRegistry } from './authIdRegistry';
 
 import type { AuthActivationGate } from './bootstrapSocketConnection';
-import type { ISocketManager, SlotKey } from '../types';
+import type { ISocketManager, SlotKey } from '@chatic/transport';
 import type { ReauthDelegate } from './types';
 
 export interface ReauthenticateActiveSocketArgs {

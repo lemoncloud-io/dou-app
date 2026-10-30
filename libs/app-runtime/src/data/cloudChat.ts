@@ -1,9 +1,7 @@
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { ChatSendPayload, DataRepositories, DomainChat } from '@chatic/data';
 
-import { backgroundClouds } from '../socket/backgroundClouds';
-import { getSocketManager } from '../socket/runtime';
-import { slotKeyOf } from '../socket/utils/slotKey';
+import { backgroundClouds, getSocketManager, slotKeyOf } from '@chatic/transport';
 import { getDataManager } from './runtime';
 
 /**

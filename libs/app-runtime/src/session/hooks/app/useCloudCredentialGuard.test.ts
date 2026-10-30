@@ -18,7 +18,7 @@ jest.mock('@chatic/session/store/credentialFreshness', () => ({
 jest.mock('../../../socket/auth/renewCloudSession', () => ({
     renewCloudSession: (...args: unknown[]) => mockRenew(...args),
 }));
-jest.mock('../../../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({
         getSlotKeys: (...args: unknown[]) => mockGetSlotKeys(...args),
         isSlotVerified: (...args: unknown[]) => mockIsSlotVerified(...args),

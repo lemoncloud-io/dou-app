@@ -12,7 +12,7 @@ import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
 import { useSessionSelection } from '../../../session/hooks/session/readers/useSessionSelection';
 import { useUidInCloud } from '../../../session/hooks/session/readers/useUidInCloud';
 import { getDataManager } from '../../../data/runtime';
-import { slotKeyOf } from '../../utils/slotKey';
+import { slotKeyOf } from '@chatic/transport';
 
 const buildKey = (target: SyncTargetDescriptor | null): string | null =>
     target ? `${target.type}:${target.id ?? ''}:${target.intervalMs ?? ''}` : null;

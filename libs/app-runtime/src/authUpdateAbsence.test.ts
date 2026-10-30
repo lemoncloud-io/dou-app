@@ -19,10 +19,10 @@ import { join } from 'path';
  * packet itself. So this check only needs to catch code that constructs the string `'auth.update'`
  * (the packet name).
  */
-// This package and the session package cut from it. A module that leaves app-runtime takes
-// no exemption with it, so each one extracted is added here.
-const LIBS = join(__dirname, '..', '..', '..');
-const ROOTS = [join(LIBS, 'app-runtime', 'src'), join(LIBS, 'session', 'src')];
+// This package and the packages cut from it. A module that leaves app-runtime takes no exemption
+// with it, so each one extracted is added here.
+const LIBS = join(__dirname, '..', '..');
+const ROOTS = ['app-runtime', 'session', 'transport'].map(lib => join(LIBS, lib, 'src'));
 
 const SELF = __filename.split('/').pop() as string;
 

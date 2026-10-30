@@ -27,10 +27,10 @@ export { useSlotVerified } from './hooks/useSlotVerified';
 // consumer that works across all of them.
 export { useCloudVerified } from './hooks/useCloudVerified';
 export { useVerifiedClouds } from './hooks/useVerifiedClouds';
-export { RELAY_SLOT } from '../socket/utils/slotKey';
+export { RELAY_SLOT } from '@chatic/transport';
 
 // The clouds that keep a socket session in the background. The app hands over membership; the cap
-// and the order are the runtime's (`socket/backgroundClouds`).
+// and the order are the runtime's (the transport's `socket/backgroundClouds`).
 export { useBackgroundClouds } from './hooks/useBackgroundClouds';
 // The clouds the account owns, so one held as an invitee on this device is re-issued as the owner.
 export { useReclaimOwnedClouds } from './hooks/useReclaimOwnedClouds';
@@ -45,6 +45,6 @@ export type { RecoverUnverifiedSocketsDeps } from '../socket/auth/recoverUnverif
 export type { RequestRelaySessionRefreshDeps } from '../socket/auth/requestRelaySessionRefresh';
 
 // The manager handle — for a debug/lab surface that drives the socket directly.
-export { getSocketManager } from '../socket/runtime';
-export type { ISocketManager, SlotStatus, SocketRequestSample } from '../socket/types';
-export type { SocketCloseReason } from '../socket/utils/closeReason';
+export { getSocketManager } from '@chatic/transport';
+export type { ISocketManager, SlotStatus, SocketRequestSample } from '@chatic/transport';
+export type { SocketCloseReason } from '@chatic/transport';

@@ -1,8 +1,8 @@
 import { RELAY_CLOUD_ID } from '@chatic/data';
 import type { DataRepositories } from '@chatic/data';
 
-import { backgroundClouds, resetBackgroundClouds } from '../../socket/backgroundClouds';
-import { slotKeyOf } from '../../socket/utils/slotKey';
+import { backgroundClouds, resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds';
+import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import {
     createOutboxTransport,
     createRuntimeOutbox,
@@ -16,7 +16,7 @@ const mockWarn = jest.fn();
 jest.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => mockWarn(...args) } }));
 
 const mockSubscribeSlotVerified = jest.fn();
-jest.mock('../../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({ subscribeSlotVerified: mockSubscribeSlotVerified }),
 }));
 

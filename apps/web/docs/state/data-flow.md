@@ -27,7 +27,7 @@ refresh and reconnect re-auth are the SDK's `ClientSocketAuth`, and an identity 
 socket (guest → social promotion) is `SocketReauthBinder`.
 
 Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/docs/session/README.md),
-[libs/app-runtime/docs/socket/](../../../../libs/app-runtime/docs/socket/README.md).
+[libs/app-runtime/docs/connection/](../../../../libs/app-runtime/docs/connection/README.md).
 
 ## 2. Reading connection and session state
 

@@ -3,8 +3,8 @@
  * the gateway bundle is never handed back out (ADR-0036), only the data sources built on it. This
  * mirrors `socketFactory.test.ts`'s framing (driven through the data sources, not the gateways).
  *
- * Building and caching the gateways is `http/gateways.ts`'s job now (and the HttpManager itself is
- * `http/factory.ts`'s) — those have their own tests. What is left here is the assembly.
+ * Building and caching the gateways is the transport's `http/gateways.ts`'s job now (and the
+ * HttpManager itself is its `http/factory.ts`'s) — those have their own tests. What is left here is the assembly.
  */
 import { createHttpDataSources } from './httpFactory';
 
@@ -15,7 +15,8 @@ const subscriptionGateway = jest.fn(() => ({ tag: 'subscription-gateway' }));
 const reportGateway = jest.fn(() => ({ tag: 'report-gateway' }));
 const pairingGateway = jest.fn(() => ({ tag: 'pairing-gateway' }));
 
-jest.mock('../../http/gateways', () => ({
+jest.mock('@chatic/transport', () => ({
+    ...jest.requireActual('@chatic/transport'),
     oauthGateway: () => oauthGateway(),
     userGateway: () => userGateway(),
     cloudGateway: () => cloudGateway(),
@@ -28,6 +29,7 @@ jest.mock('../../http/gateways', () => ({
 // same-named factory under test.
 const createDataHttpDataSources = jest.fn(({ gateways }: { gateways: unknown }) => ({ gateways }));
 jest.mock('@chatic/data', () => ({
+    ...jest.requireActual('@chatic/data'),
     createHttpDataSources: (args: { gateways: unknown }) => createDataHttpDataSources(args),
 }));
 

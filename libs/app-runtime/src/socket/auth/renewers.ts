@@ -6,11 +6,9 @@ import { Coalescer } from '../../utils/coalescer';
 import { credentialFreshness, cloudStore, getCommittedCloudId } from '@chatic/session';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { relaySession } from '../../session/auth/relaySession';
-import type { SlotKey } from '../types';
-import { backgroundClouds } from '../backgroundClouds';
-import { readBrowserOnline } from '../linkState';
+import { backgroundClouds, readBrowserOnline, kindOf, RELAY_SLOT } from '@chatic/transport';
+import type { SlotKey } from '@chatic/transport';
 import { getAuthStatus } from './authStatus';
-import { kindOf, RELAY_SLOT } from '../utils/slotKey';
 import { renewCloudSession } from './renewCloudSession';
 import { requestRelaySessionRefresh } from './requestRelaySessionRefresh';
 

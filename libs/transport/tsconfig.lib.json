@@ -1,0 +1,45 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "dist",
+        "types": ["node"],
+        "rootDir": "src",
+        "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+    },
+    "exclude": [
+        "out-tsc",
+        "dist",
+        "jest.config.ts",
+        "jest.config.cts",
+        "src/**/*.spec.ts",
+        "src/**/*.test.ts",
+        "src/**/__mocks__/**",
+        "eslint.config.js",
+        "eslint.config.cjs",
+        "eslint.config.mjs"
+    ],
+    "include": ["src/**/*.ts"],
+    "references": [
+        {
+            "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../config/tsconfig.lib.json"
+        },
+        {
+            "path": "../data/tsconfig.lib.json"
+        },
+        {
+            "path": "../http/tsconfig.lib.json"
+        },
+        {
+            "path": "../logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../perf/tsconfig.lib.json"
+        },
+        {
+            "path": "../session/tsconfig.lib.json"
+        }
+    ]
+}

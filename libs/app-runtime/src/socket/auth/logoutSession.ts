@@ -1,9 +1,8 @@
 import { logger } from '@chatic/bridges';
 import { relaySession, type LogoutOptions } from '../../session/auth/relaySession';
 
-import { getSocketManager } from '../runtime';
-import type { ISocketManager, SlotKey } from '../types';
-import { kindOf } from '../utils/slotKey';
+import { getSocketManager, kindOf } from '@chatic/transport';
+import type { ISocketManager, SlotKey } from '@chatic/transport';
 
 /**
  * Best-effort socket `auth.logout()` for one slot — FIRE-AND-FORGET. It dispatches the logout frame

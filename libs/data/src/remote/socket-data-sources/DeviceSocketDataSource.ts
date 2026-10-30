@@ -54,7 +54,7 @@ export class DeviceSocketDataSource implements IDeviceSocketDataSource {
         // Destination pinned HERE, not chosen by callers: update-remote is relay-owned by contract
         // (pushes-api sits behind the relay), so exposing a route would only invite a silent leak to
         // the active (cloud) slot. Re-expose a route parameter only when a second, genuinely
-        // caller-dependent destination appears. See app-runtime docs/socket.
+        // caller-dependent destination appears. See transport docs/socket.
         return this.gateway.relay.updateRemote<DevicePushView>(payload);
     }
 }

@@ -4,7 +4,7 @@ import { logger } from '@chatic/bridges';
 
 import { Coalescer } from '../../../utils/coalescer';
 import { Throttle } from '../../../utils/throttle';
-import { isLinkKnownDown } from '../../../socket/linkState';
+import { isLinkKnownDown } from '@chatic/transport';
 import { relaySession } from '../../auth/relaySession';
 import { useSessionAuth } from '../session';
 import { useDynamicDeviceId } from './useDynamicDeviceId';

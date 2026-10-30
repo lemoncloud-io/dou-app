@@ -11,7 +11,7 @@ import {
     reportGateway,
     subscriptionGateway,
     userGateway,
-} from '../../http/gateways';
+} from '@chatic/transport';
 
 /**
  * Assembles the HTTP gateway bundle and hands back the `data-source` bundle built on it —
@@ -20,8 +20,8 @@ import {
  * enough to build the data sources — same rule `socketFactory.createSocketDataSources` follows.
  *
  * `getHttpManager` used to live in this file, which is how `session/auth` came to import `data` just
- * to reach the HTTP client. It now lives in `http/factory.ts` and the gateway instances are shared
- * from `http/gateways.ts`, so what remains here is only data's own bundle.
+ * to reach the HTTP client. It now lives in the transport's `http/factory.ts` and the gateway instances
+ * are shared from its `http/gateways.ts`, so what remains here is only data's own bundle.
  */
 export const createHttpDataSources = (): { httpDataSources: HttpDataSources } => {
     const gateways: HttpGatewayBundle = {

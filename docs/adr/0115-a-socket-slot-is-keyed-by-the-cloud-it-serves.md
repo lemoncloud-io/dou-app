@@ -8,7 +8,7 @@
 > · Related: [ADR-0112](./0112-the-cache-partition-is-the-one-an-operation-was-captured-for.md) (the
 > cache half of the same question — which cloud a write belongs to) ·
 > [ADR-0045](./0045-push-relay-cloud-routing-crossover.md) (`'#'`, the relay marker in push payloads)
-> · The module doc is [libs/app-runtime/docs/socket](../../libs/app-runtime/docs/socket/README.md#a-slot-is-keyed-by-the-cloud-it-serves)
+> · The module doc is [libs/app-runtime/docs/socket](../../libs/transport/docs/socket/README.md#a-slot-is-keyed-by-the-cloud-it-serves)
 
 ## Context
 

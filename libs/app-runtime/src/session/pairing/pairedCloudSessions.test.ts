@@ -20,7 +20,7 @@ jest.mock('../../socket/auth/alignSessionSite', () => ({ alignSessionSite: jest.
 jest.mock('../../socket/auth/renewers', () => ({ credentialRenewers: { forSlot: jest.fn() } }));
 jest.mock('../../socket/auth/reauthenticateActiveSocket', () => ({ reauthenticateActiveSocket: jest.fn() }));
 jest.mock('../../socket/auth/reauthDelegate', () => ({ createReauthDelegate: jest.fn() }));
-jest.mock('../../socket/runtime', () => ({ getSocketManager: jest.fn() }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('../auth/cloudTokens', () => ({
     isExchangeInFlight: jest.fn(),
     issueCloudTokens: jest.fn(),

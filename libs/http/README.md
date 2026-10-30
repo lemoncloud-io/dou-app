@@ -37,7 +37,7 @@ signature ([`@chatic/auth-sign`](../auth-sign/README.md)); the socket transport
 2. **No env read, but construction is allowed.** The contract forbids reading `import.meta`, not
    building the SDK. So `createLemonWebTransport` lives here and takes four plain values
    (`LemonTransportConfig`); the values and the singleton live in
-   `app-runtime/src/http/transport.ts`. Two instances would split the lemon token store, so this lib
+   `transport/src/http/transport.ts`. Two instances would split the lemon token store, so this lib
    holds no module state and hands back a factory.
 3. **The refresh-free surface is enforced by absence, not by comments.** `SealedWebTransport` omits
    `init()`, `isAuthenticated()` and `getTokenStorage()` — the three lemon APIs that fire its own
@@ -66,7 +66,7 @@ the port the statistics sampling policy is read through. The server has no route
 only implementation is a static stand-in that answers "statistics off"
 (`createStaticTelemetryPolicyHttpGateway`); the HTTP one replaces it behind the same port.
 
-**Out** — `HttpRuntimePorts` implementations (`libs/app-runtime/src/http/`), view→domain mapping and
+**Out** — `HttpRuntimePorts` implementations (`libs/transport/src/http/`), view→domain mapping and
 cache writes (`@chatic/data`), `calcSignature` (`@chatic/auth-sign`), and the socket axis entirely.
 
 ## Structure
@@ -226,7 +226,7 @@ const client = createHttpClient(lemonSurface, ports);
 
 ### Wiring
 
-This lib assembles nothing of its own. `libs/app-runtime/src/http/` is the composition root.
+This lib assembles nothing of its own. `libs/transport/src/http/` is the composition root.
 
 ```text
 transport.ts   createLemonWebTransport(config)  → the ONE sealed lemon instance (lazy singleton)

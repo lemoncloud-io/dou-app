@@ -4,19 +4,20 @@
 exists; the **committed cloud**, on only while a cloud session is active; and a **background** slot
 for every other cloud the account belongs to, up to five. The manager sets no limit on cloud slots —
 how many there are is the binder's input, and which clouds get one is a policy of its own
-([Background slots](#background-slots)). Almost everything that talks to a
+([background slots](../../../app-runtime/docs/connection/README.md#background-slots)). Almost everything that talks to a
 socket does not care which — gateways, sync and the UI address an **active facade** that resolves to
 the slot its owner points it at (`setActiveSlot`) — the committed cloud's, when there is one — and to
 relay otherwise. Only slot lifecycle, and the handful of things that must reach one specific server,
 address a slot — by its `SlotKey`, the cloud id it serves.
 
-The React layer that turns session state into slots and drives them lives in `connection/`; it is
-covered here because the two halves only make sense together.
+This is the manager's side. The React layer that turns session state into slots and drives them is
+app-runtime's `connection/` — [its doc](../../../app-runtime/docs/connection/README.md) covers the
+host, the slot derivation and the binders.
 
 ## Layout
 
 ```text
-socket/                              47 source files, 39 tests
+socket/                              14 source files, 10 tests
 ├── SocketManager.ts   1039 lines   the class. Nothing else is exported from this file
 ├── types.ts                       SlotKey · SocketKind · SocketBindingConfig · SocketState · SlotStatus · SocketRequestSample · ISocketManager
 ├── constants.ts                   AUTH_OPTIONS · SDK_REFRESH_CYCLE_MS · DEFAULT_VERIFY_TIMEOUT_MS · INITIAL_SOCKET_STATE
@@ -25,30 +26,17 @@ socket/                              47 source files, 39 tests
 ├── socketFailureReporter.ts       classifies and reports rejected requests
 ├── socketVerifyTrace.ts           observeSocketVerify — the `socket_verify` sample · the resume-kick marks SocketManager reads
 ├── backgroundClouds.ts            the app's cloud list · holds · selectBackgroundClouds · MAX_BACKGROUND_CLOUDS
-├── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode · errorCodeLedger · closeReason (classifySocketClose · APP_CLOSE_REASON · SocketCloseReason)
-├── auth/          20 files        → docs/auth/
-└── sync/          12 files        → docs/sync/
-
-connection/                          19 source files
-├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
-├── SocketBinder.tsx               reconciles the slots and the active pointer
-├── SocketReauthBinder.tsx         re-authenticates a slot whose identity changed
-├── types.ts                       RuntimeSocketSlot · RuntimeSocketSlots
-├── utils/socketRebootKey.ts       the identity key both binders must agree on
-├── utils/backgroundSlots.ts       the live reads behind background slots
-├── utils/slotSignals.ts           the session signals the slot derivation re-reads on
-└── hooks/                         useRuntimeSocketSlots · useSocketSessionDelegate ·
-                                   useRuntimeSocketState · useSlotVerified · useCloudVerified ·
-                                   useVerifiedClouds · useConnectivity · useBackgroundClouds ·
-                                   useBackgroundCloudTokens · useBackgroundReceive ·
-                                   useReclaimOwnedClouds
+├── linkState.ts                   isLinkKnownDown — is the link down, browser flag and verified slots together
+└── utils/                         slotKey (slotKeyOf · RELAY_SLOT · kindOf) · annotateSocketError · getSocketErrorCode · errorCodeLedger · closeReason (classifySocketClose · APP_CLOSE_REASON · SocketCloseReason)
 ```
 
-`socket/types.ts` has **zero value exports**, which is not an accident: `socket/index.ts` does
-`export * from './types'`, so a value placed there would land on the barrel every in-package consumer
-imports. `constants.ts` exists to hold those values instead, and it imports no runtime module — which
-is what lets `session/hooks/app/**` read `SDK_REFRESH_CYCLE_MS` without dragging the SDK in behind
-`SocketManager`.
+`socket/types.ts` has **zero value exports**, which is not an accident: the package barrel does
+`export * from './socket/types'`, so a value placed there would land on the barrel every runtime
+module imports. `constants.ts` exists to hold those values instead, and it imports no runtime module.
+
+`socket/auth/` and `socket/sync/` — the authentication wiring and the sync runtimes on these slots —
+stay in app-runtime: [docs/auth/](../../../app-runtime/docs/auth/README.md) and
+[docs/sync/](../../../app-runtime/docs/sync/README.md).
 
 ## Responsibilities
 
@@ -58,9 +46,9 @@ active facade; re-binding listeners across a client swap; reporting the active s
 naming the call that produced a failed request.
 
 It does **not** own: token acquisition or renewal, expiry refresh, reconnect re-authentication or the
-`auth.update` handshake — all the SDK's ([docs/auth/](../auth/README.md)); 401 detection and retry,
+`auth.update` handshake — all the SDK's ([docs/auth/](../../../app-runtime/docs/auth/README.md)); 401 detection and retry,
 which no longer exist anywhere; waiting for a connection before a request; or creating a sync runtime
-([docs/sync/](../sync/README.md)).
+([docs/sync/](../../../app-runtime/docs/sync/README.md)).
 
 **`request` does not wait for the socket to open.** Called before connect, the SDK rejects
 immediately with `503 SOCKET NOT CONNECTED`. Gating is the caller's job, through `isVerified`,
@@ -402,185 +390,12 @@ forever. A success that ends a streak emits one `info` naming how many were lost
 produces nothing, and no payload or response body is ever recorded — the status and the request type
 are the diagnosis; the arguments are where the personal data is.
 
-## Usage
+## When is the link down
 
-### Mounting the host
-
-```tsx
-<runtime.connection.RuntimeConnectionHost>{children}</runtime.connection.RuntimeConnectionHost>
-```
-
-`RuntimeHostProps` is `{ slots?, children? }`. **`slots` is normally omitted** — the host derives them
-itself. It remains as an override for tests and for a host that must inject them.
-
-The host is the single init driver: `useRelaySessionInit()` runs session initialization once and the
-host renders `null` until it resolves, so no binder mounts against an unprepared session. It also
-owns the per-slot auth delegate (`useSocketSessionDelegate`), so an app injects nothing, and it calls
-`useRelaySessionKeepAlive` above the gate.
-
-`RuntimeAuthHost` is the same component with background guest login switched off, for a console that
-must not silently acquire a session. It is a second named export rather than a prop with a default
-because a forgotten prop would hand a console a guest session and nothing would say so — the name is
-the safeguard.
-
-### How a slot is derived
-
-[`useRuntimeSocketSlots()`](../../src/connection/hooks/useRuntimeSocketSlots.ts) subscribes to exactly
-three signal kinds — `relay:token`, `cloud:token`, `selection` — and reads the matching narrow
-snapshot, plus the background store's version, which moves the background slots only
-([Background slots](#background-slots)). **Both have to be narrowed together**: subscribing to a subset while reading the full
-context renders values from signals nobody is listening to. `identity` is excluded deliberately; boot
-alone emits it twice and every login adds one, each of which used to re-render this hook and hand
-both binders a new-but-equal slots object.
-
-Four rules produce the result:
-
-- **Each slot is gated on its own server having a token.** The relay wss is a static env value that exists before login, so gating on the URL alone would boot a socket with nothing to authenticate with. Login turns a slot on; logout turns it off.
-- **`identityToken` rides beside `config`, not inside it.** `SocketBinder`'s reboot key reads only `config`, so a token refresh leaves the config stable and the socket alive, while `SocketReauthBinder` watches this field per slot.
-- **No cloud slot carries an `identityToken`, committed or background.** A switch lands either on a cloud with no slot, which registers from scratch when it boots, or on a background slot whose own registered tokens the switch commits unchanged ([docs/auth/](../auth/README.md)) — either way there is no identity change on a live connection to watch for. A cloud token re-issued _without_ a switch is therefore invisible to both binders, and `renewCloudSession` re-registers explicitly.
-- **The cloud slot's cid is the committed cloud**, read from the delegation token — not the selected one, which flips at the start of a switch. Using the selected value made the config describe two clouds at once during the optimistic window: the target's cid next to the outgoing cloud's URL and token.
-
-### Background slots
-
-Every cloud the account belongs to keeps a socket session while the user is somewhere else — another
-cloud, or home. A write addressed to a cloud then has a live socket to go to whichever cloud is on
-screen (and a cloud past the cap is held for the length of the write — below), and switching back to a kept cloud costs no reconnect and no token exchange. These slots have no sync
-targets — no screen of theirs is mounted — but they do receive: a receive loop keeps each background
-cloud's room list, last messages and `$join` current with one `channel.sync` a minute, so entering a
-kept cloud finds its list already cached ([docs/sync/](../sync/README.md#background-receive)).
-
-The pieces, and who owns each:
-
-| Piece                                                                     | Owner                               | Does                                                                                                                                                                                                        |
-| ------------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `connection.useBackgroundClouds(cids)`                                    | the app (`BackgroundCloudsRunner`)  | hands over membership — the owned catalog plus the invited-cloud cache — which only the app can see                                                                                                         |
-| `connection.useReclaimOwnedClouds(cids, alsoInvited)`                     | each app (`BackgroundCloudsRunner`) | hands over the owned catalog, and the owned clouds also cached as invited; an owned cloud held as an invitee is re-issued as the owner ([docs/auth/](../auth/README.md#an-owned-cloud-held-as-its-invitee)) |
-| [`selectBackgroundClouds`](../../src/socket/backgroundClouds.ts)          | runtime                             | drops relay and the committed cloud, orders the rest by recent use (`cloudStore.getRecentClouds`, then the app's order), caps at 5, then adds held clouds                                                   |
-| [`BackgroundCloudTokens`](../../src/socket/auth/backgroundCloudTokens.ts) | runtime                             | issues a cloud's tokens before its slot boots ([docs/auth/](../auth/README.md))                                                                                                                             |
-| [`readyBackgroundConfigs`](../../src/connection/utils/backgroundSlots.ts) | runtime                             | one `cloud` config per selected cloud whose cached entry is ready, URL from the cached delegation token                                                                                                     |
-| `SocketBinder`                                                            | runtime                             | binds them beside relay and the committed cloud; never makes one active                                                                                                                                     |
-
-**The cap is five** — the largest subscription tier's allowance of owned clouds, so an account that
-only owns clouds never reaches it. Invited clouds are not bounded by any plan; past five in total,
-the cap keeps the clouds entered most recently. Each background session costs one socket and a
-token issue per lifetime (two HTTP calls); the cap is what bounds that per device.
-
-**Moving between background and committed is the same slot.** Its key is the cloud and its reboot
-key `url|deviceId|wssType` does not change, so `ensure` reuses the client. Leaving a cloud for home
-leaves it bound too, so going home is not signing out.
-
-**A slot torn down with its session still good is signed off first.** When a cloud slot leaves the
-desired set while the relay stays, `SocketBinder` asks `hasLiveJoinedSession(cid)` — still in the
-app's list, cached tokens still usable — and, if so, sends that socket `auth.logout` before
-destroying it: the cloud was pushed past the cap, and its server should hear the session end rather
-than time it out. A cloud no longer joined, or whose session already expired, has nothing to sign
-off from; a relay logout has already notified every slot. `logoutCloudSession` covers exactly the
-opposite case for the cloud it leaves, so no socket is notified twice.
-
-### Holding a slot for a write
-
-A write addressed to a cloud needs that cloud's socket until its ack comes back, and neither the cap
-nor the joined list knows a write is in flight: a switch can push the cloud out of the selection, and
-a cloud the account has just left is not in the app's list at all. `backgroundClouds.hold(cid)`
-covers that gap. It returns a release, and until the release is called:
-
-- **the cloud is selected whatever the cap and the list say** — appended after the capped selection rather than competing for a place in it, so holding one cloud for the length of a send never tears another's slot down;
-- **only a slot that is bound is kept** — a hold opens none. The write that took it goes out at once, so a slot booted for it would arrive after that write had already failed, and be torn down again as the hold ended;
-- **`logoutCloudSession` does not sign it off** on the way home, because a logout on that socket would unauthenticate it under the ack. The cost is one case: a held cloud that is no longer in the app's list is then never told `auth.logout` — once the hold ends, the binder tears its slot down without signing off, as it does for any cloud not joined — and closing the socket is what ends that session.
-
-Holds are reference-counted — two sends to one cloud overlap, and the first to settle must not free
-the slot the second is waiting on — and the first hold and the last release announce like any other
-change to the store. The relay and the committed cloud have slots of their own and are never
-selected as background ones for a hold. `runInCloud` (`data/cloudChat.ts`) is the only caller
-(`sendChatInCloud` and the image send go through it); it takes the hold before anything awaits, so
-it is in place before any switch it races with commits.
-
-The derivation re-runs when the session signals move and when the background store announces —
-the app's list changed, or a cloud's cached tokens were issued or dropped (the token cache announces
-nothing on its own, so the preparer and the cloud renewer call `backgroundClouds.invalidate()`).
-
-The debug overlay's State screen lists every bound slot through `getSlotStatuses()` — key, kind,
-whether it is active, transport state, verified, and `connectCount` — because a background slot's
-reconnects never reach the active `SocketState`.
-
-### The two binders
-
-`SocketBinder` owns every slot through **one reconcile effect**. Each render turns the slots into a
-desired set — slot key → config — and a desired active slot (the cloud's key, or `null` for relay).
-The effect is keyed on each desired slot's key plus its **reboot key** `url|deviceId|wssType`
-([`socketRebootKey.ts`](../../src/connection/utils/socketRebootKey.ts), shared with the other binder
-so the two cannot drift), and runs three steps in a fixed order:
-
-1. **Bind** every slot that is new, or whose reboot key moved, through `bootstrapSocketConnection`.
-   A reboot detaches the previous boot's SDK subscriptions first; `ensure` then rebuilds the client
-   because its config differs.
-2. **Point** the facade: `setActiveSlot(desired active)`.
-3. **Tear down** every slot the manager holds that is not desired — read from `getSlotKeys()`, not
-   only from what this binder remembers booting, because a remount starts with an empty memory.
-
-Step 1 is finished by the time step 2 runs because `bootstrapSocketConnection` calls `ensure` before
-its first `await`, so the pointer never names a slot that has not been created.
-
-The effect's key carries the desired **active** slot too, on its own. A switch between two clouds
-that both hold a slot — one committed, one in the background — leaves every slot key and reboot key
-where it was; only which of them is active moves. Keyed on the slot set alone, that switch never
-re-ran the reconcile and the facade stayed on the cloud the user had left.
-
-Several clouds hold connections at once, by design, from the same device id. That is a change: until
-background slots, step 1 was also what kept a switch from ever having two clouds connected — B's
-`connect` came after the `await`, and A was gone by then.
-
-A bootstrap that fails is forgotten, so the next reconcile tries that slot again. Until it binds, the
-pointer names an unbound slot and the facade stays on relay; the binder logs that alongside the
-failure.
-
-This replaced two independent `useSocketSlot` effects, one per role, whose relative order across a
-switch was whatever React ran first — and a guard that reported a cloud switch arriving on the same
-wss host as an unsupported case. With slots keyed by the cloud, a different cloud is a different
-slot whatever its URL, so the guard had nothing left to detect and is gone.
-
-`cid` is not in the reboot key because it is already the slot's key. The identity token is not in it
-because a refresh must not reboot a healthy socket.
-
-Unmount detaches every boot's subscriptions and forgets them, but destroys no socket. That is what
-StrictMode (desktop-web runs under it) relies on: the second mount re-bootstraps each slot, `ensure`
-finds the config unchanged and reuses the client, and a boot from the first mount that resolves late
-detaches itself. The unmount half is a separate `[]` effect, so a dependency change never detaches a
-slot the reconcile is about to keep.
-
-It also calls `getSyncManager()` in its render body. That looks stray and is not: a slot's sync
-runtime must exist _before_ the slot binds, because the runtime owns that connection's
-`device.save`, and `device.save:ok` is what opens the auth gate. It used to work by accident —
-whichever code touched a repository first built the data manager, which built the socket runtime,
-which built sync — and this call states the requirement instead.
-
-`SocketReauthBinder` watches each slot's `identityToken` and calls `reauthenticateActiveSocket` when
-it moves **and a reboot is not already happening**, since a reboot re-registers anyway.
-
-### Reading connection state
-
-| Hook                      | Answers                                                                     |
-| ------------------------- | --------------------------------------------------------------------------- |
-| `useRuntimeSocketState()` | The **active** slot's `{ state, isConnected, isVerified, connectionId }`    |
-| `useSlotVerified(key)`    | Is _this_ slot verified, whatever is active — for gating a slot-pinned call |
-| `useCloudVerified(cid)`   | The same, named by cloud id — a missing id is the relay                     |
-| `useVerifiedClouds()`     | Every cloud whose slot is verified — for work that spans all of them        |
-| `useConnectivity()`       | What to tell the **user**: `online` · `reconnecting` · `offline`            |
-
-`useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
-`deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime
-do". Its truth table encodes one asymmetry — `navigator.onLine` is a **strong negative** and an
-**unreliable positive** (`true` only proves an interface is up). So with the browser online, a closed
-socket reads as **reconnecting, not offline**: the fault is ours, and telling the user to check their
-wifi sends them after the wrong thing. Boot (`state === 'idle'`) reads as `online`, because nothing
-has been attempted yet.
-
-### When is the link down
-
-`offline` comes from [`linkState.ts`](../../src/socket/linkState.ts), and the offline skips in the
-credential guards, the background token preparer and the relay keep-alive read the same answer
-through `isLinkKnownDown()`. The link is down only when **the browser says
-offline AND no slot — relay or cloud — is verified**.
+`useConnectivity`'s `offline` comes from [`linkState.ts`](../../src/socket/linkState.ts), and the
+offline skips in the credential guards, the background token preparer and the relay keep-alive read
+the same answer through `isLinkKnownDown()`. The link is down only when **the browser says offline
+AND no slot — relay or cloud — is verified**.
 
 `navigator.onLine === false` is strong evidence, not proof. Chromium can hold it at `false` for the
 life of the process while requests succeed. This was seen on the macOS desktop shell when it started at
@@ -593,20 +408,19 @@ next frame fails, and for that short window the link reads as up: the banner sta
 may try once. That delay ends as soon as the socket notices. The latched flag never ends on its own.
 A latched flag with **no** verified socket (a first launch with no session yet) still reads as
 offline, because nothing contradicts it. Do not read `navigator.onLine` directly for a skip decision
-in this package; call `isLinkKnownDown()`.
+in the runtime; call `isLinkKnownDown()`.
 
 The one exception is the relay terminal-expiry decision, because it is the only one that ends the
 session. It holds off on the raw browser flag. A verified socket overruling that flag costs the other
 skips one failed attempt at most, but here it could log the user out over a dead link.
 
-### What not to do
+## What not to do
 
 - **Do not take a raw `ClientSocketV2` and hold it.** Clients are rebuilt on every config change. Use the facade, or `getScopedClient(key)`, which re-resolves per call.
 - **Do not add a silent fallback to a slot-pinned request.** Throwing is the contract; the alternative is a relay-only write landing on a cloud server with no trace.
 - **Do not make a slot-pinned subscription throw when the slot is unbound.** It is a declaration, not a call, and the relay slot is legitimately absent for part of boot.
 - **Do not gate a `getScopedClient` call on `waitUntilVerified`.** That waits on cloud whenever cloud is up. Use `waitUntilSlotVerified(key)`.
-- **Do not put the identity token into the reboot key.** A refresh would reboot a healthy socket. `cid` needs no place in it either — it is already the slot's key — and both binders share the key.
-- **Do not put a value in `types.ts`.** `socket/index.ts` re-exports it wholesale.
+- **Do not put a value in `types.ts`.** The package barrel re-exports it wholesale.
 - **Do not branch on `connectionId`.** It is always `null`.
 
 ## Notes for implementers and tests
@@ -617,11 +431,11 @@ skips one failed attempt at most, but here it could log the user out over a dead
 - `utils/annotateSocketError.ts` has no test of its own; its behaviour is asserted through the facade in `SocketManager.test.ts`.
 - Close reasons are tested twice: `SocketManager.test.ts` drives each cause through a fake client that closes in the SDK's order, and `utils/closeReason.test.ts` builds the real client through the real manager, so the SDK behaviour they rest on is pinned — including a real `restart()` that leaves the socket closed until the manager reopens it.
 - The fake WebSocket those real-client tests use starts `CONNECTING` and turns `OPEN` on its `open` event, as a browser's does. One created already `OPEN` is taken as open while the transport is still storing its connect attempt, and the attempt is never cleared: every later `connect()` returns it without opening a socket.
-- `authUpdateAbsence.test.ts` sits in this folder but guards the whole package: it walks `src/**`, strips comments and fails if any code builds the string `'auth.update'`.
+- No code here builds an `auth.update` packet, and nothing in the runtime may: [`authUpdateAbsence.test.ts`](../../../app-runtime/src/authUpdateAbsence.test.ts) walks app-runtime and every package cut from it, this one included, strips comments and fails on the string `'auth.update'`.
 
 ## Further reading
 
-- [docs/auth/](../auth/README.md) — what `bootstrapSocketConnection` and `reauthenticateActiveSocket` do on these slots
-- [docs/sync/](../sync/README.md) — the per-slot runtimes `subscribeSlotClients` exists for
-- [docs/session/](../session/README.md) — the signals `useRuntimeSocketSlots` subscribes to
+- [docs/connection/](../../../app-runtime/docs/connection/README.md) — the host, the slot derivation and the two binders that drive this manager
+- [docs/auth/](../../../app-runtime/docs/auth/README.md) — what `bootstrapSocketConnection` and `reauthenticateActiveSocket` do on these slots
+- [docs/sync/](../../../app-runtime/docs/sync/README.md) — the per-slot runtimes `subscribeSlotClients` exists for
 - [`libs/data`](../../../data/README.md) — the gateways that bind to the active facade, and the relay-pinned ones

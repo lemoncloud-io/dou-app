@@ -9,7 +9,7 @@ export interface LinkSignals {
 }
 
 /**
- * "Is the network link known to be down?" — the answer the offline skips in this package read, except
+ * "Is the network link known to be down?" — the answer the runtime's offline skips read, except
  * the relay terminal-expiry decision, which ends the session and so keeps the raw flag.
  *
  * `navigator.onLine === false` is strong evidence of a dead link, but not proof: Chromium can latch it

@@ -7,7 +7,7 @@ const mockIsExpired = jest.fn();
 const mockRequestRefresh = jest.fn();
 const mockVerified = jest.fn();
 
-jest.mock('../../../http/transport', () => ({
+jest.mock('@chatic/transport/http/transport', () => ({
     hasStoredRelaySession: (...a: unknown[]) => mockHasStored(...a),
     isStoredSessionExpired: (...a: unknown[]) => mockIsExpired(...a),
 }));

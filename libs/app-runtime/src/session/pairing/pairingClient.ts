@@ -1,6 +1,7 @@
 import type { PairingClient } from '@chatic/http';
 
-import { resolveSocketDevice, userAgentLabel, type DeviceEnvironment } from '../../socket/devicePlatform';
+import { resolveSocketDevice, userAgentLabel } from '@chatic/transport';
+import type { DeviceEnvironment } from '@chatic/transport';
 
 /**
  * What the requesting device tells the approving one about itself — the same platform and label its

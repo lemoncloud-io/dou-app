@@ -2,7 +2,7 @@ import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 import { isSiteSwitchInFlight, switchSite } from './switchSite';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getGlobalSessionContext, getSelectedSiteId } from '@chatic/session/store';
-import { getSocketManager } from '../runtime';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { handleRevokedRelaySession } from './revokedSession';
 
 import type { PerfTraceBackend } from '@chatic/perf';
@@ -15,7 +15,7 @@ jest.mock('@chatic/session/store', () => ({
     getSelectedSiteId: jest.fn(),
 }));
 
-jest.mock('../runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: jest.fn(),
 }));
 

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import { backgroundClouds } from '../../../../socket/backgroundClouds';
+import { backgroundClouds } from '@chatic/transport';
 import { getUidInCloud, subscribeSessionSignal } from '@chatic/session';
 
 /**

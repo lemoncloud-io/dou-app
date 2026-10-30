@@ -1,4 +1,4 @@
-import type { SocketBindingConfig } from '../../socket';
+import type { SocketBindingConfig } from '@chatic/transport';
 
 /**
  * Socket-identity reboot key shared by SocketBinder (decides when to reboot a slot) and

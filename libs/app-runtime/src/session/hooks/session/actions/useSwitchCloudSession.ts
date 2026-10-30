@@ -4,10 +4,8 @@ import { useCallback } from 'react';
 
 import { startPerfTrace } from '@chatic/perf';
 
-import { SDK_REFRESH_CYCLE_MS } from '../../../../socket/constants';
+import { SDK_REFRESH_CYCLE_MS, getSocketManager, slotKeyOf } from '@chatic/transport';
 import { credentialRenewers } from '../../../../socket/auth/renewers';
-import { getSocketManager } from '../../../../socket/runtime';
-import { slotKeyOf } from '../../../../socket/utils/slotKey';
 import { reauthenticateActiveSocket } from '../../../../socket/auth/reauthenticateActiveSocket';
 import { createReauthDelegate } from '../../../../socket/auth/reauthDelegate';
 import { cloudSession } from '../../../auth/cloudSession';

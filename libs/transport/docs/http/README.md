@@ -5,24 +5,25 @@ classifying what came back. This folder owns everything that executor cannot kno
 host a route resolves to, which transport signs it, whether the signing credential has already
 lapsed, and what the app should do when the server refuses for good.
 
-It is also, by design, **almost a leaf inside this package**, which is what lets `session/auth` and
-`data/` both depend on it without closing a cycle.
+It sits in `@chatic/transport`, below everything in app-runtime, which is what lets app-runtime's
+`session/auth` and `data/` both depend on it without closing a cycle.
 
 ## Layout
 
 ```text
-http/                              6 source files, 6 tests
+http/                              6 source files, 5 tests
 ├── HttpManager.ts                route endpoints, the staleness port, the log sink, onAuthFailure
 ├── factory.ts                    the composition root — the only file here that imports the session
 ├── transport.ts                  the one lemon transport instance, built lazily
-├── gateways.ts                   five lazily memoized HTTP gateways
+├── gateways.ts                   six lazily memoized HTTP gateways
 ├── credentialRecovery.ts         registry: "re-mint this route's credential"
 └── authFailureReaction.ts        registry: "the server refused for good"
 ```
 
-There is **no `http/index.ts`** and no `http` facade group. In-package callers import by concrete
-path; the three symbols apps do see (`webTransport`, `startWebTransportInit`, `authFailureReaction`)
-are re-exported by the `boot` and `session` groups.
+There is **no `http/index.ts`**. The package barrel sells the four modules app-runtime reads —
+`transport`, `gateways`, `credentialRecovery`, `authFailureReaction` — and keeps `HttpManager` and
+`factory` inside. The three symbols apps do see (`webTransport`, `startWebTransportInit`,
+`authFailureReaction`) are re-exported by app-runtime's `boot` and `session` groups.
 
 `transport.ts` is the one source file here with no test of its own.
 
@@ -50,8 +51,8 @@ match the interface, and the mapping lives in one class.
 
 ### Nothing here refreshes
 
-[`refreshAbsence.test.ts`](../../src/http/refreshAbsence.test.ts) walks `src/**`, strips comments, and
-fails if any code names a refresh endpoint. It replaced an ESLint `no-restricted-imports` rule that
+[`refreshAbsence.test.ts`](../../../app-runtime/src/refreshAbsence.test.ts) walks app-runtime and every
+package cut from it, this one included, and fails if any code names a refresh endpoint. It replaced an ESLint `no-restricted-imports` rule that
 was keyed to a path string and stopped matching — silently — the moment the symbols moved, letting a
 violating file pass lint. The absence test has no path to go stale against.
 
@@ -166,8 +167,8 @@ of a run are over-represented. The log batch upload bypasses this sink, so measu
 
 ## Usage
 
-Apps do not call into this folder. `data/factories/httpFactory.ts` builds its data sources over the
-five gateways, and `session/auth` reaches the transport for one thing —
+Apps do not call into this package. app-runtime's `data/factories/httpFactory.ts` builds its data
+sources over the gateways, and its `session/auth` reaches the transport for one thing —
 `buildCredentialsByToken`, which is a local credential reconstruction rather than a request.
 
 The one app-facing surface is the reaction:
@@ -178,7 +179,7 @@ runtime.session.authFailureReaction.register((error, message) => showBanner(mess
 
 ### What not to do
 
-- **Do not import `session/**`from anywhere under`http/`except`factory.ts`.** That single edge is what keeps the graph acyclic; a second one closes a ring between `session`, `data`and`http`.
+- **Do not import `@chatic/session` from anywhere under `http/` except `factory.ts`.** The staleness port is the one reason this half reads the session, and keeping it to one file keeps the rest of `http/` a leaf.
 - **Do not add a `cloud` route.** A cloud destination is a `baseURL`, and it is relay-signed.
 - **Do not build a second lemon transport.** The token storage lives inside the instance.
 - **Do not use `isAuthenticated()` as a freshness probe.** It refreshes, into the wrong store.
@@ -189,14 +190,14 @@ runtime.session.authFailureReaction.register((error, message) => showBanner(mess
 ## Notes for implementers and tests
 
 - `getHttpManager()` and `resetHttpManager()` are the lazy-singleton pair; `resetGateways()` is the second half of the same teardown.
-- `credentialRecoveryWiring.test.ts` (at `src/`, not here) is the contract for the boot wiring: recovery answers `false` before boot, and all three routes reach the relay renewer after it.
+- `credentialRecoveryWiring.test.ts` (in app-runtime's `src/`, where the boot wiring lives) is the contract for the boot wiring: recovery answers `false` before boot, and all three routes reach the relay renewer after it.
 - `SessionCredentialAdapter` is not exported. Test it through `getHttpManager()` with a fake freshness, or through `credentialRecovery` directly.
 - Redaction lives in [`libs/logger`](../../../logger/README.md) (`redactSensitive`, `truncate`); this file only decides which fields to pass through it.
 
 ## Further reading
 
-- [docs/auth/](../auth/README.md) — what `recover()` actually runs, and why relay answers for every route
-- [docs/session/](../session/README.md) — `credentialFreshness`, the source of `isStale`
-- [docs/data/](../data/README.md) — the data sources built over these gateways
+- [docs/auth/](../../../app-runtime/docs/auth/README.md) — what `recover()` actually runs, and why relay answers for every route
+- [`libs/session`](../../../session/README.md) — `credentialFreshness`, the source of `isStale`
+- [docs/data/](../../../app-runtime/docs/data/README.md) — the data sources built over these gateways
 - [`libs/http`](../../../http/README.md) — the executor, retry, bypass and error classification
 - [`libs/config`](../../../config/README.md) — where the three endpoints come from

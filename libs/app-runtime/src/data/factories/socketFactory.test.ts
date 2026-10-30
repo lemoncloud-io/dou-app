@@ -5,14 +5,14 @@
  * in the central backend behind the relay server, so they must reach the relay slot even while a
  * cloud slot is active. The policy is fixed here, at composition time — callers get no route
  * argument to forget. Same guarantee the
- * device.update-remote wiring makes; see docs/socket.
+ * device.update-remote wiring makes; see the transport's docs/socket.
  *
  * Driven through the data sources rather than the gateway bundle: the factory deliberately does not
  * hand the bundle back out (ADR-0036), so the only observable contract is which socket a repository
  * call ends up on — which is also what actually matters.
  */
 import { createSocketDataSources } from './socketFactory';
-import { RELAY_SLOT } from '../../socket/utils/slotKey';
+import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 
 const activeRequest = jest.fn().mockResolvedValue({});
 const relayRequest = jest.fn().mockResolvedValue({});
@@ -33,7 +33,7 @@ const socketManager = {
     getScopedClient: jest.fn((kind: string) => scopedClients[kind]),
 };
 
-jest.mock('../../socket/runtime', () => ({ getSocketManager: () => socketManager }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: () => socketManager }));
 
 describe('createSocketDataSources — relay-pinned gateways', () => {
     beforeEach(() => {

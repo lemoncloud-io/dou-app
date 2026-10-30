@@ -1,0 +1,38 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // Its own subdirectory, for the reason libs/app-runtime/tsconfig.spec.json gives: spec projects
+        // sharing one `dist/out-tsc` root overwrite each other's declaration output and build info.
+        "outDir": "../../dist/out-tsc/transport-spec",
+        // The `@chatic/session` barrel reaches `@chatic/shared`, whose barrel carries React
+        // components, and ts-jest compiles them with this config.
+        "jsx": "react-jsx",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    // The same sibling projects tsconfig.lib.json references. A composite project has to reach its
+    // dependencies through references, or their sources come in as unlisted files (TS6307).
+    "references": [
+        {
+            "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../config/tsconfig.lib.json"
+        },
+        {
+            "path": "../data/tsconfig.lib.json"
+        },
+        {
+            "path": "../http/tsconfig.lib.json"
+        },
+        {
+            "path": "../logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../perf/tsconfig.lib.json"
+        },
+        {
+            "path": "../session/tsconfig.lib.json"
+        }
+    ]
+}

@@ -12,7 +12,7 @@
  * testing — a registry left unregistered is the SAFE state, so the thing that can silently break is
  * "boot did not wire it", not the wiring itself.
  */
-import { credentialRecovery } from './http/credentialRecovery';
+import { credentialRecovery } from '@chatic/transport/http/credentialRecovery';
 import { initAppRuntime } from './init';
 
 const mockRequestSessionRefresh = jest.fn();

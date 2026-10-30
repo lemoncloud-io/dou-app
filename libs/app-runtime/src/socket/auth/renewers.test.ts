@@ -4,8 +4,8 @@ import { RelayCredentialRenewer, credentialRenewers } from './renewers';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { cloudStore } from '@chatic/session/store/stores';
 import { getCommittedCloudId } from '@chatic/session/store';
-import { backgroundClouds } from '../backgroundClouds';
-import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
+import { backgroundClouds } from '@chatic/transport/socket/backgroundClouds';
+import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@chatic/bridges', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -20,12 +20,12 @@ jest.mock('../../session/auth/relaySession', () => ({
     relaySession: { clearAndRedirect: jest.fn().mockResolvedValue(undefined) },
 }));
 jest.mock('@chatic/session/store/credentialFreshness', () => ({ credentialFreshness: { timeToExpiry: jest.fn() } }));
-jest.mock('../backgroundClouds', () => ({ backgroundClouds: { noteExpired: jest.fn() } }));
+jest.mock('@chatic/transport/socket/backgroundClouds', () => ({ backgroundClouds: { noteExpired: jest.fn() } }));
 jest.mock('./authStatus', () => ({ getAuthStatus: jest.fn() }));
 jest.mock('./renewCloudSession', () => ({ renewCloudSession: jest.fn() }));
 jest.mock('./requestRelaySessionRefresh', () => ({ requestRelaySessionRefresh: jest.fn() }));
 // Every bound slot reads verified, so a case that still holds off proves the decision ignored them.
-jest.mock('../runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({ getSlotKeys: () => ['relay', 'cloud-1'], isSlotVerified: () => true }),
 }));
 

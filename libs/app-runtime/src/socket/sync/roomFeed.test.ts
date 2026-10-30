@@ -18,7 +18,7 @@ jest.mock('./dataGraph', () => ({
 }));
 
 const mockIsSlotVerified = jest.fn();
-jest.mock('../runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({ isSlotVerified: mockIsSlotVerified }),
 }));
 

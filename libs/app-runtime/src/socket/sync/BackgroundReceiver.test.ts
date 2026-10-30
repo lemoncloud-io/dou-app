@@ -1,6 +1,6 @@
 import { logger } from '@chatic/bridges';
 
-import type { ISocketManager, SlotKey } from '../types';
+import type { ISocketManager, SlotKey } from '@chatic/transport/socket/types';
 import { BackgroundReceiver } from './BackgroundReceiver';
 import type { BackgroundReceiveRepositories, BackgroundReceiverDeps } from './types';
 

@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import { backgroundClouds, resetBackgroundClouds } from '../../socket/backgroundClouds';
+import { backgroundClouds, resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds';
 import { useBackgroundCloudTokens } from './useBackgroundCloudTokens';
 
 const mockSync = jest.fn();
@@ -16,7 +16,7 @@ jest.mock('../utils/backgroundSlots', () => ({
 jest.mock('../../session/auth/cloudTokens', () => ({ issueCloudTokens: jest.fn() }));
 let mockSlotListener: (() => void) | null = null;
 const mockUnsubscribeSlots = jest.fn();
-jest.mock('../../socket/runtime', () => ({
+jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: () => ({
         subscribeSlotClients: (listener: () => void) => {
             mockSlotListener = listener;

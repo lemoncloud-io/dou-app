@@ -10,8 +10,8 @@ import { UNREGISTER_GRACE_MS } from './constants';
 import { SyncManager } from './SyncManager';
 import { clearRefusedChannels, isChannelRefused, recordRefusedChannel } from './refusedChannels';
 import type { SyncManagerDeps } from './types';
-import type { ISocketManager, SlotKey, SocketSlotClientListener } from '../types';
-import { RELAY_SLOT, slotKeyOf } from '../utils/slotKey';
+import type { ISocketManager, SlotKey, SocketSlotClientListener } from '@chatic/transport/socket/types';
+import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
 /** Slots are keyed by the cloud they serve; these are the relay's and two fixture clouds'. */
 const RELAY = RELAY_SLOT;

@@ -2,7 +2,7 @@ import { alignSessionSite, alignStoredSessionSite } from './alignSessionSite';
 import { cloudSession } from '../../session/auth/cloudSession';
 import { getCommittedCloudId, getGlobalSessionContext, getSelectedSiteId } from '@chatic/session/store';
 import { cloudStore } from '@chatic/session/store/stores';
-import { getSocketManager } from '../runtime';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { isSiteSwitchInFlight } from './switchSite';
 
 jest.mock('@chatic/bridges', () => ({
@@ -16,7 +16,7 @@ jest.mock('@chatic/session/store', () => ({
     getSelectedSiteId: jest.fn(),
 }));
 jest.mock('@chatic/session/store/stores', () => ({ cloudStore: { getCloudTokenOf: jest.fn() } }));
-jest.mock('../runtime', () => ({ getSocketManager: jest.fn() }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('./switchSite', () => ({ isSiteSwitchInFlight: jest.fn() }));
 
 const mockedApply = cloudSession.applySelectedSite as jest.Mock;

@@ -1,4 +1,4 @@
-import type { SlotKey } from '../types';
+import type { SlotKey } from '@chatic/transport';
 import type { AuthRegistration } from '../../session/auth/sessionAuthAdapter';
 
 /**

@@ -1,8 +1,8 @@
-import { backgroundClouds, resetBackgroundClouds } from '../../socket/backgroundClouds';
+import { backgroundClouds, resetBackgroundClouds } from '@chatic/transport/socket/backgroundClouds';
 import { credentialFreshness } from '@chatic/session/store/credentialFreshness';
 import { getCommittedCloudId } from '@chatic/session/store';
 import { cloudStore } from '@chatic/session/store/stores';
-import { getSocketManager } from '../../socket/runtime';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { currentBackgroundSelection, readyBackgroundConfigs } from './backgroundSlots';
 
 jest.mock('@chatic/session/store', () => ({ getCommittedCloudId: jest.fn() }));
@@ -10,7 +10,7 @@ jest.mock('@chatic/session/store/stores', () => ({
     cloudStore: { getRecentClouds: jest.fn(), peekCachedCloudTokens: jest.fn() },
 }));
 jest.mock('@chatic/session/store/credentialFreshness', () => ({ credentialFreshness: { timeToExpiry: jest.fn() } }));
-jest.mock('../../socket/runtime', () => ({ getSocketManager: jest.fn() }));
+jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
 
 const HOUR = 60 * 60_000;
 const entries: Record<string, unknown> = {};

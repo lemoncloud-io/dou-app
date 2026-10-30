@@ -2,9 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 import { useRuntimeSocketState } from './useRuntimeSocketState';
 import { useVerifiedClouds } from './useVerifiedClouds';
-import { isLinkDown, readBrowserOnline } from '../../socket/linkState';
-import type { LinkSignals } from '../../socket/linkState';
-import type { SocketState } from '../../socket';
+import { isLinkDown, readBrowserOnline } from '@chatic/transport';
+import type { LinkSignals, SocketState } from '@chatic/transport';
 
 /** What the app should TELL THE USER about the connection. `online` means "nothing to warn about". */
 export type ConnectivityStatus = 'online' | 'reconnecting' | 'offline';

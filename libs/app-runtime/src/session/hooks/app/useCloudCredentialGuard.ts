@@ -2,11 +2,8 @@ import { useCallback, useEffect } from 'react';
 
 import { logger } from '@chatic/bridges';
 
-import { SDK_REFRESH_CYCLE_MS } from '../../../socket/constants';
+import { SDK_REFRESH_CYCLE_MS, isLinkKnownDown, getSocketManager, kindOf, slotKeyOf } from '@chatic/transport';
 import { credentialRenewers } from '../../../socket/auth/renewers';
-import { isLinkKnownDown } from '../../../socket/linkState';
-import { getSocketManager } from '../../../socket/runtime';
-import { kindOf, slotKeyOf } from '../../../socket/utils/slotKey';
 import { getCommittedCloudId } from '@chatic/session';
 
 /**

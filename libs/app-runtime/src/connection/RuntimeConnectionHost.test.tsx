@@ -1,7 +1,7 @@
 import { render, waitFor } from '@testing-library/react';
 
 import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost';
-import { getSocketManager } from '../socket/runtime';
+import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { bootstrapSocketConnection } from '../socket/auth';
 import { useDynamicDeviceId } from '../session/hooks/app/useDynamicDeviceId';
 import { getSocketSlotContext } from '@chatic/session/store';
@@ -45,7 +45,7 @@ jest.mock('../socket/auth', () => ({
     reauthenticateActiveSocket: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../socket/runtime', () => {
+jest.mock('@chatic/transport/socket/runtime', () => {
     const mockManager = { destroy: jest.fn(), setActiveSlot: jest.fn(), getSlotKeys: jest.fn(() => []) };
     return { getSocketManager: jest.fn().mockReturnValue(mockManager) };
 });
