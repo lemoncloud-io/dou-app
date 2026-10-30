@@ -59,6 +59,14 @@ card is always typed into the provider's own window.
    outside Korea). A subscriber sees their own subscription's currency. What a checkout charges is the
    billing country's, shown on W-08.
 
+7. **The free trial is held back, in won and in dollars.** A first subscription is charged at once.
+   The published catalog's trial length is 0, and the screens follow each plan's `trialDays` rather than
+   the account's "trial used" flag, so with no trial on offer nothing mentions one. Whether the charge at
+   the end of a trial reaches the dollar side has not been confirmed, and the trial is not needed to
+   start selling; the code paths stay, so a trial length brings it back. The server decides the trial
+   from its products' `trialDays`, so its web products have to be set to 0 alongside — a change in the
+   server's product data, not here.
+
 ## Alternatives
 
 - **Split by the kind of card (domestic / overseas) and let the reader pick.** It names the providers'
@@ -85,6 +93,9 @@ card is always typed into the provider's own window.
   for before going live.
 - **A dollar price carries no VAT note.** Won prices include VAT and say so; how tax applies outside
   Korea is not settled, so the dollar price stands alone until it is.
+- **No trial until it is brought back.** Until the server's web products also carry `trialDays` 0, a
+  signed-in checkout against the server still reads 7 from them and offers the trial; the visitor's plans
+  page and the mock already offer none.
 - **Test mode only.** The dollar products exist on the dev stage alone, and the account surface's
   production gate is unchanged.
 - **The mock keeps one stand-in window for both providers.** Against the mock, a non-Korean checkout runs

@@ -187,17 +187,22 @@ export const CheckoutSummary = ({
                                 })
                               : formatMoney(plan.monthly, i18n.language),
                     },
-                    {
-                        key: 'trial',
-                        label: t('subscription.checkout.summary.trial'),
-                        value: withTrial
-                            ? t('subscription.checkout.summary.trialRange', {
-                                  from: formatShortDate(today),
-                                  to: formatShortDate(dayBefore(firstChargeAt)),
-                                  count: plan.trialDays,
-                              })
-                            : t('subscription.checkout.summary.trialUsed'),
-                    },
+                    // With no trial on offer the summary says nothing about one.
+                    ...(plan.trialDays > 0
+                        ? [
+                              {
+                                  key: 'trial',
+                                  label: t('subscription.checkout.summary.trial'),
+                                  value: withTrial
+                                      ? t('subscription.checkout.summary.trialRange', {
+                                            from: formatShortDate(today),
+                                            to: formatShortDate(dayBefore(firstChargeAt)),
+                                            count: plan.trialDays,
+                                        })
+                                      : t('subscription.checkout.summary.trialUsed'),
+                              },
+                          ]
+                        : []),
                     {
                         key: 'firstCharge',
                         label: t('subscription.checkout.summary.firstCharge'),

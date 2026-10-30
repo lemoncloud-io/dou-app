@@ -5,8 +5,12 @@ import type { Currency, Plan } from '../types';
  * this. Won is the Korean price; dollars are the app stores' price outside Korea ($6 a step).
  */
 export const PRICE_PER_TIER: Record<Currency, number> = { KRW: 8600, USD: 600 };
-/** The free trial on a first subscription. */
-export const TRIAL_DAYS = 7;
+/**
+ * The free trial on a first subscription, in days. Held back for now — 0 offers none, and every screen
+ * then leaves the trial out; giving it a length again brings the trial back on the plans page and in the
+ * mock. Against the server, the trial is each product's own `trialDays`.
+ */
+export const TRIAL_DAYS = 0;
 
 const SORTS = [1, 2, 3, 4, 5] as const;
 

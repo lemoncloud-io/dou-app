@@ -39,7 +39,8 @@ export interface PlanChoices {
  *
  * `account` is `null` for a visitor. `withTrial` says whether a first subscription would start with
  * the free trial; a visitor's answer is not known until they sign in, so the caller passes `true` —
- * the trial is what a first subscription normally comes with. `canChange` is whether the plan in
+ * the trial is what a first subscription normally comes with. `trialOffered` is whether there is a
+ * trial at all: without one, nothing is said about it — not even that it was used. `canChange` is whether the plan in
  * force may be changed in its current state (the caller reads it off `sceneOf`): a subscription
  * awaiting payment, ending, or carrying a scheduled change has something else to settle first, and
  * offering it a change here would only lead to one the change page refuses.
@@ -49,12 +50,14 @@ export const planChoicesOf = ({
     current,
     account,
     withTrial,
+    trialOffered = true,
     canChange = true,
 }: {
     plans: Plan[];
     current: Plan | undefined;
     account: Account | null;
     withTrial: boolean;
+    trialOffered?: boolean;
     canChange?: boolean;
 }): PlanChoices => {
     const sorted = [...plans].sort((a, b) => a.sort - b.sort);
@@ -74,7 +77,12 @@ export const planChoicesOf = ({
             entry,
             cards: kinds.map(({ plan, kind }) =>
                 kind === 'new'
-                    ? { plan, tag: withTrial ? 'firstTrial' : 'trialUsed', pickable: true, selected: true }
+                    ? {
+                          plan,
+                          tag: withTrial ? 'firstTrial' : trialOffered ? 'trialUsed' : undefined,
+                          pickable: true,
+                          selected: true,
+                      }
                     : { plan, tag: 'afterSubscribe', pickable: false, selected: false }
             ),
         };

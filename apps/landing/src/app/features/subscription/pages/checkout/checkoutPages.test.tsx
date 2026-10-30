@@ -326,11 +326,12 @@ describe('W-08 checkout', () => {
         expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
     });
 
-    it('shows a first payment without a trial', async () => {
-        renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new-trial-used'));
+    it('shows a first payment today and says nothing of a trial, the trial being held back', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new'));
 
-        expect(await screen.findByText('None — already used')).toBeTruthy();
-        expect(screen.getByText('2026.11.01 (today)')).toBeTruthy();
+        expect(await screen.findByText('2026.11.01 (today)')).toBeTruthy();
+        expect(screen.queryByText('Free trial')).toBeNull();
+        expect(screen.queryByText('None — already used')).toBeNull();
     });
 
     it('sends a subscriber to the plan change instead', async () => {
@@ -373,14 +374,14 @@ describe('checkout with the card and billing-email screens hidden', () => {
         });
     });
 
-    it('starts the trial without a billing email', async () => {
+    it('subscribes without a billing email', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', mockSetup('?mock=new'), hidden);
         await toPayment();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Add card and start free trial' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,600' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
 
-        expect(await screen.findByText('Your DoU Cloud 1 free trial has started')).toBeTruthy();
+        expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
     });
 
     it('says an account with no address cannot subscribe, instead of asking for one', async () => {
@@ -403,16 +404,15 @@ describe('W-05 card, W-09 and W-06', () => {
         expect(await screen.findByRole('heading', { name: 'Review your order' })).toBeTruthy();
     });
 
-    it('registers a card, starts the trial and lands on W-06', async () => {
+    it('registers a card, charges the first payment and lands on W-06', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new'));
         await toPayment();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Add card and start free trial' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,600' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
 
-        expect(await screen.findByText('Your DoU Cloud 1 free trial has started')).toBeTruthy();
+        expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
         expect(where()).toMatch(/^\/subscription\/checkout\/complete\?attempt=att-\d+&plan=pro-tier-01$/);
-        expect(screen.getByText('Until 2026.11.07')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Set up clouds in the app' })).toBeTruthy();
     });
 
@@ -444,10 +444,10 @@ describe('W-05 card, W-09 and W-06', () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new&fail=card-declined'));
         await toPayment();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Add card and start free trial' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,600' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
 
-        expect(await screen.findByText('We could not add your card')).toBeTruthy();
+        expect(await screen.findByText('Payment failed')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Try again' }).getAttribute('href')).toBe(
             '/subscription/checkout/payment?plan=pro-tier-01'
         );
@@ -501,7 +501,7 @@ describe('W-05 card, W-09 and W-06', () => {
             const { setup, complete } = await returnedRegistered();
             renderAt(`${RETURN}&billingKey=billing-key-1`, setup);
 
-            expect(await screen.findByText('Your DoU Cloud 1 free trial has started')).toBeTruthy();
+            expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
             expect(complete).toHaveBeenCalledWith({
                 callback: expect.any(URLSearchParams),
                 purpose: 'start',
@@ -515,7 +515,7 @@ describe('W-05 card, W-09 and W-06', () => {
             const { setup } = await returnedWith({ outcome: 'closed' });
             renderAt(`${RETURN}&code=FAILURE_TYPE_PG`, setup);
 
-            expect(await screen.findByText('Card registration canceled')).toBeTruthy();
+            expect(await screen.findByText('Payment canceled')).toBeTruthy();
             expect(where()).toBe('/subscription/checkout/status?plan=pro-tier-01&outcome=closed');
         });
 
@@ -531,7 +531,7 @@ describe('W-05 card, W-09 and W-06', () => {
             savePendingCheckout({ planId: 'pro-tier-01', details: { country: 'KR', payer: PAYER } });
             const { setup } = await returnedRegistered();
             renderAt(`${RETURN}&billingKey=billing-key-1`, setup);
-            await screen.findByText('Your DoU Cloud 1 free trial has started');
+            await screen.findByText('You have subscribed to DoU Cloud 1');
 
             expect(window.sessionStorage.getItem('subscription.pendingCheckout')).toBeNull();
         });

@@ -296,10 +296,11 @@ describe('createMockPort — the state machine', () => {
         expect((await port.getSubscription('sub-2')).status).toBe('pastDue');
     });
 
-    it('starts a trial on a first checkout', async () => {
+    it('charges a first checkout at once, the trial being held back', async () => {
         const { port, advance } = setup('?mock=new');
         const preview = await port.previewCheckout('pro-tier-01');
-        expect(preview).toMatchObject({ withTrial: true, amountToday: { amount: 0 }, trialEndsAt: '2026-11-08' });
+        expect(preview).toMatchObject({ withTrial: false, amountToday: { amount: 8600 }, firstChargeAt: '2026-11-01' });
+        expect(preview.trialEndsAt).toBeUndefined();
 
         expect(
             await port.startPaymentMethodRegistration({ purpose: 'start', planId: 'pro-tier-01', payer: PAYER })
@@ -312,14 +313,14 @@ describe('createMockPort — the state machine', () => {
         expect(await port.verifyEmailCode(emailId, '123456')).toMatchObject({ status: 'verified', primary: true });
 
         const attempt = await port.startCheckout({ planId: 'pro-tier-01', country: 'KR', emailId, payer: PAYER });
-        expect(attempt.withTrial).toBe(true);
+        expect(attempt.withTrial).toBe(false);
         const settled = await settle(port, attempt.id, advance);
         expect(settled.status).toBe('succeeded');
 
         const [sub] = await port.listSubscriptions();
-        expect(sub).toMatchObject({ id: settled.subscriptionId, status: 'trial', trialEndsAt: '2026-11-08' });
-        expect(await port.listInvoices()).toEqual([]);
-        expect((await port.getSession())?.trialUsed).toBe(true);
+        expect(sub).toMatchObject({ id: settled.subscriptionId, status: 'active', nextBillingAt: '2026-12-01' });
+        expect(sub.trialEndsAt).toBeUndefined();
+        expect((await port.listInvoices()).map(invoice => invoice.kind)).toEqual(['first']);
     });
 
     it('charges at once and restores held clouds when an expired subscriber returns within the window', async () => {
