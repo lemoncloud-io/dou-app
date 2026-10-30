@@ -61,7 +61,7 @@ export const RecentInvoices = ({ sub, fmt }: { sub: Subscription; fmt: ManageFor
                         {recent.map(invoice => (
                             <div
                                 key={invoice.id}
-                                className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 border-t border-line p-4 first:border-t-0 md:grid-cols-[160px_300px_160px_1fr] md:items-center md:px-5 md:py-3.5 md:first:border-t"
+                                className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 border-t border-line p-4 first:border-t-0 md:grid-cols-[160px_300px_160px_1fr] md:items-center md:gap-x-0 md:px-5 md:py-3.5 md:first:border-t"
                             >
                                 <span className="text-xs font-medium text-mute max-md:col-start-1 max-md:row-start-2 md:order-1 md:text-sm md:text-ink">
                                     {fmt.date(invoice.issuedAt)}

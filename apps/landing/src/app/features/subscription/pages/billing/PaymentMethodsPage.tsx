@@ -204,9 +204,12 @@ export const PaymentMethodsPage = (): JSX.Element => {
             <BillingPageHeader
                 title={t('subscription.billing.paymentMethods.title')}
                 subtitle={t('subscription.billing.paymentMethods.subtitle')}
+                barTitle={t('subscription.billing.paymentMethods.barTitle')}
+                titleOnPhone
                 action={
                     <Button
                         size="lg"
+                        className="max-md:h-[52px] max-md:px-4"
                         disabled={registration.isPending || paying}
                         onClick={() => openDialog({ kind: 'add' })}
                     >
@@ -243,11 +246,11 @@ export const PaymentMethodsPage = (): JSX.Element => {
                 )}
 
                 {cards.length === 0 ? (
-                    <div className="rounded-2xl bg-muted px-6 py-10 text-center">
-                        <p className="text-[15px] font-semibold text-navy">
+                    <div className="rounded-2xl bg-note px-6 py-10 text-center">
+                        <p className="text-[15px] font-bold text-ink">
                             {t('subscription.billing.paymentMethods.empty.title')}
                         </p>
-                        <p className="mt-1.5 text-sm text-subtitle">
+                        <p className="mt-1.5 text-sm font-medium text-mute">
                             {t('subscription.billing.paymentMethods.empty.body')}
                         </p>
                     </div>
@@ -313,13 +316,13 @@ export const PaymentMethodsPage = (): JSX.Element => {
                 )}
 
                 {!failing && (
-                    <div className="rounded-2xl bg-muted px-6 py-5">
-                        <p className="text-[13px] font-semibold text-navy">
+                    <div className="rounded-[14px] bg-note p-4 md:rounded-2xl md:px-6 md:py-5">
+                        <p className="text-[13px] font-bold text-ink">
                             {t('subscription.billing.paymentMethods.notes.title')}
                         </p>
-                        <ul className="mt-2 list-inside list-disc text-[13px] leading-6 text-desc-alt">
+                        <ul className="mt-1.5 text-[13px] font-medium leading-[1.6] text-[#666b78] md:leading-normal">
                             {(['removeDefault', 'removeLast', 'domestic', 'noCharge'] as const).map(note => (
-                                <li key={note}>{t(`subscription.billing.paymentMethods.notes.${note}`)}</li>
+                                <li key={note}>• {t(`subscription.billing.paymentMethods.notes.${note}`)}</li>
                             ))}
                         </ul>
                     </div>
@@ -440,31 +443,43 @@ const CardRow = ({
     onRemove: () => void;
 }): JSX.Element => {
     const { t } = useTranslation();
+    // Small pill buttons: a phone's are the tall, two-line-weight ones of the design, the wide ones a
+    // hairline pill. Deleting is red, and greyed on the default card, where it only explains why not.
+    const small = 'max-md:h-[50px] max-md:px-4 max-md:text-[15px] md:h-9 md:border md:border-line md:px-4';
     return (
         <li
             className={cn(
-                'flex items-center gap-4 rounded-2xl border bg-card px-5 py-4',
+                'flex flex-wrap items-center gap-x-3.5 gap-y-2 rounded-[14px] border bg-card p-4 md:flex-nowrap md:px-[21px] md:py-4',
                 card.isDefault && card.expiringSoon
                     ? 'border-status-warning'
                     : card.isDefault
-                      ? 'border-2 border-main-green'
-                      : 'border-border'
+                      ? 'border-2 border-main-green max-md:bg-[#f5ffe5] md:px-5'
+                      : 'border-line'
             )}
         >
-            <span className="flex h-8 w-11 shrink-0 items-center justify-center rounded-md bg-navy text-[11px] font-semibold text-white">
-                {card.brand}
-            </span>
-            <div className="min-w-0">
-                <p className="text-[15px] font-semibold text-navy">{label}</p>
-                {cardExpiry(card) && (
-                    <p className={cn('mt-0.5 text-xs', failing ? 'text-status-danger' : 'text-subtitle')}>
-                        {t('subscription.billing.card.expires', { expiry: cardExpiry(card) })}
-                    </p>
-                )}
+            <div className="flex min-w-0 items-center gap-4 max-md:w-full md:gap-3.5">
+                <span className="flex h-6 w-9 shrink-0 items-center justify-center rounded bg-navy text-[11px] font-bold text-white md:h-[30px] md:w-11 md:rounded-md">
+                    {card.brand}
+                </span>
+                <div className="flex min-w-0 flex-col gap-1 md:gap-0.5">
+                    <p className="text-[15px] font-bold leading-normal text-ink">{label}</p>
+                    {cardExpiry(card) && (
+                        <p
+                            className={cn(
+                                'text-xs font-medium leading-normal',
+                                failing ? 'text-[#c1292e]' : 'text-mute'
+                            )}
+                        >
+                            {t('subscription.billing.card.expires', { expiry: cardExpiry(card) })}
+                        </p>
+                    )}
+                </div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
                 {card.isDefault && (
-                    <Badge className="bg-main-green text-navy">{t('subscription.billing.card.default')}</Badge>
+                    <Badge className="bg-main-green font-semibold text-ink max-md:px-2 max-md:py-1 max-md:text-[11px]">
+                        {t('subscription.billing.card.default')}
+                    </Badge>
                 )}
                 {card.expiringSoon && <Badge tone="warning">{t('subscription.billing.card.expiringSoon')}</Badge>}
                 {failing && (
@@ -481,23 +496,27 @@ const CardRow = ({
                         size="sm"
                         variant={urgeDefault ? 'primary' : 'secondary'}
                         disabled={busy}
+                        className={urgeDefault ? 'max-md:h-[50px] max-md:text-[15px] md:h-9' : small}
                         onClick={onMakeDefault}
                     >
                         {t('subscription.billing.paymentMethods.makeDefault')}
                     </Button>
                 )}
-                {/* The default card cannot go — the payment service refuses it — so it has no button. */}
-                {!card.isDefault && (
-                    <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={busy}
-                        className="text-status-danger"
-                        onClick={onRemove}
-                    >
-                        {t('subscription.billing.paymentMethods.remove')}
-                    </Button>
-                )}
+                {/* The payment service refuses the default card, so its button only opens the explanation. */}
+                <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={busy}
+                    className={cn(
+                        small,
+                        card.isDefault
+                            ? 'text-mute max-md:opacity-50 md:text-[#999ca3]'
+                            : 'text-[#e5484d] max-md:border-[#f3c2c4] md:text-[#c1292e]'
+                    )}
+                    onClick={onRemove}
+                >
+                    {t('subscription.billing.paymentMethods.remove')}
+                </Button>
             </div>
         </li>
     );
