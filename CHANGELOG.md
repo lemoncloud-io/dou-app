@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-10-30] - No version updates
+
+### Features
+
+- (config) turn device pairing on in every stage
+
 ## [2026-10-30] - root@0.129.0, @chatic/web@0.84.0
 
 ### Features
