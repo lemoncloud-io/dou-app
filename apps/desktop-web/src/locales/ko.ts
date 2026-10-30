@@ -751,7 +751,7 @@ export const ko: EnTranslation = {
     'settings.theme.dark': '다크',
     'settings.theme.system': '시스템',
     'settings.palette': '테마',
-    'settings.palette.hint': '라이트 모드에서 왼쪽 목록 영역의 색을 바꿔요. 대화 영역은 그대로 밝게 보여요.',
+    'settings.palette.hint': '왼쪽 레일과 목록 영역의 색을 바꿔요. 대화 영역 색은 그대로예요.',
     'settings.palette.default': '{{name}} (기본)',
     'settings.palette.mist': 'Mist',
     'settings.palette.midnight': 'Midnight',

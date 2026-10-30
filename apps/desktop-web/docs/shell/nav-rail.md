@@ -42,8 +42,8 @@ it shows the mobile-app pointer instead
 ## The tiles
 
 A tile is a 44px icon box with its label under it. The open one has a filled tile in the theme's
-`--rail-active` (lime in most palettes, near-black on Lemon's lime rail; dark mode keeps a lime tint,
-`bg-primary/[0.24]`), a heavier icon stroke and a bold label. It carries `aria-current="page"`. A destination with something
+`--rail-active` (lime, or near-black on a coloured rail of about lime's lightness such as Lemon's;
+dark mode keeps a lime tint, `bg-primary/[0.24]`), a heavier icon stroke and a bold label. It carries `aria-current="page"`. A destination with something
 unread gets a red dot (`bg-badge-unread`), and its accessible name says so (`nav.unread`), because a dot
 alone is not read out.
 

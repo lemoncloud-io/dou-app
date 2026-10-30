@@ -746,7 +746,8 @@ export const en = {
     'settings.theme.dark': 'Dark',
     'settings.theme.system': 'System',
     'settings.palette': 'Theme',
-    'settings.palette.hint': 'In light mode, changes the colours of the list on the left. The chat stays light.',
+    'settings.palette.hint':
+        'Changes the colours of the rails and the list on the left. The chat keeps its own colours.',
     'settings.palette.default': '{{name}} (Default)',
     'settings.palette.mist': 'Mist',
     'settings.palette.midnight': 'Midnight',

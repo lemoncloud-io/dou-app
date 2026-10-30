@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CircleCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +20,9 @@ import {
     FONT_SIZES,
     MESSAGE_DENSITIES,
     PALETTES,
+    PRESET_COLORS,
     type Palette,
+    shellPaletteCss,
     useAppearancePrefsStore,
     useNotificationPrefsStore,
     VersionInfo,
@@ -90,6 +92,16 @@ export const SettingsPage = () => {
         toast({ title: t('settings.palette.applied') });
     };
     const paletteProps = radioGroupOptions(PALETTES, palette, pickPalette);
+    // Each sample card draws its own palette, whichever one is on, from the rule the shell uses.
+    const previewCss = useMemo(
+        () =>
+            PALETTES.map(option =>
+                shellPaletteCss(PRESET_COLORS[option], `[data-palette-preview='${option}']`, {
+                    dark: option !== 'mist',
+                })
+            ).join('\n'),
+        []
+    );
     const pushMute = useDevicePushMute();
     const reopenOnboarding = useOnboardingStore(s => s.reopen);
     const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
@@ -180,6 +192,7 @@ export const SettingsPage = () => {
                                 {t('settings.palette.hint')}
                             </span>
                         </div>
+                        <style>{previewCss}</style>
                         <div
                             role="radiogroup"
                             aria-labelledby="settings-palette-label"
@@ -208,7 +221,7 @@ export const SettingsPage = () => {
                                             <span className="w-[9px] bg-rail" />
                                             <span className="w-3 bg-rail-elevated" />
                                             <span className="flex flex-1 bg-sidebar py-1.5 pl-5 pr-1.5">
-                                                <span className="flex-1 rounded-sm bg-swatch-light" />
+                                                <span className="flex-1 rounded-sm bg-background" />
                                             </span>
                                         </span>
                                         <span className="flex items-center justify-between gap-1 px-0.5">
