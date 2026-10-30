@@ -29,7 +29,7 @@ refusals by reason:
 - `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
   PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX and TXT documents,
   ZIP archives, and M4A, MP3, WAV and OGG audio. Audio goes as a document (kind `file`):
-  the message shows a file card to save, not a player, and the web app does not send it at all. AAC
+  the message shows a file card, which plays it in the document viewer (see below), and the web app does not send it at all. AAC
   and WebM audio are refused: the server does not keep them, and Chromium types a WebM from disk
   `video/webm`, a video the server does not take either. An empty or generic type (HWP arrives untyped on most systems) is read from the
   extension. A video or document whose extension names another format is refused, because the
@@ -69,7 +69,7 @@ URL stays alive while its tray waits in another conversation, or the tile would 
 
 Clicking a tile opens the file at full size before it is sent (`ComposerPreview`), since the
 tile is only a 92px crop or a name: an image or a video in the image viewer's frame with the picture
-(held to the same upscale cap) or a player alone, and a PDF or text file in the feed's `FileViewer`, read from the file the page
+(held to the same upscale cap) or a player alone, and a PDF, text or voice file in the feed's `FileViewer`, read from the file the page
 already holds instead of fetched. Neither has a sender, a save or a copy — there is no message yet —
 and both say the file is not sent. A document the viewer cannot draw (office, Hancom, ZIP) is a
 plain tile. A video the browser cannot decode (HEVC `.mov`) shows an empty player, as it does in the
@@ -131,8 +131,8 @@ lists them under the images:
   sent from here carries one: the shared send hook draws a frame 0.5 s in and uploads it as the
   thumbnail, which is what the mobile feed's tiles draw. A video Chromium cannot decode (HEVC) goes
   without one.
-- **A document** is a card with a kind icon, its name and size, and a save button. A PDF or text
-  file's name also opens it in the document viewer (below).
+- **A document** is a card with a kind icon, its name and size, and a save button. A PDF, text or
+  voice file's name also opens it in the document viewer (below).
 - **Being sent**, either is the same card with a spinner, drawn from the name, type and size the
   pending slot kept (`localName`, `localContentType`, `localSize`), since there is nothing to preview.
   **Failed**, the card says so, and the message's retry resends it with the rest.
@@ -179,15 +179,21 @@ Closing returns focus to the tile that opened it (ui-kit's dialog focus return, 
 
 ## The document viewer
 
-`FileViewer` opens a sent PDF or text file in the app, in the same frame as the image viewer: a
-header with the sender, the time and the file name, a save button and a close button. `canPreview`
-decides which cards open it. Only PDF and TXT do: nothing in the page draws a DOCX, XLSX, PPTX or
-Hancom file without handing it, and its signed address, to a third party, so those stay save cards.
-A video already plays in place.
+`FileViewer` opens a sent PDF, text or voice file in the app, in the same frame as the image viewer:
+a header with the sender, the time and the file name, a save button and a close button. `canPreview`
+decides which cards open it. PDF and TXT are drawn, and M4A, MP3, WAV and OGG are played; nothing in
+the page draws a DOCX, XLSX, PPTX or Hancom file without handing it, and its signed address, to a
+third party, so those stay save cards. A video already plays in place.
 
-A PDF or text file still in the composer opens here too, before it is sent (see
+- **A voice file** is not fetched into the page: the viewer's `<audio>` player streams it from its
+  signed address and starts as the viewer opens (the click that opened it lets it play). One still
+  in the composer plays from the picked file. An address the player cannot load — past its
+  signature, say — shows "Couldn't open this file" with the save button, as a document does.
+
+A PDF, text or voice file still in the composer opens here too, before it is sent (see
 [The tray](#the-tray)): the header names the file and says it is not sent, there is no save, and
-the bytes are read from the picked file instead of fetched.
+the bytes are read from the picked file instead of fetched (a voice file plays from the tray's
+object URL).
 
 - **The bytes** are fetched when the viewer opens, the same way a save fetches them
   (`fetchFileBytes`: `https:` only, no cookies, past the HTTP cache). Closing mid-download aborts the

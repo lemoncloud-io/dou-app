@@ -187,6 +187,7 @@ export const ko: EnTranslation = {
     'chat.file.open': '{{name}} 열기',
     'chat.file.page': '{{page}}쪽',
     'chat.file.pages': '{{name}} 페이지',
+    'chat.file.play': '{{name}} 재생',
     'chat.file.opening': '{{name}} 여는 중',
     'chat.file.openFailed': '이 파일을 열지 못했어요',
     'chat.file.viewer': '파일 뷰어',

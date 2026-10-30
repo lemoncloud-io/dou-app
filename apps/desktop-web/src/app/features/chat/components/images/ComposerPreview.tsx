@@ -22,7 +22,8 @@ const toChatFile = (attachment: ComposerAttachment): ChatFile => ({
 
 /**
  * Whether a tray tile opens in `ComposerPreview`. An image or a video always does; a document only
- * when the feed's viewer would draw it (PDF, text) — nothing in the page draws an office or Hancom file.
+ * when the feed's viewer would draw or play it (PDF, text, voice) — nothing in the page draws an office
+ * or Hancom file.
  */
 export const canPreviewAttachment = (attachment: ComposerAttachment): boolean =>
     !!attachment.url && (attachment.kind !== 'file' || canPreview(toChatFile(attachment)) !== null);

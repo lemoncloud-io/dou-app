@@ -75,6 +75,33 @@ describe('FileViewer', () => {
         expect(onSave).toHaveBeenCalled();
     });
 
+    // A voice file streams from its address: nothing is fetched into the page first.
+    it('plays a voice file from its address, without fetching it', () => {
+        const song = { ...notes, name: 'song.mp3', contentType: 'audio/mpeg', url: 'https://s/song' };
+        render(<FileViewer file={song} author={author} onClose={vi.fn()} onSave={vi.fn()} />, { wrapper });
+
+        const player = screen.getByLabelText('Play song.mp3') as HTMLAudioElement;
+        expect(player.tagName).toBe('AUDIO');
+        expect(player.getAttribute('src')).toBe('https://s/song');
+        expect(player.controls).toBe(true);
+        expect(fetchFileBytes).not.toHaveBeenCalled();
+    });
+
+    // A signed address past its time answers 403, and the player would sit there silent.
+    it('says a voice file could not be played, and still offers to save it', () => {
+        const song = { ...notes, name: 'song.mp3', contentType: 'audio/mpeg', url: 'https://s/song' };
+        const onSave = vi.fn();
+        render(<FileViewer file={song} author={author} onClose={vi.fn()} onSave={onSave} />, { wrapper });
+
+        fireEvent.error(screen.getByLabelText('Play song.mp3'));
+        expect(screen.getByText("Couldn't open this file")).toBeTruthy();
+        // The header's save, and the one the failed body offers.
+        const saves = screen.getAllByRole('button', { name: 'Save song.mp3' });
+        expect(saves).toHaveLength(2);
+        fireEvent.click(saves[1]);
+        expect(onSave).toHaveBeenCalledTimes(1);
+    });
+
     // Focus on save would open its tooltip with the dialog, and the first Esc would only close that.
     it('opens with focus on close', async () => {
         vi.mocked(fetchFileBytes).mockResolvedValue(bytes(['a']));

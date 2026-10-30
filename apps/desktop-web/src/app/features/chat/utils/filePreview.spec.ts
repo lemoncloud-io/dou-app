@@ -18,6 +18,14 @@ describe('canPreview', () => {
         expect(canPreview(sent({ name: 'NOTES.TXT' }))).toBe('text');
     });
 
+    // A voice file plays in the page; macOS types an M4A `audio/x-m4a`.
+    it('plays a sent voice file, by its type or its name', () => {
+        expect(canPreview(sent({ name: 'song.mp3', contentType: 'audio/mpeg' }))).toBe('audio');
+        expect(canPreview(sent({ name: 'memo.m4a', contentType: 'audio/x-m4a' }))).toBe('audio');
+        expect(canPreview(sent({ name: 'take.wav' }))).toBe('audio');
+        expect(canPreview(sent({ name: 'voice.ogg', contentType: 'audio/ogg' }))).toBe('audio');
+    });
+
     // Nothing in the browser draws these without sending the file to someone else.
     it('leaves office, Hancom, archive and video files to their save card', () => {
         expect(canPreview(sent({ name: 'a.docx' }))).toBeNull();

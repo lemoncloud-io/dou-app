@@ -177,6 +177,7 @@ export const en = {
     'chat.file.open': 'Open {{name}}',
     'chat.file.page': 'Page {{page}}',
     'chat.file.pages': 'Pages of {{name}}',
+    'chat.file.play': 'Play {{name}}',
     'chat.file.opening': 'Opening {{name}}',
     'chat.file.openFailed': "Couldn't open this file",
     'chat.file.viewer': 'File viewer',
