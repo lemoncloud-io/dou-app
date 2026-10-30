@@ -1167,7 +1167,9 @@ describe('ChannelList swipe actions', () => {
         await waitFor(() => expect(mockLeaveChannel).toHaveBeenCalledWith({ channelId: 'g1' }));
         expect(mockDeleteChannel).not.toHaveBeenCalled();
         await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ title: 'chat.settings.leftRoomToast' }));
-        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+        // The toast fires inside `confirm`'s try and the dialog closes in its `finally`, so the close
+        // can still be uncommitted when the toast assertion passes — on a slow runner it was.
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     });
 
     it("asks with the 1:1's own copy before leaving a 1:1", () => {
