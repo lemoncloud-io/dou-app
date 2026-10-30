@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-10-30] - root@0.130.1, @chatic/web@0.85.1
+
+### Refactor
+
+- (session,app-runtime) move the session store and scope into @chatic/session
+
+### Other
+
+- test: (web) wait for the leave dialog to close, not only for the toast
+
 ## [2026-10-30] - root@0.130.0, @chatic/web@0.85.0
 
 ### Features
