@@ -441,12 +441,7 @@ The pages read the same flag where it changes what they offer:
 
 `lib/catalog.ts` is therefore a published price list, not mock data: the mock sells exactly this
 catalog, and a price changes there together with the stores' prices. It holds each tier in won and in
-dollars (the stores' price outside Korea, $6 a step). Its trial length, `TRIAL_DAYS`, is 0 for now:
-**the free trial is held back** (ADR-0255), so a first subscription is charged at once and no screen
-mentions a trial — not even "trial used", which W-01, W-08 and W-05 say only when a trial is on offer
-(`trialDays` above 0). Giving it a length again brings the trial back on the plans page and in the mock;
-against the server the trial is each product's own `trialDays`, so the server's web products have to be
-set to 0 too, or the server still starts a trial the screens did not announce. W-01 shows the currency of the page's language —
+dollars (the stores' price outside Korea, $6 a step); W-01 shows the currency of the page's language —
 won in Korean, dollars otherwise — or, for a subscriber, the subscription's own. What a checkout
 charges is decided by its billing country, not by the language. When the server and the payment
 provider arrive, the account surface opens by the gate and the catalog port is no longer used.

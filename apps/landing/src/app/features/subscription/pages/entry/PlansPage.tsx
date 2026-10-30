@@ -94,11 +94,9 @@ const PlansScene = ({
         return <Banner tone="danger" title={t('subscription.common.error.unknown')} />;
     }
 
-    // With no trial on offer (`trialDays` 0) the page says nothing about one, not even that it was used.
-    const trialOffered = (entryPlan?.trialDays ?? 0) > 0;
-    const withTrial = trialOffered && (preview.data ? preview.data.withTrial : !account?.trialUsed);
+    const withTrial = preview.data ? preview.data.withTrial : !account?.trialUsed;
     const canChange = !subscription || sceneOf(subscription, today).actions.includes('changePlan');
-    const choices = planChoicesOf({ plans: plans.data, current, account, withTrial, trialOffered, canChange });
+    const choices = planChoicesOf({ plans: plans.data, current, account, withTrial, canChange });
     const trialDays = choices.entry?.trialDays ?? entryPlan?.trialDays ?? 0;
     const planName = (plan: Plan) => t('subscription.common.planName', { sort: plan.sort });
 
@@ -122,9 +120,7 @@ const PlansScene = ({
               ? 'changeSubtitle'
               : withTrial
                 ? 'subtitle'
-                : trialOffered
-                  ? 'subtitleTrialUsed'
-                  : 'subtitleNoTrial';
+                : 'subtitleTrialUsed';
 
     return (
         <section className="flex flex-col gap-10">
@@ -246,7 +242,6 @@ const PlansScene = ({
             {(choices.mode === 'visitor' || choices.mode === 'new') && (
                 <Notes
                     withTrial={withTrial}
-                    trialOffered={trialOffered}
                     canBuy={canBuy}
                     firstChargeAt={preview.data?.firstChargeAt}
                     entryName={choices.entry && planName(choices.entry)}
@@ -322,13 +317,11 @@ const ChoiceCard = ({
 
 const Notes = ({
     withTrial,
-    trialOffered,
     canBuy,
     firstChargeAt,
     entryName,
 }: {
     withTrial: boolean;
-    trialOffered: boolean;
     canBuy: boolean;
     firstChargeAt?: string;
     entryName?: string;
@@ -342,13 +335,12 @@ const Notes = ({
               ...(canBuy ? [t('subscription.entry.plans.notes.storeSubscribers')] : []),
           ]
         : [
-              ...(trialOffered ? [t('subscription.entry.plans.notes.trialUsed')] : []),
+              t('subscription.entry.plans.notes.trialUsed'),
               ...(firstChargeAt
                   ? // The first charge lands today, so its day of the month is the billing day from then on.
                     [t('subscription.entry.plans.notes.chargeToday', { day: Number(firstChargeAt.slice(8, 10)) })]
                   : []),
               ...(entryName ? [t('subscription.entry.plans.notes.startAtEntry', { plan: entryName })] : []),
-              ...(!trialOffered && canBuy ? [t('subscription.entry.plans.notes.storeSubscribers')] : []),
           ];
     return (
         <div className="rounded-[14px] bg-note p-4 sm:rounded-2xl sm:px-6 sm:py-5">

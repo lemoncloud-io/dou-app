@@ -136,7 +136,6 @@
                 "title": "DoU plans",
                 "subtitle": "The same plans at the same prices as in the app. A first subscription starts with a {{days}}-day free trial, then renews monthly.",
                 "subtitleTrialUsed": "You have already used the free trial. Subscribing charges you today and renews on the same day each month.",
-                "subtitleNoTrial": "The same plans at the same prices as in the app. Subscribing charges you today and renews on the same day each month.",
                 "changeTitle": "Change plan",
                 "changeSubtitle": "You can move one step up or down from your current plan.",
                 "tag": {

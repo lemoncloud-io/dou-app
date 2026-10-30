@@ -16,21 +16,6 @@ const plan = (sort: number): Plan => MOCK_PLANS.find(p => p.sort === sort) as Pl
 const tags = (choices: ReturnType<typeof planChoicesOf>) => choices.cards.map(c => c.tag);
 
 describe('planChoicesOf', () => {
-    it('tags the entry plan with nothing about a trial when none is offered', () => {
-        const signedIn = { id: 'a', provider: 'google', billingSource: 'none', trialUsed: true } as Account;
-        const choices = planChoicesOf({
-            plans: MOCK_PLANS,
-            current: undefined,
-            account: signedIn,
-            withTrial: false,
-            trialOffered: false,
-        });
-        expect(choices.cards[0].tag).toBeUndefined();
-        expect(
-            planChoicesOf({ plans: MOCK_PLANS, current: undefined, account: signedIn, withTrial: false }).cards[0].tag
-        ).toBe('trialUsed');
-    });
-
     it('offers a visitor the entry plan only, with the trial', () => {
         const choices = planChoicesOf({ plans: MOCK_PLANS, current: undefined, account: null, withTrial: true });
 

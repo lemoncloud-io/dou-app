@@ -222,21 +222,16 @@ export const CheckoutPaymentPage = (): JSX.Element => {
                                 label: t('subscription.checkout.summary.plan'),
                                 value: t('subscription.common.planName', { sort: plan.sort }),
                             },
-                            // With no trial on offer the summary says nothing about one.
-                            ...(preview.data.plan.trialDays > 0
-                                ? [
-                                      {
-                                          key: 'trial',
-                                          label: t('subscription.checkout.summary.trial'),
-                                          value: withTrial
-                                              ? t('subscription.checkout.summary.trialRangeShort', {
-                                                    from: formatShortDate(today),
-                                                    to: formatShortDate(dayBefore(firstChargeAt)),
-                                                })
-                                              : t('subscription.checkout.summary.none'),
-                                      },
-                                  ]
-                                : []),
+                            {
+                                key: 'trial',
+                                label: t('subscription.checkout.summary.trial'),
+                                value: withTrial
+                                    ? t('subscription.checkout.summary.trialRangeShort', {
+                                          from: formatShortDate(today),
+                                          to: formatShortDate(dayBefore(firstChargeAt)),
+                                      })
+                                    : t('subscription.checkout.summary.none'),
+                            },
                             {
                                 key: 'firstCharge',
                                 label: t('subscription.checkout.summary.firstChargeShort'),

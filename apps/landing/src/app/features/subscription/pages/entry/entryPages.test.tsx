@@ -63,17 +63,10 @@ describe('W-01 plans', () => {
         expect(where()).toBe('/subscription/login?next=%2Fsubscription%2Fcheckout%3Fplan%3Dpro-tier-01');
     });
 
-    it("shows a signed-in reader today's charge and goes straight to checkout, with no word of a trial", async () => {
-        renderAt('/subscription/plans', mockSetup('?mock=new'));
+    it("shows a signed-in reader whose trial is used today's charge and goes straight to checkout", async () => {
+        renderAt('/subscription/plans', mockSetup('?mock=new-trial-used'));
 
-        // The trial is held back: neither offered nor reported as used.
-        expect(
-            await screen.findByText(
-                'The same plans at the same prices as in the app. Subscribing charges you today and renews on the same day each month.'
-            )
-        ).toBeTruthy();
-        expect(screen.queryByText('Trial used')).toBeNull();
-        expect(screen.queryByText(/free trial/i)).toBeNull();
+        expect(await screen.findByText('Trial used')).toBeTruthy();
         expect(screen.getByText(/day 1 of each month/)).toBeTruthy();
 
         // The English page reads the price in dollars, as the checkout preview gives it.
@@ -112,7 +105,7 @@ describe('W-01 plans', () => {
         renderAt('/subscription/plans', mockSetup('?mock=expired'));
 
         expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
-        expect(screen.queryByText('Trial used')).toBeNull();
+        expect(screen.getByText('Trial used')).toBeTruthy();
         expect(screen.getByRole('button', { name: /^Subscribe to DoU Cloud 1 — .* today$/ })).toBeTruthy();
     });
 

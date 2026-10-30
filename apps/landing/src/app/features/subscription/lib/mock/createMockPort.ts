@@ -501,7 +501,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         previewCheckout: (planId, input) =>
             call(s => {
                 const plan = planOf(planId, input?.currency ?? 'KRW');
-                const withTrial = plan.trialDays > 0 && !s.account.trialUsed;
+                const withTrial = !s.account.trialUsed;
                 const trialEndsAt = addDays(s.today, plan.trialDays);
                 return {
                     plan,
@@ -591,8 +591,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                     if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
                 }
                 s.billing.country = country;
-                const withTrial = planOf(planId).trialDays > 0 && !s.account.trialUsed;
-                return startAttempt(s, { purpose: 'start', planId, provider, withTrial });
+                return startAttempt(s, { purpose: 'start', planId, provider, withTrial: !s.account.trialUsed });
             }),
 
         getPaymentAttempt: id =>
