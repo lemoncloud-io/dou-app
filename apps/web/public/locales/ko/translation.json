@@ -2184,6 +2184,7 @@
             "lastActive": "마지막 활동 {{time}}",
             "unlink": "해제",
             "loadFailed": "목록을 불러오지 못했어요",
+            "noDevices": "연결된 기기가 없어요",
             "approvedHeader": "승인한 로그인",
             "noApprovals": "승인한 로그인이 없어요",
             "approvedAt": "승인 {{time}}",

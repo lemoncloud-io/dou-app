@@ -50,6 +50,7 @@ const PairingDevicesScreen = () => {
     const unlink = useUnlinkDevice();
     const pairings = useApprovedPairings(showApprovals);
     const revoke = useRevokePairing();
+    const approvals = pairings.data && approvedPairingRows(pairings.data.list);
     const [pending, setPending] = useState<Pending>(null);
     const { toast } = useToast();
 
@@ -93,7 +94,12 @@ const PairingDevicesScreen = () => {
                             </button>
                         </div>
                     )}
-                    {devices.data && (
+                    {devices.data && devices.data.list.length === 0 && (
+                        <p className="text-[14px] text-description" data-testid="pairing-devices-empty">
+                            {t('pairing.devices.noDevices')}
+                        </p>
+                    )}
+                    {devices.data && devices.data.list.length > 0 && (
                         <MenuCard>
                             {devices.data.list.map(device => (
                                 <div
@@ -151,12 +157,14 @@ const PairingDevicesScreen = () => {
                         {pairings.isError && (
                             <p className="text-[14px] text-foreground">{t('pairing.devices.loadFailed')}</p>
                         )}
-                        {pairings.data && approvedPairingRows(pairings.data.list).length === 0 && (
-                            <p className="text-[14px] text-description">{t('pairing.devices.noApprovals')}</p>
+                        {approvals?.length === 0 && (
+                            <p className="text-[14px] text-description" data-testid="pairing-approvals-empty">
+                                {t('pairing.devices.noApprovals')}
+                            </p>
                         )}
-                        {pairings.data && (
+                        {!!approvals?.length && (
                             <MenuCard>
-                                {approvedPairingRows(pairings.data.list).map(row => (
+                                {approvals.map(row => (
                                     <div
                                         key={row.pairingId}
                                         className="flex items-center gap-3 px-4 py-3"
