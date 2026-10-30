@@ -12,11 +12,17 @@ this place, so the entry stays here.
 
 **Display mode** is light, dark or system (`@chatic/theme` puts `light` or `dark` on the root).
 
-**Theme** picks one of six shell palettes: Mist (the default), Midnight, Forest, Ocean, Plum and Lemon.
+**Theme** picks one of six preset shell palettes (Mist, the default, Midnight, Forest, Ocean, Plum and
+Lemon) or Custom.
 A palette recolours the cloud rail, the nav rail and the channel list only; the chat keeps the colours of
 the display mode. Each choice is a card with the shell in miniature, and picking one applies it at once
 and shows a "Theme applied" toast (picking the one already on does nothing).
 
+- **Custom**, the seventh card, is the user's own three colours. The first time, it starts from the
+  colours of the palette that was on; three colour fields (cloud bar, menu bar, list) then appear under the cards.
+  The shell follows a field while its picker is dragged, and the "Theme applied" toast shows once, when
+  the picker closes. There is one custom slot, kept in `customPalette` on this device only; picking a
+  preset keeps it, so Custom comes back as it was. There is no reset: a preset card is the way back.
 - A palette is three colours: cloud rail, nav rail and list (`PRESET_COLORS` in
   `src/app/shared/theme/shellPalette.ts`). `derivePaletteTokens` turns them into every token the shell
   draws with, for light and for dark mode, so the six presets and any other three colours go through one
@@ -35,9 +41,9 @@ and shows a "Theme applied" toast (picking the one already on does nothing).
   The rails and the list draw with page tokens too, so the rail elements carry `data-shell-rail="cloud"`
   or `"nav"` and the list `data-shell-sidebar`, and the rules set those tokens inside them only.
 - `styles.css` keeps Mist's light values on `:root`: that is what paints before the app starts.
-- The choice is kept with the other appearance preferences (`palette` in `chatic-appearance-prefs`,
-  version 1) and also written to the root as `data-palette`. A palette name this build does not know
-  reads as Mist.
+- The choice is kept with the other appearance preferences (`palette` and `customPalette` in
+  `chatic-appearance-prefs`, version 1) and also written to the root as `data-palette`. A palette name
+  this build does not know, malformed custom colours, or Custom with none saved read as Mist.
 - The sample cards draw from the same rule, each under its own `data-palette-preview`, so a card always
   shows its own palette. Mist's card in dark mode repeats the dark shell's three values from `styles.css`.
 - `shellPalette.spec.ts` measures the rule on the presets and on a sweep of seeded random colours, in

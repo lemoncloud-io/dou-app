@@ -14,6 +14,8 @@ export const PALETTES = ['mist', 'midnight', 'forest', 'ocean', 'plum', 'lemon']
 export type Palette = (typeof PALETTES)[number];
 /** A preset, or the user's own three colours (`customPalette`). */
 export type PaletteChoice = Palette | 'custom';
+/** Every choice, in picker order: the presets, then Custom. */
+export const PALETTE_CHOICES: readonly PaletteChoice[] = [...PALETTES, 'custom'];
 
 const isPalette = (value: unknown): value is Palette => PALETTES.includes(value as Palette);
 
