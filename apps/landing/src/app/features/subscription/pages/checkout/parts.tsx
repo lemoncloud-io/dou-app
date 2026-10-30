@@ -55,7 +55,8 @@ export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element 
                                         done || active ? 'bg-main-green text-navy' : 'border border-line text-[#999ca3]'
                                     )}
                                 >
-                                    {done || active ? '✓' : number}
+                                    {/* The design ticks the details step while it is open and numbers the payment step. */}
+                                    {done || (active && number === 3) ? '✓' : number}
                                 </span>
                                 {t(`subscription.checkout.steps.${step}`)}
                             </span>
@@ -63,7 +64,7 @@ export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element 
                     );
                 })}
             </ol>
-            <div className="md:hidden" role="img" aria-label={label}>
+            <div className="w-full md:hidden" role="img" aria-label={label}>
                 <div className="flex gap-1">
                     {STEPS.map((step, index) => (
                         <span
@@ -196,8 +197,8 @@ export type ResultTone = 'success' | 'checking' | 'progress' | 'danger' | 'neutr
 const ICON_TONES: Record<Exclude<ResultTone, 'checking'>, string> = {
     success: 'bg-main-green text-navy',
     progress: 'bg-navy text-white',
-    danger: 'bg-status-danger text-white',
-    neutral: 'bg-subtitle text-white',
+    danger: 'bg-[#fdeced] text-[#c1292e]',
+    neutral: 'bg-note text-mute',
 };
 
 const ICONS: Record<Exclude<ResultTone, 'checking'>, string> = {
@@ -212,34 +213,69 @@ export const ResultHeader = ({
     tone,
     title,
     body,
-    centered = false,
+    centered = true,
 }: {
     tone: ResultTone;
     title: ReactNode;
     body?: ReactNode;
     centered?: boolean;
 }): JSX.Element => (
-    <header className={cn('flex flex-col gap-3', centered && 'items-center text-center')}>
+    <header className={cn('flex flex-col gap-2', centered ? 'items-center text-center' : 'items-start')}>
         {tone === 'checking' ? (
             <span
                 aria-hidden
-                className="mb-3 h-16 w-16 animate-spin rounded-full border-[5px] border-muted border-t-main-green"
+                className="mb-3 size-12 animate-spin rounded-full border-[5px] border-line border-t-main-green"
             />
         ) : (
             <span
                 aria-hidden
                 className={cn(
-                    'mb-3 flex h-16 w-16 items-center justify-center rounded-full text-2xl font-bold',
+                    'mb-3 flex size-14 items-center justify-center rounded-full text-2xl font-bold',
                     ICON_TONES[tone]
                 )}
             >
                 {ICONS[tone]}
             </span>
         )}
-        <h1 className="text-2xl font-bold text-navy">{title}</h1>
-        {body && <p className="text-[15px] text-subtitle">{body}</p>}
+        <h1 className="text-xl font-bold leading-[1.4] text-ink md:text-2xl">{title}</h1>
+        {body && <p className="text-sm font-medium leading-[1.6] text-mute md:text-[15px]">{body}</p>}
     </header>
 );
+
+/**
+ * The column a payment status sits in: from `md` a bordered card centred under the bar, on a phone
+ * the bare page. Everything inside is centred.
+ */
+export const ResultCard = ({
+    children,
+    busy,
+    className,
+}: {
+    children: ReactNode;
+    busy?: boolean;
+    className?: string;
+}): JSX.Element => (
+    <section
+        aria-busy={busy}
+        className={cn(
+            'mx-auto flex w-full max-w-[480px] flex-col gap-5 pt-6 md:rounded-2xl md:border md:border-line md:p-8 md:pt-8',
+            className
+        )}
+    >
+        {children}
+    </section>
+);
+
+/** Two buttons at most: stacked full width on a phone, side by side and centred from `md`. */
+export const ResultActions = ({ children }: { children: ReactNode }): JSX.Element => (
+    <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:justify-center">{children}</div>
+);
+
+/** The lime and the outlined pill a result offers, as links. */
+export const primaryLink =
+    'inline-flex h-[46px] items-center justify-center rounded-full bg-main-green px-7 text-[15px] font-bold text-navy hover:opacity-90 max-md:h-[54px]';
+export const secondaryLink =
+    'inline-flex h-[46px] items-center justify-center rounded-full border-[1.5px] border-[#d9dbe0] bg-white px-7 text-[15px] font-semibold text-ink hover:bg-muted max-md:h-[54px]';
 
 /** A grey box with a bold heading, for the reason a payment failed or what to do next. */
 export const NoteBox = ({
@@ -251,9 +287,9 @@ export const NoteBox = ({
     children: ReactNode;
     className?: string;
 }): JSX.Element => (
-    <section className={cn('flex flex-col gap-2 rounded-2xl bg-note px-5 py-4', className)}>
-        <h2 className="text-sm font-bold text-ink">{title}</h2>
-        <div className="text-[13px] font-medium leading-relaxed text-[#666b78]">{children}</div>
+    <section className={cn('flex flex-col gap-2 rounded-2xl bg-note px-5 py-4 text-center', className)}>
+        <h2 className="text-[13px] font-bold text-ink">{title}</h2>
+        <div className="text-[13px] font-medium leading-[1.6] text-[#666b78]">{children}</div>
     </section>
 );
 
@@ -269,7 +305,7 @@ export const AppStoreLink = ({ children }: { children: ReactNode }): JSX.Element
             href={device === 'android' ? storeUrls.android : storeUrls.ios}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-12 items-center justify-center rounded-full bg-main-green px-6 text-[15px] font-semibold text-navy hover:opacity-90"
+            className={primaryLink}
         >
             {children}
         </a>

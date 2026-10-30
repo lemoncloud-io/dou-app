@@ -27,7 +27,7 @@ import {
     statusUrl,
     withCheckoutDetails,
 } from './flow';
-import { CheckoutSteps, FactRows, LoadError, OrderSummary } from './parts';
+import { CheckoutLayout, CheckoutSteps, FactRows, LoadError, OrderSummary } from './parts';
 import { usePlanRoute } from './usePlanRoute';
 
 import type { CardToken, PlanId } from '../../types';
@@ -179,41 +179,88 @@ export const CheckoutPaymentPage = (): JSX.Element => {
     };
 
     return (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_260px] md:gap-8">
-            <div className="flex flex-col gap-6">
-                <CheckoutSteps current={4} />
-                <header className="flex flex-col gap-2">
-                    <h1 className="text-[28px] font-bold text-navy">{t('subscription.checkout.payment.title')}</h1>
-                    <p className="text-[15px] text-subtitle">
-                        {withTrial
-                            ? t('subscription.checkout.payment.subtitleTrial')
-                            : t('subscription.checkout.payment.subtitlePaid', { price: money(amountToday) })}
-                    </p>
-                </header>
+        <CheckoutLayout
+            head={
+                <>
+                    <CheckoutSteps current={4} />
+                    <header className="flex flex-col gap-2">
+                        <h1 className="text-[22px] font-bold leading-[1.5] text-ink md:text-[28px]">
+                            {t('subscription.checkout.payment.title')}
+                        </h1>
+                        <p className="text-sm font-medium leading-[1.5] text-mute md:text-[15px]">
+                            {withTrial
+                                ? t('subscription.checkout.payment.subtitleTrial')
+                                : t('subscription.checkout.payment.subtitlePaid', { price: money(amountToday) })}
+                        </p>
+                    </header>
+                </>
+            }
+            summary={
+                <OrderSummary>
+                    <FactRows
+                        rows={[
+                            {
+                                key: 'plan',
+                                label: t('subscription.checkout.summary.plan'),
+                                value: t('subscription.common.planName', { sort: plan.sort }),
+                            },
+                            {
+                                key: 'trial',
+                                label: t('subscription.checkout.summary.trial'),
+                                value: withTrial
+                                    ? t('subscription.checkout.summary.trialRangeShort', {
+                                          from: formatShortDate(today),
+                                          to: formatShortDate(dayBefore(firstChargeAt)),
+                                      })
+                                    : t('subscription.checkout.summary.none'),
+                            },
+                            {
+                                key: 'firstCharge',
+                                label: t('subscription.checkout.summary.firstChargeShort'),
+                                value: t('subscription.checkout.summary.dateAndPrice', {
+                                    date: formatShortDate(firstChargeAt),
+                                    price: money(plan.monthly),
+                                }),
+                            },
+                            {
+                                key: 'today',
+                                label: t('subscription.checkout.summary.chargeToday'),
+                                value: money(amountToday),
+                                strong: true,
+                            },
+                        ]}
+                    />
+                </OrderSummary>
+            }
+        >
+            <Card className="flex flex-col gap-3 rounded-[14px] border-line p-4 md:rounded-2xl md:px-[25px] md:py-[21px]">
+                <h2 className="text-sm font-bold text-ink">{t('subscription.checkout.payment.card')}</h2>
+                <p className="text-[13px] font-medium leading-[1.6] text-mute">
+                    {t('subscription.checkout.payment.cardNote')}
+                </p>
+                <div className="flex flex-col gap-1.5 rounded-xl border border-dashed border-[#d9dbe0] bg-note px-5 py-5 text-center md:border-solid md:border-transparent md:py-4 md:text-left">
+                    <span className="text-[13px] font-semibold text-[#4d4f57]">
+                        {t('subscription.checkout.payment.windowTitle')}
+                    </span>
+                    <span className="text-xs font-medium text-mute">
+                        {t('subscription.checkout.payment.windowSteps')}
+                    </span>
+                </div>
+            </Card>
 
-                <Card className="flex flex-col gap-3">
-                    <h2 className="text-[15px] font-semibold text-navy">{t('subscription.checkout.payment.card')}</h2>
-                    <p className="text-[13px] text-subtitle">{t('subscription.checkout.payment.cardNote')}</p>
-                    <div className="flex flex-col gap-1 rounded-xl border border-border bg-muted px-5 py-4">
-                        <span className="text-sm font-medium text-desc-alt">
-                            {t('subscription.checkout.payment.windowTitle')}
-                        </span>
-                        <span className="text-xs text-subtitle">{t('subscription.checkout.payment.windowSteps')}</span>
-                    </div>
-                </Card>
+            {error && (
+                <Banner tone="danger" title={t(error)}>
+                    {detail}
+                </Banner>
+            )}
 
-                {error && (
-                    <Banner tone="danger" title={t(error)}>
-                        {detail}
-                    </Banner>
-                )}
-
-                <Button size="lg" className="w-full rounded-full" disabled={busy} onClick={onPay}>
+            <div className="flex flex-col gap-3">
+                <Button size="lg" className="w-full max-md:h-[54px]" disabled={busy} onClick={onPay}>
                     {withTrial
                         ? t('subscription.checkout.payment.ctaTrial')
                         : t('subscription.checkout.payment.ctaPaid', { price: money(amountToday) })}
                 </Button>
-                <p className="text-[13px] text-subtitle">
+                <p className="text-xs font-medium leading-[1.6] text-mute md:text-[13px]">
                     {withTrial
                         ? t('subscription.checkout.payment.renewTrial', {
                               date: formatDate(firstChargeAt),
@@ -222,49 +269,13 @@ export const CheckoutPaymentPage = (): JSX.Element => {
                           })
                         : t('subscription.checkout.payment.renewPaid', { day, price: money(plan.monthly) })}
                 </p>
-                <Link
-                    to={checkoutUrl(plan.id)}
-                    className="inline-flex h-12 w-fit items-center rounded-full border border-border px-7 text-[15px] font-semibold text-navy hover:bg-muted"
-                >
-                    {t('subscription.checkout.payment.back')}
-                </Link>
             </div>
-
-            <OrderSummary>
-                <FactRows
-                    rows={[
-                        {
-                            key: 'plan',
-                            label: t('subscription.checkout.summary.plan'),
-                            value: t('subscription.common.planName', { sort: plan.sort }),
-                        },
-                        {
-                            key: 'trial',
-                            label: t('subscription.checkout.summary.trial'),
-                            value: withTrial
-                                ? t('subscription.checkout.summary.trialRangeShort', {
-                                      from: formatShortDate(today),
-                                      to: formatShortDate(dayBefore(firstChargeAt)),
-                                  })
-                                : t('subscription.checkout.summary.none'),
-                        },
-                        {
-                            key: 'firstCharge',
-                            label: t('subscription.checkout.summary.firstChargeShort'),
-                            value: t('subscription.checkout.summary.dateAndPrice', {
-                                date: formatShortDate(firstChargeAt),
-                                price: money(plan.monthly),
-                            }),
-                        },
-                        {
-                            key: 'today',
-                            label: t('subscription.checkout.summary.chargeToday'),
-                            value: money(amountToday),
-                            strong: true,
-                        },
-                    ]}
-                />
-            </OrderSummary>
-        </div>
+            <Link
+                to={checkoutUrl(plan.id)}
+                className="w-fit text-[13px] font-medium text-mute underline hover:text-ink"
+            >
+                {t('subscription.checkout.payment.back')}
+            </Link>
+        </CheckoutLayout>
     );
 };

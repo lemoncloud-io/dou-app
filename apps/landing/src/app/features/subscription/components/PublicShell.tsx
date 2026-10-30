@@ -20,8 +20,8 @@ const FLOW_PATHS = [ROUTES.subscription.login, ROUTES.subscription.checkout, ROU
  * footer under it. Not the home page's marketing header: that one floats over a hero and watches the
  * home page's own scroll container.
  *
- * Inside a purchase flow (`FLOW_PATHS`) the bar gains a back button, drops the sign-in button on the
- * sign-in pages themselves, and the footer goes.
+ * Inside a purchase flow (`FLOW_PATHS`) the bar gains a back button — not on the pages where a payment
+ * settles or has settled — drops the sign-in button on the sign-in pages themselves, and the footer goes.
  *
  * Where the account surface is shut (`account` false) there is no sign-in to offer, so the bar keeps
  * the logo alone.
@@ -33,12 +33,14 @@ export const PublicShell = ({ account = true }: { account?: boolean }): JSX.Elem
     const goBack = useGoBack();
     const flow = FLOW_PATHS.some(path => pathname === path || pathname.startsWith(`${path}/`));
     const onSignIn = pathname === ROUTES.subscription.login || pathname.startsWith(`${ROUTES.subscription.login}/`);
+    // Where a payment ended — settling or settled — there is nothing to go back to.
+    const ended = pathname === ROUTES.subscription.checkoutStatus || pathname === ROUTES.subscription.checkoutComplete;
 
     return (
         <div className="flex h-full flex-col overflow-auto bg-background">
             <header className="sticky top-0 z-30 border-b border-line bg-background">
                 <div className="flex h-[60px] items-center gap-6 px-2 sm:h-16 sm:px-12">
-                    {flow && (
+                    {flow && !ended && (
                         <button
                             type="button"
                             aria-label={t('subscription.common.actions.back')}
