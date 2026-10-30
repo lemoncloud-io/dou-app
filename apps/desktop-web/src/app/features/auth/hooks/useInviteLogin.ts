@@ -227,9 +227,11 @@ export const useInviteLogin = () => {
 
                 // A bare code names no backend, so there is nothing to look up; it goes on without details.
                 const info = backend ? await fetchInviteCodeInfo(code, backend) : null;
-                // The backend can leave `state` at pending while the expiry time has passed, so the
-                // time is read as well; 0 or a missing value means no expiry was set.
-                const lapsed = !!info?.expiredAt && info.expiredAt < Date.now();
+                // The backend can leave `state` at pending after the invite ran out: past `expiredAt`,
+                // or past `graceAt` (the window the first lookup opens, after which the exchange is
+                // refused). 0 or a missing value means that limit was not set.
+                const now = Date.now();
+                const lapsed = [info?.expiredAt, info?.graceAt].some(at => !!at && at < now);
                 const blocked =
                     (info?.state ? BLOCKED_STATE[info.state] : undefined) ?? (lapsed ? 'expired' : undefined);
                 if (blocked) return { error: { kind: blocked }, createdGuest };

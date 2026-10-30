@@ -161,11 +161,13 @@ made: before the person has joined anything. The preview blocks an invite whose 
 whose state is one of four — `accepted` reads as already used, `expired` as expired, `canceled` and
 `rejected` as no longer available — with the same sentences the exchange uses. A state the list does not
 name, or none at all (an older backend), is read as pending. An invite still marked pending whose
-`expiredAt` has passed is read as expired too; an `expiredAt` of 0 or none means no expiry was set.
+`expiredAt` or `graceAt` has passed is read as expired too (`graceAt` is the window the first lookup
+opens, after which the exchange is refused with `grace-timeout`); 0 or none means that limit was not set.
 
 What the dev backend was seen to do, which the preview cannot change: it does not move an invite to
-`accepted` when it is exchanged, so a link stays pending and joinable until `expiredAt` (a day after
-it was made), and the preview cannot tell a link that was already used from a fresh one. An invite
+`accepted` when it is exchanged, so a link stays pending and joinable until `graceAt` (30 minutes after
+the first lookup) or `expiredAt` (a day after it was made), and within that window the preview cannot
+tell a link that was already used from a fresh one. An invite
 made for a phone number also signs the person in as the account of that number, not as a guest;
 the preview only knows the guest session it made itself, so that is the moment the identity changes.
 

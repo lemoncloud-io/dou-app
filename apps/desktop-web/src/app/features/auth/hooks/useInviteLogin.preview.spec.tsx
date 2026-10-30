@@ -144,6 +144,18 @@ describe('useInviteLogin.preview blocks', () => {
         expect(registerUserWithInviteCode).not.toHaveBeenCalled();
     });
 
+    it('blocks a pending invite whose grace window after the first lookup has run out', async () => {
+        fetchInviteCodeInfo.mockResolvedValue({
+            id: '1',
+            state: 'pending',
+            cloudName: 'Design Team',
+            expiredAt: Date.now() + 3_600_000,
+            graceAt: Date.now() - 60_000,
+        });
+
+        expect(await previewOf(TRUSTED_LINK)).toMatchObject({ error: { kind: 'expired' } });
+    });
+
     it('previews a pending invite whose expiry time is still ahead, or not given', async () => {
         fetchInviteCodeInfo.mockResolvedValueOnce({
             id: '1',
