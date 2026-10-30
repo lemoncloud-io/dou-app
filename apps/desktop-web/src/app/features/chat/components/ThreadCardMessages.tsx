@@ -46,7 +46,8 @@ export const ThreadCardMessages = ({
     );
 
     return (
-        <div className="flex flex-col gap-1">
+        // The card's column is the container the row toolbar's narrow rule measures (see MessageRow).
+        <div className="flex flex-col gap-1 [container-type:inline-size]">
             {rows.map(row =>
                 row.kind === 'group' ? (
                     <MessageRow
@@ -56,7 +57,6 @@ export const ThreadCardMessages = ({
                         onDiscard={onDiscard}
                         reactorName={reactorName}
                         withDayInTime
-                        toolbarUnderHeader
                         hideSavedMark={hideSavedMark}
                     />
                 ) : null

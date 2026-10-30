@@ -112,12 +112,6 @@ interface MessageRowProps {
     /** Thread panel: qualify the header time with the day ("Today at 3:28 PM"). */
     withDayInTime?: boolean;
     /**
-     * Hang the first message's toolbar just under the author line instead of over it. The
-     * thread panel sets it: its column is about 270px wide and the toolbar about 210px, so
-     * over the header the toolbar hid the name of the person whose message it acts on.
-     */
-    toolbarUnderHeader?: boolean;
-    /**
      * Leave out the red "Saved" tag a saved message carries. The Saved page sets it: every row
      * there is saved, so the tag would say nothing.
      */
@@ -229,7 +223,6 @@ export const MessageRow = memo(
         mentionables,
         highlightChatNo,
         withDayInTime,
-        toolbarUnderHeader,
         hideSavedMark,
     }: MessageRowProps) => {
         const { t } = useTranslation();
@@ -685,8 +678,7 @@ export const MessageRow = memo(
                                             data-row-actions=""
                                             inert={canHover && !isToolbarPinned && hoverKey !== key && focusKey !== key}
                                             className={cn(
-                                                i === 0 && toolbarUnderHeader ? '-top-1.5' : '-top-10',
-                                                'absolute right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
+                                                'absolute -top-10 right-0 z-raised flex items-center gap-0.5 rounded-lg border border-hairline bg-elevated p-0.5 shadow-overlay transition-[opacity,transform] duration-150 ease-tactile motion-reduce:transition-none motion-reduce:translate-x-0',
                                                 isToolbarPinned
                                                     ? 'translate-x-0 opacity-100'
                                                     : 'translate-x-0 opacity-100 focus-within:translate-x-0 focus-within:opacity-100 [@media(hover:hover)]:translate-x-1 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/msg:translate-x-0 [@media(hover:hover)]:group-hover/msg:opacity-100 [@media(hover:hover)]:focus-within:translate-x-0 [@media(hover:hover)]:focus-within:opacity-100'
@@ -700,7 +692,19 @@ export const MessageRow = memo(
                                                 Always the same two, in the same order — see
                                                 QUICK_REACTIONS. A row that reorders itself has to
                                                 be read before it can be used, which is the cost
-                                                these buttons exist to remove. */}
+                                                these buttons exist to remove.
+
+                                                Folded away in a column under 480px (a thread
+                                                panel, a Threads page card): with them the toolbar
+                                                is about 210px, and over the header of a 270px
+                                                column it hid the author's name. Without them it
+                                                is short enough to sit there, and the picker
+                                                beside them still reacts in one click. Over the
+                                                header and not over the text, because a toolbar on
+                                                the first line sat under the pointer of a reader
+                                                dragging to select that line. The column is the
+                                                container: MessageList and ThreadCardMessages
+                                                declare it. */}
                                             {showReactions &&
                                                 QUICK_REACTIONS.map(emoji => (
                                                     <ToolbarButton
@@ -708,7 +712,7 @@ export const MessageRow = memo(
                                                         label={t('chat.reaction.quick', { emoji })}
                                                         pressed={hasMyReaction(tallies, emoji)}
                                                         className={cn(
-                                                            'text-lead leading-none hover:bg-accent',
+                                                            'text-lead leading-none hover:bg-accent [@container(max-width:480px)]:hidden',
                                                             hasMyReaction(tallies, emoji) && 'bg-accent'
                                                         )}
                                                         onClick={() => {

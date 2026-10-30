@@ -23,8 +23,9 @@ words. Earlier replies are a link to the thread panel; when the cached window is
 count, since the thread may start before it. A card that shows its thread on screen for a second marks it seen;
 one still loading, or one that failed to read, does not.
 
-Reply mounts a text-only composer (`ThreadCardReply`); files and @ suggestions stay in the panel. The
-reply shows as the cache's own row for it: dimmed while it sends, with Retry and Delete if it fails.
+Reply mounts a text-only composer (`ThreadCardReply`); files stay in the panel. Its @ suggestions are
+the card's own room's members, fetched when the reply opens, and a picked mention goes out with the
+reply as it does from the panel. The reply shows as the cache's own row for it: dimmed while it sends, with Retry and Delete if it fails.
 
 ## Why the list is this device's own
 
