@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-10-30] - root@0.135.0, @chatic/landing@0.15.0
+
+### Features
+
+- (landing) redesign alert dialogs and the plan-change completion screens
+- (landing) redesign the store-subscriber notice to the new spec
+
 ## [2026-10-30] - root@0.134.0, @chatic/desktop-web@0.42.0
 
 ### Features
