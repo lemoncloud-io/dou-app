@@ -16,6 +16,14 @@ const activeCloud = {
     unreads: { byChannel: {}, byPlace: {}, total: 0 },
 } as DebugSharedObservation['activeCloud'];
 const otherCloud = { byCloud: {}, total: 0 } as DebugSharedObservation['otherCloud'];
+const room = {
+    surface: 'room',
+    channelId: 'ch-1',
+    channel: null,
+    rendered: [],
+    rows: [],
+} as DebugSharedObservation['room'];
+const EMPTY = { activeCloud: null, otherCloud: null, room: null, roomFocus: null };
 
 describe('sharedObservationStore — 오버레이가 읽는 공유 관측 미러', () => {
     beforeEach(() => {
@@ -23,15 +31,15 @@ describe('sharedObservationStore — 오버레이가 읽는 공유 관측 미러
     });
 
     it('아무것도 게시되지 않았으면 두 슬롯이 null이다', () => {
-        expect(getDebugObservation()).toEqual({ activeCloud: null, otherCloud: null });
+        expect(getDebugObservation()).toEqual(EMPTY);
     });
 
     it('게시한 슬롯만 바뀌고 나머지는 유지된다', () => {
         publishDebugObservation({ activeCloud });
-        expect(getDebugObservation()).toEqual({ activeCloud, otherCloud: null });
+        expect(getDebugObservation()).toEqual({ ...EMPTY, activeCloud });
 
         publishDebugObservation({ otherCloud });
-        expect(getDebugObservation()).toEqual({ activeCloud, otherCloud });
+        expect(getDebugObservation()).toEqual({ ...EMPTY, activeCloud, otherCloud });
     });
 
     it('구독자는 게시마다 깨어난다', () => {
@@ -60,6 +68,20 @@ describe('sharedObservationStore — 오버레이가 읽는 공유 관측 미러
     it('clear는 리포터가 사라진 뒤 죽은 스냅샷이 남지 않게 비운다', () => {
         publishDebugObservation({ activeCloud, otherCloud });
         clearDebugObservation();
-        expect(getDebugObservation()).toEqual({ activeCloud: null, otherCloud: null });
+        expect(getDebugObservation()).toEqual(EMPTY);
+    });
+
+    it('wakes subscribers when only a room slot changes', () => {
+        publishDebugObservation({ activeCloud, otherCloud });
+        const listener = jest.fn();
+        subscribeDebugObservation(listener);
+
+        // The equality check covers every slot, so a room published beside unchanged cloud slots
+        // still reaches the Room screen.
+        publishDebugObservation({ room });
+        expect(listener).toHaveBeenCalledTimes(1);
+
+        publishDebugObservation({ room });
+        expect(listener).toHaveBeenCalledTimes(1);
     });
 });

@@ -72,6 +72,7 @@ const ko: DebugStrings = {
         InviteRedirect: { title: '초대 링크 변환', short: '초대링크' },
         Deeplink: { title: '딥링크 보내기 (앱)', short: '딥링크' },
         DBBrowser: { title: 'DB 브라우저', short: 'DB' },
+        Room: { title: '현재 방 (채널·메시지 원본)', short: '방' },
         Storage: { title: '저장소 (앱·웹 캐시)', short: '저장소' },
     },
 };
@@ -109,6 +110,7 @@ const en: DebugStrings = {
         InviteRedirect: { title: 'Invite link converter', short: 'Invite' },
         Deeplink: { title: 'Send deeplink (app)', short: 'Deeplink' },
         DBBrowser: { title: 'DB browser', short: 'DB' },
+        Room: { title: 'Open room (raw channel & messages)', short: 'Room' },
         Storage: { title: 'Storage (app & web cache)', short: 'Storage' },
     },
 };
