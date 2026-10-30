@@ -17,6 +17,8 @@ stores in `src/app/shared/`.
   paged past deleted messages.
 - [jump-and-return.md](./jump-and-return.md): a jump to one message, and the "Back to …" that returns
   the reader to where they were reading.
+- [read-counts.md](./read-counts.md): the "Seen · Not seen" pill under each author block — where it
+  shows, how members' read positions are counted, and why every member's join syncs while a room is open.
 - [room-names.md](./room-names.md): one name per room on every surface, and the profile cache behind it.
 - [channel-settings.md](./channel-settings.md): the channel settings panel's sections, and the channel
   ID a group channel shows for pointing a service at it.

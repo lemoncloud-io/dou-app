@@ -16,6 +16,7 @@ import {
     useRovingFocus,
     useSiteProfileMap,
     viewerPlaceProfile,
+    type ReadCount,
 } from '../../../shared';
 import {
     buildMessageRows,
@@ -106,6 +107,11 @@ interface MessageListProps {
      * retry row at the top instead. Retry reuses `onLoadOlder`.
      */
     loadOlderFailed?: boolean;
+    /**
+     * Main feed only: how many members have read up to a message. Each author block shows the
+     * count for its last settled message; absent (the thread panel) or null shows none.
+     */
+    readCountOf?: (chatNo: number) => ReadCount | null;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -126,6 +132,27 @@ const isWindowActive = (): boolean =>
 
 /** Past this the exact count is not asserted — the badge says "N+" instead. */
 const NEW_BADGE_CAP = 99;
+/**
+ * Whether a message has a read count to show: one the server has accepted and that still stands.
+ * A row in flight carries a placeholder chatNo, and a deleted one has nothing left to read.
+ */
+const isCountable = (message: DomainChat): message is DomainChat & { chatNo: number } =>
+    !message.isPending &&
+    !message.isFailed &&
+    !message.hidden &&
+    typeof message.chatNo === 'number' &&
+    message.chatNo > 0 &&
+    message.chatNo !== Number.MAX_SAFE_INTEGER;
+
+/** The newest message of a block that has a read count to show (`findLast` is past this build's ES2022 lib). */
+const lastCountable = (messages: DomainChat[]): (DomainChat & { chatNo: number }) | undefined => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (message && isCountable(message)) return message;
+    }
+    return undefined;
+};
+
 // One array for every message that calls nobody "me", so a memo'd row sees the same prop.
 const NO_SELF_NAMES: string[] = [];
 
@@ -158,6 +185,7 @@ export const MessageList = ({
     loadFailed,
     onRetryLoad,
     loadOlderFailed,
+    readCountOf,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const reducedMotion = useReducedMotion();
@@ -856,6 +884,11 @@ export const MessageList = ({
                         highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
                             ? highlightChatNo
                             : undefined;
+                    // The block's last settled message: a newer one still sending, failed or deleted
+                    // must not take the count away from the messages that did land.
+                    const counted = readCountOf ? lastCountable(row.group.messages) : undefined;
+                    const count = counted ? readCountOf?.(counted.chatNo) : null;
+                    const readCount = counted && count ? { ...count, chatNo: counted.chatNo } : undefined;
                     return (
                         <MessageRow
                             key={row.group.key}
@@ -872,6 +905,7 @@ export const MessageList = ({
                             withDayInTime={threadReplyCount !== undefined}
                             reactions={reactions}
                             reactorName={reactorName}
+                            readCount={readCount}
                         />
                     );
                 })}

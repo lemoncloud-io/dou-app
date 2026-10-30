@@ -410,6 +410,8 @@ export const en = {
     'chat.reaction.who': '{{emoji}} · {{names}}',
     'chat.reaction.quick': 'React with {{emoji}}',
     'chat.reaction.failed': "Couldn't add that reaction. Try again.",
+    'chat.readCount.summary': 'Seen {{read}} · Not seen {{unread}}',
+    'chat.readCount.allSeen': 'Seen {{read}}',
     'chat.edit': 'Edit message',
     'chat.editHint': 'Enter to save · Esc to cancel',
     'chat.editSave': 'Save',

@@ -50,6 +50,7 @@ import {
     messagePreview,
     useMediaQuery,
     useSavedItemsStore,
+    type ReadCount,
 } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
@@ -116,6 +117,11 @@ interface MessageRowProps {
      * there is saved, so the tag would say nothing.
      */
     hideSavedMark?: boolean;
+    /**
+     * Read count for the block's last settled message, shown under the message it names. Absent: no
+     * count (thread panel, self channel).
+     */
+    readCount?: ReadCount & { chatNo: number };
 }
 
 /**
@@ -224,6 +230,7 @@ export const MessageRow = memo(
         highlightChatNo,
         withDayInTime,
         hideSavedMark,
+        readCount,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         // Pointer devices hide the toolbar until hover; touch shows it always, so it is
@@ -650,6 +657,18 @@ export const MessageRow = memo(
                                             {t('chat.reaction.failed')}
                                         </span>
                                     )}
+                                    {/* Counts, not names: who read it is a later step. Under the block's
+                                        last settled message only — every earlier one has been read at least as far. */}
+                                    {readCount && readCount.chatNo === message.chatNo && (
+                                        <span className="mt-1 flex w-fit items-center rounded-full bg-muted px-2 py-1 text-caption font-medium tabular-nums text-muted-foreground">
+                                            {readCount.unread > 0
+                                                ? t('chat.readCount.summary', {
+                                                      read: readCount.read,
+                                                      unread: readCount.unread,
+                                                  })
+                                                : t('chat.readCount.allSeen', { read: readCount.read })}
+                                        </span>
+                                    )}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the
                                     message's first line so it stays inside the hover band. It
@@ -1021,13 +1040,15 @@ export const MessageRow = memo(
         // one message changed. Everything else compares by identity as before;
         // those two compare only the entries this block actually reads.
         for (const k of Object.keys(next) as (keyof MessageRowProps)[]) {
-            if (k === 'reactions' || k === 'threadMeta' || k === 'group') continue;
+            if (k === 'reactions' || k === 'threadMeta' || k === 'group' || k === 'readCount') continue;
             if (prev[k] !== next[k]) return false;
         }
         // The group object is rebuilt on every feed change too; what matters is
         // its fields and the identity of each message in it (the repository
         // hands back a new object only for a message that actually changed).
         if (!sameGroup(prev.group, next.group)) return false;
+        // A fresh object per render; only its fields matter.
+        if (!sameEntry(prev.readCount, next.readCount)) return false;
         for (const message of next.group.messages) {
             if (message.id && !sameEntry(prev.reactions?.get(message.id), next.reactions?.get(message.id))) {
                 return false;
