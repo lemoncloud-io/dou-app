@@ -92,15 +92,25 @@ export const CheckoutSteps = ({ current }: { current: 3 | 4 | 5 }): JSX.Element 
 export const CheckoutLayout = ({
     head,
     summary,
+    summaryLast = false,
     children,
 }: {
     head: ReactNode;
     summary: ReactNode;
+    /** On a phone, the summary goes under the form instead of above it (an aside, not a bill). */
+    summaryLast?: boolean;
     children: ReactNode;
 }): JSX.Element => (
     <div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-[minmax(0,1fr)_280px] lg:mx-auto lg:grid-cols-[640px_360px] lg:gap-x-16">
         <div className="flex flex-col gap-[22px] md:col-start-1 md:row-start-1">{head}</div>
-        <div className="md:col-start-2 md:row-span-2 md:row-start-1 md:self-start">{summary}</div>
+        <div
+            className={cn(
+                'md:order-none md:col-start-2 md:row-span-2 md:row-start-1 md:self-start',
+                summaryLast && 'max-md:order-last'
+            )}
+        >
+            {summary}
+        </div>
         <div className="flex flex-col gap-6 md:col-start-1 md:row-start-2">{children}</div>
     </div>
 );
