@@ -397,6 +397,18 @@ describe('createMockPort — the state machine', () => {
         expect((await port.getSubscription('sub-2')).defaultPaymentMethodId).toBe('pm-2');
     });
 
+    it("decides the trial from the account's eligibility, not its trial-used flag alone", async () => {
+        expect((await setup('?mock=new').port.previewCheckout('pro-tier-01')).withTrial).toBe(true);
+        expect((await setup('?mock=new-trial-used').port.previewCheckout('pro-tier-01')).withTrial).toBe(false);
+    });
+
+    it("prices the plans in the currency asked for, and otherwise in the subscription's", async () => {
+        const { port } = setup('?mock=active');
+        expect((await port.listPlans())[0].monthly).toEqual({ amount: 8600, currency: 'KRW' });
+        expect((await port.listPlans({ currency: 'USD' }))[0].monthly).toEqual({ amount: 600, currency: 'USD' });
+        expect((await port.previewCheckout('pro-tier-01', { currency: 'USD' })).plan.monthly.currency).toBe('USD');
+    });
+
     it('stops at five billing emails and keeps the primary one', async () => {
         const { port } = setup('?mock=active');
         for (const n of [2, 3, 4, 5]) await port.requestEmailCode(`b${n}@lemon.example`);

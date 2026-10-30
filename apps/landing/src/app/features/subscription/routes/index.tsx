@@ -4,7 +4,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } fr
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ROUTES } from '../../../routes/paths';
-import { AccountShell, DevScenarioPanel, MockPaymentWindow, PublicShell } from '../components';
+import { AccountShell, CardEntryWindow, DevScenarioPanel, MockPaymentWindow, PublicShell } from '../components';
 import { ToastProvider } from '../components/ui';
 import { subscriptionKeys } from '../hooks';
 import { type PortSetup, createPortSetup } from '../lib/createPortSetup';
@@ -109,6 +109,7 @@ export const SubscriptionRoutes = ({
                             <Host>{account ? <AccountRoutes mock={mock} /> : <CatalogRoutes />}</Host>
                         </ManagementScreensProvider>
                         {mock && <MockPaymentWindow />}
+                        {setup.cardEntry && <CardEntryWindow channel={setup.cardEntry} />}
                         {mock && <DevScenarioPanel />}
                     </ToastProvider>
                 </MockControllerProvider>

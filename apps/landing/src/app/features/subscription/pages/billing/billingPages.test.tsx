@@ -62,7 +62,7 @@ const openPaymentWindow = async () => {
     const dialog = await screen.findByRole('dialog', { name: 'Add card' });
     fireEvent.change(within(dialog).getByLabelText('Name'), { target: { value: '김민지' } });
     fireEvent.change(within(dialog).getByLabelText('Mobile phone'), { target: { value: '010-1234-5678' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Open payment window' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Open card entry' }));
 };
 
 describe('W-12 payment methods', () => {

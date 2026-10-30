@@ -1,6 +1,7 @@
 # ADR-0250: Landing reopens card management on the payment service's cards
 
 > Status: Accepted · Decided: 2026-10-29
+> · Decision 1 amended by [ADR-0255](./0255-landing-bills-outside-korea-in-dollars-through-its-own-card-dialog.md) (one default card per payment provider)
 > Scope: `apps/landing` (`README.md` § The account surface, `src/app/features/subscription/lib/screens.tsx`,
 > `pages/billing/PaymentMethodsPage.tsx`, `pages/billing/useCardWindowReturn.ts`,
 > `lib/port/http/createHttpPort.ts`); the card calls in `libs/http` (`gateways/subscriptions.ts`) and

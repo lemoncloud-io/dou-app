@@ -1,6 +1,6 @@
-import { CATALOG_CURRENCY, PLAN_CATALOG, PRICE_PER_TIER, TRIAL_DAYS } from '../catalog';
+import { PLAN_CATALOG, PRICE_PER_TIER, TRIAL_DAYS, planCatalogIn } from '../catalog';
 
-import type { Plan } from '../../types';
+import type { Currency, Plan } from '../../types';
 
 /**
  * Every billing rule the mock applies, in one place.
@@ -12,9 +12,8 @@ import type { Plan } from '../../types';
  * object still lists every rule.
  */
 export const MOCK_POLICY = {
-    /** Monthly price per tier step, VAT included: DoU Cloud n costs n times this. */
+    /** Monthly price per tier step in each currency's minor unit, VAT included: DoU Cloud n costs n times this. */
     pricePerTier: PRICE_PER_TIER,
-    currency: CATALOG_CURRENCY,
     /** The free trial on a first subscription. */
     trialDays: TRIAL_DAYS,
     /** Days after a failed renewal on which the charge is retried (proposal). */
@@ -45,11 +44,11 @@ export const MOCK_POLICY = {
     signInAttemptMinutes: 10,
 } as const;
 
-/** The mock sells exactly the published catalog. */
+/** The mock sells exactly the published catalog — in won unless a currency is asked for. */
 export const MOCK_PLANS: Plan[] = PLAN_CATALOG;
 
-export const planOf = (id: Plan['id']): Plan => {
-    const plan = MOCK_PLANS.find(p => p.id === id);
+export const planOf = (id: Plan['id'], currency: Currency = 'KRW'): Plan => {
+    const plan = planCatalogIn(currency).find(p => p.id === id);
     if (!plan) throw new Error(`unknown plan ${id}`);
     return plan;
 };

@@ -108,8 +108,8 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    `SubscriptionPort` (`features/subscription/lib/port/`) and nothing else — no `fetch`, no HTTP
    client. Of its implementations, only the HTTP one (`lib/port/http/`) reaches the network, and it
    does so through the runtime's subscription repository (`libs/data`, over `libs/http`'s gateway),
-   as every other app's server calls do: the session runtime and the payment SDK are imported there
-   and nowhere else (ADR-0248).
+   as every other app's server calls do: the session runtime and the payment SDKs are imported there
+   and nowhere else (ADR-0248, ADR-0255).
 10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountEnabled` is
     false (every host but `localhost`, `127.0.0.1` and `-dev` ones) its routes are not registered,
     and the public pages' links into it render only where the gate is open — today the home header's
@@ -280,11 +280,15 @@ test ! -d apps/landing/src/app/shared   # no shared/ wrapper
 git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|app-runtime|auth-sign)" \
     -- apps/landing/src ':!apps/landing/src/app/features/subscription' ':!apps/landing/src/app/routes'
 
-# the account surface reaching the network, a session or the payment SDK outside the HTTP port
+# the account surface reaching the network, a session or a payment SDK outside the HTTP port
 # (`[^[:alnum:]_]` before fetch: `window.fetch(` is caught, react-query's `refetch(` is not; the one
 # hit outside the account surface is the orphan in deeplink/utils/fingerprint.ts — see Traps)
-git grep -n -E "@chatic/(http|data|app-runtime|auth-sign)|@portone/|(^|[^[:alnum:]_])fetch\(|axios" \
+git grep -n -E "@chatic/(http|data|app-runtime|auth-sign)|@portone/|@stripe/|(^|[^[:alnum:]_])fetch\(|axios" \
     -- apps/landing/src ':!apps/landing/src/app/features/subscription/lib/port/http'
+
+# a payment provider named on screen: the copy says the billing country and the currency, never who
+# processes the card (ADR-0255)
+git grep -n -i -E "portone|inicis|이니시스|포트원|stripe|국내 카드|해외 카드" -- 'apps/landing/src/**/locales/**'
 ```
 
 Give the first command the features folder itself, as above. A pathspec with a trailing glob such
@@ -319,14 +323,21 @@ they were. What that costs: receipts go to the sign-in address alone.
 
 **The card screen, W-12, is open** (ADR-0250). `MANAGEMENT_SCREENS_OPEN` is two values, `{ cards, emails }`,
 and only `emails` is shut. W-12 lists the cards the payment service holds, the default marked as the
-server marks it; every other card has [Make default] and [Remove], and [Add card] opens the payer's name
-and number (`PayerFields`) and then the provider's window. A card added this way is not charged until it
+server marks it. Cards belong to the provider that registered them — one provider takes payments in
+won, another in US dollars — and each provider has a default of its own, so the cards are grouped by
+provider (`lib/paymentMethods.ts`): the provider the subscription is charged by first, and a second group
+under a heading named by its currency only when the account holds cards of both. Wherever a screen
+speaks of "the card" — W-18's tile, W-14, W-09, the removal rule — it means the default of the
+subscription's own provider. Every other card has [Make default] and [Remove], and [Add card] opens a dialog that shows the
+billing country as fixed and, where the subscription is billed in Korea, asks for the payer's name and
+number (`PayerFields`); then the won provider's window opens, or for dollars the card dialog (see
+[Billing outside Korea](#billing-outside-korea)). A card added this way is not charged until it
 is made the default. The payment service decides what may be removed: the default card's [Remove] is
 greyed and only opens the explanation (make another card the default first; for a live subscription's
 only card, add one first), and a refusal of any other card is the card a subscription in use is charged
 to, which W-12 says. It is
 reached from the account menu, from W-18's card tile and from a failed payment's button. On a phone the
-provider's window comes back to W-12 with its result in the query, and the payer waits in
+won provider's window comes back to W-12 with its result in the query, and the payer waits in
 `sessionStorage` meanwhile (`savePendingCardChange`, read by `pages/billing/useCardWindowReturn.ts`).
 Retrying a failed payment has no server, so W-12 does not offer to charge the overdue amount on the
 server; against the mock it still does.
@@ -349,7 +360,7 @@ features/subscription/
 ├── lib/port/         SubscriptionPort, SubscriptionPortError, PortProvider (+ the clock)
 ├── lib/port/http/    the HTTP port: the server's shapes, the sign-in, the card window — the only network
 ├── lib/mock/         the mock port: state machine, scenarios, policy values, storage
-├── lib/catalog.ts    the published plans and prices, read by both ports
+├── lib/catalog.ts    the published plans and prices, in won and in dollars, read by both ports
 ├── lib/catalogPort.ts the port where the account surface is shut: the plans, no session
 ├── lib/              decisions as pure functions: sceneOf, changeKindOf, ddayOf,
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
@@ -429,7 +440,10 @@ The pages read the same flag where it changes what they offer:
   exist on that host; its footer is the same everywhere and carries the refund policy link.
 
 `lib/catalog.ts` is therefore a published price list, not mock data: the mock sells exactly this
-catalog, and a price changes there together with the stores' prices. When the server and the payment
+catalog, and a price changes there together with the stores' prices. It holds each tier in won and in
+dollars (the stores' price outside Korea, $6 a step); W-01 shows the currency of the page's language —
+won in Korean, dollars otherwise — or, for a subscriber, the subscription's own. What a checkout
+charges is decided by its billing country, not by the language. When the server and the payment
 provider arrive, the account surface opens by the gate and the catalog port is no longer used.
 
 One cost is accepted: the production visitor to this page downloads the whole account-surface
@@ -451,9 +465,43 @@ a `…NoUndo` line says only what holds. `?mock=<scenario>` switches the tab to 
 
 The addresses are the build's `VITE_*` values — copy `.env.example` to `.env` with the dev ones, as for
 the web app — read in `config/subscriptionServer.ts` and nowhere else; the session runtime takes the
-relay's address from them too. The card window is the payment provider's (PortOne V2, KG Inicis),
-opened with the values the server's `issue` returns. The HTTP port and the session runtime load on
-first use, as a chunk of their own.
+relay's address from them too. The card is entered where the server's `issue` answer says: the won
+provider's own window (PortOne V2, KG Inicis), or the dollar provider's card field (Stripe's Payment
+Element) inside a dialog of ours — see [Billing outside Korea](#billing-outside-korea). Every value
+either opens with comes from that answer. The HTTP port, the session runtime and both payment SDKs load
+on first use, as a chunk of their own; the dollar provider's script is fetched only when its field is
+first opened.
+
+#### Billing outside Korea
+
+W-08 asks for the billing country first, with none chosen. The country decides the currency and, inside
+the port, the payment provider: Korea is billed in won, every other country in US dollars
+(`lib/billingCountry.ts`). Until a country is chosen the summary shows no amount and pressing on says a
+country is needed; once one is, the summary is priced in its currency and a line says which. The copy
+names the country and the currency and never a provider — the last boundary command above checks it.
+
+- **Payer.** The won provider's card company needs the holder's name, mobile number and email when the
+  card is registered and with every charge after, so they are asked for in Korea only, and required there;
+  elsewhere there are no payer fields (the dollar provider's field asks for the country and postal code
+  itself, starting from the billing country). The port also checks the `issue` answer's `required` list
+  and refuses with `invalid` rather than open a window that would fail.
+- **The card dialog.** `CardEntryWindow`, mounted at the route root when the server port is in use, is
+  where the dollar provider's field goes. The port asks for it through `lib/port/cardEntry.ts`, a channel
+  that names no provider; `lib/port/http/stripeWindow.ts` fills the request in and is the one place
+  `@stripe/stripe-js` is imported. Under the field the dialog states the recurring charge — the amount,
+  when it first falls, monthly after, and how to cancel — and the card is registered (`confirmSetup`)
+  only once that is ticked. A field to fix keeps the dialog open; a refused card ends it as a failed
+  window and a 3-D Secure check not completed as a closed one (`stripeResult.ts`), so W-09 reads them as
+  it reads the won window's. The dialog is not modal, so the card's 3-D Secure overlay can take clicks,
+  and nothing closes it while a confirmation runs. The keys come from the `issue` answer only and are
+  never stored or logged.
+- **After the checkout.** A subscription stays with its provider: a plan change, a card added and the
+  plans it is offered are all in its currency, and W-12's add-card dialog shows its billing country as
+  fixed. W-08 itself only opens for a first subscription.
+- **Not done.** Consent is shown and required but not recorded; India-issued cards register but will be
+  refused monthly (no e-mandate without the provider's own subscriptions); how tax applies to a dollar
+  price is not settled, so a dollar price carries no VAT note (won prices still say VAT is included); the
+  dollar products exist on the dev stage only. ADR-0255 records the decision and these costs.
 
 The server's calls themselves live in the shared libraries, not here: `libs/http`'s subscription
 gateway names the eight `/subscriptions/0/*` requests and declares their shapes, and `libs/data`'s
@@ -472,9 +520,26 @@ What the screens get from the server differs from the mock in a few places, all 
 - W-14's charge for an upgrade is an estimate with the server's own proration; the copy says so. The
   server upgrades a paid period only, so a trial can move down but not up — W-14 says so before
   anything is tried, and the mock refuses the same way.
-- Its cards carry no expiry, so none is drawn. A card is named to the server by its id (`billkeyId`).
+- Its card list carries every provider's cards, each marked with its provider and one default per
+  provider; a card is named to the server by its id (`billkeyId`). The expiry is drawn where the
+  provider reports one (`cardExpMonth` · `cardExpYear`) and left out where it does not.
+- Each provider sells the same five tiers as products of its own — `platform=portone` in won,
+  `platform=stripe` in dollars — so the HTTP port reads a catalog per provider and pairs them by tier.
+  A subscription is read against its own provider's catalog.
+- Every amount is in its currency's minor unit, as the server sends it: won for won, cents for dollars
+  (`600` is $6). `formatMoney` divides by the currency's fraction digits; nothing else converts.
 - Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
-- The payment provider's window opens in the page (an iframe) on a computer, not as a pop-up, about
+- Whether a first subscription starts with the free trial is the server's to say: the membership
+  (`GET /memberships/0/mine`) carries `trialEligible`, the same rule its `start` applies, and the HTTP
+  port reads it into the account (`Account.trialEligible`). The checkout preview offers the trial only
+  when it is true and the product has `trialDays`; false is charged at once, and W-01, W-08 and W-05
+  draw no trial copy. A server that does not send it is read off the trial-used flags as before. A
+  visitor's eligibility is not known, so W-01 tells them a first subscription comes with the trial. The
+  mock's scenario accounts carry the same value.
+- The rest of this list is the won provider's window. The dollar provider's card field never leaves the
+  page, on a phone either: `confirmSetup` runs with `redirect: 'if_required'`, and a card has no
+  redirect, so there is no return trip, no saved checkout and no query to read.
+- The won provider's window opens in the page (an iframe) on a computer, not as a pop-up, about
   0.8 s after the click. On a phone it is the provider's own page: the browser leaves for it and comes
   back to W-05 (or the card list, for a card added alone) with the result in the query — `billingKey`,
   or `code` and `message`. The checkout W-08 settled does not survive that trip, so `lib/pendingCheckout.ts`
@@ -486,9 +551,10 @@ What the screens get from the server differs from the mock in a few places, all 
   — the code a refused card also gets — with a message that the user cancelled; `windowReturn.ts`
   tells the two apart by that message, for the window's answer and for a phone's query alike, so a
   closed window reads as cancelled, not as a declined card.
-- The payer's name and mobile number, which the card company requires with every card, are asked for
-  on W-08 and in W-12's add-card dialog. They travel with that checkout or card and
-  are not stored. The payer's address is the account's own while the billing-email screens are hidden.
+- The payer's name and mobile number, which the won provider's card company requires with every card,
+  are asked for on W-08 and in W-12's add-card dialog when the billing is in Korea (see
+  [Billing outside Korea](#billing-outside-korea)). They travel with that checkout or card and are not
+  stored. The payer's address is the account's own while the billing-email screens are hidden.
 
 ### The mock
 
@@ -518,7 +584,9 @@ Scenarios: `visitor` (the default, signed out), `new` (Google, no billing email 
 The **dev panel** (bottom right) changes the scenario, the fail flag and today, and resets the state.
 The **payment window** is a dialog standing in for the payment provider's card window:
 `startPaymentMethodRegistration` opens it and resolves with the outcome the reader picks
-(registered, failed, closed), the fail flag's outcome marked. Billing email codes are `123456`; a code
+(registered, failed, closed), the fail flag's outcome marked. It stands in for both providers: a
+checkout billed outside Korea goes through it too, priced in dollars and with no payer, and its card
+and subscription belong to the dollar provider from then on. Billing email codes are `123456`; a code
 lives 5 minutes, resends are 60 seconds apart and 5 at most, then the address locks for 10 minutes
 (`lib/mock/policy.ts`). Those run on the wall clock, not on `?now=`, which moves only the day. The
 panel, the consent page and the receipt page are developer tools: English, not in the copy files.
@@ -557,7 +625,7 @@ reader walks away.
 Most of the libraries Nx's graph gives this app are not called from it. The public surface imports
 four; the account surface's HTTP port adds two more, `@chatic/app-runtime` (which reaches the server
 through `libs/data` and `libs/http`) and `@chatic/config`, with
-`@portone/browser-sdk` from the workspace root, inside a chunk of their own that loads on first use (see
+`@portone/browser-sdk` and `@stripe/stripe-js` from the workspace root, inside a chunk of their own that loads on first use (see
 [The server](#the-server)) — and through the runtime, much of `libs/` reaches that chunk. The account
 surface also imports `@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from
 the workspace root, inside its own chunk. The table is about the public pages.

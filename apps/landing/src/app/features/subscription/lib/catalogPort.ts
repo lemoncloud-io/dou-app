@@ -1,4 +1,4 @@
-import { PLAN_CATALOG } from './catalog';
+import { planCatalogIn } from './catalog';
 import { SubscriptionPortError, type SubscriptionPort } from './port';
 
 /** Nothing but the plans exists here, so every other call answers as it would for a visitor. */
@@ -12,7 +12,7 @@ const shut = (): Promise<never> =>
  */
 export const createCatalogPort = (): SubscriptionPort => ({
     getSession: () => Promise.resolve(null),
-    listPlans: () => Promise.resolve(PLAN_CATALOG),
+    listPlans: input => Promise.resolve(planCatalogIn(input?.currency ?? 'KRW')),
     startSignIn: shut,
     completeSignIn: shut,
     signOut: shut,

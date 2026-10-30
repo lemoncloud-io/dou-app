@@ -1,5 +1,6 @@
 import { type ComponentType, type ReactNode, createElement, lazy, Suspense } from 'react';
 
+import { type CardEntryChannel, createCardEntryChannel } from '../cardEntry';
 import { HTTP_METHODS, type HttpPort } from './methods';
 
 import type * as Live from './live';
@@ -12,6 +13,8 @@ export interface HttpSetup {
     port: HttpPort;
     /** Wraps the account surface's routes: the session lives inside it. */
     Host: ComponentType<{ children: ReactNode }>;
+    /** Where the port asks for a card typed into our own dialog (`CardEntryWindow`). */
+    cardEntry: CardEntryChannel;
 }
 
 /**
@@ -20,6 +23,8 @@ export interface HttpSetup {
  * module holds only a stand-in that loads the real one when it is first called or rendered.
  */
 export const createHttpSetup = (server: SubscriptionServer): HttpSetup => {
+    // Made here, outside the loaded chunk, so the dialog can be mounted before the port is loaded.
+    const cardEntry = createCardEntryChannel();
     let live: Promise<typeof Live> | undefined;
     let port: Promise<HttpPort> | undefined;
     // A failed load is forgotten, so the next call tries again instead of failing until a reload —
@@ -31,7 +36,7 @@ export const createHttpSetup = (server: SubscriptionServer): HttpSetup => {
         }));
     const loadPort = () =>
         (port ??= load()
-            .then(module => module.createLiveHttpPort(server))
+            .then(module => module.createLiveHttpPort(server, cardEntry))
             .catch(error => {
                 port = undefined;
                 throw error;
@@ -50,5 +55,5 @@ export const createHttpSetup = (server: SubscriptionServer): HttpSetup => {
     const Host = ({ children }: { children: ReactNode }) =>
         createElement(Suspense, { fallback: null }, createElement(LazyHost, null, children));
 
-    return { port: proxy, Host };
+    return { port: proxy, Host, cardEntry };
 };

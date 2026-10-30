@@ -31,6 +31,7 @@ const sub = (overrides: Partial<Subscription> = {}): Subscription => ({
     status: 'active',
     startedAt: '2026-08-20',
     billingDay: 20,
+    provider: 'portone',
     nextBillingAt: '2026-12-20',
     nextAmount: { amount: 17200, currency: 'KRW' },
     ...overrides,
@@ -40,6 +41,7 @@ const card = (id: string, isDefault = false): PaymentMethod => ({
     id,
     brand: 'Shinhan',
     last4: '1234',
+    provider: 'portone',
     expMonth: 4,
     expYear: 2029,
     isDefault,
@@ -195,6 +197,21 @@ describe('canRemovePaymentMethod', () => {
     it('allows any card with nothing to charge', () => {
         expect(canRemovePaymentMethod(card('a', true), [card('a', true)], undefined)).toBe('ok');
         expect(canRemovePaymentMethod(card('a', true), [card('a', true)], sub({ status: 'expired' }))).toBe('ok');
+    });
+
+    it('judges a card only against the cards of its own provider', () => {
+        const dollar = (id: string, isDefault = false): PaymentMethod => ({
+            ...card(id, isDefault),
+            provider: 'stripe',
+        });
+        const methods = [card('a', true), dollar('b', true), dollar('c')];
+        // The won subscription's only card stays, however many dollar cards there are.
+        expect(canRemovePaymentMethod(methods[0], methods, live)).toBe('last');
+        // A dollar card charges nothing to a won subscription, but the dollar default waits for another.
+        expect(canRemovePaymentMethod(methods[2], methods, live)).toBe('ok');
+        expect(canRemovePaymentMethod(methods[1], methods, live)).toBe('default');
+        expect(canRemovePaymentMethod(dollar('b', true), [methods[0], dollar('b', true)], live)).toBe('ok');
+        expect(canRemovePaymentMethod(methods[1], methods, sub({ provider: 'stripe' }))).toBe('default');
     });
 });
 

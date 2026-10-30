@@ -4,6 +4,7 @@ import type {
     Invoice,
     PaymentAttempt,
     PaymentMethod,
+    PaymentProvider,
     PlanId,
     SignInProvider,
     Subscription,
@@ -57,6 +58,8 @@ export interface MockAttempt extends PaymentAttempt {
     settlesAs: 'succeeded' | 'failed';
     /** The plan an upgrade or a first checkout is for. */
     planId?: PlanId;
+    /** Who a first checkout is charged by, from its billing country. */
+    provider?: PaymentProvider;
 }
 
 /** One address's code: when it was sent and dies, how many tries and codes are left, any lock. */
@@ -71,7 +74,7 @@ export interface MockEmailCode {
 /** The whole mock server: one account and everything it owns. */
 export interface MockState {
     /** Bumped when this shape changes, so a stored older shape is rebuilt rather than misread. */
-    version: 3;
+    version: 4;
     scenario: ScenarioId;
     /** The mock's today, an ISO date. */
     today: string;

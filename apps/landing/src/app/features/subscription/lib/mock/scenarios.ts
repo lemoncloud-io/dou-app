@@ -36,11 +36,30 @@ const ACCOUNT: Account = {
     displayName: 'Minji Kim',
     billingSource: 'web',
     trialUsed: true,
+    trialEligible: false,
 };
 
 const CARDS: PaymentMethod[] = [
-    { id: 'pm-1', brand: '신한', last4: '1234', expMonth: 4, expYear: 2029, isDefault: true, expiringSoon: false },
-    { id: 'pm-2', brand: '현대', last4: '5678', expMonth: 8, expYear: 2028, isDefault: false, expiringSoon: false },
+    {
+        id: 'pm-1',
+        provider: 'portone',
+        brand: '신한',
+        last4: '1234',
+        expMonth: 4,
+        expYear: 2029,
+        isDefault: true,
+        expiringSoon: false,
+    },
+    {
+        id: 'pm-2',
+        provider: 'portone',
+        brand: '현대',
+        last4: '5678',
+        expMonth: 8,
+        expYear: 2028,
+        isDefault: false,
+        expiringSoon: false,
+    },
 ];
 
 const PRIMARY_EMAIL: BillingEmail = {
@@ -75,6 +94,7 @@ const activeCloud2 = (overrides: Partial<Subscription> = {}): Subscription => ({
     status: 'active',
     startedAt: '2026-09-20',
     billingDay: 20,
+    provider: 'portone',
     nextBillingAt: '2026-11-20',
     nextAmount: price('pro-tier-02'),
     defaultPaymentMethodId: 'pm-1',
@@ -88,6 +108,7 @@ const endedCloud1: Subscription = {
     status: 'expired',
     startedAt: '2026-08-20',
     billingDay: 20,
+    provider: 'portone',
     endsAt: '2026-09-19',
     expiredAt: '2026-09-19',
     restoreUntil: restoreUntil('2026-09-19'),
@@ -109,14 +130,17 @@ interface ScenarioData {
     emails?: BillingEmail[];
 }
 
-const NEW_ACCOUNT: Account = { ...ACCOUNT, billingSource: 'none', trialUsed: false };
+const NEW_ACCOUNT: Account = { ...ACCOUNT, billingSource: 'none', trialUsed: false, trialEligible: true };
 
 const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
     visitor: () => ({ signedIn: false, account: NEW_ACCOUNT }),
     // Signed in with Apple, which shares no address: the email step starts from an empty field.
     'new-apple': () => ({ signedIn: true, account: { ...NEW_ACCOUNT, provider: 'apple', email: undefined } }),
     new: () => ({ signedIn: true, account: NEW_ACCOUNT }),
-    'new-trial-used': () => ({ signedIn: true, account: { ...NEW_ACCOUNT, trialUsed: true } }),
+    'new-trial-used': () => ({
+        signedIn: true,
+        account: { ...NEW_ACCOUNT, trialUsed: true, trialEligible: false },
+    }),
     'no-linked-account': () => ({
         signedIn: false,
         account: NEW_ACCOUNT,
@@ -153,6 +177,7 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
                 status: 'trial',
                 startedAt: '2026-10-30',
                 billingDay: 6,
+                provider: 'portone',
                 trialEndsAt: '2026-11-06',
                 nextBillingAt: '2026-11-06',
                 nextAmount: price('pro-tier-01'),
@@ -184,6 +209,7 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
             activeCloud2({
                 status: 'pastDue',
                 billingDay: 30,
+                provider: 'portone',
                 startedAt: '2026-09-30',
                 nextBillingAt: undefined,
                 failedAt: '2026-10-30',
@@ -206,6 +232,7 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
             activeCloud2({
                 status: 'restricted',
                 billingDay: 24,
+                provider: 'portone',
                 startedAt: '2026-09-24',
                 nextBillingAt: undefined,
                 failedAt: '2026-10-24',
@@ -283,6 +310,7 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
                 status: 'expired',
                 startedAt: '2026-05-10',
                 billingDay: 10,
+                provider: 'portone',
                 failedAt: '2026-07-10',
                 endsAt: '2026-07-17',
                 expiredAt: '2026-07-17',
@@ -325,7 +353,7 @@ export const buildScenario = (
     );
     const hasWebHistory = subscriptions.length > 0;
     return {
-        version: 3,
+        version: 4,
         scenario,
         today: options.today ?? DEFAULT_TODAY,
         fail: null,

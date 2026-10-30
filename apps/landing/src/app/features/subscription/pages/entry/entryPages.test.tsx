@@ -69,7 +69,8 @@ describe('W-01 plans', () => {
         expect(await screen.findByText('Trial used')).toBeTruthy();
         expect(screen.getByText(/day 1 of each month/)).toBeTruthy();
 
-        fireEvent.click(screen.getByRole('button', { name: /^Subscribe to DoU Cloud 1 — .*8,600 today$/ }));
+        // The English page reads the price in dollars, as the checkout preview gives it.
+        fireEvent.click(screen.getByRole('button', { name: /^Subscribe to DoU Cloud 1 — \$6\.00 today$/ }));
 
         expect(where()).toBe('/subscription/checkout?plan=pro-tier-01');
     });
@@ -161,7 +162,7 @@ describe('W-01 plans with the account surface shut', () => {
 
         expect(await screen.findByRole('heading', { name: 'DoU plans' })).toBeTruthy();
         // A price list: every plan at full strength, none tagged by the web checkout's rules.
-        expect(screen.getByText('₩43,000')).toBeTruthy();
+        expect(screen.getByText('$30.00')).toBeTruthy();
         expect(screen.queryByText('First plan · 7 days free')).toBeNull();
         expect(screen.queryByText('After subscribing')).toBeNull();
         expect(screen.queryByText(/not charged again on the web/)).toBeNull();

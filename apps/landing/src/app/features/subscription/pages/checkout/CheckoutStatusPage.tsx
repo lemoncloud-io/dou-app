@@ -15,6 +15,8 @@ import {
     usePreviewCheckout,
     useSubscription,
 } from '../../hooks';
+import { currencyOfCountry } from '../../lib/billingCountry';
+import { defaultCardOf } from '../../lib/paymentMethods';
 import { isPortError } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
 import { formatDate, formatMoney } from '../../utils';
@@ -91,10 +93,19 @@ const AttemptStatus = ({ attemptId }: { attemptId: string }): JSX.Element => {
     );
 };
 
+/**
+ * The currency of the checkout this screen follows: its billing country's, which W-08 handed on in the
+ * navigation state. A screen reached without it (a reload) names amounts in won.
+ */
+const useCheckoutCurrency = () => {
+    const details = checkoutDetailsOf(useLocation().state);
+    return details && currencyOfCountry(details.country);
+};
+
 const RegistrationOutcome = ({ outcome }: { outcome: string }): JSX.Element => {
     const plans = usePlans();
     const plan = useQueryPlan();
-    const preview = usePreviewCheckout(plan?.id);
+    const preview = usePreviewCheckout(plan?.id, useCheckoutCurrency());
     const scene = registrationSceneOf(outcome, preview.data?.withTrial);
 
     if (!scene) return <Navigate to={ROUTES.subscription.root} replace />;
@@ -110,7 +121,7 @@ const RegistrationOutcome = ({ outcome }: { outcome: string }): JSX.Element => {
  */
 const useSceneFacts = (variant: AttemptVariant, plan: Plan | undefined, subscriptionId: string | undefined) => {
     const plans = usePlans();
-    const checkout = usePreviewCheckout(variant === 'payment' ? plan?.id : undefined);
+    const checkout = usePreviewCheckout(variant === 'payment' ? plan?.id : undefined, useCheckoutCurrency());
     const change = usePreviewChange(variant === 'upgrade' ? plan?.id : undefined);
     const subscription = useSubscription(subscriptionId);
     const methods = usePaymentMethods();
@@ -126,7 +137,11 @@ const useSceneFacts = (variant: AttemptVariant, plan: Plan | undefined, subscrip
         amount,
         subscription: subscription.data,
         subscriptionPlan,
-        card: methods.data?.find(method => method.isDefault),
+        // The card is the default of the provider the subscription is charged by; before there is a
+        // subscription to ask, whichever default there is.
+        card: subscription.data
+            ? methods.data && defaultCardOf(methods.data, subscription.data.provider)
+            : methods.data?.find(method => method.isDefault),
     };
 };
 

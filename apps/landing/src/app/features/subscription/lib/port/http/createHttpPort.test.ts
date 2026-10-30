@@ -1,4 +1,4 @@
-import { PLAN_CATALOG } from '../../catalog';
+import { PLAN_CATALOG, planCatalogIn } from '../../catalog';
 import { isPortError } from '../errors';
 import { type HttpPortOptions, type SubscriptionApi, createHttpPort } from './createHttpPort';
 
@@ -23,6 +23,20 @@ const PLANS = {
         maxClouds: sort,
         price: 8600 * sort,
         currency: 'KRW',
+        trialDays: 7,
+    })),
+};
+
+// The dollar products, priced in cents.
+const STRIPE_PLANS = {
+    total: 5,
+    list: [1, 2, 3, 4, 5].map(sort => ({
+        id: `dou-web-stripe-tier-0${sort}_dev`,
+        platform: 'stripe',
+        sort,
+        maxClouds: sort,
+        price: 600 * sort,
+        currency: 'USD',
         trialDays: 7,
     })),
 };
@@ -57,7 +71,8 @@ const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPor
         calls.push({ method, path, params, body });
         const answer = routes[`${method} ${path}`];
         if (answer === undefined) throw httpError(404);
-        return (typeof answer === 'function' ? (answer as Route)(body) : answer) as T;
+        // A GET has no body; its route reads the query instead.
+        return (typeof answer === 'function' ? (answer as Route)(body ?? params) : answer) as T;
     };
     const api: SubscriptionApi = {
         fetchPlans: params => route('GET', '/products/0/plans', undefined, params),
@@ -107,7 +122,8 @@ const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPor
 };
 
 const BASE_ROUTES = {
-    'GET /products/0/plans': PLANS,
+    'GET /products/0/plans': (query: unknown) =>
+        (query as { platform?: string })?.platform === 'stripe' ? STRIPE_PLANS : PLANS,
     'GET /memberships/0/mine': { platform: 'portone', status: 'expired', trialUsed: false },
     'GET /subscriptions/0/mine': {},
     'GET /subscriptions/0/cards': [CARD],
@@ -192,7 +208,35 @@ describe('createHttpPort — plans and subscription', () => {
         const { port, signOutLocally, calls } = setup(BASE_ROUTES);
         signOutLocally();
         expect(await port.listPlans()).toEqual(PLAN_CATALOG);
+        expect(await port.listPlans({ currency: 'USD' })).toEqual(planCatalogIn('USD'));
         expect(calls).toEqual([]);
+    });
+
+    it('lists the dollar plans from the dollar products when asked for dollars', async () => {
+        const { port, calls } = setup(BASE_ROUTES);
+        const plans = await port.listPlans({ currency: 'USD' });
+        expect(plans[1]).toEqual({
+            id: 'pro-tier-02',
+            sort: 2,
+            maxClouds: 2,
+            monthly: { amount: 1200, currency: 'USD' },
+            trialDays: 7,
+        });
+        expect(calls).toEqual([expect.objectContaining({ path: '/products/0/plans', params: { platform: 'stripe' } })]);
+    });
+
+    it('lists the plans in the currency of the subscription in force when none is asked for', async () => {
+        const { port } = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': {
+                subscription: subscription({
+                    id: 'U1:stripe',
+                    platform: 'stripe',
+                    productId: 'dou-web-stripe-tier-02_dev',
+                }),
+            },
+        });
+        expect((await port.listPlans()).map(plan => plan.monthly.currency)).toEqual(Array(5).fill('USD'));
     });
 
     it('lists the web plans under the names the screens use once signed in', async () => {
@@ -206,7 +250,10 @@ describe('createHttpPort — plans and subscription', () => {
             'pro-tier-05',
         ]);
         expect(plans[0]).not.toHaveProperty('productId');
-        expect(calls[0]).toMatchObject({ path: '/products/0/plans', params: { platform: 'portone' } });
+        expect(plans[0]).not.toHaveProperty('provider');
+        expect(calls.find(call => call.path === '/products/0/plans')).toMatchObject({
+            params: { platform: 'portone' },
+        });
     });
 
     it('has one subscription at most, charged to its card', async () => {
@@ -236,6 +283,29 @@ describe('createHttpPort — plans and subscription', () => {
         }).port.previewCheckout('pro-tier-01');
         expect(used).toMatchObject({ withTrial: false, amountToday: { amount: 8600 }, firstChargeAt: '2026-11-10' });
     });
+
+    const previewWith = (membership: Record<string, unknown>) =>
+        setup({ ...BASE_ROUTES, 'GET /memberships/0/mine': membership }).port.previewCheckout('pro-tier-01');
+
+    it("follows the server's trialEligible over the trial-used flags", async () => {
+        // Never used a trial, yet not eligible (the server has a payments record): charged at once.
+        expect(
+            await previewWith({ platform: 'portone', status: 'expired', trialUsed: false, trialEligible: false })
+        ).toMatchObject({ withTrial: false, amountToday: { amount: 8600 }, firstChargeAt: '2026-11-10' });
+        // Eligible by the server's rule even with the flag set: the trial, for the product's length.
+        expect(
+            await previewWith({ platform: 'portone', status: 'expired', trialUsed: true, trialEligible: true })
+        ).toMatchObject({ withTrial: true, trialEndsAt: '2026-11-17' });
+    });
+
+    it('offers no trial for a product with no trial days, whatever the server says', async () => {
+        const { port } = setup({
+            ...BASE_ROUTES,
+            'GET /products/0/plans': { list: PLANS.list.map(plan => ({ ...plan, trialDays: 0 })) },
+            'GET /memberships/0/mine': { platform: 'portone', status: 'expired', trialEligible: true },
+        });
+        expect(await port.previewCheckout('pro-tier-01')).toMatchObject({ withTrial: false });
+    });
 });
 
 describe('createHttpPort — checkout', () => {
@@ -248,6 +318,7 @@ describe('createHttpPort — checkout', () => {
         const registered = await port.startPaymentMethodRegistration({
             purpose: 'start',
             planId: 'pro-tier-01',
+            country: 'KR',
             payer: PAYER,
         });
         expect(registered).toEqual({ outcome: 'registered', card: 'billing-key-1' });
@@ -255,10 +326,14 @@ describe('createHttpPort — checkout', () => {
             productId: 'dou-web-tier-01_dev',
         });
         expect(paymentWindow).toHaveBeenCalledWith({
-            issue: ISSUE,
+            // An answer that lists no required fields is from before the server listed them: all three.
+            issue: { ...ISSUE, required: ['name', 'phone', 'email'] },
             payer: PAYER,
             purpose: 'start',
             planId: 'pro-tier-01',
+            country: 'KR',
+            // Only a card field of ours states the terms; the won provider's window draws its own.
+            terms: {},
             redirectUrl: 'http://localhost:5004/subscription/checkout/payment?plan=pro-tier-01',
         });
         // A checkout's card goes with the start, not on its own.
@@ -279,6 +354,105 @@ describe('createHttpPort — checkout', () => {
             subscriptionId: 'U1:portone',
         });
         expect(await port.getPaymentAttempt(attempt.id)).toMatchObject({ status: 'succeeded' });
+    });
+
+    // The dollar provider's registration: a card field in our dialog, with no payer.
+    const STRIPE_ISSUE = {
+        provider: 'stripe',
+        publishableKey: 'pk_test_0000',
+        clientSecret: 'seti_0000_secret_0000',
+        customerId: 'cus_0000',
+        issueId: 'U1:1761800000000',
+        issueName: 'DoU 구독',
+        required: [],
+    };
+
+    it('bills a country outside Korea through the dollar products, with no payer anywhere', async () => {
+        const start = vi.fn(() =>
+            subscription({
+                id: 'U1:stripe',
+                platform: 'stripe',
+                status: 'trial',
+                productId: 'dou-web-stripe-tier-01_dev',
+                validUntil: at('2026-11-17'),
+            })
+        );
+        const paymentWindow = vi.fn(async () => ({ outcome: 'registered' as const, billingKey: 'pm_0001' }));
+        const { port, calls } = setup(
+            { ...BASE_ROUTES, 'POST /subscriptions/0/issue': STRIPE_ISSUE, 'POST /subscriptions/0/start': start },
+            { paymentWindow }
+        );
+
+        const registered = await port.startPaymentMethodRegistration({
+            purpose: 'start',
+            planId: 'pro-tier-01',
+            country: 'US',
+        });
+        expect(registered).toEqual({ outcome: 'registered', card: 'pm_0001' });
+        expect(calls.find(call => call.path === '/subscriptions/0/issue')?.body).toEqual({
+            productId: 'dou-web-stripe-tier-01_dev',
+        });
+        expect(paymentWindow).toHaveBeenCalledWith(
+            expect.objectContaining({
+                issue: { ...STRIPE_ISSUE, provider: 'stripe' },
+                payer: undefined,
+                country: 'US',
+                terms: { amount: { amount: 600, currency: 'USD' }, firstChargeAt: '2026-11-17', withTrial: true },
+            })
+        );
+
+        const attempt = await port.startCheckout({
+            planId: 'pro-tier-01',
+            country: 'US',
+            card: 'pm_0001' as CardToken,
+        });
+        expect(start).toHaveBeenCalledWith({ productId: 'dou-web-stripe-tier-01_dev', billingKey: 'pm_0001' });
+        expect(attempt).toMatchObject({ status: 'succeeded', withTrial: true, subscriptionId: 'U1:stripe' });
+    });
+
+    it('refuses to open the won window without the payer it requires', async () => {
+        const { port, paymentWindow } = setup(BASE_ROUTES);
+        const error = await port
+            .startPaymentMethodRegistration({ purpose: 'start', planId: 'pro-tier-01', country: 'KR' })
+            .catch(e => e);
+        expect(isPortError(error, 'invalid')).toBe(true);
+        expect(paymentWindow).not.toHaveBeenCalled();
+    });
+
+    it('refuses an issue answer it cannot open', async () => {
+        const { port, paymentWindow } = setup({
+            ...BASE_ROUTES,
+            'POST /subscriptions/0/issue': { provider: 'stripe', publishableKey: 'pk_test_0000' },
+        });
+        const error = await port
+            .startPaymentMethodRegistration({ purpose: 'start', planId: 'pro-tier-01', country: 'US' })
+            .catch(e => e);
+        expect(isPortError(error, 'conflict')).toBe(true);
+        expect(paymentWindow).not.toHaveBeenCalled();
+    });
+
+    it('adds a card to a dollar subscription with its key alone', async () => {
+        const card = vi.fn(() => ({ ...CARD, id: 'pm_0002', provider: 'stripe' }));
+        const { port, calls } = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': {
+                subscription: subscription({
+                    id: 'U1:stripe',
+                    platform: 'stripe',
+                    productId: 'dou-web-stripe-tier-02_dev',
+                }),
+            },
+            'POST /subscriptions/0/issue': STRIPE_ISSUE,
+            'POST /subscriptions/0/card': card,
+        });
+        expect(await port.startPaymentMethodRegistration({ purpose: 'addCard' })).toMatchObject({
+            outcome: 'registered',
+        });
+        // The card goes to the provider the subscription is charged by, so the issue names its product.
+        expect(calls.find(call => call.path === '/subscriptions/0/issue')?.body).toEqual({
+            productId: 'dou-web-stripe-tier-02_dev',
+        });
+        expect(card).toHaveBeenCalledWith({ billingKey: 'billing-key-1' });
     });
 
     it('sends a card added on its own back to the card list', async () => {
@@ -506,7 +680,61 @@ describe('createHttpPort — plan change and cancelling', () => {
 describe('createHttpPort — cards', () => {
     it('lists the card the subscription is charged to', async () => {
         expect(await setup(BASE_ROUTES).port.listPaymentMethods()).toEqual([
-            { id: 'mock:dev:U1:01', brand: 'SHINHAN', last4: '5678', isDefault: true },
+            { id: 'mock:dev:U1:01', provider: 'portone', brand: 'SHINHAN', last4: '5678', isDefault: true },
+        ]);
+    });
+
+    // The card list carries every provider's cards, and each provider marks a default of its own.
+    const DOLLAR_CARD = {
+        id: 'pm_1',
+        provider: 'stripe',
+        cardIssuer: 'visa',
+        cardNumber: '**** 4242',
+        cardExpMonth: 8,
+        cardExpYear: 2030,
+        isDefault: true,
+    };
+
+    it("puts beside a subscription the default card of its own provider, not the other provider's", async () => {
+        const won = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': { subscription: subscription({}) },
+            'GET /subscriptions/0/cards': [DOLLAR_CARD, CARD],
+        });
+        expect((await won.port.listSubscriptions())[0].defaultPaymentMethodId).toBe(CARD.id);
+
+        const dollars = setup({
+            ...BASE_ROUTES,
+            'GET /subscriptions/0/mine': {
+                subscription: subscription({
+                    id: 'U1:stripe',
+                    platform: 'stripe',
+                    productId: 'dou-web-stripe-tier-02_dev',
+                }),
+            },
+            'GET /subscriptions/0/cards': [CARD, DOLLAR_CARD],
+        });
+        expect((await dollars.port.listSubscriptions())[0]).toMatchObject({
+            provider: 'stripe',
+            defaultPaymentMethodId: 'pm_1',
+            nextAmount: { amount: 1200, currency: 'USD' },
+        });
+    });
+
+    it("lists every provider's cards, each with its own default and the expiry where there is one", async () => {
+        const { port } = setup({ ...BASE_ROUTES, 'GET /subscriptions/0/cards': [CARD, DOLLAR_CARD] });
+        expect(await port.listPaymentMethods()).toEqual([
+            { id: 'mock:dev:U1:01', provider: 'portone', brand: 'SHINHAN', last4: '5678', isDefault: true },
+            {
+                id: 'pm_1',
+                provider: 'stripe',
+                brand: 'visa',
+                last4: '4242',
+                expMonth: 8,
+                expYear: 2030,
+                expiringSoon: false,
+                isDefault: true,
+            },
         ]);
     });
 
@@ -546,7 +774,7 @@ describe('createHttpPort — cards', () => {
             'POST /subscriptions/0/card-delete': remove,
         });
         expect(await port.removePaymentMethod(SECOND.id)).toEqual([
-            { id: 'mock:dev:U1:01', brand: 'SHINHAN', last4: '5678', isDefault: true },
+            { id: 'mock:dev:U1:01', provider: 'portone', brand: 'SHINHAN', last4: '5678', isDefault: true },
         ]);
         expect(remove).toHaveBeenCalledWith({ billkeyId: SECOND.id });
     });
@@ -564,8 +792,8 @@ describe('createHttpPort — cards', () => {
             'POST /subscriptions/0/card-default': setDefault,
         });
         expect(await port.setDefaultPaymentMethod(SECOND.id)).toEqual([
-            { id: 'mock:dev:U1:01', brand: 'SHINHAN', last4: '5678', isDefault: false },
-            { id: 'mock:dev:U1:02', brand: 'HANA', last4: '9999', isDefault: true },
+            { id: 'mock:dev:U1:01', provider: 'portone', brand: 'SHINHAN', last4: '5678', isDefault: false },
+            { id: 'mock:dev:U1:02', provider: 'portone', brand: 'HANA', last4: '9999', isDefault: true },
         ]);
         expect(setDefault).toHaveBeenCalledWith({ billkeyId: SECOND.id });
     });

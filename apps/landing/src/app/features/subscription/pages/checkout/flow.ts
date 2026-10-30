@@ -1,4 +1,5 @@
 import { ROUTES } from '../../../../routes/paths';
+import { isBillingCountry, payerRequiredIn } from '../../lib/billingCountry';
 import { addDays } from '../../lib/calendar';
 import { changeKindOf } from '../../lib/changeKindOf';
 import { type PayerDraft, isPayerComplete } from '../../lib/payer';
@@ -27,16 +28,7 @@ export const planFromQuery = (plans: Plan[] | undefined, value: string | null): 
 
 // --- W-08 -----------------------------------------------------------------------------------------
 
-/**
- * Billing countries the checkout can take today. Only Korea has a payment window behind it; picking
- * any other stops the checkout with a notice until overseas cards are supported.
- */
-export const SUPPORTED_BILLING_COUNTRIES = ['KR'];
-
-/** What the country picker offers. `OTHER` stands for every country not listed. */
-export const BILLING_COUNTRY_OPTIONS = ['KR', 'US', 'JP', 'OTHER'] as const;
-
-export const isSupportedCountry = (country: string): boolean => SUPPORTED_BILLING_COUNTRIES.includes(country);
+export { BILLING_COUNTRY_OPTIONS } from '../../lib/billingCountry';
 
 export const CONSENTS = ['terms', 'privacy', 'autoRenew'] as const;
 export type Consent = (typeof CONSENTS)[number];
@@ -50,17 +42,21 @@ export const allConsented = (consents: Consents): boolean => CONSENTS.every(key 
 export const setAllConsents = (value: boolean): Consents => ({ terms: value, privacy: value, autoRenew: value });
 
 /**
- * The checkout continues only once the country is one it can bill, there is an address for the card
- * company, the payer is filled in, and every consent is given.
+ * The checkout continues only once a billing country is chosen and every consent is given; where the
+ * country is billed in won, also once the payer is filled in and there is an address for the card
+ * company. Elsewhere there is no payer to ask for — the card field asks for what it needs itself.
  */
 export const canContinueCheckout = (input: {
+    /** Empty until the reader picks one: nothing is chosen for them. */
     country: string;
     /** The address the card company is given: the verified billing email, or the account's own. */
     email?: string;
     payer: PayerDraft;
     consents: Consents;
 }): boolean =>
-    isSupportedCountry(input.country) && !!input.email && isPayerComplete(input.payer) && allConsented(input.consents);
+    isBillingCountry(input.country) &&
+    (!payerRequiredIn(input.country) || (!!input.email && isPayerComplete(input.payer))) &&
+    allConsented(input.consents);
 
 /**
  * Where a request for `/subscription/checkout?plan=` belongs. A first subscription stays here; a
@@ -86,8 +82,11 @@ export interface CheckoutDetails {
     country: string;
     /** The verified billing email the checkout used; absent while the billing-email screens are hidden. */
     emailId?: string;
-    /** Who pays, for the payment window and the server. It lives in this state and nowhere else. */
-    payer: Payer;
+    /**
+     * Who pays, for the payment window and the server — where the country is billed in won, and absent
+     * elsewhere. It lives in this state and nowhere else.
+     */
+    payer?: Payer;
 }
 
 const isPayer = (value: unknown): value is Payer => {
@@ -99,13 +98,14 @@ const isPayer = (value: unknown): value is Payer => {
 
 export const checkoutDetailsOf = (state: unknown): CheckoutDetails | undefined => {
     const details = (state as { checkout?: Partial<CheckoutDetails> } | null)?.checkout;
-    return details && typeof details.country === 'string' && isPayer(details.payer)
-        ? {
-              country: details.country,
-              ...(typeof details.emailId === 'string' ? { emailId: details.emailId } : {}),
-              payer: details.payer,
-          }
-        : undefined;
+    if (!details || typeof details.country !== 'string' || !isBillingCountry(details.country)) return undefined;
+    // A country billed in won cannot go on without its payer.
+    if (payerRequiredIn(details.country) && !isPayer(details.payer)) return undefined;
+    return {
+        country: details.country,
+        ...(typeof details.emailId === 'string' ? { emailId: details.emailId } : {}),
+        ...(isPayer(details.payer) ? { payer: details.payer } : {}),
+    };
 };
 
 export const withCheckoutDetails = (details: CheckoutDetails | undefined) =>
