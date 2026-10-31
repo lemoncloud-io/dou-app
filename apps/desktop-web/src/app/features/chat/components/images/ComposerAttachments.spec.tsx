@@ -55,6 +55,15 @@ describe('ComposerAttachments', () => {
         expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
     });
 
+    // The tray already holds an object URL of the picked file; the player plays that one.
+    it('plays a picked voice file in the file viewer', () => {
+        const song = picked(new File(['x'], 'song.mp3', { type: 'audio/mpeg' }), 'file');
+        render(<Tray initial={[song]} />, { wrapper });
+        fireEvent.click(screen.getByRole('button', { name: 'Open song.mp3' }));
+        expect(screen.getByLabelText('Play song.mp3').getAttribute('src')).toBe('blob:song.mp3');
+        expect(screen.getByText('Not sent yet')).toBeTruthy();
+    });
+
     // Read from the file the page holds: nothing is sent yet, so there is no address to fetch.
     it('reads a picked text file in the file viewer', async () => {
         // jsdom's File has no `arrayBuffer`; a browser's and Node's Blob do.

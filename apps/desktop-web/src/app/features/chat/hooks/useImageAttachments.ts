@@ -54,7 +54,7 @@ const setTray = (scopeKey: string, next: ComposerAttachment[]) =>
  * The composer's attachment tray for one conversation (`scopeKey`: a channel, or a channel's
  * thread): add (pick / drop / paste), remove, clear.
  *
- * Each file gets an object URL: an image's tile draws it, and the preview opens an image, a video, a PDF or a text file from it. The upload itself starts only at send,
+ * Each file gets an object URL: an image's tile draws it, and the preview opens an image, a video, a PDF, a text file or a voice file from it. The upload itself starts only at send,
  * on the message's own row. URLs are revoked on remove and on clear (the send clears the tray; the
  * sent row keeps its own previews) — not when the composer moves to another conversation or
  * unmounts, since the tray waits there for the way back.
