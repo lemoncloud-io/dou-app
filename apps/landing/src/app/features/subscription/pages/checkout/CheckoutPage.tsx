@@ -1,6 +1,6 @@
 import { type JSX, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 
 import { ROUTES } from '../../../../routes/paths';
 import { BillingEmailChangeDialog, PageLoader, PayerFields, accountLabel } from '../../components';
@@ -19,6 +19,7 @@ import {
     allConsented,
     canContinueCheckout,
     changePlanUrl,
+    checkoutDetailsOf,
     checkoutEmailUrl,
     checkoutPaymentUrl,
     setAllConsents,
@@ -51,8 +52,12 @@ const CARD_TITLE = 'text-sm font-bold text-ink';
 export const CheckoutPage = (): JSX.Element => {
     const { t, i18n } = useTranslation();
     const navigate = useNavigate();
+    // Back from W-05, what was settled here comes back in the navigation state and fills the form in
+    // again: the country, the payer and the consents — given already, or W-05 would not have opened.
+    const location = useLocation();
+    const [returned] = useState(() => checkoutDetailsOf(location.state));
     const { loading, error, retry, target: plan, route } = usePlanRoute();
-    const [country, setCountry] = useState('');
+    const [country, setCountry] = useState(returned?.country ?? '');
     const [countryMissing, setCountryMissing] = useState(false);
     const countryField = useRef<HTMLSelectElement>(null);
     // The account and the trial come from a preview in won; the amounts from one in the country's currency,
@@ -66,8 +71,10 @@ export const CheckoutPage = (): JSX.Element => {
     // The billing-email screens are hidden: nothing here reads the billing emails then.
     const billing = useBillingInfo({ enabled: management });
 
-    const [payer, setPayer] = useState<PayerDraft>(EMPTY_PAYER);
-    const [consents, setConsents] = useState<Consents>(NO_CONSENTS);
+    const [payer, setPayer] = useState<PayerDraft>(
+        returned?.payer ? { name: returned.payer.name, phone: returned.payer.phone } : EMPTY_PAYER
+    );
+    const [consents, setConsents] = useState<Consents>(returned ? setAllConsents(true) : NO_CONSENTS);
     const [changingEmail, setChangingEmail] = useState(false);
 
     if (loading) return <PageLoader />;

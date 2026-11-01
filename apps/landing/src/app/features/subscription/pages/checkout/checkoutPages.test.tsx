@@ -305,6 +305,25 @@ describe('W-08 checkout', () => {
         expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null').checkout.payer).toBeUndefined();
     });
 
+    it('opens filled in again when the reader comes back from W-05', async () => {
+        renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new'));
+        await fillPayer();
+        await consentAll();
+        fireEvent.click(screen.getByRole('button', { name: 'Next · Add a payment method' }));
+        await screen.findByRole('heading', { name: 'Add a payment method' });
+
+        fireEvent.click(screen.getByRole('link', { name: 'Back' }));
+
+        expect(await screen.findByRole('heading', { name: 'Review your order' })).toBeTruthy();
+        expect((screen.getByLabelText('Billing country') as HTMLSelectElement).value).toBe('KR');
+        expect((screen.getByLabelText('Name') as HTMLInputElement).value).toBe(PAYER.name);
+        expect((screen.getByLabelText('Mobile phone') as HTMLInputElement).value).toBe(PAYER.phone);
+        expect((screen.getByLabelText('Agree to all') as HTMLInputElement).checked).toBe(true);
+        expect(
+            (screen.getByRole('button', { name: 'Next · Add a payment method' }) as HTMLButtonElement).disabled
+        ).toBe(false);
+    });
+
     it('changes the billing email through the popup and shows the new address', async () => {
         renderAt('/subscription/checkout?plan=pro-tier-01', await withBillingEmail('?mock=new'));
 

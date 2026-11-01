@@ -288,8 +288,10 @@ export const CheckoutPaymentPage = (): JSX.Element => {
                         : t('subscription.checkout.payment.renewPaid', { day, price: money(monthly) })}
                 </p>
             </div>
+            {/* What W-08 settled goes back with the reader, so W-08 opens filled in rather than empty. */}
             <Link
                 to={checkoutUrl(plan.id)}
+                state={withCheckoutDetails(details)?.state}
                 className="w-fit text-[13px] font-medium text-mute underline hover:text-ink"
             >
                 {t('subscription.checkout.payment.back')}
