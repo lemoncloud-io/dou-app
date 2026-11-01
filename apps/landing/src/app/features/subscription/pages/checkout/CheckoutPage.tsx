@@ -133,7 +133,8 @@ export const CheckoutPage = (): JSX.Element => {
                 </>
             }
             summary={
-                <div className="flex flex-col gap-3">
+                // A block, not a flex column: the summary's own `self-start` would shrink it to its content.
+                <div className="space-y-3">
                     <CheckoutSummary preview={preview.data} priced={priced} />
                     {country && pricedPreview.isError && (
                         <Banner
