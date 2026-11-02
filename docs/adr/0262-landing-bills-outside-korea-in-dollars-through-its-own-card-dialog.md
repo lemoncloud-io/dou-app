@@ -1,4 +1,4 @@
-# ADR-0255: Landing bills outside Korea in dollars, through a card field in its own dialog
+# ADR-0262: Landing bills outside Korea in dollars, through a card field in its own dialog
 
 > Status: Accepted · Decided: 2026-10-30
 > Scope: `apps/landing` (`README.md` § The server, `src/app/features/subscription/lib/billingCountry.ts`,

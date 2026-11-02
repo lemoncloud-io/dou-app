@@ -109,7 +109,7 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    client. Of its implementations, only the HTTP one (`lib/port/http/`) reaches the network, and it
    does so through the runtime's subscription repository (`libs/data`, over `libs/http`'s gateway),
    as every other app's server calls do: the session runtime and the payment SDKs are imported there
-   and nowhere else (ADR-0248, ADR-0255).
+   and nowhere else (ADR-0248, ADR-0262).
 10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountEnabled` is
     false (every host but `localhost`, `127.0.0.1` and `-dev` ones) its routes are not registered,
     and the public pages' links into it render only where the gate is open — today the home header's
@@ -287,7 +287,7 @@ git grep -n -E "@chatic/(http|data|app-runtime|auth-sign)|@portone/|@stripe/|(^|
     -- apps/landing/src ':!apps/landing/src/app/features/subscription/lib/port/http'
 
 # a payment provider named on screen: the copy says the billing country and the currency, never who
-# processes the card (ADR-0255)
+# processes the card (ADR-0262)
 git grep -n -i -E "portone|inicis|이니시스|포트원|stripe|국내 카드|해외 카드" -- 'apps/landing/src/**/locales/**'
 ```
 
@@ -501,7 +501,7 @@ names the country and the currency and never a provider — the last boundary co
 - **Not done.** Consent is shown and required but not recorded; India-issued cards register but will be
   refused monthly (no e-mandate without the provider's own subscriptions); how tax applies to a dollar
   price is not settled, so a dollar price carries no VAT note (won prices still say VAT is included); the
-  dollar products exist on the dev stage only. ADR-0255 records the decision and these costs.
+  dollar products exist on the dev stage only. ADR-0262 records the decision and these costs.
 
 The server's calls themselves live in the shared libraries, not here: `libs/http`'s subscription
 gateway names the eight `/subscriptions/0/*` requests and declares their shapes, and `libs/data`'s
