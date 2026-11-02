@@ -1,25 +1,25 @@
 /**
  * `pages/cost-monitor/CostMonitorPage.tsx`
- * - What each subscription account costs: today's estimate by hour, yesterday's estimate against Cost
- *   Explorer, the slot pool, and how users, workspaces, slots and accounts connect.
+ * - What each subscription account costs: today by hour, yesterday's estimate against Cost Explorer,
+ *   the slot pool, and how users, workspaces, slots and accounts connect.
  *
- * Estimates are built from the seven CloudWatch metrics the goods service relays; actuals are what the
- * cost service (bespin) collects from Cost Explorer every night, read through the goods service. The one
- * thing here that costs money is loading a date (metrics calls), and the header counts it.
+ * The page holds the picks; the numbers are pure functions in `lib/`, and the reads are the queries in
+ * `api/costQuery.ts`. The one thing here that costs money is loading a date (metrics calls), and the
+ * header counts it.
  */
 import { useMemo, useState } from 'react';
 
 import { Badge } from '@chatic/ui-kit/components/ui/badge';
 import { Button } from '@chatic/ui-kit/components/ui/button';
-import { Input } from '@chatic/ui-kit/components/ui/input';
-import { Switch } from '@chatic/ui-kit/components/ui/switch';
 
 import { counter } from '../api/costApi';
+import { REFRESH_MS, useCostMonitor } from '../api/costQuery';
+import { CostFilterBar, type KindFilter } from '../components/CostFilterBar';
+import { CostSummary } from '../components/CostSummary';
 import { TenantDetail } from '../components/TenantDetail';
 import { TenantTable } from '../components/TenantTable';
-import { REFRESH_MS, useCostMonitor } from '../hooks/use-cost-monitor';
-import { addDays, DEFAULTS, HOUR, kstHm, todayKst, utcDay, type EstimateOptions } from '../lib/cost';
-import { buildCostRow, calibrateRows, pct, ratio, usd, type CostRow } from '../lib/costRows';
+import { DEFAULTS, kstHm, todayKst, type EstimateOptions } from '../lib/cost';
+import { allFactorOf, buildCostRow, calibrateRows, summarizeRows } from '../lib/costRows';
 import {
     configuredRelayEndpoint,
     COST_STAGE_LABEL,
@@ -29,87 +29,48 @@ import {
     isCostStage,
     type CostStage,
 } from '../lib/costTarget';
-import { POOL_KEYS } from '../lib/display';
 import { matchSlotFilter, type SlotFilter } from '../lib/relations';
 
-const SLOT_FILTERS: [SlotFilter, string][] = [
-    ['all', 'All slots'],
-    ['assigned', 'In use'],
-    ['idle', 'Idle'],
-    ['problem', 'Problem'],
-];
-
-const Card = ({ label, value, note }: { label: string; value: string; note: string }) => (
-    <div className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2">
-        <p className="text-[10px] text-muted-foreground">{label}</p>
-        <p className="text-lg font-semibold tabular-nums text-foreground">{value}</p>
-        <p className="text-[10px] text-muted-foreground">{note}</p>
-    </div>
-);
-
 export const CostMonitorPage = () => {
-    const endpoint = configuredRelayEndpoint();
-    const [stage, setStage] = useState<CostStage>(() => initialCostStage(endpoint));
+    const [stage, setStage] = useState<CostStage>(() => initialCostStage(configuredRelayEndpoint()));
     const bases = useMemo(() => costBasesFor(stage), [stage]);
     const [date, setDate] = useState(() => todayKst());
-    const [kind, setKind] = useState<'all' | 'dou'>('all');
+    const [kind, setKind] = useState<KindFilter>('all');
     const [slotFilter, setSlotFilter] = useState<SlotFilter>('all');
     const [opt, setOpt] = useState<EstimateOptions>(DEFAULTS);
     const [calibrate, setCalibrate] = useState(true);
     const [selected, setSelected] = useState<string>();
-    const monitor = useCostMonitor(bases, date);
+    const monitor = useCostMonitor(stage, bases, date);
     const { tenants, data, actuals, clouds } = monitor;
 
-    const now = Date.now();
-    const today = todayKst(now);
-    const yday = addDays(date, -1);
-    const calibDay = addDays(date, -2);
-    const ydayOpen = now < utcDay(yday)[1];
-    // Cost Explorer fills the latest day late: 10-26 collected at 10-27 15:00 was about 17% short.
-    const ydayFresh = now < utcDay(yday)[1] + 48 * HOUR;
-    const isProd = stage === 'v1';
-
-    const rows = useMemo(
-        () =>
-            (calibrate ? calibrateRows : (list: CostRow[]) => list)(
-                tenants.map(tenant =>
-                    buildCostRow(
-                        tenant,
-                        data.get(tenant.key),
-                        tenant.accountNo ? actuals.map?.get(tenant.accountNo) : undefined,
-                        tenant.accountNo ? actuals.calib?.get(tenant.accountNo) : undefined,
-                        date,
-                        opt
-                    )
-                )
-            ).sort((a, b) => b.today - a.today),
-        [tenants, data, actuals, date, opt, calibrate]
-    );
+    const rows = useMemo(() => {
+        const built = tenants.map(tenant =>
+            buildCostRow(
+                tenant,
+                data.get(tenant.key),
+                tenant.accountNo ? actuals.map?.get(tenant.accountNo) : undefined,
+                tenant.accountNo ? actuals.calib?.get(tenant.accountNo) : undefined,
+                date,
+                opt
+            )
+        );
+        return (calibrate ? calibrateRows(built) : built).sort((a, b) => b.today - a.today);
+    }, [tenants, data, actuals.map, actuals.calib, date, opt, calibrate]);
     const byKind = rows.filter(row => kind === 'all' || row.tenant.dou);
     const shown = byKind.filter(row => matchSlotFilter(row.tenant, slotFilter));
-    const sum = (pick: (row: CostRow) => number | undefined, list: CostRow[] = shown): number =>
-        list.reduce((total, row) => total + (pick(row) ?? 0), 0);
-    const withActual = shown.filter(row => row.actual7 !== undefined);
-    const calibrated = shown.filter(row => row.factor !== undefined);
-    const knownCalib = shown.filter(row => row.calibActual7 !== undefined && row.calibEstimate > 0);
-    const allFactor = knownCalib.length
-        ? sum(row => row.calibActual7, knownCalib) / sum(row => row.calibEstimate, knownCalib)
-        : undefined;
-    const done = rows.filter(row => !row.loading).length;
+    const summary = summarizeRows(shown);
     const sel = rows.find(row => row.tenant.key === selected);
-
-    const changeStage = (next: CostStage) => {
-        setStage(next);
-        setSelected(undefined);
-    };
+    const done = rows.filter(row => !row.loading).length;
 
     const main = !bases.goods ? (
         <p className="px-4 py-12 text-center text-sm text-muted-foreground">
-            VITE_DOU_ENDPOINT is not set, so there is no goods service to call.
+            VITE_{stage.toUpperCase()}_GOODS_ENDPOINT is not set, so there is no goods service to call.
         </p>
     ) : monitor.error ? (
         <div className="flex flex-col items-center gap-3 px-4 py-16">
-            <p className="max-w-2xl break-all text-sm text-red-400">{monitor.error}</p>
+            <p className="max-w-2xl break-all text-sm text-red-400">
+                Failed to load workspaces and slots: {monitor.error}
+            </p>
             <Button size="sm" variant="outline" className="h-7" onClick={monitor.reload}>
                 Try again
             </Button>
@@ -141,18 +102,20 @@ export const CostMonitorPage = () => {
                             : monitor.lastAt
                               ? `Updated ${kstHm(monitor.lastAt)} KST · next ${kstHm(monitor.lastAt + REFRESH_MS)}`
                               : ''}
-                        {` · metrics calls ${counter.metrics} (cached ${counter.cached})`}
+                        {` · metrics calls ${counter.metrics}`}
                     </span>
                     <span className="flex-1" />
 
                     <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         Stage
                         <select
-                            className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring disabled:opacity-50"
+                            className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
                             value={stage}
                             onChange={event => {
                                 const next = event.target.value;
-                                if (isCostStage(next)) changeStage(next);
+                                if (!isCostStage(next)) return;
+                                setStage(next);
+                                setSelected(undefined);
                             }}
                         >
                             {COST_STAGES.map(value => (
@@ -166,130 +129,34 @@ export const CostMonitorPage = () => {
                         size="sm"
                         variant="outline"
                         className="h-7"
-                        disabled={!bases.goods || monitor.loading}
+                        disabled={!bases.goods}
                         onClick={monitor.reload}
                     >
                         Refresh
                     </Button>
-                    <Badge variant={isProd ? 'destructive' : 'outline'}>{COST_STAGE_LABEL[stage]}</Badge>
+                    <Badge variant={stage === 'v1' ? 'destructive' : 'outline'}>{COST_STAGE_LABEL[stage]}</Badge>
                     <span className="font-mono text-[10px] text-muted-foreground">
                         {bases.goods || '(not configured)'}
                     </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs">
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-muted-foreground">Date (KST)</span>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2"
-                            aria-label="Previous day"
-                            onClick={() => setDate(addDays(date, -1))}
-                        >
-                            ◀
-                        </Button>
-                        <Input
-                            type="date"
-                            aria-label="Date"
-                            className="h-7 w-36 px-2 py-0 text-xs"
-                            value={date}
-                            max={today}
-                            onChange={event => event.target.value && setDate(event.target.value)}
-                        />
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2"
-                            aria-label="Next day"
-                            disabled={date >= today}
-                            onClick={() => setDate(addDays(date, 1))}
-                        >
-                            ▶
-                        </Button>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-muted-foreground">Kind</span>
-                        {(['all', 'dou'] as const).map(value => (
-                            <Button
-                                key={value}
-                                size="sm"
-                                className="h-7"
-                                variant={kind === value ? 'default' : 'outline'}
-                                aria-pressed={kind === value}
-                                onClick={() => setKind(value)}
-                            >
-                                {value === 'all'
-                                    ? `All ${rows.length}`
-                                    : `DoU only ${rows.filter(row => row.tenant.dou).length}`}
-                            </Button>
-                        ))}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <span className="text-muted-foreground">Slots</span>
-                        {SLOT_FILTERS.map(([value, label]) => (
-                            <Button
-                                key={value}
-                                size="sm"
-                                className="h-7"
-                                variant={slotFilter === value ? 'default' : 'outline'}
-                                aria-pressed={slotFilter === value}
-                                onClick={() => setSlotFilter(value)}
-                            >
-                                {label} {byKind.filter(row => matchSlotFilter(row.tenant, value)).length}
-                            </Button>
-                        ))}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <span
-                            className="text-muted-foreground"
-                            title="8.4% is September's measured Cost Explorer discount"
-                        >
-                            Discount %
-                        </span>
-                        <Input
-                            type="number"
-                            step="0.1"
-                            aria-label="Discount percent"
-                            className="h-7 w-20 px-2 py-0 text-xs"
-                            value={+(opt.discount * 100).toFixed(2)}
-                            onChange={event => setOpt({ ...opt, discount: Number(event.target.value) / 100 })}
-                        />
-                        <span
-                            className="text-muted-foreground"
-                            title="1 is no adjustment. 1.098 was a one-day optimistic figure, so it is not the default. 512 MB assumed."
-                        >
-                            Lambda adj.
-                        </span>
-                        <Input
-                            type="number"
-                            step="0.001"
-                            aria-label="Lambda adjustment"
-                            className="h-7 w-20 px-2 py-0 text-xs"
-                            value={opt.lambdaAdj}
-                            onChange={event => setOpt({ ...opt, lambdaAdj: Number(event.target.value) })}
-                        />
-                        <Button size="sm" variant="outline" className="h-7" onClick={() => setOpt(DEFAULTS)}>
-                            Defaults
-                        </Button>
-                    </div>
-                    <div
-                        className="flex items-center gap-1.5"
-                        title={`Scales each account's estimate by Cost Explorer ÷ estimate of UTC ${calibDay}, the latest day Cost Explorer has finished`}
-                    >
-                        <Switch id="cost-calibrate" checked={calibrate} onCheckedChange={setCalibrate} />
-                        <label htmlFor="cost-calibrate" className="text-muted-foreground">
-                            Cost Explorer calibration
-                        </label>
-                        <span className="tabular-nums text-foreground">
-                            {!calibrate
-                                ? 'off'
-                                : calibrated.length
-                                  ? `${calibrated.filter(row => row.factorFrom === 'account').length} own · ${calibrated.filter(row => row.factorFrom === 'all').length} by all${allFactor !== undefined ? ` (×${allFactor.toFixed(3)})` : ''}`
-                                  : `no actuals for UTC ${calibDay} yet`}
-                        </span>
-                    </div>
-                </div>
+                <CostFilterBar
+                    date={date}
+                    today={todayKst()}
+                    onDateChange={setDate}
+                    kind={kind}
+                    onKindChange={setKind}
+                    kindCount={{ all: rows.length, dou: rows.filter(row => row.tenant.dou).length }}
+                    slotFilter={slotFilter}
+                    onSlotFilterChange={setSlotFilter}
+                    slotCount={filter => byKind.filter(row => matchSlotFilter(row.tenant, filter)).length}
+                    opt={opt}
+                    onOptChange={setOpt}
+                    calibrate={calibrate}
+                    onCalibrateChange={setCalibrate}
+                    summary={summary}
+                    allFactor={allFactorOf(rows)}
+                />
 
                 {clouds.error && (
                     <p className="break-all text-xs text-amber-400">
@@ -302,86 +169,31 @@ export const CostMonitorPage = () => {
                         unaffected.
                     </p>
                 )}
-                {monitor.poolInfo && monitor.poolInfo.partial.length > 0 && (
+                {actuals.truncated && (
                     <p className="text-xs text-amber-400">
-                        A list stopped short of its total ({monitor.poolInfo.partial.join(', ')}); accounts past it are
-                        not shown.
+                        The cost list came back shorter than its total; accounts past it read as not collected and take
+                        the all-accounts ratio.
+                    </p>
+                )}
+                {clouds.truncated && (
+                    <p className="text-xs text-amber-400">
+                        The relay&apos;s cloud list stopped at its paging cap; DoU names past it are not shown.
+                    </p>
+                )}
+                {monitor.pool && monitor.pool.partial.length > 0 && (
+                    <p className="text-xs text-amber-400">
+                        A list stopped short of its total ({monitor.pool.partial.join(', ')}); accounts past it are not
+                        shown.
                     </p>
                 )}
 
-                {monitor.poolInfo && (
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                        <span className="font-semibold text-foreground">Slot pool {monitor.poolInfo.pool.total}</span>
-                        {POOL_KEYS.map(([key, label]) => (
-                            <span
-                                key={key}
-                                className={
-                                    key === 'errorCount' && monitor.poolInfo?.pool[key]
-                                        ? 'text-red-400'
-                                        : 'text-muted-foreground'
-                                }
-                            >
-                                {label} <b className="tabular-nums text-foreground">{monitor.poolInfo?.pool[key]}</b>
-                            </span>
-                        ))}
-                        <span className="text-[10px] text-muted-foreground">
-                            {monitor.poolInfo.fromList
-                                ? 'counted from the list (view=status gave nothing)'
-                                : 'view=status'}
-                            {monitor.poolInfo.duplicates
-                                ? ` · ${monitor.poolInfo.duplicates} slot(s) listed twice, latest kept`
-                                : ''}
-                        </span>
-                    </div>
-                )}
-
-                <div className="flex flex-wrap gap-2">
-                    <Card
-                        label={`Today · KST ${date} from 00:00`}
-                        value={usd(sum(row => row.today))}
-                        note={
-                            calibrated.length
-                                ? `7 metrics · calibrated to Cost Explorer · raw estimate ${usd(sum(row => row.rawToday))}`
-                                : '7 metrics · estimate'
-                        }
-                    />
-                    <Card
-                        label={`Yesterday est. · UTC ${yday}`}
-                        value={usd(sum(row => row.yesterdayEstimate))}
-                        note={`7 metrics · estimate${ydayOpen ? ' · day still running' : ''}`}
-                    />
-                    <Card
-                        label={`Yesterday actual · Cost Explorer UTC ${yday}`}
-                        value={
-                            actuals.map
-                                ? withActual.length
-                                    ? usd(sum(row => row.actual7, withActual))
-                                    : 'not collected'
-                                : actuals.error
-                                  ? 'error'
-                                  : '…'
-                        }
-                        note={
-                            withActual.length
-                                ? `7 metrics · all ${usd(sum(row => row.actualAll, withActual))} · ${withActual.length} account(s)${ydayFresh ? ' · not final within 2 days, collect again' : ''}`
-                                : 'Collected nightly at 22:40 KST'
-                        }
-                    />
-                    <Card
-                        label="Yesterday diff · estimate vs actual (7)"
-                        value={
-                            withActual.length
-                                ? pct(
-                                      ratio(
-                                          sum(row => row.yesterdayEstimate, withActual),
-                                          sum(row => row.actual7, withActual)
-                                      )
-                                  )
-                                : '—'
-                        }
-                        note={`Accounts with an actual only · UTC${ydayFresh && withActual.length ? ' · actual not final yet' : ''}`}
-                    />
-                </div>
+                <CostSummary
+                    date={date}
+                    summary={summary}
+                    pool={monitor.pool}
+                    actualsLoaded={!!actuals.map}
+                    actualsFailed={!!actuals.error}
+                />
             </div>
 
             <div className="flex min-h-0 flex-1">

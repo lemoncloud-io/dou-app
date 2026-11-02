@@ -12,14 +12,18 @@ import {
     utcDay,
     zeroUsage,
 } from './cost';
-import { buildCostRow, calibrateRows, niceCeil } from './costRows';
+import { allFactorOf, buildCostRow, calibrateRows, niceCeil, summarizeRows, type CostRow } from './costRows';
 
 const hourPoints = (date: string) =>
     Array.from({ length: 24 }, (_, h) => ({ t: new Date(kstDay(date)[0] + h * 3_600_000).toISOString(), v: 1 }));
 
 describe('cost', () => {
     it('applies the discount and the Lambda adjustment', () => {
-        expect(estimate({ ...zeroUsage(), sqsRequests: 1e6 }, DEFAULTS).total).toBeCloseTo(0.4 * 0.916, 12);
+        expect(estimate({ ...zeroUsage(), sqsRequests: 1e6 }, DEFAULTS).total).toBeCloseTo(0.4, 12);
+        expect(estimate({ ...zeroUsage(), sqsRequests: 1e6 }, { discount: 0.1, lambdaAdj: 1 }).total).toBeCloseTo(
+            0.36,
+            12
+        );
         expect(estimate({ ...zeroUsage(), lambdaDurationMs: 1e6 }, { discount: 0, lambdaAdj: 2 }).total).toBeCloseTo(
             1000 * 0.5 * 2 * 0.0000166667,
             12
@@ -106,6 +110,34 @@ describe('cost', () => {
         expect(c.factorFrom).toBe('all');
         expect(c.factor).toBeCloseTo(1.25, 9);
         expect(calibrateRows([row('d')])[0].factor).toBeUndefined();
+    });
+
+    it('sums the cards and compares only rows that have an actual', () => {
+        const row = (over: Partial<CostRow>): CostRow =>
+            ({ today: 1, rawToday: 2, yesterdayEstimate: 1, calibEstimate: 0, ...over }) as CostRow;
+        const summary = summarizeRows([
+            row({ actual7: 0.5, actualAll: 3, factorFrom: 'account', calibEstimate: 2, calibActual7: 1 }),
+            row({ yesterdayEstimate: 9, factorFrom: 'all' }),
+        ]);
+
+        expect(summary).toMatchObject({
+            today: 2,
+            rawToday: 4,
+            yesterdayEstimate: 10,
+            withActual: 1,
+            actual7: 0.5,
+            actualAll: 3,
+            calibratedOwn: 1,
+            calibratedByAll: 1,
+        });
+        expect(summary.diff).toBeCloseTo(1, 9);
+        expect(summarizeRows([row({})])).toMatchObject({ withActual: 0, diff: undefined });
+    });
+
+    it('takes the all-accounts ratio over every row that has both numbers', () => {
+        const row = (calibEstimate: number, calibActual7?: number) => ({ calibEstimate, calibActual7 }) as CostRow;
+        expect(allFactorOf([row(1, 3), row(3, 1), row(5), row(0, 9)])).toBeCloseTo(1, 9);
+        expect(allFactorOf([row(5)])).toBeUndefined();
     });
 
     it('rounds the axis to 1 · 2 · 5', () => {

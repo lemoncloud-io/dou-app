@@ -108,13 +108,19 @@ const scale = (usage: Usage, f: number): Usage =>
  * the metrics' — Cost Explorer has no hours.
  * ponytail: no clamp on an account's ratio; a tiny estimate can give a wild one — fall back to `all` under a floor if it shows.
  */
+const hasCalibration = (row: CostRow): boolean => row.calibActual7 !== undefined && row.calibEstimate > 0;
+
+/** Cost Explorer ÷ estimate of the calibration day over every row that has both; the ratio for the rest. */
+export const allFactorOf = (rows: CostRow[]): number | undefined => {
+    const known = rows.filter(hasCalibration);
+    const estimate = known.reduce((sum, row) => sum + row.calibEstimate, 0);
+    return estimate > 0 ? known.reduce((sum, row) => sum + (row.calibActual7 ?? 0), 0) / estimate : undefined;
+};
+
 export const calibrateRows = (rows: CostRow[]): CostRow[] => {
-    const known = rows.filter(row => row.calibActual7 !== undefined && row.calibEstimate > 0);
-    const est = known.reduce((sum, row) => sum + row.calibEstimate, 0);
-    const all = est > 0 ? known.reduce((sum, row) => sum + (row.calibActual7 ?? 0), 0) / est : undefined;
+    const all = allFactorOf(rows);
     return rows.map(row => {
-        const own =
-            row.calibActual7 !== undefined && row.calibEstimate > 0 ? row.calibActual7 / row.calibEstimate : undefined;
+        const own = hasCalibration(row) ? (row.calibActual7 ?? 0) / row.calibEstimate : undefined;
         const factor = own ?? all;
         if (factor === undefined) return row;
         return {
@@ -126,6 +132,43 @@ export const calibrateRows = (rows: CostRow[]): CostRow[] => {
             dayCost: scale(row.dayCost, factor),
         };
     });
+};
+
+export interface CostSummary {
+    today: number;
+    rawToday: number;
+    yesterdayEstimate: number;
+    /** Rows with a Cost Explorer amount for yesterday; the actual and the diff count only these. */
+    withActual: number;
+    actual7: number;
+    actualAll: number;
+    /** (estimate − actual7) / actual7 over `withActual` rows, estimate included only for them. */
+    diff?: number;
+    calibratedOwn: number;
+    calibratedByAll: number;
+}
+
+/** The header cards' numbers for the rows on screen. */
+export const summarizeRows = (rows: CostRow[]): CostSummary => {
+    const sum = (list: CostRow[], pick: (row: CostRow) => number | undefined): number =>
+        list.reduce((total, row) => total + (pick(row) ?? 0), 0);
+    const withActual = rows.filter(row => row.actual7 !== undefined);
+    return {
+        today: sum(rows, row => row.today),
+        rawToday: sum(rows, row => row.rawToday),
+        yesterdayEstimate: sum(rows, row => row.yesterdayEstimate),
+        withActual: withActual.length,
+        actual7: sum(withActual, row => row.actual7),
+        actualAll: sum(withActual, row => row.actualAll),
+        diff: withActual.length
+            ? ratio(
+                  sum(withActual, row => row.yesterdayEstimate),
+                  sum(withActual, row => row.actual7)
+              )
+            : undefined,
+        calibratedOwn: rows.filter(row => row.factorFrom === 'account').length,
+        calibratedByAll: rows.filter(row => row.factorFrom === 'all').length,
+    };
 };
 
 /** The axis top: the smallest 1 · 2 · 5 × 10ⁿ at or above `max` (1 when there is nothing). */

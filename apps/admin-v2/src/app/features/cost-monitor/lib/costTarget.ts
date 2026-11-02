@@ -3,7 +3,7 @@
  * - Which goods and relay services the cost monitor reads, for one stage.
  *
  * Each stage's goods service and relay come from their own env keys (`VITE_<STAGE>_GOODS_ENDPOINT`,
- * `VITE_<STAGE>_RELAY_ENDPOINT`, ADR-0268). An unset key leaves that stage unconfigured rather than
+ * `VITE_<STAGE>_RELAY_ENDPOINT`). An unset key leaves that stage unconfigured rather than
  * guessed.
  */
 import { stageEndpoint } from '../../../config/stageEndpoints';

@@ -6,7 +6,7 @@ import { useState, type JSX, type ReactNode } from 'react';
 
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
-import { KEYS, RATES, type UsageKey } from '../lib/cost';
+import { isUsageKey, KEYS, RATES, type UsageKey } from '../lib/cost';
 import { num, pct, usd, type CostRow } from '../lib/costRows';
 import { cloudLabel, METRIC_COLORS, SLOT_LABEL, SLOT_TONE, tenantKind, tenantTitle } from '../lib/display';
 import { HourChart, type ChartMode } from './HourChart';
@@ -162,7 +162,10 @@ export const TenantDetail = ({ row, date, clouds, onClose }: TenantDetailProps):
                                 aria-label="Metric"
                                 className="h-7 rounded-md border border-input bg-background px-2 text-xs text-foreground outline-none focus:border-ring"
                                 value={metric}
-                                onChange={event => setMetric(event.target.value as UsageKey)}
+                                onChange={event => {
+                                    const next = event.target.value;
+                                    if (isUsageKey(next)) setMetric(next);
+                                }}
                             >
                                 {RATES.map(rate => (
                                     <option key={rate.key} value={rate.key}>

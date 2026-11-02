@@ -3,7 +3,7 @@
  * - User → workspace → slot → AWS account, as the goods service records them. Pure functions only.
  *
  * One row (a tenant) per AWS account. A slot with no workspace is a row of its own, keyed by the slot
- * when it has no account either. Response shapes: codes-goods `slot/model.ts` and `views.ts`.
+ * when it has no account either. Shapes are the goods service's slot and workspace views.
  */
 export type SlotState = 'provisioning' | 'idle' | 'assigned' | 'releasing' | 'cleaning' | 'error' | 'archived';
 export interface WorkspaceRow {
@@ -26,7 +26,7 @@ export interface SlotRow {
     assignedAt?: number;
     updatedAt?: number;
 }
-export interface WsInfo {
+interface WsInfo {
     id: string;
     name: string;
     dou: boolean;
@@ -51,7 +51,7 @@ export interface Tenant {
     /** The workspace whose metrics stand for the account; absent when the row has no workspace. */
     workspaceId?: string;
 }
-/** codes-goods `GET /slots/0/list?view=status` (`slot/views.ts` `PoolStatusView`). */
+/** goods `GET /slots/0/list?view=status` (`PoolStatusView`). */
 export interface PoolStatus {
     total: number;
     idle: number;
@@ -94,7 +94,7 @@ export const countPool = (slots: SlotRow[]): PoolStatus => {
 };
 
 /** A problem: the `error` state, or an assignment the slot and the workspace do not agree on (either way). */
-export const slotProblem = (
+const slotProblem = (
     slot: SlotRow,
     wsById: Map<string, WorkspaceRow>,
     pointedBy: Map<string, WorkspaceRow>

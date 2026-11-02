@@ -3,7 +3,7 @@
  * - Cost estimate and day arithmetic. Pure functions only.
  *
  * Cost = Σ usage × adjustment × list price × (1 − discount) — the same formula as the cost service's
- * own estimator (bespin-opsnow-api `src/lib/estimator.ts` `estimateCost`).
+ * own estimator.
  */
 export type UsageKey =
     | 'logIngestBytes'
@@ -14,12 +14,12 @@ export type UsageKey =
     | 'ddbWriteUnits'
     | 'sqsRequests';
 export type Usage = Record<UsageKey, number>;
-export interface Point {
+interface Point {
     t: string;
     v: number;
 }
 export type Series = Partial<Record<UsageKey, Point[]>>;
-export interface Rate {
+interface Rate {
     key: UsageKey;
     /** The Cost Explorer usage type this metric is billed as. */
     useType: string;
@@ -58,10 +58,15 @@ export const RATES: Rate[] = [
     { key: 'sqsRequests', useType: 'APN2-Requests-Tier1', unit: 'reqs', price: 0.4 / 1e6, toUnit: v => v },
 ];
 export const KEYS: UsageKey[] = RATES.map(rate => rate.key);
+
+export const isUsageKey = (value: string): value is UsageKey => KEYS.some(key => key === value);
 const USE_TYPES = new Set(RATES.map(rate => rate.useType));
 
-/** 8.4% is the discount measured in September's Cost Explorer; a Lambda adjustment of 1 is no adjustment. */
-export const DEFAULTS: EstimateOptions = { discount: 0.084, lambdaAdj: 1 };
+/**
+ * No discount and no Lambda adjustment by default. The account's real discount is not a constant to
+ * keep in source: calibration to Cost Explorer carries it, and an operator can type one in.
+ */
+export const DEFAULTS: EstimateOptions = { discount: 0, lambdaAdj: 1 };
 
 export const zeroUsage = (): Usage => Object.fromEntries(KEYS.map(key => [key, 0])) as Usage;
 

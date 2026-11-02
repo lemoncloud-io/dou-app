@@ -7,8 +7,8 @@
  * `secret$` and the like never reach screen state.
  *
  * What costs money: every metrics call makes the goods service call CloudWatch `GetMetricData` once or
- * more ($0.01 per 1,000 metrics). Finished KST days are cached in the tab so moving between dates does
- * not pay twice. Collecting Cost Explorer is the cost service's nightly job, not this screen's.
+ * more ($0.01 per 1,000 metrics). Caching them is the query layer's job (`costQuery.ts`); collecting
+ * Cost Explorer is the cost service's nightly job, not this screen's.
  */
 import { runtime } from '@chatic/app-runtime';
 
@@ -21,7 +21,7 @@ import {
     type Tenant,
     type WorkspaceRow,
 } from '../lib/relations';
-import { kstDay, type CeItem, type Series, type Usage } from '../lib/cost';
+import type { CeItem, Series, Usage } from '../lib/cost';
 
 import type { Actual } from '../lib/costRows';
 
@@ -46,8 +46,8 @@ export interface Tenants {
     partial: string[];
 }
 
-/** Calls made in this tab — each metrics call is at least one `GetMetricData`. */
-export const counter = { metrics: 0, cached: 0 };
+/** Metrics calls sent from this tab — each is at least one `GetMetricData`. */
+export const counter = { metrics: 0 };
 
 /** The response body says why a call failed; a call with no response is named, as on the deploy screen. */
 const describeError = (error: unknown, service: string): Error => {
@@ -138,8 +138,14 @@ const CLOUD_PAGE = 100;
 const CLOUD_CAP = 2000;
 
 /** Account number → the relay's clouds on it, for their DoU names. `valid: 0` keeps expired clouds. */
-export const fetchClouds = async (relay: string): Promise<Map<string, DouCloud[]>> => {
-    const walk = async (page: number, acc: DouCloud[]): Promise<DouCloud[]> => {
+export interface CloudsByAccount {
+    byAccount: Map<string, DouCloud[]>;
+    /** The walk stopped at the cap with more left — names past it are missing. */
+    truncated: boolean;
+}
+
+export const fetchClouds = async (relay: string): Promise<CloudsByAccount> => {
+    const walk = async (page: number, acc: DouCloud[]): Promise<{ all: DouCloud[]; truncated: boolean }> => {
         const res = await signed<ListResponse<DouCloud>>(RELAY, 'GET', `${relay}/clouds/0/list`, {
             view: 'admin',
             valid: 0,
@@ -149,10 +155,11 @@ export const fetchClouds = async (relay: string): Promise<Map<string, DouCloud[]
         const rows = res?.list ?? [];
         const all = [...acc, ...rows];
         const done = rows.length < CLOUD_PAGE || (res?.total !== undefined && all.length >= res.total);
-        return done || all.length >= CLOUD_CAP ? all : walk(page + 1, all);
+        if (done) return { all, truncated: false };
+        return all.length >= CLOUD_CAP ? { all, truncated: true } : walk(page + 1, all);
     };
-    const clouds = await walk(0, []);
-    return clouds.reduce(
+    const { all: clouds, truncated } = await walk(0, []);
+    const byAccount = clouds.reduce(
         (map, cloud) =>
             cloud.accountNo
                 ? map.set(cloud.accountNo, [
@@ -162,34 +169,54 @@ export const fetchClouds = async (relay: string): Promise<Map<string, DouCloud[]
                 : map,
         new Map<string, DouCloud[]>()
     );
+    return { byAccount, truncated };
 };
 
-// A finished KST day is fetched once per tab. CloudWatch lags, so a day is cached only an hour after it ends.
-// ponytail: an unbounded Map in the tab — accounts × dates viewed is small; LRU if a tab stays open for weeks.
-const CACHE_AFTER = 3_600_000;
-const cache = new Map<string, Metrics>();
+/**
+ * Runs `task` once one of `size` slots is free. A load asks for three days of every account at once, and
+ * each answer is a goods → CloudWatch round trip; firing a hundred and fifty of them together
+ * gets throttled downstream. A task whose query was dropped before its turn (another date or stage) is
+ * not sent — it would be billed for nothing.
+ */
+export const createLimiter = (size: number) => {
+    const state = { running: 0, waiting: [] as (() => void)[] };
+    const release = (): void => {
+        state.running--;
+        state.waiting.shift()?.();
+    };
+    return async <T>(task: () => Promise<T>, signal?: AbortSignal): Promise<T> => {
+        if (state.running >= size) await new Promise<void>(resolve => state.waiting.push(resolve));
+        state.running++;
+        try {
+            if (signal?.aborted) throw new Error('Superseded before it was sent.');
+            return await task();
+        } finally {
+            release();
+        }
+    };
+};
+
+const metricsSlot = createLimiter(5);
 
 /** The seven metrics of one KST day in hourly buckets. Admin only on the goods side. */
-export const fetchMetrics = async (goods: string, workspaceId: string, date: string): Promise<Metrics> => {
-    const key = `${goods}:${workspaceId}:${date}`;
-    const hit = cache.get(key);
-    if (hit) {
-        counter.cached++;
-        return hit;
-    }
-    counter.metrics++;
-    const res = await signed<{ metrics$?: { usage$: Usage; series$?: Series } }>(
-        GOODS,
-        'POST',
-        `${goods}/workspaces/${encodeURIComponent(workspaceId)}/metrics`,
-        { series: 1 },
-        { date, period: 3600 }
-    );
-    if (!res?.metrics$) throw new Error('The goods service returned no metrics.');
-    const metrics = { usage: res.metrics$.usage$, series: res.metrics$.series$ ?? {} };
-    if (Date.now() > kstDay(date)[1] + CACHE_AFTER) cache.set(key, metrics);
-    return metrics;
-};
+export const fetchMetrics = (
+    goods: string,
+    workspaceId: string,
+    date: string,
+    signal?: AbortSignal
+): Promise<Metrics> =>
+    metricsSlot(async () => {
+        counter.metrics++;
+        const res = await signed<{ metrics$?: { usage$: Usage; series$?: Series } }>(
+            GOODS,
+            'POST',
+            `${goods}/workspaces/${encodeURIComponent(workspaceId)}/metrics`,
+            { series: 1 },
+            { date, period: 3600 }
+        );
+        if (!res?.metrics$) throw new Error('The goods service returned no metrics.');
+        return { usage: res.metrics$.usage$, series: res.metrics$.series$ ?? {} };
+    }, signal);
 
 /** `YYYY-MM-DD` or `YYYYMMDD` → `YYYYMMDD`, so either form the cost service stores compares equal. */
 const dayKey = (date?: string): string => (date ?? '').replace(/-/g, '');
@@ -200,45 +227,34 @@ const dayKey = (date?: string): string => (date ?? '').replace(/-/g, '');
  * service's own API does not accept this console's signing role. The cost service collects these every
  * night (`sync-ce-daily`, 22:40 KST) and keeps them in OpenSearch.
  */
-export const fetchActuals = async (
-    goods: string,
-    from: string,
-    to: string
-): Promise<Map<string, Map<string, Actual>>> => {
+export interface ActualsByDay {
+    byDay: Map<string, Map<string, Actual>>;
+    /** Fewer rows came back than the reported total — accounts past them read as not collected. */
+    truncated: boolean;
+}
+
+export const fetchActuals = async (goods: string, from: string, to: string): Promise<ActualsByDay> => {
     const res = await signed<ListResponse<{ accountNo: string; date?: string; totalPrice: number; item$$?: CeItem[] }>>(
         GOODS,
         'GET',
         `${goods}/workspaces/0/costs`,
         { from, to }
     );
-    return (res?.list ?? []).reduce((byDay, usage) => {
+    const list = res?.list ?? [];
+    const byDay = list.reduce((acc, usage) => {
         const key = dayKey(usage.date);
-        const day = byDay.get(key) ?? new Map<string, Actual>();
+        const day = acc.get(key) ?? new Map<string, Actual>();
         day.set(usage.accountNo, {
             total: usage.totalPrice,
             items: (usage.item$$ ?? []).map(item => ({ useType: item.useType, totCost: item.totCost })),
         });
-        return byDay.set(key, day);
+        return acc.set(key, day);
     }, new Map<string, Map<string, Actual>>());
+    return { byDay, truncated: (res?.total ?? 0) > list.length };
 };
 
 /** The accounts of one UTC day out of {@link fetchActuals}. */
-export const actualsOf = (byDay: Map<string, Map<string, Actual>>, date: string): Map<string, Actual> =>
-    byDay.get(dayKey(date)) ?? new Map();
+const NO_ACTUALS: Map<string, Actual> = new Map();
 
-/** Runs `tasks` `n` at a time; a failure is kept in its slot and does not stop the rest. */
-export const runPool = async <T>(n: number, tasks: (() => Promise<T>)[]): Promise<PromiseSettledResult<T>[]> => {
-    const out: PromiseSettledResult<T>[] = new Array(tasks.length);
-    const next = { i: 0 };
-    const worker = async (): Promise<void> => {
-        while (next.i < tasks.length) {
-            const i = next.i++;
-            out[i] = await tasks[i]().then(
-                value => ({ status: 'fulfilled' as const, value }),
-                reason => ({ status: 'rejected' as const, reason })
-            );
-        }
-    };
-    await Promise.all(Array.from({ length: Math.min(n, tasks.length) }, worker));
-    return out;
-};
+export const actualsOf = (byDay: Map<string, Map<string, Actual>>, date: string): Map<string, Actual> =>
+    byDay.get(dayKey(date)) ?? NO_ACTUALS;

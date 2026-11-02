@@ -86,6 +86,14 @@ export const TenantTable = ({ rows, clouds, actualsLoaded, selected, onSelect }:
                             key={tenant.key}
                             className={`cursor-pointer border-b border-border hover:bg-muted/40 ${tenant.key === selected ? 'bg-accent' : ''}`}
                             onClick={() => onSelect(tenant.key)}
+                            // A <tr> with only onClick leaves the detail panel unreachable without a
+                            // pointer; tabIndex + Enter/Space keeps the row a table row.
+                            tabIndex={0}
+                            onKeyDown={event => {
+                                if (event.key !== 'Enter' && event.key !== ' ') return;
+                                event.preventDefault();
+                                onSelect(tenant.key);
+                            }}
                         >
                             <td className="px-3 py-2 align-top">
                                 <div className="font-mono text-[11px] text-foreground">
