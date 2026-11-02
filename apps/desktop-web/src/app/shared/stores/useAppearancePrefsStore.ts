@@ -1,15 +1,21 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { isShellColors, PRESET_COLORS, shellPaletteCss, type ShellColors } from '../theme/shellPalette';
+
 export type FontSize = 'small' | 'default' | 'large';
 export type MessageDensity = 'compact' | 'comfy' | 'spacious';
 
 export const FONT_SIZES: readonly FontSize[] = ['small', 'default', 'large'];
 export const MESSAGE_DENSITIES: readonly MessageDensity[] = ['compact', 'comfy', 'spacious'];
 
-/** Shell colour palettes, in picker order. `mist` is the default and the look of `:root` in `styles.css`. */
+/** Shell colour presets, in picker order. `mist` is the default and the look of `:root` in `styles.css`. */
 export const PALETTES = ['mist', 'midnight', 'forest', 'ocean', 'plum', 'lemon'] as const;
 export type Palette = (typeof PALETTES)[number];
+/** A preset, or the user's own three colours (`customPalette`). */
+export type PaletteChoice = Palette | 'custom';
+/** Every choice, in picker order: the presets, then Custom. */
+export const PALETTE_CHOICES: readonly PaletteChoice[] = [...PALETTES, 'custom'];
 
 const isPalette = (value: unknown): value is Palette => PALETTES.includes(value as Palette);
 
@@ -30,19 +36,47 @@ const DENSITY_VARS: Record<MessageDensity, { rowPy: string; gap: string }> = {
 interface AppearancePrefsState {
     fontSize: FontSize;
     density: MessageDensity;
-    palette: Palette;
+    palette: PaletteChoice;
+    /** The user's own colours; kept while a preset is on, so Custom can be picked again. */
+    customPalette: ShellColors | null;
     setFontSize: (fontSize: FontSize) => void;
     setDensity: (density: MessageDensity) => void;
-    setPalette: (palette: Palette) => void;
+    setPalette: (palette: PaletteChoice) => void;
+    /** Saves the colours and switches to them. */
+    setCustomPalette: (colors: ShellColors) => void;
 }
 
-type AppearancePrefs = Pick<AppearancePrefsState, 'fontSize' | 'density' | 'palette'>;
+type AppearancePrefs = Pick<AppearancePrefsState, 'fontSize' | 'density' | 'palette' | 'customPalette'>;
+
+/** The three colours a choice stands for. Custom with no colours saved yet reads as Mist. */
+export const colorsOf = ({
+    palette,
+    customPalette,
+}: Pick<AppearancePrefs, 'palette' | 'customPalette'>): ShellColors =>
+    palette === 'custom' ? (customPalette ?? PRESET_COLORS.mist) : PRESET_COLORS[palette];
+
+const SHELL_STYLE_ID = 'shell-palette';
 
 /**
- * Writes the preferences onto the document root: app-wide font size, the message row variables,
- * and `data-palette`, which `styles.css` reads to recolour the rails and sidebar.
+ * Writes the shell colours as one generated stylesheet. The rail and list tokens hold inside their
+ * own elements (`data-shell-rail`, `data-shell-sidebar`), which inline variables on the root cannot
+ * reach, so the colours go in as rules. Mist leaves dark mode to the stylesheet's own dark shell.
  */
-export const applyAppearance = ({ fontSize, density, palette }: AppearancePrefs): void => {
+const applyShellPalette = (prefs: Pick<AppearancePrefs, 'palette' | 'customPalette'>): void => {
+    let style = document.getElementById(SHELL_STYLE_ID);
+    if (!style) {
+        style = document.createElement('style');
+        style.id = SHELL_STYLE_ID;
+        document.head.appendChild(style);
+    }
+    style.textContent = shellPaletteCss(colorsOf(prefs), '', { dark: prefs.palette !== 'mist' });
+};
+
+/**
+ * Writes the preferences onto the document: app-wide font size, the message row variables,
+ * `data-palette` on the root, and the shell colours.
+ */
+export const applyAppearance = ({ fontSize, density, palette, customPalette }: AppearancePrefs): void => {
     const root = document.documentElement;
     if (fontSize === 'default') root.style.removeProperty('font-size');
     else root.style.fontSize = `${ROOT_FONT_PX[fontSize]}px`;
@@ -50,6 +84,7 @@ export const applyAppearance = ({ fontSize, density, palette }: AppearancePrefs)
     root.style.setProperty('--message-row-py', vars.rowPy);
     root.style.setProperty('--message-gap', vars.gap);
     root.dataset.palette = palette;
+    applyShellPalette({ palette, customPalette });
 };
 
 /**
@@ -63,18 +98,33 @@ export const useAppearancePrefsStore = create<AppearancePrefsState>()(
             fontSize: 'default',
             density: 'comfy',
             palette: 'mist',
+            customPalette: null,
             setFontSize: fontSize => set({ fontSize }),
             setDensity: density => set({ density }),
             setPalette: palette => set({ palette }),
+            setCustomPalette: customPalette => set({ palette: 'custom', customPalette }),
         }),
         {
             name: 'chatic-appearance-prefs',
-            partialize: ({ fontSize, density, palette }) => ({ fontSize, density, palette }),
-            // A palette this build does not know (stored by a newer one) reads as Mist, so the shell
-            // and the picker agree on one, rather than the root carrying a name no CSS answers to.
+            // 1: `customPalette` and the `custom` choice. Version 0 data has neither and reads as is.
+            version: 1,
+            migrate: persisted => persisted as AppearancePrefs,
+            partialize: ({ fontSize, density, palette, customPalette }) => ({
+                fontSize,
+                density,
+                palette,
+                customPalette,
+            }),
+            // A palette this build does not know (stored by a newer one), malformed custom colours, or
+            // Custom with none saved read as Mist, so the shell and the picker agree on one.
             merge: (persisted, current) => {
                 const stored = (persisted ?? {}) as Partial<AppearancePrefs>;
-                return { ...current, ...stored, palette: isPalette(stored.palette) ? stored.palette : current.palette };
+                const customPalette = isShellColors(stored.customPalette) ? stored.customPalette : null;
+                const palette =
+                    isPalette(stored.palette) || (stored.palette === 'custom' && customPalette)
+                        ? stored.palette
+                        : 'mist';
+                return { ...current, ...stored, palette, customPalette };
             },
         }
     )

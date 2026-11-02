@@ -7,7 +7,12 @@ const root = () => document.documentElement;
 describe('useAppearancePrefsStore', () => {
     beforeEach(() => {
         localStorage.clear();
-        useAppearancePrefsStore.setState({ fontSize: 'default', density: 'comfy', palette: 'mist' });
+        useAppearancePrefsStore.setState({
+            fontSize: 'default',
+            density: 'comfy',
+            palette: 'mist',
+            customPalette: null,
+        });
         applyAppearance(useAppearancePrefsStore.getState());
     });
 
@@ -18,7 +23,7 @@ describe('useAppearancePrefsStore', () => {
         expect(root().style.fontSize).toBe('17px');
         expect(root().style.getPropertyValue('--message-row-py')).toBe('0.125rem');
         const stored = JSON.parse(localStorage.getItem('chatic-appearance-prefs') ?? '{}');
-        expect(stored.state).toEqual({ fontSize: 'large', density: 'compact', palette: 'mist' });
+        expect(stored.state).toEqual({ fontSize: 'large', density: 'compact', palette: 'mist', customPalette: null });
     });
 
     it('sets 14px for small', () => {

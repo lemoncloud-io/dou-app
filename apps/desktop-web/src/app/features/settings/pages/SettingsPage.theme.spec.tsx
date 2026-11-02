@@ -32,7 +32,7 @@ vi.mock('../../chat/components/NotificationSnoozeButton', () => ({
 }));
 
 import i18n from '../../../../i18n';
-import { applyAppearance, useAppearancePrefsStore } from '../../../shared';
+import { applyAppearance, derivePaletteTokens, PRESET_COLORS, useAppearancePrefsStore } from '../../../shared';
 import { SettingsPage } from './SettingsPage';
 
 const renderPage = () =>
@@ -56,7 +56,7 @@ describe('SettingsPage theme', () => {
         void i18n.changeLanguage('en');
     });
 
-    it('offers the six palettes, Mist marked as the default and chosen', () => {
+    it('offers the six palettes and Custom, Mist marked as the default and chosen', () => {
         renderPage();
 
         const options = within(themeGroup()).getAllByRole('radio');
@@ -67,6 +67,7 @@ describe('SettingsPage theme', () => {
             'Ocean',
             'Plum',
             'Lemon',
+            'Custom',
         ]);
         expect(within(themeGroup()).getByRole('radio', { checked: true }).textContent).toBe('Mist (Default)');
     });
@@ -84,6 +85,9 @@ describe('SettingsPage theme', () => {
         fireEvent.click(within(themeGroup()).getByRole('radio', { name: 'Forest' }));
 
         expect(document.documentElement.dataset.palette).toBe('forest');
+        expect(document.getElementById('shell-palette')?.textContent).toContain(
+            `--rail: ${derivePaletteTokens(PRESET_COLORS.forest, 'light').root['rail']};`
+        );
         expect(within(themeGroup()).getByRole('radio', { checked: true }).textContent).toBe('Forest');
         const stored = JSON.parse(localStorage.getItem('chatic-appearance-prefs') ?? '{}');
         expect(stored.state.palette).toBe('forest');
@@ -116,5 +120,8 @@ describe('SettingsPage theme', () => {
         applyAppearance(useAppearancePrefsStore.getState());
 
         expect(document.documentElement.dataset.palette).toBe('mist');
+        expect(document.getElementById('shell-palette')?.textContent).toContain(
+            `--rail: ${derivePaletteTokens(PRESET_COLORS.mist, 'light').root['rail']};`
+        );
     });
 });
