@@ -50,7 +50,6 @@ import {
     messagePreview,
     useMediaQuery,
     useSavedItemsStore,
-    type ReadCount,
 } from '../../../shared';
 import { useMessageActions, useReactions } from '../hooks';
 import { QUICK_REACTIONS, useRecentEmojiStore } from '../stores';
@@ -58,6 +57,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { MessageFiles, MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import type { Mentionable } from './MentionAutocomplete';
+import { ReadReceiptPill, type ReadPerson } from './ReadReceiptPill';
 import { ReactionBar } from './ReactionBar';
 import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
 
@@ -118,10 +118,10 @@ interface MessageRowProps {
      */
     hideSavedMark?: boolean;
     /**
-     * Read count for the block's last settled message, shown under the message it names. Absent: no
-     * count (thread panel, self channel).
+     * Who has and has not read the block's last settled message, shown under the message it names.
+     * Absent: no count (thread panel, self channel).
      */
-    readCount?: ReadCount & { chatNo: number };
+    readCount?: { chatNo: number; readers: ReadPerson[]; nonReaders: ReadPerson[] };
 }
 
 /**
@@ -668,17 +668,13 @@ export const MessageRow = memo(
                                             {t('chat.reaction.failed')}
                                         </span>
                                     )}
-                                    {/* Counts, not names: who read it is a later step. Under the block's
-                                        last settled message only — every earlier one has been read at least as far. */}
+                                    {/* Under the block's last settled message only — every earlier one
+                                        has been read at least as far. */}
                                     {readCount && readCount.chatNo === message.chatNo && (
-                                        <span className="mt-1 flex w-fit items-center rounded-full bg-muted px-2 py-1 text-caption font-medium tabular-nums text-muted-foreground">
-                                            {readCount.unread > 0
-                                                ? t('chat.readCount.summary', {
-                                                      read: readCount.read,
-                                                      unread: readCount.unread,
-                                                  })
-                                                : t('chat.readCount.allSeen', { read: readCount.read })}
-                                        </span>
+                                        <ReadReceiptPill
+                                            readers={readCount.readers}
+                                            nonReaders={readCount.nonReaders}
+                                        />
                                     )}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the

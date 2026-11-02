@@ -1,27 +1,32 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { RELAY_CLOUD_ID } from '@chatic/data';
+import { isInJoinWindow, RELAY_CLOUD_ID } from '@chatic/data';
 import type { DomainChannel, DomainJoin } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { channelKind } from '../utils';
 
-/** How many of the room's active members have read up to a message, and how many have not yet. */
+/** Which of the members a message is meant for have read up to it, and which have not yet, in roster order. */
 export interface ReadCount {
-    read: number;
-    unread: number;
+    readIds: string[];
+    unreadIds: string[];
 }
 
 /**
- * Per-message read counts for the open room, off every member's join row — the same numbers the
- * mobile app prints, so a message reads the same on both.
+ * Who has read each message of the open room, worked out from every member's join row rather than
+ * asked of the server: the rows are already observed here, and a list built from them moves the
+ * moment a member's cursor does.
+ *
+ * A message is meant for every member who is still in the room (`joined !== 0`), joined it before
+ * the message (`joinedNo < chatNo`), and did not write it. Of those, a member whose read cursor has
+ * reached the message has read it; the rest have not. The `joinedNo` test matters because joining
+ * writes the latest number into `chatNo` as well — without it everything before a member's arrival
+ * would read as seen by them. A row with no `joinedNo` is taken as having been there all along.
  *
  * A member's read cursor is `max(readNo, chatNo)`: the server keeps the last-read number in
  * `chatNo`, and my own row also carries the optimistic `readNo` that `readChat` writes before the
- * server answers. A member who left (`joined === 0`) keeps a row but counts in neither number, and
- * so does a member whose row has not synced yet — the count grows as rows land, the way the mobile
- * app's does, rather than guessing at the roster. The sender's own cursor
- * moves when they send, so they count as having read their message.
+ * server answers. A member whose row has not synced yet is on neither side — the lists grow as rows
+ * land rather than guessing at the roster.
  *
  * Desktop only kept MY join current (`useChannelReadCursors`), which leaves everybody else's cursor
  * stale, so while a room is open a join sync is registered for each member. The server refuses a
@@ -29,10 +34,13 @@ export interface ReadCount {
  * and nothing before the room's own cloud is verified — `registerJoin` refcounts by key, so my own
  * join dedups with the sidebar's.
  *
- * Returns `readCountOf(chatNo)`, or null from it where the room shows no count: my notes-to-self
- * channel, a room of fewer than two members, and before any join row has arrived.
+ * Returns `readCountOf(chatNo, authorId)`, or null from it where the room shows no count: my
+ * notes-to-self channel, a room of fewer than two members, before any join row has arrived, and a
+ * message no other member was there for.
  */
-export const useChannelReadCounts = (channel: DomainChannel | undefined): ((chatNo: number) => ReadCount | null) => {
+export const useChannelReadCounts = (
+    channel: DomainChannel | undefined
+): ((chatNo: number, authorId: string) => ReadCount | null) => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const channelId = channel?.id ?? null;
     const cid = channel ? channel.cid || RELAY_CLOUD_ID : '';
@@ -56,15 +64,18 @@ export const useChannelReadCounts = (channel: DomainChannel | undefined): ((chat
         );
     }, [joinRepository, channelId]);
 
-    const { activeMemberIds, cursorByUser } = useMemo(() => {
-        const active = new Set<string>();
-        const cursors = new Map<string, number>();
+    // One entry per member still in the room; a departed member's row stays but counts nowhere.
+    const activeMembers = useMemo(() => {
+        const byUser = new Map<string, { userId: string; cursor: number; joinedNo?: number }>();
         for (const join of joins) {
-            if (!join.userId) continue;
-            if (join.joined !== 0) active.add(join.userId);
-            cursors.set(join.userId, Math.max(join.readNo ?? 0, join.chatNo ?? 0));
+            if (!join.userId || join.joined === 0) continue;
+            byUser.set(join.userId, {
+                userId: join.userId,
+                cursor: Math.max(join.readNo ?? 0, join.chatNo ?? 0),
+                joinedNo: join.joinedNo,
+            });
         }
-        return { activeMemberIds: [...active], cursorByUser: cursors };
+        return [...byUser.values()];
     }, [joins]);
 
     const isMember =
@@ -86,17 +97,20 @@ export const useChannelReadCounts = (channel: DomainChannel | undefined): ((chat
         // userId is the uid in this cloud: a target only runs while it matches, so a change re-registers.
     }, [cid, channelId, isVerified, isMember, memberKey, userId]);
 
-    const showsCounts = !!channel && channelKind(channel) !== 'self' && activeMemberIds.length >= 2;
+    const showsCounts = !!channel && channelKind(channel) !== 'self' && activeMembers.length >= 2;
 
     return useCallback(
-        (chatNo: number): ReadCount | null => {
+        (chatNo: number, authorId: string): ReadCount | null => {
             if (!showsCounts) return null;
-            let read = 0;
-            for (const memberId of activeMemberIds) {
-                if ((cursorByUser.get(memberId) ?? 0) >= chatNo) read++;
+            const readIds: string[] = [];
+            const unreadIds: string[] = [];
+            for (const member of activeMembers) {
+                if (member.userId === authorId || !isInJoinWindow({ chatNo }, member.joinedNo)) continue;
+                (member.cursor >= chatNo ? readIds : unreadIds).push(member.userId);
             }
-            return { read, unread: activeMemberIds.length - read };
+            // Nobody the message was meant for (everyone else joined after it): no count, not "Seen 0".
+            return readIds.length + unreadIds.length > 0 ? { readIds, unreadIds } : null;
         },
-        [showsCounts, activeMemberIds, cursorByUser]
+        [showsCounts, activeMembers]
     );
 };

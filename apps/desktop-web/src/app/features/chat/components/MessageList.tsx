@@ -40,6 +40,7 @@ import {
     windowForViewport,
 } from './feedWindow';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
+import type { ReadPerson } from './ReadReceiptPill';
 import type { MentionResolver } from './RichText';
 
 interface MessageListProps {
@@ -108,10 +109,10 @@ interface MessageListProps {
      */
     loadOlderFailed?: boolean;
     /**
-     * Main feed only: how many members have read up to a message. Each author block shows the
-     * count for its last settled message; absent (the thread panel) or null shows none.
+     * Main feed only: which members have read up to a message, its author left out. Each author block
+     * shows the count for its last settled message; absent (the thread panel) or null shows none.
      */
-    readCountOf?: (chatNo: number) => ReadCount | null;
+    readCountOf?: (chatNo: number, authorId: string) => ReadCount | null;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -340,6 +341,18 @@ export const MessageList = ({
         };
         return resolve;
     }, [names, placeProfiles, viewer]);
+
+    // Never drops a member for want of a name — a placeholder keeps the list equal to the count.
+    const readPerson = useMemo(() => {
+        const roster = new Map((mentionables ?? []).filter(m => !m.everyone).map(m => [m.id, m] as const));
+        return (userId: string): ReadPerson => {
+            const mine = isViewerId(userId, viewer);
+            const place = mine ? viewerPlaceProfile(viewer, placeProfiles) : placeProfiles[userId];
+            const fallbackName = mine ? viewer.name : (names?.get(userId) ?? roster.get(userId)?.name ?? '');
+            const display = resolveDisplay(place, fallbackName, roster.get(userId)?.thumbnail);
+            return { id: userId, name: display.name || t('profile.unknown'), thumbnail: display.thumbnail };
+        };
+    }, [mentionables, names, placeProfiles, viewer, t]);
 
     // Resolve thread repliers for the footer avatar stack the same way message
     // authors resolve: Place Profile override → roster name → viewer (own replies,
@@ -887,8 +900,15 @@ export const MessageList = ({
                     // The block's last settled message: a newer one still sending, failed or deleted
                     // must not take the count away from the messages that did land.
                     const counted = readCountOf ? lastCountable(row.group.messages) : undefined;
-                    const count = counted ? readCountOf?.(counted.chatNo) : null;
-                    const readCount = counted && count ? { ...count, chatNo: counted.chatNo } : undefined;
+                    const count = counted ? readCountOf?.(counted.chatNo, counted.ownerId ?? '') : null;
+                    const readCount =
+                        counted && count
+                            ? {
+                                  chatNo: counted.chatNo,
+                                  readers: count.readIds.map(readPerson),
+                                  nonReaders: count.unreadIds.map(readPerson),
+                              }
+                            : undefined;
                     return (
                         <MessageRow
                             key={row.group.key}
