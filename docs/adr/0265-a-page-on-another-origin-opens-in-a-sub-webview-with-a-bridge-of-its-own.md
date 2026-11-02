@@ -1,7 +1,8 @@
-# ADR-0265: A page on another origin opens in a sub WebView with no bridge
+# ADR-0265: A page on another origin opens in a sub WebView with a bridge of its own
 
-> Status: Accepted · Decided: 2026-11-02 · Implemented: `feat/sub-webview`
-> · Scope: `libs/app-messages` (`model/sub-webview.ts`) · `libs/bridges` (`BRIDGE_VERSION` 2.10.0) ·
+> Status: Accepted · Decided: 2026-11-02 · Implemented: `feat/sub-webview` (the view),
+> `feat/sub-webview-bridge` (the page's bridge)
+> · Scope: `libs/app-messages` (`model/sub-webview.ts`) · `libs/bridges` (`BRIDGE_VERSION` 2.10.0, then 2.11.0) ·
 > `apps/mobile/src/app/subWebView/`, `features/subWebView/`, `services/subWebView/`,
 > `webview/hooks/subWebViewHandlers.ts`, `useDeepLinkNavigation.ts`, `useAndroidBack.ts` ·
 > `apps/web/src/app/bridge/subWebView.ts`
@@ -29,10 +30,10 @@ shell shows a page, and which pages it agrees to show.
 
 ## Decision
 
-**The shell shows a page on another origin in a second WebView that has no bridge, none of the main
-WebView's injected script, and its own screen.** The web asks with `OpenSubWebView { url, title? }`
-and hears the close as `OnSubWebViewClosed { viewId, reason }`; `CloseSubWebView` closes it from the
-web.
+**The shell shows a page on another origin in a second WebView with a bridge of its own, which
+answers only a subset of the vocabulary, none of the main WebView's injected script, and its own
+screen.** The web asks with `OpenSubWebView { url, title?, params? }` and hears the close as
+`OnSubWebViewClosed { viewId, reason, result? }`; `CloseSubWebView` closes it from the web.
 
 - **"Sub WebView" is the term, in the bridge and everywhere else.** The messages say what the shell
   does, as `OpenURL` and `StartFileTransfer` do, and the pages it shows are "sub WebView pages" — not
@@ -52,13 +53,20 @@ web.
   its universal-link paths — are dropped, because the web that opened the view owns the app's routing.
 - **One view at a time**, full screen, closed only by its bar's control or Android back. A deep link
   or a tapped push closes it first (`system`); a web reload under it closes it without an event. The
-  four close reasons (`user`, `host`, `system`, `page`) are declared now, though `page` is not sent
-  until the page has a bridge.
+  four close reasons (`user`, `host`, `system`, `page`) were declared with the first messages, so a web
+  build switching on them was ready for `page` before any app sent it.
 - **The two sides never import each other.** The main WebView's code and the sub WebView's meet in
   `services/subWebView` only, enforced by `no-restricted-imports`.
-- **When a page needs the app, it gets a second `AppBridgeHost` that registers only the messages a sub
-  page may use**, from the same vocabulary the main WebView speaks — not a vocabulary of its own.
-  Not built in this change.
+- **The page talks to a second `AppBridgeHost` that registers only `SubWebViewRequestType`**, a
+  compile-checked subset of the same vocabulary the main WebView speaks — not a vocabulary of its own:
+  the handshake, `FinishSubWebView` (close as `page`, with a `result`), `SetSubWebViewTitle`,
+  `CopyToClipboard`, `TriggerHaptic`, and an `OpenURL` that opens only what the view would hand to
+  the OS. Its handlers are written for that host, never borrowed from the main WebView's. It answers
+  only the origin the view was opened on.
+- **A frozen `window.ChaticSubWebView` carries what the page needs to start** — the view's id, the
+  platform, the app version, the user's language, the app's theme and the web's `params` — defined
+  before the page's scripts and only on the opened origin. Nothing that identifies the device, the
+  install or the user. `params` and `result` are JSON of at most 16 KiB.
 - **The web asks only when the handshake lists `OpenSubWebView`**, and otherwise falls back to
   `OpenURL` (an older app) or a new tab (a browser). A refusal from an app that has it rejects instead
   of falling back.
@@ -87,8 +95,16 @@ web.
 
 ## Consequences
 
-- Two requests and one push join the vocabulary (99 requests, 109 app messages); `BRIDGE_VERSION` is
-  2.10.0. The desktop shell leaves both requests unsupported; `apps/desktop-web` never sends them.
+- Four requests and two pushes join the vocabulary (101 requests, 112 app messages); `BRIDGE_VERSION`
+  is 2.10.0 for the view and 2.11.0 for the page's bridge. Two of the requests are the page's: the
+  main shell lists them as unsupported, so its handshake never offers them, and the new push goes only
+  to a sub WebView page. The desktop shell leaves all four requests unsupported; `apps/desktop-web`
+  never sends them.
+- The subset is a type, and `apps/mobile` is not type checked in CI; what CI holds it to is the sub
+  WebView host's handshake test, which lists exactly the subset.
+- On an Android System WebView too old for web message listeners, react-native-webview reports a
+  frame's message under the top-level URL, so a cross-origin frame inside the opened page would pass
+  the origin check. Current WebViews report the frame's own origin.
 - Nothing can be opened until a page is deployed under `apps.chatic.io`; the DNS, certificate and
   hosting for that subtree, and the review pipeline that is the only way onto it, are prerequisites.
 - Because features are open, the review has to cover every deploy, not only a page's first one; the

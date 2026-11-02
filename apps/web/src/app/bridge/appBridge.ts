@@ -550,8 +550,15 @@ export const appBridge = {
      * refuses (`NOT_ALLOWED`, `ALREADY_OPEN`, …). Call it through `openSubWebView`, which checks
      * the shell has it first.
      */
-    openSubWebView(url: string, title?: string): Promise<WebMessageResponse<'OpenSubWebView'>> {
-        return webClient.request({ type: 'OpenSubWebView', data: { url, ...(title ? { title } : {}) } });
+    openSubWebView(
+        url: string,
+        title?: string,
+        params?: Payload<'OpenSubWebView'>['params']
+    ): Promise<WebMessageResponse<'OpenSubWebView'>> {
+        return webClient.request({
+            type: 'OpenSubWebView',
+            data: { url, ...(title ? { title } : {}), ...(params ? { params } : {}) },
+        });
     },
 
     /** Close the sub WebView this page opened; `OnSubWebViewClosed` follows. */

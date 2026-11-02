@@ -13,8 +13,10 @@ type SubWebViewScreenProps = NativeStackScreenProps<RootStackParamList, 'SubWebV
 
 /** Chrome only — a bar with the title and a close control over the page. */
 export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) => {
-    const { viewId, url, title } = route.params;
+    const { viewId, url, title, params } = route.params;
     const [pageTitle, setPageTitle] = useState<string | undefined>(undefined);
+    // A title the page asked for outranks the document's, which outranks the web's.
+    const [requestedTitle, setRequestedTitle] = useState<string | undefined>(undefined);
     const insets = useSafeAreaInsets();
     const { isDark, backgroundColor } = useResolvedTheme();
     const foreground = isDark ? '#FFFFFF' : '#222325';
@@ -34,7 +36,7 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
         <View style={[styles.container, { backgroundColor, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <View style={styles.bar}>
                 <Text style={[styles.title, { color: foreground }]} numberOfLines={1}>
-                    {pageTitle ?? title ?? ''}
+                    {requestedTitle ?? pageTitle ?? title ?? ''}
                 </Text>
                 <TouchableOpacity
                     accessibilityRole="button"
@@ -46,7 +48,14 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
                     <Text style={[styles.closeGlyph, { color: foreground }]}>✕</Text>
                 </TouchableOpacity>
             </View>
-            <SubWebView url={url} onRequestClose={close} onTitleChange={setPageTitle} />
+            <SubWebView
+                viewId={viewId}
+                url={url}
+                params={params}
+                onRequestClose={close}
+                onTitleChange={setPageTitle}
+                onTitleRequest={setRequestedTitle}
+            />
         </View>
     );
 };

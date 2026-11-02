@@ -17,6 +17,8 @@ const MOBILE_UNSUPPORTED = {
     ShowNotification: "Desktop's OS banner; the phone raises notifications from push, not on request",
     StartUpdateDownload: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)',
     RestartToUpdate: 'Desktop self-update; the phone updates through the store (OpenStore)',
+    FinishSubWebView: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    SetSubWebViewTitle: "A sub WebView page's request, answered by that view's own host (subWebView/)",
 } satisfies Partial<Record<WebMessageType, string>>;
 
 // Per-handler behaviour for the loopback cases below; every other handler is a bare mock.
@@ -109,7 +111,13 @@ describe('mobile bridge contract', () => {
     // A handler registered anywhere else is invisible to the checks above, so a message already
     // listed as unsupported could gain one without failing them.
     it('registers handlers only in the hooks this suite mounts', () => {
-        const allowed = ['useWebMessageRouter.ts', 'useWebViewNavigation.ts'];
+        // The sub WebView's host is a different host, with its own handshake test
+        // (createSubBridgeHost.test.ts) pinning it to the sub WebView subset.
+        const allowed = [
+            'useWebMessageRouter.ts',
+            'useWebViewNavigation.ts',
+            '../../subWebView/createSubBridgeHost.ts',
+        ];
         const appRoot = join(__dirname, '../..');
         const sources = (dir: string): string[] =>
             readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
