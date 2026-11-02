@@ -63,8 +63,8 @@ running on an operator's own machine and a pair of local scripts. Feature code:
   the builder for this was not worth it — its narrow surface is deliberate, and since auto-deploy
   answers as soon as a deploy is queued, the most a stop lets through is one more queued deploy.
   Only one run exists at a time; a second confirm while one is going does nothing.
-- **Everything that goes out is shown before it goes.** admin-v2 is not deployed; every operator
-  runs it locally against whatever their `.env` names, which in practice is production. The header
+- **Everything that goes out is shown before it goes.** Either stage can be picked from any build,
+  production included. The header
   badge and the confirmation dialog both name the goods service being called (red for production),
   and the dialog states the cloud and product counts, each service's branch, `force` and `slack`.
 - **The rules are pure functions in `lib/`** — grouping (`cloudGroups`), the call list
@@ -75,7 +75,7 @@ running on an operator's own machine and a pair of local scripts. Feature code:
 - **Nothing is kept in the URL.** The membership and log consoles put their filters and stage in the
   URL so a refresh or a shared link keeps the view. Those screens read; this one deploys, and a link
   that reopened on production with clouds picked is the wrong thing to make easy. The screen opens
-  on the stage the `.env` names, with nothing picked, every time.
+  on the build's stage, with nothing picked, every time.
 
 ## Scope
 
@@ -180,8 +180,8 @@ the same gap — so the admin login in front of this screen is the only gate on 
 - **A rejected signature looks like a network failure.** The gateway's 403 for a bad signature
   carries no CORS headers, so the browser reports no status at all; the screen says so instead of
   showing a bare "Network Error".
-- **The goods stage opens on the relay stage the `.env` names** — `dou-v1` opens on `cgs-v1`,
-  anything else on `cgs-d1`. Switching it clears the picks and the last run's results, which belong
+- **The goods stage opens on the build's stage** — `cgs-v1` in a production build, `cgs-d1` in any
+  other (see [Stage endpoints](../../README.md#stage-endpoints)). Switching it clears the picks and the last run's results, which belong
   to the goods service they came from. It, the picks and the Deploy button are locked during a run.
 
 ## Verifying

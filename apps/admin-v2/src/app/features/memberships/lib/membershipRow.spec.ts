@@ -5,11 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { describeGrade, describeOverrideBadge, hasDerivationMismatch } from './membershipRow';
 import {
-    configuredStage,
     describeTargetServer,
     endpointOverrideFor,
     relayEndpointFor,
     relayStageOf,
+    sessionStage,
     targetEndpointFor,
 } from './targetServer';
 
@@ -189,7 +189,7 @@ describe('endpointOverrideFor', () => {
     it('leaves the configured stage alone', () => {
         stubStages(DEV_RELAY);
 
-        expect(configuredStage()).toBe('d1');
+        expect(sessionStage()).toBe('d1');
         expect(endpointOverrideFor('d1')).toBeUndefined();
     });
 
@@ -202,7 +202,7 @@ describe('endpointOverrideFor', () => {
     it('works the other way round when the session is on production', () => {
         stubStages(PROD_RELAY);
 
-        expect(configuredStage()).toBe('v1');
+        expect(sessionStage()).toBe('v1');
         expect(endpointOverrideFor('v1')).toBeUndefined();
         expect(endpointOverrideFor('d1')).toBe(DEV_RELAY);
     });

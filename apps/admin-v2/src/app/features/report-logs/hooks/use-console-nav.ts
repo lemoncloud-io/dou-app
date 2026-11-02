@@ -22,6 +22,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ROUND_2_AXES, type ReportStage } from '../api/reportLogApi';
 import { FACET_KEYS } from '../lib/logFacets';
 import { PERIOD_PRESETS, resolvePeriod, type PeriodInput, type PeriodPreset, type ResolvedPeriod } from '../lib/period';
+import { openingStage } from '../../../config/stageEndpoints';
 
 export const CONSOLE_TABS = ['user', 'errors', 'reports', 'stats', 'all'] as const;
 
@@ -95,7 +96,8 @@ export const useConsoleNav = (): ConsoleNav => {
     const now = useNow();
 
     const tab = resolveTab(searchParams);
-    const stage: ReportStage = searchParams.get('stage') === 'd1' ? 'd1' : 'v1';
+    const stageParam = searchParams.get('stage');
+    const stage: ReportStage = stageParam === 'd1' || stageParam === 'v1' ? stageParam : openingStage();
     const param = useCallback((key: string) => searchParams.get(key) ?? '', [searchParams]);
 
     const periodInput = useMemo<PeriodInput>(() => {
@@ -154,7 +156,8 @@ export const useConsoleNav = (): ConsoleNav => {
         [setSearchParams]
     );
 
-    const setStage = useCallback((next: ReportStage) => patch({ stage: next === 'v1' ? '' : next }), [patch]);
+    // The opening stage stays out of the URL, so a plain link opens where the build opens.
+    const setStage = useCallback((next: ReportStage) => patch({ stage: next === openingStage() ? '' : next }), [patch]);
 
     const setPeriod = useCallback(
         (preset: PeriodPreset, custom?: { from?: string; to?: string }) =>

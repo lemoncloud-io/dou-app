@@ -94,7 +94,7 @@ subscriptions (`apple`, `google`) get no refund section; the store refunds those
 
 **Development only.** The button works only when the relay the call will hit is `dou-d1`. On
 Production it stays disabled with a line saying so: no refund policy exists yet, and the console
-usually runs against Production because that is what an operator's `.env` names. The refund
+always signs in to Production, so Production is one switch away in every build. The refund
 resolves its relay once, explicitly: `VITE_DOU_ENDPOINT` when the selected stage is the session's
 own, else that stage's `VITE_<STAGE>_RELAY_ENDPOINT` (see
 [Stage endpoints](../../README.md#stage-endpoints)). That one value is what the gate checks, what

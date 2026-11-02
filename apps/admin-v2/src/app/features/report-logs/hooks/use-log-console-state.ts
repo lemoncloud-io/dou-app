@@ -25,6 +25,7 @@ import { ROUND_2_AXES, type ReportKind, type ReportStage } from '../api/reportLo
 import { FACET_KEYS, type FacetKey, type FacetSelection } from '../lib/logFacets';
 import { RECORD_FILTERS, type RecordFilter, type RecordKind } from '../lib/recordKinds';
 import { PIN_KEYS, type PinKey } from '../lib/pinAxes';
+import { openingStage } from '../../../config/stageEndpoints';
 
 /** Which of the four views the middle column shows. */
 export type ViewMode = 'list' | 'group' | 'time' | 'timeline' | 'stats';
@@ -107,7 +108,7 @@ export const useLogConsoleState = (): LogConsoleState => {
 
     const server = useMemo<ServerAxes>(
         () => ({
-            stage: oneOf<ReportStage>(searchParams.get('stage'), ['v1', 'd1'], 'v1'),
+            stage: oneOf<ReportStage>(searchParams.get('stage'), ['v1', 'd1'], openingStage()),
             kind: oneOf<ReportKind>(searchParams.get('kind'), REPORT_KINDS, 'all'),
             from: read('from'),
             to: read('to'),

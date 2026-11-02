@@ -61,12 +61,16 @@ export const describeTargetServer = (endpoint: string | undefined): TargetServer
 
 export const configuredEndpoint = (): string | undefined => import.meta.env.VITE_DOU_ENDPOINT;
 
-/** The stage the `.env` names, used as the console's starting point. */
-export const configuredStage = (): RelayStage => (describeTargetServer(configuredEndpoint()).isProd ? 'v1' : 'd1');
+/**
+ * The stage the session's own relay (`VITE_DOU_ENDPOINT`) is on — production in every build, since
+ * the console always signs in there. Calls on this stage go out without an override; it is not the
+ * stage the screen opens on (`openingStage`).
+ */
+export const sessionStage = (): RelayStage => (describeTargetServer(configuredEndpoint()).isProd ? 'v1' : 'd1');
 
 /** Where calls on `stage` actually go: the session's own relay on its own stage, else that stage's key. */
 export const targetEndpointFor = (stage: RelayStage): string =>
-    stage === configuredStage() ? (configuredEndpoint() ?? '').trim().replace(/\/+$/, '') : relayEndpointFor(stage);
+    stage === sessionStage() ? (configuredEndpoint() ?? '').trim().replace(/\/+$/, '') : relayEndpointFor(stage);
 
 /**
  * The endpoint override for a chosen stage, or `undefined` to leave the call alone.
@@ -80,7 +84,7 @@ export const targetEndpointFor = (stage: RelayStage): string =>
  * session's own relay — the other stage — while the screen says it is on this one.
  */
 export const endpointOverrideFor = (stage: RelayStage): string | undefined => {
-    if (stage === configuredStage()) return undefined;
+    if (stage === sessionStage()) return undefined;
     const endpoint = relayEndpointFor(stage);
     if (!endpoint) {
         throw new Error(`${stageEndpointKey('relay', stage)} is not set — no relay to call on ${stage}.`);

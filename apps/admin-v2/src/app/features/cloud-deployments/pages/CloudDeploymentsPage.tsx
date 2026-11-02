@@ -33,17 +33,15 @@ import {
 } from '../lib/cloudGroups';
 import { countClouds, matchesCloudStage, planDeploys, type CloudStageFilter } from '../lib/deployPlan';
 import {
-    configuredRelayEndpoint,
     describeGoodsTarget,
     douBaseFor,
     GOODS_STAGE_LABEL,
     GOODS_STAGES,
     goodsBaseFor,
-    initialGoodsStage,
     isGoodsStage,
     type GoodsStage,
 } from '../lib/goodsTarget';
-import { stageEndpointKey } from '../../../config/stageEndpoints';
+import { openingStage, stageEndpointKey } from '../../../config/stageEndpoints';
 
 /** A copy of `set` with `items` added (`on`) or removed. */
 const withMembers = <T,>(set: ReadonlySet<T>, items: readonly T[], on: boolean): ReadonlySet<T> => {
@@ -53,8 +51,7 @@ const withMembers = <T,>(set: ReadonlySet<T>, items: readonly T[], on: boolean):
 };
 
 export const CloudDeploymentsPage = () => {
-    const endpoint = configuredRelayEndpoint();
-    const [stage, setStage] = useState<GoodsStage>(() => initialGoodsStage(endpoint));
+    const [stage, setStage] = useState<GoodsStage>(openingStage);
     const base = goodsBaseFor(stage);
     const target = describeGoodsTarget(stage);
     const { lists, errors, isLoading, isFetching, refetch: refetchLists } = useServiceProductLists(stage, base);
