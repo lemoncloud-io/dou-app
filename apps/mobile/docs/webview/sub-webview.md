@@ -329,7 +329,9 @@ an import the other way ties the main WebView to a screen it should only know th
 
 Any page deployed on a subdomain of `apps-dev.chatic.io` (or `apps.chatic.io`) will do — nothing else
 opens. `https://sample.apps-dev.chatic.io/` and `https://sample1.apps-dev.chatic.io/` are kept for
-trying it: in a development build the web's Lab page (Settings → Lab) lists both, and a tap opens one.
+trying it: while debug mode is on — LOCAL and DEV start that way, a store build after the Lab's unlock —
+the web's Lab page (Settings → Lab) lists both under "In-app", and a tap opens one. The allowlist takes
+`apps-dev.chatic.io` in every build, so an unlocked store build opens them too.
 
 Open it from the web's debug panel → **Sub WebView (app)**: a URL, an optional title and `params`, and
 a log of how the view closed, with the `result` the page handed back. A URL off the allowlist answers

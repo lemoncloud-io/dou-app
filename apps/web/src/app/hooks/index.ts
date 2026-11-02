@@ -19,7 +19,6 @@ export * from './useChannelUnreads';
 export * from './useChatSyncRegistration';
 export * from './useCloudScope';
 export * from './useDevicePairingEnabled';
-export * from './useSubWebViewLabPages';
 export * from './useDeviceSync';
 export * from './useHomeChannels';
 export * from './useInAppPushMessage';

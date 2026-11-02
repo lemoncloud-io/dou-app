@@ -197,9 +197,19 @@
             "chatInputLock": "대화 입력 잠금",
             "chatInputLockSubtitle": "대화방마다 입력창을 잠가요",
             "chatInputLockNote": "켜면 대화방 설정에 '입력 잠금'이 생겨요. 잠근 대화방과 그 스레드에서는 메시지를 보낼 수 없어요. 이 기기에서만 적용돼요.",
-            "subWebViewPages": "서브웹뷰 페이지 (개발)",
-            "subWebViewPagesNote": "누르면 앱 위에 서브웹뷰로 열려요. 개발 빌드에서만 보여요.",
-            "subWebViewOpenFailed": "서브웹뷰를 열지 못했어요"
+            "inApp": "인앱",
+            "inAppNote": "누르면 앱 위에 서브웹뷰로 열려요. 디버그 모드에서만 보여요.",
+            "inAppOpenFailed": "열지 못했어요",
+            "inAppPages": {
+                "echo": {
+                    "title": "에코",
+                    "subtitle": "빛·소리·진동으로 나온 순서를 기억하는 퍼즐"
+                },
+                "raiseDou": {
+                    "title": "DoU 키우기",
+                    "subtitle": "두유를 먹이고 훈련해 진화시키고, 장비를 강화해 키워요"
+                }
+            }
         },
         "notificationSettings": "알림 설정",
         "pushNotifications": "푸시 알림",
