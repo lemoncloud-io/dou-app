@@ -13,6 +13,7 @@ export * from './errors';
 // `./webVitals` is absent for the same reason — it gates its dev log on `import.meta.env.DEV`.
 // Its only consumer is `main.tsx`, which imports the concrete file. `./webVitalsStore` stays:
 // it holds the values the debug overlay reads and touches no build-time env.
+export * from './phoneSends';
 export * from './placeProfile';
 export * from './resolveInAppPushRoute';
 export * from './resolvePlaceDisplayName';

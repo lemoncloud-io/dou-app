@@ -144,6 +144,14 @@ of an office file typed as a ZIP or as a type the server does not know) and
 refuses what the server would not take. Leaving `accept` out would admit everything too, but iOS then
 offers the photo library and the camera before the document picker.
 
+The phone sends every format the server takes but one: an HTML page (`PHONE_SENDS` in `src/app/utils`).
+Desktop sends HTML and draws it in its document viewer with scripts off; the phone has no such viewer,
+and its shells were never checked against the type. So neither input names `text/html`, `.html` or
+`.htm`, and a page let through anyway — iOS's generic type admits any Files item — is judged
+`unsupported`. A page someone sent from desktop arrives as a document card, but today's shells save
+only the extensions they know and refuse `.html` with `INVALID`, so its save fails until a shell
+learns the extension.
+
 A video the app picked may still need converting (an iPhone records HEVC in QuickTime). The send converts
 it with `PrepareVideo` after the pending row is shown — the tile is a grey panel until the poster comes.
 Which files go through it is decided by the format, not by the shell's `kind`: an `.mp4` picked through
@@ -418,8 +426,8 @@ thumbnails above the field stays, faded. A `NOT_FOUND` from
 for the page: lists stop asking for videos, and the grid lists afresh without them when it next opens.
 
 What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
-entry's file input and the camera use its image-only form, `judgeChatImages`): the server's seventeen
-formats (a ZIP archive and the four audio formats included, an audio file under the type alias a system
+entry's file input and the camera use its image-only form, `judgeChatImages`): the seventeen formats
+the phone sends (a ZIP archive and the four audio formats included, an audio file under the type alias a system
 gives it as well; AAC and WebM are not among them), each kind's own limit (20MB a photo, 300MB a video,
 50MB a document, archive or audio file), the same item picked twice, and ten a message
 (`IMAGE_MESSAGE_SLOT_MAX`). What the app's picker would not copy is reported the same way: each of its

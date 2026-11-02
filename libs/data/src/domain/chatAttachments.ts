@@ -46,6 +46,9 @@ const FORMATS: readonly Format[] = [
     { type: 'application/x-hwp', extensions: ['hwp'], kind: 'file' },
     { type: 'application/hwp+zip', extensions: ['hwpx'], kind: 'file' },
     { type: 'text/plain', extensions: ['txt'], kind: 'file' },
+    // Sent from desktop only (each app's `ChatAttachmentFilter`). Listed ahead of the server: until it takes
+    // the type, an HTML upload is refused with a 415 and the message shows the failed file.
+    { type: 'text/html', extensions: ['html', 'htm'], kind: 'file' },
     { type: CHAT_ATTACHMENT_ZIP_TYPE, extensions: ['zip'], kind: 'file' },
     { type: 'audio/mp4', extensions: ['m4a'], kind: 'file' },
     { type: 'audio/mpeg', extensions: ['mp3'], kind: 'file' },
@@ -75,8 +78,8 @@ const ALIASES: Readonly<Record<string, string>> = {
 
 /**
  * Which of the server's formats an app sends, for one that sends fewer than the server takes. Given
- * the format a file would go as. Every app sends all of them today; a picker that offers one kind
- * only (photos) passes its own.
+ * the format a file would go as. The phone app leaves out HTML, which only desktop sends; a picker
+ * that offers one kind only (photos) passes its own.
  */
 export type ChatAttachmentFilter = (format: { type: string; kind: ChatUploadKind }) => boolean;
 
