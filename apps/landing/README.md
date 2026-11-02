@@ -556,6 +556,44 @@ What the screens get from the server differs from the mock in a few places, all 
   [Billing outside Korea](#billing-outside-korea)). They travel with that checkout or card and are not
   stored. The payer's address is the account's own while the billing-email screens are hidden.
 
+#### Sandbox payments (development)
+
+A server tab can run the server's real subscription flow with no card and no charge: the payment
+server's mock provider takes any card token and charges at once, and the subscription it starts is
+marked as a mock one on the server, with its membership and record kept there like a real one. It is
+not the mock above — that one is an in-memory server in the page; this one is the real server on a
+fake payment provider (ADR-0263).
+
+- **On and off.** `?sandbox=1` turns it on and `?sandbox=0` off; the choice holds for the tab
+  (`sandboxOf` in `lib/createPortSetup.ts`). The corner "payments" panel of a server tab has the same
+  switch, which reloads the page, and the renewal period of the next start: a month (the product's),
+  `10m`, `1h` or `1d` — so a trial ending, a monthly charge and a cancelled subscription expiring can be
+  watched in minutes. While on, a "Sandbox payments — no real charge" banner sits over every page.
+- **Only where the account surface is open, and never on a production build.** The switch exists only
+  on a server tab, which exists only where `isSubscriptionAccountEnabled` is true; on the production
+  host the catalog port runs and `?sandbox` is ignored. A build whose addresses are production's
+  (`VITE_ENV=PROD`) has no sandbox either, even on `localhost`. The server does not refuse the query on
+  production, so not sending it there is the first defence. `?sandbox` is taken out of the address once
+  read; the tab's stored choice is the one that counts.
+- **What carries it.** The HTTP port adds `?sandbox` to the six payer-scoped calls — `issue`, `start`, the
+  card list, adding a card, choosing the default and removing one — and to every card call, since the
+  server reads it per call and one card call without it would mix in the payer's real cards. The
+  calls on the subscription itself (`mine`, `change`, `cancel`) and the membership read carry nothing:
+  the server follows the record. `?interval` goes on a sandboxed `start` only. The query is passed
+  through the runtime's subscription repository (`libs/data`, `libs/http`), whose payer-scoped calls
+  take it as an optional last argument.
+- **The card window.** The mock provider's `issue` values are fake, so neither provider's window or SDK
+  is opened: the mock's stand-in window (`MockPaymentWindow`) asks how it ends, and a registered card is
+  a made-up `sandbox-…` token, read by the same `windowResultOf` as a real window. The billing-country
+  split is unchanged, so Korea (payer fields, won) and elsewhere (dollars) are both exercised.
+- **Traps.** An account that has started once in sandbox is no longer eligible for the free trial —
+  test the trial with an untouched account. Moving from a sandboxed subscription to a real one means
+  cancelling it and letting it expire first (a short period helps). The relay's own `?mock` (sample
+  answers) is a different thing; this app never sends it. And the sandbox runs through the dev relay
+  like everything else: when the dev stage is down, so is the sandbox. Do not run it with production's
+  addresses — the build guard refuses `VITE_ENV=PROD`, but a hand-made `.env` is only as safe as the
+  addresses in it, and sandbox records on production would sit among real users'.
+
 ### The mock
 
 The mock is an in-memory server holding one account — its

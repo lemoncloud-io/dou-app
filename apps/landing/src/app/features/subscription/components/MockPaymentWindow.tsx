@@ -1,7 +1,7 @@
 import { type JSX, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { type PaymentWindowRequest, useMockController } from '../lib/mock';
+import { type PaymentWindowHost, type PaymentWindowRequest, useMockController } from '../lib/mock';
 import { Button, Dialog } from './ui';
 
 import type { RegistrationOutcome } from '../types';
@@ -10,13 +10,15 @@ const OUTCOMES: RegistrationOutcome[] = ['registered', 'failed', 'closed'];
 
 /**
  * The stand-in for the payment provider's card window. Mounted once at the route root when the port is
- * the mock: `startPaymentMethodRegistration` opens it and waits for the reader to pick how the window
- * ends — the same promise a real provider's window resolves — so the checkout and payment-method pages
- * call the hook and never know which it was. The fail flag's outcome is focused first.
+ * the mock — or the server's port on its no-charge development payments, which registers through `host`:
+ * `startPaymentMethodRegistration` opens it and waits for the reader to pick how the window ends — the
+ * same promise a real provider's window resolves — so the checkout and payment-method pages call the
+ * hook and never know which it was. The fail flag's outcome is focused first.
  */
-export const MockPaymentWindow = (): JSX.Element | null => {
+export const MockPaymentWindow = ({ host }: { host?: PaymentWindowHost } = {}): JSX.Element | null => {
     const { t } = useTranslation();
-    const controller = useMockController();
+    const mockController = useMockController();
+    const controller = host ?? mockController;
     const [request, setRequest] = useState<PaymentWindowRequest | null>(null);
     const resolver = useRef<((outcome: RegistrationOutcome) => void) | null>(null);
 
