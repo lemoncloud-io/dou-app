@@ -81,8 +81,6 @@ export interface MockState {
     fail: FailFlag | null;
     /** `&cards=0` — start the scenario with no payment method. */
     noCards: boolean;
-    /** The dev scenario panel; `&panel=0` hides it for screenshots. */
-    panelHidden: boolean;
     /** The query strings already applied, so the same URL is not applied twice (see `createMockPort`). */
     appliedSearches: string[];
 
@@ -90,7 +88,6 @@ export interface MockState {
     /** Who a successful sign-in becomes. */
     account: Account;
     signIn: {
-        provider: SignInProvider;
         defaultChoice: ConsentChoice;
         /** The masked address a provider shows when there is no linked account (Google only). */
         hint?: string;

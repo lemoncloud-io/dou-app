@@ -5,7 +5,7 @@ import { HTTP_METHODS, type HttpPort } from './methods';
 import { createSandboxWindow } from './sandboxWindow';
 
 import type { HttpSandbox } from './createHttpPort';
-import type { PaymentWindowHost } from '../../mock';
+import type { PaymentWindowHost } from '../standInWindow';
 
 import type * as Live from './live';
 import type { SubscriptionServer } from '../../../../../config/subscriptionServer';
@@ -25,7 +25,7 @@ export interface HttpSetup {
 
 /**
  * The HTTP port, loaded on first use. The implementation pulls in the shared session runtime and the
- * payment SDK, which neither the production host's plans page nor a mock-only tab needs, so this
+ * payment SDK, which the production host's plans page does not need, so this
  * module holds only a stand-in that loads the real one when it is first called or rendered.
  */
 export const createHttpSetup = (server: SubscriptionServer, options: { sandbox?: HttpSandbox } = {}): HttpSetup => {

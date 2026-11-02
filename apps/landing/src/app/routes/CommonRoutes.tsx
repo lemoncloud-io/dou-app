@@ -20,8 +20,9 @@ const SubscriptionRoutes = lazy(() =>
 
 export interface CommonRoutesOptions {
     /**
-     * Register `/subscription/*`. Off on the production host — see `isSubscriptionAccountEnabled` —
-     * where `/subscription/plans` alone is registered, listing the plans with nothing to buy yet.
+     * Register `/subscription/*`. Off on the production host and on a build without the server's
+     * addresses — see `isSubscriptionAccountOpen` — where `/subscription/plans` alone is registered,
+     * listing the plans with nothing to buy yet.
      */
     subscriptionAccount: boolean;
 }

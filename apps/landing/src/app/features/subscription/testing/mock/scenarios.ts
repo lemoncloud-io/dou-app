@@ -1,5 +1,4 @@
-import { ROUTES } from '../../../../routes/paths';
-import { addDays } from '../calendar';
+import { addDays } from '../../lib/calendar';
 import { MOCK_POLICY, planOf } from './policy';
 
 import type { ConsentChoice, MockState, ScenarioId } from './state';
@@ -12,11 +11,11 @@ import type { Account, BillingEmail, Invoice, PaymentMethod, PlanId, Subscriptio
  * the mock's today across it — which is how the same-day cases are reached (`?mock=downgrade-scheduled
  * &now=2026-11-20` is the day the downgrade applies).
  */
-export const DEFAULT_TODAY = '2026-11-01';
+const DEFAULT_TODAY = '2026-11-01';
 
-/** Where the mock points a receipt link: a stand-in page, mock-only like the consent page. */
+/** Where the fake server points a receipt link. Nothing is routed there; the tests only read it. */
 export const mockReceiptUrl = (invoiceId: string): string =>
-    `${ROUTES.subscription.mockReceipt}?invoice=${encodeURIComponent(invoiceId)}`;
+    `/subscription/mock-receipt?invoice=${encodeURIComponent(invoiceId)}`;
 
 const price = (planId: PlanId) => planOf(planId).monthly;
 
@@ -144,12 +143,12 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
     'no-linked-account': () => ({
         signedIn: false,
         account: NEW_ACCOUNT,
-        signIn: { provider: 'google', defaultChoice: 'noAccount', hint: 'mi***@gmail.com' },
+        signIn: { defaultChoice: 'noAccount', hint: 'mi***@gmail.com' },
     }),
     'no-linked-account-apple': () => ({
         signedIn: false,
         account: { ...NEW_ACCOUNT, provider: 'apple', email: undefined },
-        signIn: { provider: 'apple', defaultChoice: 'noAccount' },
+        signIn: { defaultChoice: 'noAccount' },
     }),
     'store-ios': () => ({
         signedIn: true,
@@ -342,10 +341,7 @@ const SCENARIO_DATA: Record<ScenarioId, () => ScenarioData> = {
 };
 
 /** A fresh mock state for a scenario. */
-export const buildScenario = (
-    scenario: ScenarioId,
-    options: { today?: string; noCards?: boolean; panelHidden?: boolean } = {}
-): MockState => {
+export const buildScenario = (scenario: ScenarioId, options: { today?: string; noCards?: boolean } = {}): MockState => {
     const data = SCENARIO_DATA[scenario]();
     const paymentMethods = options.noCards ? [] : (data.paymentMethods ?? []);
     const subscriptions = (data.subscriptions ?? []).map(sub =>
@@ -358,12 +354,10 @@ export const buildScenario = (
         today: options.today ?? DEFAULT_TODAY,
         fail: null,
         noCards: !!options.noCards,
-        panelHidden: !!options.panelHidden,
         appliedSearches: [],
         signedIn: data.signedIn,
         account: data.account,
         signIn: {
-            provider: data.signIn?.provider ?? data.account.provider,
             defaultChoice: data.signIn?.defaultChoice ?? 'continue',
             hint: data.signIn?.hint,
         },

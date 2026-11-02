@@ -1,8 +1,8 @@
-import { isPortError } from '../port/errors';
+import { isPortError } from '../../lib/port/errors';
 import { createMockPort } from './createMockPort';
 import { memoryStateStore } from './storage';
 
-import type { SubscriptionPort } from '../port';
+import type { SubscriptionPort } from '../../lib/port';
 
 /**
  * A mock with no latency, a hand-driven wall clock and a URL the test sets. `advance` moves the wall
@@ -97,13 +97,6 @@ describe('createMockPort — scenarios and the URL', () => {
         go('?mock=downgrade-scheduled&now=2026-11-20');
         expect(controller.getState().today).toBe('2026-11-20');
         expect(controller.getState().subscriptions[0].pendingChange?.effectiveAt).toBe('2026-11-20');
-    });
-
-    it('brings a hidden panel back with panel=1 on a page load', async () => {
-        const first = setup('?mock=active&panel=1');
-        first.controller.setPanelHidden(true);
-        const second = createMockPort({ store: first.store, readSearch: () => '?mock=active&panel=1', delayMs: 0 });
-        expect(second.controller.peek().panelHidden).toBe(false);
     });
 
     it('survives a reload through its store', async () => {
@@ -564,12 +557,22 @@ describe('createMockPort — the sign-in round trip', () => {
     const signIn = async (search: string, result: string, nonce = 'nonce-1') => {
         const mock = setup(search);
         const { redirectUrl } = await mock.port.startSignIn({ provider: 'google', next: '/subscription/history' });
-        expect(redirectUrl).toBe(
-            '/subscription/login/mock-provider?provider=google&nonce=nonce-1&next=%2Fsubscription%2Fhistory'
-        );
+        expect(redirectUrl).toMatch(/^\/subscription\/login\/callback\?provider=google&nonce=nonce-1&result=/);
         const callback = new URLSearchParams({ provider: 'google', nonce, result });
         return { mock, outcome: mock.port.completeSignIn(callback) };
     };
+
+    it("answers for the provider at once, with the scenario's choice or a sign-in fail flag's", async () => {
+        const resultOf = async (search: string) =>
+            new URL(
+                (await setup(search).port.startSignIn({ provider: 'google' })).redirectUrl,
+                'https://x'
+            ).searchParams.get('result');
+        expect(await resultOf('')).toBe('continue');
+        expect(await resultOf('?mock=no-linked-account')).toBe('noAccount');
+        expect(await resultOf('?mock=visitor&fail=signin-canceled')).toBe('canceled');
+        expect(await resultOf('?mock=visitor&fail=signin-expired')).toBe('expired');
+    });
 
     it('signs in and hands back the return path it started with', async () => {
         const { mock, outcome } = await signIn('', 'continue');

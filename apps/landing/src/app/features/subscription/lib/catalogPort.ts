@@ -6,7 +6,7 @@ const shut = (): Promise<never> =>
     Promise.reject(new SubscriptionPortError('unauthenticated', 'catalog only: nothing to sign in to'));
 
 /**
- * The port where the account surface is shut (`isSubscriptionAccountEnabled`): a visitor who is never
+ * The port where the account surface is shut (`isSubscriptionAccountOpen`): a visitor who is never
  * signed in, looking at the published plans. It reads no URL, stores nothing and calls no server, so
  * the plans page can stand on the production host before there is a server to sign in to.
  */

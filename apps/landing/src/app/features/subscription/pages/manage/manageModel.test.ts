@@ -1,4 +1,4 @@
-import { MOCK_PLANS } from '../../lib/mock';
+import { MOCK_PLANS } from '../../testing/mock';
 import {
     cancelSceneOf,
     changeTargetsOf,

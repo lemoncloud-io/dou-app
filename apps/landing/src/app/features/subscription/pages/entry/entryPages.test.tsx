@@ -5,8 +5,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
 import { createPortSetup } from '../../lib/createPortSetup';
-import { createMockPort } from '../../lib/mock';
-import { memoryStateStore } from '../../lib/mock/storage';
+import { createMockPort } from '../../testing/mock';
+import { memoryStateStore } from '../../testing/mock/storage';
 import { SubscriptionRoutes } from '../../routes';
 
 import type { PortSetup } from '../../lib/createPortSetup';
@@ -18,10 +18,10 @@ beforeAll(async () => {
 const mockSetup = (search: string): PortSetup => {
     const { port, clock, controller } = createMockPort({
         store: memoryStateStore(),
-        readSearch: () => `${search}&panel=0`,
+        readSearch: () => search,
         delayMs: 0,
     });
-    return { port, clock, mock: controller };
+    return { port, clock, standInWindow: controller };
 };
 
 const Where = () => {
@@ -250,7 +250,6 @@ describe('W-02 return', () => {
         renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=visitor'), { strict: true });
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Return to DoU' }));
 
         await waitFor(() => expect(where()).toBe('/subscription/history'));
     });
@@ -259,7 +258,6 @@ describe('W-02 return', () => {
         renderAt('/subscription/login', mockSetup('?mock=visitor'));
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Return to DoU' }));
 
         await waitFor(() => expect(where()).toBe('/subscription/plans'));
     });
@@ -270,39 +268,32 @@ describe('W-02 return', () => {
         renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', setup);
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Return to DoU' }));
 
         expect(await screen.findByText('Subscribed via App Store')).toBeTruthy();
         expect(where()).toBe('/subscription/store-managed');
     });
 
     it('comes back to sign in with the canceled banner', async () => {
-        renderAt('/subscription/login', mockSetup('?mock=visitor'));
+        renderAt('/subscription/login', mockSetup('?mock=visitor&fail=signin-canceled'));
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
-        fireEvent.click(await screen.findByLabelText('Cancel'));
-        fireEvent.click(screen.getByRole('button', { name: 'Return to DoU' }));
 
         expect(await screen.findByText('You canceled the sign-in. Please try again.')).toBeTruthy();
         expect(where()).toBe('/subscription/login?reason=canceled');
     });
 
     it('keeps the return path when the sign-in is canceled', async () => {
-        renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=visitor'));
+        renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=visitor&fail=signin-canceled'));
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
-        fireEvent.click(await screen.findByLabelText('Cancel'));
-        fireEvent.click(screen.getByRole('button', { name: 'Return to DoU' }));
 
         await waitFor(() => expect(where()).toBe('/subscription/login?reason=canceled&next=%2Fsubscription%2Fhistory'));
     });
 
     it('keeps the return path when the sign-in times out', async () => {
-        renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=visitor'));
+        renderAt('/subscription/login?next=%2Fsubscription%2Fhistory', mockSetup('?mock=visitor&fail=signin-expired'));
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Apple' }));
-        fireEvent.click(await screen.findByLabelText('Time out'));
-        fireEvent.click(screen.getByRole('button', { name: 'Return to DoU' }));
 
         expect(await screen.findByText('The sign-in timed out. Please try again.')).toBeTruthy();
         expect(where()).toBe('/subscription/login?reason=expired-attempt&next=%2Fsubscription%2Fhistory');
@@ -335,7 +326,6 @@ describe('W-02b no linked account', () => {
         renderAt('/subscription/login', mockSetup('?mock=no-linked-account'));
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Return to DoU' }));
 
         expect(await screen.findByRole('heading', { name: 'No DoU account found' })).toBeTruthy();
         expect(screen.getByText(/No DoU account is linked to mi\*\*\*@gmail\.com \(Google\)/)).toBeTruthy();
@@ -356,7 +346,6 @@ describe('W-02b no linked account', () => {
         renderAt('/subscription/login', mockSetup('?mock=no-linked-account-apple'));
 
         fireEvent.click(await screen.findByRole('button', { name: 'Continue with Apple' }));
-        fireEvent.click(await screen.findByRole('button', { name: 'Return to DoU' }));
 
         expect(await screen.findByText(/No DoU account is linked to this Apple account/)).toBeTruthy();
         // The footer carries the company's mail address; the page itself names none.

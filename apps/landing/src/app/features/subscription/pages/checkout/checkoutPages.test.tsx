@@ -2,26 +2,27 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
-import { createMockPort } from '../../lib/mock';
+import { createMockPort } from '../../testing/mock';
 import { clearPendingCheckout, savePendingCheckout } from '../../lib/pendingCheckout';
-import { memoryStateStore } from '../../lib/mock/storage';
+import { memoryStateStore } from '../../testing/mock/storage';
 import { SubscriptionRoutes } from '../../routes';
 
 import type { PortSetup } from '../../lib/createPortSetup';
+import type { MockController } from '../../testing/mock';
 
 beforeAll(async () => {
     await i18n.changeLanguage('en');
 });
 
 // Attempts settle on the next call, so a flow runs to its end without waiting out the mock's delay.
-const mockSetup = (search: string): PortSetup => {
+const mockSetup = (search: string): PortSetup & { controller: MockController } => {
     const { port, clock, controller } = createMockPort({
         store: memoryStateStore(),
-        readSearch: () => `${search}&panel=0`,
+        readSearch: () => search,
         delayMs: 0,
         settleMs: 0,
     });
-    return { port, clock, mock: controller };
+    return { port, clock, standInWindow: controller, controller };
 };
 
 /** A setup whose account already has a verified primary billing address, as after W-24. */
@@ -178,7 +179,7 @@ describe('W-24 email step', () => {
 
     it('moves the primary mark onto the address taken here when it sat on one that bounced', async () => {
         const setup = mockSetup('?mock=new');
-        setup.mock?.getState().billing.emails.push({
+        setup.controller.getState().billing.emails.push({
             id: 'em-old',
             address: 'old@lemon.example',
             primary: true,
@@ -191,8 +192,7 @@ describe('W-24 email step', () => {
 
         expect(await screen.findByRole('heading', { name: 'Review your order' })).toBeTruthy();
         expect(screen.getByText('minji.kim@gmail.com', { selector: 'span.truncate' })).toBeTruthy();
-        // The dev panel follows the mock's state, so a direct read re-renders it.
-        const { emails } = await act(() => setup.port.getBillingInfo());
+        const { emails } = await setup.port.getBillingInfo();
         expect(emails.find(email => email.primary)?.address).toBe('minji.kim@gmail.com');
     });
 
@@ -201,7 +201,7 @@ describe('W-24 email step', () => {
         renderAt(EMAIL_STEP, setup);
         await screen.findByText('✓ Google account email');
 
-        act(() => setup.mock?.setFail('network'));
+        act(() => setup.controller.setFail('network'));
         fireEvent.click(nextToDetails());
 
         expect(await screen.findByRole('alert')).toBeTruthy();

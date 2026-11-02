@@ -1,4 +1,4 @@
-import { MOCK_PLANS } from '../../lib/mock/policy';
+import { MOCK_PLANS } from '../../testing/mock/policy';
 import { planChoicesOf } from './planChoices';
 
 import type { Account, Plan } from '../../types';

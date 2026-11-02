@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { Logo } from '@chatic/assets';
 import { useTheme } from '@chatic/theme';
 
-import { isSubscriptionAccountEnabled } from '../../../config/stage';
+import { isSubscriptionAccountOpen } from '../../../config/subscriptionServer';
 import { ROUTES } from '../../../routes/paths';
 
 export const Header = (): JSX.Element => {
@@ -74,7 +74,7 @@ export const Header = (): JSX.Element => {
                     >
                         {t('header.plans')}
                     </Link>
-                    {isSubscriptionAccountEnabled && (
+                    {isSubscriptionAccountOpen && (
                         <Link
                             to={ROUTES.subscription.login}
                             className="flex items-center px-5 py-2.5 text-[15px] xl:px-6 xl:py-4 xl:text-lg xl:tracking-[-0.72px] font-semibold rounded-full transition-all

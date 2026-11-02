@@ -2,6 +2,7 @@
 
 > Status: Accepted · Decided: 2026-10-28
 > · Decision 7 amended by [ADR-0250](./0250-landing-reopens-card-management-on-the-payment-services-cards.md) (W-12 reopens; the card is no longer changed in place)
+> · Decisions 4 and 5 amended by [ADR-0264](./0264-landing-drops-the-in-page-mock-and-keeps-the-fake-server-for-tests.md) (no in-page mock; no addresses, no account surface)
 > Scope: `apps/landing` (`README.md` principle 9, § The server, § Layering's boundary checks,
 > `src/app/config/subscriptionServer.ts`, `src/app/features/subscription/lib/port/http/`,
 > `src/app/features/subscription/lib/createPortSetup.ts`), `apps/landing/.env.example`; the web
