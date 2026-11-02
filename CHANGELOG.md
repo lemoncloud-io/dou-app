@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,web,app-messages) give sub WebView pages a host of their own (ADR-0265)
+
 ## [2026-11-02] - root@0.140.2, @chatic/desktop-web@0.46.2
 
 ### Bug Fixes
