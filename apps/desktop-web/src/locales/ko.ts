@@ -365,6 +365,7 @@ export const ko: EnTranslation = {
     'lists.channels.emptyHint': '채널을 만들어 이 플레이스의 사람들과 대화를 시작해 보세요.',
     'lists.channels.noMatch': '“{{query}}”에 맞는 채널이 없어요',
     'lists.previewMine': '나: {{text}}',
+    'lists.threadReply': '[스레드] {{text}}',
     'lists.dms.title': 'DM',
     'lists.dms.search': 'DM 검색',
     'lists.dms.empty': '아직 대화가 없어요',

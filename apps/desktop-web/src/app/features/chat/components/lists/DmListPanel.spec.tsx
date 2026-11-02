@@ -206,6 +206,16 @@ describe('DmListPanel', () => {
         expect(onSelect).toHaveBeenCalledWith('d-ada');
     });
 
+    it('marks a previewed thread reply, and opens its thread when the conversation is picked', () => {
+        const { onSelect } = renderPanel([dm('d-ada', 'ada')]);
+        const reply = { ...chat('d-ada', 6, 'replied in thread', NOW - MIN, 'ada'), parentId: '4' };
+        act(() => emit([{ channelId: 'd-ada', lastNo: 6, chat: reply as DomainChat }]));
+
+        expect(rows()[0]).toContain('[Thread] replied in thread');
+        fireEvent.click(screen.getByRole('button', { name: /Ada/ }));
+        expect(onSelect).toHaveBeenCalledWith('d-ada', { threadRootId: '4' });
+    });
+
     it("narrows the list by the person's name, and says so when nothing matches", () => {
         renderPanel([dm('d-ada', 'ada'), dm('d-bo', 'bo')]);
         const search = screen.getByRole('searchbox', { name: 'Search direct messages' });

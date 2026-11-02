@@ -76,6 +76,7 @@ import {
     NotificationsPanel,
     ChannelListPanel,
     DmListPanel,
+    type SelectConversation,
     ThreadPanel,
     WelcomePage,
 } from '../components';
@@ -638,13 +639,19 @@ export const HomePage = () => {
 
     // Stable handlers for the sidebar, whose rows are memo'd. Picking a channel from
     // the list is a deliberate move, not a detour, so it retires any return point.
-    const selectFromList = useCallback(
-        (id: string) => {
+    // Read through a ref: it compares against the current selection, and depending on it would
+    // re-create the handler — and re-render every memo'd row — on each render.
+    const openThreadNowOrDeferRef = useRef(openThreadNowOrDefer);
+    openThreadNowOrDeferRef.current = openThreadNowOrDefer;
+    const selectFromList = useCallback<SelectConversation>(
+        (id, thread) => {
             useMessageJumpStore.getState().clearOrigin();
             // The list's own room too: picking it is how the reader leaves the Saved page for it.
             closeSaved();
             setRoomOpenedHere(true);
             selectChannel(id);
+            // A row previewing a thread reply opens that thread: the room's feed has no row for it.
+            if (thread) openThreadNowOrDeferRef.current(id, thread.threadRootId);
         },
         [selectChannel, closeSaved]
     );
