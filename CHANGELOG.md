@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,web,app-messages) show reviewed pages in a sub WebView with no bridge (ADR-0265)
+
 ## [2026-11-02] - root@0.140.1, @chatic/desktop-web@0.46.1
 
 ### Bug Fixes
