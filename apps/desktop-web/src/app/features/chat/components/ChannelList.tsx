@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AtSign, BellOff, Hash, Pencil, Plus, Star } from 'lucide-react';
 
-import type { DomainChannel } from '@chatic/data';
+import { RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
 import { applyChannelOrder, moveChannel, placeScopeKey, useChannelOrder, usePinnedChannels } from '@chatic/shared';
@@ -152,7 +152,9 @@ const ChannelRow = memo(function ChannelRow({
     const localReadNo = useReadCursorStore(s => s.cursors[id] ?? 0);
     const readNo = channelReadNo(channel, localReadNo);
     const calledMe = useMentionsStore(
-        s => indicator !== 'none' && hasUnreadMentionIn(s.items, { id, placeId: channel.sid }, readNo)
+        s =>
+            indicator !== 'none' &&
+            hasUnreadMentionIn(s.items, { cloudId: channel.cid || RELAY_CLOUD_ID, id, placeId: channel.sid }, readNo)
     );
     // A deleted message keeps its place here and says so, the way the feed does: its
     // content survives the soft delete, and printing it would show text the row itself

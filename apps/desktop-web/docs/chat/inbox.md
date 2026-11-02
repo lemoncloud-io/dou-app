@@ -11,21 +11,27 @@ the channel's number moves, because chat content streams only for the open room.
 channel is seen by its newest message, and a burst collapses to the last one. Each item carries a
 `kind` (`shared/utils/inboxKinds.ts`):
 
-| Kind       | When                                                                      | Item id                           |
-| ---------- | ------------------------------------------------------------------------- | --------------------------------- |
-| `reaction` | Someone reacts to a message of mine                                       | `reaction:<target>:<emoji>:<who>` |
-| `dm`       | A new message in a 1:1 (`isNotifyDm`), an attachment-only one included    | the message id                    |
-| `direct`   | A message names me (its mention record, else its text)                    | the message id                    |
-| `everyone` | A message calls everyone and does not name me                             | the message id                    |
-| `reply`    | Someone else replies in a thread of mine (one that `my-threads.md` lists) | the message id                    |
+| Kind       | When                                                                      | Item id                                   |
+| ---------- | ------------------------------------------------------------------------- | ----------------------------------------- |
+| `reaction` | Someone reacts to a message of mine                                       | `<cloud>:reaction:<target>:<emoji>:<who>` |
+| `dm`       | A new message in a 1:1 (`isNotifyDm`), an attachment-only one included    | `<cloud>:<message id>`                    |
+| `direct`   | A message names me (its mention record, else its text)                    | `<cloud>:<message id>`                    |
+| `everyone` | A message calls everyone and does not name me                             | `<cloud>:<message id>`                    |
+| `reply`    | Someone else replies in a thread of mine (one that `my-threads.md` lists) | `<cloud>:<message id>`                    |
 
 One message is one item. It is classified once, the strongest reason first, in the order of the
 table. A 1:1 message that names me is a `dm`, and a reply that names me is a `direct`. Ordinary
 channel messages are not collected.
 
-Each item also keeps where it happened: `channelName` for a channel, `inDm` for a 1:1. The list is
-read long after the place's channels have left memory, and a reaction in a 1:1 would otherwise not
-say it was one.
+Each item also keeps where it happened: its cloud (`cloudId`, the channel's `cid`, the relay's
+`default` when the row leaves it empty) and place (`placeId`), and `channelName` for a channel or
+`inDm` for a 1:1. The list is read long after the place's channels have left memory, and a reaction
+in a 1:1 would otherwise not say it was one.
+
+The cloud is part of every key because every cloud numbers its own places, channels and messages,
+from the same start: the first place of each cloud is `10001`. A place id or a channel id alone
+names one in every cloud, so a reader that left out the cloud showed one cloud's items in another's
+place of the same number, and a message id another cloud had already used was dropped as captured.
 
 For all kinds, the inbox skips my own messages and anything at or below the channel's read cursor.
 Mute and do-not-disturb do not stop capture. A muted channel still records, as Slack does.
@@ -40,8 +46,9 @@ Mute and do-not-disturb do not stop capture. A muted channel still records, as S
 ## Who reads it
 
 - The `@` on a channel row, the mentions-only counts in the dock and place dots, and the unread
-  mention count read only mention kinds (`isMentionKind`). An item stored before kinds existed has
-  no `kind` and reads as `direct`, so nothing persisted is lost.
+  mention count read only mention kinds (`isMentionKind`). An item with no `kind` reads as `direct`,
+  but every item stored before kinds existed also predates the cloud and went with the version 1 drop
+  (Limits).
 - The Notifications panel lists every kind of the active place (below), and the nav rail's
   Notifications tile carries a dot while any of those is unread.
 - Reading a channel marks every kind of item in it read up to the cursor (`markChannelRead`).
@@ -51,14 +58,14 @@ Mute and do-not-disturb do not stop capture. A muted channel still records, as S
 `NotificationsPanel` (`features/chat/components/notifications/`) is the Notifications destination's
 sidebar column. What it lists is one pure function, `inboxView`.
 
-- **Place.** Like Channels and DM, the panel is about the active place. The store holds every place's
-  items on this device; the panel, its tab badges, mark all as read and the nav rail dot take only
-  those in the place scope (`inboxPlaceScope`, `isInInboxScope`), so another place's history is gone
-  on a switch and back on the way back. Its news reaches the reader through the place rail's dots. On
-  a cloud the scope is the selected place. The Default Cloud scopes its UI by a `'default'` sentinel
-  no item carries, so there the scope is every place `usePlaces` lists, the same ids capture filed
-  the items under. An item stored before items carried a place cannot say where it was and shows in
-  every place.
+- **Place.** Like Channels and DM, the panel is about the active place. The store holds every
+  cloud's and place's items on this device; the panel, its tab badges, mark all as read and the nav
+  rail dot take only those of the active cloud in the place scope (`inboxPlaceScope`,
+  `isInInboxScope`), so another place's history is gone on a switch and back on the way back. Its
+  news reaches the reader through the place rail's dots. On a cloud the scope is the selected place.
+  The Default Cloud scopes its UI by a `'default'` sentinel no item carries, so there the scope is
+  every place `usePlaces` lists, the same ids capture filed the items under. An item with no place
+  cannot say where in its cloud it was and shows in every place of that cloud.
 
 - **Tabs.** All, Channels, DM, Threads and Mentions, each badged with its unread count. The first four
   sort by where an item happened (`inboxSource`): a thread first, so a reply or a mention inside a
@@ -95,6 +102,8 @@ sidebar column. What it lists is one pure function, `inboxView`.
 
 ## Limits
 
+- Items stored before they carried a cloud cannot say which cloud's place they came from, so the
+  store's version 1 dropped them on the first launch that had it (`keepCloudItems`).
 - The cap is 500 items, shared by every kind, and the oldest go first.
 - Anything that arrived while the app was closed is never captured.
 - A message crowded out by a newer one in the same channel is missed (the feed hands over each

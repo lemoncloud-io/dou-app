@@ -61,8 +61,13 @@ export const inboxPlaceScope = ({
 };
 
 /**
- * Whether an item belongs to the scope. One stored before items carried a place cannot say where it
- * happened, so it shows in every place rather than in none.
+ * Whether an item belongs to the active cloud and the place scope. The cloud is checked first because
+ * every cloud numbers its places from the same start: the first place of one cloud has the id of the
+ * first place of the next. An item with no place cannot say where in its cloud it happened, so it
+ * shows in every place of that cloud rather than in none.
  */
-export const isInInboxScope = (item: { placeId?: string }, scope: ReadonlySet<string>): boolean =>
-    !item.placeId || scope.has(item.placeId);
+export const isInInboxScope = (
+    item: { cloudId: string; placeId?: string },
+    cloudId: string,
+    scope: ReadonlySet<string>
+): boolean => item.cloudId === cloudId && (!item.placeId || scope.has(item.placeId));
