@@ -26,8 +26,10 @@ import java.util.TimeZone
  *   ├ <uuid>/
  *   │   ├ video-20261001-093000.mp4   the copy the web uploads from (picked, or kept from the library)
  *   │   └ poster.jpg                  written by PrepareVideo
+ *   ├ <uuid>/
+ *   │   └ IMG_0001.jpg                a prepared photo, read back with ReadAttachment
  *   └ <uuid>/
- *       └ IMG_0001.jpg                a prepared photo, read back with ReadAttachment
+ *       └ voice-20261001-093000.m4a   a voice message, written by the recorder (AudioRecorderModule)
  * ```
  */
 object AttachPickRules {
@@ -39,15 +41,16 @@ object AttachPickRules {
     const val SWEEP_AGE_MS = 24L * 60 * 60 * 1000
 
     /**
-     * What the documents picker offers: the server's thirteen formats — its four photo formats, MP4,
-     * its seven document formats and a ZIP archive, so a photo or video kept in Downloads can be sent
-     * too — plus the other names a file of them arrives under: the labels Hancom's own tools give HWP
-     * and HWPX, the two older names a ZIP still carries on some storage providers, and
+     * What the documents picker offers: the server's seventeen formats — its four photo formats, MP4,
+     * its seven document formats, a ZIP archive and its four audio formats (MP3, M4A, WAV, Ogg), so a
+     * photo or video kept in Downloads can be sent too — plus the other names a file of them arrives
+     * under: the labels Hancom's own tools give HWP and HWPX, the two older names a ZIP still carries
+     * on some storage providers, the `x-` names M4A and WAV still carry on some, and
      * `application/octet-stream`, without which a file the system does not know is not offered at all.
      * The web maps every alias to the server's type. No wildcard, and no photo, video or archive type
      * the server would refuse (HEIC, QuickTime, 7z). A pick from here
      * is still reported as a [Kind.FILE]; the web tells a photo or a video by its type. Its size limit
-     * is the one its format implies, see [limitKindForDocument].
+     * is the one its format implies, see [limitKindForDocument] — an audio file is held to a file's.
      */
     val DOCUMENT_MIME_TYPES = listOf(
         "image/png",
@@ -69,6 +72,12 @@ object AttachPickRules {
         "application/zip",
         "application/x-zip-compressed",
         "application/x-zip",
+        "audio/mpeg",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/ogg",
         "application/octet-stream",
     )
 

@@ -1,7 +1,7 @@
 # @chatic/bridge-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 101 web→app request types, 112 app→web message types, the payload
+can cross the WebView boundary — 103 web→app request types, 114 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -92,7 +92,7 @@ mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
 the envelopes around them (`BaseMessage`, `WebDefaultMessage`, `AppDefaultMessage`,
 `AppSuccessMessage`, `AppFailureMessage`); the native handler signatures (`WebMessageHandler`,
 `WebMessageHandlerResponse`, `WebMessageHandlerMap`); the bridge failure taxonomy (`BridgeErrorCode`,
-`BridgeError`, `BridgeErrorResponse`); and 24 payload files under `model/`.
+`BridgeError`, `BridgeErrorResponse`); and 25 payload files under `model/`.
 
 **Out** — everything that runs. Transport, matching, buffering, timeouts and teardown are
 [`@chatic/bridges`](../bridges/README.md). The handlers are the shells (`apps/mobile`,
@@ -107,9 +107,9 @@ flowchart TD
     classDef map fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
-    Model["model/ × 24<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>101 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>112 message types</i>"]:::map
+    Model["model/ × 25<br/><i>XPayload · OnXPayload</i>"]
+    WM["WebMessagePayloadMap<br/><i>103 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>114 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -172,13 +172,13 @@ libs/bridge-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (101) + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (112) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (103) + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (114) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
-    └── model/                    25 files — 24 payload files, grouped by domain, and their barrel
+    └── model/                    26 files — 25 payload files, grouped by domain, and their barrel
 ```
 
-31 files, 3,919 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+32 files, 4,011 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -191,6 +191,7 @@ The payload files, with what is in each:
 | `file-transfer.ts`     | 188   | The native file-transfer contract — start (upload or download), cancel, list, ack, temp file, state event                                                                                                        |
 | `media-export.ts`      | 143   | A downloaded file to the photo library, the share sheet, the OS preview or the device's downloads — `SaveToPhotoLibrary`, `ShareFile`, `OpenFile`, `SaveFile`, codes                                             |
 | `attachment-picker.ts` | 215   | What the shell picks and keeps — `PickAttachments`, `PrepareVideo` (conversion and poster), `ReadAttachment` (one kept photo's bytes), `ReadVideoFrame` (a received video's frame)                               |
+| `audio-recording.ts`   | 77    | The voice-message recorder — `StartAudioRecording`, `StopAudioRecording`, `OnAudioRecordingStarted`, `OnAudioRecordingEnded` (a reply, and pushed when the shell ends a recording itself), codes                 |
 | `photo-library.ts`     | 192   | The in-app photo picker — albums, a page of previews (sized to the tile, by cursor or `offset`), a picked photo's bytes, `KeepLibraryVideo`, iOS limited access                                                  |
 | `device.ts`            | 63    | `DeviceInfo`, `VersionInfo`, the debug panel's dummy test file                                                                                                                                                   |
 | `iap.ts`               | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                                                                                                                                              |
@@ -234,13 +235,18 @@ Names you would not find by guessing at a filename:
   with the `OnFileTransferState` event — unlike most domains, where replies sit in `model/system.ts`.
   `model/media-export.ts` does the same for `SaveToPhotoLibrary`, `ShareFile`, `OpenFile` and
   `SaveFile`, the messages that take a download's file onward, and `model/attachment-picker.ts` for
-  `PickAttachments`, `PrepareVideo`, `ReadAttachment` and `ReadVideoFrame`; `model/photo-library.ts`
+  `PickAttachments`, `PrepareVideo`, `ReadAttachment` and `ReadVideoFrame`, `model/audio-recording.ts`
+  for `StartAudioRecording` and `StopAudioRecording`; `model/photo-library.ts`
   keeps `KeepLibraryVideo` beside the lists it picks from, and `model/share-intake.ts` keeps
   `FetchShareIntake` and `ReleaseShareIntake` with their replies.
 - **`StartFileTransferPayload` is a union on `direction`.** An upload names the file it reads; a
   download names none — the shell decides where it writes, because a caller able to name the path
   could overwrite the app's own files — and gets the file back in the terminal event's `file`.
 - `PingPayload` and `PongPayload` are in `model/system.ts`.
+- **The voice recorder's replies are not `OnX`.** `StartAudioRecording` is answered by
+  `OnAudioRecordingStarted` and `StopAudioRecording` by `OnAudioRecordingEnded`, because the second is
+  also the push the shell sends when it ends a recording by itself (its limit, an interruption): one
+  name for every way a recording ends, whether asked for or not.
 - **There is no `errors.ts`, no `constants.ts` and no enum in the package.** Every union is a string
   literal union: an enum is a runtime value, and principle 2 spends the only one on
   `WEB_MESSAGE_RESPONSE_TYPE`.
@@ -295,7 +301,7 @@ key that no `WEB_MESSAGE_RESPONSE_TYPE` row maps to, and each shell's event inve
 list that way: `MOBILE_APP_EVENTS` in `apps/mobile/src/app/webview/hooks/appEvents.contract.test.ts`,
 `DESKTOP_APP_EVENTS` in `apps/desktop/src/main/appEvents.contract.test.ts`. Adding one fails both
 suites until each shell names the file that pushes it and a test that triggers it, or says why it
-never does. A reply a shell also pushes unprompted (`OnFetchFcmToken` on the desktop) is listed in
+never does. A reply a shell also pushes unprompted (`OnFetchFcmToken` on the desktop, `OnAudioRecordingEnded` on the phone) is listed in
 that shell's inventory too.
 
 The deploy order is part of the procedure, not a caveat: **the web ships before the app.** A web
@@ -306,7 +312,7 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 101 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 103 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for

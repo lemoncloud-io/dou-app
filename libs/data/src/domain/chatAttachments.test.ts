@@ -7,7 +7,6 @@ import {
     CHAT_ATTACHMENT_MAX_NAME_BYTES,
     CHAT_ATTACHMENT_ZIP_TYPE,
     isChatAttachmentNameTooLong,
-    sendsNoAudio,
 } from './chatAttachments';
 
 const MiB = 1024 * 1024;
@@ -80,7 +79,7 @@ describe('chatAttachmentFormat', () => {
     });
 
     // The server refuses a video or document whose name does not end in its format's extension.
-    // A voice memo goes as a document: the receiver gets a file to save, not a player.
+    // An audio file goes as `file`, under the server's type whatever alias it came with.
     it('takes an audio file under the names systems type it with, as a document', () => {
         for (const [name, type, sent] of [
             ['memo.m4a', 'audio/x-m4a', 'audio/mp4'],
@@ -223,15 +222,22 @@ describe('chatAttachmentAccept', () => {
         expect(accept).toEqual(expect.arrayContaining(['application/pdf', '.hwpx']));
     });
 
-    // The web app does not send audio, so its pickers leave every audio format out.
-    it('leaves audio out for an app that does not send it', () => {
-        const accept = chatAttachmentAccept(['image', 'video', 'file'], sendsNoAudio).split(',');
+    // Every app sends audio now, the phone included, so a picker for files offers all four.
+    it('offers the four audio formats among files, by type and by extension', () => {
+        const accept = chatAttachmentAccept(['file']).split(',');
 
-        expect(accept.filter(entry => entry.startsWith('audio/'))).toEqual([]);
-        for (const extension of ['.m4a', '.mp3', '.wav', '.ogg']) {
-            expect(accept).not.toContain(extension);
-        }
-        expect(accept).toEqual(expect.arrayContaining(['image/png', 'video/mp4', 'application/pdf', '.zip']));
+        expect(accept).toEqual(
+            expect.arrayContaining([
+                'audio/mp4',
+                'audio/mpeg',
+                'audio/wav',
+                'audio/ogg',
+                '.m4a',
+                '.mp3',
+                '.wav',
+                '.ogg',
+            ])
+        );
     });
 
     it('keeps the full list the same as asking for every kind', () => {

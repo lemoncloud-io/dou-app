@@ -1078,7 +1078,9 @@
                 "photosTitle": "No access to your photos",
                 "description": "You can change this in Settings",
                 "cancel": "Cancel",
-                "settings": "Open Settings"
+                "settings": "Open Settings",
+                "microphoneTitle": "No access to the microphone",
+                "microphoneDescription": "Allow the microphone in Settings"
             },
             "preview": "Photo",
             "previewCount": "{{count}} photos",
@@ -1121,7 +1123,7 @@
                 "storagePermission": "Allow storage access to save",
                 "share": "Share file",
                 "shareUpdateRequired": "Update the app to share files",
-                "archiveNeedsUpdate": "Update the app to save ZIP files"
+                "saveNeedsUpdate": "Update the app to save this file"
             },
             "export": {
                 "save": "Save photo",
@@ -1156,7 +1158,29 @@
             },
             "viewerPlay": "Play video",
             "pickedFiles": "Files to send",
-            "removeFile": "Remove {{name}}"
+            "removeFile": "Remove {{name}}",
+            "audio": {
+                "voiceMessage": "Voice message",
+                "play": "Play {{name}}",
+                "pause": "Pause {{name}}",
+                "seek": "Playback position of {{name}}",
+                "playFailed": "Can't play this",
+                "menu": "More for {{name}}",
+                "save": "Save"
+            },
+            "voice": {
+                "entry": "Voice",
+                "title": "Voice message",
+                "description": "Record a voice message and send it to this conversation",
+                "record": "Start recording",
+                "tapToRecord": "Tap to record. Up to 5 minutes.",
+                "recordingHint": "Recording…",
+                "send": "Send",
+                "cancel": "Cancel",
+                "tooShort": "Record for at least a second",
+                "interrupted": "Recording stopped",
+                "failed": "Couldn't record"
+            }
         },
         "preview": {
             "thread": "[Thread] {{text}}",

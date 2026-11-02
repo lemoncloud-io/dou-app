@@ -3,7 +3,7 @@ import * as React from 'react';
 import { cn } from '@chatic/lib/utils';
 import { useToastLift } from '@chatic/ui-kit/components/ui/toaster';
 
-import { IconCameraSolid, IconFileSolid, IconGalleryWideSolid } from '../../resources/icons';
+import { IconCameraSolid, IconFileSolid, IconGalleryWideSolid, IconMicrophoneSolid } from '../../resources/icons';
 import { SLIDE_MOTION, useSlidePresence } from '../overlay/slidePresence';
 import { AttachActionTile } from './AttachActionTile';
 
@@ -11,6 +11,7 @@ export interface AttachPanelLabels {
     photo: string;
     camera: string;
     file: string;
+    voice: string;
     /** Accessible name of the panel. Not drawn — the design has no title bar here. */
     title: string;
 }
@@ -31,6 +32,8 @@ export interface AttachPanelProps {
     onCamera: () => void;
     /** Omit to hide the files entry. */
     onFile?: () => void;
+    /** Omit to hide the voice entry — where the shell cannot record, it is never drawn. */
+    onVoice?: () => void;
     /** Escape (and Android back, which arrives as Escape) while open. */
     onClose: () => void;
     /**
@@ -88,7 +91,13 @@ export interface AttachPanelHandle {
     settle: () => void;
 }
 
-const DEFAULT_LABELS: AttachPanelLabels = { photo: 'Photos', camera: 'Camera', file: 'Files', title: 'Attach' };
+const DEFAULT_LABELS: AttachPanelLabels = {
+    photo: 'Photos',
+    camera: 'Camera',
+    file: 'Files',
+    voice: 'Voice',
+    title: 'Attach',
+};
 
 /**
  * What counts as an open overlay, and the last match in document order as the one on top: the rule the
@@ -104,8 +113,9 @@ const isTopmostOverlay = (element: Element) => {
 };
 
 /**
- * The chat attach panel (Figma `3749:28501`): an optional recent-photos row over three entry points —
- * photos, camera, files — in the place the soft keyboard takes, directly under the composer.
+ * The chat attach panel (Figma `3749:28501`): an optional recent-photos row over its entry points —
+ * photos, camera, files, and voice where the host offers it — in the place the soft keyboard takes,
+ * directly under the composer.
  *
  * Not a sheet. Nothing is dimmed and nothing is trapped: the composer above stays live, and focusing
  * it is how the keyboard takes the place back (the host closes the panel then). The panel positions
@@ -120,8 +130,8 @@ const isTopmostOverlay = (element: Element) => {
  * and closes only when it is the topmost open overlay — a photo grid or an editor opened above it gets
  * the press first.
  *
- * Photos, camera and files are fixed by the design, so they are named props rather than a list the
- * caller assembles; the glyphs and their colours come with them. Stateless: open state and what each
+ * Photos, camera, files and voice are fixed by the design, so they are named props rather than a list
+ * the caller assembles; the glyphs and their colours come with them. Stateless: open state and what each
  * entry opens are the host's.
  *
  * A host whose composer has to stay glued to the panel's top edge through a slide moves the panel
@@ -137,6 +147,7 @@ export const AttachPanel = React.forwardRef<AttachPanelHandle, AttachPanelProps>
             onPhoto,
             onCamera,
             onFile,
+            onVoice,
             onClose,
             enter = 'slide',
             exit = 'slide',
@@ -227,6 +238,13 @@ export const AttachPanel = React.forwardRef<AttachPanelHandle, AttachPanelProps>
                                 icon={<IconFileSolid className="text-glyph-cyan" />}
                                 label={text.file}
                                 onClick={onFile}
+                            />
+                        )}
+                        {onVoice && (
+                            <AttachActionTile
+                                icon={<IconMicrophoneSolid className="text-destructive" />}
+                                label={text.voice}
+                                onClick={onVoice}
                             />
                         )}
                     </div>

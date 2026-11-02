@@ -23,8 +23,23 @@ object ExportFormats {
         GIF("image/gif"),
         WEBP("image/webp"),
 
-        /** ISO BMFF — `ftyp` at byte 4: an MP4. */
+        /** ISO BMFF — `ftyp` at byte 4 — that is not [M4A]: an MP4. */
         MP4("video/mp4"),
+
+        /**
+         * ISO BMFF with the `M4A ` brand, or named `.m4a`: AAC audio. The name counts because a
+         * recorder may write a generic brand (`isom`, `mp42`) into an audio-only file.
+         */
+        M4A("audio/mp4"),
+
+        /** An ID3 tag, or an MPEG audio frame sync (`FF Ex`, `FF Fx`): an MP3. */
+        MP3("audio/mpeg"),
+
+        /** `RIFF` with the `WAVE` form type. */
+        WAV("audio/wav"),
+
+        /** An Ogg page, `OggS`. */
+        OGG("audio/ogg"),
         PDF("application/pdf"),
 
         /** `PK\x03\x04`: DOCX, XLSX, PPTX and HWPX, and a plain ZIP archive. */
@@ -52,11 +67,18 @@ object ExportFormats {
             head.size >= offset + expected.size && expected.withIndex().all { (i, byte) -> head[offset + i].toInt() and 0xFF == byte }
         fun ascii(offset: Int, text: String) = matches(offset, *text.map { it.code }.toIntArray())
         return when {
+            // Before the MP4 rule, which every M4A would also pass.
+            isMp4(head) && (ascii(8, "M4A ") || extensionOf(name) == "m4a") -> Family.M4A
             isMp4(head) -> Family.MP4
             ascii(0, "%PDF") -> Family.PDF
             matches(0, 0x50, 0x4B, 0x03, 0x04) -> Family.ZIP
             matches(0, *OLE2_MAGIC) -> Family.OLE2
+            ascii(0, "ID3") -> Family.MP3
+            ascii(0, "RIFF") && ascii(8, "WAVE") -> Family.WAV
+            ascii(0, "OggS") -> Family.OGG
             extensionOf(name) == "txt" && head.none { it.toInt() == 0 } -> Family.TEXT
+            // The loosest rule, so after text: a UTF-16 text file opens `FF FE`. iOS orders it the same.
+            isMpegFrameSync(head) -> Family.MP3
             else -> null
         }
     }
@@ -65,9 +87,16 @@ object ExportFormats {
     fun isMp4(head: ByteArray): Boolean =
         head.size >= 8 && head[4].toInt() == 'f'.code && head[5].toInt() == 't'.code && head[6].toInt() == 'y'.code && head[7].toInt() == 'p'.code
 
-    /** What the photo library takes: the four images and MP4 — the type it is saved as, or null. */
-    fun photoLibraryType(head: ByteArray): String? =
-        DownloadFiles.sniffImage(head)?.mimeType ?: if (isMp4(head)) Family.MP4.fallbackMimeType else null
+    /** Eleven sync bits: `FF` and the top three bits of the next byte, `FF Ex` or `FF Fx`. */
+    private fun isMpegFrameSync(head: ByteArray): Boolean =
+        head.size >= 2 && head[0].toInt() and 0xFF == 0xFF && head[1].toInt() and 0xE0 == 0xE0
+
+    /**
+     * What the photo library takes: the four images and MP4 — the type it is saved as, or null. [name]
+     * keeps an M4A out: its bytes alone can pass for an MP4, and the gallery would list audio as a video.
+     */
+    fun photoLibraryType(head: ByteArray, name: String): String? =
+        DownloadFiles.sniffImage(head)?.mimeType ?: if (family(head, name) == Family.MP4) Family.MP4.fallbackMimeType else null
 
     /** The type of each name extension the shell saves, as the web declares it on upload. */
     private val MIME_BY_EXTENSION = mapOf(
@@ -77,6 +106,10 @@ object ExportFormats {
         "gif" to "image/gif",
         "webp" to "image/webp",
         "mp4" to "video/mp4",
+        "mp3" to "audio/mpeg",
+        "m4a" to "audio/mp4",
+        "wav" to "audio/wav",
+        "ogg" to "audio/ogg",
         "pdf" to "application/pdf",
         "docx" to "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "xlsx" to "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

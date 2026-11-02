@@ -21,6 +21,7 @@ import {
     useFileTransferHandler,
     useMediaExportHandler,
     useAttachmentPickerHandler,
+    useAudioRecordingHandler,
     useShareIntakeHandler,
     usePhotoLibraryHandler,
     useTestRecordHandler,
@@ -127,6 +128,12 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleReadAttachment,
         handleReadVideoFrame,
     } = useAttachmentPickerHandler();
+
+    const {
+        isAvailable: isAudioRecorderAvailable,
+        handleStartAudioRecording,
+        handleStopAudioRecording,
+    } = useAudioRecordingHandler(bridge);
 
     const {
         isAvailable: isShareIntakeAvailable,
@@ -252,6 +259,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handlePrepareVideo,
         handleReadAttachment,
         handleReadVideoFrame,
+        handleStartAudioRecording,
+        handleStopAudioRecording,
         handleFetchShareIntake,
         handleReleaseShareIntake,
         handleListPhotoAlbums,
@@ -354,6 +363,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handlePrepareVideo,
             handleReadAttachment,
             handleReadVideoFrame,
+            handleStartAudioRecording,
+            handleStopAudioRecording,
             handleFetchShareIntake,
             handleReleaseShareIntake,
             handleListPhotoAlbums,
@@ -481,6 +492,12 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
                 canReadVideoFrame && {
                     ReadVideoFrame: message => handlersRef.current.handleReadVideoFrame(message),
                 }),
+            // The web draws its microphone only when the handshake lists `StartAudioRecording`, so a
+            // build without the recorder leaves both unregistered rather than answering with an error.
+            ...(isAudioRecorderAvailable && {
+                StartAudioRecording: message => handlersRef.current.handleStartAudioRecording(message),
+                StopAudioRecording: message => handlersRef.current.handleStopAudioRecording(message),
+            }),
             ...(isShareIntakeAvailable && {
                 FetchShareIntake: message => handlersRef.current.handleFetchShareIntake(message),
                 ReleaseShareIntake: message => handlersRef.current.handleReleaseShareIntake(message),
@@ -507,6 +524,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         isPhotoLibraryAvailable,
         isAttachmentPickerAvailable,
         isShareIntakeAvailable,
+        isAudioRecorderAvailable,
         canKeepVideo,
         canReadVideoFrame,
         canOpenFile,

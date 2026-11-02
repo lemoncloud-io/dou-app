@@ -1,6 +1,7 @@
 export * from './custom-zip';
 export * from './app-update';
 export * from './attachment-picker';
+export * from './audio-recording';
 export * from './auth';
 export * from './cache';
 export * from './clipboard';

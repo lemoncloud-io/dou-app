@@ -21,7 +21,6 @@ import {
     IMAGE_MESSAGE_SLOT_MAX,
     judgeChatAttachments,
     judgeChatImages,
-    sendsNoAudio,
 } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
@@ -119,6 +118,11 @@ interface UseChatImageAttachInput {
      * scope nothing is kept.
      */
     scope?: string;
+    /**
+     * The voice entry: what it opens — `useVoiceMessage().open`. Left out where the app cannot record,
+     * and the panel then draws no voice entry.
+     */
+    onVoice?: () => void;
     /** Test seam — the in-app picker's state. */
     picker?: PhotoPicker;
     /** Test seam — the app's video and document picker. */
@@ -222,6 +226,9 @@ interface ChatImageAttach {
  * through the page. Everywhere else they open the page's own inputs, whose files the page uploads
  * itself. The shell is asked at the tap, since the message itself opens its picker, and a shell
  * without one answers in time for the page input to open in the same tap.
+ *
+ * The voice entry, in an app that records, closes the panel and hands over to the page's recording
+ * sheet (`useVoiceMessage`).
  */
 export const useChatImageAttach = ({
     sendImages,
@@ -231,6 +238,7 @@ export const useChatImageAttach = ({
     onComposerSlide,
     onUnsentText,
     scope,
+    onVoice,
     picker: injected,
     shellPicker = shellAttachmentPicker,
     now = Date.now,
@@ -341,7 +349,7 @@ export const useChatImageAttach = ({
                           ),
                       };
                   })()
-                : judgeChatAttachments(items, max, sendsNoAudio);
+                : judgeChatAttachments(items, max);
             // One notice per pick, for the first reason met — a list of every refused file is noise. A
             // photo whose edit could not be drawn comes first: it was picked and worked on, and now it
             // is the one thing missing from what was sent.
@@ -917,12 +925,21 @@ export const useChatImageAttach = ({
                 onPhoto={inGrid ? openGrid : pickFrom(libraryRef)}
                 onCamera={openCamera}
                 onFile={openSources}
+                onVoice={
+                    onVoice &&
+                    (() => {
+                        // The recording sheet takes the panel's place, as the files sheet does.
+                        hidePanel();
+                        onVoice();
+                    })
+                }
                 onClose={dismissPanel}
                 labels={{
                     title: t('chat.attach.menuTitle'),
                     photo: t('chat.attach.photo'),
                     camera: t('chat.attach.camera'),
                     file: t('chat.attach.file'),
+                    voice: t('chat.attach.voice.entry'),
                 }}
             />
             <AttachSourceSheet

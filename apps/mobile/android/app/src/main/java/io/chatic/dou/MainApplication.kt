@@ -21,6 +21,7 @@ import io.chatic.dou.bridge.ShareIntakePackage
 import io.chatic.dou.bridge.SharedLanguagePackage
 import io.chatic.dou.bridge.SystemBarsPackage
 import io.chatic.dou.bridge.TransferManagerPackage
+import io.chatic.dou.record.AudioRecorderPackage
 
 class MainApplication : Application(), ReactApplication {
 
@@ -31,6 +32,7 @@ class MainApplication : Application(), ReactApplication {
         PackageList(this).packages.apply {
             add(AppIconManagerPackage())
             add(AttachmentPickerPackage())
+            add(AudioRecorderPackage())
             add(BackNavigationPackage())
             add(BadgeSyncPackage())
             add(BootSplashPackage())

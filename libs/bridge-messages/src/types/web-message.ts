@@ -69,6 +69,8 @@ import type {
     PrepareVideoPayload,
     ReadAttachmentPayload,
     ReadVideoFramePayload,
+    StartAudioRecordingPayload,
+    StopAudioRecordingPayload,
     FetchShareIntakePayload,
     ReleaseShareIntakePayload,
     OpenSettingsPayload,
@@ -145,6 +147,10 @@ export type WebMessagePayloadMap = {
     // A received video's first frame, made by the shell from its address. A shell without it answers
     // `NOT_FOUND`, and the web draws the tile another way or leaves it grey.
     ReadVideoFrame: ReadVideoFramePayload;
+    // A voice message, recorded by the shell into its pick folder. The web offers the microphone only
+    // when the handshake lists `StartAudioRecording`.
+    StartAudioRecording: StartAudioRecordingPayload;
+    StopAudioRecording: StopAudioRecordingPayload;
     // What another app shared through the OS share sheet, by the id the share URL carried. A shell
     // without it answers `NOT_FOUND`, and the share page has nothing to show.
     FetchShareIntake: FetchShareIntakePayload;

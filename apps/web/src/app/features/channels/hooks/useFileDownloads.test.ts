@@ -352,7 +352,7 @@ describe('useFileDownloads inside the app', () => {
         await act(() => result.current.download(archive));
 
         expect(toast).toHaveBeenCalledTimes(1);
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.fileCard.archiveNeedsUpdate' });
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.fileCard.saveNeedsUpdate' });
         // Downloaded all the same, so pressing the card opens it — or offers the share sheet.
         expect(result.current.stateOf(archive)).toBe('done');
         expect(result.current.stateOf(other)).toBe('idle');

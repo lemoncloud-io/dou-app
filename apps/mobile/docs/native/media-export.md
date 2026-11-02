@@ -81,11 +81,21 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
     | Family   | Bytes                                      | Taken by                            |
     | -------- | ------------------------------------------ | ----------------------------------- |
     | Image    | PNG, JPEG, GIF (87a/89a), WebP             | all four                            |
+    | Audio    | M4A, MP3, WAV, Ogg (below)                 | `ShareFile`, `OpenFile`, `SaveFile` |
     | ISO BMFF | `ftyp` at offset 4 — an MP4                | all four                            |
     | PDF      | `%PDF`                                     | `ShareFile`, `OpenFile`, `SaveFile` |
     | ZIP      | `PK\x03\x04` — DOCX, XLSX, PPTX, HWPX, ZIP | `ShareFile`, `OpenFile`, `SaveFile` |
     | OLE2     | `D0 CF 11 E0 A1 B1 1A E1` — HWP            | `ShareFile`, `OpenFile`, `SaveFile` |
     | Text     | a `.txt` name and no NUL in the first 4 KB | `ShareFile`, `OpenFile`, `SaveFile` |
+
+    An M4A is told apart before the MP4 rule. It is an MPEG-4 file, `ftyp` at offset 4 like a video, so it is
+    audio when its major brand (bytes 8–11) is `M4A ` or its name ends in `.m4a`, and a video otherwise:
+    iOS's recorder writes `M4A `, Android's writes `mp42`, and an `isom` M4A from elsewhere is told by
+    its name. An MP3 opens with an `ID3` tag or straight with an MPEG audio frame (`FF Ex` / `FF Fx`);
+    that bare frame rule is the loosest here, so it is tried after the text rule (a UTF-16 text file
+    opens `FF FE`). A WAV is `RIFF` with `WAVE` at offset 8, an Ogg file `OggS`. Audio never goes to the
+    photo library — an M4A is not taken there for a video — and the share sheet and the preview type it
+    by its name, like a document.
 
     Anything else, or a shorter file, is `UNSUPPORTED_TYPE`. A 200 that delivered an HTML page is kept
     as a file by the transfer and refused here, and so is an empty ZIP, which has no local file header.
@@ -110,12 +120,13 @@ iOS export sheet of `SaveFile` is a success with `saved: false`.
   can be minutes. Messages are handled concurrently, so they hold up nothing else; the handler has no
   timeout of its own, and the web gives each of these requests a long one.
 - **`SaveFile` checks the name once more.** Path separators are removed, and an extension that is not
-  one the shell saves — the fourteen extensions of the server's thirteen formats,
-  `png jpg jpeg gif webp mp4 pdf docx xlsx pptx hwp hwpx txt zip` — is `INVALID`: the name comes from
-  the page, and it decides what the OS thinks the file is. The name is also what keeps an office file
-  from being saved as an archive: a DOCX is a ZIP by its bytes, and saved as `.docx`. An app built
-  before `zip` joined the list answers a `.zip` with `INVALID`; the web reads that combination as an
-  app to update, not as a failure.
+  one the shell saves — the eighteen extensions of the server's seventeen formats,
+  `png jpg jpeg gif webp mp4 pdf docx xlsx pptx hwp hwpx txt zip mp3 m4a wav ogg` — is `INVALID`: the
+  name comes from the page, and it decides what the OS thinks the file is. The name is also what keeps
+  an office file from being saved as an archive: a DOCX is a ZIP by its bytes, and saved as `.docx`. An
+  app built before `zip` joined the list answers a `.zip` with `INVALID`, and one built before audio
+  answers an `.mp3`, `.m4a`, `.wav` or `.ogg` the same way; the web reads either combination as an app
+  to update, not as a failure.
 
 ## iOS
 

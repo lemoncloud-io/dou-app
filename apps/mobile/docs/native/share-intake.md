@@ -60,8 +60,10 @@ a share it is about to send.
 
 ## Android
 
-`MainActivity` declares `SEND` and `SEND_MULTIPLE` for photos, videos, `application/*` documents and
-plain text. When one arrives — at launch or while the app is open — `ShareIntake.take` gives it an id,
+`MainActivity` declares `SEND` and `SEND_MULTIPLE` for photos, videos, `audio/*`, `application/*`
+documents and plain text. An audio file comes through as a `file` under the type the sending app
+declared; the web normalises the aliases (`audio/x-m4a`, `audio/x-wav`) and lists a format the server
+refuses (AAC, AMR, FLAC) as not sent. When one arrives — at launch or while the app is open — `ShareIntake.take` gives it an id,
 starts copying its streams on a background thread, and hands the screen a `VIEW` of
 `<scheme>://share?id=<id>` in its place. React Native reads the launch URL from the screen's intent, so
 at launch the swap happens before the React host starts; while open, `onNewIntent` passes the swapped

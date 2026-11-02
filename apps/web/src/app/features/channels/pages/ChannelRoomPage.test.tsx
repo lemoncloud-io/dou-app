@@ -170,8 +170,23 @@ interface MockAttachInput {
     composerRef?: { current: HTMLElement | null };
     onComposerSlide?: (sliding: boolean) => void;
     disabled?: boolean;
+    onVoice?: () => void;
 }
 let mockAttachInput: MockAttachInput = {};
+// The voice message's own behaviour is its hook's test; here only where its pieces go.
+let mockVoiceCanRecord = true;
+const mockVoiceOpen = jest.fn();
+let mockVoiceInput: { disabled?: boolean; scope?: string } | undefined;
+jest.mock('../hooks/useVoiceMessage', () => ({
+    useVoiceMessage: (input: { disabled?: boolean; scope?: string }) => {
+        mockVoiceInput = input;
+        return {
+            canRecord: mockVoiceCanRecord,
+            open: mockVoiceOpen,
+            sheet: <div data-testid="voice-sheet" />,
+        };
+    },
+}));
 jest.mock('../components/ChatImageAttach', () => ({
     useChatImageAttach: (input: MockAttachInput) => {
         mockAttachInput = input;
@@ -265,6 +280,7 @@ const failedRow = (over: Partial<ClientChatView> = {}): Partial<ClientChatView> 
 });
 
 beforeEach(() => {
+    mockVoiceCanRecord = true;
     mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer'] };
     mockMessages = [];
     mockGaps = [];
@@ -316,6 +332,27 @@ describe('ChannelRoomPage — the input lock', () => {
 
         expect(mockSendMessage).not.toHaveBeenCalled();
         expect(mockSendPicked).not.toHaveBeenCalled();
+    });
+
+    it("hands the attach panel the voice entry that opens the recording sheet, under the composer's lock", () => {
+        const { unmount } = render(<ChannelRoomPage />);
+        expect(mockAttachInput.onVoice).toBe(mockVoiceOpen);
+        expect(screen.getByTestId('voice-sheet')).toBeInTheDocument();
+        expect(mockVoiceInput).toEqual(expect.objectContaining({ disabled: false, scope: 'ch1' }));
+        unmount();
+
+        mockInputLocked = true;
+        render(<ChannelRoomPage />);
+
+        expect(mockVoiceInput).toEqual(expect.objectContaining({ disabled: true }));
+    });
+
+    it('offers no voice entry where the app cannot record', () => {
+        mockVoiceCanRecord = false;
+
+        render(<ChannelRoomPage />);
+
+        expect(mockAttachInput.onVoice).toBeUndefined();
     });
 
     it('lifts the lock from the padlock in the composer', () => {

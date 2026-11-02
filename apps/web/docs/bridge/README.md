@@ -1,6 +1,6 @@
 # bridge — the app-side seam over `@chatic/bridges`
 
-> Scope: `apps/web/src/app/bridge/` (43 files). The transport itself — `webClient`, readiness
+> Scope: `apps/web/src/app/bridge/` (45 files). The transport itself — `webClient`, readiness
 > polling, timeouts, the message vocabulary — is [`@chatic/bridges`](../../../../libs/bridges/README.md);
 > this document covers only the wrapper this app builds on top of it.
 
@@ -23,10 +23,12 @@ folder:
 
 ## Outbound: `appBridge`
 
-`appBridge` (`appBridge.ts`) wraps every `webClient.post`/`webClient.request` call the app makes —
+`appBridge` (`appBridge.ts`) wraps the `webClient.post`/`webClient.request` calls the app makes —
 70 methods, one per native capability (FCM tokens, OAuth, camera, clipboard, purchases, config
 mirrors, and more). A feature calls `appBridge.openURL(url)`, never `webClient.post({ type:
-'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file.
+'OpenURL', ... })` directly — that keeps the message-type strings and payload shapes in one file. The
+exceptions are the modules that own a whole exchange with its own fallbacks and timeouts —
+`attachmentPicker`, `shareIntake`, `audioRecorder` — which call `webClient` themselves.
 
 | Pattern                  | Shape                       | When                                                                         |
 | ------------------------ | --------------------------- | ---------------------------------------------------------------------------- |
@@ -81,6 +83,17 @@ first call is a `request`: `NOT_FOUND` (an app built before the message) turns i
 session, and a success switches every later call to a one-way `post`, which the shell plays without
 answering. A browser is never asked. What home uses it for →
 [feature/home/README.md](../feature/home/README.md#haptics).
+
+## Voice messages: `audioRecorder`
+
+`audioRecorder.start()` / `stop(action)` drive the shell's recorder (`StartAudioRecording`,
+`StopAudioRecording`), and `onEnded` hears the end the shell pushes by itself — its five-minute limit,
+or an interruption (`OnAudioRecordingEnded`). `isSupported` (and the `useCanRecordAudio` hook) is
+`shellCapabilities.supports('StartAudioRecording')`: the voice entry is drawn only where the handshake
+lists it, never in a browser or an app built before the recorder. The start waits up to five minutes,
+since the first one waits on the OS permission prompt; a stop, thirty seconds. A stop answered
+`NOT_RECORDING` comes back as `null` — the shell had already ended the recording and pushed it. The
+button and its rules → [feature/channels/image-send.md](../feature/channels/image-send.md#voice-messages).
 
 ## A page on another origin: `subWebView`
 
