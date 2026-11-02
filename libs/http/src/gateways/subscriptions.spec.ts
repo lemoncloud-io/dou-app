@@ -278,6 +278,50 @@ describe('createSubscriptionHttpGateway', () => {
             });
         });
 
+        it('puts sandbox on the payer-scoped calls it is given to, and the interval on start', async () => {
+            executeSignedRelayRequest.mockResolvedValue({});
+            const gateway = createSubscriptionHttpGateway(exec);
+            const sandbox = { sandbox: 1 as const };
+
+            await gateway.subscriptionCards(sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/cards', params: sandbox })
+            );
+            await gateway.issueBillingKey({ productId: 'p1' }, sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/issue', params: sandbox })
+            );
+            await gateway.startSubscription({ productId: 'p1', billingKey: 'bk' }, { sandbox: 1, interval: '10m' });
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({
+                    baseURL: 'https://relay.test/subscriptions/0/start',
+                    params: { sandbox: 1, interval: '10m' },
+                })
+            );
+            await gateway.addCard({ billingKey: 'bk', name: '', phone: '', email: '' }, sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/card', params: sandbox })
+            );
+            await gateway.setDefaultCard({ billkeyId: 'k1' }, sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/card-default', params: sandbox })
+            );
+            await gateway.removeCard({ billkeyId: 'k1' }, sandbox);
+            expect(executeSignedRelayRequest).toHaveBeenLastCalledWith(
+                expect.objectContaining({ baseURL: 'https://relay.test/subscriptions/0/card-delete', params: sandbox })
+            );
+        });
+
+        it('sends no query at all when none is given, or only empty values are', async () => {
+            executeSignedRelayRequest.mockResolvedValue({});
+            const gateway = createSubscriptionHttpGateway(exec);
+
+            await gateway.startSubscription({ productId: 'p1' }, { interval: '' });
+            expect(executeSignedRelayRequest.mock.lastCall?.[0]).not.toHaveProperty('params');
+            await gateway.subscriptionCards(undefined);
+            expect(executeSignedRelayRequest.mock.lastCall?.[0]).not.toHaveProperty('params');
+        });
+
         it('sends an empty object with a command that takes nothing, which the relay gateway needs', async () => {
             executeSignedRelayRequest.mockResolvedValue({});
             const gateway = createSubscriptionHttpGateway(exec);

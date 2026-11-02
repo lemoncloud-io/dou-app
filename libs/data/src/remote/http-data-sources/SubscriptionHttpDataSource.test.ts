@@ -42,6 +42,22 @@ describe('SubscriptionHttpDataSource', () => {
         expect(gateway.validateMembership).toHaveBeenCalledWith({ planId: 'p1' }, undefined);
     });
 
+    it('forwards the sandbox query of the payer-scoped subscription calls to the gateway', async () => {
+        const sandbox = { sandbox: 1 as const };
+        Object.values(gateway).forEach(fn => (fn as jest.Mock).mockResolvedValue?.({}));
+
+        await dataSource.issueBillingKey('p1', sandbox);
+        expect(gateway.issueBillingKey).toHaveBeenCalledWith({ productId: 'p1' }, sandbox);
+        await dataSource.startSubscription({ productId: 'p1' }, { sandbox: 1, interval: '1h' });
+        expect(gateway.startSubscription).toHaveBeenCalledWith({ productId: 'p1' }, { sandbox: 1, interval: '1h' });
+        await dataSource.fetchSubscriptionCards(sandbox);
+        expect(gateway.subscriptionCards).toHaveBeenCalledWith(sandbox);
+        await dataSource.setDefaultCard('k1', sandbox);
+        expect(gateway.setDefaultCard).toHaveBeenCalledWith({ billkeyId: 'k1' }, sandbox);
+        await dataSource.removeCard('k1', sandbox);
+        expect(gateway.removeCard).toHaveBeenCalledWith({ billkeyId: 'k1' }, sandbox);
+    });
+
     it('markDrops — forwards the body and returns the raw result', async () => {
         gateway.markDrops.mockResolvedValue({ cloudIds: ['c1'], owned: 3, maxClouds: 2, excess: 0 });
 
@@ -121,21 +137,24 @@ describe('SubscriptionHttpDataSource', () => {
         await expect(dataSource.fetchSubscriptionCards()).resolves.toEqual([{ id: 'c1', isDefault: true }]);
 
         await dataSource.issueBillingKey('p1');
-        expect(gateway.issueBillingKey).toHaveBeenCalledWith({ productId: 'p1' });
+        expect(gateway.issueBillingKey).toHaveBeenCalledWith({ productId: 'p1' }, undefined);
 
         await dataSource.startSubscription({ productId: 'p1', billingKey: 'bk', ...payer });
-        expect(gateway.startSubscription).toHaveBeenCalledWith({ productId: 'p1', billingKey: 'bk', ...payer });
+        expect(gateway.startSubscription).toHaveBeenCalledWith(
+            { productId: 'p1', billingKey: 'bk', ...payer },
+            undefined
+        );
 
         await dataSource.changeSubscription('p2');
         expect(gateway.changeSubscription).toHaveBeenCalledWith({ productId: 'p2' });
 
         await dataSource.addCard({ billingKey: 'bk', ...payer });
-        expect(gateway.addCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer });
+        expect(gateway.addCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer }, undefined);
 
         await dataSource.setDefaultCard('c2');
-        expect(gateway.setDefaultCard).toHaveBeenCalledWith({ billkeyId: 'c2' });
+        expect(gateway.setDefaultCard).toHaveBeenCalledWith({ billkeyId: 'c2' }, undefined);
         await dataSource.removeCard('c2');
-        expect(gateway.removeCard).toHaveBeenCalledWith({ billkeyId: 'c2' });
+        expect(gateway.removeCard).toHaveBeenCalledWith({ billkeyId: 'c2' }, undefined);
 
         await dataSource.cancelSubscription();
         expect(gateway.cancelSubscription).toHaveBeenCalledTimes(1);

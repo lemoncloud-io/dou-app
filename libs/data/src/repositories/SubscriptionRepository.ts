@@ -17,7 +17,9 @@ import type {
     MembershipDropsResult,
     SubscriptionCardBody,
     SubscriptionRefundBody,
+    SubscriptionSandboxParams,
     SubscriptionStartBody,
+    SubscriptionStartParams,
     WebSubscriptionMineView,
     WebSubscriptionView,
 } from '../remote/http-data-sources';
@@ -62,18 +64,18 @@ export interface ISubscriptionRepository extends DisposableRepository {
      */
     fetchMySubscription(): Promise<WebSubscriptionMineView>;
     /** The cards the payment provider holds; `isDefault` marks the one it charges. */
-    fetchSubscriptionCards(): Promise<BillkeyView[]>;
+    fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]>;
     /** What the provider's card window opens with, for the product the card is for. */
-    issueBillingKey(productId: string): Promise<BillingIssueParams>;
-    startSubscription(body: SubscriptionStartBody): Promise<WebSubscriptionView>;
+    issueBillingKey(productId: string, params?: SubscriptionSandboxParams): Promise<BillingIssueParams>;
+    startSubscription(body: SubscriptionStartBody, params?: SubscriptionStartParams): Promise<WebSubscriptionView>;
     changeSubscription(productId: string): Promise<WebSubscriptionView>;
     cancelSubscription(): Promise<WebSubscriptionView>;
     /** Adds a card; the default card stays as it was. */
-    addCard(body: SubscriptionCardBody): Promise<BillkeyView>;
+    addCard(body: SubscriptionCardBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
     /** Makes a card the one charged. */
-    setDefaultCard(billkeyId: string): Promise<BillkeyView>;
+    setDefaultCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
     /** The payment service refuses the default card and the card a subscription in use is charged to. */
-    removeCard(billkeyId: string): Promise<BillkeyView>;
+    removeCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
 }
 
 /**
@@ -155,16 +157,19 @@ export class SubscriptionRepository extends BaseRepository implements ISubscript
         return this.requireHttp().fetchMySubscription();
     }
 
-    public async fetchSubscriptionCards(): Promise<BillkeyView[]> {
-        return this.requireHttp().fetchSubscriptionCards();
+    public async fetchSubscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]> {
+        return this.requireHttp().fetchSubscriptionCards(params);
     }
 
-    public async issueBillingKey(productId: string): Promise<BillingIssueParams> {
-        return this.requireHttp().issueBillingKey(productId);
+    public async issueBillingKey(productId: string, params?: SubscriptionSandboxParams): Promise<BillingIssueParams> {
+        return this.requireHttp().issueBillingKey(productId, params);
     }
 
-    public async startSubscription(body: SubscriptionStartBody): Promise<WebSubscriptionView> {
-        return this.requireHttp().startSubscription(body);
+    public async startSubscription(
+        body: SubscriptionStartBody,
+        params?: SubscriptionStartParams
+    ): Promise<WebSubscriptionView> {
+        return this.requireHttp().startSubscription(body, params);
     }
 
     public async changeSubscription(productId: string): Promise<WebSubscriptionView> {
@@ -175,15 +180,15 @@ export class SubscriptionRepository extends BaseRepository implements ISubscript
         return this.requireHttp().cancelSubscription();
     }
 
-    public async addCard(body: SubscriptionCardBody): Promise<BillkeyView> {
-        return this.requireHttp().addCard(body);
+    public async addCard(body: SubscriptionCardBody, params?: SubscriptionSandboxParams): Promise<BillkeyView> {
+        return this.requireHttp().addCard(body, params);
     }
 
-    public async setDefaultCard(billkeyId: string): Promise<BillkeyView> {
-        return this.requireHttp().setDefaultCard(billkeyId);
+    public async setDefaultCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView> {
+        return this.requireHttp().setDefaultCard(billkeyId, params);
     }
 
-    public async removeCard(billkeyId: string): Promise<BillkeyView> {
-        return this.requireHttp().removeCard(billkeyId);
+    public async removeCard(billkeyId: string, params?: SubscriptionSandboxParams): Promise<BillkeyView> {
+        return this.requireHttp().removeCard(billkeyId, params);
     }
 }
