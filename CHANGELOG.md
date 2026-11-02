@@ -4,6 +4,12 @@
 
 ### Features
 
+- (admin-v2,http,data,app-runtime) let the users screen list and register on either stage
+
+## [2026-11-02] - No version updates
+
+### Features
+
 - (mobile,bridge-messages,bridges) let a sub WebView page open the share sheet (ADR-0265)
 
 ## [2026-11-02] - No version updates
