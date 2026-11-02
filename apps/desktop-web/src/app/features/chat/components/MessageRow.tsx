@@ -632,6 +632,7 @@ export const MessageRow = memo(
                                         <MessageImages
                                             message={message}
                                             canDelete={group.isMine}
+                                            onDeleteMessage={() => message.id && deleteMessage(message.id)}
                                             author={author}
                                             onReply={onOpenThread && (() => onOpenThread(threadRootId(message)))}
                                         />
