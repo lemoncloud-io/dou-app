@@ -97,6 +97,23 @@ is done when a reviewed page needs it.
 - `params` and `result` are JSON of at most 16 KiB each; a title is at most 100 characters.
 - A login that runs in a popup and answers through `window.opener` does not work here.
 
+### The wire format
+
+Sub WebView pages are built and deployed outside this repository, and `@chatic/bridges` is not
+published, so a page speaks the bridge directly. It is JSON
+strings both ways:
+
+| Direction  | How                                                                                                    | Shape                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Page → app | `window.ReactNativeWebView.postMessage(JSON.stringify(message))`                                       | `{ type, data, refId, version }` — `refId` unique per request; `version` is the bridge version it speaks |
+| App → page | A `message` event: on `window` on iOS, on `document` on Android — listen on both; `event.data` is JSON | A reply carries the request's `refId`; a push (`OnSubWebViewContextChanged`) carries a fresh one         |
+| Answered   | —                                                                                                      | `{ type: 'On<Request>', success: true, data, refId }`                                                    |
+| Refused    | —                                                                                                      | `{ type, success: false, error: { code, message }, refId }` — `type` is `ERROR` for `NOT_FOUND`          |
+
+Match a reply to its request by `refId`, not by `type`; route anything else by `type` as a push.
+Send `WebAppReady` (`data: {}`) first — any message but a log releases the pushes the app held — and
+read the subset from its reply's `supportedWebMessages`.
+
 ## Where it may go
 
 **The allowlist** is `SUB_WEBVIEW_DOMAINS` in `services/subWebView/subWebViewAllowlist.ts`: the
@@ -231,9 +248,14 @@ an import the other way ties the main WebView to a screen it should only know th
 
 ## Checking it by hand
 
-The debug panel's Bridge screen has an `OpenSubWebView` preset. Pick it, give it a payload such as
-`{ "url": "https://<page>.apps-dev.chatic.io/" }`, and send it as a request: the page slides up over
-the
-app, the reply carries the `viewId`, and closing it sends `OnSubWebViewClosed`. A URL off the
-allowlist
-answers `NOT_ALLOWED`. It needs a page actually deployed under `apps-dev.chatic.io`.
+Any page deployed on a subdomain of `apps-dev.chatic.io` (or `apps.chatic.io`) will do — nothing else
+opens. `https://sample.apps-dev.chatic.io/` is the one kept for trying it.
+
+Open it from the web's debug panel → **Sub WebView (app)**: a URL, an optional title and `params`, and
+a log of how the view closed, with the `result` the page handed back. A URL off the allowlist answers
+`NOT_ALLOWED`. The screen hears the close only while it is the one showing in the panel: switch to
+another screen while the view is open and that close is not logged. The Bridge screen's
+`OpenSubWebView` preset sends the same request but shows no close event.
+
+In a development build the sub WebView is inspectable like the main one (`webviewDebuggingEnabled`):
+Safari's Develop menu on iOS, `chrome://inspect` on Android.

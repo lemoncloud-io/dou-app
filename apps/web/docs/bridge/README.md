@@ -109,7 +109,8 @@ alone deploys to, can be opened — never this web app's own origin, and not an 
 page talks only to a host of its own with a few messages, and has none of this app's state; the
 shell's side, and what it allows, is
 [`apps/mobile/docs/webview/sub-webview.md`](../../../mobile/docs/webview/sub-webview.md).
-No screen opens one yet; the debug panel's Bridge screen has an `OpenSubWebView` preset for trying it.
+No product screen opens one yet. The debug panel's **Sub WebView (app)** screen opens one and logs how
+it closed; the Bridge screen's `OpenSubWebView` preset sends the same request but shows no close event.
 
 ## Foreground detection
 

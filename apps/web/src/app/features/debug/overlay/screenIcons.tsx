@@ -1,5 +1,6 @@
 import {
     Activity,
+    AppWindow,
     BarChart3,
     Bell,
     BellRing,
@@ -34,6 +35,7 @@ import type { DebugScreenIcon } from './screenManifest';
  */
 export const DEBUG_SCREEN_ICONS: Record<DebugScreenIcon, LucideIcon> = {
     Activity,
+    AppWindow,
     BarChart3,
     Bell,
     BellRing,

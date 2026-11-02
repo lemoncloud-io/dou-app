@@ -56,8 +56,12 @@ const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 0)));
 
 const sentTypes = () => mockPostMessage.mock.calls.map(([raw]) => JSON.parse(raw).type);
 
+// React Native defines `__DEV__`; this suite mocks React Native, so it sets the global itself.
+const runtime = globalThis as { __DEV__?: boolean };
+
 describe('SubWebView', () => {
     beforeEach(() => {
+        runtime.__DEV__ = true;
         mockWebViewProps = {};
         mockPostMessage.mockClear();
         mockOpenURL.mockClear();
@@ -85,6 +89,19 @@ describe('SubWebView', () => {
         renderView();
 
         expect(mockWebViewProps.originWhitelist).toEqual(['*']);
+    });
+
+    it('is inspectable in a development build, as the main WebView is', () => {
+        renderView();
+
+        expect(mockWebViewProps.webviewDebuggingEnabled).toBe(true);
+    });
+
+    it('is not inspectable in a release build', () => {
+        runtime.__DEV__ = false;
+        renderView();
+
+        expect(mockWebViewProps.webviewDebuggingEnabled).toBe(false);
     });
 
     it('answers the page on the origin it was opened on', async () => {

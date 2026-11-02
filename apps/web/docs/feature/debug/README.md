@@ -1,6 +1,6 @@
 # debug — the developer overlay and the gate in front of it
 
-`apps/web/src/app/features/debug` is the app's only developer surface: a floating panel of **24
+`apps/web/src/app/features/debug` is the app's only developer surface: a floating panel of **25
 screens** that inspect runtime state, drive native bridge commands and read cached rows directly,
 plus the hidden gate that decides whether that panel exists at all. There is no `/debug` route —
 the panel is an overlay mounted beside the router, and the only way in is the gate.
@@ -22,7 +22,7 @@ Things that sound like they are here and are not:
 
 ## Responsibilities
 
-**In** — the unlock gate and its dialog; the panel's navigation, sizing and chrome; the 24 screens
+**In** — the unlock gate and its dialog; the panel's navigation, sizing and chrome; the 25 screens
 and their copy; the runtime metric collectors.
 
 **Out** —
@@ -110,7 +110,7 @@ the app underneath stays drivable while a screen watches it; `full` covers the v
 the dock is too narrow for (`CacheTest` and `UploadTest` force it). Switching screens keeps the
 current size unless the manifest demands otherwise, so the panel never resizes under the reader.
 
-### Eight screens need the native shell
+### Nine screens need the native shell
 
 `requiresShell: true` marks a screen whose entire purpose is a bridge command — in a browser it
 could only render buttons that fail. The panel checks once and shows a notice instead of the
