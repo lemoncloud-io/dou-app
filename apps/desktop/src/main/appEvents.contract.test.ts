@@ -34,6 +34,7 @@ const DESKTOP_APP_EVENTS = {
     OnPurchaseSuccess: { notEmitted: STORE_IAP },
     OnPurchaseError: { notEmitted: STORE_IAP },
     OnSubWebViewClosed: { notEmitted: 'No sub WebView on desktop; OpenSubWebView answers NOT_FOUND' },
+    OnSubWebViewContextChanged: { notEmitted: 'No sub WebView on desktop' },
 } satisfies Record<string, Decision>;
 
 const SRC = join(__dirname, '..');

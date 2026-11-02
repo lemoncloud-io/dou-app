@@ -25,7 +25,9 @@
 //        through the OS share sheet, opened on `/share?id=`.
 // 2.10.0: added OpenSubWebView and CloseSubWebView (web -> app) and the OnSubWebViewClosed push — a
 //         page on another origin shown in a second WebView with no bridge of its own.
-export const BRIDGE_VERSION = '2.10.0' as const;
+// 2.11.0: added FinishSubWebView and SetSubWebViewTitle (sub WebView page -> app), the
+//         OnSubWebViewContextChanged push, OpenSubWebView `params` and OnSubWebViewClosed `result`.
+export const BRIDGE_VERSION = '2.11.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

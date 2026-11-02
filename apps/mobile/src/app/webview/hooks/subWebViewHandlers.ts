@@ -4,7 +4,7 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 import type { ISubWebViewService } from '../../services';
 
 const ERROR_MESSAGES: Record<SubWebViewErrorCode, string> = {
-    INVALID: 'An https url (and an optional string title) is required.',
+    INVALID: 'An https url is required; title must be a string and params a JSON object of at most 16 KiB.',
     NOT_ALLOWED: 'The url is not on the sub WebView allowlist.',
     ALREADY_OPEN: 'A sub WebView is already showing.',
     NOT_OPEN: 'No sub WebView with this viewId is showing.',
@@ -19,7 +19,11 @@ const failure = <T extends 'OnOpenSubWebView' | 'OnCloseSubWebView'>(type: T, co
 /** The main WebView's side of the sub WebView: open and close on the web's request. */
 export const createSubWebViewHandlers = (service: ISubWebViewService) => {
     const handleOpenSubWebView = async (message: WebMessageData<'OpenSubWebView'>) => {
-        const result = service.open({ url: message.data?.url, title: message.data?.title });
+        const result = service.open({
+            url: message.data?.url,
+            title: message.data?.title,
+            params: message.data?.params,
+        });
         if (!result.ok) return failure('OnOpenSubWebView' as const, result.code);
         return { type: 'OnOpenSubWebView' as const, success: true, data: { viewId: result.view.viewId } };
     };
@@ -43,6 +47,10 @@ export const forwardSubWebViewClosed = (service: ISubWebViewService, bridge: IAp
         bridge.pushEvent({
             type: 'OnSubWebViewClosed',
             success: true,
-            data: { viewId: event.viewId, reason: event.reason },
+            data: {
+                viewId: event.viewId,
+                reason: event.reason,
+                ...(event.result !== undefined ? { result: event.result } : {}),
+            },
         });
     });

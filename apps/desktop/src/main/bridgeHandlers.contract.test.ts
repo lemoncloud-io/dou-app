@@ -141,6 +141,8 @@ const DESKTOP_UNSUPPORTED = {
     OpenStore: STORE_UPDATE,
     OpenSubWebView: SUB_WEBVIEW,
     CloseSubWebView: SUB_WEBVIEW,
+    FinishSubWebView: SUB_WEBVIEW,
+    SetSubWebViewTitle: SUB_WEBVIEW,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 /**

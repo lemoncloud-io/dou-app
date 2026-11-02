@@ -21,7 +21,10 @@ export default [
                 {
                     patterns: [
                         {
-                            group: ['**/webview', '**/webview/**'],
+                            // Any path through `webview/` but `webview/hooks/appEventContract`, the test
+                            // support every event's colocated test shares; it has no runtime. A regex,
+                            // since a group cannot re-include a file under a directory it excludes.
+                            regex: '(^|/)webview(/(?!hooks/appEventContract$).*)?$',
                             message: 'The sub WebView must not reach into the main WebView.',
                         },
                     ],

@@ -68,7 +68,7 @@ describe('SubWebViewService', () => {
 
             const result = service.open({ url: 'https://foo.apps.chatic.io/a', title: 'Notice' });
 
-            const view = { viewId: 'view-1', url: 'https://foo.apps.chatic.io/a', title: 'Notice' };
+            const view = { viewId: 'view-1', url: 'https://foo.apps.chatic.io/a', title: 'Notice', params: {} };
             expect(result).toEqual({ ok: true, view });
             expect(service.current()).toEqual(view);
             expect(events).toEqual([{ type: 'opened', view }]);
@@ -92,6 +92,27 @@ describe('SubWebViewService', () => {
             expect(service.open({ url: 'https://evil.example/' })).toEqual({ ok: false, code: 'NOT_ALLOWED' });
             expect(events).toEqual([]);
             expect(logger.warn).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps the params the web passed for the page', () => {
+            const service = createService();
+
+            const result = service.open({ url: 'https://foo.apps.chatic.io/a', params: { orderId: 7 } });
+
+            expect(result).toEqual(
+                expect.objectContaining({ ok: true, view: expect.objectContaining({ params: { orderId: 7 } }) })
+            );
+        });
+
+        it.each([
+            ['an array', [1]],
+            ['a string', 'x'],
+            ['over 16 KiB', { s: 'x'.repeat(16 * 1024) }],
+        ])('answers INVALID for params that are %s', (_label, params) => {
+            expect(createService().open({ url: 'https://foo.apps.chatic.io/a', params })).toEqual({
+                ok: false,
+                code: 'INVALID',
+            });
         });
 
         it('answers ALREADY_OPEN while a view is showing, and keeps the first', () => {
@@ -122,6 +143,31 @@ describe('SubWebViewService', () => {
             const events = record(service);
 
             expect(service.close('view-1', 'user')).toEqual({ ok: false, code: 'NOT_OPEN' });
+            expect(events).toEqual([]);
+        });
+
+        it('carries the result a page handed back', () => {
+            const service = createService();
+            service.open({ url: 'https://foo.apps.chatic.io/a' });
+            const events = record(service);
+
+            service.close('view-1', 'page', { done: true });
+
+            expect(events).toEqual([
+                { type: 'closed', viewId: 'view-1', reason: 'page', notifyHost: true, result: { done: true } },
+            ]);
+        });
+
+        it('answers INVALID, and keeps the view, for a result over 16 KiB', () => {
+            const service = createService();
+            service.open({ url: 'https://foo.apps.chatic.io/a' });
+            const events = record(service);
+
+            expect(service.close('view-1', 'page', { s: 'x'.repeat(16 * 1024) })).toEqual({
+                ok: false,
+                code: 'INVALID',
+            });
+            expect(service.current()).not.toBeNull();
             expect(events).toEqual([]);
         });
 

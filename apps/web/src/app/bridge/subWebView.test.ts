@@ -38,8 +38,17 @@ describe('openSubWebView', () => {
             via: 'subWebView',
             viewId: 'view-1',
         });
-        expect(requestOpen).toHaveBeenCalledWith(URL_, 'Notice');
+        expect(requestOpen).toHaveBeenCalledWith(URL_, 'Notice', undefined);
         expect(openURL).not.toHaveBeenCalled();
+    });
+
+    it('passes params on to the shell', async () => {
+        shellCapabilities.setReport(report(['OpenSubWebView']));
+        requestOpen.mockResolvedValue({ data: { viewId: 'view-1' } });
+
+        await openSubWebView({ url: URL_, params: { orderId: 7 } });
+
+        expect(requestOpen).toHaveBeenCalledWith(URL_, undefined, { orderId: 7 });
     });
 
     // An app built before the sub WebView never meets the request: it would answer NOT_FOUND.

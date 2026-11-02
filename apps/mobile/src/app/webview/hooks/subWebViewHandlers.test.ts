@@ -28,6 +28,17 @@ describe('createSubWebViewHandlers', () => {
         });
     });
 
+    it('passes the params on to the view', async () => {
+        const service = createService();
+        const { handleOpenSubWebView } = createSubWebViewHandlers(service);
+
+        await handleOpenSubWebView(
+            message('OpenSubWebView', { url: 'https://foo.apps.chatic.io/a', params: { orderId: 7 } })
+        );
+
+        expect(service.current()?.params).toEqual({ orderId: 7 });
+    });
+
     it('answers INVALID rather than throwing for a message with no data', async () => {
         const { handleOpenSubWebView } = createSubWebViewHandlers(createService());
 
@@ -72,6 +83,24 @@ describe('forwardSubWebViewClosed', () => {
         const events = pushedEvents(bridge.pushEvent);
         expect(events).toEqual([
             expect.objectContaining({ type: 'OnSubWebViewClosed', data: { viewId: 'view-1', reason: 'user' } }),
+        ]);
+        expect(pushedEventErrors(events)).toEqual([]);
+    });
+
+    it('passes the result a page handed back', () => {
+        const service = createService();
+        const bridge = { pushEvent: jest.fn() };
+        forwardSubWebViewClosed(service, bridge as any);
+        service.open({ url: 'https://foo.apps.chatic.io/a' });
+
+        service.close('view-1', 'page', { done: true });
+
+        const events = pushedEvents(bridge.pushEvent);
+        expect(events).toEqual([
+            expect.objectContaining({
+                type: 'OnSubWebViewClosed',
+                data: { viewId: 'view-1', reason: 'page', result: { done: true } },
+            }),
         ]);
         expect(pushedEventErrors(events)).toEqual([]);
     });

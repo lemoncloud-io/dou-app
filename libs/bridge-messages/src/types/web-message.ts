@@ -75,6 +75,8 @@ import type {
     OpenStorePayload,
     OpenSubWebViewPayload,
     CloseSubWebViewPayload,
+    FinishSubWebViewPayload,
+    SetSubWebViewTitlePayload,
     GetContactsPayload,
     FetchAppIconPayload,
     FetchAppIconListPayload,
@@ -242,10 +244,26 @@ export type WebMessagePayloadMap = {
     // 11. Sub WebView. Newer than most shells: the web asks only when the handshake lists it.
     OpenSubWebView: OpenSubWebViewPayload;
     CloseSubWebView: CloseSubWebViewPayload;
+    // Sent by a sub WebView page to the sub WebView's own host, never by the main web.
+    FinishSubWebView: FinishSubWebViewPayload;
+    SetSubWebViewTitle: SetSubWebViewTitlePayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */
 export type WebMessageType = keyof WebMessagePayloadMap;
+
+// Fails to compile when a name below is not a request in the map, so the subset cannot drift from it.
+type RequestsIn<T extends WebMessageType> = T;
+
+/**
+ * The requests a sub WebView page may send: the only ones its host registers, so the only ones its
+ * handshake lists. Each one is safe whoever sends it, or gets a handler of its own on that host
+ * (`OpenURL` there opens only what the sub WebView would hand to the OS). Nothing here reaches the
+ * app's storage, identity, purchases or files.
+ */
+export type SubWebViewRequestType = RequestsIn<
+    'WebAppReady' | 'Ping' | 'FinishSubWebView' | 'SetSubWebViewTitle' | 'CopyToClipboard' | 'TriggerHaptic' | 'OpenURL'
+>;
 
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {
     type: T;

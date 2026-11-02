@@ -155,8 +155,9 @@ apps/mobile/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash
 │       ├── webview/       101 files: AppWebView, the router, 31 handlers, injection
-│       ├── subWebView/    the second WebView, for a page on another origin — no bridge, no injection
-│       ├── services/      112 files across 21 domains, assembled in provider.ts
+│       ├── subWebView/    the second WebView, for a page on another origin — its own host, answering a
+│       │                  subset of the vocabulary
+│       ├── services/      114 files across 21 domains, assembled in provider.ts
 │       ├── bridge/        14 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
 │       │                  push marks, share intake, shared language, system bars, file transfer
@@ -323,8 +324,8 @@ The traps here, some of which differ from the libraries:
     grep -rn "from '.*features" apps/mobile/src/app/services
     ```
 
-    The third rule, that the main WebView and the sub WebView never import each other, is lint
-    (`no-restricted-imports` in `eslint.config.mjs`) — see
+    The third rule, that the main WebView and the sub WebView never import each other (one
+    test-support path aside), is lint (`no-restricted-imports` in `eslint.config.mjs`) — see
     [docs/webview/sub-webview.md](docs/webview/sub-webview.md#the-boundary).
 
 - **Native code is not checked by any of this.** Kotlin and Swift compile only in a real build:

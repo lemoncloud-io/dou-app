@@ -84,7 +84,7 @@ answering. A browser is never asked. What home uses it for →
 
 ## A page on another origin: `subWebView`
 
-`openSubWebView({ url, title })` shows a page from another origin without leaving the app, as far
+`openSubWebView({ url, title, params })` shows a page from another origin without leaving the app, as far
 as the app it runs in allows, and says where it went:
 
 | Where the page runs                             | What happens                          | Returns                         |
@@ -99,12 +99,15 @@ never asked something it would answer `NOT_FOUND`. A refusal from an app that do
 this page asked for something the app will not show, and opening it in the OS browser would hide
 that. `useOnSubWebViewClosed` hears the view close, with its `viewId` and a `reason`: `user`, `host`
 (this page called `appBridge.closeSubWebView(viewId)`), `system` (the shell closed it before a deep
-link or a tapped push sends this page an `OnNavigate`), or `page`, which no app sends yet. Handle an
-unknown reason too: an app released later may add one.
+link or a tapped push sends this page an `OnNavigate`), or `page` (the page finished, and `result`
+carries what it handed back). Handle an unknown reason too: an app released later may add one.
+`params` (JSON, at most 16 KiB) reach the page only in the sub WebView, as
+`window.ChaticSubWebView.params`; the two fallbacks cannot carry them.
 
 Only pages under `*.apps.chatic.io` (`*.apps-dev.chatic.io` in dev), which the app's review pipeline
 alone deploys to, can be opened — never this web app's own origin, and not an arbitrary site. The
-page has no bridge and none of this app's state; the shell's side, and what it allows, is
+page talks only to a host of its own with a few messages, and has none of this app's state; the
+shell's side, and what it allows, is
 [`apps/mobile/docs/webview/sub-webview.md`](../../../mobile/docs/webview/sub-webview.md).
 No screen opens one yet; the debug panel's Bridge screen has an `OpenSubWebView` preset for trying it.
 

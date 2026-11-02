@@ -42,6 +42,30 @@ describe('decideSubWebViewNavigation', () => {
             expect(top(url)).toBe('block');
         });
 
+        // The OS resolves these to the app's own link host; a lookalike spelling must not get past.
+        it.each([
+            'https://x@app.chatic.io/s/abc',
+            'https://app.chatic.io:443/s/abc',
+            'https://app.chatic.io./i',
+            'https://APP.CHATIC.IO/S/abc',
+            'http://app.chatic.io/s/abc',
+            'https://evil.example\\@app.chatic.io/s/abc',
+        ])('blocks the disguised app link %s', url => {
+            expect(top(url)).toBe('block');
+        });
+
+        // Userinfo, a backslash or whitespace make the OS read the URL differently from this check.
+        it.each(['https://user@www.naver.com/', 'https://www.naver.com\\@evil.example/', 'https://www.naver.com/a b'])(
+            'does not hand the ambiguous %s to the OS',
+            url => {
+                expect(top(url)).toBe('block');
+            }
+        );
+
+        it('still hands mail addresses, which carry an @ of their own, to the OS', () => {
+            expect(top('mailto:help@example.com')).toBe('external');
+        });
+
         // A URL the allowlist reads two ways must not load in the view, whatever the OS then does.
         it('does not load an allowlisted host behind a backslash', () => {
             expect(top('https://evil.example\\@foo.apps.chatic.io/')).not.toBe('load');
