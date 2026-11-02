@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-02] - No version updates
+
+### Refactor
+
+- (bridge-messages) rename @chatic/app-messages to @chatic/bridge-messages
+
 ## [2026-11-02] - root@0.141.2, @chatic/desktop-web@0.47.2
 
 ### Bug Fixes
