@@ -50,10 +50,12 @@ cloud management, and the policy screens.
   page belongs to [feedback](../feedback/README.md).
 - **The debug panel.** Lab hosts the unlock gesture; [debug](../debug/README.md) owns the gate and
   everything behind it.
-- **The sub WebView pages.** In a development build (`feature.lab.subWebViewPages`, off in a store
-  build) Lab lists the pages kept on `apps-dev.chatic.io` for trying the sub WebView — the list is
-  `SUB_WEBVIEW_LAB_PAGES` in `app/hooks/useSubWebViewLabPages.ts` — and a tap opens one with
-  `openSubWebView`. What the sub WebView is, and what it allows, is the phone shell's
+- **The in-app pages.** While debug mode is on, Lab's last card ("In-app") lists the pages kept on
+  `apps-dev.chatic.io` for trying the sub WebView — `IN_APP_PAGES` in `consts/inAppPages.ts`, games
+  so far but not only games — and a
+  tap opens one with `openSubWebView`. They follow debug mode rather than a key of their own, so the
+  flask's unlock shows them in a store build too; LOCAL and DEV start unlocked. What the sub WebView
+  is, and what it allows, is the phone shell's
   ([sub-webview.md](../../../../mobile/docs/webview/sub-webview.md)).
 - **What an experiment does.** Lab holds the switch; the feature behind it, and the rule that reads
   the switch, belong to that feature — the place invite's to

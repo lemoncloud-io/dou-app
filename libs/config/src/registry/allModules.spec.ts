@@ -18,7 +18,7 @@ describe('ALL_MODULES — the full registry', () => {
     it('declares the expected number of keys', () => {
         const registry = ConfigRegistry.merge(ALL_MODULES);
 
-        expect(registry.keys()).toHaveLength(94);
+        expect(registry.keys()).toHaveLength(93);
     });
 
     it('도메인 사이에 중복 키가 없다', () => {
@@ -54,16 +54,7 @@ describe('ALL_MODULES — the full registry', () => {
             if (surface) counts[surface] = (counts[surface] ?? 0) + 1;
         }
 
-        expect(counts).toEqual({ user: 4, labs: 2, dev: 69, internal: 19 });
-    });
-
-    // The Lab's sub WebView pages are dev-only test pages; a store build never lists them.
-    it.each<[Stage, boolean]>([
-        ['LOCAL', true],
-        ['DEV', true],
-        ['PROD', false],
-    ])('lists the sub WebView pages in the Lab in %s: %s', (stage, on) => {
-        expect(resolveInStage('feature.lab.subWebViewPages', stage)).toBe(on);
+        expect(counts).toEqual({ user: 4, labs: 2, dev: 68, internal: 19 });
     });
 
     it.each<[Stage, boolean]>([

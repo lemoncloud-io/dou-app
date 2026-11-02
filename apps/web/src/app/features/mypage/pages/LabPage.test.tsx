@@ -4,7 +4,7 @@ import { LabPage } from './LabPage';
 
 const openSubWebView = jest.fn();
 const toast = jest.fn();
-let mockPages: { name: string; url: string }[] = [];
+let mockDebugMode = false;
 
 jest.mock('react-i18next', () => ({ useTranslation: () => ({ t: (k: string) => k }) }));
 jest.mock('@chatic/config', () => ({ config: { get: () => 'code' } }));
@@ -25,13 +25,14 @@ jest.mock('../../../bridge', () => ({ openSubWebView: (...args: unknown[]) => op
 jest.mock('../../../hooks', () => ({
     useChatInputLockExperiment: () => ({ isEnabled: false, setEnabled: jest.fn() }),
     usePlaceInviteExperiment: () => ({ isEnabled: false, setEnabled: jest.fn() }),
-    useSubWebViewLabPages: () => mockPages,
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: () => null }));
+// The real list, without the policy content the barrel also carries.
+jest.mock('../consts', () => jest.requireActual('../consts/inAppPages'));
 jest.mock('../../debug', () => ({
     DebugUnlockDialog: () => null,
     debugOverlayActions: { open: jest.fn() },
-    useDebugMode: () => ({ isEnabled: false }),
+    useDebugMode: () => ({ isEnabled: mockDebugMode }),
     useDebugUnlock: () => ({
         isChallengeOpen: false,
         hasError: false,
@@ -41,31 +42,28 @@ jest.mock('../../debug', () => ({
     }),
 }));
 
-const PAGES = [
-    { name: 'sample', url: 'https://sample.apps-dev.chatic.io/' },
-    { name: 'sample1', url: 'https://sample1.apps-dev.chatic.io/' },
-];
-
-describe('LabPage — sub WebView pages', () => {
+describe('LabPage — in-app pages', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        mockPages = PAGES;
+        mockDebugMode = true;
         openSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'view-1' });
     });
 
-    it('lists each page with its URL', () => {
+    it('lists each page by its name, below the developer tools', () => {
         render(<LabPage />);
 
-        expect(screen.getByRole('region', { name: 'mypage.lab.subWebViewPages' })).toBeTruthy();
-        expect(screen.getByRole('button', { name: /^sample https:\/\/sample\.apps-dev/ })).toBeTruthy();
-        expect(screen.getByRole('button', { name: /^sample1 https:\/\/sample1\.apps-dev/ })).toBeTruthy();
+        const pages = screen.getByRole('region', { name: 'mypage.lab.inApp' });
+        expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.echo\.title / })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.raiseDou\.title / })).toBeTruthy();
+        const tools = screen.getByRole('region', { name: 'mypage.lab.developerTools' });
+        expect(tools.compareDocumentPosition(pages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('opens the page tapped in the sub WebView', async () => {
         render(<LabPage />);
 
         await act(async () => {
-            fireEvent.click(screen.getByRole('button', { name: /^sample1 / }));
+            fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.raiseDou\.title / }));
         });
 
         expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://sample1.apps-dev.chatic.io/' });
@@ -77,19 +75,19 @@ describe('LabPage — sub WebView pages', () => {
         render(<LabPage />);
 
         await act(async () => {
-            fireEvent.click(screen.getByRole('button', { name: /^sample / }));
+            fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.echo\.title / }));
         });
 
         expect(toast).toHaveBeenCalledWith(
-            expect.objectContaining({ title: 'mypage.lab.subWebViewOpenFailed', variant: 'destructive' })
+            expect.objectContaining({ title: 'mypage.lab.inAppOpenFailed', variant: 'destructive' })
         );
     });
 
-    // A store build gets none from the flag, and the section is not drawn at all.
-    it('draws nothing when there are no pages', () => {
-        mockPages = [];
+    // Locked, as a store build is until the flask's unlock, the card is not drawn at all.
+    it('draws nothing while debug mode is off', () => {
+        mockDebugMode = false;
         render(<LabPage />);
 
-        expect(screen.queryByRole('region', { name: 'mypage.lab.subWebViewPages' })).toBeNull();
+        expect(screen.queryByRole('region', { name: 'mypage.lab.inApp' })).toBeNull();
     });
 });
