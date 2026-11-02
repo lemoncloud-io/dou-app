@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-02] - root@0.141.4, @chatic/desktop-web@0.47.4
+
+### Bug Fixes
+
+- (desktop-web) delete the message from an image's Delete file
+- (desktop-web) fill the image More button only while its menu is open
+
 ## [2026-11-02] - root@0.141.3, @chatic/desktop-web@0.47.3
 
 ### Bug Fixes
