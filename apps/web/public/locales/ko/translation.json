@@ -205,9 +205,9 @@
                     "title": "에코",
                     "subtitle": "빛·소리·진동으로 나온 순서를 기억하는 퍼즐"
                 },
-                "raiseDou": {
-                    "title": "DoU 키우기",
-                    "subtitle": "두유를 먹이고 훈련해 진화시키고, 장비를 강화해 키워요"
+                "enhanceDou": {
+                    "title": "DoU 강화하기",
+                    "subtitle": "DoU들이 골드를 벌어 오고, 그 골드로 +25까지 강화해요"
                 }
             }
         },

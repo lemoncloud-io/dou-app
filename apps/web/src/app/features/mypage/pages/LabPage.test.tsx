@@ -54,7 +54,7 @@ describe('LabPage — in-app pages', () => {
 
         const pages = screen.getByRole('region', { name: 'mypage.lab.inApp' });
         expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.echo\.title / })).toBeTruthy();
-        expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.raiseDou\.title / })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / })).toBeTruthy();
         const tools = screen.getByRole('region', { name: 'mypage.lab.developerTools' });
         expect(tools.compareDocumentPosition(pages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
@@ -63,7 +63,7 @@ describe('LabPage — in-app pages', () => {
         render(<LabPage />);
 
         await act(async () => {
-            fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.raiseDou\.title / }));
+            fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / }));
         });
 
         expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://sample1.apps-dev.chatic.io/' });
