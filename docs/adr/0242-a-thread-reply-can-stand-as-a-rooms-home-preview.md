@@ -55,6 +55,7 @@ not keep.
   it is updated.
 - A reply now moves its room up the home list, since the order is the same value the row prints.
 - Search and channel management print the thread mark but no writer.
-- `apps/desktop-web` keeps its own copy of the preview rule (`previewChat.ts`) and is outside this
-  change, so the desktop list still previews the last top-level message: the same room can lead with
-  a reply on the phone and with the message before it on the desktop.
+- `apps/desktop-web`'s Home sidebar keeps its own copy of the preview rule (`previewChat.ts`) and is
+  outside this change, so it still previews the last top-level message. Its Channels and DM lists
+  read `observeLastList`, so they took the change: there a reply previews, and picking the row opens
+  the reply's thread, since the room's feed has no row for it. The reply carries the same thread mark.

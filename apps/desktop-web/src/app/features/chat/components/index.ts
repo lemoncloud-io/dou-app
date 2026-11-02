@@ -30,6 +30,7 @@ export * from './ThreadsPage';
 export * from './notifications/NotificationsPanel';
 export * from './lists/ChannelListPanel';
 export * from './lists/DmListPanel';
+export type { SelectConversation } from './lists/ConversationList';
 export * from './NotificationSnoozeButton';
 export * from './ReactionBar';
 export * from './images';

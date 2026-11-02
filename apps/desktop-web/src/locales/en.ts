@@ -357,6 +357,7 @@ export const en = {
     'lists.channels.emptyHint': 'Create a channel to start talking with the people in this place.',
     'lists.channels.noMatch': 'No channels match “{{query}}”',
     'lists.previewMine': 'You: {{text}}',
+    'lists.threadReply': '[Thread] {{text}}',
     'lists.dms.title': 'Direct messages',
     'lists.dms.search': 'Search direct messages',
     'lists.dms.empty': 'No conversations yet',

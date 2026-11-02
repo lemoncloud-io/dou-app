@@ -227,4 +227,18 @@ describe('ChannelListPanel', () => {
         fireEvent.click(screen.getAllByRole('button', { name: 'Create channel' }).at(-1) as HTMLElement);
         expect(onCreateChannel).toHaveBeenCalled();
     });
+
+    // A room's last activity can be a thread reply, which the room's feed leaves to the thread
+    // panel: opening only the room would show nothing of the line the row printed.
+    it('marks a previewed thread reply, and opens its thread when the row is picked', () => {
+        const { onSelect } = renderPanel([channel('general')]);
+        const reply = { ...chat('general', 9, 'new domain API mounting', NOW - MIN, 'Aiden'), parentId: '7' };
+        act(() => emit([{ channelId: 'general', lastNo: 9, chat: reply as DomainChat }]));
+
+        expect(rows()[0]).toContain('[Thread] Aiden: new domain API mounting');
+        fireEvent.click(screen.getByText(/new domain API mounting/));
+
+        expect(onSelect).toHaveBeenCalledTimes(1);
+        expect(onSelect).toHaveBeenCalledWith('general', { threadRootId: '7' });
+    });
 });

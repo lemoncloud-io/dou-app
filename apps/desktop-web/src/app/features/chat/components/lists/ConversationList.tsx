@@ -1,10 +1,44 @@
-import { memo, type ReactNode } from 'react';
+import { memo, useCallback, useRef, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 
 import { Plus, Search } from 'lucide-react';
 
+import type { DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { formatListTime, Skeleton } from '../../../../shared';
+import { threadRootId } from '../../utils';
+
+/**
+ * A preview line, led by a thread mark when its message is a thread reply — so a reply does not read
+ * as a message in the room itself. The mark goes in front of the sender.
+ */
+export const markThreadReply = (lastChat: Pick<DomainChat, 'parentId'>, line: string, t: TFunction): string =>
+    lastChat.parentId ? t('lists.threadReply', { text: line }) : line;
+
+/** Picking a row whose preview is a thread reply also names that reply's thread. */
+export type SelectConversation = (channelId: string, thread?: { threadRootId: string }) => void;
+
+/**
+ * The row click for a list that previews each room's last message. A room's last message can be a
+ * thread reply, and the room's feed leaves replies to the thread panel, so opening only the room
+ * would show nothing of the line the row printed. The pick names the thread so the host opens it.
+ *
+ * The previews are read through a ref: they change on every message in any room, and a handler that
+ * changed with them would re-render every memo'd row instead of only the one whose line moved.
+ */
+export const usePickConversation = (lastByChannel: Map<string, DomainChat>, onSelect: SelectConversation) => {
+    const lastRef = useRef(lastByChannel);
+    lastRef.current = lastByChannel;
+    return useCallback(
+        (channelId: string) => {
+            const lastChat = lastRef.current.get(channelId);
+            if (lastChat?.parentId) onSelect(channelId, { threadRootId: threadRootId(lastChat) });
+            else onSelect(channelId);
+        },
+        [onSelect]
+    );
+};
 
 /**
  * One 60px row of the Channels or DM list: the room's tile or the person's avatar, its name (bold
