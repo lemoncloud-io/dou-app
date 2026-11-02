@@ -31,7 +31,8 @@
 // 2.13.0: added StartAudioRecording and StopAudioRecording (web -> app) with OnAudioRecordingStarted
 //         and OnAudioRecordingEnded — a voice message the shell records; the second is also pushed when
 //         the shell ends a recording itself.
-export const BRIDGE_VERSION = '2.13.0' as const;
+// 2.14.0: a sub WebView page may send GetSubWebViewUserKey, for a key of its own per origin.
+export const BRIDGE_VERSION = '2.14.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

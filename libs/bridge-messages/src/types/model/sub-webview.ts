@@ -131,3 +131,23 @@ export type OnSetSubWebViewTitlePayload = {
 
 /** [Event, to a sub WebView page] The app's theme or language changed while the view showed. */
 export type OnSubWebViewContextChangedPayload = Pick<SubWebViewContext, 'theme' | 'locale'>;
+
+/**
+ * [Request, from a sub WebView page] This device's key for this page's origin, for the page's own
+ * server to keep the user's data under (a save game, progress) without an account.
+ *
+ * The shell derives it from the device id and the origin the view was opened on, so the same device
+ * gets the same key on the same origin each time, and each origin gets a different key that cannot be
+ * linked to another's or traced back to the device id. It is not the DoU account, and it is not proof
+ * of anything: a page's server receives whatever the page sends it.
+ *
+ * Fails with `UNAVAILABLE` when the shell has no device id to derive it from.
+ */
+export type GetSubWebViewUserKeyPayload = {
+    // Empty object type, reserved for future extension (optional fields, etc.).
+};
+
+/** [Response] The key: 64 lower-case hex characters. */
+export type OnGetSubWebViewUserKeyPayload = {
+    key: string;
+};

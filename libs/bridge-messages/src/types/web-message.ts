@@ -79,6 +79,7 @@ import type {
     CloseSubWebViewPayload,
     FinishSubWebViewPayload,
     SetSubWebViewTitlePayload,
+    GetSubWebViewUserKeyPayload,
     GetContactsPayload,
     FetchAppIconPayload,
     FetchAppIconListPayload,
@@ -253,6 +254,7 @@ export type WebMessagePayloadMap = {
     // Sent by a sub WebView page to the sub WebView's own host, never by the main web.
     FinishSubWebView: FinishSubWebViewPayload;
     SetSubWebViewTitle: SetSubWebViewTitlePayload;
+    GetSubWebViewUserKey: GetSubWebViewUserKeyPayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */
@@ -265,7 +267,9 @@ type RequestsIn<T extends WebMessageType> = T;
  * The requests a sub WebView page may send: the only ones its host registers, so the only ones its
  * handshake lists. Each one is safe whoever sends it, or gets a handler of its own on that host
  * (`OpenURL` there opens only what the sub WebView would hand to the OS; `OpenShareSheet` shares only
- * text and a web link). Nothing here reaches the app's storage, identity, purchases or files.
+ * text and a web link). Nothing here reaches the app's storage, purchases or files, and the one
+ * identifier, `GetSubWebViewUserKey`, is scoped to the page's own origin: a one-way key, never the
+ * device id.
  */
 export type SubWebViewRequestType = RequestsIn<
     | 'WebAppReady'
@@ -276,6 +280,7 @@ export type SubWebViewRequestType = RequestsIn<
     | 'TriggerHaptic'
     | 'OpenURL'
     | 'OpenShareSheet'
+    | 'GetSubWebViewUserKey'
 >;
 
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {

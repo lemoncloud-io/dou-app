@@ -12,6 +12,7 @@ import type { IClipboardService, ISubWebViewService } from '../services';
 import { SUB_WEBVIEW_TITLE_LIMIT } from '../services/subWebView/subWebViewData';
 import { originOf } from '../utils/url';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
+import { deriveSubWebViewUserKey } from './subWebViewUserKey';
 
 /** The requests this table answers: the subset minus the two the host answers itself. */
 export type SubBridgeRequestType = Exclude<SubWebViewRequestType, 'WebAppReady' | 'Ping'>;
@@ -33,7 +34,14 @@ export interface SubBridgeDeps {
     openExternal: (url: string) => Promise<void>;
     setTitle: (title: string) => void;
     openShareSheet: (data: Pick<OpenShareSheetPayload, 'title' | 'message' | 'url'>) => Promise<ShareAction>;
+    /** The origin the view was opened on, from the shell's own record; `null` when it has none. */
+    origin: string | null;
+    /** The device id the main WebView is given too; read only when a page asks for its key. */
+    getDeviceId: () => string | null | undefined;
 }
+
+/** What react-native-device-info answers when it has no id to give. */
+const NO_DEVICE_ID = 'unknown';
 
 const HAPTIC_KINDS: readonly HapticKind[] = ['selection', 'impact'];
 
@@ -145,5 +153,19 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
         } catch (e) {
             return fail('OnOpenShareSheet', 'SHARE_ERROR', (e as Error)?.message ?? 'Failed to open the share sheet.');
         }
+    },
+
+    // Keyed on the shell's record of the origin, never on anything in the message, so a page can only
+    // ever get its own origin's key. With no id, an error rather than a key every such device shares.
+    GetSubWebViewUserKey: async () => {
+        const deviceId = deps.getDeviceId();
+        if (!deps.origin || !deviceId || deviceId === NO_DEVICE_ID) {
+            return fail('OnGetSubWebViewUserKey', 'UNAVAILABLE', 'This device has no id to derive a key from.');
+        }
+        return {
+            type: 'OnGetSubWebViewUserKey',
+            success: true,
+            data: { key: deriveSubWebViewUserKey(deviceId, deps.origin) },
+        };
     },
 });

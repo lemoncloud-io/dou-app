@@ -78,6 +78,13 @@ screen.** The web asks with `OpenSubWebView { url, title?, params? }` and hears 
 > the app's container. Unlike `OpenURL`, the app's own links are not refused — a shared link is text
 > the user sends on, not a navigation, and the message is free text that could carry the same link
 > anyway. The rest of this decision is unchanged.
+>
+> **Addendum (2026-11-02) — a key per origin** (`BRIDGE_VERSION` 2.14.0). A page may ask for
+> `GetSubWebViewUserKey`, a one-way key derived from the device id and its own origin, so its server
+> can keep the user's data. This narrows the rule above — nothing that identifies the device, the
+> install or the user: a page may now get an identifier scoped to its own origin, never one it could
+> link to another page, the device or the account. The reasoning is
+> [ADR-0271](./0271-a-sub-webview-page-gets-a-key-per-origin-derived-from-the-device-id.md).
 
 ## Alternatives
 

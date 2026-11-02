@@ -16,6 +16,7 @@ const SUBSET: SubWebViewRequestType[] = [
     'TriggerHaptic',
     'OpenURL',
     'OpenShareSheet',
+    'GetSubWebViewUserKey',
 ];
 
 const createHost = () => {
@@ -30,6 +31,8 @@ const createHost = () => {
             openExternal: jest.fn(async () => undefined),
             setTitle: jest.fn(),
             openShareSheet: jest.fn(async () => ({ action: 'sharedAction' as const })),
+            origin: 'https://foo.apps.chatic.io',
+            getDeviceId: () => 'device-1',
         })
     );
     return { host, sent };

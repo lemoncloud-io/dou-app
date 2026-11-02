@@ -145,6 +145,7 @@ const DESKTOP_UNSUPPORTED = {
     CloseSubWebView: SUB_WEBVIEW,
     FinishSubWebView: SUB_WEBVIEW,
     SetSubWebViewTitle: SUB_WEBVIEW,
+    GetSubWebViewUserKey: SUB_WEBVIEW,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 /**

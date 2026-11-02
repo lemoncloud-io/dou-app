@@ -3,8 +3,11 @@ import type { ShareAction } from 'react-native';
 import { SubWebViewService } from '../services/subWebView/SubWebViewService';
 import type { SubWebViewEvent } from '../services/subWebView/types';
 import { createSubBridgeHandlers } from './subBridgeHandlers';
+import { deriveSubWebViewUserKey } from './subWebViewUserKey';
 
 const message = (data: unknown) => ({ type: 'x', data }) as any;
+
+const DEVICE_ID = '6E1C3B0A-9D2F-4C8E-B7A1-2F5D8E3C4B6A';
 
 const setup = () => {
     const service = new SubWebViewService(
@@ -23,6 +26,8 @@ const setup = () => {
         openExternal: jest.fn(async () => undefined),
         setTitle: jest.fn(),
         openShareSheet: jest.fn(async (): Promise<ShareAction> => ({ action: 'sharedAction', activityType: null })),
+        origin: 'https://foo.apps.chatic.io' as string | null,
+        getDeviceId: jest.fn((): string | null => DEVICE_ID),
     };
     return { handlers: createSubBridgeHandlers(deps), deps, service, events };
 };
@@ -312,6 +317,67 @@ describe('createSubBridgeHandlers', () => {
                     success: false,
                     error: expect.objectContaining({ code: 'SHARE_ERROR', message: 'no activity' }),
                 })
+            );
+        });
+    });
+
+    describe('GetSubWebViewUserKey', () => {
+        const keyOf = (overrides: Partial<ReturnType<typeof setup>['deps']>, data: unknown = {}) =>
+            createSubBridgeHandlers({ ...setup().deps, ...overrides }).GetSubWebViewUserKey(message(data));
+
+        it("answers this device's key for the opened origin", async () => {
+            const reply = await keyOf({});
+
+            expect(reply).toEqual({
+                type: 'OnGetSubWebViewUserKey',
+                success: true,
+                data: { key: deriveSubWebViewUserKey(DEVICE_ID, 'https://foo.apps.chatic.io') },
+            });
+        });
+
+        it('answers the same key each time on the same origin', async () => {
+            const first = await keyOf({});
+            const second = await keyOf({});
+
+            expect(second).toEqual(first);
+        });
+
+        it('answers another origin a different key', async () => {
+            const foo = await keyOf({ origin: 'https://foo.apps.chatic.io' });
+            const bar = await keyOf({ origin: 'https://bar.apps.chatic.io' });
+
+            expect([foo.success, bar.success]).toEqual([true, true]);
+            expect(bar).not.toEqual(foo);
+        });
+
+        it('never puts the device id in the reply', async () => {
+            const reply = await keyOf({});
+
+            expect(JSON.stringify(reply)).not.toContain(DEVICE_ID);
+            expect(JSON.stringify(reply).toLowerCase()).not.toContain(DEVICE_ID.toLowerCase());
+        });
+
+        // The origin is the shell's record; whatever the page writes into the request is ignored.
+        it('ignores an origin the page names in the request', async () => {
+            const plain = await keyOf({});
+            const spoofed = await keyOf(
+                {},
+                { origin: 'https://bar.apps.chatic.io', url: 'https://bar.apps.chatic.io/' }
+            );
+
+            expect(spoofed).toEqual(plain);
+        });
+
+        it.each([
+            ['no device id', { getDeviceId: jest.fn(() => null) }],
+            ['an empty device id', { getDeviceId: jest.fn(() => '') }],
+            ["the library's placeholder", { getDeviceId: jest.fn(() => 'unknown') }],
+            ['no origin', { origin: null }],
+        ])('answers UNAVAILABLE with %s, not a key other devices share', async (_label, deps) => {
+            const reply = await keyOf(deps);
+
+            expect(reply).toEqual(
+                expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'UNAVAILABLE' }) })
             );
         });
     });

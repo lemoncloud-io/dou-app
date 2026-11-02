@@ -1,7 +1,7 @@
 # @chatic/bridge-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 103 web→app request types, 114 app→web message types, the payload
+can cross the WebView boundary — 104 web→app request types, 115 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -108,8 +108,8 @@ flowchart TD
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
     Model["model/ × 25<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>103 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>114 message types</i>"]:::map
+    WM["WebMessagePayloadMap<br/><i>104 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>115 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -172,8 +172,8 @@ libs/bridge-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (103) + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (114) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (104) + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (115) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
     └── model/                    26 files — 25 payload files, grouped by domain, and their barrel
 ```
@@ -183,33 +183,33 @@ whole gate.
 
 The payload files, with what is in each:
 
-| File                   | Lines | What it declares                                                                                                                                                                                                 |
-| ---------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `system.ts`            | 514   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                                                                                                                           |
-| `cache.ts`             | 480   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages                                                                                                         |
-| `common.ts`            | 211   | `AppLogInfo`, the upload queue, `PendingReportInfo`                                                                                                                                                              |
-| `file-transfer.ts`     | 188   | The native file-transfer contract — start (upload or download), cancel, list, ack, temp file, state event                                                                                                        |
-| `media-export.ts`      | 143   | A downloaded file to the photo library, the share sheet, the OS preview or the device's downloads — `SaveToPhotoLibrary`, `ShareFile`, `OpenFile`, `SaveFile`, codes                                             |
-| `attachment-picker.ts` | 215   | What the shell picks and keeps — `PickAttachments`, `PrepareVideo` (conversion and poster), `ReadAttachment` (one kept photo's bytes), `ReadVideoFrame` (a received video's frame)                               |
-| `audio-recording.ts`   | 77    | The voice-message recorder — `StartAudioRecording`, `StopAudioRecording`, `OnAudioRecordingStarted`, `OnAudioRecordingEnded` (a reply, and pushed when the shell ends a recording itself), codes                 |
-| `photo-library.ts`     | 192   | The in-app photo picker — albums, a page of previews (sized to the tile, by cursor or `offset`), a picked photo's bytes, `KeepLibraryVideo`, iOS limited access                                                  |
-| `device.ts`            | 63    | `DeviceInfo`, `VersionInfo`, the debug panel's dummy test file                                                                                                                                                   |
-| `iap.ts`               | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                                                                                                                                              |
-| `notification.ts`      | 133   | FCM token, badge count and base, push marks, OS notification                                                                                                                                                     |
-| `perf.ts`              | 182   | Boot timeline, `SetDebugMode`, `StartPerfTrace`/`StopPerfTrace`, `HandedOverPerfTrace`                                                                                                                           |
-| `auth.ts`              | 80    | `OAuthLoginProvider` and the Google/Apple token results                                                                                                                                                          |
-| `test-record.ts`       | 49    | The native DB scenario harness — five messages, used by the debug panel only                                                                                                                                     |
-| `custom-zip.ts`        | 50    | Apply/disable/status for the custom web-bundle override                                                                                                                                                          |
-| `preference.ts`        | 44    | `PreferenceKey` — a closed union of six keys                                                                                                                                                                     |
-| `update.ts`            | 35    | Desktop auto-update: status push, download, restart                                                                                                                                                              |
-| `app-update.ts`        | 32    | Mobile store update: version check, open store                                                                                                                                                                   |
-| `config.ts`            | 24    | The shell's opaque KV bridge (ADR-0079)                                                                                                                                                                          |
-| `unfurl.ts`            | 23    | URL metadata lookup                                                                                                                                                                                              |
-| `clipboard.ts`         | 10    | Copy to the native clipboard                                                                                                                                                                                     |
-| `haptic.ts`            | 17    | `HapticKind` and the one short haptic the web asks the shell to play                                                                                                                                             |
-| `native-storage.ts`    | 66    | The debug panel's Storage screen — `FetchNativeStorageSummary` (rows and sizes per SQLite table and MMKV key), `ClearNativeCache`                                                                                |
-| `sub-webview.ts`       | 133   | The phone shell's second WebView — `OpenSubWebView`, `CloseSubWebView`, `OnSubWebViewClosed`; the page-facing `FinishSubWebView`, `SetSubWebViewTitle`, `OnSubWebViewContextChanged`, `SubWebViewContext`; codes |
-| `index.ts`             | 24    | The barrel for the payload files                                                                                                                                                                                 |
+| File                   | Lines | What it declares                                                                                                                                                                                                                         |
+| ---------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `system.ts`            | 514   | Device & System payloads, app icons, permissions, contacts, media — plus `Ping`/`Pong`                                                                                                                                                   |
+| `cache.ts`             | 480   | `CacheType`, `CacheDomainVersions`, nine `Cache*View` models, `PendingUploadSlot`, the 11 cache messages                                                                                                                                 |
+| `common.ts`            | 211   | `AppLogInfo`, the upload queue, `PendingReportInfo`                                                                                                                                                                                      |
+| `file-transfer.ts`     | 188   | The native file-transfer contract — start (upload or download), cancel, list, ack, temp file, state event                                                                                                                                |
+| `media-export.ts`      | 143   | A downloaded file to the photo library, the share sheet, the OS preview or the device's downloads — `SaveToPhotoLibrary`, `ShareFile`, `OpenFile`, `SaveFile`, codes                                                                     |
+| `attachment-picker.ts` | 215   | What the shell picks and keeps — `PickAttachments`, `PrepareVideo` (conversion and poster), `ReadAttachment` (one kept photo's bytes), `ReadVideoFrame` (a received video's frame)                                                       |
+| `audio-recording.ts`   | 77    | The voice-message recorder — `StartAudioRecording`, `StopAudioRecording`, `OnAudioRecordingStarted`, `OnAudioRecordingEnded` (a reply, and pushed when the shell ends a recording itself), codes                                         |
+| `photo-library.ts`     | 192   | The in-app photo picker — albums, a page of previews (sized to the tile, by cursor or `offset`), a picked photo's bytes, `KeepLibraryVideo`, iOS limited access                                                                          |
+| `device.ts`            | 63    | `DeviceInfo`, `VersionInfo`, the debug panel's dummy test file                                                                                                                                                                           |
+| `iap.ts`               | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                                                                                                                                                                      |
+| `notification.ts`      | 133   | FCM token, badge count and base, push marks, OS notification                                                                                                                                                                             |
+| `perf.ts`              | 182   | Boot timeline, `SetDebugMode`, `StartPerfTrace`/`StopPerfTrace`, `HandedOverPerfTrace`                                                                                                                                                   |
+| `auth.ts`              | 80    | `OAuthLoginProvider` and the Google/Apple token results                                                                                                                                                                                  |
+| `test-record.ts`       | 49    | The native DB scenario harness — five messages, used by the debug panel only                                                                                                                                                             |
+| `custom-zip.ts`        | 50    | Apply/disable/status for the custom web-bundle override                                                                                                                                                                                  |
+| `preference.ts`        | 44    | `PreferenceKey` — a closed union of six keys                                                                                                                                                                                             |
+| `update.ts`            | 35    | Desktop auto-update: status push, download, restart                                                                                                                                                                                      |
+| `app-update.ts`        | 32    | Mobile store update: version check, open store                                                                                                                                                                                           |
+| `config.ts`            | 24    | The shell's opaque KV bridge (ADR-0079)                                                                                                                                                                                                  |
+| `unfurl.ts`            | 23    | URL metadata lookup                                                                                                                                                                                                                      |
+| `clipboard.ts`         | 10    | Copy to the native clipboard                                                                                                                                                                                                             |
+| `haptic.ts`            | 17    | `HapticKind` and the one short haptic the web asks the shell to play                                                                                                                                                                     |
+| `native-storage.ts`    | 66    | The debug panel's Storage screen — `FetchNativeStorageSummary` (rows and sizes per SQLite table and MMKV key), `ClearNativeCache`                                                                                                        |
+| `sub-webview.ts`       | 153   | The phone shell's second WebView — `OpenSubWebView`, `CloseSubWebView`, `OnSubWebViewClosed`; the page-facing `FinishSubWebView`, `SetSubWebViewTitle`, `GetSubWebViewUserKey`, `OnSubWebViewContextChanged`, `SubWebViewContext`; codes |
+| `index.ts`             | 24    | The barrel for the payload files                                                                                                                                                                                                         |
 
 `CacheChatView.upload$$` holds two kinds of entry: the server's `UploadView` once a message is sent,
 and a `PendingUploadSlot` (`{ localStatus, localThumbUrl }`, plus `localName` / `localContentType` /
@@ -312,7 +312,7 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 103 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 104 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for
