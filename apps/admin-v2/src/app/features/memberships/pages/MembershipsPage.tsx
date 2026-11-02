@@ -14,10 +14,9 @@ import { useAdminMemberships } from '../api/membershipsQuery';
 import { clearAllPatch, matchesFilters, toChips, type FilterKey, type FilterValues } from '../lib/filters';
 import {
     RELAY_STAGES,
-    configuredEndpoint,
     configuredStage,
     describeTargetServer,
-    relayBaseFor,
+    targetEndpointFor,
     type RelayStage,
 } from '../lib/targetServer';
 import { MembershipConsoleShell } from '../components/MembershipConsoleShell';
@@ -70,7 +69,7 @@ export const MembershipsPage = () => {
 
     // One instant for the whole render, so every row judges override expiry against the same clock.
     const now = Date.now();
-    const target = describeTargetServer(relayBaseFor(configuredEndpoint(), stage));
+    const target = describeTargetServer(targetEndpointFor(stage));
     const chips = toChips(filters);
 
     const fetched = data?.list ?? [];

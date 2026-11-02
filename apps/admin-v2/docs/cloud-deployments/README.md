@@ -23,10 +23,12 @@ running on an operator's own machine and a pair of local scripts. Feature code:
   lapsed signing credential shows up here as a failed call, not as a silent retry. A failed deploy
   is therefore logged by the screen itself (`logger.error`), so it leaves a trace beyond the results
   list.
-- **The goods address is derived, not configured.** The goods service sits on the same host as the
-  relay, so its base is `VITE_DOU_ENDPOINT` with the `/dou-<stage>` segment swapped for
-  `/cgs-<stage>` — no new env key, nothing to add to every operator's `.env`. The day the goods
-  service moves to another host this stops working, and the fix then is an env key of its own.
+- **The goods address is configured per stage.** Each goods stage reads its own key
+  (`VITE_D1_GOODS_ENDPOINT`, `VITE_V1_GOODS_ENDPOINT`), and the paired relay its own
+  (`VITE_<STAGE>_RELAY_ENDPOINT`) — see [Stage endpoints](../../README.md#stage-endpoints). It used to
+  be `VITE_DOU_ENDPOINT` with `/dou-<stage>` swapped for `/cgs-<stage>`, which assumed both stages
+  share one host; that ended when the dev stage moved domain. An unset key shows "(not configured)"
+  and the stage lists nothing.
 - **The goods stage and the cloud stage are two different axes.** The goods stage (`cgs-d1`,
   `cgs-v1`) is which goods service is called. The cloud stage (`dev`, `prod`, read from the
   product's `project$.stereo`) is a mark on each subscription cloud. A `dev` subscription cloud
@@ -115,7 +117,7 @@ its body were `{}` while the request goes out empty, so without it the gateway r
 — and because that 403 carries no CORS headers, the browser shows only a network error. Every signed
 POST or PUT needs a body for the same reason.
 
-`GET <relay>/clouds/0/list` on the relay of the same stage (`cgs-v1` → `dou-v1`), page by page:
+`GET <relay>/clouds/0/list` on the relay of the same stage (`VITE_<STAGE>_RELAY_ENDPOINT`), page by page:
 `view=admin` lists every user's clouds, `valid=0` keeps expired ones (they still have products), and
 `limit=100`. That endpoint enforces no admin role on the server — the memberships console documents
 the same gap — so the admin login in front of this screen is the only gate on it.

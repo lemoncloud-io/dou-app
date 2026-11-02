@@ -11,6 +11,7 @@ import {
     type DeviceView,
 } from '@lemoncloud/chatic-sockets-lib';
 
+import { stageEndpoint } from '../../../config/stageEndpoints';
 import type { UsersStage } from '../api/userApi';
 import { createShortDeviceId } from '../demo-model';
 
@@ -30,11 +31,10 @@ export interface ObserveSyncContainer {
 
 const SYNC_INTERVAL_MS = 1000;
 
+/** The stage's socket (`VITE_<STAGE>_WS_ENDPOINT`) with the v2 protocol flag, or `''` when unset. */
 export const getObserveWsUrl = (stage: UsersStage): string => {
-    const ws = `${import.meta.env.VITE_WS_ENDPOINT ?? ''}`.trim();
-    if (!ws) return '';
-    if (stage !== 'd1' && !ws.includes('cht-d1')) return '';
-    return `${ws.replace('cht-d1', `cht-${stage}`)}?v2`;
+    const ws = stageEndpoint('ws', stage);
+    return ws ? `${ws}?v2` : '';
 };
 
 export const diffTargets = (desired: Set<string>, applied: Set<string>): { start: string[]; stop: string[] } => ({

@@ -43,6 +43,7 @@ import {
     isGoodsStage,
     type GoodsStage,
 } from '../lib/goodsTarget';
+import { stageEndpointKey } from '../../../config/stageEndpoints';
 
 /** A copy of `set` with `items` added (`on`) or removed. */
 const withMembers = <T,>(set: ReadonlySet<T>, items: readonly T[], on: boolean): ReadonlySet<T> => {
@@ -54,13 +55,15 @@ const withMembers = <T,>(set: ReadonlySet<T>, items: readonly T[], on: boolean):
 export const CloudDeploymentsPage = () => {
     const endpoint = configuredRelayEndpoint();
     const [stage, setStage] = useState<GoodsStage>(() => initialGoodsStage(endpoint));
-    const base = goodsBaseFor(endpoint, stage);
-    const target = describeGoodsTarget(endpoint, stage);
+    const base = goodsBaseFor(stage);
+    const target = describeGoodsTarget(stage);
     const { lists, errors, isLoading, isFetching, refetch: refetchLists } = useServiceProductLists(stage, base);
-    const dou = useDouClouds(stage, douBaseFor(endpoint, stage));
+    const douBase = douBaseFor(stage);
+    const dou = useDouClouds(stage, douBase);
+    // `refetch` ignores the query's `enabled`, so an unset relay key would send a relative request.
     const refetch = () => {
         refetchLists();
-        void dou.refetch();
+        if (douBase) void dou.refetch();
     };
 
     const [stageFilter, setStageFilter] = useState<CloudStageFilter>('all');
@@ -106,7 +109,7 @@ export const CloudDeploymentsPage = () => {
 
     const main = !base ? (
         <p className="px-4 py-12 text-center text-sm text-muted-foreground">
-            VITE_DOU_ENDPOINT is not set, so there is no goods service to call.
+            {stageEndpointKey('goods', stage)} is not set, so there is no goods service to call.
         </p>
     ) : errors.length > 0 ? (
         <div className="flex flex-col items-center gap-3 px-4 py-16">

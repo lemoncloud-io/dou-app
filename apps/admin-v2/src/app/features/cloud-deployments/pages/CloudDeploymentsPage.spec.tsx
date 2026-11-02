@@ -13,7 +13,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { logger } from '@chatic/bridges';
 import { formatDate } from '@chatic/shared';
@@ -114,7 +114,11 @@ beforeEach(() => {
     fetchDouClouds.mockReset();
     fetchDouClouds.mockResolvedValue([]);
     serveClouds();
+    vi.stubEnv('VITE_D1_GOODS_ENDPOINT', 'https://api.example.com/cgs-d1');
+    vi.stubEnv('VITE_D1_RELAY_ENDPOINT', 'https://api.example.com/dou-d1');
 });
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe('CloudDeploymentsPage', () => {
     it('lists each service on the goods stage the env names, and deploys the confirmed pick there', async () => {
@@ -287,6 +291,29 @@ describe('CloudDeploymentsPage', () => {
         expect(await screen.findByText(/DoU cloud details could not be refreshed/)).toBeTruthy();
         expect(screen.getByText('Dana')).toBeTruthy();
         expect(screen.getByText('active')).toBeTruthy();
+    });
+
+    // `refetch` ignores `enabled`; without the guard this sent a relative `/clouds/0/list`.
+    it('refreshes the goods lists but asks no relay when the relay key is unset', async () => {
+        vi.stubEnv('VITE_D1_RELAY_ENDPOINT', '');
+        renderPage();
+        await screen.findByRole('checkbox', { name: 'Select p1' });
+        const listCalls = fetchServiceProducts.mock.calls.length;
+
+        fireEvent.click(screen.getByRole('button', { name: 'Refresh' }));
+
+        await waitFor(() => expect(fetchServiceProducts.mock.calls.length).toBeGreaterThan(listCalls));
+        expect(fetchDouClouds).not.toHaveBeenCalled();
+    });
+
+    it('names the missing goods key when the stage has no goods service', () => {
+        vi.stubEnv('VITE_D1_GOODS_ENDPOINT', '');
+        renderPage();
+
+        expect(
+            screen.getByText('VITE_D1_GOODS_ENDPOINT is not set, so there is no goods service to call.')
+        ).toBeTruthy();
+        expect(fetchServiceProducts).not.toHaveBeenCalled();
     });
 
     it('blocks the table when one service list fails, naming that service', async () => {

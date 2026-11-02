@@ -30,7 +30,7 @@ import {
 
 import { useRefundSubscriptionByAdmin } from '../api/membershipsQuery';
 import { describeRefundFailure, isRefundReasonValid, refundAvailability, refundEndpointFor } from '../lib/refund';
-import { configuredEndpoint, describeTargetServer, type RelayStage } from '../lib/targetServer';
+import { describeTargetServer, targetEndpointFor, type RelayStage } from '../lib/targetServer';
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 import type { JSX } from 'react';
@@ -55,7 +55,7 @@ export const RefundPanel = ({ membership, stage }: RefundPanelProps): JSX.Elemen
     const { mutateAsync, isPending } = useRefundSubscriptionByAdmin();
 
     const userId = membership.userId ?? '';
-    const endpoint = refundEndpointFor(configuredEndpoint(), stage);
+    const endpoint = refundEndpointFor(targetEndpointFor(stage), stage);
     const target = describeTargetServer(endpoint);
     const availability = refundAvailability(membership, endpoint);
     const canSubmit = availability.enabled && isRefundReasonValid(reason) && !isPending;
