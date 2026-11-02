@@ -3,17 +3,22 @@ import { chatAttachmentFormat } from '@chatic/data';
 import type { ChatFile } from './chatImages';
 
 /** What the viewer draws a file as. */
-export type FilePreview = 'pdf' | 'text';
+export type FilePreview = 'pdf' | 'text' | 'audio';
 
 const PREVIEWS: Readonly<Record<string, FilePreview>> = {
     'application/pdf': 'pdf',
     'text/plain': 'text',
+    'audio/mpeg': 'audio',
+    'audio/mp4': 'audio',
+    'audio/wav': 'audio',
+    'audio/ogg': 'audio',
 };
 
 /**
- * Whether a sent file opens in the viewer, and as what. Only a PDF or a text file: nothing in the
- * page draws an office or Hancom document without handing it to a third party, and a video already
- * plays in place. A file being sent, failed, or without an address has nothing to open.
+ * Whether a sent file opens in the viewer, and as what. A PDF or a text file is drawn, a voice file
+ * played: nothing in the page draws an office or Hancom document without handing it to a third party,
+ * and a video already plays in place. A file being sent, failed, or without an address has nothing to
+ * open.
  */
 export const canPreview = (file: ChatFile): FilePreview | null => {
     if (file.kind !== 'file' || !file.url || file.isUploading || file.isFailed) return null;

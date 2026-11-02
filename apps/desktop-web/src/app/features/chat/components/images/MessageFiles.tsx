@@ -20,7 +20,7 @@ interface MessageFilesProps {
 
 /**
  * A message's videos and documents, under its images. A video plays in place; a document is a card
- * with its name, size and a save button; a PDF or text file also opens in the viewer. Neither is
+ * with its name, size and a save button; a PDF, text or voice file also opens in the viewer. Neither is
  * drawn as an image tile: a PDF in an `<img>` is a broken picture.
  */
 export const MessageFiles = ({ message, author }: MessageFilesProps) => {
