@@ -6,13 +6,13 @@ meant for has read it, the second half goes and the pill reads `읽음 12`.
 
 ## Who read it
 
-Resting the pointer on the pill opens a card above it with two tabs, `읽음 N` and `미확인 M`, each
-listing those members by face and name; Seen is the tab it opens on. It opens on hover rather than
-click because it is a glance, not a place to go. Leaving the pill closes it after a short grace, so the
-pointer can cross onto the card and scroll a long list, and a hover never takes focus away from what
-the reader was doing. From the keyboard, Enter or Space on the pill opens the same card with focus
-inside it, so the tabs and both lists are reachable — the card renders outside the feed, so Tab from
-the pill alone would walk past it. Escape, or focus leaving the card, closes it. Escape puts focus back on the pill; clicking or tabbing elsewhere leaves it where the reader moved it. The component is
+Clicking the pill opens a card above it with two tabs, `읽음 N` and `미확인 M`, each listing those
+members by face and name; Seen is the tab it opens on. It opens on click, not hover: a hover card
+closes as the pointer leaves the pill, so reaching the Not seen tab meant crossing a gap the card
+did not always survive, and the tab could not be clicked. The card stays open until a second click on
+the pill, Escape, or a click or focus move outside it. Enter or Space on the pill opens it from the
+keyboard; either way focus moves into the card so the tabs and lists are reachable. Escape puts focus
+back on the pill; clicking or tabbing elsewhere leaves it where the reader moved it. The component is
 `ReadReceiptPill`.
 
 A member is named the way a message author is: the place nickname first, then the roster's name, my

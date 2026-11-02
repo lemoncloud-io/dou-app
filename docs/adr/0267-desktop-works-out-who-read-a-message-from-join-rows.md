@@ -1,8 +1,9 @@
-# ADR-0267: Desktop works out who read a message from join rows, and lists them on hover
+# ADR-0267: Desktop works out who read a message from join rows, and lists them from the read count
 
 > Status: Accepted · Decided: 2026-11-02 · Implemented: `feat/desktop-read-receipts`
 > · Scope: `apps/desktop-web/src/app/shared/hooks/useChannelReadCounts.ts`,
 > `apps/desktop-web/src/app/features/chat/components/` (`ReadReceiptPill`, `MessageList`, `MessageRow`)
+> · Amended: 2026-11-02 — the list opens on click, not hover (decision 3)
 > · Supersedes: [ADR-0251](./0251-desktop-shows-no-per-message-read-receipt.md)
 
 ## Context
@@ -27,11 +28,13 @@ be fetched again.
    was meant for are the join rows that are still in the room (`joined !== 0`), joined before M
    (`joinedNo < M.chatNo`), and did not write M. Of those, a member whose read position
    (`max(readNo, chatNo)`) has reached M has read it; the rest have not.
-2. **The pill's numbers are the lengths of those two lists.** The hover card and the pill therefore
+2. **The pill's numbers are the lengths of those two lists.** The card and the pill therefore
    never disagree. The author is no longer counted as having seen their own message, and a member
    who joined after M is on neither side.
-3. **The list opens on hover, as ADR-0251 asked**, and from the keyboard with Enter or Space, which
-   moves focus into the card so its tabs are reachable.
+3. **The list opens when the pill is clicked**, or with Enter or Space from the keyboard, and focus
+   moves into the card so its tabs are reachable. It first opened on hover, as ADR-0251 suggested,
+   but a hover card closes as the pointer leaves the pill, and in use the pointer could not get to
+   the Not seen tab to click it. A card the reader opens on purpose stays put until they close it.
 
 The `joinedNo` test is not optional: joining writes the room's latest number into the member's
 `chatNo` as well, so without it a new member reads as having seen everything sent before they
