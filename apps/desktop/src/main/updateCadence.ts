@@ -5,7 +5,7 @@
  *
  * Deliberately imports no electron: this runs under jest, which cannot load electron.
  */
-import type { OnUpdateStatusPayload } from '@chatic/app-messages';
+import type { OnUpdateStatusPayload } from '@chatic/bridge-messages';
 
 /** The steady re-check for an app left open and in the background. */
 export const CHECK_INTERVAL_MS = 30 * 60 * 1_000;

@@ -26,7 +26,7 @@
             "path": "../bridges/tsconfig.lib.json"
         },
         {
-            "path": "../app-messages/tsconfig.lib.json"
+            "path": "../bridge-messages/tsconfig.lib.json"
         }
     ]
 }

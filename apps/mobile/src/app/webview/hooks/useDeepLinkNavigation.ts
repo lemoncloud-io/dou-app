@@ -9,7 +9,7 @@ import type { NativeRouteState, PushNavigationData } from '../../services/deepli
 // the ref. That is the coupling navigationRef.ts was split out to avoid.
 import { navigationRef } from '../../features/core/navigation/navigationRef';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { HandedOverPerfTrace } from '@chatic/app-messages';
+import type { HandedOverPerfTrace } from '@chatic/bridge-messages';
 import { startPerfTrace } from '@chatic/perf';
 
 export interface UseDeepLinkNavigationResult {

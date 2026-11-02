@@ -1,4 +1,4 @@
-import type { CacheModelMap, CacheType } from '@chatic/app-messages';
+import type { CacheModelMap, CacheType } from '@chatic/bridge-messages';
 import type { DataContextProvider } from '../../repositories/types';
 
 const GLOBAL_CID = 'global';

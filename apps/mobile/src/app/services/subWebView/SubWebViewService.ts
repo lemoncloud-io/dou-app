@@ -1,4 +1,4 @@
-import type { SubWebViewCloseReason } from '@chatic/app-messages';
+import type { SubWebViewCloseReason } from '@chatic/bridge-messages';
 
 import type { ILogService } from '../log';
 import { isAllowedSubWebViewUrl, SUB_WEBVIEW_DOMAINS } from './subWebViewAllowlist';

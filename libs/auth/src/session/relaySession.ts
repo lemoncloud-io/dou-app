@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { OAuthLoginProvider } from '@chatic/app-messages';
+import type { OAuthLoginProvider } from '@chatic/bridge-messages';
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 import type { IAuthRepository } from '@chatic/data';

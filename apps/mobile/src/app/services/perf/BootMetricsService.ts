@@ -1,5 +1,5 @@
 import { recordPerfSample, startPerfTrace } from '@chatic/perf';
-import type { BootRecord, BootType, NativeBootMarkKey, SendBootMetricsPayload } from '@chatic/app-messages';
+import type { BootRecord, BootType, NativeBootMarkKey, SendBootMetricsPayload } from '@chatic/bridge-messages';
 import type { PerfTrace } from '@chatic/perf';
 
 import type { IKeyValueStorage } from '../../database';
@@ -7,7 +7,7 @@ import type { WebRevealReason } from '../bootSplash/types';
 import type { ILogService } from '../log';
 
 /**
- * The record shape and its two supporting unions moved to `@chatic/app-messages`
+ * The record shape and its two supporting unions moved to `@chatic/bridge-messages`
  * (`types/model/perf.ts`) when `FetchBootRecords` made the record cross the bridge — the web now
  * reads these, so one declaration is what keeps the two sides from drifting.
  *

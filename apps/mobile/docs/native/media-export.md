@@ -11,7 +11,7 @@ the chat can be opened from the same file afterwards.
 
 | Layer             | File                                                                                                  |
 | ----------------- | ----------------------------------------------------------------------------------------------------- |
-| Messages          | `libs/app-messages/src/types/model/media-export.ts`                                                   |
+| Messages          | `libs/bridge-messages/src/types/model/media-export.ts`                                                |
 | WebView handler   | `src/app/webview/hooks/mediaExportHandlers.ts`, `useMediaExportHandler.ts`                            |
 | TS native wrapper | `src/app/bridge/MediaExportBridge.ts`                                                                 |
 | Android           | `io/chatic/dou/module/MediaExportModule.kt`, `media/ShareFileProvider.kt`                             |

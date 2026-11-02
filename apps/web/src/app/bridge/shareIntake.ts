@@ -1,5 +1,5 @@
 import { isNative, logger, webClient } from '@chatic/bridges';
-import type { RefusedAttachment } from '@chatic/app-messages';
+import type { RefusedAttachment } from '@chatic/bridge-messages';
 import type { ShellFileRef } from '@chatic/data';
 
 import { toShellFile } from './attachmentPicker';

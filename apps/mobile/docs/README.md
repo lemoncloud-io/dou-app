@@ -25,5 +25,5 @@ before, around, and underneath the web client. Product behaviour inside the WebV
 | [system/](./system/README.md)   | OS-level state both sides must agree on — theme, language and deep links                                     |
 | [release/](./release/README.md) | Building, shipping, updating, running against a local web server, and device scenarios                       |
 
-Shared libraries the shell depends on are documented in their own packages: `libs/app-messages`,
+Shared libraries the shell depends on are documented in their own packages: `libs/bridge-messages`,
 `libs/bridges`, `libs/logger`, `libs/device-utils`, `libs/shared`.

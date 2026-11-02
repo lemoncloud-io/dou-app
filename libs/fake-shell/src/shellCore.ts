@@ -5,7 +5,7 @@ import type {
     WebMessage,
     WebMessageData,
     WebMessageType,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 import { toHostHandler, type ShellHandler, type ShellHandlerTable } from './handlerTable';
 

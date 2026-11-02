@@ -7,7 +7,7 @@ import type {
     WebMessageData,
     WebMessageResponse,
     WebMessageType,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 /**
  * Centralized outbound bridge API (Web -> Native).

@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { useAppState } from '../../hooks';
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { AppBackgroundStatus, WebMessageData } from '@chatic/app-messages';
+import type { AppBackgroundStatus, WebMessageData } from '@chatic/bridge-messages';
 import { logger } from '../../services';
 
 /**

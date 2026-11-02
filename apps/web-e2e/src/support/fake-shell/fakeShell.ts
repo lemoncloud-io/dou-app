@@ -12,7 +12,7 @@ import {
     type ShellHandlerTable,
     type ShellPlatform,
 } from '@chatic/fake-shell';
-import type { AppMessageDataMap, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { AppMessageDataMap, AppMessageType, WebMessageData, WebMessageType } from '@chatic/bridge-messages';
 
 import { loadAppInjection } from './appInjection';
 

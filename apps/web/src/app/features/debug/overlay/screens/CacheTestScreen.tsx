@@ -1,8 +1,8 @@
 import { Check, Edit2, FileText, Flame, Lock, Plus, RefreshCw, Search, Sparkles, Trash2, XCircle } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { AppMessageData } from '@chatic/app-messages';
-import { type TestRecord } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
+import { type TestRecord } from '@chatic/bridge-messages';
 import { webClient } from '@chatic/bridges';
 
 import { useCacheTestStrings } from '../../i18n/screens/CacheTestScreen';

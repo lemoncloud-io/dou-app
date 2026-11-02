@@ -459,7 +459,7 @@ export const parseReportLog = (mock: RawMockView): ReportLogRow => {
     const uid =
         (typeof user?.uid === 'string' ? user.uid : undefined) ?? (typeof mock.uid === 'string' ? mock.uid : undefined);
     /**
-     * Issue reports attach `VersionInfo` from `@chatic/app-messages`:
+     * Issue reports attach `VersionInfo` from `@chatic/bridge-messages`:
      * `{ currentVersion, latestVersion, shouldUpdate, appVersion, webVersion }` — see
      * `buildReportContext`. The repo has a SECOND, unrelated `VersionInfo` in `libs/shared`
      * (`{ version, buildTime }`) which does not reach here; reading `version.version`

@@ -5,12 +5,12 @@ import {
     type WebMessageHandlerResponse,
     type WebMessageResponseType,
     type WebMessageType,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 /**
  * What the shell answers a request with: the payload of the reply `WEB_MESSAGE_RESPONSE_TYPE` pairs
  * it with. Written as a lookup through that map rather than by hand, so renaming a reply or changing
- * its payload in `@chatic/app-messages` breaks the handlers here at compile time instead of leaving a
+ * its payload in `@chatic/bridge-messages` breaks the handlers here at compile time instead of leaving a
  * scenario that fakes a contract the app no longer speaks.
  */
 export type ShellReply<K extends WebMessageType> = AppMessageDataMap[WebMessageResponseType<K>];

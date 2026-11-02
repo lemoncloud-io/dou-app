@@ -1,4 +1,4 @@
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 import { isTelemetryEntry } from '@chatic/logger';
 
 import type { LogEntry, LogListener } from '@chatic/logger';

@@ -1,4 +1,4 @@
-import type { CacheType, OnSaveAllCacheDataPayload, OnSaveCacheDataPayload } from '@chatic/app-messages';
+import type { CacheType, OnSaveAllCacheDataPayload, OnSaveCacheDataPayload } from '@chatic/bridge-messages';
 
 import type { ShellHandlerTable } from './handlerTable';
 

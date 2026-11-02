@@ -1,4 +1,4 @@
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType } from '@chatic/bridge-messages';
 import type { CacheStorage, DataContextProvider, ICacheMetricsSource, IGlobalCacheSearchSource } from '@chatic/data';
 import {
     type CacheStorageFactory,

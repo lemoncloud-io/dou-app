@@ -5,7 +5,7 @@ import type {
     PhotoLibraryAccess,
     PhotoLibraryItem,
     RefusedAttachment,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { ChatAttachmentSource } from '@chatic/data';
 import {
     gridMetrics,

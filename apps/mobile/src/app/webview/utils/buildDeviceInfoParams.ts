@@ -1,4 +1,4 @@
-import type { Env } from '@chatic/app-messages';
+import type { Env } from '@chatic/bridge-messages';
 
 import { buildInjectedUniqueId } from './buildInjectedUniqueId';
 import type { DeviceInfoParams } from './injectionScripts';

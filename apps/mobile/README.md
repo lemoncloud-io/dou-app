@@ -27,15 +27,15 @@ grep -rhoE "from '@chatic/[a-z-]+'" --include='*.ts' --include='*.tsx' apps/mobi
   | sort | uniq -c | sort -rn
 ```
 
-Five workspace packages, and `@chatic/app-messages` outnumbers the rest together.
-[`@chatic/app-messages`](../../libs/app-messages/README.md) declares every message name and payload;
+Five workspace packages, and `@chatic/bridge-messages` outnumbers the rest together.
+[`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) declares every message name and payload;
 [`@chatic/bridges`](../../libs/bridges/README.md) owns the transport, the reply matching and the
 timeouts on both sides of the boundary; [`@chatic/logger`](../../libs/logger/README.md) owns the log
 entry contract and the upload queue; [`@chatic/device-utils`](../../libs/device-utils/README.md) and
 [`@chatic/shared`](../../libs/shared/README.md) supply the small shared pieces.
 
 What this app does **not** own: product screens, routing between them, data fetching and the debug
-panel UI (`apps/web`); the message vocabulary (`@chatic/app-messages`); the framing and the request
+panel UI (`apps/web`); the message vocabulary (`@chatic/bridge-messages`); the framing and the request
 bookkeeping (`@chatic/bridges`); the desktop shell's answers to the same messages (`apps/desktop`).
 
 `@chatic/config` is a special case, and the absence is deliberate: this app never imports it, but
@@ -77,7 +77,7 @@ and system bars; the build, run and store-deploy pipelines.
 
 **Out** — screens, navigation between them, data fetching, product state and the debug panel UI
 (`apps/web`); message names and payload shapes
-([`@chatic/app-messages`](../../libs/app-messages/README.md)); the transport and reply bookkeeping
+([`@chatic/bridge-messages`](../../libs/bridge-messages/README.md)); the transport and reply bookkeeping
 ([`@chatic/bridges`](../../libs/bridges/README.md)); log entry shape, masking and the upload queue
 ([`@chatic/logger`](../../libs/logger/README.md)); the same messages answered on desktop
 (`apps/desktop`).
@@ -87,7 +87,7 @@ and system bars; the build, run and store-deploy pipelines.
 ```mermaid
 flowchart TD
     Web["apps/web<br/>(in the WebView)"]:::ext
-    Msgs["@chatic/app-messages<br/>@chatic/bridges"]:::ext
+    Msgs["@chatic/bridge-messages<br/>@chatic/bridges"]:::ext
     NativeSrc["android/ Kotlin<br/>ios/ Swift"]:::ext
     OS["iOS · Android"]:::ext
 
@@ -242,7 +242,7 @@ is the bridge's job, not this app's.
 ### 2. Adding a native capability
 
 Declare the request and response types in
-[`@chatic/app-messages`](../../libs/app-messages/README.md). Write the service under
+[`@chatic/bridge-messages`](../../libs/bridge-messages/README.md). Write the service under
 `services/<domain>/`, register it in `services/provider.ts`, and add a handler hook under
 `webview/hooks/` wired into `useWebMessageRouter`. If it needs the OS, add the TypeScript module under
 `bridge/` and both native implementations — Kotlin under `android/app/src/main/java/io/chatic/dou/`
@@ -251,7 +251,7 @@ and Swift under `ios/Bridges/`. See [docs/native/README.md](./docs/native/README
 
 A new message has to be decided in every shell, not only this one: each shell's bridge contract
 suite fails until the request is handled there or listed as unsupported with a reason — step 5 of
-[adding a message](../../libs/app-messages/README.md#adding-a-message), and
+[adding a message](../../libs/bridge-messages/README.md#adding-a-message), and
 [docs/webview/README.md](./docs/webview/README.md#the-bridge-contract) for this shell's suite.
 
 ### 3. A push arrives
@@ -330,5 +330,5 @@ The traps here, some of which differ from the libraries:
 - **Native code is not checked by any of this.** Kotlin and Swift compile only in a real build:
   `yarn mobile:android:dev` and `yarn mobile:ios:dev`. A bridge changed on the TypeScript side alone
   passes every command above and fails on the device.
-- Changing anything under `@chatic/app-messages` or `@chatic/bridges` reaches `apps/desktop` and
+- Changing anything under `@chatic/bridge-messages` or `@chatic/bridges` reaches `apps/desktop` and
   `apps/web` as well. Neither is covered by this app's commands.

@@ -1,5 +1,5 @@
 import { isNative } from '@chatic/bridges';
-import type { HapticKind } from '@chatic/app-messages';
+import type { HapticKind } from '@chatic/bridge-messages';
 
 import { appBridge } from './appBridge';
 

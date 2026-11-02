@@ -56,7 +56,7 @@
             "path": "../../libs/app-runtime/tsconfig.lib.json"
         },
         {
-            "path": "../../libs/app-messages/tsconfig.lib.json"
+            "path": "../../libs/bridge-messages/tsconfig.lib.json"
         },
         {
             "path": "../../libs/device-utils/tsconfig.lib.json"

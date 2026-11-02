@@ -1,4 +1,4 @@
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
 
 /** An inbound push message flattened for display and logging. */
 export interface NormalizedPush {

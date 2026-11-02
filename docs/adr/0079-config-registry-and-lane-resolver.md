@@ -689,7 +689,7 @@ union then.
 #### The stage vocabulary is already two, in fact
 
 Separate from `VITE_ENV`, there is
-[`Env`](../../libs/app-messages/src/types/model/device.ts:4), and `deviceInfoStore` casts
+[`Env`](../../libs/bridge-messages/src/types/model/device.ts:4), and `deviceInfoStore` casts
 `window.CHATIC_APP_STAGE` to that type.
 
 | Source                          | Values                           | Consumer                           |
@@ -713,7 +713,7 @@ differs. Today the code using each value never meets the other, so this doesn't 
 
 #### Duplicating `Stage`/`Platform` is a cost worth accepting
 
-[`Platform`](../../libs/app-messages/src/types/model/common.ts:2)
+[`Platform`](../../libs/bridge-messages/src/types/model/common.ts:2)
 (`'ios'|'android'|'windows'|'macos'|'web'`), which `byPlatform` uses, also lives in `app-messages`. For
 config to keep decision 1's "zero dependencies," **it must declare its own union, and then the
 definition exists twice in the repo.**

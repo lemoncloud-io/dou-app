@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-import { WEB_MESSAGE_RESPONSE_TYPE, type WebMessagePayloadMap, type WebMessageType } from '@chatic/app-messages';
+import { WEB_MESSAGE_RESPONSE_TYPE, type WebMessagePayloadMap, type WebMessageType } from '@chatic/bridge-messages';
 import {
     AppBridgeHost,
     InMemoryAdapter,
@@ -48,7 +48,7 @@ const SUB_WEBVIEW = "The phone shell's second WebView; desktop-web never asks fo
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` the desktop shell deliberately leaves unregistered. The
  * host answers each with `NOT_FOUND`. A message belongs here only by decision — a new one in
- * `@chatic/app-messages` fails this suite until it has a handler or a line here.
+ * `@chatic/bridge-messages` fails this suite until it has a handler or a line here.
  */
 const DESKTOP_UNSUPPORTED = {
     SetCanGoBack: PHONE,

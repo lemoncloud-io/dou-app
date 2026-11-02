@@ -8,7 +8,7 @@ type Decision = { emittedBy: string[]; test: string } | { notEmitted: string };
 /**
  * Every app → web event this shell could send on its own initiative, decided: either the file that
  * pushes it and the test that triggers it, or the reason it never does. Paths are relative to
- * `apps/mobile/src`. A new push-only message in `@chatic/app-messages`, or a new `pushEvent` call
+ * `apps/mobile/src`. A new push-only message in `@chatic/bridge-messages`, or a new `pushEvent` call
  * here, fails this suite until it has a line.
  */
 const MOBILE_APP_EVENTS = {

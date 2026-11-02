@@ -4,7 +4,7 @@ import { FileManagerBridge } from '../../bridge';
 import { useServices } from '../../hooks';
 import { toContactInfo } from '../../utils';
 import { isOpenableUrl } from '../utils/urlTrust';
-import type { OpenCameraPayload, WebMessageData } from '@chatic/app-messages';
+import type { OpenCameraPayload, WebMessageData } from '@chatic/bridge-messages';
 import type { Asset, CameraOptions } from 'react-native-image-picker';
 
 /**

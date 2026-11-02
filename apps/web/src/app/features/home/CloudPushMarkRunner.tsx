@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { useCloudSessionCatalog } from '../../hooks/useCloudCatalog';
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
 
 import { appBridge } from '../../bridge/appBridge';
 import { useOnBackgroundStatusChanged, useOnReceiveNotification } from '../../bridge/useHandleAppMessage';

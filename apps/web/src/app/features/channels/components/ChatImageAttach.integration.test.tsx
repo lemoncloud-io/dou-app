@@ -4,7 +4,7 @@ import { useRef } from 'react';
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
-import type { OnListPhotosPayload } from '@chatic/app-messages';
+import type { OnListPhotosPayload } from '@chatic/bridge-messages';
 import type { ChatAttachmentSource } from '@chatic/data';
 import type { PhotoEdit } from '@chatic/web-ui-kit';
 

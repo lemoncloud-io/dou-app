@@ -15,7 +15,7 @@ which can take the WebView down just as a video would.
 
 | Layer             | File                                                                                                                                                                                                                     |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Messages          | `libs/app-messages/src/types/model/attachment-picker.ts`                                                                                                                                                                 |
+| Messages          | `libs/bridge-messages/src/types/model/attachment-picker.ts`                                                                                                                                                              |
 | WebView handler   | `src/app/webview/hooks/attachmentPickerHandlers.ts`, `useAttachmentPickerHandler.ts`                                                                                                                                     |
 | TS native wrapper | `src/app/bridge/AttachmentPickerBridge.ts`                                                                                                                                                                               |
 | iOS               | `ios/Bridges/AttachmentPicker/` — `AttachmentPicker.swift`, `Core/AttachmentPickerCore.swift` (pure rules)                                                                                                               |

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { isNative } from '@chatic/bridges';
 
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { IapProductSubscription } from '@chatic/bridge-messages';
 
 import { appBridge } from '../../../bridge';
 

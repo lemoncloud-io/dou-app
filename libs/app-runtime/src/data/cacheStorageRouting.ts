@@ -1,4 +1,4 @@
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType } from '@chatic/bridge-messages';
 import { isNativeApp } from '../utils/isNativeApp';
 import { isNativeCacheTypeUsable } from './nativeCacheSupport';
 

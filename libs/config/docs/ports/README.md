@@ -63,7 +63,7 @@ set, so security-relevant rules — `meta` keys and everything under `debug.` �
 
 **Two stage vocabularies exist and the adapter normalizes between them.** `VITE_ENV` is already
 `LOCAL`/`DEV`/`PROD`. The shell-injected `CHATIC_APP_STAGE` uses `local`/`stage`/`prod`, which is
-`@chatic/app-messages`' `Env` type, so `'stage'` maps to `'DEV'`. An unrecognized token falls back to
+`@chatic/bridge-messages`' `Env` type, so `'stage'` maps to `'DEV'`. An unrecognized token falls back to
 `buildStage()` silently.
 
 That fallback is currently load-bearing for one shell. Electron's preload injects
@@ -73,7 +73,7 @@ shared bridge vocabulary rather than in this adapter, and the same preload injec
 `CHATIC_APP_PLATFORM: 'desktop'`, which the shared `Platform` union does not contain either.
 
 `Stage` and `Platform` are declared in this lib's own `types.ts` rather than imported from
-`@chatic/app-messages`, because importing that lib to gain two unions would chain this one — and
+`@chatic/bridge-messages`, because importing that lib to gain two unions would chain this one — and
 every test — to the whole bridge contract. The copy is character-identical to the original today.
 The docblock in `types.ts` says an app-side test asserts the two sets stay equal; **no such test
 exists in the repo.** The copies match, so nothing is broken, but the defence that docblock cites is

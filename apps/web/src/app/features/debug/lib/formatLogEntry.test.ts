@@ -1,4 +1,4 @@
-import type { AppLogInfo } from '@chatic/app-messages';
+import type { AppLogInfo } from '@chatic/bridge-messages';
 
 import { formatLogForCopy, formatTimestamp, hasErrorValue, stringifyValue } from './formatLogEntry';
 

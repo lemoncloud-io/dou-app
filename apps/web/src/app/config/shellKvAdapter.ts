@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 import type { IShellKvAdapter } from '@chatic/config';
 import { appBridge } from '../bridge';
 

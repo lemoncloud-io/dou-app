@@ -12,7 +12,7 @@ import {
     type WebMessageData,
     type WebMessageHandlerResponse,
     type WebMessageType,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { IAppBridgeHost } from './IAppBridgeHost';
 import { BRIDGE_VERSION } from '../version';
 

@@ -2,7 +2,7 @@ import { ChevronDown, ChevronRight, Copy, RefreshCw, Search, Trash2, Zap } from 
 import { type ReactNode, type UIEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { isNative, logger, toAppLogInfo } from '@chatic/bridges';
-import type { AppLogInfo, AppLogLevel } from '@chatic/app-messages';
+import type { AppLogInfo, AppLogLevel } from '@chatic/bridge-messages';
 
 import { appBridge } from '../../../../bridge';
 import { getLogQueueView } from '../../../../runtime/logging/logQueueView';

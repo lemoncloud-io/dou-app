@@ -3,7 +3,7 @@ import type {
     MediaExportPermissionDetails,
     WebMessageData,
     WebMessageHandlerResponse,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { IMediaExportBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 

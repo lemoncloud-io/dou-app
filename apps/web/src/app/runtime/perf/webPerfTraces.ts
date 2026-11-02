@@ -8,7 +8,7 @@ import {
 
 import { appBridge } from '../../bridge/appBridge';
 
-import type { OnWebAppReadyPayload } from '@chatic/app-messages';
+import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 import type { Logger } from '@chatic/logger';
 import type { PerfTelemetryRecorder, PerfTraceBackend } from '@chatic/perf';
 

@@ -2,7 +2,7 @@ import { app, powerMonitor } from 'electron';
 import electronUpdater from 'electron-updater';
 
 import type { AppBridgeHost } from '@chatic/bridges';
-import type { OnUpdateStatusPayload } from '@chatic/app-messages';
+import type { OnUpdateStatusPayload } from '@chatic/bridge-messages';
 import type { ProgressInfo, UpdateInfo } from 'electron-updater';
 
 import { CHECK_INTERVAL_MS, createUpdateCheckGate, isBusy, MIN_CHECK_GAP_MS } from './updateCadence';

@@ -1,4 +1,4 @@
-import type { OnFileTransferStatePayload } from '@chatic/app-messages';
+import type { OnFileTransferStatePayload } from '@chatic/bridge-messages';
 import type { IWebBridgeClient } from '@chatic/bridges';
 import {
     chatAttachmentFormat,

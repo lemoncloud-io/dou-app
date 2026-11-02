@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@chatic/ui-kit/components/ui/sheet';
-import type { AppIconOption } from '@chatic/app-messages';
+import type { AppIconOption } from '@chatic/bridge-messages';
 
 interface AppIconSelectSheetProps {
     isOpen: boolean;

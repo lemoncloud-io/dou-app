@@ -8,7 +8,7 @@ import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 // must be aliased here too — the SSR main/preload build reads this map, not tsconfig paths.
 const bridgesAlias = {
     '@chatic/bridges': resolve(__dirname, '../../libs/bridges/src/index.ts'),
-    '@chatic/app-messages': resolve(__dirname, '../../libs/app-messages/src/index.ts'),
+    '@chatic/bridge-messages': resolve(__dirname, '../../libs/bridge-messages/src/index.ts'),
     '@chatic/logger': resolve(__dirname, '../../libs/logger/src/index.ts'),
 };
 

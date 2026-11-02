@@ -1,9 +1,13 @@
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
 
 import { normalizeReceivedPush } from './normalizeReceivedPush';
 
 const makeMessage = (notification: unknown): AppMessageData<'OnReceiveNotification'> =>
-    ({ type: 'OnReceiveNotification', success: true, data: { notification } } as unknown as AppMessageData<'OnReceiveNotification'>);
+    ({
+        type: 'OnReceiveNotification',
+        success: true,
+        data: { notification },
+    }) as unknown as AppMessageData<'OnReceiveNotification'>;
 
 describe('normalizeReceivedPush', () => {
     it('title/body/data와 receivedAt를 평탄화한다', () => {
@@ -24,7 +28,11 @@ describe('normalizeReceivedPush', () => {
     });
 
     it('notification 자체가 없어도 던지지 않는다', () => {
-        const message = { type: 'OnReceiveNotification', success: true, data: {} } as unknown as AppMessageData<'OnReceiveNotification'>;
+        const message = {
+            type: 'OnReceiveNotification',
+            success: true,
+            data: {},
+        } as unknown as AppMessageData<'OnReceiveNotification'>;
 
         expect(() => normalizeReceivedPush(message, 1)).not.toThrow();
         expect(normalizeReceivedPush(message, 1).title).toBe('(none)');

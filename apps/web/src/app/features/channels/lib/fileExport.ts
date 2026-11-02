@@ -1,4 +1,4 @@
-import type { OnSaveFilePayload } from '@chatic/app-messages';
+import type { OnSaveFilePayload } from '@chatic/bridge-messages';
 import { CHAT_ATTACHMENT_ZIP_TYPE, chatAttachmentFormat } from '@chatic/data';
 
 import type { DownloadProgress, DownloadResult, NativeDownload } from '../../../runtime/transfer';

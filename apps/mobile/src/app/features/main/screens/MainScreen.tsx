@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WebView } from 'react-native-webview';
 import { View } from 'react-native';
-import type { WebAppReadyPayload } from '@chatic/app-messages';
+import type { WebAppReadyPayload } from '@chatic/bridge-messages';
 
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
 import { useDeepLinkNavigation } from '../../../webview/hooks/useDeepLinkNavigation';

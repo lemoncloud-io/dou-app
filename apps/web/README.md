@@ -26,19 +26,19 @@ There is no `api/` directory, no socket constructor, no token store and no cache
 
 What the app does **not** own:
 
-| Concern                                               | Owner                                                           |
-| ----------------------------------------------------- | --------------------------------------------------------------- |
-| Session, auth, connection lifecycle, sync, push, boot | [`@chatic/app-runtime`](../../libs/app-runtime/README.md)       |
-| Repositories, local cache, observe streams            | [`@chatic/data`](../../libs/data/README.md)                     |
-| The native ↔ web message seam, and the logger facade | [`@chatic/bridges`](../../libs/bridges/README.md)               |
-| Settings, environment, feature flags                  | [`@chatic/config`](../../libs/config/README.md)                 |
-| The logging hub, its listeners, its levels            | [`@chatic/logger`](../../libs/logger/README.md)                 |
-| Web design-system components                          | [`@chatic/web-ui-kit`](../../libs/web-ui-kit/README.md)         |
-| Cross-platform primitives, storage adapter, fallbacks | [`@chatic/shared`](../../libs/shared/README.md)                 |
-| Bridge message payload types                          | [`@chatic/app-messages`](../../libs/app-messages/README.md)     |
-| HTTP request building and signing                     | [`@chatic/http`](../../libs/http/README.md)                     |
-| Device/platform detection                             | [`@chatic/device-utils`](../../libs/device-utils/README.md)     |
-| Policy copy (terms, privacy, licenses)                | [`@chatic/policy-content`](../../libs/policy-content/README.md) |
+| Concern                                               | Owner                                                             |
+| ----------------------------------------------------- | ----------------------------------------------------------------- |
+| Session, auth, connection lifecycle, sync, push, boot | [`@chatic/app-runtime`](../../libs/app-runtime/README.md)         |
+| Repositories, local cache, observe streams            | [`@chatic/data`](../../libs/data/README.md)                       |
+| The native ↔ web message seam, and the logger facade | [`@chatic/bridges`](../../libs/bridges/README.md)                 |
+| Settings, environment, feature flags                  | [`@chatic/config`](../../libs/config/README.md)                   |
+| The logging hub, its listeners, its levels            | [`@chatic/logger`](../../libs/logger/README.md)                   |
+| Web design-system components                          | [`@chatic/web-ui-kit`](../../libs/web-ui-kit/README.md)           |
+| Cross-platform primitives, storage adapter, fallbacks | [`@chatic/shared`](../../libs/shared/README.md)                   |
+| Bridge message payload types                          | [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) |
+| HTTP request building and signing                     | [`@chatic/http`](../../libs/http/README.md)                       |
+| Device/platform detection                             | [`@chatic/device-utils`](../../libs/device-utils/README.md)       |
+| Policy copy (terms, privacy, licenses)                | [`@chatic/policy-content`](../../libs/policy-content/README.md)   |
 
 `@chatic/http` and `@chatic/logger` reach the app indirectly: HTTP through `@chatic/app-runtime`,
 the logger through the `logger` re-export in `@chatic/bridges`. The app imports neither package

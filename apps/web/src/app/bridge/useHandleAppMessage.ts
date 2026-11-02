@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { logger, webClient } from '@chatic/bridges';
-import type { AppMessageData, AppMessageType } from '@chatic/app-messages';
+import type { AppMessageData, AppMessageType } from '@chatic/bridge-messages';
 
 /**
  * A React hook for subscribing to a specific message.

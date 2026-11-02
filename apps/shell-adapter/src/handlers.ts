@@ -1,7 +1,7 @@
 import { isCustomScheme, resolveDeepLink, resolvePushTapPath } from 'shell-adapter/mobile-deeplink';
 import { isOpenableUrl } from 'shell-adapter/mobile-url-trust';
 
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 import {
     bootHandlers,
     MemoryCache,

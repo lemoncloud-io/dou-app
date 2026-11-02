@@ -7,7 +7,7 @@
 > `apps/mobile/android/.../module/HapticModule.kt`
 > · The module docs are [apps/web home README](../../apps/web/docs/feature/home/README.md#haptics),
 > [apps/mobile native README](../../apps/mobile/docs/native/README.md) and
-> [libs/app-messages README](../../libs/app-messages/README.md)
+> [libs/app-messages README](../../libs/bridge-messages/README.md)
 
 ## Context
 

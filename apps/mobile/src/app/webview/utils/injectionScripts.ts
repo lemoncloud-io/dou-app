@@ -1,5 +1,5 @@
 import type { EdgeInsets } from 'react-native-safe-area-context';
-import type { Env } from '@chatic/app-messages';
+import type { Env } from '@chatic/bridge-messages';
 
 import type { ThemeMode } from '../../stores/themeMode';
 

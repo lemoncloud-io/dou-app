@@ -1,4 +1,4 @@
-import type { OnWebAppReadyPayload } from '@chatic/app-messages';
+import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 
 import { shellCapabilities } from './shellCapabilities';
 import { openSubWebView } from './subWebView';

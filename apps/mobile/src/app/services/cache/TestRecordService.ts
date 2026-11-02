@@ -1,4 +1,4 @@
-import type { TestRecord } from '@chatic/app-messages';
+import type { TestRecord } from '@chatic/bridge-messages';
 import type { TestRecordDataSource } from '../../data/cache/TestRecordDataSource';
 import type { ILogService } from '../log';
 
