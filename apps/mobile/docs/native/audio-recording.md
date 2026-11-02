@@ -1,11 +1,12 @@
 # Audio recording — voice messages
 
-The chat composer's hold-to-talk microphone records through the shell, never through the page. The
-web asks the shell to start when the button is pressed and to stop when it is released; the shell
+A voice message is recorded through the shell, never through the page. The web's recording sheet,
+opened from the chat attach panel's voice entry, asks the shell to start when its microphone is tapped
+and to stop at Send or Cancel; the shell
 records with the OS recorder into a file of its own and answers with the same `file` reference the
 documents picker gives ([attachment-picker.md](./attachment-picker.md)). The web then sends it like
 any picked file: `StartFileTransfer` uploads it from the shell's folder, and its bytes never cross the
-bridge. The web side — the button, the clock, the slide to cancel — is
+bridge. The web side — the entry, the sheet, its clock and buttons — is
 [apps/web channels/image-send.md](../../../web/docs/feature/channels/image-send.md#voice-messages).
 
 | Message               | Reply                     | What it does                                                         |
@@ -78,7 +79,7 @@ the limit, an interruption — is the end, and the other finds nothing: a late `
 
 ## Permission
 
-`PermissionService` asks for `MICROPHONE` in the handler, at the first press — `check` first, so a
+`PermissionService` asks for `MICROPHONE` in the handler, at the first start — `check` first, so a
 granted microphone costs nothing, then `request`, which shows the OS prompt while it is undecided and
 answers at once after a refusal. A refusal, or one made earlier, is `PERMISSION_DENIED`, and the web
 offers Settings through `OpenSettings`. The native modules only check the permission and refuse with
@@ -86,15 +87,14 @@ the same code when it is missing; they never prompt.
 
 On iOS, react-native-permissions answers `MICROPHONE` only because the Podfile's `setup_permissions`
 lists `Microphone`; without that handler compiled in it answers `unavailable`, which reads as a
-refusal on every press.
+refusal on every start.
 
 The app declares `NSMicrophoneUsageDescription` (a Korean string, like the other purpose strings in
 `Info.plist`) and `RECORD_AUDIO`. Declaring them makes the microphone available to the WebViews too;
 the sub WebView's terms for it are in [../webview/sub-webview.md](../webview/sub-webview.md).
 
-The first press usually ends before the answer: the prompt takes the screen, and the finger has lifted
-by the time it is answered. The web then stops what has just started, silently, and the next press
-records.
+A grant at the prompt answers the same start: the recording begins as soon as the prompt closes. If
+the sheet was closed meanwhile, the web stops what has just started, silently.
 
 ## The audio session (iOS)
 
@@ -128,7 +128,8 @@ xcodebuild test -project apps/mobile/ios/Chatic.xcodeproj -scheme ChaticTransfer
 
 The pure rules — the limit, the end reasons, the name, the header check — are the core files
 (`AudioRecorderCore.swift`, `AudioRecordRules.kt`) and their tests. The recorders themselves only run
-on a device or simulator: hold the microphone in a room for a few seconds and release; the file is
+on a device or simulator: in a room, open the attach panel's voice entry, tap the microphone, talk for
+a few seconds and tap Send; the file is
 under `Library/Caches/attach-pick/` in the app's container (iOS) or `cache/attach-pick/` (Android)
 until it is swept. The simulator records from the Mac's microphone; the Android emulator from the
 host's when its virtual microphone uses host audio input.

@@ -3,7 +3,8 @@
 > Status: Accepted · Decided: 2026-11-02 · Implemented: `feat/mobile-audio-attachment`
 > · Scope: `apps/web/src/app/features/channels/` (`useVoiceMessage`, `MessageAudioCard`,
 > `useInlineAudio`, `lib/fileExport.ts`), `apps/web/src/app/bridge/audioRecorder.ts`,
-> `libs/bridge-messages/src/types/model/audio-recording.ts`, `apps/mobile/src/app/webview/hooks/audioRecordingHandlers.ts`,
+> `libs/bridge-messages/src/types/model/audio-recording.ts`, `libs/web-ui-kit`'s `AttachPanel` (the voice
+> entry), `apps/mobile/src/app/webview/hooks/audioRecordingHandlers.ts`,
 > `apps/mobile/ios/Bridges/AudioRecorder/`, `apps/mobile/android/.../io/chatic/dou/record/`, the two shells'
 > pickers, save lists and byte families, `libs/bridges/src/version.ts` (2.13.0)
 > · Amends: [ADR-0265](./0265-a-page-on-another-origin-opens-in-a-sub-webview-with-a-bridge-of-its-own.md)
@@ -38,16 +39,24 @@ MPEG-4 file — the server's `audio/mp4` as it is.
    64 kbps in an `.m4a` named `voice-<yyyyMMdd-HHmmss>.m4a`, written into a pick folder of its own and
    answered with the same `file` reference the documents picker gives, so the upload is ADR-0158's path
    unchanged. The page never opens the microphone.
-3. **Hold to talk, five minutes, and an interruption throws it away.** Pressing records, releasing
-   sends, sliding left 72 px first cancels. Under a second nothing is kept. At five minutes the shell
-   stops and the recording is sent. A call, another app taking the audio or the app leaving the screen
-   discards it. There is no lock, no preview before sending and no waveform; the received card shows
-   time and a seek bar only.
+3. **Recorded in a sheet from the attach panel, five minutes, and an interruption throws it away.** The
+   attach panel gains a Voice entry after Files, which opens a recording sheet; the composer gets no
+   microphone. A tap on the sheet's microphone records, and then Send sends and Cancel throws it away;
+   while it records, the backdrop, a swipe and Escape do nothing. Under a second nothing is kept. At five
+   minutes the shell stops and the recording is sent. A call, another app taking the audio or the app
+   leaving the screen discards it. There is no pause, no preview before sending and no waveform; the
+   received card shows time and a seek bar only.
+
+    Hold-to-talk on the composer's send-button place was built first and dropped: a press-and-hold has
+    to be learned, the first press is spent on the OS permission prompt, and a microphone where the send
+    button sits put a recording one stray touch away. A sheet costs one more tap per message and keeps
+    recording a deliberate act, with its own room for the clock and both outcomes.
+
 4. **Received audio plays in place, in the page.** A sent audio upload is a player card — play, seek,
    the clock, Save and Share in a menu — playing from its signed address in the page's own `<audio>`,
    one at a time. Its length comes from the file's header: the upload carries none, and nothing marks a
    recording as one except its name.
-5. **An older app is told apart by its handshake, and by its save.** The microphone is drawn only
+5. **An older app is told apart by its handshake, and by its save.** The voice entry is drawn only
    where the handshake lists `StartAudioRecording`. An older app's `SaveFile` refuses an audio name as
    `INVALID`; the web reads that, as it does for a ZIP archive, as an app to update. Playback needs
    nothing of the shell.
@@ -60,8 +69,8 @@ MPEG-4 file — the server's `audio/mp4` as it is.
 
 - **The phone and the desktop now exchange the same four formats**, and a voice message from the phone
   is an ordinary `audio/mp4` upload a desktop already plays.
-- **Recording needs a new app.** The web ships first and shows no microphone until the shell answers
-  the handshake with the recorder, so the button appears for each person when they update.
+- **Recording needs a new app.** The web ships first and shows no voice entry until the shell answers
+  the handshake with the recorder, so the entry appears for each person when they update.
 - **The page plays what the WebView decodes.** iOS decodes Ogg Opus but not Ogg Vorbis, and nothing in
   the upload says which an Ogg file is, so a Vorbis file shows "can't play" there and stays savable and
   shareable. The app's own recordings are AAC and play everywhere.

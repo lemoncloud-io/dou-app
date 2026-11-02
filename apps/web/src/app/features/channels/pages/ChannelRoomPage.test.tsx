@@ -79,17 +79,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ImageAvatar: () => null,
     SystemNotice: () => null,
     // The field and the send button, and what the room tells the button: enough to drive the send.
-    MessageInput: ({
-        onSend,
-        value,
-        onChange,
-        inputRef,
-        sendReady,
-        disabled,
-        placeholder,
-        leadingSlot,
-        idleSlot,
-    }: any) => (
+    MessageInput: ({ onSend, value, onChange, inputRef, sendReady, disabled, placeholder, leadingSlot }: any) => (
         <>
             {leadingSlot}
             <textarea
@@ -103,7 +93,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
             <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend('hello')} />
             {/* Sends what is in the field, for the cases where the text itself is what is checked. */}
             <button data-testid="send-typed" onClick={() => onSend(value)} />
-            {idleSlot}
         </>
     ),
 }));
@@ -181,18 +170,20 @@ interface MockAttachInput {
     composerRef?: { current: HTMLElement | null };
     onComposerSlide?: (sliding: boolean) => void;
     disabled?: boolean;
+    onVoice?: () => void;
 }
 let mockAttachInput: MockAttachInput = {};
 // The voice message's own behaviour is its hook's test; here only where its pieces go.
-let mockVoiceRecording = false;
+let mockVoiceCanRecord = true;
+const mockVoiceOpen = jest.fn();
 let mockVoiceInput: { disabled?: boolean; scope?: string } | undefined;
 jest.mock('../hooks/useVoiceMessage', () => ({
     useVoiceMessage: (input: { disabled?: boolean; scope?: string }) => {
         mockVoiceInput = input;
         return {
-            button: <button data-testid="voice-mic" />,
-            dialogs: null,
-            recording: mockVoiceRecording,
+            canRecord: mockVoiceCanRecord,
+            open: mockVoiceOpen,
+            sheet: <div data-testid="voice-sheet" />,
         };
     },
 }));
@@ -289,7 +280,7 @@ const failedRow = (over: Partial<ClientChatView> = {}): Partial<ClientChatView> 
 });
 
 beforeEach(() => {
-    mockVoiceRecording = false;
+    mockVoiceCanRecord = true;
     mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer'] };
     mockMessages = [];
     mockGaps = [];
@@ -343,25 +334,25 @@ describe('ChannelRoomPage — the input lock', () => {
         expect(mockSendPicked).not.toHaveBeenCalled();
     });
 
-    it('offers the microphone on an open composer, and none on a locked one', () => {
+    it("hands the attach panel the voice entry that opens the recording sheet, under the composer's lock", () => {
         const { unmount } = render(<ChannelRoomPage />);
-        expect(screen.getByTestId('voice-mic')).toBeInTheDocument();
+        expect(mockAttachInput.onVoice).toBe(mockVoiceOpen);
+        expect(screen.getByTestId('voice-sheet')).toBeInTheDocument();
         expect(mockVoiceInput).toEqual(expect.objectContaining({ disabled: false, scope: 'ch1' }));
         unmount();
 
         mockInputLocked = true;
         render(<ChannelRoomPage />);
 
-        expect(screen.queryByTestId('voice-mic')).not.toBeInTheDocument();
         expect(mockVoiceInput).toEqual(expect.objectContaining({ disabled: true }));
     });
 
-    it('holds the attach panel while a voice message records', () => {
-        mockVoiceRecording = true;
+    it('offers no voice entry where the app cannot record', () => {
+        mockVoiceCanRecord = false;
 
         render(<ChannelRoomPage />);
 
-        expect(mockAttachInput).toEqual(expect.objectContaining({ disabled: true }));
+        expect(mockAttachInput.onVoice).toBeUndefined();
     });
 
     it('lifts the lock from the padlock in the composer', () => {

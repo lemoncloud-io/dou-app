@@ -341,7 +341,7 @@ default, so iOS asks the person once per page load.
 The microphone is declared too (`RECORD_AUDIO`, `NSMicrophoneUsageDescription`), for voice messages,
 but the page never captures audio itself: the shell records with the OS recorder and hands back a file
 ([native/audio-recording.md](../native/audio-recording.md)), and the permission is asked for by
-`PermissionService` (`MICROPHONE`) at the first press — on iOS that needs the `Microphone` handler in the
+`PermissionService` (`MICROPHONE`) at the first recording — on iOS that needs the `Microphone` handler in the
 Podfile's `setup_permissions`, without which react-native-permissions answers `unavailable`. The same
 defaults mean a page that did ask for audio through `getUserMedia` would get the OS prompt under DoU's
 name on iOS, and on Android a grant with no prompt once the app holds `RECORD_AUDIO` — the main web

@@ -1,12 +1,12 @@
 import '@testing-library/jest-dom';
 
-import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import type { OnAudioRecordingEndedPayload } from '@chatic/bridge-messages';
 import type { ChatAttachmentSource } from '@chatic/data';
 
 import type { audioRecorder, StartRecordingResult } from '../../../bridge/audioRecorder';
-import { useVoiceMessage, VOICE_CANCEL_SLIDE_PX } from './useVoiceMessage';
+import { useVoiceMessage } from './useVoiceMessage';
 
 const toast = jest.fn();
 jest.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
@@ -63,36 +63,33 @@ const Harness = ({
     canRecord = true,
     disabled = false,
     scope = 'c1',
-    typed = false,
 }: {
     recorder: typeof audioRecorder;
     sendImages: (files: ChatAttachmentSource[]) => Promise<void>;
     canRecord?: boolean;
     disabled?: boolean;
     scope?: string;
-    /** Something typed: the composer draws its send button instead of the microphone. */
-    typed?: boolean;
 }) => {
     const voice = useVoiceMessage({ sendImages, recorder, canRecord, disabled, scope, now });
     return (
         <div>
-            {typed ? null : voice.button}
-            {voice.dialogs}
-            <span data-testid="recording">{String(voice.recording)}</span>
+            {/* The attach panel's voice entry. */}
+            <button type="button" onClick={voice.open}>
+                voice-entry
+            </button>
+            <span data-testid="can-record">{String(voice.canRecord)}</span>
+            {voice.sheet}
         </div>
     );
 };
 
-const mic = () => screen.getByRole('button', { name: 'chat.attach.voice.record' });
-// jsdom has no PointerEvent, so what the hook reads — the coordinate, which finger — is set by hand.
-const pointer = (type: 'pointerDown' | 'pointerMove' | 'pointerUp' | 'pointerCancel', x = 0, pointerId = 1) => {
-    const event = createEvent[type](mic());
-    Object.defineProperty(event, 'clientX', { value: x });
-    Object.defineProperty(event, 'pointerId', { value: pointerId });
-    fireEvent(mic(), event);
-};
-const press = (x = 300) => act(async () => pointer('pointerDown', x));
-const lift = (pointerId = 1) => act(async () => pointer('pointerUp', 0, pointerId));
+const openSheet = () => act(async () => fireEvent.click(screen.getByText('voice-entry')));
+const sheetTitle = () => screen.queryByText('chat.attach.voice.title');
+const recordButton = () => screen.queryByRole('button', { name: 'chat.attach.voice.record' });
+const tapRecord = () =>
+    act(async () => fireEvent.click(screen.getByRole('button', { name: 'chat.attach.voice.record' })));
+const tap = (label: string) => act(async () => fireEvent.click(screen.getByRole('button', { name: label })));
+const sendButton = () => screen.queryByRole('button', { name: 'chat.attach.voice.send' });
 
 describe('useVoiceMessage', () => {
     beforeEach(() => {
@@ -101,26 +98,35 @@ describe('useVoiceMessage', () => {
         openSettings.mockReset();
     });
 
-    it('draws no microphone where the app does not record', () => {
+    it('offers no entry where the app does not record, nor on a locked composer', async () => {
         const { recorder } = fakeRecorder();
-        render(<Harness recorder={recorder} sendImages={jest.fn()} canRecord={false} />);
+        const { rerender } = render(<Harness recorder={recorder} sendImages={jest.fn()} canRecord={false} />);
+        expect(screen.getByTestId('can-record')).toHaveTextContent('false');
+        await openSheet();
+        expect(sheetTitle()).not.toBeInTheDocument();
 
-        expect(screen.queryByRole('button', { name: 'chat.attach.voice.record' })).not.toBeInTheDocument();
+        rerender(<Harness recorder={recorder} sendImages={jest.fn()} disabled />);
+        expect(screen.getByTestId('can-record')).toHaveTextContent('false');
     });
 
-    it('records while held and sends the file on release, typed audio/mp4', async () => {
+    it('records from a tap and sends the file with Send, typed audio/mp4, closing the sheet', async () => {
         const fake = fakeRecorder();
         fake.recorder.stop.mockResolvedValue({ reason: 'SENT', file: recording, durationMs: 8_000 });
         const sendImages = jest.fn(async () => undefined);
         render(<Harness recorder={fake.recorder} sendImages={sendImages} />);
 
-        await press();
-        await fake.started();
-        expect(screen.getByRole('status')).toHaveTextContent('chat.attach.voice.slideToCancel');
-        expect(screen.getByTestId('recording')).toHaveTextContent('true');
+        await openSheet();
+        expect(sheetTitle()).toBeInTheDocument();
+        expect(sendButton()).not.toBeInTheDocument();
 
-        clock = 8_000;
-        await lift();
+        await tapRecord();
+        expect(fake.recorder.start).toHaveBeenCalledTimes(1);
+        await fake.started(1_000);
+        expect(recordButton()).not.toBeInTheDocument();
+        expect(screen.getByText('chat.attach.voice.recordingHint')).toBeInTheDocument();
+
+        clock = 9_000;
+        await tap('chat.attach.voice.send');
 
         expect(fake.recorder.stop).toHaveBeenCalledWith('send');
         expect(sendImages).toHaveBeenCalledWith([
@@ -132,149 +138,174 @@ describe('useVoiceMessage', () => {
                 kind: 'file',
             },
         ]);
-        expect(screen.getByTestId('recording')).toHaveTextContent('false');
+        expect(sheetTitle()).not.toBeInTheDocument();
     });
 
-    it('throws the recording away when the finger slid left past the threshold', async () => {
+    it('throws the recording away with Cancel and closes the sheet', async () => {
         const fake = fakeRecorder();
         const sendImages = jest.fn(async () => undefined);
         render(<Harness recorder={fake.recorder} sendImages={sendImages} />);
 
-        await press(300);
+        await openSheet();
+        await tapRecord();
         await fake.started();
-        act(() => pointer('pointerMove', 300 - VOICE_CANCEL_SLIDE_PX - 1));
-        expect(screen.getByRole('status')).toHaveTextContent('chat.attach.voice.releaseToCancel');
-        await lift();
+        await tap('chat.attach.voice.cancel');
 
         expect(fake.recorder.stop).toHaveBeenCalledWith('cancel');
         expect(sendImages).not.toHaveBeenCalled();
         expect(toast).not.toHaveBeenCalled();
+        expect(sheetTitle()).not.toBeInTheDocument();
     });
 
-    it('throws the recording away when the system takes the touch', async () => {
+    it('keeps the sheet through Escape while it records: only its buttons end a recording', async () => {
         const fake = fakeRecorder();
         render(<Harness recorder={fake.recorder} sendImages={jest.fn()} />);
 
-        await press();
+        await openSheet();
+        await tapRecord();
         await fake.started();
-        await act(async () => pointer('pointerCancel'));
+        await act(async () => fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }));
 
-        expect(fake.recorder.stop).toHaveBeenCalledWith('cancel');
+        expect(fake.recorder.stop).not.toHaveBeenCalled();
+        expect(sendButton()).toBeInTheDocument();
     });
 
-    it('tells a short press to hold, when the shell keeps nothing under a second', async () => {
+    it('lets a Send already on its way finish when × is tapped after it', async () => {
+        const fake = fakeRecorder();
+        let answer: (ended: OnAudioRecordingEndedPayload) => void = () => undefined;
+        fake.recorder.stop.mockImplementation(
+            () =>
+                new Promise<OnAudioRecordingEndedPayload | null>(resolve => {
+                    answer = resolve;
+                })
+        );
+        const sendImages = jest.fn(async () => undefined);
+        render(<Harness recorder={fake.recorder} sendImages={sendImages} />);
+
+        await openSheet();
+        await tapRecord();
+        await fake.started();
+        await tap('chat.attach.voice.send');
+        await tap('common.close');
+        await act(async () => answer({ reason: 'SENT', file: recording, durationMs: 4_000 }));
+
+        expect(fake.recorder.stop).toHaveBeenCalledTimes(1);
+        expect(sendImages).toHaveBeenCalledTimes(1);
+        expect(sheetTitle()).not.toBeInTheDocument();
+    });
+
+    it('stops what the shell started when the sheet closed before it answered', async () => {
+        const fake = fakeRecorder();
+        const sendImages = jest.fn(async () => undefined);
+        render(<Harness recorder={fake.recorder} sendImages={sendImages} />);
+
+        await openSheet();
+        await tapRecord();
+        // The header's × while the shell is still starting.
+        await tap('common.close');
+        await fake.started();
+
+        expect(fake.recorder.stop).toHaveBeenCalledWith('cancel');
+        expect(sendImages).not.toHaveBeenCalled();
+        expect(sheetTitle()).not.toBeInTheDocument();
+    });
+
+    it('says to record longer when the shell kept nothing under a second, and stays open', async () => {
         const fake = fakeRecorder();
         fake.recorder.stop.mockResolvedValue({ reason: 'TOO_SHORT' });
-        render(<Harness recorder={fake.recorder} sendImages={jest.fn()} />);
+        const sendImages = jest.fn(async () => undefined);
+        render(<Harness recorder={fake.recorder} sendImages={sendImages} />);
 
-        await press();
+        await openSheet();
+        await tapRecord();
         await fake.started();
-        await lift();
+        await tap('chat.attach.voice.send');
 
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.voice.holdToRecord' });
-    });
-
-    it('stops a recording the finger left before it started, and tells a quick tap to hold', async () => {
-        const fake = fakeRecorder();
-        render(<Harness recorder={fake.recorder} sendImages={jest.fn()} />);
-
-        await press();
-        await lift();
-        clock = 200;
-        await fake.started();
-
-        expect(fake.recorder.stop).toHaveBeenCalledWith('cancel');
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.voice.holdToRecord' });
-        expect(screen.getByTestId('recording')).toHaveTextContent('false');
-    });
-
-    it('says nothing when the start waited on the permission prompt: the next press records', async () => {
-        const fake = fakeRecorder();
-        render(<Harness recorder={fake.recorder} sendImages={jest.fn()} />);
-
-        await press();
-        await lift();
-        clock = 4_000;
-        await fake.started();
-
-        expect(fake.recorder.stop).toHaveBeenCalledWith('cancel');
-        expect(toast).not.toHaveBeenCalled();
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.voice.tooShort' });
+        expect(sendImages).not.toHaveBeenCalled();
+        expect(recordButton()).toBeInTheDocument();
     });
 
     it('offers the way to Settings when the microphone is refused', async () => {
         const fake = fakeRecorder();
         render(<Harness recorder={fake.recorder} sendImages={jest.fn()} />);
 
-        await press();
+        await openSheet();
+        await tapRecord();
         await fake.refused('PERMISSION_DENIED');
 
-        expect(screen.getByText('chat.attach.permission.microphoneTitle')).toBeInTheDocument();
-        await act(async () => void fireEvent.click(screen.getByText('chat.attach.permission.settings')));
-        expect(openSettings).toHaveBeenCalled();
+        expect(sheetTitle()).not.toBeInTheDocument();
+        await tap('chat.attach.permission.settings');
+        expect(openSettings).toHaveBeenCalledTimes(1);
     });
 
-    it('sends what was recorded when the shell stops at the limit, and ignores the release after', async () => {
+    it('says the recorder failed when the shell could not start', async () => {
+        const fake = fakeRecorder();
+        render(<Harness recorder={fake.recorder} sendImages={jest.fn()} />);
+
+        await openSheet();
+        await tapRecord();
+        await fake.refused('BUSY');
+
+        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.voice.failed', variant: 'destructive' });
+        expect(recordButton()).toBeInTheDocument();
+    });
+
+    it('sends what was recorded when the shell stops at the limit, and closes', async () => {
         const fake = fakeRecorder();
         const sendImages = jest.fn(async () => undefined);
         render(<Harness recorder={fake.recorder} sendImages={sendImages} />);
 
-        await press();
+        await openSheet();
+        await tapRecord();
         await fake.started();
         await fake.push({ reason: 'MAX_DURATION', file: recording, durationMs: 300_000 });
-        await lift();
 
         expect(sendImages).toHaveBeenCalledTimes(1);
-        expect(fake.recorder.stop).not.toHaveBeenCalled();
+        expect(sheetTitle()).not.toBeInTheDocument();
     });
 
-    it('says the recording stopped when the shell was interrupted', async () => {
+    it('says the recording stopped when the shell was interrupted, and lets it record again', async () => {
         const fake = fakeRecorder();
         const sendImages = jest.fn(async () => undefined);
         render(<Harness recorder={fake.recorder} sendImages={sendImages} />);
 
-        await press();
+        await openSheet();
+        await tapRecord();
         await fake.started();
         await fake.push({ reason: 'INTERRUPTED' });
 
         expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.voice.interrupted' });
         expect(sendImages).not.toHaveBeenCalled();
+        expect(recordButton()).toBeInTheDocument();
     });
 
-    it('throws a running recording away when the conversation changes', async () => {
+    it('throws a running recording away and closes when the conversation changes', async () => {
         const fake = fakeRecorder();
         const sendImages = jest.fn(async () => undefined);
         const { rerender } = render(<Harness recorder={fake.recorder} sendImages={sendImages} scope="c1" />);
 
-        await press();
+        await openSheet();
+        await tapRecord();
         await fake.started();
         await act(async () => void rerender(<Harness recorder={fake.recorder} sendImages={sendImages} scope="c2" />));
 
         expect(fake.recorder.stop).toHaveBeenCalledWith('cancel');
-        expect(screen.getByTestId('recording')).toHaveTextContent('false');
+        expect(sendImages).not.toHaveBeenCalled();
+        expect(sheetTitle()).not.toBeInTheDocument();
     });
 
-    it('leaves the recording to the finger that pressed: another one lifting ends nothing', async () => {
-        const fake = fakeRecorder();
-        render(<Harness recorder={fake.recorder} sendImages={jest.fn()} />);
-
-        await press();
-        await fake.started();
-        await lift(2);
-
-        expect(fake.recorder.stop).not.toHaveBeenCalled();
-        expect(screen.getByTestId('recording')).toHaveTextContent('true');
-    });
-
-    it('throws the recording away when typing puts the send button where the microphone was', async () => {
+    it('throws a running recording away when the composer locks', async () => {
         const fake = fakeRecorder();
         const sendImages = jest.fn(async () => undefined);
         const { rerender } = render(<Harness recorder={fake.recorder} sendImages={sendImages} />);
 
-        await press();
+        await openSheet();
+        await tapRecord();
         await fake.started();
-        await act(async () => void rerender(<Harness recorder={fake.recorder} sendImages={sendImages} typed />));
+        await act(async () => void rerender(<Harness recorder={fake.recorder} sendImages={sendImages} disabled />));
 
         expect(fake.recorder.stop).toHaveBeenCalledWith('cancel');
-        expect(sendImages).not.toHaveBeenCalled();
+        expect(sheetTitle()).not.toBeInTheDocument();
     });
 });

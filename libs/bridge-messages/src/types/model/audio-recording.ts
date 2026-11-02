@@ -8,13 +8,13 @@
 // The recording is always AAC-LC, mono, 44.1 kHz, 64 kbps in an `.m4a` (MPEG-4) file, typed
 // `audio/mp4` — one of the server's audio formats, so no conversion follows.
 //
-// The web ships before the app: it offers the microphone only when the handshake lists
+// The web ships before the app: it offers the voice entry only when the handshake lists
 // `StartAudioRecording`, so an app built before these messages never shows the control.
 
 import type { PickedShellAttachment } from './attachment-picker';
 
 /**
- * [Request] Start recording, while the person holds the microphone button.
+ * [Request] Start recording — the tap on the voice-message sheet's microphone.
  *
  * The shell asks for the microphone permission first when it has not been decided, and starts only
  * when it is granted. One recording at a time.

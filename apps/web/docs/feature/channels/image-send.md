@@ -55,7 +55,8 @@ belongs to the viewer's save or share, which acknowledges it once the file is us
 
 ## Picking — `useChatImageAttach`
 
-The composer's leading button opens the attach panel (below) — photos, camera, files. "Files" opens a
+The composer's leading button opens the attach panel (below) — photos, camera, files, and voice inside
+an app that records ([§ Voice messages](#voice-messages)). "Files" opens a
 sheet (`AttachSourceSheet`), titled "파일", listing from files (documents) and then from the album
 (photos and videos). The design also shows a third row, document scan; it is not drawn, since no
 shell can scan a document yet. How photos are picked from the photos entry depends on the shell:
@@ -693,11 +694,11 @@ upload marks one except the name the shell gives every recording, `voice-<yyyyMM
 
 ## Voice messages
 
-`useVoiceMessage` is the composer's hold-to-talk microphone. It stands where the send button is while
-there is nothing to send (`MessageInput`'s `idleSlot`): typing, or a pick waiting above the field, brings
-the send button back. It is drawn only inside an app whose handshake lists `StartAudioRecording`
-(`bridge/audioRecorder.ts`) — never in a browser, and never in an app built before the recorder, rather
-than a button that would fail — never on a locked composer, and not while the attach panel is open: a press there would close the panel and move the composer from under the thumb.
+`useVoiceMessage` records a voice message in a bottom sheet. The attach panel's **Voice** entry, after
+Files, opens it: the panel closes and the sheet takes its place, as the files sheet does. The entry is
+drawn only inside an app whose handshake lists `StartAudioRecording` (`bridge/audioRecorder.ts`) — never
+in a browser, and never in an app built before the recorder, rather than an entry that would fail — and
+never on a locked composer. The composer itself has no microphone: its send button stays where it is.
 
 The page never touches the microphone. The shell records with the OS recorder into its own pick folder
 and hands back the file, an `.m4a` typed `audio/mp4`, which goes up the way a file from the app's
@@ -706,31 +707,34 @@ the pending row, upload progress and retry are the ones every attachment has. Ho
 its limits and the microphone permission are
 [apps/mobile native/audio-recording.md](../../../../mobile/docs/native/audio-recording.md).
 
-- **Press** asks the shell to start (`StartAudioRecording`); the first press asks for the microphone. The
-  button takes the pointer (`setPointerCapture`), so a finger that lifts outside it still ends the
-  press, and `touch-action: none` keeps the page from scrolling under it. Once the shell has started, a
-  red dot, the clock and "‹ slide to cancel" stand over the field, and the attach panel waits.
-- **Release** sends (`StopAudioRecording` `send`). **Sliding left** more than 72 px first, then
-  releasing, throws it away (`cancel`); past that point the hint reads "release to cancel". A
-  `pointercancel` — the system taking the touch — throws it away too.
-- **Under a second** the shell keeps nothing (`TOO_SHORT`), and a toast says to hold the button.
-- **A release before the shell answered** stops the recording the moment it starts. A quick tap is
-  told to hold; a start that took over a second waited on the OS permission prompt, so it says nothing
-  and the next press records.
-- **Refused** (`PERMISSION_DENIED`) opens the settings prompt the camera and photos use, titled for the
-  microphone, with a button to Settings (`OpenSettings`).
+- **The sheet opens idle**: a clock at 0:00 against the 5:00 limit, "tap to record", and a red
+  microphone button. Nothing records until that tap.
+- **The tap** asks the shell to start (`StartAudioRecording`); the first one asks for the microphone, and
+  the recording starts with the answer. Inline audio playing in the room is paused first. Once the
+  shell has started, the dot pulses, the clock runs from the shell's start time, and the microphone
+  gives way to **Cancel** and **Send**.
+- **Send** stops it (`StopAudioRecording` `send`); the file is sent and the sheet closes. **Cancel**
+  throws it away (`cancel`) and closes the sheet, and so does the header's ×.
+- **While it records, only those buttons end it.** The backdrop, a swipe down and Escape are ignored,
+  so a stray touch cannot throw minutes of talk away. Idle, the sheet closes any way a sheet does.
+- **Under a second** the shell keeps nothing (`TOO_SHORT`); a toast says to record longer and the sheet
+  stays, ready again.
+- **Closed before the shell answered** — × while it is starting — the recording is stopped the moment it
+  starts, and nothing is said.
+- **Refused** (`PERMISSION_DENIED`) closes the sheet onto the settings prompt the camera and photos use,
+  titled for the microphone, with a button to Settings (`OpenSettings`). Any other refusal is a toast.
 - **The five-minute limit** ends the recording in the shell, which pushes the end with the file: it is
-  sent as if released there. **An interruption** — a call, the app leaving the screen — throws it away,
-  pushed too, and a toast says the recording stopped.
+  sent as if Send were tapped there, and the sheet closes. **An interruption** — a call, the app leaving
+  the screen — throws it away, pushed too; a toast says the recording stopped and the sheet stays, ready
+  to record again.
 - **Leaving** — the room or thread changing, the composer unmounting, a lock landing — throws a running
-  recording away, and so does typing, which puts the send button where the microphone was. Only the
-  finger that pressed moves, releases or cancels it.
+  recording away and closes the sheet.
 
 ## Not done here
 
 - **Cancel, a hash.** Neither is offered or sent. Upload progress is shown (§ Rendering).
-- **A waveform, a locked recording, a preview before sending.** A voice message is held, released and
-  sent; its card and its recording show only time.
+- **A waveform, pausing a recording, a preview before sending.** A voice message is recorded, then sent
+  or thrown away; its card and its recording sheet show only time.
 - **Documents surviving a reload inside the app.** The record of which file the shell downloaded lives
   in the page, so after a reload the card is `idle` again and the next press downloads once more.
 - **Save and share from a tile.** The viewer has them for photos and videos inside an app that can

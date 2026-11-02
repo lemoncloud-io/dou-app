@@ -49,13 +49,6 @@ export interface MessageInputProps {
      * input and have nothing to attach.
      */
     leadingSlot?: React.ReactNode;
-    /**
-     * Optional control drawn in the send button's place while there is nothing to send — the chat
-     * room's microphone. Typing, or `sendReady`, brings the send button back. A slot for the same
-     * reason as `leadingSlot`: this component never learns what recording is. The pill is positioned,
-     * so the slot may lay something of its own over the field (the recording's clock).
-     */
-    idleSlot?: React.ReactNode;
     className?: string;
 }
 
@@ -86,7 +79,6 @@ export const MessageInput = ({
     onKeyDown,
     inputRef,
     leadingSlot,
-    idleSlot,
     sendReady = false,
     className,
 }: MessageInputProps) => {
@@ -149,7 +141,7 @@ export const MessageInput = ({
                 // `touch-action: manipulation` — no double-tap gesture on the composer, so rapid
                 // repeat sends are handled as plain taps instead of a zoom candidate WebKit has to
                 // disambiguate (which is what made send-send-send drop the keyboard).
-                'relative touch-manipulation',
+                'touch-manipulation',
                 'flex w-full items-center gap-1.5 rounded-[100px] border bg-white/[0.92] px-1.5 py-2 backdrop-blur-[4px] transition-[border-radius,border-color] dark:bg-black/[0.92]',
                 'data-[multiline=true]:items-end data-[multiline=true]:rounded-2xl data-[multiline=true]:py-3',
                 // The border speaks for the field, the button for the message: picked photos with
@@ -170,30 +162,26 @@ export const MessageInput = ({
                 onKeyDown={onKeyDown}
                 className="mt-0.5 min-w-0 flex-1 resize-none self-center bg-transparent pl-1.5 text-[16px] leading-[1.45] tracking-[-0.08px] text-foreground outline-none placeholder:text-description disabled:cursor-not-allowed"
             />
-            {!canSend && idleSlot ? (
-                idleSlot
-            ) : (
-                <button
-                    type="button"
-                    onClick={handleSend}
-                    // Idle (nothing to send) is `aria-disabled`, NOT the `disabled` attribute: a
-                    // disabled form control gets no pointer events at all — not even bubbling ones —
-                    // so the container's keep-the-keyboard preventDefault above would never run and
-                    // tapping it would blur the textarea and drop the software keyboard. The real
-                    // attribute is reserved for the whole-composer `disabled` state, where the
-                    // textarea is disabled too and there is no keyboard left to preserve.
-                    disabled={disabled}
-                    aria-disabled={!canSend}
-                    aria-label={sendLabel}
-                    className={cn(
-                        'flex size-8 shrink-0 items-center justify-center rounded-full p-[9px] transition-colors',
-                        canSend ? 'bg-brand-ink' : 'bg-control-idle',
-                        !canSend && 'cursor-not-allowed'
-                    )}
-                >
-                    <IconSend className="size-[18px] text-white" strokeWidth={2.5} />
-                </button>
-            )}
+            <button
+                type="button"
+                onClick={handleSend}
+                // Idle (nothing to send) is `aria-disabled`, NOT the `disabled` attribute: a
+                // disabled form control gets no pointer events at all — not even bubbling ones —
+                // so the container's keep-the-keyboard preventDefault above would never run and
+                // tapping it would blur the textarea and drop the software keyboard. The real
+                // attribute is reserved for the whole-composer `disabled` state, where the
+                // textarea is disabled too and there is no keyboard left to preserve.
+                disabled={disabled}
+                aria-disabled={!canSend}
+                aria-label={sendLabel}
+                className={cn(
+                    'flex size-8 shrink-0 items-center justify-center rounded-full p-[9px] transition-colors',
+                    canSend ? 'bg-brand-ink' : 'bg-control-idle',
+                    !canSend && 'cursor-not-allowed'
+                )}
+            >
+                <IconSend className="size-[18px] text-white" strokeWidth={2.5} />
+            </button>
         </div>
     );
 };

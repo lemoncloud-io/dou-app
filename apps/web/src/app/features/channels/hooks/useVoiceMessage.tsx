@@ -1,41 +1,25 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic } from 'lucide-react';
+import { ArrowUp, Mic } from 'lucide-react';
 
 import type { OnAudioRecordingEndedPayload } from '@chatic/bridge-messages';
 import type { ChatAttachmentSource } from '@chatic/data';
 import { cn } from '@chatic/ui-kit';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import { AlertDialog, formatVideoDuration } from '@chatic/web-ui-kit';
+import { AlertDialog, BottomSheet, formatVideoDuration } from '@chatic/web-ui-kit';
 
 import { appBridge } from '../../../bridge/appBridge';
 import { toShellFile } from '../../../bridge/attachmentPicker';
-import { audioRecorder as shellAudioRecorder, useCanRecordAudio } from '../../../bridge/audioRecorder';
+import {
+    audioRecorder as shellAudioRecorder,
+    useCanRecordAudio,
+    VOICE_MESSAGE_MAX_MS,
+} from '../../../bridge/audioRecorder';
 import { haptics } from '../../../bridge/haptics';
 
 import { pauseInlineAudio } from './useInlineAudio';
 
-/** How far left the finger has to slide from where it pressed for the release to throw the recording away. */
-export const VOICE_CANCEL_SLIDE_PX = 72;
-
-/**
- * A start that answered later than this waited on the OS permission prompt, not on a round trip: a
- * release before it came is the person answering the prompt, not a short press.
- */
-const PROMPT_ANSWER_MS = 1_000;
-
 type Phase = 'idle' | 'starting' | 'recording' | 'stopping';
-
-/**
- * Calls `onUnmount` when the microphone leaves the page while it may be held: typing a letter swaps it
- * for the send button mid-press, and the release it would have heard never comes.
- */
-const UnmountWatch = ({ onUnmount }: { onUnmount: () => void }) => {
-    const latest = useRef(onUnmount);
-    latest.current = onUnmount;
-    useEffect(() => () => latest.current(), []);
-    return null;
-};
 
 interface UseVoiceMessageInput {
     /** Sends the recording as a message of its own — `useSendImages().sendImages`. */
@@ -51,38 +35,34 @@ interface UseVoiceMessageInput {
 }
 
 export interface VoiceMessage {
-    /**
-     * The microphone, for the composer's send-button place (`MessageInput`'s `idleSlot`), with what
-     * stands over the field while it records — the clock and the slide hint. `null` where the shell
-     * cannot record.
-     */
-    button: ReactNode;
-    /** The settings prompt for a refused microphone. Rendered once, anywhere in the page. */
-    dialogs: ReactNode;
-    /** A recording is starting, running or being stopped: the attach panel waits. */
-    recording: boolean;
+    /** Whether the voice entry is offered: inside an app that records, on a composer that is open. */
+    canRecord: boolean;
+    /** Opens the recording sheet — what the attach panel's voice entry calls. */
+    open: () => void;
+    /** The recording sheet and the settings prompt for a refused microphone. Rendered once in the page. */
+    sheet: ReactNode;
 }
 
 /**
- * The composer's hold-to-talk voice message. Pressing the microphone starts the shell's recorder;
- * releasing sends what was recorded as a message of its own, and sliding the finger left first throws
- * it away. The page never touches the microphone: the shell records into its own folder and hands
- * back the file, which goes up the way a file from the app's documents picker does.
+ * The voice message, recorded in a sheet. The attach panel's voice entry opens it; a tap on its
+ * microphone starts the shell's recorder, and while it records the sheet shows the clock against the
+ * five-minute limit with Cancel and Send. Send stops the recording and sends it as a message of its
+ * own; Cancel throws it away. The page never touches the microphone: the shell records into its own
+ * folder and hands back the file, which goes up the way a file from the app's documents picker does.
  *
- * - **Only where the app records.** The button is drawn when the handshake lists
- *   `StartAudioRecording`, and never in a browser, so an app built before the recorder shows no
- *   control that would fail.
- * - **Pointer capture.** A finger that lifts outside the button still ends the press here; a
- *   `pointercancel` (the system taking the touch) throws the recording away.
- * - **A release before the recorder answered** — a short tap, or the first press that raised the OS
- *   permission prompt — stops it as soon as it has started. A tap is told to hold; a prompt's answer
- *   says nothing, and the next press records.
- * - **Under a second** the shell keeps nothing (`TOO_SHORT`), and the tap is told to hold.
+ * - **Only where the app records.** `canRecord` is true where the handshake lists
+ *   `StartAudioRecording`, and never in a browser, so an app built before the recorder offers no entry
+ *   that would fail.
+ * - **The first tap asks for the microphone**, through the shell. Granted, the recording starts with
+ *   the answer; refused, the sheet gives way to a prompt that leads to Settings.
+ * - **While it records, only its own buttons end it** — Cancel, Send, or the header's ×, which
+ *   cancels. A stray backdrop tap or swipe must not throw minutes of talk away, so both are ignored.
+ * - **Under a second** the shell keeps nothing (`TOO_SHORT`), and the sheet says to record longer.
  * - **The limit** (five minutes) and **an interruption** (a call, the app leaving the screen) are ends
- *   the shell reports by itself: the first is sent, the second is thrown away and said.
- * - **Leaving** — the conversation changing or the composer unmounting — throws a recording away, and
- *   so does typing, which puts the send button where the microphone was.
- * - **One finger.** Only the pointer that pressed moves, releases or cancels the recording.
+ *   the shell reports by itself: the first is sent and the sheet closes; the second is thrown away
+ *   and said, and the sheet stays open to record again.
+ * - **Leaving** — the conversation changing, the composer unmounting, a lock landing — throws a
+ *   recording away and closes the sheet.
  */
 export const useVoiceMessage = ({
     sendImages,
@@ -94,22 +74,15 @@ export const useVoiceMessage = ({
 }: UseVoiceMessageInput): VoiceMessage => {
     const { t } = useTranslation();
     const shellCanRecord = useCanRecordAudio();
-    const canRecord = injectedCanRecord ?? shellCanRecord;
+    const canRecord = (injectedCanRecord ?? shellCanRecord) && !disabled;
+    const [isOpen, setIsOpen] = useState(false);
     const [phase, setPhaseState] = useState<Phase>('idle');
     const phaseRef = useRef<Phase>('idle');
     const [startedAt, setStartedAt] = useState(0);
     const [elapsedMs, setElapsedMs] = useState(0);
-    const [cancelArmed, setCancelArmed] = useState(false);
     const [permissionOpen, setPermissionOpen] = useState(false);
-    const pressRef = useRef<{ at: number; x: number; pointerId: number; released: 'send' | 'cancel' | null }>({
-        at: 0,
-        x: 0,
-        pointerId: -1,
-        released: null,
-    });
-    const slidRef = useRef(false);
-    // Bumped whenever a recording is abandoned from outside — leaving, a lock — so an answer that lands
-    // afterwards knows the press it belongs to is gone.
+    // Bumped whenever the recording under way is thrown away — Cancel while starting, leaving, a lock —
+    // so a start or stop answer that lands afterwards knows what it belonged to is gone.
     const generationRef = useRef(0);
     const sendRef = useRef(sendImages);
     sendRef.current = sendImages;
@@ -125,10 +98,11 @@ export const useVoiceMessage = ({
             switch (ended.reason) {
                 case 'SENT':
                 case 'MAX_DURATION':
+                    setIsOpen(false);
                     void sendRef.current([toShellFile(ended.file)]);
                     return;
                 case 'TOO_SHORT':
-                    toast({ title: t('chat.attach.voice.holdToRecord') });
+                    toast({ title: t('chat.attach.voice.tooShort') });
                     return;
                 case 'INTERRUPTED':
                     toast({ title: t('chat.attach.voice.interrupted') });
@@ -137,27 +111,24 @@ export const useVoiceMessage = ({
                     toast({ title: t('chat.attach.voice.failed'), variant: 'destructive' });
                     return;
                 default:
-                    // Cancelled: the slide was the feedback.
+                    // Cancelled: the person asked for it.
                     return;
             }
         },
         [t]
     );
 
-    const stop = useCallback(
-        async (action: 'send' | 'cancel') => {
-            if (phaseRef.current !== 'recording') return;
-            setPhase('stopping');
-            const generation = generationRef.current;
-            const ended = await recorder.stop(action);
-            // A shell that had already ended it pushed that end, and `onEnded` settled it. Read again:
-            // the await may have moved the phase on.
-            if ((phaseRef.current as Phase) !== 'stopping') return;
-            setPhase('idle');
-            if (ended && generation === generationRef.current) settle(ended);
-        },
-        [recorder, setPhase, settle]
-    );
+    const send = useCallback(async () => {
+        if (phaseRef.current !== 'recording') return;
+        setPhase('stopping');
+        const generation = generationRef.current;
+        const ended = await recorder.stop('send');
+        // A shell that had already ended it pushed that end, and `onEnded` settled it. Read again:
+        // the await may have moved the phase on.
+        if ((phaseRef.current as Phase) !== 'stopping') return;
+        setPhase('idle');
+        if (ended && generation === generationRef.current) settle(ended);
+    }, [recorder, setPhase, settle]);
 
     // The ends the shell reports by itself.
     useEffect(
@@ -180,29 +151,28 @@ export const useVoiceMessage = ({
         return () => clearInterval(timer);
     }, [phase, startedAt, now]);
 
-    /** Throws away whatever is under way: leaving, or a lock. */
-    const abandon = useCallback(() => {
+    /** Throws away whatever is under way. A start still waiting on its answer is stopped when it comes. */
+    const discard = useCallback(() => {
         generationRef.current += 1;
-        const current = phaseRef.current;
-        if (current === 'starting') pressRef.current.released = 'cancel';
-        if (current === 'recording') {
+        if (phaseRef.current === 'recording') {
             setPhase('idle');
             void recorder.stop('cancel');
         }
     }, [recorder, setPhase]);
+
+    /** Leaving or a lock: the recording goes, and so does the sheet. */
+    const abandon = useCallback(() => {
+        discard();
+        setIsOpen(false);
+    }, [discard]);
 
     useEffect(() => abandon, [scope, abandon]);
     useEffect(() => {
         if (disabled) abandon();
     }, [disabled, abandon]);
 
-    const onPointerDown = async (event: PointerEvent<HTMLButtonElement>) => {
-        if (disabled || phaseRef.current !== 'idle') return;
-        // The press is this button's until it lifts, wherever the finger goes.
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-        pressRef.current = { at: now(), x: event.clientX, pointerId: event.pointerId, released: null };
-        slidRef.current = false;
-        setCancelArmed(false);
+    const start = async () => {
+        if (phaseRef.current !== 'idle') return;
         setPhase('starting');
         pauseInlineAudio();
         const generation = generationRef.current;
@@ -211,110 +181,120 @@ export const useVoiceMessage = ({
         if (!result.ok) {
             setPhase('idle');
             if (generation !== generationRef.current) return;
-            if (result.reason === 'PERMISSION_DENIED') setPermissionOpen(true);
-            else toast({ title: t('chat.attach.voice.failed'), variant: 'destructive' });
+            if (result.reason === 'PERMISSION_DENIED') {
+                setIsOpen(false);
+                setPermissionOpen(true);
+            } else {
+                toast({ title: t('chat.attach.voice.failed'), variant: 'destructive' });
+            }
             return;
         }
-
-        const { released } = pressRef.current;
-        if (released || generation !== generationRef.current) {
-            // The finger lifted before the recorder answered: nothing worth sending was said.
-            const answeredAfter = now() - pressRef.current.at;
+        // Thrown away while the shell was starting: stop what it started.
+        if (generation !== generationRef.current) {
             setPhase('stopping');
             await recorder.stop('cancel');
             setPhase('idle');
-            const tap = released === 'send' && generation === generationRef.current;
-            if (tap && answeredAfter < PROMPT_ANSWER_MS) toast({ title: t('chat.attach.voice.holdToRecord') });
             return;
         }
-
         setStartedAt(result.started.startedAt);
         setElapsedMs(0);
         setPhase('recording');
         haptics.play('impact');
     };
 
-    // Another finger on the button is not the press.
-    const isPress = (event: PointerEvent<HTMLButtonElement>) => event.pointerId === pressRef.current.pointerId;
+    const open = useCallback(() => {
+        if (canRecord) setIsOpen(true);
+    }, [canRecord]);
 
-    const onPointerMove = (event: PointerEvent<HTMLButtonElement>) => {
-        if (phaseRef.current === 'idle' || !isPress(event)) return;
-        const slid = pressRef.current.x - event.clientX > VOICE_CANCEL_SLIDE_PX;
-        if (slid !== slidRef.current) {
-            slidRef.current = slid;
-            setCancelArmed(slid);
-        }
-    };
-
-    const release = (action: 'send' | 'cancel') => {
-        if (phaseRef.current === 'starting') {
-            pressRef.current.released = action;
-            return;
-        }
-        void stop(action);
+    const close = () => {
+        // Send was tapped: the answer is on its way, and it closes the sheet itself.
+        if (phaseRef.current === 'stopping') return;
+        discard();
+        setIsOpen(false);
     };
 
     const active = phase !== 'idle';
 
-    const mic = (
-        <button
-            type="button"
-            aria-label={t('chat.attach.voice.record')}
-            disabled={disabled}
-            onPointerDown={event => void onPointerDown(event)}
-            onPointerMove={onPointerMove}
-            onPointerUp={event => isPress(event) && release(slidRef.current ? 'cancel' : 'send')}
-            onPointerCancel={event => isPress(event) && release('cancel')}
-            // A long press must not open the system's own menu, select text, or scroll the page.
-            onContextMenu={event => event.preventDefault()}
-            className={cn(
-                'flex size-8 shrink-0 touch-none select-none items-center justify-center rounded-full transition-[transform,background-color] [-webkit-touch-callout:none]',
-                active ? 'scale-125 bg-destructive' : 'bg-brand-ink',
-                disabled && 'cursor-not-allowed bg-control-idle'
-            )}
-        >
-            <Mic className="size-[18px] text-white" strokeWidth={2.5} aria-hidden />
-        </button>
-    );
-
-    // Laid over the field inside the composer's pill, which is positioned for it; the microphone stays
-    // uncovered at the right, under the finger.
-    const overlay = active ? (
-        <div
-            role="status"
-            aria-live="polite"
-            className="pointer-events-auto absolute inset-y-0 left-0 right-11 flex items-center gap-2 rounded-[100px] bg-white px-4 text-[15px] dark:bg-black"
-        >
-            <span aria-hidden className="size-2 shrink-0 animate-pulse rounded-full bg-destructive" />
-            <span className="tabular-nums text-foreground">{formatVideoDuration(elapsedMs)}</span>
-            <span className={cn('ml-auto truncate', cancelArmed ? 'text-destructive' : 'text-description')}>
-                {t(cancelArmed ? 'chat.attach.voice.releaseToCancel' : 'chat.attach.voice.slideToCancel')}
-            </span>
-        </div>
-    ) : null;
-
-    const dialogs = (
-        <AlertDialog
-            open={permissionOpen}
-            onOpenChange={setPermissionOpen}
-            title={t('chat.attach.permission.microphoneTitle')}
-            description={t('chat.attach.permission.microphoneDescription')}
-            cancelLabel={t('chat.attach.permission.cancel')}
-            confirmLabel={t('chat.attach.permission.settings')}
-            onConfirm={() => {
-                setPermissionOpen(false);
-                appBridge.openSettings();
-            }}
-        />
-    );
-
-    const button = canRecord ? (
+    const sheet = (
         <>
-            {overlay}
-            {mic}
-            <UnmountWatch onUnmount={() => release('cancel')} />
+            <BottomSheet
+                open={isOpen}
+                // The backdrop, a swipe, Escape: ignored while a recording is under way.
+                onOpenChange={next => {
+                    if (!next && !active) close();
+                }}
+                onClose={close}
+                title={t('chat.attach.voice.title')}
+                description={t('chat.attach.voice.description')}
+                closeLabel={t('common.close')}
+                disableDragToDismiss={active}
+            >
+                <div className="flex flex-col items-center gap-4 px-6 pb-6 pt-2">
+                    <div role="timer" className="flex items-baseline gap-1.5 tabular-nums">
+                        <span
+                            aria-hidden
+                            className={cn(
+                                'mb-1 size-2.5 self-center rounded-full',
+                                phase === 'recording' ? 'animate-pulse bg-destructive' : 'bg-control-idle'
+                            )}
+                        />
+                        <span className="text-[32px] font-semibold text-foreground">
+                            {formatVideoDuration(phase === 'recording' || phase === 'stopping' ? elapsedMs : 0)}
+                        </span>
+                        <span className="text-[15px] text-description">
+                            / {formatVideoDuration(VOICE_MESSAGE_MAX_MS)}
+                        </span>
+                    </div>
+                    <p className="text-center text-[14px] text-description">
+                        {t(active ? 'chat.attach.voice.recordingHint' : 'chat.attach.voice.tapToRecord')}
+                    </p>
+                    {phase === 'recording' || phase === 'stopping' ? (
+                        <div className="flex w-full gap-3 pt-2">
+                            <button
+                                type="button"
+                                onClick={close}
+                                disabled={phase === 'stopping'}
+                                className="h-12 flex-1 rounded-full bg-secondary text-[16px] font-semibold text-foreground disabled:opacity-40"
+                            >
+                                {t('chat.attach.voice.cancel')}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => void send()}
+                                disabled={phase === 'stopping'}
+                                className="flex h-12 flex-1 items-center justify-center gap-1.5 rounded-full bg-brand-ink text-[16px] font-semibold text-white disabled:opacity-40"
+                            >
+                                <ArrowUp className="size-[18px]" strokeWidth={2.5} aria-hidden />
+                                {t('chat.attach.voice.send')}
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => void start()}
+                            disabled={phase === 'starting'}
+                            aria-label={t('chat.attach.voice.record')}
+                            className="mt-2 flex size-[72px] items-center justify-center rounded-full bg-destructive text-white transition-opacity active:opacity-80 disabled:opacity-40"
+                        >
+                            <Mic className="size-8" strokeWidth={2.25} aria-hidden />
+                        </button>
+                    )}
+                </div>
+            </BottomSheet>
+            <AlertDialog
+                open={permissionOpen}
+                onOpenChange={setPermissionOpen}
+                title={t('chat.attach.permission.microphoneTitle')}
+                description={t('chat.attach.permission.microphoneDescription')}
+                cancelLabel={t('chat.attach.permission.cancel')}
+                confirmLabel={t('chat.attach.permission.settings')}
+                onConfirm={() => {
+                    setPermissionOpen(false);
+                    appBridge.openSettings();
+                }}
+            />
         </>
-    ) : null;
+    );
 
-    return { button, dialogs, recording: active };
+    return { canRecord, open, sheet };
 };

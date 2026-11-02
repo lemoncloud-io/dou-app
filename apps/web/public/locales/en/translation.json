@@ -1169,12 +1169,17 @@
                 "save": "Save"
             },
             "voice": {
-                "record": "Hold to record a voice message",
-                "holdToRecord": "Hold to record",
+                "entry": "Voice",
+                "title": "Voice message",
+                "description": "Record a voice message and send it to this conversation",
+                "record": "Start recording",
+                "tapToRecord": "Tap to record. Up to 5 minutes.",
+                "recordingHint": "Recording…",
+                "send": "Send",
+                "cancel": "Cancel",
+                "tooShort": "Record for at least a second",
                 "interrupted": "Recording stopped",
-                "failed": "Couldn't record",
-                "slideToCancel": "‹ Slide to cancel",
-                "releaseToCancel": "Release to cancel"
+                "failed": "Couldn't record"
             }
         },
         "preview": {

@@ -3,7 +3,7 @@ import Foundation
 import React
 import UIKit
 
-/// AudioRecorder — records a voice message while the person holds the microphone button.
+/// AudioRecorder — records a voice message, from the tap on the recording sheet to Send or Cancel.
 ///
 /// The recording is written with `AVAudioRecorder` straight into a pick folder of its own,
 /// `Caches/attach-pick/<uuid>/voice-yyyyMMdd-HHmmss.m4a`, and answered with the same `file` reference a

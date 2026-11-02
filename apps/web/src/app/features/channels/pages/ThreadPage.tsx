@@ -311,9 +311,10 @@ export const ThreadPage = () => {
     const voice = useVoiceMessage({ sendImages: imageSend.sendImages, disabled: imageLocked, scope: draftScope });
     const attach = useChatImageAttach({
         sendImages: imageSend.sendImages,
-        disabled: imageLocked || voice.recording,
+        disabled: imageLocked,
         // The route keeps this page mounted from one thread to the next; what waits is this thread's.
         scope: draftScope,
+        onVoice: voice.canRecord ? voice.open : undefined,
         inputRef,
         composerRef,
         // The room's rule: through the attach panel's slide the list follows the composer frame by
@@ -910,12 +911,10 @@ export const ThreadPage = () => {
                             attach.button
                         )
                     }
-                    // The room's rule: never on a locked composer, nor while the attach panel is open.
-                    idleSlot={imageLocked || attach.panelOpen ? undefined : voice.button}
                 />
             </div>
             {attach.overlays}
-            {voice.dialogs}
+            {voice.sheet}
 
             <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
 

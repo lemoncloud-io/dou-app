@@ -26,7 +26,7 @@ export const recordingLimit = (requested: unknown): number =>
  * Relays `StartAudioRecording` and `StopAudioRecording` to the native recorder, and the ends it
  * reports by itself as the `OnAudioRecordingEnded` push.
  *
- * The microphone permission is asked for here, at the first press, and not by native code: the same
+ * The microphone permission is asked for here, at the first start, and not by native code: the same
  * `PermissionService` the rest of the app asks through, so a refusal reads the same everywhere. A
  * refusal is `PERMISSION_DENIED`, which the web turns into a way to Settings.
  */

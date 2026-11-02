@@ -89,7 +89,7 @@ answering. A browser is never asked. What home uses it for →
 `audioRecorder.start()` / `stop(action)` drive the shell's recorder (`StartAudioRecording`,
 `StopAudioRecording`), and `onEnded` hears the end the shell pushes by itself — its five-minute limit,
 or an interruption (`OnAudioRecordingEnded`). `isSupported` (and the `useCanRecordAudio` hook) is
-`shellCapabilities.supports('StartAudioRecording')`: the microphone is drawn only where the handshake
+`shellCapabilities.supports('StartAudioRecording')`: the voice entry is drawn only where the handshake
 lists it, never in a browser or an app built before the recorder. The start waits up to five minutes,
 since the first one waits on the OS permission prompt; a stop, thirty seconds. A stop answered
 `NOT_RECORDING` comes back as `null` — the shell had already ended the recording and pushed it. The

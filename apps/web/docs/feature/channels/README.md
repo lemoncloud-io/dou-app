@@ -107,7 +107,7 @@ app's own picker through `bridge/attachmentPicker.ts` (`PickAttachments`, `Prepa
 input instead), the uploads through `bridge/shellUpload.ts` (the shell's file-transfer messages), and
 the camera entry's permission check through `bridge/cameraAccess.ts` (`RequestPermission`), and a
 voice message through `bridge/audioRecorder.ts` (`StartAudioRecording`, `StopAudioRecording`; the
-microphone is drawn only where the handshake lists them).
+attach panel's voice entry is drawn only where the handshake lists them).
 The viewer's save and share download through `bridge/shellDownload.ts`, and show only when the app's
 handshake lists both messages ([image-export.md](./image-export.md)).
 
