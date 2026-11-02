@@ -4,7 +4,22 @@ import { describe, expect, it } from 'vitest';
 import { Blob as NodeBlob } from 'node:buffer';
 
 import type { ChatFile } from './chatImages';
-import { TEXT_PREVIEW_MAX_BYTES, canPreview, readTextPreview } from './filePreview';
+import { TEXT_PREVIEW_MAX_BYTES, canPreview, formatPlaybackTime, readTextPreview } from './filePreview';
+
+describe('formatPlaybackTime', () => {
+    it('reads m:ss, and h:mm:ss from an hour, rounded down', () => {
+        expect(formatPlaybackTime(2.9)).toBe('0:02');
+        expect(formatPlaybackTime(125)).toBe('2:05');
+        expect(formatPlaybackTime(3725)).toBe('1:02:05');
+    });
+
+    // The browser reports NaN before the header arrives, and Infinity for a stream.
+    it('reads a length it does not know as 0:00', () => {
+        expect(formatPlaybackTime(Number.NaN)).toBe('0:00');
+        expect(formatPlaybackTime(Number.POSITIVE_INFINITY)).toBe('0:00');
+        expect(formatPlaybackTime(-1)).toBe('0:00');
+    });
+});
 
 const bytes = (parts: (string | Uint8Array)[]): Blob => new NodeBlob(parts) as unknown as Blob;
 

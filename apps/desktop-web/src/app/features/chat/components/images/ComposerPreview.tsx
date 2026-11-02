@@ -20,13 +20,21 @@ const toChatFile = (attachment: ComposerAttachment): ChatFile => ({
     url: attachment.url,
 });
 
+/** Whether a tray tile is a voice file the tile itself plays, from the tray's object URL. */
+export const isAudioAttachment = (attachment: ComposerAttachment): boolean =>
+    !!attachment.url && attachment.kind === 'file' && canPreview(toChatFile(attachment)) === 'audio';
+
 /**
  * Whether a tray tile opens in `ComposerPreview`. An image or a video always does; a document only
- * when the feed's viewer would draw or play it (PDF, text, voice) — nothing in the page draws an office
- * or Hancom file.
+ * when the feed's viewer would draw it (PDF, text) — nothing in the page draws an office or Hancom
+ * file, and a voice file plays in its tile instead.
  */
-export const canPreviewAttachment = (attachment: ComposerAttachment): boolean =>
-    !!attachment.url && (attachment.kind !== 'file' || canPreview(toChatFile(attachment)) !== null);
+export const canPreviewAttachment = (attachment: ComposerAttachment): boolean => {
+    if (!attachment.url) return false;
+    if (attachment.kind !== 'file') return true;
+    const preview = canPreview(toChatFile(attachment));
+    return preview !== null && preview !== 'audio';
+};
 
 interface ComposerPreviewProps {
     /** A tile `canPreviewAttachment` opens. */

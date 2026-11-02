@@ -470,6 +470,54 @@
         border-radius: 9999px;
         background: hsl(var(--primary));
     }
+
+    /* A voice file card's seek bar: the played part filled up to `--seek-progress` (set inline from
+       the playback time), the rest a faint track, and a small thumb. Native for the same reasons. */
+    .seek-slider {
+        appearance: none;
+        background: transparent;
+        height: 16px;
+    }
+    .seek-slider::-webkit-slider-runnable-track {
+        height: 3px;
+        border-radius: 9999px;
+        background: linear-gradient(
+            to right,
+            hsl(var(--foreground)) var(--seek-progress, 0%),
+            hsl(var(--foreground) / 0.15) var(--seek-progress, 0%)
+        );
+    }
+    .seek-slider::-moz-range-track {
+        height: 3px;
+        border-radius: 9999px;
+        background: linear-gradient(
+            to right,
+            hsl(var(--foreground)) var(--seek-progress, 0%),
+            hsl(var(--foreground) / 0.15) var(--seek-progress, 0%)
+        );
+    }
+    .seek-slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 11px;
+        height: 11px;
+        margin-top: -4px;
+        border: 0;
+        border-radius: 9999px;
+        background: hsl(var(--foreground));
+    }
+    .seek-slider::-moz-range-thumb {
+        width: 11px;
+        height: 11px;
+        border: 0;
+        border-radius: 9999px;
+        background: hsl(var(--foreground));
+    }
+    .seek-slider:disabled::-webkit-slider-thumb {
+        visibility: hidden;
+    }
+    .seek-slider:disabled::-moz-range-thumb {
+        visibility: hidden;
+    }
 }
 
 /* Honor prefers-reduced-motion globally (PRODUCT.md commitment). Neutralizes the
