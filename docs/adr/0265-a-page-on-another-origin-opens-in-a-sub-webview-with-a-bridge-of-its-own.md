@@ -71,6 +71,14 @@ screen.** The web asks with `OpenSubWebView { url, title?, params? }` and hears 
   `OpenURL` (an older app) or a new tab (a browser). A refusal from an app that has it rejects instead
   of falling back.
 
+> **Addendum (2026-11-02) — `OpenShareSheet` joins the subset** (`BRIDGE_VERSION` 2.12.0). A page may
+> open the OS share sheet with a title, a message and a link. It gets a handler of its own on the sub
+> WebView's host, as the rule above asks: the link must be `http:` or `https:`, because on iOS the share
+> sheet treats a `file:` URL as the file itself and a page could otherwise hand another app a file from
+> the app's container. Unlike `OpenURL`, the app's own links are not refused — a shared link is text
+> the user sends on, not a navigation, and the message is free text that could carry the same link
+> anyway. The rest of this decision is unchanged.
+
 ## Alternatives
 
 - **Load the page in the main WebView.** Rejected: it would hand the page the injected identifiers,

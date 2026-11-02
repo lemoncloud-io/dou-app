@@ -27,7 +27,8 @@
 //         page on another origin shown in a second WebView with no bridge of its own.
 // 2.11.0: added FinishSubWebView and SetSubWebViewTitle (sub WebView page -> app), the
 //         OnSubWebViewContextChanged push, OpenSubWebView `params` and OnSubWebViewClosed `result`.
-export const BRIDGE_VERSION = '2.11.0' as const;
+// 2.12.0: a sub WebView page may send OpenShareSheet; its host's handshake lists it.
+export const BRIDGE_VERSION = '2.12.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

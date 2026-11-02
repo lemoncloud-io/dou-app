@@ -1,13 +1,16 @@
 import type {
     HapticKind,
+    OpenShareSheetPayload,
     SubWebViewRequestType,
     WebMessageData,
     WebMessageHandlerResponse,
 } from '@chatic/bridge-messages';
+import type { ShareAction } from 'react-native';
 
 import type { IHapticBridge } from '../bridge';
 import type { IClipboardService, ISubWebViewService } from '../services';
 import { SUB_WEBVIEW_TITLE_LIMIT } from '../services/subWebView/subWebViewData';
+import { originOf } from '../utils/url';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
 
 /** The requests this table answers: the subset minus the two the host answers itself. */
@@ -29,9 +32,24 @@ export interface SubBridgeDeps {
     haptic: IHapticBridge;
     openExternal: (url: string) => Promise<void>;
     setTitle: (title: string) => void;
+    openShareSheet: (data: Pick<OpenShareSheetPayload, 'title' | 'message' | 'url'>) => Promise<ShareAction>;
 }
 
 const HAPTIC_KINDS: readonly HapticKind[] = ['selection', 'impact'];
+
+/** Caps on what a page may put in the share sheet; far above what a share needs. */
+const SHARE_TITLE_LIMIT = 100;
+const SHARE_MESSAGE_LIMIT = 4000;
+const SHARE_URL_LIMIT = 2048;
+
+/**
+ * A field the page may leave out — absent or `null`, which JSON serializers emit for a missing value —
+ * or a string within `limit`; `null` when it is neither.
+ */
+const optionalText = (value: unknown, limit: number): string | undefined | null => {
+    if (value == null) return undefined;
+    return typeof value === 'string' && value.length <= limit ? value : null;
+};
 
 const fail = <T extends string>(type: T, code: string, message: string) => ({
     type,
@@ -98,6 +116,34 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             return { type: 'OnOpenURL', success: true, data: {} };
         } catch (e) {
             return fail('OnOpenURL', 'OPEN_URL_FAILED', (e as Error)?.message ?? 'Failed to open the link.');
+        }
+    },
+
+    // Text and a web link only. The link is not opened, so the app's own links may be shared like any
+    // other text, but a `file:` URL would hand the OS a file from the app's container on iOS.
+    OpenShareSheet: async message => {
+        const title = optionalText(message.data?.title, SHARE_TITLE_LIMIT);
+        const text = optionalText(message.data?.message, SHARE_MESSAGE_LIMIT);
+        const url = optionalText(message.data?.url, SHARE_URL_LIMIT);
+        if (title === null || text === null || url === null || url === '' || (!text?.trim() && !url)) {
+            return fail(
+                'OnOpenShareSheet',
+                'INVALID',
+                'Share a message or a url; title, message and url must be strings within their limits.'
+            );
+        }
+        if (url !== undefined && originOf(url) === null) {
+            return fail('OnOpenShareSheet', 'LINK_NOT_ALLOWED', 'Only an http or https url can be shared.');
+        }
+        try {
+            const result = await deps.openShareSheet({ title, message: text, url });
+            return {
+                type: 'OnOpenShareSheet',
+                success: true,
+                data: { action: result.action, activityType: result.activityType ?? null },
+            };
+        } catch (e) {
+            return fail('OnOpenShareSheet', 'SHARE_ERROR', (e as Error)?.message ?? 'Failed to open the share sheet.');
         }
     },
 });

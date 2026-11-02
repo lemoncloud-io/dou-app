@@ -15,6 +15,7 @@ const SUBSET: SubWebViewRequestType[] = [
     'CopyToClipboard',
     'TriggerHaptic',
     'OpenURL',
+    'OpenShareSheet',
 ];
 
 const createHost = () => {
@@ -28,6 +29,7 @@ const createHost = () => {
             haptic: { trigger: jest.fn(() => true) },
             openExternal: jest.fn(async () => undefined),
             setTitle: jest.fn(),
+            openShareSheet: jest.fn(async () => ({ action: 'sharedAction' as const })),
         })
     );
     return { host, sent };

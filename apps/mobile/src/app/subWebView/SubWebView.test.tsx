@@ -34,6 +34,7 @@ jest.mock('../services', () => ({
     logger: { warn: jest.fn() },
     clipboardService: { setText: jest.fn(async () => undefined) },
     subWebViewService: { close: jest.fn(() => ({ ok: true })) },
+    deviceService: { openShareSheet: jest.fn(async () => ({ action: 'sharedAction' })) },
 }));
 jest.mock('../stores', () => ({
     useLanguageStore: (select: (state: { preference: string }) => unknown) => select({ preference: 'ko' }),
@@ -131,6 +132,23 @@ describe('SubWebView', () => {
         await settle();
 
         expect(onTitleRequest).toHaveBeenCalledWith('Orders');
+    });
+
+    it("opens the app's share sheet for the page", async () => {
+        const { deviceService } = jest.requireMock('../services');
+        renderView();
+
+        mockWebViewProps.onMessage(
+            pageMessage(URL_, 'OpenShareSheet', { message: 'I scored 12', url: 'https://foo.apps.chatic.io/' })
+        );
+        await settle();
+
+        expect(deviceService.openShareSheet).toHaveBeenCalledWith({
+            title: undefined,
+            message: 'I scored 12',
+            url: 'https://foo.apps.chatic.io/',
+        });
+        expect(sentTypes()).toContain('OnOpenShareSheet');
     });
 
     // A reloaded page gets a fresh host: nothing is pushed to it before its own handshake.
