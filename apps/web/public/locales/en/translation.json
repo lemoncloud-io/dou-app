@@ -205,9 +205,9 @@
                     "title": "Echo",
                     "subtitle": "Remember the order of lights, sounds and buzzes"
                 },
-                "raiseDou": {
-                    "title": "Raise DoU",
-                    "subtitle": "Feed and train your DoU, evolve it, and power up its gear"
+                "enhanceDou": {
+                    "title": "Enhance DoU",
+                    "subtitle": "Spend gold to enhance DoU up to +25 and collect its looks"
                 }
             }
         },
