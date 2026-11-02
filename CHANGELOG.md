@@ -2,6 +2,12 @@
 
 ## [2026-11-02] - No version updates
 
+### Features
+
+- (web,config) list the sub WebView pages in the Lab behind debug mode, as "In-app"
+
+## [2026-11-02] - No version updates
+
 ### Bug Fixes
 
 - (data) send an office file the OS mistypes, not refuse it
