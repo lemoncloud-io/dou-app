@@ -29,6 +29,7 @@ import {
     useNativeStorageHandler,
     usePerfHandler,
     useUnfurlHandler,
+    useSubWebViewHandler,
 } from './index';
 
 import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
@@ -161,6 +162,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleApplyCustomZip, handleDisableCustomZip, handleFetchCustomZipStatus } = useCustomZipHandler();
     const { handleFetchUrlMetadata } = useUnfurlHandler();
     const { handleFetchNativeStorageSummary, handleClearNativeCache } = useNativeStorageHandler();
+    const { handleOpenSubWebView, handleCloseSubWebView } = useSubWebViewHandler(bridge);
 
     const {
         handleFetchTestRecord,
@@ -263,6 +265,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleSaveAllTestRecords,
         handleClearTestRecords,
         handleFetchUrlMetadata,
+        handleOpenSubWebView,
+        handleCloseSubWebView,
     });
 
     useEffect(() => {
@@ -358,6 +362,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleManagePhotoSelection,
             handleKeepLibraryVideo,
             handleFetchUrlMetadata,
+            handleOpenSubWebView,
+            handleCloseSubWebView,
         };
     });
 
@@ -446,6 +452,8 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             ClearNativeCache: message => handlersRef.current.handleClearNativeCache(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
+            OpenSubWebView: message => handlersRef.current.handleOpenSubWebView(message),
+            CloseSubWebView: message => handlersRef.current.handleCloseSubWebView(message),
             // Registered only where the native module exists. A build without it leaves the web its
             // NOT_FOUND, which is the signal to fall back to the page's own file input.
             ...(isPhotoLibraryAvailable && {

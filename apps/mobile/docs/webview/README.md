@@ -5,6 +5,9 @@ typed message, and a handler hook answers it through a service.
 
 > To inspect webview console output and errors at the code level (Safari Web Inspector /
 > `chrome://inspect`), see [webview-debugging.md](./webview-debugging.md).
+>
+> The second WebView the shell shows over this one, for a page on another origin, is in
+> [sub-webview.md](./sub-webview.md). It shares none of what follows: no bridge, no injection.
 
 ## Key files
 
@@ -13,8 +16,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`                             | Renders the `WebView`, wires the injected runtime scripts, tracks ready state                                |
 | `src/app/webview/hooks/useBaseBridge.ts`                     | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler                                   |
 | `src/app/webview/hooks/useAppBridge.ts`                      | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                                                |
-| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 28 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
-| `src/app/webview/hooks/*Handler.ts`                          | 29 domain handlers, one per capability group                                                                 |
+| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 30 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
+| `src/app/webview/hooks/*Handler.ts`                          | 31 domain handlers, one per capability group                                                                 |
 | `src/app/webview/hooks/useWebMessageRouter.contract.test.ts` | The bridge contract: what this shell answers, and what it leaves unsupported                                 |
 | `src/app/webview/utils/injectionScripts.ts`                  | Builds the scripts injected before the WebView loads                                                         |
 
@@ -199,15 +202,16 @@ sends it, and the web reads it through `webClient.onEvent`. Nothing answers an e
 the web side notices one that never comes or arrives in the wrong shape — which is why this
 direction has its own contract tests.
 
-| Event                                   | Pushed by                   | When                                                                                                                                   |
-| --------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `OnBackPressed`                         | `useAndroidBack`            | Android back press, only while the web has reported `SetCanGoBack` true or the WebView has history; otherwise the press goes to the OS |
-| `OnBackgroundStatusChanged`             | `useAppStateHandler`        | On mount and on every `AppState` change, except while the state is `unknown`                                                           |
-| `OnNavigate`                            | `useDeepLinkNavigation`     | A deep link or a notification tap, warm or cold start, that resolves to a web path; a room path carries a `perfTrace`                  |
-| `OnReceiveNotification`                 | `useFcmHandler`             | A push received in the foreground — from the notification library, or relayed by Android's native service                              |
-| `OnUpdateDeviceInfo`                    | `useVersionCheckHandler`    | When the store version check finds a newer version — iOS only for now, since Android's check reports none                              |
-| `OnFileTransferState`                   | `fileTransferHandlers`      | Every state change the native transfer manager reports; the payload is passed through                                                  |
-| `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                  |
+| Event                                   | Pushed by                   | When                                                                                                                                                      |
+| --------------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OnBackPressed`                         | `useAndroidBack`            | Android back press, only while the web has reported `SetCanGoBack` true or the WebView has history, and no sub WebView shows; otherwise the press goes on |
+| `OnBackgroundStatusChanged`             | `useAppStateHandler`        | On mount and on every `AppState` change, except while the state is `unknown`                                                                              |
+| `OnNavigate`                            | `useDeepLinkNavigation`     | A deep link or a notification tap, warm or cold start, that resolves to a web path; a room path carries a `perfTrace`                                     |
+| `OnReceiveNotification`                 | `useFcmHandler`             | A push received in the foreground — from the notification library, or relayed by Android's native service                                                 |
+| `OnUpdateDeviceInfo`                    | `useVersionCheckHandler`    | When the store version check finds a newer version — iOS only for now, since Android's check reports none                                                 |
+| `OnFileTransferState`                   | `fileTransferHandlers`      | Every state change the native transfer manager reports; the payload is passed through                                                                     |
+| `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                                     |
+| `OnSubWebViewClosed`                    | `subWebViewHandlers`        | A sub WebView closed — by the user, by `CloseSubWebView`, or by the shell before a deep link or a push tap; not when the web reloaded under it            |
 
 `OnUpdateStatus` is the one push-only message this shell never sends: the desktop updates itself,
 the phone through the store. `OnOpenURL` is not an event despite the name — it is the reply to the

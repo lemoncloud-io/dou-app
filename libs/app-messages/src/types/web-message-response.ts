@@ -108,6 +108,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     RestartToUpdate: 'OnRestartToUpdate',
     CheckAppUpdate: 'OnCheckAppUpdate',
     OpenStore: 'OnOpenStore',
+    OpenSubWebView: 'OnOpenSubWebView',
+    CloseSubWebView: 'OnCloseSubWebView',
 } as const satisfies Record<WebMessageType, AppMessageType>;
 
 export type WebMessageResponseTypeMap = typeof WEB_MESSAGE_RESPONSE_TYPE;

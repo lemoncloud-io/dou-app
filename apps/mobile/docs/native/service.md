@@ -7,7 +7,7 @@ they look only downward" — `services/` imports nothing from `webview/` or `fea
 
 ## Layout
 
-20 domains, each shaped the same way:
+21 domains, each shaped the same way:
 
 ```text
 services/<domain>/
@@ -49,7 +49,8 @@ is framed, what the reply payload looks like, or how a native screen renders —
   data sources, `cacheCrudService`, `cacheSearchService`, `testRecordService`, `nativeStorageService`,
   `deviceService`, `clipboardService`, `smsService`, `permissionService`, `oauthService`,
   `dynamicAppIconService`, `firebaseInstallationService`, `subscriptionIapService`,
-  `preferenceService`, `configKvService`, `versionService`, `unfurlService`. `sqliteDatabase` opens
+  `preferenceService`, `configKvService`, `versionService`, `unfurlService`, `subWebViewService`.
+  `sqliteDatabase` opens
   on the first read of any lazy getter that needs it, not at boot — see
   [../boot/boot-optimization.md](../boot/boot-optimization.md) section 4.4, which this split exists to satisfy.
 

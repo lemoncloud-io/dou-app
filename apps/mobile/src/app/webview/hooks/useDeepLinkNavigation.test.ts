@@ -11,6 +11,8 @@ let mockCapturedOnOpened: ((msg: any) => void) | undefined;
 let mockCapturedSubscribe: ((url: string) => void) | undefined;
 let mockGetInitialResult: any = null;
 let mockGetInitialUrl: string | null = null;
+let mockSubView: { viewId: string } | null = null;
+const mockCloseSubWebView = jest.fn();
 
 jest.mock('../../features/core/navigation/navigationRef', () => ({
     navigationRef: { isReady: jest.fn(() => true), reset: jest.fn() },
@@ -18,6 +20,10 @@ jest.mock('../../features/core/navigation/navigationRef', () => ({
 
 jest.mock('../../services', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
+    subWebViewService: {
+        current: () => mockSubView,
+        close: (...args: unknown[]) => mockCloseSubWebView(...args),
+    },
     deeplinkService: {
         resolvePushTap: jest.fn(),
         resolveInbound: jest.fn(),
@@ -45,6 +51,7 @@ describe('useDeepLinkNavigation', () => {
         mockCapturedSubscribe = undefined;
         mockGetInitialResult = null;
         mockGetInitialUrl = null;
+        mockSubView = null;
         bridge = { pushEvent: jest.fn() };
     });
 
@@ -191,6 +198,35 @@ describe('useDeepLinkNavigation', () => {
 
             expect(navigationRef.reset).toHaveBeenCalledWith(state);
             expect(bridge.pushEvent).not.toHaveBeenCalled();
+        });
+
+        // The sub WebView would cover where the link goes; it closes, and says why, first.
+        it('closes a showing sub WebView as system before it navigates the web', () => {
+            mockSubView = { viewId: 'view-1' };
+            mockCloseSubWebView.mockImplementation(() => bridge.pushEvent({ type: 'OnSubWebViewClosed' }));
+            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/channels/1/room/' });
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+
+            act(() => {
+                mockCapturedSubscribe?.('chatic://channels/1/room');
+            });
+
+            expect(mockCloseSubWebView).toHaveBeenCalledWith('view-1', 'system');
+            expect(bridge.pushEvent.mock.calls.map(([event]) => event.type)).toEqual([
+                'OnSubWebViewClosed',
+                'OnNavigate',
+            ]);
+        });
+
+        it('closes nothing when no sub WebView shows', () => {
+            (deeplinkService.resolveInbound as jest.Mock).mockReturnValue({ kind: 'web', path: '/channels/1/room/' });
+            renderHook(() => useDeepLinkNavigation(bridge as any));
+
+            act(() => {
+                mockCapturedSubscribe?.('chatic://channels/1/room');
+            });
+
+            expect(mockCloseSubWebView).not.toHaveBeenCalled();
         });
 
         it('invalid 딥링크는 deepLinkError를 세운다', () => {

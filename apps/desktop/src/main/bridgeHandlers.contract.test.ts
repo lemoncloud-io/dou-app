@@ -43,6 +43,7 @@ const PHONE_TOOLING = "The phone shell's boot, resume, perf and debug-panel tool
 const STORE_IAP = 'Store purchases happen on the phones only';
 const SYSTEM_BROWSER_LOGIN = 'Desktop social login runs in the system browser and returns by deeplink';
 const STORE_UPDATE = 'Store update check; desktop updates itself (StartUpdateDownload / RestartToUpdate)';
+const SUB_WEBVIEW = "The phone shell's second WebView; desktop-web never asks for it";
 
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` the desktop shell deliberately leaves unregistered. The
@@ -138,6 +139,8 @@ const DESKTOP_UNSUPPORTED = {
     ClearTestRecords: NO_STORE,
     CheckAppUpdate: STORE_UPDATE,
     OpenStore: STORE_UPDATE,
+    OpenSubWebView: SUB_WEBVIEW,
+    CloseSubWebView: SUB_WEBVIEW,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 /**

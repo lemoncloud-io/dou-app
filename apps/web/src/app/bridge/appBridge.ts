@@ -545,6 +545,20 @@ export const appBridge = {
         webClient.post({ type: 'TriggerHaptic', data: { kind } });
     },
 
+    /**
+     * Show `url` in the shell's sub WebView, over the app. Rejects with the shell's code when it
+     * refuses (`NOT_ALLOWED`, `ALREADY_OPEN`, …). Call it through `openSubWebView`, which checks
+     * the shell has it first.
+     */
+    openSubWebView(url: string, title?: string): Promise<WebMessageResponse<'OpenSubWebView'>> {
+        return webClient.request({ type: 'OpenSubWebView', data: { url, ...(title ? { title } : {}) } });
+    },
+
+    /** Close the sub WebView this page opened; `OnSubWebViewClosed` follows. */
+    closeSubWebView(viewId: string): Promise<WebMessageResponse<'CloseSubWebView'>> {
+        return webClient.request({ type: 'CloseSubWebView', data: { viewId } });
+    },
+
     /** Write text to the OS clipboard — the native one, not the browser's. */
     copyToClipboard(text: string): Promise<WebMessageResponse<'CopyToClipboard'>> {
         return webClient.request({ type: 'CopyToClipboard', data: { text } });

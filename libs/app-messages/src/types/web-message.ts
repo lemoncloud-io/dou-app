@@ -73,6 +73,8 @@ import type {
     ReleaseShareIntakePayload,
     OpenSettingsPayload,
     OpenStorePayload,
+    OpenSubWebViewPayload,
+    CloseSubWebViewPayload,
     GetContactsPayload,
     FetchAppIconPayload,
     FetchAppIconListPayload,
@@ -236,6 +238,10 @@ export type WebMessagePayloadMap = {
     // 10. App Update (mobile)
     CheckAppUpdate: CheckAppUpdatePayload;
     OpenStore: OpenStorePayload;
+
+    // 11. Sub WebView. Newer than most shells: the web asks only when the handshake lists it.
+    OpenSubWebView: OpenSubWebViewPayload;
+    CloseSubWebView: CloseSubWebViewPayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */

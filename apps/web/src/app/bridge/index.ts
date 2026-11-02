@@ -7,3 +7,4 @@ export * from './GlobalBridgeListener';
 export * from './navigation';
 export * from './languageChoice';
 export * from './haptics';
+export * from './subWebView';
