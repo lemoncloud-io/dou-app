@@ -151,6 +151,9 @@ export const SubWebView = ({ viewId, url, params, onRequestClose, onTitleChange,
             // this list first and hands whatever fails it straight to the OS, the app's own schemes
             // included, without asking `onShouldStartLoadWithRequest`.
             originWhitelist={['*']}
+            // Inspectable from Safari Web Inspector and `chrome://inspect` in a development build,
+            // as the main WebView is; iOS 16.4+ shows no WebView there without it.
+            webviewDebuggingEnabled={__DEV__}
             onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
             onNavigationStateChange={onNavigationStateChange}
             // `target=_blank` and `window.open` load in this view, through the same check, instead
