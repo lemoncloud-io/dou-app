@@ -25,9 +25,9 @@ import type {
 /**
  * Everything the subscription screens ask of a server, in one interface.
  *
- * Pages and hooks talk to this and nothing else — no `fetch`, no HTTP client. Today the only
- * implementation is the in-memory mock (`lib/mock`); the real one will be a second implementation of
- * the same interface, and swapping it in is meant to touch `lib/port/` and nothing under `pages/`.
+ * Pages and hooks talk to this and nothing else — no `fetch`, no HTTP client. The app has two
+ * implementations, the server (`lib/port/http/`) and the catalog where the account surface is shut
+ * (`lib/catalogPort.ts`); the tests add a third, an in-memory fake server (`testing/mock/`).
  *
  * Every method rejects with a `SubscriptionPortError` (see `errors.ts`) and nothing else.
  */

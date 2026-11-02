@@ -1,4 +1,4 @@
-import { PLAN_CATALOG, PRICE_PER_TIER, TRIAL_DAYS, planCatalogIn } from '../catalog';
+import { PLAN_CATALOG, PRICE_PER_TIER, TRIAL_DAYS, planCatalogIn } from '../../lib/catalog';
 
 import type { Currency, Plan } from '../../types';
 

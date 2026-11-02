@@ -4,12 +4,11 @@ import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } fr
 import { MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ROUTES } from '../../../routes/paths';
-import { AccountShell, CardEntryWindow, DevTools, PublicShell } from '../components';
+import { AccountShell, CardEntryWindow, DevTools, MockPaymentWindow, PublicShell } from '../components';
 import { ToastProvider } from '../components/ui';
 import { subscriptionKeys } from '../hooks';
 import { type PortSetup, createPortSetup } from '../lib/createPortSetup';
 import { registerSubscriptionCopy } from '../lib/i18n';
-import { MockControllerProvider } from '../lib/mock';
 import { PortProvider, isPortError, useSupports } from '../lib/port';
 import {
     MANAGEMENT_SCREENS_OPEN,
@@ -28,7 +27,6 @@ import {
     CheckoutPaymentPage,
     CheckoutStatusPage,
 } from '../pages/checkout';
-import { MockProviderPage, MockReceiptPage } from '../pages/dev';
 import { LoginCallbackPage, LoginPage, NoLinkedAccountPage, PlansPage, StoreManagedPage } from '../pages/entry';
 import { CancelSubscriptionPage, SubscriptionDetailPage, SubscriptionListPage } from '../pages/manage';
 import { RedirectIfSignedIn, RequireSession } from './guards';
@@ -67,7 +65,7 @@ const createQueryClient = (onUnauthenticated: () => void): QueryClient => {
  * Everything under `/subscription`. The query client and the port are provided here and nowhere above:
  * the public pages have no session and no data layer, and this chunk is where both begin.
  *
- * `account` is the gate (`isSubscriptionAccountEnabled`): where it is shut the route table mounts this
+ * `account` is the gate (`isSubscriptionAccountOpen`): where it is shut the route table mounts this
  * at `/subscription/plans` only, and only the plans page is routed, on the catalog port.
  */
 export const SubscriptionRoutes = ({
@@ -97,21 +95,19 @@ export const SubscriptionRoutes = ({
         return client;
     });
 
-    const mock = !!setup.mock;
     const Host = setup.Host ?? Fragment;
 
     return (
         <QueryClientProvider client={queryClient}>
             <PortProvider port={setup.port} clock={setup.clock} supports={setup.supports}>
-                <MockControllerProvider controller={setup.mock}>
-                    <ToastProvider>
-                        <ManagementScreensProvider open={management}>
-                            <Host>{account ? <AccountRoutes mock={mock} /> : <CatalogRoutes />}</Host>
-                        </ManagementScreensProvider>
-                        {setup.cardEntry && <CardEntryWindow channel={setup.cardEntry} />}
-                        <DevTools setup={setup} />
-                    </ToastProvider>
-                </MockControllerProvider>
+                <ToastProvider>
+                    <ManagementScreensProvider open={management}>
+                        <Host>{account ? <AccountRoutes /> : <CatalogRoutes />}</Host>
+                    </ManagementScreensProvider>
+                    {setup.cardEntry && <CardEntryWindow channel={setup.cardEntry} />}
+                    {setup.standInWindow && <MockPaymentWindow host={setup.standInWindow} />}
+                    <DevTools setup={setup} />
+                </ToastProvider>
             </PortProvider>
         </QueryClientProvider>
     );
@@ -145,7 +141,7 @@ const CatalogRoutes = (): JSX.Element => (
     </Routes>
 );
 
-const AccountRoutes = ({ mock }: { mock: boolean }): JSX.Element => {
+const AccountRoutes = (): JSX.Element => {
     const screens = useManagementScreens();
     // The billing history is left out where the port has no server for it, like the hidden screens.
     const history = useSupports()('listInvoices');
@@ -198,8 +194,6 @@ const AccountRoutes = ({ mock }: { mock: boolean }): JSX.Element => {
                     <Route path=":subscriptionId/cancel" element={<CancelSubscriptionPage />} />
                 </Route>
             </Route>
-            {mock && <Route path="login/mock-provider" element={<MockProviderPage />} />}
-            {mock && <Route path="mock-receipt" element={<MockReceiptPage />} />}
             <Route path="*" element={<Navigate to={ROUTES.subscription.root} replace />} />
         </Routes>
     );

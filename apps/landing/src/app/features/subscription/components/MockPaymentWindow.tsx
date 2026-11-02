@@ -1,7 +1,7 @@
 import { type JSX, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { type PaymentWindowHost, type PaymentWindowRequest, useMockController } from '../lib/mock';
+import { type PaymentWindowHost, type PaymentWindowRequest } from '../lib/port/standInWindow';
 import { Button, Dialog } from './ui';
 
 import type { RegistrationOutcome } from '../types';
@@ -9,22 +9,19 @@ import type { RegistrationOutcome } from '../types';
 const OUTCOMES: RegistrationOutcome[] = ['registered', 'failed', 'closed'];
 
 /**
- * The stand-in for the payment provider's card window. Mounted once at the route root when the port is
- * the mock — or the server's port on its no-charge development payments, which registers through `host`:
- * `startPaymentMethodRegistration` opens it and waits for the reader to pick how the window ends — the
- * same promise a real provider's window resolves — so the checkout and payment-method pages call the
- * hook and never know which it was. The fail flag's outcome is focused first.
+ * The stand-in for the payment provider's card window: a dialog asking how the window ends. Mounted at
+ * the route root where something opens it (`PortSetup.standInWindow` — sandbox payments, whose mock
+ * provider has no real window, and the tests' fake server): `startPaymentMethodRegistration` opens it
+ * and waits for the reader to pick — the same promise a real provider's window resolves — so the
+ * checkout and payment-method pages never know which it was. The suggested outcome is focused first.
  */
-export const MockPaymentWindow = ({ host }: { host?: PaymentWindowHost } = {}): JSX.Element | null => {
+export const MockPaymentWindow = ({ host }: { host: PaymentWindowHost }): JSX.Element | null => {
     const { t } = useTranslation();
-    const mockController = useMockController();
-    const controller = host ?? mockController;
     const [request, setRequest] = useState<PaymentWindowRequest | null>(null);
     const resolver = useRef<((outcome: RegistrationOutcome) => void) | null>(null);
 
     useEffect(() => {
-        if (!controller) return;
-        controller.setPaymentWindow(
+        host.setPaymentWindow(
             next =>
                 new Promise<RegistrationOutcome>(resolve => {
                     // One window at a time: a request still open is closed, so its caller is not
@@ -35,19 +32,17 @@ export const MockPaymentWindow = ({ host }: { host?: PaymentWindowHost } = {}): 
                 })
         );
         return () => {
-            controller.setPaymentWindow(null);
+            host.setPaymentWindow(null);
             resolver.current?.('closed');
             resolver.current = null;
         };
-    }, [controller]);
+    }, [host]);
 
     const finish = (outcome: RegistrationOutcome) => {
         resolver.current?.(outcome);
         resolver.current = null;
         setRequest(null);
     };
-
-    if (!controller) return null;
 
     return (
         <Dialog

@@ -5,8 +5,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import i18n from '../../../../../i18n';
 import { ToastProvider } from '../../components/ui';
 import { registerSubscriptionCopy } from '../../lib/i18n';
-import { createMockPort } from '../../lib/mock';
-import { memoryStateStore } from '../../lib/mock/storage';
+import { createMockPort } from '../../testing/mock';
+import { memoryStateStore } from '../../testing/mock/storage';
 import { PortProvider, type PortSupports } from '../../lib/port';
 import { HTTP_METHODS } from '../../lib/port/http';
 import { ManagementScreensProvider } from '../../lib/screens';
@@ -40,7 +40,7 @@ const renderAt = (
 ) => {
     const { port, clock } = createMockPort({
         store: memoryStateStore(),
-        readSearch: () => `${search}&panel=0`,
+        readSearch: () => search,
         delayMs: 0,
     });
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });

@@ -1,6 +1,6 @@
 import { createSandboxWindow } from './sandboxWindow';
 
-import type { PaymentWindowPresenter } from '../../mock';
+import type { PaymentWindowPresenter } from '../standInWindow';
 
 const request = {
     issue: {

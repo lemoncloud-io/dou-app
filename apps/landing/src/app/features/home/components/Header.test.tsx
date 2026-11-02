@@ -4,8 +4,8 @@ import { MemoryRouter } from 'react-router-dom';
 import i18n from '../../../../i18n';
 
 const stage = vi.hoisted(() => ({ open: true }));
-vi.mock('../../../config/stage', () => ({
-    get isSubscriptionAccountEnabled() {
+vi.mock('../../../config/subscriptionServer', () => ({
+    get isSubscriptionAccountOpen() {
         return stage.open;
     },
 }));

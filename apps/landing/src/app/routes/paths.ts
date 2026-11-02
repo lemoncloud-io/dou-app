@@ -18,8 +18,8 @@ export const ROUTES = {
         refund: '/policy/refund',
     },
     /**
-     * The signed-in subscription pages. Registered only where `isSubscriptionAccountEnabled` holds
-     * (`app/config/stage.ts`), so on the production host every one of these is the catch-all — except
+     * The signed-in subscription pages. Registered only where `isSubscriptionAccountOpen` holds
+     * (`app/config/subscriptionServer.ts`), so on the production host every one of these is the catch-all — except
      * `plans`, which lists the plans on every host.
      */
     subscription: {
@@ -29,10 +29,6 @@ export const ROUTES = {
         login: '/subscription/login',
         loginCallback: '/subscription/login/callback',
         noLinkedAccount: '/subscription/login/no-account',
-        /** The mock port's stand-in for a social provider's consent page. */
-        mockProvider: '/subscription/login/mock-provider',
-        /** The mock port's stand-in for a provider-hosted receipt. */
-        mockReceipt: '/subscription/mock-receipt',
         storeManaged: '/subscription/store-managed',
         /** W-24, the email step every first checkout goes through before W-08. */
         checkoutEmail: '/subscription/checkout/email',

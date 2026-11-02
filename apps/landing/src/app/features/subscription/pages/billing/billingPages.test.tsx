@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../../i18n';
-import { createMockPort } from '../../lib/mock';
-import { MOCK_POLICY } from '../../lib/mock/policy';
-import { memoryStateStore } from '../../lib/mock/storage';
+import { createMockPort } from '../../testing/mock';
+import { MOCK_POLICY } from '../../testing/mock/policy';
+import { memoryStateStore } from '../../testing/mock/storage';
 import { savePendingCardChange } from '../../lib/pendingCheckout';
 import { SubscriptionPortError } from '../../lib/port';
 import { SubscriptionRoutes } from '../../routes';
@@ -21,10 +21,10 @@ beforeAll(async () => {
 const mockSetup = (search: string): PortSetup => {
     const { port, clock, controller } = createMockPort({
         store: memoryStateStore(),
-        readSearch: () => `${search}&panel=0`,
+        readSearch: () => search,
         delayMs: 0,
     });
-    return { port, clock, mock: controller };
+    return { port, clock, standInWindow: controller };
 };
 
 const Where = () => {

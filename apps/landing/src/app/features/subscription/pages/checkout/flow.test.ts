@@ -1,4 +1,4 @@
-import { MOCK_PLANS } from '../../lib/mock/policy';
+import { MOCK_PLANS } from '../../testing/mock/policy';
 import {
     DOWNGRADE_COMPLETE_URL,
     NO_CONSENTS,

@@ -1,12 +1,12 @@
-import { ROUTES } from '../../../../routes/paths';
-import { addDays, addMonths, dayNumber } from '../calendar';
-import { KOREA, currencyOfProvider, payerRequiredFor, providerOfCountry } from '../billingCountry';
-import { canRemovePaymentMethod } from '../canRemovePaymentMethod';
-import { planCatalogIn } from '../catalog';
-import { changeKindOf } from '../changeKindOf';
-import { isLive } from '../sceneOf';
-import { SubscriptionPortError, type SubscriptionPortErrorDetail } from '../port/errors';
+import { addDays, addMonths, dayNumber } from '../../lib/calendar';
+import { KOREA, currencyOfProvider, payerRequiredFor, providerOfCountry } from '../../lib/billingCountry';
+import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
+import { planCatalogIn } from '../../lib/catalog';
+import { changeKindOf } from '../../lib/changeKindOf';
+import { isLive } from '../../lib/sceneOf';
+import { SubscriptionPortError, type SubscriptionPortErrorDetail } from '../../lib/port/errors';
 import { MOCK_POLICY, planOf } from './policy';
+import { ROUTES } from '../../../../routes/paths';
 import { buildScenario, isScenario, mockReceiptUrl } from './scenarios';
 import {
     type ConsentChoice,
@@ -15,13 +15,12 @@ import {
     type MockAttempt,
     type MockEmailCode,
     type MockState,
-    type ScenarioId,
 } from './state';
-import { type StateStore, sessionStateStore } from './storage';
+import { type StateStore, memoryStateStore } from './storage';
 
-import type { Clock, SubscriptionPort } from '../port';
+import type { Clock, SubscriptionPort } from '../../lib/port';
+import type { PaymentWindowHost, PaymentWindowPresenter } from '../../lib/port/standInWindow';
 import type {
-    AttemptPurpose,
     BillingEmail,
     CardToken,
     ChangePreview,
@@ -38,39 +37,12 @@ import type {
     Subscription,
 } from '../../types';
 
-/**
- * Whatever a stand-in card window registers with: the mock, or the server port's no-charge payments, which
- * use the same window. `MockPaymentWindow` hands it the presenter that asks the reader for an outcome.
- */
-export interface PaymentWindowHost {
-    setPaymentWindow(presenter: PaymentWindowPresenter | null): void;
-}
-
-/** The dev panel's and the consent page's handle on the mock — never used by a real screen. */
+/** The tests' handle on the fake server. */
 export interface MockController extends PaymentWindowHost {
-    /** Reads the URL first (see `createMockPort`), so it may commit — never call it during render. */
+    /** Reads the query first (see `createMockPort`), so it may commit — never call it during render. */
     getState(): MockState;
-    /** The state as it is, without reading the URL — safe during render. */
-    peek(): MockState;
-    subscribe(listener: () => void): () => void;
-    /** Rebuild the current scenario from scratch, at its own today, with no fail flag. */
-    reset(): void;
-    setScenario(scenario: ScenarioId): void;
     setFail(fail: FailFlag | null): void;
-    /** `null` goes back to the scenario's own today. */
-    setToday(today: string | null): void;
-    setPanelHidden(hidden: boolean): void;
 }
-
-/** One request to the stand-in payment window, and the outcome the reader picks. */
-export interface PaymentWindowRequest {
-    purpose: AttemptPurpose;
-    planId?: PlanId;
-    /** The outcome the current fail flag implies — the window's preselected answer. */
-    suggested: RegistrationOutcome;
-}
-
-export type PaymentWindowPresenter = (request: PaymentWindowRequest) => Promise<RegistrationOutcome>;
 
 export interface MockSetup {
     port: SubscriptionPort;
@@ -79,8 +51,9 @@ export interface MockSetup {
 }
 
 export interface MockOptions {
+    /** Where the state lives; a test hands the same store to a second fake to stand for a reload. */
     store?: StateStore;
-    /** The query string the scenario is read from; the page's own by default. */
+    /** The query string the scenario is read from. */
     readSearch?: () => string;
     /** Latency of every call. */
     delayMs?: number;
@@ -94,7 +67,7 @@ export interface MockOptions {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** The query parameters the mock reads; any other query leaves it alone. */
-const MOCK_PARAMS = ['mock', 'fail', 'now', 'cards', 'panel'];
+const MOCK_PARAMS = ['mock', 'fail', 'now', 'cards'];
 
 const APPLIED_SEARCHES_KEPT = 50;
 
@@ -126,25 +99,26 @@ const prorate = (from: Money, to: Money, today: string, nextBillingAt: string | 
 const CARD_BRANDS = ['국민', '삼성', '롯데', '하나'];
 
 /**
- * An in-memory subscription server behind the real port interface.
+ * The tests' in-memory subscription server, behind the real port interface. Nothing the app runs
+ * imports it (`testing/boundary.test.ts`).
  *
- * It holds one account's state, picked by `?mock=<scenario>`, and every method changes that state the
- * way the server would — cancelling schedules an end, a successful upgrade changes the plan — so a
- * flow can be walked end to end. It decides nothing about what a screen shows: that is `lib/`'s.
+ * It holds one account's state, picked by `?mock=<scenario>` in the query a test hands it, and every
+ * method changes that state the way the server would — cancelling schedules an end, a successful
+ * upgrade changes the plan — so a flow can be walked end to end. It decides nothing about what a screen
+ * shows: that is `lib/`'s.
  *
- * The URL is read at the start of every call, and each query is applied once: a reload keeps the
- * state it had, a one-shot `&fail=` is spent once, and opening a different `?mock=` starts that
- * scenario over.
+ * The query is read at the start of every call, and each one is applied once: a second fake on the
+ * same store keeps the state it had, a one-shot `&fail=` is spent once, and a different `?mock=` starts
+ * that scenario over.
  */
 export const createMockPort = (options: MockOptions = {}): MockSetup => {
-    const store = options.store ?? sessionStateStore();
-    const readSearch = options.readSearch ?? (() => window.location.search);
-    const delayMs = options.delayMs ?? 300;
+    const store = options.store ?? memoryStateStore();
+    const readSearch = options.readSearch ?? (() => '');
+    const delayMs = options.delayMs ?? 0;
     const settleMs = options.settleMs ?? 1500;
     const nowMs = options.nowMs ?? (() => Date.now());
     const nonce = options.nonce ?? (() => Math.random().toString(36).slice(2, 10));
 
-    const listeners = new Set<() => void>();
     let paymentWindow: PaymentWindowPresenter | null = null;
 
     const stored = store.load();
@@ -153,7 +127,6 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
     const commit = (next: MockState) => {
         state = next;
         store.save(state);
-        listeners.forEach(listener => listener());
     };
 
     const syncFromUrl = () => {
@@ -171,14 +144,12 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         if (isScenario(scenario)) {
             const noCards = cards === '0';
             if (scenario !== state.scenario || noCards !== state.noCards) {
-                next = buildScenario(scenario, { noCards, panelHidden: state.panelHidden });
+                next = buildScenario(scenario, { noCards });
             }
         }
         const today = params.get('now');
         if (today && ISO_DATE.test(today)) next.today = today;
         if (params.has('fail')) next.fail = isFailFlag(params.get('fail')) ? (params.get('fail') as FailFlag) : null;
-        if (params.get('panel') === '0') next.panelHidden = true;
-        if (params.get('panel') === '1') next.panelHidden = false;
         next.appliedSearches = [...state.appliedSearches, search].slice(-APPLIED_SEARCHES_KEPT);
         commit(next);
     };
@@ -446,9 +417,14 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 s => {
                     const pending = { nonce: nonce(), provider, next, startedAt: nowMs() };
                     s.pendingSignIn = pending;
-                    const query = new URLSearchParams({ provider, nonce: pending.nonce });
-                    if (next) query.set('next', next);
-                    return { redirectUrl: `${ROUTES.subscription.mockProvider}?${query}` };
+                    // The provider answers at once, with the scenario's choice: straight back to the
+                    // callback, as a provider's consent page would send the browser.
+                    const query = new URLSearchParams({
+                        provider,
+                        nonce: pending.nonce,
+                        result: consentDefaultOf(s),
+                    });
+                    return { redirectUrl: `${ROUTES.subscription.loginCallback}?${query}` };
                 },
                 { auth: false }
             ),
@@ -833,50 +809,26 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             syncFromUrl();
             return state;
         },
-        peek: () => state,
-        subscribe: listener => {
-            listeners.add(listener);
-            return () => listeners.delete(listener);
-        },
-        reset: () =>
-            commit({
-                ...buildScenario(state.scenario, { noCards: state.noCards, panelHidden: state.panelHidden }),
-                appliedSearches: state.appliedSearches,
-            }),
-        setScenario: scenario =>
-            commit({
-                ...buildScenario(scenario, { panelHidden: state.panelHidden }),
-                appliedSearches: state.appliedSearches,
-            }),
         setFail: flag => commit({ ...state, fail: flag }),
-        setToday: today => commit({ ...state, today: today ?? buildScenario(state.scenario).today }),
-        setPanelHidden: hidden => commit({ ...state, panelHidden: hidden }),
         setPaymentWindow: presenter => {
             paymentWindow = presenter;
         },
     };
 
-    // Local noon of the mock's today: the same calendar day in every time zone a reader is in. Read
-    // during render, so it peeks; the URL was applied when the mock was created.
+    // Local noon of the fake's today: the same calendar day in every time zone a reader is in. Read
+    // during render, so it does not read the query; that was applied when the fake was created.
     const clock: Clock = { now: () => new Date(`${state.today}T12:00:00`) };
 
-    // The page's first URL is applied now, before anything renders, so the first screen already reads
-    // the scenario's today and the panel's visibility.
+    // The first URL is applied now, before anything renders, so the first screen already reads the
+    // scenario's today.
     syncFromUrl();
-    // `panel=` is honoured on every page load, even for a query already applied: it is the only way
-    // back after the panel's Hide button.
-    const panel = new URLSearchParams(readSearch()).get('panel');
-    if (panel === '0' || panel === '1') {
-        const hidden = panel === '0';
-        if (state.panelHidden !== hidden) commit({ ...state, panelHidden: hidden });
-    }
 
     return { port, controller, clock };
 };
 
 /**
- * What the stand-in consent page selects first: the scenario's own answer, unless a sign-in fail flag
- * asks for the canceled or timed-out round trip instead.
+ * How the fake provider answers a sign-in: the scenario's own answer, unless a sign-in fail flag asks
+ * for the canceled or timed-out round trip instead.
  */
 export const consentDefaultOf = (state: MockState): ConsentChoice => {
     if (state.fail === 'signin-canceled') return 'canceled';

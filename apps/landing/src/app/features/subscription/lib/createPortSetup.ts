@@ -2,8 +2,8 @@ import { type ComponentType, type ReactNode } from 'react';
 
 import { subscriptionServer, type SubscriptionServer } from '../../../config/subscriptionServer';
 import { createCatalogPort } from './catalogPort';
-import { createMockPort, type MockController, type PaymentWindowHost } from './mock';
 import { type CardEntryChannel } from './port/cardEntry';
+import { type PaymentWindowHost } from './port/standInWindow';
 import { SubscriptionPortError, systemClock, type Clock, type PortSupports, type SubscriptionPort } from './port';
 import {
     HTTP_METHODS,
@@ -19,8 +19,8 @@ export interface PortSetup {
     clock: Clock;
     /** What the port really answers; everything when omitted (see `PortSupports`). */
     supports?: PortSupports;
-    /** Present only when the port is the mock: turns on the dev panel and the stand-in pages. */
-    mock?: MockController;
+    /** Present where something opens the stand-in card window (`MockPaymentWindow`): sandbox payments. */
+    standInWindow?: PaymentWindowHost;
     /** Wraps the routes when the port needs a session host above them. */
     Host?: ComponentType<{ children: ReactNode }>;
     /** Present when the port may ask for a card typed into our own dialog (`CardEntryWindow`). */
@@ -43,19 +43,14 @@ export interface SandboxSetup {
     interval(): SandboxInterval;
     setInterval(interval: SandboxInterval): void;
     turn(on: boolean): void;
-    /** While on: where the stand-in card window registers. */
-    window?: PaymentWindowHost;
 }
 
-export type PortMode = 'mock' | 'server';
-
-const MODE_KEY = 'subscription.portMode';
 const SANDBOX_KEY = 'subscription.sandbox';
 const INTERVAL_KEY = 'subscription.sandboxInterval';
 
 /**
  * Whether a server tab runs on sandbox payments: `?sandbox=1` turns them on and `?sandbox=0` off, and
- * the choice holds for the tab, like `portModeOf`. Off unless asked for.
+ * the choice holds for the tab. Off unless asked for.
  */
 export const sandboxOf = (search: string, stored: string | null): boolean => {
     const asked = new URLSearchParams(search).get('sandbox');
@@ -66,18 +61,6 @@ export const sandboxOf = (search: string, stored: string | null): boolean => {
 
 const isInterval = (value: string | null): value is SandboxInterval =>
     value !== null && (SANDBOX_INTERVALS as readonly string[]).includes(value);
-
-/**
- * Which port a development tab runs on. The server is the default; `?mock=<scenario>` switches the tab
- * to the mock for screenshots and states the server cannot reach, and `?mock=off` switches it back.
- * The choice holds for the tab, so the reload and the sign-in round trip after it keep it.
- */
-export const portModeOf = (search: string, stored: string | null): PortMode => {
-    const mock = new URLSearchParams(search).get('mock');
-    if (mock === 'off') return 'server';
-    if (mock) return 'mock';
-    return stored === 'mock' ? 'mock' : 'server';
-};
 
 const isHttpMethod = (method: keyof SubscriptionPort): method is HttpMethod =>
     (HTTP_METHODS as ReadonlyArray<keyof SubscriptionPort>).includes(method);
@@ -113,9 +96,6 @@ const save = (key: string, value: string): void => {
     }
 };
 
-const readMode = (): string | null => read(MODE_KEY);
-const saveMode = (mode: PortMode): void => save(MODE_KEY, mode);
-
 /**
  * Takes `?sandbox` out of the address once it is read, so the tab's stored choice is the only one: an
  * address left with it would turn the choice back whenever the reader returned to that entry.
@@ -140,19 +120,16 @@ const turnSandbox = (on: boolean): void => {
 /**
  * The port the subscription pages run on, chosen here and nowhere else.
  *
- * - Where the account surface is shut it is the catalog port, which knows the plans and nothing else.
- * - Where it is open but the build carries no server addresses, it is the mock, as before there was a
- *   server.
- * - Otherwise a tab runs on the server alone (`portModeOf` for switching a tab to the mock alone). The
- *   methods with no server yet refuse, and `supports` tells the screens which they are.
+ * - Where the account surface is shut — the production host, or a build without the server's addresses
+ *   (`isSubscriptionAccountOpen`) — it is the catalog port, which knows the plans and nothing else.
+ * - Otherwise it is the server. The methods with no server yet refuse, and `supports` tells the screens
+ *   which they are. There is no in-page mock: the screens run on a real server or not at all, and the
+ *   tests bring their own fake.
  * - A server tab may run on sandbox payments (`sandboxOf`): the server's real subscription flow on the
  *   payment server's mock provider, with no card and no charge. Only here, so only where the account
  *   surface is open — never on the production host, whatever its address says — and never with a build
  *   whose addresses are production's (`VITE_ENV=PROD`), even on a development host. The server does not
  *   refuse the query on production, so not sending it there is the first defence.
- *
- * The mock is only created where it is used: it reads the URL and session storage as it starts, and
- * on the production host neither should happen.
  */
 export const createPortSetup = ({
     account,
@@ -166,13 +143,7 @@ export const createPortSetup = ({
     search?: string;
     createHttp?: (server: SubscriptionServer, options: { sandbox?: HttpSandbox }) => HttpSetup;
 }): PortSetup => {
-    if (!account) return { port: createCatalogPort(), clock: systemClock };
-    const mode = server ? portModeOf(search, readMode()) : 'mock';
-    if (server) saveMode(mode);
-    if (mode === 'mock' || !server) {
-        const mock = createMockPort();
-        return { port: mock.port, clock: mock.clock, mock: mock.controller };
-    }
+    if (!account || !server) return { port: createCatalogPort(), clock: systemClock };
 
     // A build pointed at production's servers has no sandbox, whatever host it runs on.
     const sandboxAllowed = server.env('VITE_ENV') !== 'PROD';
@@ -190,6 +161,7 @@ export const createPortSetup = ({
         supports: isHttpMethod,
         Host: http.Host,
         cardEntry: http.cardEntry,
+        standInWindow: http.sandboxWindow,
         sandbox: sandboxAllowed
             ? {
                   enabled,
@@ -199,7 +171,6 @@ export const createPortSetup = ({
                       save(INTERVAL_KEY, next);
                   },
                   turn: turnSandbox,
-                  window: http.sandboxWindow,
               }
             : undefined,
     };
