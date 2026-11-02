@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-02] - root@0.140.1, @chatic/desktop-web@0.46.1
+
+### Bug Fixes
+
+- (desktop-web) scope the notifications inbox by cloud, not by place id alone (ADR-0266)
+
 ## [2026-11-02] - root@0.140.0, @chatic/desktop-web@0.46.0
 
 ### Features
