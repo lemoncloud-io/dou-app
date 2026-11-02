@@ -176,9 +176,9 @@ describe('MessageList read counts', () => {
     describe('who read it', () => {
         const pill = () => screen.getByRole('button', { name: /Seen/ });
 
-        it('lists who read it and who has not, a tab each, when the pointer rests on the count', async () => {
+        it('lists who read it and who has not, a tab each, when the count is clicked', async () => {
             renderList([message(1, 'ada')], () => counts(2, 1));
-            await act(async () => fireEvent.pointerEnter(pill()));
+            await act(async () => fireEvent.click(pill()));
 
             const popover = screen.getByRole('dialog');
             expect(within(popover).getByRole('tab', { name: 'Seen 2', selected: true })).toBeDefined();
@@ -189,7 +189,7 @@ describe('MessageList read counts', () => {
 
         it('names a member missing from the roster by the feed names, then by a placeholder, rather than dropping them', async () => {
             renderList([message(1, 'ada')], () => ({ readIds: ['m0', 'bob', 'ghost'], unreadIds: [] }));
-            await act(async () => fireEvent.pointerEnter(pill()));
+            await act(async () => fireEvent.click(pill()));
 
             const list = within(screen.getByRole('dialog')).getAllByRole('listitem');
             expect(list.map(item => item.textContent)).toEqual(['SSunny', 'BBob', '--']);
@@ -233,46 +233,25 @@ describe('MessageList read counts', () => {
             }
         });
 
-        it('keeps a keyboard-opened list open when the pointer passes over the count', async () => {
-            vi.useFakeTimers();
-            try {
-                renderList([message(1, 'ada')], () => counts(1, 1));
-                await act(async () => fireEvent.click(pill(), { detail: 0 }));
-                await act(async () => {
-                    fireEvent.pointerEnter(pill());
-                    fireEvent.pointerLeave(pill());
-                    vi.runAllTimers();
-                });
-
-                expect(screen.getByRole('dialog')).toBeDefined();
-            } finally {
-                vi.useRealTimers();
-            }
-        });
-
-        it('keeps focus where it was when the pointer opens it', async () => {
+        it('does not open on hover, so the pointer can travel to the Not seen tab and click it', async () => {
             renderList([message(1, 'ada')], () => counts(1, 1));
-            const before = document.activeElement;
             await act(async () => fireEvent.pointerEnter(pill()));
+            expect(screen.queryByRole('dialog')).toBeNull();
 
-            expect(screen.getByRole('dialog')).toBeDefined();
-            expect(document.activeElement).toBe(before);
+            await act(async () => fireEvent.click(pill()));
+            await act(async () => fireEvent.pointerLeave(pill()));
+            const tab = within(screen.getByRole('dialog')).getByRole('tab', { name: 'Not seen 1' });
+            await act(async () => fireEvent.mouseDown(tab, { button: 0 }));
+
+            expect(within(screen.getByRole('dialog')).getByRole('tabpanel').textContent).toContain('레인');
         });
 
-        it('closes once the pointer leaves', async () => {
-            vi.useFakeTimers();
-            try {
-                renderList([message(1, 'ada')], () => counts(1, 1));
-                await act(async () => fireEvent.pointerEnter(pill()));
-                await act(async () => {
-                    fireEvent.pointerLeave(pill());
-                    vi.runAllTimers();
-                });
+        it('closes when the count is clicked again', async () => {
+            renderList([message(1, 'ada')], () => counts(1, 1));
+            await act(async () => fireEvent.click(pill()));
+            await act(async () => fireEvent.click(pill()));
 
-                expect(screen.queryByRole('dialog')).toBeNull();
-            } finally {
-                vi.useRealTimers();
-            }
+            expect(screen.queryByRole('dialog')).toBeNull();
         });
 
         it('stacks the faces of the first three who read it and counts the rest', () => {
