@@ -1,4 +1,4 @@
-import { isCloudDm, type DomainChannel } from '@chatic/data';
+import { isCloudDm, RELAY_CLOUD_ID, type DomainChannel } from '@chatic/data';
 
 import { channelNotifyMode, isNotifyDm, type ChannelNotifyPrefs } from '../stores/useNotificationPrefsStore';
 import type { MentionItem } from '../stores/useMentionsStore';
@@ -47,8 +47,10 @@ export const placeUnreadCounts = (
         listsUnplacedDms?: boolean;
     }
 ): { byPlace: Record<string, number>; total: number } => {
-    // One pass over the inbox per call, keyed `place|channel`: per-channel
+    // One pass over the inbox per call, keyed `cloud|place|channel`: per-channel
     // filtering then reads the bucket instead of re-scanning all 200 entries.
+    // The cloud is in the key because the inbox holds every cloud's items and
+    // place and channel ids repeat across clouds.
     // Built only when a mentions-only channel is actually in the list.
     const mentionChatNos = new Map<string, number[]>();
     if (
@@ -61,7 +63,7 @@ export const placeUnreadCounts = (
     ) {
         for (const item of Object.values(mentions)) {
             if (item.readAt || item.placeId === undefined || !isMentionKind(item)) continue;
-            const key = `${item.placeId}|${item.channelId}`;
+            const key = `${item.cloudId}|${item.placeId}|${item.channelId}`;
             const bucket = mentionChatNos.get(key);
             const chatNo = item.chatNo ?? 0;
             if (bucket) bucket.push(chatNo);
@@ -80,7 +82,7 @@ export const placeUnreadCounts = (
             // A 1:1 never reads as mentions-only (`channelNotifyMode`), so this is a
             // group channel: one place at most, counted once in the total.
             const readNo = channelReadNo(channel, readCursors[channel.id ?? ''] ?? 0);
-            const chatNos = mentionChatNos.get(`${channel.sid}|${channel.id}`) ?? [];
+            const chatNos = mentionChatNos.get(`${channel.cid || RELAY_CLOUD_ID}|${channel.sid}|${channel.id}`) ?? [];
             const unreadMentions = chatNos.reduce((count, chatNo) => (chatNo > readNo ? count + 1 : count), 0);
             if (!unreadMentions) continue;
             // The cap is what the row's `@` does not do: a mention read elsewhere

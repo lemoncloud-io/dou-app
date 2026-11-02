@@ -249,15 +249,17 @@ export const HomePage = () => {
         [isDefaultMode, selectedPlaceId, placeIds]
     );
     const mainPage = useSavedPageStore(s => s.page);
-    const threadsCloudId = activeCloudId ?? RELAY_CLOUD_ID;
+    // The cloud the place scope belongs to. Place ids repeat across clouds, so every scoped reader
+    // (threads, notifications) checks the cloud before the place.
+    const scopeCloudId = activeCloudId ?? RELAY_CLOUD_ID;
     const hasUnreadThreads = useMyThreadsStore(s =>
         Object.values(s.threads).some(
-            thread => isThreadUnread(thread) && isThreadInScope(thread, threadsCloudId, inboxScope)
+            thread => isThreadUnread(thread) && isThreadInScope(thread, scopeCloudId, inboxScope)
         )
     );
     // Select the boolean, not the items: the dot only re-renders on false↔true.
     const hasInboxUnread = useMentionsStore(s =>
-        Object.values(s.items).some(item => !item.readAt && isInInboxScope(item, inboxScope))
+        Object.values(s.items).some(item => !item.readAt && isInInboxScope(item, scopeCloudId, inboxScope))
     );
     const hasChannelUnread = hasUnreadRoom(channels);
     const hasDmUnread = hasUnreadDm(channels);
@@ -895,7 +897,7 @@ export const HomePage = () => {
                         active={navActive}
                         notifications={
                             <NotificationsPanel
-                                cloudId={activeCloudId ?? RELAY_CLOUD_ID}
+                                cloudId={scopeCloudId}
                                 channels={channels}
                                 currentPlaceId={selectedPlaceId ?? undefined}
                                 placeScope={inboxScope}
@@ -973,14 +975,14 @@ export const HomePage = () => {
                 main={
                     savedOpen && mainPage === 'threads' ? (
                         <ThreadsPage
-                            cloudId={threadsCloudId}
+                            cloudId={scopeCloudId}
                             channels={channels}
                             placeScope={inboxScope}
                             onOpen={jumpToSaved}
                         />
                     ) : savedOpen ? (
                         <SavedPage
-                            cloudId={threadsCloudId}
+                            cloudId={scopeCloudId}
                             channels={channels}
                             places={places}
                             currentPlaceId={selectedPlaceId ?? undefined}

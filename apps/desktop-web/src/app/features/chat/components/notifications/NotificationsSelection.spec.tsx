@@ -33,6 +33,7 @@ const EARLIER = NOW - 5 * HOUR;
 
 const item = (id: string, over: Partial<MentionItem> = {}): MentionItem => ({
     id,
+    cloudId: 'cloud-1',
     channelId: 'C1',
     chatNo: 5,
     content: `${id} body`,

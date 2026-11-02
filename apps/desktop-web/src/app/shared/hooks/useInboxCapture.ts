@@ -14,7 +14,7 @@ import {
     resolveMyMentionNames,
     type InboxKind,
 } from '../utils';
-import { isNotifyDm, truncateMentionPreview, useMentionsStore, useReadCursorStore } from '../stores';
+import { inboxItemId, isNotifyDm, truncateMentionPreview, useMentionsStore, useReadCursorStore } from '../stores';
 
 type Viewer = { uid: string | null; name: string; cloudUid: string | null };
 
@@ -55,12 +55,17 @@ const arrivalKind = ({ channel, chat }: ChannelChatFeed, content: string): Inbox
 const whereOf = (channel: ChannelChatFeed['channel']): { inDm?: true; channelName?: string } =>
     isNotifyDm(channel) ? { inDm: true } : { channelName: bareChannelName(channel.name) || undefined };
 
+/** The cloud a channel belongs to; a relay row may leave its `cid` empty. */
+const cloudOf = (channel: ChannelChatFeed['channel']): string => channel.cid || RELAY_CLOUD_ID;
+
 const addMessage = ({ placeId, channel, chat }: ChannelChatFeed, kind: InboxKind, content: string): void => {
     // An id is the dedupe key of the inbox; a row without one cannot be stored.
     if (!chat.id || !channel.id) return;
     const authorId = chatAuthorId(chat);
+    const cloudId = cloudOf(channel);
     useMentionsStore.getState().add({
-        id: chat.id,
+        id: inboxItemId(cloudId, chat.id),
+        cloudId,
         kind,
         channelId: channel.id,
         ...whereOf(channel),
@@ -92,12 +97,12 @@ const captureReaction = async ({ placeId, channel, chat }: ChannelChatFeed): Pro
     if (!reaction?.chatId || !reaction.emoji || reaction.action === 'off' || !authorId || !channel.id) return;
     const viewer = viewerIn(channel);
     if (isMine(chat, viewer) || isRead(channel.id, chat.chatNo)) return;
-    const target = await runtime.data
-        .getCloudRepositories(channel.cid || RELAY_CLOUD_ID)
-        .chat.cacheRead(reaction.chatId);
+    const cloudId = cloudOf(channel);
+    const target = await runtime.data.getCloudRepositories(cloudId).chat.cacheRead(reaction.chatId);
     if (!target || !isMine(target, viewer)) return;
     useMentionsStore.getState().add({
-        id: `reaction:${reaction.chatId}:${reaction.emoji}:${authorId}`,
+        id: inboxItemId(cloudId, `reaction:${reaction.chatId}:${reaction.emoji}:${authorId}`),
+        cloudId,
         kind: 'reaction',
         emoji: reaction.emoji,
         channelId: channel.id,
@@ -144,7 +149,8 @@ export const captureInboxReply = (feed: ChannelChatFeed): void => {
  * The shared feed (useChannelChatFeeds) hands over a channel's latest message whenever its
  * watermark advances: chat content streams only for the open room, so a background channel is seen
  * by its newest message and a burst collapses to the last one. Each message is classified once,
- * strongest reason first (`inboxKindFor`), and stored under its own id, so one message is one item.
+ * strongest reason first (`inboxKindFor`), and stored under its cloud and id (`inboxItemId`), so one
+ * message is one item.
  * Guards mirror the OS-notification hook so a resync can't spam the inbox: skip my own messages
  * and anything at or below the read cursor.
  */

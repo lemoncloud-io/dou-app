@@ -62,11 +62,17 @@ describe('isInInboxScope', () => {
     const scope = new Set(['P1']);
 
     it("takes an item of a scoped place and leaves out another place's", () => {
-        expect(isInInboxScope({ placeId: 'P1' }, scope)).toBe(true);
-        expect(isInInboxScope({ placeId: 'P2' }, scope)).toBe(false);
+        expect(isInInboxScope({ cloudId: 'C1', placeId: 'P1' }, 'C1', scope)).toBe(true);
+        expect(isInInboxScope({ cloudId: 'C1', placeId: 'P2' }, 'C1', scope)).toBe(false);
     });
 
-    it('takes an item stored before items carried a place', () => {
-        expect(isInInboxScope({}, scope)).toBe(true);
+    // Every cloud numbers its places from the same start, so the place id alone matches both.
+    it("leaves out another cloud's item whose place has the same id", () => {
+        expect(isInInboxScope({ cloudId: 'C2', placeId: 'P1' }, 'C1', scope)).toBe(false);
+    });
+
+    it('takes an item with no place in every place of its cloud, but not in another cloud', () => {
+        expect(isInInboxScope({ cloudId: 'C1' }, 'C1', scope)).toBe(true);
+        expect(isInInboxScope({ cloudId: 'C2' }, 'C1', scope)).toBe(false);
     });
 });

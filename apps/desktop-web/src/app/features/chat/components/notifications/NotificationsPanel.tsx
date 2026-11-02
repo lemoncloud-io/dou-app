@@ -51,7 +51,11 @@ const DAY = 86_400_000;
 const TAB_ICON: Partial<Record<InboxTab, LucideIcon>> = { ...SOURCE_ICON, mention: AtSign };
 
 interface NotificationsPanelProps {
-    /** The active cloud: names the threads a reply answers, and whether its thread scan is still running. */
+    /**
+     * The active cloud: only its items are listed (`placeScope` alone would also take another cloud's
+     * place of the same id), and it names the threads a reply answers and whether its thread scan is
+     * still running.
+     */
     cloudId: string;
     /** Loaded channels (active place) — name the cards' channels before the name kept with the item. */
     channels: DomainChannel[];
@@ -104,8 +108,8 @@ export const NotificationsPanel = ({
     );
 
     const items = useMemo(
-        () => Object.values(itemsById).filter(item => isInInboxScope(item, placeScope)),
-        [itemsById, placeScope]
+        () => Object.values(itemsById).filter(item => isInInboxScope(item, cloudId, placeScope)),
+        [itemsById, cloudId, placeScope]
     );
     const counts = useMemo(() => inboxTabCounts(items), [items]);
     const groups = useMemo(
