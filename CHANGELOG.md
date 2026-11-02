@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-02] - root@0.138.1, @chatic/desktop-web@0.44.1
+
+### Bug Fixes
+
+- (desktop-web) keep the sidebar search field visible on tinted lists
+
 ## [2026-10-30] - No version updates
 
 ### Refactor
