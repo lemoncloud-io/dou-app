@@ -75,12 +75,10 @@ const ALIASES: Readonly<Record<string, string>> = {
 
 /**
  * Which of the server's formats an app sends, for one that sends fewer than the server takes. Given
- * the format a file would go as.
+ * the format a file would go as. Every app sends all of them today; a picker that offers one kind
+ * only (photos) passes its own.
  */
 export type ChatAttachmentFilter = (format: { type: string; kind: ChatUploadKind }) => boolean;
-
-/** A `ChatAttachmentFilter` for an app that sends no audio file: only the desktop app sends one. */
-export const sendsNoAudio: ChatAttachmentFilter = format => !format.type.startsWith('audio/');
 
 /**
  * The `accept` of a file input for chat attachments of these kinds: every type and every extension. A

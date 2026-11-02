@@ -12,7 +12,7 @@ import {
     ModalTopBar,
     PickedFileStrip,
 } from '@chatic/web-ui-kit';
-import { IMAGE_MESSAGE_SLOT_MAX, judgeChatAttachments, sendsNoAudio, type ShellFileRef } from '@chatic/data';
+import { IMAGE_MESSAGE_SLOT_MAX, judgeChatAttachments, type ShellFileRef } from '@chatic/data';
 
 import { ROUTES } from '../../../routes/paths';
 import { DestinationPicker } from '../components/DestinationPicker';
@@ -74,12 +74,9 @@ export const SharePage = () => {
         () => (intake ? intake.items.filter(item => !removed.has(item.uri)) : []),
         [intake, removed]
     );
-    // Judged as a room's attachment pick is: what the server takes and this app sends (no audio), one
-    // message's worth.
-    const { accepted, rejected } = useMemo(
-        () => judgeChatAttachments(items, IMAGE_MESSAGE_SLOT_MAX, sendsNoAudio),
-        [items]
-    );
+    // Judged as a room's attachment pick is: what the server takes — a voice memo shared from another
+    // app included — one message's worth.
+    const { accepted, rejected } = useMemo(() => judgeChatAttachments(items, IMAGE_MESSAGE_SLOT_MAX), [items]);
     const notSent = [...(intake?.refused ?? []).map(item => item.name), ...rejected.map(({ item }) => item.name)];
     const content = [message.trim(), intake?.text].filter(Boolean).join('\n');
 

@@ -132,4 +132,28 @@ describe('MessageInput', () => {
         const textarea = screen.getByRole('textbox');
         expect(slot.compareDocumentPosition(textarea) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
+
+    // The room's microphone stands where the send button is, until there is something to send.
+    describe('with an idle slot', () => {
+        const mic = <button>Record</button>;
+
+        it('draws the slot in the send button’s place while nothing is typed', () => {
+            render(<MessageInput value="" onChange={jest.fn()} sendLabel="Send" idleSlot={mic} />);
+
+            expect(screen.getByRole('button', { name: 'Record' })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Send' })).not.toBeInTheDocument();
+        });
+
+        it('brings the send button back once there is text, or something else to send', () => {
+            const { rerender } = render(
+                <MessageInput value="hi" onChange={jest.fn()} sendLabel="Send" idleSlot={mic} />
+            );
+            expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Record' })).not.toBeInTheDocument();
+
+            rerender(<MessageInput value="" onChange={jest.fn()} sendLabel="Send" sendReady idleSlot={mic} />);
+            expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'Record' })).not.toBeInTheDocument();
+        });
+    });
 });

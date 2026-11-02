@@ -21,7 +21,6 @@ import {
     IMAGE_MESSAGE_SLOT_MAX,
     judgeChatAttachments,
     judgeChatImages,
-    sendsNoAudio,
 } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import {
@@ -341,7 +340,7 @@ export const useChatImageAttach = ({
                           ),
                       };
                   })()
-                : judgeChatAttachments(items, max, sendsNoAudio);
+                : judgeChatAttachments(items, max);
             // One notice per pick, for the first reason met — a list of every refused file is noise. A
             // photo whose edit could not be drawn comes first: it was picked and worked on, and now it
             // is the one thing missing from what was sent.

@@ -184,11 +184,18 @@ describe('exportFile', () => {
         expect(refused.deps.log).toHaveBeenCalled();
     });
 
-    it('reads INVALID from saving a ZIP archive as an app built before the phone kept one, and logs nothing', async () => {
-        for (const name of ['photos.zip', 'PHOTOS.ZIP']) {
+    it('reads INVALID from saving a ZIP archive or an audio file as an app built before the phone kept them, and logs nothing', async () => {
+        for (const name of [
+            'photos.zip',
+            'PHOTOS.ZIP',
+            'voice-20261102-101500.m4a',
+            'song.MP3',
+            'take.wav',
+            'memo.ogg',
+        ]) {
             const { deps } = makeDeps([fileResult], { save: jest.fn(async () => Promise.reject(failure('INVALID'))) });
             await expect(exportFile({ ...input('save'), name }, deps)).resolves.toEqual({
-                kind: 'archive-update-required',
+                kind: 'save-update-required',
             });
             expect(deps.log).not.toHaveBeenCalled();
             // The file stays kept: opening it, or the share sheet, still hands it on.
@@ -197,7 +204,7 @@ describe('exportFile', () => {
     });
 
     it('keeps INVALID a logged failure for any other name, and for a ZIP archive outside a save', async () => {
-        for (const name of ['report.pdf', 'zip', 'archive.zip.part']) {
+        for (const name of ['report.pdf', 'zip', 'archive.zip.part', 'clip.aac', 'm4a']) {
             const { deps } = makeDeps([fileResult], { save: jest.fn(async () => Promise.reject(failure('INVALID'))) });
             await expect(exportFile({ ...input('save'), name }, deps)).resolves.toEqual({ kind: 'failed' });
             expect(deps.log).toHaveBeenCalled();

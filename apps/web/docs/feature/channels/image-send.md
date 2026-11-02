@@ -1,4 +1,4 @@
-# attachment send — photos, videos and documents (`useSendImages`)
+# attachment send — photos, videos, documents and audio (`useSendImages`)
 
 > Status: wired into the room and the thread through the composer's attach button. Canonical code:
 > [`hooks/useSendImages.ts`](../../../src/app/features/channels/hooks/useSendImages.ts) (this shell's
@@ -130,13 +130,13 @@ all, and the sheet says so: inside the app, that an update sends videos
 (`chat.attach.source.videoNeedsUpdate`); in a browser, that videos can be sent from the DoU app
 (`chat.attach.source.videoInApp`).
 
-The files input asks for every format the server takes but audio (`sendsNoAudio`: only the desktop app
-sends a voice memo; picked here, one is refused as unsupported) — a ZIP archive included; photos and `mp4`
-kept among files can go from there too — by type and by extension, and for the generic
-`application/octet-stream` as well (`documentAccept`). On iOS and iPadOS WebKit it names the eight file
-formats only (the seven documents and ZIP), since an image or video type there makes the system offer
-the photo library and the camera first. iOS WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx`
-against the type the Files app gives such a file, so the eight alone grey HWP and HWPX out of its
+The files input asks for every format the server takes — a ZIP archive and the four audio formats
+(M4A, MP3, WAV, Ogg) included; photos and `mp4` kept among files can go from there too — by type and by
+extension, and for the generic `application/octet-stream` as well (`documentAccept`). On iOS and iPadOS
+WebKit it names the twelve file formats only (the seven documents, ZIP and the four audio formats),
+since an image or video type there makes the system offer the photo library and the camera first. iOS
+WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx` against the type the Files app gives such a
+file, so the twelve alone grey HWP and HWPX out of its
 document picker; the generic type admits them, and with them any other file. That is safe because the
 page judges every pick itself (`chatAttachmentFormat`, which reads an untyped file's extension) and
 refuses what the server would not take. Leaving `accept` out would admit everything too, but iOS then
@@ -416,8 +416,10 @@ thumbnails above the field stays, faded. A `NOT_FOUND` from
 for the page: lists stop asking for videos, and the grid lists afresh without them when it next opens.
 
 What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
-entry's file input and the camera use its image-only form, `judgeChatImages`): the server's formats less audio (thirteen, a ZIP archive included; a shared voice memo is listed as not sent), each kind's
-own limit (20MB a photo, 300MB a video, 50MB a document or archive), the same item picked twice, and ten a message
+entry's file input and the camera use its image-only form, `judgeChatImages`): the server's seventeen
+formats (a ZIP archive and the four audio formats included, an audio file under the type alias a system
+gives it as well; AAC and WebM are not among them), each kind's own limit (20MB a photo, 300MB a video,
+50MB a document, archive or audio file), the same item picked twice, and ten a message
 (`IMAGE_MESSAGE_SLOT_MAX`). What the app's picker would not copy is reported the same way: each of its
 refusals carries the item's `kind`, so a too-large one names that kind's limit, and an unsupported
 video says it is the video's format. The grid's own refusals are reported the same way. The first reason met
@@ -614,11 +616,9 @@ A card shows the format's icon, the name in two lines with its extension always 
 a download button at its right edge. An upload older than names says "File". A pending card draws from
 the slot's `localName` / `localSize`, a server-failed one is dimmed and says it cannot be opened.
 
-A voice file sent from desktop (M4A, MP3, WAV, OGG) arrives with `stereo: 'audio'` and is drawn as a
-document card too (`chatMediaItems`); there is no player. The shells do not know these formats yet:
-`OpenFile` refuses an MP3, WAV or OGG by its bytes (`UNSUPPORTED_TYPE`) and `SaveFile` refuses every
-audio name (`INVALID`), so inside the app those presses end in the failure toast. In a browser the
-download works like any document's.
+An audio upload (M4A, MP3, WAV, Ogg — a voice message or an audio file) is listed with the documents,
+marked `audio` (`chatMediaItems`), and drawn as a player card once it is sent (§ Audio cards); one still
+on its way, failed or broken is a document card, which already draws those states.
 
 In a browser the button and the card both download (`lib/fileDownload.ts`): the bytes are fetched into
 a `Blob` and saved from a local address under the upload's own name, since an anchor's `download`
@@ -653,23 +653,84 @@ recoveries:
   says saving needs it and offers the settings.
 - **`UNSUPPORTED_TYPE` from `ShareFile`.** An app that shares photos but predates documents: a toast
   asks for an update.
-- **`INVALID` from `SaveFile` for a `.zip`.** An app built before the phone kept a ZIP archive saves
-  only the other formats' extensions. Older apps already met this with archives sent from desktop,
+- **`INVALID` from `SaveFile` for a `.zip` or an audio file.** An app built before the phone kept a ZIP
+  archive saves only the other formats' extensions, and one built before audio refuses `.m4a`, `.mp3`,
+  `.wav` and `.ogg` the same way. Older apps met this with archives and voice files sent from desktop,
   where it was said as a failed download; now a toast says an update saves it
-  (`chat.attach.fileCard.archiveNeedsUpdate`); nothing is logged, and unlike `NOT_FOUND` nothing is
-  learned for the page — the same app still saves every other card. The file was downloaded all the
-  same, so the card turns `done`, and pressing it opens the archive, or offers the share sheet when
-  nothing on the device opens it. An `INVALID` for any other name is the shell refusing a file it
-  handed out itself, a bug: it is logged and said as a failure.
+  (`chat.attach.fileCard.saveNeedsUpdate`); nothing is logged, and unlike `NOT_FOUND` nothing is learned
+  for the page — the same app still saves every other card. The file was downloaded all the same, so a
+  document card turns `done`, and pressing it opens the file, or offers the share sheet when nothing on
+  the device opens it. An `INVALID` for any other name is the shell refusing a file it handed out
+  itself, a bug: it is logged and said as a failure.
 - Anything else says the file could not be downloaded. A cancel, a timeout and a closed sheet say
   nothing.
 
 "Share file" appears only inside an app whose handshake lists `ShareFile` (the check the viewer's photo
 share uses), and never in a browser, where the button already saves the file.
 
+### Audio cards
+
+`MessageAudioCard` plays a sent audio upload where it is: a play button, a seek bar with the clock
+(`0:03 / 0:08`), the name, and a ⋯ menu with Save and, inside an app that shares files, Share — the
+same downloads, saves and shares a document card's button and the action sheet use (`useFileDownloads`).
+A recording made in the app is named "Voice message" (`chat.attach.audio.voiceMessage`): nothing in the
+upload marks one except the name the shell gives every recording, `voice-<yyyyMMdd-HHmmss>.m4a`.
+
+- **It plays in the page's own `<audio>`**, from the signed address, with `preload="metadata"`: only the
+  header is read until it is played, and that is where the length comes from — the upload carries none.
+  Where the header has not been read (the iOS WebView loads no media before a tap) the clock shows the
+  time played alone. An app built before audio plays it the same way; only its save says an update is
+  needed (above).
+- **One sound at a time** (`useInlineAudio`): a card starting pauses every other audio or video in the
+  page, and a video starting pauses the card. Leaving the room unmounts the card, which stops it, and a
+  voice message starting to record pauses every card.
+- **A file that will not play** says "can't play" (`chat.attach.audio.playFailed`) and keeps its menu,
+  so it can still be saved or shared to an app that plays it. iOS decodes Ogg Opus but not Ogg Vorbis,
+  and nothing before the bytes tells the two apart, so an Ogg Vorbis file fails there and only there.
+  A signed address that has expired fails the same way, so the error also asks for the message again
+  (`useImageAddressRefresh`) — once per card, since an Ogg Vorbis file fails at every address; a fresh
+  address starts the card over.
+
+## Voice messages
+
+`useVoiceMessage` is the composer's hold-to-talk microphone. It stands where the send button is while
+there is nothing to send (`MessageInput`'s `idleSlot`): typing, or a pick waiting above the field, brings
+the send button back. It is drawn only inside an app whose handshake lists `StartAudioRecording`
+(`bridge/audioRecorder.ts`) — never in a browser, and never in an app built before the recorder, rather
+than a button that would fail — never on a locked composer, and not while the attach panel is open: a press there would close the panel and move the composer from under the thumb.
+
+The page never touches the microphone. The shell records with the OS recorder into its own pick folder
+and hands back the file, an `.m4a` typed `audio/mp4`, which goes up the way a file from the app's
+documents picker does — `sendImages` with the shell's reference, a message of its own with no caption;
+the pending row, upload progress and retry are the ones every attachment has. How the shell records,
+its limits and the microphone permission are
+[apps/mobile native/audio-recording.md](../../../../mobile/docs/native/audio-recording.md).
+
+- **Press** asks the shell to start (`StartAudioRecording`); the first press asks for the microphone. The
+  button takes the pointer (`setPointerCapture`), so a finger that lifts outside it still ends the
+  press, and `touch-action: none` keeps the page from scrolling under it. Once the shell has started, a
+  red dot, the clock and "‹ slide to cancel" stand over the field, and the attach panel waits.
+- **Release** sends (`StopAudioRecording` `send`). **Sliding left** more than 72 px first, then
+  releasing, throws it away (`cancel`); past that point the hint reads "release to cancel". A
+  `pointercancel` — the system taking the touch — throws it away too.
+- **Under a second** the shell keeps nothing (`TOO_SHORT`), and a toast says to hold the button.
+- **A release before the shell answered** stops the recording the moment it starts. A quick tap is
+  told to hold; a start that took over a second waited on the OS permission prompt, so it says nothing
+  and the next press records.
+- **Refused** (`PERMISSION_DENIED`) opens the settings prompt the camera and photos use, titled for the
+  microphone, with a button to Settings (`OpenSettings`).
+- **The five-minute limit** ends the recording in the shell, which pushes the end with the file: it is
+  sent as if released there. **An interruption** — a call, the app leaving the screen — throws it away,
+  pushed too, and a toast says the recording stopped.
+- **Leaving** — the room or thread changing, the composer unmounting, a lock landing — throws a running
+  recording away, and so does typing, which puts the send button where the microphone was. Only the
+  finger that pressed moves, releases or cancels it.
+
 ## Not done here
 
 - **Cancel, a hash.** Neither is offered or sent. Upload progress is shown (§ Rendering).
+- **A waveform, a locked recording, a preview before sending.** A voice message is held, released and
+  sent; its card and its recording show only time.
 - **Documents surviving a reload inside the app.** The record of which file the shell downloaded lives
   in the page, so after a reload the card is `idle` again and the next press downloads once more.
 - **Save and share from a tile.** The viewer has them for photos and videos inside an app that can
@@ -700,7 +761,9 @@ npx jest --config apps/web/jest.config.js apps/web/src/app/features/channels/hoo
   apps/web/src/app/features/channels/hooks/useAttachPanelSlot \
   apps/web/src/app/features/channels/utils/slotSlide apps/web/src/app/ui/hooks/useChromeInsets \
   apps/web/src/app/features/channels/utils/bakePhotoEdit \
-  apps/web/src/app/features/channels/pages/ChannelRoomPage apps/web/src/app/features/channels/pages/ThreadPage
+  apps/web/src/app/features/channels/pages/ChannelRoomPage apps/web/src/app/features/channels/pages/ThreadPage \
+  apps/web/src/app/features/channels/hooks/useVoiceMessage apps/web/src/app/bridge/audioRecorder \
+  apps/web/src/app/features/channels/components/MessageAudioCard apps/web/src/app/features/channels/lib/fileExport
 npx nx test web-ui-kit -- photoGridLayout PhotoPicker BottomSheet photoEdit cropBox PhotoEditor EditedPhotoImage \
   AttachPanel MessageInput PickedFileStrip
 ```

@@ -14,6 +14,7 @@ import { ChannelMessageRow, type MessageSender } from '../components/ChannelMess
 import { GapDivider } from '../components/GapDivider';
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
+import { useVoiceMessage } from '../hooks/useVoiceMessage';
 import { chatGapKey, type ChatGap, type ChatGapSide } from '../hooks/useChats';
 import { useComposerDraft } from '../hooks/useComposerDraft';
 import { useMentionComposer } from '../hooks/useMentionComposer';
@@ -305,9 +306,12 @@ export const ThreadPage = () => {
         channelId: stableChannelId,
         parentId: thread.root?.id,
     });
+    const imageLocked = editing.isEditing || rootOutsideJoinWindow || !thread.root?.id || inputLock.isLocked;
+    // The room's rule: a voice message replies to the root like a photo does, under the same lock.
+    const voice = useVoiceMessage({ sendImages: imageSend.sendImages, disabled: imageLocked, scope: draftScope });
     const attach = useChatImageAttach({
         sendImages: imageSend.sendImages,
-        disabled: editing.isEditing || rootOutsideJoinWindow || !thread.root?.id || inputLock.isLocked,
+        disabled: imageLocked || voice.recording,
         // The route keeps this page mounted from one thread to the next; what waits is this thread's.
         scope: draftScope,
         inputRef,
@@ -906,9 +910,12 @@ export const ThreadPage = () => {
                             attach.button
                         )
                     }
+                    // The room's rule: never on a locked composer, nor while the attach panel is open.
+                    idleSlot={imageLocked || attach.panelOpen ? undefined : voice.button}
                 />
             </div>
             {attach.overlays}
+            {voice.dialogs}
 
             <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
 

@@ -1,4 +1,4 @@
-import { chatAttachmentAccept, sendsNoAudio } from '@chatic/data';
+import { chatAttachmentAccept } from '@chatic/data';
 
 import { albumAccept, documentAccept, isAppleTouchWebKit, rejectionKey } from './attachSources';
 
@@ -47,16 +47,32 @@ describe('page input accept lists', () => {
             expect.arrayContaining(['image/png', '.webp', 'video/mp4', '.mp4', 'application/pdf', '.hwpx'])
         );
         expect(accept).toEqual([
-            ...chatAttachmentAccept(['image', 'video', 'file'], sendsNoAudio).split(','),
+            ...chatAttachmentAccept(['image', 'video', 'file']).split(','),
             'application/octet-stream',
         ]);
         expect(accept.some(type => type.includes('*'))).toBe(false);
     });
 
-    // Audio is a desktop-only send; the web pickers offer none of it, on either system.
-    it('offers no audio format from any page input', () => {
-        for (const accept of [documentAccept(false), documentAccept(true), albumAccept(false), albumAccept(true)]) {
-            expect(accept).not.toMatch(/audio\/|\.m4a|\.mp3|\.wav|\.aac|\.ogg|\.webm/);
+    // The four audio formats go from files on either system; the album offers none, and formats the
+    // server does not take (AAC, WebM) are offered nowhere.
+    it('offers the server audio formats from files only', () => {
+        for (const accept of [documentAccept(false), documentAccept(true)]) {
+            expect(accept.split(',')).toEqual(
+                expect.arrayContaining([
+                    'audio/mp4',
+                    'audio/mpeg',
+                    'audio/wav',
+                    'audio/ogg',
+                    '.m4a',
+                    '.mp3',
+                    '.wav',
+                    '.ogg',
+                ])
+            );
+            expect(accept).not.toMatch(/\.aac|\.webm|audio\/webm|audio\/aac/);
+        }
+        for (const accept of [albumAccept(false), albumAccept(true)]) {
+            expect(accept).not.toMatch(/audio\//);
         }
     });
 

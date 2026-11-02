@@ -46,3 +46,26 @@ export const WithAttach: Story = { render: () => <WithAttachDemo /> };
 export const SendReady: Story = {
     render: () => <MessageInput value="" onChange={() => undefined} onSend={() => undefined} sendReady />,
 };
+
+/** The room's microphone in the send button's place: type, and the send button comes back. */
+const WithIdleSlotDemo = () => {
+    const [value, setValue] = useState('');
+    return (
+        <MessageInput
+            value={value}
+            onChange={setValue}
+            onSend={() => setValue('')}
+            idleSlot={
+                <button
+                    type="button"
+                    aria-label="Record"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-ink text-[11px] text-white"
+                >
+                    Mic
+                </button>
+            }
+        />
+    );
+};
+
+export const WithIdleSlot: Story = { render: () => <WithIdleSlotDemo /> };

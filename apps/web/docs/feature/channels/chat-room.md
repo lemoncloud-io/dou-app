@@ -397,7 +397,9 @@ tags is not retried.
 ## The composer
 
 `MessageInput` is a floating pill over the list, with no surface of its own, so messages scroll
-behind it right to the screen edge. Its bottom inset is
+behind it right to the screen edge. Inside an app that records, the idle send button gives its place to
+the voice-message microphone (`idleSlot`) until something is typed or picked
+([image-send.md](./image-send.md#voice-messages)). Its bottom inset is
 `max(8px, --safe-bottom, max(--keyboard-height, --attach-inset) + 8px)` — a max, never a sum, or the
 keyboard's own edge-to-edge height gets the safe inset added on top of it. `--attach-inset` is the
 attach panel standing in the keyboard's place, which the panel writes on the composer itself, at once

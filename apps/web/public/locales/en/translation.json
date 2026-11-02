@@ -1075,7 +1075,9 @@
                 "photosTitle": "No access to your photos",
                 "description": "You can change this in Settings",
                 "cancel": "Cancel",
-                "settings": "Open Settings"
+                "settings": "Open Settings",
+                "microphoneTitle": "No access to the microphone",
+                "microphoneDescription": "Allow the microphone in Settings"
             },
             "preview": "Photo",
             "previewCount": "{{count}} photos",
@@ -1118,7 +1120,7 @@
                 "storagePermission": "Allow storage access to save",
                 "share": "Share file",
                 "shareUpdateRequired": "Update the app to share files",
-                "archiveNeedsUpdate": "Update the app to save ZIP files"
+                "saveNeedsUpdate": "Update the app to save this file"
             },
             "export": {
                 "save": "Save photo",
@@ -1153,7 +1155,24 @@
             },
             "viewerPlay": "Play video",
             "pickedFiles": "Files to send",
-            "removeFile": "Remove {{name}}"
+            "removeFile": "Remove {{name}}",
+            "audio": {
+                "voiceMessage": "Voice message",
+                "play": "Play {{name}}",
+                "pause": "Pause {{name}}",
+                "seek": "Playback position of {{name}}",
+                "playFailed": "Can't play this",
+                "menu": "More for {{name}}",
+                "save": "Save"
+            },
+            "voice": {
+                "record": "Hold to record a voice message",
+                "holdToRecord": "Hold to record",
+                "interrupted": "Recording stopped",
+                "failed": "Couldn't record",
+                "slideToCancel": "‹ Slide to cancel",
+                "releaseToCancel": "Release to cancel"
+            }
         },
         "preview": {
             "thread": "[Thread] {{text}}",

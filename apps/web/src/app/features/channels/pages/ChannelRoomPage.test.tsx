@@ -79,7 +79,17 @@ jest.mock('@chatic/web-ui-kit', () => ({
     ImageAvatar: () => null,
     SystemNotice: () => null,
     // The field and the send button, and what the room tells the button: enough to drive the send.
-    MessageInput: ({ onSend, value, onChange, inputRef, sendReady, disabled, placeholder, leadingSlot }: any) => (
+    MessageInput: ({
+        onSend,
+        value,
+        onChange,
+        inputRef,
+        sendReady,
+        disabled,
+        placeholder,
+        leadingSlot,
+        idleSlot,
+    }: any) => (
         <>
             {leadingSlot}
             <textarea
@@ -93,6 +103,7 @@ jest.mock('@chatic/web-ui-kit', () => ({
             <button data-testid="send" data-send-ready={String(!!sendReady)} onClick={() => onSend('hello')} />
             {/* Sends what is in the field, for the cases where the text itself is what is checked. */}
             <button data-testid="send-typed" onClick={() => onSend(value)} />
+            {idleSlot}
         </>
     ),
 }));
@@ -172,6 +183,19 @@ interface MockAttachInput {
     disabled?: boolean;
 }
 let mockAttachInput: MockAttachInput = {};
+// The voice message's own behaviour is its hook's test; here only where its pieces go.
+let mockVoiceRecording = false;
+let mockVoiceInput: { disabled?: boolean; scope?: string } | undefined;
+jest.mock('../hooks/useVoiceMessage', () => ({
+    useVoiceMessage: (input: { disabled?: boolean; scope?: string }) => {
+        mockVoiceInput = input;
+        return {
+            button: <button data-testid="voice-mic" />,
+            dialogs: null,
+            recording: mockVoiceRecording,
+        };
+    },
+}));
 jest.mock('../components/ChatImageAttach', () => ({
     useChatImageAttach: (input: MockAttachInput) => {
         mockAttachInput = input;
@@ -265,6 +289,7 @@ const failedRow = (over: Partial<ClientChatView> = {}): Partial<ClientChatView> 
 });
 
 beforeEach(() => {
+    mockVoiceRecording = false;
     mockChannel = { id: 'ch1', cid: 'cloud-b', stereo: 'group', memberIds: ['peer'] };
     mockMessages = [];
     mockGaps = [];
@@ -316,6 +341,27 @@ describe('ChannelRoomPage — the input lock', () => {
 
         expect(mockSendMessage).not.toHaveBeenCalled();
         expect(mockSendPicked).not.toHaveBeenCalled();
+    });
+
+    it('offers the microphone on an open composer, and none on a locked one', () => {
+        const { unmount } = render(<ChannelRoomPage />);
+        expect(screen.getByTestId('voice-mic')).toBeInTheDocument();
+        expect(mockVoiceInput).toEqual(expect.objectContaining({ disabled: false, scope: 'ch1' }));
+        unmount();
+
+        mockInputLocked = true;
+        render(<ChannelRoomPage />);
+
+        expect(screen.queryByTestId('voice-mic')).not.toBeInTheDocument();
+        expect(mockVoiceInput).toEqual(expect.objectContaining({ disabled: true }));
+    });
+
+    it('holds the attach panel while a voice message records', () => {
+        mockVoiceRecording = true;
+
+        render(<ChannelRoomPage />);
+
+        expect(mockAttachInput).toEqual(expect.objectContaining({ disabled: true }));
     });
 
     it('lifts the lock from the padlock in the composer', () => {

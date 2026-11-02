@@ -160,6 +160,18 @@ jest.mock('../hooks/useSendImages', () => ({
         return { sendImages: jest.fn(), retry: jest.fn(), canRetry: () => false, discard: jest.fn() };
     },
 }));
+// The voice message's own behaviour is its hook's test; here only where its pieces go.
+let mockVoiceInput: { disabled?: boolean; scope?: string } | undefined;
+jest.mock('../hooks/useVoiceMessage', () => ({
+    useVoiceMessage: (input: { disabled?: boolean; scope?: string }) => {
+        mockVoiceInput = input;
+        return {
+            button: <button data-testid="voice-mic" />,
+            dialogs: null,
+            recording: false,
+        };
+    },
+}));
 jest.mock('../components/ChatImageAttach', () => ({
     useChatImageAttach: (input: MockAttachInput) => {
         mockAttachInputs.push(input);

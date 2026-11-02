@@ -1075,7 +1075,9 @@
                 "photosTitle": "사진에 대한 액세스 권한이 없어요",
                 "description": "설정 앱에서 권한을 수정할 수 있어요",
                 "cancel": "취소",
-                "settings": "설정하기"
+                "settings": "설정하기",
+                "microphoneTitle": "마이크에 대한 액세스 권한이 없어요",
+                "microphoneDescription": "설정에서 마이크를 허용해 주세요"
             },
             "preview": "사진",
             "previewCount": "사진 {{count}}장",
@@ -1118,7 +1120,7 @@
                 "storagePermission": "저장 공간 접근을 허용해야 저장할 수 있어요",
                 "share": "파일 공유",
                 "shareUpdateRequired": "앱을 업데이트하면 파일을 공유할 수 있어요",
-                "archiveNeedsUpdate": "앱을 업데이트하면 압축 파일을 저장할 수 있어요"
+                "saveNeedsUpdate": "앱을 업데이트하면 저장할 수 있어요"
             },
             "export": {
                 "save": "사진 저장",
@@ -1153,7 +1155,24 @@
             },
             "viewerPlay": "동영상 재생",
             "pickedFiles": "보낼 파일",
-            "removeFile": "{{name}} 빼기"
+            "removeFile": "{{name}} 빼기",
+            "audio": {
+                "voiceMessage": "음성 메시지",
+                "play": "{{name}} 재생",
+                "pause": "{{name}} 일시정지",
+                "seek": "{{name}} 재생 위치",
+                "playFailed": "재생할 수 없어요",
+                "menu": "{{name}} 더보기",
+                "save": "저장"
+            },
+            "voice": {
+                "record": "길게 눌러 음성 메시지 녹음",
+                "holdToRecord": "길게 눌러 녹음하세요",
+                "interrupted": "녹음이 중단됐어요",
+                "failed": "녹음하지 못했어요",
+                "slideToCancel": "‹ 밀어서 취소",
+                "releaseToCancel": "놓으면 취소돼요"
+            }
         },
         "preview": {
             "thread": "[스레드] {{text}}",
