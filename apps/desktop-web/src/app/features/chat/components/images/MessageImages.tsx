@@ -15,8 +15,13 @@ import { ImageSetMeta, ImageViewer, type ImageAuthor } from './ImageViewer';
 interface MessageImagesProps {
     /** The message the images belong to — its images are read from it. */
     message: DomainChat;
-    /** "Delete file" is offered on your own messages only (and only on the debug samples — there is no server delete yet). */
+    /** "Delete file" is offered on your own messages only. */
     canDelete: boolean;
+    /**
+     * Deletes the whole message. A sent upload has no delete of its own on the server, so
+     * "Delete file" on one removes the message it came with — text and every other image too.
+     */
+    onDeleteMessage?: () => void;
     author: ImageAuthor;
     /** Open this message's thread (the viewer's "Reply"). Absent inside the thread panel. */
     onReply?: () => void;
@@ -39,6 +44,7 @@ export const MessageImages = (props: MessageImagesProps) => {
 const MessageImageGrid = ({
     message,
     canDelete,
+    onDeleteMessage,
     author,
     onReply,
     images,
@@ -66,8 +72,9 @@ const MessageImageGrid = ({
         );
     const downloadFailed = () => toast({ variant: 'destructive', description: t('chat.image.downloadFailed') });
     const download = (image: ChatImage) => void downloadImage(image).catch(downloadFailed);
-    // "Delete file" writes to the debug sample store only: a message's own uploads have no delete yet.
-    const canDeleteHere = canDelete && !message.upload$$?.length;
+    // A sent upload is deleted with its message; only the debug samples are removed one by one.
+    const deletesMessage = !!message.upload$$?.length;
+    const canDeleteHere = canDelete && (!deletesMessage || !!onDeleteMessage);
     const requestDelete = canDeleteHere ? (image: ChatImage) => setPendingDelete(image) : undefined;
 
     return (
@@ -114,13 +121,15 @@ const MessageImageGrid = ({
                 <ConfirmDialog
                     open
                     onOpenChange={open => !open && setPendingDelete(null)}
-                    title={t('chat.image.deleteConfirm.title')}
-                    description={pendingDelete.name}
+                    title={t(deletesMessage ? 'chat.deleteConfirm.title' : 'chat.image.deleteConfirm.title')}
+                    description={deletesMessage ? t('chat.deleteConfirm.noPreview') : pendingDelete.name}
                     confirmLabel={t('chat.image.delete')}
                     variant="danger"
                     onConfirm={() => {
-                        if (message.id) removeImage(message.id, pendingDelete.id);
                         setPendingDelete(null);
+                        setViewerIndex(null);
+                        if (deletesMessage) onDeleteMessage?.();
+                        else if (message.id) removeImage(message.id, pendingDelete.id);
                     }}
                 />
             )}

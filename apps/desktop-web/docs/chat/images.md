@@ -101,7 +101,9 @@ screen reader reaches it. A disabled button is skipped, and the upload, and its 
 presence at all.
 
 Over the tile's corner, `ImageActions` shows Download and a "More" button whose menu holds Copy and
-Delete, as the design draws it. Delete shows only where the reader may delete. The menu renders in a
+Delete, as the design draws it. Delete shows only on your own messages. A sent upload has no
+delete of its own on the server, so Delete there removes the whole message — its text and every
+other image too — and the confirm dialog asks about the message, not the file. The menu renders in a
 portal, so the pointer leaves the tile while it is open; the bar stays pinned visible until the menu
 closes, otherwise it faded out from under the menu. The viewer keeps the three icon buttons.
 
