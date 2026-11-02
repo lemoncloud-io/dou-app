@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-02] - root@0.140.2, @chatic/desktop-web@0.46.2
+
+### Bug Fixes
+
+- (desktop-web) scroll settings inside the page, not the whole window
+
 ## [2026-11-02] - No version updates
 
 ### Features
