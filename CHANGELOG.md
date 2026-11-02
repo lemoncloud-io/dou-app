@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-02] - root@0.141.2, @chatic/desktop-web@0.47.2
+
+### Bug Fixes
+
+- (desktop-web) open the thread a list row previews, not just its room
+
 ## [2026-11-02] - root@0.141.1, @chatic/desktop-web@0.47.1
 
 ### Bug Fixes
