@@ -4,6 +4,23 @@
 
 ### Features
 
+- (web,web-ui-kit) record voice messages in a sheet opened from the attach panel
+- (mobile) record voice messages in the shell and keep audio files
+- (web,data,web-ui-kit) send, record and play audio on the phone
+- (bridge-messages,bridges) add the shell's voice-message recorder messages
+
+### Documentation
+
+- (adr) the phone sends, records and plays audio, and the shell records it (ADR-0268)
+
+### Other
+
+- build: (mobile) record the Podfile checksum for the Microphone permission handler
+
+## [2026-11-02] - No version updates
+
+### Features
+
 - (admin-v2,http,data,app-runtime) let the users screen list and register on either stage
 
 ## [2026-11-02] - No version updates
