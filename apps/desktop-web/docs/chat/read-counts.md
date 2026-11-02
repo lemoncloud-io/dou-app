@@ -1,8 +1,23 @@
 # Read counts
 
-A room shows how many of its members have read a message, as a small pill under it:
-`읽음 5 · 미확인 7` (Seen 5 · Not seen 7). Once every member has read it, the second half goes and the pill
-reads `읽음 12`. It is a count only — who read it is not shown yet.
+A room shows who has read a message, as a small pill under it: the faces of the first three members
+who read it (the rest as `+N`), then `읽음 5 · 미확인 7` (Seen 5 · Not seen 7). Once every member it was
+meant for has read it, the second half goes and the pill reads `읽음 12`.
+
+## Who read it
+
+Resting the pointer on the pill opens a card above it with two tabs, `읽음 N` and `미확인 M`, each
+listing those members by face and name; Seen is the tab it opens on. It opens on hover rather than
+click because it is a glance, not a place to go. Leaving the pill closes it after a short grace, so the
+pointer can cross onto the card and scroll a long list, and a hover never takes focus away from what
+the reader was doing. From the keyboard, Enter or Space on the pill opens the same card with focus
+inside it, so the tabs and both lists are reachable — the card renders outside the feed, so Tab from
+the pill alone would walk past it. Escape, or focus leaving the card, closes it. Escape puts focus back on the pill; clicking or tabbing elsewhere leaves it where the reader moved it. The component is
+`ReadReceiptPill`.
+
+A member is named the way a message author is: the place nickname first, then the roster's name, my
+own id resolving to me. The face comes from the place profile, else the roster's. A member nothing
+names yet still gets a row, under the `-` placeholder, so the list never disagrees with the count.
 
 ## Where the pill appears
 
@@ -58,5 +73,5 @@ Leaving the room disposes them.
 
 ## Rendering cost
 
-`MessageRow` is memoised with a comparator that compares the count by value. A join update that moves
+`MessageRow` is memoised with a comparator that compares the two member lists by value. A join update that moves
 one block's count re-renders that block only, not the whole feed.

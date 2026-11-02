@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { DomainChat } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -66,6 +66,11 @@ const renderList = (messages: DomainChat[], readCountOf?: (chatNo: number, autho
                     ['bob', 'Bob'],
                 ])
             }
+            mentionables={[
+                { id: 'm0', name: 'Sunny', thumbnail: 'https://cdn.example/sunny.png' },
+                { id: 'm1', name: '레인' },
+                { id: 'everyone', name: 'everyone', everyone: true },
+            ]}
             readCountOf={readCountOf}
         />,
         { wrapper }
@@ -166,5 +171,99 @@ describe('MessageList read counts', () => {
         renderList([message(1, 'ada', { hidden: true } as Partial<DomainChat>)], () => counts(2, 0));
 
         expect(screen.queryByText(/Seen/)).toBeNull();
+    });
+
+    describe('who read it', () => {
+        const pill = () => screen.getByRole('button', { name: /Seen/ });
+
+        it('lists who read it and who has not, a tab each, when the pointer rests on the count', async () => {
+            renderList([message(1, 'ada')], () => counts(2, 1));
+            await act(async () => fireEvent.pointerEnter(pill()));
+
+            const popover = screen.getByRole('dialog');
+            expect(within(popover).getByRole('tab', { name: 'Seen 2', selected: true })).toBeDefined();
+            expect(within(popover).getByRole('tab', { name: 'Not seen 1' })).toBeDefined();
+            expect(within(popover).getByText('Sunny')).toBeDefined();
+            expect(within(popover).getByText('레인')).toBeDefined();
+        });
+
+        it('names a member missing from the roster by the feed names, then by a placeholder, rather than dropping them', async () => {
+            renderList([message(1, 'ada')], () => ({ readIds: ['m0', 'bob', 'ghost'], unreadIds: [] }));
+            await act(async () => fireEvent.pointerEnter(pill()));
+
+            const list = within(screen.getByRole('dialog')).getAllByRole('listitem');
+            expect(list.map(item => item.textContent)).toEqual(['SSunny', 'BBob', '--']);
+        });
+
+        it('opens from the keyboard with focus inside, so the not-seen list can be reached', async () => {
+            renderList([message(1, 'ada')], () => counts(1, 1));
+            await act(async () => fireEvent.click(pill(), { detail: 0 }));
+
+            const popover = screen.getByRole('dialog');
+            expect(popover.contains(document.activeElement)).toBe(true);
+            await act(async () => within(popover).getByRole('tab', { name: 'Not seen 1' }).focus());
+
+            expect(within(popover).getByRole('tab', { name: 'Not seen 1', selected: true })).toBeDefined();
+            expect(within(popover).getByRole('tabpanel').textContent).toContain('레인');
+            expect(within(popover).getByRole('tabpanel').textContent).not.toContain('Sunny');
+        });
+
+        it('hands focus back to the count when Escape closes a keyboard-opened list', async () => {
+            renderList([message(1, 'ada')], () => counts(1, 1));
+            await act(async () => fireEvent.click(pill(), { detail: 0 }));
+            await act(async () => fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' }));
+
+            expect(screen.queryByRole('dialog')).toBeNull();
+            // Radix restores focus on the tick after the card unmounts.
+            await waitFor(() => expect(document.activeElement).toBe(pill()));
+        });
+
+        it('leaves focus where the reader moved it when they leave a keyboard-opened list', async () => {
+            renderList([message(1, 'ada')], () => counts(1, 1));
+            const elsewhere = document.body.appendChild(document.createElement('button'));
+            try {
+                await act(async () => fireEvent.click(pill(), { detail: 0 }));
+                await act(async () => elsewhere.focus());
+                await act(async () => new Promise(resolve => setTimeout(resolve, 0)));
+
+                expect(screen.queryByRole('dialog')).toBeNull();
+                expect(document.activeElement).toBe(elsewhere);
+            } finally {
+                elsewhere.remove();
+            }
+        });
+
+        it('keeps focus where it was when the pointer opens it', async () => {
+            renderList([message(1, 'ada')], () => counts(1, 1));
+            const before = document.activeElement;
+            await act(async () => fireEvent.pointerEnter(pill()));
+
+            expect(screen.getByRole('dialog')).toBeDefined();
+            expect(document.activeElement).toBe(before);
+        });
+
+        it('closes once the pointer leaves', async () => {
+            vi.useFakeTimers();
+            try {
+                renderList([message(1, 'ada')], () => counts(1, 1));
+                await act(async () => fireEvent.pointerEnter(pill()));
+                await act(async () => {
+                    fireEvent.pointerLeave(pill());
+                    vi.runAllTimers();
+                });
+
+                expect(screen.queryByRole('dialog')).toBeNull();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
+        it('stacks the faces of the first three who read it and counts the rest', () => {
+            renderList([message(1, 'ada')], () => counts(5, 0));
+
+            expect(within(pill()).getByText('+2')).toBeDefined();
+            expect(within(pill()).getByText('S')).toBeDefined();
+            expect(within(pill()).getByText('레')).toBeDefined();
+        });
     });
 });

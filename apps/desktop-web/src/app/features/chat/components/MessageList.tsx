@@ -40,6 +40,7 @@ import {
     windowForViewport,
 } from './feedWindow';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
+import type { ReadPerson } from './ReadReceiptPill';
 import type { MentionResolver } from './RichText';
 
 interface MessageListProps {
@@ -340,6 +341,20 @@ export const MessageList = ({
         };
         return resolve;
     }, [names, placeProfiles, viewer]);
+
+    // A member in the read list, named the way an author is: place nickname over the roster name,
+    // then the mention roster's, my own id resolving to me; the face likewise. Never
+    // dropped for want of a name — a placeholder keeps them counted. Memoised: rows are memo'd.
+    const readPerson = useMemo(() => {
+        const roster = new Map((mentionables ?? []).filter(m => !m.everyone).map(m => [m.id, m] as const));
+        return (userId: string): ReadPerson => {
+            const mine = isViewerId(userId, viewer);
+            const place = mine ? viewerPlaceProfile(viewer, placeProfiles) : placeProfiles[userId];
+            const fallbackName = mine ? viewer.name : (names?.get(userId) ?? roster.get(userId)?.name ?? '');
+            const display = resolveDisplay(place, fallbackName, roster.get(userId)?.thumbnail);
+            return { id: userId, name: display.name || t('profile.unknown'), thumbnail: display.thumbnail };
+        };
+    }, [mentionables, names, placeProfiles, viewer, t]);
 
     // Resolve thread repliers for the footer avatar stack the same way message
     // authors resolve: Place Profile override → roster name → viewer (own replies,
@@ -888,7 +903,14 @@ export const MessageList = ({
                     // must not take the count away from the messages that did land.
                     const counted = readCountOf ? lastCountable(row.group.messages) : undefined;
                     const count = counted ? readCountOf?.(counted.chatNo, counted.ownerId ?? '') : null;
-                    const readCount = counted && count ? { ...count, chatNo: counted.chatNo } : undefined;
+                    const readCount =
+                        counted && count
+                            ? {
+                                  chatNo: counted.chatNo,
+                                  readers: count.readIds.map(readPerson),
+                                  nonReaders: count.unreadIds.map(readPerson),
+                              }
+                            : undefined;
                     return (
                         <MessageRow
                             key={row.group.key}
