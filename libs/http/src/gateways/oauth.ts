@@ -8,6 +8,7 @@ import type {
     UserTokenView,
 } from '@lemoncloud/chatic-backend-api';
 import type { VerifyNativeTokenBody } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
+import type { AdminEndpointOptions } from './subscriptions';
 import type { HttpGatewayExecutor } from './types';
 
 /** Mirrors web-core's `api/types/auth.ts` — declared locally since this lib cannot import from an
@@ -49,7 +50,8 @@ export const isAwsAccountNo = (value: string): boolean => /^\d{12}$/.test(value)
 export interface OAuthHttpGateway {
     registerDevice(deviceId: string): Promise<UserTokenView>;
     registerUser(body: UserBody): Promise<UserTokenView>;
-    registerUserV2(body: RegisterUserV2Body, email?: boolean): Promise<UserTokenView>;
+    /** `options.endpoint` registers on another stage's relay — the admin console's user screen only. */
+    registerUserV2(body: RegisterUserV2Body, email?: boolean, options?: AdminEndpointOptions): Promise<UserTokenView>;
     login(body: LoginUserBody, email?: boolean): Promise<UserTokenView>;
     /** `POST {input.baseURL}/oauth/exchange-token` — baseURL is the caller's override (the target
      * cloud's backend, not yet the active session's own host). Destination and signing are
@@ -95,10 +97,10 @@ export const createOAuthHttpGateway = (exec: HttpGatewayExecutor): OAuthHttpGate
                 body,
             }),
 
-        registerUserV2: (body, email) =>
+        registerUserV2: (body, email, options) =>
             exec.executeRelayRequest<UserTokenView, RegisterUserV2Body>({
                 method: 'POST',
-                baseURL: `${relay()}/oauth/register-user-v2`,
+                baseURL: `${options?.endpoint || relay()}/oauth/register-user-v2`,
                 params: email !== undefined ? { email: email ? 'true' : 'false' } : undefined,
                 body,
             }),

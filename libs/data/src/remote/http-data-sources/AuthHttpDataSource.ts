@@ -12,10 +12,17 @@ import type { DomainUser } from '../../domain';
 import type { DataContext } from '../../repositories/types';
 import type { AuthHttpDomainGateway } from '../gateways';
 import { toDomainUserFromHttp } from './httpUserMapping';
+import type { AdminEndpointOptions } from './SubscriptionHttpDataSource';
 
 export interface IAuthHttpDataSource {
     registerUser(body: UserBody, context: DataContext): Promise<DomainUser>;
-    registerUserV2(body: RegisterUserV2Body, email: boolean | undefined, context: DataContext): Promise<DomainUser>;
+    /** `opts.endpoint` registers on another stage's relay — the admin console's user screen only. */
+    registerUserV2(
+        body: RegisterUserV2Body,
+        email: boolean | undefined,
+        context: DataContext,
+        opts?: AdminEndpointOptions
+    ): Promise<DomainUser>;
     findAlias(body: FindAliasBody): Promise<FindAliasView>;
     verifyAlias(body: VerifyAliasBody): Promise<VerifyAliasView>;
     /** Invite-code login — session material. It is not mapped to `DomainUser`: mapping drops `Token`
@@ -59,9 +66,10 @@ export class AuthHttpDataSource implements IAuthHttpDataSource {
     async registerUserV2(
         body: RegisterUserV2Body,
         email: boolean | undefined,
-        context: DataContext
+        context: DataContext,
+        opts?: AdminEndpointOptions
     ): Promise<DomainUser> {
-        const view = await this.gateway.registerUserV2(body, email);
+        const view = await this.gateway.registerUserV2(body, email, opts);
         return toDomainUserFromHttp(view, context);
     }
 

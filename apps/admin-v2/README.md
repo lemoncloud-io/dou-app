@@ -24,8 +24,8 @@ admin session, and a silent guest fallback would defeat that gate.
 
 ## Stage endpoints
 
-Several screens switch between the dev (`d1`) and production (`v1`) stage at run time — memberships,
-cloud deployments, the log console and the socket lab's Observe tab — so one build reaches both
+Every screen except sign-in switches between the dev (`d1`) and production (`v1`) stage at run time —
+memberships, cloud deployments, the log console, the socket lab and users — so one build reaches both
 stages. Each service's base on each stage is its own env key, read through
 `src/app/config/stageEndpoints.ts`:
 
@@ -57,9 +57,10 @@ stages. Each service's base on each stage is its own env key, read through
 - **An unset key leaves that stage unconfigured.** The screen shows "(not configured)", the queries
   stay off, and a call that would otherwise fall back somewhere throws with the missing key's name —
   never the session's own relay standing in for the other stage.
-- The memberships console still sends calls on the session's own stage without an override, so the
-  http client's deep-link and `window.DOU_ENDPOINT` overrides keep working — see
-  [memberships/](docs/memberships/README.md).
+- **Relay calls on the session's own stage go out without an override** (`relayOverrideFor`), so the
+  http client's deep-link and `window.DOU_ENDPOINT` overrides keep working; on the other stage they
+  carry its `VITE_<STAGE>_RELAY_ENDPOINT`. Memberships and Users both work this way — see
+  [memberships/](docs/memberships/README.md) and [users/](docs/users/README.md).
 
 ## Documents
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { logger } from '@chatic/bridges';
@@ -14,6 +15,8 @@ import {
 import { Input } from '@chatic/ui-kit/components/ui/input';
 import { Label } from '@chatic/ui-kit/components/ui/label';
 
+import { relayOverrideFor, relayTargetFor, type ServiceStage } from '../../../config/stageEndpoints';
+
 import type { RegisterUserV2Body } from '@lemoncloud/chatic-backend-api';
 import type { JSX } from 'react';
 
@@ -28,14 +31,24 @@ type UserFormData = {
 };
 
 interface RegisterUserDialogProps {
+    /** The stage the page is on; the account is created on that stage's relay. */
+    stage: ServiceStage;
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSuccess?: () => void;
     onFail?: (error: unknown) => void;
 }
 
-export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: RegisterUserDialogProps): JSX.Element => {
+export const RegisterUserDialog = ({
+    stage,
+    open,
+    onOpenChange,
+    onSuccess,
+    onFail,
+}: RegisterUserDialogProps): JSX.Element => {
     const { mutateAsync: registerUser, isPending } = runtime.session.useRegisterUserV2();
+    // Shown in the dialog: the page passes no failure handler, so this is the only place it reads.
+    const [failure, setFailure] = useState<string | null>(null);
 
     const {
         register,
@@ -55,6 +68,7 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
     });
 
     const onSubmit = async (data: UserFormData) => {
+        setFailure(null);
         try {
             const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.loginId);
 
@@ -62,12 +76,18 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
                 stereo: 'user',
                 ...data,
             };
-            await registerUser({ ...body, email: isEmail } as RegisterUserV2Body & { email: boolean });
+            // Resolved at submit: an unset stage key throws here and shows below like any failure.
+            // Cast: the form's `email` field and the hook's boolean `email` flag share a name.
+            await registerUser({ ...body, email: isEmail, endpoint: relayOverrideFor(stage) } as RegisterUserV2Body & {
+                email: boolean;
+                endpoint?: string;
+            });
             onOpenChange(false);
             reset();
             onSuccess?.();
         } catch (error) {
             logger.error('GLOBAL', '[RegisterUserDialog] register failed', { error });
+            setFailure(error instanceof Error ? error.message : 'Registration failed.');
             onFail?.(error);
         }
     };
@@ -77,7 +97,10 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
             <DialogContent closeLabel="Close">
                 <DialogHeader>
                     <DialogTitle>Register New User</DialogTitle>
-                    <DialogDescription>Create a new user account</DialogDescription>
+                    <DialogDescription>
+                        Create a new user account on {stage === 'v1' ? 'Production' : 'Development'} —{' '}
+                        <span className="font-mono">{relayTargetFor(stage) || '(not configured)'}</span>
+                    </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit(onSubmit)}>
                     <div className="space-y-4 py-4 ">
@@ -136,6 +159,11 @@ export const RegisterUserDialog = ({ open, onOpenChange, onSuccess, onFail }: Re
                             {errors.loginPw && <p className="text-sm text-destructive">{errors.loginPw.message}</p>}
                         </div>
                     </div>
+                    {failure && (
+                        <p role="alert" className="pb-2 text-sm text-destructive">
+                            {failure}
+                        </p>
+                    )}
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                             Cancel

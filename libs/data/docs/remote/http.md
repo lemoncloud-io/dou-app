@@ -128,7 +128,9 @@ export interface AdminOverrideOptions extends AdminEndpointOptions {
 ```
 
 **Only the admin calls accept it.** The app's own calls must never leave the relay they were
-authenticated against, so this is opt-in per call rather than a mode on the client.
+authenticated against, so this is opt-in per call rather than a mode on the client. Besides the
+membership, refund and cloud admin calls, the admin console's user screen passes it to
+`listRelayUsers` and `registerUserV2` — its only callers — to work on either stage.
 
 ## The two `UserView` types are not assignable to each other
 
