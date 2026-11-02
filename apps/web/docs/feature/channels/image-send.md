@@ -138,7 +138,8 @@ formats only (the seven documents and ZIP), since an image or video type there m
 the photo library and the camera first. iOS WebKit matches neither HWP's MIME types nor `.hwp`/`.hwpx`
 against the type the Files app gives such a file, so the eight alone grey HWP and HWPX out of its
 document picker; the generic type admits them, and with them any other file. That is safe because the
-page judges every pick itself (`chatAttachmentFormat`, which reads an untyped file's extension) and
+page judges every pick itself (`chatAttachmentFormat`, which reads the extension of an untyped file, or
+of an office file typed as a ZIP or as a type the server does not know) and
 refuses what the server would not take. Leaving `accept` out would admit everything too, but iOS then
 offers the photo library and the camera before the document picker.
 

@@ -146,22 +146,38 @@ const extensionOf = (name: string): string | null => {
 // `x.png` is refused rather than sent as a PNG.
 const UNTYPED: ReadonlySet<string> = new Set(['', 'application/octet-stream']);
 
+// DOCX, XLSX, PPTX and HWPX: ZIP containers whose type the browser takes from whichever app owns the
+// extension on that machine. Without Office, or with another suite holding the extension, a real Word
+// file arrives as a ZIP or under that suite's own name for it — a type the server does not know.
+const OFFICE_CONTAINERS: ReadonlySet<string> = new Set([
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/hwp+zip',
+]);
+
 /**
  * What a picked file will be sent as, or `null` when the server would refuse it.
  *
  * The declared type decides. Only an empty or generic one is read from the extension: a browser hands a
- * file its system does not know (HWP, often) over with an empty type. A video or document must end in
- * its format's extension, because the receiver saves it under that name — another format's extension
- * is refused, anything else gets the right one added. That refusal is also what keeps an office file
- * (a ZIP container, and sometimes typed as one) from going up as an archive. An image name is left
- * alone; the server does not check it.
+ * file its system does not know (HWP, often) over with an empty type. The one other case is an office
+ * container's extension under a ZIP type or a type the server does not know: the extension names the
+ * document, and it goes up as that document, never as an archive. A video or document must end in its
+ * format's extension, because the receiver saves it under that name — another format's extension is
+ * refused, anything else gets the right one added. An image name is left alone; the server does not
+ * check it.
  */
 export const chatAttachmentFormat = (file: Pick<File, 'name' | 'type'>): ChatAttachmentFormat | null => {
     const declared = ALIASES[file.type] ?? file.type;
     const extension = extensionOf(file.name);
-    const format = UNTYPED.has(declared)
-        ? FORMATS.find(candidate => extension !== null && candidate.extensions.includes(extension))
-        : FORMATS.find(candidate => candidate.type === declared);
+    const named = FORMATS.find(candidate => extension !== null && candidate.extensions.includes(extension));
+    const typed = FORMATS.find(candidate => candidate.type === declared);
+    const readsName =
+        UNTYPED.has(declared) ||
+        (named !== undefined &&
+            OFFICE_CONTAINERS.has(named.type) &&
+            (typed === undefined || typed.type === CHAT_ATTACHMENT_ZIP_TYPE));
+    const format = readsName ? named : typed;
     if (!format) return null;
     const { type, kind } = format;
     if (kind === 'image') return { type, kind, name: file.name };

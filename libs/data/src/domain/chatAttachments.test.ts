@@ -64,10 +64,46 @@ describe('chatAttachmentFormat', () => {
         }
     });
 
-    // DOCX, XLSX, PPTX and HWPX are ZIP containers, and a system without their apps may say only that.
-    it('does not send an office file typed as a ZIP archive as an archive', () => {
-        expect(chatAttachmentFormat({ name: 'a.docx', type: 'application/x-zip-compressed' })).toBeNull();
-        expect(chatAttachmentFormat({ name: 'a.hwpx', type: 'application/zip' })).toBeNull();
+    const OFFICE: readonly (readonly [string, string])[] = [
+        ['보고서.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        ['문서.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+        ['발표.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+        ['기안.hwpx', 'application/hwp+zip'],
+    ];
+
+    // DOCX, XLSX, PPTX and HWPX are ZIP containers, and the browser types them by whichever app owns the
+    // extension on that machine: as a ZIP where none does, or under another suite's own name. The
+    // vendor-style type below is illustrative, not one observed on a failing machine.
+    it('sends an office file typed as a ZIP or as a type the server does not know as its document', () => {
+        for (const [name, sent] of OFFICE) {
+            for (const type of [
+                'application/zip',
+                'application/x-zip-compressed',
+                'application/x-unknown-office',
+                'application/vnd.ms-excel',
+            ]) {
+                expect(chatAttachmentFormat({ name, type })).toEqual({ type: sent, kind: 'file', name });
+            }
+        }
+    });
+
+    it('reads an office extension in any case and keeps the name as picked', () => {
+        expect(chatAttachmentFormat({ name: 'MINUTES.DOCX', type: 'application/zip' })).toEqual({
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            kind: 'file',
+            name: 'MINUTES.DOCX',
+        });
+    });
+
+    it('still refuses an office name on a file typed as another document format', () => {
+        expect(chatAttachmentFormat({ name: 'a.docx', type: 'application/pdf' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.xlsx', type: 'text/plain' })).toBeNull();
+    });
+
+    it('does not read a type the server does not know from any other extension', () => {
+        expect(chatAttachmentFormat({ name: 'a.png', type: 'image/heic' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.pdf', type: 'application/x-unknown' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.xls', type: 'application/vnd.ms-excel' })).toBeNull();
     });
 
     it('maps the names Hancom files are sometimes typed with', () => {

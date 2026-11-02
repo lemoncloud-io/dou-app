@@ -32,10 +32,12 @@ refusals by reason:
   the message shows a file card that plays it in place (see below), and the web app does not send it at all. AAC
   and WebM audio are refused: the server does not keep them, and Chromium types a WebM from disk
   `video/webm`, a video the server does not take either. An empty or generic type (HWP arrives untyped on most systems) is read from the
-  extension. A video or document whose extension names another format is refused, because the
-  receiver saves it under that name. That is also why an office file never goes up as an archive:
-  DOCX, XLSX, PPTX and HWPX are ZIP containers and a system without their apps may type them as one,
-  but their extension is another format's. Windows types a `.zip` as `application/x-zip-compressed`;
+  extension. So is an office file's: DOCX, XLSX, PPTX and HWPX are ZIP containers, and the browser types
+  them by whichever app owns the extension on that machine — as a ZIP where none does, or under another
+  suite's own name for them. Typed as a ZIP or as anything the server does not know, a file with one of
+  those four extensions goes up as that document, never as an archive. A video or document whose
+  extension names another format is still refused (a `.docx` typed as a PDF), because the receiver
+  saves it under that name. Windows types a `.zip` as `application/x-zip-compressed`;
   it is sent as `application/zip`. Nothing reads an archive's bytes here: an empty one, which the
   server refuses when its upload completes, passes the tray and its upload fails.
 - `too-large`: over its kind's limit, the same as the server's: images 20 MB, videos 300 MB,

@@ -1,7 +1,9 @@
 # ADR-0184: A ZIP archive is a chat attachment that desktop sends and the phone does not
 
 > Status: Accepted (the phone's part is Superseded by [ADR-0187](./0187-the-phone-sends-and-saves-a-zip-archive.md) —
-> the phone sends and saves an archive; the format table, the aliases and desktop's save dialog stand)
+> the phone sends and saves an archive; the format table, the aliases and desktop's save dialog stand.
+> The office-file-typed-as-a-ZIP refusal is Superseded by
+> [ADR-0272](./0272-an-office-file-is-judged-by-its-extension-whatever-the-os-types-it.md))
 > · Decided: 2026-10-08 · Implemented: `feat/desktop-zip-attachment`
 > · Scope: `libs/data/src/domain/chatAttachments.ts` · `libs/data/src/domain/chatImages.ts`
 > (`judgeChatAttachments`) · `apps/desktop-web/src/app/features/chat/` (composer tray, refusal toast)
@@ -43,7 +45,8 @@ Two things make an archive different from the twelve:
 - Chromium on Windows types a `.zip` as `application/x-zip-compressed`. That name and
   `application/x-zip` are aliases of `application/zip`, the way the Hancom labels are aliases of HWP.
 - An office file typed as a ZIP is still refused, not sent as an archive: its extension is another
-  format's, and the existing refusal covers it. Nothing reads the bytes to decide.
+  format's, and the existing refusal covers it. Nothing reads the bytes to decide. _(Superseded by
+  ADR-0272: an office extension under a ZIP or unknown type now goes up as that document.)_
 - The desktop shell saves an archive through its save dialog, like every other file that is not an
   image. Only an image whose type and extension agree skips the dialog.
 - **The phone does not send one.** The table is shared with `apps/web`, so the row alone would have
@@ -87,8 +90,8 @@ Two things make an archive different from the twelve:
 - **Add `zip` to the mobile save lists in the same change.** Rejected for now: those lists refuse
   archives deliberately, and they ship on the app's release train, not the web's.
 - **Tell a plain archive from an office file by its bytes.** Rejected: the extension rule already
-  refuses the mismatch, and reading the central directory of a 50 MiB file to confirm it is more
-  machinery than the case needs.
+  refuses the mismatch _(no longer, since ADR-0272 — the cost argument below still stands)_, and
+  reading the central directory of a 50 MiB file to confirm it is more machinery than the case needs.
 - **Save an archive without the dialog, as images are.** Rejected: dialog-free saving was allowed for
   images because a matching image extension cannot run. An archive is exactly what a person should
   see before it lands.
