@@ -195,6 +195,7 @@ export const ko: EnTranslation = {
     'chat.file.openFailed': '이 파일을 열지 못했어요',
     'chat.file.viewer': '파일 뷰어',
     'chat.file.truncated': '앞부분 1MB만 보여 줘요. 전체는 파일을 저장해서 보세요.',
+    'chat.file.tooLarge': '이 페이지는 너무 커서 여기서 보여 줄 수 없어요. 저장해서 열어 보세요.',
     'chat.image.copy': '이미지 복사',
     'chat.copyFailed': '메시지를 복사하지 못했어요',
     'chat.image.setTitle_one': '이미지 {{count}}개',

@@ -27,8 +27,10 @@ Every batch goes through `validateAttachments` (`features/chat/utils/chatImages.
 refusals by reason:
 
 - `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
-  PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX and TXT documents,
-  ZIP archives, and M4A, MP3, WAV and OGG audio. Audio goes as a document (kind `file`):
+  PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX, TXT and HTML
+  (`.html`, `.htm`) documents, ZIP archives, and M4A, MP3, WAV and OGG audio. HTML is the one format
+  listed ahead of the server: desktop sends it, the phone app does not, and until the server takes
+  `text/html` the upload is refused with a 415 and the message shows the failed file. Audio goes as a document (kind `file`):
   the message shows a file card that plays it in place (see below), and the web app does not send it at all. AAC
   and WebM audio are refused: the server does not keep them, and Chromium types a WebM from disk
   `video/webm`, a video the server does not take either. An empty or generic type (HWP arrives untyped on most systems) is read from the
@@ -71,7 +73,7 @@ URL stays alive while its tray waits in another conversation, or the tile would 
 
 Clicking a tile opens the file at full size before it is sent (`ComposerPreview`), since the
 tile is only a 92px crop or a name: an image or a video in the image viewer's frame with the picture
-(held to the same upscale cap) or a player alone, and a PDF or text file in the feed's `FileViewer`, read from the file the page
+(held to the same upscale cap) or a player alone, and a PDF, text file or HTML page in the feed's `FileViewer`, read from the file the page
 already holds instead of fetched. Neither has a sender, a save or a copy — there is no message yet —
 and both say the file is not sent. A document the viewer cannot draw (office, Hancom, ZIP) is a
 plain tile. A voice file opens nothing: its tile is a play/pause button that plays the picked file
@@ -140,8 +142,8 @@ lists them under the images:
   sent from here carries one: the shared send hook draws a frame 0.5 s in and uploads it as the
   thumbnail, which is what the mobile feed's tiles draw. A video Chromium cannot decode (HEVC) goes
   without one.
-- **A document** is a card with a kind icon, its name and size, and a save button. A PDF or text
-  file's name also opens it in the document viewer (below).
+- **A document** is a card with a kind icon, its name and size, and a save button. A PDF, text
+  file or HTML page's name also opens it in the document viewer (below).
 - **A voice file** (M4A, MP3, WAV, OGG) plays in its card: the kind icon is a play/pause button and
   the size line a seek bar with `0:01 / 0:02` (the time played alone while the header names no
   length). It streams from the signed address, reading only the header (`preload="metadata"`) until
@@ -200,14 +202,14 @@ Closing returns focus to the tile that opened it (ui-kit's dialog focus return, 
 
 ## The document viewer
 
-`FileViewer` opens a sent PDF or text file in the app, in the same frame as the image viewer:
+`FileViewer` opens a sent PDF, text file or HTML page in the app, in the same frame as the image viewer:
 a header with the sender, the time and the file name, a save button and a close button. `canPreview`
-decides which cards open it: PDF and TXT are drawn, and M4A, MP3, WAV and OGG are `audio`, which
+decides which cards open it: PDF, TXT and HTML are drawn, and M4A, MP3, WAV and OGG are `audio`, which
 plays in its own card instead. Nothing in the page draws a DOCX, XLSX, PPTX or Hancom file without
 handing it, and its signed address, to a third party, so those stay save cards. A video already
 plays in place.
 
-A PDF or text file still in the composer opens here too, before it is sent (see
+A PDF, text file or HTML page still in the composer opens here too, before it is sent (see
 [The tray](#the-tray)): the header names the file and says it is not sent, there is no save, and
 the bytes are read from the picked file instead of fetched.
 
@@ -238,6 +240,27 @@ the bytes are read from the picked file instead of fetched.
   size says whether there is more. A UTF-16 byte-order mark picks
   UTF-16; otherwise it is read as UTF-8, and as EUC-KR when the bytes are not UTF-8 — what Korean
   Windows usually saves a `.txt` as. One stray byte in a UTF-8 file therefore reads it all as EUC-KR.
+- **An HTML page** is drawn as a page, in a frame of its own, because someone else wrote it. The frame
+  has no permissions at all (`sandbox=""`): the page runs no script, submits no form, opens no window,
+  and has an opaque origin, so it cannot reach the app, its storage or the bridge. It is never put into
+  the app's own document. Ahead of the page goes a `Content-Security-Policy` that loads nothing from the
+  network — styles, images and fonts the page carries inline still draw, but a remote image, which
+  would tell the sender the page was read and from where, does not — plus no referrer and a
+  `<base target="_blank">`. The frame may open no window, so a link without a target of its own opens
+  nothing. A link within the page (`#part`) is inert too. A link that names its own target (`_self`) beats any base; what keeps that one from taking the frame to another site is the desktop shell's frame
+  navigation gate, which refuses a frame navigating to an origin it does not trust. Served in a plain
+  browser, the frame can follow such a link — the page it lands on still runs no script, but it is no
+  longer under the policy. A `<meta http-equiv="refresh">` does not navigate a frame sandboxed without
+  scripts. The policy goes first inside the page's `<head>`, where alone it counts. The page is parsed
+  for that — with the browser's own parser, in a document that runs and loads nothing — and written
+  back out with its doctype, so it keeps its layout mode. Finding the head by scanning the text was
+  tried and dropped: a page can close a comment early (`<!-->`) so the scan and the parser disagree on
+  where the body starts, and a policy that lands in the body is ignored. Anything outside the root
+  element, such as a `<!-- saved from url=… -->` comment ahead of the doctype, is dropped. The frame is white whatever the theme: a page is written for a white sheet. The bytes
+  are decoded as a text file's are, up to 10 MB; a page past that is not drawn, since a page cut short
+  renders broken, and the viewer says it is too large and offers the save. Loading the page itself is
+  not a navigation the shell's gate is asked about — it needs no exception for `srcdoc` (checked on
+  Electron 33), and none should be added: the gate is what refuses a link that leaves.
 
 The viewer opens with focus on close. Save is the first control, and focusing it opens its tooltip,
 which would take the first Esc for itself.

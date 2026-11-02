@@ -185,6 +185,7 @@ export const en = {
     'chat.file.openFailed': "Couldn't open this file",
     'chat.file.viewer': 'File viewer',
     'chat.file.truncated': 'Showing the first 1 MB. Save the file to read all of it.',
+    'chat.file.tooLarge': 'This page is too large to show here. Save it to open it.',
     'chat.image.copy': 'Copy image',
     'chat.copyFailed': "Couldn't copy the message",
     'chat.image.setTitle_one': '{{count}} image',

@@ -5,7 +5,15 @@ import { AlertCircle, Download, X } from 'lucide-react';
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@chatic/ui-kit/components/ui/dialog';
 
-import { TEXT_PREVIEW_MAX_BYTES, canPreview, fetchFileBytes, readTextPreview, type ChatFile } from '../../utils';
+import {
+    HTML_PREVIEW_MAX_BYTES,
+    TEXT_PREVIEW_MAX_BYTES,
+    canPreview,
+    fetchFileBytes,
+    htmlPreviewDocument,
+    readTextPreview,
+    type ChatFile,
+} from '../../utils';
 import { loadPdf, preloadPdf, type PdfDocument } from '../../utils/pdf';
 import { AuthorAvatar, type ImageAuthor } from './ImageViewer';
 import { ImageSpinner } from './ImageSpinner';
@@ -13,7 +21,7 @@ import { PdfPages } from './PdfPages';
 import { Hint } from '../../../../shared';
 
 interface FileViewerProps {
-    /** A file `canPreview` reads as a PDF or text. */
+    /** A file `canPreview` reads as a PDF, text or an HTML page. */
     file: ChatFile;
     /** The message's sender and time. Absent for a file still in the composer, not sent yet. */
     author?: ImageAuthor;
@@ -30,6 +38,8 @@ const ICON_BUTTON =
 type Body =
     | { state: 'loading' }
     | { state: 'failed' }
+    | { state: 'too-large' }
+    | { state: 'html'; doc: string }
     | { state: 'text'; text: string; truncated: boolean }
     | { state: 'pdf'; doc: PdfDocument };
 
@@ -40,6 +50,11 @@ type Body =
  *
  * A file still in the composer opens here too, before it is sent: its bytes are already in the
  * page, so nothing is fetched, and the header says it is not sent instead of naming a sender.
+ *
+ * An HTML page is drawn in a frame with no permissions at all (`sandbox=""`): it runs no script, submits
+ * no form, opens no window and has an origin of its own, so nothing in it reaches the app. A policy put
+ * ahead of it stops it loading anything from the network (`htmlPreviewDocument`). A page past
+ * `HTML_PREVIEW_MAX_BYTES` is not drawn: cut short, it would render broken.
  *
  * A voice file never opens here: it plays in its own card or tray tile.
  */
@@ -58,7 +73,15 @@ export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerP
         const open = async (): Promise<Body> => {
             // Anything else — a voice file, which plays in its card — is not read as text: its bytes
             // would come out as a screen of noise.
-            if (preview !== 'pdf' && preview !== 'text') return { state: 'failed' };
+            if (preview !== 'pdf' && preview !== 'text' && preview !== 'html') return { state: 'failed' };
+            if (preview === 'html') {
+                if ((file.size ?? local?.size ?? 0) > HTML_PREVIEW_MAX_BYTES) return { state: 'too-large' };
+                const start = local ?? (await fetchFileBytes(file.url, controller.signal, HTML_PREVIEW_MAX_BYTES + 1));
+                // What was read is at most one byte past the allowance, so having read past it is the page's size.
+                const size = Math.max(file.size ?? 0, start.size);
+                const page = await readTextPreview(start, size, HTML_PREVIEW_MAX_BYTES);
+                return page.truncated ? { state: 'too-large' } : { state: 'html', doc: htmlPreviewDocument(page.text) };
+            }
             if (preview === 'text') {
                 const start = local ?? (await fetchFileBytes(file.url, controller.signal, TEXT_PREVIEW_MAX_BYTES));
                 return { state: 'text', ...(await readTextPreview(start, file.size)) };
@@ -156,6 +179,31 @@ export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerP
                                 </button>
                             )}
                         </div>
+                    )}
+                    {body.state === 'too-large' && (
+                        <div className="m-auto flex flex-col items-center gap-3 text-center">
+                            <p className="text-callout text-foreground">{t('chat.file.tooLarge')}</p>
+                            {onSave && (
+                                <button
+                                    type="button"
+                                    onClick={onSave}
+                                    className="focus-ring rounded-md border border-hairline bg-background px-3 py-1.5 text-callout font-medium text-foreground hover:bg-accent"
+                                >
+                                    {t('chat.file.save', { name })}
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    {body.state === 'html' && (
+                        // White, not the theme's: a page is written for a white sheet and sets no background of its own.
+                        <iframe
+                            sandbox=""
+                            referrerPolicy="no-referrer"
+                            srcDoc={body.doc}
+                            // The frame's accessible name. Not `title`: that also draws a native tooltip.
+                            aria-label={name}
+                            className="min-h-0 flex-1 border-0 bg-white"
+                        />
                     )}
                     {body.state === 'pdf' && <PdfPages doc={body.doc} name={name} />}
                     {body.state === 'text' && (

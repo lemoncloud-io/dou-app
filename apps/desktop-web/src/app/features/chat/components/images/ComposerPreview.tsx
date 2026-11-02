@@ -26,7 +26,7 @@ export const isAudioAttachment = (attachment: ComposerAttachment): boolean =>
 
 /**
  * Whether a tray tile opens in `ComposerPreview`. An image or a video always does; a document only
- * when the feed's viewer would draw it (PDF, text) — nothing in the page draws an office or Hancom
+ * when the feed's viewer would draw it (PDF, text, HTML) — nothing in the page draws an office or Hancom
  * file, and a voice file plays in its tile instead.
  */
 export const canPreviewAttachment = (attachment: ComposerAttachment): boolean => {
