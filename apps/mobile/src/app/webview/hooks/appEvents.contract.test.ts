@@ -36,6 +36,11 @@ const MOBILE_APP_EVENTS = {
         emittedBy: ['app/webview/hooks/fileTransferHandlers.ts'],
         test: 'app/webview/hooks/fileTransferHandlers.test.ts',
     },
+    // Also the reply to `StopAudioRecording`; pushed when the shell ends a recording by itself.
+    OnAudioRecordingEnded: {
+        emittedBy: ['app/webview/hooks/audioRecordingHandlers.ts'],
+        test: 'app/webview/hooks/audioRecordingHandlers.test.ts',
+    },
     OnPurchaseSuccess: {
         emittedBy: ['app/webview/hooks/useSubscriptionIapHandler.ts'],
         test: 'app/webview/hooks/useSubscriptionIapHandler.test.ts',

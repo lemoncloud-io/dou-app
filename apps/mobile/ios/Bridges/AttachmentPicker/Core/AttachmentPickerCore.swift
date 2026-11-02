@@ -214,17 +214,28 @@ enum AttachmentPickerCore {
         return ext.lowercased() == "mp4" ? .video : .file
     }
 
-    /// The thirteen formats the server takes — its four photo formats, MP4, its seven document formats
-    /// and a ZIP archive — so a photo or a video kept in Files can be sent from here too, and nothing the
-    /// server would refuse but the few system types declared as a kind of ZIP (a JAR, for one), which
-    /// the web refuses by their type. The pick still reports every item as a file; the web tells a photo
-    /// or a video by its format. A ZIP is `.zip` itself, not `.archive`, its parent, which would offer
-    /// 7z, RAR and tar too; an office file does not conform to `.zip`, so it keeps its own type. HWP and
-    /// HWPX have no system type, so they are named by their extension; that type matches any file with
-    /// it, and is the installed Hancom app's own type when there is one.
+    /// The seventeen formats the server takes — its four photo formats, MP4, its seven document
+    /// formats, a ZIP archive and its four audio formats — so a photo or a video kept in Files can be
+    /// sent from here too, and nothing the server would refuse but the few system types declared as a
+    /// kind of ZIP (a JAR, for one), which the web refuses by their type. The pick still reports every
+    /// item as a file; the web tells a photo or a video by its format. A ZIP is `.zip` itself, not
+    /// `.archive`, its parent, which would offer 7z, RAR and tar too; an office file does not conform to
+    /// `.zip`, so it keeps its own type. HWP and HWPX have no system type, so they are named by their
+    /// extension; that type matches any file with it, and is the installed Hancom app's own type when
+    /// there is one.
+    ///
+    /// Audio is named format by format, never `.audio`, which would offer AAC, FLAC, AIFF and CAF too.
+    /// `.mpeg4Audio` takes an `.m4a` (the system's M4A type is a kind of it) but not an `.m4b`
+    /// audiobook, which the server does not take. Ogg is named by its extension like HWP, as a kind of
+    /// audio; the system's Ogg audio type also takes `.oga` and `.opus`, and the web checks those
+    /// again like every picked item. The type the pick reports is the system's (`audio/x-m4a` for an
+    /// M4A, `audio/vnd.wave` for a WAV); the web maps those to the server's own. Every audio item is
+    /// held to the file limit (`limitKindForDocument`).
     static var documentTypes: [UTType] {
         [.png, .jpeg, .gif, .webP, .mpeg4Movie, .pdf, .plainText, .zip]
             + ["docx", "xlsx", "pptx", "hwp", "hwpx"].compactMap { UTType(filenameExtension: $0, conformingTo: .data) }
+            + [.mp3, .mpeg4Audio, .wav]
+            + ["ogg"].compactMap { UTType(filenameExtension: $0, conformingTo: .audio) }
     }
 
     /// What `pick` opens for: at least one item, so a picker is never opened without a limit.

@@ -97,22 +97,29 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   `selectionLimit` below 1 is raised to 1, since 0 means "no limit" to PHPicker. An item that offers
   both an image and a video — a Live Photo — goes as its still. `document` is
   `UIDocumentPickerViewController(forOpeningContentTypes:asCopy: true)` with the UTTypes of the
-  thirteen formats the app sends — PNG, JPEG, GIF, WebP, MP4, the seven document formats and ZIP
-  (`AttachmentPickerCore.documentTypes`) — so a photo or video kept in Files can be sent too; it
+  seventeen formats the app sends — PNG, JPEG, GIF, WebP, MP4, the seven document formats, ZIP and the
+  four audio formats (`AttachmentPickerCore.documentTypes`) — so a photo or video kept in Files can be sent too; it
   cannot cap a selection, so a pick past the limit is cut by the web's own count. ZIP is `UTType.zip`
   (`public.zip-archive`), whose MIME type is `application/zip`; its parent, `UTType.archive`, is not
   used, since it would also offer 7z, RAR and tar, which the server refuses. An office file does not
   conform to `UTType.zip`, so it keeps its own type; the few system types declared as a kind of ZIP (a
-  JAR, for one) are offered with it, and the web refuses them by their type.
+  JAR, for one) are offered with it, and the web refuses them by their type. Audio is `.mp3`,
+  `.mpeg4Audio` (which an `.m4a` conforms to; an `.m4b` audiobook and a raw `.aac` do not, and stay
+  grey), `.wav`, and Ogg by its extension (`UTType(filenameExtension: "ogg", conformingTo: .audio)`).
+  The system's Ogg type also covers `.oga` and `.opus`, so those can be picked; the web refuses them by
+  their extension. The types a pick reports are the system's — an `.m4a` comes as `audio/x-m4a`, a
+  `.wav` as `audio/vnd.wave` — and the web sends them under the server's names.
 - **Android.** `media` is the Photo Picker (`PickMultipleVisualMedia`, images and videos), which needs
   no permission. A device without the system picker (API 30 without the SDK extension) falls back to
   `ACTION_OPEN_DOCUMENT` through androidx, and the result is read by the same code. `document` is
-  `ACTION_OPEN_DOCUMENT` with the MIME types of the thirteen formats the app sends (`image/png`,
-  `image/jpeg`, `image/gif`, `image/webp`, `video/mp4`, the seven document types and
-  `application/zip`) plus `application/octet-stream`, which is how an HWP usually arrives, the four
-  labels Hancom's own apps declare for HWP and HWPX, and the two older names a ZIP still arrives under
-  from some storage providers (`application/x-zip-compressed`, `application/x-zip`). Device storage
-  types a `.zip` as `application/zip`. A media
+  `ACTION_OPEN_DOCUMENT` with the MIME types of the seventeen formats the app sends (`image/png`,
+  `image/jpeg`, `image/gif`, `image/webp`, `video/mp4`, the seven document types, `application/zip`,
+  `audio/mpeg`, `audio/mp4`, `audio/wav` and `audio/ogg`) plus `application/octet-stream`, which is how
+  an HWP usually arrives, the four labels Hancom's own apps declare for HWP and HWPX, the two older
+  names a ZIP still arrives under from some storage providers (`application/x-zip-compressed`,
+  `application/x-zip`), and the two an `.m4a` and a `.wav` often carry (`audio/x-m4a`, `audio/x-wav`).
+  Device storage types a `.zip` as `application/zip`, an `.m4a` as `audio/mp4` and a `.wav` as
+  `audio/x-wav`. A media
   pick of one item uses `PickVisualMedia`; more uses `PickMultipleVisualMedia`, capped on API 33+ at
   what the system picker allows. Results past the limit are dropped.
 - **Everything picked is copied before the reply,** into `<cache>/attach-pick/<uuid>/<name>`, one
@@ -138,10 +145,11 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   rotation.
 - **A `document` pick is a `file`, whatever it is.** Neither shell looks inside it: a PNG from Files
   is copied as it is, not prepared, and answered as `{ kind: 'file', contentType: 'image/png', … }`
-  under the type the OS gave it. The documents picker offers the thirteen formats the app sends and, on
-  Android, the other names a file of them arrives under (`application/octet-stream`, the Hancom labels
-  and the two ZIP aliases) — no wildcard, and no photo, video or archive type the server would refuse
-  (HEIC, QuickTime, 7z). An item typed by an alias is normalised by the web (`chatAttachmentFormat`),
+  under the type the OS gave it. The documents picker offers the seventeen formats the app sends and, on
+  Android, the other names a file of them arrives under (`application/octet-stream`, the Hancom labels,
+  the two ZIP aliases and the two audio ones) — no wildcard, and no photo, video, archive or audio type
+  the server would refuse (HEIC, QuickTime, 7z, AAC, WebM). An audio file is held to the file limit,
+  50 MiB, like a document. An item typed by an alias is normalised by the web (`chatAttachmentFormat`),
   which also adds `.zip` to an archive's name that lacks it. A ZIP is held to the file limit, 50 MiB.
   On iOS an app built before the phone sent archives greys a `.zip` out; on Android one typed
   generically can still be picked there, and the web now takes it. The web tells a photo among them by its format,
@@ -234,11 +242,11 @@ extension changed to `.mp4`.
 
 ## Folders and cleanup
 
-| Folder                                          | Holds                                                                                            | Removed                                                                     |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| `<cache>/attach-pick/<uuid>/`                   | A picked copy (a photo already prepared) or a grid video's copy, its converted `mp4`, its poster | At the next pick, once untouched for 24 hours; OS cache purge               |
-| `transfer-temp/` (cache on Android, tmp on iOS) | Images the web wrote with `WriteTempFile`                                                        | Never eagerly; the OS reclaims it ([file-transfer.md](./file-transfer.md))  |
-| `<cache>/transfer-download/`                    | Downloaded files                                                                                 | The download sweep, after 24 hours ([file-transfer.md](./file-transfer.md)) |
+| Folder                                          | Holds                                                                                                                                                            | Removed                                                                     |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `<cache>/attach-pick/<uuid>/`                   | A picked copy (a photo already prepared) or a grid video's copy, its converted `mp4`, its poster; a voice recording ([audio-recording.md](./audio-recording.md)) | At the next pick or recording, once untouched for 24 hours; OS cache purge  |
+| `transfer-temp/` (cache on Android, tmp on iOS) | Images the web wrote with `WriteTempFile`                                                                                                                        | Never eagerly; the OS reclaims it ([file-transfer.md](./file-transfer.md))  |
+| `<cache>/transfer-download/`                    | Downloaded files                                                                                                                                                 | The download sweep, after 24 hours ([file-transfer.md](./file-transfer.md)) |
 
 An upload reads only from the first two; anything else is refused at `start`
 ([file-transfer.md](./file-transfer.md) § Rules).
@@ -246,7 +254,8 @@ An upload reads only from the first two; anything else is refused at `start`
 **`attach-pick` is cleaned by one sweep and nothing else.** Each `PickAttachments` first deletes every
 `attach-pick/<uuid>/` folder whose newest change is more than 24 hours old. The photo grid's
 `KeepLibraryVideo` ([photo-library.md](./photo-library.md)) writes folders here too, and runs the same
-sweep before it copies, so a person who sends only from the grid does not pile up copies. Nothing is deleted when the
+sweep before it copies, so a person who sends only from the grid does not pile up copies. The voice
+recorder does the same: each recording is a folder of its own here, and a start runs the sweep. Nothing is deleted when the
 web acknowledges a finished upload (`AckFileTransfers`), for two reasons:
 
 - The web acknowledges the original as soon as its upload ends and starts the poster's upload

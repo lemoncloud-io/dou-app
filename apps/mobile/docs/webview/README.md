@@ -17,8 +17,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`                             | Renders the `WebView`, wires the injected runtime scripts, tracks ready state                                |
 | `src/app/webview/hooks/useBaseBridge.ts`                     | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler                                   |
 | `src/app/webview/hooks/useAppBridge.ts`                      | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                                                |
-| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 30 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
-| `src/app/webview/hooks/*Handler.ts`                          | 31 domain handlers, one per capability group                                                                 |
+| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 31 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
+| `src/app/webview/hooks/*Handler.ts`                          | 32 domain handlers, one per capability group                                                                 |
 | `src/app/webview/hooks/useWebMessageRouter.contract.test.ts` | The bridge contract: what this shell answers, and what it leaves unsupported                                 |
 | `src/app/webview/utils/injectionScripts.ts`                  | Builds the scripts injected before the WebView loads                                                         |
 
@@ -129,7 +129,10 @@ web falls back to its file input on ([../native/photo-library.md](../native/phot
 same holds for `PickAttachments`, `PrepareVideo` and `ReadAttachment` (the native `AttachmentPicker` module,
 [../native/attachment-picker.md](../native/attachment-picker.md)), and for `OpenFile` and `SaveFile`,
 each registered only when the installed `MediaExport` module has that method
-([../native/media-export.md](../native/media-export.md)). A handler that exists but fails would take
+([../native/media-export.md](../native/media-export.md)), and for `StartAudioRecording` and
+`StopAudioRecording` (the native `AudioRecorder` module,
+[../native/audio-recording.md](../native/audio-recording.md)) — the web draws its microphone only
+when the handshake lists them. A handler that exists but fails would take
 that fallback away.
 
 ## The bridge contract
@@ -334,6 +337,15 @@ webview's Android client grants the page's camera request only when the app hold
 when it does not), `NSCameraUsageDescription` in `Info.plist`, and `allowsInlineMediaPlayback` (without
 it iOS hands the `<video>` to its full-screen player). `mediaCapturePermissionGrantType` is left at its
 default, so iOS asks the person once per page load.
+
+The microphone is declared too (`RECORD_AUDIO`, `NSMicrophoneUsageDescription`), for voice messages,
+but the page never captures audio itself: the shell records with the OS recorder and hands back a file
+([native/audio-recording.md](../native/audio-recording.md)), and the permission is asked for by
+`PermissionService` (`MICROPHONE`) at the first press — on iOS that needs the `Microphone` handler in the
+Podfile's `setup_permissions`, without which react-native-permissions answers `unavailable`. The same
+defaults mean a page that did ask for audio through `getUserMedia` would get the OS prompt under DoU's
+name on iOS, and on Android a grant with no prompt once the app holds `RECORD_AUDIO` — the main web
+does not ask, and the sub WebView's terms are in [sub-webview.md](./sub-webview.md).
 
 ## Device contacts
 

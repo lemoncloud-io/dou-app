@@ -60,9 +60,9 @@ class PickedCopies(private val context: Context) {
 
     /**
      * Deletes the pick folders untouched for a day ([AttachPickRules.foldersToSweep]). Every writer of
-     * `attach-pick` runs it before it copies — the attachment picker's pick and the photo grid's
-     * `keepLibraryVideo` — so a person who sends only from one of them does not pile up copies. Never
-     * fails its caller: a folder it cannot delete waits for the next sweep.
+     * `attach-pick` runs it before it writes — the attachment picker's pick, the photo grid's
+     * `keepLibraryVideo` and the voice recorder's start — so a person who sends only from one of them
+     * does not pile up copies. Never fails its caller: a folder it cannot delete waits for the next sweep.
      */
     fun sweep() {
         try {
