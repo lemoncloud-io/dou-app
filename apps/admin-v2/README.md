@@ -43,10 +43,11 @@ stages. Each service's base on each stage is its own env key, read through
   stages no longer share a host, and a rebuilt URL names a server that does not exist.
 - **The same ten values go into every `.env` of this app.** What differs between builds is the stage
   the session signs in to — the runtime keys (`VITE_DOU_ENDPOINT`, `VITE_WS_ENDPOINT`, …) — not
-  where each stage lives. The deploy workflows write them from `ADMIN_<STAGE>_<SERVICE>_ENDPOINT`
-  Actions secrets, with no DEV/PROD split for the same reason. The one exception is
-  `VITE_V1_WS_ENDPOINT`, written from the web app's `WEB_PROD_WS_ENDPOINT`: it is the same production
-  socket, and the repository is at GitHub's 100-secret limit.
+  where each stage lives. In the deploy workflows, relay, archive and socket come from the web app's
+  own secrets (`WEB_DEV_*` for `d1`, `WEB_PROD_*` for `v1`), because they are the same servers the web
+  app uses; goods and presence, which the web app does not call, come from
+  `ADMIN_<STAGE>_<SERVICE>_ENDPOINT`. Reusing them also keeps the repository under GitHub's
+  100-secret limit, and moves the admin console with the web app when a stage changes domain.
 - **An unset key leaves that stage unconfigured.** The screen shows "(not configured)", the queries
   stay off, and a call that would otherwise fall back somewhere throws with the missing key's name —
   never the session's own relay standing in for the other stage.
