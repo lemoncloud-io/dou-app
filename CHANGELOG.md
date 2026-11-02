@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-11-02] - root@0.141.0, @chatic/desktop-web@0.47.0
+
+### Features
+
+- (desktop-web) list who read a message when hovering its read count
+- (desktop-web) work out who read each message, not only how many
+
+### Bug Fixes
+
+- (desktop-web) keep the read list steady across pointer and keyboard
+
+### Documentation
+
+- (adr) desktop works out who read a message from join rows
+
 ## [2026-11-02] - No version updates
 
 ### Features
