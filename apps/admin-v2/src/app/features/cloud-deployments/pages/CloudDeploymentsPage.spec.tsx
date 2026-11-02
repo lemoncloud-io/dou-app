@@ -22,7 +22,6 @@ import { SERVICE_CODES, type CloudService } from '../lib/cloudGroups';
 
 import type * as DouCloudsApi from '../api/douCloudsApi';
 import type * as GoodsApi from '../api/goodsApi';
-import type * as GoodsTarget from '../lib/goodsTarget';
 import type * as RunDeploys from '../lib/runDeploys';
 import type { DeployCall } from '../lib/deployPlan';
 
@@ -43,11 +42,6 @@ vi.mock('../api/goodsApi', async () => {
 vi.mock('../api/douCloudsApi', async () => {
     const actual = await vi.importActual<typeof DouCloudsApi>('../api/douCloudsApi');
     return { ...actual, fetchDouClouds: (base: string) => fetchDouClouds(base) };
-});
-
-vi.mock('../lib/goodsTarget', async () => {
-    const actual = await vi.importActual<typeof GoodsTarget>('../lib/goodsTarget');
-    return { ...actual, configuredRelayEndpoint: () => 'https://api.example.com/dou-d1' };
 });
 
 // No real 1.5-second pauses. The stand-in ignores the stop signal; the runner's own checks are what

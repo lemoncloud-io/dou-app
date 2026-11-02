@@ -96,10 +96,12 @@ beforeEach(async () => {
 
 afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
 });
 
 describe('ReportLogsPage — tabs and the URL', () => {
-    it('opens on the user tab, in Korean, on the production server', async () => {
+    it('opens on the user tab, in Korean, on the production server in a production build', async () => {
+        vi.stubEnv('VITE_ENV', 'PROD');
         renderPage();
 
         expect(screen.getByRole('button', { name: '사용자 찾기' }).getAttribute('aria-current')).toBe('page');

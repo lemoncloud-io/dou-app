@@ -4,6 +4,8 @@
 > · Scope: `apps/admin-v2/src/app/config/stageEndpoints.ts`, the stage toggles of the memberships,
 > cloud-deployments, report-logs and socket-lab features, `.github/workflows/deploy-*.yml`,
 > `.github/workflows/force-deploy.yml`
+> · Amended: 2026-11-02 — sign-in is production in every build, and the toggles open on the build's
+> stage (decision 4)
 
 ## Context
 
@@ -39,6 +41,12 @@ lab's `/d1` strip had already been wrong for any build whose backend endpoint wa
    (`WEB_DEV_DOU_ENDPOINT` for the `d1` relay, `WEB_PROD_WS_ENDPOINT` for the `v1` socket, …). Goods
    and presence, which the web app does not call, have secrets of their own with no DEV/PROD part
    (`ADMIN_D1_GOODS_ENDPOINT`, not `ADMIN_DEV_D1_…`).
+
+4. **Sign-in is production in every build; the toggles open on the build's stage.** The admin
+   accounts live on `v1`, so the runtime keys name `v1` in development builds too. Which stage a
+   screen opens on is a separate question, answered by the build: `v1` for a production build, `d1`
+   for any other. Deriving it from the session would open a development build on production, and an
+   operator's first write would land there.
 
 The memberships console still sends no override for the session's own stage, so the http client's
 deep-link and `window.DOU_ENDPOINT` overrides keep applying there. The refund keeps its own guard: it

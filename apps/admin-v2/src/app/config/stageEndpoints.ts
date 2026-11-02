@@ -28,6 +28,14 @@ export const readStageEndpoint = (
     stage: ServiceStage
 ): string => `${read(stageEndpointKey(service, stage)) ?? ''}`.trim().replace(/\/+$/, '');
 
+/**
+ * The stage every toggle opens on: production in a production build, development in any other.
+ *
+ * Not the stage the session signs in to — the console always signs in to production, whatever the
+ * build. A development build opening on production would put an operator's first write there.
+ */
+export const openingStage = (): ServiceStage => (webConfigPorts.env.stage() === 'PROD' ? 'v1' : 'd1');
+
 /** Read through the app's config adapter, the one place here that touches `import.meta`. */
 export const stageEndpoint = (service: StageService, stage: ServiceStage): string =>
     readStageEndpoint(name => webConfigPorts.env.raw(name), service, stage);

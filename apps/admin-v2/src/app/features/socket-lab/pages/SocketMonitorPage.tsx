@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { DEFAULT_WS_URL } from '../model/endpoint-presets';
+import { defaultWsUrl } from '../model/endpoint-presets';
 import { fetchObservedUsers } from '../api/userApi';
 import { useLoadTest } from '../hooks/use-load-test';
 import { useSandbox } from '../hooks/use-sandbox';
@@ -16,7 +16,7 @@ import '../socket-monitor.css';
 
 export const SocketMonitorPage = () => {
     const [tab, setTab] = useState<Tab>('observe');
-    const [endpoint, setEndpoint] = useState<string>(DEFAULT_WS_URL);
+    const [endpoint, setEndpoint] = useState<string>(defaultWsUrl);
 
     const wl = useWatchlist();
     const sandbox = useSandbox(endpoint);

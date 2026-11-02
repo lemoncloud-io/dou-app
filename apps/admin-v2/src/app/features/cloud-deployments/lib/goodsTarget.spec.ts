@@ -3,7 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { describeGoodsTarget, douBaseFor, goodsBaseFor, initialGoodsStage } from './goodsTarget';
+import { describeGoodsTarget, douBaseFor, goodsBaseFor } from './goodsTarget';
 
 // The two stages on different hosts, as they are once the dev stage moved domain.
 const stubStages = () => {
@@ -63,18 +63,5 @@ describe('describeGoodsTarget', () => {
     it('says the endpoint is not configured instead of naming an address', () => {
         vi.stubEnv('VITE_V1_GOODS_ENDPOINT', '');
         expect(describeGoodsTarget('v1').endpoint).toBe('(not configured)');
-    });
-});
-
-describe('initialGoodsStage', () => {
-    it('follows the relay stage the env names', () => {
-        expect(initialGoodsStage('https://api.example.com/dou-v1')).toBe('v1');
-        expect(initialGoodsStage('https://api.example.com/dou-v1/')).toBe('v1');
-        expect(initialGoodsStage('https://api.example.com/dou-d1')).toBe('d1');
-    });
-
-    it('opens on development when the env names neither stage', () => {
-        expect(initialGoodsStage(undefined)).toBe('d1');
-        expect(initialGoodsStage('https://api.example.com/d1')).toBe('d1');
     });
 });

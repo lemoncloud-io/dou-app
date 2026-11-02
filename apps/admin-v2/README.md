@@ -41,9 +41,15 @@ stages. Each service's base on each stage is its own env key, read through
   the path segment of `VITE_DOU_ENDPOINT` (`dou-d1` → `dou-v1`, `cgs-d1`, …) on the same host. That
   stopped being true when the dev stage moved to a new domain while production stayed: the two
   stages no longer share a host, and a rebuilt URL names a server that does not exist.
-- **The same ten values go into every `.env` of this app.** What differs between builds is the stage
-  the session signs in to — the runtime keys (`VITE_DOU_ENDPOINT`, `VITE_WS_ENDPOINT`, …) — not
-  where each stage lives. In the deploy workflows, relay, archive and socket come from the web app's
+- **Sign-in is always production; everything else picks its stage.** The runtime keys
+  (`VITE_OAUTH_ENDPOINT`, `VITE_DOU_ENDPOINT`, `VITE_BACKEND_ENDPOINT`, `VITE_WS_ENDPOINT`, …) name
+  `v1` in every build, development included: the admin accounts and their session live there. The
+  stage toggles reach `d1` through the keys above.
+- **Each toggle opens on the build's stage**, not the session's: `v1` in a production build
+  (`VITE_ENV=PROD`), `d1` in any other (`src/app/config/stageEndpoints.ts`, `openingStage`). A
+  development build that opened on production would put an operator's first write there.
+- **The same ten values go into every `.env` of this app.** Where each stage lives does not depend on
+  the build. In the deploy workflows, relay, archive and socket come from the web app's
   own secrets (`WEB_DEV_*` for `d1`, `WEB_PROD_*` for `v1`), because they are the same servers the web
   app uses; goods and presence, which the web app does not call, come from
   `ADMIN_<STAGE>_<SERVICE>_ENDPOINT`. Reusing them also keeps the repository under GitHub's

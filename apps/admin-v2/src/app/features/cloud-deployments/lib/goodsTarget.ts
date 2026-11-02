@@ -39,12 +39,3 @@ export const describeGoodsTarget = (stage: GoodsStage): GoodsTarget => ({
     isProd: stage === 'v1',
     label: GOODS_STAGE_LABEL[stage],
 });
-
-/**
- * The stage the screen opens on: the relay stage the `.env` names. Anything that is not plainly
- * `dou-v1` opens on development — guessing production is the expensive direction to be wrong in.
- */
-export const initialGoodsStage = (endpoint: string | undefined): GoodsStage =>
-    /\/dou-v1$/.test((endpoint ?? '').trim().replace(/\/+$/, '')) ? 'v1' : 'd1';
-
-export const configuredRelayEndpoint = (): string | undefined => import.meta.env.VITE_DOU_ENDPOINT;

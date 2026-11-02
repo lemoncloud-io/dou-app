@@ -14,6 +14,11 @@ The screen has two tabs:
 - **Probe** — the lab itself, in two modes: **Sandbox** (real sockets, described below) and
   **Load** (a simulation, see § Load mode is a model).
 
+Both tabs open on the build's stage (`d1`, or `v1` in a production build). The header's WS field
+starts on that stage's socket, and a select next to it switches to the other stage's
+(`VITE_<STAGE>_WS_ENDPOINT`). The field stays editable for any other socket, and the select then
+reads "custom".
+
 ## Why raw sockets, not the runtime's
 
 Every Sandbox client calls `createClientSocketV2` from `@lemoncloud/chatic-sockets-lib` directly

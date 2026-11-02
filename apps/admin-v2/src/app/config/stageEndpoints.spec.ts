@@ -3,7 +3,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { readStageEndpoint, stageEndpoint, stageEndpointKey } from './stageEndpoints';
+import { openingStage, readStageEndpoint, stageEndpoint, stageEndpointKey } from './stageEndpoints';
 
 describe('stageEndpointKey', () => {
     it('names the key by stage, then service', () => {
@@ -44,5 +44,23 @@ describe('stageEndpoint', () => {
         vi.stubEnv('VITE_V1_RELAY_ENDPOINT', 'https://prod.example.com/dou-v1/');
 
         expect(stageEndpoint('relay', 'v1')).toBe('https://prod.example.com/dou-v1');
+    });
+});
+
+describe('openingStage', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it('opens a production build on production', () => {
+        vi.stubEnv('VITE_ENV', 'PROD');
+        expect(openingStage()).toBe('v1');
+    });
+
+    // The session signs in to production in every build; the opening stage does not follow it.
+    it('opens every other build on development, whatever the session relay', () => {
+        vi.stubEnv('VITE_DOU_ENDPOINT', 'https://prod.example.com/dou-v1');
+        vi.stubEnv('VITE_ENV', 'DEV');
+        expect(openingStage()).toBe('d1');
+        vi.stubEnv('VITE_ENV', 'LOCAL');
+        expect(openingStage()).toBe('d1');
     });
 });

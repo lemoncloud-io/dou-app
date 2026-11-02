@@ -9,6 +9,7 @@ import { fetchObservedUsers, fetchUserPresence, mapDeviceView, updateUserDevices
 import type { UsersStage } from '../api/userApi';
 import { createObserveSyncContainer, type ObserveSyncContainer } from '../runtime/observe-sync-container';
 import type { ObservedDevice, ObservedUser, Presence, UserSearchType } from '../mock/observed-users';
+import { openingStage } from '../../../config/stageEndpoints';
 
 const PAGE_SIZE = 10;
 const MAX_OBSERVED_DEVICES = 30;
@@ -81,7 +82,7 @@ export interface Watchlist {
 }
 
 export const useWatchlist = (): Watchlist => {
-    const [stage, setStage] = useState<UsersStage>('d1');
+    const [stage, setStage] = useState<UsersStage>(openingStage);
     const [observed, setObserved] = useState<ObservedUser[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
     const [reloading, setReloading] = useState(false);

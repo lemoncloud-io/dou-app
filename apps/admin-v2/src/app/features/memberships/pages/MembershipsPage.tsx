@@ -12,13 +12,8 @@ import { useSearchParams } from 'react-router-dom';
 
 import { useAdminMemberships } from '../api/membershipsQuery';
 import { clearAllPatch, matchesFilters, toChips, type FilterKey, type FilterValues } from '../lib/filters';
-import {
-    RELAY_STAGES,
-    configuredStage,
-    describeTargetServer,
-    targetEndpointFor,
-    type RelayStage,
-} from '../lib/targetServer';
+import { RELAY_STAGES, describeTargetServer, targetEndpointFor, type RelayStage } from '../lib/targetServer';
+import { openingStage } from '../../../config/stageEndpoints';
 import { MembershipConsoleShell } from '../components/MembershipConsoleShell';
 import { MembershipDetailPanel } from '../components/MembershipDetailPanel';
 import { MembershipFilterRail } from '../components/MembershipFilterRail';
@@ -40,7 +35,7 @@ export const MembershipsPage = () => {
     const page = Number.isInteger(parsedPage) && parsedPage >= 0 ? parsedPage : 0;
 
     const stageParam = searchParams.get('stage');
-    const stage: RelayStage = stageParam === 'v1' || stageParam === 'd1' ? stageParam : configuredStage();
+    const stage: RelayStage = stageParam === 'v1' || stageParam === 'd1' ? stageParam : openingStage();
 
     const filters: FilterValues = {
         status: searchParams.get('status') || '',
