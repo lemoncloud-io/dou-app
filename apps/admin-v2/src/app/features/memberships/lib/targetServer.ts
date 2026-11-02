@@ -2,16 +2,21 @@
  * `lib/memberships/targetServer.ts`
  * - Which relay the console is pointed at, and how to point it somewhere else.
  *
- * This screen writes, and admin-v2 is not deployed — every operator runs it locally against
- * whatever their own `.env` names, which in practice is production. So the target is shown on the
- * screen and again in the confirmation dialog.
+ * This screen writes, and either stage is one switch away in every build. So the target is shown on
+ * the screen and again in the confirmation dialog.
  *
  * The session's own relay is `VITE_DOU_ENDPOINT` (`https://host/dou-d1`), the same value the http
  * client resolves for the `relay` route; each stage's relay is its own `VITE_<STAGE>_RELAY_ENDPOINT`
  * key. Neither is `VITE_BACKEND_ENDPOINT` (`https://host/d1`), which is a different service — aiming
  * these calls there returns 404 for every route.
  */
-import { stageEndpoint, stageEndpointKey } from '../../../config/stageEndpoints';
+import {
+    relayOverrideFor,
+    relayTargetFor,
+    sessionRelayEndpoint,
+    sessionRelayStage,
+    stageEndpoint,
+} from '../../../config/stageEndpoints';
 
 export type RelayStage = 'v1' | 'd1';
 
@@ -59,35 +64,13 @@ export const describeTargetServer = (endpoint: string | undefined): TargetServer
     return { endpoint: url, isProd: false, label: 'Unknown' };
 };
 
-export const configuredEndpoint = (): string | undefined => import.meta.env.VITE_DOU_ENDPOINT;
+export const configuredEndpoint = (): string | undefined => sessionRelayEndpoint() || undefined;
 
-/**
- * The stage the session's own relay (`VITE_DOU_ENDPOINT`) is on — production in every build, since
- * the console always signs in there. Calls on this stage go out without an override; it is not the
- * stage the screen opens on (`openingStage`).
- */
-export const sessionStage = (): RelayStage => (describeTargetServer(configuredEndpoint()).isProd ? 'v1' : 'd1');
+/** The stage the session's own relay is on. Calls on it go out without an override. */
+export const sessionStage = (): RelayStage => sessionRelayStage();
 
-/** Where calls on `stage` actually go: the session's own relay on its own stage, else that stage's key. */
-export const targetEndpointFor = (stage: RelayStage): string =>
-    stage === sessionStage() ? (configuredEndpoint() ?? '').trim().replace(/\/+$/, '') : relayEndpointFor(stage);
+/** Where calls on `stage` actually go. */
+export const targetEndpointFor = (stage: RelayStage): string => relayTargetFor(stage);
 
-/**
- * The endpoint override for a chosen stage, or `undefined` to leave the call alone.
- *
- * Undefined for the configured stage on purpose: the http client resolves `relay` through
- * `getDynamicRelayBackend`, which honours a deeplink override and `window.DOU_ENDPOINT` before it
- * falls back to the env var. Overriding unconditionally would throw those away and pin every call
- * to whatever the build was compiled with.
- *
- * Throws for another stage whose key is unset. Returning undefined there would send the call to the
- * session's own relay — the other stage — while the screen says it is on this one.
- */
-export const endpointOverrideFor = (stage: RelayStage): string | undefined => {
-    if (stage === sessionStage()) return undefined;
-    const endpoint = relayEndpointFor(stage);
-    if (!endpoint) {
-        throw new Error(`${stageEndpointKey('relay', stage)} is not set — no relay to call on ${stage}.`);
-    }
-    return endpoint;
-};
+/** The endpoint override for a chosen stage, or `undefined` to leave the call alone — see `relayOverrideFor`. */
+export const endpointOverrideFor = (stage: RelayStage): string | undefined => relayOverrideFor(stage);

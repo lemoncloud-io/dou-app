@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { runtime } from '@chatic/app-runtime';
 import { createQueryKeys } from '@chatic/shared';
 
+import { relayOverrideFor, type ServiceStage } from '../../../config/stageEndpoints';
+
 import type { Params } from '@lemoncloud/lemon-web-core';
 
 /**
@@ -14,12 +16,19 @@ import type { Params } from '@lemoncloud/lemon-web-core';
  */
 export const usersKeys = createQueryKeys('users');
 
-export const useUsers = (params: Params = {}) => {
+/**
+ * The stage is part of the key: switching it has to refetch, not relabel the other relay's rows. The
+ * override is resolved inside `queryFn`, so an unset stage key shows as the query's error.
+ */
+export const useUsers = (params: Params = {}, stage: ServiceStage) => {
     const { user } = runtime.data.useRuntimeRepositories();
 
     return useQuery({
-        queryKey: usersKeys.list(params),
-        queryFn: () => user.listRelayUsers(params),
+        queryKey: usersKeys.list({ ...params, stage }),
+        queryFn: () => {
+            const endpoint = relayOverrideFor(stage);
+            return user.listRelayUsers(params, endpoint ? { endpoint } : undefined);
+        },
         refetchOnWindowFocus: false,
     });
 };

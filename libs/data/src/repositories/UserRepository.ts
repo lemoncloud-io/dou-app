@@ -9,7 +9,7 @@ import type { UserListDeviceView, UserUnlinkDeviceView } from '@lemoncloud/chati
 import type { DomainListResult, DomainPlaceMember, DomainUser } from '../domain';
 import type { IJoinLocalDataSource, IPlaceLocalDataSource, IUserLocalDataSource } from '../local/data-sources';
 import type { IUserSocketDataSource, UserInviteBatchPayload } from '../remote/socket-data-sources';
-import type { IUserHttpDataSource } from '../remote/http-data-sources';
+import type { AdminEndpointOptions, IUserHttpDataSource } from '../remote/http-data-sources';
 import type { IProfileRepository } from './ProfileRepository';
 import { isForeignContext } from './scopeGuards';
 import type { DataContext, DataContextProvider } from './types';
@@ -89,7 +89,10 @@ export interface IUserRepository extends DisposableRepository {
      * injection is optional (see libs/data/docs/repositories/README.md). `listRelayUsers` has exactly one
      * consumer: the admin-v2 user console (`apps/admin-v2/.../users/api/usersQuery.ts`).
      */
-    listRelayUsers(params?: Record<string, unknown>): Promise<DomainListResult<DomainUser>>;
+    listRelayUsers(
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<DomainListResult<DomainUser>>;
     tryFetchProfile(): Promise<UserProfile$>;
 }
 
@@ -115,8 +118,11 @@ export class UserRepository extends BaseRepository implements IUserRepository {
         return this.userHttpDataSource;
     }
 
-    public async listRelayUsers(params?: Record<string, unknown>): Promise<DomainListResult<DomainUser>> {
-        return this.requireHttp().listRelayUsers(params, this.getRequestContext());
+    public async listRelayUsers(
+        params?: Record<string, unknown>,
+        opts?: AdminEndpointOptions
+    ): Promise<DomainListResult<DomainUser>> {
+        return this.requireHttp().listRelayUsers(params, this.getRequestContext(), opts);
     }
 
     public async tryFetchProfile(): Promise<UserProfile$> {

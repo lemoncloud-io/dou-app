@@ -6,6 +6,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Skeleton } from '@chatic/ui-kit/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@chatic/ui-kit/components/ui/table';
 
+import { openingStage, relayTargetFor, type ServiceStage } from '../../../config/stageEndpoints';
 import { RegisterUserDialog } from '../components/RegisterUserDialog';
 import { useUsers } from '../api/usersQuery';
 
@@ -24,19 +25,47 @@ import type { JSX } from 'react';
  */
 const PAGE_SIZE = 10;
 
+const STAGE_LABEL: Record<ServiceStage, string> = { d1: 'Development (d1)', v1: 'Production (v1)' };
+
 export const UsersPage = (): JSX.Element => {
     const [searchParams, setSearchParams] = useSearchParams();
     const page = parseInt(searchParams.get('page') || '0', 10);
-    const { data, isLoading, isFetching, isRefetching, error, refetch } = useUsers({ page, limit: PAGE_SIZE });
+    const stageParam = searchParams.get('stage');
+    const stage: ServiceStage = stageParam === 'd1' || stageParam === 'v1' ? stageParam : openingStage();
+    const { data, isLoading, isFetching, isRefetching, error, refetch } = useUsers({ page, limit: PAGE_SIZE }, stage);
     const [open, setOpen] = useState(false);
+    const target = relayTargetFor(stage);
 
-    const setPage = (next: number) => setSearchParams({ page: String(next) });
+    const setPage = (next: number) => setSearchParams({ page: String(next), stage });
+    // A page number belongs to the relay it was read from.
+    const setStage = (next: ServiceStage) => setSearchParams({ page: '0', stage: next });
 
     const header = (
         <div className="mb-4 flex items-center justify-between">
             <h1 className="text-2xl font-bold">Users</h1>
             <div className="flex items-center gap-2">
                 {(isFetching || isRefetching) && <span className="text-muted-foreground text-sm">Refreshing…</span>}
+                <label className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    Stage
+                    <select
+                        className="h-9 rounded-md border border-input bg-background px-2 text-sm text-foreground outline-none focus:border-ring"
+                        value={stage}
+                        onChange={event => setStage(event.target.value as ServiceStage)}
+                    >
+                        {(['d1', 'v1'] as const).map(value => (
+                            <option key={value} value={value}>
+                                {STAGE_LABEL[value]}
+                            </option>
+                        ))}
+                    </select>
+                </label>
+                <span
+                    className={`rounded border px-1.5 py-0.5 font-mono text-xs ${
+                        stage === 'v1' ? 'border-red-500/50 bg-red-500/10 text-red-400' : 'text-muted-foreground'
+                    }`}
+                >
+                    {target || '(not configured)'}
+                </span>
                 <Button onClick={() => setOpen(true)}>Add User</Button>
             </div>
         </div>
@@ -44,6 +73,7 @@ export const UsersPage = (): JSX.Element => {
 
     const dialog = (
         <RegisterUserDialog
+            stage={stage}
             open={open}
             onOpenChange={setOpen}
             onSuccess={() => {
@@ -60,6 +90,7 @@ export const UsersPage = (): JSX.Element => {
                 {dialog}
                 <div className="flex min-h-[400px] flex-col items-center justify-center gap-4">
                     <p className="text-destructive">Failed to load users</p>
+                    <p className="text-muted-foreground text-sm">{error instanceof Error ? error.message : ''}</p>
                     <Button onClick={() => void refetch()}>Retry</Button>
                 </div>
             </div>

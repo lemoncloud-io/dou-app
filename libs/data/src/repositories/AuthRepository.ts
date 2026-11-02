@@ -20,7 +20,7 @@ import type {
     PhoneCodeVerifyResult,
     SocialAccountTokens,
 } from '../remote/socket-data-sources';
-import type { IAuthHttpDataSource } from '../remote/http-data-sources';
+import type { AdminEndpointOptions, IAuthHttpDataSource } from '../remote/http-data-sources';
 import type { DataContextProvider } from './types';
 import { BaseRepository, type DisposableRepository } from './types';
 
@@ -82,7 +82,8 @@ export interface IAuthRepository extends DisposableRepository {
      * Stage 4 promotes it to required once the REST hooks actually move behind it.
      */
     registerUser(body: UserBody): Promise<DomainUser>;
-    registerUserV2(body: RegisterUserV2Body, email?: boolean): Promise<DomainUser>;
+    /** `opts.endpoint` registers on another stage's relay — the admin console's user screen only. */
+    registerUserV2(body: RegisterUserV2Body, email?: boolean, opts?: AdminEndpointOptions): Promise<DomainUser>;
     findAlias(body: FindAliasBody): Promise<FindAliasView>;
     verifyAlias(body: VerifyAliasBody): Promise<VerifyAliasView>;
     loginWithInviteCode(input: { code: string; delegatorId: string; backend?: string }): Promise<UserTokenView>;
@@ -141,8 +142,12 @@ export class AuthRepository extends BaseRepository implements IAuthRepository {
         return this.requireHttp().registerUser(body, this.getRequestContext());
     }
 
-    public async registerUserV2(body: RegisterUserV2Body, email?: boolean): Promise<DomainUser> {
-        return this.requireHttp().registerUserV2(body, email, this.getRequestContext());
+    public async registerUserV2(
+        body: RegisterUserV2Body,
+        email?: boolean,
+        opts?: AdminEndpointOptions
+    ): Promise<DomainUser> {
+        return this.requireHttp().registerUserV2(body, email, this.getRequestContext(), opts);
     }
 
     public async findAlias(body: FindAliasBody): Promise<FindAliasView> {

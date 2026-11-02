@@ -39,3 +39,33 @@ export const openingStage = (): ServiceStage => (webConfigPorts.env.stage() === 
 /** Read through the app's config adapter, the one place here that touches `import.meta`. */
 export const stageEndpoint = (service: StageService, stage: ServiceStage): string =>
     readStageEndpoint(name => webConfigPorts.env.raw(name), service, stage);
+
+/** The session's own relay (`VITE_DOU_ENDPOINT`), trailing slashes dropped. */
+export const sessionRelayEndpoint = (): string =>
+    `${webConfigPorts.env.raw('VITE_DOU_ENDPOINT') ?? ''}`.trim().replace(/\/+$/, '');
+
+/**
+ * The stage the session's relay is on, read off its `dou-XX` segment: `v1` only when it plainly says
+ * so. Production in every build today, since the console always signs in there.
+ */
+export const sessionRelayStage = (): ServiceStage => (/\/dou-v1$/.test(sessionRelayEndpoint()) ? 'v1' : 'd1');
+
+/**
+ * The relay override for a call on `stage`, or `undefined` to leave the call on the session's relay.
+ *
+ * Undefined for the session's own stage on purpose: the http client resolves the relay through
+ * `getDynamicRelayBackend`, which honours a deeplink override and `window.DOU_ENDPOINT` before the
+ * env var, and an override would throw those away. Throws for another stage whose key is unset —
+ * undefined there would send the call to the session's relay, the other stage, while the screen says
+ * it is on this one.
+ */
+export const relayOverrideFor = (stage: ServiceStage): string | undefined => {
+    if (stage === sessionRelayStage()) return undefined;
+    const endpoint = stageEndpoint('relay', stage);
+    if (!endpoint) throw new Error(`${stageEndpointKey('relay', stage)} is not set — no relay to call on ${stage}.`);
+    return endpoint;
+};
+
+/** Where calls on `stage` actually go: the session's relay on its own stage, else that stage's key. */
+export const relayTargetFor = (stage: ServiceStage): string =>
+    stage === sessionRelayStage() ? sessionRelayEndpoint() : stageEndpoint('relay', stage);

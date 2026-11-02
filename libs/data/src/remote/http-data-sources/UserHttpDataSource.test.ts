@@ -24,6 +24,14 @@ describe('UserHttpDataSource', () => {
         expect(result.list).toMatchObject([{ id: 'u1', cid: 'cloud-a' }]);
     });
 
+    it('listRelayUsers — passes an endpoint override through to the gateway', async () => {
+        gateway.list.mockResolvedValue({ list: [] } as any);
+
+        await dataSource.listRelayUsers({ page: 0 }, context, { endpoint: 'https://other.test/dou-d1' });
+
+        expect(gateway.list).toHaveBeenCalledWith({ page: 0 }, { endpoint: 'https://other.test/dou-d1' });
+    });
+
     it('tryFetchProfile — errors bubble, matching the gateway (no swallow-and-null here either)', async () => {
         gateway.tryProfile.mockRejectedValue(new Error('down'));
 

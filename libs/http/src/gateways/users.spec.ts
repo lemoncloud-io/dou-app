@@ -26,6 +26,17 @@ describe('createUserHttpGateway', () => {
         });
     });
 
+    it('list — aims at the given relay when an endpoint is passed', async () => {
+        executeSignedRelayRequest.mockResolvedValue({});
+        const gateway = createUserHttpGateway(exec);
+
+        await gateway.list({ page: 0 }, { endpoint: 'https://other.test/dou-d1' });
+
+        expect(executeSignedRelayRequest).toHaveBeenCalledWith(
+            expect.objectContaining({ baseURL: 'https://other.test/dou-d1/hello/user/list' })
+        );
+    });
+
     it('tryProfile — GET {oauth}/users/0/profile, errors bubble (no swallow)', async () => {
         executeSignedRelayRequest.mockRejectedValue(new Error('boom'));
         const gateway = createUserHttpGateway(exec);

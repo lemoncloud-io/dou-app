@@ -1,12 +1,16 @@
 import type { ListResult } from '@lemoncloud/chatic-backend-api/dist/cores/types';
 import type { RegisterDeviceTokenBody, UserProfile$, UserView } from '@lemoncloud/chatic-backend-api';
 import type { RegisterDeviceResult } from '@lemoncloud/chatic-pushes-api';
+import type { AdminEndpointOptions } from './subscriptions';
 import type { HttpGatewayExecutor } from './types';
 
 /** `/users/*` · `/hello/user/*` relay resource wire vocabulary. */
 export interface UserHttpGateway {
-    /** GET {relay}/hello/user/list — admin user listing (observed: apps/admin is the only consumer). */
-    list(params?: Record<string, unknown>): Promise<ListResult<UserView>>;
+    /**
+     * GET {relay}/hello/user/list — admin user listing (admin-v2 is the only consumer). `options.endpoint`
+     * aims it at another stage's relay, as the other admin calls allow.
+     */
+    list(params?: Record<string, unknown>, options?: AdminEndpointOptions): Promise<ListResult<UserView>>;
     /** GET {oauth}/users/0/profile, no-retry probe. Errors bubble — the "swallow and return null"
      * behavior of the pre-lib `tryFetchProfile` is a caller concern, not wire vocabulary. */
     tryProfile(): Promise<UserProfile$>;
@@ -21,10 +25,10 @@ export const createUserHttpGateway = (exec: HttpGatewayExecutor): UserHttpGatewa
     const oauth = () => exec.resolveEndpoint('oauth');
 
     return {
-        list: params =>
+        list: (params, options) =>
             exec.executeSignedRelayRequest<ListResult<UserView>, never, Record<string, unknown>>({
                 method: 'GET',
-                baseURL: `${relay()}/hello/user/list`,
+                baseURL: `${options?.endpoint || relay()}/hello/user/list`,
                 params: { ...params },
             }),
 
