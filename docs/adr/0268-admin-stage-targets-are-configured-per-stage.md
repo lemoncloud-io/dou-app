@@ -35,7 +35,9 @@ lab's `/d1` strip had already been wrong for any build whose backend endpoint wa
    memberships call fall through to the session's own relay.
 3. **The values are the same in every build.** They describe where each stage lives, which does not
    depend on which stage the build's session signs in to. The deploy secrets that feed them carry no
-   DEV/PROD part (`ADMIN_D1_RELAY_ENDPOINT`, not `ADMIN_DEV_D1_…`).
+   DEV/PROD part (`ADMIN_D1_RELAY_ENDPOINT`, not `ADMIN_DEV_D1_…`). The production socket reuses the
+   web app's `WEB_PROD_WS_ENDPOINT` instead of a tenth secret of its own: the repository is at
+   GitHub's 100-secret limit, and the two name the same server.
 
 The memberships console still sends no override for the session's own stage, so the http client's
 deep-link and `window.DOU_ENDPOINT` overrides keep applying there. The refund keeps its own guard: it
@@ -43,7 +45,8 @@ fires only when the endpoint's own `dou-XX` segment names the stage selected.
 
 ## Consequences
 
-- **Ten more keys** in each `.env` of the app and ten more Actions secrets. That is the cost the
+- **Ten more keys** in each `.env` of the app and nine more Actions secrets, which fills the
+  repository's 100-secret limit; the next secret anyone adds has to free a slot first. That is the cost the
   derived rule avoided; it now buys the ability to move any one stage of any one service on its own.
 - **A screen whose keys are missing stops working loudly** instead of calling a made-up address. A
   build deployed before its secrets are added shows "(not configured)" on the other stage.
