@@ -34,8 +34,11 @@ lab's `/d1` strip had already been wrong for any build whose backend endpoint wa
    throws with the missing key's name. In particular, an unset key for the other stage never lets a
    memberships call fall through to the session's own relay.
 3. **The values are the same in every build.** They describe where each stage lives, which does not
-   depend on which stage the build's session signs in to. The deploy secrets that feed them carry no
-   DEV/PROD part (`ADMIN_D1_RELAY_ENDPOINT`, not `ADMIN_DEV_D1_…`).
+   depend on which stage the build's session signs in to. In the deploy workflows, the relay, archive
+   and socket of each stage are the web app's own servers, so they read the web app's secrets
+   (`WEB_DEV_DOU_ENDPOINT` for the `d1` relay, `WEB_PROD_WS_ENDPOINT` for the `v1` socket, …). Goods
+   and presence, which the web app does not call, have secrets of their own with no DEV/PROD part
+   (`ADMIN_D1_GOODS_ENDPOINT`, not `ADMIN_DEV_D1_…`).
 
 The memberships console still sends no override for the session's own stage, so the http client's
 deep-link and `window.DOU_ENDPOINT` overrides keep applying there. The refund keeps its own guard: it
@@ -43,8 +46,12 @@ fires only when the endpoint's own `dou-XX` segment names the stage selected.
 
 ## Consequences
 
-- **Ten more keys** in each `.env` of the app and ten more Actions secrets. That is the cost the
-  derived rule avoided; it now buys the ability to move any one stage of any one service on its own.
+- **Ten more keys** in each `.env` of the app, but only four more Actions secrets. The repository is
+  near GitHub's 100-secret limit, and a secret per key would have reached it. The keys are the cost
+  the derived rule avoided; they buy the ability to move any one stage of any one service on its own.
+- **The admin console follows the web app's stage addresses.** When the web app's dev or production
+  relay, archive or socket secret changes, the admin build picks it up on its next deploy; goods and
+  presence still have to be changed on their own.
 - **A screen whose keys are missing stops working loudly** instead of calling a made-up address. A
   build deployed before its secrets are added shows "(not configured)" on the other stage.
 - **The runtime keys are unchanged.** `VITE_DOU_ENDPOINT`, `VITE_WS_ENDPOINT` and the rest still
