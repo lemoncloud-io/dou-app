@@ -1,5 +1,13 @@
 # Changelog
 
+## [2026-11-02] - root@0.139.0, @chatic/desktop-web@0.45.0
+
+### Features
+
+- (desktop-web) let users pick their own shell colours
+- (desktop-web) render shell palettes from the derive rule
+- (desktop-web) derive shell palette tokens from three colours
+
 ## [2026-11-02] - root@0.138.1, @chatic/desktop-web@0.44.1
 
 ### Bug Fixes
