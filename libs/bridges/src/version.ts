@@ -27,7 +27,10 @@
 //         page on another origin shown in a second WebView with no bridge of its own.
 // 2.11.0: added FinishSubWebView and SetSubWebViewTitle (sub WebView page -> app), the
 //         OnSubWebViewContextChanged push, OpenSubWebView `params` and OnSubWebViewClosed `result`.
-export const BRIDGE_VERSION = '2.11.0' as const;
+// 2.12.0: added StartAudioRecording and StopAudioRecording (web -> app) with OnAudioRecordingStarted
+//         and OnAudioRecordingEnded — a voice message the shell records; the second is also pushed when
+//         the shell ends a recording itself.
+export const BRIDGE_VERSION = '2.12.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

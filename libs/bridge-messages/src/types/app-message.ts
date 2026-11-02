@@ -99,6 +99,8 @@ import type {
     OnPrepareVideoPayload,
     OnReadAttachmentPayload,
     OnReadVideoFramePayload,
+    OnAudioRecordingStartedPayload,
+    OnAudioRecordingEndedPayload,
     OnFetchShareIntakePayload,
     OnReleaseShareIntakePayload,
     OnFileTransferStatePayload,
@@ -150,6 +152,10 @@ export type AppMessageDataMap = {
     OnPrepareVideo: OnPrepareVideoPayload;
     OnReadAttachment: OnReadAttachmentPayload;
     OnReadVideoFrame: OnReadVideoFramePayload;
+    // The reply to `StartAudioRecording`, and to `StopAudioRecording`. The second is also pushed when
+    // the shell ends a recording itself: at its limit, or interrupted.
+    OnAudioRecordingStarted: OnAudioRecordingStartedPayload;
+    OnAudioRecordingEnded: OnAudioRecordingEndedPayload;
     OnFetchShareIntake: OnFetchShareIntakePayload;
     OnReleaseShareIntake: OnReleaseShareIntakePayload;
     OnRequestPermission: OnRequestPermissionPayload;

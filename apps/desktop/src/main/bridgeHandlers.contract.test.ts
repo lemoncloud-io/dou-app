@@ -77,6 +77,8 @@ const DESKTOP_UNSUPPORTED = {
     PrepareVideo: BROWSER,
     ReadAttachment: BROWSER,
     ReadVideoFrame: BROWSER,
+    StartAudioRecording: PHONE,
+    StopAudioRecording: PHONE,
     FetchShareIntake: PHONE,
     ReleaseShareIntake: PHONE,
     RequestPermission: PHONE,

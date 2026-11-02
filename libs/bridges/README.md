@@ -370,7 +370,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 web runtime                             apps/web · apps/desktop-web · apps/admin-v2
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_VERSION ('2.11.0')
+       ├─ version  BRIDGE_VERSION ('2.12.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -563,7 +563,7 @@ npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-d
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.11.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.12.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. There is one protocol constant; `BRIDGE_VERSION_INFO` carries it twice, as
 `bridgeVersion` and `protocolVersion`, because the web's debug screen prints both rows.

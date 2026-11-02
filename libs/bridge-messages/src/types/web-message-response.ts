@@ -37,6 +37,8 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     PrepareVideo: 'OnPrepareVideo',
     ReadAttachment: 'OnReadAttachment',
     ReadVideoFrame: 'OnReadVideoFrame',
+    StartAudioRecording: 'OnAudioRecordingStarted',
+    StopAudioRecording: 'OnAudioRecordingEnded',
     FetchShareIntake: 'OnFetchShareIntake',
     ReleaseShareIntake: 'OnReleaseShareIntake',
     RequestPermission: 'OnRequestPermission',
