@@ -37,16 +37,17 @@ nothing (`subWebViewContextScript.ts`). A later theme or language change arrives
 vocabulary as the main web, through `window.ReactNativeWebView`, to a second `AppBridgeHost`
 (`createSubBridgeHost.ts`) that registers only `SubWebViewRequestType`:
 
-| Request              | What the sub WebView's host does                                                     |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| `WebAppReady`        | The handshake; lists exactly this table. No cache schema or types: nothing to store  |
-| `Ping`               | Answered by the host itself                                                          |
-| `FinishSubWebView`   | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web       |
-| `SetSubWebViewTitle` | Puts a title (1–100 characters) in the bar, over the document's own                  |
-| `CopyToClipboard`    | Writes text to the clipboard                                                         |
-| `TriggerHaptic`      | Plays one short haptic                                                               |
-| `OpenURL`            | Opens only what the view would hand to the OS — never the app's own links or schemes |
-| `OpenShareSheet`     | Opens the OS share sheet with a message and an http(s) link — never a file           |
+| Request                | What the sub WebView's host does                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------ |
+| `WebAppReady`          | The handshake; lists exactly this table. No cache schema or types: nothing to store  |
+| `Ping`                 | Answered by the host itself                                                          |
+| `FinishSubWebView`     | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web       |
+| `SetSubWebViewTitle`   | Puts a title (1–100 characters) in the bar, over the document's own                  |
+| `CopyToClipboard`      | Writes text to the clipboard                                                         |
+| `TriggerHaptic`        | Plays one short haptic                                                               |
+| `OpenURL`              | Opens only what the view would hand to the OS — never the app's own links or schemes |
+| `OpenShareSheet`       | Opens the OS share sheet with a message and an http(s) link — never a file           |
+| `GetSubWebViewUserKey` | This device's key for the page's origin — derived from the device id, never the id   |
 
 Everything else — cache, preferences, push tokens, purchases, files, logs — answers `NOT_FOUND`.
 The handlers are written for this host (`subBridgeHandlers.ts`), not borrowed from the main
@@ -73,6 +74,60 @@ little on Android: it answers `sharedAction` as soon as the chooser opens, whate
 does, and never an `activityType`; only iOS reports `dismissedAction` and the activity chosen. A
 page that would rather copy than fail checks the handshake for `OpenShareSheet` first: apps built
 before it answer `NOT_FOUND`.
+
+**A key for the page's own server, not an identity.** `GetSubWebViewUserKey` answers `{ key }`, 64
+lower-case hex characters, so a page's server can keep a user's data — a save game, progress — under
+something stable, without an account and without the app telling it who the user is. The key is
+HMAC-SHA-256 keyed by the device id over a fixed label and the page's origin
+(`subWebViewUserKey.ts`):
+
+- **Same device and origin, same key**, on every launch and in every view. **Another origin, another
+  key** — `foo.apps.chatic.io` and `foo.apps-dev.chatic.io` too. Two pages' servers comparing keys cannot tell they
+  share a user, and neither can work back from its key to the device id.
+- **The origin is the shell's record** — the origin of the URL the view was opened on — never
+  anything in the request, so a page can only ever get its own origin's key.
+- **The device id is the one the main WebView is given** as `CHATIC_APP_UNIQUE_DEVICE_ID`
+  (`DeviceInfo.getUniqueIdSync()`); no new id is made. With none — `null`, empty, or the library's
+  `unknown` — the reply is `UNAVAILABLE` rather than a key every such device would share.
+- **The label is the salt, and it is not a secret.** It is a constant in this public repository, so
+  it only keeps this use of the device id apart from any other. What makes the key unlinkable is the
+  device id, which a page never sees; whoever does hold it — DoU's own logs and crash reports carry it
+  — can recompute any page's key. A secret salt built into the app would not change that much (it can
+  be read out of the app binary) and would re-key every page if it were ever lost or changed.
+- **The label never changes.** Changing it, or anything else in the derivation, changes every key and
+  orphans every page's data kept under the old ones; `subWebViewUserKey.test.ts` pins two keys so
+  that cannot happen unnoticed. A different key would be a new request.
+
+How long a key lasts is how long the device id lasts:
+
+| Event                         | iOS                                                                                                                                                                             | Android                                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| What the id is                | react-native-device-info's own: the vendor id (IDFV, or a random UUID without one) when first read, then kept in the keychain (this device only) and in the app's user defaults | `Settings.Secure.ANDROID_ID`: one per app signing key, user and device on Android 8+; on 7.x one per user and device |
+| Reinstall                     | The same key: the keychain entry outlives the app                                                                                                                               | The same key, for a build signed with the same key                                                                   |
+| Erase or factory reset        | A new key, unless restored from a backup (below)                                                                                                                                | A new key                                                                                                            |
+| A new phone                   | A new key, unless restored from a backup of the old one (below)                                                                                                                 | A new key                                                                                                            |
+| Another user on the phone     | —                                                                                                                                                                               | A new key                                                                                                            |
+| A build signed with a new key | —                                                                                                                                                                               | A new key on Android 8+: a locally signed build and the store's build see different ids                              |
+
+The iOS rows are read from the library's code (`DeviceUID.m`), not checked on a device: an id is
+looked up in the keychain first, then in the user defaults, and written back to both. A backup carries
+the user defaults but not a this-device-only keychain entry, so a phone erased or replaced and then
+restored from a backup keeps its key.
+
+**What the key is not:**
+
+- **Not the DoU account.** Two accounts on one phone get the same key; one account on two phones gets
+  two. Signing out changes nothing.
+- **Not proof of anything.** The page's server receives the key from the page's own script, and
+  anyone can send it any 64 hex characters. A key is as good as a long random bearer value: it cannot
+  be guessed, but whoever learns one (from that server's logs, say) can use it. A server that must know
+  a request came from the app on that device needs a token the app signs, which does not exist yet.
+- **Not secret from the page.** The page may keep it and send it where it likes; it means something
+  only to that origin.
+
+A page asks once its handshake lists `GetSubWebViewUserKey`; an app built before it answers
+`NOT_FOUND`, and the page falls back to a sign-in of its own (an anonymous one keeps working until the
+WebView's storage is cleared or the app reinstalled).
 
 **Only the origin the view was opened on is answered.** Every message is checked against that origin
 before the host sees it; a page the view navigated to, or a frame elsewhere, gets no answer at all.
@@ -263,6 +318,7 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/SubWebView.tsx`                    | The second WebView: its context, its host, the origin check             |
 | `src/app/subWebView/createSubBridgeHost.ts`            | The sub WebView's own `AppBridgeHost`, with the subset only             |
 | `src/app/subWebView/subBridgeHandlers.ts`              | The page-facing handlers, typed by `SubWebViewRequestType`              |
+| `src/app/subWebView/subWebViewUserKey.ts`              | The page's key, from the device id and its origin                       |
 | `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticSubWebView`, for the opened origin only                   |
 | `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data limit and the 100-character title limit                 |
 | `src/app/subWebView/subWebViewNavigation.ts`           | Load, hand to the OS, or drop                                           |

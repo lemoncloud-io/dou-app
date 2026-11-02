@@ -4,6 +4,7 @@ import { BRIDGE_VERSION, JsonProtocol } from '@chatic/bridges';
 
 import { pushedEventErrors } from '../webview/hooks/appEventContract';
 import { SubWebView } from './SubWebView';
+import { deriveSubWebViewUserKey } from './subWebViewUserKey';
 
 let mockWebViewProps: Record<string, any> = {};
 const mockPostMessage = jest.fn();
@@ -26,7 +27,11 @@ jest.mock('react-native', () => ({
     Platform: { OS: 'ios' },
     StyleSheet: { create: (styles: unknown) => styles },
 }));
-jest.mock('react-native-device-info', () => ({ __esModule: true, default: { getVersion: () => '0.30.1' } }));
+const MOCK_DEVICE_ID = '6E1C3B0A-9D2F-4C8E-B7A1-2F5D8E3C4B6A';
+jest.mock('react-native-device-info', () => ({
+    __esModule: true,
+    default: { getVersion: () => '0.30.1', getUniqueIdSync: () => MOCK_DEVICE_ID },
+}));
 jest.mock('../hooks', () => ({
     useResolvedTheme: () => ({ backgroundColor: '#FFFFFF', resolvedTheme: mockTheme }),
 }));
@@ -149,6 +154,24 @@ describe('SubWebView', () => {
             url: 'https://foo.apps.chatic.io/',
         });
         expect(sentTypes()).toContain('OnOpenShareSheet');
+    });
+
+    // Keyed on the origin the view was opened on, whatever page of it asks; the id itself stays here.
+    it('answers the page a key for its opened origin, never the device id', async () => {
+        renderView();
+
+        mockWebViewProps.onMessage(pageMessage('https://foo.apps.chatic.io/save', 'GetSubWebViewUserKey', {}));
+        await settle();
+
+        const [raw] = mockPostMessage.mock.calls[0];
+        expect(JSON.parse(raw)).toEqual(
+            expect.objectContaining({
+                type: 'OnGetSubWebViewUserKey',
+                success: true,
+                data: { key: deriveSubWebViewUserKey(MOCK_DEVICE_ID, 'https://foo.apps.chatic.io') },
+            })
+        );
+        expect(raw).not.toContain(MOCK_DEVICE_ID);
     });
 
     // A reloaded page gets a fresh host: nothing is pushed to it before its own handshake.

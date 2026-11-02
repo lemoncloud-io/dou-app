@@ -29,10 +29,13 @@ interface SubWebViewProps {
 
 const openExternal = (url: string) => Linking.openURL(url);
 const openShareSheet = (data: { title?: string; message?: string; url?: string }) => deviceService.openShareSheet(data);
+// The id the main WebView is given as `CHATIC_APP_UNIQUE_DEVICE_ID`; only a key derived from it reaches a page.
+const getDeviceId = () => DeviceInfo.getUniqueIdSync();
 
 /**
  * The second WebView. Built apart from `AppWebView` on purpose: it gets none of the main WebView's
- * injected globals (device and install ids, the bridge handler) and none of its handlers. Its bridge
+ * injected globals (device and install ids, the bridge handler) and none of its handlers — a page
+ * that asks gets a key derived from the device id and its own origin, never the id. Its bridge
  * is a host of its own that answers only the subset a page may use, and only for the origin the view
  * was opened on. Camera, microphone and file pickers are left to the OS and the WebView's own
  * defaults: what may run here is decided by what is allowed to be deployed to the allowlisted
@@ -67,11 +70,13 @@ export const SubWebView = ({ viewId, url, params, onRequestClose, onTitleChange,
                     openExternal,
                     setTitle: title => onTitleRequestRef.current?.(title),
                     openShareSheet,
+                    origin: openedOrigin,
+                    getDeviceId,
                 })
             ),
         // `pageLoad` only rebuilds the host; it is not read inside.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [viewId, pageLoad]
+        [viewId, openedOrigin, pageLoad]
     );
 
     const contextScript = useMemo(

@@ -4,6 +4,9 @@
         "outDir": "../../dist/out-tsc",
         "module": "commonjs",
         "jsx": "react-jsx",
+        // The crypto-js submodules are CommonJS default-imported (subWebView/subWebViewUserKey.ts);
+        // Metro's Babel adds the interop on device, ts-jest only with this.
+        "esModuleInterop": true,
         "types": ["jest", "node"]
     },
     "include": ["jest.config.js", "src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"]
