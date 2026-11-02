@@ -45,8 +45,13 @@ export const PageShell = ({ title, backTo, backLabel, actions, contentClassName,
                 {actions && <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>}
             </header>
 
+            {/* `relative`: absolutely positioned content (`sr-only` labels too) clips and scrolls with this
+                body; outside it, it lengthens the document and the whole window scrolls. */}
             <main
-                className={cn('scrollbar-thin mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8', contentClassName)}
+                className={cn(
+                    'scrollbar-thin relative mx-auto w-full max-w-2xl flex-1 overflow-y-auto p-8',
+                    contentClassName
+                )}
             >
                 {children}
             </main>
