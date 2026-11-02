@@ -57,6 +57,16 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local', 'server'],
         persist: 'session',
     },
+    'feature.lab.subWebViewPages': {
+        title: 'Sub WebView pages in the Lab',
+        description: 'Lists the pages kept for trying the sub WebView in the Lab, each one opening in the app.',
+        type: 'boolean',
+        defaultValue: false,
+        byStage: { LOCAL: true, DEV: true },
+        surface: 'dev',
+        writableBy: ['local'],
+        persist: 'session',
+    },
     'feature.subscription.dryRun': {
         title: 'Subscription payment dry run',
         description: 'Exercises the subscription flow without an actual charge.',

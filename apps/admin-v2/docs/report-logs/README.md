@@ -95,7 +95,7 @@ every feature it had. The nav item and the page title are the same name: "로그
 | Parameter                   | Tab                             | Meaning                                                                            |
 | --------------------------- | ------------------------------- | ---------------------------------------------------------------------------------- |
 | `tab`                       | all                             | `user` (default) · `errors` · `reports` · `stats` · `all`                          |
-| `stage`                     | all                             | `d1` for development; absent means production (`v1`)                               |
+| `stage`                     | all                             | `d1` or `v1`; absent means the build's stage (`v1` in production, `d1` otherwise)  |
 | `period`                    | user · errors · reports · stats | `1h` · `24h` · `today` · `yesterday` · `7d` · `custom`; absent = the tab's default |
 | `from`, `to`                | user · errors · reports · stats | `custom` only, `YYYY-MM-DD`                                                        |
 | `at`                        | user                            | an instant (epoch ms); the period becomes 30 minutes either side                   |

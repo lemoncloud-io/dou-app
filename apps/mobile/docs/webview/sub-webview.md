@@ -46,6 +46,7 @@ vocabulary as the main web, through `window.ReactNativeWebView`, to a second `Ap
 | `CopyToClipboard`    | Writes text to the clipboard                                                         |
 | `TriggerHaptic`      | Plays one short haptic                                                               |
 | `OpenURL`            | Opens only what the view would hand to the OS — never the app's own links or schemes |
+| `OpenShareSheet`     | Opens the OS share sheet with a message and an http(s) link — never a file           |
 
 Everything else — cache, preferences, push tokens, purchases, files, logs — answers `NOT_FOUND`.
 The handlers are written for this host (`subBridgeHandlers.ts`), not borrowed from the main
@@ -54,6 +55,24 @@ WebView's: the boundary forbids that, and the main ones assume the main web is a
 opens the app's schemes. The table is typed by `SubWebViewRequestType`, so a request outside the
 subset does not compile there — locally: CI does not type check `apps/mobile`. What CI does run is
 `createSubBridgeHost.test.ts`, which checks the handshake lists exactly the subset.
+
+**What a page may share.** `OpenShareSheet` goes through the same `DeviceService.openShareSheet` as the
+main web's, but its own handler decides what reaches it. The link must be `http:` or `https:`
+(`LINK_NOT_ALLOWED` otherwise): on iOS the share sheet treats a `file:` URL as the file itself, so a
+page could otherwise hand another app a file from DoU's container. The app's own links are not
+refused, unlike `OpenURL`'s: a shared link is text the user sends on, not a navigation, and the
+message is free text that could carry the same link anyway. The check parses by hand (`originOf`),
+not with `URL`, which React Native implements differently from the Node `URL` the tests run on.
+
+There has to be a message that is not blank, or a link. A title is at most 100 characters, a
+message 4,000 and a link 2,048; a field that is present but not a string within its limit, and an
+empty link, are `INVALID`; a `null` field counts as left out. Only those three fields pass. What
+reaches the OS differs by platform: Android hands the title to the receiving app as a subject (an
+email's subject line, say) and appends the link to the message; iOS ignores the title. The reply carries React Native's `ShareAction`, which means
+little on Android: it answers `sharedAction` as soon as the chooser opens, whatever the user then
+does, and never an `activityType`; only iOS reports `dismissedAction` and the activity chosen. A
+page that would rather copy than fail checks the handshake for `OpenShareSheet` first: apps built
+before it answer `NOT_FOUND`.
 
 **Only the origin the view was opened on is answered.** Every message is checked against that origin
 before the host sees it; a page the view navigated to, or a frame elsewhere, gets no answer at all.
@@ -100,6 +119,23 @@ permission in the app, so an app release, and is done when a reviewed page needs
   and every line would come back `NOT_FOUND`.
 - `params` and `result` are JSON of at most 16 KiB each; a title is at most 100 characters.
 - A login that runs in a popup and answers through `window.opener` does not work here.
+
+### The wire format
+
+Sub WebView pages are built and deployed outside this repository, and `@chatic/bridges` is not
+published, so a page speaks the bridge directly. It is JSON
+strings both ways:
+
+| Direction  | How                                                                                                    | Shape                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Page → app | `window.ReactNativeWebView.postMessage(JSON.stringify(message))`                                       | `{ type, data, refId, version }` — `refId` unique per request; `version` is the bridge version it speaks |
+| App → page | A `message` event: on `window` on iOS, on `document` on Android — listen on both; `event.data` is JSON | A reply carries the request's `refId`; a push (`OnSubWebViewContextChanged`) carries a fresh one         |
+| Answered   | —                                                                                                      | `{ type: 'On<Request>', success: true, data, refId }`                                                    |
+| Refused    | —                                                                                                      | `{ type, success: false, error: { code, message }, refId }` — `type` is `ERROR` for `NOT_FOUND`          |
+
+Match a reply to its request by `refId`, not by `type`; route anything else by `type` as a push.
+Send `WebAppReady` (`data: {}`) first — any message but a log releases the pushes the app held — and
+read the subset from its reply's `supportedWebMessages`.
 
 ## Where it may go
 
@@ -235,9 +271,15 @@ an import the other way ties the main WebView to a screen it should only know th
 
 ## Checking it by hand
 
-The debug panel's Bridge screen has an `OpenSubWebView` preset. Pick it, give it a payload such as
-`{ "url": "https://<page>.apps-dev.chatic.io/" }`, and send it as a request: the page slides up over
-the
-app, the reply carries the `viewId`, and closing it sends `OnSubWebViewClosed`. A URL off the
-allowlist
-answers `NOT_ALLOWED`. It needs a page actually deployed under `apps-dev.chatic.io`.
+Any page deployed on a subdomain of `apps-dev.chatic.io` (or `apps.chatic.io`) will do — nothing else
+opens. `https://sample.apps-dev.chatic.io/` and `https://sample1.apps-dev.chatic.io/` are kept for
+trying it: in a development build the web's Lab page (Settings → Lab) lists both, and a tap opens one.
+
+Open it from the web's debug panel → **Sub WebView (app)**: a URL, an optional title and `params`, and
+a log of how the view closed, with the `result` the page handed back. A URL off the allowlist answers
+`NOT_ALLOWED`. The screen hears the close only while it is the one showing in the panel: switch to
+another screen while the view is open and that close is not logged. The Bridge screen's
+`OpenSubWebView` preset sends the same request but shows no close event.
+
+In a development build the sub WebView is inspectable like the main one (`webviewDebuggingEnabled`):
+Safari's Develop menu on iOS, `chrome://inspect` on Android.

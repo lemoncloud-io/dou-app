@@ -23,10 +23,12 @@ running on an operator's own machine and a pair of local scripts. Feature code:
   lapsed signing credential shows up here as a failed call, not as a silent retry. A failed deploy
   is therefore logged by the screen itself (`logger.error`), so it leaves a trace beyond the results
   list.
-- **The goods address is derived, not configured.** The goods service sits on the same host as the
-  relay, so its base is `VITE_DOU_ENDPOINT` with the `/dou-<stage>` segment swapped for
-  `/cgs-<stage>` — no new env key, nothing to add to every operator's `.env`. The day the goods
-  service moves to another host this stops working, and the fix then is an env key of its own.
+- **The goods address is configured per stage.** Each goods stage reads its own key
+  (`VITE_D1_GOODS_ENDPOINT`, `VITE_V1_GOODS_ENDPOINT`), and the paired relay its own
+  (`VITE_<STAGE>_RELAY_ENDPOINT`) — see [Stage endpoints](../../README.md#stage-endpoints). It used to
+  be `VITE_DOU_ENDPOINT` with `/dou-<stage>` swapped for `/cgs-<stage>`, which assumed both stages
+  share one host; that ended when the dev stage moved domain. An unset key shows "(not configured)"
+  and the stage lists nothing.
 - **The goods stage and the cloud stage are two different axes.** The goods stage (`cgs-d1`,
   `cgs-v1`) is which goods service is called. The cloud stage (`dev`, `prod`, read from the
   product's `project$.stereo`) is a mark on each subscription cloud. A `dev` subscription cloud
@@ -61,8 +63,8 @@ running on an operator's own machine and a pair of local scripts. Feature code:
   the builder for this was not worth it — its narrow surface is deliberate, and since auto-deploy
   answers as soon as a deploy is queued, the most a stop lets through is one more queued deploy.
   Only one run exists at a time; a second confirm while one is going does nothing.
-- **Everything that goes out is shown before it goes.** admin-v2 is not deployed; every operator
-  runs it locally against whatever their `.env` names, which in practice is production. The header
+- **Everything that goes out is shown before it goes.** Either stage can be picked from any build,
+  production included. The header
   badge and the confirmation dialog both name the goods service being called (red for production),
   and the dialog states the cloud and product counts, each service's branch, `force` and `slack`.
 - **The rules are pure functions in `lib/`** — grouping (`cloudGroups`), the call list
@@ -73,7 +75,7 @@ running on an operator's own machine and a pair of local scripts. Feature code:
 - **Nothing is kept in the URL.** The membership and log consoles put their filters and stage in the
   URL so a refresh or a shared link keeps the view. Those screens read; this one deploys, and a link
   that reopened on production with clouds picked is the wrong thing to make easy. The screen opens
-  on the stage the `.env` names, with nothing picked, every time.
+  on the build's stage, with nothing picked, every time.
 
 ## Scope
 
@@ -115,7 +117,7 @@ its body were `{}` while the request goes out empty, so without it the gateway r
 — and because that 403 carries no CORS headers, the browser shows only a network error. Every signed
 POST or PUT needs a body for the same reason.
 
-`GET <relay>/clouds/0/list` on the relay of the same stage (`cgs-v1` → `dou-v1`), page by page:
+`GET <relay>/clouds/0/list` on the relay of the same stage (`VITE_<STAGE>_RELAY_ENDPOINT`), page by page:
 `view=admin` lists every user's clouds, `valid=0` keeps expired ones (they still have products), and
 `limit=100`. That endpoint enforces no admin role on the server — the memberships console documents
 the same gap — so the admin login in front of this screen is the only gate on it.
@@ -178,8 +180,8 @@ the same gap — so the admin login in front of this screen is the only gate on 
 - **A rejected signature looks like a network failure.** The gateway's 403 for a bad signature
   carries no CORS headers, so the browser reports no status at all; the screen says so instead of
   showing a bare "Network Error".
-- **The goods stage opens on the relay stage the `.env` names** — `dou-v1` opens on `cgs-v1`,
-  anything else on `cgs-d1`. Switching it clears the picks and the last run's results, which belong
+- **The goods stage opens on the build's stage** — `cgs-v1` in a production build, `cgs-d1` in any
+  other (see [Stage endpoints](../../README.md#stage-endpoints)). Switching it clears the picks and the last run's results, which belong
   to the goods service they came from. It, the picks and the Deploy button are locked during a run.
 
 ## Verifying

@@ -14,6 +14,8 @@
  */
 import { runtime } from '@chatic/app-runtime';
 
+import { stageEndpoint, stageEndpointKey } from '../../../config/stageEndpoints';
+
 /**
  * Minimal projection of `MockView` (chatic-archive-api) we actually consume.
  * Kept local so the feature does not depend on the SDK's type re-exports. The report payload is not a top-level
@@ -92,16 +94,16 @@ export type StatsInterval = 'hour' | 'day' | 'week';
 export type ReportStage = 'v1' | 'd1';
 
 /**
- * The archive service base for a stage. Taken from `VITE_ARCHIVE_ENDPOINT` (`https://host/arc-v1`)
- * when it is set, else from the relay endpoint (`https://host/dou-v1`), since the archive sits on the
- * relay's host — the same fallback the web app's report gateway uses, so the console reads where the
- * app writes. Either way the trailing `arc-XX` / `dou-XX` segment is dropped and `arc-<stage>`
- * appended, so the stage toggle still picks the stage. e.g. `https://api.eureka.codes/arc-v1`, `d1`
- * → `https://api.eureka.codes/arc-d1`.
+ * The archive service base for a stage, from its own env key (`VITE_<STAGE>_ARCHIVE_ENDPOINT`). Empty
+ * when that key is unset.
  */
-export const reportLogBaseFor = (endpoints: { archive?: string; relay?: string }, stage: ReportStage): string => {
-    const configured = (endpoints.archive ?? '').trim() || (endpoints.relay ?? '').trim();
-    return `${configured.replace(/\/+$/, '').replace(/\/(?:arc|dou)-[^/]*$/, '')}/arc-${stage}`;
+export const reportLogBaseFor = (stage: ReportStage): string => stageEndpoint('archive', stage);
+
+/** The base a request is built on. Throws when unset — an empty base would be a same-origin path. */
+export const requireReportLogBase = (stage: ReportStage): string => {
+    const base = reportLogBaseFor(stage);
+    if (!base) throw new Error(`${stageEndpointKey('archive', stage)} is not set — no archive to read on ${stage}.`);
+    return base;
 };
 
 /** Report kind as offered in the UI; `all` means "no server-side kind filter". */
@@ -261,10 +263,7 @@ export const fetchReportLogs = async ({
     const { data } = await runtime.boot.webTransport
         .buildSignedRequest({
             method: 'GET',
-            baseURL: `${reportLogBaseFor(
-                { archive: import.meta.env.VITE_ARCHIVE_ENDPOINT, relay: import.meta.env.VITE_DOU_ENDPOINT },
-                stage
-            )}/mocks/0/list`,
+            baseURL: `${requireReportLogBase(stage)}/mocks/0/list`,
         })
         .setParams(buildReportLogListParams(params))
         .execute<ReportLogListResponse>();

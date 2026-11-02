@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026-11-02] - No version updates
+
+### Features
+
+- (web,config) list the sub WebView test pages in the Lab, in dev builds only
+- (web,mobile) open and inspect a sub WebView page from a dev build
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (admin-v2) give each stage its own endpoint keys, not a rewritten path (ADR-0268)
+
 ## [2026-11-02] - root@0.141.4, @chatic/desktop-web@0.47.4
 
 ### Bug Fixes

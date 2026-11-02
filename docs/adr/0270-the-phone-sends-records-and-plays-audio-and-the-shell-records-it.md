@@ -1,11 +1,11 @@
-# ADR-0268: The phone sends, records and plays audio, and the shell does the recording
+# ADR-0270: The phone sends, records and plays audio, and the shell does the recording
 
 > Status: Accepted · Decided: 2026-11-02 · Implemented: `feat/mobile-audio-attachment`
 > · Scope: `apps/web/src/app/features/channels/` (`useVoiceMessage`, `MessageAudioCard`,
 > `useInlineAudio`, `lib/fileExport.ts`), `apps/web/src/app/bridge/audioRecorder.ts`,
 > `libs/bridge-messages/src/types/model/audio-recording.ts`, `apps/mobile/src/app/webview/hooks/audioRecordingHandlers.ts`,
 > `apps/mobile/ios/Bridges/AudioRecorder/`, `apps/mobile/android/.../io/chatic/dou/record/`, the two shells'
-> pickers, save lists and byte families, `libs/bridges/src/version.ts` (2.12.0)
+> pickers, save lists and byte families, `libs/bridges/src/version.ts` (2.13.0)
 > · Amends: [ADR-0265](./0265-a-page-on-another-origin-opens-in-a-sub-webview-with-a-bridge-of-its-own.md)
 > — only its note that the microphone arrives with the first reviewed page that needs it (decision 6)
 

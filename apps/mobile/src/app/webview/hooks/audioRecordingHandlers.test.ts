@@ -42,7 +42,7 @@ const sent: OnAudioRecordingEndedPayload = {
     durationMs: 8_000,
 };
 
-const message = <T>(data: T) => ({ type: 'x', data, version: '2.12.0', refId: 'r1' }) as any;
+const message = <T>(data: T) => ({ type: 'x', data, version: '2.13.0', refId: 'r1' }) as any;
 
 describe('audioRecordingHandlers', () => {
     let bridge: jest.Mocked<IAppBridgeHost>;

@@ -4,6 +4,8 @@
  */
 import { runtime } from '@chatic/app-runtime';
 
+import { stageEndpoint, stageEndpointKey } from '../../../config/stageEndpoints';
+
 import type { ObservedDevice, ObservedUser, Presence, UserSearchType } from '../mock/observed-users';
 
 export interface DeviceViewRaw {
@@ -42,9 +44,15 @@ export interface UserSearchPage {
 
 export type UsersStage = 'd1' | 'v1';
 
-const getUsersEndpoint = (): string => `${import.meta.env.VITE_BACKEND_ENDPOINT ?? ''}`.replace('/d1', '');
-
-export const getUsersBase = (stage: UsersStage): string => `${getUsersEndpoint()}/skt-${stage}`;
+/**
+ * The socket service's user and presence base for a stage (`VITE_<STAGE>_PRESENCE_ENDPOINT`). Throws
+ * when unset — an empty base would turn every call into a same-origin path.
+ */
+export const getUsersBase = (stage: UsersStage): string => {
+    const base = stageEndpoint('presence', stage);
+    if (!base) throw new Error(`${stageEndpointKey('presence', stage)} is not set — no presence service on ${stage}.`);
+    return base;
+};
 
 export const mapDeviceView = (d: DeviceViewRaw): ObservedDevice => {
     const status: Presence = d.status === 'red' || d.status === 'yellow' ? d.status : 'green';

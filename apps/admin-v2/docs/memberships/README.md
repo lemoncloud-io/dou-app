@@ -94,14 +94,16 @@ subscriptions (`apple`, `google`) get no refund section; the store refunds those
 
 **Development only.** The button works only when the relay the call will hit is `dou-d1`. On
 Production it stays disabled with a line saying so: no refund policy exists yet, and the console
-usually runs against Production because that is what an operator's `.env` names. The refund
-resolves its relay once, explicitly: the configured `VITE_DOU_ENDPOINT` with its `dou-XX` segment
-swapped for the selected stage. That one value is what the gate checks, what the confirmation
-dialog names and what the call is sent to, so the server shown is the server written to. **A
-configured endpoint that follows neither `dou-v1` nor `dou-d1` produces no refund endpoint at all**
-— the console will not append `/dou-d1` to a host it cannot identify — and the button says there is
-no relay to refund on. The mutation hook refuses any endpoint that is not `dou-d1` as well, because
-the gateway would otherwise fall back to the client's own relay on an empty one.
+always signs in to Production, so Production is one switch away in every build. The refund
+resolves its relay once, explicitly: `VITE_DOU_ENDPOINT` when the selected stage is the session's
+own, else that stage's `VITE_<STAGE>_RELAY_ENDPOINT` (see
+[Stage endpoints](../../README.md#stage-endpoints)). That one value is what the gate checks, what
+the confirmation dialog names and what the call is sent to, so the server shown is the server
+written to. **An endpoint whose own `dou-XX` segment does not name the selected stage produces no
+refund endpoint at all** — an unset key, a host with no stage segment, or a key that contradicts its
+stage — and the button says there is no relay to refund on. The mutation hook refuses any endpoint
+that is not `dou-d1` as well, because the gateway would otherwise fall back to the client's own relay
+on an empty one.
 
 **Switching stage closes the open row.** A row belongs to the relay it was read from; its `userId`
 on the other relay is someone else. Kept open across a switch, an override or a refund would land
@@ -181,8 +183,8 @@ Typecheck needs the **build** invocation (`tsc -b`), not `--noEmit` — a refere
 built `dist/*.d.ts` throws a wall of TS6305 that is a missing build, not a real error.
 
 What the suite actually has to cover, beyond the obvious CRUD path: the refund is enabled only for a
-`dou-d1` relay and never for an endpoint naming no stage, it is blocked on `pending`/`expired` but
-left to the relay for a trial, and a 409 reads as "no paid charge to refund" with the relay's text
+`dou-d1` relay and never for an endpoint naming no stage or another stage, it is blocked on
+`pending`/`expired` but left to the relay for a trial, and a 409 reads as "no paid charge to refund" with the relay's text
 kept; a caller-supplied `view`/`valid` never overrides the pinned gateway values; the three override-form modes reject a missing reason, a
 past `adminUntil`, and a tier on a block; the confirmation copy states that billing continues on a
 block; `blocked` is rejected as `notEntitled` by the quota check (a new status is an easy place to

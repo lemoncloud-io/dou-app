@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { FlaskConical } from 'lucide-react';
 
 import { config } from '@chatic/config';
+import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 
-import { useChatInputLockExperiment, usePlaceInviteExperiment } from '../../../hooks';
+import { openSubWebView } from '../../../bridge';
+import { useChatInputLockExperiment, usePlaceInviteExperiment, useSubWebViewLabPages } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
 import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
 
@@ -19,9 +21,20 @@ export const LabPage = () => {
     const { isEnabled: isDebugMode } = useDebugMode();
     const placeInvite = usePlaceInviteExperiment();
     const chatInputLock = useChatInputLockExperiment();
+    const subWebViewPages = useSubWebViewLabPages();
+    const { toast } = useToast();
     const { isChallengeOpen, hasError, registerTap, submitCode, cancelChallenge } = useDebugUnlock(
         config.get<string>('debug.entryCode')
     );
+
+    // In the app the page opens in the sub WebView; an older app or a browser opens it elsewhere.
+    const openPage = async (url: string) => {
+        try {
+            await openSubWebView({ url });
+        } catch {
+            toast({ title: t('mypage.lab.subWebViewOpenFailed'), variant: 'destructive' });
+        }
+    };
 
     return (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
@@ -88,6 +101,27 @@ export const LabPage = () => {
                         {t('mypage.lab.chatInputLockNote')}
                     </p>
                 </div>
+
+                {/* Development builds only (`feature.lab.subWebViewPages`): pages kept for trying the
+                    sub WebView, not experiments anyone turns on. */}
+                {subWebViewPages.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                        <MenuCard title={t('mypage.lab.subWebViewPages')}>
+                            {subWebViewPages.map(page => (
+                                <ListRow
+                                    key={page.name}
+                                    title={page.name}
+                                    subtitle={page.url}
+                                    trailing={<IconChevronRight className="size-[18px] text-description" />}
+                                    onClick={() => void openPage(page.url)}
+                                />
+                            ))}
+                        </MenuCard>
+                        <p className="px-1 text-[13px] leading-[1.5] text-description">
+                            {t('mypage.lab.subWebViewPagesNote')}
+                        </p>
+                    </div>
+                )}
 
                 {isDebugMode && (
                     <MenuCard title={t('mypage.lab.developerTools')}>

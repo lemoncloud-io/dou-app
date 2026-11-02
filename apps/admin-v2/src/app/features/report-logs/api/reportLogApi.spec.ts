@@ -1,43 +1,42 @@
 /**
  * `api/reportLogApi.spec.ts`
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { buildReportLogListParams, reportLogBaseFor, STEREO_BY_KIND } from './reportLogApi';
+import { buildReportLogListParams, reportLogBaseFor, requireReportLogBase, STEREO_BY_KIND } from './reportLogApi';
 
 describe('reportLogApi', () => {
-    // The list reads the archive service, where the app's report gateway now writes. The stage toggle
-    // picks `arc-<stage>` whatever stage the configured endpoint names.
     describe('reportLogBaseFor', () => {
-        it('uses VITE_ARCHIVE_ENDPOINT when set, with the stage the toggle picks', () => {
-            const endpoints = {
-                archive: 'https://archive.example.com/arc-v1',
-                relay: 'https://api.example.com/dou-v1',
-            };
-            expect(reportLogBaseFor(endpoints, 'v1')).toBe('https://archive.example.com/arc-v1');
-            expect(reportLogBaseFor(endpoints, 'd1')).toBe('https://archive.example.com/arc-d1');
+        afterEach(() => vi.unstubAllEnvs());
+
+        it("reads each stage's archive from its own key, hosts and all", () => {
+            vi.stubEnv('VITE_D1_ARCHIVE_ENDPOINT', 'https://dev.example.com/arc-d1/');
+            vi.stubEnv('VITE_V1_ARCHIVE_ENDPOINT', 'https://prod.example.com/arc-v1');
+
+            expect(reportLogBaseFor('d1')).toBe('https://dev.example.com/arc-d1');
+            expect(reportLogBaseFor('v1')).toBe('https://prod.example.com/arc-v1');
         });
 
-        it('falls back to the relay endpoint, swapping its stage for the archive stage', () => {
-            expect(reportLogBaseFor({ relay: 'https://api.example.com/dou-d1' }, 'd1')).toBe(
-                'https://api.example.com/arc-d1'
-            );
-            expect(reportLogBaseFor({ archive: ' ', relay: 'https://api.example.com/dou-d1' }, 'v1')).toBe(
-                'https://api.example.com/arc-v1'
-            );
+        // The old rule rebuilt the other stage on the configured host, which no longer exists there.
+        it('does not derive one stage from the other', () => {
+            vi.stubEnv('VITE_D1_ARCHIVE_ENDPOINT', 'https://dev.example.com/arc-d1');
+            vi.stubEnv('VITE_V1_ARCHIVE_ENDPOINT', '');
+
+            expect(reportLogBaseFor('v1')).toBe('');
+        });
+    });
+
+    describe('requireReportLogBase', () => {
+        afterEach(() => vi.unstubAllEnvs());
+
+        it('returns the base when the key is set', () => {
+            vi.stubEnv('VITE_V1_ARCHIVE_ENDPOINT', 'https://prod.example.com/arc-v1');
+            expect(requireReportLogBase('v1')).toBe('https://prod.example.com/arc-v1');
         });
 
-        it('ignores a trailing slash', () => {
-            expect(reportLogBaseFor({ archive: 'https://api.example.com/arc-d1/' }, 'v1')).toBe(
-                'https://api.example.com/arc-v1'
-            );
-            expect(reportLogBaseFor({ relay: 'https://api.example.com/dou-v1/' }, 'v1')).toBe(
-                'https://api.example.com/arc-v1'
-            );
-        });
-
-        it('appends the archive stage to an endpoint with no stage segment', () => {
-            expect(reportLogBaseFor({ relay: 'http://localhost:8000' }, 'd1')).toBe('http://localhost:8000/arc-d1');
+        it('names the missing key instead of calling a same-origin path', () => {
+            vi.stubEnv('VITE_D1_ARCHIVE_ENDPOINT', '');
+            expect(() => requireReportLogBase('d1')).toThrow(/VITE_D1_ARCHIVE_ENDPOINT is not set/);
         });
     });
 

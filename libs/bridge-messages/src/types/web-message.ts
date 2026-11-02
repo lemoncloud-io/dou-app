@@ -264,11 +264,18 @@ type RequestsIn<T extends WebMessageType> = T;
 /**
  * The requests a sub WebView page may send: the only ones its host registers, so the only ones its
  * handshake lists. Each one is safe whoever sends it, or gets a handler of its own on that host
- * (`OpenURL` there opens only what the sub WebView would hand to the OS). Nothing here reaches the
- * app's storage, identity, purchases or files.
+ * (`OpenURL` there opens only what the sub WebView would hand to the OS; `OpenShareSheet` shares only
+ * text and a web link). Nothing here reaches the app's storage, identity, purchases or files.
  */
 export type SubWebViewRequestType = RequestsIn<
-    'WebAppReady' | 'Ping' | 'FinishSubWebView' | 'SetSubWebViewTitle' | 'CopyToClipboard' | 'TriggerHaptic' | 'OpenURL'
+    | 'WebAppReady'
+    | 'Ping'
+    | 'FinishSubWebView'
+    | 'SetSubWebViewTitle'
+    | 'CopyToClipboard'
+    | 'TriggerHaptic'
+    | 'OpenURL'
+    | 'OpenShareSheet'
 >;
 
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {

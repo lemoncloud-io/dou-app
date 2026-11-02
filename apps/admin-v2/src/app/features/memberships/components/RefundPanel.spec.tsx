@@ -55,6 +55,8 @@ beforeEach(() => {
     fetchAdminClouds.mockResolvedValue({ list: [] });
     // Operators' `.env` usually names Production; the console reaches Development by stage switch.
     vi.stubEnv('VITE_DOU_ENDPOINT', PROD);
+    vi.stubEnv('VITE_D1_RELAY_ENDPOINT', DEV);
+    vi.stubEnv('VITE_V1_RELAY_ENDPOINT', PROD);
 });
 
 afterEach(() => vi.unstubAllEnvs());
@@ -75,6 +77,14 @@ describe('RefundPanel', () => {
 
     it('stays shut when the configured endpoint names no stage, even on Development', () => {
         vi.stubEnv('VITE_DOU_ENDPOINT', 'https://relay.example.com');
+        renderPanel('d1');
+
+        expect((refundButton() as HTMLButtonElement).disabled).toBe(true);
+        expect(screen.getByText(/No relay to refund on/)).toBeTruthy();
+    });
+
+    it('stays shut when the Development key is unset, rather than refunding on the session relay', () => {
+        vi.stubEnv('VITE_D1_RELAY_ENDPOINT', '');
         renderPanel('d1');
 
         expect((refundButton() as HTMLButtonElement).disabled).toBe(true);

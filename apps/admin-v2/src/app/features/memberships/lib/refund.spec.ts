@@ -30,14 +30,15 @@ describe('isWebSubscription', () => {
 });
 
 describe('refundEndpointFor', () => {
-    it('swaps the stage segment of a conventional relay endpoint', () => {
-        expect(refundEndpointFor(PROD, 'd1')).toBe(DEV);
+    it('keeps an endpoint whose own segment names the stage it is used for', () => {
         expect(refundEndpointFor(DEV, 'd1')).toBe(DEV);
-        expect(refundEndpointFor(DEV, 'v1')).toBe(PROD);
+        expect(refundEndpointFor(`${DEV}/`, 'd1')).toBe(DEV);
+        expect(refundEndpointFor(PROD, 'v1')).toBe(PROD);
     });
 
-    // `relayBaseFor` would append `/dou-d1` to any host; a refund must not trust a URL made up that way.
-    it('produces nothing when the configured endpoint names no stage', () => {
+    // A refund has no undo: an env value that contradicts the stage is not trusted.
+    it('produces nothing when the endpoint names another stage or none', () => {
+        expect(refundEndpointFor(PROD, 'd1')).toBe('');
         expect(refundEndpointFor('https://relay.example.com', 'd1')).toBe('');
         expect(refundEndpointFor('https://api.example.com/v1', 'd1')).toBe('');
         expect(refundEndpointFor(undefined, 'd1')).toBe('');

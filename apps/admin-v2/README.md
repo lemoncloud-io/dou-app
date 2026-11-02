@@ -22,6 +22,45 @@ Sign-in is explicit and required — see [auth/](docs/auth/README.md). Unlike th
 app never falls back to a guest session; `ProtectedRoute` gates every screen behind an authenticated
 admin session, and a silent guest fallback would defeat that gate.
 
+## Stage endpoints
+
+Several screens switch between the dev (`d1`) and production (`v1`) stage at run time — memberships,
+cloud deployments, the log console and the socket lab's Observe tab — so one build reaches both
+stages. Each service's base on each stage is its own env key, read through
+`src/app/config/stageEndpoints.ts`:
+
+| Service                                 | `d1` key                    | `v1` key                    |
+| --------------------------------------- | --------------------------- | --------------------------- |
+| Relay (`dou-XX`)                        | `VITE_D1_RELAY_ENDPOINT`    | `VITE_V1_RELAY_ENDPOINT`    |
+| Goods (`cgs-XX`)                        | `VITE_D1_GOODS_ENDPOINT`    | `VITE_V1_GOODS_ENDPOINT`    |
+| Archive (`arc-XX`)                      | `VITE_D1_ARCHIVE_ENDPOINT`  | `VITE_V1_ARCHIVE_ENDPOINT`  |
+| Socket users and presence (`skt-XX`)    | `VITE_D1_PRESENCE_ENDPOINT` | `VITE_V1_PRESENCE_ENDPOINT` |
+| Socket (`cht-XX`, the `?v2` flag added) | `VITE_D1_WS_ENDPOINT`       | `VITE_V1_WS_ENDPOINT`       |
+
+- **No address is derived from another.** These screens used to rebuild the other stage by swapping
+  the path segment of `VITE_DOU_ENDPOINT` (`dou-d1` → `dou-v1`, `cgs-d1`, …) on the same host. That
+  stopped being true when the dev stage moved to a new domain while production stayed: the two
+  stages no longer share a host, and a rebuilt URL names a server that does not exist.
+- **Sign-in is always production; everything else picks its stage.** The runtime keys
+  (`VITE_OAUTH_ENDPOINT`, `VITE_DOU_ENDPOINT`, `VITE_BACKEND_ENDPOINT`, `VITE_WS_ENDPOINT`, …) name
+  `v1` in every build, development included: the admin accounts and their session live there. The
+  stage toggles reach `d1` through the keys above.
+- **Each toggle opens on the build's stage**, not the session's: `v1` in a production build
+  (`VITE_ENV=PROD`), `d1` in any other (`src/app/config/stageEndpoints.ts`, `openingStage`). A
+  development build that opened on production would put an operator's first write there.
+- **The same ten values go into every `.env` of this app.** Where each stage lives does not depend on
+  the build. In the deploy workflows, relay, archive and socket come from the web app's
+  own secrets (`WEB_DEV_*` for `d1`, `WEB_PROD_*` for `v1`), because they are the same servers the web
+  app uses; goods and presence, which the web app does not call, come from
+  `ADMIN_<STAGE>_<SERVICE>_ENDPOINT`. Reusing them also keeps the repository under GitHub's
+  100-secret limit, and moves the admin console with the web app when a stage changes domain.
+- **An unset key leaves that stage unconfigured.** The screen shows "(not configured)", the queries
+  stay off, and a call that would otherwise fall back somewhere throws with the missing key's name —
+  never the session's own relay standing in for the other stage.
+- The memberships console still sends calls on the session's own stage without an override, so the
+  http client's deep-link and `window.DOU_ENDPOINT` overrides keep working — see
+  [memberships/](docs/memberships/README.md).
+
 ## Documents
 
 See [`docs/README.md`](docs/README.md) for the category index.

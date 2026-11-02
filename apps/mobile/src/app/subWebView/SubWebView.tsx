@@ -6,7 +6,7 @@ import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTyp
 
 import { HapticBridge } from '../bridge';
 import { useResolvedTheme } from '../hooks';
-import { clipboardService, logger, subWebViewService } from '../services';
+import { clipboardService, deviceService, logger, subWebViewService } from '../services';
 import { resolveAppLanguage, useLanguageStore } from '../stores';
 import { getAppLanguage } from '../utils/device';
 import { originOf } from '../utils/url';
@@ -28,6 +28,7 @@ interface SubWebViewProps {
 }
 
 const openExternal = (url: string) => Linking.openURL(url);
+const openShareSheet = (data: { title?: string; message?: string; url?: string }) => deviceService.openShareSheet(data);
 
 /**
  * The second WebView. Built apart from `AppWebView` on purpose: it gets none of the main WebView's
@@ -65,6 +66,7 @@ export const SubWebView = ({ viewId, url, params, onRequestClose, onTitleChange,
                     haptic: HapticBridge,
                     openExternal,
                     setTitle: title => onTitleRequestRef.current?.(title),
+                    openShareSheet,
                 })
             ),
         // `pageLoad` only rebuilds the host; it is not read inside.
@@ -151,6 +153,9 @@ export const SubWebView = ({ viewId, url, params, onRequestClose, onTitleChange,
             // this list first and hands whatever fails it straight to the OS, the app's own schemes
             // included, without asking `onShouldStartLoadWithRequest`.
             originWhitelist={['*']}
+            // Inspectable from Safari Web Inspector and `chrome://inspect` in a development build,
+            // as the main WebView is; iOS 16.4+ shows no WebView there without it.
+            webviewDebuggingEnabled={__DEV__}
             onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}
             onNavigationStateChange={onNavigationStateChange}
             // `target=_blank` and `window.open` load in this view, through the same check, instead

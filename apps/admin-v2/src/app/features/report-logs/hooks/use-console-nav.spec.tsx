@@ -6,7 +6,7 @@
  */
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { resolveTab, useConsoleNav, type ConsoleNav } from './use-console-nav';
 
@@ -46,10 +46,19 @@ describe('resolveTab', () => {
 });
 
 describe('useConsoleNav', () => {
-    it('defaults each tab to its own period and to the production server', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it('defaults each tab to its own period and, in a production build, to the production server', () => {
+        vi.stubEnv('VITE_ENV', 'PROD');
         setup('/report-logs?tab=errors');
         expect(api.stage).toBe('v1');
         expect(api.period.preset).toBe('24h');
+    });
+
+    it('opens on the development server in any other build', () => {
+        vi.stubEnv('VITE_ENV', 'DEV');
+        setup('/report-logs?tab=errors');
+        expect(api.stage).toBe('d1');
     });
 
     it('keeps only the server when switching tabs', () => {
@@ -70,9 +79,16 @@ describe('useConsoleNav', () => {
         expect(search().get('from')).toBeNull();
     });
 
-    it('leaves the production server out of the URL', () => {
+    it("leaves the build's opening server out of the URL, and writes the other one", () => {
+        vi.stubEnv('VITE_ENV', 'PROD');
         const search = setup('/report-logs?stage=d1');
         act(() => api.setStage('v1'));
+        expect(search().get('stage')).toBeNull();
+
+        vi.stubEnv('VITE_ENV', 'DEV');
+        act(() => api.setStage('v1'));
+        expect(search().get('stage')).toBe('v1');
+        act(() => api.setStage('d1'));
         expect(search().get('stage')).toBeNull();
     });
 
