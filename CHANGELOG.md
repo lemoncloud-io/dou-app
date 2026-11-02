@@ -4,6 +4,12 @@
 
 ### Features
 
+- (mobile,bridge-messages,bridges) give a sub WebView page a key per origin (ADR-0271)
+
+## [2026-11-02] - No version updates
+
+### Features
+
 - (web,web-ui-kit) record voice messages in a sheet opened from the attach panel
 - (mobile) record voice messages in the shell and keep audio files
 - (web,data,web-ui-kit) send, record and play audio on the phone
