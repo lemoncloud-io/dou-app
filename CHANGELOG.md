@@ -4,6 +4,12 @@
 
 ### Features
 
+- (mobile,bridge-messages,bridges) let a sub WebView page open the share sheet (ADR-0265)
+
+## [2026-11-02] - No version updates
+
+### Features
+
 - (web,config) list the sub WebView test pages in the Lab, in dev builds only
 - (web,mobile) open and inspect a sub WebView page from a dev build
 
