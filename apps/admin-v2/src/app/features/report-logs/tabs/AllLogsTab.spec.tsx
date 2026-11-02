@@ -135,7 +135,10 @@ describe('AllLogsTab — collection', () => {
             };
         });
 
-        renderPage();
+        // A search that matches nothing keeps the 500 rows out of the table. The walk only
+        // reads server axes, so this changes nothing it counts, but drawing a full page in
+        // jsdom made this the one test that brushed the 5 s timeout on a loaded CI runner.
+        renderPage('/report-logs?q=no-such-row');
 
         await screen.findByText(/Capped at 500 rows/);
         expect(fetchReportLogs.mock.calls.length).toBe(1);
