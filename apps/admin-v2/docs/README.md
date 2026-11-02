@@ -17,6 +17,7 @@ documents cover each console feature in turn.
 | --------------------------------------------------- | ------------------------------------------------------------ |
 | [auth/](./auth/README.md)                           | OAuth login hydration and the token-refresh loop             |
 | [cloud-deployments/](./cloud-deployments/README.md) | Redeploying the subscription clouds after a server update    |
+| [cost-monitor/](./cost-monitor/README.md)           | What each subscription account costs, estimated and actual   |
 | [i18n/](./i18n/README.md)                           | The console's languages and where their words live           |
 | [memberships/](./memberships/README.md)             | Viewing and overriding a user's subscription                 |
 | [report-logs/](./report-logs/README.md)             | The log console: users, errors, reports, statistics, logs    |
