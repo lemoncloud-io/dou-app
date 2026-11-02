@@ -52,7 +52,10 @@ describe('MessageImages', () => {
             { wrapper }
         );
 
-        expect(screen.getByRole('button', { name: /copy/i })).toBeTruthy();
-        expect(screen.queryByRole('button', { name: /delete/i })).toBeNull();
+        const more = screen.getByRole('button', { name: 'More actions' });
+        fireEvent.pointerDown(more, { button: 0, ctrlKey: false });
+        fireEvent.keyDown(more, { key: 'Enter' });
+        expect(await screen.findByRole('menuitem', { name: /copy/i })).toBeTruthy();
+        expect(screen.queryByRole('menuitem', { name: /delete/i })).toBeNull();
     });
 });
