@@ -8,7 +8,8 @@ import { appBridge } from '../../../../bridge';
  * This exercises the NATIVE sign-in sheet (`OAuthLogin`/`OAuthLogout`), which is a different path
  * from the web's own relay hand-off (`apps/desktop-web`'s `oauth.ts`): the app talks to the
  * provider SDK and returns tokens. Apple is iOS-only, so an Android run answering with a failure
- * there is the expected result, not a bug.
+ * there is the expected result, not a bug. In the virtual shell with its relay sign-in the answer is
+ * a relay code instead; this screen only prints the answer, so it shows the code as it came.
  */
 const PROVIDERS = ['google', 'apple'] as const;
 

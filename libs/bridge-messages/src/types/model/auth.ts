@@ -53,6 +53,26 @@ export type AppleOAuthTokenResult = BaseTokenResult & {
 /** Unified OAuth auth result type */
 export type OAuthTokenResult = GoogleOAuthTokenResult | AppleOAuthTokenResult;
 
+/**
+ * An OAuth relay code instead of a provider token.
+ *
+ * Only the virtual mobile shell answers with this, when its sign-in goes through the organisation's
+ * OAuth relay: the relay keeps the provider's token and hands back a short-lived code, the same code
+ * the desktop app exchanges. The native apps never send it — they sign in with the provider SDK and
+ * answer with an `OAuthTokenResult`. The web exchanges the code itself (`verify-oauth-code`), signed
+ * with the device session already on it.
+ */
+export type OAuthCodeResult = BaseTokenResult & {
+    /** Authorization code issued by the OAuth relay, exchanged by the web for a session */
+    code: string;
+};
+
+/**
+ * What a sign-in answers with: a provider token from a native app, or a relay code from the virtual
+ * shell. Tell them apart by `code`.
+ */
+export type OAuthLoginResult = OAuthTokenResult | OAuthCodeResult;
+
 /** [Request] Payload to execute an OAuth login */
 export type OAuthLoginPayload = {
     /** Login provider to execute */
@@ -68,9 +88,10 @@ export type OAuthLogoutPayload = {
 /** [Response] Payload for the OAuth login result */
 export type OnOAuthLoginPayload = {
     /** * Returns the auth result object on success,
-     * returns null if the user cancels or an error occurs
+     * returns null if the user cancels or an error occurs.
+     * Native apps answer with a token; only the virtual shell answers with a relay code.
      */
-    result: OAuthTokenResult | null;
+    result: OAuthLoginResult | null;
 };
 
 /** [Response] Payload for the OAuth logout result */
