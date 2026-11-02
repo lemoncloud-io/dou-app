@@ -44,7 +44,9 @@ stages. Each service's base on each stage is its own env key, read through
 - **The same ten values go into every `.env` of this app.** What differs between builds is the stage
   the session signs in to — the runtime keys (`VITE_DOU_ENDPOINT`, `VITE_WS_ENDPOINT`, …) — not
   where each stage lives. The deploy workflows write them from `ADMIN_<STAGE>_<SERVICE>_ENDPOINT`
-  Actions secrets, with no DEV/PROD split for the same reason.
+  Actions secrets, with no DEV/PROD split for the same reason. The one exception is
+  `VITE_V1_WS_ENDPOINT`, written from the web app's `WEB_PROD_WS_ENDPOINT`: it is the same production
+  socket, and the repository is at GitHub's 100-secret limit.
 - **An unset key leaves that stage unconfigured.** The screen shows "(not configured)", the queries
   stay off, and a call that would otherwise fall back somewhere throws with the missing key's name —
   never the session's own relay standing in for the other stage.
