@@ -48,6 +48,11 @@ const MOBILE_APP_EVENTS = {
         emittedBy: ['app/webview/hooks/subWebViewHandlers.ts'],
         test: 'app/webview/hooks/subWebViewHandlers.test.ts',
     },
+    // Pushed to a sub WebView page by that view's own host, never to the main web.
+    OnSubWebViewContextChanged: {
+        emittedBy: ['app/subWebView/SubWebView.tsx'],
+        test: 'app/subWebView/SubWebView.test.tsx',
+    },
     OnUpdateStatus: { notEmitted: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)' },
 } satisfies Record<string, Decision>;
 

@@ -7,7 +7,8 @@ typed message, and a handler hook answers it through a service.
 > `chrome://inspect`), see [webview-debugging.md](./webview-debugging.md).
 >
 > The second WebView the shell shows over this one, for a page on another origin, is in
-> [sub-webview.md](./sub-webview.md). It shares none of what follows: no bridge, no injection.
+> [sub-webview.md](./sub-webview.md). It shares none of what follows: its own host, a subset of the
+> vocabulary, none of this injection.
 
 ## Key files
 
@@ -157,7 +158,9 @@ Then:
 
 The suite mounts only the router and `useWebViewNavigation`, so it also fails if any other source
 file calls `registerHandler` — a handler there would be invisible to the checks above. Register
-through the router.
+through the router. The one other caller is the sub WebView's own host
+(`subWebView/createSubBridgeHost.ts`), a different host whose handshake its own test pins to the
+sub WebView subset — see [sub-webview.md](./sub-webview.md).
 
 The handlers registered only where a native module exists (photo library, attachment picker,
 `OpenFile`, `SaveFile`) count as handled here: they are, on a build that has the module, and
@@ -212,6 +215,7 @@ direction has its own contract tests.
 | `OnFileTransferState`                   | `fileTransferHandlers`      | Every state change the native transfer manager reports; the payload is passed through                                                                     |
 | `OnPurchaseSuccess` / `OnPurchaseError` | `useSubscriptionIapHandler` | The store's outcome of a `Purchase`, which was already answered when the flow started                                                                     |
 | `OnSubWebViewClosed`                    | `subWebViewHandlers`        | A sub WebView closed — by the user, by `CloseSubWebView`, or by the shell before a deep link or a push tap; not when the web reloaded under it            |
+| `OnSubWebViewContextChanged`            | `SubWebView` (its own host) | Pushed to the sub WebView page, never to the main web, when the app's theme or language changes while it shows                                            |
 
 `OnUpdateStatus` is the one push-only message this shell never sends: the desktop updates itself,
 the phone through the store. `OnOpenURL` is not an event despite the name — it is the reply to the

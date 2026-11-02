@@ -1,10 +1,11 @@
 import React from 'react';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 
 import { SubWebViewScreen } from './SubWebViewScreen';
 
 let mockClosePress: (() => void) | undefined;
 let mockRequestClose: (() => void) | undefined;
+let mockWebViewProps: Record<string, any> = {};
 const mockClose = jest.fn();
 
 jest.mock('react-native', () => {
@@ -26,13 +27,16 @@ jest.mock('../../services', () => ({ subWebViewService: { close: (...args: unkno
 jest.mock('../../subWebView', () => ({
     SubWebView: (props: { onRequestClose: () => void }) => {
         mockRequestClose = props.onRequestClose;
+        mockWebViewProps = props;
         return null;
     },
 }));
 
 const renderScreen = () => {
     const navigation = { goBack: jest.fn(), canGoBack: jest.fn(() => true) };
-    const route = { params: { viewId: 'view-1', url: 'https://foo.apps.chatic.io/a' } };
+    const route = {
+        params: { viewId: 'view-1', url: 'https://foo.apps.chatic.io/a', title: 'From web', params: { orderId: 7 } },
+    };
     const view = render(<SubWebViewScreen route={route as any} navigation={navigation as any} />);
     return { navigation, view };
 };
@@ -64,6 +68,26 @@ describe('SubWebViewScreen', () => {
         mockRequestClose?.();
 
         expect(navigation.goBack).toHaveBeenCalledTimes(1);
+    });
+
+    it('hands the view its id and params', () => {
+        renderScreen();
+
+        expect(mockWebViewProps).toEqual(expect.objectContaining({ viewId: 'view-1', params: { orderId: 7 } }));
+    });
+
+    // The page's own request outranks the document's title, which outranks the web's.
+    it('shows the title the page asked for over the others', () => {
+        const { view } = renderScreen();
+        expect(view.container.textContent).toContain('From web');
+
+        act(() => mockWebViewProps.onTitleChange('Document title'));
+        expect(view.container.textContent).toContain('Document title');
+
+        act(() => mockWebViewProps.onTitleRequest('Asked for'));
+        act(() => mockWebViewProps.onTitleChange('Another document title'));
+        expect(view.container.textContent).toContain('Asked for');
+        expect(view.container.textContent).not.toContain('Another document title');
     });
 
     it('closes the view on unmount, which is a no-op once the service has closed it', () => {

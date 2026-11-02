@@ -1,3 +1,4 @@
+import type { SubWebViewParams } from '@chatic/app-messages';
 import { isNative } from '@chatic/bridges';
 
 import { appBridge } from './appBridge';
@@ -16,8 +17,20 @@ export type SubWebViewOpening = { via: 'subWebView'; viewId: string } | { via: '
  * request it would answer `NOT_FOUND`; it hands the page to the OS browser instead, as `openURL`
  * always has. A refusal from a shell that has it (`NOT_ALLOWED`, `ALREADY_OPEN`) is not turned into
  * that fallback — it rejects, because it means this page asked for something the app will not show.
+ *
+ * `params` reach the page only in the sub WebView, as `window.ChaticSubWebView.params`. The two
+ * fallbacks cannot carry them, so a page must also work without them — or the caller should not fall
+ * back, which `via` lets it decide after the fact.
  */
-export const openSubWebView = async ({ url, title }: { url: string; title?: string }): Promise<SubWebViewOpening> => {
+export const openSubWebView = async ({
+    url,
+    title,
+    params,
+}: {
+    url: string;
+    title?: string;
+    params?: SubWebViewParams;
+}): Promise<SubWebViewOpening> => {
     if (!isNative()) {
         window.open(url, '_blank', 'noopener,noreferrer');
         return { via: 'browser' };
@@ -26,6 +39,6 @@ export const openSubWebView = async ({ url, title }: { url: string; title?: stri
         appBridge.openURL(url);
         return { via: 'external' };
     }
-    const response = await appBridge.openSubWebView(url, title);
+    const response = await appBridge.openSubWebView(url, title, params);
     return { via: 'subWebView', viewId: response.data.viewId };
 };

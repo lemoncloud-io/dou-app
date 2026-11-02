@@ -23,6 +23,7 @@ describe('routeSubWebViewEvents', () => {
             viewId: 'view-1',
             url: 'https://foo.apps.chatic.io/a',
             title: 'Notice',
+            params: {},
         });
     });
 
