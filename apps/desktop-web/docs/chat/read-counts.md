@@ -16,18 +16,31 @@ reads `읽음 12`. It is a count only — who read it is not shown yet.
 
 ## How the numbers are counted
 
-`useChannelReadCounts` (in `src/app/shared/hooks/`) gives `ChatPane` a `readCountOf(chatNo)`, which
-`MessageList` asks once per author block. The counts are the ones the mobile app prints, so a message
-reads the same on a phone and on the desktop:
+`useChannelReadCounts` (in `src/app/shared/hooks/`) gives `ChatPane` a `readCountOf(chatNo, authorId)`,
+which `MessageList` asks once per author block. It answers with two lists of member ids — who has read
+the message and who has not — and the pill's numbers are their lengths. The lists are worked out here
+from join rows the app already observes, not asked of the server: the server team proposed it that way,
+because every row needed is already on hand and the lists then move the moment a member reads, where an
+API answer is a snapshot that would have to be fetched again.
+
+A message is meant for a member when all three hold:
+
+- they are still in the room — a member who left keeps a row (`joined: 0`) but is on neither list;
+- they joined before the message — `joinedNo < chatNo`. Joining writes the room's latest number into the
+  member's `chatNo` too, so without this test every message from before their arrival would read as
+  seen by them. A row with no `joinedNo` (written before the server kept it) counts as always there;
+- they did not write it — the author is on neither list.
+
+Of those members, one whose read position has reached the message is **Seen**; the rest are **Not seen**.
 
 - A member's read position is `max(readNo, chatNo)` from their join row. The server keeps the last-read
   number in `chatNo`; my own row also carries the `readNo` that marking a room read writes before the
   server answers, so my count moves at once.
-- **Seen** is the number of active members whose position has reached the message; **Not seen** is
-  the rest of the active members. A member who left keeps a row (`joined: 0`) but counts in neither.
-- A member whose row has not synced yet is not counted on either side until it lands — never as
-  seen. The total grows as rows arrive, as it does on the phone.
-- Sending a message moves the sender's own position, so the sender counts as having seen it.
+- A member whose row has not synced yet is on neither list until it lands — never as seen. The total
+  grows as rows arrive.
+- The mobile app has neither the author nor the `joinedNo` test: it counts the author as having seen
+  their own message, and a member who joined later as having seen everything before them. For the same
+  message the desktop's Seen number is lower by one plus the number of those later arrivals.
 
 ## Keeping other members' positions live
 

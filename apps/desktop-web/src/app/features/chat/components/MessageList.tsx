@@ -108,10 +108,10 @@ interface MessageListProps {
      */
     loadOlderFailed?: boolean;
     /**
-     * Main feed only: how many members have read up to a message. Each author block shows the
-     * count for its last settled message; absent (the thread panel) or null shows none.
+     * Main feed only: which members have read up to a message, its author left out. Each author block
+     * shows the count for its last settled message; absent (the thread panel) or null shows none.
      */
-    readCountOf?: (chatNo: number) => ReadCount | null;
+    readCountOf?: (chatNo: number, authorId: string) => ReadCount | null;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -887,7 +887,7 @@ export const MessageList = ({
                     // The block's last settled message: a newer one still sending, failed or deleted
                     // must not take the count away from the messages that did land.
                     const counted = readCountOf ? lastCountable(row.group.messages) : undefined;
-                    const count = counted ? readCountOf?.(counted.chatNo) : null;
+                    const count = counted ? readCountOf?.(counted.chatNo, counted.ownerId ?? '') : null;
                     const readCount = counted && count ? { ...count, chatNo: counted.chatNo } : undefined;
                     return (
                         <MessageRow

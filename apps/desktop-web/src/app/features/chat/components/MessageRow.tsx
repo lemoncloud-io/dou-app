@@ -672,12 +672,12 @@ export const MessageRow = memo(
                                         last settled message only — every earlier one has been read at least as far. */}
                                     {readCount && readCount.chatNo === message.chatNo && (
                                         <span className="mt-1 flex w-fit items-center rounded-full bg-muted px-2 py-1 text-caption font-medium tabular-nums text-muted-foreground">
-                                            {readCount.unread > 0
+                                            {readCount.unreadIds.length > 0
                                                 ? t('chat.readCount.summary', {
-                                                      read: readCount.read,
-                                                      unread: readCount.unread,
+                                                      read: readCount.readIds.length,
+                                                      unread: readCount.unreadIds.length,
                                                   })
-                                                : t('chat.readCount.allSeen', { read: readCount.read })}
+                                                : t('chat.readCount.allSeen', { read: readCount.readIds.length })}
                                         </span>
                                     )}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED

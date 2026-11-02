@@ -48,7 +48,13 @@ const message = (chatNo: number, ownerId: string, extra: Partial<DomainChat> = {
         ...extra,
     }) as DomainChat;
 
-const renderList = (messages: DomainChat[], readCountOf?: (chatNo: number) => ReadCount | null) =>
+// `read` members who have read and `unread` who have not, named m0, m1, … in roster order.
+const counts = (read: number, unread: number): ReadCount => {
+    const ids = Array.from({ length: read + unread }, (_, i) => `m${i}`);
+    return { readIds: ids.slice(0, read), unreadIds: ids.slice(read) };
+};
+
+const renderList = (messages: DomainChat[], readCountOf?: (chatNo: number, authorId: string) => ReadCount | null) =>
     render(
         <MessageList
             messages={messages}
@@ -75,24 +81,32 @@ describe('MessageList read counts', () => {
         const asked: number[] = [];
         renderList([message(1, 'ada'), message(2, 'ada')], chatNo => {
             asked.push(chatNo);
-            return { read: 5, unread: 7 };
+            return counts(5, 7);
         });
 
         expect(screen.getAllByText('Seen 5 · Not seen 7')).toHaveLength(1);
         expect(asked).toEqual([2]);
     });
 
+    it('asks for the count with the block author, so they are left out of their own message', () => {
+        const readCountOf = vi.fn((_chatNo: number, _authorId: string) => counts(1, 1));
+        renderList([message(1, 'ada'), message(2, 'bob')], readCountOf);
+
+        expect(readCountOf.mock.calls).toEqual([
+            [1, 'ada'],
+            [2, 'bob'],
+        ]);
+    });
+
     it('gives each author block its own count', () => {
-        renderList([message(1, 'ada'), message(2, 'bob')], chatNo =>
-            chatNo === 1 ? { read: 3, unread: 1 } : { read: 1, unread: 3 }
-        );
+        renderList([message(1, 'ada'), message(2, 'bob')], chatNo => (chatNo === 1 ? counts(3, 1) : counts(1, 3)));
 
         expect(screen.getByText('Seen 3 · Not seen 1')).toBeDefined();
         expect(screen.getByText('Seen 1 · Not seen 3')).toBeDefined();
     });
 
     it('drops the not-seen half once everyone has read it', () => {
-        renderList([message(1, 'ada')], () => ({ read: 4, unread: 0 }));
+        renderList([message(1, 'ada')], () => counts(4, 0));
 
         expect(screen.getByText('Seen 4')).toBeDefined();
         expect(screen.queryByText(/Not seen/)).toBeNull();
@@ -100,7 +114,7 @@ describe('MessageList read counts', () => {
 
     it('reads the count in Korean as the design does', async () => {
         await i18n.changeLanguage('ko');
-        renderList([message(1, 'ada')], () => ({ read: 5, unread: 7 }));
+        renderList([message(1, 'ada')], () => counts(5, 7));
 
         expect(screen.getByText('읽음 5 · 미확인 7')).toBeDefined();
     });
@@ -118,7 +132,7 @@ describe('MessageList read counts', () => {
     });
 
     it('shows nothing under a message still being sent', () => {
-        const readCountOf = vi.fn(() => ({ read: 1, unread: 1 }));
+        const readCountOf = vi.fn(() => counts(1, 1));
         renderList([message(1, 'me', { isPending: true, chatNo: Number.MAX_SAFE_INTEGER })], readCountOf);
 
         expect(screen.queryByText(/Seen/)).toBeNull();
@@ -127,7 +141,7 @@ describe('MessageList read counts', () => {
     it('keeps the count under the last settled message while a newer one in the block is being sent', () => {
         renderList(
             [message(1, 'me'), message(2, 'me', { isPending: true, chatNo: Number.MAX_SAFE_INTEGER })],
-            chatNo => (chatNo === 1 ? { read: 2, unread: 1 } : null)
+            chatNo => (chatNo === 1 ? counts(2, 1) : null)
         );
 
         expect(screen.getByText('Seen 2 · Not seen 1')).toBeDefined();
@@ -142,14 +156,14 @@ describe('MessageList read counts', () => {
                 message(2, 'ada', { hidden: true } as Partial<DomainChat>),
                 message(3, 'ada', { isFailed: true }),
             ],
-            chatNo => (chatNo === 1 ? { read: 3, unread: 0 } : null)
+            chatNo => (chatNo === 1 ? counts(3, 0) : null)
         );
 
         expect(screen.getByText('Seen 3')).toBeDefined();
     });
 
     it('shows nothing under a deleted message', () => {
-        renderList([message(1, 'ada', { hidden: true } as Partial<DomainChat>)], () => ({ read: 2, unread: 0 }));
+        renderList([message(1, 'ada', { hidden: true } as Partial<DomainChat>)], () => counts(2, 0));
 
         expect(screen.queryByText(/Seen/)).toBeNull();
     });
