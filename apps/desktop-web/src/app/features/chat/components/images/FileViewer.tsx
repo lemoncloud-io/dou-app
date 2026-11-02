@@ -13,7 +13,7 @@ import { PdfPages } from './PdfPages';
 import { Hint } from '../../../../shared';
 
 interface FileViewerProps {
-    /** A file `canPreview` opens. */
+    /** A file `canPreview` reads as a PDF or text. */
     file: ChatFile;
     /** The message's sender and time. Absent for a file still in the composer, not sent yet. */
     author?: ImageAuthor;
@@ -31,8 +31,7 @@ type Body =
     | { state: 'loading' }
     | { state: 'failed' }
     | { state: 'text'; text: string; truncated: boolean }
-    | { state: 'pdf'; doc: PdfDocument }
-    | { state: 'audio'; src: string };
+    | { state: 'pdf'; doc: PdfDocument };
 
 /**
  * A document, read in the app: the sender, time and name above it, with save and close. The
@@ -42,9 +41,7 @@ type Body =
  * A file still in the composer opens here too, before it is sent: its bytes are already in the
  * page, so nothing is fetched, and the header says it is not sent instead of naming a sender.
  *
- * A voice file is not fetched at all: the player streams it from its address (a picked one, from the
- * tray's object URL), and starts at once.
- * An address it cannot play — past its signature, say — shows the same failure as a document.
+ * A voice file never opens here: it plays in its own card or tray tile.
  */
 export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerProps) => {
     const { t } = useTranslation();
@@ -54,17 +51,15 @@ export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerP
 
     const preview = canPreview(file);
     useEffect(() => {
-        // A picked file's `url` is the object URL the tray holds, so the player needs no other.
-        if (preview === 'audio') {
-            setBody({ state: 'audio', src: file.url });
-            return;
-        }
         // A re-signed address reloads; the last body may hold a document the cleanup below destroyed.
         setBody({ state: 'loading' });
         const controller = new AbortController();
         let doc: PdfDocument | undefined;
         const open = async (): Promise<Body> => {
-            if (preview !== 'pdf') {
+            // Anything else — a voice file, which plays in its card — is not read as text: its bytes
+            // would come out as a screen of noise.
+            if (preview !== 'pdf' && preview !== 'text') return { state: 'failed' };
+            if (preview === 'text') {
                 const start = local ?? (await fetchFileBytes(file.url, controller.signal, TEXT_PREVIEW_MAX_BYTES));
                 return { state: 'text', ...(await readTextPreview(start, file.size)) };
             }
@@ -163,16 +158,6 @@ export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerP
                         </div>
                     )}
                     {body.state === 'pdf' && <PdfPages doc={body.doc} name={name} />}
-                    {body.state === 'audio' && (
-                        <audio
-                            src={body.src}
-                            controls
-                            autoPlay
-                            aria-label={t('chat.file.play', { name })}
-                            onError={() => setBody({ state: 'failed' })}
-                            className="m-auto w-full max-w-[480px] px-8"
-                        />
-                    )}
                     {body.state === 'text' && (
                         <div className="scrollbar-thin min-h-0 flex-1 overflow-auto">
                             {body.truncated && (

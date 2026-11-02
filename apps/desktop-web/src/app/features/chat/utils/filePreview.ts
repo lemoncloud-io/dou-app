@@ -26,6 +26,19 @@ export const canPreview = (file: ChatFile): FilePreview | null => {
     return (format && PREVIEWS[format.type]) ?? null;
 };
 
+/**
+ * A playback position or length as the inline player shows it: `m:ss`, and `h:mm:ss` from an hour.
+ * Rounded down, so the clock never reads a second the file has not reached. A length the browser
+ * does not know yet (`NaN`, or `Infinity` for a stream) is `0:00`.
+ */
+export const formatPlaybackTime = (seconds: number): string => {
+    const total = Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0;
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const rest = String(total % 60).padStart(2, '0');
+    return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
+};
+
 /** How much of a text file the viewer shows. The whole file is still what a save writes. */
 export const TEXT_PREVIEW_MAX_BYTES = 1024 * 1024;
 
