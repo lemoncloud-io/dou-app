@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-02] - root@0.141.1, @chatic/desktop-web@0.47.1
+
+### Bug Fixes
+
+- (desktop-web) open the read list on click, not hover
+
 ## [2026-11-02] - root@0.141.0, @chatic/desktop-web@0.47.0
 
 ### Features
