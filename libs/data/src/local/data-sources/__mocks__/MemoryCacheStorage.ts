@@ -1,4 +1,4 @@
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType } from '@chatic/bridge-messages';
 import type { DataContextProvider } from '../../../repositories/types';
 import type { CacheStorage, CacheStorageFactory, ScopedCacheStorage } from '../../ports';
 import { createScopedCacheStorage, resolveScopedContext } from '../../ports';

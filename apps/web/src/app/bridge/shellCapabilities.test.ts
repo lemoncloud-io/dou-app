@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import type { OnWebAppReadyPayload } from '@chatic/app-messages';
+import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 
 import { shellCapabilities, supportsImageExport, useCanExportImages, useCanExportVideos } from './shellCapabilities';
 

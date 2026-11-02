@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { IapProductSubscription } from '@chatic/bridge-messages';
 import type { MembershipView, ProductView } from '@lemoncloud/chatic-backend-api';
 
 import { logger } from '@chatic/bridges';

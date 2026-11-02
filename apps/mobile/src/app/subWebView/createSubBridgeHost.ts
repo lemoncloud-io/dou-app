@@ -1,4 +1,4 @@
-import type { WebMessageType } from '@chatic/app-messages';
+import type { WebMessageType } from '@chatic/bridge-messages';
 import { AppBridgeHost, type IAppBridgeHost } from '@chatic/bridges';
 
 import type { SubBridgeHandlers } from './subBridgeHandlers';

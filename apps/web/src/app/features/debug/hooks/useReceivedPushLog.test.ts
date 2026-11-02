@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
 
 jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn() } }));
 jest.mock('../../../bridge', () => ({ useOnReceiveNotification: jest.fn() }));

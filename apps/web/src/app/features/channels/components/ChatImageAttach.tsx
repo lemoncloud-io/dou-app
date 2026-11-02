@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { AttachmentPickSource } from '@chatic/app-messages';
+import type { AttachmentPickSource } from '@chatic/bridge-messages';
 import type { runtime } from '@chatic/app-runtime';
 import { isNative } from '@chatic/bridges';
 import {

@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-import type { GoogleOAuthTokenResult } from '@chatic/app-messages';
+import type { GoogleOAuthTokenResult } from '@chatic/bridge-messages';
 
 import { registerDeviceAnswer } from '../fixtures/guest';
 import { myTab } from '../support/app';

@@ -1,4 +1,4 @@
-# @chatic/app-messages
+# @chatic/bridge-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
 can cross the WebView boundary — 101 web→app request types, 112 app→web message types, the payload
@@ -11,20 +11,25 @@ it, buffering until the channel exists, giving up on a timeout, reporting a mess
 The two are separate packages because their build graphs are: the installed app compiles against the
 vocabulary, and it must be able to do that without a browser transport coming along.
 
+The package was called `@chatic/app-messages` until it was renamed to match `@chatic/bridges`.
+"App message" is one direction of the bridge in this package's own vocabulary (`AppMessage` is
+app→web), and in a chat app "messages" alone reads as chat messages. ADRs and changelog entries
+written before the rename keep the old name.
+
 ## Purpose
 
-Consumers see the `@chatic/app-messages` barrel and nothing else. `tsconfig.base.json` maps
-`@chatic/app-messages` alone — there is no `@chatic/app-messages/*` entry, so a deep import does not
+Consumers see the `@chatic/bridge-messages` barrel and nothing else. `tsconfig.base.json` maps
+`@chatic/bridge-messages` alone — there is no `@chatic/bridge-messages/*` entry, so a deep import does not
 resolve, and the command that proves nobody writes one:
 
 ```bash
-grep -rn "@chatic/app-messages/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
+grep -rn "@chatic/bridge-messages/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
 The package imports **no workspace package at all**, in either direction:
 
 ```bash
-grep -rn "from '@chatic/" --include='*.ts' libs/app-messages/src   # must print nothing
+grep -rn "from '@chatic/" --include='*.ts' libs/bridge-messages/src   # must print nothing
 ```
 
 That is the whole reason this lib exists apart from `@chatic/bridges`. The native shell in
@@ -162,7 +167,7 @@ into it where the correlation survives.
 ### Directories
 
 ```text
-libs/app-messages/src/
+libs/bridge-messages/src/
 ├── index.ts                      public barrel — re-exports ./types, nothing else
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
@@ -257,7 +262,7 @@ const { data } = await webClient.request({ type: 'FetchBadgeCount', data: {} });
 The shell side names the same string and gets the handler signature back:
 
 ```ts
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 
 bridge.registerHandler('FetchBadgeCount', async (_message: WebMessageData<'FetchBadgeCount'>) => ({
     type: 'OnFetchBadgeCount', // any other string here does not compile
@@ -352,15 +357,15 @@ as legacy. The full negotiation is
 ## How to verify
 
 ```bash
-npx tsc -b libs/app-messages/tsconfig.json --force     # the whole gate
+npx tsc -b libs/bridge-messages/tsconfig.json --force     # the whole gate
 ```
 
 - Type checking must be `tsc -b`. Inside the lib, `tsc --noEmit` checks zero files and succeeds, so
-  passing it proves nothing. `nx typecheck @chatic/app-messages` runs `tsc --build
+  passing it proves nothing. `nx typecheck @chatic/bridge-messages` runs `tsc --build
 --emitDeclarationOnly` in the lib directory, which resolves to the same program.
 - **`tsconfig.json` references `tsconfig.lib.json` only.** Every other lib in `libs/` also references
   a `tsconfig.spec.json`; this one has no specs to reference, and no `jest.config.js`. There is no
-  `test` target — `nx test @chatic/app-messages` does not exist, and CI's `run-many -t test` skips
+  `test` target — `nx test @chatic/bridge-messages` does not exist, and CI's `run-many -t test` skips
   the project rather than failing it.
 - The compile-time checks that matter are assertions, not tests: the `satisfies` clause on
   `WEB_MESSAGE_RESPONSE_TYPE`, and `AppLogInfoLogContext` over in `@chatic/bridges`. Both fail the

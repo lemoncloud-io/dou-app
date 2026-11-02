@@ -1,4 +1,4 @@
-import type { SubWebViewParams } from '@chatic/app-messages';
+import type { SubWebViewParams } from '@chatic/bridge-messages';
 import { isNative } from '@chatic/bridges';
 
 import { appBridge } from './appBridge';

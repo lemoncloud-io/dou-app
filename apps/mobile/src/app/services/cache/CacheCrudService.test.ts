@@ -1,4 +1,4 @@
-import type { CacheModelMap, CacheQueryMap } from '@chatic/app-messages';
+import type { CacheModelMap, CacheQueryMap } from '@chatic/bridge-messages';
 import type { ILogService } from '../log';
 import type { ICacheDataSource } from '../../data/cache';
 import { CacheCrudService } from './CacheCrudService';

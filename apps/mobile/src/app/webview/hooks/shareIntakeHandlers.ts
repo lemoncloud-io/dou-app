@@ -1,4 +1,4 @@
-import type { FetchShareIntakeErrorCode, WebMessageData, WebMessageHandlerResponse } from '@chatic/app-messages';
+import type { FetchShareIntakeErrorCode, WebMessageData, WebMessageHandlerResponse } from '@chatic/bridge-messages';
 import type { IShareIntakeBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 import { toError } from './attachmentPickerHandlers';

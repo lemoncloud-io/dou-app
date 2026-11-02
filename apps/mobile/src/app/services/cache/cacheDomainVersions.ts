@@ -1,4 +1,4 @@
-import type { CacheDomainVersions } from '@chatic/app-messages';
+import type { CacheDomainVersions } from '@chatic/bridge-messages';
 
 import { deriveCacheDomainVersions } from '../../database/sqlite/cacheContract';
 import { provider } from '../provider';

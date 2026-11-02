@@ -32,7 +32,7 @@ import {
     useSubWebViewHandler,
 } from './index';
 
-import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { WebMessageData, WebMessageType } from '@chatic/bridge-messages';
 import { useAppStateHandler } from './useAppStateHandler';
 import type { IAppBridgeHost } from '@chatic/bridges';
 

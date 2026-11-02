@@ -7,7 +7,7 @@ import type {
     OnListPhotosPayload,
     OnReadPhotoPayload,
     PhotoLibraryAccess,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 /**
  * PhotoLibrary — the device photo library, read for the web's in-app picker (Swift `PhotoLibrary`

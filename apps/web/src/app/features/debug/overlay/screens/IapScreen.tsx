@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { IapProductSubscription } from '@chatic/bridge-messages';
 import { webClient } from '@chatic/bridges';
 
 import { useDebugOperation } from '../../hooks';

@@ -1,4 +1,4 @@
-import type { SubWebViewErrorCode, WebMessageData } from '@chatic/app-messages';
+import type { SubWebViewErrorCode, WebMessageData } from '@chatic/bridge-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
 
 import type { ISubWebViewService } from '../../services';

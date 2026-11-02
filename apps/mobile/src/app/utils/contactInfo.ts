@@ -1,6 +1,6 @@
 import type { Contact } from 'react-native-contacts';
 
-import type { ContactInfo } from '@chatic/app-messages';
+import type { ContactInfo } from '@chatic/bridge-messages';
 
 /**
  * Normalizes one device contact into the bridge's `ContactInfo`.

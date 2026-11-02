@@ -14,7 +14,7 @@ room by itself would need a second copy of each, in Swift and again in Kotlin.
 
 | Layer             | File                                                                                                                  |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Messages          | `libs/app-messages/src/types/model/share-intake.ts`                                                                   |
+| Messages          | `libs/bridge-messages/src/types/model/share-intake.ts`                                                                |
 | WebView handler   | `src/app/webview/hooks/shareIntakeHandlers.ts`, `useShareIntakeHandler.ts`                                            |
 | TS native wrapper | `src/app/bridge/ShareIntakeBridge.ts`                                                                                 |
 | Android intake    | `android/…/share/ShareIntake.kt`, `share/core/ShareIntakeRules.kt`, `MainActivity.kt`                                 |

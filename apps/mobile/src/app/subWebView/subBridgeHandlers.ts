@@ -3,7 +3,7 @@ import type {
     SubWebViewRequestType,
     WebMessageData,
     WebMessageHandlerResponse,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 import type { IHapticBridge } from '../bridge';
 import type { IClipboardService, ISubWebViewService } from '../services';

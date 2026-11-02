@@ -113,7 +113,7 @@ graph TB
     subgraph Native["Native Bridge Libraries"]
         RUNTIME["app-runtime<br/>Session & Runtime"]
         BRIDGES["bridges<br/>WebView Transport"]
-        APPMSG["app-messages<br/>Bridge Message Vocabulary"]
+        APPMSG["bridge-messages<br/>Bridge Message Vocabulary"]
         DEVICE["device-utils<br/>Injected Device Info"]
         DB["db<br/>Cache Storage Engines"]
         LOGGER["logger<br/>Cross-Platform Logging"]
@@ -155,7 +155,7 @@ dou-app/
 │   ├── config/              # Runtime settings facade
 │   ├── app-runtime/         # Session, sockets, repositories, sync runtimes
 │   ├── bridges/             # WebView transport between web and native shell
-│   ├── app-messages/        # Bridge message vocabulary (web <-> native)
+│   ├── bridge-messages/     # Bridge message vocabulary (web <-> native)
 │   ├── fake-shell/          # Fake native shell core of web-e2e; its answers back the virtual shell's
 │   ├── device-utils/        # Injected device info, reader hooks
 │   ├── auth-sign/           # Lemon HMAC request signing

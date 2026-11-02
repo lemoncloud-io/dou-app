@@ -1,4 +1,4 @@
-import type { SubWebViewCloseReason, SubWebViewErrorCode } from '@chatic/app-messages';
+import type { SubWebViewCloseReason, SubWebViewErrorCode } from '@chatic/bridge-messages';
 
 /** The sub WebView that is showing. */
 export interface SubWebViewEntry {

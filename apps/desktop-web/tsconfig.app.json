@@ -12,7 +12,7 @@
     "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
     "references": [
         {
-            "path": "../../libs/app-messages/tsconfig.lib.json"
+            "path": "../../libs/bridge-messages/tsconfig.lib.json"
         },
         {
             "path": "../../libs/block-kit/tsconfig.lib.json"

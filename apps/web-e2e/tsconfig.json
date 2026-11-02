@@ -11,7 +11,7 @@
             "path": "../../libs/fake-shell"
         },
         {
-            "path": "../../libs/app-messages"
+            "path": "../../libs/bridge-messages"
         }
     ]
 }

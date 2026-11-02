@@ -1,4 +1,4 @@
-import type { OnListPhotoAlbumsPayload, OnListPhotosPayload, OnReadPhotoPayload } from '@chatic/app-messages';
+import type { OnListPhotoAlbumsPayload, OnListPhotosPayload, OnReadPhotoPayload } from '@chatic/bridge-messages';
 import type { IPhotoLibraryBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 

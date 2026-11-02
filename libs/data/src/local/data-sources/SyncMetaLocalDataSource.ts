@@ -1,4 +1,4 @@
-import type { CacheMetaView } from '@chatic/app-messages';
+import type { CacheMetaView } from '@chatic/bridge-messages';
 import type { DataContextProvider } from '../../repositories/types';
 import type { LocalDataSourceContextOverride } from './types';
 import { logger, type ObservationData } from '@chatic/bridges';

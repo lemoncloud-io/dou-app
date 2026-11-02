@@ -134,14 +134,14 @@ that fallback away.
 
 ## The bridge contract
 
-`useWebMessageRouter.contract.test.ts` pins this shell to the vocabulary in `@chatic/app-messages`.
+`useWebMessageRouter.contract.test.ts` pins this shell to the vocabulary in `@chatic/bridge-messages`.
 It mounts the router and `useWebViewNavigation` (which registers `SetCanGoBack`) on a real
 `AppBridgeHost`, with every domain hook stubbed and every native module reported present, and reads
 what got registered — `WebAppReady` and `Ping` included, since the host registers those itself.
 Then:
 
 - **Every request in `WEB_MESSAGE_RESPONSE_TYPE` is decided.** Each has a handler or a line in
-  `MOBILE_UNSUPPORTED`, with a one-line reason. A message added to `@chatic/app-messages` fails the
+  `MOBILE_UNSUPPORTED`, with a one-line reason. A message added to `@chatic/bridge-messages` fails the
   suite until this shell makes that call.
 - **Nothing stale survives.** A handler for a request no longer in the map fails it, and so does an
   unsupported line for a request that has since gained a handler or left the map. The list's
@@ -224,7 +224,7 @@ web's `OpenURL` request.
 ### Its contract tests
 
 `appEvents.contract.test.ts` is the inventory. `MOBILE_APP_EVENTS` decides every push-only message
-in `@chatic/app-messages` — every type `AppMessageDataMap` declares that no request in
+in `@chatic/bridge-messages` — every type `AppMessageDataMap` declares that no request in
 `WEB_MESSAGE_RESPONSE_TYPE` is answered with — as either pushed (by which file, triggered by which
 test) or never pushed, with a reason. The suite fails when:
 
@@ -361,7 +361,7 @@ on the wire.
 
 ## Change checklist
 
-- Is a new WebView message type reflected in `@chatic/app-messages`, and does this shell either
+- Is a new WebView message type reflected in `@chatic/bridge-messages`, and does this shell either
   answer it (a handler wired into the router) or list it in `MOBILE_UNSUPPORTED` with its reason?
   The contract suite fails until it does — and the desktop one does the same for that shell.
 - Does a handler only call a service, without carrying its own domain logic?

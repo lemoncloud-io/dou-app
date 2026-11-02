@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { logger } from '@chatic/bridges';
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
 
 import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
 import { pendingNavigationStore } from './pendingNavigationStore';

@@ -1,5 +1,5 @@
 import { NativeModules } from 'react-native';
-import type { OnFetchShareIntakePayload } from '@chatic/app-messages';
+import type { OnFetchShareIntakePayload } from '@chatic/bridge-messages';
 
 /**
  * ShareIntake — what another app shared to Dou through the OS share sheet (Swift `ShareIntake` over

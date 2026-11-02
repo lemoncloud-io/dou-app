@@ -1,6 +1,6 @@
 import { Activity, FilePlus2, FileText, Inbox, RefreshCw, Trash2, Upload, XCircle } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { OnFileTransferStatePayload } from '@chatic/app-messages';
+import type { OnFileTransferStatePayload } from '@chatic/bridge-messages';
 import { webClient } from '@chatic/bridges';
 
 import { useUploadTestScreenStrings } from '../../i18n/screens/UploadTestScreen';

@@ -1,4 +1,4 @@
-import type { CacheTtlMeta } from '@chatic/app-messages';
+import type { CacheTtlMeta } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
 import { SyncMetaLocalDataSource } from './SyncMetaLocalDataSource';
 import { createPartitionedMemoryStorage } from './__mocks__/MemoryCacheStorage';

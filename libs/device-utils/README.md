@@ -1,7 +1,7 @@
 # @chatic/device-utils
 
 **The one reader of the `window.CHATIC_APP_*` globals a shell injects into the page.** It normalises
-that untyped bag into the `DeviceInfo` and `VersionInfo` shapes `@chatic/app-messages` declares,
+that untyped bag into the `DeviceInfo` and `VersionInfo` shapes `@chatic/bridge-messages` declares,
 publishes both from a single zustand store, and puts a React hook over it. It also holds the two
 User-Agent prefixes a native shell stamps on its WebView.
 
@@ -76,7 +76,7 @@ here is only what the shell asserted at page load.
 User-Agent prefix constants.
 
 **Out** — the `DeviceInfo`, `VersionInfo`, `Env`, `Platform` and `PageLanguage` type declarations
-themselves (`@chatic/app-messages`), sending or receiving bridge messages and the `isNative()` test
+themselves (`@chatic/bridge-messages`), sending or receiving bridge messages and the `isNative()` test
 (`@chatic/bridges`), injecting the globals (`apps/mobile`'s `getDeviceInfoScript`, `apps/desktop`'s
 preload), settings and their persistence (`@chatic/config`), the update banner and the version poll
 against `/version.json` (`libs/shared`'s `useVersionCheck`), and push token registration
@@ -104,7 +104,7 @@ flowchart TD
     Web["apps/web × 5 files"]:::ext
     Shared["libs/shared<br/><i>usePageTransition</i>"]:::ext
     RN["apps/mobile<br/><i>React Native — constants only</i>"]:::ext
-    Msgs["@chatic/app-messages<br/><i>DeviceInfo · VersionInfo</i>"]:::ext
+    Msgs["@chatic/bridge-messages<br/><i>DeviceInfo · VersionInfo</i>"]:::ext
 
     Mobile -->|writes| Globals
     Desktop -->|writes| Globals
@@ -173,7 +173,7 @@ Two things the filenames do not tell you.
   `declare const __APP_VERSION__` are all in that one file. There is no `types.ts`, no `env.ts` and
   no `globals.d.ts` to open.
 - **`DeviceInfoStore` is exported, the record types are not.** `DeviceInfo` and `VersionInfo` come
-  from `@chatic/app-messages` and are re-exported by nothing here, so a consumer that needs to name
+  from `@chatic/bridge-messages` and are re-exported by nothing here, so a consumer that needs to name
   one imports it from there.
 
 ## Usage
@@ -249,7 +249,7 @@ records that the boot-time `CHATIC_APP_SHOULD_UPDATE` injection is not one of it
 ### 4. Desktop, where `platform` is not a `Platform`
 
 `apps/desktop`'s preload injects `CHATIC_APP_PLATFORM: 'desktop'`, and `'desktop'` is not a member of
-`@chatic/app-messages`' `Platform` union (`ios | android | windows | macos | web`). The store's
+`@chatic/bridge-messages`' `Platform` union (`ios | android | windows | macos | web`). The store's
 `as Platform` cast lets it through, so `deviceInfo.platform` reads `'desktop'` at run time while the
 compiler believes otherwise. A check for `'ios'` or `'android'` is false there, as it should be, and
 the injected application name is `'chatic-desktop'`. Desktop also injects no
@@ -285,7 +285,7 @@ add a `--config libs/device-utils/jest.config.js` invocation; there is nothing a
 
 - Type checking must be `tsc -b`. Inside this lib, `tsc --noEmit` checks zero files and succeeds, so
   passing it proves nothing.
-- `tsconfig.lib.json` references `../app-messages/tsconfig.lib.json`, and that reference is the only
+- `tsconfig.lib.json` references `../bridge-messages/tsconfig.lib.json`, and that reference is the only
   reason the imported types resolve. A new cross-lib import needs the matching reference added and
   `npx nx sync` run, or the build fails later with TS6307 in whoever consumes this.
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves. `rm -rf dist/out-tsc` and look

@@ -1,4 +1,4 @@
-import type { MediaExportPermissionDetails, OnShareFilePayload } from '@chatic/app-messages';
+import type { MediaExportPermissionDetails, OnShareFilePayload } from '@chatic/bridge-messages';
 
 import type { DownloadProgress, DownloadResult, NativeDownload } from '../../../runtime/transfer';
 

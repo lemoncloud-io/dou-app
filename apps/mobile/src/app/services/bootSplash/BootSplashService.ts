@@ -1,4 +1,4 @@
-import type { WebAppReadyPayload } from '@chatic/app-messages';
+import type { WebAppReadyPayload } from '@chatic/bridge-messages';
 
 import type { ILogService } from '../log';
 import type { IBootSplashService, WebRevealReason } from './types';

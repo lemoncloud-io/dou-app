@@ -48,7 +48,7 @@ flowchart TD
     Root["composition root<br/>app.tsx · runtime/ · routes/"]:::root
     Feat["features/ × 14<br/><i>pages · components · hooks</i>"]:::feat
     Shared["shared<br/>ui/ · hooks/ · stores/ · utils/ · navigation/ · bridge/ · config/"]:::shared
-    Libs["@chatic/app-runtime · bridges · data · config<br/>web-ui-kit · shared · app-messages"]:::ext
+    Libs["@chatic/app-runtime · bridges · data · config<br/>web-ui-kit · shared · bridge-messages"]:::ext
 
     Root --> Feat
     Root --> Shared

@@ -1,4 +1,4 @@
-import type { OnFileTransferStatePayload } from '@chatic/app-messages';
+import type { OnFileTransferStatePayload } from '@chatic/bridge-messages';
 import type { PutPort } from '@chatic/data';
 import { createNativeTransfers, toPutResult, type TransferBridge } from './nativePut';
 import { syncFileTransfers } from './transferSync';

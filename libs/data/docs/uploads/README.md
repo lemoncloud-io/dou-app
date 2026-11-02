@@ -192,7 +192,7 @@ quote the request it failed on.
   the server's `status` / `error` / `url` / `thumbnail`. The server's `'failed'` is terminal and a
   local `'failed'` can be retried, and a reader that met the same name would take one for the other.
   `isPendingUploadSlot` tells them apart inside one `upload$$` list.
-- **The slot type lives in the cache contract** (`@chatic/app-messages`, `CacheChatView.upload$$`).
+- **The slot type lives in the cache contract** (`@chatic/bridge-messages`, `CacheChatView.upload$$`).
   The chat storage port is typed by that contract, so a slot that only the domain model knew about
   could be read but not written. The native shell stores a chat row as a JSON blob, so the wider
   type asks nothing of it.

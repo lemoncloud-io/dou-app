@@ -1,5 +1,5 @@
 import type { IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from '@chatic/data';
-import type { ChatQueryOptions } from '@chatic/app-messages';
+import type { ChatQueryOptions } from '@chatic/bridge-messages';
 import { CHAT_PAGINATION_INDEX, TYPE_CID_UID_INDEX, UNSENT_CHAT_NO } from './IndexedDBDatabase';
 
 /**

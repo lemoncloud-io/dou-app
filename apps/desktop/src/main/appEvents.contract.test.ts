@@ -10,7 +10,7 @@ const STORE_IAP = 'Store purchases happen on the phones only';
 /**
  * Every app → web event the desktop shell could send on its own initiative, decided: either the
  * file that pushes it and the test that triggers it, or the reason it never does. Paths are relative
- * to `apps/desktop/src`. A new push-only message in `@chatic/app-messages`, or a new `pushEvent`
+ * to `apps/desktop/src`. A new push-only message in `@chatic/bridge-messages`, or a new `pushEvent`
  * call here, fails this suite until it has a line.
  *
  * A reply type is listed too when the shell also pushes it unprompted — `OnFetchFcmToken` answers

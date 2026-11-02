@@ -122,7 +122,7 @@ local run uses. A second path exists: `babel-plugin-transform-inline-environment
 code reads it:
 
 ```bash
-grep -rn "process\.env\.VITE_" apps/mobile/src libs/app-messages libs/bridges libs/device-utils libs/logger libs/shared
+grep -rn "process\.env\.VITE_" apps/mobile/src libs/bridge-messages libs/bridges libs/device-utils libs/logger libs/shared
 ```
 
 returns nothing across every lib mobile depends on, so changing `.env`'s meaning does not touch this

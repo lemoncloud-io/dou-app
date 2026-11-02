@@ -2,7 +2,7 @@
 // localFactory is imported.
 import 'fake-indexeddb/auto';
 
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType } from '@chatic/bridge-messages';
 import type { DataContextProvider } from '@chatic/data';
 
 /**

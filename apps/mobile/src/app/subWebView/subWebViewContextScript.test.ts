@@ -1,4 +1,4 @@
-import type { SubWebViewContext } from '@chatic/app-messages';
+import type { SubWebViewContext } from '@chatic/bridge-messages';
 
 import { buildSubWebViewContextScript } from './subWebViewContextScript';
 

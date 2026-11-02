@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 
 /**
  * Bridge handlers for the deferred report queue (ADR-0097): the web pulls

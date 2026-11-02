@@ -1,5 +1,5 @@
 import { isNative, webClient } from '@chatic/bridges';
-import type { AttachmentPickSource, PickedShellAttachment, RefusedAttachment } from '@chatic/app-messages';
+import type { AttachmentPickSource, PickedShellAttachment, RefusedAttachment } from '@chatic/bridge-messages';
 import type { runtime } from '@chatic/app-runtime';
 import {
     CHAT_ATTACHMENT_MAX_BYTES,

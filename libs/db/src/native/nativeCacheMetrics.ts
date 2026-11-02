@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType } from '@chatic/bridge-messages';
 import type { CacheMetricsSnapshot, ICacheMetricsSource } from '@chatic/data';
 
 /**

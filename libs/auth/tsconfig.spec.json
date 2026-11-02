@@ -14,7 +14,7 @@
     // dependencies through references, or their sources come in as unlisted files (TS6307).
     "references": [
         {
-            "path": "../app-messages/tsconfig.lib.json"
+            "path": "../bridge-messages/tsconfig.lib.json"
         },
         {
             "path": "../auth-sign/tsconfig.lib.json"

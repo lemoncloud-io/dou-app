@@ -1,4 +1,4 @@
-import type { CacheCloudView, InviteCloudQueryOptions } from '@chatic/app-messages';
+import type { CacheCloudView, InviteCloudQueryOptions } from '@chatic/bridge-messages';
 import type { ICacheDataSource } from './types';
 import type { ISqliteDatabase } from '../../database';
 import { fetchManyByIds } from './fetchManyByIds';

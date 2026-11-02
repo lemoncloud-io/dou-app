@@ -1,4 +1,4 @@
-import type { DownloadedFile, OnFileTransferStatePayload } from '@chatic/app-messages';
+import type { DownloadedFile, OnFileTransferStatePayload } from '@chatic/bridge-messages';
 import type { IWebBridgeClient } from '@chatic/bridges';
 
 export type DownloadBridge = Pick<IWebBridgeClient, 'request' | 'onEvent'>;

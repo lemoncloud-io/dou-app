@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'fs';
 import { join, relative } from 'path';
 import { renderHook } from '@testing-library/react';
-import { WEB_MESSAGE_RESPONSE_TYPE, type BridgeError, type WebMessageType } from '@chatic/app-messages';
+import { WEB_MESSAGE_RESPONSE_TYPE, type BridgeError, type WebMessageType } from '@chatic/bridge-messages';
 import { AppBridgeHost, InMemoryAdapter, JsonProtocol, WebBridgeClient } from '@chatic/bridges';
 
 import { useWebMessageRouter } from './useWebMessageRouter';
@@ -10,7 +10,7 @@ import { useWebViewNavigation } from './useWebViewNavigation';
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` this shell deliberately leaves unregistered. The host
  * answers each with `NOT_FOUND`, which is what the web falls back on. A message belongs here only
- * by decision — a new one in `@chatic/app-messages` fails this suite until it has a handler or a
+ * by decision — a new one in `@chatic/bridge-messages` fails this suite until it has a handler or a
  * line here.
  */
 const MOBILE_UNSUPPORTED = {

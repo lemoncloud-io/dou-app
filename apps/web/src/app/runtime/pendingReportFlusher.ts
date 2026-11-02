@@ -1,5 +1,5 @@
 import { ingestLogEntry, isNative, logger } from '@chatic/bridges';
-import type { PendingReportInfo } from '@chatic/app-messages';
+import type { PendingReportInfo } from '@chatic/bridge-messages';
 
 import { appBridge } from '../bridge';
 

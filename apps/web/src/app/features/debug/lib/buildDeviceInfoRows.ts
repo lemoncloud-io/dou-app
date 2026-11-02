@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '@chatic/app-messages';
+import type { DeviceInfo } from '@chatic/bridge-messages';
 
 /** A single label/value pair rendered in the debug "Device Info" block. */
 export interface DeviceInfoRow {

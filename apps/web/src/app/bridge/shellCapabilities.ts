@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import type { OnWebAppReadyPayload, WebMessageType } from '@chatic/app-messages';
+import type { OnWebAppReadyPayload, WebMessageType } from '@chatic/bridge-messages';
 
 /**
  * Whether the installed app can save and share a chat image: its handshake lists both messages.

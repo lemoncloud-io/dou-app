@@ -1,4 +1,4 @@
-import type { PendingReportInfo } from '@chatic/app-messages';
+import type { PendingReportInfo } from '@chatic/bridge-messages';
 
 /**
  * Queue for reports the native side detected but cannot send itself — the

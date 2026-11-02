@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { BRIDGE_VERSION_INFO, isNative, webClient } from '@chatic/bridges';
-import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { WebMessageData, WebMessageType } from '@chatic/bridge-messages';
 
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';

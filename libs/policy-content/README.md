@@ -77,7 +77,7 @@ at all, is each consumer's decision — and the two consumers have made differen
    nesting is literal spaces, and there is no Markdown, no HTML and no rich text. A body that needs
    structure gets a new `PolicySection`, not a tag.
 7. **Two languages, and everything that is not Korean is English.** `SupportedLanguage` is
-   `'ko' | 'en'` — two of the seven values `@chatic/app-messages`' `PageLanguage` allows — and both
+   `'ko' | 'en'` — two of the seven values `@chatic/bridge-messages`' `PageLanguage` allows — and both
    consumers narrow with the same expression, `i18n.language === 'ko' ? 'ko' : 'en'`. Adding a
    language means adding a file per document, not a fallback.
 
@@ -91,7 +91,7 @@ and the three lookup tables keyed by language.
 `apps/web`'s `features/mypage` pages), choosing the language (each app's i18n), page headings and
 labels such as "Effective date" (each app's locale files, under `policy.*` and `mypage.policy.*`),
 consent capture and anything server-side, and the `PageLanguage` union itself
-(`@chatic/app-messages`).
+(`@chatic/bridge-messages`).
 
 ## Structure
 

@@ -1,4 +1,4 @@
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 import type { IPreferenceService } from './types';
 import type { ILogService } from '../log';
 import type { IKeyValueStorage } from '../../database';

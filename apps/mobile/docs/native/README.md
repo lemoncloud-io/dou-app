@@ -74,7 +74,7 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
 ### Adding a native capability
 
 1. Define the request/response shape the wrapper exposes (an interface in the same file is enough;
-   this is not the WebView message contract — that lives in `@chatic/app-messages` and is a separate
+   this is not the WebView message contract — that lives in `@chatic/bridge-messages` and is a separate
    step, described in [service.md](./service.md)).
 2. Implement the Kotlin module and register its package under `android/app/src/main/java/io/chatic/dou/`.
 3. Implement the Swift or Objective-C counterpart under `ios/Bridges/` and register it with RN's

@@ -15,7 +15,7 @@ const getPageTransitionPlatform = (platform: string | undefined): PlatformType |
     }
 };
 
-/** Platform detection using @chatic/app-messages for native app bridge. */
+/** Platform detection using @chatic/bridge-messages for native app bridge. */
 const usePageTransitionConfig = (): PageTransitionConfig => {
     const { deviceInfo } = useDeviceInfo();
     const pageTransitionPlatform = getPageTransitionPlatform(deviceInfo?.platform);
@@ -65,7 +65,7 @@ const markNavigationStarted = (): (() => void) => {
 };
 
 /**
- * Wrapper with @chatic/app-messages platform detection. See @lemoncloud/react-page-transition for API
+ * Wrapper with @chatic/bridge-messages platform detection. See @lemoncloud/react-page-transition for API
  * docs. Outside Android it also marks the document while the navigation runs
  * (`PAGE_TRANSITION_ATTRIBUTE`).
  */

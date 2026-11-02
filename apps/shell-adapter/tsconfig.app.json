@@ -11,7 +11,7 @@
     "include": ["src/**/*.ts", "vite.shell.config.mts", "../../hybrid-shell.config.ts"],
     "references": [
         {
-            "path": "../../libs/app-messages/tsconfig.lib.json"
+            "path": "../../libs/bridge-messages/tsconfig.lib.json"
         },
         {
             "path": "../../libs/fake-shell/tsconfig.lib.json"

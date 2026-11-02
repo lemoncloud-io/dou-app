@@ -40,7 +40,7 @@ export const createWebEnvAdapter = (read: (name: string) => string | undefined):
         buildStage,
         // The injected value wins over the baked one — matching `WEB_ENV`'s
         // `window.ENV || import.meta.env.VITE_ENV` today. `CHATIC_APP_STAGE`'s vocabulary
-        // (`'local'|'stage'|'prod'`, `app-messages`'s `Env`) differs from `Stage`'s
+        // (`'local'|'stage'|'prod'`, `bridge-messages`'s `Env`) differs from `Stage`'s
         // (`'LOCAL'|'DEV'|'PROD'`) and is normalized here (ADR-0079 decision 14).
         stage: () => {
             const injected = read('CHATIC_APP_STAGE');

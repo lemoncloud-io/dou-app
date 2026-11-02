@@ -1,7 +1,7 @@
 import Config from 'react-native-config';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 
 import { storageAdapter } from './storageAdapter';
 

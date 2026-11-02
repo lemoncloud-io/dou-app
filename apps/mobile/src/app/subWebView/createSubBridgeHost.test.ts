@@ -1,5 +1,5 @@
 import { BRIDGE_VERSION, JsonProtocol } from '@chatic/bridges';
-import type { SubWebViewRequestType } from '@chatic/app-messages';
+import type { SubWebViewRequestType } from '@chatic/bridge-messages';
 
 import { SubWebViewService } from '../services/subWebView/SubWebViewService';
 import { createSubBridgeHost } from './createSubBridgeHost';

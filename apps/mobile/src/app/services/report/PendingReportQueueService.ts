@@ -1,5 +1,5 @@
 import { createMMKV } from 'react-native-mmkv';
-import type { PendingReportInfo } from '@chatic/app-messages';
+import type { PendingReportInfo } from '@chatic/bridge-messages';
 import type { IPendingReportQueueService } from './types';
 
 const PENDING_REPORTS_STORAGE_KEY = '@chatic/report.pending';

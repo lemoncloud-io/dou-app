@@ -1,11 +1,9 @@
 # The sub WebView
 
 A second WebView the shell shows over the main one, for a page on another origin. The web asks for
-it with `OpenSubWebView`; the shell shows the page full screen under a bar with its title and a
-close
-control, and tells the web with `OnSubWebViewClosed` when it is gone. The messages and their codes
-are
-in `@chatic/app-messages` (`model/sub-webview.ts`).
+it with `OpenSubWebView`; the shell shows the page full screen under a bar with its title and a close
+control, and tells the web with `OnSubWebViewClosed` when it is gone. The messages and their codes are
+in `@chatic/bridge-messages` (`model/sub-webview.ts`).
 
 It exists so the app can host pages it does not own the code of — a service of its own, a notice —
 without

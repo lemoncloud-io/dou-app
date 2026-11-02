@@ -1,6 +1,6 @@
 import { pickLogContext, safeSerializable } from '@chatic/logger';
 
-import type { AppLogInfo, AppLogStructuredFields } from '@chatic/app-messages';
+import type { AppLogInfo, AppLogStructuredFields } from '@chatic/bridge-messages';
 import type { LogContext, LogEntry } from '@chatic/logger';
 
 /**
@@ -8,7 +8,7 @@ import type { LogContext, LogEntry } from '@chatic/logger';
  *
  * Not decoration — this is the agreement check. `Pick` fails to compile the
  * moment `AppLogInfo` stops declaring one of `LogContext`'s fields, which is the
- * only way to catch it here: `libs/app-messages` is a leaf (it imports no other
+ * only way to catch it here: `libs/bridge-messages` is a leaf (it imports no other
  * workspace package, because the installed native app compiles against it), so
  * it cannot derive its shape from `LogContext`. This file is where both types
  * are in scope, so this is where they get held together.

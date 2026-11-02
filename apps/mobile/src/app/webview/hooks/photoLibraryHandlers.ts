@@ -3,7 +3,7 @@ import type {
     PhotoLibraryMediaType,
     WebMessageData,
     WebMessageHandlerResponse,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { IPhotoLibraryBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 

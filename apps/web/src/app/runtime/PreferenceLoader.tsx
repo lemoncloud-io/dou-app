@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 
 import { appBridge, syncLanguageChoiceToShell } from '../bridge';
 import { toLanguagePreference } from '../../i18n/languagePreference';

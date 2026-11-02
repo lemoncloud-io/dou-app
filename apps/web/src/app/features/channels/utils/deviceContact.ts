@@ -2,7 +2,7 @@
 // the two platforms deliver is a contract question, not a rendering detail — see
 // apps/web/docs/feature/channels/invite.md for the per-platform field table.
 
-import type { ContactInfo } from '@chatic/app-messages';
+import type { ContactInfo } from '@chatic/bridge-messages';
 
 // Direct path for `phoneNumber`: it is deliberately kept out of the `utils` barrel (libphonenumber's
 // metadata — see that barrel's comment).

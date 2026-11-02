@@ -70,7 +70,7 @@ the web is ready — are production code. What is fake is the handlers.
 **The handler table is typed against the contract.** A handler returns the payload of the reply
 `WEB_MESSAGE_RESPONSE_TYPE` pairs with its request (`ShellReply<K>`), and the reply's `type` is filled
 in from that map, never by the handler. Renaming a reply or changing its payload in
-`@chatic/app-messages` breaks the fixtures at compile time instead of leaving a scenario that fakes a
+`@chatic/bridge-messages` breaks the fixtures at compile time instead of leaving a scenario that fakes a
 contract the app no longer speaks. `ShellFailure` answers `success: false` with a domain code (`BUSY`);
 leaving a type out answers `NOT_FOUND`, which is what an app built before that message does.
 
