@@ -372,37 +372,44 @@
         --focus-ring: 76 87% 49%;
     }
 
-    /* The list on a tinted ground. A row's hover (--accent) and the loading bars (--muted) are page
-       grays made for white; on a tinted list they would vanish or even read lighter than the list.
+    /* The list on a tinted ground. A row's hover (--accent), the loading bars (--muted) and the search
+       field (--well) are page grays made for white; on a tinted list they would vanish or even read
+       lighter than the list.
        Inside the sidebar they step a shade darker than the palette's own list colour. */
     :root:not(.dark) [data-shell-sidebar] {
         --accent: 220 16% 92%;
         --muted: 220 16% 92%;
+        --well: 220 16% 92%;
     }
 
     :root[data-palette='midnight']:not(.dark) [data-shell-sidebar] {
         --accent: 225 16% 91%;
         --muted: 225 16% 91%;
+        --well: 225 16% 91%;
     }
 
     :root[data-palette='forest']:not(.dark) [data-shell-sidebar] {
         --accent: 150 18% 90%;
         --muted: 150 18% 90%;
+        --well: 150 18% 90%;
     }
 
     :root[data-palette='ocean']:not(.dark) [data-shell-sidebar] {
         --accent: 215 40% 91%;
         --muted: 215 40% 91%;
+        --well: 215 40% 91%;
     }
 
     :root[data-palette='plum']:not(.dark) [data-shell-sidebar] {
         --accent: 283 22% 91%;
         --muted: 283 22% 91%;
+        --well: 283 22% 91%;
     }
 
     :root[data-palette='lemon']:not(.dark) [data-shell-sidebar] {
         --accent: 75 45% 90%;
         --muted: 75 45% 90%;
+        --well: 75 45% 90%;
     }
 
     /* Hover on the lime nav rail: a deeper lime, where the page's near-white would wash it out. */

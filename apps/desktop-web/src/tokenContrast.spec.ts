@@ -155,16 +155,20 @@ describe.each(PALETTES)('%s palette', (_, surfaces) => {
         expect(ratio(surfaces[surface], fg, bg)).toBeGreaterThanOrEqual(minimum);
     });
 
-    // A list row's hover and the loading bars are page tokens drawn on the tinted list. They have
-    // to stay a step darker than it, or hovering a row shows nothing.
-    it.each(['accent', 'muted'])('list: --%s reads a step darker than --sidebar', token => {
+    // A list row's hover, the loading bars and the search field are page tokens drawn on the tinted
+    // list. They have to stay a step darker than it, or the hover and the search field vanish.
+    it.each(['accent', 'muted', 'well'])('list: --%s reads a step darker than --sidebar', token => {
         const list = surfaces.list;
         expect(luminance(resolve(list, token))).toBeLessThan(luminance(resolve(list, 'sidebar')));
         expect(ratio(list, 'sidebar', token)).toBeGreaterThanOrEqual(1.08);
     });
 
-    it('list: --muted-foreground on the --accent hover clears 4.5:1', () => {
-        expect(ratio(surfaces.list, 'muted-foreground', 'accent')).toBeGreaterThanOrEqual(4.5);
+    it.each([
+        ['muted-foreground', 'accent'],
+        ['muted-foreground', 'well'],
+        ['placeholder', 'well'],
+    ])('list: --%s on --%s clears 4.5:1', (fg, bg) => {
+        expect(ratio(surfaces.list, fg, bg)).toBeGreaterThanOrEqual(4.5);
     });
 
     it('leaves the chat ground as light mode has it', () => {
