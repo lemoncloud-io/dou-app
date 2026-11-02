@@ -342,9 +342,7 @@ export const MessageList = ({
         return resolve;
     }, [names, placeProfiles, viewer]);
 
-    // A member in the read list, named the way an author is: place nickname over the roster name,
-    // then the mention roster's, my own id resolving to me; the face likewise. Never
-    // dropped for want of a name — a placeholder keeps them counted. Memoised: rows are memo'd.
+    // Never drops a member for want of a name — a placeholder keeps the list equal to the count.
     const readPerson = useMemo(() => {
         const roster = new Map((mentionables ?? []).filter(m => !m.everyone).map(m => [m.id, m] as const));
         return (userId: string): ReadPerson => {

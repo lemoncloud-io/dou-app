@@ -35,7 +35,8 @@ export interface ReadCount {
  * join dedups with the sidebar's.
  *
  * Returns `readCountOf(chatNo, authorId)`, or null from it where the room shows no count: my
- * notes-to-self channel, a room of fewer than two members, and before any join row has arrived.
+ * notes-to-self channel, a room of fewer than two members, before any join row has arrived, and a
+ * message no other member was there for.
  */
 export const useChannelReadCounts = (
     channel: DomainChannel | undefined
@@ -107,7 +108,8 @@ export const useChannelReadCounts = (
                 if (member.userId === authorId || !isInJoinWindow({ chatNo }, member.joinedNo)) continue;
                 (member.cursor >= chatNo ? readIds : unreadIds).push(member.userId);
             }
-            return { readIds, unreadIds };
+            // Nobody the message was meant for (everyone else joined after it): no count, not "Seen 0".
+            return readIds.length + unreadIds.length > 0 ? { readIds, unreadIds } : null;
         },
         [showsCounts, activeMembers]
     );

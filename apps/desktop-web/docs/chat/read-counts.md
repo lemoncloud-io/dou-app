@@ -28,6 +28,8 @@ names yet still gets a row, under the `-` placeholder, so the list never disagre
 - Not under a message still being sent, one that failed, or a deleted one: the first two have no
   server number yet, and a deleted message has nothing left to read.
 - Not until the first join row has arrived, so a room never flashes "0 seen" while it loads.
+- Not under a message no other member was there for — everyone else joined after it — rather than an
+  empty `읽음 0`.
 
 ## How the numbers are counted
 

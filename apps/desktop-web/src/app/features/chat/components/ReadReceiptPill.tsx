@@ -21,6 +21,9 @@ interface ReadReceiptPillProps {
 
 /** Faces drawn in the pill before the rest collapse into "+N". */
 const STACK_SIZE = 3;
+const TAB_TRIGGER =
+    '-mb-px rounded-none border-b-2 border-transparent px-0 py-2.5 data-[state=active]:border-foreground data-[state=active]:shadow-none';
+
 /** Grace for the pointer to cross the gap between the pill and the popover without it closing. */
 const CLOSE_DELAY_MS = 150;
 
@@ -55,8 +58,7 @@ const PersonList = ({ people, empty }: { people: ReadPerson[]; empty: string }) 
  *
  * A hover leaves focus where it was. Opened from the keyboard (Enter or Space on the pill) the card
  * takes focus instead, so the tabs and lists are reachable — the card is portaled, so Tab from the
- * pill would otherwise walk on through the feed. Escape or focus leaving the card closes it, and
- * Escape hands focus back to the pill.
+ * pill would otherwise walk on through the feed.
  */
 export const ReadReceiptPill = ({ readers, nonReaders }: ReadReceiptPillProps) => {
     const { t } = useTranslation();
@@ -66,8 +68,6 @@ export const ReadReceiptPill = ({ readers, nonReaders }: ReadReceiptPillProps) =
     const openedBy = useRef<'pointer' | 'keyboard'>('pointer');
     const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pillRef = useRef<HTMLButtonElement>(null);
-    // Set by Escape only: a close from clicking or tabbing elsewhere leaves focus where the reader put it.
-    const closedByEscape = useRef(false);
 
     const cancelClose = () => {
         if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -75,6 +75,8 @@ export const ReadReceiptPill = ({ readers, nonReaders }: ReadReceiptPillProps) =
     };
     const show = (by: 'pointer' | 'keyboard') => {
         cancelClose();
+        // The pointer passing over a card the keyboard opened must not hand it to the hover rules.
+        if (open && openedBy.current === 'keyboard' && by === 'pointer') return;
         openedBy.current = by;
         setOpen(true);
     };
@@ -138,32 +140,26 @@ export const ReadReceiptPill = ({ readers, nonReaders }: ReadReceiptPillProps) =
                 onOpenAutoFocus={event => {
                     if (openedBy.current === 'pointer') event.preventDefault();
                 }}
-                // Radix hands focus back only to a PopoverTrigger, and the pill is an anchor (a trigger
-                // would toggle the card shut on the click that follows a hover). So Escape on a
-                // keyboard-opened card returns focus to the pill here; any other close leaves it alone.
+                // The pill is not "outside": closing on its pointer-down only for its click to reopen flickers.
+                onPointerDownOutside={event => {
+                    if (pillRef.current?.contains(event.target as Node)) event.preventDefault();
+                }}
+                // Radix returns focus only to a PopoverTrigger, and the pill is an anchor (a trigger would
+                // toggle the card shut on the click after a hover), so Escape hands focus back here.
+                // Any other close leaves focus where the reader moved it.
                 onEscapeKeyDown={() => {
-                    closedByEscape.current = true;
+                    if (openedBy.current === 'keyboard') pillRef.current?.focus();
                 }}
-                onCloseAutoFocus={event => {
-                    event.preventDefault();
-                    if (closedByEscape.current && openedBy.current === 'keyboard') pillRef.current?.focus();
-                    closedByEscape.current = false;
-                }}
+                onCloseAutoFocus={event => event.preventDefault()}
                 onPointerEnter={cancelClose}
                 onPointerLeave={hideSoon}
             >
                 <Tabs defaultValue="read">
                     <TabsList className="flex h-auto w-full justify-start gap-4 rounded-none border-b border-hairline bg-transparent px-4 py-0">
-                        <TabsTrigger
-                            value="read"
-                            className="-mb-px rounded-none border-b-2 border-transparent px-0 py-2.5 data-[state=active]:border-foreground data-[state=active]:shadow-none"
-                        >
+                        <TabsTrigger value="read" className={TAB_TRIGGER}>
                             {t('chat.readCount.tabSeen', { count: read })}
                         </TabsTrigger>
-                        <TabsTrigger
-                            value="unread"
-                            className="-mb-px rounded-none border-b-2 border-transparent px-0 py-2.5 data-[state=active]:border-foreground data-[state=active]:shadow-none"
-                        >
+                        <TabsTrigger value="unread" className={TAB_TRIGGER}>
                             {t('chat.readCount.tabNotSeen', { count: unread })}
                         </TabsTrigger>
                     </TabsList>

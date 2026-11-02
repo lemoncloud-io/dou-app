@@ -131,6 +131,13 @@ describe('useChannelReadCounts', () => {
         expect(result.current(5, 'me')).toBeNull();
     });
 
+    it('has no count for a message every other member joined after', () => {
+        const { result } = renderHook(() => useChannelReadCounts(GROUP));
+        emitJoins([join('me', 9), join('ada', 9, { joinedNo: 5 }), join('bob', 9, { joinedNo: 5 })]);
+
+        expect(result.current(3, 'me')).toBeNull();
+    });
+
     it('has no count in my notes-to-self channel', () => {
         const self = { ...GROUP, stereo: 'self' } as DomainChannel;
         const { result } = renderHook(() => useChannelReadCounts(self));

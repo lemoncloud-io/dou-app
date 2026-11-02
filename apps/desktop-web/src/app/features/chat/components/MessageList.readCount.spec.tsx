@@ -233,6 +233,23 @@ describe('MessageList read counts', () => {
             }
         });
 
+        it('keeps a keyboard-opened list open when the pointer passes over the count', async () => {
+            vi.useFakeTimers();
+            try {
+                renderList([message(1, 'ada')], () => counts(1, 1));
+                await act(async () => fireEvent.click(pill(), { detail: 0 }));
+                await act(async () => {
+                    fireEvent.pointerEnter(pill());
+                    fireEvent.pointerLeave(pill());
+                    vi.runAllTimers();
+                });
+
+                expect(screen.getByRole('dialog')).toBeDefined();
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+
         it('keeps focus where it was when the pointer opens it', async () => {
             renderList([message(1, 'ada')], () => counts(1, 1));
             const before = document.activeElement;
