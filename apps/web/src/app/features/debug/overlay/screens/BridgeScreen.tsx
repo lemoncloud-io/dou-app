@@ -18,7 +18,8 @@ import { useBridgeScreenStrings } from '../../i18n/screens/BridgeScreen';
  */
 
 /** Kept to a handful: enough to answer "does the channel work" without hunting for a safe command. */
-const PRESETS = ['Ping', 'WebAppReady', 'FetchBootRecords', 'FetchCustomZipStatus'] as const;
+// `OpenSubWebView` is here because no screen opens one yet; its payload needs a `url` typed in.
+const PRESETS = ['Ping', 'WebAppReady', 'FetchBootRecords', 'FetchCustomZipStatus', 'OpenSubWebView'] as const;
 
 interface CallLog {
     id: number;

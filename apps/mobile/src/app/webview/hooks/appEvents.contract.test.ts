@@ -44,6 +44,10 @@ const MOBILE_APP_EVENTS = {
         emittedBy: ['app/webview/hooks/useSubscriptionIapHandler.ts'],
         test: 'app/webview/hooks/useSubscriptionIapHandler.test.ts',
     },
+    OnSubWebViewClosed: {
+        emittedBy: ['app/webview/hooks/subWebViewHandlers.ts'],
+        test: 'app/webview/hooks/subWebViewHandlers.test.ts',
+    },
     OnUpdateStatus: { notEmitted: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)' },
 } satisfies Record<string, Decision>;
 

@@ -32,3 +32,4 @@ export * from './useTestRecordHandler';
 export * from './useResumeOverlay';
 export * from './usePerfHandler';
 export * from './useUnfurlHandler';
+export * from './useSubWebViewHandler';

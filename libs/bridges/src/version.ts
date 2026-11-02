@@ -23,7 +23,9 @@
 //        older and still send one; it gets NOT_FOUND.
 // 2.9.0: added FetchShareIntake and ReleaseShareIntake (web -> app) — what another app shared to Dou
 //        through the OS share sheet, opened on `/share?id=`.
-export const BRIDGE_VERSION = '2.9.0' as const;
+// 2.10.0: added OpenSubWebView and CloseSubWebView (web -> app) and the OnSubWebViewClosed push — a
+//         page on another origin shown in a second WebView with no bridge of its own.
+export const BRIDGE_VERSION = '2.10.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

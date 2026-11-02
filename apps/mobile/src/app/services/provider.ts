@@ -46,6 +46,8 @@ import type { IVersionService } from './version';
 import { VersionService } from './version';
 import type { IUnfurlService } from './unfurl';
 import { UnfurlService } from './unfurl';
+import type { ISubWebViewService } from './subWebView';
+import { SubWebViewService } from './subWebView';
 import DeviceInfo from 'react-native-device-info';
 
 import {
@@ -102,6 +104,7 @@ class DependencyProvider {
     private _configKvService?: IConfigKvService;
     private _versionService?: IVersionService;
     private _unfurlService?: IUnfurlService;
+    private _subWebViewService?: ISubWebViewService;
     private _cacheCrudService?: ICacheCrudService;
     private _cacheSearchService?: ICacheSearchService;
     private _testRecordService?: TestRecordService;
@@ -358,6 +361,11 @@ class DependencyProvider {
             this._unfurlService = new UnfurlService(this.logService);
         }
         return this._unfurlService;
+    }
+
+    public get subWebViewService(): ISubWebViewService {
+        if (!this._subWebViewService) this._subWebViewService = new SubWebViewService(this.logService);
+        return this._subWebViewService;
     }
 
     public static getInstance(): DependencyProvider {

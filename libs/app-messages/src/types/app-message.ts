@@ -42,6 +42,9 @@ import type {
     OnOpenSettingsPayload,
     OnOpenShareSheetPayload,
     OnOpenStorePayload,
+    OnOpenSubWebViewPayload,
+    OnCloseSubWebViewPayload,
+    OnSubWebViewClosedPayload,
     OnOpenSubscriptionManagementPayload,
     OnOpenURLPayload,
     OnNavigatePayload,
@@ -242,6 +245,11 @@ export type AppMessageDataMap = {
     // 10. App Update (mobile)
     OnCheckAppUpdate: OnCheckAppUpdatePayload;
     OnOpenStore: OnOpenStorePayload;
+
+    // 11. Sub WebView
+    OnOpenSubWebView: OnOpenSubWebViewPayload;
+    OnCloseSubWebView: OnCloseSubWebViewPayload;
+    OnSubWebViewClosed: OnSubWebViewClosedPayload;
 };
 
 export type AppMessageType = keyof AppMessageDataMap;

@@ -1,7 +1,7 @@
 # @chatic/app-messages
 
 **The vocabulary the web and the native shell both compile against.** It declares every message that
-can cross the WebView boundary — 97 web→app request types, 106 app→web message types, the payload
+can cross the WebView boundary — 99 web→app request types, 109 app→web message types, the payload
 shape of each, and the one map that says which reply a request is owed. It carries no transport and
 almost no runtime code: a single exported value, and types either side of it.
 
@@ -87,7 +87,7 @@ mirrors on the wire ([`@chatic/logger`](../logger/README.md)).
 the envelopes around them (`BaseMessage`, `WebDefaultMessage`, `AppDefaultMessage`,
 `AppSuccessMessage`, `AppFailureMessage`); the native handler signatures (`WebMessageHandler`,
 `WebMessageHandlerResponse`, `WebMessageHandlerMap`); the bridge failure taxonomy (`BridgeErrorCode`,
-`BridgeError`, `BridgeErrorResponse`); and 23 payload files under `model/`.
+`BridgeError`, `BridgeErrorResponse`); and 24 payload files under `model/`.
 
 **Out** — everything that runs. Transport, matching, buffering, timeouts and teardown are
 [`@chatic/bridges`](../bridges/README.md). The handlers are the shells (`apps/mobile`,
@@ -102,9 +102,9 @@ flowchart TD
     classDef map fill:#e6f7ff,stroke:#91d5ff,stroke-width:2px,color:#003a8c;
     classDef env fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
-    Model["model/ × 23<br/><i>XPayload · OnXPayload</i>"]
-    WM["WebMessagePayloadMap<br/><i>97 request types</i>"]:::map
-    AM["AppMessageDataMap<br/><i>106 message types</i>"]:::map
+    Model["model/ × 24<br/><i>XPayload · OnXPayload</i>"]
+    WM["WebMessagePayloadMap<br/><i>99 request types</i>"]:::map
+    AM["AppMessageDataMap<br/><i>109 message types</i>"]:::map
     RT["WEB_MESSAGE_RESPONSE_TYPE<br/><i>the only runtime value</i>"]:::map
     Env["BaseMessage · WebDefaultMessage · AppDefaultMessage<br/>AppSuccessMessage · AppFailureMessage"]:::env
     Err["BridgeError · BridgeErrorCode · BridgeErrorResponse<br/>WebMessageHandler · WebMessageHandlerMap"]:::env
@@ -167,13 +167,13 @@ libs/app-messages/src/
 └── types/
     ├── index.ts                  re-exports model/ and the four files below, flat
     ├── types.ts                  BaseMessage — refId · version · nonce, on every message
-    ├── web-message.ts            WebMessagePayloadMap (97)  + the WebMessage envelopes
-    ├── app-message.ts            AppMessageDataMap (106) + the AppMessage envelopes
+    ├── web-message.ts            WebMessagePayloadMap (99)  + the WebMessage envelopes
+    ├── app-message.ts            AppMessageDataMap (109) + the AppMessage envelopes
     ├── web-message-response.ts   WEB_MESSAGE_RESPONSE_TYPE, handler types, error types
-    └── model/                    24 files — 23 payload files, grouped by domain, and their barrel
+    └── model/                    25 files — 24 payload files, grouped by domain, and their barrel
 ```
 
-30 files, 3,744 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+31 files, 3,824 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -202,7 +202,8 @@ The payload files, with what is in each:
 | `clipboard.ts`         | 10    | Copy to the native clipboard                                                                                                                                                       |
 | `haptic.ts`            | 17    | `HapticKind` and the one short haptic the web asks the shell to play                                                                                                               |
 | `native-storage.ts`    | 66    | The debug panel's Storage screen — `FetchNativeStorageSummary` (rows and sizes per SQLite table and MMKV key), `ClearNativeCache`                                                  |
-| `index.ts`             | 22    | The barrel for the twenty-two above                                                                                                                                                |
+| `sub-webview.ts`       | 65    | A page on another origin in the phone shell's second WebView — `OpenSubWebView`, `CloseSubWebView`, the `OnSubWebViewClosed` push, codes                                           |
+| `index.ts`             | 24    | The barrel for the payload files                                                                                                                                                   |
 
 `CacheChatView.upload$$` holds two kinds of entry: the server's `UploadView` once a message is sent,
 and a `PendingUploadSlot` (`{ localStatus, localThumbUrl }`, plus `localName` / `localContentType` /
@@ -276,10 +277,10 @@ bridge.registerHandler('FetchBadgeCount', async (_message: WebMessageData<'Fetch
    `DESKTOP_UNSUPPORTED` in `bridgeHandlers.contract.test.ts`). Each shell's contract suite fails
    until the message is one or the other, and fails again if a line outlives its message.
 
-For an app→web push with no request behind it, do step 1 and step 3 only. Nine messages are in that
+For an app→web push with no request behind it, do step 1 and step 3 only. Ten messages are in that
 shape: `OnUpdateDeviceInfo`, `OnBackgroundStatusChanged`, `OnBackPressed`, `OnNavigate`,
 `OnReceiveNotification`, `OnFileTransferState`, `OnPurchaseSuccess`, `OnPurchaseError`,
-`OnUpdateStatus`. Nothing here marks them as pushes: a push-only message is any `AppMessageDataMap`
+`OnUpdateStatus`, `OnSubWebViewClosed`. Nothing here marks them as pushes: a push-only message is any `AppMessageDataMap`
 key that no `WEB_MESSAGE_RESPONSE_TYPE` row maps to, and each shell's event inventory computes the
 list that way: `MOBILE_APP_EVENTS` in `apps/mobile/src/app/webview/hooks/appEvents.contract.test.ts`,
 `DESKTOP_APP_EVENTS` in `apps/desktop/src/main/appEvents.contract.test.ts`. Adding one fails both
@@ -295,7 +296,7 @@ message needs a fallback on the web side until the shell that answers it is ever
 
 ### 1. A request and its reply
 
-`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 97 request types work this way and each maps to
+`FetchBadgeCount` → `OnFetchBadgeCount`, above. All 99 request types work this way and each maps to
 a distinct reply — no two requests share a reply type.
 
 ### 2. A push nobody asked for

@@ -21,6 +21,8 @@ jest.mock('react-native', () => ({
     },
 }));
 jest.mock('../../bridge', () => ({ BackNavigationBridge: { setCanGoBack: jest.fn() } }));
+let mockSubView: object | null = null;
+jest.mock('../../services', () => ({ subWebViewService: { current: () => mockSubView } }));
 
 describe('useAndroidBack', () => {
     let bridge: { pushEvent: jest.Mock };
@@ -28,6 +30,7 @@ describe('useAndroidBack', () => {
     beforeEach(() => {
         mockPlatformOS = 'android';
         mockOnBackPress = undefined;
+        mockSubView = null;
         bridge = { pushEvent: jest.fn() };
     });
 
@@ -71,6 +74,17 @@ describe('useAndroidBack', () => {
 
             expect(pushedEvents(bridge.pushEvent)).toEqual([expect.objectContaining({ type: 'OnBackPressed' })]);
             expect(pushedEventErrors(pushedEvents(bridge.pushEvent))).toEqual([]);
+        });
+
+        // The sub WebView's own listener takes the press; this one can sit above it, so it steps aside.
+        it('pushes nothing and passes the press on while a sub WebView shows', () => {
+            mockSubView = { viewId: 'view-1' };
+            renderHook(() => useAndroidBack(bridge as any, true));
+
+            const consumed = mockOnBackPress?.();
+
+            expect(consumed).toBe(false);
+            expect(bridge.pushEvent).not.toHaveBeenCalled();
         });
 
         it('listens for nothing on iOS, which has no back button', () => {
