@@ -1,4 +1,4 @@
-# ADR-0118: A sync target belongs to its cloud's slot, not to the active slot
+# ADR-0255: A sync target belongs to its cloud's slot, not to the active slot
 
 > Status: Accepted · Decided: 2026-09-28 · Implemented: `refactor/per-slot-sync`
 > · Scope: `libs/app-runtime/src/socket/sync/**` · `libs/app-runtime/src/data/DataManager.ts` ·

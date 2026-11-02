@@ -1,13 +1,13 @@
 # ADR-0119: Every joined cloud keeps a socket session
 
-> Status: Accepted (decision 1's cap and decision 5's sign-off rule are amended for a cloud a write is in flight to → [ADR-0122](0122-a-chat-send-is-addressed-to-the-cloud-it-was-written-in.md); decision 1's invited clouds are the ones the device user accepted → [ADR-0156](0156-an-invited-cloud-is-entered-with-the-invite-login-answer.md)) · Decided: 2026-09-28 · Implemented: `feat/cloud-background-slots`
+> Status: Accepted (decision 1's cap and decision 5's sign-off rule are amended for a cloud a write is in flight to → [ADR-0256](0256-a-chat-send-is-addressed-to-the-cloud-it-was-written-in.md); decision 1's invited clouds are the ones the device user accepted → [ADR-0156](0156-an-invited-cloud-is-entered-with-the-invite-login-answer.md)) · Decided: 2026-09-28 · Implemented: `feat/cloud-background-slots`
 > · Scope: `libs/app-runtime/src/socket/backgroundClouds.ts` · `libs/app-runtime/src/socket/auth/**` ·
 > `libs/app-runtime/src/connection/**` · `libs/app-runtime/src/session/store/cloudStore.ts` ·
 > `libs/app-runtime/src/session/auth/cloudSession.ts` · the apps' `BackgroundCloudsRunner`
 > · Builds on: [ADR-0115](./0115-a-socket-slot-is-keyed-by-the-cloud-it-serves.md) (slots keyed by cid) ·
 > [ADR-0116](./0116-the-active-socket-slot-is-a-pointer-the-binder-sets.md) (the active slot is a pointer) ·
 > [ADR-0117](./0117-socket-auth-is-keyed-by-the-slot-s-cloud.md) (auth keyed by the slot's cloud) ·
-> [ADR-0118](./0118-a-sync-target-belongs-to-its-cloud-s-slot.md) (a sync target belongs to its cloud's slot)
+> [ADR-0255](./0255-a-sync-target-belongs-to-its-cloud-s-slot.md) (a sync target belongs to its cloud's slot)
 > · Amends: [ADR-0116](./0116-the-active-socket-slot-is-a-pointer-the-binder-sets.md) decision 3 — a
 > switch between two kept clouds only moves the pointer, and the reconcile is keyed on the active slot
 > too · [ADR-0117](./0117-socket-auth-is-keyed-by-the-slot-s-cloud.md) decision 4 — terminal expiry

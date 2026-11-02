@@ -4,7 +4,7 @@
 > · Scope: `libs/app-runtime/src/socket/sync/BackgroundReceiver.ts` · `libs/app-runtime/src/socket/sync/runtime.ts` ·
 > `libs/app-runtime/src/connection/hooks/useBackgroundReceive.ts` · `libs/data/src/repositories/SyncMetaRepository.ts` ·
 > apps/web `useSocketWakeRecovery`
-> · Builds on: [ADR-0118](./0118-a-sync-target-belongs-to-its-cloud-s-slot.md) (scoped repository graphs) ·
+> · Builds on: [ADR-0255](./0255-a-sync-target-belongs-to-its-cloud-s-slot.md) (scoped repository graphs) ·
 > [ADR-0119](./0119-every-joined-cloud-keeps-a-socket-session.md) (every joined cloud keeps a socket session)
 > · The module doc is [libs/sync](../../libs/sync/README.md#background-receive)
 

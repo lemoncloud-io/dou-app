@@ -1,4 +1,4 @@
-# ADR-0245: The chat input lock is mine, on this device, and a Lab experiment
+# ADR-0260: The chat input lock is mine, on this device, and a Lab experiment
 
 > Status: Accepted · Decided: 2026-10-27 · Implemented: `feat/chat-input-lock`
 > · Scope: libs/config `feature.chatInputLock` · libs/web-ui-kit `ComposerLockButton` · apps/web

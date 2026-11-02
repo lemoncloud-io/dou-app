@@ -1,4 +1,4 @@
-# ADR-0170: desktop takes and serves custom UI bundles on the dev channel only
+# ADR-0257: desktop takes and serves custom UI bundles on the dev channel only
 
 > Status: Accepted · Decided: 2026-10-06
 > Scope: `apps/desktop/src/main/customUiContract.ts` · `apps/desktop/src/main/index.ts` ·
