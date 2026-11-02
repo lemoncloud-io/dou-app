@@ -2,6 +2,12 @@
 
 ## [2026-11-02] - No version updates
 
+### Bug Fixes
+
+- (data) send an office file the OS mistypes, not refuse it
+
+## [2026-11-02] - No version updates
+
 ### Features
 
 - (mobile,bridge-messages,bridges) give a sub WebView page a key per origin (ADR-0271)
