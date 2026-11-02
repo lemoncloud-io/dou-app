@@ -40,7 +40,8 @@ read result.
 
 ## Two stages, connected at once
 
-Dev and prod are separate WebSocket servers (`…/cht-d1?v2` vs. `…/cht-v1?v2`), and both connect on
+Dev and prod are separate WebSocket servers (`VITE_D1_WS_ENDPOINT` and `VITE_V1_WS_ENDPOINT`, each
+with `?v2` added — see [Stage endpoints](../../README.md#stage-endpoints)), and both connect on
 first entry rather than on switch — so toggling the existing d1/v1 stage view is an instant swap
 between two already-live connections, not a reconnect. A watchlist on the inactive stage keeps
 syncing in the background, so switching to it shows current data immediately rather than a stale

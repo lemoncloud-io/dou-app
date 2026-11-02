@@ -358,6 +358,9 @@ jobs:
               # Every VITE_* would resolve empty for the builder, and the step's
               # `grep -v '=$'` then matches no line and exits 1, killing it under
               # `set -e`. The builder has no `import.meta.env` reference to feed.
+              # The VITE_D1_*/VITE_V1_* lines are admin-v2's per-stage targets: one value for every
+              # build, so their secrets carry no DEV/PROD part. Other prefixes have none, and the
+              # empty lines are dropped below.
               if: ${{ matrix.project != 'block-kit-builder' }}
               run: |
                   set -e
@@ -377,6 +380,16 @@ jobs:
                   VITE_IAP_ENDPOINT=${{ secrets[format('{0}_DEV_IAP_ENDPOINT', matrix.prefix)] }}
                   VITE_FRONT_ENDPOINT=${{ secrets[format('{0}_DEV_FRONT_ENDPOINT', matrix.prefix)] }}
                   VITE_DEBUG_CODE=${{ secrets[format('{0}_DEV_DEBUG_CODE', matrix.prefix)] }}
+                  VITE_D1_RELAY_ENDPOINT=${{ secrets[format('{0}_D1_RELAY_ENDPOINT', matrix.prefix)] }}
+                  VITE_V1_RELAY_ENDPOINT=${{ secrets[format('{0}_V1_RELAY_ENDPOINT', matrix.prefix)] }}
+                  VITE_D1_GOODS_ENDPOINT=${{ secrets[format('{0}_D1_GOODS_ENDPOINT', matrix.prefix)] }}
+                  VITE_V1_GOODS_ENDPOINT=${{ secrets[format('{0}_V1_GOODS_ENDPOINT', matrix.prefix)] }}
+                  VITE_D1_ARCHIVE_ENDPOINT=${{ secrets[format('{0}_D1_ARCHIVE_ENDPOINT', matrix.prefix)] }}
+                  VITE_V1_ARCHIVE_ENDPOINT=${{ secrets[format('{0}_V1_ARCHIVE_ENDPOINT', matrix.prefix)] }}
+                  VITE_D1_PRESENCE_ENDPOINT=${{ secrets[format('{0}_D1_PRESENCE_ENDPOINT', matrix.prefix)] }}
+                  VITE_V1_PRESENCE_ENDPOINT=${{ secrets[format('{0}_V1_PRESENCE_ENDPOINT', matrix.prefix)] }}
+                  VITE_D1_WS_ENDPOINT=${{ secrets[format('{0}_D1_WS_ENDPOINT', matrix.prefix)] }}
+                  VITE_V1_WS_ENDPOINT=${{ secrets[format('{0}_V1_WS_ENDPOINT', matrix.prefix)] }}
                   EOF
                   sed -i 's/^ *//' "$ENV_FILE"
                   grep -v '=$' "$ENV_FILE" > "$ENV_FILE.tmp" && mv "$ENV_FILE.tmp" "$ENV_FILE"

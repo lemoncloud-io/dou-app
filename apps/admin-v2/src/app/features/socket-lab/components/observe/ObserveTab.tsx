@@ -5,6 +5,7 @@ import type { ClientSocketState } from '@lemoncloud/chatic-sockets-lib';
 import { ago, hexToRgba, sinceSec } from '../../lib/stats';
 import type { Watchlist } from '../../hooks/use-watchlist';
 import type { UsersStage } from '../../api/userApi';
+import { getObserveWsUrl } from '../../runtime/observe-sync-container';
 import SummaryStrip from './SummaryStrip';
 import WatchlistMasterDetail from './WatchlistMasterDetail';
 
@@ -20,13 +21,24 @@ const badgeFor = (state: ClientSocketState): { label: string; color: string } =>
           ? { label: 'CONNECTING', color: '#d29922' }
           : { label: 'OFFLINE', color: '#e5484d' };
 
-function SyncBadge({ state, lastSyncAt }: { state: ClientSocketState; lastSyncAt: number | null }) {
+const NOT_CONFIGURED = { label: 'NOT CONFIGURED', color: '#8b949e' };
+
+function SyncBadge({
+    state,
+    lastSyncAt,
+    configured,
+}: {
+    state: ClientSocketState;
+    lastSyncAt: number | null;
+    configured: boolean;
+}) {
     const [, setTick] = useState(0);
     useEffect(() => {
         const t = window.setInterval(() => setTick(n => n + 1), 1000);
         return () => window.clearInterval(t);
     }, []);
-    const b = badgeFor(state);
+    // With no socket for the stage the container never connects; "CONNECTING" would never end.
+    const b = configured ? badgeFor(state) : NOT_CONFIGURED;
     return (
         <>
             <span
@@ -65,7 +77,7 @@ export default function ObserveTab({ wl }: ObserveTabProps) {
         <div style={{ padding: '22px 22px 28px', display: 'flex', flexDirection: 'column', gap: 16, height: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600, letterSpacing: '-.01em' }}>User Watchlist</h2>
-                <SyncBadge state={wl.syncState} lastSyncAt={wl.lastSyncAt} />
+                <SyncBadge state={wl.syncState} lastSyncAt={wl.lastSyncAt} configured={!!getObserveWsUrl(wl.stage)} />
                 <span style={{ fontSize: 11.5, color: 'var(--sm-text-6)' }}>
                     Add a specific user to observe device status/presence tracking (users/0/list)
                 </span>

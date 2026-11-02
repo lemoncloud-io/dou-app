@@ -1,61 +1,68 @@
 /**
  * `lib/cloud-deployments/goodsTarget.spec.ts`
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { describeGoodsTarget, douBaseFor, goodsBaseFor, goodsHost, initialGoodsStage } from './goodsTarget';
+import { describeGoodsTarget, douBaseFor, goodsBaseFor, initialGoodsStage } from './goodsTarget';
 
-describe('goodsHost', () => {
-    it('strips the relay stage segment and any trailing slash', () => {
-        expect(goodsHost('https://api.example.com/dou-d1')).toBe('https://api.example.com');
-        expect(goodsHost(' https://api.example.com/dou-v1/ ')).toBe('https://api.example.com');
-    });
-
-    it('is empty when the endpoint is not configured', () => {
-        expect(goodsHost(undefined)).toBe('');
-        expect(goodsHost('  ')).toBe('');
-    });
-});
+// The two stages on different hosts, as they are once the dev stage moved domain.
+const stubStages = () => {
+    vi.stubEnv('VITE_D1_GOODS_ENDPOINT', 'https://dev.example.com/cgs-d1');
+    vi.stubEnv('VITE_V1_GOODS_ENDPOINT', 'https://prod.example.com/cgs-v1/');
+    vi.stubEnv('VITE_D1_RELAY_ENDPOINT', 'https://dev.example.com/dou-d1');
+    vi.stubEnv('VITE_V1_RELAY_ENDPOINT', 'https://prod.example.com/dou-v1');
+};
 
 describe('goodsBaseFor', () => {
-    it('puts the goods stage on the relay host', () => {
-        expect(goodsBaseFor('https://api.example.com/dou-d1', 'd1')).toBe('https://api.example.com/cgs-d1');
-        expect(goodsBaseFor('https://api.example.com/dou-d1', 'v1')).toBe('https://api.example.com/cgs-v1');
+    beforeEach(stubStages);
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("takes each stage's goods service from its own key", () => {
+        expect(goodsBaseFor('d1')).toBe('https://dev.example.com/cgs-d1');
+        expect(goodsBaseFor('v1')).toBe('https://prod.example.com/cgs-v1');
     });
 
-    it('is empty when the endpoint is not configured, so nothing is called', () => {
-        expect(goodsBaseFor(undefined, 'v1')).toBe('');
-        expect(goodsBaseFor('', 'd1')).toBe('');
+    it('is empty when that stage is not configured, so nothing is called', () => {
+        vi.stubEnv('VITE_V1_GOODS_ENDPOINT', '');
+        expect(goodsBaseFor('v1')).toBe('');
     });
 });
 
 describe('douBaseFor', () => {
+    beforeEach(stubStages);
+    afterEach(() => vi.unstubAllEnvs());
+
     it('pairs a goods stage with the relay of the same stage', () => {
-        expect(douBaseFor('https://api.example.com/dou-d1', 'v1')).toBe('https://api.example.com/dou-v1');
-        expect(douBaseFor('https://api.example.com/dou-v1', 'd1')).toBe('https://api.example.com/dou-d1');
+        expect(douBaseFor('d1')).toBe('https://dev.example.com/dou-d1');
+        expect(douBaseFor('v1')).toBe('https://prod.example.com/dou-v1');
     });
 
-    it('is empty when the endpoint is not configured', () => {
-        expect(douBaseFor(undefined, 'v1')).toBe('');
+    it('is empty when that relay is not configured', () => {
+        vi.stubEnv('VITE_D1_RELAY_ENDPOINT', '');
+        expect(douBaseFor('d1')).toBe('');
     });
 });
 
 describe('describeGoodsTarget', () => {
+    beforeEach(stubStages);
+    afterEach(() => vi.unstubAllEnvs());
+
     it('marks the production goods service as prod', () => {
-        expect(describeGoodsTarget('https://api.example.com/dou-d1', 'v1')).toEqual({
-            endpoint: 'https://api.example.com/cgs-v1',
+        expect(describeGoodsTarget('v1')).toEqual({
+            endpoint: 'https://prod.example.com/cgs-v1',
             isProd: true,
             label: 'Production',
         });
-        expect(describeGoodsTarget('https://api.example.com/dou-v1', 'd1')).toEqual({
-            endpoint: 'https://api.example.com/cgs-d1',
+        expect(describeGoodsTarget('d1')).toEqual({
+            endpoint: 'https://dev.example.com/cgs-d1',
             isProd: false,
             label: 'Development',
         });
     });
 
     it('says the endpoint is not configured instead of naming an address', () => {
-        expect(describeGoodsTarget(undefined, 'v1').endpoint).toBe('(not configured)');
+        vi.stubEnv('VITE_V1_GOODS_ENDPOINT', '');
+        expect(describeGoodsTarget('v1').endpoint).toBe('(not configured)');
     });
 });
 

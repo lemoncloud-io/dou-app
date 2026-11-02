@@ -1,11 +1,31 @@
 /**
  * `runtime/observe-sync-container.spec.ts`
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { diffTargets } from './observe-sync-container';
+import { diffTargets, getObserveWsUrl } from './observe-sync-container';
 
 describe('observe-sync-container', () => {
+    describe('getObserveWsUrl', () => {
+        afterEach(() => vi.unstubAllEnvs());
+
+        it("uses each stage's own socket with the v2 flag", () => {
+            vi.stubEnv('VITE_D1_WS_ENDPOINT', 'wss://dev.example.com/cht-d1');
+            vi.stubEnv('VITE_V1_WS_ENDPOINT', 'wss://prod.example.com/cht-v1/');
+
+            expect(getObserveWsUrl('d1')).toBe('wss://dev.example.com/cht-d1?v2');
+            expect(getObserveWsUrl('v1')).toBe('wss://prod.example.com/cht-v1?v2');
+        });
+
+        // Empty keeps the container from connecting at all.
+        it('is empty when that stage is not configured', () => {
+            vi.stubEnv('VITE_D1_WS_ENDPOINT', 'wss://dev.example.com/cht-d1');
+            vi.stubEnv('VITE_V1_WS_ENDPOINT', '');
+
+            expect(getObserveWsUrl('v1')).toBe('');
+        });
+    });
+
     describe('diffTargets', () => {
         it('should start only new ids and stop only removed ids', () => {
             const desired = new Set(['a', 'b', 'c']);

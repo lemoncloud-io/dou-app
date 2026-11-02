@@ -8,9 +8,9 @@ import {
     configuredStage,
     describeTargetServer,
     endpointOverrideFor,
-    relayBaseFor,
-    relayHost,
+    relayEndpointFor,
     relayStageOf,
+    targetEndpointFor,
 } from './targetServer';
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
@@ -140,25 +140,43 @@ describe('relayStageOf', () => {
     });
 });
 
-describe('relayHost / relayBaseFor', () => {
-    // A relay looks like `dou-XX`. Making it `/d1` names a different service, so every route 404s.
-    it('설정된 엔드포인트에서 dou 스테이지 구간을 떼어낸다', () => {
-        expect(relayHost('https://api.example.com/dou-d1')).toBe('https://api.example.com');
-        expect(relayHost('https://api.example.com/dou-v1/')).toBe('https://api.example.com');
+// The two stages on different hosts, as they are once the dev stage moved domain.
+const DEV_RELAY = 'https://dev.example.com/dou-d1';
+const PROD_RELAY = 'https://prod.example.com/dou-v1';
+
+const stubStages = (session: string) => {
+    vi.stubEnv('VITE_DOU_ENDPOINT', session);
+    vi.stubEnv('VITE_D1_RELAY_ENDPOINT', DEV_RELAY);
+    vi.stubEnv('VITE_V1_RELAY_ENDPOINT', PROD_RELAY);
+};
+
+describe('relayEndpointFor', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("reads each stage's relay from its own key", () => {
+        stubStages(DEV_RELAY);
+
+        expect(relayEndpointFor('d1')).toBe(DEV_RELAY);
+        expect(relayEndpointFor('v1')).toBe(PROD_RELAY);
     });
 
-    it('dou 구간이 없으면 그대로 둔다', () => {
-        expect(relayHost('https://api.example.com')).toBe('https://api.example.com');
-    });
+    // The session's relay is not a template for the other stage: its host may not serve that stage.
+    it('is empty when that stage is not configured, whatever the session relay is', () => {
+        stubStages(DEV_RELAY);
+        vi.stubEnv('VITE_V1_RELAY_ENDPOINT', '');
 
-    it('고른 스테이지로 dou- 를 붙여 다시 만든다', () => {
-        expect(relayBaseFor('https://api.example.com/dou-d1', 'v1')).toBe('https://api.example.com/dou-v1');
-        expect(relayBaseFor('https://api.example.com/dou-v1', 'd1')).toBe('https://api.example.com/dou-d1');
+        expect(relayEndpointFor('v1')).toBe('');
     });
+});
 
-    it('설정이 없으면 빈 문자열이다', () => {
-        expect(relayBaseFor(undefined, 'v1')).toBe('');
-        expect(relayBaseFor('   ', 'd1')).toBe('');
+describe('targetEndpointFor', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it("is the session's own relay on its own stage, and the stage key otherwise", () => {
+        stubStages('https://session.example.com/dou-d1/');
+
+        expect(targetEndpointFor('d1')).toBe('https://session.example.com/dou-d1');
+        expect(targetEndpointFor('v1')).toBe(PROD_RELAY);
     });
 });
 
@@ -168,30 +186,32 @@ describe('endpointOverrideFor', () => {
     // Don't send an override when the stage is already configured. Sending one would discard the
     // relay the client resolves (deep links and the window override take precedence) and pin it to
     // the build-time value instead — that was the cause of the 404 regression.
-    it('설정된 스테이지면 override 없이 둔다', () => {
-        vi.stubEnv('VITE_DOU_ENDPOINT', 'https://api.example.com/dou-d1');
+    it('leaves the configured stage alone', () => {
+        stubStages(DEV_RELAY);
 
         expect(configuredStage()).toBe('d1');
         expect(endpointOverrideFor('d1')).toBeUndefined();
     });
 
-    it('다른 스테이지를 고르면 dou- 를 붙인 주소를 준다', () => {
-        vi.stubEnv('VITE_DOU_ENDPOINT', 'https://api.example.com/dou-d1');
+    it("points another stage at that stage's own key, on its own host", () => {
+        stubStages(DEV_RELAY);
 
-        expect(endpointOverrideFor('v1')).toBe('https://api.example.com/dou-v1');
+        expect(endpointOverrideFor('v1')).toBe(PROD_RELAY);
     });
 
-    it('운영이 기본이면 반대로 동작한다', () => {
-        vi.stubEnv('VITE_DOU_ENDPOINT', 'https://api.example.com/dou-v1');
+    it('works the other way round when the session is on production', () => {
+        stubStages(PROD_RELAY);
 
         expect(configuredStage()).toBe('v1');
         expect(endpointOverrideFor('v1')).toBeUndefined();
-        expect(endpointOverrideFor('d1')).toBe('https://api.example.com/dou-d1');
+        expect(endpointOverrideFor('d1')).toBe(DEV_RELAY);
     });
 
-    it('설정이 없으면 override 를 만들지 않는다', () => {
-        vi.stubEnv('VITE_DOU_ENDPOINT', '');
+    // Undefined here would quietly send the call to the session's relay — the other stage.
+    it('throws, naming the key, when the other stage is not configured', () => {
+        stubStages(DEV_RELAY);
+        vi.stubEnv('VITE_V1_RELAY_ENDPOINT', '');
 
-        expect(endpointOverrideFor('v1')).toBeUndefined();
+        expect(() => endpointOverrideFor('v1')).toThrow(/VITE_V1_RELAY_ENDPOINT is not set/);
     });
 });
