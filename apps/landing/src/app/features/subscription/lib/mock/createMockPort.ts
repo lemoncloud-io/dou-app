@@ -38,8 +38,16 @@ import type {
     Subscription,
 } from '../../types';
 
+/**
+ * Whatever a stand-in card window registers with: the mock, or the server port's no-charge payments, which
+ * use the same window. `MockPaymentWindow` hands it the presenter that asks the reader for an outcome.
+ */
+export interface PaymentWindowHost {
+    setPaymentWindow(presenter: PaymentWindowPresenter | null): void;
+}
+
 /** The dev panel's and the consent page's handle on the mock — never used by a real screen. */
-export interface MockController {
+export interface MockController extends PaymentWindowHost {
     /** Reads the URL first (see `createMockPort`), so it may commit — never call it during render. */
     getState(): MockState;
     /** The state as it is, without reading the URL — safe during render. */
@@ -52,8 +60,6 @@ export interface MockController {
     /** `null` goes back to the scenario's own today. */
     setToday(today: string | null): void;
     setPanelHidden(hidden: boolean): void;
-    /** Registers the stand-in payment window that answers `startPaymentMethodRegistration`. */
-    setPaymentWindow(presenter: PaymentWindowPresenter | null): void;
 }
 
 /** One request to the stand-in payment window, and the outcome the reader picks. */

@@ -58,15 +58,34 @@ export interface SubscriptionApi {
     fetchPlans(params?: Record<string, unknown>): Promise<{ list?: ProductWire[] }>;
     fetchMembershipInfo(): Promise<MembershipWire>;
     fetchMySubscription(): Promise<{ subscription?: SubscriptionWire }>;
-    fetchSubscriptionCards(): Promise<CardWire[]>;
-    issueBillingKey(productId: string): Promise<IssueWire>;
-    startSubscription(body: { productId: string; billingKey?: string } & Partial<Payer>): Promise<SubscriptionWire>;
+    // The payer-scoped calls take the sandbox query (`SandboxQuery`); the calls on the subscription
+    // itself take none — the server follows the record.
+    fetchSubscriptionCards(query?: SandboxQuery): Promise<CardWire[]>;
+    issueBillingKey(productId: string, query?: SandboxQuery): Promise<IssueWire>;
+    startSubscription(
+        body: { productId: string; billingKey?: string } & Partial<Payer>,
+        query?: SandboxQuery & { interval?: string }
+    ): Promise<SubscriptionWire>;
     changeSubscription(productId: string): Promise<SubscriptionWire>;
     cancelSubscription(): Promise<SubscriptionWire>;
     /** The payer goes with the card only where its provider requires one. */
-    addCard(body: { billingKey: string } & Partial<Payer>): Promise<CardWire>;
-    setDefaultCard(billkeyId: string): Promise<CardWire>;
-    removeCard(billkeyId: string): Promise<CardWire>;
+    addCard(body: { billingKey: string } & Partial<Payer>, query?: SandboxQuery): Promise<CardWire>;
+    setDefaultCard(billkeyId: string, query?: SandboxQuery): Promise<CardWire>;
+    removeCard(billkeyId: string, query?: SandboxQuery): Promise<CardWire>;
+}
+
+/** `?sandbox`: the call goes to the payment server's mock provider — any card, no charge. */
+export interface SandboxQuery {
+    sandbox?: 1;
+}
+
+/**
+ * Sandbox payments, a development mode: the payer-scoped calls carry `?sandbox` and the server runs the
+ * subscription on the payment server's mock provider. `interval` is the renewal period a sandboxed
+ * start asks for (`10m`, `1h`, `1d`), read as each start is made; none is a month.
+ */
+export interface HttpSandbox {
+    interval(): string | undefined;
 }
 
 /** The relay session the reader signs in to, as this port needs it. */
@@ -116,6 +135,8 @@ export interface HttpPortOptions {
     paymentWindow: PaymentWindow;
     /** Holds the sign-in in flight across the trip to the provider. Session storage in the browser. */
     storage: KeyValueStore;
+    /** Present only in sandbox payments (a development host, never production — `createPortSetup`). */
+    sandbox?: HttpSandbox;
     now?: () => number;
     nonce?: () => string;
 }
@@ -159,7 +180,11 @@ const fail = (code: SubscriptionPortError['code'], message?: string, detail?: Su
  * translation and can be tested against the server's response shapes alone.
  */
 export const createHttpPort = (options: HttpPortOptions): HttpPort => {
-    const { api, session, paymentWindow, storage } = options;
+    const { api, session, paymentWindow, storage, sandbox } = options;
+    // The query of the six payer-scoped calls. Every card call carries it, not only the first: the
+    // server reads it per call, and one card call without it would mix in the payer's real cards.
+    const payerQuery: SandboxQuery | undefined = sandbox ? { sandbox: 1 } : undefined;
+    const startQuery = () => (sandbox ? { sandbox: 1 as const, interval: sandbox.interval() } : undefined);
     const now = options.now ?? (() => Date.now());
     const nonce = options.nonce ?? (() => Math.random().toString(36).slice(2, 12));
 
@@ -217,7 +242,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     const readMineWithCard = async (): Promise<Subscription | undefined> => {
         const { sub } = await readMine();
         if (!sub || sub.status === 'expired') return sub;
-        const cards = await call(server => server.fetchSubscriptionCards());
+        const cards = await call(server => server.fetchSubscriptionCards(payerQuery));
         const card = (cards ?? [])
             .map(each => toPaymentMethod(each, new Date(now())))
             .find(each => each?.isDefault && each.provider === sub.provider);
@@ -302,13 +327,13 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
     ): Promise<RegistrationResult> => {
         if (result.outcome !== 'registered') return { outcome: result.outcome };
         if (purpose !== 'start') {
-            await call(server => server.addCard({ billingKey: result.billingKey, ...payer }));
+            await call(server => server.addCard({ billingKey: result.billingKey, ...payer }, payerQuery));
         }
         return { outcome: 'registered', card: result.billingKey as CardToken };
     };
 
     const listPaymentMethods = async (): Promise<PaymentMethod[]> => {
-        const cards = await call(server => server.fetchSubscriptionCards());
+        const cards = await call(server => server.fetchSubscriptionCards(payerQuery));
         const today = new Date(now());
         return (cards ?? [])
             .map(card => toPaymentMethod(card, today))
@@ -430,7 +455,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
             if (payerRequiredFor(provider) && missingPayerFields(['name', 'phone', 'email'], payer).length > 0) {
                 return fail('invalid', 'payer name, phone and email required');
             }
-            const issue = toIssue(await call(server => server.issueBillingKey(productId)));
+            const issue = toIssue(await call(server => server.issueBillingKey(productId, payerQuery)));
             if (!issue) return fail('conflict', 'the server answered with no card registration this side can open');
             const missing = missingPayerFields(issue.required, payer);
             if (missing.length > 0) return fail('invalid', `payer ${missing.join(', ')} required`);
@@ -470,7 +495,7 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
                 ? { productId: plan.productId, billingKey: card, ...payer }
                 : { productId: plan.productId };
             try {
-                const view = await send(server => server.startSubscription(body));
+                const view = await send(server => server.startSubscription(body, startQuery()));
                 const sub = await subscriptionOf(view);
                 return attemptFromSubscription({ purpose: 'start', withTrial: view.status === 'trial' }, sub, {
                     unread: true,
@@ -524,12 +549,12 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
         // card a subscription in use is charged to — and answers the card it changed; the list is read
         // again either way, since a new default changes two cards at once.
         setDefaultPaymentMethod: async id => {
-            await call(server => server.setDefaultCard(id));
+            await call(server => server.setDefaultCard(id, payerQuery));
             return listPaymentMethods();
         },
 
         removePaymentMethod: async id => {
-            await call(server => server.removeCard(id));
+            await call(server => server.removeCard(id, payerQuery));
             return listPaymentMethods();
         },
     };

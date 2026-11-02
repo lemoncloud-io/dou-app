@@ -66,8 +66,8 @@ const DECLINED = '403 INVALID PAYMENT - card declined @start(subscriptions/0)';
 type Route = (body: unknown) => unknown;
 
 const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPortOptions> = {}) => {
-    const calls: Array<{ method: string; path: string; params?: Record<string, unknown>; body?: unknown }> = [];
-    const route = async <T>(method: string, path: string, body?: unknown, params?: Record<string, unknown>) => {
+    const calls: Array<{ method: string; path: string; params?: object; body?: unknown }> = [];
+    const route = async <T>(method: string, path: string, body?: unknown, params?: object) => {
         calls.push({ method, path, params, body });
         const answer = routes[`${method} ${path}`];
         if (answer === undefined) throw httpError(404);
@@ -78,14 +78,14 @@ const setup = (routes: Record<string, Route | unknown>, options: Partial<HttpPor
         fetchPlans: params => route('GET', '/products/0/plans', undefined, params),
         fetchMembershipInfo: () => route('GET', '/memberships/0/mine'),
         fetchMySubscription: () => route('GET', '/subscriptions/0/mine'),
-        fetchSubscriptionCards: () => route('GET', '/subscriptions/0/cards'),
-        issueBillingKey: productId => route('POST', '/subscriptions/0/issue', { productId }),
-        startSubscription: body => route('POST', '/subscriptions/0/start', body),
+        fetchSubscriptionCards: query => route('GET', '/subscriptions/0/cards', undefined, query),
+        issueBillingKey: (productId, query) => route('POST', '/subscriptions/0/issue', { productId }, query),
+        startSubscription: (body, query) => route('POST', '/subscriptions/0/start', body, query),
         changeSubscription: productId => route('POST', '/subscriptions/0/change', { productId }),
         cancelSubscription: () => route('POST', '/subscriptions/0/cancel'),
-        addCard: body => route('POST', '/subscriptions/0/card', body),
-        setDefaultCard: billkeyId => route('POST', '/subscriptions/0/card-default', { billkeyId }),
-        removeCard: billkeyId => route('POST', '/subscriptions/0/card-delete', { billkeyId }),
+        addCard: (body, query) => route('POST', '/subscriptions/0/card', body, query),
+        setDefaultCard: (billkeyId, query) => route('POST', '/subscriptions/0/card-default', { billkeyId }, query),
+        removeCard: (billkeyId, query) => route('POST', '/subscriptions/0/card-delete', { billkeyId }, query),
     };
     const store = new Map<string, string>();
     let user: Record<string, unknown> | null = { id: 'U1', email: 'minji.kim@gmail.com', name: 'Minji' };
@@ -806,5 +806,82 @@ describe('createHttpPort — cards', () => {
             },
         });
         expect(isPortError(await port.removePaymentMethod(CARD.id).catch(e => e), 'conflict')).toBe(true);
+    });
+});
+
+describe('createHttpPort — sandbox payments', () => {
+    // A subscription the mock provider started, then a second card and the calls on both.
+    const sandboxRoutes = {
+        ...BASE_ROUTES,
+        'GET /subscriptions/0/mine': { subscription: subscription({}) },
+        'POST /subscriptions/0/start': subscription({ status: 'active' }),
+        'POST /subscriptions/0/change': subscription({ productId: '#dou-web-tier-03_dev' }),
+        'POST /subscriptions/0/cancel': subscription({ status: 'canceling' }),
+        'POST /subscriptions/0/card': CARD,
+        'POST /subscriptions/0/card-default': CARD,
+        'POST /subscriptions/0/card-delete': CARD,
+    };
+
+    const runEverything = async (port: ReturnType<typeof setup>['port']) => {
+        await port.getSession();
+        await port.listSubscriptions();
+        await port.startPaymentMethodRegistration({
+            purpose: 'start',
+            planId: 'pro-tier-01',
+            country: 'KR',
+            payer: PAYER,
+        });
+        await port.startCheckout({
+            planId: 'pro-tier-01',
+            country: 'KR',
+            payer: PAYER,
+            card: 'sandbox-1' as CardToken,
+        });
+        await port.startPaymentMethodRegistration({ purpose: 'addCard', payer: PAYER });
+        await port.listPaymentMethods();
+        await port.setDefaultPaymentMethod(CARD.id);
+        await port.removePaymentMethod(CARD.id);
+        await port.changePlan('pro-tier-03').catch(() => undefined);
+        await port.cancelSubscription('U1:portone');
+    };
+
+    it('puts sandbox on the six payer-scoped calls, every card call included, and on nothing else', async () => {
+        const { port, calls } = setup(sandboxRoutes, { sandbox: { interval: () => undefined } });
+        await runEverything(port);
+
+        const payerScoped = [
+            '/subscriptions/0/issue',
+            '/subscriptions/0/start',
+            '/subscriptions/0/cards',
+            '/subscriptions/0/card',
+            '/subscriptions/0/card-default',
+            '/subscriptions/0/card-delete',
+        ];
+        for (const call of calls) {
+            if (payerScoped.includes(call.path)) {
+                expect({ path: call.path, params: call.params }).toEqual({ path: call.path, params: { sandbox: 1 } });
+            } else if (call.path !== '/products/0/plans') {
+                expect({ path: call.path, params: call.params }).toEqual({ path: call.path, params: undefined });
+            }
+        }
+        // Each of the six was made at least once, so none passed by being absent.
+        for (const path of payerScoped) expect(calls.some(call => call.path === path)).toBe(true);
+        expect(calls.some(call => call.path === '/subscriptions/0/mine')).toBe(true);
+        expect(calls.some(call => call.path === '/subscriptions/0/cancel')).toBe(true);
+    });
+
+    it('asks for the renewal period on a sandboxed start only', async () => {
+        const { port, calls } = setup(sandboxRoutes, { sandbox: { interval: () => '10m' } });
+        await runEverything(port);
+        const withInterval = calls.filter(call => (call.params as { interval?: string } | undefined)?.interval);
+        expect(withInterval.map(call => [call.path, call.params])).toEqual([
+            ['/subscriptions/0/start', { sandbox: 1, interval: '10m' }],
+        ]);
+    });
+
+    it('sends no sandbox and no interval at all without sandbox payments', async () => {
+        const { port, calls } = setup(sandboxRoutes);
+        await runEverything(port);
+        expect(calls.filter(call => call.path !== '/products/0/plans' && call.params !== undefined)).toEqual([]);
     });
 });

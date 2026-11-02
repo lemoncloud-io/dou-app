@@ -3,6 +3,7 @@ export {
     consentDefaultOf,
     type MockController,
     type MockSetup,
+    type PaymentWindowHost,
     type PaymentWindowPresenter,
     type PaymentWindowRequest,
 } from './createMockPort';
