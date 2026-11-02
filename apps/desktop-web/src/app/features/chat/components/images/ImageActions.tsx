@@ -62,7 +62,7 @@ export const ImageActions = ({ onDownload, onCopy, onDelete, variant = 'plain', 
                         <button
                             type="button"
                             aria-label={t('chat.more')}
-                            className={cn(OVERLAY_BUTTON, 'bg-foreground/[0.08] hover:bg-foreground/[0.12]')}
+                            className={cn(OVERLAY_BUTTON, 'hover:bg-foreground/[0.08] data-[state=open]:bg-foreground/[0.08]')}
                         >
                             <MoreVertical size={16} aria-hidden />
                         </button>
