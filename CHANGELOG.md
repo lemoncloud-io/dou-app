@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-02] - root@0.140.0, @chatic/desktop-web@0.46.0
+
+### Features
+
+- (desktop-web) play voice files in their card, not a full viewer
+
 ## [2026-11-02] - root@0.139.0, @chatic/desktop-web@0.45.0
 
 ### Features
