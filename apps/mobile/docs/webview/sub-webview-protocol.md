@@ -1,7 +1,7 @@
 # The sub WebView protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.16.0. What is marked **(2.15.0)** or **(2.16.0)** arrived
-> with that bridge version; an app built before it lacks it, which a page learns from the handshake
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.17.0. What is marked **(2.15.0)**, **(2.16.0)** or
+> **(2.17.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
 > rather than from a version number.
 
 What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
@@ -153,15 +153,16 @@ opened origin, and is not answered (see [Timing](#timing)).
 `window.ChaticSubWebView`, and from 2.15.0 the handshake's `subWebView`, is a frozen
 `SubWebViewContext`:
 
-| Field             | Type                 | Meaning                                                         |
-| ----------------- | -------------------- | --------------------------------------------------------------- |
-| `protocolVersion` | `1`                  | This protocol's major version                                   |
-| `viewId`          | string               | The view; opaque to the page                                    |
-| `platform`        | `'ios' \| 'android'` | The OS                                                          |
-| `appVersion`      | string               | The app's own version (`0.31.0`)                                |
-| `locale`          | string               | The language the user chose in the app (`ko`, `en`)             |
-| `theme`           | `'light' \| 'dark'`  | The app's resolved theme, which can differ from the OS's        |
-| `params`          | object               | What the opener passed, `{}` when nothing; JSON, at most 16 KiB |
+| Field             | Type                 | Meaning                                                                                  |
+| ----------------- | -------------------- | ---------------------------------------------------------------------------------------- |
+| `protocolVersion` | `1`                  | This protocol's major version                                                            |
+| `viewId`          | string               | The view; opaque to the page                                                             |
+| `platform`        | `'ios' \| 'android'` | The OS                                                                                   |
+| `appVersion`      | string               | The app's own version (`0.31.0`)                                                         |
+| `locale`          | string               | The language the user chose in the app (`ko`, `en`)                                      |
+| `theme`           | `'light' \| 'dark'`  | The app's resolved theme, which can differ from the OS's                                 |
+| `params`          | object               | What the opener passed, `{}` when nothing; JSON, at most 16 KiB                          |
+| `appLink`         | string               | **(2.17.0)** The link that opens this page: see [Links to a page](#links-to-a-page-2170) |
 
 - It is defined only on the opened origin. A page the view navigated to finds nothing, even on
   another allowlisted origin.
@@ -230,6 +231,30 @@ and a page cannot widen its permissions at run time.
   origin's own answers — no file, a redirect elsewhere, a body that is not a manifest — do replace it.
 - The redirect check relies on the response naming its URL, which React Native's networking does on
   both platforms.
+
+## Links to a page (2.17.0)
+
+A page shares a link to itself as the context's `appLink` — `https://app.chatic.io/apps/<label>` for
+`https://<label>.apps.chatic.io`, `https://app-dev.chatic.io/apps/<label>` for the `apps-dev` domain —
+followed by its own path, query and fragment:
+
+```text
+https://app.chatic.io/apps/quiz/level/3?seed=7  →  https://quiz.apps.chatic.io/level/3?seed=7
+```
+
+- **Where the app is installed**, the OS opens the link in it, and the app opens the page in a sub
+  WebView over whatever it shows, as the main web would with `OpenSubWebView`: the page gets no
+  `params`, and its manifest applies as on any open.
+- **Where it is not**, the link reaches the landing site, which sends the browser on to the page itself.
+  The page then runs with no bridge (see [Handshake](#handshake)) and SHOULD still work, or say what the
+  app adds.
+- **A page MUST build links from `appLink`**, never from a hard-coded host: the shell derives it from
+  the opened origin, so a page on the dev domain shares dev links. When the context has no `appLink`
+  (an app before 2.17.0) the page shares its own URL instead.
+- An app built before 2.17.0 still opens the page: the web reads the link's bare path too, which
+  is how such an app hands it over once the association file claims `/apps/*`.
+- Only `https` links on the app-link hosts are page links. A link opened in an in-app browser that
+  does not hand links to the OS (a messenger's) stays in that browser and opens the page there.
 
 ## Timing
 
@@ -555,6 +580,9 @@ tests, but have not been watched on a device:
   platforms;
 - that a focused input near the bottom of the page stays above the keyboard in the padded view on
   Android, which runs edge to edge;
+- **(2.17.0)** that iOS and Android hand an `/apps/…` link to the app (the association file and the
+  intent filter), that a cold-start link opens the page once the web is up, and that the landing
+  redirect reaches the page in a browser;
 - **(2.16.0)** that a manifest's `orientation` holds a full-screen modal on both platforms (it is
   react-native-screens' screen option, set once the manifest is in), and that the outcome haptics
   feel distinct on a device.

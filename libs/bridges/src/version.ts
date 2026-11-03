@@ -39,7 +39,9 @@
 // 2.16.0: a sub WebView page's manifest decides which of OpenURL, OpenShareSheet, CopyToClipboard and
 //         GetSubWebViewUserKey its host answers; a page may send ReportSubWebViewError; TriggerHaptic
 //         takes `success`, `warning` and `error`.
-export const BRIDGE_VERSION = '2.16.0' as const;
+// 2.17.0: a sub WebView page's context carries `appLink`; an app link to a page reaches the web as
+//         the OnNavigate path `/sub-webview?url=…`, which the web opens in a sub WebView.
+export const BRIDGE_VERSION = '2.17.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

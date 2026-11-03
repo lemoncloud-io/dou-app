@@ -4,6 +4,7 @@ import DeviceInfo from 'react-native-device-info';
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import type { SubWebViewCloseTrigger, SubWebViewContext, SubWebViewPermission } from '@chatic/bridge-messages';
+import { subWebViewAppLinkOfOrigin } from '@chatic/shared';
 
 import { HapticBridge } from '../bridge';
 import { useResolvedTheme } from '../hooks';
@@ -76,6 +77,8 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
     onTitleRequestRef.current = onTitleRequest;
 
     const openedOrigin = useMemo(() => originOf(url), [url]);
+    // The link a page shares to be opened again; derived from the origin, so a page cannot set it.
+    const appLink = useMemo(() => (openedOrigin ? subWebViewAppLinkOfOrigin(openedOrigin) : null), [openedOrigin]);
 
     const context = useMemo<SubWebViewContext>(
         () => ({
@@ -86,8 +89,9 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
             locale,
             theme: resolvedTheme,
             params,
+            ...(appLink ? { appLink } : {}),
         }),
-        [viewId, params, locale, resolvedTheme]
+        [viewId, params, locale, resolvedTheme, appLink]
     );
     // The handshake reports the context as it is when the page asks, not as it was at load.
     const contextRef = useRef(context);

@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 
-import { DeepLinkRoutes } from '../features/deeplink';
+import { DeepLinkRoutes, SubWebViewLinkPage } from '../features/deeplink';
 import { HomeRoutes } from '../features/home';
 
 import type { RouteObject } from 'react-router-dom';
@@ -42,6 +42,11 @@ export const createCommonRoutes = ({ subscriptionAccount }: CommonRoutesOptions)
         // marketing page with no way into the invite.
         path: 'i/*',
         element: <DeepLinkRoutes />,
+    },
+    {
+        // A sub WebView page's link (`/apps/<label>/…`) opened in a browser: straight on to the page.
+        path: 'apps/*',
+        element: <SubWebViewLinkPage />,
     },
     {
         path: 'policy/*',

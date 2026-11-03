@@ -48,7 +48,7 @@ Three things are true of it and of nothing in `apps/web`, and each is checkable:
    `public/.well-known/assetlinks.json` are what make iOS Universal Links and Android App Links
    resolve to `io.chatic.dou`. They must be served from the domain the links use, and the deploy
    script refuses to run without them. That alone forces a site at this origin. The AASA file
-   claims only the link paths (`/i`, `/s`, `/s/*`), the same ones the Android manifest
+   claims only the link paths (`/i`, `/s`, `/s/*`, `/apps/*`), the same ones the Android manifest
    filters on: the rest of the origin is this site, and a wider claim hands `/` to the app on any
    device that has it — a Mac running the iPhone app included.
 3. **Its public surface loads with no session.** Outside the account surface its entire `@chatic`
@@ -74,7 +74,8 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    token, a user or a cache. A screen that needs to know who is reading belongs on the account
    surface if it is about the subscription, and in `apps/web` if it is about using the product.
 2. **The public surface calls no backend of ours.** The only `fetch` in the app is an orphan (see
-   [Traps](#traps)); `/s/*` and `/i` redirect the browser and let the destination do the work.
+   [Traps](#traps)); `/s/*`, `/i` and `/apps/*` redirect the browser and let the destination do the
+   work.
 3. **Legal text is imported, never typed.** `src/app/features/policy/consts/index.ts` is a
    two-line re-export of the `@chatic/policy-content` barrel. A paragraph written into a page
    component here is a second copy of a policy, which is the failure that library exists to prevent.
@@ -148,7 +149,7 @@ flowchart TD
     R -->|error screen| SH[["@chatic/shared"]]
     R --> AS
     CR -->|index| HO[home]
-    CR -->|s/* · i/*| DL[deeplink]
+    CR -->|s/* · i/* · apps/*| DL[deeplink]
     CR -.->|policy/* · lazy| PO[policy]
     CR -.->|subscription/* · lazy · gated, plans on every host| SU[subscription]
     SU --> RQ[[react-query · radix dialog]]
@@ -191,6 +192,7 @@ the table for either side of the gate, which is how the test covers both.
 | `/policy/*`       | redirect to `/policy/terms`                       |
 | `/s/*`            | `DeepLinkPage` — any path under `/s` reaches it   |
 | `/i/*`            | `DeepLinkPage` — the encoded invite link `/i?t=…` |
+| `/apps/*`         | `SubWebViewLinkPage` — on to the sub WebView page |
 | `/subscription/*` | the account surface — gated, see below            |
 | anything else     | redirect to `/`, dropping the query               |
 
@@ -225,7 +227,7 @@ apps/landing/
         └── features/
             ├── home/           sections, Header, Footer, StoreButton
             ├── policy/         4 pages over one PolicyPageLayout; the 3 versioned ones add a VersionSelector
-            ├── deeplink/       1 page, 3 hooks, the app-launch and web-redirect logic
+            ├── deeplink/       2 pages, 3 hooks, the app-launch and web-redirect logic
             └── subscription/   the account surface — see Two surfaces
 ```
 
@@ -672,19 +674,19 @@ through `libs/data` and `libs/http`) and `@chatic/config`, with
 surface also imports `@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from
 the workspace root, inside its own chunk. The table is about the public pages.
 
-| Library                   | Reached how               | Used for                                                       |
-| ------------------------- | ------------------------- | -------------------------------------------------------------- |
-| `@chatic/policy-content`  | direct, 1 file            | the three policy tables and their types                        |
-| `@chatic/theme`           | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`     |
-| `@chatic/assets`          | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`)    |
-| `@chatic/shared`          | direct, 3 files           | invite-link decoding, the error screen's English defaults      |
-| `@chatic/bridges`         | via `theme` and `shared`  | nothing here calls it                                          |
-| `@chatic/logger`          | transitive, via `bridges` | nothing here calls it                                          |
-| `@chatic/bridge-messages` | transitive, via `bridges` | nothing here calls it                                          |
-| `@chatic/ui-kit`          | transitive, via `shared`  | nothing here calls it                                          |
-| `@chatic/config`          | direct, 1 file            | the account surface's HTTP port configures the session runtime |
-| `@chatic/app-runtime`     | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository  |
-| `@chatic/device-utils`    | transitive, via `shared`  | nothing here calls it                                          |
+| Library                   | Reached how               | Used for                                                                            |
+| ------------------------- | ------------------------- | ----------------------------------------------------------------------------------- |
+| `@chatic/policy-content`  | direct, 1 file            | the three policy tables and their types                                             |
+| `@chatic/theme`           | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`                          |
+| `@chatic/assets`          | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`)                         |
+| `@chatic/shared`          | direct, 4 files           | invite-link decoding, the sub WebView link map, the error screen's English defaults |
+| `@chatic/bridges`         | via `theme` and `shared`  | nothing here calls it                                                               |
+| `@chatic/logger`          | transitive, via `bridges` | nothing here calls it                                                               |
+| `@chatic/bridge-messages` | transitive, via `bridges` | nothing here calls it                                                               |
+| `@chatic/ui-kit`          | transitive, via `shared`  | nothing here calls it                                                               |
+| `@chatic/config`          | direct, 1 file            | the account surface's HTTP port configures the session runtime                      |
+| `@chatic/app-runtime`     | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository                       |
+| `@chatic/device-utils`    | transitive, via `shared`  | nothing here calls it                                                               |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
 libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain
@@ -836,7 +838,7 @@ not trigger.
   against the server's response shapes — not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 612 tests
+    npx nx test @chatic/landing   # 617 tests
     ```
 
 - **The account-surface gate is the hostname, and then the addresses.** `isSubscriptionAccountEnabled`
@@ -899,7 +901,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 612 tests pass; in CI
+npx nx test @chatic/landing                               # 617 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

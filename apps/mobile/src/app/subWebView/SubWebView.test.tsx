@@ -54,6 +54,9 @@ jest.mock('../stores', () => ({
 }));
 jest.mock('../utils/device', () => ({ getAppLanguage: () => 'en' }));
 jest.mock('../bridge', () => ({ HapticBridge: { trigger: jest.fn(() => true) } }));
+// The barrel reaches web-only modules the CommonJS transform cannot parse; the link module is all
+// this view uses.
+jest.mock('@chatic/shared', () => jest.requireActual('../../../../../libs/shared/src/utils/subWebViewLink'));
 
 const URL_ = 'https://foo.apps.chatic.io/a';
 
@@ -332,6 +335,7 @@ describe('SubWebView', () => {
             locale: 'ko',
             theme: 'light',
             params: { orderId: 7 },
+            appLink: 'https://app.chatic.io/apps/foo',
         });
     });
 

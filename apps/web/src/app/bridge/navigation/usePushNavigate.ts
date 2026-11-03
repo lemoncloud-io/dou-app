@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { RELAY_ORIGIN_CID } from '@chatic/data';
+import { subWebViewPageUrlOfWebPath } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { ROUTES } from '../../routes/paths';
@@ -16,6 +17,8 @@ import { pushRoomPlace } from './pushRoomPlace';
 import { resolvePushNavigation } from './resolvePushNavigation';
 import { resolveThreadTarget } from './resolveThreadTarget';
 import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
+import { isDevBuild } from '../../utils/buildEnv';
+import { openSubWebView } from '../subWebView';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
@@ -173,6 +176,19 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
 
     return useCallback(
         async (rawPath: string) => {
+            // A sub WebView page's link is not a route: the page opens over whatever is showing, so
+            // closing it returns the user to where they were. A refusal leaves the screen as it is.
+            const pageUrl = subWebViewPageUrlOfWebPath(rawPath, isDevBuild() ? 'dev' : 'prod');
+            if (pageUrl) {
+                await openSubWebView({ url: pageUrl }).catch(error =>
+                    logger.warn('router.sub_webview_link_refused', 'Sub WebView link not opened', {
+                        pageUrl,
+                        error,
+                    })
+                );
+                return;
+            }
+
             // Drop overlapping push navigations: a duplicate/rapid second event arriving while the
             // first is still awaiting a cloud/site switch would interleave switches and
             // double-navigate. Process one push entry at a time.

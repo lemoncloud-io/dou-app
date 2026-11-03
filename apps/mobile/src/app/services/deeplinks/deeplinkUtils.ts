@@ -1,6 +1,13 @@
 import Config from 'react-native-config';
 
-import { decodeInviteLink, isEncodedInviteUrl, readInviteLink } from '@chatic/shared';
+import {
+    decodeInviteLink,
+    isEncodedInviteUrl,
+    isSubWebViewAppLinkAttempt,
+    readInviteLink,
+    subWebViewNavigatePath,
+    subWebViewPageUrlOfAppLink,
+} from '@chatic/shared';
 
 import type { ILogService } from '../log';
 
@@ -490,6 +497,9 @@ const buildNativeRouteState = (urlObj: URL, logger?: ILogService): NativeRouteSt
  * Throws for retired /s/{code} shortcodes (surfaced by resolveDeepLink as `invalid`).
  */
 const resolveWebPath = (fullUrl: string): string => {
+    // A sub WebView page's link is not a route: the web opens the page over whatever it shows.
+    const pageUrl = subWebViewPageUrlOfAppLink(fullUrl);
+    if (pageUrl) return subWebViewNavigatePath(pageUrl);
     const converted = convertShortUrlWithEnvsSync(fullUrl).url;
     // Invite conversion already yields a host-less relative path (/?code=...); a passthrough is
     // still a full scheme URL that we reduce to pathname+search+hash without mutating searchParams.
@@ -557,6 +567,14 @@ export const resolveDeepLink = (rawUrl: string, logger?: ILogService): DeepLinkR
     }
 
     logDamagedInviteLink(fullUrl, logger);
+
+    // A link to a page that does not map (`/apps/Quiz`, `/apps/`) is a broken page link, not a route:
+    // the invalid-link screen says so, where passing it through would land on home with no word.
+    if (isSubWebViewAppLinkAttempt(fullUrl) && !subWebViewPageUrlOfAppLink(fullUrl)) {
+        const error = 'Invalid sub WebView page link';
+        logger?.warn('DEEPLINK', '[deeplinkUtils] resolveDeepLink invalid page link, dropping', { fullUrl });
+        return { kind: 'invalid', error };
+    }
 
     try {
         const urlObj = parseUrlSafe(fullUrl);

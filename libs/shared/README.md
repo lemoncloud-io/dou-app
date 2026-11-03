@@ -1,7 +1,7 @@
 # @chatic/shared
 
 **One barrel of React-side parts that more than one front end reaches for.** It holds six
-presentational components, seven hook modules, the per-place sidebar preferences, five small helpers
+presentational components, seven hook modules, the per-place sidebar preferences, six small helpers
 and two constant tables, and exports all of it from a single entry point that five projects import.
 
 It is a catch-all rather than a layer, and that has a measurable cost. [Scope](#scope) states what the
@@ -112,8 +112,8 @@ build objects to an export that nobody imports. Three measurements, each reprodu
   consumer files. Nine exports are named in exactly one, and nine more in two. A module whose contents
   range that far apart in demand is not one concern, and the single-consumer end is where the next
   thing to move out comes from — one consumer means one owner, and that owner is a feature.
-- **The barrel is DOM-bound, and a React Native app imports it anyway.** `apps/mobile` takes exactly
-  two constants from here, `STORE_URLS` and `getStoreUrl`. Its `package.json` nonetheless lists
+- **The barrel is DOM-bound, and a React Native app imports it anyway.** `apps/mobile` takes the
+  store constants and the two link helpers in `utils/` (the invite decoder and the sub WebView link map). Its `package.json` nonetheless lists
   `react-router-dom` as a dependency while its own source does not import it, and it does not import
   `@chatic/ui-kit` at all. `nx sync-deps` keeps that entry because the project graph reaches it through
   this barrel, by way of `NotFoundPage` and `RouterErrorFallback`. Its two test files
@@ -133,14 +133,14 @@ flowchart TD
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
     App["apps/web · desktop-web · admin-v2<br/>libs/app-runtime"]:::ext
-    RN["apps/mobile<br/><i>React Native — consts only</i>"]:::ext
+    RN["apps/mobile<br/><i>React Native — consts and two link helpers</i>"]:::ext
 
     Barrel["src/index.ts<br/><i>the only entry point</i>"]:::grp
 
     Comp["components/ × 6<br/><i>React, DOM</i>"]:::grp
     Hooks["hooks/ × 7<br/><i>React</i>"]:::grp
     Prefs["preferences/ × 3<br/><i>per-place UI settings</i>"]:::pure
-    Utils["utils/ × 5"]:::pure
+    Utils["utils/ × 6"]:::pure
     Const["consts/ · types/"]:::pure
 
     UiKit["@chatic/ui-kit<br/><i>Button · cn</i>"]:::ext
@@ -210,10 +210,17 @@ libs/shared/src/
 ├── phone/            phone-number parsing (libphonenumber-js) + OTP expiry countdown — NOT in the barrel
 ├── preferences/      pinnedChannels · channelOrder · railOrder · placeScope + index
 ├── types/            index.ts and nothing else — four declarations, no reader
-└── utils/            5 single-purpose helpers + index
+└── utils/            6 single-purpose helpers + index
 ```
 
-Six things the filenames do not tell you.
+Seven things the filenames do not tell you.
+
+- **`utils/subWebViewLink.ts` is the only map between an app link and a sub WebView page**:
+  `https://app.chatic.io/apps/<label>/…` ↔ `https://<label>.apps.chatic.io/…` (and `app-dev` ↔
+  `apps-dev`), plus the `/sub-webview?url=…` path the shell hands the web for one. Landing redirects a
+  browser with it, mobile resolves the link with it and builds a page's `appLink`, and the web reads the
+  path with it — three copies would open three different pages. It parses by hand, not with `URL`,
+  for the reason the invite decoder below gives about React Native.
 
 - **`utils/inviteLink.ts` is the only decoder of the encoded invite link `/i?t=<base64url(JSON)>`.**
   Landing, mobile, web and desktop-web all call it, because a decoder that drifted would send one link
@@ -369,11 +376,13 @@ rather than recognised.
 
 ### 6. React Native reaching into the barrel
 
-`apps/mobile` imports `STORE_URLS` and `getStoreUrl` for its store-update prompt. Everything else in
-the barrel assumes a DOM, so both of its suites `jest.mock('@chatic/shared')` with a literal copy of the
-constants rather than loading the real module. Treat `consts/` as the only part of this lib that is
-platform-neutral: a new import added to a file that `consts/` can reach becomes a React Native
-dependency, whether or not the code is ever run there.
+`apps/mobile` imports `STORE_URLS` and `getStoreUrl` for its store-update prompt, `inviteLink.ts`'s
+decoder for invite links, and `subWebViewLink.ts` for sub WebView page links and a page's `appLink`.
+Everything else in the barrel assumes a DOM, so its suites never load the barrel itself: the
+store-update ones `jest.mock('@chatic/shared')` with a literal copy of the constants, and the deep-link
+and sub WebView ones point the mock at the two `utils/` files with `jest.requireActual`. Treat
+`consts/` and those two files as the only platform-neutral parts of this lib: a new import added to a
+file they can reach becomes a React Native dependency, whether or not the code is ever run there.
 
 ## How to verify
 

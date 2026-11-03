@@ -178,7 +178,7 @@ libs/bridge-messages/src/
     └── model/                    26 files — 25 payload files, grouped by domain, and their barrel
 ```
 
-32 files, 4,185 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+32 files, 4,193 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -208,7 +208,7 @@ The payload files, with what is in each:
 | `clipboard.ts`         | 10    | Copy to the native clipboard                                                                                                                                                                                                                                                                                                                                                                                            |
 | `haptic.ts`            | 19    | `HapticKind` and the one short haptic the web asks the shell to play                                                                                                                                                                                                                                                                                                                                                    |
 | `native-storage.ts`    | 66    | The debug panel's Storage screen — `FetchNativeStorageSummary` (rows and sizes per SQLite table and MMKV key), `ClearNativeCache`                                                                                                                                                                                                                                                                                       |
-| `sub-webview.ts`       | 246   | The phone shell's second WebView — `OpenSubWebView`, `CloseSubWebView`, `OnSubWebViewClosed`; the page-facing `FinishSubWebView`, `SetSubWebViewTitle`, `GetSubWebViewUserKey`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, `OnSubWebViewContextChanged`, `OnSubWebViewCloseRequested`, `SubWebViewContext`; the page manifest (`SubWebViewManifest`, `SubWebViewPermission`); codes, `SubWebViewPageErrorCode` |
+| `sub-webview.ts`       | 253   | The phone shell's second WebView — `OpenSubWebView`, `CloseSubWebView`, `OnSubWebViewClosed`; the page-facing `FinishSubWebView`, `SetSubWebViewTitle`, `GetSubWebViewUserKey`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, `OnSubWebViewContextChanged`, `OnSubWebViewCloseRequested`, `SubWebViewContext`; the page manifest (`SubWebViewManifest`, `SubWebViewPermission`); codes, `SubWebViewPageErrorCode` |
 | `index.ts`             | 24    | The barrel for the payload files                                                                                                                                                                                                                                                                                                                                                                                        |
 
 `CacheChatView.upload$$` holds two kinds of entry: the server's `UploadView` once a message is sent,
