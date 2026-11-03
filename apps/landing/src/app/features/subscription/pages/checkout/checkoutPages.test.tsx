@@ -444,6 +444,26 @@ describe('W-05 card, W-09 and W-06', () => {
 
         expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
         expect(screen.getByText('2026.12.01')).toBeTruthy();
+        // The amount is read from the invoice the charge left.
+        expect(screen.getByText('Amount paid')).toBeTruthy();
+        expect(screen.getByText('₩8,600')).toBeTruthy();
+    });
+
+    it('leaves the amount out where the port keeps no invoices, instead of a dash', async () => {
+        const setup = await withBillingEmail('?mock=new-trial-used');
+        renderAt('/subscription/checkout?plan=pro-tier-01', {
+            ...setup,
+            supports: method => method !== 'listInvoices',
+        });
+        await toPayment();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Pay ₩8,600' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Registered' }));
+
+        expect(await screen.findByText('You have subscribed to DoU Cloud 1')).toBeTruthy();
+        expect(screen.getByText('2026.12.01')).toBeTruthy();
+        expect(screen.queryByText('Amount paid')).toBeNull();
+        expect(screen.queryByText('—')).toBeNull();
     });
 
     it('charges a first payment in dollars for a country outside Korea', async () => {
@@ -581,6 +601,17 @@ describe('W-14 plan change', () => {
         expect(screen.getByText('₩25,800', { exact: false })).toBeTruthy();
         // The upgrade confirmation keeps the bar's back button; the first subscription's has none.
         expect(screen.getByRole('button', { name: 'Back' })).toBeTruthy();
+    });
+
+    it('says neither "charged" nor "nothing charged" for an upgrade where the port keeps no invoices', async () => {
+        const setup = mockSetup('?mock=active');
+        renderAt('/subscription/change?plan=pro-tier-03', { ...setup, supports: method => method !== 'listInvoices' });
+
+        fireEvent.click(await screen.findByRole('button', { name: /^Pay ₩[\d,]+ and upgrade$/ }));
+
+        expect(await screen.findByText('You have upgraded to DoU Cloud 3')).toBeTruthy();
+        expect(screen.getByText('You can now create up to 3 clouds.')).toBeTruthy();
+        expect(screen.queryByText(/was charged|Nothing was charged/)).toBeNull();
     });
 
     it('shows a failed upgrade with the card it tried', async () => {
