@@ -4,6 +4,12 @@
 
 ### Features
 
+- (mobile,web,landing,shared) open sub WebView pages from app links (ADR-0279)
+
+## [2026-11-03] - No version updates
+
+### Features
+
 - (mobile,bridge-messages,bridges) gate sub WebView pages on a manifest (ADR-0278)
 
 ## [2026-11-03] - No version updates
