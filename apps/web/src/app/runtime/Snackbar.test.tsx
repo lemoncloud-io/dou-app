@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 
-import { SNACKBAR_OFFSET, Toaster, useToastLift } from '@chatic/ui-kit/components/ui/toaster';
+import { SNACKBAR_OFFSET, TOAST_MIN_LIFT_PX, Toaster, useToastLift } from '@chatic/ui-kit/components/ui/toaster';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 // The kit's Toaster as apps/web mounts it in AppRuntime. The kit has no test runner of its own, and
@@ -24,6 +24,7 @@ describe('snackbar (ui-kit Toaster in apps/web)', () => {
         expect(SNACKBAR_OFFSET).toContain('var(--safe-bottom, 0px)');
         expect(SNACKBAR_OFFSET).toContain('var(--keyboard-height, 0px)');
         expect(SNACKBAR_OFFSET).toContain('var(--toast-lift, 0px)');
+        expect(SNACKBAR_OFFSET).toContain(`${TOAST_MIN_LIFT_PX}px`);
     });
 
     it("replaces the primitive's top-slide animations with the snackbar's own", () => {

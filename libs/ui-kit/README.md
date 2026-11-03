@@ -163,15 +163,16 @@ Three files hold something the name does not give away:
 - `toaster.tsx` is the mount point `apps/web` renders once in `AppRuntime`; desktop-web builds its own
   `AppToaster` from `toast.tsx` and takes only `TOAST_DURATION_MS` from here. It is
   fully rewritten against `toast.tsx` and shares only its name with the generator's version. It also
-  sets the dismiss timer for every app at once (5s): long enough to read a sentence and press an
-  Undo, which the earlier 1.5s was not. A toast is `default` (success check), `destructive`, or
+  sets the dismiss timer for every app at once (3s): long enough to read a sentence and press an
+  Undo, which the earlier 1.5s was not, short enough not to linger over the screen. A toast is `default` (success check), `destructive`, or
   `info` (a notice that is neither, which must not wear the check). `viewportClassName` adds classes
   to the bottom-anchored viewport (no app passes it today).
 
     It is the mobile web app's snackbar: anchored to the bottom, it slides up into place, slides back
     down when its timer runs out, and can be swiped down to dismiss early. It rests 16px above the
-    taller of `--safe-bottom` and `--keyboard-height`, plus `--toast-lift` — the height of the tallest bar
-    a screen keeps pinned to the bottom. The toaster sits above the router and cannot see what is
+    taller of `--safe-bottom` and `--keyboard-height`, plus the larger of `TOAST_MIN_LIFT_PX` (80px, the tab bar's
+    geometry) and `--toast-lift` — the height of the tallest bar a screen keeps pinned to the bottom. The floor
+    keeps the toast at one height on every screen, including ones with their own bottom buttons that publish nothing. The toaster sits above the router and cannot see what is
     showing, so each bar asks for its own lift with `useToastLift(px)` while it is mounted (the
     tab bar, and `web-ui-kit`'s `FloatingButton`, photo-grid footer, `MediaViewer` and `PhotoEditor`);
     the hook keeps them in one registry so bars can mount and unmount in any order. The sum is exported as `SNACKBAR_OFFSET` and set on the viewport as
@@ -389,7 +390,7 @@ editing the primitive.
 
 Call `useToast()` from anywhere; the store is module-level, so no provider is needed. One toast
 shows at a time unless the app calls `setToastLimit` — a new one then drops the oldest. `duration`
-comes from the `ToastProvider` in `toaster.tsx` (`TOAST_DURATION_MS`, 5s) unless the call passes one.
+comes from the `ToastProvider` in `toaster.tsx` (`TOAST_DURATION_MS`, 3s) unless the call passes one.
 Desktop's own `AppToaster` keeps a `destructive` toast until it is closed and raises the limit to 3;
 the kit leaves both to the app, because the mobile web app shares this store. An app that never
 mounts `<Toaster />` swallows every toast silently.
