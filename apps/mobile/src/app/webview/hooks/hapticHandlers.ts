@@ -1,8 +1,7 @@
-import type { HapticKind, WebMessageData } from '@chatic/bridge-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 
 import type { IHapticBridge } from '../../bridge';
-
-const KINDS: readonly HapticKind[] = ['selection', 'impact'];
+import { HAPTIC_KINDS } from '../../bridge/hapticKinds';
 
 export const createHapticHandlers = (haptic: IHapticBridge) => {
     /**
@@ -13,7 +12,7 @@ export const createHapticHandlers = (haptic: IHapticBridge) => {
     const handleTriggerHaptic = async (message: WebMessageData<'TriggerHaptic'>) => {
         const kind = message.data?.kind;
         const answered = !!message.refId;
-        if (!KINDS.includes(kind)) {
+        if (!HAPTIC_KINDS.includes(kind)) {
             if (!answered) return undefined;
             return {
                 type: 'OnTriggerHaptic' as const,

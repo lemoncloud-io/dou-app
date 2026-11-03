@@ -1,8 +1,8 @@
 # The sub WebView protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.15.0. What is marked **(2.15.0)** arrived with that bridge
-> version; an app built before it lacks it, which a page learns from the handshake rather than from a
-> version number.
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.16.0. What is marked **(2.15.0)** or **(2.16.0)** arrived
+> with that bridge version; an app built before it lacks it, which a page learns from the handshake
+> rather than from a version number.
 
 What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
 side is this app; the page side is whatever runs on an allowlisted origin, normally through
@@ -28,6 +28,8 @@ shell that breaks a MUST is wrong, one that ignores a SHOULD needs a reason.
 | reply         | The host's answer to one request, matched by `refId`                                |
 | push          | A message from the host that answers no request                                     |
 | subset        | The requests the host answers: `SubWebViewRequestType` in `@chatic/bridge-messages` |
+| manifest      | The page's own declaration of what it needs, served from its origin (2.16.0)        |
+| base set      | The requests every page gets, with or without a manifest                            |
 
 ## Versions
 
@@ -125,7 +127,7 @@ A page MUST treat any message whose `refId` matches no pending request as a push
 
     | Field                  | Meaning                                                                |
     | ---------------------- | ---------------------------------------------------------------------- |
-    | `supportedWebMessages` | The subset this host answers                                           |
+    | `supportedWebMessages` | What this host answers: the base set and what the manifest permits     |
     | `supportedAppMessages` | The replies paired with them. Pushes are not listed                    |
     | `appVersion`           | The shell's `BRIDGE_VERSION` (see [Versions](#versions))               |
     | `protocolVersion`      | The request's `version`, echoed                                        |
@@ -166,6 +168,69 @@ opened origin, and is not answered (see [Timing](#timing)).
 - It holds nothing that identifies the device, the install or the user. A later change of `theme` or
   `locale` arrives as `OnSubWebViewContextChanged`; the global keeps its first values.
 
+## Manifest (2.16.0)
+
+A page declares what it needs in a manifest, served from its own origin at
+`/.well-known/chatic-app.json` — for `https://quiz.apps.chatic.io/`, at
+`https://quiz.apps.chatic.io/.well-known/chatic-app.json`:
+
+```json
+{
+    "manifestVersion": 1,
+    "name": "DoU Quiz",
+    "permissions": ["share", "userKey"],
+    "display": "standard",
+    "orientation": "portrait"
+}
+```
+
+| Field             | Values                                                             | Without it                 |
+| ----------------- | ------------------------------------------------------------------ | -------------------------- |
+| `manifestVersion` | `1`                                                                | No manifest at all         |
+| `name`            | 1–100 characters; the bar's title when nothing else names the page | No title from the manifest |
+| `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`                  | The base set only          |
+| `display`         | `standard` (the bar) or `fullscreen` (see [Layout](#layout))       | `standard`                 |
+| `orientation`     | `any`, `portrait`, `landscape`                                     | `any`                      |
+
+**Every page gets the base set**: `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle`,
+`TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`. None of them
+reaches anything outside the view. **The rest is declared**, one capability per request:
+
+| Permission  | Unlocks                | Why it is declared                                        |
+| ----------- | ---------------------- | --------------------------------------------------------- |
+| `clipboard` | `CopyToClipboard`      | Writes over whatever the user had copied                  |
+| `share`     | `OpenShareSheet`       | Hands text and a link to another app                      |
+| `openUrl`   | `OpenURL`              | Leaves the app for the browser, mail, phone or a store    |
+| `userKey`   | `GetSubWebViewUserKey` | A stable identifier the page's server can keep data under |
+
+A request whose permission the page did not declare is not registered: the handshake does not list
+it, and the host answers it `NOT_FOUND`, exactly as an app that predates it would. So a page decides
+from `supportedWebMessages` as it already must, and a missing permission and an older app look alike.
+**The author asks; an administrator grants.** A page is submitted as a bundle with its manifest, and
+the permissions in it are a request. An administrator approves them when the bundle is reviewed, and
+only what was approved is deployed: the manifest on an allowlisted origin is the grant, since nothing
+but the review deploys there. The shell trusts that file and nothing else — it does not ask the page,
+and a page cannot widen its permissions at run time.
+
+**How the shell reads it:**
+
+- Before it loads the page. The view shows only a close control until the manifest is in, so its
+  display, orientation and bridge are settled before the page's first script runs.
+- From the opened origin only. A redirect elsewhere, a non-2xx status, a body over 16 KiB, anything
+  that is not a JSON object with `manifestVersion: 1`, and no answer within 3 seconds each mean no
+  manifest: the page opens with the defaults above, and the app's log says why.
+- Field by field. An unknown field, an unknown permission and a wrong value are dropped; the rest of
+  the manifest stands.
+- Once per origin per run of the app, then from memory: a later open uses the copy read before and
+  fetches a fresh one behind it, so a deploy that changes a manifest takes effect one open later. A
+  relaunch always reads it again: the request bypasses the HTTP cache, so a withdrawn permission does
+  not outlive the launch.
+- A failure to reach the origin (no network, the timeout) never replaces a manifest already read in
+  this run. With none read yet, the page opens with the defaults and the next open tries again. The
+  origin's own answers — no file, a redirect elsewhere, a body that is not a manifest — do replace it.
+- The redirect check relies on the response naming its URL, which React Native's networking does on
+  both platforms.
+
 ## Timing
 
 **A reply can take as long as the user does.** `OpenShareSheet` answers when the sheet closes.
@@ -200,19 +265,19 @@ Lengths are string lengths (UTF-16 code units), not bytes.
 
 A page MUST treat a code it does not know as a failure of that request and nothing more.
 
-| Code                    | Raised by                   | Meaning                                                              |
-| ----------------------- | --------------------------- | -------------------------------------------------------------------- |
-| `NOT_FOUND`             | the host                    | The request is not in this host's subset. Expected from an older app |
-| `INTERNAL_ERROR`        | the host                    | A handler failed unexpectedly. Retrying MAY work                     |
-| `TOO_LARGE`             | the host **(2.15.0)**       | The message is over 64 KiB                                           |
-| `INVALID`               | most requests               | A field is missing, of the wrong type, or over its limit             |
-| `INVALID_KIND`          | `TriggerHaptic`             | `kind` is not one of the listed values                               |
-| `NOT_OPEN`              | `FinishSubWebView`          | The view already closed                                              |
-| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet` | The link is not one this request may open or share                   |
-| `OPEN_URL_FAILED`       | `OpenURL`                   | The OS could not open an allowed link                                |
-| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`           | The OS refused the write                                             |
-| `SHARE_ERROR`           | `OpenShareSheet`            | The OS share sheet failed                                            |
-| `UNAVAILABLE`           | `GetSubWebViewUserKey`      | The device has no id to derive a key from                            |
+| Code                    | Raised by                   | Meaning                                                                                       |
+| ----------------------- | --------------------------- | --------------------------------------------------------------------------------------------- |
+| `NOT_FOUND`             | the host                    | Not in this host's subset, or not in the page's manifest (2.16.0). Expected from an older app |
+| `INTERNAL_ERROR`        | the host                    | A handler failed unexpectedly. Retrying MAY work                                              |
+| `TOO_LARGE`             | the host **(2.15.0)**       | The message is over 64 KiB                                                                    |
+| `INVALID`               | most requests               | A field is missing, of the wrong type, or over its limit                                      |
+| `INVALID_KIND`          | `TriggerHaptic`             | `kind` is not one of the listed values                                                        |
+| `NOT_OPEN`              | `FinishSubWebView`          | The view already closed                                                                       |
+| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet` | The link is not one this request may open or share                                            |
+| `OPEN_URL_FAILED`       | `OpenURL`                   | The OS could not open an allowed link                                                         |
+| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`           | The OS refused the write                                                                      |
+| `SHARE_ERROR`           | `OpenShareSheet`            | The OS share sheet failed                                                                     |
+| `UNAVAILABLE`           | `GetSubWebViewUserKey`      | The device has no id to derive a key from                                                     |
 
 `INVALID_KIND` is `INVALID` under an older name; it stays, since renaming a code breaks a page that
 reads it. The codes are `SubWebViewPageErrorCode` in `@chatic/bridge-messages` **(2.15.0)**.
@@ -245,9 +310,11 @@ to stop running soon after the reply, possibly before it is delivered.
 | `{ title: string }` | `{}`  | `INVALID` |
 
 The bar shows, in order of precedence: the title set here, the document's `<title>`, the opener's
-`title`. A title set here lasts until the next page load in the view.
+`title`, the manifest's `name`. A title set here lasts until the next page load in the view.
 
 ### `CopyToClipboard`
+
+Needs the `clipboard` permission (2.16.0).
 
 | Request            | Reply              | Errors                             |
 | ------------------ | ------------------ | ---------------------------------- |
@@ -255,13 +322,21 @@ The bar shows, in order of precedence: the title set here, the document's `<titl
 
 ### `TriggerHaptic`
 
-| Request                             | Reply | Errors         |
-| ----------------------------------- | ----- | -------------- |
-| `{ kind: 'selection' \| 'impact' }` | `{}`  | `INVALID_KIND` |
+| Request                                                                  | Reply | Errors         |
+| ------------------------------------------------------------------------ | ----- | -------------- |
+| `{ kind: 'selection' \| 'impact' \| 'success' \| 'warning' \| 'error' }` | `{}`  | `INVALID_KIND` |
 
-The OS honours the user's own touch-feedback setting; a reply does not mean the device moved.
+`selection` is the lightest tick, `impact` a short tap; **(2.16.0)** `success`, `warning` and `error`
+are the outcome of something the user did. On iOS they are the system's notification feedback; on
+Android 11 and later `success` and `error` are the system's confirm and reject effects, and
+`warning`, which Android has no effect for, is the long-press one; before Android 11, `success` is the
+key-press effect and `error` the long-press one. An app before 2.16.0 answers the
+three with `INVALID_KIND`. The OS honours the user's own touch-feedback setting; a reply does not mean
+the device moved.
 
 ### `OpenURL`
+
+Needs the `openUrl` permission (2.16.0).
 
 | Request           | Reply | Errors                                |
 | ----------------- | ----- | ------------------------------------- |
@@ -273,6 +348,8 @@ WebView page, and anything else answer `LINK_NOT_ALLOWED` — as does a `url` th
 To show an allowlisted page, navigate to it.
 
 ### `OpenShareSheet`
+
+Needs the `share` permission (2.16.0).
 
 | Request                                              | Reply                                                                           | Errors                                       |
 | ---------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------- |
@@ -287,6 +364,8 @@ To show an allowlisted page, navigate to it.
 - The reply waits for the user: no timeout (see [Timing](#timing)).
 
 ### `GetSubWebViewUserKey`
+
+Needs the `userKey` permission (2.16.0).
 
 | Request | Reply             | Errors        |
 | ------- | ----------------- | ------------- |
@@ -316,6 +395,20 @@ load. iOS has no back button and ignores the claim; its edge swipe goes back in 
 While enabled, the user's close is asked of the page first; see [Closing](#closing). The guard ends
 at the next page load.
 
+### `ReportSubWebViewError` (2.16.0)
+
+| Request                               | Reply                   | Errors    |
+| ------------------------------------- | ----------------------- | --------- |
+| `{ message: string, stack?: string }` | `{ recorded: boolean }` | `INVALID` |
+
+Writes the error to the app's own logs under the page's origin, so a page that breaks on users'
+devices can be found and withdrawn. `message` must not be blank. The first 1,000 characters of
+`message` and 4,000 of `stack` are kept, not refused: a report is most wanted when the page is least
+able to fix it. A page load records 20; after that the reply is `recorded: false` and nothing is
+written. A page SHOULD report from `window.onerror` and `unhandledrejection`, which
+`chatic-apps-sdk` will do. The report reaches the app's logs and nothing else: a page MUST NOT put
+the user's data in it.
+
 ## Pushes
 
 | Push                                      | Data                               | When                                                                              |
@@ -331,8 +424,9 @@ in the handshake, `OnSubWebViewCloseRequested` from `SetSubWebViewCloseGuard`.
 
 ### Opening
 
-The opener sends `OpenSubWebView { url, title?, params? }`; the shell shows the view full screen
-under a bar with the title and a close control, and the page loads. Each page load — the first, a
+The opener sends `OpenSubWebView { url, title?, params? }`; the shell shows the view full screen,
+reads the page's [manifest](#manifest-2160), and then loads the page under a bar with the title and
+a close control, or under a floating close control alone for a `fullscreen` page. Each page load — the first, a
 reload, a navigation — gets a fresh host, and the previous load's claims (title, back, close guard)
 are gone: the shell drops them when a load starts, and a request the previous load sends after that
 cannot set them again. A request the previous load left pending may still be answered, into the new
@@ -397,8 +491,14 @@ inset handling; `env(safe-area-inset-*)` is expected to read 0 in the view, whic
 on a device (see the last section). (Before 2.15.0 the shell padded only top and bottom, so in
 landscape a notch could cover the page's side.)
 
-A page cannot draw behind the bar, the status bar or the home indicator. A full-bleed mode is not
-part of this protocol.
+**(2.16.0) A `fullscreen` page has no bar.** The shell draws a floating close control over the
+page's top-right corner instead, always, so a page cannot leave the user without a way out; a page
+SHOULD keep that corner clear. The padding stays: a page still cannot draw behind the status bar or
+the home indicator, and a full-bleed mode is not part of this protocol.
+
+**(2.16.0) The manifest's `orientation` holds the view** `portrait` or `landscape`, or lets it follow
+the device (`any`). It applies to the view only; the app underneath returns to its own when the
+view closes.
 
 ## Security invariants
 
@@ -409,8 +509,9 @@ feature, and needs its own decision.
   page the view navigated to gets no reply.
 - **Nothing the page receives identifies the device, the install or the DoU user**: not the device id,
   not a value that maps to it one to one (a plain hash of it included), not the account. The device
-  id is treated as a credential, not only as an identifier: DoU's own sign-in relies on it. The one identifier a page gets, the user key, is an HMAC over the page's origin
-  keyed by the device id: one-way, and different on every origin.
+  id is treated as a credential, not only as an identifier: DoU's own sign-in relies on it. The one
+  identifier a page gets, the user key, is an HMAC over the page's origin keyed by the device id:
+  one-way, different on every origin, and only for a page whose manifest declares `userKey`.
 - **The page cannot reach the opener** except through `params` in and `result` out, and cannot drive
   the app's routing: the app's own links are dropped or refused.
 - **Every request is answered by a handler written for the sub WebView**, never one borrowed from the
@@ -437,7 +538,7 @@ keeps the old one for a while is decided with that change.
 | Notice before a `page`, `host` or `system` close            | Save as you go; `visibilitychange`                                     |
 | A background or foreground push                             | `visibilitychange`                                                     |
 | Safe-area insets                                            | Not needed: the viewport is inside the safe area                       |
-| Drawing behind the bar or system bars                       | —                                                                      |
+| Drawing behind the system bars                              | `fullscreen` drops the bar; the system bars stay outside the page      |
 | Talking to the opener while open                            | `params` and `result`                                                  |
 | Storage in the app, files, purchases, push                  | The page's own server, keyed by `GetSubWebViewUserKey`                 |
 | Proof to the page's server that a request came from the app | Not yet: a token the app signs would need a key and a way to verify it |
@@ -453,4 +554,7 @@ tests, but have not been watched on a device:
 - that `env(safe-area-inset-*)` reads 0 in the padded view, in portrait and in landscape, on both
   platforms;
 - that a focused input near the bottom of the page stays above the keyboard in the padded view on
-  Android, which runs edge to edge.
+  Android, which runs edge to edge;
+- **(2.16.0)** that a manifest's `orientation` holds a full-screen modal on both platforms (it is
+  react-native-screens' screen option, set once the manifest is in), and that the outcome haptics
+  feel distinct on a device.

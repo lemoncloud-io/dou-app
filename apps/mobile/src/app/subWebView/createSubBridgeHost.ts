@@ -8,12 +8,13 @@ import type { SubBridgeHandlers } from './subBridgeHandlers';
  * The sub WebView's own host. Built with no cache schema, no cache types and no `onAppReady`, so its
  * handshake reports no local storage and drives none of the main WebView's boot. It does report the
  * page's context, which the global cannot promise to have defined in time on Android, and refuses a
- * message over the page's size limit. It registers the page-facing handlers and nothing else —
+ * message over the page's size limit. It registers the page-facing handlers it is given — the base
+ * set and what the page's manifest permits — and nothing else —
  * `WebAppReady` and `Ping` it answers itself — so its handshake lists exactly the subset.
  */
 export const createSubBridgeHost = (
     sendToWeb: (message: string) => void,
-    handlers: SubBridgeHandlers,
+    handlers: Partial<SubBridgeHandlers>,
     getContext: () => SubWebViewContext
 ): IAppBridgeHost => {
     const host = new AppBridgeHost({

@@ -81,6 +81,7 @@ import type {
     SetSubWebViewTitlePayload,
     GetSubWebViewUserKeyPayload,
     SetSubWebViewCloseGuardPayload,
+    ReportSubWebViewErrorPayload,
     GetContactsPayload,
     FetchAppIconPayload,
     FetchAppIconListPayload,
@@ -257,6 +258,7 @@ export type WebMessagePayloadMap = {
     SetSubWebViewTitle: SetSubWebViewTitlePayload;
     GetSubWebViewUserKey: GetSubWebViewUserKeyPayload;
     SetSubWebViewCloseGuard: SetSubWebViewCloseGuardPayload;
+    ReportSubWebViewError: ReportSubWebViewErrorPayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */
@@ -285,6 +287,7 @@ export type SubWebViewRequestType = RequestsIn<
     | 'GetSubWebViewUserKey'
     | 'SetCanGoBack'
     | 'SetSubWebViewCloseGuard'
+    | 'ReportSubWebViewError'
 >;
 
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {

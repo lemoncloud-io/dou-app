@@ -36,7 +36,10 @@
 //         SetSubWebViewCloseGuard (and receives OnSubWebViewCloseRequested); its handshake reply
 //         carries the page's context as `subWebView`, and its host answers a message over 65,536
 //         characters with TOO_LARGE.
-export const BRIDGE_VERSION = '2.15.0' as const;
+// 2.16.0: a sub WebView page's manifest decides which of OpenURL, OpenShareSheet, CopyToClipboard and
+//         GetSubWebViewUserKey its host answers; a page may send ReportSubWebViewError; TriggerHaptic
+//         takes `success`, `warning` and `error`.
+export const BRIDGE_VERSION = '2.16.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

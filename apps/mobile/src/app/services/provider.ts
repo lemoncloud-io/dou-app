@@ -46,8 +46,8 @@ import type { IVersionService } from './version';
 import { VersionService } from './version';
 import type { IUnfurlService } from './unfurl';
 import { UnfurlService } from './unfurl';
-import type { ISubWebViewService } from './subWebView';
-import { SubWebViewService } from './subWebView';
+import type { ISubWebViewService, SubWebViewManifestStore } from './subWebView';
+import { createSubWebViewManifestStore, SubWebViewService } from './subWebView';
 import DeviceInfo from 'react-native-device-info';
 
 import {
@@ -105,6 +105,7 @@ class DependencyProvider {
     private _versionService?: IVersionService;
     private _unfurlService?: IUnfurlService;
     private _subWebViewService?: ISubWebViewService;
+    private _subWebViewManifestStore?: SubWebViewManifestStore;
     private _cacheCrudService?: ICacheCrudService;
     private _cacheSearchService?: ICacheSearchService;
     private _testRecordService?: TestRecordService;
@@ -366,6 +367,18 @@ class DependencyProvider {
     public get subWebViewService(): ISubWebViewService {
         if (!this._subWebViewService) this._subWebViewService = new SubWebViewService(this.logService);
         return this._subWebViewService;
+    }
+
+    public get subWebViewManifestStore(): SubWebViewManifestStore {
+        if (!this._subWebViewManifestStore) {
+            this._subWebViewManifestStore = createSubWebViewManifestStore({
+                // `no-store`: iOS networking keeps an HTTP cache on disk, and a cached manifest would
+                // keep a withdrawn permission alive across launches.
+                fetch: (url, init) => fetch(url, { ...init, credentials: 'omit', cache: 'no-store' }),
+                logger: this.logService,
+            });
+        }
+        return this._subWebViewManifestStore;
     }
 
     public static getInstance(): DependencyProvider {

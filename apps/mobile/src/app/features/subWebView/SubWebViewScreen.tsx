@@ -1,26 +1,64 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { NativeStackNavigationOptions, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { SubWebViewOrientation } from '@chatic/bridge-messages';
 
 import { useResolvedTheme } from '../../hooks';
-import { subWebViewService } from '../../services';
+import {
+    DEFAULT_SUB_WEBVIEW_MANIFEST,
+    subWebViewManifestStore,
+    subWebViewService,
+    type ResolvedSubWebViewManifest,
+} from '../../services';
 import { SubWebView, type SubWebViewHandle } from '../../subWebView';
 import { t } from '../../utils';
+import { originOf } from '../../utils/url';
 import type { RootStackParamList } from '../core/navigation/type';
 
 type SubWebViewScreenProps = NativeStackScreenProps<RootStackParamList, 'SubWebView'>;
 
-/** Chrome only — a bar with the title and a close control over the page. */
+const ORIENTATION: Record<SubWebViewOrientation, NativeStackNavigationOptions['orientation']> = {
+    any: 'default',
+    portrait: 'portrait',
+    landscape: 'landscape',
+};
+
+/**
+ * Chrome only — a bar with the title and a close control over the page, or for a `fullscreen` page a
+ * floating close control alone. The page's manifest decides which, its orientation and what its bridge
+ * answers, so the page is not loaded until the manifest is in; until then the screen shows only the
+ * close control, so even a manifest that never answers cannot keep the user in.
+ */
 export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) => {
     const { viewId, url, title, params } = route.params;
+    const [manifest, setManifest] = useState<ResolvedSubWebViewManifest | null>(null);
     const [pageTitle, setPageTitle] = useState<string | undefined>(undefined);
-    // A title the page asked for outranks the document's, which outranks the web's.
+    // A title the page asked for outranks the document's, which outranks the web's, which outranks
+    // the manifest's name.
     const [requestedTitle, setRequestedTitle] = useState<string | undefined>(undefined);
     const insets = useSafeAreaInsets();
     const { isDark, backgroundColor } = useResolvedTheme();
     const viewRef = useRef<SubWebViewHandle>(null);
     const foreground = isDark ? '#FFFFFF' : '#222325';
+
+    useEffect(() => {
+        let live = true;
+        const origin = originOf(url);
+        const pending = origin ? subWebViewManifestStore.get(origin) : Promise.resolve(DEFAULT_SUB_WEBVIEW_MANIFEST);
+        // The store answers every failure itself; the catch is so that a page can never be left
+        // unloaded behind a rejection.
+        void pending
+            .catch(() => DEFAULT_SUB_WEBVIEW_MANIFEST)
+            .then(resolved => {
+                if (!live) return;
+                setManifest(resolved);
+                navigation.setOptions({ orientation: ORIENTATION[resolved.orientation] });
+            });
+        return () => {
+            live = false;
+        };
+    }, [url, navigation]);
 
     const close = useCallback(() => {
         // The service dismisses the screen. If it no longer knows this view, nothing would: leave by
@@ -29,7 +67,8 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
         if (!result.ok && navigation.canGoBack()) navigation.goBack();
     }, [viewId, navigation]);
 
-    // The control asks the page first when it has its close guard on; the view decides.
+    // The control asks the page first when it has its close guard on; the view decides. Before the
+    // page is loaded there is no guard to ask.
     const onClosePress = useCallback(() => {
         if (viewRef.current) viewRef.current.requestClose('control');
         else close();
@@ -39,9 +78,23 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
     // it; once the service has closed the view this answers NOT_OPEN and does nothing.
     useEffect(() => () => void subWebViewService.close(viewId, 'user'), [viewId]);
 
+    const closeControl = (floating: boolean) => (
+        <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={t('webview.subClose')}
+            hitSlop={12}
+            onPress={onClosePress}
+            style={floating ? [styles.close, styles.floating] : styles.close}
+        >
+            <Text style={[styles.closeGlyph, { color: floating ? '#FFFFFF' : foreground }]}>✕</Text>
+        </TouchableOpacity>
+    );
+
+    const fullscreen = manifest?.display === 'fullscreen';
+
     return (
         // Every edge padded, so the page lies wholly inside the safe area and needs no insets of its
-        // own — the sides too, for the notch in landscape.
+        // own — the sides too, for the notch in landscape. A fullscreen page loses the bar, not that.
         <View
             style={[
                 styles.container,
@@ -54,29 +107,31 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
                 },
             ]}
         >
-            <View style={styles.bar}>
-                <Text style={[styles.title, { color: foreground }]} numberOfLines={1}>
-                    {requestedTitle ?? pageTitle ?? title ?? ''}
-                </Text>
-                <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel={t('webview.subClose')}
-                    hitSlop={12}
-                    onPress={onClosePress}
-                    style={styles.close}
-                >
-                    <Text style={[styles.closeGlyph, { color: foreground }]}>✕</Text>
-                </TouchableOpacity>
-            </View>
-            <SubWebView
-                ref={viewRef}
-                viewId={viewId}
-                url={url}
-                params={params}
-                onRequestClose={close}
-                onTitleChange={setPageTitle}
-                onTitleRequest={setRequestedTitle}
-            />
+            {manifest && !fullscreen && (
+                <View style={styles.bar}>
+                    <Text style={[styles.title, { color: foreground }]} numberOfLines={1}>
+                        {requestedTitle ?? pageTitle ?? title ?? manifest.name ?? ''}
+                    </Text>
+                    {closeControl(false)}
+                </View>
+            )}
+            {manifest && (
+                <SubWebView
+                    ref={viewRef}
+                    viewId={viewId}
+                    url={url}
+                    params={params}
+                    permissions={manifest.permissions}
+                    onRequestClose={close}
+                    onTitleChange={setPageTitle}
+                    onTitleRequest={setRequestedTitle}
+                />
+            )}
+            {(!manifest || fullscreen) && (
+                <View style={[styles.floatingSlot, { top: insets.top + 8, right: insets.right + 8 }]}>
+                    {closeControl(true)}
+                </View>
+            )}
         </View>
     );
 };
@@ -93,4 +148,7 @@ const styles = StyleSheet.create({
     title: { flex: 1, fontSize: 16, fontWeight: '600' },
     close: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
     closeGlyph: { fontSize: 18 },
+    floatingSlot: { position: 'absolute' },
+    // Legible over any page: a dark disc under a white glyph, whatever the page draws behind it.
+    floating: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0, 0, 0, 0.45)' },
 });
