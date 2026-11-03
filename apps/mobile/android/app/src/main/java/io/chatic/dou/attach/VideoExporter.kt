@@ -59,14 +59,18 @@ class VideoExporter(private val context: Context) {
     /** A conversion that produced no file, carrying the code `PrepareVideo` answers. */
     class Failure(val code: String, message: String) : Exception(message)
 
-    /** The conversion running now, so a React reload can stop it. */
-    private class Running(val transformer: Transformer, val handler: Handler)
+    /** The conversion running now, so a React reload can stop it; [release] ends its caller's wait with [error]. */
+    private class Running(val transformer: Transformer, val handler: Handler, val release: (ExportException) -> Unit)
 
     private val running = AtomicReference<Running?>(null)
 
     /** Stops the conversion running now, if any; its caller is answered `SYSTEM`. */
     fun cancel() {
-        running.get()?.let { job -> job.handler.post { job.transformer.cancel() } }
+        running.get()?.let { job ->
+            job.handler.post { job.transformer.cancel() }
+            // A cancelled Transformer reports nothing, so the caller's wait is ended here.
+            job.release(ExportException.createForUnexpected(IllegalStateException("the conversion was cancelled")))
+        }
     }
 
     /**
@@ -179,8 +183,19 @@ class VideoExporter(private val context: Context) {
                     }
                 })
                 .build()
-            running.set(Running(transformer, handler))
-            handler.post { transformer.start(composition, staging.path) }
+            val release = { error: ExportException ->
+                outcome.compareAndSet(null, error)
+                done.countDown()
+            }
+            running.set(Running(transformer, handler, release))
+            handler.post {
+                // An exception thrown here would end the thread and leave the wait below for good.
+                try {
+                    transformer.start(composition, staging.path)
+                } catch (e: Exception) {
+                    release(ExportException.createForUnexpected(e))
+                }
+            }
             try {
                 done.await()
             } catch (e: InterruptedException) {
