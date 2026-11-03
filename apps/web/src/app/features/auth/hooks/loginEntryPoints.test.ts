@@ -22,9 +22,11 @@ const ALLOWED = ['features/auth/hooks/useNavigateToLogin.ts', 'routes/paths.ts']
 
 /**
  * Both spellings. Matching only `ROUTES.mypage.login` would miss the raw literal — which already
- * exists in-tree (routes/paths.ts defines it), so it is one copy-paste away from a call site.
+ * exists in-tree (routes/paths.ts defines it), so it is one copy-paste away from a call site. The
+ * word boundary keeps routes that only start with the name — `ROUTES.mypage.loginEmail`, a step
+ * inside the login screen — out of it.
  */
-const LOGIN_ROUTE_PATTERN = /ROUTES\.mypage(\.login|\['login'\]|\["login"\])|['"`]\/mypage\/login['"`]/;
+const LOGIN_ROUTE_PATTERN = /ROUTES\.mypage(\.login\b|\['login'\]|\["login"\])|['"`]\/mypage\/login['"`]/;
 
 const sourceFiles = (dir: string): string[] =>
     readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
@@ -45,6 +47,17 @@ const findDirectLoginNavigations = () =>
 describe('로그인 진입점', () => {
     it('로그인 라우트를 직접 부르는 화면이 없다 (전부 useNavigateToLogin을 통과한다)', () => {
         expect(findDirectLoginNavigations()).toEqual([]);
+    });
+
+    it('matches the login route in every spelling, and not a route that only starts with its name', () => {
+        const caught = [
+            'navigate(ROUTES.mypage.login)',
+            "navigate(ROUTES.mypage['login'])",
+            "navigate('/mypage/login')",
+        ];
+
+        expect(caught.filter(source => !LOGIN_ROUTE_PATTERN.test(source))).toEqual([]);
+        expect(LOGIN_ROUTE_PATTERN.test('navigate(ROUTES.mypage.loginEmail)')).toBe(false);
     });
 
     it('알려진 진입점이 모두 훅을 쓴다', () => {

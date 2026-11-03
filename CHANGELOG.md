@@ -2,6 +2,12 @@
 
 ## [2026-11-03] - No version updates
 
+### Features
+
+- (web,config) add a dev-only email login screen behind feature.auth.emailLogin
+
+## [2026-11-03] - No version updates
+
 ### Bug Fixes
 
 - (ui-kit) rest the snackbar at one height on every screen and drop it sooner
