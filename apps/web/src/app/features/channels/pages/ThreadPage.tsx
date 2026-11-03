@@ -54,6 +54,7 @@ import { resolveChatOwnerName, resolveUserName, type DisplayNameSources } from '
 import { buildThread } from '../utils/buildThread';
 import { foldReactions, hasMyReaction } from '../utils/foldReactions';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
+import { useBottomChromeToastLift } from '../../../ui/hooks/useBottomChromeToastLift';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { toCloudId } from '../../../hooks/useCloudScope';
@@ -137,6 +138,8 @@ export const ThreadPage = () => {
         footerHeight: composerHeight,
         followFooter: followComposer,
     } = useChromeInsets();
+    // The composer floats over the list; the snackbar rests above it rather than behind it.
+    useBottomChromeToastLift(composerHeight);
 
     // A thread is a view of a channel, so it names people the way the room does — see `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();

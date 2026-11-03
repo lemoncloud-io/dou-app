@@ -17,6 +17,10 @@ module.exports = {
         // PrivateLayout -> @chatic/assets) fails to load, which is what pushed call sites onto
         // barrel-bypassing direct paths.
         '^@chatic/assets$': '<rootDir>/__mocks__/assetsMock.js',
+        // `buildEnv` reads `import.meta.env`, which the CommonJS test transform cannot parse. Any test that
+        // reaches it through a barrel (the push navigation hooks import it) would fail to load, so it is
+        // stubbed for every test; a test that needs a development build still `jest.mock`s it itself.
+        '/utils/buildEnv$': '<rootDir>/__mocks__/buildEnvMock.js',
         // Subpath entries MUST come first. The generic `^@chatic/(.*)$` rule below captures
         // `config/react` into $1 and resolves to `libs/config/react/src/index.ts`, which does not
         // exist — the real entry is `libs/config/src/react/index.ts` (see libs/config/jest.config.js,

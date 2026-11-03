@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-11-03] - root@0.143.2, @chatic/web@0.86.2
+
+### Other
+
+- test: (web) stub utils/buildEnv under jest so the bridge barrel loads again
+
+## [2026-11-03] - root@0.143.1, @chatic/web@0.86.1
+
+### Bug Fixes
+
+- (web) lift the snackbar above the chat composer and docked footers
+
 ## [2026-11-03] - No version updates
 
 ### Features
