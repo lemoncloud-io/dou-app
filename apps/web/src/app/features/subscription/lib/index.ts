@@ -8,3 +8,4 @@ export * from './plans';
 export * from './price';
 export * from './quota';
 export * from './scene';
+export * from './webCheckout';

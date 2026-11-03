@@ -4,7 +4,8 @@
 a fake relay.** The page believes it is inside the mobile app: `window.ReactNativeWebView` is there
 before any of its scripts run, the app's own boot script has set its globals, and every bridge
 request it makes is answered by a scripted shell in the test process. Its HTTP requests and its
-socket are answered from fixtures. Nothing real is behind either side.
+socket are answered from fixtures. Nothing real is behind either side. A scenario may instead open
+the page as a plain browser tab, with the relay faked and no shell ("A browser tab" below).
 
 That is the layer no unit test reaches. A Jest test of a hook mocks the bridge; a by-hand check on a
 simulator reaches everything but costs a build and a person. The bugs this suite exists for live in
@@ -54,7 +55,8 @@ delivers on `document`, as it does on Android. Each also carries the suffix the 
 the user agent (`DOU_IOS` / `DOU_ANDROID`). Every scenario runs on both.
 
 **Both fakes are installed for every test**, before the page loads anything — a scenario that never
-names `shell` or `backend` still runs inside the app, against the fixtures.
+names `shell` or `backend` still runs inside the app, against the fixtures. The one exception is a
+scenario that opts into a browser tab (see "A browser tab"), which has the relay and no shell.
 
 ### The shell
 
@@ -116,6 +118,24 @@ element — earlier than react-native-webview's "before content loaded" injectio
 styles `document.documentElement`. The shell runs it the moment `<html>` exists instead, which is still
 before the page's first script.
 
+### A browser tab
+
+`test.use({ inApp: false })` opens the page as a plain browser tab instead: no shell is installed, so
+`isNative()` is false and the page takes its browser paths — the subscription hand-over to the website
+is the one written so far. The relay is faked as before. What the shell's config bag would have set is
+written into the browser's own storage, where `@chatic/config` keeps that lane without a shell
+(`@chatic/config.<key>`), so onboarding is still done and the debug overlay still off. `shell` is not
+set in this mode; a browser scenario that names it fails on the first use.
+
+Two differences from the app shape how a browser scenario is written. A screen's address opened
+directly (`page.goto`) boots to home, so a scenario walks to its screen from there; going back to an
+entry the app itself made (`page.goBack()`) does land on that screen again. And the
+page may leave the dev server for another site: the fake relay answers every host but the dev server,
+so a scenario that expects the page to leave answers the destination with `backend.useHttp` and
+asserts it with `toHaveURL` — an unanswered destination fails as an unreachable host would. The
+project's user agent still carries the app's suffix; `isNative()` reads the bridge, not the user agent,
+so a screen gated on it takes its browser path regardless.
+
 ### The relay
 
 `FakeBackend` routes every request that is not for the dev server. The relay's HTTP API is a table
@@ -165,22 +185,23 @@ written there.
 
 ## The scenarios
 
-| Spec                            | What it pins                                                                                                                                                                                                                                                                                                                                                            |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `boot-splash.spec.ts`           | The handshake says `holdsBootSplash`; `FirstScreenReady` is posted only once the home route's frame is drawn, read in the page as it is posted; a boot that cannot sign in holds the splash until the 10s cap and then lifts it.                                                                                                                                        |
-| `attachment-picker.spec.ts`     | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10); the answer waits in the "Files to send" tray, and Send makes it a file message in the room; a file the shell refused is reported and never sent; an app without the picker gets the page's file input, and is not asked again.                                                            |
-| `back-navigation.spec.ts`       | On Android, `SetCanGoBack` is true exactly while an overlay is open, a back press closes the overlay before it rewinds a screen, and at the app's first entry a press is not spent; on both, an invite link that launched the app sits one entry above home, and back returns there.                                                                                    |
-| `push-navigation.spec.ts`       | A tap that launched the app opens its room with the splash lifted over the room, not home, and home underneath; a tap while the app is open replaces the room on screen and a repeat tap adds nothing; a tap into a 1:1 the guest has left says so and lands on home, leaving one home entry rather than two.                                                           |
-| `cloud-invite-entry.spec.ts`    | An invite back into the cloud and place already open switches the session into the place before the profile check, and asks for no profile (the same-cloud regression); an invite into a place with no profile asks for one and saves it on that place.                                                                                                                 |
-| `oauth-login.spec.ts`           | Each of the shell's answers to `OAuthLogin` ends the wait: a native token or the virtual shell's relay code (exchanged at `verify-oauth-code`) promotes the guest and returns to MY, a cancel and a failure each say so and leave the buttons usable.                                                                                                                   |
-| `app-resume.spec.ts`            | Back in the foreground the page asks for the resume cover to come down and the open room shows what arrived while away, on the same screen; a socket the relay dropped meanwhile is opened and signed in again, and the room catches up; a socket left half-open (`backend.silenceSockets()`) is found by the wake probe's ping and replaced within seconds.            |
-| `relay-invite-entry.spec.ts`    | A relay invite link opened as the app comes back to the foreground, whose `invite.get` is lost to the socket closing under it, is read again on the next socket once it has signed in, and the invite shows with no failure dialog.                                                                                                                                     |
-| `chat-paging.spec.ts`           | A room opens on its newest messages; each scroll to the top asks for 50 more below the oldest one shown (`chat.feed`, `cursorNo`), until the room's first, with every message once and the row being read kept in place. An older page refused is asked for again after 2s, then 4s, with the room intact; one held is asked for once however often the reader scrolls. |
-| `cloud-switch.spec.ts`          | Into an owned cloud and between its two places, home shows only the selected place's room and none of the relay's, the shell's cache keeps each side in its own partition, and DoU Home brings the relay back; a refused cloud entry and a refused place switch are rolled back, and a cloud read landing after the refused entry leaves the relay rooms.               |
-| `room-mute.spec.ts`             | A room muted from the home list while the socket is signing in again shows muted at once, sends nothing until the socket is back, and then sends `join.update` on the new socket; the row stays muted throughout.                                                                                                                                                       |
-| `room-read.spec.ts`             | A room the guest opens loses its unread count on the list at once: when the relay fails the `chat.read`, the count stays gone and the read is sent again until the relay has it; when the room is entered while the socket is signing in again, the count goes before the relay could have heard, and the read follows on the new socket.                               |
-| `subscription-purchase.spec.ts` | A completed store purchase is checked with the relay, finished only after that, confirmed with "You are subscribed." and the membership reads active; a cancel says nothing and can be retried; a store error and a pending purchase (the page's own 60s wait) say "Payment failed", and nothing is checked or finished.                                                |
-| `device-pairing.spec.ts`        | "Sign in with another device" asks the relay for a code as this guest and shows it with its QR; claims go out one at a time, and the approval signs the device in as the account — the socket re-signs on the same connection, the toast names the approver, MY stops asking to sign in. An expired code is struck through; "Get a new code" shows a new one.           |
+| Spec                                | What it pins                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `boot-splash.spec.ts`               | The handshake says `holdsBootSplash`; `FirstScreenReady` is posted only once the home route's frame is drawn, read in the page as it is posted; a boot that cannot sign in holds the splash until the 10s cap and then lifts it.                                                                                                                                        |
+| `attachment-picker.spec.ts`         | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10); the answer waits in the "Files to send" tray, and Send makes it a file message in the room; a file the shell refused is reported and never sent; an app without the picker gets the page's file input, and is not asked again.                                                            |
+| `back-navigation.spec.ts`           | On Android, `SetCanGoBack` is true exactly while an overlay is open, a back press closes the overlay before it rewinds a screen, and at the app's first entry a press is not spent; on both, an invite link that launched the app sits one entry above home, and back returns there.                                                                                    |
+| `push-navigation.spec.ts`           | A tap that launched the app opens its room with the splash lifted over the room, not home, and home underneath; a tap while the app is open replaces the room on screen and a repeat tap adds nothing; a tap into a 1:1 the guest has left says so and lands on home, leaving one home entry rather than two.                                                           |
+| `cloud-invite-entry.spec.ts`        | An invite back into the cloud and place already open switches the session into the place before the profile check, and asks for no profile (the same-cloud regression); an invite into a place with no profile asks for one and saves it on that place.                                                                                                                 |
+| `oauth-login.spec.ts`               | Each of the shell's answers to `OAuthLogin` ends the wait: a native token or the virtual shell's relay code (exchanged at `verify-oauth-code`) promotes the guest and returns to MY, a cancel and a failure each say so and leave the buttons usable.                                                                                                                   |
+| `app-resume.spec.ts`                | Back in the foreground the page asks for the resume cover to come down and the open room shows what arrived while away, on the same screen; a socket the relay dropped meanwhile is opened and signed in again, and the room catches up; a socket left half-open (`backend.silenceSockets()`) is found by the wake probe's ping and replaced within seconds.            |
+| `relay-invite-entry.spec.ts`        | A relay invite link opened as the app comes back to the foreground, whose `invite.get` is lost to the socket closing under it, is read again on the next socket once it has signed in, and the invite shows with no failure dialog.                                                                                                                                     |
+| `chat-paging.spec.ts`               | A room opens on its newest messages; each scroll to the top asks for 50 more below the oldest one shown (`chat.feed`, `cursorNo`), until the room's first, with every message once and the row being read kept in place. An older page refused is asked for again after 2s, then 4s, with the room intact; one held is asked for once however often the reader scrolls. |
+| `cloud-switch.spec.ts`              | Into an owned cloud and between its two places, home shows only the selected place's room and none of the relay's, the shell's cache keeps each side in its own partition, and DoU Home brings the relay back; a refused cloud entry and a refused place switch are rolled back, and a cloud read landing after the refused entry leaves the relay rooms.               |
+| `room-mute.spec.ts`                 | A room muted from the home list while the socket is signing in again shows muted at once, sends nothing until the socket is back, and then sends `join.update` on the new socket; the row stays muted throughout.                                                                                                                                                       |
+| `room-read.spec.ts`                 | A room the guest opens loses its unread count on the list at once: when the relay fails the `chat.read`, the count stays gone and the read is sent again until the relay has it; when the room is entered while the socket is signing in again, the count goes before the relay could have heard, and the read follows on the new socket.                               |
+| `subscription-purchase.spec.ts`     | A completed store purchase is checked with the relay, finished only after that, confirmed with "You are subscribed." and the membership reads active; a cancel says nothing and can be retried; a store error and a pending purchase (the page's own 60s wait) say "Payment failed", and nothing is checked or finished.                                                |
+| `subscription-web-checkout.spec.ts` | In a browser tab: with no subscription, a member and a guest alike reach the website's plans page from the guide, and back returns to the guide; a running App Store subscription stays, its detail naming the store with no change offered; one the website bills is changed and managed on the website.                                                               |
+| `device-pairing.spec.ts`            | "Sign in with another device" asks the relay for a code as this guest and shows it with its QR; claims go out one at a time, and the approval signs the device in as the account — the socket re-signs on the same connection, the toast names the approver, MY stops asking to sign in. An expired code is struck through; "Get a new code" shows a new one.           |
 
 ## Limits
 
@@ -203,6 +224,9 @@ What a passing run does **not** say:
   `resolvePushTapPath`), not produced by them, so a change there is not seen here.
 - **The dev server, not a production build.** Minification and the production-only module aliases in
   `apps/web/vite.config.mts` are not exercised.
+- **Another site the page leaves for is a canned answer.** A browser scenario proves the page left for
+  the right address, not what is there — the website's routes, and which of them a production host
+  opens, are the landing app's to test.
 - **CI runs the suite only when `web-e2e` is affected** — the web app, the libs it builds from, or this
   project — or when the mobile injection script changes. That file is named in the workflow by path,
   because there is deliberately no dependency edge to `@chatic/mobile` (see "The shell"); anything

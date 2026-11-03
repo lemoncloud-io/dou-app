@@ -8,6 +8,7 @@ import type { ProductView } from '@lemoncloud/chatic-backend-api';
 import {
     findPlanById,
     findResubscribePlan,
+    isHeldByWeb,
     selectSellablePlans,
     summarizeMembership,
     type StorePlatform,
@@ -100,7 +101,12 @@ export const usePlanCatalog = (): PlanCatalog => {
         // `oldPlanId`, and a block would offer a fresh purchase over a live store subscription.
         replaceablePlan,
         resubscribePlan,
-        isOtherStore: !!platform && !!replaceablePlan?.platform && replaceablePlan.platform !== platform,
+        // The website counts as another store here whether or not the catalog lists its plan, which
+        // the first test needs and the second does not.
+        isOtherStore:
+            !!platform &&
+            ((!!replaceablePlan?.platform && replaceablePlan.platform !== platform) ||
+                isHeldByWeb(summary, membership?.platform)),
         pendingPlan,
         summary,
         isLoading: isPlansLoading || isMembershipLoading,

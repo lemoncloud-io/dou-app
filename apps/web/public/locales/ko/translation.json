@@ -267,6 +267,7 @@
             "loginCta": "로그인하고 구독하기",
             "subscribe": "구독하기",
             "mobileOnly": "앱에서만 구독할 수 있어요",
+            "toWebCheckout": "웹 결제 화면으로 이동 중...",
             "noProducts": "구독 상품을 불러오지 못했어요",
             "purchaseFailed": "결제에 실패했어요",
             "notice": {
@@ -275,12 +276,14 @@
                 "downgradeNextRenewal": "하위 구독으로 변경하면 다음 갱신일부터 적용됩니다.",
                 "manageAt": {
                     "apple": "구독 관리는 iPhone 설정 > Apple ID > 구독 또는 App Store 구독 관리에서 가능",
-                    "google": "구독 관리는 Google Play > 프로필 > 결제 및 정기 결제 > 정기 결제에서 가능"
+                    "google": "구독 관리는 Google Play > 프로필 > 결제 및 정기 결제 > 정기 결제에서 가능",
+                    "web": "구독 관리는 DoU 웹사이트의 구독 관리에서 가능"
                 }
             },
             "platform": "플랫폼",
             "platformApple": "App Store",
             "platformGoogle": "Google Play",
+            "platformWeb": "DoU 웹사이트",
             "adminGrant": "관리자 부여",
             "adminGrantIndefinite": "무기한",
             "blockedNotice": "관리자에 의해 이용이 정지되었습니다. 스토어 결제는 계속되니 고객센터로 문의해 주세요.",
@@ -429,7 +432,9 @@
                 "changePlan": "구독 상품 변경하기",
                 "resubscribe": "다시 구독하기",
                 "manageInStore": "구독 관리로 이동하기",
+                "manageOnWeb": "웹에서 구독 관리하기",
                 "otherStore": "{{store}}에서 구독 중이에요. 구독 변경과 관리는 구독한 스토어의 기기에서 할 수 있어요.",
+                "webBilled": "DoU 웹사이트에서 결제한 구독이에요. 앱에서는 구독을 변경하거나 관리할 수 없어요.",
                 "pendingTitle": "변경 예정 구독 상품",
                 "pendingHeader": "다음 결제일부터 변경 적용",
                 "pendingDescription": "{{date}}부터 {{product}} 구독으로 적용될 예정입니다. 변경 전까지는 현재 구독을 그대로 이용할 수 있어요.",

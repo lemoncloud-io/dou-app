@@ -267,6 +267,7 @@
             "loginCta": "Sign in to subscribe",
             "subscribe": "Subscribe",
             "mobileOnly": "Subscriptions are only available in the app",
+            "toWebCheckout": "Opening web checkout…",
             "noProducts": "Failed to load subscription plans",
             "purchaseFailed": "Payment failed",
             "notice": {
@@ -275,12 +276,14 @@
                 "downgradeNextRenewal": "Moving down a plan takes effect at your next renewal.",
                 "manageAt": {
                     "apple": "Manage your subscription in iPhone Settings > Apple ID > Subscriptions, or in the App Store.",
-                    "google": "Manage your subscription in Google Play > Profile > Payments & subscriptions."
+                    "google": "Manage your subscription in Google Play > Profile > Payments & subscriptions.",
+                    "web": "Manage your subscription on the DoU website, under Subscriptions."
                 }
             },
             "platform": "Platform",
             "platformApple": "App Store",
             "platformGoogle": "Google Play",
+            "platformWeb": "DoU website",
             "adminGrant": "Admin grant",
             "adminGrantIndefinite": "Indefinite",
             "blockedNotice": "Your access has been restricted by an administrator. Store billing continues — please contact support.",
@@ -429,7 +432,9 @@
                 "changePlan": "Change plan",
                 "resubscribe": "Subscribe again",
                 "manageInStore": "Manage in store",
+                "manageOnWeb": "Manage on the web",
                 "otherStore": "You subscribe through {{store}}. Change or manage it on a device that uses {{store}}.",
+                "webBilled": "This subscription was bought on the DoU website. It can't be changed or managed in the app.",
                 "pendingTitle": "Upcoming plan",
                 "pendingHeader": "Applies from your next payment",
                 "pendingDescription": "Your plan changes to {{product}} on {{date}}. Until then you keep your current plan.",

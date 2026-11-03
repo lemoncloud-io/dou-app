@@ -11,3 +11,6 @@ export * from './NoticeList';
 export * from './PlanProductCard';
 export * from './PurchaseDoneDialog';
 export * from './subscription-select';
+// Not here: `WebCheckoutHandoff` and `leaveForWeb`. The hand-off reads `consts`, whose `import.meta`
+// Jest cannot load, and every screen test importing this barrel would then have to stub it. Their
+// two users import them by path.
