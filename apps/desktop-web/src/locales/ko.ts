@@ -581,6 +581,7 @@ export const ko: EnTranslation = {
     'rail.menu.account': '계정',
     'rail.menu.accountMenu': '계정 메뉴: {{name}}',
     'rail.menu.settings': '설정',
+    'rail.menu.appearance': '화면',
     'rail.menu.join': '초대로 참여',
     'rail.menu.debug': '디버그 상태',
     'rail.menu.logout': '로그아웃',

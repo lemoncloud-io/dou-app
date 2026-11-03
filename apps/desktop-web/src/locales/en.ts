@@ -576,6 +576,7 @@ export const en = {
     'rail.menu.account': 'Account',
     'rail.menu.accountMenu': 'Account menu: {{name}}',
     'rail.menu.settings': 'Settings',
+    'rail.menu.appearance': 'Appearance',
     'rail.menu.join': 'Join with invite',
     'rail.menu.debug': 'Debug state',
     'rail.menu.logout': 'Log out',

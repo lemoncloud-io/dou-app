@@ -73,6 +73,10 @@ const ShortcutsDialog = lazy(() => import('./features/chat').then(m => ({ defaul
 // Route-independent like ShortcutsDialog: the Account hub opens it off the home route,
 // where it used to be dead until the return to chat.
 const JoinWithInviteDialog = lazy(() => import('./features/auth').then(m => ({ default: m.JoinWithInviteDialog })));
+// Route-independent too: the account menu opens it from any page.
+const AppearanceDialog = lazy(() =>
+    import('./features/settings/components/AppearanceDialog').then(m => ({ default: m.AppearanceDialog }))
+);
 const HomePage = lazy(() => import('./features/chat').then(m => ({ default: m.HomePage })));
 const ProfilePage = lazy(() => import('./features/profile').then(m => ({ default: m.ProfilePage })));
 const PlaceSettingsPage = lazy(() => import('./features/places').then(m => ({ default: m.PlaceSettingsPage })));
@@ -111,6 +115,7 @@ export const AppRouter = () => {
                 <Suspense fallback={null}>
                     <ShortcutsDialog />
                     <JoinWithInviteDialog />
+                    <AppearanceDialog />
                 </Suspense>
             )}
             {/* A signed-out person is on their way to Welcome, not to the chat
