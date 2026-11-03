@@ -6,7 +6,8 @@
 
 What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
 side is this app; the page side is whatever runs on an allowlisted origin, normally through
-`chatic-apps-sdk`, the library page authors will use instead of speaking this protocol by hand. Both sides
+[`chatic-apps-sdk`](../../../../libs/chatic-apps-sdk/README.md), the library page authors use
+instead of speaking this protocol by hand. Both sides
 are held to this document: the SDK may hide it from authors, but it may not disagree with it.
 
 What the sub WebView is, where it may go and how it closes are in [sub-webview.md](./sub-webview.md).
@@ -42,8 +43,9 @@ Three version values travel, and only one of them decides anything.
 | `BRIDGE_VERSION` (semver, shared with the main web) | The version of the message vocabulary both WebViews speak | Nothing at run time; it dates a change                     |
 
 - **`protocolVersion` changes only on a breaking change** (see [Compatibility](#compatibility)). A
-  page MUST refuse to run against a major it does not know, and SHOULD show the user that the app
-  needs updating. A new request or field is not breaking and does not change it.
+  page MUST refuse to run against a major it does not know, and SHOULD tell the user which side
+  needs updating: the page, when the app's major is newer (its author updates `chatic-apps-sdk`), or
+  the app, when it is older. A new request or field is not breaking and does not change it.
 - **A page MUST decide what to send from `supportedWebMessages`, never from a version number.** An
   app built before a request answers `NOT_FOUND`; the handshake lists only what this host has a
   handler for, so a request it lists is one it answers.
@@ -431,7 +433,7 @@ devices can be found and withdrawn. `message` must not be blank. The first 1,000
 `message` and 4,000 of `stack` are kept, not refused: a report is most wanted when the page is least
 able to fix it. A page load records 20; after that the reply is `recorded: false` and nothing is
 written. A page SHOULD report from `window.onerror` and `unhandledrejection`, which
-`chatic-apps-sdk` will do. The report reaches the app's logs and nothing else: a page MUST NOT put
+`chatic-apps-sdk` does. The report reaches the app's logs and nothing else: a page MUST NOT put
 the user's data in it.
 
 ## Pushes

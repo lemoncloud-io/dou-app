@@ -1,0 +1,267 @@
+# chatic-apps-sdk
+
+Build pages that run inside the DoU app. A page on `https://<name>.apps.chatic.io` opens in the app
+over everything else, and talks to the app through this library: close itself and hand back a result,
+title the app's bar, play a haptic, share, copy, open a link outside, get a key to keep the user's data
+under, take Android's back button, and ask before the user closes it. The same page runs in a plain
+browser tab too, where the library falls back to what the browser can do.
+
+Published as `@lemoncloud/chatic-apps-sdk`. No runtime dependencies.
+
+## Install
+
+```bash
+npm install @lemoncloud/chatic-apps-sdk
+```
+
+Or, with no bundler, one script that defines `window.ChaticAppsSDK` (pin the version; the mock below
+is not in this file):
+
+```html
+<script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.1.0/chatic-apps-sdk.global.js"></script>
+```
+
+## Start
+
+```ts
+import { connect, ChaticAppsError } from '@lemoncloud/chatic-apps-sdk';
+
+try {
+    const apps = await connect();
+    if (apps.inApp) await apps.setTitle('Quiz');
+    document.documentElement.dataset.theme = apps.context?.theme ?? 'light';
+} catch (error) {
+    // `UNSUPPORTED_PROTOCOL`: the app is newer than this library — update the library, and tell the
+    // user this page needs an update. `TIMEOUT`: the app did not answer (see "Rules worth knowing").
+}
+```
+
+Call `connect()` when the page starts. In the app it waits for the app's answer (a few
+milliseconds); in a browser it returns at once. Calling it again returns the same connection, so any
+part of the page may call it. Everything below is a method on what it returns.
+
+## A complete page
+
+One file, no build step. Save it as `index.html`, open it in a browser, and it runs with the browser
+stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
+
+```html
+<!doctype html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <title>Quiz</title>
+        <script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.1.0/chatic-apps-sdk.global.js"></script>
+    </head>
+    <body>
+        <h1 id="score">0</h1>
+        <button id="plus">+1</button>
+        <button id="share" hidden>Share</button>
+        <button id="done">Done</button>
+        <script type="module">
+            const { connect } = window.ChaticAppsSDK;
+            const apps = await connect();
+            let score = 0;
+
+            document.documentElement.dataset.theme = apps.context?.theme ?? 'light';
+            apps.onContextChange(context => (document.documentElement.dataset.theme = context.theme));
+
+            document.getElementById('plus').onclick = () => {
+                score += 1;
+                document.getElementById('score').textContent = String(score);
+                apps.haptic('selection');
+            };
+
+            // Offer only what this app can do here.
+            const share = document.getElementById('share');
+            share.hidden = !(apps.supports('share') || !apps.inApp);
+            share.onclick = () => apps.share({ message: `I scored ${score}`, url: apps.link('/') });
+
+            document.getElementById('done').onclick = async () => {
+                if (apps.inApp) await apps.finish({ score });
+            };
+        </script>
+    </body>
+</html>
+```
+
+## What a page can do
+
+| Call                              | In the app                                                         | In a browser                        | Needs permission |
+| --------------------------------- | ------------------------------------------------------------------ | ----------------------------------- | ---------------- |
+| `finish(result?)`                 | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener | `NOT_IN_APP`                        | —                |
+| `setTitle(title)`                 | The app's bar shows it (1–100 characters)                          | `document.title`                    | —                |
+| `haptic(kind)`                    | `selection`, `impact`, `success`, `warning`, `error`               | a short vibration, if any           | —                |
+| `onBack(handler \| null)`         | Android back calls `handler` and does nothing else                 | never called                        | —                |
+| `onCloseRequest(handler \| null)` | Asks before the user closes; return `true` to close                | never called                        | —                |
+| `reportError(error)`              | Into DoU's log, under your origin (20 per page load)               | `console.error`                     | —                |
+| `copy(text)`                      | The clipboard                                                      | the browser's clipboard             | `clipboard`      |
+| `share({ title, message, url })`  | The share sheet; waits for the user (see below)                    | Web Share, else copies (`'copied'`) | `share`          |
+| `openUrl(url)`                    | The browser, mail, phone, SMS or a store                           | a new tab                           | `openUrl`        |
+| `getUserKey()`                    | 64 hex characters, the same for this device and site               | `NOT_IN_APP`                        | `userKey`        |
+| `link(path?)`                     | A link that opens this page in the app (see below)                 | the page's own address              | —                |
+
+Plus `apps.context` (the app's language, theme, platform and the `params` you were opened with),
+`apps.onContextChange(listener)` for a theme or language change, `apps.supports(capability)`,
+`apps.inApp`, and `apps.disconnect()`.
+
+- **`share`** resolves `'shared'` or `'dismissed'` on iOS. On Android it resolves `'shared'` as soon as
+  the chooser opens, whatever the user then does. It needs a non-blank `message` or a `url`; `url` must
+  be `http(s)`; `title`, `message` and `url` are at most 100, 4,000 and 2,048 characters.
+- **`link(path)`** takes a path (`'/level/3?seed=7'`) or a URL on your page's own origin, and gives
+  `https://app.chatic.io/apps/<name>/level/3?seed=7` — a tap opens your page in the app where it is
+  installed, in the browser where it is not. In a browser, or an app before links to pages existed, it
+  gives your page's own address instead.
+- **Uncaught errors are reported for you.** `connect()` listens for `error` and `unhandledrejection` and
+  sends them to DoU's log. An `Error` sends its message and stack, a string itself, anything else only
+  its type. Pass `connect({ reportErrors: false })` to turn it off.
+
+## Permissions
+
+The four calls marked above need a permission your page asks for in a file on its own site,
+`/.well-known/chatic-app.json`:
+
+```json
+{
+    "manifestVersion": 1,
+    "name": "Quiz",
+    "permissions": ["share", "userKey"],
+    "display": "standard",
+    "orientation": "portrait"
+}
+```
+
+You ask; an administrator grants them when your page is reviewed, and only what was granted is
+deployed. Without the file your page gets everything else but not these four, which then fail with
+`NOT_SUPPORTED`. `display: "fullscreen"` hides the app's bar (a small close button stays in the
+top-right corner — keep it clear); `orientation` is `any`, `portrait` or `landscape`. The app reads
+the file before it shows your page, keeps it for the rest of its run, and fetches a fresh copy behind
+each later open: a change to the file takes effect one open later.
+
+## Errors
+
+Every failure is a `ChaticAppsError` with a `code`:
+
+```ts
+import { ChaticAppsError } from '@lemoncloud/chatic-apps-sdk';
+
+try {
+    const key = await apps.getUserKey();
+} catch (error) {
+    if (error instanceof ChaticAppsError && (error.code === 'NOT_SUPPORTED' || error.code === 'NOT_IN_APP')) {
+        // A browser, an older app, or no `userKey` permission: sign in your own way.
+    }
+}
+```
+
+| Code                   | Means                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| `NOT_SUPPORTED`        | Not available: an older app, a permission the page does not hold, or no browser clipboard |
+| `NOT_IN_APP`           | The call needs the app, and the page is in a browser                                      |
+| `TIMEOUT`              | The app did not answer in 10 seconds (time in the background does not count)              |
+| `INVALID`              | A value is missing, of the wrong type, or too long                                        |
+| `TOO_LARGE`            | One call's data is over 65,536 characters                                                 |
+| `LINK_NOT_ALLOWED`     | The link cannot be opened or shared from a page                                           |
+| `NOT_OPEN`             | `finish` after the view has already closed                                                |
+| `UNAVAILABLE`          | The device has no id to make a user key from                                              |
+| `DISCONNECTED`         | The call was waiting when `disconnect()` closed the connection                            |
+| `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                           |
+
+Treat a code not in this table as that call failing, and nothing more.
+
+## Rules worth knowing
+
+- **Decide what to offer with `apps.supports(...)`**, never with a version number. A share button
+  shows only if `apps.supports('share')`.
+- **Save as you go.** The app or the web that opened the page can close it at any time without
+  asking. Listen to `document`'s `visibilitychange` and save when it turns `hidden` — the app sends no
+  "going to the background" signal.
+- **Share `apps.link(path)`**, not your page's address: a tap on it opens the page in the app.
+- **The user key is not an account and proves nothing.** It stays the same on one device for your site,
+  and differs on every other site. Two people on one phone share it; anyone who learns one can send it.
+  Keep game progress under it, not money.
+- **`onCloseRequest` is for something the user would lose.** A second close within three seconds always
+  closes, so a page cannot keep the user in.
+- **Leaving your origin leaves the bridge.** A link to another site opens in the browser; a page on
+  another `apps.chatic.io` address loads in the view but gets no answers, so `connect()` there ends in
+  `TIMEOUT`.
+- **You cannot see the error reports.** They go to DoU's log, read by the people who review pages.
+  Send errors to your own server too if you want to see them.
+
+## What this WebView is like
+
+- **Storage is the WebView's**: `localStorage` and IndexedDB work, but go when the app is reinstalled
+  or the system clears website data. Keep what matters on your own server, under `getUserKey()`.
+- **No popups**: `window.open` and `target="_blank"` load in the same view, so a login that answers
+  through `window.opener` does not work. Use a redirect login.
+- **Downloads**: a file download is not handled on iOS. Show the content instead.
+- **Camera and microphone** work through the browser APIs, under DoU's name: the OS asks the user
+  "DoU would like to…". What your page uses is part of its review.
+- **Your own server**: calls to it are ordinary cross-origin requests from `https://<name>.apps.chatic.io`;
+  allow that origin in its CORS settings.
+- **Layout**: the page sits inside the safe area on every edge; there are no insets to handle. Use the
+  context's `theme`, not the OS's, for dark mode — the user can set DoU's theme apart from the phone's.
+
+## Try it without the app
+
+`@lemoncloud/chatic-apps-sdk/mock` turns a browser tab into a stand-in for the app. Install it before
+`connect()`, in development only:
+
+```ts
+import { connect } from '@lemoncloud/chatic-apps-sdk';
+import { installChaticAppsMock } from '@lemoncloud/chatic-apps-sdk/mock';
+
+const app = import.meta.env.DEV ? installChaticAppsMock({ permissions: ['share', 'userKey'] }) : null;
+const apps = await connect();
+
+// Play the user's side from the console or a dev button:
+app?.pressBack();
+app?.requestClose();
+app?.changeContext({ theme: 'dark' });
+console.log(app?.closed); // { by: 'page', result } once the page finishes, { by: 'user' } on a close
+```
+
+It answers as the app does — the base calls, plus the `permissions` you give it, and `NOT_SUPPORTED`
+for the rest — checks what the app checks, and logs every call. It is a stand-in: the share sheet is
+logged rather than shown, the user key is not the app's, and it proves nothing about a phone.
+
+## For an AI assistant writing a page
+
+Paste this list into the prompt along with what the page should do.
+
+1. Use `@lemoncloud/chatic-apps-sdk`. Call `await connect()` once at start, inside `try/catch`.
+2. Check `apps.inApp` and `apps.supports(capability)` before offering an app feature; never compare
+   version numbers.
+3. Every call can throw `ChaticAppsError`; branch on `error.code` only, never on `error.message`.
+4. Take the theme and language from `apps.context` and `apps.onContextChange`, not from the OS.
+5. Share links built with `apps.link(path)`.
+6. Save state on `visibilitychange` to `hidden` and on your own server under `apps.getUserKey()`; never
+   rely on `localStorage` alone.
+7. Use `apps.onBack(handler)` for in-page dialogs; clear it with `apps.onBack(null)` when they close.
+8. Use `apps.onCloseRequest` only to protect unsaved work; return `true` to close.
+9. No `window.opener`, no popup logins, no file downloads.
+10. Never put the user's data in errors or in `reportError`.
+11. List the permissions the page needs (`clipboard`, `share`, `openUrl`, `userKey`) in
+    `/.well-known/chatic-app.json` — and nothing it does not use.
+12. In development, `installChaticAppsMock({ permissions: [...] })` before `connect()`.
+
+## For maintainers
+
+This library lives in the DoU app's repository so it cannot drift from the app: its public types are
+pinned to the app's message definitions by a type-level test, and a contract test in the app runs this
+client against the app's real page host. The protocol it speaks is specified in
+[sub-webview-protocol.md](https://github.com/lemoncloud-io/dou-app/blob/develop/apps/mobile/docs/webview/sub-webview-protocol.md).
+
+```bash
+npx jest --config libs/chatic-apps-sdk/jest.config.js
+npx tsc -b libs/chatic-apps-sdk/tsconfig.json
+npx nx build @chatic/chatic-apps-sdk      # dist/libs/chatic-apps-sdk, ready to publish
+```
+
+The build writes `package.publish.json` as the published `package.json` (`publishConfig.access` is
+`public`, so a scoped package is never published private by mistake). Publish from the build output:
+
+```bash
+cd dist/libs/chatic-apps-sdk && npm publish --dry-run
+```
