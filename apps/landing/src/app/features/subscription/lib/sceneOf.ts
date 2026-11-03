@@ -46,7 +46,7 @@ const ACTIVE_ACTIONS: SceneAction[] = ['changePlan', 'paymentMethods', 'invoices
 
 /**
  * The banner and buttons for a subscription in its current state — the one place that decision is
- * made, so the screens draw the result and the mock only holds state.
+ * made, so the screens draw the result and the port only holds state.
  *
  * A scheduled downgrade and a restore are not statuses; they sit on an `active` subscription and take
  * over its banner. A restored subscription keeps the ordinary buttons beneath its "started again"

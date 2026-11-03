@@ -4,11 +4,13 @@ import type { PaymentWindow } from './createHttpPort';
 import { windowResultOf } from './windowReturn';
 
 /**
- * The payment provider's card window (PortOne V2, KG Inicis). Every value it opens with comes from the
+ * The won provider's card window (PortOne V2, KG Inicis). Every value it opens with comes from the
  * server's `issue` answer — the store, the channel and the issue id — so none is configured here; the
- * card company also requires the holder's name, number and email with the card.
+ * card company also requires the holder's name, number and email with the card, which the port has
+ * checked are given (`issue.required`).
  */
 export const portOneWindow: PaymentWindow = async ({ issue, payer, redirectUrl }) => {
+    if (issue.provider !== 'portone') throw new Error('not a card registration for the provider window');
     const response = await PortOne.requestIssueBillingKey({
         storeId: issue.storeId,
         channelKey: issue.channelKey,
@@ -23,9 +25,9 @@ export const portOneWindow: PaymentWindow = async ({ issue, payer, redirectUrl }
         offerPeriod: { interval: '1m' },
         customer: {
             customerId: issue.customerId,
-            fullName: payer.name,
-            phoneNumber: payer.phone,
-            email: payer.email,
+            fullName: payer?.name,
+            phoneNumber: payer?.phone,
+            email: payer?.email,
         },
     });
     return windowResultOf(response);

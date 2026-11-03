@@ -6,9 +6,9 @@ import { type JSX, type ReactNode, createContext, useContext } from 'react';
  *
  * The cards are open: the payment service holds several per account, and the server lists them, picks
  * the default and removes one. The billing emails are shut — they have no server of their own, so the
- * screens would only be answered by the mock. Shut means the routes are not registered (the paths fall
- * to the catch-all) and every link into them is gone; the port methods, the HTTP port and the mock are
- * left as they were, so opening them again is a value here and nothing else. What keeping the emails
+ * only thing that answers their screens is the tests' fake server. Shut means the routes are not
+ * registered (the paths fall to the catch-all) and every link into them is gone; the port methods, the
+ * HTTP port and the fake are left as they were, so opening them again is a value here and nothing else. What keeping the emails
  * shut costs — one address for notices — is written down beside the decision, not here.
  */
 export interface ManagementScreens {

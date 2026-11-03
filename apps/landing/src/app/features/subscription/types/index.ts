@@ -13,11 +13,26 @@
 /** The server's product id without its leading `#`. The display name is copy: `DoU Cloud {sort}`. */
 export type PlanId = 'pro-tier-01' | 'pro-tier-02' | 'pro-tier-03' | 'pro-tier-04' | 'pro-tier-05';
 
-/** An amount with VAT included. */
+/** The currencies a plan is sold in. */
+export type Currency = 'KRW' | 'USD';
+
+/**
+ * An amount with VAT included, in the currency's minor unit: won for `KRW` (which has none smaller),
+ * cents for `USD`. The server's prices arrive this way and are carried as they are; only `formatMoney`
+ * turns them into a currency's major unit for the reader.
+ */
 export interface Money {
     amount: number;
-    currency: 'KRW' | 'USD';
+    currency: Currency;
 }
+
+/**
+ * Who registers and charges a card. Payments in won go through one provider and payments in US dollars
+ * through another, and an account's cards, its default card and its subscription all belong to one of
+ * them. Screens compare these and never print them: what the reader sees is the billing country and the
+ * currency (`lib/billingCountry.ts`).
+ */
+export type PaymentProvider = 'portone' | 'stripe';
 
 export interface Plan {
     id: PlanId;
@@ -42,6 +57,11 @@ export interface Account {
     displayName?: string;
     billingSource: BillingSource;
     trialUsed: boolean;
+    /**
+     * Whether a first web subscription started now would begin with the free trial, as the server judges
+     * it for its own checkout. Absent from a server that does not say, where `trialUsed` is read instead.
+     */
+    trialEligible?: boolean;
     /** A store subscriber's plan and next charge, for the store notice. Absent for anyone else. */
     storeSubscription?: { planId: PlanId; nextBillingAt?: string };
 }
@@ -87,20 +107,25 @@ export interface Subscription {
     pendingChange?: { planId: PlanId; effectiveAt: string };
     /** Subscribed again within the restore window after expiring. Also not a status. */
     restored?: boolean;
+    /** Who charges it — and so which of the account's cards it can be charged to. */
+    provider: PaymentProvider;
     defaultPaymentMethodId?: string;
 }
 
 export interface PaymentMethod {
     id: string;
+    /** Who holds the card. A card can only pay a subscription of the same provider. */
+    provider: PaymentProvider;
     brand: string;
     last4: string;
     /**
-     * The expiry, and whether it is close. The subscription server's card view does not carry an
-     * expiry yet, so these may be absent; a screen then draws no expiry and no expiry warning.
+     * The expiry, and whether it is close. Not every provider reports a card's expiry, so these may be
+     * absent; a screen then draws no expiry and no expiry warning.
      */
     expMonth?: number;
     expYear?: number;
     expiringSoon?: boolean;
+    /** The card its provider charges. Each provider has its own default, so an account can have two. */
     isDefault: boolean;
 }
 
@@ -187,9 +212,10 @@ export type ChangePlanResult = PaymentAttempt | { scheduled: true; effectiveAt: 
 export type RegistrationOutcome = 'registered' | 'failed' | 'closed';
 
 /**
- * Who pays, as the payment window and the subscription server both require it: the card company asks
- * for a name, a phone number and an email with every card. Entered at checkout (W-08) or when a card
- * is replaced, and never stored — the next card asks again.
+ * Who pays, as the won provider's card company requires it: a name, a phone number and an email with
+ * every card, and again with every charge on it. Entered at checkout (W-08) or when a card is added,
+ * only where the billing is in Korea, and never stored — the next card asks again. The dollar provider
+ * asks for none of it.
  */
 export interface Payer {
     name: string;

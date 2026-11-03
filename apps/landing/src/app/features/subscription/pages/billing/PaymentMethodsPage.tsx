@@ -16,11 +16,14 @@ import {
     useSession,
     useSetDefaultPaymentMethod,
     useStartPaymentMethodRegistration,
+    useSubscriptions,
     subscriptionKeys,
 } from '../../hooks';
 import { primaryVerifiedEmail } from '../../lib/billingEmail';
+import { currencyOfProvider, lockedCountryOf, payerRequiredFor } from '../../lib/billingCountry';
 import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
 import { EMPTY_PAYER, type PayerDraft, isPayerComplete, payerOf } from '../../lib/payer';
+import { cardGroupsOf, defaultCardOf } from '../../lib/paymentMethods';
 import { savePendingCardChange, takePendingCardChange } from '../../lib/pendingCheckout';
 import { isPortError, useSupports, useToday } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
@@ -46,6 +49,11 @@ type RegistrationNotice = 'declined' | 'attemptLimit';
  * W-12 — the cards the subscription is charged to: add one through the payment provider's window,
  * make one the default, remove one.
  *
+ * Cards belong to the provider that registered them — one for payments in won, one for payments in
+ * dollars — and each provider has a default of its own. The cards of the provider the subscription is
+ * charged by come first; any of the other's are listed under their own heading, named by currency, and
+ * their default is changed among themselves.
+ *
  * While a payment is failing the page is also where the reader fixes it: choosing another card (or
  * adding one) offers to make it the default and charge the overdue amount there and then, and the
  * charge is followed on the payment status page like any other attempt.
@@ -59,6 +67,9 @@ export const PaymentMethodsPage = (): JSX.Element => {
     const report = useReportPortError();
     const methods = usePaymentMethods();
     const { subscription, plan } = useCurrentSubscription();
+    // The newest subscription, ended or not: the server adds a card to its provider.
+    const subscriptions = useSubscriptions();
+    const record = subscription ?? subscriptions.data?.[0];
     const registration = useStartPaymentMethodRegistration();
     const setDefault = useSetDefaultPaymentMethod();
     const remove = useRemovePaymentMethod();
@@ -119,16 +130,26 @@ export const PaymentMethodsPage = (): JSX.Element => {
     const closeDialog = () => setDialogOpen(false);
 
     const cards = methods.data;
-    const defaultCard = cards.find(card => card.isDefault);
+    const groups = cardGroupsOf(cards, subscription?.provider);
+    // The card that matters is the default of the provider in use — or, with nothing in use, of the
+    // first group.
+    const inUse = subscription?.provider ?? groups[0]?.provider;
+    const defaultCard = inUse ? defaultCardOf(cards, inUse) : undefined;
+    const chargesSubscription = (card: PaymentMethod) => !!subscription && card.provider === subscription.provider;
+    // A card is added to the provider of the account's subscription — ended or not, as the server does —
+    // and only the won provider asks for a payer.
+    const addsTo = record?.provider ?? 'portone';
+    const needsPayer = payerRequiredFor(addsTo);
+    const lockedCountry = lockedCountryOf(addsTo);
 
     const addCard = async () => {
         closeDialog();
         setNotice(null);
         setReplacement(null);
-        const holder = payerOf(payer, payerEmail ?? '');
-        // On a phone the window is the provider's own page and this call never returns: the payer waits
-        // for the way back (`useCardWindowReturn`).
-        savePendingCardChange(holder);
+        const holder = needsPayer ? payerOf(payer, payerEmail ?? '') : undefined;
+        // On a phone the won provider's window is its own page and this call never returns: the payer
+        // waits for the way back (`useCardWindowReturn`). The dollar provider's card field stays in the page.
+        if (holder) savePendingCardChange(holder);
         try {
             const { outcome } = await registration.mutateAsync({ purpose: 'addCard', payer: holder });
             if (outcome === 'failed') setNotice('declined');
@@ -185,7 +206,7 @@ export const PaymentMethodsPage = (): JSX.Element => {
     };
 
     const askMakeDefault = (card: PaymentMethod) => {
-        if (offersPayment) setReplacement(card);
+        if (offersPayment && chargesSubscription(card)) setReplacement(card);
         else openDialog({ kind: 'makeDefault', card });
     };
 
@@ -255,21 +276,38 @@ export const PaymentMethodsPage = (): JSX.Element => {
                         </p>
                     </div>
                 ) : (
-                    <ul className="flex flex-col gap-4" aria-label={t('subscription.billing.paymentMethods.title')}>
-                        {cards.map(card => (
-                            <CardRow
-                                key={card.id}
-                                card={card}
-                                label={label(card)}
-                                failing={failing && card.isDefault}
-                                failureReason={subscription?.failureReason}
-                                urgeDefault={!!defaultCard?.expiringSoon && !card.isDefault}
-                                busy={busy}
-                                onMakeDefault={() => askMakeDefault(card)}
-                                onRemove={() => askRemove(card)}
-                            />
-                        ))}
-                    </ul>
+                    groups.map(group => {
+                        const heading = t(
+                            `subscription.billing.paymentMethods.group.${currencyOfProvider(group.provider)}`
+                        );
+                        const inUseGroup = group.provider === inUse;
+                        return (
+                            <div key={group.provider} className="flex flex-col gap-2.5">
+                                {/* One provider's cards need no heading; two do, to keep their defaults apart. */}
+                                {groups.length > 1 && <h2 className="text-[13px] font-bold text-mute">{heading}</h2>}
+                                <ul
+                                    className="flex flex-col gap-4"
+                                    aria-label={
+                                        groups.length > 1 ? heading : t('subscription.billing.paymentMethods.title')
+                                    }
+                                >
+                                    {group.cards.map(card => (
+                                        <CardRow
+                                            key={card.id}
+                                            card={card}
+                                            label={label(card)}
+                                            failing={failing && card.isDefault && chargesSubscription(card)}
+                                            failureReason={subscription?.failureReason}
+                                            urgeDefault={inUseGroup && !!defaultCard?.expiringSoon && !card.isDefault}
+                                            busy={busy}
+                                            onMakeDefault={() => askMakeDefault(card)}
+                                            onRemove={() => askRemove(card)}
+                                        />
+                                    ))}
+                                </ul>
+                            </div>
+                        );
+                    })
                 )}
 
                 {replacement && subscription && overdue && (
@@ -321,7 +359,7 @@ export const PaymentMethodsPage = (): JSX.Element => {
                             {t('subscription.billing.paymentMethods.notes.title')}
                         </p>
                         <ul className="mt-1.5 text-[13px] font-medium leading-[1.6] text-[#666b78] md:leading-normal">
-                            {(['removeDefault', 'removeLast', 'domestic', 'noCharge'] as const).map(note => (
+                            {(['removeDefault', 'removeLast', 'currency', 'noCharge'] as const).map(note => (
                                 <li key={note}>• {t(`subscription.billing.paymentMethods.notes.${note}`)}</li>
                             ))}
                         </ul>
@@ -336,10 +374,27 @@ export const PaymentMethodsPage = (): JSX.Element => {
                 description={t('subscription.billing.paymentMethods.addDialog.body')}
                 cancelLabel={t('subscription.common.actions.close')}
                 confirmLabel={t('subscription.billing.paymentMethods.addDialog.open')}
-                confirmDisabled={!isPayerComplete(payer) || !payerEmail}
+                confirmDisabled={needsPayer && (!isPayerComplete(payer) || !payerEmail)}
                 onConfirm={addCard}
             >
-                <PayerFields idPrefix="add-card-payer" value={payer} onChange={setPayer} />
+                <div className="flex flex-col gap-4">
+                    {/* The country the subscription is billed in, fixed: a card cannot move it to the other currency. */}
+                    {record && (
+                        <div className="flex flex-col gap-1 rounded-xl bg-note px-4 py-3">
+                            <p className="text-[13px] font-semibold text-ink">
+                                {t('subscription.billing.paymentMethods.addDialog.lock.label')} ·{' '}
+                                {lockedCountry === 'OTHER'
+                                    ? t('subscription.billing.paymentMethods.addDialog.lock.OTHER')
+                                    : t(`subscription.checkout.billing.countries.${lockedCountry}`)}
+                            </p>
+                            <p className="text-xs font-medium text-mute">
+                                {t(`subscription.checkout.billing.currency.${currencyOfProvider(addsTo)}`)}{' '}
+                                {t('subscription.billing.paymentMethods.addDialog.lock.note')}
+                            </p>
+                        </div>
+                    )}
+                    {needsPayer && <PayerFields idPrefix="add-card-payer" value={payer} onChange={setPayer} />}
+                </div>
             </ConfirmDialog>
             <ConfirmDialog
                 open={dialogOpen && dialog?.kind === 'makeDefault'}
@@ -347,7 +402,7 @@ export const PaymentMethodsPage = (): JSX.Element => {
                 title={t('subscription.billing.paymentMethods.defaultDialog.title')}
                 description={
                     dialog?.kind === 'makeDefault' &&
-                    (subscription?.nextBillingAt && subscription.nextAmount
+                    (subscription?.nextBillingAt && subscription.nextAmount && chargesSubscription(dialog.card)
                         ? t('subscription.billing.paymentMethods.defaultDialog.body', {
                               date: formatDate(subscription.nextBillingAt),
                               amount: money(subscription.nextAmount),

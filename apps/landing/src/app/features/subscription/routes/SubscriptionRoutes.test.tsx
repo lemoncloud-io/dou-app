@@ -2,8 +2,8 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import i18n from '../../../../i18n';
-import { createMockPort } from '../lib/mock';
-import { memoryStateStore } from '../lib/mock/storage';
+import { createMockPort } from '../testing/mock';
+import { memoryStateStore } from '../testing/mock/storage';
 import { HTTP_METHODS } from '../lib/port/http';
 
 import { MANAGEMENT_SCREENS_OPEN, type ManagementScreens } from '../lib/screens';
@@ -14,7 +14,7 @@ import type { PortSetup } from '../lib/createPortSetup';
 
 // The screens are not under test here — only which one a URL reaches, which shell holds it and where
 // the guards send the reader. Each screen stands in as its id, so filling a screen never breaks this
-// file; the shells, guards and developer pages stay real.
+// file; the shells and guards stay real.
 vi.mock('../pages/entry', () => ({
     PlansPage: () => <p>W-01</p>,
     LoginPage: () => <p>W-02</p>,
@@ -45,15 +45,13 @@ beforeAll(async () => {
     await i18n.changeLanguage('en');
 });
 
-// The dev panel re-renders on every mock commit, including the ones a test makes outside React; it
-// stays hidden unless a test is about it.
-const mockSetup = (search: string, { panel = false } = {}): PortSetup => {
+const mockSetup = (search: string): PortSetup => {
     const { port, clock, controller } = createMockPort({
         store: memoryStateStore(),
-        readSearch: () => (panel ? search : `${search}&panel=0`),
+        readSearch: () => search,
         delayMs: 0,
     });
-    return { port, clock, mock: controller };
+    return { port, clock, standInWindow: controller };
 };
 
 const Where = () => {
@@ -240,18 +238,6 @@ describe('SubscriptionRoutes', () => {
         expect(where()).toBe('/subscription');
     });
 
-    it("returns from the stand-in consent page to the callback with the reader's choice", async () => {
-        renderAt('/subscription/login/mock-provider?provider=google&nonce=n-1', mockSetup('?mock=no-linked-account'));
-
-        // The scenario preselects the no-linked-account answer.
-        expect(((await screen.findByLabelText('No DoU account linked')) as HTMLInputElement).checked).toBe(true);
-        fireEvent.click(screen.getByLabelText('Cancel'));
-        fireEvent.click(screen.getByRole('button', { name: 'Return to DoU' }));
-
-        expect(await screen.findByText('W-02 callback')).toBeTruthy();
-        expect(where()).toBe('/subscription/login/callback?provider=google&nonce=n-1&result=canceled');
-    });
-
     it('lets the stand-in payment window answer a card registration', async () => {
         const setup = mockSetup('?mock=active&fail=card-declined');
         renderAt('/subscription/payment-methods', setup);
@@ -271,16 +257,6 @@ describe('SubscriptionRoutes', () => {
 
         expect(await outcome).toMatchObject({ outcome: 'registered' });
         expect(await setup.port.listPaymentMethods()).toHaveLength(3);
-    });
-
-    it('switches the scenario from the dev panel and refetches what the screen shows', async () => {
-        renderAt('/subscription', mockSetup('?mock=active', { panel: true }));
-        expect(await (await sidebar()).findByText('DoU Cloud 2')).toBeTruthy();
-
-        fireEvent.click(screen.getByRole('button', { name: 'mock: active' }));
-        fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'downgrade-scheduled' } });
-
-        expect(await (await sidebar()).findByText('DoU Cloud 3')).toBeTruthy();
     });
 
     it('signs out from the account menu and lands on the plans', async () => {

@@ -7,8 +7,8 @@ import { isSubscriptionAccountEnabled } from './stage';
  * `import.meta`.
  *
  * Only a host where the account surface is open has a server, and only when the build carries every
- * address the sign-in needs. Without them the account surface runs on the mock as it did before there
- * was a server, rather than failing on its first call.
+ * address the sign-in needs. Without them the account surface stays shut there too
+ * (`isSubscriptionAccountOpen`): there is no in-page stand-in to run it on.
  */
 export interface SubscriptionServer {
     /** The OAuth relay the browser is sent to for a social sign-in. */
@@ -37,3 +37,10 @@ export const readSubscriptionServer = (
 };
 
 export const subscriptionServer = readSubscriptionServer(import.meta.env, isSubscriptionAccountEnabled);
+
+/**
+ * Whether the account surface is open: a host where it may be (`isSubscriptionAccountEnabled`) with a
+ * build that carries the server's addresses. Where it is not, only the plans page is registered, as on
+ * the production host.
+ */
+export const isSubscriptionAccountOpen = subscriptionServer !== undefined;

@@ -7,6 +7,7 @@ import { PageLoader, SummaryTile } from '../../components';
 import { Banner, Button } from '../../components/ui';
 import { useChangePlan, usePaymentMethods, usePlans, usePreviewChange } from '../../hooks';
 import { ddayOf } from '../../lib/ddayOf';
+import { defaultCardOf } from '../../lib/paymentMethods';
 import { isPortError, useSupports, useToday } from '../../lib/port';
 import { useManagementScreens } from '../../lib/screens';
 import { cn, formatDate, formatMoney } from '../../utils';
@@ -135,7 +136,7 @@ const ChangeConfirm = ({
     const money = (amount: Money) => formatMoney(amount, i18n.language);
     const key = (name: string) => `subscription.checkout.change.${name}`;
     const { kind, from, to } = preview;
-    const card = methods.data?.find(method => method.isDefault);
+    const card = methods.data && defaultCardOf(methods.data, subscription.provider);
     const pending = subscription.pendingChange;
     const pendingPlan = plans.data?.find(plan => plan.id === pending?.planId);
     const sameDay = preview.blocked === 'sameDayAsChange';

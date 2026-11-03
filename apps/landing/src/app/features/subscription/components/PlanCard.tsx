@@ -53,7 +53,10 @@ export const PlanCard = ({
                             values={{ price: formatMoney(plan.monthly, i18n.language) }}
                             components={{ price: <span className="text-base text-[#222325]" /> }}
                         />
-                        <span className="text-sm text-mute">{t('subscription.common.plan.vatNote')}</span>
+                        {/* Won prices include VAT; how tax applies to a dollar price is not settled, so it says nothing. */}
+                        {plan.monthly.currency === 'KRW' && (
+                            <span className="text-sm text-mute">{t('subscription.common.plan.vatNote')}</span>
+                        )}
                     </span>
                     <span className="text-[13px] text-subtitle">
                         {t('subscription.common.plan.clouds', { count: plan.maxClouds })}
