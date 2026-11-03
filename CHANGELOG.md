@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-03] - root@0.143.4, @chatic/web@0.86.3
+
+### Other
+
+- test: (web) stop the login entry guard matching ROUTES.mypage.loginEmail
+
 ## [2026-11-03] - No version updates
 
 ### Features
