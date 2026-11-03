@@ -50,12 +50,12 @@ cloud management, and the policy screens.
   page belongs to [feedback](../feedback/README.md).
 - **The debug panel.** Lab hosts the unlock gesture; [debug](../debug/README.md) owns the gate and
   everything behind it.
-- **The in-app pages.** While debug mode is on, Lab's last card ("In-app") lists the pages kept on
-  `apps-dev.chatic.io` for trying the sub WebView — `IN_APP_PAGES` in `consts/inAppPages.ts`, games
-  so far but not only games — and a
-  tap opens one with `openSubWebView`. They follow debug mode rather than a key of their own, so the
-  flask's unlock shows them in a store build too; LOCAL and DEV start unlocked. What the sub WebView
-  is, and what it allows, is the phone shell's
+- **The sub WebView pages.** The pages kept on `apps-dev.chatic.io` for trying the sub WebView are
+  `IN_APP_PAGES` in `consts/inAppPages.ts`, games so far but not only games, and a tap opens one with
+  `openSubWebView`. Each names its `surface`: an `experiment` page is a row in Lab's Experiments card
+  for everyone (Raise DoU), a `debug` page stays in the "In-app" card that only debug mode draws
+  (Echo) — the flask's unlock shows it in a store build too; LOCAL and DEV start unlocked. What the
+  sub WebView is, and what it allows, is the phone shell's
   ([sub-webview.md](../../../../mobile/docs/webview/sub-webview.md)).
 - **What an experiment does.** Lab holds the switch; the feature behind it, and the rule that reads
   the switch, belong to that feature — the place invite's to
@@ -116,6 +116,9 @@ someone who is plainly signed in.
 - **Subscription.** Always the subscription list — it has a state for everyone, and its empty
   state is what leads to the guide. Branching here on `isValid` sent a scheduled cancellation,
   still paid for, to the pitch.
+  The row shows for an account, and for a guest in a browser: a browser guest is handed to the
+  website, which signs the buyer in itself, whereas a guest app signs in here first and so waits for an
+  account. The list and the guide still open there; the hand-off to the website starts at the plan picker.
 - **Version.** It goes to the store **only when an update is actually pending**, and the
   up-to-date / update-available label shows on iOS only, because Android has no live-version source
   and a label there would be a guess. Otherwise the row is inert — it is informational and carries
@@ -221,16 +224,18 @@ key on the registry's `labs` surface — default off, and declared killable by t
 draws a hand-built row for it in the **Experiments** card. No renderer walks the registry; a new
 experiment adds its own row, as a `user` key does in Settings.
 
-Today there are two, each in its own card with its note under it:
+Everything sits in the one **Experiments** card, so a person sees the whole list in one place; a row is
+a switch, or — for a sub WebView page — an arrow that opens it. Today there are three:
 
 - **Place invite** (`feature.placeInvite`), through `usePlaceInviteExperiment` — see
   [invite/place-invite.md](../invite/place-invite.md).
 - **Chat input lock** (`feature.chatInputLock`), through `useChatInputLockExperiment` — see
   [channels/chat-room.md](../channels/chat-room.md#the-input-lock-a-lab-experiment). Turning it on
   only adds a row to each room's settings; no room is locked until that row says so.
+- **Raise DoU** (`두유 키우기` in Korean), the raising game, a sub WebView page with nothing to turn on — see above.
 
-A row's subtitle is one short line because `ListRow` truncates a subtitle to a single line; what the
-switch does and where it applies is the note under the card.
+A row's subtitle is one short line because `ListRow` truncates a subtitle to a single line, and there
+is no note under the card: what a switch does is the feature's own doc.
 
 The switch only lets the feature in. Who may use it, and where, is still the feature's own rule —
 turning on Place invite does not give a non-owner the menu entry. The value lives in this device's
