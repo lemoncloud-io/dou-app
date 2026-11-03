@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-03] - No version updates
+
+### Bug Fixes
+
+- (app-runtime,db,web) keep a browser tab's invited clouds in session storage (ADR-0275)
+
 ## [2026-11-03] - root@0.142.0, @chatic/web@0.86.0
 
 ### Features
