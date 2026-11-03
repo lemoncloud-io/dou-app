@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-03] - root@0.143.1, @chatic/web@0.86.1
+
+### Bug Fixes
+
+- (web) lift the snackbar above the chat composer and docked footers
+
 ## [2026-11-03] - No version updates
 
 ### Features
