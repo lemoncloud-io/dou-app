@@ -156,6 +156,7 @@ dou-app/
 │   ├── app-runtime/         # Session, sockets, repositories, sync runtimes
 │   ├── bridges/             # WebView transport between web and native shell
 │   ├── bridge-messages/     # Bridge message vocabulary (web <-> native)
+│   ├── chatic-apps-sdk/     # The library sub WebView pages talk to the app with (published)
 │   ├── fake-shell/          # Fake native shell core of web-e2e; its answers back the virtual shell's
 │   ├── device-utils/        # Injected device info, reader hooks
 │   ├── auth-sign/           # Lemon HMAC request signing

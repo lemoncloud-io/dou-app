@@ -188,7 +188,8 @@ permission in the app, so an app release, and is done when a reviewed page needs
 
 ### For a page's author
 
-Pages talk to the shell through `chatic-apps-sdk`, or by hand following
+Pages talk to the shell through [`chatic-apps-sdk`](../../../../libs/chatic-apps-sdk/README.md)
+(`libs/chatic-apps-sdk`, published as `@lemoncloud/chatic-apps-sdk`), or by hand following
 [sub-webview-protocol.md](./sub-webview-protocol.md), which is the contract either way: the envelope,
 the handshake, every request and push, errors, timeouts and limits. Three things from it that a page
 most often gets wrong:
@@ -358,6 +359,7 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/subWebViewUserKey.ts`              | The page's key, from the device id and its origin                       |
 | `src/app/subWebView/subWebViewCloseGuard.ts`           | Whether the user's close asks the page first, and the forced second one |
 | `src/app/subWebView/useSubWebViewBack.ts`              | Android back: the page's claim, then history, then close                |
+| `src/app/subWebView/chaticAppsSdk.contract.test.ts`    | `chatic-apps-sdk` run against this host and its handlers                |
 | `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticSubWebView`, for the opened origin only                   |
 | `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data, 64 KiB message and 100-character title limits          |
 | `src/app/services/subWebView/subWebViewManifest.ts`    | Reads, checks and caches a page's manifest                              |
