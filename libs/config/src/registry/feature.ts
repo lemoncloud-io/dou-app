@@ -57,6 +57,18 @@ export const featureModule: ConfigRegistryModule = {
         writableBy: ['local', 'server'],
         persist: 'session',
     },
+    // Email + password sign-in is a development tool (switching between seeded test accounts), not a
+    // product entry point, so it is off everywhere except the stages developers run against.
+    'feature.auth.emailLogin': {
+        title: 'Email login',
+        description: 'Shows the email + password form on the login screen.',
+        type: 'boolean',
+        defaultValue: false,
+        byStage: { LOCAL: true, DEV: true },
+        surface: 'dev',
+        writableBy: ['local'],
+        persist: 'session',
+    },
     'feature.subscription.dryRun': {
         title: 'Subscription payment dry run',
         description: 'Exercises the subscription flow without an actual charge.',
