@@ -62,7 +62,7 @@ login/logout/switch use cases, device pairing, socket authentication wiring and 
 ([`libs/auth`](../auth/README.md)); the socket transport and its `AuthController`
 (`@lemoncloud/chatic-sockets-lib`); repositories, data sources and mappers
 ([`libs/data`](../data/README.md)); the HTTP executor, retry and error classification
-([`libs/http`](../http/README.md)); IndexedDB and native SQLite adapters
+([`libs/http`](../http/README.md)); IndexedDB, native SQLite and Web Storage adapters
 ([`libs/db`](../db/README.md)); the HMAC signature itself (`libs/auth-sign`); the log entry
 contract and its uploader ([`libs/logger`](../logger/README.md)); the settings registry
 ([`libs/config`](../config/README.md)); and everything a screen does with any of it.

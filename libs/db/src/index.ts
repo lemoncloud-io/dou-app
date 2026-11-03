@@ -10,6 +10,8 @@ export { ChatQueryExecutor } from './indexeddb/ChatQueryExecutor';
 export { IndexedDBAdapter, isQuotaExceededError } from './indexeddb/IndexedDBAdapter';
 export type { IndexedDBAdapterOptions } from './indexeddb/IndexedDBAdapter';
 
+export { WebStorageAdapter } from './webstorage/WebStorageAdapter';
+
 export { NativeDBAdapter, resetNativeBatchReadSupport, resetNativeLastChatsSupport } from './native/NativeDBAdapter';
 export {
     getNativeCacheMetrics,

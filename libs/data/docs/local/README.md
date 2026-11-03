@@ -29,12 +29,13 @@ shell, which is a separate deploy. A cache read therefore crosses three packages
 libs/data     LocalDataSource → the CacheStorage port
 libs/db       IndexedDBAdapter   web    · rows live here, in the browser's IndexedDB
               NativeDBAdapter    native · a bridge client holding no rows
+              WebStorageAdapter  session · rows live here, in the tab's sessionStorage (invitecloud in a plain tab only)
                                             ↓ SaveCacheData · FetchCacheData · …
 apps/mobile   CacheCrudService → SqliteDatabase   native · rows live here
               database/sqlite/schema.ts · tables.ts · services/cache/cacheDomainVersions.ts
 ```
 
-Which of the two a domain gets is decided by neither of them — `resolveCacheBackend` in
+Which of them a domain gets is decided by none of them — `resolveCacheBackend` in
 `@chatic/app-runtime` owns that.
 
 **Choosing which adapter a domain gets is not this lib's job either.** `resolveCacheBackend` in

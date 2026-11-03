@@ -1,7 +1,8 @@
 # @chatic/db
 
-**The storage engine behind the cache.** It holds the two `CacheStorage` implementations an app can
-be given — browser IndexedDB and the native shell's SQLite over a WebView bridge — plus the physical
+**The storage engine behind the cache.** It holds the three `CacheStorage` implementations an app can
+be given — browser IndexedDB, the native shell's SQLite over a WebView bridge, and a browser Web
+Storage area for a small domain that must end with the tab — plus the physical
 IndexedDB connection, the chat paging executor, the two cross-cloud search sources and the native
 call instrumentation.
 
@@ -62,7 +63,9 @@ imports them as runtime functions.
 
 ## Scope
 
-**In** — scope resolution and the shared default implementations (`BaseDbAdapter`); the physical
+**In** — a Web Storage `CacheStorage` for a small domain that lives as long as its storage area,
+one JSON value per partition and no query interpretation (`WebStorageAdapter`); scope resolution and
+the shared default implementations (`BaseDbAdapter`); the physical
 IndexedDB connection and schema (`IndexedDBDatabase`); the web `CacheStorage` with its per-channel cap
 and quota recovery (`IndexedDBAdapter`); chat paging (`ChatQueryExecutor`); the bridge `CacheStorage`
 with in-flight read sharing, batch reads and three learned fallbacks (`NativeDBAdapter`); native call
@@ -90,19 +93,25 @@ flowchart TD
     Base["BaseDbAdapter<br/><i>scope · loadMany · clearByChannelId defaults</i>"]:::eng
     IDB["IndexedDBAdapter<br/>+ ChatQueryExecutor"]:::web
     NDB["NativeDBAdapter<br/>+ nativeCacheMetrics"]:::nat
+    WSA["WebStorageAdapter<br/><i>one JSON value per partition</i>"]:::web
     Conn["IndexedDBDatabase<br/><i>one connection · ChaticWebCacheDB v3</i>"]:::web
     Search["IndexedDbGlobalSearchSource<br/>NativeGlobalSearchSource"]:::eng
 
     Browser["browser IndexedDB"]:::ext
     Shell["app shell SQLite<br/><i>via @chatic/bridges webClient</i>"]:::ext
+    Session["browser sessionStorage"]:::ext
 
     DS -->|"CacheStorage only"| IDB
     DS -->|"CacheStorage only"| NDB
+    DS -->|"CacheStorage only"| WSA
     LF -.->|"new — the only caller"| IDB
     LF -.->|"new — the only caller"| NDB
+    LF -.->|"new — the only caller"| WSA
     LF -.->|"new"| Search
     Base --- IDB
     Base --- NDB
+    Base --- WSA
+    WSA --> Session
     IDB --> Conn
     Conn --> Browser
     NDB --> Shell
@@ -110,6 +119,7 @@ flowchart TD
     Search --> Shell
     IDB -.->|"types + policy fns"| Ports
     NDB -.->|"types + policy fns"| Ports
+    WSA -.->|"types + policy fns"| Ports
 ```
 
 Nothing in this lib calls back into a repository or a data source. The arrow into `@chatic/data`
@@ -149,14 +159,15 @@ sequenceDiagram
 
 ```text
 libs/db/src/
-├── index.ts          public barrel — 17 values, 3 types
-├── base/             BaseDbAdapter: scope resolution + the defaults both adapters inherit
+├── index.ts          public barrel — 18 values, 3 types
+├── base/             BaseDbAdapter: scope resolution + the defaults every adapter inherits
 ├── indexeddb/        the web store — IndexedDBDatabase, IndexedDBAdapter, ChatQueryExecutor
 ├── native/           the bridge store — NativeDBAdapter, nativeCacheMetrics
+├── webstorage/       the tab store — WebStorageAdapter, one JSON value per partition
 └── search/           IGlobalCacheSearchSource × 2, plus the contract test that pins them together
 ```
 
-Nine production files, eight spec files. Several names are not where the filename suggests:
+Ten production files, nine spec files. Several names are not where the filename suggests:
 
 - `isQuotaExceededError` sits in `IndexedDBAdapter.ts`, its only consumer — a `DOMException` predicate
   kept out of `@chatic/data` so that lib does not take a DOM dependency.
@@ -300,16 +311,23 @@ the classes here are constructor arguments for one factory, not an API.
 
 ```ts
 // libs/app-runtime/src/data/factories/localFactory.ts — the only importer in the repo
-import { ChatQueryExecutor, IndexedDBAdapter, IndexedDBDatabase, NativeDBAdapter } from '@chatic/db';
+import { ChatQueryExecutor, IndexedDBAdapter, IndexedDBDatabase, NativeDBAdapter, WebStorageAdapter } from '@chatic/db';
 
 export const getCacheStorage = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider,
-    cache?: CacheAssemblyOptions
-): CacheStorage<TType> =>
-    resolveCacheBackend(type) === 'web'
-        ? createIndexedDBAdapter(type, contextProvider, cache?.maxChatsPerChannel)
-        : new NativeDBAdapter(webClient, type, contextProvider);
+    cache?: CacheAssemblyOptions,
+    backend: CacheBackend = resolveCacheBackend(type)
+): CacheStorage<TType> => {
+    switch (backend) {
+        case 'web':
+            return createIndexedDBAdapter(type, contextProvider, cache?.maxChatsPerChannel);
+        case 'session': // invited clouds in a plain browser tab
+            return createSessionStorageAdapter(type, contextProvider);
+        case 'native':
+            return new NativeDBAdapter(webClient, type, contextProvider);
+    }
+};
 ```
 
 The `contextProvider` is required, not optional: it is what makes principle 4 work. In production the
@@ -322,8 +340,9 @@ the partition an operation touches is the one it was captured for, not whichever
 ```text
 DataManager                                  @chatic/app-runtime
   └─ createLocalDataSources()                data/factories/localFactory.ts
-       ├─ resolveCacheBackend(type)          'web' | 'native' — the routing decision, made elsewhere
+       ├─ resolveCacheBackend(type)          'web' | 'native' | 'session' — the routing decision, made elsewhere
        ├─ getCacheStorage(type, provider)    new IndexedDBAdapter(sharedDb, …) | new NativeDBAdapter(webClient, …)
+       │                                     | new WebStorageAdapter(sessionStorage, …) (invited clouds in a plain tab)
        │    └─ getSharedDatabase()           one IndexedDBDatabase, shared by every web-backed adapter
        ├─ getGlobalCacheSearchSource()       IndexedDbGlobalSearchSource | NativeGlobalSearchSource
        └─ getCacheMetricsSource()            NativeCacheMetricsSource

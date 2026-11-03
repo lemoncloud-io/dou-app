@@ -8,7 +8,8 @@ import type { DataContextProvider } from '@chatic/data';
 /**
  * Storage routing: every cache type follows the environment (native → NativeDB/SQLite, browser →
  * IndexedDB), minus any type pinned to web storage — that table is empty now that the native
- * profile writer stores items verbatim. See WEB_PINNED_CACHE_TYPES in cacheStorageRouting.
+ * profile writer stores items verbatim. See WEB_PINNED_CACHE_TYPES in cacheStorageRouting. The one
+ * exception is invited clouds in a plain browser tab, which live in the tab's sessionStorage.
  */
 describe('getCacheStorage storage routing', () => {
     const contextProvider: DataContextProvider = {
@@ -56,6 +57,30 @@ describe('getCacheStorage storage routing', () => {
         expect(adapterName(getCacheStorage('channel', contextProvider))).toBe('IndexedDBAdapter');
     });
 
+    // A plain tab's guest — the only user an invited cloud was granted to — lives in sessionStorage
+    // and ends with the tab, so the row does too. The store is wrapped by the one-time IndexedDB
+    // import that carries a tab's rows across the move.
+    it('routes invited clouds to the tab session store in a plain browser', async () => {
+        const { getCacheStorage } = await loadFactory(false);
+
+        expect(adapterName(getCacheStorage('invitecloud', contextProvider))).toBe('InvitedCloudImportStorage');
+    });
+
+    // A desktop shell keeps the session in localStorage, so its invited clouds stay durable too: the
+    // shell is "native" for the session's storage while still having no SQLite to reach.
+    it('keeps invited clouds in IndexedDB inside a desktop shell', async () => {
+        jest.resetModules();
+        delete (window as any).ReactNativeWebView;
+        (window as any).ChaticMessageHandler = { postMessage: jest.fn() };
+        try {
+            const { getCacheStorage } = await import('./localFactory');
+
+            expect(adapterName(getCacheStorage('invitecloud', contextProvider))).toBe('IndexedDBAdapter');
+        } finally {
+            delete (window as any).ChaticMessageHandler;
+        }
+    });
+
     // Web/app deploy skew: the web ships ahead of the app, so a type newer than the installed app
     // would be written into the native `default:` arm, which answers `null` with `success: true` —
     // an invisible, permanently empty cache. Such a type goes to hot storage until the app catches up.
@@ -85,7 +110,7 @@ describe('getCacheStorage storage routing', () => {
         const EXPECTED: Record<CacheType, { browser: string; native: string }> = {
             chat: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
             channel: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
-            invitecloud: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
+            invitecloud: { browser: 'InvitedCloudImportStorage', native: 'NativeDBAdapter' },
             join: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
             site: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
             user: { browser: 'IndexedDBAdapter', native: 'NativeDBAdapter' },
@@ -211,6 +236,7 @@ describe('createLocalDataSources routing fingerprint', () => {
         const nativePrint = await fingerprintIn(true);
 
         expect(browserPrint).toContain('chat:web');
+        expect(browserPrint).toContain('invitecloud:session');
         expect(nativePrint).toContain('chat:native');
         expect(browserPrint).not.toEqual(nativePrint);
     });
