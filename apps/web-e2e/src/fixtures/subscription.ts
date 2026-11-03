@@ -38,6 +38,9 @@ export const signedInMember = (backend: FakeBackend): void => {
         },
     });
     backend.useSocket({
+        // The token the page keeps after switching into its place. Left as the guest's, the account
+        // would turn back into a guest the moment the page settles on the relay place.
+        'auth.switch': () => ({ ...registerDeviceAnswer(backend.deviceId), userRole: 'user' }),
         // With a social account linked: the page refuses a cloud subscription to an account it knows
         // has none (`link$` present, `social` missing).
         'user.profile': () => {
