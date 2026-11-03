@@ -509,8 +509,12 @@ export const createHttpPort = (options: HttpPortOptions): HttpPort => {
 
         getPaymentAttempt: async id => {
             const attempt = parseAttemptId(id) ?? fail('notFound', `no attempt ${id}`);
-            if (attempt.status !== 'processing') return attempt;
-            return attemptFromSubscription(attempt, (await readMine()).sub);
+            if (attempt.status === 'processing') return attemptFromSubscription(attempt, (await readMine()).sub);
+            // The id records how the attempt ended, not which subscription it produced, and the
+            // completion page reads that subscription: a success is joined to the account's own.
+            if (attempt.status !== 'succeeded') return attempt;
+            const { sub } = await readMine();
+            return sub ? { ...attempt, subscriptionId: sub.id } : attempt;
         },
 
         previewChange,
