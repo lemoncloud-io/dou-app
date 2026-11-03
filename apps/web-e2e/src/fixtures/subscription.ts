@@ -38,6 +38,10 @@ export const signedInMember = (backend: FakeBackend): void => {
         },
     });
     backend.useSocket({
+        // The place switch answers with a new token, which replaces the session's. Left as the guest's,
+        // it turned the member back into a guest whenever it landed after the profile — on a slow run
+        // MY then showed "Sign in required" and had no subscription entry.
+        'auth.switch': () => ({ ...registerDeviceAnswer(backend.deviceId), userRole: 'user' }),
         // With a social account linked: the page refuses a cloud subscription to an account it knows
         // has none (`link$` present, `social` missing).
         'user.profile': () => {
