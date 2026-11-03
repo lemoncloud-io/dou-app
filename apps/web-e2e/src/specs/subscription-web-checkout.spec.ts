@@ -94,7 +94,7 @@ test('a guest is handed over without signing in here, since the website signs th
     installSubscriptions(backend, 'ios');
     answerWebsite(backend);
 
-    // A guest's MY has no subscription entry; home's cloud banner is the way in.
+    // Home's cloud banner is one way in; MY's subscription row, which a browser guest has too, is the other.
     await page.goto('/');
     await page.getByRole('button', { name: 'Add Cloud' }).click();
     await page.getByRole('button', { name: 'Get started', exact: true }).click();

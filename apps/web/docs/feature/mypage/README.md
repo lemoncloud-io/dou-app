@@ -116,6 +116,9 @@ someone who is plainly signed in.
 - **Subscription.** Always the subscription list — it has a state for everyone, and its empty
   state is what leads to the guide. Branching here on `isValid` sent a scheduled cancellation,
   still paid for, to the pitch.
+  The row shows for an account, and for a guest in a browser: a browser guest is handed to the
+  website, which signs the buyer in itself, whereas a guest app signs in here first and so waits for an
+  account. The list and the guide still open there; the hand-off to the website starts at the plan picker.
 - **Version.** It goes to the store **only when an update is actually pending**, and the
   up-to-date / update-available label shows on iOS only, because Android has no live-version source
   and a label there would be a guess. Otherwise the row is inert — it is informational and carries
