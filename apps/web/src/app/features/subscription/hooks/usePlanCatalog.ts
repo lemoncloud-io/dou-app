@@ -11,6 +11,7 @@ import {
     isHeldByWeb,
     selectSellablePlans,
     summarizeMembership,
+    webPlanPlatform,
     type StorePlatform,
 } from '../lib';
 import type { SubscriptionSummary } from '../lib';
@@ -23,7 +24,10 @@ export interface PlanCatalog {
     platform: StorePlatform | undefined;
     /** Tier 1~5 for the current store, ascending by `sort`. Empty off-native. */
     sellablePlans: ProductView[];
-    /** Both stores' tiers, unfiltered — for questions about the catalog itself, not about selling. */
+    /**
+     * Both stores' tiers, unfiltered — and, for a membership the website bills, its provider's tiers
+     * too. For questions about the catalog itself, not about selling.
+     */
     catalogPlans: ProductView[];
     /** The plan behind the running subscription — resolved even if it was bought on the other store. */
     currentPlan: ProductView | undefined;
@@ -59,6 +63,10 @@ export interface PlanCatalog {
  * to resolve its `maxClouds` while the user is signed in on Android, which a platform-filtered list
  * cannot do. The sellable list is then narrowed here by `product.platform`, which the view carries
  * (`ProductTransformer.modelAsView`), so nothing from the other store reaches a screen.
+ *
+ * The website's products are the exception: the relay lists them only to a call that names their
+ * provider. A membership the website bills therefore reads that provider's list too, and its plan,
+ * pending plan, allowance and trial resolve from it like a store's.
  */
 export const usePlanCatalog = (): PlanCatalog => {
     const isOnMobileApp = isNative();
@@ -67,8 +75,20 @@ export const usePlanCatalog = (): PlanCatalog => {
 
     const { data: plansData, isLoading: isPlansLoading } = useProductPlans({ limit: -1 });
     const { data: membership, isLoading: isMembershipLoading } = useMembershipInfo();
+    // The unfiltered list holds the stores' tiers only, so a membership the website bills reads its
+    // plan from its own provider's list as well. Anyone else makes no second call.
+    const webPlatform = webPlanPlatform(membership?.platform);
+    const { data: webPlansData, isLoading: isWebPlansLoading } = useProductPlans(
+        { limit: -1, platform: webPlatform },
+        { enabled: !!webPlatform }
+    );
 
-    const plans = plansData?.list ?? [];
+    // Everything the membership may name. The stores' tiers stay the only ones sold here: the
+    // sellable list keeps this build's store alone (`selectSellablePlans`).
+    const plans = useMemo(
+        () => [...(plansData?.list ?? []), ...(webPlatform ? (webPlansData?.list ?? []) : [])],
+        [plansData, webPlansData, webPlatform]
+    );
     // Trial length is a property of what was actually bought, so it is read off the receipt's plan.
     // An admin grant never carries a trial.
     const receiptPlan = findPlanById(plans, membership?.productId);
@@ -109,6 +129,6 @@ export const usePlanCatalog = (): PlanCatalog => {
                 isHeldByWeb(summary, membership?.platform)),
         pendingPlan,
         summary,
-        isLoading: isPlansLoading || isMembershipLoading,
+        isLoading: isPlansLoading || isMembershipLoading || isWebPlansLoading,
     };
 };

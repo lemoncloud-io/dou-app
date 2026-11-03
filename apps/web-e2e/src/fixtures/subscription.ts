@@ -56,7 +56,7 @@ export const signedInMember = (backend: FakeBackend): void => {
 };
 
 /** The relay's plan row for the entry tier, on one store — the catalog lists one per store. */
-const planRow = (platform: 'apple' | 'google') => ({
+export const planRow = (platform: 'apple' | 'google') => ({
     id: PLAN.id,
     name: PLAN.name,
     nameEn: PLAN.name,

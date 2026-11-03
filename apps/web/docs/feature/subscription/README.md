@@ -54,6 +54,14 @@ unfiltered call returns both stores' tiers: the sellable list is narrowed to thi
 in `selectSellablePlans`, while the join still resolves a membership bought on the other store. A
 platform-filtered list cannot — an iOS purchase read on an Android session would lose its allowance.
 
+**The website's products are not in that list.** The relay lists a product the website sells
+(`portone`, `stripe`) only to a call that names its provider, so the unfiltered list holds the stores'
+tiers alone. A membership the website bills (§ 6) would otherwise join to nothing — its plan name
+shown as the raw product id, its allowance unresolved, its trial unknown. `usePlanCatalog` therefore
+reads that provider's list too, for that membership only (`webPlanPlatform`), and joins the plan, the
+pending plan, the allowance and the trial from both lists; a store subscriber makes no second call. The
+sellable list is still this build's store alone.
+
 ### 2. Five states, and the override that comes first
 
 `summarizeMembership(membership, plan, now)` collapses a membership into exactly five states:
@@ -213,7 +221,9 @@ A browser tab (`isNative()` false) has no store, so it sells nothing itself: the
 (the landing app's `/subscription`, on the policy host — `WEB_SUBSCRIPTION_URL`) does. The relay
 writes a subscription bought there into the same membership, with `platform` set to the website's
 payment provider (`portone` or `stripe`, `isWebBilled`), so everything above reads it unchanged once
-the catalog lists its plan.
+its plan is joined — from its provider's own list, which the unfiltered catalog leaves out (§ 1). The
+detail leaves out the stores' tier-change notes ("moving up applies now, moving down at renewal") for
+it: a change the website bills is made, and explained, on the website.
 
 **Who is handed over.** `canCheckoutOnWeb` says yes to anyone a store is not billing right now: no
 receipt, a lapsed one, an admin grant with no receipt, or a subscription the website bills. A running

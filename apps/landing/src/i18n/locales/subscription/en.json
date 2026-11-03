@@ -458,6 +458,8 @@
                 "upgradedBodyPaid_other": "{{price}} was charged, and you can now create up to {{count}} clouds.",
                 "upgradedBodyFree_one": "Nothing was charged during your trial, and you can now create up to {{count}} cloud.",
                 "upgradedBodyFree_other": "Nothing was charged during your trial, and you can now create up to {{count}} clouds.",
+                "upgradedBody_one": "You can now create up to {{count}} cloud.",
+                "upgradedBody_other": "You can now create up to {{count}} clouds.",
                 "nextDateLabel": "Next payment date",
                 "nextAmountLabel": "From the next payment",
                 "receiptLabel": "Receipt",
