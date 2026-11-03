@@ -193,10 +193,8 @@
             "experiments": "Experiments",
             "placeInvite": "Place invite",
             "placeInviteSubtitle": "Invite into a place, no chat room needed",
-            "placeInviteNote": "Adds \"Invite to Place\" to the home profile menu. Shows only in places you own.",
             "chatInputLock": "Chat input lock",
             "chatInputLockSubtitle": "Lock the message input per chat room",
-            "chatInputLockNote": "Adds 'Lock input' to chat room settings. A locked room and its threads cannot send messages. Applies to this device only.",
             "inApp": "In-app",
             "inAppNote": "Opens over the app in a sub WebView. Shown in debug mode only.",
             "inAppOpenFailed": "Could not open it",
@@ -206,8 +204,8 @@
                     "subtitle": "Remember the order of lights, sounds and buzzes"
                 },
                 "enhanceDou": {
-                    "title": "Enhance DoU",
-                    "subtitle": "Your DoUs earn gold, and you spend it to enhance them up to +25"
+                    "title": "Raise DoU",
+                    "subtitle": "Raise your DoU"
                 }
             }
         },
