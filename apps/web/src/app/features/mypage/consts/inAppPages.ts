@@ -21,9 +21,9 @@ export const IN_APP_PAGES: readonly InAppPage[] = [
         url: 'https://sample.apps-dev.chatic.io/',
     },
     {
-        id: 'raiseDou',
-        titleKey: 'mypage.lab.inAppPages.raiseDou.title',
-        subtitleKey: 'mypage.lab.inAppPages.raiseDou.subtitle',
+        id: 'enhanceDou',
+        titleKey: 'mypage.lab.inAppPages.enhanceDou.title',
+        subtitleKey: 'mypage.lab.inAppPages.enhanceDou.subtitle',
         url: 'https://sample1.apps-dev.chatic.io/',
     },
 ];
