@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-03] - No version updates
+
+### Features
+
+- (mobile,chatic-apps-sdk) keep a sub WebView page's data on the device, per origin (ADR-0282)
+
 ## [2026-11-03] - root@0.143.4, @chatic/web@0.86.3
 
 ### Other
