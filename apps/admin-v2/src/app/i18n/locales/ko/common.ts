@@ -7,6 +7,7 @@ export const common = {
         users: '사용자',
         memberships: '멤버십',
         cloudDeployments: '클라우드 배포',
+        costMonitor: '비용 모니터',
     },
     language: { label: '언어', ko: '한국어', en: 'English' },
     console: {
