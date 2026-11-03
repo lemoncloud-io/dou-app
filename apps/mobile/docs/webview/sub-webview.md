@@ -28,7 +28,8 @@ not `AppWebView` with another URL:
 **A context, defined before the page's scripts run.** `window.ChaticSubWebView` is a frozen
 `SubWebViewContext`: `protocolVersion` (1), `viewId`, `platform`, `appVersion`, `locale` (the
 language the user chose in the app), `theme` (the app's resolved theme, which can differ from the
-OS's) and `params` — what the web passed in `OpenSubWebView`, never put in the URL. Nothing that
+OS's), `params` — what the web passed in `OpenSubWebView`, never put in the URL — and `appLink`,
+the link that opens the page again (below). Nothing that
 identifies the device, the install or the user. The script defines it only when the page's origin is
 the one the view was opened on, so a page the view navigates to — another allowlisted one too —
 finds
@@ -199,6 +200,16 @@ most often gets wrong:
 - Do not turn on the bridge logger forwarding (`setupBridgeLogger`): `SendLog` is not in the subset
   and every line would come back `NOT_FOUND`.
 
+### A link back to a page
+
+A page's context carries `appLink`, `https://app.chatic.io/apps/<label>` for
+`https://<label>.apps.chatic.io` — derived from the opened origin, so a page cannot set it. A page
+shares `appLink` plus its own path and query; a tap opens that page in the app where it is installed
+(through the main web, as described in
+[../system/deeplink.md](../system/deeplink.md#sub-webview-page-links)), and in the browser where it is
+not, by way of the landing site's `/apps/*` redirect. A link opens any allowlisted page, whatever
+debug mode or the Lab says: the allowlist and the review are the gate, not where the link came from.
+
 ## Where it may go
 
 **The allowlist** is `SUB_WEBVIEW_DOMAINS` in `services/subWebView/subWebViewAllowlist.ts`: the
@@ -350,6 +361,8 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticSubWebView`, for the opened origin only                   |
 | `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data, 64 KiB message and 100-character title limits          |
 | `src/app/services/subWebView/subWebViewManifest.ts`    | Reads, checks and caches a page's manifest                              |
+| `src/app/services/deeplinks/deeplinkUtils.ts`          | Turns a page's app link into the web's `/sub-webview?url=…`             |
+| `libs/shared/src/utils/subWebViewLink.ts`              | Link ↔ page, `appLink`, and that path — shared with web and landing    |
 | `src/app/subWebView/subWebViewNavigation.ts`           | Load, hand to the OS, or drop                                           |
 | `src/app/features/subWebView/SubWebViewScreen.tsx`     | The manifest, then the bar or the floating close control, orientation   |
 | `src/app/features/subWebView/routeSubWebViewEvents.ts` | Navigates to the screen and back as the service reports                 |
@@ -363,6 +376,20 @@ the web's Lab page (Settings → Lab) lists both under "In-app", and a tap opens
 `apps-dev.chatic.io` in every build, so an unlocked store build opens them too. A page reaches
 `CopyToClipboard`, `OpenShareSheet`, `OpenURL` and `GetSubWebViewUserKey` only when its deployed
 manifest grants them; without one, those four answer `NOT_FOUND`.
+
+A page link can be tried without a page sharing one, by handing the OS the link (a dev build claims
+the `app-dev` host):
+
+```bash
+adb shell am start -a android.intent.action.VIEW -d https://app-dev.chatic.io/apps/sample
+```
+
+```bash
+xcrun simctl openurl booted https://app-dev.chatic.io/apps/sample
+```
+
+The page opens over whatever the app shows. On the simulator a universal link needs the association
+file deployed and fetched; until then Safari opens the landing redirect, which sends it to the page.
 
 Open it from the web's debug panel → **Sub WebView (app)**: a URL, an optional title and `params`, and
 a log of how the view closed, with the `result` the page handed back. A URL off the allowlist answers

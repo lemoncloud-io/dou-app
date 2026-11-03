@@ -20,7 +20,10 @@ jest.mock('react-native-config', () => ({
 // parse. Point the specifier at the decoder module itself: the REAL decoder still runs here, which
 // is the point — the production bundler has no such limitation and takes the barrel as written.
 // Same workaround as useAppVersionCheck.test.ts / VersionService.test.ts, which stub it outright.
-jest.mock('@chatic/shared', () => jest.requireActual('../../../../../../libs/shared/src/utils/inviteLink'));
+jest.mock('@chatic/shared', () => ({
+    ...jest.requireActual('../../../../../../libs/shared/src/utils/inviteLink'),
+    ...jest.requireActual('../../../../../../libs/shared/src/utils/subWebViewLink'),
+}));
 
 // The converter emits a host-less relative URL; parse against a throwaway base to inspect it.
 const PARSE_BASE = 'https://base.local';

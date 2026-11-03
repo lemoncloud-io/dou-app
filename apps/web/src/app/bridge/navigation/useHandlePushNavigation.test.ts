@@ -54,6 +54,10 @@ jest.mock('../../runtime/useSiteSwitch', () => ({ useSiteSwitch: jest.fn() }));
 jest.mock('react-router-dom', () => ({ useNavigate: jest.fn() }));
 jest.mock('./pendingNavigationStore', () => ({ pendingNavigationStore: { register: jest.fn() } }));
 jest.mock('./resolvePushNavigation', () => ({ resolvePushNavigation: jest.fn() }));
+const mockOpenSubWebView = jest.fn();
+// `import.meta` is out of reach of the CommonJS transform; the stage is the test's to choose.
+jest.mock('../../utils/buildEnv', () => ({ isDevBuild: () => false }));
+jest.mock('../subWebView', () => ({ openSubWebView: (...args: unknown[]) => mockOpenSubWebView(...args) }));
 
 const navigate = jest.fn();
 const switchCloud = jest.fn();
@@ -827,6 +831,49 @@ describe('useHandlePushNavigation', () => {
             await invoke('/mypage');
 
             expect(backend.start).not.toHaveBeenCalled();
+        });
+    });
+
+    // A sub WebView page's link is not a route: the page opens over whatever is showing.
+    describe("a sub WebView page's link", () => {
+        const page = 'https://quiz.apps.chatic.io/level?x=1';
+        const path = `/sub-webview?url=${encodeURIComponent(page)}`;
+
+        // The handler still reads the path for a room trace; a page link is not one.
+        beforeEach(() => setResolved({ target: '/', cid: null, sid: null }));
+
+        it('opens the page and does not navigate', async () => {
+            mockOpenSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'v1' });
+
+            await invoke(path);
+
+            expect(mockOpenSubWebView).toHaveBeenCalledWith({ url: page });
+            expect(navigate).not.toHaveBeenCalled();
+            expect(switchCloud).not.toHaveBeenCalled();
+        });
+
+        // An app before the mapping passes the link's path through; the web maps it itself.
+        it("opens an older app's bare /apps/ path with this build's stage", async () => {
+            mockOpenSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'v1' });
+
+            await invoke('/apps/quiz/level?x=1');
+
+            expect(mockOpenSubWebView).toHaveBeenCalledWith({ url: 'https://quiz.apps.chatic.io/level?x=1' });
+            expect(navigate).not.toHaveBeenCalled();
+        });
+
+        it('routes a path that names a site other than a page', async () => {
+            await invoke(`/sub-webview?url=${encodeURIComponent('https://evil.example/')}`);
+
+            expect(mockOpenSubWebView).not.toHaveBeenCalled();
+        });
+
+        it('stays put when the shell refuses the page', async () => {
+            mockOpenSubWebView.mockRejectedValue(new Error('NOT_ALLOWED'));
+
+            await expect(invoke(path)).resolves.toBeUndefined();
+
+            expect(navigate).not.toHaveBeenCalled();
         });
     });
 });

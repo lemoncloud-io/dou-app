@@ -43,7 +43,7 @@ badges.
 
 ### One path, four fields
 
-The shell sends `OnNavigate { path, replace? }`. `path` is a web route, and the interesting part is
+The shell sends `OnNavigate { path, replace? }`. `path` is a web route (but for a sub WebView page link, below), and the interesting part is
 its query string. `resolvePushNavigation` splits it into four:
 
 | Field    | Source                     | Why it is not part of the route                                                         |
@@ -81,6 +81,7 @@ flowchart TD
     B -- "banner tap" --> R[resolveInAppPushRoute]
     R --> P
     H --> P[usePushNavigate]
+    P -- "a sub WebView page link" --> SW2[openSubWebView]
     P --> RES[resolvePushNavigation]
     P --> SW["switch: relay return / cloud / site"]
     SW --> NAV[navigateNormalized]
@@ -89,6 +90,15 @@ flowchart TD
 
 `UnifiedLayout` mounts `useHandlePushNavigation()` and `useInAppPushMessage()`. Both need the router
 tree — they rely on `useNavigate`.
+
+**One kind of path is not a route.** A sub WebView page's app link reaches the web as
+`/sub-webview?url=<encoded page URL>`, or — from an app built before that — as the link's own path,
+`/apps/<label>/…`. `usePushNavigate` checks for both first, with `@chatic/shared`'s
+`subWebViewPageUrlOfWebPath` (the bare form mapped with this build's stage), and opens the page with
+`openSubWebView` over whatever the router shows instead of navigating, so closing it returns the user to
+where they were. Only a page on a sub WebView origin is opened: the path can arrive through the app's
+custom scheme from any website. A refusal (`NOT_ALLOWED`, `ALREADY_OPEN`) is logged and the screen
+stays. Being in `usePushNavigate`, the check covers an in-app banner as much as an OS tap.
 
 **Everything routing-related goes in `usePushNavigate` and nowhere else.** That is the rule the
 diagram exists to make visible: a branch added there applies to an OS tap and an in-app banner tap

@@ -118,6 +118,13 @@ export type SubWebViewContext = {
     theme: SubWebViewTheme;
     /** What the web passed in `OpenSubWebView`; `{}` when it passed nothing. */
     params: SubWebViewParams;
+    /**
+     * The app link that opens this page: `https://app.chatic.io/apps/<label>` for
+     * `https://<label>.apps.chatic.io`. A page shares `appLink` plus its own path, query and fragment,
+     * and a tap opens that page in the app, or in the browser where the app is not installed. Absent
+     * from apps before 2.17.0.
+     */
+    appLink?: string;
 };
 
 /** [Request] Show `url` in a sub WebView over the app. */
