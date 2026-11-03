@@ -58,6 +58,7 @@ class AttachPickRulesTest {
             "image/gif",
             "image/webp",
             "video/mp4",
+            "video/quicktime",
             "application/pdf",
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -78,10 +79,11 @@ class AttachPickRulesTest {
         )) {
             assertTrue(type, type in types)
         }
-        // Only the server's own formats: no wildcard, and no photo, video or archive type it would refuse.
+        // Only the server's own formats and QuickTime, which the shell converts: no wildcard, and no
+        // photo, video or archive type that neither takes.
         assertFalse("no wildcard type", types.any { it.contains('*') })
         assertFalse("no HEIC", "image/heic" in types)
-        assertFalse("no QuickTime", "video/quicktime" in types)
+        assertFalse("no AV1 or HEVC stream types", "video/av01" in types || "video/hevc" in types)
         assertFalse("no 7z", "application/x-7z-compressed" in types)
         assertFalse("no RAR", "application/vnd.rar" in types)
         assertFalse("no AAC stream", "audio/aac" in types)
@@ -135,7 +137,8 @@ class AttachPickRulesTest {
         assertEquals(Kind.IMAGE, AttachPickRules.limitKindForDocument("image/png", "named.mp4"))
         // Formats the server does not take as a photo or a video stay files.
         assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument("image/heic", "IMG_0001.heic"))
-        assertEquals(Kind.FILE, AttachPickRules.limitKindForDocument("video/quicktime", "clip.mov"))
+        assertEquals("a .mov is converted, so it is a video", Kind.VIDEO, AttachPickRules.limitKindForDocument("video/quicktime", "clip.mov"))
+        assertEquals(Kind.VIDEO, AttachPickRules.limitKindForDocument(AttachPickRules.OCTET_STREAM, "IMG_0001.MOV"))
     }
 
     @Test
@@ -376,6 +379,35 @@ class AttachPickRulesTest {
         for (tracks in refused) {
             assertTrue(tracks.toString(), AttachPickRules.checkTracks(tracks) is TrackCheck.Refused)
         }
+    }
+
+    @Test
+    fun anMp4OfH264AndAacGoesAsItIsWhateverItsSize() {
+        val avcAac = listOf("video/avc", "audio/mp4a-latm")
+        assertEquals(AttachPickRules.VideoVerdict.AsIs, AttachPickRules.judgeVideo(box("isom"), avcAac))
+        assertEquals(AttachPickRules.VideoVerdict.AsIs, AttachPickRules.judgeVideo(box("mp42"), listOf("video/avc")))
+        assertEquals("a 3GP that holds H.264 and AAC", AttachPickRules.VideoVerdict.AsIs, AttachPickRules.judgeVideo(box("3gp4"), avcAac))
+    }
+
+    @Test
+    fun everythingElseIsConvertedNotRefused() {
+        val hevc = listOf("video/hevc", "audio/mp4a-latm")
+        assertTrue("HEVC in an mp4", AttachPickRules.judgeVideo(box("isom"), hevc) is AttachPickRules.VideoVerdict.NeedsExport)
+        assertTrue("a QuickTime .mov, even of H.264 and AAC", AttachPickRules.judgeVideo(box("qt  "), listOf("video/avc", "audio/mp4a-latm")) is AttachPickRules.VideoVerdict.NeedsExport)
+        assertTrue("AMR audio", AttachPickRules.judgeVideo(box("isom"), listOf("video/avc", "audio/3gpp")) is AttachPickRules.VideoVerdict.NeedsExport)
+        assertTrue("two audio tracks", AttachPickRules.judgeVideo(box("isom"), listOf("video/avc", "audio/mp4a-latm", "audio/mp4a-latm")) is AttachPickRules.VideoVerdict.NeedsExport)
+        assertTrue("another container", AttachPickRules.judgeVideo("RIFF....AVI ".toByteArray(Charsets.ISO_8859_1), listOf("video/avc")) is AttachPickRules.VideoVerdict.NeedsExport)
+        assertTrue("no video track at all", AttachPickRules.judgeVideo(box("isom"), listOf("audio/mp4a-latm")) is AttachPickRules.VideoVerdict.NeedsExport)
+        assertTrue("a codec the extractor cannot name", AttachPickRules.judgeVideo(box("qt  "), listOf("application/octet-stream", "audio/mp4a-latm")) is AttachPickRules.VideoVerdict.NeedsExport)
+    }
+
+    @Test
+    fun onlyTheTwoHdrTransfersAreHdr() {
+        assertTrue(AttachPickRules.isHdrTransfer(6))
+        assertTrue(AttachPickRules.isHdrTransfer(7))
+        assertFalse("SDR", AttachPickRules.isHdrTransfer(3))
+        assertFalse("linear", AttachPickRules.isHdrTransfer(1))
+        assertFalse("undeclared", AttachPickRules.isHdrTransfer(null))
     }
 
     @Test

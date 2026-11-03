@@ -13,14 +13,14 @@ which can take the WebView down just as a video would.
 
 ## Files
 
-| Layer             | File                                                                                                                                                                                                                     |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Messages          | `libs/bridge-messages/src/types/model/attachment-picker.ts`                                                                                                                                                              |
-| WebView handler   | `src/app/webview/hooks/attachmentPickerHandlers.ts`, `useAttachmentPickerHandler.ts`                                                                                                                                     |
-| TS native wrapper | `src/app/bridge/AttachmentPickerBridge.ts`                                                                                                                                                                               |
-| iOS               | `ios/Bridges/AttachmentPicker/` — `AttachmentPicker.swift`, `Core/AttachmentPickerCore.swift` (pure rules)                                                                                                               |
-| Android           | `module/AttachmentPickerModule.kt`, `attach/PickedCopies.kt` (copy and video check, shared with the photo grid's `KeepLibraryVideo`), `attach/core/AttachPickRules.kt` (pure rules), `bridge/AttachmentPickerPackage.kt` |
-| Tests             | `ios/ChaticTransferCoreTests/AttachmentPickerCoreTests.swift`, `test/.../attach/core/AttachPickRulesTest.kt`                                                                                                             |
+| Layer             | File                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Messages          | `libs/bridge-messages/src/types/model/attachment-picker.ts`                                                                                                                                                                                                                                                                                                     |
+| WebView handler   | `src/app/webview/hooks/attachmentPickerHandlers.ts`, `useAttachmentPickerHandler.ts`                                                                                                                                                                                                                                                                            |
+| TS native wrapper | `src/app/bridge/AttachmentPickerBridge.ts`                                                                                                                                                                                                                                                                                                                      |
+| iOS               | `ios/Bridges/AttachmentPicker/` — `AttachmentPicker.swift`, `Core/AttachmentPickerCore.swift` (pure rules)                                                                                                                                                                                                                                                      |
+| Android           | `module/AttachmentPickerModule.kt`, `attach/PickedCopies.kt` (copy, judgement of a video, shared with the photo grid's `KeepLibraryVideo`), `attach/VideoExporter.kt` (the Media3 Transformer conversion), `attach/core/AttachPickRules.kt`, `attach/core/VideoExportRules.kt`, `attach/core/InFlightJobs.kt` (pure rules), `bridge/AttachmentPickerPackage.kt` |
+| Tests             | `ios/ChaticTransferCoreTests/AttachmentPickerCoreTests.swift`, `test/.../attach/core/AttachPickRulesTest.kt`                                                                                                                                                                                                                                                    |
 
 ## Messages
 
@@ -114,7 +114,8 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   `ACTION_OPEN_DOCUMENT` through androidx, and the result is read by the same code. `document` is
   `ACTION_OPEN_DOCUMENT` with the MIME types of the seventeen formats the app sends (`image/png`,
   `image/jpeg`, `image/gif`, `image/webp`, `video/mp4`, the seven document types, `application/zip`,
-  `audio/mpeg`, `audio/mp4`, `audio/wav` and `audio/ogg`) plus `application/octet-stream`, which is how
+  `audio/mpeg`, `audio/mp4`, `audio/wav` and `audio/ogg`), `video/quicktime` (an iPhone's `.mov`, which
+  the shell converts) plus `application/octet-stream`, which is how
   an HWP usually arrives, the four labels Hancom's own apps declare for HWP and HWPX, the two older
   names a ZIP still arrives under from some storage providers (`application/x-zip-compressed`,
   `application/x-zip`), and the two an `.m4a` and a `.wav` often carry (`audio/x-m4a`, `audio/x-wav`).
@@ -143,12 +144,12 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   `too-large`. On Android a photo that cannot be converted is `unsupported` and one whose copy fails is
   `unreadable`; its width and height are read from the prepared bytes, swapped for a 90° or 270°
   rotation.
-- **A `document` pick is a `file`, whatever it is.** Neither shell looks inside it: a PNG from Files
+- **A `document` pick is a `file`, whatever it is** — except a video Android converts, below. Neither shell looks inside it: a PNG from Files
   is copied as it is, not prepared, and answered as `{ kind: 'file', contentType: 'image/png', … }`
   under the type the OS gave it. The documents picker offers the seventeen formats the app sends and, on
   Android, the other names a file of them arrives under (`application/octet-stream`, the Hancom labels,
   the two ZIP aliases and the two audio ones) — no wildcard, and no photo, video, archive or audio type
-  the server would refuse (HEIC, QuickTime, 7z, AAC, WebM). An audio file is held to the file limit,
+  the server would refuse (HEIC, 7z, AAC, WebM) — QuickTime is offered on Android only, because only Android converts it from here. An audio file is held to the file limit,
   50 MiB, like a document. An item typed by an alias is normalised by the web (`chatAttachmentFormat`),
   which also adds `.zip` to an archive's name that lacks it. A ZIP is held to the file limit, 50 MiB.
   On iOS an app built before the phone sent archives greys a `.zip` out; on Android one typed
@@ -164,8 +165,8 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   `maxBytes.video` when it is MP4, and `maxBytes.file` otherwise — a 120 MB `.mp4` from Files passes,
   a 30 MB PNG does not — and refuses it under that kind. The OS's type decides; only when there is
   none, or it is `application/octet-stream`, does the name's extension. The rule is
-  `limitKindForDocument` in `AttachmentPickerCore` and `AttachPickRules`. Nothing from here is
-  converted, so a video is checked at its own size.
+  `limitKindForDocument` in `AttachmentPickerCore` and `AttachPickRules`. A video that goes up as it
+  is is checked at its own size; one that is converted is not (below).
 - **The shell refuses before it copies.** A video or document over its ceiling is listed in `refused`
   as `too-large` and not copied; one that cannot be read is `unreadable`. Every `refused` entry carries
   the item's `kind` (`image`, `video` or `file`), so the web names the limit that was passed — 20 MB for a
@@ -179,6 +180,18 @@ request its own wait (ten minutes for `PrepareVideo`), dropping an answer that a
   ceiling is applied by `PrepareVideo` instead; refusing a 400 MB `.mov` that converts to 200 MB would
   refuse a video that can be sent. A video whose tracks cannot be read at pick is refused
   `unreadable`.
+- **A video Android will convert is not size-checked at pick either.** After copying a video
+  (from `media`, or an `.mp4` or `.mov` from `document`), Android reads its tracks with
+  `MediaExtractor` and sends it as it is only when it is an `mp4` (a `ftyp` box that is not a QuickTime
+  brand) with exactly one H.264 track and one AAC track or none, whatever its size. Anything else — HEVC,
+  a QuickTime `.mov`, AMR or a second audio track, another container, a file with no video track — is
+  answered `{ kind: 'video', needsExport: true }` with the source's own name, type and size, even from
+  the documents picker. An HEVC video the Photo Picker named `<id>.mp4` is one of them; it gets the
+  `video-<date>.mp4` name like any other. A file whose container the extractor cannot read is refused
+  `unreadable`. When the provider says a video is over `maxBytes.video`, its tracks are read from the
+  provider first: one that goes up as it is is refused `too-large` before a byte is copied, one that is
+  converted is copied. The original and its result sit in one folder, so the cache grows by the picked
+  size of every converted video until the 24-hour sweep.
 - **Names.** Android's Photo Picker names a file after its media id (`1000000123.mp4`). A name made
   only of digits is replaced with `video-<yyyyMMdd-HHmmss>.mp4` (`photo-…` for a photo), from the
   capture time, or the pick time when there is none. The documents picker gives the real name, which
@@ -205,11 +218,13 @@ extension changed to `.mp4`.
   staging file, so a retry with the same URI finds it ready and only makes the poster. Each export
   writes a staging file of its own name (`.export-<uuid>.mp4`), so two exports never write into one
   file. iOS never answers `UNSUPPORTED`.
-- **One conversion per video at a time (iOS).** The web stops waiting after ten minutes, and its retry
-  can ask again while the first export is still running. A `PrepareVideo` for a source path that is
+- **One conversion per video at a time.** The web stops waiting after ten minutes, and its retry
+  can ask again while the first conversion is still running. A `PrepareVideo` for a source path that is
   already being prepared joins the running job and gets its answer, rather than starting a second
-  export that would write the same result and poster. Once the job ends it is forgotten, so a later
-  call runs afresh.
+  conversion that would write the same result and poster. Once the job ends it is forgotten, so a later
+  call runs afresh. iOS keys the job in an actor (`InFlight`), Android in `InFlightJobs`, which is
+  checked before the call is queued, since a single worker thread would otherwise run the retry only
+  after the first conversion ended.
 - **Size is decided before converting, in at most two steps.** The session's
   `estimatedOutputFileLengthInBytes` (the async one — the old synchronous `estimatedOutputFileLength`
   answers 0) was within 1–2 % of the result when measured. Over the 300 MB video limit at 1080p, the
@@ -221,17 +236,37 @@ extension changed to `.mp4`.
   no estimate at all, the export goes ahead and that re-check decides.
 - **A conversion runs in the foreground.** `AVAssetExportSession` has no background time, and iOS may
   stop it when the app leaves the screen. That ends as `SYSTEM`; the web's retry starts over.
-- **Which failures a retry can mend.** Only a passing one: `SYSTEM` (or a timeout) leaves the failed
-  message retryable. A video refused `TOO_LARGE` or `UNSUPPORTED`, one whose result fails the web's
-  own size check, and one the shell lost (`SOURCE`, here or at the upload's start) would only fail again, so the web offers delete
-  alone for it.
-- **Android does not convert.** A file whose bytes 4–7 are `ftyp` (and not a QuickTime brand), with
-  one `video/avc` track and one `audio/mp4a-latm` track or none, is sent as it is — a 3GP that holds
-  H.264 and AAC passes and is named `.mp4`. Tracks that are neither audio nor video, such as a camera's
-  timed metadata, are ignored. Anything else — HEVC, another container — is `UNSUPPORTED`, and
-  `TOO_LARGE` never occurs, since nothing changes size. Such a file may keep its
-  index at the end (a long camera recording usually does). The WebView then reads the tail first with
-  a range request, which storage serves, so the first play starts a little later; that is accepted.
+- **Android converts what it cannot send as it is.** `PrepareVideo` reads the tracks again and sends
+  an `mp4` of one H.264 track and one AAC track or none as it is, at any size (the poster is the only
+  work). Everything else goes through Media3's `Transformer` (`VideoExporter`) into an H.264/AAC `mp4`:
+  the picture is fitted inside 1920 × 1080 either way round, the ratio kept, never enlarged, at a
+  10 Mbit/s target; frame rate and rotation stay as the source has them, a 10-bit HDR source is tone
+  mapped to SDR (OpenGL first, then the decoder), audio that is already AAC is copied and any other
+  is re-encoded at 128 kbit/s, and a silent video stays silent. The result's `moov` comes before the
+  samples, measured on the Transformer's own output, so the web can start playing before the download
+  ends. Why the Transformer is a dependency at all is
+  [ADR-0280](../../../../docs/adr/0280-android-converts-non-h264-videos-with-media3-transformer.md).
+    - **Size is predicted, in two steps.** Android has no estimate to ask for, so the size is the length
+      times the target bitrates plus 128 kbit/s of audio, over eight. Over 300 MiB at 1080p/10 Mbit/s
+      (about 4.1 minutes), the picture steps down once to 1280 × 720 at 6 Mbit/s (about 6.8 minutes);
+      still over, the answer is `TOO_LARGE` and nothing is converted. A length the container does not
+      state converts at 1080p. The prediction ran within about 1 % of the result with the software
+      encoder it was measured on; a hardware encoder may overshoot its target, and the web's re-check of
+      the real size fails that one video, as on iOS.
+    - **Naming and staging match iOS.** The result is the source's name with `.mp4`, written to a
+      hidden `.export-<uuid>.mp4` first and moved into place, so an HEVC `clip.mp4` is replaced only by
+      a finished file and a retry with the same URI finds an H.264 `mp4` and only makes the poster. A
+      `.mov` stays beside its `.mp4`. The poster is taken from the result.
+    - **Failures.** `UNSUPPORTED`: no decoder for the video's codec on this device, a Transformer
+      decoder error, a file with no video track, or a container the extractor cannot read. Retrying
+      gives the same answer, so the web offers delete only. `TOO_LARGE`: above. `SOURCE`: the copy is
+      gone. `SYSTEM`: anything else, an encoder that failed or a conversion that was cut short. A
+      Transformer left running when the app leaves the screen is not cancelled by the shell; if the OS
+      stops it, it fails as `SYSTEM` and the web's retry starts over.
+    - **Time.** A 4K, 60 fps HEVC minute took 80–130 s to convert to 1080p on an emulator with a
+      software encoder; a phone with a hardware encoder is expected to be much faster, but that has not
+      been measured. A source long enough to outrun the web's ten-minute wait ends as a timeout, which
+      the web does not learn from, and its retry joins the job that is still running.
 - **The poster** is the frame at 0.5 s, or the first one for a shorter video, at most 400 px on its
   long side, JPEG from quality 0.7 down until it is at most 200,000 bytes — the server's thumbnail
   slot, which drops a larger one without an error. Android capped it at 200 × 1024 bytes before, so a
@@ -287,7 +322,11 @@ fails with `SOURCE`, and that pending message can then only be deleted.
   `.mp4` as a video with a poster. The copies are under `Library/Caches/attach-pick/` in the app's container on
   iOS and `cache/attach-pick/` on Android (`adb shell run-as <package> ls cache/attach-pick`). Pick a
   4K HEVC video on iOS to see `needsExport` and the 1080p conversion; on Android, a video picked
-  through the Photo Picker should arrive renamed `video-<date>.mp4`.
+  through the Photo Picker should arrive renamed `video-<date>.mp4`, and an HEVC `.mov` picked through
+  files should be converted: the pick folder then holds `<name>.mp4` (H.264/AAC, within 1080p, `moov`
+  first) and `poster.jpg` beside the source. An MPEG-2 video (no decoder on the device) should fail
+  as `UNSUPPORTED`, and a HEVC video predicted over 300 MiB even at 720p (about 7 minutes) as
+  `TOO_LARGE`, without converting.
 - Pick ten photos from the album: the pending row appears once, with all ten, after the photos have
   been read one at a time.
 - A JS bundle over a native build without the module: all three messages stay unregistered, and
@@ -302,6 +341,7 @@ fails with `SOURCE`, and that pending message can then only be deleted.
 - Do `PrepareVideo` and `ReadAttachment` refuse a URI that is not exactly `attach-pick/<uuid>/<file>`?
 - Does iOS `ReadAttachment` refuse a file that is not a prepared photo?
 - Is a `needsExport` video spared the size check at pick, and held to it by `PrepareVideo`?
+- Does Android send an H.264/AAC `mp4` as it is at any size, and convert everything else?
 - Does any failure path answer `NOT_FOUND`?
 - Does anything delete an `attach-pick` folder other than the 24-hour sweep (and a refused copy's own folder)?
 - Does `ReadVideoFrame` reach native code only with an `https:` address, and keep it out of the log?

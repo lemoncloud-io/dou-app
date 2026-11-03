@@ -43,12 +43,13 @@ object AttachPickRules {
     /**
      * What the documents picker offers: the server's seventeen formats — its four photo formats, MP4,
      * its seven document formats, a ZIP archive and its four audio formats (MP3, M4A, WAV, Ogg), so a
-     * photo or video kept in Downloads can be sent too — plus the other names a file of them arrives
-     * under: the labels Hancom's own tools give HWP and HWPX, the two older names a ZIP still carries
+     * photo or video kept in Downloads can be sent too — plus QuickTime (an iPhone's `.mov`, which the
+     * shell converts to an MP4 like any video it cannot send as it is) and the other names a file of
+     * them arrives under: the labels Hancom's own tools give HWP and HWPX, the two older names a ZIP still carries
      * on some storage providers, the `x-` names M4A and WAV still carry on some, and
      * `application/octet-stream`, without which a file the system does not know is not offered at all.
      * The web maps every alias to the server's type. No wildcard, and no photo, video or archive type
-     * the server would refuse (HEIC, QuickTime, 7z). A pick from here
+     * that neither the server nor the conversion takes (HEIC, 7z). A pick from here
      * is still reported as a [Kind.FILE]; the web tells a photo or a video by its type. Its size limit
      * is the one its format implies, see [limitKindForDocument] — an audio file is held to a file's.
      */
@@ -58,6 +59,7 @@ object AttachPickRules {
         "image/gif",
         "image/webp",
         "video/mp4",
+        "video/quicktime",
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -82,6 +84,7 @@ object AttachPickRules {
     )
 
     const val OCTET_STREAM = "application/octet-stream"
+    const val VIDEO_QUICKTIME = "video/quicktime"
 
     // ---- Picker -------------------------------------------------------------------------------
 
@@ -146,7 +149,7 @@ object AttachPickRules {
         if (type.isNotEmpty() && type != OCTET_STREAM) {
             return when {
                 type in PHOTO_MIME_TYPES -> Kind.IMAGE
-                type == "video/mp4" -> Kind.VIDEO
+                type == "video/mp4" || type == VIDEO_QUICKTIME -> Kind.VIDEO
                 else -> Kind.FILE
             }
         }
@@ -155,7 +158,7 @@ object AttachPickRules {
         val extension = if (dot > 0) name.substring(dot + 1).lowercase() else ""
         return when {
             extension in PHOTO_EXTENSIONS -> Kind.IMAGE
-            extension == "mp4" -> Kind.VIDEO
+            extension == "mp4" || extension == "mov" -> Kind.VIDEO
             else -> Kind.FILE
         }
     }
@@ -168,8 +171,9 @@ object AttachPickRules {
 
     /**
      * The web's video ceiling (`CHAT_ATTACHMENT_MAX_BYTES.video`), for a copy that is not handed the
-     * ceilings with the request — a video kept from the photo library. Android sends a video as it is,
-     * so the original's size is the size that goes up.
+     * ceilings with the request — a video kept from the photo library. That copy is sent as it is, so
+     * the original's size is the size that goes up. A video the shell converts is held to the same
+     * ceiling by what the conversion makes ([VideoExportRules.chooseStep]).
      */
     const val VIDEO_MAX_BYTES = 300L * 1024 * 1024
 
@@ -352,11 +356,10 @@ object AttachPickRules {
     const val AUDIO_AAC = "audio/mp4a-latm"
 
     /**
-     * The shell sends a video as it is, so only what every receiver plays is accepted: exactly one
-     * H.264 video track, and either one AAC audio track or none. HEVC (most phones' "high efficiency"
-     * setting), AMR audio (the emulator camera) or a second audio track is refused — the shell does
-     * not convert. Tracks that are neither audio nor video (timed metadata some cameras add) play no
-     * part in playback and are not judged.
+     * What [checkTracks] accepts is what every receiver plays, so a video that passes goes up as it is.
+     * HEVC (most phones' "high efficiency" setting), AMR audio (the emulator camera) or a second audio
+     * track is refused — [judgeVideo] sends those to the conversion instead. Tracks that are neither
+     * audio nor video (timed metadata some cameras add) play no part in playback and are not judged.
      */
     fun checkTracks(trackMimeTypes: List<String?>): TrackCheck {
         val types = trackMimeTypes.map { it?.lowercase().orEmpty() }
@@ -368,6 +371,38 @@ object AttachPickRules {
         if (audios.isNotEmpty() && audios.single() != AUDIO_AAC) return TrackCheck.Refused("the audio is ${audios.single()}, not AAC")
         return TrackCheck.Accepted
     }
+
+    /** What a copied video needs before it can be sent. */
+    sealed class VideoVerdict {
+        /** An MP4 of one H.264 track and AAC or no audio, at any size: it goes up as it is. */
+        object AsIs : VideoVerdict()
+
+        /**
+         * Anything else — HEVC, a QuickTime `.mov`, audio that is not AAC, another container, a file
+         * with no video track at all. The pick answers it `needsExport`; `PrepareVideo` converts it, or
+         * answers `UNSUPPORTED` when there is nothing to convert.
+         */
+        data class NeedsExport(val reason: String) : VideoVerdict()
+    }
+
+    /**
+     * Whether a video is sent as it is ([isMp4Container] over its first bytes, then [checkTracks] over
+     * its tracks) or converted. The picture's size is not judged: a 4K H.264 `mp4` goes as it is, held
+     * to the video ceiling by the size it is stored at.
+     */
+    fun judgeVideo(head: ByteArray, trackMimeTypes: List<String?>): VideoVerdict {
+        if (!isMp4Container(head)) return VideoVerdict.NeedsExport("the video is not an MP4")
+        return when (val check = checkTracks(trackMimeTypes)) {
+            TrackCheck.Accepted -> VideoVerdict.AsIs
+            is TrackCheck.Refused -> VideoVerdict.NeedsExport(check.reason)
+        }
+    }
+
+    /** `MediaFormat.COLOR_TRANSFER_ST2084` and `COLOR_TRANSFER_HLG`: what makes a video HDR. */
+    private val HDR_TRANSFERS = setOf(6, 7)
+
+    /** Whether a track's `KEY_COLOR_TRANSFER` (null when it declares none) is an HDR transfer function. */
+    fun isHdrTransfer(colorTransfer: Int?): Boolean = colorTransfer in HDR_TRANSFERS
 
     /** The size a video is shown at: its coded size, turned by its rotation metadata. */
     fun displaySize(width: Int, height: Int, rotationDegrees: Int): Pair<Int, Int> {
