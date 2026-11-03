@@ -1,5 +1,34 @@
 # Changelog
 
+## [2026-11-03] - root@0.143.0, @chatic/landing@0.17.0
+
+### Features
+
+- (landing) run sandbox payments on the payment server's mock provider, dev hosts only (ADR-0263)
+- (http,data) take an optional sandbox query on the six payer-scoped subscription calls
+- (landing) let the server's trialEligible decide the free trial (ADR-0255)
+- (landing) hold back the free trial, charging a first subscription at once (ADR-0255)
+- (landing) bill outside Korea in dollars through a card field in our own dialog (ADR-0255)
+- (landing) keep cards and prices per payment provider, amounts in minor units
+
+### Bug Fixes
+
+- (landing) join a settled payment back to its subscription so W-06 stops spinning
+- (landing) let W-08's order summary span the phone width again, not shrink to its content
+- (landing) keep W-08's entries when going back from W-05, not an empty form
+
+### Documentation
+
+- (adr) renumber the landing billing-country ADR to 0262, not 0255
+
+### Refactor
+
+- (landing) drop the in-page mock from the app, keep the fake server for tests (ADR-0264)
+
+### Other
+
+- test: (web-e2e) keep the signed-in member a member through the place switch
+
 ## [2026-11-03] - No version updates
 
 ### Features
