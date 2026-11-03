@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthRoutes } from './features/auth/routes';
 import { CloudDeploymentsRoutes } from './features/cloud-deployments';
+import { CostMonitorRoutes } from './features/cost-monitor';
 import { MembershipsRoutes } from './features/memberships';
 import { ReportLogsRoutes } from './features/report-logs';
 import { SocketLabRoutes } from './features/socket-lab';
@@ -25,6 +26,7 @@ export const AppRoutes = () => (
             <Route path="/users/*" element={<UsersRoutes />} />
             <Route path="/memberships/*" element={<MembershipsRoutes />} />
             <Route path="/cloud-deployments/*" element={<CloudDeploymentsRoutes />} />
+            <Route path="/cost-monitor/*" element={<CostMonitorRoutes />} />
         </Route>
         <Route path="*" element={<Navigate to="/socket-lab" replace />} />
     </Routes>

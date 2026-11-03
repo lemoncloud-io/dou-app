@@ -1461,6 +1461,7 @@
         "signup": "Sign Up",
         "forgotPassword": "Forgot Password",
         "or": "or",
+        "continueWithEmail": "Continue with email",
         "continueWithPhone": "Continue with phone number",
         "socialMobileOnly": "Social sign-in is available in the mobile app.",
         "socialFirstNotice": "If you already have an account, sign in with social first.",

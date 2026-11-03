@@ -458,6 +458,8 @@
                 "upgradedBodyPaid_other": "{{price}}을 결제했으며 클라우드를 {{count}}개까지 만드실 수 있습니다.",
                 "upgradedBodyFree_one": "체험 중이라 결제되지 않았으며, 클라우드를 {{count}}개까지 만드실 수 있습니다.",
                 "upgradedBodyFree_other": "체험 중이라 결제되지 않았으며, 클라우드를 {{count}}개까지 만드실 수 있습니다.",
+                "upgradedBody_one": "클라우드를 {{count}}개까지 만드실 수 있습니다.",
+                "upgradedBody_other": "클라우드를 {{count}}개까지 만드실 수 있습니다.",
                 "nextDateLabel": "다음 결제일",
                 "nextAmountLabel": "다음 결제부터",
                 "receiptLabel": "영수증",

@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { GUEST } from '../fixtures/guest';
-import { installSubscriptions, PLAN, signedInMember } from '../fixtures/subscription';
+import { installSubscriptions, PLAN, planRow, signedInMember } from '../fixtures/subscription';
 import { myTab } from '../support/app';
 import { expect, test } from '../support/test';
 
@@ -25,6 +25,29 @@ const answerWebsite = (backend: Parameters<typeof signedInMember>[0]): void => {
     });
 };
 
+/** The website's entry tier, as the relay lists it to a call naming its provider. */
+const WEB_PLAN = {
+    ...planRow('apple'),
+    id: '#dou-web-tier-01_dev',
+    platform: 'portone',
+    planId: 'dou-web-tier-01_dev',
+    price: 8600,
+};
+
+/**
+ * The plan list as the relay answers it: the stores' tiers to a call naming no provider, and the
+ * website's products only to a call naming theirs.
+ */
+const answerPlansByProvider = (backend: Parameters<typeof signedInMember>[0]): void => {
+    backend.useHttp({
+        'GET /products/plans': request => {
+            const provider = new URL(request.url()).searchParams.get('platform');
+            const list = provider === 'portone' ? [WEB_PLAN] : provider ? [] : [planRow('apple'), planRow('google')];
+            return { list, total: list.length, page: 0, limit: -1 };
+        },
+    });
+};
+
 /** A membership the website bills, through the provider the relay records for Korean cards. */
 const webBilledMembership = {
     id: `MS${GUEST.uid}`,
@@ -35,7 +58,7 @@ const webBilledMembership = {
     userId: GUEST.uid,
     status: 'active',
     isValid: true,
-    productId: PLAN.id,
+    productId: WEB_PLAN.id,
     platform: 'portone',
     validFrom: GUEST.createdAt,
     validUntil: 4_102_444_800_000,
@@ -116,17 +139,22 @@ test('with a running App Store subscription, the detail names the store and offe
     expect(page.url().startsWith(WEBSITE)).toBe(false);
 });
 
-test('with a subscription the website bills, the detail manages and changes it on the website', async ({
+test('with a subscription the website bills, the detail names its plan and manages and changes it on the website', async ({
     page,
     backend,
 }) => {
     signedInMember(backend);
     installSubscriptions(backend, 'ios');
     backend.useHttp({ 'GET /memberships/0/mine': () => webBilledMembership });
+    answerPlansByProvider(backend);
     answerWebsite(backend);
 
+    // `openDetail` finds the card by the plan's name: the website's product id would mean the plan was
+    // never resolved from its provider's list.
     await openDetail(page);
+    await expect(page.getByText(WEB_PLAN.id.slice(1))).toHaveCount(0);
     await expect(page.getByText('DoU website', { exact: true })).toBeVisible();
+    await expect(page.getByText('Moving up a plan takes effect immediately.')).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Manage on the web', exact: true }).click();
     await expect(page).toHaveURL(WEB_SUBSCRIPTIONS);

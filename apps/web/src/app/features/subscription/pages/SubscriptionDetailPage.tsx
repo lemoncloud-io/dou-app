@@ -399,8 +399,14 @@ export const SubscriptionDetailPage = () => {
 
                     <NoticeList
                         items={[
-                            t('mypage.subscription.notice.upgradeImmediate'),
-                            t('mypage.subscription.notice.downgradeNextRenewal'),
+                            // How a store applies a tier change; a change the website bills is made, and
+                            // explained, on the website.
+                            ...(webBilled
+                                ? []
+                                : [
+                                      t('mypage.subscription.notice.upgradeImmediate'),
+                                      t('mypage.subscription.notice.downgradeNextRenewal'),
+                                  ]),
                             ...(storeKey ? [t(`mypage.subscription.notice.manageAt.${storeKey}`)] : []),
                         ]}
                     />

@@ -124,7 +124,11 @@ const Started = ({
     const planName = t('subscription.common.planName', { sort: plan.sort });
     const money = (amount: Plan['monthly']) => formatMoney(amount, i18n.language);
     const nextAmount = subscription.nextAmount ?? plan.monthly;
-    // What was charged comes from the invoice; without one the tile says so rather than guess.
+    // What was charged comes from the invoice; without one the tile says so rather than guess. Where
+    // the port has no invoices at all (the server keeps none yet, and neither the attempt nor the
+    // subscription carries the amount), there is nothing to read, so the tile is left out rather than
+    // showing "—" after every checkout.
+    const hasInvoices = useSupports()('listInvoices');
     const paid = chargedToday(invoices.data, 'first', plan.id, today)?.amount;
 
     if (invoices.isLoading) return <PageLoader />;
@@ -166,8 +170,8 @@ const Started = ({
                     ]}
                 />
             ) : (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <SummaryTile label={t(key('paidLabel'))} value={paid ? money(paid) : '—'} />
+                <div className={`grid grid-cols-1 gap-3 ${hasInvoices ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                    {hasInvoices && <SummaryTile label={t(key('paidLabel'))} value={paid ? money(paid) : '—'} />}
                     <SummaryTile
                         label={t(key('nextLabel'))}
                         value={subscription.nextBillingAt ? formatDate(subscription.nextBillingAt) : '—'}
@@ -210,7 +214,12 @@ const Upgraded = ({ subscription, plan }: { subscription: Subscription; plan: Pl
                               price: formatMoney(charge.amount, i18n.language),
                               count: plan.maxClouds,
                           })
-                        : t(key('upgradedBodyFree'), { count: plan.maxClouds })
+                        : // No invoice means nothing was charged only where invoices exist. Without them
+                          // nothing is known either way — and the server upgrades a paid period only, so
+                          // "nothing was charged during your trial" would be wrong there.
+                          receipts
+                          ? t(key('upgradedBodyFree'), { count: plan.maxClouds })
+                          : t(key('upgradedBody'), { count: plan.maxClouds })
                 }
             />
             <FactRows

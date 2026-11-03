@@ -8,23 +8,32 @@ import { useToast } from './use-toast';
 /**
  * How long a toast stays. 1.5s was under the time it takes to read one sentence, so a
  * confirmation ("Channel created", or "Member removed" with its Undo) was gone before
- * anyone could act on it, or even notice it had fired. A swipe still dismisses it early.
+ * anyone could act on it, or even notice it had fired; 5s then lingered over the screen it
+ * reported on. 3s reads one sentence and still leaves time for an Undo. A swipe dismisses it early.
  */
-export const TOAST_DURATION_MS = 5000;
+export const TOAST_DURATION_MS = 3000;
+
+/**
+ * The lowest the snackbar ever rests above the safe-area inset, whatever a screen pins to the bottom.
+ * Screens with their own bottom buttons (a manage screen's action bar, a docked CTA) are not all
+ * going to publish a lift, and a toast that lands on one screen over its buttons and on another
+ * clear of them reads as broken. 80px is the tab bar's own geometry, so a toast sits at the same
+ * height on the tab screens and on a screen with a button row; a taller bar still raises it further.
+ */
+export const TOAST_MIN_LIFT_PX = 80;
 
 /**
  * How far above the bottom edge the snackbar rests: 16px clear of whichever is taller, the
- * home-indicator inset or the soft keyboard, plus `--toast-lift` — the height of any bar a
- * screen keeps pinned to the bottom, which the bar publishes itself through `useToastLift`
- * because this toaster is mounted above the router and cannot know what is showing. All three
- * variables fall back to 0px, so a plain browser gets a 16px gap.
+ * home-indicator inset or the soft keyboard, plus the larger of `TOAST_MIN_LIFT_PX` and `--toast-lift`
+ * — the height of any bar a screen keeps pinned to the bottom, which the bar publishes itself through `useToastLift`
+ * because this toaster is mounted above the router and cannot know what is showing. The three
+ * variables fall back to 0px, so a plain browser gets the floor plus a 16px gap.
  *
  * It is a variable rather than a padding value because the enter and exit keyframes read
  * it too: sliding by the toast's own height alone would start and end the slide with the
  * toast still on screen, `offset` short of the edge.
  */
-export const SNACKBAR_OFFSET =
-    'calc(max(var(--safe-bottom, 0px), var(--keyboard-height, 0px)) + var(--toast-lift, 0px) + 16px)';
+export const SNACKBAR_OFFSET = `calc(max(var(--safe-bottom, 0px), var(--keyboard-height, 0px)) + max(var(--toast-lift, 0px), ${TOAST_MIN_LIFT_PX}px) + 16px)`;
 
 /** Every bar on screen that asked for a lift, by owner. */
 const lifts = new Map<symbol, number>();

@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 
 import { cn } from '@chatic/lib/utils';
 
+import { useBottomChromeToastLift } from '../hooks/useBottomChromeToastLift';
 import { useChromeInsets } from '../hooks/useChromeInsets';
 import { keyboardSafeBottom } from './KeyboardSafeAreaSpacer';
 
@@ -53,6 +54,8 @@ export const KeyboardAwareLayout = ({
     className,
 }: KeyboardAwareLayoutProps) => {
     const { headerRef, footerRef, headerHeight, footerHeight } = useChromeInsets();
+    // A docked footer (CTA) hides the snackbar's resting place; lift it while the footer is there.
+    useBottomChromeToastLift(footer ? footerHeight : null);
 
     return (
         <div data-chrome-root className={cn('relative flex h-full flex-col overflow-hidden bg-background', className)}>

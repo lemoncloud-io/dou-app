@@ -10,6 +10,7 @@ const NAV_LINKS = [
     { to: '/users', key: 'nav.users' },
     { to: '/memberships', key: 'nav.memberships' },
     { to: '/cloud-deployments', key: 'nav.cloudDeployments' },
+    { to: '/cost-monitor', key: 'nav.costMonitor' },
 ] as const;
 
 const linkClass = ({ isActive }: { isActive: boolean }): string =>

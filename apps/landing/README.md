@@ -462,8 +462,11 @@ the server alone. The methods it answers (`lib/port/http/methods.ts`) come from 
 other one — billing emails, invoices, undoing a cancellation or a scheduled downgrade,
 retrying — refuses, and nothing stands in for it. The port's `supports` says which methods are
 real (`PortSupports`, read with `useSupports()`), and the screens leave out what would call the rest:
-the billing history (its menu entry and route, and the recent billing on W-18), "Undo cancellation" on
-W-18 and after cancelling, and "Cancel the change" for a scheduled downgrade. Where the copy promised
+the billing history (its menu entry and route, and the recent billing on W-18), W-06's "Amount paid"
+tile (the amount is read from the invoice, and neither the attempt nor the subscription carries it),
+"Undo cancellation" on W-18 and after cancelling, and "Cancel the change" for a scheduled downgrade.
+W-06's upgrade line then says what the plan allows and nothing about a charge, since without an invoice
+it cannot tell "charged" from "nothing charged". Where the copy promised
 the undo — the list's status line, the cancel confirmation, W-14's notice for an ending subscription —
 a `…NoUndo` line says only what holds. Without the addresses there is no account surface at all — only
 the plans page, as on the production host — and nothing stands in for the server (ADR-0264).

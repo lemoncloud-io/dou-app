@@ -1461,6 +1461,7 @@
         "signup": "회원가입",
         "forgotPassword": "비밀번호 찾기",
         "or": "또는",
+        "continueWithEmail": "이메일로 계속하기",
         "continueWithPhone": "휴대폰 번호로 로그인",
         "socialMobileOnly": "소셜 로그인은 모바일 앱에서 할 수 있어요.",
         "socialFirstNotice": "이미 계정이 있다면 소셜로 먼저 로그인해 주세요.",
