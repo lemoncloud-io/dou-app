@@ -77,7 +77,7 @@ the inset.
 ## Snackbar clearance (`--toast-lift`)
 
 The snackbar (`@chatic/ui-kit`'s `Toaster`, mounted once in `AppRuntime`) rests at the bottom, 16px
-above the taller of `--safe-bottom` and `--keyboard-height`. `AppRuntime` sits above the router, so
+above the taller of `--safe-bottom` and `--keyboard-height`, plus a fixed floor of 80px (`TOAST_MIN_LIFT_PX`, the tab bar's geometry) so the toast is at the same height on screens with their own button rows too. `AppRuntime` sits above the router, so
 the toaster cannot tell what is pinned to the bottom. Each bar tells it instead, by calling the
 kit's `useToastLift(px)` with its own height while it is mounted:
 
