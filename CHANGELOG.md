@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-03] - No version updates
+
+### Features
+
+- (chatic-apps-sdk,mobile) add the library sub WebView pages talk to the app with (ADR-0281)
+
 ## [2026-11-03] - root@0.143.3, @chatic/landing@0.17.1
 
 ### Bug Fixes
