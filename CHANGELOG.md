@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-03] - root@0.143.3, @chatic/landing@0.17.1
+
+### Bug Fixes
+
+- (landing) leave W-06's paid amount out where the port keeps no invoices, not show a dash
+- (web/subscription) name a website-billed plan from its provider's list, not its raw product id
+
 ## [2026-11-03] - root@0.143.2, @chatic/web@0.86.2
 
 ### Other
