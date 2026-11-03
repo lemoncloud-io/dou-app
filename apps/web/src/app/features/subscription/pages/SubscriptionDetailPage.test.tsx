@@ -124,6 +124,8 @@ describe('Subscription detail — scenarios', () => {
 
         fireEvent.click(screen.getByRole('button', { name: `${K}.detail.changePlan` }));
         expect(navigateMock).toHaveBeenCalledWith(ROUTES.subscription.plans);
+        expect(screen.getByText(`${K}.notice.upgradeImmediate`)).toBeInTheDocument();
+        expect(screen.getByText(`${K}.notice.downgradeNextRenewal`)).toBeInTheDocument();
     });
 
     it('scheduled cancellation: ending banner with a day countdown and the end date row', () => {
@@ -247,6 +249,9 @@ describe('Subscription detail — scenarios', () => {
         expect(leaveForWeb).toHaveBeenCalledWith(WEB_SUBSCRIPTION_URL.list);
         expect(screen.getByText(`${K}.notice.manageAt.web`)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: `${K}.detail.manageInStore` })).not.toBeInTheDocument();
+        // How a store applies a tier change says nothing about the website's.
+        expect(screen.queryByText(`${K}.notice.upgradeImmediate`)).not.toBeInTheDocument();
+        expect(screen.queryByText(`${K}.notice.downgradeNextRenewal`)).not.toBeInTheDocument();
     });
 
     it('in the app, a subscription the website bills: says so, and links nowhere', () => {
@@ -264,5 +269,8 @@ describe('Subscription detail — scenarios', () => {
         // Nor names it: no "manage it at …" line for the website, and none for a store either.
         expect(screen.queryByText(`${K}.notice.manageAt.web`)).not.toBeInTheDocument();
         expect(screen.queryByText(new RegExp(`${K}.notice.manageAt`))).not.toBeInTheDocument();
+        // And no tier-change rules for a change it cannot make: with nothing left, no notice block.
+        expect(screen.queryByText(`${K}.notice.upgradeImmediate`)).not.toBeInTheDocument();
+        expect(screen.queryByText(`${K}.notice.title`)).not.toBeInTheDocument();
     });
 });

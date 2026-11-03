@@ -11,6 +11,15 @@ export const isWebBilled = (platform: string | null | undefined): boolean =>
     !!platform && WEB_PLATFORMS.includes(platform);
 
 /**
+ * The payment provider whose plans hold a website-billed membership's plan, or `undefined` for anyone
+ * else. The relay leaves the website's products out of a plan list read without a `platform` — the
+ * app's own catalog lists the stores' tiers only — so that membership's plan is read from its own
+ * provider's list.
+ */
+export const webPlanPlatform = (platform: string | null | undefined): string | undefined =>
+    isWebBilled(platform) ? (platform as string) : undefined;
+
+/**
  * Whether a session outside the app may send the reader to the website's checkout: anything but a
  * running store subscription. The relay refuses a web purchase while a store subscription is live, and
  * a store's subscription can only be changed on that store, so for one of those the app keeps saying

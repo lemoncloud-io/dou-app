@@ -39,13 +39,14 @@ export const useMembershipInfo = () => {
     });
 };
 
-export const useProductPlans = (params: Params = {}) => {
+export const useProductPlans = (params: Params = {}, { enabled = true }: { enabled?: boolean } = {}) => {
     const { subscription } = runtime.data.useRuntimeRepositories();
 
     return useQuery({
         queryKey: productPlansKeys.list(params),
         queryFn: () => subscription.fetchPlans(params),
         refetchOnWindowFocus: false,
+        enabled,
     });
 };
 

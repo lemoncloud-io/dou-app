@@ -1,4 +1,16 @@
-import { canCheckoutOnWeb, isHeldByWeb, isWebBilled } from './webCheckout';
+import { canCheckoutOnWeb, isHeldByWeb, isWebBilled, webPlanPlatform } from './webCheckout';
+
+describe('webPlanPlatform', () => {
+    it("names the website's provider, whose list holds the membership's plan", () => {
+        expect(webPlanPlatform('stripe')).toBe('stripe');
+        expect(webPlanPlatform('portone')).toBe('portone');
+    });
+
+    it('names nothing for a store or no platform, which the unfiltered list already covers', () => {
+        expect(webPlanPlatform('apple')).toBeUndefined();
+        expect(webPlanPlatform(undefined)).toBeUndefined();
+    });
+});
 
 describe('isWebBilled', () => {
     it('recognises the website’s two payment providers', () => {
