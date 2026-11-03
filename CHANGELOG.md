@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-03] - root@0.142.0, @chatic/web@0.86.0
+
+### Features
+
+- (web) name the sample1 Lab row Enhance DoU
+
 ## [2026-11-03] - No version updates
 
 ### Features
