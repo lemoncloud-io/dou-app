@@ -141,6 +141,13 @@ would mean a new browser-side OAuth integration.
 So a non-native visitor sees the card and gets `social.mobileOnly` on tap. **Phone linking works in
 the browser** — it is a socket call with no bridge in it.
 
+The virtual mobile shell is native as far as this screen knows, and its relay sign-in answers
+`appBridge.oauthLogin` with a relay code (`{ provider, platform, code }`) rather than a provider
+token. That still links: `auth.link-account` takes `{ provider, code }` in the token's place — the
+desktop app's Link Google sends exactly that — and the relay code holds for both steps, so
+`useSocialLinks` forwards it to `verify` and `confirm` unchanged. What the relay code does not give
+is a login on the browser path above: that one is a plain browser with no bridge at all.
+
 ### The card borrows its styling
 
 No Figma node covers this area. The card and row classes come from `AccountInfoPage` itself

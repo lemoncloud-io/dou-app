@@ -95,6 +95,16 @@ There is no OAuth callback route. Social login on the web goes through the nativ
 (`appBridge.startOAuthLogin`, then `verify-native-token`), and nothing here sends a browser to the
 relay's authorize page, so the `/auth/oauth-response` page and its code exchange were removed.
 
+The shell decides what comes back on `OnOAuthLogin`. A native app answers with the provider's token.
+The virtual mobile shell, when its sign-in goes through the OAuth relay, answers with the relay's
+code instead (`{ provider, platform, code }`) — it holds no provider token to give. The login screen
+tells the two apart by `code` and exchanges a code the way the desktop app does:
+`runtime.session.createCredentialsByProvider(provider, code, { linkCurrentSession: true })`, which
+posts to `verify-oauth-code` signed with the guest session already on the device, so the backend links
+that guest to the account exactly as the native login does. The rest — the log line, leaving for
+`returnTo`, the failure toast — is the same for both. The exchange needs a device session; without one
+the relay answers 403 and the screen shows its usual failure toast.
+
 ## Scenarios
 
 ### 1. `/auth/login` is opened

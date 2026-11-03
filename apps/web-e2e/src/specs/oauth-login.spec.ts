@@ -65,6 +65,40 @@ test('a Google sign-in the app completes promotes the guest and returns to MY', 
     await expect(page.getByText('Sign in required')).toHaveCount(0);
 });
 
+// The virtual shell's relay sign-in answers with a relay code, not a provider token. The page exchanges
+// it the way desktop does: `verify-oauth-code`, signed with the guest session already on the device.
+test('a relay code from the virtual shell is exchanged and promotes the guest', async ({
+    page,
+    shell,
+    backend,
+    shellPlatform,
+}) => {
+    shell.handle('OAuthLogin', () => ({
+        result: { provider: 'google', platform: shellPlatform, code: 'e2e-relay-code' },
+    }));
+    let exchanged: unknown;
+    backend.useHttp({
+        'POST /users/0/verify-oauth-code': request => {
+            exchanged = request.postDataJSON();
+            const answer = registerDeviceAnswer(backend.deviceId);
+            return {
+                ...answer,
+                userRole: 'user',
+                account$: { id: answer.accountId, stereo: 'google', name: 'guest@example.test' },
+            };
+        },
+    });
+
+    await openSignIn(page);
+    await googleButton(page).click();
+
+    // The code went to the relay as the shell returned it, and no native token check ran.
+    await expect.poll(() => exchanged).toEqual({ provider: 'google', code: 'e2e-relay-code' });
+    await expect(page.getByText('Subscription')).toBeVisible();
+    await expect(page.getByText('Sign in required')).toHaveCount(0);
+    expect(backend.unexpected.filter(entry => entry.includes('verify-native-token'))).toEqual([]);
+});
+
 test('a sign-in cancelled in the app says so and leaves the buttons usable', async ({ page, shell }) => {
     shell.handle('OAuthLogin', () => ({ result: null }));
 

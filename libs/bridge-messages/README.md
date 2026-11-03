@@ -178,7 +178,7 @@ libs/bridge-messages/src/
     └── model/                    26 files — 25 payload files, grouped by domain, and their barrel
 ```
 
-32 files, 4,011 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
+32 files, 4,068 lines, **no specs and no jest config**. There is nothing to run here; `tsc -b` is the
 whole gate.
 
 The payload files, with what is in each:
@@ -197,7 +197,7 @@ The payload files, with what is in each:
 | `iap.ts`               | 154   | Products, purchases, receipts, `AndroidOfferTokens`                                                                                                                                                                                      |
 | `notification.ts`      | 133   | FCM token, badge count and base, push marks, OS notification                                                                                                                                                                             |
 | `perf.ts`              | 182   | Boot timeline, `SetDebugMode`, `StartPerfTrace`/`StopPerfTrace`, `HandedOverPerfTrace`                                                                                                                                                   |
-| `auth.ts`              | 80    | `OAuthLoginProvider` and the Google/Apple token results                                                                                                                                                                                  |
+| `auth.ts`              | 101   | `OAuthLoginProvider`, the Google/Apple token results, and the relay code only the virtual shell answers with                                                                                                                             |
 | `test-record.ts`       | 49    | The native DB scenario harness — five messages, used by the debug panel only                                                                                                                                                             |
 | `custom-zip.ts`        | 50    | Apply/disable/status for the custom web-bundle override                                                                                                                                                                                  |
 | `preference.ts`        | 44    | `PreferenceKey` — a closed union of six keys                                                                                                                                                                                             |
