@@ -50,12 +50,20 @@ const REFUSAL_LINE: Record<Exclude<TierRefusal, 'current'>, string> = {
  */
 export const usePlanOptions = (): { options: PlanOption[]; isLoading: boolean } => {
     const { t } = useTranslation();
-    const { sellablePlans, replaceablePlan, resubscribePlan, isIOS, isLoading } = usePlanCatalog();
+    const { sellablePlans, replaceablePlan, resubscribePlan, isIOS, isLoading, isOtherStore } = usePlanCatalog();
     const { nativeProducts, isLoading: isCatalogLoading } = useNativeCatalog();
+    // Billed elsewhere with no plan in the catalog to judge a tier against — the website's, when the
+    // catalog leaves it out. Read as "nothing running", every tier would be a first purchase, and the
+    // store would charge on top of the website. Each tier is refused as another store's instead.
+    const billedElsewhereUnknown = isOtherStore && !replaceablePlan;
 
     const options = sellablePlans.map<PlanOption>(plan => {
-        const kind = getTierChangeKind(replaceablePlan, plan, resubscribePlan);
-        const refusal = getTierRefusal(replaceablePlan, kind, plan, resubscribePlan);
+        const kind: TierChangeKind = billedElsewhereUnknown
+            ? 'blocked'
+            : getTierChangeKind(replaceablePlan, plan, resubscribePlan);
+        const refusal: TierRefusal | undefined = billedElsewhereUnknown
+            ? 'otherStore'
+            : getTierRefusal(replaceablePlan, kind, plan, resubscribePlan);
         return {
             plan,
             kind,

@@ -69,7 +69,10 @@ export const SubscriptionPage = () => {
     })();
     const statusLineTone = summary.state === 'active' ? 'text-point-blue' : 'text-destructive';
 
-    const handleStart = () => (isGuest ? goToLogin() : navigate(ROUTES.subscription.guide));
+    // In the app a purchase attaches to the account signed in here, so a guest signs in first. In a
+    // browser the website sells and signs the buyer in itself, so the guide leads straight there.
+    const asksLogin = isGuest && isOnMobileApp;
+    const handleStart = () => (asksLogin ? goToLogin() : navigate(ROUTES.subscription.guide));
 
     return (
         <ScreenLayout
@@ -138,18 +141,14 @@ export const SubscriptionPage = () => {
                                 {t('mypage.subscription.list.emptyTitle')}
                             </span>
                             <span className="text-center text-[14px] text-description">
-                                {!isOnMobileApp
-                                    ? t('mypage.subscription.mobileOnly')
-                                    : isGuest
-                                      ? t('mypage.subscription.loginRequired')
-                                      : t('mypage.subscription.list.emptyDescription')}
+                                {asksLogin
+                                    ? t('mypage.subscription.loginRequired')
+                                    : t('mypage.subscription.list.emptyDescription')}
                             </span>
                         </div>
-                        {isOnMobileApp && (
-                            <Button size="lg" fullWidth onClick={handleStart}>
-                                {isGuest ? t('mypage.subscription.loginCta') : t('mypage.subscription.subscribe')}
-                            </Button>
-                        )}
+                        <Button size="lg" fullWidth onClick={handleStart}>
+                            {asksLogin ? t('mypage.subscription.loginCta') : t('mypage.subscription.subscribe')}
+                        </Button>
                     </div>
                 )}
 

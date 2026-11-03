@@ -14,10 +14,16 @@ describe('formatDate', () => {
 });
 
 describe('platformLabelKey', () => {
-    it('names both stores and nothing else', () => {
+    it('names both stores, and nothing when the platform is unknown', () => {
         expect(platformLabelKey('apple')).toBe('mypage.subscription.platformApple');
         expect(platformLabelKey('google')).toBe('mypage.subscription.platformGoogle');
         expect(platformLabelKey(undefined)).toBeUndefined();
+    });
+
+    it('names the website for either of its payment providers', () => {
+        expect(platformLabelKey('portone')).toBe('mypage.subscription.platformWeb');
+        expect(platformLabelKey('stripe')).toBe('mypage.subscription.platformWeb');
+        expect(platformLabelKey('paypal')).toBeUndefined();
     });
 });
 

@@ -4,7 +4,8 @@
 where the tier number is the number of clouds the account may hold at once.** Around that it owns
 four decisions — which tiers may be sold, which state the membership is in, whether another cloud
 may be created, and what a tier change sends to the store — plus the in-app purchase flow that
-executes them through the native bridge.
+executes them through the native bridge, and, in a browser, the hand-over to the website's checkout
+(§ 6).
 
 Every one of those decisions is a pure function in `lib/` with a hook in `hooks/` that feeds it
 server data. Screens branch on the result; they never re-derive it, and no other feature derives it
@@ -206,6 +207,52 @@ store has taken the money — failing there would leave a paid subscription with
    landed or the server never built the `link$` slot, and refusing on that would stop paying
    customers from renewing.
 
+### 6. Outside the app, the website sells
+
+A browser tab (`isNative()` false) has no store, so it sells nothing itself: the website's checkout
+(the landing app's `/subscription`, on the policy host — `WEB_SUBSCRIPTION_URL`) does. The relay
+writes a subscription bought there into the same membership, with `platform` set to the website's
+payment provider (`portone` or `stripe`, `isWebBilled`), so everything above reads it unchanged once
+the catalog lists its plan.
+
+**Who is handed over.** `canCheckoutOnWeb` says yes to anyone a store is not billing right now: no
+receipt, a lapsed one, an admin grant with no receipt, or a subscription the website bills. A running
+App Store or Google Play subscription stays — the relay refuses a web purchase while one is live, and
+§ 4's rule that a subscription changes only where it is billed holds for the website as for the
+stores. A live receipt that names no platform counts as a store's; every receipt before the website
+was one.
+
+**Only a membership that was read decides.** One that failed to load, or is waiting on a connection,
+would read as "no subscription" and send a store subscriber to a website that refuses them, so the
+hand-off waits for a successful read and otherwise shows the screen behind it as before.
+
+**Where.** `WebCheckoutHandoff` stands in front of `plans` and `confirm`, so every way in — MY's
+list, the guide, home's banner and cloud switcher, the allowance dialog — reaches it without each
+entry deciding. It replaces the history entry rather than pushing one (`leaveForWeb`), so back from
+the website lands on the screen that led there, not on a picker that would send the reader out again.
+The detail offers "change plan" (through the same picker) and, for a website subscription, "manage on
+the web" (the website's list); its banners open the latter too. A store's subscription gets the
+`otherStore` note naming the store instead of a button — or, when the membership names no store, the
+`mobileOnly` line, which is true of it: only the app can change a store's subscription.
+
+**On production the website does not sell yet.** Its account pages open on dev hosts only; on the
+production host `/subscription/plans` is the one subscription page, listing the published plans with
+the stores' links in place of checkout. That is where a browser lands there, and it is the one page
+the website lets others link to before checkout opens. "Manage on the web" cannot appear there: no
+membership carries the website's platform until it sells.
+
+**No sign-in here first.** The list's empty state leads a browser guest to the guide like anyone
+else: the website signs the buyer in itself, and the purchase attaches to that account, not to this
+tab's session. This tab learns of it only once it is signed in to the same account — a buyer who
+picks another account on the website, or a guest who stays one, sees no subscription here.
+
+**Inside the app the website is never offered.** The stores do not allow pointing a buyer at another
+way to pay, so a website subscription opened in the app gets a note (`detail.webBilled`) with no link
+and no "manage it at …" line, and the tier picker refuses every tier as `otherStore`. `isOtherStore`
+counts a running website subscription as another store's whether or not the catalog lists its plan,
+and the picker refuses every tier when it has no plan to judge against, so a store sale on top of the
+website cannot start.
+
 ## Boundaries
 
 **Six screens, one walk.** `/subscription` lists the running subscription (or an empty state),
@@ -234,7 +281,8 @@ history, so back from the detail never returns to a confirm button.
 priority — block, expiry, scheduled ending, restored, renewal reminder — and the info table's rows
 come from `deriveInfoRows`, because `validUntil` is the next charge, the last day or the expiry date
 depending on the state, and showing all three makes the reader work out which. Tapping the banner
-opens the store's subscription management. The "restored" banner has no relay signal behind it: the
+opens the store's subscription management — in a browser, for a subscription the website bills, the
+website's (§ 6); where neither applies it opens nothing. The "restored" banner has no relay signal behind it: the
 app shows it only when it saw the state go from an ending to running within the session
 (`stores/useRestoredSignal`), so a reinstall or another device never shows it. The expired banner
 promises the old clouds back only within the relay's 30-day hold (`EXPIRED_HOLD_MS`, a copy of the
@@ -254,7 +302,7 @@ its own status word) and `useCloudQuota` (the `used / limit` figure).
 
 **A used-up allowance gets a dialog, not a toast.** `AddCloudFlowHost` opens `AddCloudLimitDialog`
 when the quota's reason is `limitReached`: with a higher tier in the catalog (`hasHigherTier`, judged on
-both stores' tiers so an off-native session, which sells nothing, is not told it is at the top) it offers
+both stores' tiers so an off-native session, which has no store tiers of its own, is not told it is at the top) it offers
 the plan picker; at the top tier there is no plan to change to — a dead "change plan" button would
 read as broken — so it states the ceiling ("up to N clouds", N being the allowance in force, read
 from the catalog rather than written into the copy) and offers the subscription list
@@ -328,6 +376,7 @@ interpolations. What they cannot catch:
 | Android plan order         | `ANDROID_PLAN_LIST` in `apps/mobile/src/app/services/subscriptionIap/config.ts` derives an upgrade/downgrade rank from the env list's `indexOf`. If that order diverges from tier order, the direction flips — passing an exact `oldPlanId` is what keeps the judgement sound. |
 | `make` returns early       | `POST /clouds/0/make` returns once the model exists (`status=init`); workspace assignment and deploy follow asynchronously with no SLA. The success toast means accepted, not ready — the switcher shows the provisioning state.                                               |
 | One email per cloud, today | Reaching tier 5 needs five addresses. Until the backend supports one account across several clouds, that is the practical ceiling on tier 2+ conversion.                                                                                                                       |
+| The website's side         | `subscription-web-checkout.spec.ts` (web-e2e, browser mode) proves the hand-off leaves for the right address on the dev host, and answers that address itself. Whether the website's page is open there, and what the production host shows, is the landing app's to test.     |
 
 The debug overlay's IAP screen maps 1:1 onto the bridge commands this feature uses, which is the
 fastest way to exercise a purchase path without a real charge → [debug/](../debug/README.md).
@@ -335,6 +384,8 @@ fastest way to exercise a purchase path without a real charge → [debug/](../de
 ## Further reading
 
 - [bridge/](../../bridge/README.md) — the single native ↔ web message seam.
+- [landing](../../../../landing/README.md) — the website's checkout a browser is handed to (§ 6), and
+  which of its pages are open on which host.
 - [state/stores.md](../../state/stores.md) — why the cross-feature request seams are zustand stores.
 - [home/README.md](../home/README.md) — the banners and the cloud switcher that raise the requests.
 - [mypage/README.md](../mypage/README.md) — cloud management, where a cloud is actually released.
