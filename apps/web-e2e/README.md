@@ -166,8 +166,9 @@ long history (`fixtures/rooms.ts`). `chat.feed` there pages as the relay does �
 exclusive `cursorNo`, `limit` rows (20 when the request names none), and `cursorNo: 0` on the last page
 (`feedPage`). `installCloud(backend, …)` installs a cloud with its own backend and socket, with a
 second place and its room when asked (`secondPlace`); setting `refuseSwitchInto` on the state it
-returns makes `auth.switch` refuse to move into that place. `ownCloud(backend)` lists that cloud in
-the relay's catalog as the guest's own and answers the owner's way in — `delegate-cloud`, then the
+returns makes `auth.switch` refuse to move into that place. `ownCloud(backend)` signs the guest in as an account
+(the relay lets no guest own a cloud), lists that cloud in the relay's catalog as the account's own and
+answers the owner's way in — `delegate-cloud`, then the
 cloud's `exchange-token` — or refuses it (`issue: false`) (`fixtures/cloud.ts`). `fixtures/invites.ts`
 holds the relay invite and the link that carries it. `fixtures/subscription.ts` holds the purchase:
 `signedInMember` (a purchase is refused to a guest), `installSubscriptions` (the relay's plans, a

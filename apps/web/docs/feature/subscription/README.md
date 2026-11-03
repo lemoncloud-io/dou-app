@@ -224,7 +224,10 @@ was one.
 
 **Only a membership that was read decides.** One that failed to load, or is waiting on a connection,
 would read as "no subscription" and send a store subscriber to a website that refuses them, so the
-hand-off waits for a successful read and otherwise shows the screen behind it as before.
+hand-off waits for a successful read and otherwise shows the screen behind it as before. A guest
+account is the one membership answered without a request: a membership belongs to a signed-in
+account, so `useMembershipInfo` answers a guest with none (`isValid: false`) as a successful read,
+and the hand-off goes ahead as it would on the relay's own empty answer.
 
 **Where.** `WebCheckoutHandoff` stands in front of `plans` and `confirm`, so every way in — MY's
 list, the guide, home's banner and cloud switcher, the allowance dialog — reaches it without each

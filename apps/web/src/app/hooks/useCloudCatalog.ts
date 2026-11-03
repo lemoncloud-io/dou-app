@@ -4,7 +4,12 @@ import type { Query } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
 
+import { useIsAccountGuest } from './useMyUser';
+
+import type { DomainCloud, DomainListResult } from '@chatic/data';
 import type { Params } from '@lemoncloud/lemon-web-core';
+
+const GUEST_CATALOG: DomainListResult<DomainCloud> = { list: [], meta: { total: 0, source: 'local' } };
 
 /**
  * The relay cloud catalog, as react-query.
@@ -20,14 +25,26 @@ import type { Params } from '@lemoncloud/lemon-web-core';
  *
  * `params` are request params only. The read is gated on the session alone: signed out there is no
  * relay credential to read it with, and no caller has needed to switch it off otherwise.
+ *
+ * A guest account is answered here, without a request. The relay lists the clouds the session's user
+ * OWNS, and a guest cannot own one — making a cloud takes a membership, which a guest cannot buy — so
+ * the answer is always empty. It is answered rather than disabled because callers read `isPending` and
+ * `hasCloudCatalog` as "not known yet" (the cloud management screen, the owned-cloud guards, home's
+ * header), and a disabled query would leave them waiting for good; `refetch` (the switcher sheet, the
+ * home pull) also ignores `enabled` and would put the request back on the wire.
+ *
+ * The guest's answer has a key of its own, so signing in moves the query to the account's key and
+ * reads it, rather than keeping the guest's empty list under the same key.
  */
 export const useClouds = (params: Params = {}) => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
+    const isGuest = useIsAccountGuest();
     const { cloud } = runtime.data.useRuntimeRepositories();
+    const listKey = runtime.data.cloudsKeys.list(params);
 
     return useQuery({
-        queryKey: runtime.data.cloudsKeys.list(params),
-        queryFn: () => cloud.fetchCloudCatalog(params),
+        queryKey: isGuest ? [...listKey, 'guest'] : listKey,
+        queryFn: isGuest ? () => Promise.resolve(GUEST_CATALOG) : () => cloud.fetchCloudCatalog(params),
         enabled: isAuthenticated,
         refetchOnWindowFocus: false,
         staleTime: 0,

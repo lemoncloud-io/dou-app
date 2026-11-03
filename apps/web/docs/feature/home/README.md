@@ -289,7 +289,9 @@ A pull adds **no fetch of its own**. It asks, sooner, for what the screen would 
   while an earlier one is still running joins it.
 - `refetchClouds()` and `refetchMembership()` — the two queries behind the header's cloud name and
   tier pill, which the background sync does not own. The catalog is asked only with a session,
-  because its query is disabled without one and `refetch` does not honour that.
+  because its query is disabled without one and `refetch` does not honour that. For a guest
+  account neither reaches the relay: both hooks answer a guest themselves (no owned clouds, no
+  membership), so a guest's pull refreshes them without a request.
 
 The indicator stays up until all three have settled, or 10 seconds at most, and every part is
 best-effort: a failure ends the pull just as a success does, with whatever the cache already held
