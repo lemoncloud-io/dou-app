@@ -36,6 +36,28 @@
 export type SubWebViewErrorCode = 'INVALID' | 'NOT_ALLOWED' | 'ALREADY_OPEN' | 'NOT_OPEN';
 
 /**
+ * Every `error.code` a sub WebView page can receive from its own host. A page still treats a code
+ * it does not know as a failure of that request: codes are added, never renamed.
+ *
+ * - `NOT_FOUND`, `INTERNAL_ERROR`, `TOO_LARGE` come from the host itself, in a reply typed `ERROR`;
+ *   `TOO_LARGE` is a message over the host's size limit (65,536 characters serialized).
+ * - The rest come from a request's own handler, in a reply typed `On<Request>`. `INVALID_KIND` is
+ *   `TriggerHaptic`'s older name for `INVALID`, kept because a page may read it.
+ */
+export type SubWebViewPageErrorCode =
+    | 'NOT_FOUND'
+    | 'INTERNAL_ERROR'
+    | 'TOO_LARGE'
+    | 'INVALID'
+    | 'INVALID_KIND'
+    | 'NOT_OPEN'
+    | 'LINK_NOT_ALLOWED'
+    | 'OPEN_URL_FAILED'
+    | 'CLIPBOARD_WRITE_ERROR'
+    | 'SHARE_ERROR'
+    | 'UNAVAILABLE';
+
+/**
  * Why a sub WebView closed:
  * - `user` — its close control, or Android back with no page to go back to;
  * - `host` — the web asked with `CloseSubWebView`;
@@ -150,4 +172,29 @@ export type GetSubWebViewUserKeyPayload = {
 /** [Response] The key: 64 lower-case hex characters. */
 export type OnGetSubWebViewUserKeyPayload = {
     key: string;
+};
+
+/**
+ * [Request, from a sub WebView page] Ask the page before the user closes the view. While enabled, the
+ * view's close control and an Android back press that would close it push
+ * `OnSubWebViewCloseRequested` instead of closing; the page closes with `FinishSubWebView` or stays.
+ * A second close by the user within a few seconds closes anyway, so a page cannot keep the user in.
+ * Only the user's close is guarded: the web's `CloseSubWebView` and the shell's own close are not.
+ * Lasts until the next page load in the view.
+ */
+export type SetSubWebViewCloseGuardPayload = {
+    enabled: boolean;
+};
+
+/** [Response] The guard is set. */
+export type OnSetSubWebViewCloseGuardPayload = {
+    // Empty object type, reserved for future extension (optional fields, etc.).
+};
+
+/** What the user did to ask for the close: the view's close control, or Android back. */
+export type SubWebViewCloseTrigger = 'control' | 'back';
+
+/** [Event, to a sub WebView page] The user asked to close the view while its close guard is on. */
+export type OnSubWebViewCloseRequestedPayload = {
+    trigger: SubWebViewCloseTrigger;
 };

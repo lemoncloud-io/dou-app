@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useResolvedTheme } from '../../hooks';
 import { subWebViewService } from '../../services';
-import { SubWebView } from '../../subWebView';
+import { SubWebView, type SubWebViewHandle } from '../../subWebView';
 import { t } from '../../utils';
 import type { RootStackParamList } from '../core/navigation/type';
 
@@ -19,6 +19,7 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
     const [requestedTitle, setRequestedTitle] = useState<string | undefined>(undefined);
     const insets = useSafeAreaInsets();
     const { isDark, backgroundColor } = useResolvedTheme();
+    const viewRef = useRef<SubWebViewHandle>(null);
     const foreground = isDark ? '#FFFFFF' : '#222325';
 
     const close = useCallback(() => {
@@ -28,12 +29,31 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
         if (!result.ok && navigation.canGoBack()) navigation.goBack();
     }, [viewId, navigation]);
 
+    // The control asks the page first when it has its close guard on; the view decides.
+    const onClosePress = useCallback(() => {
+        if (viewRef.current) viewRef.current.requestClose('control');
+        else close();
+    }, [close]);
+
     // Any way the screen leaves without the service hearing of it still counts as the user closing
     // it; once the service has closed the view this answers NOT_OPEN and does nothing.
     useEffect(() => () => void subWebViewService.close(viewId, 'user'), [viewId]);
 
     return (
-        <View style={[styles.container, { backgroundColor, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        // Every edge padded, so the page lies wholly inside the safe area and needs no insets of its
+        // own — the sides too, for the notch in landscape.
+        <View
+            style={[
+                styles.container,
+                {
+                    backgroundColor,
+                    paddingTop: insets.top,
+                    paddingBottom: insets.bottom,
+                    paddingLeft: insets.left,
+                    paddingRight: insets.right,
+                },
+            ]}
+        >
             <View style={styles.bar}>
                 <Text style={[styles.title, { color: foreground }]} numberOfLines={1}>
                     {requestedTitle ?? pageTitle ?? title ?? ''}
@@ -42,13 +62,14 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
                     accessibilityRole="button"
                     accessibilityLabel={t('webview.subClose')}
                     hitSlop={12}
-                    onPress={close}
+                    onPress={onClosePress}
                     style={styles.close}
                 >
                     <Text style={[styles.closeGlyph, { color: foreground }]}>✕</Text>
                 </TouchableOpacity>
             </View>
             <SubWebView
+                ref={viewRef}
                 viewId={viewId}
                 url={url}
                 params={params}

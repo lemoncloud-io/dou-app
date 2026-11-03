@@ -8,6 +8,7 @@ import {
     type AppMessageType,
     type BridgeErrorResponse,
     type CacheDomainVersions,
+    type SubWebViewContext,
     type WebAppReadyPayload,
     type WebMessageData,
     type WebMessageHandlerResponse,
@@ -54,6 +55,18 @@ export interface AppBridgeHostConfig {
      * fallback (a listed type counts as version 1) would cancel out the measurement.
      */
     resolveCacheDomainVersions?: () => Promise<CacheDomainVersions | undefined>;
+    /**
+     * A sub WebView's context, reported in the handshake as `subWebView`. Only a sub WebView's own
+     * host passes it. A thunk so the reply carries the theme and language as they are when the page
+     * asks, not as they were when the host was built.
+     */
+    subWebViewContext?: () => SubWebViewContext;
+    /**
+     * The longest message, as a serialized string, this host handles. A longer one is answered
+     * `TOO_LARGE` without reaching its handler. Unset means no limit — the main web's own messages
+     * (log batches, cache writes) have none.
+     */
+    maxMessageLength?: number;
 }
 
 export class AppBridgeHost implements IAppBridgeHost {
@@ -77,12 +90,14 @@ export class AppBridgeHost implements IAppBridgeHost {
 
     private isWebReady = false;
     private eventBuffer: IMessageQueue<EventMessage>;
+    private maxMessageLength?: number;
 
     constructor(config: AppBridgeHostConfig) {
         this.protocol = config.protocol ?? JsonProtocol;
         this.sendToWeb = config.sendToWeb;
         this.version = config.version ?? BRIDGE_VERSION;
         this.eventBuffer = config.eventBuffer ?? new MessageQueue();
+        this.maxMessageLength = config.maxMessageLength;
 
         // WebAppReady isn't a plain ready signal — it's a handshake that exchanges web/mobile protocol capability.
         this.registerHandler('WebAppReady', async message => {
@@ -121,6 +136,7 @@ export class AppBridgeHost implements IAppBridgeHost {
                         : {}),
                     ...(supportedCacheTypes ? { supportedCacheTypes } : {}),
                     ...(cacheDomainVersions ? { cacheDomainVersions } : {}),
+                    ...(config.subWebViewContext ? { subWebView: config.subWebViewContext() } : {}),
                 },
             };
         });
@@ -145,6 +161,20 @@ export class AppBridgeHost implements IAppBridgeHost {
                 if (!this.isWebReady && !AppBridgeHost.NON_READINESS_MESSAGE_TYPES.has(parsed.type)) {
                     this.isWebReady = true;
                     this.flushBuffer();
+                }
+                // Parsed first so the refusal can carry the request's refId; the handler never sees it.
+                if (this.maxMessageLength !== undefined && data.length > this.maxMessageLength) {
+                    this.sendToWeb(
+                        this.protocol.encode(
+                            this.createErrorResponse(
+                                parsed,
+                                'TOO_LARGE',
+                                `The message is over ${this.maxMessageLength} characters.`,
+                                { reason: 'The message exceeds the host message size limit.', recoverable: false }
+                            )
+                        ) as string
+                    );
+                    return;
                 }
                 await this.processRequest(parsed);
             }
