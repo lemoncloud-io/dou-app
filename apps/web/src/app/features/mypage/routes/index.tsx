@@ -7,6 +7,7 @@ import {
     CloudHubPage,
     CloudManagePage,
     CloudPlacesPage,
+    EmailLoginPage,
     LabPage,
     LicensesPage,
     LoginPage,
@@ -35,6 +36,7 @@ export const MyPageRoutes = () => {
             <Route path="cloud-manage/:cloudId/places" element={<CloudPlacesPage />} />
             <Route path="edit" element={<ProfileEditPage />} />
             <Route path="login" element={<LoginPage />} />
+            <Route path="login/email" element={<EmailLoginPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="settings/notifications" element={<NotificationSettingsPage />} />
             <Route path="settings/lab" element={<LabPage />} />

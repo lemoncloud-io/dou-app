@@ -111,6 +111,8 @@ export const ROUTES = {
     mypage: {
         root: '/mypage',
         login: '/mypage/login',
+        /** Email + password sign-in; development stages only. */
+        loginEmail: '/mypage/login/email',
         /** Device pairing: the guest's code screen, the signed-in app's approval, and my devices. */
         pairing: {
             code: '/mypage/login/pair',

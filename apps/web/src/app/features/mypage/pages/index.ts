@@ -4,6 +4,7 @@ export * from './CloudEditPage';
 export * from './CloudHubPage';
 export * from './CloudManagePage';
 export * from './CloudPlacesPage';
+export * from './EmailLoginPage';
 export * from './LicensesPage';
 export * from './LoginPage';
 export * from './LabPage';

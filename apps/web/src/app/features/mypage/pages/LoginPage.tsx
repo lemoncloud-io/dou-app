@@ -1,4 +1,4 @@
-import { Loader2, MonitorSmartphone, Smartphone } from 'lucide-react';
+import { Loader2, Mail, MonitorSmartphone, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router-dom';
@@ -20,6 +20,7 @@ import { canGoBackInApp, readHistoryIndex } from '../../../navigation';
 import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
 import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
+import { useConfigValue } from '@chatic/config/react';
 
 /** A relay code (the virtual shell's relay sign-in) rather than a native provider token. */
 const isRelayCode = (result: OAuthLoginResult): result is OAuthCodeResult =>
@@ -36,6 +37,8 @@ export const LoginPage = () => {
     // The relay-code exchange is a plain call, not a mutation, so its pending state is kept here.
     const [isCodeExchangePending, setIsCodeExchangePending] = useState(false);
     const pairingEnabled = useDevicePairingEnabled();
+    // Development stages only (see the registry) — a way to switch between seeded test accounts.
+    const emailLoginEnabled = useConfigValue<boolean>('feature.auth.emailLogin') === true;
 
     const isOnMobileApp = isNative();
     const isIOS = isOnMobileApp && typeof window !== 'undefined' && window.CHATIC_APP_PLATFORM?.toLowerCase() === 'ios';
@@ -250,6 +253,18 @@ export const LoginPage = () => {
                         <Smartphone size={20} aria-hidden />
                         {t('mypageLogin.continueWithPhone')}
                     </button>
+
+                    {emailLoginEnabled && (
+                        <button
+                            onClick={() => navigate(ROUTES.mypage.loginEmail, { state: location.state })}
+                            disabled={isLoading}
+                            data-testid="login-email"
+                            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-input-border bg-transparent py-[14px] text-[15px] font-medium text-foreground disabled:opacity-50 dark:border-[#3A3A3A]"
+                        >
+                            <Mail size={20} aria-hidden />
+                            {t('mypageLogin.continueWithEmail')}
+                        </button>
+                    )}
 
                     {/* Signing in with another, already signed-in device: this screen shows a code and
                         that device approves it. The login state rides along so the code screen can
