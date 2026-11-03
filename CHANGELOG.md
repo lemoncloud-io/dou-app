@@ -2,6 +2,12 @@
 
 ## [2026-11-03] - No version updates
 
+### Features
+
+- (mobile,bridge-messages,bridges) gate sub WebView pages on a manifest (ADR-0278)
+
+## [2026-11-03] - No version updates
+
 ### Bug Fixes
 
 - (web,web-e2e) answer a guest's membership and owned-cloud reads without the relay
