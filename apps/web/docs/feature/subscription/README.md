@@ -21,8 +21,11 @@ the server does, and it is the only party that can:
   (backend-api → iap-api) before creating or renewing the membership; no client hits iap-api's
   `/validate/<platform>` route, which was never reachable with a client credential.
 - Price is whatever the store says. `lib/price.ts` passes `displayPrice` through and formats
-  nothing — a tax-inclusive local price is not something the app may compute. Off-native there is no
-  store and no `displayPrice`; callers fall back to the server's reference value.
+  nothing — a tax-inclusive local price is not something the app may compute. The server's USD
+  reference value is never a fallback: with no `displayPrice` the price line is dropped, and the
+  confirm screen refuses to proceed ("store unavailable") rather than sell at a price it cannot show.
+  Off-native that is expected, since nothing can be bought there; in the app it means the shell
+  handed over a product without its store price, so look at the shell's catalog mapping first.
 
 It also refuses to execute anything irreversible. Clouds past the allowance are detected and named;
 releasing one happens in `mypage`'s cloud management, at the user's hand.
