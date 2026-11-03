@@ -144,8 +144,18 @@ export const OrderSummary = ({ children }: { children: ReactNode }): JSX.Element
     );
 };
 
-/** The order summary beside W-24 and W-08: the plan, its allowance and price, the trial and when the first charge falls. */
-export const CheckoutSummary = ({ preview }: { preview: CheckoutPreview }): JSX.Element => {
+/**
+ * The order summary beside W-24 and W-08: the plan, its allowance and price, the trial and when the first
+ * charge falls. Until W-08's billing country is chosen (`priced` false) the currency is not known, so the
+ * amounts are left blank and a line says what brings them.
+ */
+export const CheckoutSummary = ({
+    preview,
+    priced = true,
+}: {
+    preview: CheckoutPreview;
+    priced?: boolean;
+}): JSX.Element => {
     const { t, i18n } = useTranslation();
     const today = toIsoDate(useToday());
     const { plan, withTrial, firstChargeAt, amountToday } = preview;
@@ -167,9 +177,15 @@ export const CheckoutSummary = ({ preview }: { preview: CheckoutPreview }): JSX.
                     {
                         key: 'monthly',
                         label: t('subscription.checkout.summary.monthly'),
-                        value: t('subscription.checkout.summary.monthlyValue', {
-                            price: formatMoney(plan.monthly, i18n.language),
-                        }),
+                        // Won prices include VAT; how tax applies to a dollar price is not settled, so the
+                        // dollar price stands alone.
+                        value: !priced
+                            ? '—'
+                            : plan.monthly.currency === 'KRW'
+                              ? t('subscription.checkout.summary.monthlyValue', {
+                                    price: formatMoney(plan.monthly, i18n.language),
+                                })
+                              : formatMoney(plan.monthly, i18n.language),
                     },
                     {
                         key: 'trial',
@@ -192,11 +208,16 @@ export const CheckoutSummary = ({ preview }: { preview: CheckoutPreview }): JSX.
                     {
                         key: 'today',
                         label: t('subscription.checkout.summary.chargeToday'),
-                        value: formatMoney(amountToday, i18n.language),
+                        value: priced ? formatMoney(amountToday, i18n.language) : '—',
                         strong: true,
                     },
                 ]}
             />
+            {!priced && (
+                <p className="text-xs font-medium leading-normal text-mute">
+                    {t('subscription.checkout.summary.unpriced')}
+                </p>
+            )}
         </OrderSummary>
     );
 };

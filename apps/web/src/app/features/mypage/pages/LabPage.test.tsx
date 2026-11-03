@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 
 import { LabPage } from './LabPage';
 
@@ -42,19 +42,37 @@ jest.mock('../../debug', () => ({
     }),
 }));
 
-describe('LabPage — in-app pages', () => {
+describe('LabPage — sub WebView pages', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockDebugMode = true;
         openSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'view-1' });
     });
 
-    it('lists each page by its name, below the developer tools', () => {
+    it('lists the game in the Experiments card beside the switches', () => {
+        render(<LabPage />);
+
+        const experiments = screen.getByRole('region', { name: 'mypage.lab.experiments' });
+        expect(
+            within(experiments).getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / })
+        ).toBeTruthy();
+        expect(within(experiments).getByRole('button', { name: /^mypage\.lab\.placeInvite / })).toBeTruthy();
+        expect(within(experiments).getByRole('button', { name: /^mypage\.lab\.chatInputLock / })).toBeTruthy();
+    });
+
+    it('lists the game for everyone, with debug mode off', () => {
+        mockDebugMode = false;
+        render(<LabPage />);
+
+        expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / })).toBeTruthy();
+    });
+
+    it('keeps the echo page in the debug-only card, below the developer tools', () => {
         render(<LabPage />);
 
         const pages = screen.getByRole('region', { name: 'mypage.lab.inApp' });
-        expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.echo\.title / })).toBeTruthy();
-        expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / })).toBeTruthy();
+        expect(within(pages).getByRole('button', { name: /^mypage\.lab\.inAppPages\.echo\.title / })).toBeTruthy();
+        expect(within(pages).queryByRole('button', { name: /enhanceDou/ })).toBeNull();
         const tools = screen.getByRole('region', { name: 'mypage.lab.developerTools' });
         expect(tools.compareDocumentPosition(pages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
@@ -83,11 +101,12 @@ describe('LabPage — in-app pages', () => {
         );
     });
 
-    // Locked, as a store build is until the flask's unlock, the card is not drawn at all.
-    it('draws nothing while debug mode is off', () => {
+    // Locked, as a store build is until the flask's unlock, the debug-only card is not drawn at all.
+    it('draws no debug-only card and no echo page while debug mode is off', () => {
         mockDebugMode = false;
         render(<LabPage />);
 
         expect(screen.queryByRole('region', { name: 'mypage.lab.inApp' })).toBeNull();
+        expect(screen.queryByRole('button', { name: /inAppPages\.echo/ })).toBeNull();
     });
 });

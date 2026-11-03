@@ -7,6 +7,7 @@ import { ROUTES } from '../../../../routes/paths';
 import { PageLoader, PlanCard } from '../../components';
 import { Badge, type BadgeTone, Banner, Button } from '../../components/ui';
 import { useCurrentSubscription, usePlans, usePreviewCheckout, useSession, useSubscriptions } from '../../hooks';
+import { currencyOfLanguage } from '../../lib/billingCountry';
 import { ENTRY_PLAN_SORT } from '../../lib/changeKindOf';
 import { useToday } from '../../lib/port';
 import { sceneOf } from '../../lib/sceneOf';
@@ -35,7 +36,8 @@ const checkoutPath = (plan: Plan) => `${ROUTES.subscription.checkout}?${new URLS
 /**
  * W-01 — the plans. A visitor and a signed-in reader with no plan are offered the entry plan only; a
  * subscriber is offered the step up and the step down. Which card is pickable comes from
- * `planChoicesOf`, and every price and trial length from the port.
+ * `planChoicesOf`, and every price and trial length from the port. Prices are in the reader's language's
+ * currency (`currencyOfLanguage`), or a subscriber's own.
  *
  * Where the account surface is shut (`account` false) the reader is always a visitor and there is
  * nowhere to buy yet: the same plans and notes, with the store links in place of the subscribe button.
@@ -74,21 +76,27 @@ const PlansScene = ({
     const navigate = useNavigate();
     const today = useToday();
     const session = useSession();
-    const plans = usePlans();
+    // Prices are read in the page's language — won in Korean, dollars otherwise — until a subscription
+    // is in force, whose own currency they then follow. What a checkout charges is the billing
+    // country's to decide, on the checkout.
+    const currency = subscription ? undefined : currencyOfLanguage(i18n.language);
+    const plans = usePlans(currency);
     const account = signedIn ? (session.data ?? null) : null;
     const storeBilled = account?.billingSource === 'appStore' || account?.billingSource === 'googlePlay';
 
     // Before a first subscription the checkout preview says whether it would start with the trial and
     // what today's charge is; the page does not work either out itself.
     const entryPlan = plans.data?.find(p => p.sort === ENTRY_PLAN_SORT);
-    const preview = usePreviewCheckout(signedIn && !current && !storeBilled ? entryPlan?.id : undefined);
+    const preview = usePreviewCheckout(signedIn && !current && !storeBilled ? entryPlan?.id : undefined, currency);
 
     if (plans.isLoading || preview.isLoading) return <PageLoader />;
     if (!plans.data) {
         return <Banner tone="danger" title={t('subscription.common.error.unknown')} />;
     }
 
-    const withTrial = preview.data ? preview.data.withTrial : !account?.trialUsed;
+    // The checkout preview decides once there is one; before it, the account's own answer, and for a
+    // visitor — whose answer is unknown until they sign in — the trial a first subscription comes with.
+    const withTrial = preview.data ? preview.data.withTrial : (account?.trialEligible ?? !account?.trialUsed);
     const canChange = !subscription || sceneOf(subscription, today).actions.includes('changePlan');
     const choices = planChoicesOf({ plans: plans.data, current, account, withTrial, canChange });
     const trialDays = choices.entry?.trialDays ?? entryPlan?.trialDays ?? 0;

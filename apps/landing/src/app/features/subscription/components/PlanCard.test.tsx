@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 
 import i18n from '../../../../i18n';
 import { registerSubscriptionCopy } from '../lib/i18n';
-import { MOCK_PLANS } from '../lib/mock';
+import { MOCK_PLANS } from '../testing/mock';
 import { PlanCard } from './PlanCard';
 
 registerSubscriptionCopy();

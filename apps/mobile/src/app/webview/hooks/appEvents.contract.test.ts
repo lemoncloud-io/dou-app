@@ -12,8 +12,10 @@ type Decision = { emittedBy: string[]; test: string } | { notEmitted: string };
  * here, fails this suite until it has a line.
  */
 const MOBILE_APP_EVENTS = {
+    // The sub WebView's own host pushes it too, to a page that claimed back with `SetCanGoBack`; its
+    // test is `app/subWebView/SubWebView.test.tsx`.
     OnBackPressed: {
-        emittedBy: ['app/webview/hooks/useAndroidBack.ts'],
+        emittedBy: ['app/webview/hooks/useAndroidBack.ts', 'app/subWebView/SubWebView.tsx'],
         test: 'app/webview/hooks/useAndroidBack.test.ts',
     },
     OnBackgroundStatusChanged: {
@@ -55,6 +57,11 @@ const MOBILE_APP_EVENTS = {
     },
     // Pushed to a sub WebView page by that view's own host, never to the main web.
     OnSubWebViewContextChanged: {
+        emittedBy: ['app/subWebView/SubWebView.tsx'],
+        test: 'app/subWebView/SubWebView.test.tsx',
+    },
+    // Pushed to a sub WebView page with its close guard on, when the user asks to close the view.
+    OnSubWebViewCloseRequested: {
         emittedBy: ['app/subWebView/SubWebView.tsx'],
         test: 'app/subWebView/SubWebView.test.tsx',
     },

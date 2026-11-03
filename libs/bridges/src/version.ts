@@ -32,7 +32,11 @@
 //         and OnAudioRecordingEnded — a voice message the shell records; the second is also pushed when
 //         the shell ends a recording itself.
 // 2.14.0: a sub WebView page may send GetSubWebViewUserKey, for a key of its own per origin.
-export const BRIDGE_VERSION = '2.14.0' as const;
+// 2.15.0: a sub WebView page may send SetCanGoBack (and receives OnBackPressed) and the new
+//         SetSubWebViewCloseGuard (and receives OnSubWebViewCloseRequested); its handshake reply
+//         carries the page's context as `subWebView`, and its host answers a message over 65,536
+//         characters with TOO_LARGE.
+export const BRIDGE_VERSION = '2.15.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

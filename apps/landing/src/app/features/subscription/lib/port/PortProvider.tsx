@@ -4,8 +4,8 @@ import type { SubscriptionPort } from './SubscriptionPort';
 
 /**
  * What "today" is for the screens. The D-Day and scene rules need the same date the data was built
- * against: with a real server that is simply now, while the mock can pin it (`?now=`) so a screenshot
- * reads the same every day. It travels beside the port rather than inside it because it is not a
+ * against: with a real server that is simply now, while the tests' fake server pins it so an
+ * assertion reads the same every day. It travels beside the port rather than inside it because it is not a
  * server call.
  */
 export interface Clock {

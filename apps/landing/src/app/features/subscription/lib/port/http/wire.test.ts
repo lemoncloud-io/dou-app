@@ -2,10 +2,13 @@ import {
     attemptFromSubscription,
     attemptId,
     billingSourceOf,
+    isExpiringSoon,
+    missingPayerFields,
     parseAttemptId,
     prorate,
     toAccount,
     toCatalog,
+    toIssue,
     toPaymentMethod,
     toSubscription,
 } from './wire';
@@ -19,7 +22,18 @@ const PRODUCTS = [2, 1, 3, 4, 5].map(sort => ({
     currency: 'KRW',
     trialDays: 7,
 }));
-const CATALOG = toCatalog(PRODUCTS);
+const CATALOG = toCatalog(PRODUCTS, 'portone');
+
+// The dollar products, priced in cents as the server lists them.
+const STRIPE_PRODUCTS = [1, 2, 3, 4, 5].map(sort => ({
+    id: `dou-web-stripe-tier-0${sort}_dev`,
+    platform: 'stripe',
+    sort,
+    maxClouds: sort,
+    price: 600 * sort,
+    currency: 'USD',
+    trialDays: 7,
+}));
 
 // Local noon, so the calendar day is the same in every time zone the test runs in.
 const at = (iso: string) => new Date(`${iso}T12:00:00`).getTime();
@@ -43,11 +57,29 @@ describe('toCatalog', () => {
 
     it('drops a product outside the five tiers or without a price', () => {
         expect(
-            toCatalog([
-                { id: 'x', sort: 6, price: 1 },
-                { id: 'y', sort: 1 },
-            ])
+            toCatalog(
+                [
+                    { id: 'x', sort: 6, price: 1 },
+                    { id: 'y', sort: 1 },
+                ],
+                'portone'
+            )
         ).toEqual([]);
+    });
+
+    it('keeps a dollar price in cents and pairs it with the same tier', () => {
+        const stripe = toCatalog(STRIPE_PRODUCTS, 'stripe');
+        expect(stripe[1]).toMatchObject({
+            id: 'pro-tier-02',
+            monthly: { amount: 1200, currency: 'USD' },
+            productId: 'dou-web-stripe-tier-02_dev',
+            provider: 'stripe',
+        });
+        expect(CATALOG[1].provider).toBe('portone');
+    });
+
+    it('drops a product that says it belongs to another provider than the list asked for', () => {
+        expect(toCatalog(STRIPE_PRODUCTS, 'portone')).toEqual([]);
     });
 });
 
@@ -61,6 +93,7 @@ describe('toSubscription', () => {
             status: 'trial',
             startedAt: '2026-11-01',
             billingDay: 8,
+            provider: 'portone',
             trialEndsAt: '2026-11-08',
             nextBillingAt: '2026-11-08',
             nextAmount: { amount: 17200, currency: 'KRW' },
@@ -97,20 +130,99 @@ describe('toSubscription', () => {
         expect(sub?.nextBillingAt).toBeUndefined();
     });
 
+    it('takes the provider and the currency from the catalog it is read against', () => {
+        const sub = toSubscription(
+            { id: 'U1:stripe', productId: 'dou-web-stripe-tier-01_dev', status: 'trial', validUntil: at('2026-11-08') },
+            toCatalog(STRIPE_PRODUCTS, 'stripe')
+        );
+        expect(sub).toMatchObject({ provider: 'stripe', nextAmount: { amount: 600, currency: 'USD' } });
+    });
+
     it('has nothing for a product the screens do not sell', () => {
         expect(toSubscription({ ...base, productId: '#pro-tier-01', status: 'active' }, CATALOG)).toBeUndefined();
     });
 });
 
 describe('toPaymentMethod', () => {
+    const today = new Date('2026-11-01T12:00:00');
+
     it('shows the issuer and the last four digits, and no expiry the server does not have', () => {
         expect(
-            toPaymentMethod({ id: 'k1', cardIssuer: 'SHINHAN', cardNumber: '123412******5678', isDefault: true })
-        ).toEqual({ id: 'k1', brand: 'SHINHAN', last4: '5678', isDefault: true });
+            toPaymentMethod(
+                {
+                    id: 'k1',
+                    provider: 'portone',
+                    cardIssuer: 'SHINHAN',
+                    cardNumber: '123412******5678',
+                    isDefault: true,
+                },
+                today
+            )
+        ).toEqual({ id: 'k1', provider: 'portone', brand: 'SHINHAN', last4: '5678', isDefault: true });
+    });
+
+    it('carries the expiry where the provider reports one', () => {
+        expect(
+            toPaymentMethod(
+                {
+                    id: 'pm_1',
+                    provider: 'stripe',
+                    cardIssuer: 'visa',
+                    cardNumber: '**** 4242',
+                    cardExpMonth: 8,
+                    cardExpYear: 2030,
+                    isDefault: false,
+                },
+                today
+            )
+        ).toEqual({
+            id: 'pm_1',
+            provider: 'stripe',
+            brand: 'visa',
+            last4: '4242',
+            expMonth: 8,
+            expYear: 2030,
+            expiringSoon: false,
+            isDefault: false,
+        });
+    });
+
+    it('reads a card from before providers were named as the won provider, and drops an unknown one', () => {
+        expect(toPaymentMethod({ id: 'k1' }, today)?.provider).toBe('portone');
+        expect(toPaymentMethod({ id: 'k2', provider: 'paypal' }, today)).toBeUndefined();
+    });
+
+    it('ignores an expiry that is not a month', () => {
+        expect(toPaymentMethod({ id: 'k1', cardExpMonth: 13, cardExpYear: 2030 }, today)?.expMonth).toBeUndefined();
+    });
+});
+
+describe('isExpiringSoon', () => {
+    const today = new Date('2026-11-15T12:00:00');
+
+    it('is this month or the next', () => {
+        expect(isExpiringSoon(11, 2026, today)).toBe(true);
+        expect(isExpiringSoon(12, 2026, today)).toBe(true);
+        expect(isExpiringSoon(1, 2027, today)).toBe(false);
+    });
+
+    it('counts a card already past its month as expiring', () => {
+        expect(isExpiringSoon(10, 2026, today)).toBe(true);
     });
 });
 
 describe('the account', () => {
+    it("carries the server's trial eligibility where it says, and leaves it out where it does not", () => {
+        const user = { id: 'U1' };
+        expect(
+            toAccount({ user, provider: 'google', membership: { trialUsed: false, trialEligible: false } })
+                .trialEligible
+        ).toBe(false);
+        expect(toAccount({ user, provider: 'google', membership: { trialUsed: false } })).not.toHaveProperty(
+            'trialEligible'
+        );
+    });
+
     it('is billed by the store its live membership came from, with the plan held there', () => {
         const account = toAccount({
             user: { id: 'U1', email: 'minji.kim@gmail.com', name: 'Minji' },
@@ -180,5 +292,40 @@ describe('payment attempts', () => {
             status: 'failed',
             failure: 'declined',
         });
+    });
+});
+
+describe('toIssue', () => {
+    const base = { customerId: 'c', issueId: 'i', issueName: 'DoU 구독' };
+
+    it('reads the won provider window, requiring every payer field when the answer lists none', () => {
+        expect(toIssue({ provider: 'portone', storeId: 's', channelKey: 'k', ...base })).toEqual({
+            provider: 'portone',
+            storeId: 's',
+            channelKey: 'k',
+            required: ['name', 'phone', 'email'],
+            ...base,
+        });
+        expect(toIssue({ storeId: 's', channelKey: 'k', ...base })?.provider).toBe('portone');
+    });
+
+    it('reads the dollar provider card field with the payer fields it lists — none', () => {
+        expect(
+            toIssue({ provider: 'stripe', publishableKey: 'pk', clientSecret: 'secret', required: [], ...base })
+        ).toEqual({ provider: 'stripe', publishableKey: 'pk', clientSecret: 'secret', required: [], ...base });
+    });
+
+    it('has nothing for an answer missing what its provider opens with', () => {
+        expect(toIssue({ provider: 'stripe', publishableKey: 'pk', ...base })).toBeUndefined();
+        expect(toIssue({ provider: 'portone', ...base })).toBeUndefined();
+        expect(toIssue({ provider: 'paypal', ...base })).toBeUndefined();
+        expect(toIssue(undefined)).toBeUndefined();
+    });
+
+    it('names the required payer fields left empty', () => {
+        expect(missingPayerFields(['name', 'phone', 'email'], { name: '김민지', phone: ' ', email: 'a@b.c' })).toEqual([
+            'phone',
+        ]);
+        expect(missingPayerFields([], undefined)).toEqual([]);
     });
 });

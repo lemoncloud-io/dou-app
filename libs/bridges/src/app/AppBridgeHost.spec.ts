@@ -431,3 +431,86 @@ describe('AppBridgeHost handshake capability lists', () => {
         expect(without).toEqual(expect.objectContaining({ type: 'Pong', refId: 'p2', data: { payload: '' } }));
     });
 });
+
+describe('AppBridgeHost sub WebView options', () => {
+    let mockSendToWeb: jest.Mock;
+
+    beforeEach(() => {
+        mockSendToWeb = jest.fn();
+    });
+
+    const replies = () => mockSendToWeb.mock.calls.map(call => JsonProtocol.decode(call[0]) as any);
+    const ready = JsonProtocol.encode({ type: 'WebAppReady', refId: 'ready', data: {} }) as string;
+
+    it('reports the sub WebView context in the handshake, read when the reply is built', async () => {
+        let theme: 'light' | 'dark' = 'light';
+        const host = new AppBridgeHost({
+            sendToWeb: mockSendToWeb,
+            subWebViewContext: () => ({
+                protocolVersion: 1,
+                viewId: 'v1',
+                platform: 'ios',
+                appVersion: '0.31.0',
+                locale: 'ko',
+                theme,
+                params: { level: 2 },
+            }),
+        });
+        theme = 'dark';
+
+        await host.handleMessage(ready);
+
+        expect(replies()[0].data.subWebView).toEqual(
+            expect.objectContaining({ protocolVersion: 1, viewId: 'v1', theme: 'dark', params: { level: 2 } })
+        );
+    });
+
+    it('leaves the context out of a host that has none', async () => {
+        await new AppBridgeHost({ sendToWeb: mockSendToWeb }).handleMessage(ready);
+
+        expect(replies()[0].data).not.toHaveProperty('subWebView');
+    });
+
+    it('answers a message over the limit with TOO_LARGE and keeps it from its handler', async () => {
+        const handler = jest.fn(() => ({ type: 'OnCopyToClipboard', success: true, data: { copied: true } }));
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb, maxMessageLength: 200 });
+        host.registerHandler('CopyToClipboard', handler as never);
+
+        await host.handleMessage(
+            JsonProtocol.encode({ type: 'CopyToClipboard', refId: 'big', data: { text: 'x'.repeat(300) } }) as string
+        );
+
+        expect(handler).not.toHaveBeenCalled();
+        expect(replies()[0]).toEqual(
+            expect.objectContaining({
+                type: 'ERROR',
+                refId: 'big',
+                success: false,
+                error: expect.objectContaining({ code: 'TOO_LARGE', requestType: 'CopyToClipboard' }),
+            })
+        );
+    });
+
+    it('hands a message at the limit to its handler', async () => {
+        const handler = jest.fn(() => ({ type: 'OnCopyToClipboard', success: true, data: { copied: true } }));
+        const message = JsonProtocol.encode({ type: 'CopyToClipboard', refId: 'ok', data: { text: 'hi' } }) as string;
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb, maxMessageLength: message.length });
+        host.registerHandler('CopyToClipboard', handler as never);
+
+        await host.handleMessage(message);
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(replies()[0]).toEqual(expect.objectContaining({ type: 'OnCopyToClipboard', refId: 'ok' }));
+    });
+
+    it('releases held pushes on a message it refuses as too large', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb, maxMessageLength: 10 });
+        host.pushEvent({ type: 'OnBackPressed', success: true, data: {} });
+
+        await host.handleMessage(
+            JsonProtocol.encode({ type: 'Ping', refId: 'p', data: { payload: 'long' } }) as string
+        );
+
+        expect(replies().map(message => message.type)).toEqual(['OnBackPressed', 'ERROR']);
+    });
+});

@@ -1,10 +1,12 @@
+import { addDays, addMonths, dayNumber } from '../../lib/calendar';
+import { KOREA, currencyOfProvider, payerRequiredFor, providerOfCountry } from '../../lib/billingCountry';
+import { canRemovePaymentMethod } from '../../lib/canRemovePaymentMethod';
+import { planCatalogIn } from '../../lib/catalog';
+import { changeKindOf } from '../../lib/changeKindOf';
+import { isLive } from '../../lib/sceneOf';
+import { SubscriptionPortError, type SubscriptionPortErrorDetail } from '../../lib/port/errors';
+import { MOCK_POLICY, planOf } from './policy';
 import { ROUTES } from '../../../../routes/paths';
-import { addDays, addMonths, dayNumber } from '../calendar';
-import { canRemovePaymentMethod } from '../canRemovePaymentMethod';
-import { changeKindOf } from '../changeKindOf';
-import { isLive } from '../sceneOf';
-import { SubscriptionPortError, type SubscriptionPortErrorDetail } from '../port/errors';
-import { MOCK_PLANS, MOCK_POLICY, planOf } from './policy';
 import { buildScenario, isScenario, mockReceiptUrl } from './scenarios';
 import {
     type ConsentChoice,
@@ -13,13 +15,12 @@ import {
     type MockAttempt,
     type MockEmailCode,
     type MockState,
-    type ScenarioId,
 } from './state';
-import { type StateStore, sessionStateStore } from './storage';
+import { type StateStore, memoryStateStore } from './storage';
 
-import type { Clock, SubscriptionPort } from '../port';
+import type { Clock, SubscriptionPort } from '../../lib/port';
+import type { PaymentWindowHost, PaymentWindowPresenter } from '../../lib/port/standInWindow';
 import type {
-    AttemptPurpose,
     BillingEmail,
     CardToken,
     ChangePreview,
@@ -28,39 +29,20 @@ import type {
     Payer,
     PaymentAttempt,
     PaymentMethod,
+    PaymentProvider,
+    Plan,
     PlanId,
     RegistrationOutcome,
     RegistrationResult,
     Subscription,
 } from '../../types';
 
-/** The dev panel's and the consent page's handle on the mock — never used by a real screen. */
-export interface MockController {
-    /** Reads the URL first (see `createMockPort`), so it may commit — never call it during render. */
+/** The tests' handle on the fake server. */
+export interface MockController extends PaymentWindowHost {
+    /** Reads the query first (see `createMockPort`), so it may commit — never call it during render. */
     getState(): MockState;
-    /** The state as it is, without reading the URL — safe during render. */
-    peek(): MockState;
-    subscribe(listener: () => void): () => void;
-    /** Rebuild the current scenario from scratch, at its own today, with no fail flag. */
-    reset(): void;
-    setScenario(scenario: ScenarioId): void;
     setFail(fail: FailFlag | null): void;
-    /** `null` goes back to the scenario's own today. */
-    setToday(today: string | null): void;
-    setPanelHidden(hidden: boolean): void;
-    /** Registers the stand-in payment window that answers `startPaymentMethodRegistration`. */
-    setPaymentWindow(presenter: PaymentWindowPresenter | null): void;
 }
-
-/** One request to the stand-in payment window, and the outcome the reader picks. */
-export interface PaymentWindowRequest {
-    purpose: AttemptPurpose;
-    planId?: PlanId;
-    /** The outcome the current fail flag implies — the window's preselected answer. */
-    suggested: RegistrationOutcome;
-}
-
-export type PaymentWindowPresenter = (request: PaymentWindowRequest) => Promise<RegistrationOutcome>;
 
 export interface MockSetup {
     port: SubscriptionPort;
@@ -69,8 +51,9 @@ export interface MockSetup {
 }
 
 export interface MockOptions {
+    /** Where the state lives; a test hands the same store to a second fake to stand for a reload. */
     store?: StateStore;
-    /** The query string the scenario is read from; the page's own by default. */
+    /** The query string the scenario is read from. */
     readSearch?: () => string;
     /** Latency of every call. */
     delayMs?: number;
@@ -84,7 +67,7 @@ export interface MockOptions {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** The query parameters the mock reads; any other query leaves it alone. */
-const MOCK_PARAMS = ['mock', 'fail', 'now', 'cards', 'panel'];
+const MOCK_PARAMS = ['mock', 'fail', 'now', 'cards'];
 
 const APPLIED_SEARCHES_KEPT = 50;
 
@@ -116,34 +99,34 @@ const prorate = (from: Money, to: Money, today: string, nextBillingAt: string | 
 const CARD_BRANDS = ['국민', '삼성', '롯데', '하나'];
 
 /**
- * An in-memory subscription server behind the real port interface.
+ * The tests' in-memory subscription server, behind the real port interface. Nothing the app runs
+ * imports it (`testing/boundary.test.ts`).
  *
- * It holds one account's state, picked by `?mock=<scenario>`, and every method changes that state the
- * way the server would — cancelling schedules an end, a successful upgrade changes the plan — so a
- * flow can be walked end to end. It decides nothing about what a screen shows: that is `lib/`'s.
+ * It holds one account's state, picked by `?mock=<scenario>` in the query a test hands it, and every
+ * method changes that state the way the server would — cancelling schedules an end, a successful
+ * upgrade changes the plan — so a flow can be walked end to end. It decides nothing about what a screen
+ * shows: that is `lib/`'s.
  *
- * The URL is read at the start of every call, and each query is applied once: a reload keeps the
- * state it had, a one-shot `&fail=` is spent once, and opening a different `?mock=` starts that
- * scenario over.
+ * The query is read at the start of every call, and each one is applied once: a second fake on the
+ * same store keeps the state it had, a one-shot `&fail=` is spent once, and a different `?mock=` starts
+ * that scenario over.
  */
 export const createMockPort = (options: MockOptions = {}): MockSetup => {
-    const store = options.store ?? sessionStateStore();
-    const readSearch = options.readSearch ?? (() => window.location.search);
-    const delayMs = options.delayMs ?? 300;
+    const store = options.store ?? memoryStateStore();
+    const readSearch = options.readSearch ?? (() => '');
+    const delayMs = options.delayMs ?? 0;
     const settleMs = options.settleMs ?? 1500;
     const nowMs = options.nowMs ?? (() => Date.now());
     const nonce = options.nonce ?? (() => Math.random().toString(36).slice(2, 10));
 
-    const listeners = new Set<() => void>();
     let paymentWindow: PaymentWindowPresenter | null = null;
 
     const stored = store.load();
-    let state: MockState = stored && stored.version === 3 ? stored : buildScenario('visitor');
+    let state: MockState = stored && stored.version === 4 ? stored : buildScenario('visitor');
 
     const commit = (next: MockState) => {
         state = next;
         store.save(state);
-        listeners.forEach(listener => listener());
     };
 
     const syncFromUrl = () => {
@@ -161,14 +144,12 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         if (isScenario(scenario)) {
             const noCards = cards === '0';
             if (scenario !== state.scenario || noCards !== state.noCards) {
-                next = buildScenario(scenario, { noCards, panelHidden: state.panelHidden });
+                next = buildScenario(scenario, { noCards });
             }
         }
         const today = params.get('now');
         if (today && ISO_DATE.test(today)) next.today = today;
         if (params.has('fail')) next.fail = isFailFlag(params.get('fail')) ? (params.get('fail') as FailFlag) : null;
-        if (params.get('panel') === '0') next.panelHidden = true;
-        if (params.get('panel') === '1') next.panelHidden = false;
         next.appliedSearches = [...state.appliedSearches, search].slice(-APPLIED_SEARCHES_KEPT);
         commit(next);
     };
@@ -180,7 +161,16 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
     const findSubscription = (s: MockState, id: string): Subscription =>
         s.subscriptions.find(sub => sub.id === id) ?? fail('notFound', `no subscription ${id}`);
 
-    const defaultCard = (s: MockState): PaymentMethod | undefined => s.paymentMethods.find(pm => pm.isDefault);
+    /** Whether a first subscription now starts with the trial: the account's own answer, as the server gives it. */
+    const trialEligible = (s: MockState): boolean => s.account.trialEligible ?? !s.account.trialUsed;
+
+    /** The card `provider` charges: each provider keeps a default of its own. */
+    const defaultCard = (s: MockState, provider: PaymentProvider): PaymentMethod | undefined =>
+        s.paymentMethods.find(pm => pm.provider === provider && pm.isDefault);
+
+    /** A subscription's plan, priced in the currency its provider charges. */
+    const planFor = (sub: Subscription, planId: PlanId = sub.planId): Plan =>
+        planOf(planId, currencyOfProvider(sub.provider));
 
     const ticketOf = (emailId: string, sent: MockEmailCode): EmailCodeTicket => ({
         emailId,
@@ -243,7 +233,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                         issuedAt: s.today,
                         kind: 'retry',
                         planId: sub.planId,
-                        amount: planOf(sub.planId).monthly,
+                        amount: planFor(sub).monthly,
                         status: 'failed',
                     });
                 }
@@ -257,7 +247,8 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
     };
 
     const settleStart = (s: MockState, attempt: MockAttempt) => {
-        const plan = planOf(attempt.planId as PlanId);
+        const provider = attempt.provider ?? 'portone';
+        const plan = planOf(attempt.planId as PlanId, currencyOfProvider(provider));
         const withTrial = !!attempt.withTrial;
         const trialEndsAt = addDays(s.today, MOCK_POLICY.trialDays);
         const lastExpired = s.subscriptions
@@ -273,11 +264,12 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             status: withTrial ? 'trial' : 'active',
             startedAt: s.today,
             billingDay: Number(firstCharge.slice(8, 10)),
+            provider,
             trialEndsAt: withTrial ? trialEndsAt : undefined,
             nextBillingAt: withTrial ? trialEndsAt : addMonths(s.today, 1),
             nextAmount: plan.monthly,
             restored: restored || undefined,
-            defaultPaymentMethodId: defaultCard(s)?.id,
+            defaultPaymentMethodId: defaultCard(s, provider)?.id,
         };
         s.subscriptions.unshift(sub);
         if (!withTrial) {
@@ -292,14 +284,14 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 receiptUrl: mockReceiptUrl(id),
             });
         }
-        s.account = { ...s.account, trialUsed: true, billingSource: 'web' };
+        s.account = { ...s.account, trialUsed: true, trialEligible: false, billingSource: 'web' };
         attempt.subscriptionId = sub.id;
     };
 
     const settleUpgrade = (s: MockState, attempt: MockAttempt) => {
         const sub = findSubscription(s, attempt.subscriptionId as string);
-        const from = planOf(sub.planId);
-        const to = planOf(attempt.planId as PlanId);
+        const from = planFor(sub);
+        const to = planFor(sub, attempt.planId as PlanId);
         // A trial upgrade changes the plan and charges nothing today, as its preview said.
         const amount =
             sub.status === 'trial'
@@ -327,7 +319,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         const failedAt = sub.failedAt ?? s.today;
         sub.status = 'active';
         sub.nextBillingAt = addMonths(failedAt, 1, sub.billingDay);
-        sub.nextAmount = planOf(sub.planId).monthly;
+        sub.nextAmount = planFor(sub).monthly;
         delete sub.failedAt;
         delete sub.restrictAt;
         delete sub.failureReason;
@@ -338,7 +330,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             issuedAt: s.today,
             kind: 'retry',
             planId: sub.planId,
-            amount: planOf(sub.planId).monthly,
+            amount: planFor(sub).monthly,
             status: 'paid',
             receiptUrl: mockReceiptUrl(id),
         });
@@ -363,8 +355,8 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         const sub = liveSubscription(s) ?? fail('conflict', 'no subscription to change');
         // An ending subscription has no next period to change; it is resumed first.
         if (sub.status === 'cancelScheduled') fail('conflict', 'subscription is ending');
-        const from = planOf(sub.planId);
-        const to = planOf(planId);
+        const from = planFor(sub);
+        const to = planFor(sub, planId);
         if (from.id === to.id) fail('conflict', 'already on this plan');
         const kind = to.sort > from.sort ? 'upgrade' : 'downgrade';
         const preview: ChangePreview =
@@ -425,9 +417,14 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 s => {
                     const pending = { nonce: nonce(), provider, next, startedAt: nowMs() };
                     s.pendingSignIn = pending;
-                    const query = new URLSearchParams({ provider, nonce: pending.nonce });
-                    if (next) query.set('next', next);
-                    return { redirectUrl: `${ROUTES.subscription.mockProvider}?${query}` };
+                    // The provider answers at once, with the scenario's choice: straight back to the
+                    // callback, as a provider's consent page would send the browser.
+                    const query = new URLSearchParams({
+                        provider,
+                        nonce: pending.nonce,
+                        result: consentDefaultOf(s),
+                    });
+                    return { redirectUrl: `${ROUTES.subscription.loginCallback}?${query}` };
                 },
                 { auth: false }
             ),
@@ -472,16 +469,24 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 { auth: false }
             ),
 
-        listPlans: () => call(() => MOCK_PLANS, { auth: false }),
+        // Without a currency asked for, the plans come priced the way the subscription in force is charged.
+        listPlans: input =>
+            call(
+                s => {
+                    const live = s.signedIn ? liveSubscription(s) : undefined;
+                    return planCatalogIn(input?.currency ?? (live ? currencyOfProvider(live.provider) : 'KRW'));
+                },
+                { auth: false }
+            ),
 
         listSubscriptions: () => call(s => s.subscriptions),
 
         getSubscription: id => call(s => findSubscription(s, id)),
 
-        previewCheckout: planId =>
+        previewCheckout: (planId, input) =>
             call(s => {
-                const plan = planOf(planId);
-                const withTrial = !s.account.trialUsed;
+                const plan = planOf(planId, input?.currency ?? 'KRW');
+                const withTrial = plan.trialDays > 0 && trialEligible(s);
                 const trialEndsAt = addDays(s.today, plan.trialDays);
                 return {
                     plan,
@@ -498,10 +503,19 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
         // that outcome is taken as is. A declined card fails the window itself only when adding a card
         // is all it is for: ahead of a charge the card registers and the charge that follows is what
         // fails, the way the designs split the two.
-        startPaymentMethodRegistration: async ({ purpose, planId, payer }) => {
+        startPaymentMethodRegistration: async ({ purpose, planId, country, payer }) => {
+            // A checkout's card goes to the provider of its billing country; any other card to the
+            // provider of the account's subscription, ended or not, as the server does.
+            const providerFor = (s: MockState): PaymentProvider =>
+                purpose === 'start'
+                    ? providerOfCountry(country ?? KOREA)
+                    : ((liveSubscription(s) ?? s.subscriptions[0])?.provider ??
+                      (country ? providerOfCountry(country) : 'portone'));
             const suggested = await call((s): RegistrationOutcome => {
-                // The card company refuses a card without its holder, as the real window does.
-                if (!isCompletePayer(payer)) fail('conflict', 'mock: payer name, phone and email are required');
+                // The won provider's card company refuses a card without its holder, as the real window does.
+                if (payerRequiredFor(providerFor(s)) && !isCompletePayer(payer)) {
+                    fail('invalid', 'mock: payer name, phone and email are required');
+                }
                 if (s.fail === 'attempt-limit' || s.failedCardAttempts >= MOCK_POLICY.maxCardAttempts) {
                     fail('limit', 'mock: card registration attempts used up');
                 }
@@ -513,10 +527,14 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             return call((s): RegistrationResult => {
                 if (outcome === 'failed') s.failedCardAttempts += 1;
                 if (outcome !== 'registered') return { outcome };
-                const makeDefault = purpose !== 'addCard' || s.paymentMethods.length === 0;
-                if (makeDefault) s.paymentMethods.forEach(pm => (pm.isDefault = false));
+                const provider = providerFor(s);
+                const makeDefault = purpose !== 'addCard' || !defaultCard(s, provider);
+                if (makeDefault) {
+                    s.paymentMethods.filter(pm => pm.provider === provider).forEach(pm => (pm.isDefault = false));
+                }
                 const card: PaymentMethod = {
                     id: nextId(s, 'pm'),
+                    provider,
                     brand: CARD_BRANDS[s.seq % CARD_BRANDS.length],
                     last4: String(1000 + (s.seq % 9000)).slice(-4),
                     expMonth: 12,
@@ -526,7 +544,9 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 };
                 s.paymentMethods.push(card);
                 if (makeDefault) {
-                    s.subscriptions.filter(isLive).forEach(sub => (sub.defaultPaymentMethodId = card.id));
+                    s.subscriptions
+                        .filter(sub => isLive(sub) && sub.provider === provider)
+                        .forEach(sub => (sub.defaultPaymentMethodId = card.id));
                 }
                 return { outcome, card: card.id as CardToken };
             });
@@ -542,18 +562,22 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 // as a server would, rather than a second subscription when both settle.
                 const pending = s.attempts.find(a => a.purpose === 'start' && a.status === 'processing');
                 if (pending) return publicAttempt(pending);
-                if (!isCompletePayer(payer)) fail('conflict', 'payer name, phone and email are required');
+                const provider = providerOfCountry(country);
+                if (payerRequiredFor(provider) && !isCompletePayer(payer)) {
+                    fail('invalid', 'payer name, phone and email are required');
+                }
                 if (liveSubscription(s)) fail('conflict', 'already subscribed');
                 if (changeKindOf(undefined, planOf(planId), s.account) !== 'new') fail('conflict', 'plan not sellable');
-                if (country !== 'KR') fail('conflict', 'billing country not supported yet');
-                if (!defaultCard(s)) fail('conflict', 'no payment method');
+                if (!defaultCard(s, provider)) fail('conflict', 'no payment method');
                 // A checkout without a billing email (the billing-email screens are hidden) is charged
                 // with the payer's own address, which is all the card company asks for.
                 if (emailId !== undefined) {
                     const email = s.billing.emails.find(e => e.id === emailId);
                     if (!email || email.status !== 'verified') fail('conflict', 'billing email not verified');
                 }
-                return startAttempt(s, { purpose: 'start', planId, withTrial: !s.account.trialUsed });
+                s.billing.country = country;
+                const withTrial = planOf(planId).trialDays > 0 && trialEligible(s);
+                return startAttempt(s, { purpose: 'start', planId, provider, withTrial });
             }),
 
         getPaymentAttempt: id =>
@@ -584,7 +608,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 // On the day it applies the charge may already be under way.
                 if (sub.pendingChange?.effectiveAt === s.today) fail('conflict', 'change applies today');
                 delete sub.pendingChange;
-                sub.nextAmount = planOf(sub.planId).monthly;
+                sub.nextAmount = planFor(sub).monthly;
                 return sub;
             }),
 
@@ -604,11 +628,11 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             call(s => {
                 const sub = findSubscription(s, subscriptionId);
                 if (sub.status !== 'cancelScheduled') fail('conflict', 'not scheduled to end');
-                if (!defaultCard(s)) fail('conflict', 'no payment method to renew with');
+                if (!defaultCard(s, sub.provider)) fail('conflict', 'no payment method to renew with');
                 const stillTrial = !!sub.trialEndsAt && dayNumber(sub.trialEndsAt) > dayNumber(s.today);
                 sub.status = stillTrial ? 'trial' : 'active';
                 sub.nextBillingAt = sub.endsAt;
-                sub.nextAmount = planOf(sub.planId).monthly;
+                sub.nextAmount = planFor(sub).monthly;
                 delete sub.endsAt;
                 return sub;
             }),
@@ -617,9 +641,14 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
 
         setDefaultPaymentMethod: id =>
             call(s => {
-                if (!s.paymentMethods.some(pm => pm.id === id)) fail('notFound', `no card ${id}`);
-                s.paymentMethods.forEach(pm => (pm.isDefault = pm.id === id));
-                s.subscriptions.filter(isLive).forEach(sub => (sub.defaultPaymentMethodId = id));
+                const card = s.paymentMethods.find(pm => pm.id === id) ?? fail('notFound', `no card ${id}`);
+                // The default changes within the card's provider; the other provider's default stays.
+                s.paymentMethods
+                    .filter(pm => pm.provider === card.provider)
+                    .forEach(pm => (pm.isDefault = pm.id === id));
+                s.subscriptions
+                    .filter(sub => isLive(sub) && sub.provider === card.provider)
+                    .forEach(sub => (sub.defaultPaymentMethodId = id));
                 return s.paymentMethods;
             }),
 
@@ -640,7 +669,7 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
                 );
                 if (pending) return publicAttempt(pending);
                 if (sub.status !== 'pastDue' && sub.status !== 'restricted') fail('conflict', 'nothing to retry');
-                if (!defaultCard(s)) fail('conflict', 'no payment method');
+                if (!defaultCard(s, sub.provider)) fail('conflict', 'no payment method');
                 return startAttempt(s, { purpose: 'retry', subscriptionId });
             }),
 
@@ -780,50 +809,26 @@ export const createMockPort = (options: MockOptions = {}): MockSetup => {
             syncFromUrl();
             return state;
         },
-        peek: () => state,
-        subscribe: listener => {
-            listeners.add(listener);
-            return () => listeners.delete(listener);
-        },
-        reset: () =>
-            commit({
-                ...buildScenario(state.scenario, { noCards: state.noCards, panelHidden: state.panelHidden }),
-                appliedSearches: state.appliedSearches,
-            }),
-        setScenario: scenario =>
-            commit({
-                ...buildScenario(scenario, { panelHidden: state.panelHidden }),
-                appliedSearches: state.appliedSearches,
-            }),
         setFail: flag => commit({ ...state, fail: flag }),
-        setToday: today => commit({ ...state, today: today ?? buildScenario(state.scenario).today }),
-        setPanelHidden: hidden => commit({ ...state, panelHidden: hidden }),
         setPaymentWindow: presenter => {
             paymentWindow = presenter;
         },
     };
 
-    // Local noon of the mock's today: the same calendar day in every time zone a reader is in. Read
-    // during render, so it peeks; the URL was applied when the mock was created.
+    // Local noon of the fake's today: the same calendar day in every time zone a reader is in. Read
+    // during render, so it does not read the query; that was applied when the fake was created.
     const clock: Clock = { now: () => new Date(`${state.today}T12:00:00`) };
 
-    // The page's first URL is applied now, before anything renders, so the first screen already reads
-    // the scenario's today and the panel's visibility.
+    // The first URL is applied now, before anything renders, so the first screen already reads the
+    // scenario's today.
     syncFromUrl();
-    // `panel=` is honoured on every page load, even for a query already applied: it is the only way
-    // back after the panel's Hide button.
-    const panel = new URLSearchParams(readSearch()).get('panel');
-    if (panel === '0' || panel === '1') {
-        const hidden = panel === '0';
-        if (state.panelHidden !== hidden) commit({ ...state, panelHidden: hidden });
-    }
 
     return { port, controller, clock };
 };
 
 /**
- * What the stand-in consent page selects first: the scenario's own answer, unless a sign-in fail flag
- * asks for the canceled or timed-out round trip instead.
+ * How the fake provider answers a sign-in: the scenario's own answer, unless a sign-in fail flag asks
+ * for the canceled or timed-out round trip instead.
  */
 export const consentDefaultOf = (state: MockState): ConsentChoice => {
     if (state.fail === 'signin-canceled') return 'canceled';

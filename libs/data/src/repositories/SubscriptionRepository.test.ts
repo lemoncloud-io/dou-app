@@ -74,19 +74,38 @@ describe('SubscriptionRepository', () => {
         await expect(repository.cancelSubscription()).resolves.toEqual({ id: 'U1:portone', status: 'canceling' });
 
         await repository.issueBillingKey('p1');
-        expect(http.issueBillingKey).toHaveBeenCalledWith('p1');
+        expect(http.issueBillingKey).toHaveBeenCalledWith('p1', undefined);
         await repository.startSubscription({ productId: 'p1' });
-        expect(http.startSubscription).toHaveBeenCalledWith({ productId: 'p1' });
+        expect(http.startSubscription).toHaveBeenCalledWith({ productId: 'p1' }, undefined);
         await repository.changeSubscription('p2');
         expect(http.changeSubscription).toHaveBeenCalledWith('p2');
         await repository.addCard({ billingKey: 'bk', ...payer });
-        expect(http.addCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer });
+        expect(http.addCard).toHaveBeenCalledWith({ billingKey: 'bk', ...payer }, undefined);
         await repository.setDefaultCard('c2');
-        expect(http.setDefaultCard).toHaveBeenCalledWith('c2');
+        expect(http.setDefaultCard).toHaveBeenCalledWith('c2', undefined);
         await repository.removeCard('c2');
-        expect(http.removeCard).toHaveBeenCalledWith('c2');
+        expect(http.removeCard).toHaveBeenCalledWith('c2', undefined);
         await repository.fetchSubscriptionCards();
         expect(http.fetchSubscriptionCards).toHaveBeenCalledTimes(1);
+    });
+
+    it('forwards the sandbox query of the payer-scoped calls, and the interval of start', async () => {
+        const http = createHttpDataSource();
+        const repository = new SubscriptionRepository(contextProvider as any, http as any);
+        const sandbox = { sandbox: 1 as const };
+
+        await repository.issueBillingKey('p1', sandbox);
+        expect(http.issueBillingKey).toHaveBeenCalledWith('p1', sandbox);
+        await repository.startSubscription({ productId: 'p1' }, { sandbox: 1, interval: '10m' });
+        expect(http.startSubscription).toHaveBeenCalledWith({ productId: 'p1' }, { sandbox: 1, interval: '10m' });
+        await repository.fetchSubscriptionCards(sandbox);
+        expect(http.fetchSubscriptionCards).toHaveBeenCalledWith(sandbox);
+        await repository.addCard({ billingKey: 'bk', name: '', phone: '', email: '' }, sandbox);
+        expect(http.addCard).toHaveBeenCalledWith({ billingKey: 'bk', name: '', phone: '', email: '' }, sandbox);
+        await repository.setDefaultCard('c2', sandbox);
+        expect(http.setDefaultCard).toHaveBeenCalledWith('c2', sandbox);
+        await repository.removeCard('c2', sandbox);
+        expect(http.removeCard).toHaveBeenCalledWith('c2', sandbox);
     });
 
     it('refundSubscriptionByAdmin — delegates the user, reason and endpoint unchanged', async () => {

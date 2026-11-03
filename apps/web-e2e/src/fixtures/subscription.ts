@@ -38,8 +38,9 @@ export const signedInMember = (backend: FakeBackend): void => {
         },
     });
     backend.useSocket({
-        // The token the page keeps after switching into its place. Left as the guest's, the account
-        // would turn back into a guest the moment the page settles on the relay place.
+        // The place switch answers with a new token, which replaces the session's. Left as the guest's,
+        // it turned the member back into a guest whenever it landed after the profile — on a slow run
+        // MY then showed "Sign in required" and had no subscription entry.
         'auth.switch': () => ({ ...registerDeviceAnswer(backend.deviceId), userRole: 'user' }),
         // With a social account linked: the page refuses a cloud subscription to an account it knows
         // has none (`link$` present, `social` missing).

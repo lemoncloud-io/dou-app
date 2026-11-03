@@ -7,11 +7,18 @@ let mockClosePress: (() => void) | undefined;
 let mockRequestClose: (() => void) | undefined;
 let mockWebViewProps: Record<string, any> = {};
 const mockClose = jest.fn();
+const mockViewStyles: unknown[] = [];
+// Whether the mocked view exposes its handle, as the real one does once mounted.
+let mockExposeHandle = false;
+const mockRequestCloseHandle = jest.fn();
 
 jest.mock('react-native', () => {
     const passthrough = ({ children }: { children?: unknown }) => children ?? null;
     return {
-        View: passthrough,
+        View: (props: { style?: unknown; children?: unknown }) => {
+            mockViewStyles.push(props.style);
+            return props.children ?? null;
+        },
         Text: passthrough,
         TouchableOpacity: (props: { onPress: () => void; children?: unknown }) => {
             mockClosePress = props.onPress;
@@ -20,17 +27,23 @@ jest.mock('react-native', () => {
         StyleSheet: { create: (styles: unknown) => styles },
     };
 });
-jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) }));
+jest.mock('react-native-safe-area-context', () => ({
+    useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 12, right: 21 }),
+}));
 jest.mock('../../hooks', () => ({ useResolvedTheme: () => ({ isDark: false, backgroundColor: '#FFFFFF' }) }));
 jest.mock('../../utils', () => ({ t: (key: string) => key }));
 jest.mock('../../services', () => ({ subWebViewService: { close: (...args: unknown[]) => mockClose(...args) } }));
-jest.mock('../../subWebView', () => ({
-    SubWebView: (props: { onRequestClose: () => void }) => {
-        mockRequestClose = props.onRequestClose;
-        mockWebViewProps = props;
-        return null;
-    },
-}));
+jest.mock('../../subWebView', () => {
+    const { forwardRef, useImperativeHandle } = jest.requireActual('react');
+    return {
+        SubWebView: forwardRef((props: { onRequestClose: () => void }, ref: unknown) => {
+            mockRequestClose = props.onRequestClose;
+            mockWebViewProps = props;
+            useImperativeHandle(ref, () => (mockExposeHandle ? { requestClose: mockRequestCloseHandle } : null));
+            return null;
+        }),
+    };
+});
 
 const renderScreen = () => {
     const navigation = { goBack: jest.fn(), canGoBack: jest.fn(() => true) };
@@ -46,6 +59,30 @@ describe('SubWebViewScreen', () => {
         mockClose.mockReset();
         mockClosePress = undefined;
         mockRequestClose = undefined;
+        mockViewStyles.length = 0;
+        mockExposeHandle = false;
+        mockRequestCloseHandle.mockReset();
+    });
+
+    // The view decides whether the page's close guard asks first; the control only says who asked.
+    it('hands the close control to the view, which applies the close guard', () => {
+        mockExposeHandle = true;
+        renderScreen();
+
+        mockClosePress?.();
+
+        expect(mockRequestCloseHandle).toHaveBeenCalledWith('control');
+        expect(mockClose).not.toHaveBeenCalled();
+    });
+
+    it('pads every edge by the safe area, so the page needs no insets', () => {
+        renderScreen();
+
+        expect(mockViewStyles[0]).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ paddingTop: 47, paddingBottom: 34, paddingLeft: 12, paddingRight: 21 }),
+            ])
+        );
     });
 
     // The service's close event is what takes the screen down; the screen leaves nothing to chance

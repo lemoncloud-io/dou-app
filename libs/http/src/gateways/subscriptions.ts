@@ -102,28 +102,31 @@ export interface SubscriptionHttpGateway {
     // account (one at most) on the relay. Every call is scoped to the current session (`0`).
     /** GET {relay}/subscriptions/0/mine — the account's web subscription, if it has one. */
     mySubscription(): Promise<WebSubscriptionMineView>;
+    // The six payer-scoped calls below take `SubscriptionSandboxParams` (`start` its wider
+    // `SubscriptionStartParams`); the calls on the subscription itself take none — the relay follows
+    // the subscription record there.
     /** GET {relay}/subscriptions/0/cards — the cards the payment provider holds for the account. */
-    subscriptionCards(): Promise<BillkeyView[]>;
+    subscriptionCards(params?: SubscriptionSandboxParams): Promise<BillkeyView[]>;
     /** POST {relay}/subscriptions/0/issue — what the provider's card window opens with, for a product. */
-    issueBillingKey(body: { productId: string }): Promise<BillingIssueParams>;
+    issueBillingKey(body: { productId: string }, params?: SubscriptionSandboxParams): Promise<BillingIssueParams>;
     /**
      * POST {relay}/subscriptions/0/start — starts the subscription (a trial when the account may have
      * one). A charge the card company declines answers 403 `INVALID PAYMENT`, with nothing saved.
      */
-    startSubscription(body: SubscriptionStartBody): Promise<WebSubscriptionView>;
+    startSubscription(body: SubscriptionStartBody, params?: SubscriptionStartParams): Promise<WebSubscriptionView>;
     /** POST {relay}/subscriptions/0/change — an upgrade charges the difference now; a downgrade waits. */
     changeSubscription(body: { productId: string }): Promise<WebSubscriptionView>;
     /** POST {relay}/subscriptions/0/cancel — stops renewing; the paid period runs to its end. */
     cancelSubscription(): Promise<WebSubscriptionView>;
     /** POST {relay}/subscriptions/0/card — adds a card; the default card stays as it was. */
-    addCard(body: SubscriptionCardBody): Promise<BillkeyView>;
+    addCard(body: SubscriptionCardBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
     /** POST {relay}/subscriptions/0/card-default — makes a card the one charged, and answers it. */
-    setDefaultCard(body: SubscriptionCardIdBody): Promise<BillkeyView>;
+    setDefaultCard(body: SubscriptionCardIdBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
     /**
      * POST {relay}/subscriptions/0/card-delete — removes a card and answers it. The payment service
      * refuses the default card and the card a subscription in use is charged to.
      */
-    removeCard(body: SubscriptionCardIdBody): Promise<BillkeyView>;
+    removeCard(body: SubscriptionCardIdBody, params?: SubscriptionSandboxParams): Promise<BillkeyView>;
 }
 
 /*
@@ -195,6 +198,24 @@ export interface SubscriptionCardBody extends SubscriptionPayer {
 /** A card by its id — `BillkeyView.id`. */
 export interface SubscriptionCardIdBody {
     billkeyId: string;
+}
+
+/**
+ * `?sandbox` on a payer-scoped call sends it to the payment server's mock provider: any card is
+ * accepted, nothing is charged, and the subscription it starts is marked as a mock one. A development
+ * tool — the relay does not refuse it on production, so a caller sends it only where it means to. The
+ * card calls read it per call, not from a record, so every card call of a sandboxed payer needs it.
+ */
+export interface SubscriptionSandboxParams {
+    sandbox?: 1;
+}
+
+/**
+ * `start` also takes `?interval` — the renewal period of a sandboxed subscription (`10m`, `1h`, `1d`;
+ * a month when absent). The relay reads it only together with `sandbox`.
+ */
+export interface SubscriptionStartParams extends SubscriptionSandboxParams {
+    interval?: string;
 }
 
 /**
@@ -355,24 +376,27 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
                 baseURL: `${relay()}/subscriptions/0/mine`,
             }),
 
-        subscriptionCards: () =>
-            exec.executeSignedRelayRequest<BillkeyView[]>({
+        subscriptionCards: params =>
+            exec.executeSignedRelayRequest<BillkeyView[], never, SubscriptionSandboxParams>({
                 method: 'GET',
                 baseURL: `${relay()}/subscriptions/0/cards`,
+                ...queryOf(params),
             }),
 
-        issueBillingKey: body =>
-            exec.executeSignedRelayRequest<BillingIssueParams, { productId: string }>({
+        issueBillingKey: (body, params) =>
+            exec.executeSignedRelayRequest<BillingIssueParams, { productId: string }, SubscriptionSandboxParams>({
                 method: 'POST',
                 baseURL: `${relay()}/subscriptions/0/issue`,
                 body,
+                ...queryOf(params),
             }),
 
-        startSubscription: body =>
-            exec.executeSignedRelayRequest<WebSubscriptionView, SubscriptionStartBody>({
+        startSubscription: (body, params) =>
+            exec.executeSignedRelayRequest<WebSubscriptionView, SubscriptionStartBody, SubscriptionStartParams>({
                 method: 'POST',
                 baseURL: `${relay()}/subscriptions/0/start`,
                 body,
+                ...queryOf(params),
             }),
 
         changeSubscription: body =>
@@ -391,25 +415,39 @@ export const createSubscriptionHttpGateway = (exec: HttpGatewayExecutor): Subscr
                 body: {},
             }),
 
-        addCard: body =>
-            exec.executeSignedRelayRequest<BillkeyView, SubscriptionCardBody>({
+        addCard: (body, params) =>
+            exec.executeSignedRelayRequest<BillkeyView, SubscriptionCardBody, SubscriptionSandboxParams>({
                 method: 'POST',
                 baseURL: `${relay()}/subscriptions/0/card`,
                 body,
+                ...queryOf(params),
             }),
 
-        setDefaultCard: body =>
-            exec.executeSignedRelayRequest<BillkeyView, SubscriptionCardIdBody>({
+        setDefaultCard: (body, params) =>
+            exec.executeSignedRelayRequest<BillkeyView, SubscriptionCardIdBody, SubscriptionSandboxParams>({
                 method: 'POST',
                 baseURL: `${relay()}/subscriptions/0/card-default`,
                 body,
+                ...queryOf(params),
             }),
 
-        removeCard: body =>
-            exec.executeSignedRelayRequest<BillkeyView, SubscriptionCardIdBody>({
+        removeCard: (body, params) =>
+            exec.executeSignedRelayRequest<BillkeyView, SubscriptionCardIdBody, SubscriptionSandboxParams>({
                 method: 'POST',
                 baseURL: `${relay()}/subscriptions/0/card-delete`,
                 body,
+                ...queryOf(params),
             }),
     };
+};
+
+/**
+ * The query of a payer-scoped call: only the values given, and no `params` at all without one, so a
+ * call that sends none is the same request it always was.
+ */
+const queryOf = <T extends object>(params: T | undefined): { params?: T } => {
+    const given = Object.fromEntries(
+        Object.entries(params ?? {}).filter(([, value]) => value !== undefined && value !== '')
+    ) as T;
+    return Object.keys(given).length > 0 ? { params: given } : {};
 };

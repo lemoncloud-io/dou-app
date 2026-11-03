@@ -8,7 +8,8 @@ typed message, and a handler hook answers it through a service.
 >
 > The second WebView the shell shows over this one, for a page on another origin, is in
 > [sub-webview.md](./sub-webview.md). It shares none of what follows: its own host, a subset of the
-> vocabulary, none of this injection.
+> vocabulary, none of this injection. What a page in it and the shell say to each other is
+> [sub-webview-protocol.md](./sub-webview-protocol.md).
 
 ## Key files
 

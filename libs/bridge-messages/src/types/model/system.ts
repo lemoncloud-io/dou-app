@@ -2,6 +2,7 @@ import type { ShareAction } from 'react-native';
 
 import type { CacheDomainVersions } from './cache';
 import type { HandedOverPerfTrace } from './perf';
+import type { SubWebViewContext } from './sub-webview';
 
 /**
  * Detailed info for a device media asset (photo, video)
@@ -462,6 +463,12 @@ export type OnWebAppReadyPayload = {
     cacheDomainVersions?: CacheDomainVersions;
     /** Feature flags. New features are negotiated here before use. */
     capabilities?: Record<string, boolean | string | number>;
+    /**
+     * The sub WebView's context, sent only by a sub WebView's own host: the same object as
+     * `window.ChaticSubWebView`, at a moment the page knows, since on Android the global can be
+     * defined after the page's first script. Absent from the main shell and from apps before 2.15.0.
+     */
+    subWebView?: SubWebViewContext;
 };
 
 /** [Response] Native back-button pressed event payload */

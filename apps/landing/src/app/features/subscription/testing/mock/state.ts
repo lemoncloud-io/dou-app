@@ -4,6 +4,7 @@ import type {
     Invoice,
     PaymentAttempt,
     PaymentMethod,
+    PaymentProvider,
     PlanId,
     SignInProvider,
     Subscription,
@@ -57,6 +58,8 @@ export interface MockAttempt extends PaymentAttempt {
     settlesAs: 'succeeded' | 'failed';
     /** The plan an upgrade or a first checkout is for. */
     planId?: PlanId;
+    /** Who a first checkout is charged by, from its billing country. */
+    provider?: PaymentProvider;
 }
 
 /** One address's code: when it was sent and dies, how many tries and codes are left, any lock. */
@@ -71,15 +74,13 @@ export interface MockEmailCode {
 /** The whole mock server: one account and everything it owns. */
 export interface MockState {
     /** Bumped when this shape changes, so a stored older shape is rebuilt rather than misread. */
-    version: 3;
+    version: 4;
     scenario: ScenarioId;
     /** The mock's today, an ISO date. */
     today: string;
     fail: FailFlag | null;
     /** `&cards=0` — start the scenario with no payment method. */
     noCards: boolean;
-    /** The dev scenario panel; `&panel=0` hides it for screenshots. */
-    panelHidden: boolean;
     /** The query strings already applied, so the same URL is not applied twice (see `createMockPort`). */
     appliedSearches: string[];
 
@@ -87,7 +88,6 @@ export interface MockState {
     /** Who a successful sign-in becomes. */
     account: Account;
     signIn: {
-        provider: SignInProvider;
         defaultChoice: ConsentChoice;
         /** The masked address a provider shows when there is no linked account (Google only). */
         hint?: string;

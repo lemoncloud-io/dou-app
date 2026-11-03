@@ -4,7 +4,7 @@ import type { Payer, PlanId } from '../types';
 export interface PendingDetails {
     country: string;
     emailId?: string;
-    payer: Payer;
+    payer?: Payer;
 }
 
 /**

@@ -6,8 +6,8 @@
 bounce page that sends an invite link into the installed app or into the web app — with no session,
 no data layer and no backend call of its own. Its **account surface**, `/subscription/*`, is where a
 signed-in account holder buys and manages a subscription outside the stores; it is open only on
-local and dev hosts, and runs against the subscription server, with the mock answering what that server
-does not yet (see [Two surfaces](#two-surfaces) and [The server](#the-server)) —
+local and dev hosts with a build that carries the subscription server's addresses, and runs against
+that server (see [Two surfaces](#two-surfaces) and [The server](#the-server)) —
 except `/subscription/plans`, which lists the published plans on every host from a fixed catalog (see
 [Plans before checkout opens](#plans-before-checkout-opens)).
 
@@ -108,10 +108,11 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    `SubscriptionPort` (`features/subscription/lib/port/`) and nothing else — no `fetch`, no HTTP
    client. Of its implementations, only the HTTP one (`lib/port/http/`) reaches the network, and it
    does so through the runtime's subscription repository (`libs/data`, over `libs/http`'s gateway),
-   as every other app's server calls do: the session runtime and the payment SDK are imported there
-   and nowhere else (ADR-0248).
-10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountEnabled` is
-    false (every host but `localhost`, `127.0.0.1` and `-dev` ones) its routes are not registered,
+   as every other app's server calls do: the session runtime and the payment SDKs are imported there
+   and nowhere else (ADR-0248, ADR-0262).
+10. **The account surface is not pointed at until it opens.** Where `isSubscriptionAccountOpen` is
+    false (every host but `localhost`, `127.0.0.1` and `-dev` ones, and any build without the server's
+    addresses) its routes are not registered,
     and the public pages' links into it render only where the gate is open — today the home header's
     "Sign in". It goes in no sitemap, email or outside link before then. **The plans page is the one
     exception**: it is registered on every host, because a payment provider reviews the prices on the
@@ -131,8 +132,9 @@ policy's place), the deep-link bounce page, the `.well-known` association files,
 subscription bought outside the stores.
 
 **Out** — policy content (`libs/policy-content`), theming (`libs/theme`), shared illustrations and
-icons (`assets`), everything a signed-in user does with the product (`apps/web`), and — until a
-later change — the real payment provider, the real social sign-in and the subscription server.
+icons (`assets`), everything a signed-in user does with the product (`apps/web`), and the payment
+providers, the social sign-in and the subscription server themselves — the account surface reaches them
+through its HTTP port (see [The server](#the-server)).
 
 ## Structure
 
@@ -247,7 +249,9 @@ which way an import may point). It is not restated here. What it comes to in an 
 - **`import.meta` and the hostname are read in `app/config/` only** — the hostname in `stage.ts`,
   `import.meta` there and in `subscriptionServer.ts`. No barrel re-exports either; import them by path.
 - **A feature is reached through its `index.ts`**, which exports its `<Name>Routes`. Inside, a feature
-  uses the subset of `pages/ components/ hooks/ lib/ utils/ types/ consts/ routes/` it needs.
+  uses the subset of `pages/ components/ hooks/ lib/ utils/ types/ consts/ routes/` it needs. The
+  account surface adds one folder the web app has no counterpart for: `testing/`, the tests' fake
+  server, which only test files may import (`testing/boundary.test.ts` fails otherwise).
 - **Copy lives in one file per language** (`src/i18n/locales/{ko,en}.json`); `localeParity.test.ts`
   fails when a key exists in one language and not the other, for every pair under `locales/`.
 
@@ -268,9 +272,10 @@ git grep -n -E "from '(\.\./)+(home|policy|deeplink|subscription)(/|')" -- apps/
 git grep -n -E "from '.*features/" -- apps/landing/src/app/config apps/landing/src/app/ui \
     apps/landing/src/app/hooks apps/landing/src/app/utils
 
-# import.meta or the hostname read outside app/config (the locale parity test globs the locale files)
+# import.meta or the hostname read outside app/config (the locale parity test globs the locale files,
+# the testing/ boundary test the sources)
 git grep -n -E 'import\.meta|location\.hostname' -- apps/landing/src ':!apps/landing/src/app/config' \
-    ':!apps/landing/src/i18n/*.test.ts'
+    ':!apps/landing/src/i18n/*.test.ts' ':!apps/landing/src/app/features/subscription/testing/boundary.test.ts'
 
 test ! -d apps/landing/src/app/shared   # no shared/ wrapper
 
@@ -280,11 +285,15 @@ test ! -d apps/landing/src/app/shared   # no shared/ wrapper
 git grep -n -E "from '.*features/subscription/|@tanstack/react-query|@chatic/(http|data|app-runtime|auth-sign)" \
     -- apps/landing/src ':!apps/landing/src/app/features/subscription' ':!apps/landing/src/app/routes'
 
-# the account surface reaching the network, a session or the payment SDK outside the HTTP port
+# the account surface reaching the network, a session or a payment SDK outside the HTTP port
 # (`[^[:alnum:]_]` before fetch: `window.fetch(` is caught, react-query's `refetch(` is not; the one
 # hit outside the account surface is the orphan in deeplink/utils/fingerprint.ts — see Traps)
-git grep -n -E "@chatic/(http|data|app-runtime|auth-sign)|@portone/|(^|[^[:alnum:]_])fetch\(|axios" \
+git grep -n -E "@chatic/(http|data|app-runtime|auth-sign)|@portone/|@stripe/|(^|[^[:alnum:]_])fetch\(|axios" \
     -- apps/landing/src ':!apps/landing/src/app/features/subscription/lib/port/http'
+
+# a payment provider named on screen: the copy says the billing country and the currency, never who
+# processes the card (ADR-0262)
+git grep -n -i -E "portone|inicis|이니시스|포트원|stripe|국내 카드|해외 카드" -- 'apps/landing/src/**/locales/**'
 ```
 
 Give the first command the features folder itself, as above. A pathspec with a trailing glob such
@@ -303,37 +312,44 @@ project landing` and `nx show project @chatic/landing` both resolve to it.
 
 ## Two surfaces
 
-|                  | Public surface                                                                        | Account surface                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Paths            | `/`, `/policy/*`, `/s/*`, `/i`                                                        | `/subscription/*`                                                                                |
-| Who              | anyone — no account, a crawler, a store reviewer, a phone before the app is installed | a DoU account holder signed in with Google or Apple (W-01: any visitor)                          |
-| Does             | introduces the product, serves the policies, hands invite links on                    | buys and manages a subscription bought outside the stores                                        |
-| Session, backend | none (principles 1, 2)                                                                | yes — through one port (principle 9)                                                             |
-| Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                                               |
-| Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts only (`isSubscriptionAccountEnabled`); W-01 on every host |
+|                  | Public surface                                                                        | Account surface                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Paths            | `/`, `/policy/*`, `/s/*`, `/i`                                                        | `/subscription/*`                                                                                                    |
+| Who              | anyone — no account, a crawler, a store reviewer, a phone before the app is installed | a DoU account holder signed in with Google or Apple (W-01: any visitor)                                              |
+| Does             | introduces the product, serves the policies, hands invite links on                    | buys and manages a subscription bought outside the stores                                                            |
+| Session, backend | none (principles 1, 2)                                                                | yes — through one port (principle 9)                                                                                 |
+| Bundle           | the entry chunk (policy lazily)                                                       | its own lazy chunk                                                                                                   |
+| Hosts            | every host                                                                            | `localhost`, `127.0.0.1`, `-dev` hosts with the server's addresses (`isSubscriptionAccountOpen`); W-01 on every host |
 
 **The billing-email screens are hidden** — W-16 and the email step W-24 — until their server exists
 (ADR-0248, `lib/screens.tsx`). Their rows are kept in the table, marked _hidden_: the routes are not
-registered, every link into them is gone, and the port methods, the HTTP port and the mock are left as
-they were. What that costs: receipts go to the sign-in address alone.
+registered, every link into them is gone, and the port methods, the HTTP port and the tests' fake server
+are left as they were. What that costs: receipts go to the sign-in address alone.
 
 **The card screen, W-12, is open** (ADR-0250). `MANAGEMENT_SCREENS_OPEN` is two values, `{ cards, emails }`,
 and only `emails` is shut. W-12 lists the cards the payment service holds, the default marked as the
-server marks it; every other card has [Make default] and [Remove], and [Add card] opens the payer's name
-and number (`PayerFields`) and then the provider's window. A card added this way is not charged until it
+server marks it. Cards belong to the provider that registered them — one provider takes payments in
+won, another in US dollars — and each provider has a default of its own, so the cards are grouped by
+provider (`lib/paymentMethods.ts`): the provider the subscription is charged by first, and a second group
+under a heading named by its currency only when the account holds cards of both. Wherever a screen
+speaks of "the card" — W-18's tile, W-14, W-09, the removal rule — it means the default of the
+subscription's own provider. Every other card has [Make default] and [Remove], and [Add card] opens a dialog that shows the
+billing country as fixed and, where the subscription is billed in Korea, asks for the payer's name and
+number (`PayerFields`); then the won provider's window opens, or for dollars the card dialog (see
+[Billing outside Korea](#billing-outside-korea)). A card added this way is not charged until it
 is made the default. The payment service decides what may be removed: the default card's [Remove] is
 greyed and only opens the explanation (make another card the default first; for a live subscription's
 only card, add one first), and a refusal of any other card is the card a subscription in use is charged
 to, which W-12 says. It is
 reached from the account menu, from W-18's card tile and from a failed payment's button. On a phone the
-provider's window comes back to W-12 with its result in the query, and the payer waits in
+won provider's window comes back to W-12 with its result in the query, and the payer waits in
 `sessionStorage` meanwhile (`savePendingCardChange`, read by `pages/billing/useCardWindowReturn.ts`).
 Retrying a failed payment has no server, so W-12 does not offer to charge the overdue amount on the
-server; against the mock it still does.
+server; the screen tests still cover the offer against the fake server.
 
-Every screen below runs on the server where the build has its addresses, and on the mock otherwise or
-with `?mock=` (see [The server](#the-server)). None is open on the production host yet except W-01,
-which runs there on the catalog port (see [Plans before checkout opens](#plans-before-checkout-opens)).
+Every screen below runs on the server, and only where the build has its addresses (see
+[The server](#the-server)); there is no in-page stand-in for it (ADR-0264). None is open on the production
+host yet except W-01, which runs there, and wherever the addresses are missing, on the catalog port (see [Plans before checkout opens](#plans-before-checkout-opens)).
 Screen ids (`W-01`, `W-18`, …) are the names of the design frames each screen is drawn from; the route
 table below is their key. `W-23`, the desktop-only notice, is retired: every screen is laid out for a phone too.
 
@@ -346,10 +362,9 @@ features/subscription/
 ├── index.ts          SubscriptionRoutes — the only thing the route table imports, lazily
 ├── routes/           the nested <Routes>, the session and store-subscriber guards
 ├── types/            the view types the screens draw (Plan, Subscription, PaymentMethod, …)
-├── lib/port/         SubscriptionPort, SubscriptionPortError, PortProvider (+ the clock)
+├── lib/port/         SubscriptionPort, SubscriptionPortError, PortProvider (+ the clock), the stand-in card window's interface
 ├── lib/port/http/    the HTTP port: the server's shapes, the sign-in, the card window — the only network
-├── lib/mock/         the mock port: state machine, scenarios, policy values, storage
-├── lib/catalog.ts    the published plans and prices, read by both ports
+├── lib/catalog.ts    the published plans and prices, in won and in dollars, read by both ports
 ├── lib/catalogPort.ts the port where the account surface is shut: the plans, no session
 ├── lib/              decisions as pure functions: sceneOf, changeKindOf, ddayOf,
 │                     canRemovePaymentMethod, safeNext / landingAfterSignIn, sessionEnded
@@ -360,9 +375,10 @@ features/subscription/
 │                     routes — a scheduled downgrade's confirmation is framed by AccountShell, an upgrade's by
 │                     PublicShell with its back button), PageHeader, AccountMenu, StatusBadge, PlanCard,
 │                     SummaryTile, ConfirmDialog, EmailVerificationForm, BillingEmailChangeDialog,
-│                     MockPaymentWindow, DevScenarioPanel, …
+│                     MockPaymentWindow, DevTools (the sandbox panel and banner), …
 ├── components/ui/    Button, Card, Badge, Banner, Table, Dialog, Spinner, Toast — landing tokens
-└── pages/            entry/ checkout/ manage/ billing/ (the screens), dev/ (mock-only pages)
+├── pages/            entry/ checkout/ manage/ billing/ (the screens)
+└── testing/mock/     the tests' fake server: state machine, scenarios, policy values, storage — tests only
 ```
 
 `SubscriptionRoutes` provides the query client, the port and a toast host at its root — nowhere
@@ -388,8 +404,6 @@ above it. The primitives use this site's Tailwind tokens (plus the `status-*` co
 | `/subscription/payment-methods`                                  | W-12 cards                                                                                               | account | 〃                                                            |
 | `/subscription/history`                                          | W-13 invoices                                                                                            | account | 〃                                                            |
 | `/subscription/billing-info`                                     | W-16 billing emails _(hidden)_                                                                           | account | 〃                                                            |
-| `/subscription/login/mock-provider`                              | stand-in consent page                                                                                    | —       | mock port only                                                |
-| `/subscription/mock-receipt?invoice=`                            | stand-in receipt                                                                                         | —       | mock port only                                                |
 | any other `/subscription/…`                                      | redirect to `/subscription` (gate shut: see [Routes](#routes))                                           |         |                                                               |
 
 Every one of these is laid out for a phone as well as a computer: the shells stack, grids fall to a
@@ -407,17 +421,16 @@ client's error hook at the route root, which sends the reader to
 **Sign-in is a redirect round trip.** `startSignIn` returns the provider's address and the browser
 leaves for it; the provider sends it back to `/subscription/login/callback`, whose query goes to
 `completeSignIn`. Against the server the provider is the OAuth relay and the code becomes the same
-relay session the web app uses; the mock walks the same trip through its stand-in consent page. Signing
-out against the server lands on the home page, and the server makes an account for a sign-in it does
-not know, so W-02b is the mock's alone today.
+relay session the web app uses. Signing out lands on the home page, and the server makes an account for
+a sign-in it does not know, so W-02b is reached by the screen tests alone today.
 
 ### Plans before checkout opens
 
-Where `isSubscriptionAccountEnabled` is false — the production host — the route table mounts
-`SubscriptionRoutes` at `/subscription/plans` alone, with `account={false}`. `createPortSetup` then
-returns the catalog port (`lib/catalogPort.ts`) instead of the mock: `getSession` answers no session,
-`listPlans` answers `lib/catalog.ts`, and every other method rejects as it would for a visitor. The
-mock is never created there, so nothing reads `?mock=` or session storage on that host.
+Where `isSubscriptionAccountOpen` is false — the production host, or a build without the server's
+addresses — the route table mounts `SubscriptionRoutes` at `/subscription/plans` alone, with
+`account={false}`. `createPortSetup` then returns the catalog port (`lib/catalogPort.ts`): `getSession`
+answers no session, `listPlans` answers `lib/catalog.ts`, and every other method rejects as it would for
+a visitor. No server port is created there, so nothing reads `?sandbox` or session storage either.
 
 The pages read the same flag where it changes what they offer:
 
@@ -428,12 +441,16 @@ The pages read the same flag where it changes what they offer:
 - `PublicShell`'s bar keeps the logo alone and drops "Sign in", which leads to a page that does not
   exist on that host; its footer is the same everywhere and carries the refund policy link.
 
-`lib/catalog.ts` is therefore a published price list, not mock data: the mock sells exactly this
-catalog, and a price changes there together with the stores' prices. When the server and the payment
-provider arrive, the account surface opens by the gate and the catalog port is no longer used.
+`lib/catalog.ts` is therefore a published price list, not test data: the tests' fake server sells
+exactly this catalog, and a price changes there together with the stores' prices. It holds each tier in won and in
+dollars (the stores' price outside Korea, $6 a step); W-01 shows the currency of the page's language —
+won in Korean, dollars otherwise — or, for a subscriber, the subscription's own. What a checkout
+charges is decided by its billing country, not by the language. Where the account surface opens, the
+catalog port is not used; it remains wherever the gate is shut — the production host, and a build
+without the server's addresses.
 
 One cost is accepted: the production visitor to this page downloads the whole account-surface
-chunk, mock code included, though the mock is never run there.
+chunk, though only the plans page runs there.
 
 ### The server
 
@@ -446,14 +463,48 @@ real (`PortSupports`, read with `useSupports()`), and the screens leave out what
 the billing history (its menu entry and route, and the recent billing on W-18), "Undo cancellation" on
 W-18 and after cancelling, and "Cancel the change" for a scheduled downgrade. Where the copy promised
 the undo — the list's status line, the cancel confirmation, W-14's notice for an ending subscription —
-a `…NoUndo` line says only what holds. `?mock=<scenario>` switches the tab to the mock alone and
-`?mock=off` back; the choice holds for the tab. Without the addresses it is the mock, whole.
+a `…NoUndo` line says only what holds. Without the addresses there is no account surface at all — only
+the plans page, as on the production host — and nothing stands in for the server (ADR-0264).
 
 The addresses are the build's `VITE_*` values — copy `.env.example` to `.env` with the dev ones, as for
 the web app — read in `config/subscriptionServer.ts` and nowhere else; the session runtime takes the
-relay's address from them too. The card window is the payment provider's (PortOne V2, KG Inicis),
-opened with the values the server's `issue` returns. The HTTP port and the session runtime load on
-first use, as a chunk of their own.
+relay's address from them too. The card is entered where the server's `issue` answer says: the won
+provider's own window (PortOne V2, KG Inicis), or the dollar provider's card field (Stripe's Payment
+Element) inside a dialog of ours — see [Billing outside Korea](#billing-outside-korea). Every value
+either opens with comes from that answer. The HTTP port, the session runtime and both payment SDKs load
+on first use, as a chunk of their own; the dollar provider's script is fetched only when its field is
+first opened.
+
+#### Billing outside Korea
+
+W-08 asks for the billing country first, with none chosen. The country decides the currency and, inside
+the port, the payment provider: Korea is billed in won, every other country in US dollars
+(`lib/billingCountry.ts`). Until a country is chosen the summary shows no amount and pressing on says a
+country is needed; once one is, the summary is priced in its currency and a line says which. The copy
+names the country and the currency and never a provider — the last boundary command above checks it.
+
+- **Payer.** The won provider's card company needs the holder's name, mobile number and email when the
+  card is registered and with every charge after, so they are asked for in Korea only, and required there;
+  elsewhere there are no payer fields (the dollar provider's field asks for the country and postal code
+  itself, starting from the billing country). The port also checks the `issue` answer's `required` list
+  and refuses with `invalid` rather than open a window that would fail.
+- **The card dialog.** `CardEntryWindow`, mounted at the route root when the server port is in use, is
+  where the dollar provider's field goes. The port asks for it through `lib/port/cardEntry.ts`, a channel
+  that names no provider; `lib/port/http/stripeWindow.ts` fills the request in and is the one place
+  `@stripe/stripe-js` is imported. Under the field the dialog states the recurring charge — the amount,
+  when it first falls, monthly after, and how to cancel — and the card is registered (`confirmSetup`)
+  only once that is ticked. A field to fix keeps the dialog open; a refused card ends it as a failed
+  window and a 3-D Secure check not completed as a closed one (`stripeResult.ts`), so W-09 reads them as
+  it reads the won window's. The dialog is not modal, so the card's 3-D Secure overlay can take clicks,
+  and nothing closes it while a confirmation runs. The keys come from the `issue` answer only and are
+  never stored or logged.
+- **After the checkout.** A subscription stays with its provider: a plan change, a card added and the
+  plans it is offered are all in its currency, and W-12's add-card dialog shows its billing country as
+  fixed. W-08 itself only opens for a first subscription.
+- **Not done.** Consent is shown and required but not recorded; India-issued cards register but will be
+  refused monthly (no e-mandate without the provider's own subscriptions); how tax applies to a dollar
+  price is not settled, so a dollar price carries no VAT note (won prices still say VAT is included); the
+  dollar products exist on the dev stage only. ADR-0262 records the decision and these costs.
 
 The server's calls themselves live in the shared libraries, not here: `libs/http`'s subscription
 gateway names the eight `/subscriptions/0/*` requests and declares their shapes, and `libs/data`'s
@@ -462,19 +513,38 @@ gateway names the eight `/subscriptions/0/*` requests and declares their shapes,
 translation into the screens' view types and the rules around the calls (`createHttpPort.ts`,
 `wire.ts`, `errors.ts`).
 
-What the screens get from the server differs from the mock in a few places, all in `lib/port/http/wire.ts`:
+What the screens get from the server differs from the tests' fake server in a few places, all in `lib/port/http/wire.ts`:
 
 - The web products are `dou-web-tier-0N` on the server and `pro-tier-0N` on the screens, matched by tier.
 - The server keeps one subscription per account. A first payment it has not settled reads `pending`:
   W-18 says the payment is being confirmed and offers nothing until it settles.
 - It answers a checkout or an upgrade with the subscription; the attempt W-09 follows is made from it,
-  and a `pending` one is settled by reading the subscription again.
+  and a `pending` one is settled by reading the subscription again. The attempt's id in the address
+  says how it ended but not which subscription it made, so a success read back by its id — W-06 does —
+  is joined to the account's subscription again.
 - W-14's charge for an upgrade is an estimate with the server's own proration; the copy says so. The
   server upgrades a paid period only, so a trial can move down but not up — W-14 says so before
-  anything is tried, and the mock refuses the same way.
-- Its cards carry no expiry, so none is drawn. A card is named to the server by its id (`billkeyId`).
+  anything is tried, and the fake server refuses the same way.
+- Its card list carries every provider's cards, each marked with its provider and one default per
+  provider; a card is named to the server by its id (`billkeyId`). The expiry is drawn where the
+  provider reports one (`cardExpMonth` · `cardExpYear`) and left out where it does not.
+- Each provider sells the same five tiers as products of its own — `platform=portone` in won,
+  `platform=stripe` in dollars — so the HTTP port reads a catalog per provider and pairs them by tier.
+  A subscription is read against its own provider's catalog.
+- Every amount is in its currency's minor unit, as the server sends it: won for won, cents for dollars
+  (`600` is $6). `formatMoney` divides by the currency's fraction digits; nothing else converts.
 - Plans are listed to a signed request only, so a visitor sees the published catalog on W-01.
-- The payment provider's window opens in the page (an iframe) on a computer, not as a pop-up, about
+- Whether a first subscription starts with the free trial is the server's to say: the membership
+  (`GET /memberships/0/mine`) carries `trialEligible`, the same rule its `start` applies, and the HTTP
+  port reads it into the account (`Account.trialEligible`). The checkout preview offers the trial only
+  when it is true and the product has `trialDays`; false is charged at once, and W-01, W-08 and W-05
+  draw no trial copy. A server that does not send it is read off the trial-used flags as before. A
+  visitor's eligibility is not known, so W-01 tells them a first subscription comes with the trial. The
+  fake server's scenario accounts carry the same value.
+- The rest of this list is the won provider's window. The dollar provider's card field never leaves the
+  page, on a phone either: `confirmSetup` runs with `redirect: 'if_required'`, and a card has no
+  redirect, so there is no return trip, no saved checkout and no query to read.
+- The won provider's window opens in the page (an iframe) on a computer, not as a pop-up, about
   0.8 s after the click. On a phone it is the provider's own page: the browser leaves for it and comes
   back to W-05 (or the card list, for a card added alone) with the result in the query — `billingKey`,
   or `code` and `message`. The checkout W-08 settled does not survive that trip, so `lib/pendingCheckout.ts`
@@ -486,42 +556,82 @@ What the screens get from the server differs from the mock in a few places, all 
   — the code a refused card also gets — with a message that the user cancelled; `windowReturn.ts`
   tells the two apart by that message, for the window's answer and for a phone's query alike, so a
   closed window reads as cancelled, not as a declined card.
-- The payer's name and mobile number, which the card company requires with every card, are asked for
-  on W-08 and in W-12's add-card dialog. They travel with that checkout or card and
-  are not stored. The payer's address is the account's own while the billing-email screens are hidden.
+- The payer's name and mobile number, which the won provider's card company requires with every card,
+  are asked for on W-08 and in W-12's add-card dialog when the billing is in Korea (see
+  [Billing outside Korea](#billing-outside-korea)). They travel with that checkout or card and are not
+  stored. The payer's address is the account's own while the billing-email screens are hidden.
 
-### The mock
+#### Sandbox payments (development)
 
-The mock is an in-memory server holding one account — its
-subscriptions, cards, invoices and billing emails — kept in `sessionStorage` (memory if that fails),
-so a reload keeps what a flow changed. Each method moves that state the way the server should:
-cancelling schedules an end, a payment attempt settles 1.5 s after it starts (a successful upgrade
-then changes the plan), a retry restores a failing subscription. Calls take 300 ms. Every period and
-count it uses is in `lib/mock/policy.ts`; the price and the trial come from `lib/catalog.ts`.
+A server tab can run the server's real subscription flow with no card and no charge: the payment
+server's mock provider takes any card token and charges at once, and the subscription it starts is
+marked as a mock one on the server, with its membership and record kept there like a real one: the real
+server on a fake payment provider (ADR-0263). It is how a flow is walked end to end without a card; the
+page has no in-memory stand-in for the server any more (ADR-0264).
 
-Pick the state with the URL; each query is applied once per tab, so a reload keeps the state and a
-one-shot flag is spent once:
+- **On and off.** `?sandbox=1` turns it on and `?sandbox=0` off; the choice holds for the tab
+  (`sandboxOf` in `lib/createPortSetup.ts`). The corner "payments" panel of a server tab has the same
+  switch, which reloads the page, and the renewal period of the next start: a month (the product's),
+  `10m`, `1h` or `1d` — so a trial ending, a monthly charge and a cancelled subscription expiring can be
+  watched in minutes. While on, a "Sandbox payments — no real charge" banner sits over every page.
+- **Only where the account surface is open, and never on a production build.** The switch exists only
+  on a server tab, which exists only where `isSubscriptionAccountOpen` is true; on the production
+  host the catalog port runs and `?sandbox` is ignored. A build whose addresses are production's
+  (`VITE_ENV=PROD`) has no sandbox either, even on `localhost`. The server does not refuse the query on
+  production, so not sending it there is the first defence. `?sandbox` is taken out of the address once
+  read; the tab's stored choice is the one that counts.
+- **What carries it.** The HTTP port adds `?sandbox` to the six payer-scoped calls — `issue`, `start`, the
+  card list, adding a card, choosing the default and removing one — and to every card call, since the
+  server reads it per call and one card call without it would mix in the payer's real cards. The
+  calls on the subscription itself (`mine`, `change`, `cancel`) and the membership read carry nothing:
+  the server follows the record. `?interval` goes on a sandboxed `start` only. The query is passed
+  through the runtime's subscription repository (`libs/data`, `libs/http`), whose payer-scoped calls
+  take it as an optional last argument.
+- **The card window.** The mock provider's `issue` values are fake, so neither provider's window or SDK
+  is opened: the stand-in window (`MockPaymentWindow`) asks how it ends, and a registered card is
+  a made-up `sandbox-…` token, read by the same `windowResultOf` as a real window. The billing-country
+  split is unchanged, so Korea (payer fields, won) and elsewhere (dollars) are both exercised.
+- **Traps.** An account that has started once in sandbox is no longer eligible for the free trial —
+  test the trial with an untouched account. Moving from a sandboxed subscription to a real one means
+  cancelling it and letting it expire first (a short period helps). The subscription server's own `?mock` (sample
+  answers) is a different thing; this app never sends it. And the sandbox runs through the dev relay
+  like everything else: when the dev stage is down, so is the sandbox. Do not run it with production's
+  addresses — the build guard refuses `VITE_ENV=PROD`, but a hand-made `.env` is only as safe as the
+  addresses in it, and sandbox records on production would sit among real users'.
 
-| Parameter          | Effect                                                                                                                                                                                                                                                                                 |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `?mock=<scenario>` | start that scenario (below); the same scenario again keeps the current state                                                                                                                                                                                                           |
-| `&fail=<flag>`     | `card-declined`, `attempt-limit`, `closed` (the payment window), `network` and `session-ended` (each fails the next call only), `signin-canceled`, `signin-expired` (the consent page's preselected answer), `code-expired` (the next code check) and `resend-limit` (the next resend) |
-| `&now=2026-11-20`  | the mock's today; scenarios have fixed dates, so this is how the same-day cases are reached                                                                                                                                                                                            |
-| `&cards=0`         | the scenario with no payment method                                                                                                                                                                                                                                                    |
-| `&panel=0`         | hide the dev panel, for screenshots                                                                                                                                                                                                                                                    |
+### The tests' fake server
+
+`testing/mock/` is an in-memory server holding one account — its subscriptions, cards, invoices and
+billing emails — that the screen and route tests run on, with no network. It is not part of the app:
+nothing outside `testing/` and the test files imports it (`testing/boundary.test.ts` fails if anything
+does), so it is not in the build, and `?mock=` in a browser does nothing (ADR-0264). To walk a flow in a
+browser, use the server — with [sandbox payments](#sandbox-payments-development) for one without a card.
+
+Each method moves the fake's state the way the server should: cancelling schedules an end, a payment
+attempt settles after it starts (a successful upgrade then changes the plan), a retry restores a failing
+subscription. Every period and count it uses is in `testing/mock/policy.ts`; the price and the trial
+come from `lib/catalog.ts`. A test picks the state with a query string handed to `createMockPort`
+(`readSearch`):
+
+| Parameter          | Effect                                                                                                                                                                                                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `?mock=<scenario>` | start that scenario (below); the same scenario again keeps the current state                                                                                                                                                                                                        |
+| `&fail=<flag>`     | `card-declined`, `attempt-limit`, `closed` (the payment window), `network` and `session-ended` (each fails the next call only), `signin-canceled`, `signin-expired` (how the provider answers a sign-in), `code-expired` (the next code check) and `resend-limit` (the next resend) |
+| `&now=2026-11-20`  | the fake's today; scenarios have fixed dates, so this is how the same-day cases are reached                                                                                                                                                                                         |
+| `&cards=0`         | the scenario with no payment method                                                                                                                                                                                                                                                 |
 
 Scenarios: `visitor` (the default, signed out), `new` (Google, no billing email yet), `new-apple` (no address shared), `new-trial-used`, `no-linked-account`,
 `no-linked-account-apple`, `store-ios`, `store-android`, `trial`, `active`, `active-card-expiring`,
 `past-due`, `restricted`, `cancel-scheduled`, `downgrade-scheduled`, `expired`, `history-mixed`,
-`email-pending`. Their data is in `lib/mock/scenarios.ts`; each scenario's today is 2026-11-01.
+`email-pending`. Their data is in `testing/mock/scenarios.ts`; each scenario's today is 2026-11-01.
 
-The **dev panel** (bottom right) changes the scenario, the fail flag and today, and resets the state.
-The **payment window** is a dialog standing in for the payment provider's card window:
-`startPaymentMethodRegistration` opens it and resolves with the outcome the reader picks
-(registered, failed, closed), the fail flag's outcome marked. Billing email codes are `123456`; a code
-lives 5 minutes, resends are 60 seconds apart and 5 at most, then the address locks for 10 minutes
-(`lib/mock/policy.ts`). Those run on the wall clock, not on `?now=`, which moves only the day. The
-panel, the consent page and the receipt page are developer tools: English, not in the copy files.
+Its sign-in provider answers at once, sending the browser straight back to the callback with the
+scenario's answer (or the sign-in fail flag's). Its card window is the same stand-in dialog sandbox
+payments use (`MockPaymentWindow`, through `lib/port/standInWindow.ts`): `startPaymentMethodRegistration`
+opens it and resolves with the outcome picked (registered, failed, closed), the fail flag's outcome
+marked. Billing email codes are `123456`; a code lives 5 minutes, resends are 60 seconds apart and 5 at
+most, then the address locks for 10 minutes. Those run on the wall clock, not on `?now=`, which moves
+only the day.
 
 ### Copy
 
@@ -557,7 +667,7 @@ reader walks away.
 Most of the libraries Nx's graph gives this app are not called from it. The public surface imports
 four; the account surface's HTTP port adds two more, `@chatic/app-runtime` (which reaches the server
 through `libs/data` and `libs/http`) and `@chatic/config`, with
-`@portone/browser-sdk` from the workspace root, inside a chunk of their own that loads on first use (see
+`@portone/browser-sdk` and `@stripe/stripe-js` from the workspace root, inside a chunk of their own that loads on first use (see
 [The server](#the-server)) — and through the runtime, much of `libs/` reaches that chunk. The account
 surface also imports `@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from
 the workspace root, inside its own chunk. The table is about the public pages.
@@ -640,7 +750,7 @@ environment selection there is done by sniffing the hostname for `-dev`, which i
 surface reads its server addresses from it (`src/app/config/subscriptionServer.ts`). They are the web
 app's own (`WEB_DEV_*` / `WEB_PROD_*`), as desktop-web's are: the account surface signs in to the web
 app's relay session, so its OAuth, relay and socket addresses must be the web app's. Without the four
-addresses a build runs the account surface on the mock.
+addresses a build opens the plans page alone, on the catalog port.
 
 ## Scenarios
 
@@ -721,29 +831,32 @@ not trigger.
 - **The public surface's tests cover routing, config, copy and the app launch only.** The route
   table, the stage and link config, ko/en key parity, the i18n language handling, the home header's
   subscription links and the app launch (`utils/appLaunch`, `hooks/useAppLauncher`) have tests; the
-  other home and policy components and the other deep-link hooks have none. The account surface tests its rules, its mock, its routes,
-  every screen (a render per scenario), and its HTTP port against the server's response shapes —
-  not against a running server.
+  other home and policy components and the other deep-link hooks have none. The account surface tests its rules, its routes,
+  every screen (a render per scenario of the fake server in `testing/mock/`), and its HTTP port
+  against the server's response shapes — not against a running server.
 
     ```bash
-    npx nx test @chatic/landing   # 545 tests
+    npx nx test @chatic/landing   # 612 tests
     ```
 
-- **The account-surface gate is the hostname, not the build.** `isSubscriptionAccountEnabled` is true on
-  `localhost`, `127.0.0.1` and any host containing `-dev`, whatever the build mode — a dev build served
-  from `app.chatic.io` still keeps the pages shut. In tests (jsdom's `localhost`) it is open; the route
-  table test builds both sides with `createAppRoutes`. To see the shut side in a browser, serve the
+- **The account-surface gate is the hostname, and then the addresses.** `isSubscriptionAccountEnabled`
+  is true on `localhost`, `127.0.0.1` and any host containing `-dev`, whatever the build mode — a dev
+  build served from `app.chatic.io` still keeps the pages shut — and `isSubscriptionAccountOpen` also
+  needs the build's server addresses: a worktree with no `.env` shows the plans page alone. In tests the host gate is open (jsdom's
+  `localhost`) but the addresses depend on a local `.env`, which CI has none of, so a test never reads
+  the real value: the route table test builds both sides with `createAppRoutes`, and the header test
+  sets the gate itself. To see the shut side in a browser, serve the
   production build under a host that is neither, mapping one to the local server in Chromium with
-  `--host-resolver-rules="MAP app.chatic.test 127.0.0.1"`. `?mock=` does nothing there, by design.
+  `--host-resolver-rules="MAP app.chatic.test 127.0.0.1"`. `?sandbox=` does nothing there, by design.
 - **A phone on the local network needs a `-dev` name, not the machine's IP.** The gate reads the
   hostname, so `http://192.168.x.y:<port>` shows the plans page alone. Reach the dev server by a name
   that contains `-dev` and resolves to the machine (for example `app-dev.192.168.x.y.nip.io`, served
   with the dev server's host allow-list opened for it), and the sign-in, the checkout and the provider's
   redirect back all run in the phone's browser. Stop that server when the test is over: it serves the
   source and the build's `VITE_*` values to everyone on the network.
-- **The mock reads the URL once per query.** Opening the same `?mock=…` again does not reset the
-  state (it is how a reload keeps a flow's changes); use the dev panel's Reset, or a different
-  scenario.
+- **The tests' fake server reads its query once.** Handing it the same `?mock=…` again does not reset
+  the state; a test that needs a clean account makes a new
+  fake with a fresh `memoryStateStore()`.
 
 - **`src/app/features/deeplink/utils/fingerprint.ts` is dead.** `generateFingerprint` calls out to
   `api.ipify.org`, is exported from no barrel (`utils/index.ts` re-exports only `appLaunch.ts`) and
@@ -786,7 +899,7 @@ not trigger.
 ```bash
 npx nx run-many -t typecheck --projects=@chatic/landing   # 0 errors, app and tests; in CI
 npx nx lint @chatic/landing                               # passes (one warning); in CI
-npx nx test @chatic/landing                               # 545 tests pass; in CI
+npx nx test @chatic/landing                               # 612 tests pass; in CI
 npx nx build @chatic/landing                              # passes — the build the deploy wraps
 yarn landing:start                                        # http://localhost:5004
 ```

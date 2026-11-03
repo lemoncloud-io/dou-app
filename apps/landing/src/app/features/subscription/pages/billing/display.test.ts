@@ -6,6 +6,7 @@ const card = (id: string, overrides: Partial<PaymentMethod> = {}): PaymentMethod
     id,
     brand: '신한',
     last4: '1234',
+    provider: 'portone',
     expMonth: 8,
     expYear: 2028,
     isDefault: false,
@@ -78,6 +79,7 @@ describe('nextRetryOf', () => {
         status: 'pastDue',
         startedAt: '2026-09-30',
         billingDay: 30,
+        provider: 'portone',
         retryAt: ['2026-10-31', '2026-11-02', '2026-11-04'],
     } as Subscription;
     const on = (iso: string) => new Date(`${iso}T09:00:00`);

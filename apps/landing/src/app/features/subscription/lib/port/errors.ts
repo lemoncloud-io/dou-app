@@ -17,6 +17,8 @@
  * - `tooManyAttempts` — the code was entered wrong too often and no longer works; ask for a new one.
  * - `resendLimit` — no more codes for now; `detail.retryAt` is when asking works again.
  * - `disposableEmail` — a throwaway address, refused for billing mail.
+ * - `invalid` — something the call needs was not given: a payer the payment provider requires with the
+ *   card. Nothing was opened or sent.
  */
 export type SubscriptionPortErrorCode =
     | 'unauthenticated'
@@ -30,7 +32,8 @@ export type SubscriptionPortErrorCode =
     | 'codeExpired'
     | 'tooManyAttempts'
     | 'resendLimit'
-    | 'disposableEmail';
+    | 'disposableEmail'
+    | 'invalid';
 
 /** What some errors say beyond their code. */
 export interface SubscriptionPortErrorDetail {

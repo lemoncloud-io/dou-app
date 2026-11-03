@@ -1,25 +1,37 @@
 import { type ComponentType, type ReactNode, createElement, lazy, Suspense } from 'react';
 
+import { type CardEntryChannel, createCardEntryChannel } from '../cardEntry';
 import { HTTP_METHODS, type HttpPort } from './methods';
+import { createSandboxWindow } from './sandboxWindow';
+
+import type { HttpSandbox } from './createHttpPort';
+import type { PaymentWindowHost } from '../standInWindow';
 
 import type * as Live from './live';
 import type { SubscriptionServer } from '../../../../../config/subscriptionServer';
 
 export { HTTP_METHODS, type HttpMethod, type HttpPort } from './methods';
-export type { PaymentWindow, PaymentWindowResult } from './createHttpPort';
+export type { HttpSandbox, PaymentWindow, PaymentWindowResult } from './createHttpPort';
 
 export interface HttpSetup {
     port: HttpPort;
     /** Wraps the account surface's routes: the session lives inside it. */
     Host: ComponentType<{ children: ReactNode }>;
+    /** Where the port asks for a card typed into our own dialog (`CardEntryWindow`). */
+    cardEntry: CardEntryChannel;
+    /** In sandbox payments: where the stand-in card window (`MockPaymentWindow`) registers. */
+    sandboxWindow?: PaymentWindowHost;
 }
 
 /**
  * The HTTP port, loaded on first use. The implementation pulls in the shared session runtime and the
- * payment SDK, which neither the production host's plans page nor a mock-only tab needs, so this
+ * payment SDK, which the production host's plans page does not need, so this
  * module holds only a stand-in that loads the real one when it is first called or rendered.
  */
-export const createHttpSetup = (server: SubscriptionServer): HttpSetup => {
+export const createHttpSetup = (server: SubscriptionServer, options: { sandbox?: HttpSandbox } = {}): HttpSetup => {
+    // Made here, outside the loaded chunk, so the dialogs can be mounted before the port is loaded.
+    const cardEntry = createCardEntryChannel();
+    const sandboxWindow = options.sandbox ? createSandboxWindow() : undefined;
     let live: Promise<typeof Live> | undefined;
     let port: Promise<HttpPort> | undefined;
     // A failed load is forgotten, so the next call tries again instead of failing until a reload —
@@ -31,7 +43,15 @@ export const createHttpSetup = (server: SubscriptionServer): HttpSetup => {
         }));
     const loadPort = () =>
         (port ??= load()
-            .then(module => module.createLiveHttpPort(server))
+            .then(module =>
+                module.createLiveHttpPort(
+                    server,
+                    cardEntry,
+                    options.sandbox && sandboxWindow
+                        ? { ...options.sandbox, paymentWindow: sandboxWindow.paymentWindow }
+                        : undefined
+                )
+            )
             .catch(error => {
                 port = undefined;
                 throw error;
@@ -50,5 +70,5 @@ export const createHttpSetup = (server: SubscriptionServer): HttpSetup => {
     const Host = ({ children }: { children: ReactNode }) =>
         createElement(Suspense, { fallback: null }, createElement(LazyHost, null, children));
 
-    return { port: proxy, Host };
+    return { port: proxy, Host, cardEntry, sandboxWindow: sandboxWindow?.host };
 };
