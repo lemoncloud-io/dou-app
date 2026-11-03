@@ -4,6 +4,13 @@
 
 ### Features
 
+- (web/mypage) show MY's subscription row to a browser guest
+- (web/mypage) list Raise DoU in the Lab for everyone, with the experiments in one card
+
+## [2026-11-03] - No version updates
+
+### Features
+
 - (mobile,bridge-messages,bridges) specify the sub WebView page protocol (ADR-0277)
 
 ## [2026-11-03] - root@0.143.0, @chatic/landing@0.17.0
