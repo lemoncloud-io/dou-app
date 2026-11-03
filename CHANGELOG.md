@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-03] - No version updates
+
+### Features
+
+- (web,bridge-messages) sign in from a relay code the shell hands back, the way desktop does
+
 ## [2026-11-02] - No version updates
 
 ### Features
