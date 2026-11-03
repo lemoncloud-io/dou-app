@@ -11,7 +11,7 @@ is [libs/sync](../../../sync/README.md)'s.
 ## Layout
 
 ```text
-data/                              24 source files, 17 tests
+data/                              25 source files, 19 tests
 ├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
@@ -19,6 +19,7 @@ data/                              24 source files, 17 tests
 ├── nativeCacheSupport.ts         what the installed shell says it can store
 ├── cloudChat.ts                  sendChatInCloud · getCloudRepositories · waitForCloudSocket — writes named by cloud
 ├── invitedCloudDurability.ts     the one domain the server cannot re-list
+├── invitedCloudSessionImport.ts  InvitedCloudImportStorage — a tab's one-time copy of its invited clouds out of IndexedDB
 ├── clearLocalCaches.ts           the settings "clear cache" — every known cloud, minus what only this device holds
 ├── syncCursorWatermark.ts        retires the cursors a clear could not reach, on the next boot
 ├── outbox.ts                     the offline chat outbox — a machine, not a policy
@@ -135,7 +136,7 @@ Each returns only the interfaces a repository consumes; no gateway instance esca
 
 - **`socketFactory`** builds the socket gateway bundle over a socket client — the active facade by default, one slot's `getScopedClient(key)` for a scoped graph. The auth, invite and cloud gateways are pinned to relay with `getScopedClient(RELAY_SLOT)` whichever client is passed, and `device` is a routed pair (`{ active, relay }`) so the one relay-only device write can name its destination without every caller learning about routing. `upload` rides the passed client like the other cloud domains — an image message's uploads go to the cloud it is sent in. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
 - **`httpFactory`** builds five HTTP data sources over the gateways in [transport docs/http/](../../../transport/docs/http/README.md): auth, user, cloud, subscription, report.
-- **`localFactory`** materializes `resolveCacheBackend`'s verdict as an adapter and wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta`. It holds the package's only module-level mutable state, a shared `IndexedDBDatabase`, because a database connection is a physical shared resource.
+- **`localFactory`** materializes `resolveCacheBackend`'s verdict as an adapter (IndexedDB, the native bridge, or — for invited clouds in a plain tab — `sessionStorage` behind a one-time IndexedDB import) and wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta`. It holds the package's only module-level mutable state, a shared `IndexedDBDatabase`, because a database connection is a physical shared resource.
 
 `localFactory` also produces two side outputs. It logs **one line per boot** naming the domains a
 native shell could not hold, so "why is this app re-downloading everything" is answerable from the
@@ -236,7 +237,15 @@ stopping stops at once. An observer that throws is logged, never passed on to th
 ### Invited clouds
 
 An invited cloud is the one domain with no server list API: if the row leaves the cache there is
-nothing to restore it from. Two functions defend it, both best-effort and both idempotent:
+nothing to restore it from.
+
+Where the row lives follows the device user that can enter it. In a plain browser tab that user is the
+tab's guest, kept in `sessionStorage`, so the row is kept there too and ends with the tab
+([cache-storage-routing.md](./cache-storage-routing.md#check-0-invited-clouds-in-a-plain-tab-live-with-the-tabs-guest)
+has the routing and the one-time import from IndexedDB). Inside the mobile shell it is native SQLite;
+inside the desktop shell, IndexedDB.
+
+Two functions defend it, both best-effort and both idempotent:
 
 - `recoverInvitedCloudIfMissing(cloud, cid)` — when a push names a cloud that is not in the cache, re-issue the relay delegation token and rebuild the endpoint from it. No name is written; the connection fills that in later. Since the one-time web-to-native migration was removed, this is the **only** recovery path left, and it is reactive: it repairs a cloud a push happens to name, never the list. It does nothing for `RELAY_CLOUD_ID`: the relay is never an invited cloud and `delegate-cloud` has no answer for it but a 404. A push names the relay `'#'`; its reader translates that before calling here.
 - `syncInvitedCloudName(cloud, cid)` — a delegation token carries no name, so the authoritative one is read with `cloud.get` once the socket verifies. This is the only source for it. The read goes to the relay, which holds the name the owner set; the invited cloud's own server keeps a copy that renames no longer reach.

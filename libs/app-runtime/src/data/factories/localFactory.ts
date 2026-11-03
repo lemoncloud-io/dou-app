@@ -14,9 +14,12 @@ import {
     NativeCacheMetricsSource,
     NativeDBAdapter,
     NativeGlobalSearchSource,
+    WebStorageAdapter,
 } from '@chatic/db';
 import { logger, webClient } from '@chatic/bridges';
+import { getRecordedCloudIds, identityStore } from '@chatic/session';
 import { type CacheBackend, resolveCacheBackend } from '../cacheStorageRouting';
+import { InvitedCloudImportStorage } from '../invitedCloudSessionImport';
 import { isNativeApp } from '../../utils/isNativeApp';
 import { isNativeCacheTypeUsable } from '../nativeCacheSupport';
 
@@ -50,19 +53,42 @@ const createIndexedDBAdapter = <TType extends CacheType>(
     return new IndexedDBAdapter(db, type, contextProvider);
 };
 
+/**
+ * The tab-lifetime store. Invited clouds — its only domain — were kept in IndexedDB before, so their
+ * store also carries the rows this tab entered there across, once per tab.
+ */
+const createSessionStorageAdapter = <TType extends CacheType>(
+    type: TType,
+    contextProvider: DataContextProvider
+): CacheStorage<TType> => {
+    const store = new WebStorageAdapter(sessionStorage, type, contextProvider);
+    if (type !== 'invitecloud') return store;
+    return new InvitedCloudImportStorage(
+        store as unknown as CacheStorage<'invitecloud'>,
+        () => createIndexedDBAdapter('invitecloud', contextProvider),
+        { marker: sessionStorage, getDelegatorId: () => identityStore.getDelegatorId(), getRecordedCloudIds }
+    ) as unknown as CacheStorage<TType>;
+};
+
 // Takes a DataContextProvider as a dependency instead of a DataContext snapshot.
 export const getCacheStorage = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider,
     cache?: CacheAssemblyOptions,
     backend: CacheBackend = resolveCacheBackend(type)
-): CacheStorage<TType> =>
+): CacheStorage<TType> => {
     // Where the type lands is decided in ONE place (see resolveCacheBackend); this factory only
     // materializes that decision as an adapter. The chat cap rides along unconditionally because
     // it only ever matters on the web backend — the adapter ignores it for non-chat types.
-    backend === 'web'
-        ? createIndexedDBAdapter(type, contextProvider, cache?.maxChatsPerChannel)
-        : new NativeDBAdapter(webClient, type, contextProvider);
+    switch (backend) {
+        case 'web':
+            return createIndexedDBAdapter(type, contextProvider, cache?.maxChatsPerChannel);
+        case 'session':
+            return createSessionStorageAdapter(type, contextProvider);
+        case 'native':
+            return new NativeDBAdapter(webClient, type, contextProvider);
+    }
+};
 
 // Global cache search source, regardless of cloud (cid). The implementation differs per
 // environment (IndexedDB range scan vs. native bridge), but the expected behavior must be the same
