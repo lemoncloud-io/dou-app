@@ -1,4 +1,4 @@
-import { finishTransaction, initConnection, requestPurchase } from 'react-native-iap';
+import { fetchProducts, finishTransaction, initConnection, requestPurchase } from 'react-native-iap';
 
 import { SubscriptionIapService } from './SubscriptionIapService';
 
@@ -17,6 +17,7 @@ jest.mock('./config', () => ({ itemSkus: ['sku_pro'], getReplacementMode: () => 
 const initMock = initConnection as jest.Mock;
 const purchaseMock = requestPurchase as jest.Mock;
 const finishMock = finishTransaction as jest.Mock;
+const fetchProductsMock = fetchProducts as jest.Mock;
 
 describe('SubscriptionIapService — 스토어 실패 기록', () => {
     const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
@@ -78,5 +79,69 @@ describe('SubscriptionIapService — 스토어 실패 기록', () => {
         const infoCalls = JSON.stringify((logger as unknown as { info: jest.Mock }).info.mock.calls);
         expect(infoCalls).not.toContain('secret-offer-token');
         expect(infoCalls).toContain('hasOfferToken=true');
+    });
+});
+
+describe('SubscriptionIapService — iOS catalog mapping', () => {
+    const logger = { error: jest.fn(), info: jest.fn(), debug: jest.fn(), warn: jest.fn() } as never;
+    let service: SubscriptionIapService;
+
+    // The fields StoreKit actually returns for an auto-renewable subscription (react-native-iap v14).
+    const iosProduct = {
+        id: 'sku_pro',
+        title: 'DoU Pro (1 Place)',
+        displayName: 'DoU Pro (1 Place)',
+        displayPrice: '$6.00',
+        currency: 'USD',
+        price: 6,
+        platform: 'ios',
+        type: 'subs',
+        subscriptionPeriodNumberIOS: '1',
+        subscriptionPeriodUnitIOS: 'month',
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        service = new SubscriptionIapService(logger);
+    });
+
+    // The web refuses to sell a plan with no store price, so losing this field blocks every iOS purchase.
+    it('keeps the store displayPrice on an iOS product', async () => {
+        fetchProductsMock.mockResolvedValue([iosProduct]);
+
+        const [product] = await service.getSubscriptions();
+
+        expect(product.displayPrice).toBe('$6.00');
+        expect(product.displayName).toBe('DoU Pro (1 Place)');
+        expect(product.billingPeriod).toBe('P1M');
+        expect(product.periodUnit).toBe('month');
+        expect(product.periodNumber).toBe(1);
+    });
+
+    it('leaves the billing period unset when the store gives no period', async () => {
+        fetchProductsMock.mockResolvedValue([
+            { ...iosProduct, subscriptionPeriodNumberIOS: null, subscriptionPeriodUnitIOS: null },
+        ]);
+
+        const [product] = await service.getSubscriptions();
+
+        expect(product.displayPrice).toBe('$6.00');
+        expect(product.billingPeriod).toBeUndefined();
+        expect(product.periodNumber).toBeUndefined();
+    });
+
+    it('treats an empty period unit as no billing period', async () => {
+        fetchProductsMock.mockResolvedValue([{ ...iosProduct, subscriptionPeriodUnitIOS: 'empty' }]);
+
+        const [product] = await service.getSubscriptions();
+
+        expect(product.billingPeriod).toBeUndefined();
+        expect(product.periodUnit).toBeUndefined();
+    });
+
+    it('returns an empty list when the store returns nothing', async () => {
+        fetchProductsMock.mockResolvedValue(null);
+
+        await expect(service.getSubscriptions()).resolves.toEqual([]);
     });
 });

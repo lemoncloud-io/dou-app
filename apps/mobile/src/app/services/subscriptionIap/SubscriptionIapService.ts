@@ -6,7 +6,7 @@ import {
     initConnection,
     requestPurchase,
 } from 'react-native-iap';
-import type { Purchase } from 'react-native-iap';
+import type { ProductSubscriptionIOS, Purchase } from 'react-native-iap';
 
 import { getReplacementMode, itemSkus } from './config';
 import type { ILogService } from '../log';
@@ -113,19 +113,25 @@ export class SubscriptionIapService implements ISubscriptionIapService {
             });
         }
 
-        return (products as any[]).map(product => {
+        // Typed rather than `any`: the old `any` let this read `localizedPrice`, a field iOS products
+        // no longer carry, and the `undefined` it returned overwrote the store's own `displayPrice`.
+        // The web shows only the store's price, so every iOS plan read as "store unavailable".
+        return (products as ProductSubscriptionIOS[]).map(product => {
             const num = product.subscriptionPeriodNumberIOS;
-            const unit = product.subscriptionPeriodUnitIOS;
+            // StoreKit reports `empty` for a product with no period; passing it on would read as a
+            // 'P1E' billing period.
+            const rawUnit = product.subscriptionPeriodUnitIOS;
+            const unit = rawUnit && rawUnit !== 'empty' ? rawUnit : undefined;
             const billingPeriod = num && unit ? `P${num}${unit.charAt(0).toUpperCase()}` : undefined;
 
             return {
                 ...product,
                 id: product.id,
                 displayName: product.title,
-                displayPrice: product.localizedPrice,
+                displayPrice: product.displayPrice,
                 currency: product.currency,
                 billingPeriod,
-                periodUnit: unit || undefined,
+                periodUnit: unit,
                 periodNumber: num ? Number(num) : undefined,
             };
         });
