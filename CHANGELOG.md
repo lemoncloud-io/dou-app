@@ -2,6 +2,12 @@
 
 ## [2026-11-03] - No version updates
 
+### Features
+
+- (web,web-e2e) hand a browser tab's subscription to the website, not "app only" (ADR-0276)
+
+## [2026-11-03] - No version updates
+
 ### Bug Fixes
 
 - (app-runtime,db,web) keep a browser tab's invited clouds in session storage (ADR-0275)
