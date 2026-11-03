@@ -1,5 +1,6 @@
 import { createBridgeClient, type BridgeClient } from './client';
 import { ChaticAppsError } from './errors';
+import { browserStorage, storageOver, type ChaticAppsStorage } from './storage';
 import { isInApp, nativeTransport, type Transport } from './transport';
 import type { ChaticAppsContext, CloseTrigger, HapticKind } from './types';
 
@@ -14,7 +15,8 @@ export type Capability =
     | 'userKey'
     | 'back'
     | 'closeGuard'
-    | 'errorReport';
+    | 'errorReport'
+    | 'storage';
 
 /** The request behind each capability. */
 const REQUESTS: Record<Capability, string> = {
@@ -28,6 +30,7 @@ const REQUESTS: Record<Capability, string> = {
     back: 'SetCanGoBack',
     closeGuard: 'SetSubWebViewCloseGuard',
     errorReport: 'ReportSubWebViewError',
+    storage: 'GetSubWebViewStorage',
 };
 
 /** The protocol major this library speaks. */
@@ -85,6 +88,11 @@ export interface ChaticApps {
      * value can be the user's own data, which must not reach a log.
      */
     reportError(error: unknown): Promise<boolean>;
+    /**
+     * This page's own storage, on the device, apart from every other page's. In a browser tab, the
+     * browser's `localStorage` under the same limits.
+     */
+    readonly storage: ChaticAppsStorage;
     /**
      * Takes Android's back button while `handler` is set: each press calls it, and nothing else
      * happens. `null` gives back to the app.
@@ -244,6 +252,10 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
             ? client.request<T>(REQUESTS[capability], data, timeoutMs === undefined ? {} : { timeoutMs })
             : Promise.reject(notSupported(capability));
 
+    // The storage requests come together: an app that answers one answers all five.
+    const stored = <T>(type: string, data: object) =>
+        supports('storage') ? client.request<T>(type, data) : Promise.reject(notSupported('storage'));
+
     const announce = (context: ChaticAppsContext) =>
         contextListeners.forEach(listener => {
             try {
@@ -338,6 +350,13 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
                       .then(reply => !!reply?.recorded)
                       .catch(() => false)
                 : Promise.resolve(false),
+        storage: storageOver({
+            get: keys => stored('GetSubWebViewStorage', { keys }),
+            set: entries => stored('SetSubWebViewStorage', { entries }),
+            remove: keys => stored('RemoveSubWebViewStorage', { keys }),
+            clear: () => stored('ClearSubWebViewStorage', {}),
+            info: () => stored('GetSubWebViewStorageInfo', {}),
+        }),
         onBack: handler => {
             backHandler = handler;
             assertClaims();
@@ -418,6 +437,7 @@ const browserApps = (): ChaticApps => {
             console.error(error);
             return false;
         },
+        storage: browserStorage(),
         onBack: () => undefined,
         onCloseRequest: () => undefined,
         onContextChange: () => () => undefined,

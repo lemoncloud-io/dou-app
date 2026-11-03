@@ -2,7 +2,9 @@ import { BRIDGE_VERSION } from '@chatic/bridges';
 import { SDK_BRIDGE_VERSION, type Capability } from '@chatic/chatic-apps-sdk';
 import { connectOver, type Transport } from '@chatic/chatic-apps-sdk/internal';
 
+import { memoryStorageFile } from '../services/subWebView/memoryStorageFile';
 import { SubWebViewService } from '../services/subWebView/SubWebViewService';
+import { SubWebViewStorage } from '../services/subWebView/subWebViewStorage';
 import { createSubBridgeHost } from './createSubBridgeHost';
 import { createSubBridgeHandlers, permittedSubBridgeHandlers } from './subBridgeHandlers';
 
@@ -13,18 +15,20 @@ import { createSubBridgeHandlers, permittedSubBridgeHandlers } from './subBridge
  * fails here, before a page on a phone finds it.
  */
 
-const CAPABILITIES: Capability[] = [
-    'finish',
-    'title',
-    'haptic',
-    'clipboard',
-    'share',
-    'openUrl',
-    'userKey',
-    'back',
-    'closeGuard',
-    'errorReport',
-];
+// Keyed by every capability, so one the library adds fails to compile here until it is listed.
+const CAPABILITIES = Object.keys({
+    finish: true,
+    title: true,
+    haptic: true,
+    clipboard: true,
+    share: true,
+    openUrl: true,
+    userKey: true,
+    back: true,
+    closeGuard: true,
+    errorReport: true,
+    storage: true,
+} satisfies Record<Capability, true>) as Capability[];
 
 const ALL = new Set(['clipboard', 'share', 'openUrl', 'userKey'] as const);
 
@@ -32,6 +36,7 @@ const setup = (
     permissions: ReadonlySet<'clipboard' | 'share' | 'openUrl' | 'userKey'> = ALL,
     deviceId = 'device-1'
 ) => {
+    const storage = new SubWebViewStorage(memoryStorageFile());
     const service = new SubWebViewService(
         { warn: jest.fn(), error: jest.fn() } as never,
         ['apps.chatic.io'],
@@ -51,6 +56,7 @@ const setup = (
         setBackClaim: jest.fn(),
         setCloseGuard: jest.fn(),
         logPageError: jest.fn(),
+        openStorage: () => storage,
     };
     let toPage: ((message: string) => void) | undefined;
     const host = createSubBridgeHost(
@@ -115,6 +121,11 @@ describe('chatic-apps-sdk against the page host', () => {
         await expect(apps.share({ message: 'Try it', url: apps.link('/level') })).resolves.toBe('shared');
         await expect(apps.getUserKey()).resolves.toMatch(/^[0-9a-f]{64}$/);
         await expect(apps.reportError(new Error('boom'))).resolves.toBe(true);
+        await apps.storage.setMany({ level: 3, best: { score: 12 } });
+        await apps.storage.remove('level');
+        await expect(apps.storage.getMany(['level', 'best'])).resolves.toEqual({ best: { score: 12 } });
+        await expect(apps.storage.keys()).resolves.toEqual(['best']);
+        await expect(apps.storage.usage()).resolves.toEqual({ used: 16, limit: 1048576 });
         await settle();
 
         expect(deps.setTitle).toHaveBeenCalledWith('Quiz');
@@ -141,6 +152,11 @@ describe('chatic-apps-sdk against the page host', () => {
         );
         await expect(apps.getUserKey()).rejects.toEqual(expect.objectContaining({ code: 'UNAVAILABLE' }));
         await expect(apps.copy('x'.repeat(70 * 1024))).rejects.toEqual(expect.objectContaining({ code: 'TOO_LARGE' }));
+        await expect(apps.storage.get('')).rejects.toEqual(expect.objectContaining({ code: 'INVALID' }));
+        for (let i = 0; i < 16; i++) await apps.storage.set(`chunk${i}`, 'x'.repeat(64000));
+        await expect(apps.storage.set('more', 'x'.repeat(64000))).rejects.toEqual(
+            expect.objectContaining({ code: 'QUOTA_EXCEEDED' })
+        );
     });
 
     it("claims back and the close guard, and hears the view's pushes", async () => {

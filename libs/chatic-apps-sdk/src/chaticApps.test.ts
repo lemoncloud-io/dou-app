@@ -138,6 +138,36 @@ describe('connect, against the mock app', () => {
         expect(apps.context?.theme).toBe('dark');
     });
 
+    it("keeps the page's data in the app's storage, without a permission", async () => {
+        const { apps, mock } = await start({ storage: { seen: true } });
+
+        expect(apps.supports('storage')).toBe(true);
+        await apps.storage.setMany({ level: 3, best: { score: 12 } });
+        await apps.storage.remove('seen');
+
+        await expect(apps.storage.get('level')).resolves.toBe(3);
+        await expect(apps.storage.getMany(['best', 'seen'])).resolves.toEqual({ best: { score: 12 } });
+        await expect(apps.storage.keys()).resolves.toEqual(['level', 'best']);
+        await expect(apps.storage.usage()).resolves.toEqual({ used: 22, limit: 1048576 });
+        expect(mock.storage).toEqual({ level: 3, best: { score: 12 } });
+        await apps.storage.clear();
+        expect(mock.storage).toEqual({});
+    });
+
+    it('refuses a storage seed the app would refuse', () => {
+        expect(() => installChaticAppsMock({ log: false, storage: { '': 1 } })).toThrow('options.storage');
+    });
+
+    it("hands back the storage's refusals with their codes", async () => {
+        const { apps } = await start();
+
+        await expect(apps.storage.set('a', 'x'.repeat(60 * 1024))).resolves.toBeUndefined();
+        await expect(apps.storage.set('b', 'x'.repeat(70 * 1024))).rejects.toEqual(
+            expect.objectContaining({ code: 'TOO_LARGE' })
+        );
+        await expect(apps.storage.get('')).rejects.toEqual(expect.objectContaining({ code: 'INVALID' }));
+    });
+
     it('builds links from the context, and from the page itself without one', async () => {
         const { apps } = await start({ context: { appLink: 'https://app.chatic.io/apps/quiz' } });
 
@@ -233,6 +263,15 @@ describe('connect, in a browser tab', () => {
         await expect(apps.finish()).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
         await expect(apps.getUserKey()).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
         expect(apps.link('/a')).toBe(`${location.origin}/a`);
+    });
+
+    it('keeps storage in the browser, under the same calls', async () => {
+        const apps = await connect();
+
+        await apps.storage.set('level', 3);
+
+        await expect(apps.storage.get('level')).resolves.toBe(3);
+        await apps.storage.clear();
     });
 
     it('treats only a cancel as dismissed, and copies on any other share failure', async () => {

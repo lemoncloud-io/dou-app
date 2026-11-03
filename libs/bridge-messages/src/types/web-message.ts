@@ -82,6 +82,11 @@ import type {
     GetSubWebViewUserKeyPayload,
     SetSubWebViewCloseGuardPayload,
     ReportSubWebViewErrorPayload,
+    GetSubWebViewStoragePayload,
+    SetSubWebViewStoragePayload,
+    RemoveSubWebViewStoragePayload,
+    ClearSubWebViewStoragePayload,
+    GetSubWebViewStorageInfoPayload,
     GetContactsPayload,
     FetchAppIconPayload,
     FetchAppIconListPayload,
@@ -259,6 +264,11 @@ export type WebMessagePayloadMap = {
     GetSubWebViewUserKey: GetSubWebViewUserKeyPayload;
     SetSubWebViewCloseGuard: SetSubWebViewCloseGuardPayload;
     ReportSubWebViewError: ReportSubWebViewErrorPayload;
+    GetSubWebViewStorage: GetSubWebViewStoragePayload;
+    SetSubWebViewStorage: SetSubWebViewStoragePayload;
+    RemoveSubWebViewStorage: RemoveSubWebViewStoragePayload;
+    ClearSubWebViewStorage: ClearSubWebViewStoragePayload;
+    GetSubWebViewStorageInfo: GetSubWebViewStorageInfoPayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */
@@ -271,9 +281,9 @@ type RequestsIn<T extends WebMessageType> = T;
  * The requests a sub WebView page may send: the only ones its host registers, so the only ones its
  * handshake lists. Each one is safe whoever sends it, or gets a handler of its own on that host
  * (`OpenURL` there opens only what the sub WebView would hand to the OS; `OpenShareSheet` shares only
- * text and a web link; `SetCanGoBack` claims Android back for the page alone). Nothing here reaches the app's storage, purchases or files, and the one
- * identifier, `GetSubWebViewUserKey`, is scoped to the page's own origin: a one-way key, never the
- * device id.
+ * text and a web link; `SetCanGoBack` claims Android back for the page alone). Nothing here reaches
+ * the app's own storage, purchases or files: the storage requests reach only the page's own store,
+ * and the one identifier, `GetSubWebViewUserKey`, is a one-way key per origin, never the device id.
  */
 export type SubWebViewRequestType = RequestsIn<
     | 'WebAppReady'
@@ -288,6 +298,11 @@ export type SubWebViewRequestType = RequestsIn<
     | 'SetCanGoBack'
     | 'SetSubWebViewCloseGuard'
     | 'ReportSubWebViewError'
+    | 'GetSubWebViewStorage'
+    | 'SetSubWebViewStorage'
+    | 'RemoveSubWebViewStorage'
+    | 'ClearSubWebViewStorage'
+    | 'GetSubWebViewStorageInfo'
 >;
 
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {

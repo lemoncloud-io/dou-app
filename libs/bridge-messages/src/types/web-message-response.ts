@@ -117,6 +117,11 @@ export const WEB_MESSAGE_RESPONSE_TYPE = {
     GetSubWebViewUserKey: 'OnGetSubWebViewUserKey',
     SetSubWebViewCloseGuard: 'OnSetSubWebViewCloseGuard',
     ReportSubWebViewError: 'OnReportSubWebViewError',
+    GetSubWebViewStorage: 'OnGetSubWebViewStorage',
+    SetSubWebViewStorage: 'OnSetSubWebViewStorage',
+    RemoveSubWebViewStorage: 'OnRemoveSubWebViewStorage',
+    ClearSubWebViewStorage: 'OnClearSubWebViewStorage',
+    GetSubWebViewStorageInfo: 'OnGetSubWebViewStorageInfo',
 } as const satisfies Record<WebMessageType, AppMessageType>;
 
 export type WebMessageResponseTypeMap = typeof WEB_MESSAGE_RESPONSE_TYPE;

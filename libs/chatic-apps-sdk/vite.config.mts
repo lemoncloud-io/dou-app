@@ -42,8 +42,15 @@ export default defineConfig({
         reportCompressedSize: false,
         lib: {
             entry: { index: 'src/index.ts', mock: 'src/mock.ts' },
-            formats: ['es', 'cjs'],
-            fileName: (format, entry) => `${entry}.${format === 'es' ? 'js' : 'cjs'}`,
+        },
+        rollupOptions: {
+            // Named per format, chunks too: the published package is `"type": "module"`, so ES modules
+            // are `.js` and CommonJS `.cjs`. Vite's own chunk names follow this workspace's manifest,
+            // which has no type, and would ship an `.mjs` the package's `files` leave out.
+            output: [
+                { format: 'es', entryFileNames: '[name].js', chunkFileNames: '[name]-[hash].js' },
+                { format: 'cjs', entryFileNames: '[name].cjs', chunkFileNames: '[name]-[hash].cjs' },
+            ],
         },
     },
 });

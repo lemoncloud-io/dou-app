@@ -11,6 +11,11 @@ import type { IHapticBridge } from '../bridge';
 import { HAPTIC_KINDS } from '../bridge/hapticKinds';
 import type { IClipboardService, ISubWebViewService } from '../services';
 import { SUB_WEBVIEW_TITLE_LIMIT } from '../services/subWebView/subWebViewData';
+import {
+    SUB_WEBVIEW_STORAGE_LIMIT,
+    type StorageResult,
+    type SubWebViewStorage,
+} from '../services/subWebView/subWebViewStorage';
 import { originOf } from '../utils/url';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
 import { deriveSubWebViewUserKey } from './subWebViewUserKey';
@@ -45,6 +50,11 @@ export interface SubBridgeDeps {
     setCloseGuard: (enabled: boolean) => void;
     /** Writes a page's error report to the app's logs, under the opened origin. */
     logPageError: (report: { origin: string | null; message: string; stack?: string }) => void;
+    /**
+     * The opened origin's storage, opened on the first request that needs it; `null` when the view
+     * has no origin to keep it under, or its file cannot be opened.
+     */
+    openStorage: () => Pick<SubWebViewStorage, 'get' | 'set' | 'remove' | 'clear' | 'info'> | null;
 }
 
 /**
@@ -103,6 +113,19 @@ const fail = <T extends string>(type: T, code: string, message: string) => ({
     success: false,
     error: { code, message },
 });
+
+/** A storage call's reply: its value, or its code, with a message for a developer. */
+const storageReply = <T extends string, V>(type: T, result: StorageResult<V> | null) => {
+    if (!result) return fail(type, 'UNAVAILABLE', 'This view has no storage.');
+    if (result.ok) return { type, success: true as const, data: result.value };
+    return fail(
+        type,
+        result.code,
+        result.code === 'QUOTA_EXCEEDED'
+            ? `This would take the page's storage past ${SUB_WEBVIEW_STORAGE_LIMIT} characters.`
+            : 'Keys are 1 to 200 characters; values must be JSON.'
+    );
+};
 
 /**
  * The page-facing handlers. Written for this host rather than borrowed from the main WebView's, which
@@ -256,5 +279,17 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             });
             return { type: 'OnReportSubWebViewError', success: true, data: { recorded: true } };
         },
+
+        // Always the opened origin's storage, chosen by the view: nothing in a request names it.
+        GetSubWebViewStorage: async message =>
+            storageReply('OnGetSubWebViewStorage', deps.openStorage()?.get(message.data?.keys) ?? null),
+        SetSubWebViewStorage: async message =>
+            storageReply('OnSetSubWebViewStorage', deps.openStorage()?.set(message.data?.entries) ?? null),
+        RemoveSubWebViewStorage: async message =>
+            storageReply('OnRemoveSubWebViewStorage', deps.openStorage()?.remove(message.data?.keys) ?? null),
+        ClearSubWebViewStorage: async () =>
+            storageReply('OnClearSubWebViewStorage', deps.openStorage()?.clear() ?? null),
+        GetSubWebViewStorageInfo: async () =>
+            storageReply('OnGetSubWebViewStorageInfo', deps.openStorage()?.info() ?? null),
     };
 };

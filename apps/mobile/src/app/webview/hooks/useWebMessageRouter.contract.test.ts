@@ -22,6 +22,11 @@ const MOBILE_UNSUPPORTED = {
     GetSubWebViewUserKey: "A sub WebView page's request, answered by that view's own host (subWebView/)",
     SetSubWebViewCloseGuard: "A sub WebView page's request, answered by that view's own host (subWebView/)",
     ReportSubWebViewError: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    GetSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    SetSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    RemoveSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    ClearSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    GetSubWebViewStorageInfo: "A sub WebView page's request, answered by that view's own host (subWebView/)",
 } satisfies Partial<Record<WebMessageType, string>>;
 
 // Per-handler behaviour for the loopback cases below; every other handler is a bare mock.

@@ -1,6 +1,8 @@
 import type { ShareAction } from 'react-native';
 
+import { memoryStorageFile } from '../services/subWebView/memoryStorageFile';
 import { SubWebViewService } from '../services/subWebView/SubWebViewService';
+import { SubWebViewStorage } from '../services/subWebView/subWebViewStorage';
 import type { SubWebViewEvent } from '../services/subWebView/types';
 import { createSubBridgeHandlers, PERMISSION_REQUESTS, permittedSubBridgeHandlers } from './subBridgeHandlers';
 import { deriveSubWebViewUserKey } from './subWebViewUserKey';
@@ -10,6 +12,7 @@ const message = (data: unknown) => ({ type: 'x', data }) as any;
 const DEVICE_ID = '6E1C3B0A-9D2F-4C8E-B7A1-2F5D8E3C4B6A';
 
 const setup = () => {
+    const storage = new SubWebViewStorage(memoryStorageFile());
     const service = new SubWebViewService(
         { warn: jest.fn(), error: jest.fn() } as any,
         ['apps.chatic.io'],
@@ -31,6 +34,7 @@ const setup = () => {
         setBackClaim: jest.fn(),
         setCloseGuard: jest.fn(),
         logPageError: jest.fn(),
+        openStorage: jest.fn((): SubWebViewStorage | null => storage),
     };
     return { handlers: createSubBridgeHandlers(deps), deps, service, events };
 };
@@ -493,6 +497,49 @@ describe('createSubBridgeHandlers', () => {
     });
 });
 
+describe('the storage handlers', () => {
+    it('stores, reads back, reports usage, removes and clears', async () => {
+        const { handlers } = setup();
+
+        const set = await handlers.SetSubWebViewStorage(message({ entries: { level: 3 } }));
+        const got = await handlers.GetSubWebViewStorage(message({ keys: ['level', 'missing'] }));
+        const info = await handlers.GetSubWebViewStorageInfo(message({}));
+        const removed = await handlers.RemoveSubWebViewStorage(message({ keys: ['level'] }));
+        const cleared = await handlers.ClearSubWebViewStorage(message({}));
+
+        expect(set).toEqual({ type: 'OnSetSubWebViewStorage', success: true, data: { used: 6, limit: 1048576 } });
+        expect(got).toEqual({ type: 'OnGetSubWebViewStorage', success: true, data: { entries: { level: 3 } } });
+        expect(info).toEqual(expect.objectContaining({ data: { keys: ['level'], used: 6, limit: 1048576 } }));
+        expect(removed).toEqual(expect.objectContaining({ data: { used: 0, limit: 1048576 } }));
+        expect(cleared).toEqual({ type: 'OnClearSubWebViewStorage', success: true, data: {} });
+    });
+
+    it('answers QUOTA_EXCEEDED and INVALID with their codes', async () => {
+        const { handlers } = setup();
+
+        const tooMuch = await handlers.SetSubWebViewStorage(message({ entries: { a: 'x'.repeat(1048576) } }));
+        const badKey = await handlers.GetSubWebViewStorage(message({ keys: [''] }));
+
+        expect(tooMuch).toEqual(
+            expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'QUOTA_EXCEEDED' }) })
+        );
+        expect(badKey).toEqual(
+            expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
+        );
+    });
+
+    it('answers UNAVAILABLE when the view has no storage', async () => {
+        const { deps } = setup();
+        const handlers = createSubBridgeHandlers({ ...deps, openStorage: () => null });
+
+        const reply = await handlers.GetSubWebViewStorageInfo(message({}));
+
+        expect(reply).toEqual(
+            expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'UNAVAILABLE' }) })
+        );
+    });
+});
+
 describe('permittedSubBridgeHandlers', () => {
     const all = () => createSubBridgeHandlers(setup().deps);
 
@@ -507,6 +554,11 @@ describe('permittedSubBridgeHandlers', () => {
                 'SetCanGoBack',
                 'SetSubWebViewCloseGuard',
                 'ReportSubWebViewError',
+                'GetSubWebViewStorage',
+                'SetSubWebViewStorage',
+                'RemoveSubWebViewStorage',
+                'ClearSubWebViewStorage',
+                'GetSubWebViewStorageInfo',
             ].sort()
         );
     });
@@ -515,6 +567,6 @@ describe('permittedSubBridgeHandlers', () => {
         const kept = permittedSubBridgeHandlers(all(), new Set([permission as never]));
 
         expect(kept).toHaveProperty(request);
-        expect(Object.keys(kept)).toHaveLength(7);
+        expect(Object.keys(kept)).toHaveLength(12);
     });
 });
