@@ -84,7 +84,8 @@ export type SubWebViewPageErrorCode =
     | 'OPEN_URL_FAILED'
     | 'CLIPBOARD_WRITE_ERROR'
     | 'SHARE_ERROR'
-    | 'UNAVAILABLE';
+    | 'UNAVAILABLE'
+    | 'QUOTA_EXCEEDED';
 
 /**
  * Why a sub WebView closed:
@@ -250,4 +251,67 @@ export type ReportSubWebViewErrorPayload = {
 /** [Response] Whether the error was recorded; `false` once the page load has used its 20. */
 export type OnReportSubWebViewErrorPayload = {
     recorded: boolean;
+};
+
+/**
+ * A page's own storage, kept by the app for the page's origin: no other page can read or clear it, and
+ * the origin is the app's record of where the view opened, never anything in a request. It belongs to
+ * the device, like the user key — it stays across sign-outs and app restarts, and goes with the app.
+ *
+ * Values are JSON. What a page holds is counted as the characters of its keys and its values serialized,
+ * up to 1,048,576 for the origin; a write that would go past it fails with `QUOTA_EXCEEDED` and changes
+ * nothing. A key is 1–200 characters. Every request is in the base set: it reaches nothing but the
+ * page's own data.
+ */
+
+/** [Request, from a sub WebView page] Read `keys`. */
+export type GetSubWebViewStoragePayload = {
+    keys: string[];
+};
+
+/** [Response] The stored values; a key with nothing stored is left out. */
+export type OnGetSubWebViewStoragePayload = {
+    entries: { [key: string]: unknown };
+};
+
+/** [Request, from a sub WebView page] Store each entry, all or none. */
+export type SetSubWebViewStoragePayload = {
+    entries: { [key: string]: unknown };
+};
+
+/** How much of its storage a page uses, in characters. */
+export type SubWebViewStorageUsage = {
+    used: number;
+    limit: number;
+};
+
+/** [Response] Stored; how much is used now. */
+export type OnSetSubWebViewStoragePayload = SubWebViewStorageUsage;
+
+/** [Request, from a sub WebView page] Remove `keys`; a key with nothing stored is no error. */
+export type RemoveSubWebViewStoragePayload = {
+    keys: string[];
+};
+
+/** [Response] Removed; how much is used now. */
+export type OnRemoveSubWebViewStoragePayload = SubWebViewStorageUsage;
+
+/** [Request, from a sub WebView page] Remove everything this page stored. */
+export type ClearSubWebViewStoragePayload = {
+    // Empty object type, reserved for future extension (optional fields, etc.).
+};
+
+/** [Response] The page's storage is empty. */
+export type OnClearSubWebViewStoragePayload = {
+    // Empty object type, reserved for future extension (optional fields, etc.).
+};
+
+/** [Request, from a sub WebView page] What the page has stored: its keys and how much they use. */
+export type GetSubWebViewStorageInfoPayload = {
+    // Empty object type, reserved for future extension (optional fields, etc.).
+};
+
+/** [Response] The page's keys, and its usage. */
+export type OnGetSubWebViewStorageInfoPayload = SubWebViewStorageUsage & {
+    keys: string[];
 };

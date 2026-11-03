@@ -1,7 +1,7 @@
 # The sub WebView protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.17.0. What is marked **(2.15.0)**, **(2.16.0)** or
-> **(2.17.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.18.0. What is marked **(2.15.0)**, **(2.16.0)**,
+> **(2.17.0)** or **(2.18.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
 > rather than from a version number.
 
 What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
@@ -196,8 +196,9 @@ A page declares what it needs in a manifest, served from its own origin at
 | `orientation`     | `any`, `portrait`, `landscape`                                     | `any`                      |
 
 **Every page gets the base set**: `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle`,
-`TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`. None of them
-reaches anything outside the view. **The rest is declared**, one capability per request:
+`TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, and **(2.18.0)**
+the five [storage](#storage-2180) requests. None of them reaches anything outside the view — storage
+holds only what the page itself put there. **The rest is declared**, one capability per request:
 
 | Permission  | Unlocks                | Why it is declared                                        |
 | ----------- | ---------------------- | --------------------------------------------------------- |
@@ -285,6 +286,8 @@ that succeeded. The main web's client does the same; its reasoning and measureme
 | `params` (from the opener), `result` (to it) | 16 KiB serialized, JSON only        | `INVALID`               |
 | Title in the bar                             | 1–100 characters after trimming     | `INVALID`               |
 | Share sheet title / message / link           | 100 / 4,000 / 2,048 characters      | `INVALID`               |
+| **(2.18.0)** A storage key                   | 1–200 characters                    | `INVALID`               |
+| **(2.18.0)** One origin's storage, in all    | 1,048,576 characters                | `QUOTA_EXCEEDED`        |
 
 Lengths are string lengths (UTF-16 code units), not bytes.
 
@@ -292,19 +295,20 @@ Lengths are string lengths (UTF-16 code units), not bytes.
 
 A page MUST treat a code it does not know as a failure of that request and nothing more.
 
-| Code                    | Raised by                   | Meaning                                                                                       |
-| ----------------------- | --------------------------- | --------------------------------------------------------------------------------------------- |
-| `NOT_FOUND`             | the host                    | Not in this host's subset, or not in the page's manifest (2.16.0). Expected from an older app |
-| `INTERNAL_ERROR`        | the host                    | A handler failed unexpectedly. Retrying MAY work                                              |
-| `TOO_LARGE`             | the host **(2.15.0)**       | The message is over 64 KiB                                                                    |
-| `INVALID`               | most requests               | A field is missing, of the wrong type, or over its limit                                      |
-| `INVALID_KIND`          | `TriggerHaptic`             | `kind` is not one of the listed values                                                        |
-| `NOT_OPEN`              | `FinishSubWebView`          | The view already closed                                                                       |
-| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet` | The link is not one this request may open or share                                            |
-| `OPEN_URL_FAILED`       | `OpenURL`                   | The OS could not open an allowed link                                                         |
-| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`           | The OS refused the write                                                                      |
-| `SHARE_ERROR`           | `OpenShareSheet`            | The OS share sheet failed                                                                     |
-| `UNAVAILABLE`           | `GetSubWebViewUserKey`      | The device has no id to derive a key from                                                     |
+| Code                    | Raised by                                                 | Meaning                                                                                       |
+| ----------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `NOT_FOUND`             | the host                                                  | Not in this host's subset, or not in the page's manifest (2.16.0). Expected from an older app |
+| `INTERNAL_ERROR`        | the host                                                  | A handler failed unexpectedly. Retrying MAY work                                              |
+| `TOO_LARGE`             | the host **(2.15.0)**                                     | The message is over 64 KiB                                                                    |
+| `INVALID`               | most requests                                             | A field is missing, of the wrong type, or over its limit                                      |
+| `INVALID_KIND`          | `TriggerHaptic`                                           | `kind` is not one of the listed values                                                        |
+| `NOT_OPEN`              | `FinishSubWebView`                                        | The view already closed                                                                       |
+| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet`                               | The link is not one this request may open or share                                            |
+| `OPEN_URL_FAILED`       | `OpenURL`                                                 | The OS could not open an allowed link                                                         |
+| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`                                         | The OS refused the write                                                                      |
+| `SHARE_ERROR`           | `OpenShareSheet`                                          | The OS share sheet failed                                                                     |
+| `UNAVAILABLE`           | `GetSubWebViewUserKey`, the storage requests **(2.18.0)** | The device has no id to derive a key from, or the shell could not open the page's storage     |
+| `QUOTA_EXCEEDED`        | `SetSubWebViewStorage`                                    | **(2.18.0)** The write would take the origin's storage past its limit; nothing was written    |
 
 `INVALID_KIND` is `INVALID` under an older name; it stays, since renaming a code breaks a page that
 reads it. The codes are `SubWebViewPageErrorCode` in `@chatic/bridge-messages` **(2.15.0)**.
@@ -436,6 +440,37 @@ written. A page SHOULD report from `window.onerror` and `unhandledrejection`, wh
 `chatic-apps-sdk` does. The report reaches the app's logs and nothing else: a page MUST NOT put
 the user's data in it.
 
+### Storage (2.18.0)
+
+Five requests over one store per origin, in the base set: a page needs no permission to keep its own
+data.
+
+| Request                    | Data                           | Reply                             | Errors                      |
+| -------------------------- | ------------------------------ | --------------------------------- | --------------------------- |
+| `GetSubWebViewStorage`     | `{ keys: string[] }`           | `{ entries: { [key]: JSON } }`    | `INVALID`                   |
+| `SetSubWebViewStorage`     | `{ entries: { [key]: JSON } }` | `{ used, limit }`                 | `INVALID`, `QUOTA_EXCEEDED` |
+| `RemoveSubWebViewStorage`  | `{ keys: string[] }`           | `{ used, limit }`                 | `INVALID`                   |
+| `ClearSubWebViewStorage`   | `{}`                           | `{}`                              |                             |
+| `GetSubWebViewStorageInfo` | `{}`                           | `{ keys: string[], used, limit }` |                             |
+
+- **One store per opened origin.** Every page load on an origin, and every view opened on it, sees the
+  same store; no page on another origin can name it, read it or count it. The store belongs to the
+  origin, not to a URL path: two pages on one origin share it.
+- **Kept on this device, across launches and sign-outs.** It is not the user's account data: it does
+  not follow them to another device, and it is gone when the app is uninstalled. A page that needs data
+  to outlive the device keeps it on its own server, under the [user key](#getsubwebviewuserkey).
+- **Values are JSON.** A key is 1–200 characters, and not `__proto__`. `used` and `limit` count
+  characters — every key's length plus its value's, serialized — and `limit` is 1,048,576.
+- **A write is all or none.** One entry that is not JSON, one key out of range, or a total past the
+  limit refuses the whole request and changes nothing. The device itself can still fail part way —
+  a full disk — and that is answered `INTERNAL_ERROR` with what was written kept. One request is also
+  held to the [64 KiB message limit](#limits): a page writes more than that across several requests,
+  and a single value, which goes in one request, stays under it.
+- `GetSubWebViewStorage` leaves out a key with nothing stored, and `RemoveSubWebViewStorage` passes
+  over one; neither is an error.
+- The reply to a write is the usage after it, so a page that keeps close to its limit need not ask.
+- Every storage request MAY also fail `UNAVAILABLE`: the shell could not open the store.
+
 ## Pushes
 
 | Push                                      | Data                               | When                                                                              |
@@ -539,6 +574,8 @@ feature, and needs its own decision.
   id is treated as a credential, not only as an identifier: DoU's own sign-in relies on it. The one
   identifier a page gets, the user key, is an HMAC over the page's origin keyed by the device id:
   one-way, different on every origin, and only for a page whose manifest declares `userKey`.
+- **(2.18.0) A page's storage is its origin's alone.** The shell picks the store from the opened
+  origin; nothing a page sends names one.
 - **The page cannot reach the opener** except through `params` in and `result` out, and cannot drive
   the app's routing: the app's own links are dropped or refused.
 - **Every request is answered by a handler written for the sub WebView**, never one borrowed from the
@@ -567,7 +604,8 @@ keeps the old one for a while is decided with that change.
 | Safe-area insets                                            | Not needed: the viewport is inside the safe area                       |
 | Drawing behind the system bars                              | `fullscreen` drops the bar; the system bars stay outside the page      |
 | Talking to the opener while open                            | `params` and `result`                                                  |
-| Storage in the app, files, purchases, push                  | The page's own server, keyed by `GetSubWebViewUserKey`                 |
+| Data that follows the user to another device                | The page's own server, keyed by `GetSubWebViewUserKey`                 |
+| Files, purchases, push                                      | Not yet                                                                |
 | Proof to the page's server that a request came from the app | Not yet: a token the app signs would need a key and a way to verify it |
 | A popup login answering through `window.opener`             | A redirect login in the same view                                      |
 
@@ -585,6 +623,8 @@ tests, but have not been watched on a device:
 - **(2.17.0)** that iOS and Android hand an `/apps/…` link to the app (the association file and the
   intent filter), that a cold-start link opens the page once the web is up, and that the landing
   redirect reaches the page in a browser;
+- **(2.18.0)** that a page's storage survives an app update and a relaunch, and is gone after an
+  uninstall, on both platforms;
 - **(2.16.0)** that a manifest's `orientation` holds a full-screen modal on both platforms (it is
   react-native-screens' screen option, set once the manifest is in), and that the outcome haptics
   feel distinct on a device.

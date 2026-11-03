@@ -30,6 +30,9 @@ export type ChaticAppsContext = {
     appLink?: string;
 };
 
+/** What the page's storage holds and may hold, in characters: keys plus values serialized. */
+export type StorageUsage = { used: number; limit: number };
+
 /** Every code the app itself can fail a call with. */
 export type AppErrorCode =
     | 'NOT_FOUND'
@@ -42,4 +45,5 @@ export type AppErrorCode =
     | 'OPEN_URL_FAILED'
     | 'CLIPBOARD_WRITE_ERROR'
     | 'SHARE_ERROR'
-    | 'UNAVAILABLE';
+    | 'UNAVAILABLE'
+    | 'QUOTA_EXCEEDED';

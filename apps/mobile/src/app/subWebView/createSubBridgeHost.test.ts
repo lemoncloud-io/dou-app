@@ -1,7 +1,9 @@
 import { BRIDGE_VERSION, JsonProtocol } from '@chatic/bridges';
 import type { SubWebViewRequestType } from '@chatic/bridge-messages';
 
+import { memoryStorageFile } from '../services/subWebView/memoryStorageFile';
 import { SubWebViewService } from '../services/subWebView/SubWebViewService';
+import { SubWebViewStorage } from '../services/subWebView/subWebViewStorage';
 import { createSubBridgeHost } from './createSubBridgeHost';
 import { createSubBridgeHandlers } from './subBridgeHandlers';
 
@@ -20,6 +22,11 @@ const SUBSET: SubWebViewRequestType[] = [
     'SetCanGoBack',
     'SetSubWebViewCloseGuard',
     'ReportSubWebViewError',
+    'GetSubWebViewStorage',
+    'SetSubWebViewStorage',
+    'RemoveSubWebViewStorage',
+    'ClearSubWebViewStorage',
+    'GetSubWebViewStorageInfo',
 ];
 
 const CONTEXT = {
@@ -49,6 +56,7 @@ const createHost = () => {
             setBackClaim: jest.fn(),
             setCloseGuard: jest.fn(),
             logPageError: jest.fn(),
+            openStorage: () => new SubWebViewStorage(memoryStorageFile()),
         }),
         () => CONTEXT
     );

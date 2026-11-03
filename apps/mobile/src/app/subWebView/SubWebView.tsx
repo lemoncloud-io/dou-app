@@ -11,6 +11,7 @@ import { useResolvedTheme } from '../hooks';
 import { clipboardService, deviceService, logger, subWebViewService } from '../services';
 import { resolveAppLanguage, useLanguageStore } from '../stores';
 import { getAppLanguage } from '../utils/device';
+import { openSubWebViewStorage } from '../services/subWebView/subWebViewStorageFile';
 import { originOf } from '../utils/url';
 import { createSubBridgeHost } from './createSubBridgeHost';
 import { createSubBridgeHandlers, permittedSubBridgeHandlers } from './subBridgeHandlers';
@@ -121,6 +122,14 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
                 if (isCurrent()) closeGuard.current.setEnabled(enabled);
             },
             logPageError: report => logger.warn('WEBVIEW', '[sub] page error', report),
+            // The opened origin's own file, on the first request that needs it; one page can never
+            // open another's.
+            openStorage: () => {
+                if (!openedOrigin) return null;
+                const storage = openSubWebViewStorage(openedOrigin);
+                if (!storage) logger.warn('WEBVIEW', '[sub] storage could not be opened', { origin: openedOrigin });
+                return storage;
+            },
         });
         return createSubBridgeHost(
             message => webViewRef.current?.postMessage(message),

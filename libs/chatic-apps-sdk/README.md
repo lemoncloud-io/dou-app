@@ -2,8 +2,9 @@
 
 Build pages that run inside the DoU app. A page on `https://<name>.apps.chatic.io` opens in the app
 over everything else, and talks to the app through this library: close itself and hand back a result,
-title the app's bar, play a haptic, share, copy, open a link outside, get a key to keep the user's data
-under, take Android's back button, and ask before the user closes it. The same page runs in a plain
+title the app's bar, play a haptic, share, copy, open a link outside, keep its own data on the device,
+get a key to keep the user's data under on a server, take Android's back button, and ask before the
+user closes it. The same page runs in a plain
 browser tab too, where the library falls back to what the browser can do.
 
 Published as `@lemoncloud/chatic-apps-sdk`. No runtime dependencies.
@@ -88,19 +89,20 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
 
 ## What a page can do
 
-| Call                              | In the app                                                         | In a browser                        | Needs permission |
-| --------------------------------- | ------------------------------------------------------------------ | ----------------------------------- | ---------------- |
-| `finish(result?)`                 | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener | `NOT_IN_APP`                        | —                |
-| `setTitle(title)`                 | The app's bar shows it (1–100 characters)                          | `document.title`                    | —                |
-| `haptic(kind)`                    | `selection`, `impact`, `success`, `warning`, `error`               | a short vibration, if any           | —                |
-| `onBack(handler \| null)`         | Android back calls `handler` and does nothing else                 | never called                        | —                |
-| `onCloseRequest(handler \| null)` | Asks before the user closes; return `true` to close                | never called                        | —                |
-| `reportError(error)`              | Into DoU's log, under your origin (20 per page load)               | `console.error`                     | —                |
-| `copy(text)`                      | The clipboard                                                      | the browser's clipboard             | `clipboard`      |
-| `share({ title, message, url })`  | The share sheet; waits for the user (see below)                    | Web Share, else copies (`'copied'`) | `share`          |
-| `openUrl(url)`                    | The browser, mail, phone, SMS or a store                           | a new tab                           | `openUrl`        |
-| `getUserKey()`                    | 64 hex characters, the same for this device and site               | `NOT_IN_APP`                        | `userKey`        |
-| `link(path?)`                     | A link that opens this page in the app (see below)                 | the page's own address              | —                |
+| Call                                      | In the app                                                         | In a browser                        | Needs permission |
+| ----------------------------------------- | ------------------------------------------------------------------ | ----------------------------------- | ---------------- |
+| `finish(result?)`                         | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener | `NOT_IN_APP`                        | —                |
+| `setTitle(title)`                         | The app's bar shows it (1–100 characters)                          | `document.title`                    | —                |
+| `haptic(kind)`                            | `selection`, `impact`, `success`, `warning`, `error`               | a short vibration, if any           | —                |
+| `onBack(handler \| null)`                 | Android back calls `handler` and does nothing else                 | never called                        | —                |
+| `onCloseRequest(handler \| null)`         | Asks before the user closes; return `true` to close                | never called                        | —                |
+| `reportError(error)`                      | Into DoU's log, under your origin (20 per page load)               | `console.error`                     | —                |
+| `copy(text)`                              | The clipboard                                                      | the browser's clipboard             | `clipboard`      |
+| `share({ title, message, url })`          | The share sheet; waits for the user (see below)                    | Web Share, else copies (`'copied'`) | `share`          |
+| `openUrl(url)`                            | The browser, mail, phone, SMS or a store                           | a new tab                           | `openUrl`        |
+| `getUserKey()`                            | 64 hex characters, the same for this device and site               | `NOT_IN_APP`                        | `userKey`        |
+| `link(path?)`                             | A link that opens this page in the app (see below)                 | the page's own address              | —                |
+| `storage.get(key)`, `.set(key, value)`, … | Your page's own storage on the device (see below)                  | `localStorage`, same limits         | —                |
 
 Plus `apps.context` (the app's language, theme, platform and the `params` you were opened with),
 `apps.onContextChange(listener)` for a theme or language change, `apps.supports(capability)`,
@@ -113,6 +115,13 @@ Plus `apps.context` (the app's language, theme, platform and the `params` you we
   `https://app.chatic.io/apps/<name>/level/3?seed=7` — a tap opens your page in the app where it is
   installed, in the browser where it is not. In a browser, or an app before links to pages existed, it
   gives your page's own address instead.
+- **`storage`** keeps JSON on the device for your site alone: `get(key)`, `getMany(keys)`,
+  `set(key, value)`, `setMany(entries)` (all or none), `remove(key or keys)`, `keys()`, `clear()` and
+  `usage()`. It survives relaunches and sign-outs and goes with an uninstall; it does not follow the user
+  to another phone. Your site gets 1,048,576 characters in all (keys plus values as JSON) — past it a
+  write fails with `QUOTA_EXCEEDED` and changes nothing — keys of 1–200 characters (not `__proto__`),
+  and at most 64 KiB in one call (`TOO_LARGE`). A value is written in one call, so one value stays
+  under 64 KiB; split anything bigger across keys.
 - **Uncaught errors are reported for you.** `connect()` listens for `error` and `unhandledrejection` and
   sends them to DoU's log. An `Error` sends its message and stack, a string itself, anything else only
   its type. Pass `connect({ reportErrors: false })` to turn it off.
@@ -155,18 +164,19 @@ try {
 }
 ```
 
-| Code                   | Means                                                                                     |
-| ---------------------- | ----------------------------------------------------------------------------------------- |
-| `NOT_SUPPORTED`        | Not available: an older app, a permission the page does not hold, or no browser clipboard |
-| `NOT_IN_APP`           | The call needs the app, and the page is in a browser                                      |
-| `TIMEOUT`              | The app did not answer in 10 seconds (time in the background does not count)              |
-| `INVALID`              | A value is missing, of the wrong type, or too long                                        |
-| `TOO_LARGE`            | One call's data is over 65,536 characters                                                 |
-| `LINK_NOT_ALLOWED`     | The link cannot be opened or shared from a page                                           |
-| `NOT_OPEN`             | `finish` after the view has already closed                                                |
-| `UNAVAILABLE`          | The device has no id to make a user key from                                              |
-| `DISCONNECTED`         | The call was waiting when `disconnect()` closed the connection                            |
-| `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                           |
+| Code                   | Means                                                                                                |
+| ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| `NOT_SUPPORTED`        | Not available: an older app, a permission the page does not hold, or no browser clipboard or storage |
+| `NOT_IN_APP`           | The call needs the app, and the page is in a browser                                                 |
+| `TIMEOUT`              | The app did not answer in 10 seconds (time in the background does not count)                         |
+| `INVALID`              | A value is missing, of the wrong type, or too long                                                   |
+| `TOO_LARGE`            | One call's data is over 65,536 characters                                                            |
+| `LINK_NOT_ALLOWED`     | The link cannot be opened or shared from a page                                                      |
+| `NOT_OPEN`             | `finish` after the view has already closed                                                           |
+| `UNAVAILABLE`          | The device has no id to make a user key from, or the app could not open the page's storage           |
+| `QUOTA_EXCEEDED`       | A storage write would go past 1,048,576 characters; nothing was written                              |
+| `DISCONNECTED`         | The call was waiting when `disconnect()` closed the connection                                       |
+| `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                                      |
 
 Treat a code not in this table as that call failing, and nothing more.
 
@@ -191,8 +201,9 @@ Treat a code not in this table as that call failing, and nothing more.
 
 ## What this WebView is like
 
-- **Storage is the WebView's**: `localStorage` and IndexedDB work, but go when the app is reinstalled
-  or the system clears website data. Keep what matters on your own server, under `getUserKey()`.
+- **Use `apps.storage`, not the WebView's own**: `localStorage` and IndexedDB work, but go whenever the
+  system clears website data. Keep what must follow the user to another phone on your own server, under
+  `getUserKey()`.
 - **No popups**: `window.open` and `target="_blank"` load in the same view, so a login that answers
   through `window.opener` does not work. Use a redirect login.
 - **Downloads**: a file download is not handled on iOS. Show the content instead.
@@ -220,7 +231,10 @@ app?.pressBack();
 app?.requestClose();
 app?.changeContext({ theme: 'dark' });
 console.log(app?.closed); // { by: 'page', result } once the page finishes, { by: 'user' } on a close
+console.log(app?.storage); // what the page has stored
 ```
+
+Pass `storage: { … }` to start with data already stored; the mock keeps it in memory only.
 
 It answers as the app does — the base calls, plus the `permissions` you give it, and `NOT_SUPPORTED`
 for the rest — checks what the app checks, and logs every call. It is a stand-in: the share sheet is
@@ -236,8 +250,9 @@ Paste this list into the prompt along with what the page should do.
 3. Every call can throw `ChaticAppsError`; branch on `error.code` only, never on `error.message`.
 4. Take the theme and language from `apps.context` and `apps.onContextChange`, not from the OS.
 5. Share links built with `apps.link(path)`.
-6. Save state on `visibilitychange` to `hidden` and on your own server under `apps.getUserKey()`; never
-   rely on `localStorage` alone.
+6. Keep the page's state in `apps.storage` as it changes, and at the latest on `visibilitychange` to
+   `hidden`; never in `localStorage`. What must follow the user to another phone goes on your own server
+   under `apps.getUserKey()`.
 7. Use `apps.onBack(handler)` for in-page dialogs; clear it with `apps.onBack(null)` when they close.
 8. Use `apps.onCloseRequest` only to protect unsaved work; return `true` to close.
 9. No `window.opener`, no popup logins, no file downloads.

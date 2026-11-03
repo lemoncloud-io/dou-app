@@ -1,3 +1,4 @@
+import { ruledStore, type StoreFile } from './storage';
 import type { ChaticAppsContext, CloseTrigger, HapticKind } from './types';
 
 /** A manifest permission, as the page would declare it in `/.well-known/chatic-app.json`. */
@@ -12,6 +13,8 @@ export interface MockOptions {
     userKey?: string;
     /** Called when the view closes: by the page (`finish`, with its result) or by the user. */
     onClose?: (closed: { by: 'page' | 'user'; result?: unknown }) => void;
+    /** What the page's storage holds when the mock starts; empty by default. Kept in memory only. */
+    storage?: { [key: string]: unknown };
     /** Log each request and reply to the console. On by default. */
     log?: boolean;
 }
@@ -21,6 +24,8 @@ export interface MockController {
     readonly title: string | undefined;
     /** How the view closed, if it has: by the page (with its result) or by the user. */
     readonly closed: { by: 'page' | 'user'; result?: unknown } | null;
+    /** What the page's storage holds now. */
+    readonly storage: { [key: string]: unknown };
     /** Android's back button: to the page if it took back, else back in history, else a close. */
     pressBack(): void;
     /** The user asks to close: to the page if it guards closing (a second ask within 3 s closes). */
@@ -40,6 +45,11 @@ const BASE = [
     'SetCanGoBack',
     'SetSubWebViewCloseGuard',
     'ReportSubWebViewError',
+    'GetSubWebViewStorage',
+    'SetSubWebViewStorage',
+    'RemoveSubWebViewStorage',
+    'ClearSubWebViewStorage',
+    'GetSubWebViewStorageInfo',
 ];
 const GATED: Record<MockPermission, string> = {
     clipboard: 'CopyToClipboard',
@@ -127,6 +137,17 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
     let guard = false;
     let askedAt: number | null = null;
     let reports = 0;
+    const stored = new Map<string, string>();
+    const storeFile: StoreFile = {
+        read: key => stored.get(key),
+        write: (key, json) => void stored.set(key, json),
+        delete: key => void stored.delete(key),
+        keys: () => [...stored.keys()],
+    };
+    const store = ruledStore(storeFile);
+    if (options.storage && !store.set(options.storage).ok) {
+        throw new Error('[chatic-apps mock] options.storage must be JSON entries within the storage limits.');
+    }
 
     const deliver = (message: object) => {
         const raw = JSON.stringify(message);
@@ -175,8 +196,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         switch (type) {
             case 'WebAppReady':
                 return ok('OnWebAppReady', refId, {
-                    appVersion: '2.17.0',
-                    protocolVersion: '2.17.0',
+                    appVersion: '2.18.0',
+                    protocolVersion: '2.18.0',
                     supportedWebMessages: [...supported],
                     supportedAppMessages: [],
                     subWebView: { ...context, ...current },
@@ -259,6 +280,29 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                 log('share sheet', data);
                 return ok('OnOpenShareSheet', refId, { action: 'sharedAction', activityType: null });
             }
+            case 'GetSubWebViewStorage':
+            case 'SetSubWebViewStorage':
+            case 'RemoveSubWebViewStorage':
+            case 'ClearSubWebViewStorage':
+            case 'GetSubWebViewStorageInfo': {
+                const calls = {
+                    GetSubWebViewStorage: () => store.get(data.keys),
+                    SetSubWebViewStorage: () => store.set(data.entries),
+                    RemoveSubWebViewStorage: () => store.remove(data.keys),
+                    ClearSubWebViewStorage: () => store.clear(),
+                    GetSubWebViewStorageInfo: () => store.info(),
+                };
+                const outcome = calls[type]();
+                if (outcome.ok) return ok(`On${type}`, refId, outcome.value);
+                return fail(
+                    `On${type}`,
+                    refId,
+                    outcome.code,
+                    outcome.code === 'QUOTA_EXCEEDED'
+                        ? "This would take the page's storage past 1,048,576 characters."
+                        : 'Keys are 1 to 200 characters; values must be JSON.'
+                );
+            }
             case 'GetSubWebViewUserKey':
                 return ok('OnGetSubWebViewUserKey', refId, { key: options.userKey ?? mockKey(origin) });
             default:
@@ -279,6 +323,9 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         },
         get closed() {
             return closed;
+        },
+        get storage() {
+            return Object.fromEntries([...stored].map(([key, json]) => [key, JSON.parse(json)]));
         },
         pressBack: () => {
             if (closed) return;

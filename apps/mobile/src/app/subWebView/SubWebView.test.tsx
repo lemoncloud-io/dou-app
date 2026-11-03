@@ -54,6 +54,12 @@ jest.mock('../stores', () => ({
 }));
 jest.mock('../utils/device', () => ({ getAppLanguage: () => 'en' }));
 jest.mock('../bridge', () => ({ HapticBridge: { trigger: jest.fn(() => true) } }));
+// The storage file is native; an in-memory one stands in, opened for the origin asked.
+jest.mock('../services/subWebView/subWebViewStorageFile', () => {
+    const { SubWebViewStorage } = jest.requireActual('../services/subWebView/subWebViewStorage');
+    const { memoryStorageFile } = jest.requireActual('../services/subWebView/memoryStorageFile');
+    return { openSubWebViewStorage: jest.fn(() => new SubWebViewStorage(memoryStorageFile())) };
+});
 // The barrel reaches web-only modules the CommonJS transform cannot parse; the link module is all
 // this view uses.
 jest.mock('@chatic/shared', () => jest.requireActual('../../../../../libs/shared/src/utils/subWebViewLink'));
@@ -229,6 +235,26 @@ describe('SubWebView', () => {
         expect(key).toEqual(
             expect.objectContaining({ type: 'ERROR', error: expect.objectContaining({ code: 'NOT_FOUND' }) })
         );
+    });
+
+    // Whatever page of the origin asks, and only once it asks: a page that never stores opens no file.
+    it('opens the storage of the opened origin, on the first request that needs it', async () => {
+        const { openSubWebViewStorage } = jest.requireMock('../services/subWebView/subWebViewStorageFile');
+        openSubWebViewStorage.mockClear();
+        renderView({ permissions: new Set() });
+
+        mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
+        await settle();
+        expect(openSubWebViewStorage).not.toHaveBeenCalled();
+
+        mockWebViewProps.onMessage(
+            pageMessage('https://foo.apps.chatic.io/other', 'SetSubWebViewStorage', { entries: { level: 3 } })
+        );
+        await settle();
+
+        expect(openSubWebViewStorage).toHaveBeenCalledWith('https://foo.apps.chatic.io');
+        const reply = mockPostMessage.mock.calls.map(([raw]) => JSON.parse(raw)).pop();
+        expect(reply).toEqual(expect.objectContaining({ type: 'OnSetSubWebViewStorage', success: true }));
     });
 
     it("writes the page's error report to the app's logs under its origin", async () => {

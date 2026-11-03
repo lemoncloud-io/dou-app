@@ -55,6 +55,7 @@ and what the page's manifest permits (below):
 | `SetCanGoBack`            | The page claims Android back: presses are pushed to it as `OnBackPressed`                                 |
 | `SetSubWebViewCloseGuard` | The user's close is pushed to the page as `OnSubWebViewCloseRequested` first                              |
 | `ReportSubWebViewError`   | Writes the page's error to the app's log under its origin, 20 per page load                               |
+| `GetSubWebViewStorage` …  | The page's own storage: get, set, remove, clear, and what it holds (the five storage requests)            |
 
 **The page's manifest decides the gated four.** Before it loads the page, the screen reads
 `/.well-known/chatic-app.json` from the opened origin (`subWebViewManifest.ts`). Each permission it
@@ -150,6 +151,42 @@ restored from a backup keeps its key.
 A page asks once its handshake lists `GetSubWebViewUserKey`; an app built before it answers
 `NOT_FOUND`, and the page falls back to a sign-in of its own (an anonymous one keeps working until the
 WebView's storage is cleared or the app reinstalled).
+
+**Storage on the device, one file per origin.** The five storage requests keep a page's JSON values in
+an MMKV file of its own (`subWebViewStorage.ts`, opened by `subWebViewStorageFile.ts`). The file is
+opened on the page's first storage request, not when the view opens, so a page that never stores
+leaves no file; once open it is kept for the run of the app, one per origin, because every MMKV
+instance registers a memory-warning listener that an engine without `FinalizationRegistry` never
+removes. The file's id
+is `subwebview.` plus the first 32 hex characters of the origin's SHA-256, so it is the same on every
+open, holds only characters a file name can, and is apart from the app's own files. Like the user key,
+it is chosen from the shell's record of the opened origin, never from the request, so a page can reach
+no other page's file. Pages are isolated by origin alone: an origin is never handed to a second page,
+so nothing finer is needed.
+
+- **It is the device's, not the account's.** The app's sign-out clears only its default MMKV file, so a
+  page's data survives a sign-out and another account on the phone sees the same data — the same terms
+  as the user key. It goes with an uninstall. Data that must follow the user belongs on the page's own
+  server, under the key.
+- **1,048,576 characters per origin**, counted as every key's length plus its value's JSON: what the
+  page put there, not the file's size, which includes MMKV's reserve and the space removed keys left.
+  The count is worked out on the first request and kept up to date after. A write past it is
+  `QUOTA_EXCEEDED`; a write is all or none.
+- **Keys are 1–200 characters**, and `__proto__` is refused: as a property of a reply it would set the
+  object's prototype. One request is also held to the host's 64 KiB message limit, so a page writes
+  more than that over several requests, and one value stays under it.
+- **Only a clear trims the file.** MMKV does not shrink by itself, but its `trim` also drops the
+  memory cache, so the next read loads the whole file again; removing keys leaves the space for the
+  next write.
+- **All or none, as far as the device lets it.** A write past the limit or with one bad entry changes
+  nothing. A write the device itself refuses part way (a full disk) keeps what it wrote, is answered
+  `INTERNAL_ERROR`, and the count is taken afresh on the next request.
+- **In the base set.** Keeping its own data reaches nothing outside the view, so a page needs no
+  manifest permission for it. The alternative a page already has, `localStorage`, is the WebView's
+  and goes whenever the WebView's data is cleared.
+- A file that cannot be opened is logged, and every storage request is answered `UNAVAILABLE`.
+- No screen lets the user see or clear a page's data yet; that, and letting the user reset a page's
+  user key, would come together.
 
 **Only the origin the view was opened on is answered.** Every message is checked against that origin
 before the host sees it; a page the view navigated to, or a frame elsewhere, gets no answer at all.
@@ -357,6 +394,8 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/createSubBridgeHost.ts`            | The sub WebView's own `AppBridgeHost`, with the subset only             |
 | `src/app/subWebView/subBridgeHandlers.ts`              | The page-facing handlers, typed by `SubWebViewRequestType`              |
 | `src/app/subWebView/subWebViewUserKey.ts`              | The page's key, from the device id and its origin                       |
+| `src/app/services/subWebView/subWebViewStorage.ts`     | A page's storage: the limits, the count, all-or-none writes             |
+| `src/app/services/subWebView/subWebViewStorageFile.ts` | Opens an origin's MMKV file                                             |
 | `src/app/subWebView/subWebViewCloseGuard.ts`           | Whether the user's close asks the page first, and the forced second one |
 | `src/app/subWebView/useSubWebViewBack.ts`              | Android back: the page's claim, then history, then close                |
 | `src/app/subWebView/chaticAppsSdk.contract.test.ts`    | `chatic-apps-sdk` run against this host and its handlers                |
