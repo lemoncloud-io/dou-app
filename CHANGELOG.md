@@ -2,6 +2,12 @@
 
 ## [2026-11-03] - No version updates
 
+### Bug Fixes
+
+- (ui-kit) rest the snackbar at one height on every screen and drop it sooner
+
+## [2026-11-03] - No version updates
+
 ### Features
 
 - (chatic-apps-sdk,mobile) add the library sub WebView pages talk to the app with (ADR-0281)
