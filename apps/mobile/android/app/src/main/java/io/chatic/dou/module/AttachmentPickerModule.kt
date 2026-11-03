@@ -26,9 +26,11 @@ import com.facebook.react.bridge.UiThreadUtil
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 import io.chatic.dou.attach.PickedCopies
+import io.chatic.dou.attach.VideoExporter
 import io.chatic.dou.attach.core.AttachPickRules
 import io.chatic.dou.attach.core.AttachPickRules.Kind
 import io.chatic.dou.attach.core.AttachPickRules.Source
+import io.chatic.dou.attach.core.InFlightJobs
 import io.chatic.dou.photo.PhotoPreparer
 import io.chatic.dou.photo.core.PhotoLibraryCore
 import java.io.ByteArrayInputStream
@@ -58,13 +60,15 @@ import java.util.concurrent.atomic.AtomicReference
  * transfer service. So the copy starts from the result callback, while that screen is alive, and the
  * transfer reads only the copy. `takePersistableUriPermission` is not used; a copy needs none.
  *
- * `prepareVideo` does not convert: an MP4 of H.264 with AAC (or no audio) is sent as it is, anything
- * else is `UNSUPPORTED`. It reads the shown size and writes a poster frame beside the video.
+ * `prepareVideo` sends an MP4 of H.264 with AAC (or no audio) as it is and converts anything else —
+ * HEVC, a QuickTime `.mov`, audio that is not AAC — to one with [VideoExporter] (Media3's
+ * Transformer). It answers `UNSUPPORTED` only for a file with nothing to convert or a codec this device
+ * cannot decode. It reads the shown size and writes a poster frame beside the result.
  *
  * `readVideoFrame` makes the same kind of poster from a video already sent — one frame read over
  * https from its storage URL, answered as base64 and written nowhere.
  *
- * The copy folder, the copy and the video check are [PickedCopies], which the photo library's
+ * The copy folder, the copy and the judgement of a video are [PickedCopies], which the photo library's
  * `keepLibraryVideo` uses too.
  */
 class AttachmentPickerModule(reactContext: ReactApplicationContext) :
@@ -105,6 +109,10 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
 
     private val preparer = PhotoPreparer(reactContext)
     private val copies = PickedCopies(reactContext)
+    private val exporter = VideoExporter(reactContext)
+
+    /** The `prepareVideo` jobs running, by source file: a call for one already running waits for it. */
+    private val preparing = InFlightJobs<PreparedVideo>()
 
     /** True from `pick` until its answer — the picker is open or its items are still being copied. */
     private val busy = AtomicBoolean(false)
@@ -123,6 +131,7 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
     override fun invalidate() {
         reactApplicationContext.removeLifecycleEventListener(this)
         UiThreadUtil.runOnUiThread { abandonPicker() }
+        exporter.cancel()
         pickExecutor.shutdown()
         videoExecutor.shutdown()
         readExecutor.shutdown()
@@ -326,6 +335,10 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
         // the web names the limit that applied.
         val limitKind = if (kind == Kind.FILE) AttachPickRules.limitKindForDocument(mimeType, name) else kind
         val limit = limits.of(limitKind)
+        if (limitKind == Kind.VIDEO) {
+            keepVideo(uri, folder, name, kind, mimeType, described, limit, items, refused)
+            return
+        }
         val export = if (kind == Kind.IMAGE) PhotoLibraryCore.export(mimeType) else null
         // What is sent as stored is held to its limit before a byte is copied. A photo written as
         // JPEG is judged by what the conversion makes instead.
@@ -381,6 +394,33 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
             putInt("width", width)
             putInt("height", height)
         })
+    }
+
+    /**
+     * Copies one picked video into [folder] and judges it ([PickedCopies.keepVideo]). One that goes up
+     * as it is is answered as copied, held to [limit]; one the shell converts is answered with
+     * `needsExport` and the source's own name, type and size, and is not held to [limit] here — its
+     * size after the conversion is what `PrepareVideo` holds to it. A video converted is a `video` even
+     * when it came through the documents picker, which otherwise answers everything as a `file`.
+     */
+    private fun keepVideo(
+        uri: Uri,
+        folder: File,
+        name: String,
+        kind: Kind,
+        mimeType: String?,
+        described: PickedCopies.Described,
+        limit: Long,
+        items: WritableArray,
+        refused: WritableArray,
+    ) {
+        when (val kept = copies.keepVideo(uri, folder, name, described.size, limit)) {
+            is PickedCopies.KeptVideo.AsIs -> items.pushMap(copies.keptItem(kind, kept.file, name, mimeType, kept.size))
+            is PickedCopies.KeptVideo.ToConvert ->
+                items.pushMap(copies.keptItem(Kind.VIDEO, kept.file, name, mimeType, kept.size, needsExport = true))
+            PickedCopies.KeptVideo.TooLarge -> refused.pushMap(refusal(name, Kind.VIDEO, "too-large"))
+            PickedCopies.KeptVideo.Unreadable -> refused.pushMap(refusal(name, kind, "unreadable"))
+        }
     }
 
     /** The prepared image's size as shown: its pixels, turned by an EXIF orientation it kept. */
@@ -461,35 +501,105 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
 
     // --- prepareVideo ---
 
+    /** A video ready to upload: the file the web sends and its poster, answered as the plain values they are. */
+    private class PreparedVideo(val file: File, val width: Int, val height: Int, val poster: Poster?)
+
+    private class Poster(val file: File, val base64: String, val size: Int, val width: Int, val height: Int)
+
     @ReactMethod
     fun prepareVideo(uri: String?, promise: Promise) {
-        val started = submit(videoExecutor) {
-            try {
-                promise.resolve(prepare(uri))
-            } catch (rejection: Rejection) {
-                promise.reject(rejection.code, rejection.message)
-            } catch (e: Throwable) {
-                // OutOfMemoryError included: a failed preparation fails this video, not the app.
-                Log.w(TAG, "prepareVideo failed: ${e.javaClass.simpleName}")
-                promise.reject("SYSTEM", e.message ?: "the video could not be prepared")
-            }
+        val file = try {
+            pickedFile(uri)
+        } catch (rejection: Rejection) {
+            promise.reject(rejection.code, rejection.message)
+            return
         }
-        if (!started) promise.reject("SYSTEM", "the picker is shutting down")
+        // The web gives up on a conversion after ten minutes and asks again while it may still be
+        // running: a second call for the same source waits for that one rather than converting again.
+        val key = file.path
+        val first = preparing.join(key) { result -> settle(promise, result) }
+        if (!first) return
+        val started = submit(videoExecutor) {
+            val result = try {
+                Result.success(prepare(file))
+            } catch (e: Throwable) {
+                Result.failure(e)
+            }
+            preparing.finish(key, result)
+        }
+        if (!started) preparing.finish(key, Result.failure(Rejection("SYSTEM", "the picker is shutting down")))
     }
 
-    private fun prepare(uri: String?): WritableMap {
-        val file = pickedFile(uri)
-        val video: MediaFormat = when (val check = copies.checkVideo(file)) {
-            is PickedCopies.VideoCheck.Sendable -> check.video
-            is PickedCopies.VideoCheck.Unsupported -> throw Rejection("UNSUPPORTED", check.reason)
-            PickedCopies.VideoCheck.Unreadable -> throw Rejection("SOURCE", "the picked file cannot be read")
+    private fun settle(promise: Promise, result: Result<PreparedVideo>) {
+        result.fold(
+            onSuccess = { promise.resolve(answer(it)) },
+            onFailure = { error ->
+                if (error is Rejection) {
+                    promise.reject(error.code, error.message)
+                } else {
+                    // OutOfMemoryError included: a failed preparation fails this video, not the app.
+                    Log.w(TAG, "prepareVideo failed: ${error.javaClass.simpleName}")
+                    promise.reject("SYSTEM", error.message ?: "the video could not be prepared")
+                }
+            },
+        )
+    }
+
+    private fun answer(prepared: PreparedVideo): WritableMap = Arguments.createMap().apply {
+        putMap("file", Arguments.createMap().apply {
+            putString("uri", Uri.fromFile(prepared.file).toString())
+            putString("name", AttachPickRules.mp4Name(prepared.file.name))
+            putString("contentType", "video/mp4")
+            putDouble("size", prepared.file.length().toDouble())
+            putInt("width", prepared.width)
+            putInt("height", prepared.height)
+        })
+        val poster = prepared.poster
+        if (poster != null) {
+            putMap("poster", Arguments.createMap().apply {
+                putString("uri", Uri.fromFile(poster.file).toString())
+                putString("base64", poster.base64)
+                putString("contentType", "image/jpeg")
+                putDouble("size", poster.size.toDouble())
+                putInt("width", poster.width)
+                putInt("height", poster.height)
+            })
+        } else {
+            putNull("poster")
         }
+    }
+
+    /**
+     * The video to send: [file] as it is when it already is an H.264/AAC `mp4`, else its conversion,
+     * and a poster made from whichever it is. A source nothing can be made of — no video track, a
+     * container nothing reads, a codec this device cannot decode — is `UNSUPPORTED`, the source gone
+     * is `SOURCE`, a conversion that failed is `SYSTEM`, one over the ceiling even at 720p `TOO_LARGE`.
+     */
+    private fun prepare(file: File): PreparedVideo {
+        val inspection = when (val found = copies.inspectVideo(file)) {
+            is PickedCopies.VideoInspection.Readable -> found
+            PickedCopies.VideoInspection.Unreadable -> throw Rejection("SOURCE", "the picked file cannot be read")
+            PickedCopies.VideoInspection.Unrecognised -> throw Rejection("UNSUPPORTED", "the file cannot be read as a video")
+        }
+        val ready = when (inspection.verdict) {
+            AttachPickRules.VideoVerdict.AsIs -> file
+            is AttachPickRules.VideoVerdict.NeedsExport -> try {
+                exporter.convert(file, inspection)
+            } catch (failure: VideoExporter.Failure) {
+                throw Rejection(failure.code, failure.message ?: "the video could not be converted")
+            }
+        }
+        val video = if (ready == file) {
+            inspection.video
+        } else {
+            (copies.inspectVideo(ready) as? PickedCopies.VideoInspection.Readable)?.video
+        } ?: throw Rejection("SYSTEM", "the converted video cannot be read")
 
         val durationUs = if (video.containsKey(MediaFormat.KEY_DURATION)) video.getLong(MediaFormat.KEY_DURATION) else null
         val retriever = MediaMetadataRetriever()
         try {
             val readable = try {
-                retriever.setDataSource(file.path)
+                retriever.setDataSource(ready.path)
                 true
             } catch (e: Exception) {
                 false
@@ -504,18 +614,8 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
                 video.getInteger(MediaFormat.KEY_HEIGHT),
                 rotation,
             )
-            val poster = if (readable) poster(retriever, file, durationUs) else null
-            return Arguments.createMap().apply {
-                putMap("file", Arguments.createMap().apply {
-                    putString("uri", Uri.fromFile(file).toString())
-                    putString("name", AttachPickRules.mp4Name(file.name))
-                    putString("contentType", "video/mp4")
-                    putDouble("size", file.length().toDouble())
-                    putInt("width", width)
-                    putInt("height", height)
-                })
-                if (poster != null) putMap("poster", poster) else putNull("poster")
-            }
+            val poster = if (readable) poster(retriever, ready, durationUs) else null
+            return PreparedVideo(ready, width, height, poster)
         } finally {
             try {
                 retriever.release()
@@ -530,20 +630,13 @@ class AttachmentPickerModule(reactContext: ReactApplicationContext) :
      * as a JPEG of at most 200 KB written beside the video. Null when no frame can be read or no
      * quality fits: the video is still sent, without one.
      */
-    private fun poster(retriever: MediaMetadataRetriever, video: File, durationUs: Long?): WritableMap? = try {
+    private fun poster(retriever: MediaMetadataRetriever, video: File, durationUs: Long?): Poster? = try {
         val frame = frameAt(retriever, AttachPickRules.posterTimeUs(durationUs))
             ?: frameAt(retriever, 0L)
         frame?.let { posterJpeg(it, AttachPickRules.POSTER_MAX_EDGE) }?.let { jpeg ->
             val file = File(video.parentFile, AttachPickRules.posterName(video.name))
             file.writeBytes(jpeg.bytes)
-            Arguments.createMap().apply {
-                putString("uri", Uri.fromFile(file).toString())
-                putString("base64", Base64.encodeToString(jpeg.bytes, Base64.NO_WRAP))
-                putString("contentType", "image/jpeg")
-                putDouble("size", jpeg.bytes.size.toDouble())
-                putInt("width", jpeg.width)
-                putInt("height", jpeg.height)
-            }
+            Poster(file, Base64.encodeToString(jpeg.bytes, Base64.NO_WRAP), jpeg.bytes.size, jpeg.width, jpeg.height)
         }
     } catch (e: Throwable) {
         Log.w(TAG, "poster failed: ${e.javaClass.simpleName}")
