@@ -9,6 +9,7 @@ export const common: typeof ko = {
         users: 'Users',
         memberships: 'Memberships',
         cloudDeployments: 'Cloud Deployments',
+        costMonitor: 'Cost Monitor',
     },
     language: { label: 'Language', ko: '한국어', en: 'English' },
     console: {
