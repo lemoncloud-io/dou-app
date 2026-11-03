@@ -2,6 +2,12 @@
 
 ## [2026-11-03] - No version updates
 
+### Bug Fixes
+
+- (web,web-e2e) answer a guest's membership and owned-cloud reads without the relay
+
+## [2026-11-03] - No version updates
+
 ### Features
 
 - (web/mypage) show MY's subscription row to a browser guest
