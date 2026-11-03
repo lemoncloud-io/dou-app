@@ -37,23 +37,38 @@ nothing (`subWebViewContextScript.ts`). A later theme or language change arrives
 
 **A bridge of its own, with a subset of the vocabulary.** The page speaks the same message
 vocabulary as the main web, through `window.ReactNativeWebView`, to a second `AppBridgeHost`
-(`createSubBridgeHost.ts`) that registers only `SubWebViewRequestType`:
+(`createSubBridgeHost.ts`) that registers only `SubWebViewRequestType` — and of that, the base set
+and what the page's manifest permits (below):
 
-| Request                   | What the sub WebView's host does                                                     |
-| ------------------------- | ------------------------------------------------------------------------------------ |
-| `WebAppReady`             | The handshake; lists exactly this table. No cache schema or types: nothing to store  |
-| `Ping`                    | Answered by the host itself                                                          |
-| `FinishSubWebView`        | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web       |
-| `SetSubWebViewTitle`      | Puts a title (1–100 characters) in the bar, over the document's own                  |
-| `CopyToClipboard`         | Writes text to the clipboard                                                         |
-| `TriggerHaptic`           | Plays one short haptic                                                               |
-| `OpenURL`                 | Opens only what the view would hand to the OS — never the app's own links or schemes |
-| `OpenShareSheet`          | Opens the OS share sheet with a message and an http(s) link — never a file           |
-| `GetSubWebViewUserKey`    | This device's key for the page's origin — derived from the device id, never the id   |
-| `SetCanGoBack`            | The page claims Android back: presses are pushed to it as `OnBackPressed`            |
-| `SetSubWebViewCloseGuard` | The user's close is pushed to the page as `OnSubWebViewCloseRequested` first         |
+| Request                   | What the sub WebView's host does                                                                          |
+| ------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `WebAppReady`             | The handshake; lists the base set and the permitted rows of this table. No cache schema: nothing to store |
+| `Ping`                    | Answered by the host itself                                                                               |
+| `FinishSubWebView`        | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web                            |
+| `SetSubWebViewTitle`      | Puts a title (1–100 characters) in the bar, over the document's own                                       |
+| `CopyToClipboard`         | Writes text to the clipboard (permission `clipboard`)                                                     |
+| `TriggerHaptic`           | Plays one short haptic, a tick, a tap or an outcome                                                       |
+| `OpenURL`                 | Opens only what the view would hand to the OS — never the app's own links (`openUrl`)                     |
+| `OpenShareSheet`          | Opens the OS share sheet with a message and an http(s) link — never a file (`share`)                      |
+| `GetSubWebViewUserKey`    | This device's key for the page's origin — never the device id (`userKey`)                                 |
+| `SetCanGoBack`            | The page claims Android back: presses are pushed to it as `OnBackPressed`                                 |
+| `SetSubWebViewCloseGuard` | The user's close is pushed to the page as `OnSubWebViewCloseRequested` first                              |
+| `ReportSubWebViewError`   | Writes the page's error to the app's log under its origin, 20 per page load                               |
 
-Everything else — cache, preferences, push tokens, purchases, files, logs — answers `NOT_FOUND`.
+**The page's manifest decides the gated four.** Before it loads the page, the screen reads
+`/.well-known/chatic-app.json` from the opened origin (`subWebViewManifest.ts`). Each permission it
+declares — `clipboard`, `share`, `openUrl`, `userKey` — adds one request; without a manifest, or with
+one the shell cannot read, the page gets the base set only, and `permittedSubBridgeHandlers` leaves
+the rest unregistered, so they answer `NOT_FOUND` as an older app would. The manifest also names the
+page, and sets its display (`fullscreen` drops the bar) and orientation. It is fetched with a
+3-second limit, kept in memory per origin for the run of the app, and refreshed behind each later
+open; failures fall back to the defaults and are logged. The strict default is deliberate: pages
+are written by people outside the app's team, who submit a bundle and ask for permissions in its
+manifest; an administrator approves them at review, and the manifest deployed to the allowlisted
+origin is that approval. What a page may reach is then one file a reviewer signed off, not
+something every page gets by default.
+
+Everything else — cache, preferences, push tokens, purchases, files, `SendLog` — answers `NOT_FOUND`.
 The handshake reply also carries the page's context as `subWebView`, and a message over 64 KiB is
 answered `TOO_LARGE` before any handler sees it (`SUB_WEBVIEW_MESSAGE_LIMIT`).
 The handlers are written for this host (`subBridgeHandlers.ts`), not borrowed from the main
@@ -276,6 +291,12 @@ push `OnSubWebViewCloseRequested` instead, and the page closes with `FinishSubWe
 second close within three seconds of the first closes anyway (`subWebViewCloseGuard.ts`), so a page
 that hangs cannot keep the user in. Only `user` closes are guarded; `host`, `system` and `page` are not.
 
+**A `fullscreen` page has no bar but keeps a close control**, floating over its top-right corner,
+so a page cannot leave the user without a way out. Until the manifest is in the screen shows that
+control alone and no page, so even a manifest that never answers leaves the user a way out. The
+manifest's orientation is applied with react-native-screens' `orientation` screen option once the
+manifest is in (not yet checked on a device for a full-screen modal).
+
 **The screen pads every edge by the safe area.** The page lies wholly inside it and needs no insets
 (that `env(safe-area-inset-*)` then reads 0 is not yet checked on a device):
 top and bottom under the bar and above the home indicator, and the sides too, for the notch in
@@ -328,8 +349,9 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/useSubWebViewBack.ts`              | Android back: the page's claim, then history, then close                |
 | `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticSubWebView`, for the opened origin only                   |
 | `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data, 64 KiB message and 100-character title limits          |
+| `src/app/services/subWebView/subWebViewManifest.ts`    | Reads, checks and caches a page's manifest                              |
 | `src/app/subWebView/subWebViewNavigation.ts`           | Load, hand to the OS, or drop                                           |
-| `src/app/features/subWebView/SubWebViewScreen.tsx`     | The bar and its close control                                           |
+| `src/app/features/subWebView/SubWebViewScreen.tsx`     | The manifest, then the bar or the floating close control, orientation   |
 | `src/app/features/subWebView/routeSubWebViewEvents.ts` | Navigates to the screen and back as the service reports                 |
 
 ## Checking it by hand
@@ -338,7 +360,9 @@ Any page deployed on a subdomain of `apps-dev.chatic.io` (or `apps.chatic.io`) w
 opens. `https://sample.apps-dev.chatic.io/` and `https://sample1.apps-dev.chatic.io/` are kept for
 trying it: while debug mode is on — LOCAL and DEV start that way, a store build after the Lab's unlock —
 the web's Lab page (Settings → Lab) lists both under "In-app", and a tap opens one. The allowlist takes
-`apps-dev.chatic.io` in every build, so an unlocked store build opens them too.
+`apps-dev.chatic.io` in every build, so an unlocked store build opens them too. A page reaches
+`CopyToClipboard`, `OpenShareSheet`, `OpenURL` and `GetSubWebViewUserKey` only when its deployed
+manifest grants them; without one, those four answer `NOT_FOUND`.
 
 Open it from the web's debug panel → **Sub WebView (app)**: a URL, an optional title and `params`, and
 a log of how the view closed, with the `result` the page handed back. A URL off the allowlist answers

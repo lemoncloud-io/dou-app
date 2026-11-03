@@ -6,6 +6,7 @@ export * from './BadgeSyncBridge';
 export * from './BootSplashBridge';
 export * from './FileManagerBridge';
 export * from './HapticBridge';
+export * from './hapticKinds';
 export * from './MediaExportBridge';
 export * from './PhotoLibraryBridge';
 export * from './PushMarksBridge';

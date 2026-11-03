@@ -3,7 +3,7 @@ import { Linking, Platform, StyleSheet } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
-import type { SubWebViewCloseTrigger, SubWebViewContext } from '@chatic/bridge-messages';
+import type { SubWebViewCloseTrigger, SubWebViewContext, SubWebViewPermission } from '@chatic/bridge-messages';
 
 import { HapticBridge } from '../bridge';
 import { useResolvedTheme } from '../hooks';
@@ -12,7 +12,7 @@ import { resolveAppLanguage, useLanguageStore } from '../stores';
 import { getAppLanguage } from '../utils/device';
 import { originOf } from '../utils/url';
 import { createSubBridgeHost } from './createSubBridgeHost';
-import { createSubBridgeHandlers } from './subBridgeHandlers';
+import { createSubBridgeHandlers, permittedSubBridgeHandlers } from './subBridgeHandlers';
 import { createSubWebViewCloseGuard } from './subWebViewCloseGuard';
 import { buildSubWebViewContextScript } from './subWebViewContextScript';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
@@ -22,6 +22,8 @@ interface SubWebViewProps {
     viewId: string;
     url: string;
     params: Record<string, unknown>;
+    /** What the page's manifest permits beyond the base set; read once, when the view opens. */
+    permissions: ReadonlySet<SubWebViewPermission>;
     /** Close the view as `user`; called once the page's close guard, if any, lets the close through. */
     onRequestClose: () => void;
     /** The document's own title, each time it changes. */
@@ -51,7 +53,7 @@ export interface SubWebViewHandle {
  * domains, not by switching features off.
  */
 export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function SubWebView(
-    { viewId, url, params, onRequestClose, onTitleChange, onTitleRequest },
+    { viewId, url, params, permissions, onRequestClose, onTitleChange, onTitleRequest },
     ref
 ) {
     const webViewRef = useRef<WebView>(null);
@@ -96,30 +98,32 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         // and claims must not stick to the new page.
         const load = pageLoad;
         const isCurrent = () => loadCount.current === load;
+        const handlers = createSubBridgeHandlers({
+            viewId,
+            service: subWebViewService,
+            clipboard: clipboardService,
+            haptic: HapticBridge,
+            openExternal,
+            setTitle: title => {
+                if (isCurrent()) onTitleRequestRef.current?.(title);
+            },
+            openShareSheet,
+            origin: openedOrigin,
+            getDeviceId,
+            setBackClaim: claimed => {
+                if (isCurrent()) backClaimed.current = claimed;
+            },
+            setCloseGuard: enabled => {
+                if (isCurrent()) closeGuard.current.setEnabled(enabled);
+            },
+            logPageError: report => logger.warn('WEBVIEW', '[sub] page error', report),
+        });
         return createSubBridgeHost(
             message => webViewRef.current?.postMessage(message),
-            createSubBridgeHandlers({
-                viewId,
-                service: subWebViewService,
-                clipboard: clipboardService,
-                haptic: HapticBridge,
-                openExternal,
-                setTitle: title => {
-                    if (isCurrent()) onTitleRequestRef.current?.(title);
-                },
-                openShareSheet,
-                origin: openedOrigin,
-                getDeviceId,
-                setBackClaim: claimed => {
-                    if (isCurrent()) backClaimed.current = claimed;
-                },
-                setCloseGuard: enabled => {
-                    if (isCurrent()) closeGuard.current.setEnabled(enabled);
-                },
-            }),
+            permittedSubBridgeHandlers(handlers, permissions),
             () => contextRef.current
         );
-    }, [viewId, openedOrigin, pageLoad]);
+    }, [viewId, openedOrigin, pageLoad, permissions]);
 
     const requestClose = useCallback(
         (trigger: SubWebViewCloseTrigger) => {

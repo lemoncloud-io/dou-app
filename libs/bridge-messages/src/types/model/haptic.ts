@@ -3,8 +3,11 @@
  * platform's feedback so the web never names an OS constant.
  * - `selection` — the lightest tick, for a control snapping to a new position.
  * - `impact` — a short, firmer tap, for a threshold that commits an action.
+ * - `success`, `warning`, `error` — the outcome of something the user did (a level cleared, a move
+ *   refused). A build before these refuses them with `INVALID_KIND` when asked for a reply, and
+ *   plays nothing for a post.
  */
-export type HapticKind = 'selection' | 'impact';
+export type HapticKind = 'selection' | 'impact' | 'success' | 'warning' | 'error';
 
 /** [Request] Play one short haptic. The shell honours the device's own touch-feedback setting. */
 export type TriggerHapticPayload = {

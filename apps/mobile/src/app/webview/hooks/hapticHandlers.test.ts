@@ -18,6 +18,16 @@ describe('createHapticHandlers', () => {
         expect(res).toEqual({ type: 'OnTriggerHaptic', success: true, data: {} });
     });
 
+    it.each(['success', 'warning', 'error'])('plays the outcome kind %s', async kind => {
+        const haptic = createHapticMock();
+        const { handleTriggerHaptic } = createHapticHandlers(haptic);
+
+        const res = await handleTriggerHaptic({ type: 'TriggerHaptic', refId: 'r4', data: { kind } } as any);
+
+        expect(haptic.trigger).toHaveBeenCalledWith(kind);
+        expect(res.success).toBe(true);
+    });
+
     it('still answers success when the native module is missing, since the message itself is handled', async () => {
         const haptic = createHapticMock();
         haptic.trigger.mockReturnValue(false);

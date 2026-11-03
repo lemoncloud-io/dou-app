@@ -2,7 +2,7 @@ import type { ShareAction } from 'react-native';
 
 import { SubWebViewService } from '../services/subWebView/SubWebViewService';
 import type { SubWebViewEvent } from '../services/subWebView/types';
-import { createSubBridgeHandlers } from './subBridgeHandlers';
+import { createSubBridgeHandlers, PERMISSION_REQUESTS, permittedSubBridgeHandlers } from './subBridgeHandlers';
 import { deriveSubWebViewUserKey } from './subWebViewUserKey';
 
 const message = (data: unknown) => ({ type: 'x', data }) as any;
@@ -30,6 +30,7 @@ const setup = () => {
         getDeviceId: jest.fn((): string | null => DEVICE_ID),
         setBackClaim: jest.fn(),
         setCloseGuard: jest.fn(),
+        logPageError: jest.fn(),
     };
     return { handlers: createSubBridgeHandlers(deps), deps, service, events };
 };
@@ -141,6 +142,15 @@ describe('createSubBridgeHandlers', () => {
 
             expect(reply).toEqual({ type: 'OnTriggerHaptic', success: true, data: {} });
             expect(deps.haptic.trigger).toHaveBeenCalledWith('impact');
+        });
+
+        it.each(['success', 'warning', 'error'])('plays the outcome kind %s', async kind => {
+            const { handlers, deps } = setup();
+
+            const reply = await handlers.TriggerHaptic(message({ kind }));
+
+            expect(reply).toEqual({ type: 'OnTriggerHaptic', success: true, data: {} });
+            expect(deps.haptic.trigger).toHaveBeenCalledWith(kind);
         });
 
         it('refuses an unknown kind', async () => {
@@ -426,5 +436,85 @@ describe('createSubBridgeHandlers', () => {
                 expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'UNAVAILABLE' }) })
             );
         });
+    });
+
+    describe('ReportSubWebViewError', () => {
+        it('records the report under the opened origin', async () => {
+            const { handlers, deps } = setup();
+
+            const reply = await handlers.ReportSubWebViewError(message({ message: 'boom', stack: 'at x' }));
+
+            expect(reply).toEqual({ type: 'OnReportSubWebViewError', success: true, data: { recorded: true } });
+            expect(deps.logPageError).toHaveBeenCalledWith({
+                origin: 'https://foo.apps.chatic.io',
+                message: 'boom',
+                stack: 'at x',
+            });
+        });
+
+        it('cuts a long message and stack to their limits rather than refusing them', async () => {
+            const { handlers, deps } = setup();
+
+            await handlers.ReportSubWebViewError(message({ message: 'm'.repeat(1500), stack: 's'.repeat(5000) }));
+
+            const [report] = deps.logPageError.mock.calls[0];
+            expect(report.message).toHaveLength(1000);
+            expect(report.stack).toHaveLength(4000);
+        });
+
+        it('leaves out a stack that is not a string', async () => {
+            const { handlers, deps } = setup();
+
+            await handlers.ReportSubWebViewError(message({ message: 'boom', stack: 42 }));
+
+            expect(deps.logPageError).toHaveBeenCalledWith({ origin: 'https://foo.apps.chatic.io', message: 'boom' });
+        });
+
+        it.each([[{}], [{ message: '  ' }], [{ message: 7 }]])('refuses %j as INVALID', async data => {
+            const { handlers, deps } = setup();
+
+            const reply = await handlers.ReportSubWebViewError(message(data));
+
+            expect(reply).toEqual(
+                expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
+            );
+            expect(deps.logPageError).not.toHaveBeenCalled();
+        });
+
+        it('records 20 reports per page load, then answers recorded: false', async () => {
+            const { handlers, deps } = setup();
+
+            for (let i = 0; i < 20; i += 1) await handlers.ReportSubWebViewError(message({ message: `e${i}` }));
+            const reply = await handlers.ReportSubWebViewError(message({ message: 'one more' }));
+
+            expect(deps.logPageError).toHaveBeenCalledTimes(20);
+            expect(reply).toEqual({ type: 'OnReportSubWebViewError', success: true, data: { recorded: false } });
+        });
+    });
+});
+
+describe('permittedSubBridgeHandlers', () => {
+    const all = () => createSubBridgeHandlers(setup().deps);
+
+    it('keeps the base set and drops every gated request for a page with no permissions', () => {
+        const kept = Object.keys(permittedSubBridgeHandlers(all(), new Set()));
+
+        expect(kept.sort()).toEqual(
+            [
+                'FinishSubWebView',
+                'SetSubWebViewTitle',
+                'TriggerHaptic',
+                'SetCanGoBack',
+                'SetSubWebViewCloseGuard',
+                'ReportSubWebViewError',
+            ].sort()
+        );
+    });
+
+    it.each(Object.entries(PERMISSION_REQUESTS))('adds %s as %s', (permission, request) => {
+        const kept = permittedSubBridgeHandlers(all(), new Set([permission as never]));
+
+        expect(kept).toHaveProperty(request);
+        expect(Object.keys(kept)).toHaveLength(7);
     });
 });

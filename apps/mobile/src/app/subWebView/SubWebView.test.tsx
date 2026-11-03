@@ -57,8 +57,21 @@ jest.mock('../bridge', () => ({ HapticBridge: { trigger: jest.fn(() => true) } }
 
 const URL_ = 'https://foo.apps.chatic.io/a';
 
+// Every permission, so the tests below reach every request; one stable Set, since a new one rebuilds
+// the host.
+const ALL_PERMISSIONS = new Set(['clipboard', 'share', 'openUrl', 'userKey'] as const);
+
 const renderView = (props: Partial<React.ComponentProps<typeof SubWebView>> = {}) =>
-    render(<SubWebView viewId="view-1" url={URL_} params={{ orderId: 7 }} onRequestClose={jest.fn()} {...props} />);
+    render(
+        <SubWebView
+            viewId="view-1"
+            url={URL_}
+            params={{ orderId: 7 }}
+            permissions={ALL_PERMISSIONS}
+            onRequestClose={jest.fn()}
+            {...props}
+        />
+    );
 
 const pageMessage = (url: string, type: string, data: unknown) => ({
     nativeEvent: { url, data: JsonProtocol.encode({ type, refId: `r-${type}`, version: BRIDGE_VERSION, data } as any) },
@@ -197,6 +210,39 @@ describe('SubWebView', () => {
         expect(raw).not.toContain(MOCK_DEVICE_ID);
     });
 
+    // A request the page's manifest did not permit is not registered at all.
+    it('answers only what the manifest permits beyond the base set', async () => {
+        renderView({ permissions: new Set(['share']) });
+
+        mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
+        mockWebViewProps.onMessage(pageMessage(URL_, 'GetSubWebViewUserKey', {}));
+        await settle();
+
+        const replies = mockPostMessage.mock.calls.map(([raw]) => JSON.parse(raw));
+        const ready = replies.find(reply => reply.type === 'OnWebAppReady');
+        const key = replies.find(reply => reply.refId === 'r-GetSubWebViewUserKey');
+        expect(ready.data.supportedWebMessages).toEqual(expect.arrayContaining(['OpenShareSheet', 'TriggerHaptic']));
+        expect(ready.data.supportedWebMessages).not.toContain('GetSubWebViewUserKey');
+        expect(key).toEqual(
+            expect.objectContaining({ type: 'ERROR', error: expect.objectContaining({ code: 'NOT_FOUND' }) })
+        );
+    });
+
+    it("writes the page's error report to the app's logs under its origin", async () => {
+        const { logger } = jest.requireMock('../services');
+        renderView({ permissions: new Set() });
+
+        mockWebViewProps.onMessage(pageMessage(URL_, 'ReportSubWebViewError', { message: 'boom', stack: 'at x' }));
+        await settle();
+
+        expect(logger.warn).toHaveBeenCalledWith('WEBVIEW', '[sub] page error', {
+            origin: 'https://foo.apps.chatic.io',
+            message: 'boom',
+            stack: 'at x',
+        });
+        expect(sentTypes()).toEqual(['OnReportSubWebViewError']);
+    });
+
     // A reloaded page gets a fresh host: nothing is pushed to it before its own handshake.
     it('holds a push for a new page until that page shakes hands', async () => {
         const view = renderView();
@@ -206,7 +252,15 @@ describe('SubWebView', () => {
         mockPostMessage.mockClear();
 
         mockTheme = 'dark';
-        view.rerender(<SubWebView viewId="view-1" url={URL_} params={{ orderId: 7 }} onRequestClose={jest.fn()} />);
+        view.rerender(
+            <SubWebView
+                viewId="view-1"
+                url={URL_}
+                params={{ orderId: 7 }}
+                permissions={ALL_PERMISSIONS}
+                onRequestClose={jest.fn()}
+            />
+        );
         await settle();
         expect(sentTypes()).toEqual([]);
 
@@ -230,7 +284,15 @@ describe('SubWebView', () => {
         await settle();
 
         mockTheme = 'dark';
-        view.rerender(<SubWebView viewId="view-1" url={URL_} params={{ orderId: 7 }} onRequestClose={jest.fn()} />);
+        view.rerender(
+            <SubWebView
+                viewId="view-1"
+                url={URL_}
+                params={{ orderId: 7 }}
+                permissions={ALL_PERMISSIONS}
+                onRequestClose={jest.fn()}
+            />
+        );
         await settle();
 
         const pushed = mockPostMessage.mock.calls

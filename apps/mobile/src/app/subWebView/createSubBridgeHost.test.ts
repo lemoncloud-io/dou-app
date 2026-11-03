@@ -19,6 +19,7 @@ const SUBSET: SubWebViewRequestType[] = [
     'GetSubWebViewUserKey',
     'SetCanGoBack',
     'SetSubWebViewCloseGuard',
+    'ReportSubWebViewError',
 ];
 
 const CONTEXT = {
@@ -47,6 +48,7 @@ const createHost = () => {
             getDeviceId: () => 'device-1',
             setBackClaim: jest.fn(),
             setCloseGuard: jest.fn(),
+            logPageError: jest.fn(),
         }),
         () => CONTEXT
     );

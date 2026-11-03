@@ -32,6 +32,35 @@
 // learns that from the handshake's `supportedWebMessages` before it asks. A page learns the same
 // from its own handshake.
 
+/**
+ * What a page may use beyond the base set, by capability rather than by message name, declared in
+ * its manifest. Each maps to one request: `clipboard` → `CopyToClipboard`, `share` →
+ * `OpenShareSheet`, `openUrl` → `OpenURL`, `userKey` → `GetSubWebViewUserKey`. A request whose
+ * capability the page did not declare is not registered, so its handshake does not list it and the
+ * host answers it `NOT_FOUND`.
+ */
+export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey';
+
+/** `standard` shows the shell's bar; `fullscreen` hides it and keeps a floating close control. */
+export type SubWebViewDisplay = 'standard' | 'fullscreen';
+
+/** The orientation the view is held in; `any` follows the device. */
+export type SubWebViewOrientation = 'any' | 'portrait' | 'landscape';
+
+/**
+ * A page's manifest, served from its own origin at `/.well-known/chatic-app.json`. The shell reads it
+ * before it shows the page. With none, or one it cannot read, the page gets the base set only and
+ * the standard display. Unknown fields are ignored; a known field with a wrong value is ignored too.
+ */
+export type SubWebViewManifest = {
+    manifestVersion: 1;
+    /** What the bar shows when nothing else names the page; 1–100 characters. */
+    name?: string;
+    permissions?: SubWebViewPermission[];
+    display?: SubWebViewDisplay;
+    orientation?: SubWebViewOrientation;
+};
+
 /** The error codes the sub WebView messages fail with. */
 export type SubWebViewErrorCode = 'INVALID' | 'NOT_ALLOWED' | 'ALREADY_OPEN' | 'NOT_OPEN';
 
@@ -197,4 +226,21 @@ export type SubWebViewCloseTrigger = 'control' | 'back';
 /** [Event, to a sub WebView page] The user asked to close the view while its close guard is on. */
 export type OnSubWebViewCloseRequestedPayload = {
     trigger: SubWebViewCloseTrigger;
+};
+
+/**
+ * [Request, from a sub WebView page] Record an error the page hit, in the app's own logs under the
+ * page's origin, so a page that breaks on users' devices can be found and withdrawn. Text only, cut
+ * to its limit rather than refused; at most 20 per page load, after which nothing is recorded.
+ */
+export type ReportSubWebViewErrorPayload = {
+    /** At most 1,000 characters are kept. */
+    message: string;
+    /** At most 4,000 characters are kept. */
+    stack?: string;
+};
+
+/** [Response] Whether the error was recorded; `false` once the page load has used its 20. */
+export type OnReportSubWebViewErrorPayload = {
+    recorded: boolean;
 };

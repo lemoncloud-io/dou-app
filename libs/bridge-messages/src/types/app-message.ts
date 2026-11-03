@@ -49,6 +49,7 @@ import type {
     OnSetSubWebViewTitlePayload,
     OnGetSubWebViewUserKeyPayload,
     OnSetSubWebViewCloseGuardPayload,
+    OnReportSubWebViewErrorPayload,
     OnSubWebViewCloseRequestedPayload,
     OnSubWebViewContextChangedPayload,
     OnOpenSubscriptionManagementPayload,
@@ -266,6 +267,7 @@ export type AppMessageDataMap = {
     OnSetSubWebViewTitle: OnSetSubWebViewTitlePayload;
     OnGetSubWebViewUserKey: OnGetSubWebViewUserKeyPayload;
     OnSetSubWebViewCloseGuard: OnSetSubWebViewCloseGuardPayload;
+    OnReportSubWebViewError: OnReportSubWebViewErrorPayload;
     // Pushed to a sub WebView page only, by its own host.
     OnSubWebViewContextChanged: OnSubWebViewContextChangedPayload;
     OnSubWebViewCloseRequested: OnSubWebViewCloseRequestedPayload;

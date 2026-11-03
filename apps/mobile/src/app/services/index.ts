@@ -48,6 +48,7 @@ export const configKvService = provider.configKvService;
 export const versionService = provider.versionService;
 export const unfurlService = provider.unfurlService;
 export const subWebViewService = provider.subWebViewService;
+export const subWebViewManifestStore = provider.subWebViewManifestStore;
 export const keyValueStorage = provider.keyValueStorage;
 export const pushEventManager = provider.pushEventManager;
 export const deeplinkManager = provider.deeplinkManager;
