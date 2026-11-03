@@ -95,6 +95,7 @@ import { systemMessageSuffixKey } from '../utils/systemMessage';
 import { useMenuNavigate } from '../../../hooks/useMenuNavigate';
 import { useDebugRoomMirror } from '../../debug';
 import { toCloudId } from '../../../hooks/useCloudScope';
+import { useBottomChromeToastLift } from '../../../ui/hooks/useBottomChromeToastLift';
 import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useRecentEmojiStore } from '../stores/useRecentEmojiStore';
 import { ROUTES } from '../../../routes/paths';
@@ -177,6 +178,8 @@ export const ChannelRoomPage = () => {
         footerHeight: composerHeight,
         followFooter: followComposer,
     } = useChromeInsets();
+    // The composer floats over the list; the snackbar rests above it rather than behind it.
+    useBottomChromeToastLift(composerHeight);
 
     const { isGuest, isCloudActive } = runtime.session.useRuntimeProfile();
     // The place this reader is standing in. Only a room that names no place needs it — see
