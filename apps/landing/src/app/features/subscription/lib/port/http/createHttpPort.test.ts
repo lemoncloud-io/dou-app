@@ -356,6 +356,51 @@ describe('createHttpPort — checkout', () => {
         expect(await port.getPaymentAttempt(attempt.id)).toMatchObject({ status: 'succeeded' });
     });
 
+    // The completion page reads an attempt by its id alone, which says how it ended but not which
+    // subscription it produced; without one the page waits for a subscription it never asks for.
+    it('reads a settled success back with the subscription it produced', async () => {
+        const held = subscription({
+            status: 'active',
+            productId: '#dou-web-tier-01_dev',
+            validUntil: at('2026-12-10'),
+        });
+        const { port } = setup({
+            ...BASE_ROUTES,
+            'POST /subscriptions/0/start': () => held,
+            'GET /subscriptions/0/mine': () => ({ subscription: held }),
+        });
+        const attempt = await port.startCheckout({
+            planId: 'pro-tier-01',
+            country: 'KR',
+            emailId: 'em-1',
+            payer: PAYER,
+        });
+        expect(attempt.status).toBe('succeeded');
+        expect(await port.getPaymentAttempt(attempt.id)).toEqual({
+            id: attempt.id,
+            purpose: 'start',
+            status: 'succeeded',
+            withTrial: false,
+            subscriptionId: 'U1:portone',
+        });
+    });
+
+    it('reads a settled success back without a subscription when the account holds none', async () => {
+        const { port } = setup(BASE_ROUTES);
+        const read = await port.getPaymentAttempt('http:start:paid:succeeded');
+        expect(read).toMatchObject({ status: 'succeeded' });
+        expect(read).not.toHaveProperty('subscriptionId');
+    });
+
+    it('reads a declined attempt back without asking the server', async () => {
+        const { port, calls } = setup(BASE_ROUTES);
+        expect(await port.getPaymentAttempt('http:start:paid:failed')).toMatchObject({
+            status: 'failed',
+            failure: 'declined',
+        });
+        expect(calls).toEqual([]);
+    });
+
     // The dollar provider's registration: a card field in our dialog, with no payer.
     const STRIPE_ISSUE = {
         provider: 'stripe',

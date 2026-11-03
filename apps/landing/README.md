@@ -519,7 +519,9 @@ What the screens get from the server differs from the tests' fake server in a fe
 - The server keeps one subscription per account. A first payment it has not settled reads `pending`:
   W-18 says the payment is being confirmed and offers nothing until it settles.
 - It answers a checkout or an upgrade with the subscription; the attempt W-09 follows is made from it,
-  and a `pending` one is settled by reading the subscription again.
+  and a `pending` one is settled by reading the subscription again. The attempt's id in the address
+  says how it ended but not which subscription it made, so a success read back by its id — W-06 does —
+  is joined to the account's subscription again.
 - W-14's charge for an upgrade is an estimate with the server's own proration; the copy says so. The
   server upgrades a paid period only, so a trial can move down but not up — W-14 says so before
   anything is tried, and the fake server refuses the same way.
