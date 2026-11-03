@@ -139,9 +139,9 @@ const report = (context: Context, file: ChatFileSlot, outcome: FileExportOutcome
         case 'share-update-required':
             toast({ title: t('chat.attach.fileCard.shareUpdateRequired') });
             return;
-        case 'archive-update-required':
+        case 'save-update-required':
             // Unlike `update-required`, not learned for the page: the same app saves every other card.
-            toast({ title: t('chat.attach.fileCard.archiveNeedsUpdate') });
+            toast({ title: t('chat.attach.fileCard.saveNeedsUpdate') });
             return;
         case 'failed':
             toast({ title: t('chat.attach.fileCard.downloadFailed'), variant: 'destructive' });

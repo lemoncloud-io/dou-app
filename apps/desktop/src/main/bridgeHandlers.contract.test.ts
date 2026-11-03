@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-import { WEB_MESSAGE_RESPONSE_TYPE, type WebMessagePayloadMap, type WebMessageType } from '@chatic/app-messages';
+import { WEB_MESSAGE_RESPONSE_TYPE, type WebMessagePayloadMap, type WebMessageType } from '@chatic/bridge-messages';
 import {
     AppBridgeHost,
     InMemoryAdapter,
@@ -43,11 +43,12 @@ const PHONE_TOOLING = "The phone shell's boot, resume, perf and debug-panel tool
 const STORE_IAP = 'Store purchases happen on the phones only';
 const SYSTEM_BROWSER_LOGIN = 'Desktop social login runs in the system browser and returns by deeplink';
 const STORE_UPDATE = 'Store update check; desktop updates itself (StartUpdateDownload / RestartToUpdate)';
+const SUB_WEBVIEW = "The phone shell's second WebView; desktop-web never asks for it";
 
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` the desktop shell deliberately leaves unregistered. The
  * host answers each with `NOT_FOUND`. A message belongs here only by decision — a new one in
- * `@chatic/app-messages` fails this suite until it has a handler or a line here.
+ * `@chatic/bridge-messages` fails this suite until it has a handler or a line here.
  */
 const DESKTOP_UNSUPPORTED = {
     SetCanGoBack: PHONE,
@@ -76,6 +77,8 @@ const DESKTOP_UNSUPPORTED = {
     PrepareVideo: BROWSER,
     ReadAttachment: BROWSER,
     ReadVideoFrame: BROWSER,
+    StartAudioRecording: PHONE,
+    StopAudioRecording: PHONE,
     FetchShareIntake: PHONE,
     ReleaseShareIntake: PHONE,
     RequestPermission: PHONE,
@@ -138,6 +141,11 @@ const DESKTOP_UNSUPPORTED = {
     ClearTestRecords: NO_STORE,
     CheckAppUpdate: STORE_UPDATE,
     OpenStore: STORE_UPDATE,
+    OpenSubWebView: SUB_WEBVIEW,
+    CloseSubWebView: SUB_WEBVIEW,
+    FinishSubWebView: SUB_WEBVIEW,
+    SetSubWebViewTitle: SUB_WEBVIEW,
+    GetSubWebViewUserKey: SUB_WEBVIEW,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 /**

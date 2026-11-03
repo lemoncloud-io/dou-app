@@ -2,7 +2,7 @@ import { render, waitFor } from '@testing-library/react';
 
 import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
-import { bootstrapSocketConnection } from '../socket/auth';
+import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
 import { useDynamicDeviceId } from '../session/hooks/app/useDynamicDeviceId';
 import { getSocketSlotContext } from '@chatic/session/store';
 import { useBackgroundReceive } from './hooks/useBackgroundReceive';
@@ -29,19 +29,12 @@ jest.mock('../session/hooks/app/useDynamicDeviceId', () => ({
     useDynamicDeviceId: jest.fn(() => ({ deviceId: 'device-1' })),
 }));
 
-jest.mock('../session', () => ({
-    useRelaySessionKeepAlive: jest.fn(),
-    // Consumed by useSocketSessionDelegate (the delegate is now owned by app-runtime).
-    getServerAuthRegistration: jest.fn(),
-    signServerAuth: jest.fn(),
-    commitServerRefreshedToken: jest.fn(),
-    logoutCloudSession: jest.fn(),
-}));
-
 // SocketBinder boots through the pure bootstrapSocketConnection; intercept it to assert wiring.
 // SocketReauthBinder calls reauthenticateActiveSocket on same-socket identity changes.
-jest.mock('../socket/auth', () => ({
+jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({
     bootstrapSocketConnection: jest.fn().mockResolvedValue(jest.fn()),
+}));
+jest.mock('@chatic/auth/socket/reauthenticateActiveSocket', () => ({
     reauthenticateActiveSocket: jest.fn().mockResolvedValue(undefined),
 }));
 

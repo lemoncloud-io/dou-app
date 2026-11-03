@@ -6,7 +6,7 @@ import type {
     PhotoLibraryAccess,
     PhotoLibraryItem,
     PhotoLibraryMediaType,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { ShellFileRef } from '@chatic/data';
 
 import { appBridge } from './appBridge';

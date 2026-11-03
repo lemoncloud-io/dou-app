@@ -4,7 +4,7 @@ import { appBridge } from '../../bridge/appBridge';
 import { configureWebPerfTraces, setPerfTelemetryRecorder, supportsNativePerfTraces } from './webPerfTraces';
 
 import type { Logger } from '@chatic/logger';
-import type { OnWebAppReadyPayload } from '@chatic/app-messages';
+import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 
 jest.mock('../../bridge/appBridge', () => ({
     appBridge: { startPerfTrace: jest.fn(), stopPerfTrace: jest.fn() },

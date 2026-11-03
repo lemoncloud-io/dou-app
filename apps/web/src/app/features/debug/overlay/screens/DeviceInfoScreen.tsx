@@ -2,7 +2,7 @@ import { Smartphone } from 'lucide-react';
 
 import { useDeviceInfo } from '@chatic/device-utils';
 
-import type { AppPermissionType } from '@chatic/app-messages';
+import type { AppPermissionType } from '@chatic/bridge-messages';
 
 import { useDebugOperation } from '../../hooks';
 import { CopyRow } from '../../components/CopyRow';

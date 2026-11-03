@@ -94,13 +94,19 @@
         --accent: 180 5% 96%; /* #F4F5F5 hover */
         --accent-foreground: 0 0% 10%;
 
-        /* Shell: light cloud-and-place rail, white nav rail + sidebar, separated by hairlines. */
-        --rail: 0 0% 96%; /* #F5F5F5 Icon Rail */
+        /* Shell: the Mist palette, the default — three cool grays that step lighter from the cloud
+           rail to the sidebar. These are what paints before the app starts; from then on every
+           palette, Mist included, comes from shellPalette.ts as a generated stylesheet (Mist's dark
+           shell stays the `.dark` block below). */
+        --rail: 220 12% 86%; /* #D6D9DF cloud rail */
         --rail-foreground: 220 5% 24%; /* #3A3C40 BK_800 */
-        --rail-muted: 0 0% 96%; /* #F5F5F5 active place tile */
-        --rail-elevated: 0 0% 100%; /* #FFFFFF Workspace Rail */
-        --sidebar: 0 0% 100%; /* #FFFFFF Channel List Panel */
+        --rail-muted: 220 12% 86%; /* active place tile */
+        --rail-elevated: 220 13% 91%; /* #E5E7EB nav rail */
+        --sidebar: 220 20% 97%; /* #F6F7F9 channel list */
         --sidebar-foreground: 0 0% 0%;
+        /* The open destination's tile on the nav rail: the full lime, dark ink on it. */
+        --rail-active: 76 87% 49%;
+        --rail-active-foreground: 0 0% 10%;
 
         /* Per-identity avatar fills (hue varies per user; L + fg keep contrast in each theme).
            White initials at 40% measured 3.33:1 on the yellow hues; 32% holds 4.91:1 on the
@@ -293,6 +299,14 @@
         --code-inline: 32 80% 54%; /* #E8902C - inline code text; 7.5:1 on the dark well chip */
         --shadow-color: 0 0% 0%;
     }
+
+    /* The Mist sample card in Settings, in dark mode: Mist keeps the dark shell above, so its card
+       repeats those three values instead of inheriting whichever palette is on. */
+    .dark [data-palette-preview='mist'] {
+        --rail: 120 3% 7%;
+        --rail-elevated: 90 2% 18%;
+        --sidebar: 90 2% 18%;
+    }
 }
 
 @layer base {
@@ -455,6 +469,54 @@
         border: 0;
         border-radius: 9999px;
         background: hsl(var(--primary));
+    }
+
+    /* A voice file card's seek bar: the played part filled up to `--seek-progress` (set inline from
+       the playback time), the rest a faint track, and a small thumb. Native for the same reasons. */
+    .seek-slider {
+        appearance: none;
+        background: transparent;
+        height: 16px;
+    }
+    .seek-slider::-webkit-slider-runnable-track {
+        height: 3px;
+        border-radius: 9999px;
+        background: linear-gradient(
+            to right,
+            hsl(var(--foreground)) var(--seek-progress, 0%),
+            hsl(var(--foreground) / 0.15) var(--seek-progress, 0%)
+        );
+    }
+    .seek-slider::-moz-range-track {
+        height: 3px;
+        border-radius: 9999px;
+        background: linear-gradient(
+            to right,
+            hsl(var(--foreground)) var(--seek-progress, 0%),
+            hsl(var(--foreground) / 0.15) var(--seek-progress, 0%)
+        );
+    }
+    .seek-slider::-webkit-slider-thumb {
+        appearance: none;
+        width: 11px;
+        height: 11px;
+        margin-top: -4px;
+        border: 0;
+        border-radius: 9999px;
+        background: hsl(var(--foreground));
+    }
+    .seek-slider::-moz-range-thumb {
+        width: 11px;
+        height: 11px;
+        border: 0;
+        border-radius: 9999px;
+        background: hsl(var(--foreground));
+    }
+    .seek-slider:disabled::-webkit-slider-thumb {
+        visibility: hidden;
+    }
+    .seek-slider:disabled::-moz-range-thumb {
+        visibility: hidden;
     }
 }
 

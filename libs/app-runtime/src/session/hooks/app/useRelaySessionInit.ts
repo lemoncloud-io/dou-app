@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 
 import { markSessionInitialized } from '@chatic/session';
-import { relaySession } from '../../auth/relaySession';
+import { relaySession } from '@chatic/auth';
 import { useSessionAuth } from '../session/readers/useSessionAuth';
 
 type InitState = 'idle' | 'initializing' | 'completed';

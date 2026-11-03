@@ -6,7 +6,7 @@
  * subscription on the spot, with no undo. So the screen is strict about where it fires and leaves
  * the question "is there a paid charge?" to the relay, which is the only side that can answer it.
  */
-import { relayBaseFor, relayStageOf, type RelayStage } from './targetServer';
+import { relayStageOf, type RelayStage } from './targetServer';
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 
@@ -25,13 +25,12 @@ export const isWebSubscription = (membership: Pick<MembershipView, 'platform'>):
 /**
  * The relay a refund on `stage` is sent to, or `''` when it cannot be named with confidence.
  *
- * `relayBaseFor` would happily append `/dou-d1` to any host. That is fine for display elsewhere,
- * but a refund must not trust a URL the console made up: when the configured endpoint follows
- * neither `dou-v1` nor `dou-d1`, nothing says which server its host really is, so no endpoint is
- * produced and the gate below stays shut.
+ * `endpoint` is where calls on that stage go (`targetEndpointFor`). It is used only when its own
+ * `dou-XX` segment names the same stage: an env value that says otherwise is a misconfiguration, and
+ * a refund has no undo, so no endpoint is produced and the gate below stays shut.
  */
-export const refundEndpointFor = (configured: string | undefined, stage: RelayStage): string =>
-    relayStageOf(configured) ? relayBaseFor(configured, stage) : '';
+export const refundEndpointFor = (endpoint: string | undefined, stage: RelayStage): string =>
+    relayStageOf(endpoint) === stage ? (endpoint ?? '').trim().replace(/\/+$/, '') : '';
 
 export interface RefundAvailability {
     enabled: boolean;
@@ -59,7 +58,7 @@ export const refundAvailability = (
     if (!endpoint?.trim()) {
         return {
             enabled: false,
-            reason: 'No relay to refund on — the configured endpoint must end in /dou-v1 or /dou-d1.',
+            reason: "No relay to refund on — the stage's relay endpoint must be set and end in /dou-d1.",
         };
     }
     if (relayStageOf(endpoint) !== 'd1') {

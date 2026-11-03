@@ -1,4 +1,4 @@
-import type { OnSaveFilePayload } from '@chatic/app-messages';
+import type { OnSaveFilePayload } from '@chatic/bridge-messages';
 import { CHAT_ATTACHMENT_ZIP_TYPE, chatAttachmentFormat } from '@chatic/data';
 
 import type { DownloadProgress, DownloadResult, NativeDownload } from '../../../runtime/transfer';
@@ -21,10 +21,11 @@ export type FileExportOutcome =
     /** `ShareFile` refused a document — an app built before documents. */
     | { kind: 'share-update-required' }
     /**
-     * `SaveFile` refused a ZIP archive — an app built before the phone kept one. Only this card is
-     * affected: the same app saves every other document, so nothing is learned about the shell.
+     * `SaveFile` refused a format older apps do not save — a ZIP archive or an audio file, from an app
+     * built before the phone kept them. Only this card is affected: the same app saves every other
+     * document, so nothing is learned about the shell.
      */
-    | { kind: 'archive-update-required' }
+    | { kind: 'save-update-required' }
     /** Stopped on purpose while downloading. Silent. */
     | { kind: 'cancelled' }
     /** The shell never answered within the long wait. Silent. */
@@ -98,9 +99,14 @@ const fromStepError = ({ step, cause }: StepError): FileExportOutcome => {
     }
 };
 
-/** Whether the name ends in a ZIP archive's extension, by the same rule the upload judged it by. */
-const isArchiveName = (name: string): boolean =>
-    chatAttachmentFormat({ name, type: '' })?.type === CHAT_ATTACHMENT_ZIP_TYPE;
+/**
+ * Whether the name is one an app from before archives and audio refuses to save: a ZIP archive or one
+ * of the four audio formats, by its extension and the same rule the upload judged it by.
+ */
+const isNewlySavedFormat = (name: string): boolean => {
+    const type = chatAttachmentFormat({ name, type: '' })?.type;
+    return type === CHAT_ATTACHMENT_ZIP_TYPE || !!type?.startsWith('audio/');
+};
 
 const run = async (step: FileUse, call: () => Promise<unknown>): Promise<unknown> => {
     try {
@@ -140,7 +146,8 @@ const handOver = async (use: FileUse, uri: string, name: string, deps: FileExpor
  * - **`SOURCE` from the use, once.** The OS cleared the file — the kept one or a fresh one — so it is
  *   forgotten and the flow runs again from the download.
  * - **`NO_HANDLER` from an open.** Nothing on the device opens the format; the share sheet is offered.
- * - **`INVALID` from saving a `.zip`.** An app built before the phone kept archives; it is told to update.
+ * - **`INVALID` from saving a `.zip` or an audio file.** An app built before the phone kept them; it is
+ *   told to update.
  *
  * A download this flow started is acknowledged once its file has been used. Acknowledging drops only
  * the shell's record, never the file, so the kept URI stays good.
@@ -192,10 +199,11 @@ export const exportFile = async (input: FileExportInput, deps: FileExportDeps): 
                 }
             }
             if (codeOf(error.cause) === 'INVALID') {
-                // A shell from before archives were sent from the phone saves only a document's extension and
-                // refuses a `.zip` as `INVALID`. Expected of an old app, so it is said, not reported as a bug. A
-                // URI outside the shell's download folder is `INVALID` too, but this URI is always its own.
-                if (error.step === 'save' && isArchiveName(name)) return { kind: 'archive-update-required' };
+                // A shell from before archives and audio were sent from the phone saves only a document's
+                // extension and refuses a `.zip`, `.m4a`, `.mp3`, `.wav` or `.ogg` as `INVALID`. Expected of an
+                // old app, so it is said, not reported as a bug. A URI outside the shell's download folder is
+                // `INVALID` too, but this URI is always its own.
+                if (error.step === 'save' && isNewlySavedFormat(name)) return { kind: 'save-update-required' };
                 deps.log?.('file export: the shell refused its own file', { use });
             }
             return fromStepError(error);

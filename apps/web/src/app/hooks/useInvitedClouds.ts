@@ -30,8 +30,9 @@ export interface InvitedCloudsResult {
  * from the invited list (non-destructive: the cache row is kept) so they surface only as owned and
  * are never shown twice.
  *
- * Attribution: the cache is shared by every guest the device has had, so a row recorded as accepted
- * by another guest is left out (non-destructive too). Everything downstream — the cloud sheet, the
+ * Attribution: inside a shell the cache is shared by every guest the device has had, and a browser
+ * tab's rows survive a logout, so a row recorded as accepted by another guest is left out
+ * (non-destructive too). Everything downstream — the cloud sheet, the
  * background sockets, unread counts — reads this list, and a cloud left in it would be delegated into
  * by a guest the server never granted it to (see `utils/invitedCloudAcceptance`).
  */

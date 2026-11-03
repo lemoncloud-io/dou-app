@@ -1,4 +1,4 @@
-import type { CacheProfileView } from '@chatic/app-messages';
+import type { CacheProfileView } from '@chatic/bridge-messages';
 import type { ISqliteDatabase } from '../../database';
 import { ProfileDataSource } from './ProfileDataSource';
 

@@ -1,4 +1,4 @@
-import type { CacheModelOf, CacheQueryOf, CacheType, LastChatItem } from '@chatic/app-messages';
+import type { CacheModelOf, CacheQueryOf, CacheType, LastChatItem } from '@chatic/bridge-messages';
 import type { DataContext, DataContextProvider } from '../../repositories/types';
 import { stableHash } from '../stableHash';
 import { resolveScopedContext } from './policy';

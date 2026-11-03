@@ -1,4 +1,4 @@
-import type { OnPickAttachmentsPayload, OnPrepareVideoPayload, OnReadAttachmentPayload } from '@chatic/app-messages';
+import type { OnPickAttachmentsPayload, OnPrepareVideoPayload, OnReadAttachmentPayload } from '@chatic/bridge-messages';
 import type { IAttachmentPickerBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 

@@ -2,8 +2,8 @@
 
 The composer takes images, MP4 videos and documents from the "+" button, a drop, or a paste. They
 wait in a tray, and they go out with the message: the text first, then one attachment message with
-the files. In the feed images are tiles that open a full-image viewer; a video plays in place, and a
-document is a card that saves it.
+the files. In the feed images are tiles that open a full-image viewer; a video and a voice file play
+in place, and a document is a card that saves it.
 
 The send itself is the runtime's, shared with apps/web: `data.useSendImages`, documented in
 [`libs/app-runtime/docs/data/image-send.md`](../../../../libs/app-runtime/docs/data/image-send.md).
@@ -28,15 +28,20 @@ refusals by reason:
 
 - `unsupported`: not a format the server takes. `chatAttachmentFormat` in `@chatic/data` decides:
   PNG, JPEG, GIF and WebP images, MP4 video, PDF, DOCX, XLSX, PPTX, HWP, HWPX and TXT documents,
-  and ZIP archives. An empty or generic type (HWP arrives untyped on most systems) is read from the
-  extension. A video or document whose extension names another format is refused, because the
-  receiver saves it under that name. That is also why an office file never goes up as an archive:
-  DOCX, XLSX, PPTX and HWPX are ZIP containers and a system without their apps may type them as one,
-  but their extension is another format's. Windows types a `.zip` as `application/x-zip-compressed`;
+  ZIP archives, and M4A, MP3, WAV and OGG audio. Audio goes as a document (kind `file`):
+  the message shows a file card that plays it in place (see below), and the web app does not send it at all. AAC
+  and WebM audio are refused: the server does not keep them, and Chromium types a WebM from disk
+  `video/webm`, a video the server does not take either. An empty or generic type (HWP arrives untyped on most systems) is read from the
+  extension. So is an office file's: DOCX, XLSX, PPTX and HWPX are ZIP containers, and the browser types
+  them by whichever app owns the extension on that machine — as a ZIP where none does, or under another
+  suite's own name for them. Typed as a ZIP or as anything the server does not know, a file with one of
+  those four extensions goes up as that document, never as an archive. A video or document whose
+  extension names another format is still refused (a `.docx` typed as a PDF), because the receiver
+  saves it under that name. Windows types a `.zip` as `application/x-zip-compressed`;
   it is sent as `application/zip`. Nothing reads an archive's bytes here: an empty one, which the
   server refuses when its upload completes, passes the tray and its upload fails.
 - `too-large`: over its kind's limit, the same as the server's: images 20 MB, videos 300 MB,
-  documents and archives 50 MB. The server would refuse it with a 413 only after the whole transfer.
+  documents, archives and audio 50 MB. The server would refuse it with a 413 only after the whole transfer.
 - `name-too-long`: the name as it will be sent (a document without an extension is given its
   format's) is over 255 UTF-8 bytes, the server's limit. Hangul is three bytes a character and an
   emoji four, so about 85 Hangul characters is already too many. The server measures the name
@@ -69,7 +74,11 @@ tile is only a 92px crop or a name: an image or a video in the image viewer's fr
 (held to the same upscale cap) or a player alone, and a PDF or text file in the feed's `FileViewer`, read from the file the page
 already holds instead of fetched. Neither has a sender, a save or a copy — there is no message yet —
 and both say the file is not sent. A document the viewer cannot draw (office, Hancom, ZIP) is a
-plain tile. A video the browser cannot decode (HEVC `.mov`) shows an empty player, as it does in the
+plain tile. A voice file opens nothing: its tile is a play/pause button that plays the picked file
+from the tray's object URL, with the clock in place of the size once it starts and a bar along the
+bottom edge. It shares the feed's one-sound-at-a-time rule (below). A file the browser cannot decode
+turns the tile plain — not a button, so nothing to focus — and says "Couldn't play this file" in
+place of the size. A video the browser cannot decode (HEVC `.mov`) shows an empty player, as it does in the
 feed. Removing the previewed file closes its preview.
 
 The remove "×" sits on each tile's top-right corner. It surfaces on hover or focus (see
@@ -93,9 +102,12 @@ An uploading or failed tile is `aria-disabled`, not `disabled`, so it stays in t
 screen reader reaches it. A disabled button is skipped, and the upload, and its failure, had no
 presence at all.
 
-Save, copy and delete (`ImageActions`) are three icon buttons over the tile's corner. Delete shows
-only where the reader may delete. They used to sit in a "More" menu, which for an image someone else
-sent held only Copy.
+Over the tile's corner, `ImageActions` shows Download and a "More" button whose menu holds Copy and
+Delete, as the design draws it. Delete shows only on your own messages. A sent upload has no
+delete of its own on the server, so Delete there removes the whole message — its text and every
+other image too — and the confirm dialog asks about the message, not the file. The menu renders in a
+portal, so the pointer leaves the tile while it is open; the bar stays pinned visible until the menu
+closes, otherwise it faded out from under the menu. The viewer keeps the three icon buttons.
 
 "Download all" (in the feed and in the viewer) saves each image of the message in turn
 (`downloadImages`). In the desktop app every image save goes straight into the Downloads folder,
@@ -130,6 +142,18 @@ lists them under the images:
   without one.
 - **A document** is a card with a kind icon, its name and size, and a save button. A PDF or text
   file's name also opens it in the document viewer (below).
+- **A voice file** (M4A, MP3, WAV, OGG) plays in its card: the kind icon is a play/pause button and
+  the size line a seek bar with `0:01 / 0:02` (the time played alone while the header names no
+  length). It streams from the signed address, reading only the header (`preload="metadata"`) until
+  it is played, so a feed of voice files costs a few kilobytes each. Not the document viewer: a
+  full-window dialog around one small player is a lot of window for a clip of seconds.
+    - **One sound at a time.** A voice file starting — card or tray tile — pauses every other audio
+      or video in the window, and any audio or video starting pauses a voice file. Videos among
+      themselves are left alone. `play` does not bubble, so `useInlineAudio` listens for it in the
+      capture phase on the document, while at least one voice file is mounted.
+    - A card that leaves the page stops its own playback. An address the player cannot load — past
+      its signature, say — turns the bar into "Couldn't play this file" and leaves the save button; a
+      re-signed address starts over clean.
 - **Being sent**, either is the same card with a spinner, drawn from the name, type and size the
   pending slot kept (`localName`, `localContentType`, `localSize`), since there is nothing to preview.
   **Failed**, the card says so, and the message's retry resends it with the rest.
@@ -176,11 +200,12 @@ Closing returns focus to the tile that opened it (ui-kit's dialog focus return, 
 
 ## The document viewer
 
-`FileViewer` opens a sent PDF or text file in the app, in the same frame as the image viewer: a
-header with the sender, the time and the file name, a save button and a close button. `canPreview`
-decides which cards open it. Only PDF and TXT do: nothing in the page draws a DOCX, XLSX, PPTX or
-Hancom file without handing it, and its signed address, to a third party, so those stay save cards.
-A video already plays in place.
+`FileViewer` opens a sent PDF or text file in the app, in the same frame as the image viewer:
+a header with the sender, the time and the file name, a save button and a close button. `canPreview`
+decides which cards open it: PDF and TXT are drawn, and M4A, MP3, WAV and OGG are `audio`, which
+plays in its own card instead. Nothing in the page draws a DOCX, XLSX, PPTX or Hancom file without
+handing it, and its signed address, to a third party, so those stay save cards. A video already
+plays in place.
 
 A PDF or text file still in the composer opens here too, before it is sent (see
 [The tray](#the-tray)): the header names the file and says it is not sent, there is no save, and
@@ -231,8 +256,9 @@ for a PDF too, because the server now stores videos and documents as well.
 
 The kind and count come from `chatAttachmentSummary` in `@chatic/data`. It counts from `upload$$`,
 or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo` (`image`, `video`,
-`audio` or `file`), read by `uploadSlotKind`. A slot still being sent has no `stereo`: a video or
-document is read from the content type its slot kept, and an image slot, which keeps none, counts as
+`audio` or `file`), read by `uploadSlotKind`. A slot still being sent has no `stereo`: a video,
+document or voice file is read from the content type its slot kept (a voice file as `audio`, the kind
+the server will store it under, so its row does not change wording once sent), and an image slot, which keeps none, counts as
 an image, so a photo on its way never reads as an attachment. A head that only has `uploadIds`
 counts as images too. Kinds
 that differ, and `audio`, read as attachments (a single one as "Attachment"). The rule is meant

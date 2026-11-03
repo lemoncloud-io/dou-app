@@ -4,7 +4,7 @@ import { isNative } from '@chatic/bridges';
 import type { PairingListItem } from '@chatic/http';
 
 import { useRuntimeRepositories } from '../../../data/hooks/useRuntimeRepositories';
-import { isPairedSession } from '../../pairing/pairedSession';
+import { isPairedSession } from '@chatic/auth';
 
 export interface PairingAwareLogout {
     /**

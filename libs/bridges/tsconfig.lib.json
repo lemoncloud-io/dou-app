@@ -9,7 +9,7 @@
     "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"],
     "references": [
         {
-            "path": "../app-messages/tsconfig.lib.json"
+            "path": "../bridge-messages/tsconfig.lib.json"
         },
         {
             "path": "../logger/tsconfig.lib.json"

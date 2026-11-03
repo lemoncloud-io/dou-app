@@ -1,7 +1,8 @@
 # @chatic/mobile
 
 **The React Native shell that hosts the Chatic web client in a WebView and answers the messages it
-sends.** It boots the app, mounts one WebView, and stands behind it as the only thing in the product
+sends.** It boots the app, mounts the WebView (and, when the web asks, a second one for a page on another
+origin), and stands behind it as the only thing in the product
 that can reach the operating system — push tokens, deep links, the local SQLite and MMKV stores, file
 uploads, permissions, native sign-in SDKs, the status bar and the app icon.
 
@@ -26,15 +27,15 @@ grep -rhoE "from '@chatic/[a-z-]+'" --include='*.ts' --include='*.tsx' apps/mobi
   | sort | uniq -c | sort -rn
 ```
 
-Five workspace packages, and `@chatic/app-messages` outnumbers the rest together.
-[`@chatic/app-messages`](../../libs/app-messages/README.md) declares every message name and payload;
+Five workspace packages, and `@chatic/bridge-messages` outnumbers the rest together.
+[`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) declares every message name and payload;
 [`@chatic/bridges`](../../libs/bridges/README.md) owns the transport, the reply matching and the
 timeouts on both sides of the boundary; [`@chatic/logger`](../../libs/logger/README.md) owns the log
 entry contract and the upload queue; [`@chatic/device-utils`](../../libs/device-utils/README.md) and
 [`@chatic/shared`](../../libs/shared/README.md) supply the small shared pieces.
 
 What this app does **not** own: product screens, routing between them, data fetching and the debug
-panel UI (`apps/web`); the message vocabulary (`@chatic/app-messages`); the framing and the request
+panel UI (`apps/web`); the message vocabulary (`@chatic/bridge-messages`); the framing and the request
 bookkeeping (`@chatic/bridges`); the desktop shell's answers to the same messages (`apps/desktop`).
 
 `@chatic/config` is a special case, and the absence is deliberate: this app never imports it, but
@@ -56,8 +57,9 @@ source tree only in comments.
    `bridge/`, a Kotlin implementation under `android/`, and a Swift one under `ios/`. Shipping two of
    the three leaves one platform failing at runtime with no type error.
 5. **The shell renders chrome, never content.** The only components in `features/` are the system
-   bars, a full-screen loader, a resume overlay and a deep-link error view. Anything with product
-   meaning belongs to the web client.
+   bars, a full-screen loader, a resume overlay, a deep-link error view and the sub WebView's bar.
+   Anything with product meaning belongs to the web client — the sub WebView shows a page from
+   another origin, never a screen of the shell's own.
 6. **Boot order is load-bearing.** `App.tsx` seeds safe-area insets synchronously from
    `initialWindowMetrics` and the navigator hosts `MainScreen` directly, so the WebView starts loading
    before any async round-trip can delay it. Reordering these is a measurable regression, not a
@@ -65,8 +67,8 @@ source tree only in comments.
 
 ## Scope
 
-**In** — the WebView host and the message router; the 30 handler hooks that answer web messages; the
-20 service domains behind them; the 14 native bridge modules and their Android/Kotlin and iOS/Swift
+**In** — the WebView host and the message router; the 31 handler hooks that answer web messages; the
+21 service domains behind them; the 14 native bridge modules and their Android/Kotlin and iOS/Swift
 counterparts; the local SQLite and MMKV stores; push registration, notification channels, badge
 counts and push-tap routing; deep links and universal links; large-file upload and download, and saving or sharing a downloaded
 image; receiving what other apps share to Dou (the iOS share extension and the Android share intent);
@@ -75,7 +77,7 @@ and system bars; the build, run and store-deploy pipelines.
 
 **Out** — screens, navigation between them, data fetching, product state and the debug panel UI
 (`apps/web`); message names and payload shapes
-([`@chatic/app-messages`](../../libs/app-messages/README.md)); the transport and reply bookkeeping
+([`@chatic/bridge-messages`](../../libs/bridge-messages/README.md)); the transport and reply bookkeeping
 ([`@chatic/bridges`](../../libs/bridges/README.md)); log entry shape, masking and the upload queue
 ([`@chatic/logger`](../../libs/logger/README.md)); the same messages answered on desktop
 (`apps/desktop`).
@@ -85,7 +87,7 @@ and system bars; the build, run and store-deploy pipelines.
 ```mermaid
 flowchart TD
     Web["apps/web<br/>(in the WebView)"]:::ext
-    Msgs["@chatic/app-messages<br/>@chatic/bridges"]:::ext
+    Msgs["@chatic/bridge-messages<br/>@chatic/bridges"]:::ext
     NativeSrc["android/ Kotlin<br/>ios/ Swift"]:::ext
     OS["iOS · Android"]:::ext
 
@@ -93,8 +95,8 @@ flowchart TD
     Screen["features/main<br/>MainScreen"]
     WV["webview/AppWebView"]
     Router["webview/hooks<br/>useWebMessageRouter"]
-    Handlers["webview/hooks<br/>30 handlers"]
-    Services["services/<br/>20 domains"]
+    Handlers["webview/hooks<br/>31 handlers"]
+    Services["services/<br/>21 domains"]
     BridgeTS["bridge/<br/>14 native modules"]
     Store["database/<br/>SQLite · MMKV"]
 
@@ -152,14 +154,16 @@ apps/mobile/
 │   └── app/
 │       ├── App.tsx        safe-area provider, system bars, navigation container, version check,
 │       │                  startup theme handed to the native splash
-│       ├── webview/       96 files: AppWebView, the router, 30 handlers, injection
-│       ├── services/      98 files across 20 domains, assembled in provider.ts
+│       ├── webview/       101 files: AppWebView, the router, 31 handlers, injection
+│       ├── subWebView/    the second WebView, for a page on another origin — its own host, answering a
+│       │                  subset of the vocabulary
+│       ├── services/      114 files across 21 domains, assembled in provider.ts
 │       ├── bridge/        14 modules onto native: app icon, attachment picker, back nav, badge sync,
 │       │                  boot splash, file manager, haptics, media export, photo library,
 │       │                  push marks, share intake, shared language, system bars, file transfer
 │       ├── database/      SQLite (op-sqlite) and MMKV; table names and row types in types.ts
 │       ├── data/          local data sources over the SQLite tables
-│       ├── features/      core chrome and features/main — MainScreen only
+│       ├── features/      core chrome, features/main (MainScreen) and features/subWebView (its bar)
 │       ├── stores/        zustand stores, including debugSettingsStore (resolves the WebView URL)
 │       ├── hooks/         useServices, useResolvedTheme, useAppVersionCheck
 │       ├── customZip/     the static server that serves a locally unpacked web bundle
@@ -167,10 +171,10 @@ apps/mobile/
 ├── android/               Kotlin: MainActivity, bridge, handler, module, push, service, worker
 ├── ios/                   Swift: Chatic, Bridges, ChaticNotificationServiceExtension, ChaticShareExtension
 ├── fastlane/              store upload lanes
-└── docs/                  7 categories, 19 topic documents — see Documents
+└── docs/                  7 categories, 20 topic documents — see Documents
 ```
 
-There is no `screens/` directory to open beyond `features/main`, and no `api/` directory at all —
+There is no `screens/` directory to open beyond `features/main` and `features/subWebView`, and no `api/` directory at all —
 network calls belong to the web client. `webview/core/bridge.ts` holds `createBridge`, the twenty
 lines that turn a `WebView` ref into a post/receive pair; there is no `Bridge.ts` class.
 
@@ -218,7 +222,7 @@ main.tsx
             ├── debugSettingsStore.getResolvedWebviewBaseUrl()
             └── AppWebView
                 └── useWebMessageRouter({ bridge })
-                    └── 30 handler hooks → useServices() → provider
+                    └── 31 handler hooks → useServices() → provider
 ```
 
 `provider.ts` builds `LogService` first, because almost every other service takes it as its first
@@ -239,7 +243,7 @@ is the bridge's job, not this app's.
 ### 2. Adding a native capability
 
 Declare the request and response types in
-[`@chatic/app-messages`](../../libs/app-messages/README.md). Write the service under
+[`@chatic/bridge-messages`](../../libs/bridge-messages/README.md). Write the service under
 `services/<domain>/`, register it in `services/provider.ts`, and add a handler hook under
 `webview/hooks/` wired into `useWebMessageRouter`. If it needs the OS, add the TypeScript module under
 `bridge/` and both native implementations — Kotlin under `android/app/src/main/java/io/chatic/dou/`
@@ -248,7 +252,7 @@ and Swift under `ios/Bridges/`. See [docs/native/README.md](./docs/native/README
 
 A new message has to be decided in every shell, not only this one: each shell's bridge contract
 suite fails until the request is handled there or listed as unsupported with a reason — step 5 of
-[adding a message](../../libs/app-messages/README.md#adding-a-message), and
+[adding a message](../../libs/bridge-messages/README.md#adding-a-message), and
 [docs/webview/README.md](./docs/webview/README.md#the-bridge-contract) for this shell's suite.
 
 ### 3. A push arrives
@@ -283,22 +287,22 @@ the lanes. There are four store apps — iOS and Android, each dev and prod. See
 The detail lives under [`docs/`](./docs/README.md), in seven categories. Each category folder has a
 `README.md` that is either its lead document or a short index.
 
-| Category                                  | What it covers                                                                                    |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| [docs/webview/](./docs/webview/README.md) | The message boundary in detail — handlers, the injected runtime, the router, and remote debugging |
-| [docs/boot/](./docs/boot/README.md)       | Why the WebView mounts early, what is deferred, and the boot timeline that proves it              |
-| [docs/native/](./docs/native/README.md)   | The three-way native parity contract, and the execution boundary in `services/`                   |
-| [docs/push/](./docs/push/README.md)       | FCM/APNs registration, notification channels, click routing, and the app icon badge               |
-| [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, and resumable file upload                    |
-| [docs/system/](./docs/system/README.md)   | OS-level state shared with the web — theme sync and deep links                                    |
-| [docs/release/](./docs/release/README.md) | Store builds, the launch-time update check, and running against a local web dev server            |
+| Category                                  | What it covers                                                                                                     |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [docs/webview/](./docs/webview/README.md) | The message boundary in detail — handlers, the injected runtime, the router, remote debugging, and the sub WebView |
+| [docs/boot/](./docs/boot/README.md)       | Why the WebView mounts early, what is deferred, and the boot timeline that proves it                               |
+| [docs/native/](./docs/native/README.md)   | The three-way native parity contract, and the execution boundary in `services/`                                    |
+| [docs/push/](./docs/push/README.md)       | FCM/APNs registration, notification channels, click routing, and the app icon badge                                |
+| [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, and resumable file upload                                     |
+| [docs/system/](./docs/system/README.md)   | OS-level state shared with the web — theme sync and deep links                                                     |
+| [docs/release/](./docs/release/README.md) | Store builds, the launch-time update check, and running against a local web dev server                             |
 
 Those are the detail, and this README is the map.
 
 ## How to verify
 
 ```bash
-npx jest --config apps/mobile/jest.config.js     # 74 spec files
+npx jest --config apps/mobile/jest.config.js     # 102 spec files
 npx tsc -b apps/mobile/tsconfig.json             # the app sources
 ```
 
@@ -320,8 +324,12 @@ The traps here, some of which differ from the libraries:
     grep -rn "from '.*features" apps/mobile/src/app/services
     ```
 
+    The third rule, that the main WebView and the sub WebView never import each other (one
+    test-support path aside), is lint (`no-restricted-imports` in `eslint.config.mjs`) — see
+    [docs/webview/sub-webview.md](docs/webview/sub-webview.md#the-boundary).
+
 - **Native code is not checked by any of this.** Kotlin and Swift compile only in a real build:
   `yarn mobile:android:dev` and `yarn mobile:ios:dev`. A bridge changed on the TypeScript side alone
   passes every command above and fails on the device.
-- Changing anything under `@chatic/app-messages` or `@chatic/bridges` reaches `apps/desktop` and
+- Changing anything under `@chatic/bridge-messages` or `@chatic/bridges` reaches `apps/desktop` and
   `apps/web` as well. Neither is covered by this app's commands.

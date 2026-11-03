@@ -1,4 +1,4 @@
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 import type { ILogService, ISmsService } from '../../services';
 
 export const createSmsHandlers = (smsService: ISmsService, logger: ILogService) => {

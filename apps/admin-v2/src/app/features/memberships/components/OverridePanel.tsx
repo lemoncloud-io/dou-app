@@ -38,7 +38,7 @@ import {
     type OverrideFormState,
     type OverrideMode,
 } from '../lib/overrideForm';
-import { configuredEndpoint, describeTargetServer, relayBaseFor, type RelayStage } from '../lib/targetServer';
+import { describeTargetServer, targetEndpointFor, type RelayStage } from '../lib/targetServer';
 
 import type { MembershipView } from '@lemoncloud/chatic-backend-api';
 import type { JSX } from 'react';
@@ -73,7 +73,7 @@ export const OverridePanel = ({ membership, onDone, stage }: OverridePanelProps)
 
     // Never fall back to `membership.id` — that is `MS<uid>`, and writing to it targets nothing.
     const userId = membership.userId ?? '';
-    const target = describeTargetServer(relayBaseFor(configuredEndpoint(), stage));
+    const target = describeTargetServer(targetEndpointFor(stage));
     // One clock for the whole render: the `min` attribute, the presets and the validation all
     // have to agree on what "today" is.
     const now = Date.now();

@@ -31,14 +31,76 @@ final class MediaExportRulesTests: XCTestCase {
         XCTAssertNil(DownloadFiles.exportFamily(Data([0xD0, 0xCF, 0x11, 0xE0]), fileName: "a.hwp"), "half an OLE2 header")
         XCTAssertNil(DownloadFiles.exportFamily(Data([0, 0, 0, 0x18] + Array("ftyx".utf8)), fileName: "a.mp4"))
         XCTAssertNil(DownloadFiles.exportFamily(Data("ftyp".utf8), fileName: "a.mp4"), "ftyp at the wrong offset")
+        XCTAssertNil(DownloadFiles.exportFamily(Data(Array("RIFF".utf8) + [0, 0, 0, 0] + Array("AVI ".utf8)), fileName: "a.wav"), "a RIFF that is not WAVE")
+        XCTAssertNil(DownloadFiles.exportFamily(Data([0xFF, 0xC0, 0x00]), fileName: "a.mp3"), "not an MPEG frame sync")
+        XCTAssertNil(DownloadFiles.exportFamily(Data([0xFF]), fileName: "a.mp3"), "half a frame sync")
+        XCTAssertNil(DownloadFiles.exportFamily(Data("Ogg".utf8), fileName: "a.ogg"), "half an Ogg capture pattern")
+    }
+
+    // MARK: - Audio families
+
+    private static func mpeg4(_ brand: String) -> Data {
+        Data([0, 0, 0, 0x20] + Array("ftyp\(brand)".utf8) + [0, 0, 0, 0])
+    }
+
+    func testFamilies_audioIsReadFromTheBytes() {
+        XCTAssertEqual(DownloadFiles.exportFamily(Data(Array("ID3".utf8) + [0x04, 0x00, 0x00]), fileName: "song.mp3"), .audio(.mp3), "an ID3 tag")
+        XCTAssertEqual(DownloadFiles.exportFamily(Data([0xFF, 0xFB, 0x90, 0x64]), fileName: "song.mp3"), .audio(.mp3), "a bare MPEG-1 Layer III frame")
+        XCTAssertEqual(DownloadFiles.exportFamily(Data([0xFF, 0xF3, 0x84, 0x64]), fileName: "song"), .audio(.mp3), "an MPEG-2 frame, with no name")
+        XCTAssertEqual(DownloadFiles.exportFamily(Data([0xFF, 0xE3, 0x18, 0xC4]), fileName: "song.mp3"), .audio(.mp3), "an MPEG-2.5 frame")
+        let wav = Data(Array("RIFF".utf8) + [0x24, 0x08, 0, 0] + Array("WAVEfmt ".utf8))
+        XCTAssertEqual(DownloadFiles.exportFamily(wav, fileName: "take.wav"), .audio(.wav))
+        XCTAssertEqual(DownloadFiles.exportFamily(Data(Array("OggS".utf8) + [0, 2]), fileName: "clip.ogg"), .audio(.ogg))
+        XCTAssertEqual(DownloadFiles.exportFamily(Data(Self.png), fileName: "cover.mp3"), .image(.png), "the bytes still win over the name")
+    }
+
+    func testFamilies_anM4aIsAudio_byItsBrandOrItsName_andAnMp4StaysAVideo() {
+        XCTAssertEqual(DownloadFiles.exportFamily(Self.mpeg4("M4A "), fileName: "voice-20261102-142530.m4a"), .audio(.m4a), "what the recorder writes")
+        XCTAssertEqual(DownloadFiles.exportFamily(Self.mpeg4("M4A "), fileName: "voice"), .audio(.m4a), "the brand alone")
+        XCTAssertEqual(DownloadFiles.exportFamily(Self.mpeg4("M4A "), fileName: "voice.mp4"), .audio(.m4a), "the brand wins over the name")
+        XCTAssertEqual(DownloadFiles.exportFamily(Self.mpeg4("isom"), fileName: "memo.m4a"), .audio(.m4a), "a generic brand named .m4a")
+        XCTAssertEqual(DownloadFiles.exportFamily(Self.mpeg4("isom"), fileName: "memo.M4A"), .audio(.m4a))
+        XCTAssertEqual(DownloadFiles.exportFamily(Self.mpeg4("isom"), fileName: "clip.mp4"), .isoBmff, "a generic brand named .mp4 is a video")
+        XCTAssertEqual(DownloadFiles.exportFamily(Self.mpeg4("mp42"), fileName: "clip.mp4"), .isoBmff)
+        XCTAssertEqual(DownloadFiles.exportFamily(Self.mpeg4("M4V "), fileName: "clip.m4v"), .isoBmff)
+    }
+
+    /// The photo library takes an image or `isoBmff` and nothing else (`MediaExport.saveToPhotoLibrary`),
+    /// so no audio file — an M4A least of all, which is an MPEG-4 file like a video — can reach it.
+    func testFamilies_noAudioIsAPhotoLibraryFamily() {
+        let audio: [(Data, String)] = [
+            (Self.mpeg4("M4A "), "voice.m4a"),
+            (Self.mpeg4("isom"), "memo.m4a"),
+            (Data(Array("ID3".utf8) + [4, 0, 0]), "song.mp3"),
+            (Data([0xFF, 0xFB, 0x90, 0x64]), "song.mp3"),
+            (Data(Array("RIFF".utf8) + [0, 0, 0, 0] + Array("WAVE".utf8)), "take.wav"),
+            (Data(Array("OggS".utf8) + [0]), "clip.ogg"),
+        ]
+        for (head, name) in audio {
+            let family = DownloadFiles.exportFamily(head, fileName: name)
+            switch family {
+            case .audio: break
+            default: XCTFail("\(name) is \(String(describing: family)), not audio")
+            }
+        }
+    }
+
+    func testFamilies_aTextFileIsNotTakenForABareMp3Frame() {
+        XCTAssertEqual(DownloadFiles.exportFamily(Data([0xFF, 0xFE, 0x41, 0xAC]), fileName: "notes.txt"), .text, "a UTF-16 byte order mark named .txt")
     }
 
     // MARK: - Server formats
 
-    func testServerFormats_coverTheThirteenFormats_withTheWebsTypes() {
+    func testServerFormats_coverTheSeventeenFormats_withTheWebsTypes() {
         XCTAssertEqual(Set(DownloadFiles.serverFormats.keys), [
             "png", "jpg", "jpeg", "gif", "webp", "mp4", "pdf", "docx", "xlsx", "pptx", "hwp", "hwpx", "txt", "zip",
+            "mp3", "m4a", "wav", "ogg",
         ])
+        XCTAssertEqual(DownloadFiles.serverFormats["mp3"], "audio/mpeg")
+        XCTAssertEqual(DownloadFiles.serverFormats["m4a"], "audio/mp4")
+        XCTAssertEqual(DownloadFiles.serverFormats["wav"], "audio/wav")
+        XCTAssertEqual(DownloadFiles.serverFormats["ogg"], "audio/ogg")
+        XCTAssertEqual(DownloadFiles.AudioType.m4a.mimeType, DownloadFiles.serverFormats["m4a"])
         XCTAssertEqual(DownloadFiles.serverFormats["zip"], "application/zip")
         XCTAssertEqual(DownloadFiles.serverFormats["docx"], "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
         XCTAssertEqual(DownloadFiles.serverFormats["hwp"], "application/x-hwp")
@@ -65,6 +127,19 @@ final class MediaExportRulesTests: XCTestCase {
         }
     }
 
+    /// Each audio extension is an audio type to the share sheet and QuickLook. The system's names for
+    /// M4A and WAV predate the server's (`audio/x-m4a`, `audio/vnd.wave`); only the kind matters there.
+    func testTheSystemTypesEachAudioExtension_asAudio() throws {
+        for ext in ["mp3", "m4a", "wav", "ogg"] {
+            let type = try XCTUnwrap(UTType(filenameExtension: ext), ext)
+            XCTAssertFalse(type.isDynamic, "\(ext) is a type the system knows")
+            XCTAssertTrue(type.conforms(to: .audio), ext)
+            XCTAssertFalse(type.conforms(to: .movie), "\(ext) is not a video")
+        }
+        XCTAssertEqual(UTType(filenameExtension: "mp3")?.preferredMIMEType, DownloadFiles.serverFormats["mp3"])
+        XCTAssertEqual(UTType(filenameExtension: "ogg")?.preferredMIMEType, DownloadFiles.serverFormats["ogg"])
+    }
+
     // MARK: - SaveFile names
 
     func testSaveFileName_cleansTheName_andKeepsOnlyServerFormats() {
@@ -84,11 +159,15 @@ final class MediaExportRulesTests: XCTestCase {
             ("a.gif", "a.gif"),
             ("a.webp", "a.webp"),
             ("Photos 2026.ZIP", "Photos 2026.zip"),
+            ("voice-20261102-142530.M4A", "voice-20261102-142530.m4a"),
+            ("노래.mp3", "노래.mp3"),
+            ("take.wav", "take.wav"),
+            ("clip.Ogg", "clip.ogg"),
         ]
         for (name, expected) in kept {
             XCTAssertEqual(DownloadFiles.saveFileName(name), expected, name)
         }
-        for refused in ["", "report", "setup.exe", "page.html", "archive.7z", ".pdf", "  .pdf", "notes.", "x.part"] {
+        for refused in ["", "report", "setup.exe", "page.html", "archive.7z", "track.aac", "track.flac", "book.m4b", ".pdf", "  .pdf", "notes.", "x.part"] {
             XCTAssertNil(DownloadFiles.saveFileName(refused), refused)
         }
     }

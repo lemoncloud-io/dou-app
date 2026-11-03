@@ -423,7 +423,7 @@ describe('parseReportLog — 추적·파셋 축', () => {
     });
 
     it('reads both build versions off the report payload', () => {
-        // The attached type is `VersionInfo` from `@chatic/app-messages` — note the repo
+        // The attached type is `VersionInfo` from `@chatic/bridge-messages` — note the repo
         // has a second, unrelated `VersionInfo` in `libs/shared` (`{ version, buildTime }`)
         // that does NOT reach here. Reading `version.version` finds nothing.
         const row = parseReportLog({

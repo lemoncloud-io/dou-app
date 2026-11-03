@@ -75,7 +75,7 @@ measured.
 
 ## References
 
-- [ADR-0118](./0118-a-sync-target-belongs-to-its-cloud-s-slot.md) — the per-cloud slot the fetch and the
+- [ADR-0255](./0255-a-sync-target-belongs-to-its-cloud-s-slot.md) — the per-cloud slot the fetch and the
   tap's gate are keyed by
 - [ADR-0120](./0120-performance-traces-move-to-firebase-performance.md) — the traces that measured this
 - [ADR-0046](./0046-web-feature-ownership-and-barrel-hygiene.md) — features do not import each other

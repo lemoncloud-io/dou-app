@@ -75,6 +75,15 @@ describe('FileViewer', () => {
         expect(onSave).toHaveBeenCalled();
     });
 
+    // A voice file plays in its card; read here as text, its bytes would be a screen of noise.
+    it('does not read a voice file as text', async () => {
+        const song = { ...notes, name: 'song.mp3', contentType: 'audio/mpeg', url: 'https://s/song' };
+        render(<FileViewer file={song} author={author} onClose={vi.fn()} />, { wrapper });
+
+        expect(await screen.findByText("Couldn't open this file")).toBeTruthy();
+        expect(fetchFileBytes).not.toHaveBeenCalled();
+    });
+
     // Focus on save would open its tooltip with the dialog, and the first Esc would only close that.
     it('opens with focus on close', async () => {
         vi.mocked(fetchFileBytes).mockResolvedValue(bytes(['a']));

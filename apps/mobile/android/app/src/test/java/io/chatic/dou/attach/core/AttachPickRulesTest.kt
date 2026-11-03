@@ -68,6 +68,12 @@ class AttachPickRulesTest {
             "application/zip",
             "application/x-zip-compressed",
             "application/x-zip",
+            "audio/mpeg",
+            "audio/mp4",
+            "audio/x-m4a",
+            "audio/wav",
+            "audio/x-wav",
+            "audio/ogg",
             "application/octet-stream",
         )) {
             assertTrue(type, type in types)
@@ -78,6 +84,19 @@ class AttachPickRulesTest {
         assertFalse("no QuickTime", "video/quicktime" in types)
         assertFalse("no 7z", "application/x-7z-compressed" in types)
         assertFalse("no RAR", "application/vnd.rar" in types)
+        assertFalse("no AAC stream", "audio/aac" in types)
+        assertFalse("no FLAC", "audio/flac" in types)
+    }
+
+    @Test
+    fun anAudioPickIsHeldToTheFileLimit() {
+        for (type in listOf("audio/mpeg", "audio/mp4", "audio/x-m4a", "audio/wav", "audio/x-wav", "audio/ogg")) {
+            assertEquals(type, Kind.FILE, AttachPickRules.limitKindForDocument(type, "memo"))
+        }
+        for (name in listOf("memo.mp3", "memo.m4a", "memo.wav", "memo.ogg")) {
+            assertEquals(name, Kind.FILE, AttachPickRules.limitKindForDocument(AttachPickRules.OCTET_STREAM, name))
+        }
+        assertEquals(Kind.FILE, AttachPickRules.kindOf(Source.DOCUMENT, "audio/mp4"))
     }
 
     @Test

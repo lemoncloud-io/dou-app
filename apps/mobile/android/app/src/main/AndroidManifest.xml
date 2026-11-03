@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="com.android.vending.BILLING" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Voice messages (AudioRecorder). JS asks for it first; the module only checks the grant. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <!-- The in-app photo picker reads the library itself, photos and videos. From Android 13 they
          are asked together (one "photos and videos" dialog); Android 14's "limited" grant is
@@ -63,7 +65,7 @@
             </intent-filter>
 
             <!--
-                Dou in other apps' share sheets: photos, videos, documents, and text or a link. The
+                Dou in other apps' share sheets: photos, videos, audio, documents, and text or a link. The
                 screen copies what it is given into attach-pick and opens on <scheme>://share?id=…
                 (ShareIntake). Exported like every filter here, so the intake takes only content://
                 streams of other apps' providers.
@@ -73,6 +75,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
                 <data android:mimeType="video/*" />
+                <data android:mimeType="audio/*" />
                 <data android:mimeType="application/*" />
                 <data android:mimeType="text/plain" />
             </intent-filter>
@@ -81,6 +84,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
                 <data android:mimeType="video/*" />
+                <data android:mimeType="audio/*" />
                 <data android:mimeType="application/*" />
                 <data android:mimeType="text/plain" />
             </intent-filter>

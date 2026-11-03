@@ -5,7 +5,7 @@ import type { DomainChat } from './models';
 
 /**
  * A message's uploads split the way a screen draws them: photos and videos as one list of media, which
- * the tiles and the media viewer page through, and documents as cards. The viewer is given media items
+ * the tiles and the media viewer page through, and documents and audio as cards. The viewer is given media items
  * only, never a message — so a later list from another source (a channel's media, say) opens the same
  * viewer with no change to it.
  */
@@ -42,6 +42,11 @@ export interface ChatFileSlot {
     /** The signed address to download it from. */
     readonly url?: string;
     readonly state: ChatUploadState;
+    /**
+     * A voice message or audio file: the server stores it as `audio`, and a slot still on its way says
+     * so by its type. Drawn as a player rather than a document card, and saved and shared like one.
+     */
+    readonly audio?: true;
 }
 
 /** Where each item sits in the message's `upload$$`, for a caller that has to read the slot again. */
@@ -64,13 +69,16 @@ const keyOf = (cid: string, slot: UploadSlot, index: number): string => {
  * A server slot that failed, carries an error, or came back with no address to open is `broken`: the
  * sender picked it, so it keeps its place and the count still says so. A slot still on its way draws from
  * what the page kept: an image from its local preview, a video from its poster once the shell made one.
- * Audio, which the server does not take, is dropped.
+ * An `audio` slot is listed with the files, marked `audio`: the server names the kind from a slot's
+ * content type, and a pending slot's type says it as well. It downloads, saves and shares exactly as a
+ * document does; only its card differs.
  */
 export const chatMediaItems = (cid: string, slots: readonly UploadSlot[] | null | undefined): ChatMediaSplit => {
     const split: ChatMediaSplit = { media: [], files: [], mediaSlots: [], fileSlots: [] };
     (slots ?? []).forEach((slot, index) => {
-        const kind = uploadSlotKind(slot);
-        if (kind === 'audio') return;
+        const slotKind = uploadSlotKind(slot);
+        const kind = slotKind === 'audio' ? 'file' : slotKind;
+        const audio = slotKind === 'audio' ? { audio: true as const } : {};
         const key = keyOf(cid, slot, index);
         if (isPendingUploadSlot(slot)) {
             const local = slot.localThumbUrl || undefined;
@@ -84,6 +92,7 @@ export const chatMediaItems = (cid: string, slots: readonly UploadSlot[] | null 
                     ...details,
                     ...(slot.localContentType ? { contentType: slot.localContentType } : {}),
                     state: slot.localStatus,
+                    ...audio,
                 });
                 split.fileSlots.push(index);
                 return;
@@ -114,6 +123,7 @@ export const chatMediaItems = (cid: string, slots: readonly UploadSlot[] | null 
                 ...(slot.contentType ? { contentType: slot.contentType } : {}),
                 ...(slot.orgUrl ? { url: slot.orgUrl } : {}),
                 state: broken || !slot.orgUrl ? 'broken' : 'ready',
+                ...audio,
             });
             split.fileSlots.push(index);
             return;

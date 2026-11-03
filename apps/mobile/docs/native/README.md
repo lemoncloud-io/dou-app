@@ -10,7 +10,7 @@ one platform failing at runtime with no type error, since `NativeModules.<Name>`
 
 | Layer                        | Path                                                            |
 | ---------------------------- | --------------------------------------------------------------- |
-| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 14 files |
+| TypeScript wrapper           | [`src/app/bridge/*Bridge.ts`](../../src/app/bridge/) — 15 files |
 | Android package + module     | `android/app/src/main/java/io/chatic/dou/bridge`, `.../module`  |
 | Android push delivery        | `android/app/src/main/java/io/chatic/dou/push`                  |
 | Android file transfer        | `android/app/src/main/java/io/chatic/dou/transfer`              |
@@ -29,7 +29,7 @@ know which platform implements a given capability.
 
 ## The shared contract
 
-Fourteen TypeScript wrappers, one native counterpart per platform where the feature exists on that
+Fifteen TypeScript wrappers, one native counterpart per platform where the feature exists on that
 platform:
 
 | Feature           | TypeScript                  | Android                                                                                                                                                  | iOS                                                                                                                                                            |
@@ -37,6 +37,7 @@ platform:
 | File transfer     | `TransferManagerBridge.ts`  | `transfer/` — `TransferManagerModule.kt`, `TransferService.kt`, `TransferRegistry.kt`, `core/`                                                           | `Transfer/` — `TransferManager.swift`, `TransferManager.m`, `TransferSessionOwner.swift`, `Core/` — see [file-transfer.md](./file-transfer.md)                 |
 | Media export      | `MediaExportBridge.ts`      | `MediaExportModule.kt`, `media/ShareFileProvider.kt`                                                                                                     | `MediaExport/` — `MediaExport.swift`, `MediaExport.m` — see [media-export.md](./media-export.md)                                                               |
 | Attachment picker | `AttachmentPickerBridge.ts` | `AttachmentPickerModule.kt`, `attach/PickedCopies.kt` — the pickers, the copies into `attach-pick`, the video check and poster, a received video's frame | `AttachmentPicker/` — PHPicker, the documents picker, the conversion and poster, a received video's frame — see [attachment-picker.md](./attachment-picker.md) |
+| Audio recorder    | `AudioRecorderBridge.ts`    | `record/` — `AudioRecorderModule.kt`, `AudioRecorderPackage.kt`, `core/` — `MediaRecorder`, into `attach-pick`                                           | `AudioRecorder/` — `AudioRecorder.swift`, `AudioRecorder.m`, `Core/` — `AVAudioRecorder` — see [audio-recording.md](./audio-recording.md)                      |
 | Share intake      | `ShareIntakeBridge.ts`      | `ShareIntakeModule.kt`, `share/` — the `ACTION_SEND` intake on `MainActivity`, copies into `attach-pick`                                                 | `ShareIntake/` (host) and the `ChaticShareExtension` target — see [share-intake.md](./share-intake.md)                                                         |
 | Photo library     | `PhotoLibraryBridge.ts`     | `PhotoLibraryModule.kt`, `photo/core/` — MediaStore                                                                                                      | `PhotoLibrary/` — `PhotoLibrary.swift`, `PhotoLibrary.m`, `Core/` — see [photo-library.md](./photo-library.md)                                                 |
 | File              | `FileManagerBridge.ts`      | `FileManagerModule.kt`                                                                                                                                   | `FileManager.m`                                                                                                                                                |
@@ -74,7 +75,7 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
 ### Adding a native capability
 
 1. Define the request/response shape the wrapper exposes (an interface in the same file is enough;
-   this is not the WebView message contract — that lives in `@chatic/app-messages` and is a separate
+   this is not the WebView message contract — that lives in `@chatic/bridge-messages` and is a separate
    step, described in [service.md](./service.md)).
 2. Implement the Kotlin module and register its package under `android/app/src/main/java/io/chatic/dou/`.
 3. Implement the Swift or Objective-C counterpart under `ios/Bridges/` and register it with RN's
@@ -116,6 +117,8 @@ rather than as a `bridge/*Bridge.ts` command wrapper — there is nothing for JS
   and handing it to the photo library, the share sheet, the preview or the device's downloads.
 - [attachment-picker.md](./attachment-picker.md) — picking a chat's videos and documents, the copies
   the shell keeps for their upload, preparing a video to send, and the first frame of a received one.
+- [audio-recording.md](./audio-recording.md) — the voice-message recorder: the OS recorder into
+  `attach-pick`, its limit and interruptions, the microphone permission and the iOS audio session.
 - [share-intake.md](./share-intake.md) — what another app shares to Dou through the OS share sheet,
   copied into `attach-pick` and handed to the web's share page by id.
 - [photo-library.md](./photo-library.md) — the in-app photo picker's library reads (photos and videos),

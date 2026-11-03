@@ -22,6 +22,7 @@ module.exports = {
         '^@chatic/session/(.*)$': '<rootDir>/../session/src/$1',
         '^@chatic/transport/(.*)$': '<rootDir>/../transport/src/$1',
         '^@chatic/sync/(.*)$': '<rootDir>/../sync/src/$1',
+        '^@chatic/auth/(.*)$': '<rootDir>/../auth/src/$1',
         '^@chatic/(.*)$': '<rootDir>/../$1/src/index.ts',
         '\\.(css|less|scss)$': '<rootDir>/../web-ui-kit/src/__mocks__/styleMock.js',
         '\\.(png|jpe?g|gif|svg|webp)$': '<rootDir>/../web-ui-kit/src/__mocks__/fileMock.js',

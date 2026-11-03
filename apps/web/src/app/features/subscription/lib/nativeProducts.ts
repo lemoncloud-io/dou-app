@@ -1,4 +1,4 @@
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { IapProductSubscription } from '@chatic/bridge-messages';
 import type { ProductView } from '@lemoncloud/chatic-backend-api';
 
 import type { PurchaseProduct } from '../types';

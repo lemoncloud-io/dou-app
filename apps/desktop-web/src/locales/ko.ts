@@ -9,7 +9,7 @@ import type { EnTranslation } from './en';
  * One Korean term per English term, held across the whole file:
  * cloud `클라우드` · place `플레이스` · channel `채널` ·
  * thread `스레드` · reply `답글` · saved items `저장한 항목` · mentions `멘션` ·
- * unread `안 읽음` · mention `멘션` · reaction `반응` · invite `초대` · guest `게스트` ·
+ * unread `안 읽음` · seen `읽음` · not seen `미확인` · mention `멘션` · reaction `반응` · invite `초대` · guest `게스트` ·
  * member `멤버` · favorites `즐겨찾기` · quiet hours `방해 금지 시간` · rail `레일`.
  * A cloud is `클라우드` everywhere, as in the mobile app; `워크스페이스` is not a
  * second name for it. Product nouns, keys and tokens stay verbatim: DoU,
@@ -187,6 +187,10 @@ export const ko: EnTranslation = {
     'chat.file.open': '{{name}} 열기',
     'chat.file.page': '{{page}}쪽',
     'chat.file.pages': '{{name}} 페이지',
+    'chat.file.play': '{{name}} 재생',
+    'chat.file.pause': '{{name}} 일시정지',
+    'chat.file.seek': '{{name}} 재생 위치',
+    'chat.file.playFailed': '이 파일을 재생하지 못했어요',
     'chat.file.opening': '{{name}} 여는 중',
     'chat.file.openFailed': '이 파일을 열지 못했어요',
     'chat.file.viewer': '파일 뷰어',
@@ -252,13 +256,13 @@ export const ko: EnTranslation = {
     'chat.attach.rejected.duplicate_one': '이미 첨부한 파일 {{count}}개는 추가하지 않았어요.',
     'chat.attach.rejected.duplicate_other': '이미 첨부한 파일 {{count}}개는 추가하지 않았어요.',
     'chat.attach.rejected.unsupported_one':
-        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서, ZIP 압축 파일만 첨부할 수 있어요.',
+        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서, ZIP 압축 파일, 음성 파일(M4A, MP3, WAV, OGG)만 첨부할 수 있어요.',
     'chat.attach.rejected.unsupported_other':
-        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서, ZIP 압축 파일만 첨부할 수 있어요.',
+        '파일 {{count}}개는 추가하지 않았어요. 이미지(PNG, JPEG, GIF, WebP), MP4 동영상, PDF·워드·엑셀·파워포인트·한글·텍스트 문서, ZIP 압축 파일, 음성 파일(M4A, MP3, WAV, OGG)만 첨부할 수 있어요.',
     'chat.attach.rejected.too-large_one':
-        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서와 ZIP 압축 파일은 {{file}}까지 보낼 수 있어요.',
+        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서·ZIP 압축 파일·음성 파일은 {{file}}까지 보낼 수 있어요.',
     'chat.attach.rejected.too-large_other':
-        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서와 ZIP 압축 파일은 {{file}}까지 보낼 수 있어요.',
+        '파일 {{count}}개는 너무 커서 추가하지 않았어요. 이미지는 {{image}}, 동영상은 {{video}}, 문서·ZIP 압축 파일·음성 파일은 {{file}}까지 보낼 수 있어요.',
     'chat.attach.rejected.name-too-long_one':
         '파일 이름이 너무 길어 {{count}}개는 추가하지 않았어요. 이름을 줄여서 다시 시도해 주세요.',
     'chat.attach.rejected.name-too-long_other':
@@ -361,6 +365,7 @@ export const ko: EnTranslation = {
     'lists.channels.emptyHint': '채널을 만들어 이 플레이스의 사람들과 대화를 시작해 보세요.',
     'lists.channels.noMatch': '“{{query}}”에 맞는 채널이 없어요',
     'lists.previewMine': '나: {{text}}',
+    'lists.threadReply': '[스레드] {{text}}',
     'lists.dms.title': 'DM',
     'lists.dms.search': 'DM 검색',
     'lists.dms.empty': '아직 대화가 없어요',
@@ -418,6 +423,13 @@ export const ko: EnTranslation = {
     'chat.reaction.who': '{{emoji}} · {{names}}',
     'chat.reaction.quick': '{{emoji}} 반응 추가',
     'chat.reaction.failed': '반응을 추가하지 못했어요. 다시 시도해 주세요.',
+    'chat.readCount.summary': '읽음 {{read}} · 미확인 {{unread}}',
+    'chat.readCount.allSeen': '읽음 {{read}}',
+    'chat.readCount.listLabel': '메시지를 읽은 사람',
+    'chat.readCount.tabSeen': '읽음 {{count}}',
+    'chat.readCount.tabNotSeen': '미확인 {{count}}',
+    'chat.readCount.noneSeen': '아직 읽은 사람이 없어요',
+    'chat.readCount.everyoneSeen': '모두 읽었어요',
     'chat.edit': '메시지 수정',
     'chat.editHint': 'Enter로 저장 · Esc로 취소',
     'chat.editSave': '저장',
@@ -744,10 +756,25 @@ export const ko: EnTranslation = {
     'invite.waiting.reissueMissing': '다시 보낼 정보가 없어요.',
     'settings.title': '설정',
     'settings.appearance': '화면',
-    'settings.theme': '테마',
+    'settings.theme': '화면 모드',
     'settings.theme.light': '라이트',
     'settings.theme.dark': '다크',
     'settings.theme.system': '시스템',
+    'settings.palette': '테마',
+    'settings.palette.hint': '왼쪽 레일과 목록 영역의 색을 바꿔요. 대화 영역 색은 그대로예요.',
+    'settings.palette.default': '{{name}} (기본)',
+    'settings.palette.mist': 'Mist',
+    'settings.palette.midnight': 'Midnight',
+    'settings.palette.forest': 'Forest',
+    'settings.palette.ocean': 'Ocean',
+    'settings.palette.plum': 'Plum',
+    'settings.palette.lemon': 'Lemon',
+    'settings.palette.custom': '사용자 지정',
+    'settings.palette.custom.colors': '사용자 지정 색',
+    'settings.palette.custom.cloudRail': '클라우드 바',
+    'settings.palette.custom.navRail': '메뉴 바',
+    'settings.palette.custom.list': '목록',
+    'settings.palette.applied': '테마 적용 완료',
     'settings.language': '언어',
     'settings.fontSize': '글자 크기',
     'settings.fontSize.small': '작게',

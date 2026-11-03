@@ -146,7 +146,38 @@ final class AttachmentPickerCoreTests: XCTestCase {
         XCTAssertFalse(types.contains(.archive), "the parent type would offer 7z, RAR and tar too")
         let sevenZip = try XCTUnwrap(UTType(filenameExtension: "7z"))
         XCTAssertFalse(types.contains { sevenZip.conforms(to: $0) }, "a 7z stays greyed out")
-        XCTAssertEqual(types.count, 13, "four photo formats, MP4, seven documents and a ZIP")
+        XCTAssertEqual(types.count, 17, "four photo formats, MP4, seven documents, a ZIP and four audio formats")
+    }
+
+    func testDocumentTypes_offerTheServersFourAudioFormats_andNoOtherAudio() throws {
+        let types = Core.documentTypes
+        for ext in ["mp3", "m4a", "wav", "ogg"] {
+            let type = try XCTUnwrap(UTType(filenameExtension: ext), ext)
+            XCTAssertTrue(types.contains { type.conforms(to: $0) }, "\(ext) can be picked")
+        }
+        XCTAssertFalse(types.contains(.audio), "the parent type would offer every audio format")
+        for ext in ["m4b", "aac", "flac", "aiff", "caf"] {
+            let type = try XCTUnwrap(UTType(filenameExtension: ext), ext)
+            XCTAssertFalse(types.contains { type.conforms(to: $0) }, "\(ext) stays greyed out")
+        }
+    }
+
+    func testLimitKindForDocument_audioIsHeldToTheFileLimit() {
+        let max = Core.MaxBytes(image: 20 * Self.mib, video: 300 * Self.mib, file: 50 * Self.mib)
+        let picked: [(String?, String)] = [
+            ("audio/mpeg", "song.mp3"),
+            ("audio/x-m4a", "memo.m4a"),
+            ("audio/mp4", "memo.m4a"),
+            ("audio/vnd.wave", "take.wav"),
+            ("audio/ogg", "clip.ogg"),
+        ]
+        for (type, name) in picked {
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: type, fileName: name), .file, name)
+            XCTAssertEqual(Core.limitKindForDocument(mimeType: nil, fileName: name), .file, "\(name) by its extension")
+        }
+        let kind = Core.limitKindForDocument(mimeType: "audio/mpeg", fileName: "song.mp3")
+        XCTAssertTrue(Core.isTooLarge(kind: kind, size: 50 * Self.mib + 1, needsExport: false, max: max))
+        XCTAssertFalse(Core.isTooLarge(kind: kind, size: 50 * Self.mib, needsExport: false, max: max))
     }
 
     func testLimitKindForDocument_aZipIsHeldToTheFileLimit() {

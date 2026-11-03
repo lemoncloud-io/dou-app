@@ -27,6 +27,7 @@ import {
 import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
+import { useVoiceMessage } from '../hooks/useVoiceMessage';
 import { useComposerDraft } from '../hooks/useComposerDraft';
 import { useMentionComposer } from '../hooks/useMentionComposer';
 import { useSendImages } from '../hooks/useSendImages';
@@ -516,11 +517,19 @@ export const ChannelRoomPage = () => {
     }, [inputLock.setLocked, t]);
     // Photos go to the room's own cloud, the same one a text sent from here goes to.
     const imageSend = useSendImages({ cid: roomCid, channelId: stableChannelId });
+    // A voice message goes to the same cloud as a photo, as a message of its own, under the composer's
+    // lock. It is recorded in a sheet the attach panel's voice entry opens.
+    const voice = useVoiceMessage({
+        sendImages: imageSend.sendImages,
+        disabled: composerLocked,
+        scope: stableChannelId,
+    });
     const attach = useChatImageAttach({
         sendImages: imageSend.sendImages,
         disabled: composerLocked,
         // The route keeps this page mounted from one room to the next; what waits is this room's.
         scope: stableChannelId,
+        onVoice: voice.canRecord ? voice.open : undefined,
         inputRef,
         composerRef,
         // The attach panel's slide moves the composer on every frame. The list keeps clear of it in the
@@ -1551,6 +1560,7 @@ export const ChannelRoomPage = () => {
                 />
             </div>
             {attach.overlays}
+            {voice.sheet}
 
             <MessageDetailDialog message={expandedMessage} onClose={() => setExpandedMessage(null)} />
 

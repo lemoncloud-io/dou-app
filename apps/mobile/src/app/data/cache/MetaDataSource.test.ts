@@ -1,4 +1,4 @@
-import type { CacheMetaView } from '@chatic/app-messages';
+import type { CacheMetaView } from '@chatic/bridge-messages';
 import type { ISqliteDatabase } from '../../database';
 import { MetaDataSource } from './MetaDataSource';
 

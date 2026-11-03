@@ -1,5 +1,5 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
-import type { CacheChatView, ChatQueryOptions, LastChatItem } from '@chatic/app-messages';
+import type { CacheChatView, ChatQueryOptions, LastChatItem } from '@chatic/bridge-messages';
 import type { DomainChat, DomainLastChat, DomainListResult } from '../../domain';
 import { createDomainListResult, isPreviewableChat, pickPreviewChat } from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';

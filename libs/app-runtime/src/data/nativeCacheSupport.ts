@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { CacheDomainVersions, CacheType } from '@chatic/app-messages';
+import type { CacheDomainVersions, CacheType } from '@chatic/bridge-messages';
 
 /**
  * What the native shell reported about its local cache DB in the bridge handshake

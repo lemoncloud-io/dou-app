@@ -96,9 +96,10 @@ native sender would first copy it to the shell as base64 in one bridge message, 
 survive that for a 300MB file. Hand `xhrPut` the picked `File` as it is: a picked file is streamed
 from disk, while the same bytes copied into a JS `Blob` are held in memory whole.
 
-The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the thirteen server
-formats (less the ones the calling app says it does not send, through the optional filter argument;
-no app passes one today — it is there for the day the server opens a format one app follows later),
+The judgement before a send is `judgeChatAttachments` (in `domain/chatImages.ts`): the seventeen server
+formats (less the ones a picker does not offer, through the optional filter argument — the photos
+entry's image-only form, `judgeChatImages`, is one; otherwise every app, the phone included, sends all
+seventeen, the four audio formats judged as `file`),
 each kind's own limit, the same item twice (a page file by name, size and time, a
 shell file by its address), and the per-message limit, in that order. A `too-large` rejection names the kind,
 because the limits differ. A video still to convert is judged as the `mp4` it will be and is not
@@ -192,7 +193,7 @@ quote the request it failed on.
   the server's `status` / `error` / `url` / `thumbnail`. The server's `'failed'` is terminal and a
   local `'failed'` can be retried, and a reader that met the same name would take one for the other.
   `isPendingUploadSlot` tells them apart inside one `upload$$` list.
-- **The slot type lives in the cache contract** (`@chatic/app-messages`, `CacheChatView.upload$$`).
+- **The slot type lives in the cache contract** (`@chatic/bridge-messages`, `CacheChatView.upload$$`).
   The chat storage port is typed by that contract, so a slot that only the domain model knew about
   could be read but not written. The native shell stores a chat row as a JSON blob, so the wider
   type asks nothing of it.

@@ -4,7 +4,7 @@ import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
 import { config } from '@chatic/config';
 
-import { fetchInviteInfoWithCode } from '../../auth/authActions';
+import { fetchInviteInfoWithCode } from '@chatic/auth';
 import { useSessionAuth } from '../session';
 
 /**

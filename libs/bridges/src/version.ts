@@ -23,7 +23,16 @@
 //        older and still send one; it gets NOT_FOUND.
 // 2.9.0: added FetchShareIntake and ReleaseShareIntake (web -> app) — what another app shared to Dou
 //        through the OS share sheet, opened on `/share?id=`.
-export const BRIDGE_VERSION = '2.9.0' as const;
+// 2.10.0: added OpenSubWebView and CloseSubWebView (web -> app) and the OnSubWebViewClosed push — a
+//         page on another origin shown in a second WebView with no bridge of its own.
+// 2.11.0: added FinishSubWebView and SetSubWebViewTitle (sub WebView page -> app), the
+//         OnSubWebViewContextChanged push, OpenSubWebView `params` and OnSubWebViewClosed `result`.
+// 2.12.0: a sub WebView page may send OpenShareSheet; its host's handshake lists it.
+// 2.13.0: added StartAudioRecording and StopAudioRecording (web -> app) with OnAudioRecordingStarted
+//         and OnAudioRecordingEnded — a voice message the shell records; the second is also pushed when
+//         the shell ends a recording itself.
+// 2.14.0: a sub WebView page may send GetSubWebViewUserKey, for a key of its own per origin.
+export const BRIDGE_VERSION = '2.14.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

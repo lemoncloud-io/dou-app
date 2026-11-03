@@ -51,7 +51,10 @@ export const NavRail = ({ items, unread = {} }: NavRailProps) => {
                             <span
                                 className={cn(
                                     'relative flex h-11 w-11 items-center justify-center rounded-xl text-rail-foreground transition-colors duration-150 ease-tactile tactile',
-                                    isActive ? 'bg-primary/[0.24]' : 'group-hover:bg-accent'
+                                    // Light mode takes the palette's tile; dark mode keeps its lime tint.
+                                    isActive
+                                        ? 'bg-rail-active text-rail-active-foreground dark:bg-primary/[0.24] dark:text-rail-foreground'
+                                        : 'group-hover:bg-accent'
                                 )}
                             >
                                 <Icon size={20} strokeWidth={isActive ? 2.25 : 2} aria-hidden />

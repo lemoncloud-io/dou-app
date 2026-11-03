@@ -1,4 +1,4 @@
-import type { CacheChannelView, CacheChatView, CacheJoinView, CacheSiteView, CacheType } from '@chatic/app-messages';
+import type { CacheChannelView, CacheChatView, CacheJoinView, CacheSiteView, CacheType } from '@chatic/bridge-messages';
 import type {
     GlobalCacheContext,
     GlobalCacheContextQuery,

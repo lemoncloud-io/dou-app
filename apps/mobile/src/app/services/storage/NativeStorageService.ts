@@ -2,7 +2,7 @@ import type {
     NativeStorageEntry,
     OnClearNativeCachePayload,
     OnFetchNativeStorageSummaryPayload,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 import type { IKeyValueStorage, ISqliteDatabase } from '../../database/types';
 import { TABLES } from '../../database/sqlite/tables';

@@ -197,6 +197,7 @@ export const DesktopLayout = ({
         <>
             <nav
                 aria-label={t('shell.rail')}
+                data-shell-rail="cloud"
                 className="flex w-rail shrink-0 flex-col items-center bg-rail px-1 pb-5 pt-6 text-rail-foreground"
             >
                 {rail}
@@ -204,6 +205,7 @@ export const DesktopLayout = ({
             {nav && (
                 <nav
                     aria-label={t('shell.nav')}
+                    data-shell-rail="nav"
                     className="flex w-rail shrink-0 flex-col items-center bg-rail-elevated px-1 pb-5 pt-6 text-rail-foreground"
                 >
                     {nav}
@@ -256,6 +258,7 @@ export const DesktopLayout = ({
                             <aside
                                 ref={sidebarWidth.panelRef}
                                 tabIndex={-1}
+                                data-shell-sidebar
                                 className="flex min-w-0 flex-1 flex-col overflow-hidden bg-sidebar text-sidebar-foreground outline-none"
                             >
                                 {closeButton}
@@ -280,6 +283,7 @@ export const DesktopLayout = ({
                             {(!isDrawer || isOpen) && (
                                 <aside
                                     ref={sidebarWidth.panelRef}
+                                    data-shell-sidebar
                                     // A drawer is a fixed-width overlay: the drag handle belongs to the
                                     // docked column, where there is a neighbour to trade width with.
                                     style={isDrawer ? undefined : { width: sidebarWidth.width }}

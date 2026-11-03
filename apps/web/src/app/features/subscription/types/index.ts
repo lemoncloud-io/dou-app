@@ -1,4 +1,4 @@
-import type { WebMessageResponse } from '@chatic/app-messages';
+import type { WebMessageResponse } from '@chatic/bridge-messages';
 
 // Derive the native purchase type from the response contract to stay in sync.
 export type NativePurchase = WebMessageResponse<'FetchCurrentPurchases'>['data']['purchases'][number];

@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import type { PreferenceKey, WebMessageData } from '@chatic/app-messages';
+import type { PreferenceKey, WebMessageData } from '@chatic/bridge-messages';
 import { useLanguageStore, useThemeStore } from '../../stores';
 // Imported past the barrel on purpose: themeMode is provider-free, so this stays
 // testable against the parser that actually ships.

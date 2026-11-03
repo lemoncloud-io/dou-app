@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { DEFAULT_WS_URL } from '../model/endpoint-presets';
+import { defaultWsUrl } from '../model/endpoint-presets';
 import { fetchObservedUsers } from '../api/userApi';
 import { useLoadTest } from '../hooks/use-load-test';
 import { useSandbox } from '../hooks/use-sandbox';
@@ -14,11 +14,9 @@ import UserSearchModal from '../components/observe/UserSearchModal';
 import ProbeTab from '../components/probe/ProbeTab';
 import '../socket-monitor.css';
 
-const FALLBACK_WS = 'wss://ws.lemoncloud.io/socket';
-
 export const SocketMonitorPage = () => {
     const [tab, setTab] = useState<Tab>('observe');
-    const [endpoint, setEndpoint] = useState<string>(DEFAULT_WS_URL || FALLBACK_WS);
+    const [endpoint, setEndpoint] = useState<string>(defaultWsUrl);
 
     const wl = useWatchlist();
     const sandbox = useSandbox(endpoint);
@@ -34,10 +32,13 @@ export const SocketMonitorPage = () => {
             return;
         }
         observedHandled.current = observeUid;
-        void fetchObservedUsers({ type: 'id', query: observeUid, stage: wl.stage }).then(res => {
-            const user = res.list[0];
-            if (user) wl.addUser(user);
-        });
+        void fetchObservedUsers({ type: 'id', query: observeUid, stage: wl.stage })
+            .then(res => {
+                const user = res.list[0];
+                if (user) wl.addUser(user);
+            })
+            // An unset presence key throws here; without this it is only an unhandled rejection.
+            .catch(error => console.warn(`[socket-lab] could not open ?observe=${observeUid}`, error));
     }, [observeUid, wl]);
 
     const counts = { green: 0, yellow: 0, red: 0 };

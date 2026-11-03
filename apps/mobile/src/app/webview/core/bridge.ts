@@ -1,6 +1,6 @@
 import type { RefObject } from 'react';
 import type { WebView, WebViewMessageEvent } from 'react-native-webview';
-import type { AppMessageData, AppMessageType, WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { AppMessageData, AppMessageType, WebMessageData, WebMessageType } from '@chatic/bridge-messages';
 
 /**
  * Create a bridge for communication between the App and Web.

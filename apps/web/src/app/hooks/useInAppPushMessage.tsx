@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
-import type { AppMessageData } from '@chatic/app-messages';
+import type { AppMessageData } from '@chatic/bridge-messages';
 
 import { useOnReceiveNotification, usePushNavigate } from '../bridge';
 import { pushEntryRegistry } from '../runtime/logging/pushEntryRegistry';

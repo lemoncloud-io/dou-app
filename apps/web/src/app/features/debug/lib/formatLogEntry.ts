@@ -1,4 +1,4 @@
-import type { AppLogInfo } from '@chatic/app-messages';
+import type { AppLogInfo } from '@chatic/bridge-messages';
 
 /** Normalizes a timestamp (seconds or ms) to a locale string for display. */
 export const formatTimestamp = (timestamp?: number): string => {

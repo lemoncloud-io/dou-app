@@ -21,7 +21,7 @@ import type {
     OnFetchManyCacheDataPayload,
     SaveAllCacheDataPayload,
     SaveCacheDataPayload,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 import type { DataContextProvider } from '@chatic/data';
 import { stableHash, withCacheMeta } from '@chatic/data';
 import { BaseDbAdapter } from '../base/BaseDbAdapter';

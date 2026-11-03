@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useServices } from '../../hooks';
 import { provider } from '../../services';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 
 export const useCrudCacheHandler = () => {
     const { logService: logger } = useServices();

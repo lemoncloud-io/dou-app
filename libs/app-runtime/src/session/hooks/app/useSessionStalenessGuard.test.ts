@@ -11,11 +11,11 @@ jest.mock('@chatic/transport/http/transport', () => ({
     hasStoredRelaySession: (...a: unknown[]) => mockHasStored(...a),
     isStoredSessionExpired: (...a: unknown[]) => mockIsExpired(...a),
 }));
-jest.mock('../../../socket/auth/requestRelaySessionRefresh', () => ({
+jest.mock('@chatic/auth/socket/requestRelaySessionRefresh', () => ({
     requestRelaySessionRefresh: (...a: unknown[]) => mockRequestRefresh(...a),
 }));
 const mockAuthStatus = jest.fn();
-jest.mock('../../../socket/auth/authStatus', () => ({
+jest.mock('@chatic/auth/socket/authStatus', () => ({
     getAuthStatus: (...a: unknown[]) => mockAuthStatus(...(a as [])),
     // The real predicate — the point of these cases is which STATUS the guard sees, not a re-stub
     // of the truth table it reads.

@@ -17,7 +17,7 @@ import { initAppRuntime } from './init';
 
 const mockRequestSessionRefresh = jest.fn();
 
-jest.mock('./socket/auth/requestRelaySessionRefresh', () => ({
+jest.mock('@chatic/auth/socket/requestRelaySessionRefresh', () => ({
     requestRelaySessionRefresh: (...a: unknown[]) => mockRequestSessionRefresh(...a),
 }));
 

@@ -1,4 +1,4 @@
-import type { CacheModelMap, CacheQueryMap, CacheType, LastChatItem, PagingMeta } from '@chatic/app-messages';
+import type { CacheModelMap, CacheQueryMap, CacheType, LastChatItem, PagingMeta } from '@chatic/bridge-messages';
 
 export interface ICacheCrudService {
     /**

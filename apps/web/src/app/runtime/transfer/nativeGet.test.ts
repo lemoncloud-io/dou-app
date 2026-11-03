@@ -1,4 +1,4 @@
-import type { OnFileTransferStatePayload } from '@chatic/app-messages';
+import type { OnFileTransferStatePayload } from '@chatic/bridge-messages';
 
 import { createNativeDownloads, toDownloadResult, type DownloadBridge } from './nativeGet';
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import type { ContactInfo } from '@chatic/app-messages';
+import type { ContactInfo } from '@chatic/bridge-messages';
 import { isNative, logger } from '@chatic/bridges';
 import {
     Button,

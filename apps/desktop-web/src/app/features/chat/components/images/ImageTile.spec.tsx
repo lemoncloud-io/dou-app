@@ -16,6 +16,12 @@ const renderTile = (props: Partial<Parameters<typeof ImageTile>[0]> = {}) => {
     return handlers;
 };
 
+const openMore = () => {
+    const trigger = screen.getByRole('button', { name: 'More actions' });
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+};
+
 describe('ImageTile', () => {
     afterEach(cleanup);
 
@@ -30,16 +36,18 @@ describe('ImageTile', () => {
         expect(onOpen).not.toHaveBeenCalled();
     });
 
-    // Copy sat alone in a "More" menu for every image someone else sent.
-    it('copies in one click', () => {
+    it('copies from the More menu', async () => {
         const { onCopy } = renderTile();
-        fireEvent.click(screen.getByRole('button', { name: 'Copy image' }));
+        openMore();
+        fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy image' }));
         expect(onCopy).toHaveBeenCalledTimes(1);
     });
 
-    it('offers delete only when the reader may delete', () => {
+    it('offers delete only when the reader may delete', async () => {
         renderTile();
-        expect(screen.queryByRole('button', { name: 'Delete file' })).toBeNull();
+        openMore();
+        await screen.findByRole('menuitem', { name: 'Copy image' });
+        expect(screen.queryByRole('menuitem', { name: 'Delete file' })).toBeNull();
     });
 
     // A failed upload was a disabled button too: nothing said it had failed.

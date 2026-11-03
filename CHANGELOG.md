@@ -1,5 +1,198 @@
 # Changelog
 
+## [2026-11-03] - No version updates
+
+### Bug Fixes
+
+- (app-runtime,db,web) keep a browser tab's invited clouds in session storage (ADR-0275)
+
+## [2026-11-03] - root@0.142.0, @chatic/web@0.86.0
+
+### Features
+
+- (web) name the sample1 Lab row Enhance DoU
+
+## [2026-11-03] - No version updates
+
+### Features
+
+- (web,bridge-messages) sign in from a relay code the shell hands back, the way desktop does
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (web,config) list the sub WebView pages in the Lab behind debug mode, as "In-app"
+
+## [2026-11-02] - No version updates
+
+### Bug Fixes
+
+- (data) send an office file the OS mistypes, not refuse it
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,bridge-messages,bridges) give a sub WebView page a key per origin (ADR-0271)
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (web,web-ui-kit) record voice messages in a sheet opened from the attach panel
+- (mobile) record voice messages in the shell and keep audio files
+- (web,data,web-ui-kit) send, record and play audio on the phone
+- (bridge-messages,bridges) add the shell's voice-message recorder messages
+
+### Documentation
+
+- (adr) the phone sends, records and plays audio, and the shell records it (ADR-0268)
+
+### Other
+
+- build: (mobile) record the Podfile checksum for the Microphone permission handler
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (admin-v2,http,data,app-runtime) let the users screen list and register on either stage
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,bridge-messages,bridges) let a sub WebView page open the share sheet (ADR-0265)
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (web,config) list the sub WebView test pages in the Lab, in dev builds only
+- (web,mobile) open and inspect a sub WebView page from a dev build
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (admin-v2) give each stage its own endpoint keys, not a rewritten path (ADR-0268)
+
+## [2026-11-02] - root@0.141.4, @chatic/desktop-web@0.47.4
+
+### Bug Fixes
+
+- (desktop-web) delete the message from an image's Delete file
+- (desktop-web) fill the image More button only while its menu is open
+
+## [2026-11-02] - root@0.141.3, @chatic/desktop-web@0.47.3
+
+### Bug Fixes
+
+- (desktop-web) match the image hover bar to the design
+
+## [2026-11-02] - No version updates
+
+### Refactor
+
+- (bridge-messages) rename @chatic/app-messages to @chatic/bridge-messages
+
+## [2026-11-02] - root@0.141.2, @chatic/desktop-web@0.47.2
+
+### Bug Fixes
+
+- (desktop-web) open the thread a list row previews, not just its room
+
+## [2026-11-02] - root@0.141.1, @chatic/desktop-web@0.47.1
+
+### Bug Fixes
+
+- (desktop-web) open the read list on click, not hover
+
+## [2026-11-02] - root@0.141.0, @chatic/desktop-web@0.47.0
+
+### Features
+
+- (desktop-web) list who read a message when hovering its read count
+- (desktop-web) work out who read each message, not only how many
+
+### Bug Fixes
+
+- (desktop-web) keep the read list steady across pointer and keyboard
+
+### Documentation
+
+- (adr) desktop works out who read a message from join rows
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,web,app-messages) give sub WebView pages a host of their own (ADR-0265)
+
+## [2026-11-02] - root@0.140.2, @chatic/desktop-web@0.46.2
+
+### Bug Fixes
+
+- (desktop-web) scroll settings inside the page, not the whole window
+
+## [2026-11-02] - No version updates
+
+### Features
+
+- (mobile,web,app-messages) show reviewed pages in a sub WebView with no bridge (ADR-0265)
+
+## [2026-11-02] - root@0.140.1, @chatic/desktop-web@0.46.1
+
+### Bug Fixes
+
+- (desktop-web) scope the notifications inbox by cloud, not by place id alone (ADR-0266)
+
+## [2026-11-02] - root@0.140.0, @chatic/desktop-web@0.46.0
+
+### Features
+
+- (desktop-web) play voice files in their card, not a full viewer
+
+## [2026-11-02] - root@0.139.0, @chatic/desktop-web@0.45.0
+
+### Features
+
+- (desktop-web) let users pick their own shell colours
+- (desktop-web) render shell palettes from the derive rule
+- (desktop-web) derive shell palette tokens from three colours
+
+## [2026-11-02] - root@0.138.1, @chatic/desktop-web@0.44.1
+
+### Bug Fixes
+
+- (desktop-web) keep the sidebar search field visible on tinted lists
+
+## [2026-10-30] - No version updates
+
+### Refactor
+
+- (auth,app-runtime) move the session use cases, pairing and socket auth into @chatic/auth
+
+## [2026-10-30] - No version updates
+
+### Features
+
+- (desktop-web,data,web) send voice files from desktop as file cards
+
+## [2026-10-30] - root@0.138.0, @chatic/desktop-web@0.44.0
+
+### Features
+
+- (desktop-web) add shell theme palettes to Settings
+- (desktop-web) show seen and not-seen counts under each author block
+
+## [2026-10-30] - root@0.137.1, @chatic/desktop-web@0.43.3
+
+### Bug Fixes
+
+- (desktop-web) tint the whole saved message around its tag
+
 ## [2026-10-30] - root@0.137.0, @chatic/landing@0.16.0
 
 ### Features

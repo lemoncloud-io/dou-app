@@ -7,6 +7,14 @@ app's screens moved into this console. Feature code: `apps/admin-v2/src/app/feat
 
 ## Design principles
 
+- **Either stage, like the other screens.** A Stage select picks Development (`d1`) or Production
+  (`v1`); the page opens on the build's stage and keeps the choice in the URL (`?stage=`). The list
+  and Add User both work on that stage's relay: on the session's own stage (production) the calls go
+  out unchanged, and on the other they carry that stage's `VITE_<STAGE>_RELAY_ENDPOINT` as an
+  endpoint override. The header and the dialog name the relay, and an unset key shows as an error
+  naming it rather than quietly falling back to the session's relay. See
+  [Stage endpoints](../../README.md#stage-endpoints).
+
 - **The listing lives here, not on the shared runtime.** `useUsers` (`api/usersQuery.ts`) reads
   `listRelayUsers` from the runtime's user repository, but the hook and its query key sit in this
   feature: this console is the only caller the listing has ever had, so a hook on the shared runtime

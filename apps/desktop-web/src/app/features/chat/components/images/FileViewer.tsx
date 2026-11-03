@@ -13,7 +13,7 @@ import { PdfPages } from './PdfPages';
 import { Hint } from '../../../../shared';
 
 interface FileViewerProps {
-    /** A file `canPreview` opens. */
+    /** A file `canPreview` reads as a PDF or text. */
     file: ChatFile;
     /** The message's sender and time. Absent for a file still in the composer, not sent yet. */
     author?: ImageAuthor;
@@ -40,6 +40,8 @@ type Body =
  *
  * A file still in the composer opens here too, before it is sent: its bytes are already in the
  * page, so nothing is fetched, and the header says it is not sent instead of naming a sender.
+ *
+ * A voice file never opens here: it plays in its own card or tray tile.
  */
 export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerProps) => {
     const { t } = useTranslation();
@@ -54,7 +56,10 @@ export const FileViewer = ({ file, author, onClose, onSave, local }: FileViewerP
         const controller = new AbortController();
         let doc: PdfDocument | undefined;
         const open = async (): Promise<Body> => {
-            if (preview !== 'pdf') {
+            // Anything else — a voice file, which plays in its card — is not read as text: its bytes
+            // would come out as a screen of noise.
+            if (preview !== 'pdf' && preview !== 'text') return { state: 'failed' };
+            if (preview === 'text') {
                 const start = local ?? (await fetchFileBytes(file.url, controller.signal, TEXT_PREVIEW_MAX_BYTES));
                 return { state: 'text', ...(await readTextPreview(start, file.size)) };
             }

@@ -3,7 +3,7 @@ import { logHub } from '@chatic/logger';
 
 import { useLogStoreHandler } from './useLogStoreHandler';
 
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 import type { LogEntry } from '@chatic/logger';
 
 const mockLogger = { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() };

@@ -153,7 +153,7 @@ export const useChannels = (
             const id = c.id;
             if (!id) continue;
             const boundary = Math.max(readCursors[id] ?? 0, serverCursors[id]?.chatNo ?? 0);
-            if (boundary > 0) markChannelRead(id, boundary, c.sid);
+            if (boundary > 0) markChannelRead({ cloudId: c.cid || RELAY_CLOUD_ID, id, placeId: c.sid }, boundary);
         }
     }, [rawChannels, readCursors, serverCursors]);
 

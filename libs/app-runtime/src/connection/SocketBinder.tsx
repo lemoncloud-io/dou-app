@@ -5,10 +5,8 @@ import { logger } from '@chatic/bridges';
 import { getSocketManager, hasLiveJoinedSession, RELAY_SLOT, kindOf, slotKeyOf } from '@chatic/transport';
 import type { ISocketManager, SlotKey, SocketBindingConfig } from '@chatic/transport';
 import { getSyncManager } from '@chatic/sync';
-import { bootstrapSocketConnection } from '../socket/auth';
-import type { SocketSessionDelegate } from '../socket/auth';
-// Concrete paths, not the ../socket/auth barrel: connection tests intercept that barrel to stub bootstrap.
-import { notifySocketLogout } from '../socket/auth/logoutSession';
+import { bootstrapSocketConnection, notifySocketLogout } from '@chatic/auth';
+import type { SocketSessionDelegate } from '@chatic/auth';
 import type { RuntimeSocketSlots } from './types';
 import { socketRebootKey } from './utils/socketRebootKey';
 

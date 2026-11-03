@@ -1,4 +1,5 @@
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType } from '@chatic/bridge-messages';
+import { isNative } from '@chatic/bridges';
 import { isNativeApp } from '../utils/isNativeApp';
 import { isNativeCacheTypeUsable } from './nativeCacheSupport';
 
@@ -6,8 +7,9 @@ import { isNativeCacheTypeUsable } from './nativeCacheSupport';
  * Which physical store a cache type lands in.
  * - `web`: the WebView/browser's own IndexedDB.
  * - `native`: the app shell's SQLite, reached over the bridge.
+ * - `session`: the browser tab's `sessionStorage` — gone when the tab is.
  */
-export type CacheBackend = 'web' | 'native';
+export type CacheBackend = 'web' | 'native' | 'session';
 
 // Types pinned to web storage even inside the native WebView, each listed with the reason it
 // cannot live on native storage — an entry leaves this table when its reason ships a fix.
@@ -29,6 +31,13 @@ const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
  * THE routing decision: answers "where is this cache type stored" in one place, so the factory
  * (`localFactory.getCacheStorage`) stays a pure assembler. Checks, in order:
  *
+ * 0. `invitecloud` in a plain browser tab → `session`. An invited cloud is entered on the grant of
+ *    the guest that accepted the invite, and in a plain tab that guest lives in `sessionStorage` —
+ *    each tab starts its own, and it ends with the tab. A row kept anywhere longer-lived outlives the
+ *    only user who can enter the cloud. The test is `isNative()`, the one the app entry points use
+ *    to put the session in `sessionStorage`, so the row and the guest always share a lifetime:
+ *    inside a desktop shell both persist (the shell keeps the session in `localStorage`), and the
+ *    type falls through to the checks below.
  * 1. No native shell (plain browser, desktop-web) → `web`; there is no other store to reach.
  * 2. Type pinned to web (`WEB_PINNED_CACHE_TYPES`, reasons above) → `web`.
  * 3. The installed shell cannot be trusted to store the type → `web`. The web deploys ahead of
@@ -40,6 +49,7 @@ const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
  * 4. Otherwise → `native`: a single durable store that survives WebView IndexedDB eviction.
  */
 export const resolveCacheBackend = (type: CacheType): CacheBackend => {
+    if (type === 'invitecloud' && !isNative()) return 'session';
     if (!isNativeApp()) return 'web';
     if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web';
     if (!isNativeCacheTypeUsable(type)) return 'web';

@@ -1,4 +1,4 @@
-import type { WebAppReadyPayload } from '@chatic/app-messages';
+import type { WebAppReadyPayload } from '@chatic/bridge-messages';
 import { useAppBridgeHost } from './useBaseBridge';
 import type { WebView } from 'react-native-webview';
 import type { RefObject } from 'react';

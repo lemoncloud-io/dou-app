@@ -160,14 +160,14 @@ flowchart TD
     HO --> AS[["@chatic/assets"]]
     DL --> AS
     DL --> SH
-    TH -.-> BR[["@chatic/bridges → logger, app-messages"]]
+    TH -.-> BR[["@chatic/bridges → logger, bridge-messages"]]
 
     classDef ext stroke-dasharray: 4 4;
     class PC,TH,AS,SH,BR,RQ ext;
 ```
 
 The dashed arrow out of `@chatic/theme` is the one the diagram cannot explain: **no file in this app
-imports `@chatic/bridges`, `@chatic/logger` or `@chatic/app-messages`** — see
+imports `@chatic/bridges`, `@chatic/logger` or `@chatic/bridge-messages`** — see
 [Dependencies](#dependencies-why-a-marketing-site-pulls-a-bridge-and-a-logger).
 
 ### Routes
@@ -670,19 +670,19 @@ through `libs/data` and `libs/http`) and `@chatic/config`, with
 surface also imports `@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from
 the workspace root, inside its own chunk. The table is about the public pages.
 
-| Library                  | Reached how               | Used for                                                       |
-| ------------------------ | ------------------------- | -------------------------------------------------------------- |
-| `@chatic/policy-content` | direct, 1 file            | the three policy tables and their types                        |
-| `@chatic/theme`          | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`     |
-| `@chatic/assets`         | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`)    |
-| `@chatic/shared`         | direct, 3 files           | invite-link decoding, the error screen's English defaults      |
-| `@chatic/bridges`        | via `theme` and `shared`  | nothing here calls it                                          |
-| `@chatic/logger`         | transitive, via `bridges` | nothing here calls it                                          |
-| `@chatic/app-messages`   | transitive, via `bridges` | nothing here calls it                                          |
-| `@chatic/ui-kit`         | transitive, via `shared`  | nothing here calls it                                          |
-| `@chatic/config`         | direct, 1 file            | the account surface's HTTP port configures the session runtime |
-| `@chatic/app-runtime`    | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository  |
-| `@chatic/device-utils`   | transitive, via `shared`  | nothing here calls it                                          |
+| Library                   | Reached how               | Used for                                                       |
+| ------------------------- | ------------------------- | -------------------------------------------------------------- |
+| `@chatic/policy-content`  | direct, 1 file            | the three policy tables and their types                        |
+| `@chatic/theme`           | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`     |
+| `@chatic/assets`          | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`)    |
+| `@chatic/shared`          | direct, 3 files           | invite-link decoding, the error screen's English defaults      |
+| `@chatic/bridges`         | via `theme` and `shared`  | nothing here calls it                                          |
+| `@chatic/logger`          | transitive, via `bridges` | nothing here calls it                                          |
+| `@chatic/bridge-messages` | transitive, via `bridges` | nothing here calls it                                          |
+| `@chatic/ui-kit`          | transitive, via `shared`  | nothing here calls it                                          |
+| `@chatic/config`          | direct, 1 file            | the account surface's HTTP port configures the session runtime |
+| `@chatic/app-runtime`     | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository  |
+| `@chatic/device-utils`    | transitive, via `shared`  | nothing here calls it                                          |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
 libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain
@@ -695,7 +695,7 @@ import { isNative, webClient } from '@chatic/bridges';
 `ThemeProvider` mirrors the theme into native storage by posting a `SavePreference` message, but only
 when `isNative()` is true — that is, only when the page is running inside the mobile app's WebView.
 On `app.chatic.io` in an ordinary browser it is false, the effect returns immediately, and the bridge
-is never used. `@chatic/logger` and `@chatic/app-messages` arrive only because `bridges` uses them
+is never used. `@chatic/logger` and `@chatic/bridge-messages` arrive only because `bridges` uses them
 internally.
 
 **So the finding is: the bridge, the logger and the message types are inherited, not needed.** They ship in the bundle
@@ -704,7 +704,7 @@ whose job is to load fast for a stranger is a real cost. And the lever is not in
 it means making `libs/theme`'s native sync optional, not editing anything under `apps/landing`.
 
 ```bash
-grep -rn "@chatic/bridges\|@chatic/logger\|@chatic/app-messages" apps/landing/src   # 0 hits
+grep -rn "@chatic/bridges\|@chatic/logger\|@chatic/bridge-messages" apps/landing/src   # 0 hits
 ```
 
 The landing app's own diagnostics are plain `console.log` / `console.error` calls in

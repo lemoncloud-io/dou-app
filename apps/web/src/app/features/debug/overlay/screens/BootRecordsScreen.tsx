@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import type { BootRecord } from '@chatic/app-messages';
+import type { BootRecord } from '@chatic/bridge-messages';
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
 import { CopyButton } from '../../components/CopyButton';

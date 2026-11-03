@@ -1,4 +1,4 @@
-import type { CacheType } from '@chatic/app-messages';
+import type { CacheType } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
 
 import type { DataContext, DataContextProvider } from '../../repositories/types';

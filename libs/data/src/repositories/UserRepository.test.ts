@@ -314,6 +314,28 @@ describe('UserRepository — HTTP relay-user/profile surface (ADR-0070 late stag
 
         await expect(repository.tryFetchProfile()).resolves.toEqual({ id: 'u1' });
     });
+
+    it('passes a listing endpoint override through with the request context', async () => {
+        const http = { listRelayUsers: jest.fn(), tryFetchProfile: jest.fn() };
+        http.listRelayUsers.mockResolvedValue({ list: [], meta: { total: 0, source: 'remote' } });
+        const repository = new UserRepository(
+            {} as any,
+            emptyLocal() as any,
+            emptyLocal() as any,
+            emptyLocal() as any,
+            contextProvider as any,
+            undefined,
+            http as any
+        );
+
+        await repository.listRelayUsers({ page: 0 }, { endpoint: 'https://other.test/dou-d1' });
+
+        expect(http.listRelayUsers).toHaveBeenCalledWith(
+            { page: 0 },
+            expect.objectContaining({ cid: expect.any(String) }),
+            { endpoint: 'https://other.test/dou-d1' }
+        );
+    });
 });
 
 describe('UserRepository.listPlaceMembers', () => {

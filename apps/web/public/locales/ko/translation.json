@@ -196,7 +196,20 @@
             "placeInviteNote": "켜면 홈 프로필 메뉴에 '플레이스에 초대하기'가 생겨요. 내 플레이스에서만 보여요.",
             "chatInputLock": "대화 입력 잠금",
             "chatInputLockSubtitle": "대화방마다 입력창을 잠가요",
-            "chatInputLockNote": "켜면 대화방 설정에 '입력 잠금'이 생겨요. 잠근 대화방과 그 스레드에서는 메시지를 보낼 수 없어요. 이 기기에서만 적용돼요."
+            "chatInputLockNote": "켜면 대화방 설정에 '입력 잠금'이 생겨요. 잠근 대화방과 그 스레드에서는 메시지를 보낼 수 없어요. 이 기기에서만 적용돼요.",
+            "inApp": "인앱",
+            "inAppNote": "누르면 앱 위에 서브웹뷰로 열려요. 디버그 모드에서만 보여요.",
+            "inAppOpenFailed": "열지 못했어요",
+            "inAppPages": {
+                "echo": {
+                    "title": "에코",
+                    "subtitle": "빛·소리·진동으로 나온 순서를 기억하는 퍼즐"
+                },
+                "enhanceDou": {
+                    "title": "DoU 강화하기",
+                    "subtitle": "DoU들이 골드를 벌어 오고, 그 골드로 +25까지 강화해요"
+                }
+            }
         },
         "notificationSettings": "알림 설정",
         "pushNotifications": "푸시 알림",
@@ -254,6 +267,7 @@
             "loginCta": "로그인하고 구독하기",
             "subscribe": "구독하기",
             "mobileOnly": "앱에서만 구독할 수 있어요",
+            "toWebCheckout": "웹 결제 화면으로 이동 중...",
             "noProducts": "구독 상품을 불러오지 못했어요",
             "purchaseFailed": "결제에 실패했어요",
             "notice": {
@@ -262,12 +276,14 @@
                 "downgradeNextRenewal": "하위 구독으로 변경하면 다음 갱신일부터 적용됩니다.",
                 "manageAt": {
                     "apple": "구독 관리는 iPhone 설정 > Apple ID > 구독 또는 App Store 구독 관리에서 가능",
-                    "google": "구독 관리는 Google Play > 프로필 > 결제 및 정기 결제 > 정기 결제에서 가능"
+                    "google": "구독 관리는 Google Play > 프로필 > 결제 및 정기 결제 > 정기 결제에서 가능",
+                    "web": "구독 관리는 DoU 웹사이트의 구독 관리에서 가능"
                 }
             },
             "platform": "플랫폼",
             "platformApple": "App Store",
             "platformGoogle": "Google Play",
+            "platformWeb": "DoU 웹사이트",
             "adminGrant": "관리자 부여",
             "adminGrantIndefinite": "무기한",
             "blockedNotice": "관리자에 의해 이용이 정지되었습니다. 스토어 결제는 계속되니 고객센터로 문의해 주세요.",
@@ -416,7 +432,9 @@
                 "changePlan": "구독 상품 변경하기",
                 "resubscribe": "다시 구독하기",
                 "manageInStore": "구독 관리로 이동하기",
+                "manageOnWeb": "웹에서 구독 관리하기",
                 "otherStore": "{{store}}에서 구독 중이에요. 구독 변경과 관리는 구독한 스토어의 기기에서 할 수 있어요.",
+                "webBilled": "DoU 웹사이트에서 결제한 구독이에요. 앱에서는 구독을 변경하거나 관리할 수 없어요.",
                 "pendingTitle": "변경 예정 구독 상품",
                 "pendingHeader": "다음 결제일부터 변경 적용",
                 "pendingDescription": "{{date}}부터 {{product}} 구독으로 적용될 예정입니다. 변경 전까지는 현재 구독을 그대로 이용할 수 있어요.",
@@ -1075,7 +1093,9 @@
                 "photosTitle": "사진에 대한 액세스 권한이 없어요",
                 "description": "설정 앱에서 권한을 수정할 수 있어요",
                 "cancel": "취소",
-                "settings": "설정하기"
+                "settings": "설정하기",
+                "microphoneTitle": "마이크에 대한 액세스 권한이 없어요",
+                "microphoneDescription": "설정에서 마이크를 허용해 주세요"
             },
             "preview": "사진",
             "previewCount": "사진 {{count}}장",
@@ -1118,7 +1138,7 @@
                 "storagePermission": "저장 공간 접근을 허용해야 저장할 수 있어요",
                 "share": "파일 공유",
                 "shareUpdateRequired": "앱을 업데이트하면 파일을 공유할 수 있어요",
-                "archiveNeedsUpdate": "앱을 업데이트하면 압축 파일을 저장할 수 있어요"
+                "saveNeedsUpdate": "앱을 업데이트하면 저장할 수 있어요"
             },
             "export": {
                 "save": "사진 저장",
@@ -1153,7 +1173,29 @@
             },
             "viewerPlay": "동영상 재생",
             "pickedFiles": "보낼 파일",
-            "removeFile": "{{name}} 빼기"
+            "removeFile": "{{name}} 빼기",
+            "audio": {
+                "voiceMessage": "음성 메시지",
+                "play": "{{name}} 재생",
+                "pause": "{{name}} 일시정지",
+                "seek": "{{name}} 재생 위치",
+                "playFailed": "재생할 수 없어요",
+                "menu": "{{name}} 더보기",
+                "save": "저장"
+            },
+            "voice": {
+                "entry": "음성",
+                "title": "음성 메시지",
+                "description": "음성 메시지를 녹음해 이 대화에 보내요",
+                "record": "녹음 시작",
+                "tapToRecord": "눌러서 녹음하세요. 최대 5분까지 녹음돼요.",
+                "recordingHint": "녹음 중…",
+                "send": "보내기",
+                "cancel": "취소",
+                "tooShort": "1초 이상 녹음해 주세요",
+                "interrupted": "녹음이 중단됐어요",
+                "failed": "녹음하지 못했어요"
+            }
         },
         "preview": {
             "thread": "[스레드] {{text}}",

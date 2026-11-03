@@ -1,4 +1,4 @@
-import type { CacheChatView } from '@chatic/app-messages';
+import type { CacheChatView } from '@chatic/bridge-messages';
 import type { ISqliteDatabase } from '../../database';
 import { ChatDataSource } from './ChatDataSource';
 

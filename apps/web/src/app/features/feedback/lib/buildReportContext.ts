@@ -1,4 +1,4 @@
-import type { DeviceInfo, VersionInfo } from '@chatic/app-messages';
+import type { DeviceInfo, VersionInfo } from '@chatic/bridge-messages';
 import type { runtime } from '@chatic/app-runtime';
 
 // Direct paths, not the `app/utils` barrel: the barrel pulls in web-vitals / place-profile helpers

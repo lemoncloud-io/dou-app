@@ -2,15 +2,22 @@
  * `lib/memberships/targetServer.ts`
  * - Which relay the console is pointed at, and how to point it somewhere else.
  *
- * This screen writes, and admin-v2 is not deployed — every operator runs it locally against
- * whatever their own `.env` names, which in practice is production. So the target is shown on the
- * screen and again in the confirmation dialog.
+ * This screen writes, and either stage is one switch away in every build. So the target is shown on
+ * the screen and again in the confirmation dialog.
  *
- * The relay is `VITE_DOU_ENDPOINT` (`https://host/dou-d1`), the same value the http client resolves
- * for the `relay` route and the same one the log console rebuilds its stage from. It is **not**
- * `VITE_BACKEND_ENDPOINT` (`https://host/d1`), which is a different service — aiming these calls
- * there returns 404 for every route.
+ * The session's own relay is `VITE_DOU_ENDPOINT` (`https://host/dou-d1`), the same value the http
+ * client resolves for the `relay` route; each stage's relay is its own `VITE_<STAGE>_RELAY_ENDPOINT`
+ * key. Neither is `VITE_BACKEND_ENDPOINT` (`https://host/d1`), which is a different service — aiming
+ * these calls there returns 404 for every route.
  */
+import {
+    relayOverrideFor,
+    relayTargetFor,
+    sessionRelayEndpoint,
+    sessionRelayStage,
+    stageEndpoint,
+} from '../../../config/stageEndpoints';
+
 export type RelayStage = 'v1' | 'd1';
 
 export const RELAY_STAGES: RelayStage[] = ['d1', 'v1'];
@@ -23,18 +30,11 @@ export interface TargetServer {
 
 const STAGE_LABEL: Record<RelayStage, string> = { v1: 'Production', d1: 'Development' };
 
-/** The configured endpoint with its `dou-XX` segment removed, e.g. `https://api.example.com`. */
-export const relayHost = (endpoint: string | undefined): string =>
-    (endpoint ?? '')
-        .trim()
-        .replace(/\/+$/, '')
-        .replace(/\/dou-[^/]*$/, '');
-
-/** The base for a chosen stage. Empty when nothing is configured, so callers can refuse to fire. */
-export const relayBaseFor = (endpoint: string | undefined, stage: RelayStage): string => {
-    const host = relayHost(endpoint);
-    return host ? `${host}/dou-${stage}` : '';
-};
+/**
+ * The relay of a stage, from its own env key (`VITE_D1_RELAY_ENDPOINT` · `VITE_V1_RELAY_ENDPOINT`).
+ * Empty when that key is unset, so callers can refuse to fire.
+ */
+export const relayEndpointFor = (stage: RelayStage): string => stageEndpoint('relay', stage);
 
 /** The stage an endpoint's trailing `dou-XX` segment names, or undefined when it names neither. */
 export const relayStageOf = (endpoint: string | undefined): RelayStage | undefined => {
@@ -64,18 +64,13 @@ export const describeTargetServer = (endpoint: string | undefined): TargetServer
     return { endpoint: url, isProd: false, label: 'Unknown' };
 };
 
-export const configuredEndpoint = (): string | undefined => import.meta.env.VITE_DOU_ENDPOINT;
+export const configuredEndpoint = (): string | undefined => sessionRelayEndpoint() || undefined;
 
-/** The stage the `.env` names, used as the console's starting point. */
-export const configuredStage = (): RelayStage => (describeTargetServer(configuredEndpoint()).isProd ? 'v1' : 'd1');
+/** The stage the session's own relay is on. Calls on it go out without an override. */
+export const sessionStage = (): RelayStage => sessionRelayStage();
 
-/**
- * The endpoint override for a chosen stage, or `undefined` to leave the call alone.
- *
- * Undefined for the configured stage on purpose: the http client resolves `relay` through
- * `getDynamicRelayBackend`, which honours a deeplink override and `window.DOU_ENDPOINT` before it
- * falls back to the env var. Overriding unconditionally would throw those away and pin every call
- * to whatever the build was compiled with.
- */
-export const endpointOverrideFor = (stage: RelayStage): string | undefined =>
-    stage === configuredStage() ? undefined : relayBaseFor(configuredEndpoint(), stage) || undefined;
+/** Where calls on `stage` actually go. */
+export const targetEndpointFor = (stage: RelayStage): string => relayTargetFor(stage);
+
+/** The endpoint override for a chosen stage, or `undefined` to leave the call alone — see `relayOverrideFor`. */
+export const endpointOverrideFor = (stage: RelayStage): string | undefined => relayOverrideFor(stage);

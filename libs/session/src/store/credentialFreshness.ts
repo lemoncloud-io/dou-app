@@ -44,7 +44,7 @@ export interface ICredentialFreshness {
  * belongs to the caller: relay re-mints by refresh, cloud by re-issue.
  *
  * It lives in `store/`, the bottom layer, because it reads nothing else: the HTTP transport and the
- * socket auth status both ask it, and both sit below the use cases in `session/auth/`.
+ * socket auth status both ask it, and both sit below the use cases in `@chatic/auth`.
  */
 class CredentialFreshness implements ICredentialFreshness {
     timeToExpiry(cid: string, now: number = Date.now()): number | null {

@@ -1,11 +1,31 @@
 /**
  * `api/userApi.spec.ts`
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { mapDeviceView } from './userApi';
+import { getUsersBase, mapDeviceView } from './userApi';
 
 describe('userApi', () => {
+    describe('getUsersBase', () => {
+        afterEach(() => vi.unstubAllEnvs());
+
+        // The old rule stripped `/d1` off the backend endpoint, which left a production backend
+        // (`…/v1`) untouched and produced `…/v1/skt-v1`.
+        it("reads each stage's presence service from its own key", () => {
+            vi.stubEnv('VITE_D1_PRESENCE_ENDPOINT', 'https://dev.example.com/skt-d1');
+            vi.stubEnv('VITE_V1_PRESENCE_ENDPOINT', 'https://prod.example.com/skt-v1/');
+
+            expect(getUsersBase('d1')).toBe('https://dev.example.com/skt-d1');
+            expect(getUsersBase('v1')).toBe('https://prod.example.com/skt-v1');
+        });
+
+        it('throws, naming the key, instead of building a same-origin path', () => {
+            vi.stubEnv('VITE_V1_PRESENCE_ENDPOINT', '');
+
+            expect(() => getUsersBase('v1')).toThrow(/VITE_V1_PRESENCE_ENDPOINT is not set/);
+        });
+    });
+
     describe('mapDeviceView', () => {
         it('should keep lastActiveAt as absolute epoch ms (0 when unknown)', () => {
             const at = Date.now() - 5000;

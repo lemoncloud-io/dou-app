@@ -21,8 +21,8 @@ grep -rn "@chatic/auth-sign/" --include='*.ts' --include='*.tsx' apps libs | gre
 
 **This lib does not decide what to sign with.** Which `authId` a socket kind uses, where the
 `accountId` and `identityId` come from, when a refresh is due, and what happens to the refreshed
-token afterwards are all `libs/app-runtime`'s — see
-[`session/auth`](../app-runtime/docs/auth/signing.md). This lib receives material as
+token afterwards are all `libs/auth`'s — see
+[`@chatic/auth`](../auth/docs/socket/signing.md). This lib receives material as
 arguments and returns a string.
 
 ### Why it is a separate lib
@@ -65,11 +65,11 @@ types.
 
 **Out** —
 
-- **Choosing the `authId`, and reading the store it comes from** — `libs/app-runtime`
-  (`session/auth/sessionAuthAdapter.ts`).
+- **Choosing the `authId`, and reading the store it comes from** — `libs/auth`
+  (`session/sessionAuthAdapter.ts`).
 - **Refresh cadence, retry and single-flight** — `ClientSocketAuth` in
   `@lemoncloud/chatic-sockets-lib`. This lib does not know when signing happens.
-- **Writing a refreshed token back** — `libs/app-runtime` (`commitRefreshedToken`).
+- **Writing a refreshed token back** — `libs/auth` (`commitRefreshedToken`).
 - **AWS SigV4 request signing** — `@chatic/http`. The two signatures share nothing but the word.
 
 ## Structure
@@ -158,8 +158,8 @@ One file in the repo imports this barrel, and one test mocks the specifier
 has two places to land, not one:
 
 ```text
-sessionAuthAdapter.signAuth(cid)                 libs/app-runtime/src/session/auth/sessionAuthAdapter.ts
-└── calcSignature(payload, current, userAgent)    libs/app-runtime/src/session/auth/utils/calcSignature.ts
+sessionAuthAdapter.signAuth(cid)                 libs/auth/src/session/sessionAuthAdapter.ts
+└── calcSignature(payload, current, userAgent)    libs/auth/src/session/utils/calcSignature.ts
     └── LemonHmacSigner#sign                      @chatic/auth-sign
 ```
 
@@ -178,7 +178,7 @@ and passes them here.
 `$auth.id` and not `Token.authId`: the relay server looks the auth model up by `$auth.id` and keys
 the HMAC with it, so the other id produces a signature the server cannot reproduce and the socket
 fails permanently with `no auth model`. That contract is
-[`signing.md` §1](../app-runtime/docs/auth/signing.md); this lib only sees the id that choice
+[`signing.md` §1](../auth/docs/socket/signing.md); this lib only sees the id that choice
 produced, which is why the fixtures below pin both kinds separately.
 
 ### 2. cloud socket sign callback
@@ -201,8 +201,8 @@ misreading the formula, and `LemonHmacSigner.spec.ts` asserts the invariant dire
 
 _2026-09._ The formula used to live in web-core as `calcSignature` in `awsSigning.ts`, alongside the
 SigV4 request signer it has nothing to do with. That name survives in
-`libs/app-runtime/src/session/auth/utils/calcSignature.ts` and throughout
-[`signing.md`](../app-runtime/docs/auth/signing.md), so a review comment about
+`libs/auth/src/session/utils/calcSignature.ts` and throughout
+[`signing.md`](../auth/docs/socket/signing.md), so a review comment about
 "calcSignature" is about this formula.
 
 ## How to verify

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { WebView } from 'react-native-webview';
 import { View } from 'react-native';
-import type { WebAppReadyPayload } from '@chatic/app-messages';
+import type { WebAppReadyPayload } from '@chatic/bridge-messages';
 
 import { useWebViewNavigation } from '../../../webview/hooks/useWebViewNavigation';
 import { useDeepLinkNavigation } from '../../../webview/hooks/useDeepLinkNavigation';
@@ -9,7 +9,7 @@ import { AppWebView } from '../../../webview';
 import { DeepLinkErrorView, WebViewErrorView } from '../../core/components';
 import type { MainScreenProps } from '../navigation';
 import { useAppBridge } from '../../../webview/hooks';
-import { bootMetricsService, bootSplashService, logger } from '../../../services';
+import { bootMetricsService, bootSplashService, logger, subWebViewService } from '../../../services';
 import { useResolvedTheme } from '../../../hooks';
 import { useDebugRuntimeStore, useDebugSettingsStore } from '../../../stores';
 import { useCustomZipBootGate } from '../../../customZip';
@@ -26,6 +26,9 @@ export const MainScreen = ({ route }: MainScreenProps) => {
         logger.debug('WEBVIEW', 'WebAppReady received in MainScreen');
         bootMetricsService.mark('web-app-ready');
         bootSplashService.onWebAppReady(payload);
+        // A handshake after the first is a web that reloaded: a sub WebView the old page opened has
+        // no one left to report its close to.
+        subWebViewService.resetForNewHost();
     }, []);
 
     const { bridge, onMessage } = useAppBridge(webViewRef, handleAppReady);

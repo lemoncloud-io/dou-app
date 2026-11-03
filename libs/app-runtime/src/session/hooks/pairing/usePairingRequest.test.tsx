@@ -13,14 +13,14 @@ jest.mock('../../../data/hooks/useRuntimeRepositories', () => ({
 }));
 jest.mock('../app/useDynamicDeviceId', () => ({ useDynamicDeviceId: () => ({ deviceId: 'dev-1' }) }));
 jest.mock('../session/actions/useSwitchCloudSession', () => ({ useSwitchCloudSession: () => ({ switchCloud }) }));
-jest.mock('../../../socket/auth/applySessionToken', () => ({
+jest.mock('@chatic/auth/socket/applySessionToken', () => ({
     applySessionToken: (...args: unknown[]) => applySessionToken(...args),
 }));
 const enterPaired = jest.fn();
-jest.mock('../../pairing/pairedCloudSessions', () => ({
+jest.mock('@chatic/auth/pairing/pairedCloudSessions', () => ({
     pairedCloudSessions: { enter: (...args: unknown[]) => enterPaired(...args) },
 }));
-jest.mock('../../pairing/pairingClient', () => ({
+jest.mock('@chatic/auth/pairing/pairingClient', () => ({
     pairingClientOf: () => ({ name: 'Chrome · macOS', platform: 'web' }),
 }));
 

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { DEFAULT_APP_ICON_NAME, provider } from '../../services';
-import type { WebMessageData } from '@chatic/app-messages';
+import type { WebMessageData } from '@chatic/bridge-messages';
 import { toErrorMessage } from '../../utils';
 
 export const useAppIconHandler = () => {

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { runtime } from '@chatic/app-runtime';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
 import { logger } from '@chatic/bridges';
-import type { CacheChannelView, CacheChatView, CacheSiteView } from '@chatic/app-messages';
+import type { CacheChannelView, CacheChatView, CacheSiteView } from '@chatic/bridge-messages';
 
 import { useCachedCloudNames } from '../../../hooks/useCachedCloudNames';
 import { useInvitedClouds } from '../../../hooks/useInvitedClouds';

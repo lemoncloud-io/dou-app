@@ -2,10 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 
 import { logger } from '@chatic/bridges';
 
-import { Coalescer } from '../../../utils/coalescer';
-import { Throttle } from '../../../utils/throttle';
+import { Coalescer, Throttle, relaySession } from '@chatic/auth';
 import { isLinkKnownDown } from '@chatic/transport';
-import { relaySession } from '../../auth/relaySession';
 import { useSessionAuth } from '../session';
 import { useDynamicDeviceId } from './useDynamicDeviceId';
 

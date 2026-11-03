@@ -1,5 +1,5 @@
 import type { IAppBridgeHost } from '@chatic/bridges';
-import type { OnFileTransferStatePayload, StartFileTransferPayload } from '@chatic/app-messages';
+import type { OnFileTransferStatePayload, StartFileTransferPayload } from '@chatic/bridge-messages';
 import type { ITransferManagerBridge } from '../../bridge';
 import type { ILogService } from '../../services';
 

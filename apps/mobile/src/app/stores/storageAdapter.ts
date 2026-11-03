@@ -1,6 +1,6 @@
 import { createJSONStorage } from 'zustand/middleware';
 import { provider } from '../services';
-import type { PreferenceKey } from '@chatic/app-messages';
+import type { PreferenceKey } from '@chatic/bridge-messages';
 
 const isPreferenceKey = (key: string): key is PreferenceKey => {
     const validKeys = ['isFirstRun', 'theme', 'language', 'debugSettings'];

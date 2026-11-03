@@ -12,7 +12,7 @@ import {
 const MiB = 1024 * 1024;
 
 describe('chatAttachmentFormat', () => {
-    it('takes the thirteen server formats by their type', () => {
+    it('takes the seventeen server formats by their type', () => {
         expect(chatAttachmentFormat({ name: 'a.png', type: 'image/png' })).toEqual({
             type: 'image/png',
             kind: 'image',
@@ -28,6 +28,10 @@ describe('chatAttachmentFormat', () => {
             ['a.hwpx', 'application/hwp+zip'],
             ['a.txt', 'text/plain'],
             ['a.zip', 'application/zip'],
+            ['a.m4a', 'audio/mp4'],
+            ['a.mp3', 'audio/mpeg'],
+            ['a.wav', 'audio/wav'],
+            ['a.ogg', 'audio/ogg'],
         ]) {
             expect(chatAttachmentFormat({ name, type })).toEqual({ type, kind: 'file', name });
         }
@@ -59,10 +63,46 @@ describe('chatAttachmentFormat', () => {
         }
     });
 
-    // DOCX, XLSX, PPTX and HWPX are ZIP containers, and a system without their apps may say only that.
-    it('does not send an office file typed as a ZIP archive as an archive', () => {
-        expect(chatAttachmentFormat({ name: 'a.docx', type: 'application/x-zip-compressed' })).toBeNull();
-        expect(chatAttachmentFormat({ name: 'a.hwpx', type: 'application/zip' })).toBeNull();
+    const OFFICE: readonly (readonly [string, string])[] = [
+        ['보고서.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+        ['문서.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+        ['발표.pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+        ['기안.hwpx', 'application/hwp+zip'],
+    ];
+
+    // DOCX, XLSX, PPTX and HWPX are ZIP containers, and the browser types them by whichever app owns the
+    // extension on that machine: as a ZIP where none does, or under another suite's own name. The
+    // vendor-style type below is illustrative, not one observed on a failing machine.
+    it('sends an office file typed as a ZIP or as a type the server does not know as its document', () => {
+        for (const [name, sent] of OFFICE) {
+            for (const type of [
+                'application/zip',
+                'application/x-zip-compressed',
+                'application/x-unknown-office',
+                'application/vnd.ms-excel',
+            ]) {
+                expect(chatAttachmentFormat({ name, type })).toEqual({ type: sent, kind: 'file', name });
+            }
+        }
+    });
+
+    it('reads an office extension in any case and keeps the name as picked', () => {
+        expect(chatAttachmentFormat({ name: 'MINUTES.DOCX', type: 'application/zip' })).toEqual({
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            kind: 'file',
+            name: 'MINUTES.DOCX',
+        });
+    });
+
+    it('still refuses an office name on a file typed as another document format', () => {
+        expect(chatAttachmentFormat({ name: 'a.docx', type: 'application/pdf' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.xlsx', type: 'text/plain' })).toBeNull();
+    });
+
+    it('does not read a type the server does not know from any other extension', () => {
+        expect(chatAttachmentFormat({ name: 'a.png', type: 'image/heic' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.pdf', type: 'application/x-unknown' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'a.xls', type: 'application/vnd.ms-excel' })).toBeNull();
     });
 
     it('maps the names Hancom files are sometimes typed with', () => {
@@ -75,6 +115,30 @@ describe('chatAttachmentFormat', () => {
     });
 
     // The server refuses a video or document whose name does not end in its format's extension.
+    // An audio file goes as `file`, under the server's type whatever alias it came with.
+    it('takes an audio file under the names systems type it with, as a document', () => {
+        for (const [name, type, sent] of [
+            ['memo.m4a', 'audio/x-m4a', 'audio/mp4'],
+            ['memo.m4a', 'audio/m4a', 'audio/mp4'],
+            ['song.mp3', 'audio/mp3', 'audio/mpeg'],
+            ['take.wav', 'audio/x-wav', 'audio/wav'],
+            ['take.wav', 'audio/wave', 'audio/wav'],
+            ['take.wav', 'audio/vnd.wave', 'audio/wav'],
+            ['memo.m4a', '', 'audio/mp4'],
+        ]) {
+            expect(chatAttachmentFormat({ name, type })).toEqual({ type: sent, kind: 'file', name });
+        }
+    });
+
+    // The server keeps four audio formats: AAC and WebM are not among them, however they are typed.
+    it('refuses AAC and WebM audio, and an MP4 video named as audio', () => {
+        expect(chatAttachmentFormat({ name: 'clip.aac', type: 'audio/aac' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'clip.aac', type: 'audio/x-aac' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'voice.webm', type: 'audio/webm' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'screen.webm', type: 'video/webm' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'clip.m4a', type: 'video/mp4' })).toBeNull();
+    });
+
     it('adds the extension to a video or document that has none', () => {
         expect(chatAttachmentFormat({ name: 'report', type: 'application/pdf' })?.name).toBe('report.pdf');
         expect(chatAttachmentFormat({ name: 'minutes v1.2', type: 'text/plain' })?.name).toBe('minutes v1.2.txt');
@@ -158,7 +222,7 @@ describe('CHAT_ATTACHMENT_ACCEPT', () => {
                 '.zip',
             ])
         );
-        expect(accept).toHaveLength(13 + 14);
+        expect(accept).toHaveLength(17 + 18);
     });
 });
 
@@ -192,6 +256,24 @@ describe('chatAttachmentAccept', () => {
         expect(accept).not.toContain('application/zip');
         expect(accept).not.toContain('.zip');
         expect(accept).toEqual(expect.arrayContaining(['application/pdf', '.hwpx']));
+    });
+
+    // Every app sends audio now, the phone included, so a picker for files offers all four.
+    it('offers the four audio formats among files, by type and by extension', () => {
+        const accept = chatAttachmentAccept(['file']).split(',');
+
+        expect(accept).toEqual(
+            expect.arrayContaining([
+                'audio/mp4',
+                'audio/mpeg',
+                'audio/wav',
+                'audio/ogg',
+                '.m4a',
+                '.mp3',
+                '.wav',
+                '.ogg',
+            ])
+        );
     });
 
     it('keeps the full list the same as asking for every kind', () => {

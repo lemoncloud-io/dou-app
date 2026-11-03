@@ -53,6 +53,7 @@
         "@radix-ui/react-toast": "*",
         "@radix-ui/react-tooltip": "*",
         "clsx": "*",
+        "crypto-js": "*",
         "tailwind-merge": "*",
         "react-error-boundary": "*",
         "react-router-dom": "*",

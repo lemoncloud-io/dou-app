@@ -1,4 +1,4 @@
-import type { ContactInfo } from '@chatic/app-messages';
+import type { ContactInfo } from '@chatic/bridge-messages';
 
 import {
     compareContactLabels,

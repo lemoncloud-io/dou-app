@@ -6,7 +6,7 @@ import type {
     OnPrepareVideoPayload,
     OnReadAttachmentPayload,
     OnReadVideoFramePayload,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 /**
  * AttachmentPicker — the OS pickers for a chat attachment, and the video preparation that follows

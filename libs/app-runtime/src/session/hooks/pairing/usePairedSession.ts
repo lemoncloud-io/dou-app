@@ -1,8 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 import { subscribeSessionSignal } from '@chatic/session';
-import { pairedClouds } from '../../pairing/pairedClouds';
-import { isPairedSession } from '../../pairing/pairedSession';
+import { pairedClouds, isPairedSession } from '@chatic/auth';
 
 const subscribe = (listener: () => void): (() => void) => {
     const offSession = subscribeSessionSignal(listener);

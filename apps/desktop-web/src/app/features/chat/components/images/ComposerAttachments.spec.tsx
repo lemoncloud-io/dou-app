@@ -55,6 +55,38 @@ describe('ComposerAttachments', () => {
         expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close' }));
     });
 
+    // The tray already holds an object URL of the picked file; the tile plays that one, in place.
+    it('plays a picked voice file in its tile, without opening a viewer', () => {
+        // jsdom implements no playback; these stand in for the element's own methods.
+        const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+        const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+        const song = picked(new File(['x'], 'song.mp3', { type: 'audio/mpeg' }), 'file');
+        const { container } = render(<Tray initial={[song]} />, { wrapper });
+        const audio = container.querySelector('audio') as HTMLAudioElement;
+        expect(audio.getAttribute('src')).toBe('blob:song.mp3');
+
+        fireEvent.click(screen.getByRole('button', { name: 'Play song.mp3' }));
+        expect(play).toHaveBeenCalledTimes(1);
+        fireEvent.play(audio);
+        expect(screen.getByRole('button', { name: 'Pause song.mp3' })).toBeTruthy();
+        expect(screen.queryByRole('dialog')).toBeNull();
+        cleanup();
+        play.mockRestore();
+        pause.mockRestore();
+    });
+
+    // A disabled button takes no focus and its label would hide the error, so the tile turns plain.
+    it('turns a voice file it cannot play into a plain tile that says so', () => {
+        const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => undefined);
+        const song = picked(new File(['x'], 'song.mp3', { type: 'audio/mpeg' }), 'file');
+        const { container } = render(<Tray initial={[song]} />, { wrapper });
+        fireEvent.error(container.querySelector('audio') as HTMLAudioElement);
+        expect(screen.queryByRole('button', { name: 'Play song.mp3' })).toBeNull();
+        expect(screen.getByText("Couldn't play this file")).toBeTruthy();
+        cleanup();
+        pause.mockRestore();
+    });
+
     // Read from the file the page holds: nothing is sent yet, so there is no address to fetch.
     it('reads a picked text file in the file viewer', async () => {
         // jsdom's File has no `arrayBuffer`; a browser's and Node's Blob do.

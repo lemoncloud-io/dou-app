@@ -53,7 +53,7 @@ export const registerHandlers = (host: IAppBridgeHost, deps: DesktopBridgeDeps):
     host.registerHandler('SetBadgeCount', message => {
         const { count } = message.data;
         // Optional Windows overlay PNG. Read structurally: the field crosses the
-        // @chatic/app-messages → bridges project-reference boundary, where the
+        // @chatic/bridge-messages → bridges project-reference boundary, where the
         // emitted declaration can lag the source type.
         const { overlayIconDataUrl } = message.data as { overlayIconDataUrl?: string };
         const ok = deps.setBadgeCount(count, overlayIconDataUrl);

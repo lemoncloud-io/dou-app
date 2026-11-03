@@ -1,8 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 
-import { issueCloudTokens } from '../../session/auth/cloudTokens';
+import { issueCloudTokens, BackgroundCloudTokens } from '@chatic/auth';
 import { getSocketSlotContext } from '@chatic/session';
-import { BackgroundCloudTokens } from '../../socket/auth/backgroundCloudTokens';
 import { backgroundClouds, isLinkKnownDown, getSocketManager } from '@chatic/transport';
 import { currentBackgroundSelection, liveBackgroundReadiness } from '../utils/backgroundSlots';
 import { subscribeSlotSignals } from '../utils/slotSignals';

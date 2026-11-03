@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
 
-import type { LogoutOptions } from '../../../auth/relaySession';
-
-import { logoutSession } from '../../../../socket/auth';
+import { logoutSession } from '@chatic/auth';
+import type { LogoutOptions } from '@chatic/auth';
 
 /**
  * Terminates the active relay session via app-runtime's `logoutSession`: best-effort socket

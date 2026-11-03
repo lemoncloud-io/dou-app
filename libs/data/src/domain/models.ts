@@ -9,7 +9,7 @@ import type {
     CacheProfileView,
     CacheSiteView,
     CacheUserView,
-} from '@chatic/app-messages';
+} from '@chatic/bridge-messages';
 
 export type DomainChannel = CacheChannelView;
 export type DomainChat = CacheChatView;

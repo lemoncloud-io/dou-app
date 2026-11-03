@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 
 import { useRegisterDeviceTokenMutation } from '../../data/hooks';
 import { getRelaySessionUser, useDynamicDeviceId, useSessionAuth } from '../../session';
-import { Coalescer } from '../../utils/coalescer';
-import { Throttle } from '../../utils/throttle';
+import { Coalescer, Throttle } from '@chatic/auth';
 import { PushRegistrationRecord, type NativeRecordMirror, type RegistrationIdentity } from '../registrationRecord';
 
 /**

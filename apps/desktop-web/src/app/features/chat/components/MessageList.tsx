@@ -16,6 +16,7 @@ import {
     useRovingFocus,
     useSiteProfileMap,
     viewerPlaceProfile,
+    type ReadCount,
 } from '../../../shared';
 import {
     buildMessageRows,
@@ -39,6 +40,7 @@ import {
     windowForViewport,
 } from './feedWindow';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
+import type { ReadPerson } from './ReadReceiptPill';
 import type { MentionResolver } from './RichText';
 
 interface MessageListProps {
@@ -106,6 +108,11 @@ interface MessageListProps {
      * retry row at the top instead. Retry reuses `onLoadOlder`.
      */
     loadOlderFailed?: boolean;
+    /**
+     * Main feed only: which members have read up to a message, its author left out. Each author block
+     * shows the count for its last settled message; absent (the thread panel) or null shows none.
+     */
+    readCountOf?: (chatNo: number, authorId: string) => ReadCount | null;
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -126,6 +133,27 @@ const isWindowActive = (): boolean =>
 
 /** Past this the exact count is not asserted — the badge says "N+" instead. */
 const NEW_BADGE_CAP = 99;
+/**
+ * Whether a message has a read count to show: one the server has accepted and that still stands.
+ * A row in flight carries a placeholder chatNo, and a deleted one has nothing left to read.
+ */
+const isCountable = (message: DomainChat): message is DomainChat & { chatNo: number } =>
+    !message.isPending &&
+    !message.isFailed &&
+    !message.hidden &&
+    typeof message.chatNo === 'number' &&
+    message.chatNo > 0 &&
+    message.chatNo !== Number.MAX_SAFE_INTEGER;
+
+/** The newest message of a block that has a read count to show (`findLast` is past this build's ES2022 lib). */
+const lastCountable = (messages: DomainChat[]): (DomainChat & { chatNo: number }) | undefined => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const message = messages[i];
+        if (message && isCountable(message)) return message;
+    }
+    return undefined;
+};
+
 // One array for every message that calls nobody "me", so a memo'd row sees the same prop.
 const NO_SELF_NAMES: string[] = [];
 
@@ -158,6 +186,7 @@ export const MessageList = ({
     loadFailed,
     onRetryLoad,
     loadOlderFailed,
+    readCountOf,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const reducedMotion = useReducedMotion();
@@ -312,6 +341,18 @@ export const MessageList = ({
         };
         return resolve;
     }, [names, placeProfiles, viewer]);
+
+    // Never drops a member for want of a name — a placeholder keeps the list equal to the count.
+    const readPerson = useMemo(() => {
+        const roster = new Map((mentionables ?? []).filter(m => !m.everyone).map(m => [m.id, m] as const));
+        return (userId: string): ReadPerson => {
+            const mine = isViewerId(userId, viewer);
+            const place = mine ? viewerPlaceProfile(viewer, placeProfiles) : placeProfiles[userId];
+            const fallbackName = mine ? viewer.name : (names?.get(userId) ?? roster.get(userId)?.name ?? '');
+            const display = resolveDisplay(place, fallbackName, roster.get(userId)?.thumbnail);
+            return { id: userId, name: display.name || t('profile.unknown'), thumbnail: display.thumbnail };
+        };
+    }, [mentionables, names, placeProfiles, viewer, t]);
 
     // Resolve thread repliers for the footer avatar stack the same way message
     // authors resolve: Place Profile override → roster name → viewer (own replies,
@@ -856,6 +897,18 @@ export const MessageList = ({
                         highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
                             ? highlightChatNo
                             : undefined;
+                    // The block's last settled message: a newer one still sending, failed or deleted
+                    // must not take the count away from the messages that did land.
+                    const counted = readCountOf ? lastCountable(row.group.messages) : undefined;
+                    const count = counted ? readCountOf?.(counted.chatNo, counted.ownerId ?? '') : null;
+                    const readCount =
+                        counted && count
+                            ? {
+                                  chatNo: counted.chatNo,
+                                  readers: count.readIds.map(readPerson),
+                                  nonReaders: count.unreadIds.map(readPerson),
+                              }
+                            : undefined;
                     return (
                         <MessageRow
                             key={row.group.key}
@@ -872,6 +925,7 @@ export const MessageList = ({
                             withDayInTime={threadReplyCount !== undefined}
                             reactions={reactions}
                             reactorName={reactorName}
+                            readCount={readCount}
                         />
                     );
                 })}

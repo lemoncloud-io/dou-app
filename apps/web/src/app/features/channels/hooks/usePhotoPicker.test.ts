@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 
-import type { OnListPhotosPayload } from '@chatic/app-messages';
+import type { OnListPhotosPayload } from '@chatic/bridge-messages';
 import { IDENTITY_PHOTO_EDIT, type PhotoEdit } from '@chatic/web-ui-kit';
 
 import type { PhotoLibrary } from '../../../bridge/photoLibrary';

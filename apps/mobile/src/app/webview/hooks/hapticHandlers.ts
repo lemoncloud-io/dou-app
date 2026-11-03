@@ -1,4 +1,4 @@
-import type { HapticKind, WebMessageData } from '@chatic/app-messages';
+import type { HapticKind, WebMessageData } from '@chatic/bridge-messages';
 
 import type { IHapticBridge } from '../../bridge';
 

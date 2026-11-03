@@ -9,7 +9,7 @@ import {
 } from 'react-native-iap';
 
 import { useServices } from './index';
-import type { IapProductSubscription } from '@chatic/app-messages';
+import type { IapProductSubscription } from '@chatic/bridge-messages';
 
 /**
  * @property onPurchaseSuccess: Listener for when a purchase is made. Passes the raw receipt to the web for server verification.

@@ -1,4 +1,4 @@
-import type { DeviceInfo } from '@chatic/app-messages';
+import type { DeviceInfo } from '@chatic/bridge-messages';
 
 import { buildDeviceInfoRows, type DeviceInfoRowLabels } from './buildDeviceInfoRows';
 

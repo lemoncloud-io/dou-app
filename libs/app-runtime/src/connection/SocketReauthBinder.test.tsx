@@ -1,16 +1,16 @@
 import { render } from '@testing-library/react';
 
 import { SocketReauthBinder } from './SocketReauthBinder';
-import { reauthenticateActiveSocket } from '../socket/auth';
+import { reauthenticateActiveSocket } from '@chatic/auth/socket/reauthenticateActiveSocket';
 import type { RuntimeSocketSlots } from './types';
-import type { SocketSessionDelegate } from '../socket/auth';
+import type { SocketSessionDelegate } from '@chatic/auth/socket/types';
 import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 
 jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: jest.fn().mockReturnValue({ id: 'manager' }),
 }));
 
-jest.mock('../socket/auth', () => ({
+jest.mock('@chatic/auth/socket/reauthenticateActiveSocket', () => ({
     reauthenticateActiveSocket: jest.fn().mockResolvedValue(undefined),
 }));
 

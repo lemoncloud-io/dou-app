@@ -8,7 +8,7 @@
  * value, and it fails the whole operation when the answer breaks the contract.
  */
 
-import type { PendingUploadSlot } from '@chatic/app-messages';
+import type { PendingUploadSlot } from '@chatic/bridge-messages';
 import type {
     UploadCompleteResult,
     UploadDirectTransfer,

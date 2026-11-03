@@ -1,4 +1,4 @@
-import type { OAuthLoginProvider, OAuthTokenResult } from '@chatic/app-messages';
+import type { OAuthLoginProvider, OAuthTokenResult } from '@chatic/bridge-messages';
 
 export interface IOAuthService {
     login(provider: OAuthLoginProvider): Promise<OAuthTokenResult | null>;

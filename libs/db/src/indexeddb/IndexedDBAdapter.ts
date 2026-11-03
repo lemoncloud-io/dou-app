@@ -1,4 +1,4 @@
-import type { CacheChatView, CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
+import type { CacheChatView, CacheModelOf, CacheQueryOf, CacheType } from '@chatic/bridge-messages';
 import type { AdapterScope, DataContextProvider, IIndexedDB, IndexedDbQueryExecutor, IndexedDbRow } from '@chatic/data';
 import { createTtlMeta, withCacheMeta } from '@chatic/data';
 import { logger } from '@chatic/bridges';

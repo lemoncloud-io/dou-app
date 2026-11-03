@@ -10,7 +10,7 @@
             "path": "./apps/web"
         },
         {
-            "path": "./libs/app-messages"
+            "path": "./libs/bridge-messages"
         },
         {
             "path": "./libs/device-utils"
@@ -86,6 +86,9 @@
         },
         {
             "path": "./libs/sync"
+        },
+        {
+            "path": "./libs/auth"
         },
         {
             "path": "./apps/web-e2e"

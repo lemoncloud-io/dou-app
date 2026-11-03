@@ -1,5 +1,9 @@
 import { NativeEventEmitter, NativeModules } from 'react-native';
-import type { FileTransferErrorCode, OnFileTransferStatePayload, StartFileTransferPayload } from '@chatic/app-messages';
+import type {
+    FileTransferErrorCode,
+    OnFileTransferStatePayload,
+    StartFileTransferPayload,
+} from '@chatic/bridge-messages';
 
 /**
  * TransferManager — the native file-transfer module (Kotlin `TransferManagerModule`, Swift

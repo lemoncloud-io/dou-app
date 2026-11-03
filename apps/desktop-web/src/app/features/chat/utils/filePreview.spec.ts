@@ -4,7 +4,22 @@ import { describe, expect, it } from 'vitest';
 import { Blob as NodeBlob } from 'node:buffer';
 
 import type { ChatFile } from './chatImages';
-import { TEXT_PREVIEW_MAX_BYTES, canPreview, readTextPreview } from './filePreview';
+import { TEXT_PREVIEW_MAX_BYTES, canPreview, formatPlaybackTime, readTextPreview } from './filePreview';
+
+describe('formatPlaybackTime', () => {
+    it('reads m:ss, and h:mm:ss from an hour, rounded down', () => {
+        expect(formatPlaybackTime(2.9)).toBe('0:02');
+        expect(formatPlaybackTime(125)).toBe('2:05');
+        expect(formatPlaybackTime(3725)).toBe('1:02:05');
+    });
+
+    // The browser reports NaN before the header arrives, and Infinity for a stream.
+    it('reads a length it does not know as 0:00', () => {
+        expect(formatPlaybackTime(Number.NaN)).toBe('0:00');
+        expect(formatPlaybackTime(Number.POSITIVE_INFINITY)).toBe('0:00');
+        expect(formatPlaybackTime(-1)).toBe('0:00');
+    });
+});
 
 const bytes = (parts: (string | Uint8Array)[]): Blob => new NodeBlob(parts) as unknown as Blob;
 
@@ -16,6 +31,14 @@ describe('canPreview', () => {
         expect(canPreview(sent({ name: 'report.pdf' }))).toBe('pdf');
         expect(canPreview(sent({ name: 'notes.txt', contentType: 'text/plain' }))).toBe('text');
         expect(canPreview(sent({ name: 'NOTES.TXT' }))).toBe('text');
+    });
+
+    // A voice file plays in the page; macOS types an M4A `audio/x-m4a`.
+    it('plays a sent voice file, by its type or its name', () => {
+        expect(canPreview(sent({ name: 'song.mp3', contentType: 'audio/mpeg' }))).toBe('audio');
+        expect(canPreview(sent({ name: 'memo.m4a', contentType: 'audio/x-m4a' }))).toBe('audio');
+        expect(canPreview(sent({ name: 'take.wav' }))).toBe('audio');
+        expect(canPreview(sent({ name: 'voice.ogg', contentType: 'audio/ogg' }))).toBe('audio');
     });
 
     // Nothing in the browser draws these without sending the file to someone else.

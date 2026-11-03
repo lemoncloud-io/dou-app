@@ -1,4 +1,4 @@
-import type { CacheChannelView, CacheChatView, CacheJoinView, CacheSiteView } from '@chatic/app-messages';
+import type { CacheChannelView, CacheChatView, CacheJoinView, CacheSiteView } from '@chatic/bridge-messages';
 
 /**
  * Global cache search query. `uid` always scopes the search to the current user;

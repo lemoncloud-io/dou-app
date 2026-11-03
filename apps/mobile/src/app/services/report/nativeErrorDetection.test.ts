@@ -1,4 +1,4 @@
-import type { PendingReportInfo } from '@chatic/app-messages';
+import type { PendingReportInfo } from '@chatic/bridge-messages';
 import { checkCrashOnPreviousExecution, installNativeErrorDetection } from './nativeErrorDetection';
 import type { NativeErrorDetectionDeps } from './nativeErrorDetection';
 

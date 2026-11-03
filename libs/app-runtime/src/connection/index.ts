@@ -38,11 +38,11 @@ export { useReclaimOwnedClouds } from './hooks/useReclaimOwnedClouds';
 // Foreground/wake kick for wedged sockets — apps call it on their own foreground signal (apps/web
 // `useSocketWakeRecovery`; desktop-web keeps its local variant). `recoverSocketsOnResume` also pings
 // the slots that read verified, so a connection left half-open by a suspension is found on resume.
-export { recoverSocketsOnResume, recoverUnverifiedSockets } from '../socket/auth/recoverUnverifiedSockets';
-export type { RecoverUnverifiedSocketsDeps } from '../socket/auth/recoverUnverifiedSockets';
+export { recoverSocketsOnResume, recoverUnverifiedSockets } from '@chatic/auth';
+export type { RecoverUnverifiedSocketsDeps } from '@chatic/auth';
 // Injection seam for the relay-refresh primitive. The primitive itself stays internal: apps ask for
 // freshness through `session.useSessionStalenessGuard`, never by calling it (ADR-0070 invariants 1·2).
-export type { RequestRelaySessionRefreshDeps } from '../socket/auth/requestRelaySessionRefresh';
+export type { RequestRelaySessionRefreshDeps } from '@chatic/auth';
 
 // The manager handle — for a debug/lab surface that drives the socket directly.
 export { getSocketManager } from '@chatic/transport';

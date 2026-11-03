@@ -1,4 +1,4 @@
-import type { WebAppReadyPayload } from '@chatic/app-messages';
+import type { WebAppReadyPayload } from '@chatic/bridge-messages';
 import type { IAppBridgeHost } from '@chatic/bridges';
 import { AppBridgeHost } from '@chatic/bridges';
 import { type RefObject, useCallback, useEffect, useMemo, useRef } from 'react';

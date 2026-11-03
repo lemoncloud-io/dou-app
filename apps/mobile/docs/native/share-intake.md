@@ -14,7 +14,7 @@ room by itself would need a second copy of each, in Swift and again in Kotlin.
 
 | Layer             | File                                                                                                                  |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Messages          | `libs/app-messages/src/types/model/share-intake.ts`                                                                   |
+| Messages          | `libs/bridge-messages/src/types/model/share-intake.ts`                                                                |
 | WebView handler   | `src/app/webview/hooks/shareIntakeHandlers.ts`, `useShareIntakeHandler.ts`                                            |
 | TS native wrapper | `src/app/bridge/ShareIntakeBridge.ts`                                                                                 |
 | Android intake    | `android/…/share/ShareIntake.kt`, `share/core/ShareIntakeRules.kt`, `MainActivity.kt`                                 |
@@ -60,8 +60,10 @@ a share it is about to send.
 
 ## Android
 
-`MainActivity` declares `SEND` and `SEND_MULTIPLE` for photos, videos, `application/*` documents and
-plain text. When one arrives — at launch or while the app is open — `ShareIntake.take` gives it an id,
+`MainActivity` declares `SEND` and `SEND_MULTIPLE` for photos, videos, `audio/*`, `application/*`
+documents and plain text. An audio file comes through as a `file` under the type the sending app
+declared; the web normalises the aliases (`audio/x-m4a`, `audio/x-wav`) and lists a format the server
+refuses (AAC, AMR, FLAC) as not sent. When one arrives — at launch or while the app is open — `ShareIntake.take` gives it an id,
 starts copying its streams on a background thread, and hands the screen a `VIEW` of
 `<scheme>://share?id=<id>` in its place. React Native reads the launch URL from the screen's intent, so
 at launch the swap happens before the React host starts; while open, `onNewIntent` passes the swapped

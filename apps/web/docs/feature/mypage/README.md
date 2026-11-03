@@ -19,22 +19,22 @@ feedback's, whose screen lives in another feature.
 
 ### The four depths
 
-| Page                                                            | Route (`ROUTES.mypage.*`)        | What it is                                      |
-| --------------------------------------------------------------- | -------------------------------- | ----------------------------------------------- |
-| `MyPage`                                                        | `/mypage`                        | the tab — identity, subscription, clouds        |
-| `LoginPage`                                                     | `/mypage/login`                  | sign-in, reached when a guest taps the hub card |
-| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links, withdrawal    |
-| `ProfileEditPage`                                               | `/mypage/edit`                   | the account (relay) profile: name and photo     |
-| `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them    |
-| `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places |
-| `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only         |
-| `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, and where it is released     |
-| `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                      |
-| `WithdrawalPage`                                                | `/mypage/withdrawal`             | account deletion                                |
-| `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout     |
-| `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                   |
-| `LabPage`                                                       | `/mypage/settings/lab`           | experiments, and the hidden debug unlock        |
-| `PolicyListPage` · `TermsPage` · `PrivacyPage` · `LicensesPage` | `/mypage/policy/*`               | the legal text                                  |
+| Page                                                            | Route (`ROUTES.mypage.*`)        | What it is                                                           |
+| --------------------------------------------------------------- | -------------------------------- | -------------------------------------------------------------------- |
+| `MyPage`                                                        | `/mypage`                        | the tab — identity, subscription, clouds                             |
+| `LoginPage`                                                     | `/mypage/login`                  | sign-in, reached when a guest taps the hub card                      |
+| `AccountInfoPage`                                               | `/mypage/account`                | account hub — edit, social links, withdrawal                         |
+| `ProfileEditPage`                                               | `/mypage/edit`                   | the account (relay) profile: name and photo                          |
+| `CloudManagePage`                                               | `/mypage/cloud-manage`           | owned clouds under the plan that allows them                         |
+| `CloudHubPage`                                                  | `/mypage/cloud-manage/:id`       | one cloud's menu — profile, information, places                      |
+| `CloudEditPage`                                                 | `…/:id/edit`                     | the cloud **entity's** name, owner-only                              |
+| `CloudDetailPage`                                               | `…/:id/detail`                   | the cloud's facts, and where it is released                          |
+| `CloudPlacesPage`                                               | `…/:id/places`                   | the places the cloud holds                                           |
+| `WithdrawalPage`                                                | `/mypage/withdrawal`             | account deletion                                                     |
+| `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout                          |
+| `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                                        |
+| `LabPage`                                                       | `/mypage/settings/lab`           | experiments, dev-only sub WebView pages, and the hidden debug unlock |
+| `PolicyListPage` · `TermsPage` · `PrivacyPage` · `LicensesPage` | `/mypage/policy/*`               | the legal text                                                       |
 
 `/mypage` is the only one of these the floating nav appears on: `UnifiedLayout` matches that path
 exactly, so every depth below it is nav-free without needing its own opt-out.
@@ -50,6 +50,13 @@ cloud management, and the policy screens.
   page belongs to [feedback](../feedback/README.md).
 - **The debug panel.** Lab hosts the unlock gesture; [debug](../debug/README.md) owns the gate and
   everything behind it.
+- **The in-app pages.** While debug mode is on, Lab's last card ("In-app") lists the pages kept on
+  `apps-dev.chatic.io` for trying the sub WebView — `IN_APP_PAGES` in `consts/inAppPages.ts`, games
+  so far but not only games — and a
+  tap opens one with `openSubWebView`. They follow debug mode rather than a key of their own, so the
+  flask's unlock shows them in a store build too; LOCAL and DEV start unlocked. What the sub WebView
+  is, and what it allows, is the phone shell's
+  ([sub-webview.md](../../../../mobile/docs/webview/sub-webview.md)).
 - **What an experiment does.** Lab holds the switch; the feature behind it, and the rule that reads
   the switch, belong to that feature — the place invite's to
   [invite/place-invite.md](../invite/place-invite.md), the chat input lock's to

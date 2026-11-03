@@ -10,10 +10,10 @@ import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
 import { SocketBinder } from './SocketBinder';
 import { SocketManager } from '@chatic/transport/socket/SocketManager';
-import { bootstrapSocketConnection } from '../socket/auth';
+import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketConnection';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
 import type { SocketBindingConfig } from '@chatic/transport/socket/types';
-import type { SocketSessionDelegate } from '../socket/auth';
+import type { SocketSessionDelegate } from '@chatic/auth/socket/types';
 import type { RuntimeSocketSlots } from './types';
 import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
@@ -23,7 +23,7 @@ jest.mock('@chatic/bridges', () => ({
 }));
 jest.mock('@chatic/transport/socket/runtime', () => ({ getSocketManager: jest.fn() }));
 jest.mock('@chatic/sync/runtime', () => ({ getSyncManager: jest.fn() }));
-jest.mock('../socket/auth', () => ({ bootstrapSocketConnection: jest.fn() }));
+jest.mock('@chatic/auth/socket/bootstrapSocketConnection', () => ({ bootstrapSocketConnection: jest.fn() }));
 
 const mockedCreate = createClientSocketV2 as jest.MockedFunction<typeof createClientSocketV2>;
 

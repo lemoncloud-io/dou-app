@@ -1,4 +1,4 @@
-import type { AppPermissionType, PermissionStatus } from '@chatic/app-messages';
+import type { AppPermissionType, PermissionStatus } from '@chatic/bridge-messages';
 
 /**
  * The bridge contract owns this union — the web asks for these by name, so a second copy here is

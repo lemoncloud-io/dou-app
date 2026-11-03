@@ -1,4 +1,4 @@
-import type { LastChatItem } from '@chatic/app-messages';
+import type { LastChatItem } from '@chatic/bridge-messages';
 
 /**
  * Interface for every local cache data source.

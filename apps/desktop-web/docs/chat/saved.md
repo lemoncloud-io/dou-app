@@ -9,7 +9,9 @@ live in `useSavedItemsStore` (`shared/stores/`), persisted to localStorage.
 A saved message carries a red **Saved** tag above its content wherever a message row draws it: the
 channel feed, the thread panel and the Threads page cards. It sits above the content rather than in
 the left gutter, because the gutter already holds the avatar on a block's first message and the hover
-time on the rest. `MessageRow` reads the flag from `useSavedItemsStore` per message, and a surface
+time on the rest. The tag is a plain red label with a bookmark icon, not a filled chip, and the whole
+saved message sits on a faint red tint with the tag inside it: a tag alone between two messages in a
+block reads as belonging to the one above it. `MessageRow` reads the flag from `useSavedItemsStore` per message, and a surface
 that only lists saved messages passes `hideSavedMark` to leave it out.
 
 ## What an item keeps

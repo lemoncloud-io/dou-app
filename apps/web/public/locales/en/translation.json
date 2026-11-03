@@ -196,7 +196,20 @@
             "placeInviteNote": "Adds \"Invite to Place\" to the home profile menu. Shows only in places you own.",
             "chatInputLock": "Chat input lock",
             "chatInputLockSubtitle": "Lock the message input per chat room",
-            "chatInputLockNote": "Adds 'Lock input' to chat room settings. A locked room and its threads cannot send messages. Applies to this device only."
+            "chatInputLockNote": "Adds 'Lock input' to chat room settings. A locked room and its threads cannot send messages. Applies to this device only.",
+            "inApp": "In-app",
+            "inAppNote": "Opens over the app in a sub WebView. Shown in debug mode only.",
+            "inAppOpenFailed": "Could not open it",
+            "inAppPages": {
+                "echo": {
+                    "title": "Echo",
+                    "subtitle": "Remember the order of lights, sounds and buzzes"
+                },
+                "enhanceDou": {
+                    "title": "Enhance DoU",
+                    "subtitle": "Your DoUs earn gold, and you spend it to enhance them up to +25"
+                }
+            }
         },
         "notificationSettings": "Notification Settings",
         "pushNotifications": "Push Notifications",
@@ -254,6 +267,7 @@
             "loginCta": "Sign in to subscribe",
             "subscribe": "Subscribe",
             "mobileOnly": "Subscriptions are only available in the app",
+            "toWebCheckout": "Opening web checkout…",
             "noProducts": "Failed to load subscription plans",
             "purchaseFailed": "Payment failed",
             "notice": {
@@ -262,12 +276,14 @@
                 "downgradeNextRenewal": "Moving down a plan takes effect at your next renewal.",
                 "manageAt": {
                     "apple": "Manage your subscription in iPhone Settings > Apple ID > Subscriptions, or in the App Store.",
-                    "google": "Manage your subscription in Google Play > Profile > Payments & subscriptions."
+                    "google": "Manage your subscription in Google Play > Profile > Payments & subscriptions.",
+                    "web": "Manage your subscription on the DoU website, under Subscriptions."
                 }
             },
             "platform": "Platform",
             "platformApple": "App Store",
             "platformGoogle": "Google Play",
+            "platformWeb": "DoU website",
             "adminGrant": "Admin grant",
             "adminGrantIndefinite": "Indefinite",
             "blockedNotice": "Your access has been restricted by an administrator. Store billing continues — please contact support.",
@@ -416,7 +432,9 @@
                 "changePlan": "Change plan",
                 "resubscribe": "Subscribe again",
                 "manageInStore": "Manage in store",
+                "manageOnWeb": "Manage on the web",
                 "otherStore": "You subscribe through {{store}}. Change or manage it on a device that uses {{store}}.",
+                "webBilled": "This subscription was bought on the DoU website. It can't be changed or managed in the app.",
                 "pendingTitle": "Upcoming plan",
                 "pendingHeader": "Applies from your next payment",
                 "pendingDescription": "Your plan changes to {{product}} on {{date}}. Until then you keep your current plan.",
@@ -1075,7 +1093,9 @@
                 "photosTitle": "No access to your photos",
                 "description": "You can change this in Settings",
                 "cancel": "Cancel",
-                "settings": "Open Settings"
+                "settings": "Open Settings",
+                "microphoneTitle": "No access to the microphone",
+                "microphoneDescription": "Allow the microphone in Settings"
             },
             "preview": "Photo",
             "previewCount": "{{count}} photos",
@@ -1118,7 +1138,7 @@
                 "storagePermission": "Allow storage access to save",
                 "share": "Share file",
                 "shareUpdateRequired": "Update the app to share files",
-                "archiveNeedsUpdate": "Update the app to save ZIP files"
+                "saveNeedsUpdate": "Update the app to save this file"
             },
             "export": {
                 "save": "Save photo",
@@ -1153,7 +1173,29 @@
             },
             "viewerPlay": "Play video",
             "pickedFiles": "Files to send",
-            "removeFile": "Remove {{name}}"
+            "removeFile": "Remove {{name}}",
+            "audio": {
+                "voiceMessage": "Voice message",
+                "play": "Play {{name}}",
+                "pause": "Pause {{name}}",
+                "seek": "Playback position of {{name}}",
+                "playFailed": "Can't play this",
+                "menu": "More for {{name}}",
+                "save": "Save"
+            },
+            "voice": {
+                "entry": "Voice",
+                "title": "Voice message",
+                "description": "Record a voice message and send it to this conversation",
+                "record": "Start recording",
+                "tapToRecord": "Tap to record. Up to 5 minutes.",
+                "recordingHint": "Recording…",
+                "send": "Send",
+                "cancel": "Cancel",
+                "tooShort": "Record for at least a second",
+                "interrupted": "Recording stopped",
+                "failed": "Couldn't record"
+            }
         },
         "preview": {
             "thread": "[Thread] {{text}}",

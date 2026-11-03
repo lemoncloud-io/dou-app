@@ -1,4 +1,4 @@
-import type { IapProductSubscription, OnPurchaseErrorPayload, OnPurchaseSuccessPayload } from '@chatic/app-messages';
+import type { IapProductSubscription, OnPurchaseErrorPayload, OnPurchaseSuccessPayload } from '@chatic/bridge-messages';
 
 import type { ShellPlatform } from '../support/fake-shell/fakeShell';
 import type { ShellHandlerTable } from '../support/fake-shell/handlerTable';

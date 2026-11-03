@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { BRIDGE_VERSION_INFO, isNative, webClient } from '@chatic/bridges';
-import type { WebMessageData, WebMessageType } from '@chatic/app-messages';
+import type { WebMessageData, WebMessageType } from '@chatic/bridge-messages';
 
 import { Row } from '../../components/Row';
 import { Section } from '../../components/Section';
@@ -18,7 +18,8 @@ import { useBridgeScreenStrings } from '../../i18n/screens/BridgeScreen';
  */
 
 /** Kept to a handful: enough to answer "does the channel work" without hunting for a safe command. */
-const PRESETS = ['Ping', 'WebAppReady', 'FetchBootRecords', 'FetchCustomZipStatus'] as const;
+// `OpenSubWebView` is here because no screen opens one yet; its payload needs a `url` typed in.
+const PRESETS = ['Ping', 'WebAppReady', 'FetchBootRecords', 'FetchCustomZipStatus', 'OpenSubWebView'] as const;
 
 interface CallLog {
     id: number;

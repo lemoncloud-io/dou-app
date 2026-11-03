@@ -2,8 +2,9 @@
 
 > Status: Accepted · Decided: 2026-10-30 · Implemented: `refactor/app-runtime-layers` (step 1 of 5),
 > `refactor/session-module` (step 2 — `libs/session`), `refactor/transport-module` (step 3 —
-> `libs/transport`), `refactor/sync-module` (step 4 — `libs/sync`) · Scope:
-> `libs/app-runtime/`, `libs/session/`, `libs/transport/`, `libs/sync/`
+> `libs/transport`), `refactor/sync-module` (step 4 — `libs/sync`), `refactor/auth-module` (step 5 —
+> `libs/auth`) · Scope: `libs/app-runtime/`, `libs/session/`, `libs/transport/`, `libs/sync/`,
+> `libs/auth/`
 
 ## Context
 
@@ -86,3 +87,9 @@ socket manager and the session they sit beside.
   hooks that depend on auth anyway, so no new edge appears. `isNativeApp` stays, an app-layer helper.
   Sync and auth were drawn side by side, so once sync is a package `layering.test.ts` also checks
   that the auth layer does not import it — a package import is not an edge the folder check sees.
+- Step 5 moved auth — the session use cases, pairing and the socket authentication — with
+  `Coalescer` and `Throttle`, and the split is complete. `layering.test.ts` is retired with it: it held
+  folder layers until each became a package, and the package graph and the eslint fences hold them
+  now. The one rule the package graph cannot see, that sync and auth do not import each other, is in
+  both packages' eslint configs. The two credential guards and the pairing hooks are React and stayed
+  in app-runtime, so their documentation moved there too.

@@ -1,4 +1,4 @@
-import type { CacheQueryOf, CacheTtlMeta, CacheType } from '@chatic/app-messages';
+import type { CacheQueryOf, CacheTtlMeta, CacheType } from '@chatic/bridge-messages';
 import type { CacheSchema } from './cacheStorage';
 
 /**

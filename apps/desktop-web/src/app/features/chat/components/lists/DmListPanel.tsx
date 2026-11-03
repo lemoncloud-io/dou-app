@@ -11,13 +11,20 @@ import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/u
 import { avatarStyle, isOwnChat, isSelfChannel, messagePreview, type ResolvedDisplay } from '../../../../shared';
 import { useDmIdentities, useLastChats, type DmPeerRef } from '../../hooks';
 import { isDmBucket, sortByRecency } from '../../utils';
-import { ConversationList, ConversationRow, PendingConversationRow } from './ConversationList';
+import {
+    ConversationList,
+    ConversationRow,
+    PendingConversationRow,
+    markThreadReply,
+    usePickConversation,
+    type SelectConversation,
+} from './ConversationList';
 
 interface DmListPanelProps {
     /** The active place's channels; only its 1:1s and my notes-to-self room are listed. */
     channels: DomainChannel[];
     selectedChannelId: string | null;
-    onSelect: (channelId: string) => void;
+    onSelect: SelectConversation;
     /** Absent where a 1:1 cannot be started (no place, or the place does not allow it). */
     onCreateDm?: () => void;
     /** While the place's channels load, an empty list is not yet an empty place. */
@@ -61,15 +68,16 @@ export const DmListPanel = ({
         placeScopeKey(selectedCloudId, selectedSiteId) ?? ''
     );
     const lastByChannel = useLastChats(dms);
+    const pick = usePickConversation(lastByChannel, onSelect);
     const ordered = useMemo(() => sortByRecency(dms, lastByChannel), [dms, lastByChannel]);
 
     const previewOf = (channel: DomainChannel, lastChat: DomainChat | undefined): string => {
         const preview = lastChat ? messagePreview(lastChat) : '';
         if (!lastChat || !preview) return t('lists.noMessages');
         // In my notes-to-self room every message is mine, so none needs saying so.
-        if (isSelfChannel(channel)) return preview;
-        const mine = isOwnChat(lastChat, { uid: myUid, name: '', cloudUid: channel.$join?.userId });
-        return mine ? t('lists.previewMine', { text: preview }) : preview;
+        const mine =
+            !isSelfChannel(channel) && isOwnChat(lastChat, { uid: myUid, name: '', cloudUid: channel.$join?.userId });
+        return markThreadReply(lastChat, mine ? t('lists.previewMine', { text: preview }) : preview, t);
     };
 
     const needle = query.trim().toLowerCase();
@@ -90,7 +98,7 @@ export const DmListPanel = ({
                 preview={previewOf(channel, lastChat)}
                 unread={channel.unreadCount ?? 0}
                 isActive={channel.id === selectedChannelId}
-                onSelect={onSelect}
+                onSelect={pick}
             />,
         ];
     });

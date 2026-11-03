@@ -15,6 +15,7 @@ export type TranslationKey =
     | 'webview.loadTitle'
     | 'webview.loadMessage'
     | 'webview.retry'
+    | 'webview.subClose'
     | 'notification.channel.chat'
     | 'notification.channel.notice'
     | 'notification.channel.marketing'

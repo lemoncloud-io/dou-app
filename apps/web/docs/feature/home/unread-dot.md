@@ -197,10 +197,10 @@ falls back to foreground marks plus each cloud's cached count.
 
 The web side of this feature depends on two things from the shell, and on nothing else about it:
 
-| Contract           | Shape                                                                                    |
-| ------------------ | ---------------------------------------------------------------------------------------- |
-| Stored hint record | `{ cid, uid, channelId, sid, channelName }` — raw strings, fields omitted when absent    |
-| Drain message      | `FetchPushMarks` (`libs/app-messages`) — returns the records and clears the native store |
+| Contract           | Shape                                                                                       |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| Stored hint record | `{ cid, uid, channelId, sid, channelName }` — raw strings, fields omitted when absent       |
+| Drain message      | `FetchPushMarks` (`libs/bridge-messages`) — returns the records and clears the native store |
 
 The records are written inside the same guard that increments the app-icon badge, so a push that
 does not raise a badge does not leave a mark either. The native badge counter itself is a separate

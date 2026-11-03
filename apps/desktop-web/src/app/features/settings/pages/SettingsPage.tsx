@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { CircleCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { cn } from '@chatic/lib/utils';
 import { runtime } from '@chatic/app-runtime';
 import { type Theme, useTheme } from '@chatic/theme';
 import { Button } from '@chatic/ui-kit/components/ui/button';
+import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import {
     PageShell,
@@ -17,6 +19,13 @@ import {
     radioGroupOptions,
     FONT_SIZES,
     MESSAGE_DENSITIES,
+    PALETTES,
+    PALETTE_CHOICES,
+    PRESET_COLORS,
+    type PaletteChoice,
+    type ShellColors,
+    colorsOf,
+    shellPaletteCss,
     useAppearancePrefsStore,
     useNotificationPrefsStore,
     VersionInfo,
@@ -25,7 +34,7 @@ import { NotificationSnoozeButton } from '../../chat/components/NotificationSnoo
 import { canApprovePairing } from '../../pairing/utils/devicePairing';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, setLanguage } from '../../../../i18n';
-import { ReportIssueDialog } from '../components';
+import { CustomPaletteFields, ReportIssueDialog } from '../components';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 import { QuietHoursMentionSection } from './QuietHoursMentionSection';
@@ -77,6 +86,33 @@ export const SettingsPage = () => {
     const setDensity = useAppearancePrefsStore(s => s.setDensity);
     const fontSizeProps = radioGroupOptions(FONT_SIZES, fontSize, setFontSize);
     const densityProps = radioGroupOptions(MESSAGE_DENSITIES, density, setDensity);
+    const palette = useAppearancePrefsStore(s => s.palette);
+    const customPalette = useAppearancePrefsStore(s => s.customPalette);
+    const setPalette = useAppearancePrefsStore(s => s.setPalette);
+    const setCustomPalette = useAppearancePrefsStore(s => s.setCustomPalette);
+    // Custom's colours, or what it would start from: the colours of the palette that is on.
+    const customColors = customPalette ?? colorsOf({ palette, customPalette });
+    const announcePalette = useCallback(() => toast({ title: t('settings.palette.applied') }), [t]);
+    // The shell recolours the moment a card is picked; the toast says so for the one who looked away.
+    const pickPalette = (next: PaletteChoice) => {
+        if (next === palette) return;
+        if (next === 'custom') setCustomPalette(customColors);
+        else setPalette(next);
+        announcePalette();
+    };
+    const paletteProps = radioGroupOptions(PALETTE_CHOICES, palette, pickPalette);
+    // Each sample card draws its own palette, whichever one is on, from the rule the shell uses.
+    const presetPreviewCss = useMemo(
+        () =>
+            PALETTES.map(option =>
+                shellPaletteCss(PRESET_COLORS[option], `[data-palette-preview='${option}']`, {
+                    dark: option !== 'mist',
+                })
+            ).join('\n'),
+        []
+    );
+    const previewCss = `${presetPreviewCss}\n${shellPaletteCss(customColors, "[data-palette-preview='custom']", { dark: true })}`;
+    const pickCustomColors = (colors: ShellColors) => setCustomPalette(colors);
     const pushMute = useDevicePushMute();
     const reopenOnboarding = useOnboardingStore(s => s.reopen);
     const openShortcuts = useShortcutsDialogStore(s => s.setOpen);
@@ -156,6 +192,70 @@ export const SettingsPage = () => {
                                 </button>
                             ))}
                         </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5">
+                        <div className="flex flex-col gap-1">
+                            <span id="settings-palette-label" className="text-callout font-medium text-foreground">
+                                {t('settings.palette')}
+                            </span>
+                            <span id="settings-palette-hint" className="text-caption text-muted-foreground">
+                                {t('settings.palette.hint')}
+                            </span>
+                        </div>
+                        <style>{previewCss}</style>
+                        <div
+                            role="radiogroup"
+                            aria-labelledby="settings-palette-label"
+                            aria-describedby="settings-palette-hint"
+                            className="flex flex-wrap gap-2"
+                        >
+                            {PALETTE_CHOICES.map(option => {
+                                const name = t(`settings.palette.${option}`);
+                                return (
+                                    <button
+                                        key={option}
+                                        type="button"
+                                        {...paletteProps(option)}
+                                        className={cn(
+                                            'focus-ring tactile flex w-32 flex-col gap-2 rounded-xl border p-2 text-left text-callout transition-colors ease-tactile',
+                                            segmentTone(palette === option)
+                                        )}
+                                    >
+                                        {/* The shell in miniature: cloud rail, nav rail, list, and the chat
+                                            card, drawn from the palette's own tokens. */}
+                                        <span
+                                            aria-hidden
+                                            data-palette-preview={option}
+                                            className="flex h-14 overflow-hidden rounded-lg border border-swatch-border"
+                                        >
+                                            <span className="w-[9px] bg-rail" />
+                                            <span className="w-3 bg-rail-elevated" />
+                                            <span className="flex flex-1 bg-sidebar py-1.5 pl-5 pr-1.5">
+                                                <span className="flex-1 rounded-sm bg-background" />
+                                            </span>
+                                        </span>
+                                        <span className="flex items-center justify-between gap-1 px-0.5">
+                                            {option === 'mist' ? t('settings.palette.default', { name }) : name}
+                                            {palette === option && (
+                                                <CircleCheck
+                                                    size={16}
+                                                    aria-hidden
+                                                    className="shrink-0 text-primary-ink"
+                                                />
+                                            )}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {palette === 'custom' && (
+                            <CustomPaletteFields
+                                colors={customColors}
+                                onPick={pickCustomColors}
+                                onSet={announcePalette}
+                            />
+                        )}
                     </div>
 
                     <div className="flex flex-col gap-2.5">

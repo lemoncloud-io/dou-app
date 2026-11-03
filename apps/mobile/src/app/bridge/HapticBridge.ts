@@ -1,6 +1,6 @@
 import { NativeModules } from 'react-native';
 
-import type { HapticKind } from '@chatic/app-messages';
+import type { HapticKind } from '@chatic/bridge-messages';
 
 const { Haptic } = NativeModules;
 

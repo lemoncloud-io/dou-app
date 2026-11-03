@@ -1,4 +1,4 @@
-import type { Env } from '@chatic/app-messages';
+import type { Env } from '@chatic/bridge-messages';
 
 /**
  * Translates this build's `VITE_ENV` into the `Env` vocabulary the web and the push API speak.

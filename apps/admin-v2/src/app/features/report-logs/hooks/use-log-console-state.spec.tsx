@@ -7,7 +7,7 @@
  */
 import { act, render, screen } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { useLogConsoleState, type LogConsoleState } from './use-log-console-state';
 
@@ -41,7 +41,10 @@ describe('useLogConsoleState — 기본값', () => {
         expect(api.server.to).toBe('');
     });
 
-    it('defaults to prod stage, all kinds and the list view', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it('defaults to prod stage in a production build, all kinds and the list view', () => {
+        vi.stubEnv('VITE_ENV', 'PROD');
         setup();
 
         expect(api.server.stage).toBe('v1');
@@ -49,8 +52,16 @@ describe('useLogConsoleState — 기본값', () => {
         expect(api.mode).toBe('list');
     });
 
+    it('defaults to the dev stage in any other build', () => {
+        vi.stubEnv('VITE_ENV', 'DEV');
+        setup();
+
+        expect(api.server.stage).toBe('d1');
+    });
+
     it('falls back to defaults for values that are not in the allowed set', () => {
         // A hand-edited or stale link must not put junk into the wire params.
+        vi.stubEnv('VITE_ENV', 'PROD');
         setup('/report-logs?stage=nope&kind=nope&mode=nope');
 
         expect(api.server.stage).toBe('v1');

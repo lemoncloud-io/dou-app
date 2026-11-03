@@ -3,22 +3,40 @@ import { chatAttachmentFormat } from '@chatic/data';
 import type { ChatFile } from './chatImages';
 
 /** What the viewer draws a file as. */
-export type FilePreview = 'pdf' | 'text';
+export type FilePreview = 'pdf' | 'text' | 'audio';
 
 const PREVIEWS: Readonly<Record<string, FilePreview>> = {
     'application/pdf': 'pdf',
     'text/plain': 'text',
+    'audio/mpeg': 'audio',
+    'audio/mp4': 'audio',
+    'audio/wav': 'audio',
+    'audio/ogg': 'audio',
 };
 
 /**
- * Whether a sent file opens in the viewer, and as what. Only a PDF or a text file: nothing in the
- * page draws an office or Hancom document without handing it to a third party, and a video already
- * plays in place. A file being sent, failed, or without an address has nothing to open.
+ * Whether a sent file opens in the viewer, and as what. A PDF or a text file is drawn, a voice file
+ * played: nothing in the page draws an office or Hancom document without handing it to a third party,
+ * and a video already plays in place. A file being sent, failed, or without an address has nothing to
+ * open.
  */
 export const canPreview = (file: ChatFile): FilePreview | null => {
     if (file.kind !== 'file' || !file.url || file.isUploading || file.isFailed) return null;
     const format = chatAttachmentFormat({ name: file.name ?? '', type: file.contentType ?? '' });
     return (format && PREVIEWS[format.type]) ?? null;
+};
+
+/**
+ * A playback position or length as the inline player shows it: `m:ss`, and `h:mm:ss` from an hour.
+ * Rounded down, so the clock never reads a second the file has not reached. A length the browser
+ * does not know yet (`NaN`, or `Infinity` for a stream) is `0:00`.
+ */
+export const formatPlaybackTime = (seconds: number): string => {
+    const total = Number.isFinite(seconds) && seconds > 0 ? Math.floor(seconds) : 0;
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const rest = String(total % 60).padStart(2, '0');
+    return hours > 0 ? `${hours}:${String(minutes).padStart(2, '0')}:${rest}` : `${minutes}:${rest}`;
 };
 
 /** How much of a text file the viewer shows. The whole file is still what a save writes. */

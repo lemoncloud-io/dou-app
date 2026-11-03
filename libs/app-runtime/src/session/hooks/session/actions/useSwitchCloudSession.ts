@@ -5,11 +5,14 @@ import { useCallback } from 'react';
 import { startPerfTrace } from '@chatic/perf';
 
 import { SDK_REFRESH_CYCLE_MS, getSocketManager, slotKeyOf } from '@chatic/transport';
-import { credentialRenewers } from '../../../../socket/auth/renewers';
-import { reauthenticateActiveSocket } from '../../../../socket/auth/reauthenticateActiveSocket';
-import { createReauthDelegate } from '../../../../socket/auth/reauthDelegate';
-import { cloudSession } from '../../../auth/cloudSession';
-import { tokensFromInviteLogin, type InviteLoginEntry } from '../../../auth/cloudTokens';
+import {
+    credentialRenewers,
+    reauthenticateActiveSocket,
+    createReauthDelegate,
+    cloudSession,
+    tokensFromInviteLogin,
+} from '@chatic/auth';
+import type { InviteLoginEntry } from '@chatic/auth';
 import { SWITCH_CLOUD_MUTATION_KEY } from '../../mutationKeys';
 
 /**

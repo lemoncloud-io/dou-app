@@ -10,6 +10,7 @@ import { runtime } from '@chatic/app-runtime';
 import { useNavigateWithTransition } from '@chatic/shared';
 
 import { isNative, logger } from '@chatic/bridges';
+import type { OAuthCodeResult, OAuthLoginResult } from '@chatic/bridge-messages';
 
 import { PageHeader } from '../../../ui/components';
 import { appBridge, useOnOAuthLogin } from '../../../bridge';
@@ -20,6 +21,10 @@ import { ROUTES } from '../../../routes/paths';
 import { AppleIcon, GoogleIcon } from '../components';
 import { useDevicePairingEnabled } from '../../../hooks/useDevicePairingEnabled';
 
+/** A relay code (the virtual shell's relay sign-in) rather than a native provider token. */
+const isRelayCode = (result: OAuthLoginResult): result is OAuthCodeResult =>
+    typeof (result as Partial<OAuthCodeResult>).code === 'string';
+
 export const LoginPage = () => {
     const { t } = useTranslation();
     const { toast } = useToast();
@@ -28,6 +33,8 @@ export const LoginPage = () => {
     const [isOAuthPending, setIsOAuthPending] = useState(false);
     const [activeProvider, setActiveProvider] = useState<'google' | 'apple' | null>(null);
     const [isPhoneOpen, setIsPhoneOpen] = useState(false);
+    // The relay-code exchange is a plain call, not a mutation, so its pending state is kept here.
+    const [isCodeExchangePending, setIsCodeExchangePending] = useState(false);
     const pairingEnabled = useDevicePairingEnabled();
 
     const isOnMobileApp = isNative();
@@ -50,8 +57,9 @@ export const LoginPage = () => {
      *
      * The old implementation rewound the whole history stack and did a full-page
      * `location.replace('/')`. Neither is needed: both sign-in paths install the new identity before
-     * this runs (phone via `applySessionToken`, social via `loginRelaySocial`), so a reload fixes
-     * nothing and only costs a white flash.
+     * this runs (phone via `applySessionToken`, social via `loginRelaySocial` or, for the virtual
+     * shell's relay code, `createCredentialsByProvider`), so a reload fixes nothing and only costs a
+     * white flash.
      */
     const leaveForReturnTo = () => {
         const { returnTo } = (location.state ?? {}) as LoginLocationState;
@@ -98,7 +106,8 @@ export const LoginPage = () => {
      * request that had already been given up on and was dropped (see `appBridge.startOAuthLogin`).
      *
      * Every outcome lands on this one channel: success carries the credential, a cancel carries
-     * `result: null`, and a native failure carries `success: false`.
+     * `result: null`, and a native failure carries `success: false`. The credential is a provider
+     * token from a native app, or a relay code from the virtual shell's relay sign-in.
      */
     useOnOAuthLogin(message => {
         setIsOAuthPending(false);
@@ -119,9 +128,26 @@ export const LoginPage = () => {
 
         void (async () => {
             try {
-                // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
-                await loginRelaySocial({ body: result, provider: result.provider });
-                logger.info('AUTH', '[LoginPage] social login succeeded', { provider: result.provider });
+                if (isRelayCode(result)) {
+                    // The virtual shell signs in through the OAuth relay and hands back its code, not a
+                    // provider token. Exchanged the way desktop does: signed with this device's (guest)
+                    // session, so the backend links that guest to the account, as the native login does.
+                    setIsCodeExchangePending(true);
+                    try {
+                        await runtime.session.createCredentialsByProvider(result.provider, result.code, {
+                            linkCurrentSession: true,
+                        });
+                    } finally {
+                        setIsCodeExchangePending(false);
+                    }
+                } else {
+                    // loginRelaySocial verifies the native token, sets the provider, and hydrates the session.
+                    await loginRelaySocial({ body: result, provider: result.provider });
+                }
+                logger.info('AUTH', '[LoginPage] social login succeeded', {
+                    provider: result.provider,
+                    via: isRelayCode(result) ? 'relay-code' : 'native-token',
+                });
 
                 leaveForReturnTo();
             } catch (e) {
@@ -136,7 +162,7 @@ export const LoginPage = () => {
         appBridge.startOAuthLogin(provider);
     };
 
-    const isLoading = isOAuthPending || isLoginRelaySocialPending;
+    const isLoading = isOAuthPending || isLoginRelaySocialPending || isCodeExchangePending;
 
     // Pushed, so the policy page's back button lands here again with this entry's `returnTo` intact.
     const openPolicy = (path: string) => navigate(path);

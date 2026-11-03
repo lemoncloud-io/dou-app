@@ -154,7 +154,7 @@ and the owner would walk into their own cloud as the guest's member.
 (`runtime.connection.useReclaimOwnedClouds`) re-issues each of those once per signed-in account,
 socket included. The invited row stays, still drawn as owned. A cloud written as invited while the
 catalog was still loading (see above) lands in that list too, which costs one extra re-issue. The
-rules (when it records, how it backs off) are the runtime's: `libs/app-runtime` docs/auth, "An
+rules (when it records, how it backs off) are the runtime's: `libs/auth` docs/socket, "An
 owned cloud held as its invitee".
 
 ## A failed switch

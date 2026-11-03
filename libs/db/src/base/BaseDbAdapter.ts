@@ -1,5 +1,5 @@
 import { logger } from '@chatic/bridges';
-import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/app-messages';
+import type { CacheModelOf, CacheQueryOf, CacheType } from '@chatic/bridge-messages';
 import type { AdapterScope, CacheStorage, DataContextProvider } from '@chatic/data';
 import { resolveScopedContext } from '@chatic/data';
 

@@ -6,7 +6,7 @@ import {
     startPerfTrace,
 } from '@chatic/perf';
 
-import type { HandedOverPerfTrace } from '@chatic/app-messages';
+import type { HandedOverPerfTrace } from '@chatic/bridge-messages';
 import type { PerfTrace } from '@chatic/perf';
 
 /**
