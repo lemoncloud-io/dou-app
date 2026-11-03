@@ -42,6 +42,7 @@ vi.mock('@chatic/bridges', () => ({ logger: { error: vi.fn(), warn: vi.fn(), inf
 
 import '../../../../i18n';
 import { useNavStore } from '../../../shared';
+import { useAppearanceDialogStore } from '../../settings/stores/useAppearanceDialogStore';
 import { NavRail } from './NavRail';
 
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -174,6 +175,22 @@ describe('NavRail account menu', () => {
         expect(items.indexOf(i18next.t('rail.menu.settings'))).toBeLessThan(
             items.indexOf(i18next.t('rail.menu.logout'))
         );
+    });
+
+    it('opens the Appearance popup from its menu item, ahead of settings', async () => {
+        useAppearanceDialogStore.setState({ isOpen: false });
+        renderRail();
+        await openAccountMenu();
+
+        const items = screen.getAllByRole('menuitem').map(item => item.textContent);
+        expect(items.indexOf(i18next.t('rail.menu.appearance'))).toBeLessThan(
+            items.indexOf(i18next.t('rail.menu.settings'))
+        );
+
+        fireEvent.click(screen.getByRole('menuitem', { name: i18next.t('rail.menu.appearance') }));
+
+        expect(useAppearanceDialogStore.getState().isOpen).toBe(true);
+        expect(navProbe.path).not.toBe('/settings');
     });
 
     it('opens the Account hub from its menu item', async () => {

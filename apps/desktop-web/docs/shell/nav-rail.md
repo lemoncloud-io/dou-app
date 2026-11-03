@@ -66,7 +66,8 @@ Below `NARROW_SHELL_WIDTH` the sidebar becomes a drawer that opens beside the do
 ## Account menu
 
 The avatar at the bottom of the rail (`AccountMenu`) opens profile, account, join with invite (guests,
-and accounts linked to the device guest), settings, the debug overlay when debug mode is on, and log
+and accounts linked to the device guest), appearance (a popup with the display and theme controls, see
+[settings](../settings/README.md#appearance-popup)), settings, the debug overlay when debug mode is on, and log
 out. Logging out of a guest is a delete, so it asks first and offers to connect an account instead.
 
 The avatar draws my photo for the current place when I set one, else the account photo. A fresh
