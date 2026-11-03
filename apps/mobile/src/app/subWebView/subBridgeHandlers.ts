@@ -38,6 +38,10 @@ export interface SubBridgeDeps {
     origin: string | null;
     /** The device id the main WebView is given too; read only when a page asks for its key. */
     getDeviceId: () => string | null | undefined;
+    /** Whether the page takes Android back for itself; reset by the view on each page load. */
+    setBackClaim: (claimed: boolean) => void;
+    /** Whether the user's close is asked of the page first; reset by the view on each page load. */
+    setCloseGuard: (enabled: boolean) => void;
 }
 
 /** What react-native-device-info answers when it has no id to give. */
@@ -153,6 +157,23 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
         } catch (e) {
             return fail('OnOpenShareSheet', 'SHARE_ERROR', (e as Error)?.message ?? 'Failed to open the share sheet.');
         }
+    },
+
+    // The main web's message, with the same meaning: while true, Android back is the page's.
+    SetCanGoBack: async message => {
+        const canGoBack = message.data?.canGoBack;
+        if (typeof canGoBack !== 'boolean') return fail('OnSetCanGoBack', 'INVALID', 'canGoBack must be a boolean.');
+        deps.setBackClaim(canGoBack);
+        return { type: 'OnSetCanGoBack', success: true, data: {} };
+    },
+
+    SetSubWebViewCloseGuard: async message => {
+        const enabled = message.data?.enabled;
+        if (typeof enabled !== 'boolean') {
+            return fail('OnSetSubWebViewCloseGuard', 'INVALID', 'enabled must be a boolean.');
+        }
+        deps.setCloseGuard(enabled);
+        return { type: 'OnSetSubWebViewCloseGuard', success: true, data: {} };
     },
 
     // Keyed on the shell's record of the origin, never on anything in the message, so a page can only

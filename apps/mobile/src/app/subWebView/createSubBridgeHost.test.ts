@@ -17,7 +17,19 @@ const SUBSET: SubWebViewRequestType[] = [
     'OpenURL',
     'OpenShareSheet',
     'GetSubWebViewUserKey',
+    'SetCanGoBack',
+    'SetSubWebViewCloseGuard',
 ];
+
+const CONTEXT = {
+    protocolVersion: 1 as const,
+    viewId: 'view-1',
+    platform: 'ios' as const,
+    appVersion: '0.31.0',
+    locale: 'ko',
+    theme: 'light' as const,
+    params: {},
+};
 
 const createHost = () => {
     const sent: string[] = [];
@@ -33,7 +45,10 @@ const createHost = () => {
             openShareSheet: jest.fn(async () => ({ action: 'sharedAction' as const })),
             origin: 'https://foo.apps.chatic.io',
             getDeviceId: () => 'device-1',
-        })
+            setBackClaim: jest.fn(),
+            setCloseGuard: jest.fn(),
+        }),
+        () => CONTEXT
     );
     return { host, sent };
 };
@@ -52,6 +67,20 @@ describe('createSubBridgeHost', () => {
         expect([...reply.data.supportedWebMessages].sort()).toEqual([...SUBSET].sort());
         // A host with no local cache reports none, so a page never routes storage here.
         expect(reply.data.supportedCacheTypes ?? []).toEqual([]);
+        expect(reply.data.subWebView).toEqual(CONTEXT);
+    });
+
+    it('refuses a message over 65,536 characters, and handles one under it', async () => {
+        const { host, sent } = createHost();
+
+        await host.handleMessage(request('SetSubWebViewTitle', { title: 'x'.repeat(64 * 1024) }));
+        await host.handleMessage(request('SetSubWebViewTitle', { title: 'Quiz' }));
+
+        const [tooLarge, handled] = sent.map(raw => JSON.parse(raw));
+        expect(tooLarge).toEqual(
+            expect.objectContaining({ type: 'ERROR', error: expect.objectContaining({ code: 'TOO_LARGE' }) })
+        );
+        expect(handled).toEqual(expect.objectContaining({ type: 'OnSetSubWebViewTitle', success: true }));
     });
 
     // The main WebView's requests are not merely unlisted: the host answers them NOT_FOUND.

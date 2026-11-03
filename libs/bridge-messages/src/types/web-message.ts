@@ -80,6 +80,7 @@ import type {
     FinishSubWebViewPayload,
     SetSubWebViewTitlePayload,
     GetSubWebViewUserKeyPayload,
+    SetSubWebViewCloseGuardPayload,
     GetContactsPayload,
     FetchAppIconPayload,
     FetchAppIconListPayload,
@@ -255,6 +256,7 @@ export type WebMessagePayloadMap = {
     FinishSubWebView: FinishSubWebViewPayload;
     SetSubWebViewTitle: SetSubWebViewTitlePayload;
     GetSubWebViewUserKey: GetSubWebViewUserKeyPayload;
+    SetSubWebViewCloseGuard: SetSubWebViewCloseGuardPayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */
@@ -267,7 +269,7 @@ type RequestsIn<T extends WebMessageType> = T;
  * The requests a sub WebView page may send: the only ones its host registers, so the only ones its
  * handshake lists. Each one is safe whoever sends it, or gets a handler of its own on that host
  * (`OpenURL` there opens only what the sub WebView would hand to the OS; `OpenShareSheet` shares only
- * text and a web link). Nothing here reaches the app's storage, purchases or files, and the one
+ * text and a web link; `SetCanGoBack` claims Android back for the page alone). Nothing here reaches the app's storage, purchases or files, and the one
  * identifier, `GetSubWebViewUserKey`, is scoped to the page's own origin: a one-way key, never the
  * device id.
  */
@@ -281,6 +283,8 @@ export type SubWebViewRequestType = RequestsIn<
     | 'OpenURL'
     | 'OpenShareSheet'
     | 'GetSubWebViewUserKey'
+    | 'SetCanGoBack'
+    | 'SetSubWebViewCloseGuard'
 >;
 
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {

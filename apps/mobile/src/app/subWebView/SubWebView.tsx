@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, StyleSheet } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
+import type { SubWebViewCloseTrigger, SubWebViewContext } from '@chatic/bridge-messages';
 
 import { HapticBridge } from '../bridge';
 import { useResolvedTheme } from '../hooks';
@@ -12,14 +13,16 @@ import { getAppLanguage } from '../utils/device';
 import { originOf } from '../utils/url';
 import { createSubBridgeHost } from './createSubBridgeHost';
 import { createSubBridgeHandlers } from './subBridgeHandlers';
+import { createSubWebViewCloseGuard } from './subWebViewCloseGuard';
 import { buildSubWebViewContextScript } from './subWebViewContextScript';
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
-import { useSubWebViewBack } from './useSubWebViewBack';
+import { decideSubWebViewBack, useSubWebViewBack } from './useSubWebViewBack';
 
 interface SubWebViewProps {
     viewId: string;
     url: string;
     params: Record<string, unknown>;
+    /** Close the view as `user`; called once the page's close guard, if any, lets the close through. */
     onRequestClose: () => void;
     /** The document's own title, each time it changes. */
     onTitleChange?: (title: string) => void;
@@ -32,6 +35,12 @@ const openShareSheet = (data: { title?: string; message?: string; url?: string }
 // The id the main WebView is given as `CHATIC_APP_UNIQUE_DEVICE_ID`; only a key derived from it reaches a page.
 const getDeviceId = () => DeviceInfo.getUniqueIdSync();
 
+/** What the screen around the view may ask of it. */
+export interface SubWebViewHandle {
+    /** The user asked to close: through the page's close guard when it has one on, else closes. */
+    requestClose(trigger: SubWebViewCloseTrigger): void;
+}
+
 /**
  * The second WebView. Built apart from `AppWebView` on purpose: it gets none of the main WebView's
  * injected globals (device and install ids, the bridge handler) and none of its handlers — a page
@@ -41,12 +50,22 @@ const getDeviceId = () => DeviceInfo.getUniqueIdSync();
  * defaults: what may run here is decided by what is allowed to be deployed to the allowlisted
  * domains, not by switching features off.
  */
-export const SubWebView = ({ viewId, url, params, onRequestClose, onTitleChange, onTitleRequest }: SubWebViewProps) => {
+export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function SubWebView(
+    { viewId, url, params, onRequestClose, onTitleChange, onTitleRequest },
+    ref
+) {
     const webViewRef = useRef<WebView>(null);
     const [canGoBack, setCanGoBack] = useState(false);
     // One host per page load: a host stays "ready" after its page's first message, so a reloaded
     // page would get pushes before it listens. A new host buffers them until the new page's handshake.
     const [pageLoad, setPageLoad] = useState(0);
+    // What the current page load claimed. Reset with each load, so a page never inherits the last
+    // one's claim on back or its close guard.
+    const backClaimed = useRef(false);
+    const closeGuard = useRef(createSubWebViewCloseGuard());
+    // Bumped in the load callback itself, before the state that rebuilds the host, so a late reply
+    // from the old host is already stale by then.
+    const loadCount = useRef(pageLoad);
     const { backgroundColor, resolvedTheme } = useResolvedTheme();
     const languagePreference = useLanguageStore(state => state.preference);
     const locale = resolveAppLanguage(languagePreference, getAppLanguage());
@@ -54,47 +73,77 @@ export const SubWebView = ({ viewId, url, params, onRequestClose, onTitleChange,
     const onTitleRequestRef = useRef(onTitleRequest);
     onTitleRequestRef.current = onTitleRequest;
 
-    useSubWebViewBack(webViewRef, canGoBack, onRequestClose);
-
     const openedOrigin = useMemo(() => originOf(url), [url]);
 
-    const host = useMemo(
-        () =>
-            createSubBridgeHost(
-                message => webViewRef.current?.postMessage(message),
-                createSubBridgeHandlers({
-                    viewId,
-                    service: subWebViewService,
-                    clipboard: clipboardService,
-                    haptic: HapticBridge,
-                    openExternal,
-                    setTitle: title => onTitleRequestRef.current?.(title),
-                    openShareSheet,
-                    origin: openedOrigin,
-                    getDeviceId,
-                })
-            ),
-        // `pageLoad` only rebuilds the host; it is not read inside.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [viewId, openedOrigin, pageLoad]
+    const context = useMemo<SubWebViewContext>(
+        () => ({
+            protocolVersion: 1,
+            viewId,
+            platform: Platform.OS === 'ios' ? 'ios' : 'android',
+            appVersion: DeviceInfo.getVersion(),
+            locale,
+            theme: resolvedTheme,
+            params,
+        }),
+        [viewId, params, locale, resolvedTheme]
+    );
+    // The handshake reports the context as it is when the page asks, not as it was at load.
+    const contextRef = useRef(context);
+    contextRef.current = context;
+
+    const host = useMemo(() => {
+        // A request from the previous load can be answered after the next one started; its title
+        // and claims must not stick to the new page.
+        const load = pageLoad;
+        const isCurrent = () => loadCount.current === load;
+        return createSubBridgeHost(
+            message => webViewRef.current?.postMessage(message),
+            createSubBridgeHandlers({
+                viewId,
+                service: subWebViewService,
+                clipboard: clipboardService,
+                haptic: HapticBridge,
+                openExternal,
+                setTitle: title => {
+                    if (isCurrent()) onTitleRequestRef.current?.(title);
+                },
+                openShareSheet,
+                origin: openedOrigin,
+                getDeviceId,
+                setBackClaim: claimed => {
+                    if (isCurrent()) backClaimed.current = claimed;
+                },
+                setCloseGuard: enabled => {
+                    if (isCurrent()) closeGuard.current.setEnabled(enabled);
+                },
+            }),
+            () => contextRef.current
+        );
+    }, [viewId, openedOrigin, pageLoad]);
+
+    const requestClose = useCallback(
+        (trigger: SubWebViewCloseTrigger) => {
+            if (closeGuard.current.decide(Date.now()) === 'close') {
+                onRequestClose();
+                return;
+            }
+            host.pushEvent({ type: 'OnSubWebViewCloseRequested', success: true, data: { trigger } });
+        },
+        [host, onRequestClose]
     );
 
-    const contextScript = useMemo(
-        () =>
-            buildSubWebViewContextScript(
-                {
-                    protocolVersion: 1,
-                    viewId,
-                    platform: Platform.OS === 'ios' ? 'ios' : 'android',
-                    appVersion: DeviceInfo.getVersion(),
-                    locale,
-                    theme: resolvedTheme,
-                    params,
-                },
-                url
-            ),
-        [viewId, url, params, locale, resolvedTheme]
-    );
+    useImperativeHandle(ref, () => ({ requestClose }), [requestClose]);
+
+    const onBack = useCallback(() => {
+        const decision = decideSubWebViewBack({ claimed: backClaimed.current, canGoBack });
+        if (decision === 'page') host.pushEvent({ type: 'OnBackPressed', success: true, data: {} });
+        else if (decision === 'history') webViewRef.current?.goBack();
+        else requestClose('back');
+    }, [host, canGoBack, requestClose]);
+
+    useSubWebViewBack(onBack);
+
+    const contextScript = useMemo(() => buildSubWebViewContextScript(context, url), [context, url]);
 
     // The page read the context once; a change after that arrives as an event. The host holds it
     // until the page's handshake, so a page still loading misses nothing.
@@ -129,9 +178,12 @@ export const SubWebView = ({ viewId, url, params, onRequestClose, onTitleChange,
         return decision === 'load';
     }, []);
 
-    // A new document: a fresh host for it, and the last page's own title no longer applies.
+    // A new document: a fresh host for it, and the last page's title and claims no longer apply.
     const onLoadStart = useCallback(() => {
-        setPageLoad(count => count + 1);
+        loadCount.current += 1;
+        setPageLoad(loadCount.current);
+        backClaimed.current = false;
+        closeGuard.current = createSubWebViewCloseGuard();
         onTitleRequestRef.current?.(undefined);
     }, []);
 
@@ -169,7 +221,7 @@ export const SubWebView = ({ viewId, url, params, onRequestClose, onTitleChange,
             allowsBackForwardNavigationGestures
         />
     );
-};
+});
 
 const styles = StyleSheet.create({
     webView: { flex: 1 },

@@ -5,6 +5,13 @@ export const SUB_WEBVIEW_DATA_LIMIT = 16 * 1024;
 export const SUB_WEBVIEW_TITLE_LIMIT = 100;
 
 /**
+ * The longest message a page may send, as a serialized string's length (65,536 characters, not
+ * bytes). Room for a 16 KiB `result` and a share message several times over; past it the host
+ * answers `TOO_LARGE` before any handler sees the payload.
+ */
+export const SUB_WEBVIEW_MESSAGE_LIMIT = 64 * 1024;
+
+/**
  * Whether `value` is JSON that fits the limit. Measured as the serialized string's length — a
  * character count, not bytes, which is close enough for a guard and needs no encoder.
  */

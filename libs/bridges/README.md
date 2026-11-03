@@ -370,7 +370,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 web runtime                             apps/web · apps/desktop-web · apps/admin-v2
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_VERSION ('2.14.0')
+       ├─ version  BRIDGE_VERSION ('2.15.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -381,8 +381,9 @@ native runtime
                                           cacheSchemaVersion, supportedCacheTypes,
                                           resolveCacheDomainVersions })
                 useWebMessageRouter()     registerHandler per domain hook
-  apps/mobile   SubWebView              new AppBridgeHost({ sendToWeb }) — a second host, for the
-                createSubBridgeHost()     sub WebView page: the SubWebViewRequestType subset only
+  apps/mobile   SubWebView              new AppBridgeHost({ sendToWeb, subWebViewContext,
+                createSubBridgeHost()     maxMessageLength }) — a second host, for the sub WebView
+                                          page: the SubWebViewRequestType subset only
   apps/desktop  createWindow()          new AppBridgeHost({ sendToWeb: IPC })
                 registerHandlers(host, deps) · startUpdater(host, …)
 ```
@@ -394,7 +395,10 @@ debug overlay sends; it is answered with a `Pong` carrying the payload back, the
 so a round trip that reaches any host comes back as an answer rather than as `NOT_FOUND`. A shell does
 not register either itself: its own cleanup would unregister the host's. The mobile host passes three
 cache-capability fields into it; the desktop host passes none, has no local cache DB, and is read by
-the web as legacy. The negotiation those fields feed is
+the web as legacy. The sub WebView's host passes the other two options: `subWebViewContext`, which
+the handshake reports as `subWebView`, read when the reply is built, and `maxMessageLength`, past
+which a message is answered `TOO_LARGE` (as an `ERROR`, with its `refId`) without reaching a handler.
+It still counts as the page's first message and releases held pushes. The main hosts set no limit. The negotiation those fields feed is
 [`app-runtime`'s](../app-runtime/docs/data/README.md).
 
 ## Scenarios
@@ -563,7 +567,7 @@ npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-d
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.14.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.15.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. There is one protocol constant; `BRIDGE_VERSION_INFO` carries it twice, as
 `bridgeVersion` and `protocolVersion`, because the web's debug screen prints both rows.

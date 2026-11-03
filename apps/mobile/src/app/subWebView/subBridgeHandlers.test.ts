@@ -28,6 +28,8 @@ const setup = () => {
         openShareSheet: jest.fn(async (): Promise<ShareAction> => ({ action: 'sharedAction', activityType: null })),
         origin: 'https://foo.apps.chatic.io' as string | null,
         getDeviceId: jest.fn((): string | null => DEVICE_ID),
+        setBackClaim: jest.fn(),
+        setCloseGuard: jest.fn(),
     };
     return { handlers: createSubBridgeHandlers(deps), deps, service, events };
 };
@@ -318,6 +320,50 @@ describe('createSubBridgeHandlers', () => {
                     error: expect.objectContaining({ code: 'SHARE_ERROR', message: 'no activity' }),
                 })
             );
+        });
+    });
+
+    describe('SetCanGoBack', () => {
+        it.each([true, false])('records a claim of %s', async canGoBack => {
+            const { handlers, deps } = setup();
+
+            const reply = await handlers.SetCanGoBack(message({ canGoBack }));
+
+            expect(reply).toEqual({ type: 'OnSetCanGoBack', success: true, data: {} });
+            expect(deps.setBackClaim).toHaveBeenCalledWith(canGoBack);
+        });
+
+        it.each([[{}], [{ canGoBack: 'yes' }], [undefined]])('refuses %j as INVALID', async data => {
+            const { handlers, deps } = setup();
+
+            const reply = await handlers.SetCanGoBack(message(data));
+
+            expect(reply).toEqual(
+                expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
+            );
+            expect(deps.setBackClaim).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('SetSubWebViewCloseGuard', () => {
+        it.each([true, false])('sets the guard to %s', async enabled => {
+            const { handlers, deps } = setup();
+
+            const reply = await handlers.SetSubWebViewCloseGuard(message({ enabled }));
+
+            expect(reply).toEqual({ type: 'OnSetSubWebViewCloseGuard', success: true, data: {} });
+            expect(deps.setCloseGuard).toHaveBeenCalledWith(enabled);
+        });
+
+        it('refuses an enabled that is not a boolean', async () => {
+            const { handlers, deps } = setup();
+
+            const reply = await handlers.SetSubWebViewCloseGuard(message({ enabled: 1 }));
+
+            expect(reply).toEqual(
+                expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
+            );
+            expect(deps.setCloseGuard).not.toHaveBeenCalled();
         });
     });
 

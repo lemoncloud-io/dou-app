@@ -3,7 +3,9 @@
 A second WebView the shell shows over the main one, for a page on another origin. The web asks for
 it with `OpenSubWebView`; the shell shows the page full screen under a bar with its title and a close
 control, and tells the web with `OnSubWebViewClosed` when it is gone. The messages and their codes are
-in `@chatic/bridge-messages` (`model/sub-webview.ts`).
+in `@chatic/bridge-messages` (`model/sub-webview.ts`). What a page and the shell say to each other —
+the envelope, versions, errors, timing, every request and push — is specified in
+[sub-webview-protocol.md](./sub-webview-protocol.md); this document is how the shell behaves.
 
 It exists so the app can host pages it does not own the code of — a service of its own, a notice —
 without
@@ -37,19 +39,23 @@ nothing (`subWebViewContextScript.ts`). A later theme or language change arrives
 vocabulary as the main web, through `window.ReactNativeWebView`, to a second `AppBridgeHost`
 (`createSubBridgeHost.ts`) that registers only `SubWebViewRequestType`:
 
-| Request                | What the sub WebView's host does                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------ |
-| `WebAppReady`          | The handshake; lists exactly this table. No cache schema or types: nothing to store  |
-| `Ping`                 | Answered by the host itself                                                          |
-| `FinishSubWebView`     | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web       |
-| `SetSubWebViewTitle`   | Puts a title (1–100 characters) in the bar, over the document's own                  |
-| `CopyToClipboard`      | Writes text to the clipboard                                                         |
-| `TriggerHaptic`        | Plays one short haptic                                                               |
-| `OpenURL`              | Opens only what the view would hand to the OS — never the app's own links or schemes |
-| `OpenShareSheet`       | Opens the OS share sheet with a message and an http(s) link — never a file           |
-| `GetSubWebViewUserKey` | This device's key for the page's origin — derived from the device id, never the id   |
+| Request                   | What the sub WebView's host does                                                     |
+| ------------------------- | ------------------------------------------------------------------------------------ |
+| `WebAppReady`             | The handshake; lists exactly this table. No cache schema or types: nothing to store  |
+| `Ping`                    | Answered by the host itself                                                          |
+| `FinishSubWebView`        | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web       |
+| `SetSubWebViewTitle`      | Puts a title (1–100 characters) in the bar, over the document's own                  |
+| `CopyToClipboard`         | Writes text to the clipboard                                                         |
+| `TriggerHaptic`           | Plays one short haptic                                                               |
+| `OpenURL`                 | Opens only what the view would hand to the OS — never the app's own links or schemes |
+| `OpenShareSheet`          | Opens the OS share sheet with a message and an http(s) link — never a file           |
+| `GetSubWebViewUserKey`    | This device's key for the page's origin — derived from the device id, never the id   |
+| `SetCanGoBack`            | The page claims Android back: presses are pushed to it as `OnBackPressed`            |
+| `SetSubWebViewCloseGuard` | The user's close is pushed to the page as `OnSubWebViewCloseRequested` first         |
 
 Everything else — cache, preferences, push tokens, purchases, files, logs — answers `NOT_FOUND`.
+The handshake reply also carries the page's context as `subWebView`, and a message over 64 KiB is
+answered `TOO_LARGE` before any handler sees it (`SUB_WEBVIEW_MESSAGE_LIMIT`).
 The handlers are written for this host (`subBridgeHandlers.ts`), not borrowed from the main
 WebView's: the boundary forbids that, and the main ones assume the main web is asking — its
 `OpenURL`
@@ -138,7 +144,9 @@ would pass. Current WebViews report the frame's own origin.
 **Each page load gets a fresh host.** A host stays ready after its page's first message, so a
 reloaded
 page would be sent pushes before it listens; a new host holds them until the new page's handshake.
-A title the last page asked for is dropped at the same moment.
+A title the last page asked for is dropped at the same moment, and so are its claim on back and its
+close guard. A reply the old host sends after that still reaches the WebView, but cannot set either:
+the load counter is bumped in `onLoadStart` itself, before the state that rebuilds the host.
 `SubWebView.test.tsx` pins the context, the origin check and the user agent.
 
 **Device features are left open.** Camera, microphone, file pickers and downloads behave as the
@@ -164,33 +172,17 @@ permission in the app, so an app release, and is done when a reviewed page needs
 
 ### For a page's author
 
-- Read `window.ChaticSubWebView` once the page has loaded or after its handshake, not while its
-  first script is evaluated: on Android the definition can trail that script. When it is still
-  missing, the page is not in the sub WebView (a browser tab, an older app, or a page the view
-  navigated to) and has no `params` and no bridge.
-- Talk to the app with `@chatic/bridges`' `webClient`, and send `WebAppReady` before anything else:
-  the host holds its pushes until then, and the reply lists what this app answers.
+Pages talk to the shell through `chatic-apps-sdk`, or by hand following
+[sub-webview-protocol.md](./sub-webview-protocol.md), which is the contract either way: the envelope,
+the handshake, every request and push, errors, timeouts and limits. Three things from it that a page
+most often gets wrong:
+
+- Take the context from the handshake reply's `subWebView`, not from `window.ChaticSubWebView` while
+  the first script runs: on Android the global can be defined after it.
+- Hold request timeouts while the page is hidden: on Android nothing reaches the page while the app
+  is in the background.
 - Do not turn on the bridge logger forwarding (`setupBridgeLogger`): `SendLog` is not in the subset
   and every line would come back `NOT_FOUND`.
-- `params` and `result` are JSON of at most 16 KiB each; a title is at most 100 characters.
-- A login that runs in a popup and answers through `window.opener` does not work here.
-
-### The wire format
-
-Sub WebView pages are built and deployed outside this repository, and `@chatic/bridges` is not
-published, so a page speaks the bridge directly. It is JSON
-strings both ways:
-
-| Direction  | How                                                                                                    | Shape                                                                                                    |
-| ---------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| Page → app | `window.ReactNativeWebView.postMessage(JSON.stringify(message))`                                       | `{ type, data, refId, version }` — `refId` unique per request; `version` is the bridge version it speaks |
-| App → page | A `message` event: on `window` on iOS, on `document` on Android — listen on both; `event.data` is JSON | A reply carries the request's `refId`; a push (`OnSubWebViewContextChanged`) carries a fresh one         |
-| Answered   | —                                                                                                      | `{ type: 'On<Request>', success: true, data, refId }`                                                    |
-| Refused    | —                                                                                                      | `{ type, success: false, error: { code, message }, refId }` — `type` is `ERROR` for `NOT_FOUND`          |
-
-Match a reply to its request by `refId`, not by `type`; route anything else by `type` as a push.
-Send `WebAppReady` (`data: {}`) first — any message but a log releases the pushes the app held — and
-read the subset from its reply's `supportedWebMessages`.
 
 ## Where it may go
 
@@ -278,6 +270,17 @@ hears why the view went before it hears where to go, and what it opens is not hi
 `resetForNewHost()` on every `WebAppReady`: a handshake after the first is a page that reloaded, and
 the page that opened the view is gone. The view is dismissed and no `OnSubWebViewClosed` is sent.
 
+**The user's close can be asked of the page first.** A page with something to lose turns on its close
+guard (`SetSubWebViewCloseGuard`); the bar's control and an Android back press that would close then
+push `OnSubWebViewCloseRequested` instead, and the page closes with `FinishSubWebView` or stays. A
+second close within three seconds of the first closes anyway (`subWebViewCloseGuard.ts`), so a page
+that hangs cannot keep the user in. Only `user` closes are guarded; `host`, `system` and `page` are not.
+
+**The screen pads every edge by the safe area.** The page lies wholly inside it and needs no insets
+(that `env(safe-area-inset-*)` then reads 0 is not yet checked on a device):
+top and bottom under the bar and above the home indicator, and the sides too, for the notch in
+landscape. The padding takes the theme background.
+
 **The screen cannot be swiped away.** It is a `fullScreenModal` with gestures off, so every close
 goes through the bar's control or Android back, and the web always hears of it. If the screen leaves
 some other way anyway, its unmount closes the view as `user`; once the service has closed it, that
@@ -285,7 +288,9 @@ call answers `NOT_OPEN` and does nothing. The other way round, a close control p
 the
 service no longer knows leaves by itself, since nothing else would take it down.
 
-**Android back** goes to the page's own history first, then closes the view. The main WebView's back
+**Android back** goes to the page first when it claimed back with `SetCanGoBack` (pushed as
+`OnBackPressed`, and nothing else happens), then to the page's own history, then closes the view
+through the close guard (`decideSubWebViewBack`). The main WebView's back
 listener (`useAndroidBack`) passes the press on while a view shows: listeners run newest first, and
 that one is re-added whenever the web's `canGoBack` changes, so it can end up above the sub
 WebView's.
@@ -319,8 +324,10 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/createSubBridgeHost.ts`            | The sub WebView's own `AppBridgeHost`, with the subset only             |
 | `src/app/subWebView/subBridgeHandlers.ts`              | The page-facing handlers, typed by `SubWebViewRequestType`              |
 | `src/app/subWebView/subWebViewUserKey.ts`              | The page's key, from the device id and its origin                       |
+| `src/app/subWebView/subWebViewCloseGuard.ts`           | Whether the user's close asks the page first, and the forced second one |
+| `src/app/subWebView/useSubWebViewBack.ts`              | Android back: the page's claim, then history, then close                |
 | `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticSubWebView`, for the opened origin only                   |
-| `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data limit and the 100-character title limit                 |
+| `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data, 64 KiB message and 100-character title limits          |
 | `src/app/subWebView/subWebViewNavigation.ts`           | Load, hand to the OS, or drop                                           |
 | `src/app/features/subWebView/SubWebViewScreen.tsx`     | The bar and its close control                                           |
 | `src/app/features/subWebView/routeSubWebViewEvents.ts` | Navigates to the screen and back as the service reports                 |
