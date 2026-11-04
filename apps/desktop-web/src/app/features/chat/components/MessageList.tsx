@@ -116,8 +116,9 @@ interface MessageListProps {
      */
     readCountOf?: (chatNo: number, authorId: string) => ReadCount | null;
     /**
-     * Where each member has read up to. A member's face is drawn on the last message they reached,
-     * with the others who stopped there. Absent or empty draws no markers.
+     * Where each member has read up to. Given (the main feed), a member's face is drawn on the last
+     * message they reached, with the others who stopped there. Absent (the thread panel), the last
+     * message of each author block carries a pill instead: its readers' faces and counts.
      */
     readCursors?: readonly MemberReadCursor[];
 }
@@ -909,10 +910,26 @@ export const MessageList = ({
                         highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
                             ? highlightChatNo
                             : undefined;
-                    // Members who stopped reading at a message of this block. The count is asked only for
-                    // those messages, and a message the room has no count for carries no marker.
+                    // Main feed: members who stopped reading at a message of this block. The count is
+                    // asked only for those messages, and a message the room has no count for carries no
+                    // marker. Thread panel (no cursors): the block's last settled message gets a pill —
+                    // one per author block, as replies sent back to back would repeat the same counts.
                     let readMarkers: Record<number, ReadMarker> | undefined;
-                    if (readPlacements && readCountOf) {
+                    if (readCountOf && !readCursors) {
+                        const last = row.group.messages.filter(isCountable).at(-1);
+                        const count = last ? readCountOf(last.chatNo, last.ownerId ?? '') : null;
+                        if (last && count) {
+                            const readers = count.readIds.map(readPerson);
+                            readMarkers = {
+                                [last.chatNo]: {
+                                    faces: readers,
+                                    readers,
+                                    nonReaders: count.unreadIds.map(readPerson),
+                                    counted: true,
+                                },
+                            };
+                        }
+                    } else if (readPlacements && readCountOf) {
                         for (const settled of row.group.messages) {
                             if (!isCountable(settled)) continue;
                             // The author is on neither list of their own message, so no face for them either.

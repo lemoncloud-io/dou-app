@@ -20,6 +20,11 @@ export interface ReadMarker {
     readers: ReadPerson[];
     /** Everyone it was meant for who has not, for the same list. */
     nonReaders: ReadPerson[];
+    /**
+     * Draw the counts beside the faces, under the message body — the thread panel's pill,
+     * where `faces` are the readers. Without it the marker is faces only, at the row's right end.
+     */
+    counted?: boolean;
 }
 
 /** Faces drawn before the rest collapse into "+N". */
@@ -51,49 +56,57 @@ const PersonList = ({ people, empty }: { people: ReadPerson[]; empty: string }) 
     );
 
 /**
- * The faces of the members who stopped reading at this message, under its body and aligned with
- * its text. Not at the row's far edge: on a wide window that leaves the faces a screen away from
- * the message they belong to.
- * Clicking them opens a card listing who has read the message and who has not, a tab each. It opens
+ * Two shapes share one card. In the main feed it is the faces of the members who stopped reading at
+ * this message, at the right end of its row — read down the room and the faces race towards the
+ * newest message. There the counts are not drawn; the button's name carries them for a screen reader.
+ * In a thread (`counted`) each author block carries a pill under its last message: the first readers' faces
+ * and `Seen N · Not seen M`.
+ * Clicking either opens a card listing who has read the message and who has not, a tab each. It opens
  * on click rather than on hover so the card stays put while the pointer travels to the Not seen tab.
- * The counts are not drawn: the faces are the whole of the row, and the button's name carries the
- * counts for a screen reader.
  */
-export const ReadReceiptPill = ({ faces, readers, nonReaders }: ReadMarker) => {
+export const ReadReceiptPill = ({ faces, readers, nonReaders, counted = false }: ReadMarker) => {
     const { t } = useTranslation();
 
     const read = readers.length;
     const unread = nonReaders.length;
     const stacked = faces.slice(0, STACK_SIZE);
     const more = faces.length - stacked.length;
+    const summary = unread > 0 ? t('chat.readCount.summary', { read, unread }) : t('chat.readCount.allSeen', { read });
 
     return (
-        <div className="mt-1 flex">
+        <div className={counted ? 'mt-1 flex' : 'mt-1 flex justify-end'}>
             <Popover>
                 <PopoverTrigger asChild>
                     <button
                         type="button"
-                        aria-label={
-                            unread > 0
-                                ? t('chat.readCount.summary', { read, unread })
-                                : t('chat.readCount.allSeen', { read })
+                        aria-label={counted ? undefined : summary}
+                        className={
+                            counted
+                                ? 'focus-ring flex w-fit items-center gap-1.5 rounded-full bg-muted py-1 pl-1 pr-2 text-caption font-medium tabular-nums text-muted-foreground'
+                                : 'focus-ring flex w-fit items-center rounded-full bg-muted p-1 tabular-nums text-muted-foreground'
                         }
-                        className="focus-ring flex w-fit items-center rounded-full bg-muted p-1 tabular-nums text-muted-foreground"
                     >
-                        <span aria-hidden className="flex items-center -space-x-1.5">
-                            {stacked.map(person => (
-                                <Face key={person.id} person={person} className="h-5 w-5 text-nano ring-2 ring-muted" />
-                            ))}
-                            {more > 0 && (
-                                <span className="relative flex h-5 min-w-5 items-center justify-center rounded-full bg-background px-1 text-nano font-semibold ring-2 ring-muted">
-                                    +{more}
-                                </span>
-                            )}
-                        </span>
+                        {stacked.length > 0 && (
+                            <span aria-hidden className="flex items-center -space-x-1.5">
+                                {stacked.map(person => (
+                                    <Face
+                                        key={person.id}
+                                        person={person}
+                                        className="h-5 w-5 text-nano ring-2 ring-muted"
+                                    />
+                                ))}
+                                {more > 0 && (
+                                    <span className="relative flex h-5 min-w-5 items-center justify-center rounded-full bg-background px-1 text-nano font-semibold ring-2 ring-muted">
+                                        +{more}
+                                    </span>
+                                )}
+                            </span>
+                        )}
+                        {counted && <span className={stacked.length > 0 ? undefined : 'pl-1'}>{summary}</span>}
                     </button>
                 </PopoverTrigger>
                 <PopoverContent
-                    align="start"
+                    align={counted ? 'start' : 'end'}
                     side="top"
                     className="w-64 overflow-hidden p-0"
                     aria-label={t('chat.readCount.listLabel')}

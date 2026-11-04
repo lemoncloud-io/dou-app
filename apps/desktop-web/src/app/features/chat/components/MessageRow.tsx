@@ -119,7 +119,7 @@ interface MessageRowProps {
     hideSavedMark?: boolean;
     /**
      * The members who stopped reading at a message of this block, keyed by that message's chatNo; each
-     * is drawn under its message body. Absent: no marker on any of them.
+     * is drawn on it — at the row's right end in the main feed, under the body as a counted pill in a thread. Absent: no marker on any of them.
      */
     readMarkers?: Readonly<Record<number, ReadMarker>>;
 }
@@ -670,7 +670,7 @@ export const MessageRow = memo(
                                             {t('chat.reaction.failed')}
                                         </span>
                                     )}
-                                    {/* The members who stopped reading here, under the message body. */}
+                                    {/* Main feed: who stopped reading here, at the right end. Thread: who has read it. */}
                                     {readMarker && <ReadReceiptPill {...readMarker} />}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the

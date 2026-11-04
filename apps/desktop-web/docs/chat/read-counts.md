@@ -1,13 +1,17 @@
 # Read counts
 
-A room shows how far each member has read by putting their face on the message they stopped at, under
-its body and aligned with its text. Members who stopped at the same message share one marker: the
-faces of the first three, the rest as `+N`. Read down the room and the faces trace how far everyone
-has got — the closer to the newest message, the more of the room they have read.
+The main feed shows how far each member has read by putting their face on the message they stopped
+at, at the right end of its row. Members who stopped at the same message share one marker: the faces
+of the first three, the rest as `+N`. Read down the room and the faces race towards the newest message
+— the closer to it, the more of the room they have read.
 
-A marker is only faces. The counts (`Seen 5 · Not seen 7`, `읽음 5 · 미확인 7`) are not drawn; they are
-the marker's accessible name, so a screen reader still hears them, and the card the marker opens shows
-them as its tab labels.
+A main-feed marker is only faces. The counts (`Seen 5 · Not seen 7`, `읽음 5 · 미확인 7`) are not drawn;
+they are the marker's accessible name, so a screen reader still hears them, and the card the marker
+opens shows them as its tab labels.
+
+A thread is short and is read reply by reply, so the thread panel answers a different question — who
+has read _this_ message — and each author block in it carries a pill under its last message: the
+faces of the first three readers, `+N` for the rest, and the counts written out. See § The thread panel.
 
 ## Who read it
 
@@ -51,17 +55,32 @@ is known to have reached.
 - Not in my notes-to-self channel, and not in a room with fewer than two active members.
 - Not until the first join row has arrived, so a room never flashes markers while it loads.
 - Not on a message no other member was there for — everyone else joined after it.
-- The thread panel draws them too, among the root and its replies. Read positions are per channel, not
-  per thread: a member who has read the main feed past a reply counts as having read it, whether or not
-  they opened the thread, and a member past the last reply is placed on the last reply. The server does
-  not report when a thread was opened, so the panel cannot tell the two apart.
+
+## The thread panel
+
+The panel does not place read positions. The root and each author block of replies carry a pill under
+their last message, with the faces of the members who have read it and `Seen N · Not seen M`, left under
+the body like the reaction chips; clicking it opens the same card. One pill per block rather than per
+message: replies sent back to back by one author would otherwise repeat the same counts between every
+line. A message the room has no count for (see the last three items above) carries none. `MessageList` draws this shape when it is given `readCountOf` without
+`cursors`.
+
+Position markers were tried in the panel first and dropped. A thread is a handful of replies everyone
+reads to the end, so all the faces piled up on the last reply and the root and earlier replies carried
+nothing — the panel could not say whether a reply had been read, which is the question it is opened to
+answer.
+
+Read positions are still per channel, not per thread: a member who has read the main feed past a reply
+counts as having read it, whether or not they opened the thread. The server does not report when a
+thread was opened, so the panel cannot tell the two apart.
 
 ## How the numbers are counted
 
 `useChannelReadCounts` (in `src/app/shared/hooks/`) gives `ChatPane` and `ThreadPanel` two things: `cursors`, the read
 position of every other member still in the room, and `readCountOf(chatNo, authorId)`, which answers for
-one message with two lists of member ids — who has read it and who has not. `MessageList` places the
-cursors on the shown messages and asks `readCountOf` only for the messages that carry a marker. The
+one message with two lists of member ids — who has read it and who has not. In the main feed
+`MessageList` places the cursors on the shown messages and asks `readCountOf` only for the messages
+that carry a marker; in the thread panel it asks for the last message of each block. The
 lists are worked out here from join rows the app already observes, not asked of the server: the server
 team proposed it that way, because every row needed is already on hand and the lists then move the
 moment a member reads, where an API answer is a snapshot that would have to be fetched again.

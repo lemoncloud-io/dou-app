@@ -78,6 +78,21 @@ describe('ReadReceiptPill', () => {
         });
     });
 
+    describe('the counted pill (a thread)', () => {
+        it('writes the counts out beside the readers’ faces', () => {
+            render(<ReadReceiptPill faces={[SUNNY, RAIN]} readers={[SUNNY, RAIN]} nonReaders={[BOB]} counted />);
+
+            expect(screen.getByText('Seen 2 · Not seen 1')).toBeDefined();
+            expect(within(pill()).getByText('S')).toBeDefined();
+        });
+
+        it('writes the counts alone when nobody has read it yet', () => {
+            render(<ReadReceiptPill faces={[]} readers={[]} nonReaders={[BOB]} counted />);
+
+            expect(pill().textContent).toBe('Seen 0 · Not seen 1');
+        });
+    });
+
     describe('who read it', () => {
         it('lists who read it and who has not, a tab each, when the faces are clicked', async () => {
             renderPill();
