@@ -1,5 +1,26 @@
 # Changelog
 
+## [2026-11-04] - root@0.146.0, @chatic/desktop-web@0.50.0
+
+### Features
+
+- (desktop-web) show read markers in the thread panel too
+- (desktop-web) show members' faces on the message they last read
+
+### Bug Fixes
+
+- (desktop-web) draw read markers under the message body
+- (desktop-web) leave an author's face off their own message
+- (desktop-web) keep a late joiner's face off earlier messages
+
+### Documentation
+
+- (adr) record the read position markers decision
+
+### Refactor
+
+- (desktop-web) expose member read cursors for read markers
+
 ## [2026-11-04] - root@0.145.0, @chatic/desktop-web@0.49.0
 
 ### Features
