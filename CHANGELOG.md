@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-04] - root@0.144.1, @chatic/desktop-web@0.48.1
+
+### Refactor
+
+- (desktop-web) drop the appearance card from the settings page
+
 ## [2026-11-04] - root@0.144.0, @chatic/desktop-web@0.48.0
 
 ### Features
