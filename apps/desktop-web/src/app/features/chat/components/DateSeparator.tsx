@@ -29,11 +29,9 @@ export const DateSeparator = ({ timestamp, rowKey }: DateSeparatorProps) => {
         return formatLongDate(timestamp);
     };
 
-    // The pill sticks to the top of the feed while its day scrolls by. The feed is one
-    // flat list, so pills hand over by standard sticky stacking: the next day's pill
-    // pushes the stuck one out at the boundary. The rule is a separate, non-sticky
-    // line pulled up behind the pill, so it scrolls away with the day instead of
-    // striking through the messages under a stuck pill.
+    // A sticky box is bounded by its parent, so MessageList mounts each day as its own block and
+    // the stuck pill leaves with its day. The rule is a separate, non-sticky line pulled up behind
+    // the pill, so it scrolls away with the day instead of striking through the messages under it.
     return (
         <>
             {/* -top-5 cancels the feed's own top padding (py-5), so a stuck pill sits 8px

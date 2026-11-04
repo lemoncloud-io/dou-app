@@ -29,6 +29,7 @@ import {
     type ReactionTally,
     type ThreadMeta,
 } from '../utils';
+import { useStartOfToday } from '../hooks/useStartOfToday';
 import { DateSeparator } from './DateSeparator';
 import type { Mentionable } from './MentionAutocomplete';
 import { SystemNotice } from './SystemNotice';
@@ -38,6 +39,7 @@ import {
     JUMP_WINDOW_RETRY_MS,
     MAX_JUMP_WINDOW_RETRIES,
     feedRowKeyOf,
+    groupIntoDayBlocks,
     indexOfChatNo,
     windowForViewport,
 } from './feedWindow';
@@ -248,16 +250,17 @@ export const MessageList = ({
     const [jumpTick, setJumpTick] = useState(0);
 
     const placeProfiles = useSiteProfileMap();
+    const today = useStartOfToday();
     const rows = useMemo(
-        () => buildMessageRows(messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount),
-        [messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount]
+        () =>
+            buildMessageRows(messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount, today),
+        [messages, viewer, names, seenUpTo, membersLoading, placeProfiles, threadReplyCount, today]
     );
 
     // --- Feed windowing: mount the viewport window, hold the rest as spacers. ---
     // A 500-message channel used to mount 500 RichText/BlockKit subtrees, and every
     // tail tick reconciled all of them. Rows outside the window unmount; spacers
-    // keep the scrollbar honest. Sticky date pills are flat siblings now, so they
-    // hand over by standard sticky stacking (see DateSeparator).
+    // keep the scrollbar honest.
     const rowKeys = useMemo(() => rows.map(feedRowKeyOf), [rows]);
     // Measured heights by row key; the running average estimates the rest. Read
     // through a bump counter: refs don't trigger memos, the tick does.
@@ -846,126 +849,138 @@ export const MessageList = ({
                     </div>
                 )}
                 {!hasMore && !isLoadingOlder && intro}
-                {/* Windowed rows: only the viewport window mounts, spacers hold the rest.
-                    Sticky date pills are flat siblings and hand over by stacking. */}
+                {/* Windowed rows: only the viewport window mounts, spacers hold the rest. */}
                 {/* shrink-0: the feed is a flex column, and an empty div there shrinks to 0 px once the
                     content overflows — the spacer would hold no height at all. */}
                 {topSpacer > 0 && (
                     <div aria-hidden data-feed-spacer="top" className="shrink-0" style={{ height: topSpacer }} />
                 )}
-                {rows.slice(win.start, win.end).map(row => {
-                    if (row.kind === 'date') {
-                        return <DateSeparator key={row.key} rowKey={row.key} timestamp={row.timestamp} />;
-                    }
-                    if (row.kind === 'system') {
-                        return (
-                            <SystemNotice
-                                key={row.key}
-                                rowKey={row.key}
-                                chat={row.chat}
-                                authorName={row.authorName}
-                                joinedNames={row.joinedNames}
-                            />
-                        );
-                    }
-                    if (row.kind === 'unread') {
-                        return (
-                            <div
-                                key={row.key}
-                                data-row-key={row.key}
-                                ref={unreadRef}
-                                className={cn(
-                                    'my-1 flex items-center gap-2 px-2 transition-opacity duration-300 ease-tactile motion-reduce:transition-none',
-                                    dividerFading && 'opacity-0'
-                                )}
-                            >
-                                <span className="h-px flex-1 bg-badge-unread/40" />
-                                <span className="shrink-0 rounded-full bg-badge-unread px-2 py-0.5 text-overline text-badge-unread-foreground">
-                                    {t('chat.newMessages')}
-                                </span>
-                                <span className="h-px flex-1 bg-badge-unread/40" />
-                            </div>
-                        );
-                    }
-                    if (row.kind === 'replies') {
-                        // Slack-style thread divider: the reply count anchored left,
-                        // a hairline filling the rest of the row.
-                        return (
-                            <div key={row.key} data-row-key={row.key} className="my-2 flex flex-col gap-2">
-                                <div className="flex items-center gap-3 px-1">
-                                    <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
-                                        {t(repliesPartial ? 'chat.thread.replyCountLoaded' : 'chat.thread.replyCount', {
-                                            count: row.count,
-                                        })}
-                                    </span>
-                                    <span className="h-px flex-1 bg-hairline" />
-                                </div>
-                                {olderReplies}
-                            </div>
-                        );
-                    }
-                    // Only the block holding the target gets it: handed to every row, a
-                    // jump re-rendered the whole feed twice (on the flash and on its clear).
-                    const highlight =
-                        highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
-                            ? highlightChatNo
-                            : undefined;
-                    // Main feed: members who stopped reading at a message of this block. The count is
-                    // asked only for those messages, and a message the room has no count for carries no
-                    // marker. Thread panel (no cursors): the block's last settled message gets a pill —
-                    // one per author block, as replies sent back to back would repeat the same counts.
-                    let readMarkers: Record<number, ReadMarker> | undefined;
-                    if (readCountOf && !readCursors) {
-                        const last = row.group.messages.filter(isCountable).at(-1);
-                        const count = last ? readCountOf(last.chatNo, last.ownerId ?? '') : null;
-                        if (last && count) {
-                            const readers = count.readIds.map(readPerson);
-                            readMarkers = {
-                                [last.chatNo]: {
-                                    faces: readers,
-                                    readers,
-                                    nonReaders: count.unreadIds.map(readPerson),
-                                    counted: true,
-                                },
-                            };
-                        }
-                    } else if (readPlacements && readCountOf) {
-                        for (const settled of row.group.messages) {
-                            if (!isCountable(settled)) continue;
-                            // The author is on neither list of their own message, so no face for them either.
-                            const members = readPlacements.get(settled.chatNo)?.filter(id => id !== settled.ownerId);
-                            const count = members?.length ? readCountOf(settled.chatNo, settled.ownerId ?? '') : null;
-                            if (!members?.length || !count) continue;
-                            readMarkers = {
-                                ...readMarkers,
-                                [settled.chatNo]: {
-                                    faces: members.map(readPerson),
-                                    readers: count.readIds.map(readPerson),
-                                    nonReaders: count.unreadIds.map(readPerson),
-                                },
-                            };
-                        }
-                    }
-                    return (
-                        <MessageRow
-                            key={row.group.key}
-                            group={row.group}
-                            onRetry={onRetry}
-                            canRetry={canRetry}
-                            onDiscard={onDiscard}
-                            threadMeta={threadMetaView}
-                            onOpenThread={onOpenThread}
-                            selfNamesOf={selfNamesOf}
-                            resolveMention={resolveMention}
-                            mentionables={mentionables}
-                            highlightChatNo={highlight}
-                            withDayInTime={threadReplyCount !== undefined}
-                            reactions={reactions}
-                            reactorName={reactorName}
-                            readMarkers={readMarkers}
-                        />
-                    );
-                })}
+                {groupIntoDayBlocks(rows.slice(win.start, win.end)).map(block => (
+                    <div key={block.key} className="flex flex-col gap-2">
+                        {block.rows.map(row => {
+                            if (row.kind === 'date') {
+                                return <DateSeparator key={row.key} rowKey={row.key} timestamp={row.timestamp} />;
+                            }
+                            if (row.kind === 'system') {
+                                return (
+                                    <SystemNotice
+                                        key={row.key}
+                                        rowKey={row.key}
+                                        chat={row.chat}
+                                        authorName={row.authorName}
+                                        joinedNames={row.joinedNames}
+                                    />
+                                );
+                            }
+                            if (row.kind === 'unread') {
+                                return (
+                                    <div
+                                        key={row.key}
+                                        data-row-key={row.key}
+                                        ref={unreadRef}
+                                        className={cn(
+                                            'my-1 flex items-center gap-2 px-2 transition-opacity duration-300 ease-tactile motion-reduce:transition-none',
+                                            dividerFading && 'opacity-0'
+                                        )}
+                                    >
+                                        <span className="h-px flex-1 bg-badge-unread/40" />
+                                        <span className="shrink-0 rounded-full bg-badge-unread px-2 py-0.5 text-overline text-badge-unread-foreground">
+                                            {t('chat.newMessages')}
+                                        </span>
+                                        <span className="h-px flex-1 bg-badge-unread/40" />
+                                    </div>
+                                );
+                            }
+                            if (row.kind === 'replies') {
+                                // Slack-style thread divider: the reply count anchored left,
+                                // a hairline filling the rest of the row.
+                                return (
+                                    <div key={row.key} data-row-key={row.key} className="my-2 flex flex-col gap-2">
+                                        <div className="flex items-center gap-3 px-1">
+                                            <span className="shrink-0 text-caption font-semibold tabular-nums text-muted-foreground">
+                                                {t(
+                                                    repliesPartial
+                                                        ? 'chat.thread.replyCountLoaded'
+                                                        : 'chat.thread.replyCount',
+                                                    {
+                                                        count: row.count,
+                                                    }
+                                                )}
+                                            </span>
+                                            <span className="h-px flex-1 bg-hairline" />
+                                        </div>
+                                        {olderReplies}
+                                    </div>
+                                );
+                            }
+                            // Only the block holding the target gets it: handed to every row, a
+                            // jump re-rendered the whole feed twice (on the flash and on its clear).
+                            const highlight =
+                                highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
+                                    ? highlightChatNo
+                                    : undefined;
+                            // Main feed: members who stopped reading at a message of this block. The count is
+                            // asked only for those messages, and a message the room has no count for carries no
+                            // marker. Thread panel (no cursors): the block's last settled message gets a pill —
+                            // one per author block, as replies sent back to back would repeat the same counts.
+                            let readMarkers: Record<number, ReadMarker> | undefined;
+                            if (readCountOf && !readCursors) {
+                                const last = row.group.messages.filter(isCountable).at(-1);
+                                const count = last ? readCountOf(last.chatNo, last.ownerId ?? '') : null;
+                                if (last && count) {
+                                    const readers = count.readIds.map(readPerson);
+                                    readMarkers = {
+                                        [last.chatNo]: {
+                                            faces: readers,
+                                            readers,
+                                            nonReaders: count.unreadIds.map(readPerson),
+                                            counted: true,
+                                        },
+                                    };
+                                }
+                            } else if (readPlacements && readCountOf) {
+                                for (const settled of row.group.messages) {
+                                    if (!isCountable(settled)) continue;
+                                    // The author is on neither list of their own message, so no face for them either.
+                                    const members = readPlacements
+                                        .get(settled.chatNo)
+                                        ?.filter(id => id !== settled.ownerId);
+                                    const count = members?.length
+                                        ? readCountOf(settled.chatNo, settled.ownerId ?? '')
+                                        : null;
+                                    if (!members?.length || !count) continue;
+                                    readMarkers = {
+                                        ...readMarkers,
+                                        [settled.chatNo]: {
+                                            faces: members.map(readPerson),
+                                            readers: count.readIds.map(readPerson),
+                                            nonReaders: count.unreadIds.map(readPerson),
+                                        },
+                                    };
+                                }
+                            }
+                            return (
+                                <MessageRow
+                                    key={row.group.key}
+                                    group={row.group}
+                                    onRetry={onRetry}
+                                    canRetry={canRetry}
+                                    onDiscard={onDiscard}
+                                    threadMeta={threadMetaView}
+                                    onOpenThread={onOpenThread}
+                                    selfNamesOf={selfNamesOf}
+                                    resolveMention={resolveMention}
+                                    mentionables={mentionables}
+                                    highlightChatNo={highlight}
+                                    withDayInTime={threadReplyCount !== undefined}
+                                    reactions={reactions}
+                                    reactorName={reactorName}
+                                    readMarkers={readMarkers}
+                                />
+                            );
+                        })}
+                    </div>
+                ))}
                 {bottomSpacer > 0 && (
                     <div aria-hidden data-feed-spacer="bottom" className="shrink-0" style={{ height: bottomSpacer }} />
                 )}

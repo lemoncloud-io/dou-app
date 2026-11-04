@@ -19,6 +19,21 @@ overlaps the viewport plus 800 px of overscan above and below, so a fast scroll 
 - Before the first real layout — first paint, a hidden tab, or a test, where jsdom has no layout — the
   whole feed is mounted, exactly as before windowing. Landing refs and existing tests see every row.
 
+## Day blocks and the date pill
+
+Each date pill is `sticky` and holds to the top of the feed while its day scrolls by. A sticky box is
+bounded by its parent, so pills that were flat siblings in the one feed column never handed over: the
+next day's pill landed on the same spot and the earlier one stayed pinned underneath, its wider label
+peeking out on both sides. `groupIntoDayBlocks` splits the mounted rows at each date row, and each
+block is its own flex column, so a pill is bounded by its own day and leaves with it. Rows whose pill
+is above the window share one block under a fixed key, so they do not remount as the window moves. The
+blocks keep the feed's 8 px gap inside and between them, so the spacer math is unchanged.
+
+When the newest message is from an earlier day, the main feed ends with a divider for today
+(`buildMessageRows` takes the current time; `useStartOfToday` re-renders at midnight). A day that has
+begun without a message still reads as begun. The thread panel never adds one: its headers carry the
+day.
+
 ## Holding the reading position
 
 When a row above the viewport changes height (an image finishes loading in the overscan, a row is
