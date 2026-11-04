@@ -23,6 +23,7 @@ export * from './elsewhereChannels';
 export * from './landingTarget';
 export * from './jumpReturn';
 export * from './firstVisibleChatNo';
+export * from './readMarkers';
 export * from './createPlace';
 export * from './placeToEnter';
 export * from './fences';

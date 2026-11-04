@@ -16,6 +16,7 @@ import {
     useRovingFocus,
     useSiteProfileMap,
     viewerPlaceProfile,
+    type MemberReadCursor,
     type ReadCount,
 } from '../../../shared';
 import {
@@ -23,6 +24,7 @@ import {
     firstVisibleChatNo,
     isOwnMessage,
     isViewerId,
+    placeReadMarkers,
     type MessageViewer,
     type ReactionTally,
     type ThreadMeta,
@@ -40,7 +42,7 @@ import {
     windowForViewport,
 } from './feedWindow';
 import { MessageRow, type ThreadMetaView } from './MessageRow';
-import type { ReadPerson } from './ReadReceiptPill';
+import type { ReadMarker, ReadPerson } from './ReadReceiptPill';
 import type { MentionResolver } from './RichText';
 
 interface MessageListProps {
@@ -109,10 +111,15 @@ interface MessageListProps {
      */
     loadOlderFailed?: boolean;
     /**
-     * Main feed only: which members have read up to a message, its author left out. Each author block
-     * shows the count for its last settled message; absent (the thread panel) or null shows none.
+     * Who has read up to a message, its author left out — the list a read marker opens. Absent, or
+     * null for a message, draws no marker there.
      */
     readCountOf?: (chatNo: number, authorId: string) => ReadCount | null;
+    /**
+     * Where each member has read up to. A member's face is drawn on the last message they reached,
+     * with the others who stopped there. Absent or empty draws no markers.
+     */
+    readCursors?: readonly MemberReadCursor[];
 }
 
 const NEAR_BOTTOM_PX = 80;
@@ -144,15 +151,6 @@ const isCountable = (message: DomainChat): message is DomainChat & { chatNo: num
     typeof message.chatNo === 'number' &&
     message.chatNo > 0 &&
     message.chatNo !== Number.MAX_SAFE_INTEGER;
-
-/** The newest message of a block that has a read count to show (`findLast` is past this build's ES2022 lib). */
-const lastCountable = (messages: DomainChat[]): (DomainChat & { chatNo: number }) | undefined => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-        const message = messages[i];
-        if (message && isCountable(message)) return message;
-    }
-    return undefined;
-};
 
 // One array for every message that calls nobody "me", so a memo'd row sees the same prop.
 const NO_SELF_NAMES: string[] = [];
@@ -187,6 +185,7 @@ export const MessageList = ({
     onRetryLoad,
     loadOlderFailed,
     readCountOf,
+    readCursors,
 }: MessageListProps) => {
     const { t } = useTranslation();
     const reducedMotion = useReducedMotion();
@@ -353,6 +352,19 @@ export const MessageList = ({
             return { id: userId, name: display.name || t('profile.unknown'), thumbnail: display.thumbnail };
         };
     }, [mentionables, names, placeProfiles, viewer, t]);
+
+    // Which shown message each member's read position falls on. Only messages with a row to carry a
+    // marker count: one still sending, failed or deleted passes its members down to the last settled one.
+    const readPlacements = useMemo(
+        () =>
+            readCountOf && readCursors?.length
+                ? placeReadMarkers(
+                      readCursors,
+                      messages.filter(isCountable).map(message => message.chatNo)
+                  )
+                : undefined,
+        [readCountOf, readCursors, messages]
+    );
 
     // Resolve thread repliers for the footer avatar stack the same way message
     // authors resolve: Place Profile override → roster name → viewer (own replies,
@@ -897,18 +909,25 @@ export const MessageList = ({
                         highlightChatNo != null && row.group.messages.some(m => m.chatNo === highlightChatNo)
                             ? highlightChatNo
                             : undefined;
-                    // The block's last settled message: a newer one still sending, failed or deleted
-                    // must not take the count away from the messages that did land.
-                    const counted = readCountOf ? lastCountable(row.group.messages) : undefined;
-                    const count = counted ? readCountOf?.(counted.chatNo, counted.ownerId ?? '') : null;
-                    const readCount =
-                        counted && count
-                            ? {
-                                  chatNo: counted.chatNo,
-                                  readers: count.readIds.map(readPerson),
-                                  nonReaders: count.unreadIds.map(readPerson),
-                              }
-                            : undefined;
+                    // Members who stopped reading at a message of this block. The count is asked only for
+                    // those messages, and a message the room has no count for carries no marker.
+                    let readMarkers: Record<number, ReadMarker> | undefined;
+                    if (readPlacements && readCountOf) {
+                        for (const settled of row.group.messages) {
+                            if (!isCountable(settled)) continue;
+                            const members = readPlacements.get(settled.chatNo);
+                            const count = members ? readCountOf(settled.chatNo, settled.ownerId ?? '') : null;
+                            if (!members || !count) continue;
+                            readMarkers = {
+                                ...readMarkers,
+                                [settled.chatNo]: {
+                                    faces: members.map(readPerson),
+                                    readers: count.readIds.map(readPerson),
+                                    nonReaders: count.unreadIds.map(readPerson),
+                                },
+                            };
+                        }
+                    }
                     return (
                         <MessageRow
                             key={row.group.key}
@@ -925,7 +944,7 @@ export const MessageList = ({
                             withDayInTime={threadReplyCount !== undefined}
                             reactions={reactions}
                             reactorName={reactorName}
-                            readCount={readCount}
+                            readMarkers={readMarkers}
                         />
                     );
                 })}
