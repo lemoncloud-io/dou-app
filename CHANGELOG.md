@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-04] - root@0.147.3, @chatic/desktop-web@0.51.3
+
+### Bug Fixes
+
+- (desktop-web) unstack date pills and close the feed with today
+
 ## [2026-11-04] - root@0.147.2, @chatic/desktop-web@0.51.2
 
 ### Bug Fixes
