@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-04] - root@0.147.2, @chatic/desktop-web@0.51.2
+
+### Bug Fixes
+
+- (desktop-web) show reactions on Threads and Saved page cards
+
 ## [2026-11-04] - No version updates
 
 ### Bug Fixes
