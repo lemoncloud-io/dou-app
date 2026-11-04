@@ -19,6 +19,7 @@ import {
 } from '../../../shared';
 import { useChatMutations } from '../../../shared/hooks/useChatMutations';
 import { useIntersecting } from '../hooks/useIntersecting';
+import { useCardReactionEvents } from '../hooks/useCardReactionEvents';
 import { useThreadCard } from '../hooks/useThreadCard';
 import { ThreadCardMessages } from './ThreadCardMessages';
 import { ThreadCardReply } from './ThreadCardReply';
@@ -115,6 +116,7 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
         joinedNo,
         enabled: read,
     });
+    const reactionEvents = useCardReactionEvents(thread.cid, thread.channelId, read);
     // Seen only once the card shows the thread: a card still loading, or one that failed to read, has not.
     const shown = state.status === 'ready';
     useEffect(() => {
@@ -160,6 +162,7 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
                                 messages={[state.root]}
                                 onRetry={message => settle(retryMessage(message))}
                                 onDiscard={message => settle(discardMessage(message))}
+                                reactionEvents={reactionEvents}
                             />
                         ) : (
                             <ReplyLine message={state.root} />
@@ -183,6 +186,7 @@ const ThreadCard = ({ thread, channelLabel, channel, joinedNo, onOpen }: ThreadC
                                 messages={state.replies}
                                 onRetry={message => settle(retryMessage(message))}
                                 onDiscard={message => settle(discardMessage(message))}
+                                reactionEvents={reactionEvents}
                             />
                         ) : (
                             state.replies.map(reply => (

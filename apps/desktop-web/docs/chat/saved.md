@@ -49,8 +49,10 @@ of the snapshot.
   thread, at the message saved last.
 - The rows leave out the Saved tag: everything on this page is saved.
 - A card reads its messages once, when it comes near the screen (`useSavedCard`), from the active
-  cloud's chat cache, then from the server. Until then it shows the snapshot cards. A change made
-  afterwards — a reaction, an edit — shows the next time the page opens.
+  cloud's chat cache, then from the server. Until then it shows the snapshot cards. An edit made
+  afterwards shows the next time the page opens. Reactions are the exception: the card watches its
+  channel's cached window for them, as a Threads page card does ([my-threads.md](./my-threads.md)), so a
+  chip changes as soon as anyone reacts — and a reaction whose event has left that window is not shown.
 - It stays on the snapshots for good when none of its saved messages can be read: gone, no longer
   readable, the read failed, or deleted since. A deleted message stays in the cache as a hidden row,
   and the snapshot still holds the words it was saved for, so it counts as unreadable. A readable

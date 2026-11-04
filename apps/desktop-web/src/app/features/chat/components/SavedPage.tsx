@@ -19,6 +19,7 @@ import {
     type SavedAttachment,
     type SavedItem,
 } from '../../../shared';
+import { useCardReactionEvents } from '../hooks/useCardReactionEvents';
 import { useIntersecting } from '../hooks/useIntersecting';
 import { useSavedCard } from '../hooks/useSavedCard';
 import { formatFileSize, isDmBucket } from '../utils';
@@ -60,7 +61,9 @@ const AttachmentTile = ({ attachment }: { attachment: SavedAttachment }) => {
                 <span className="truncate text-caption font-medium text-foreground">
                     {attachment.name ?? attachmentLabel(attachment)}
                 </span>
-                {meta.length > 0 && <span className="truncate text-micro text-muted-foreground">{meta.join(' · ')}</span>}
+                {meta.length > 0 && (
+                    <span className="truncate text-micro text-muted-foreground">{meta.join(' · ')}</span>
+                )}
             </span>
         </span>
     );
@@ -249,6 +252,7 @@ const SavedLiveCard = ({
         rootNo: group.rootNo,
         enabled: read,
     });
+    const reactionEvents = useCardReactionEvents(cloudId, channel.id ?? '', read);
     // Live once any saved message reads. The root alone is not enough: unless it was saved, a card of it
     // would show nothing that was.
     const live = state.status === 'ready' && state.missing.length < group.items.length ? state : null;
@@ -259,6 +263,7 @@ const SavedLiveCard = ({
             onRetry={settledOnly}
             onDiscard={settledOnly}
             hideSavedMark
+            reactionEvents={reactionEvents}
         />
     );
 
