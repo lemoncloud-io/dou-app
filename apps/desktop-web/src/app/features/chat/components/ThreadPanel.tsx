@@ -17,6 +17,7 @@ import {
     threadRootNo,
     useMyThreadsStore,
     useAuthorNames,
+    useChannelReadCounts,
     useChats,
     ResizablePanel,
     PANE_HEADER,
@@ -75,6 +76,10 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
     const { messages, isLoading, loadOlder, hasMore, isLoadingOlder } = useChats(channelId, lastChatNoOf(channel), {
         persist: false,
     });
+
+    // The same read positions the chat pane draws, so a member shows on the reply they last read.
+    // The pane's join syncs are refcounted by key, so asking again polls nobody twice.
+    const { readCountOf, cursors: readCursors } = useChannelReadCounts(channel);
 
     // Same viewer the chat pane builds, so own/optimistic messages name correctly.
     const viewer = useMessageViewer(channel);
@@ -241,6 +246,8 @@ export const ThreadPanel = ({ channel, rootId, members, membersLoading }: Thread
                         onRetry={composer.retry}
                         canRetry={composer.canRetry}
                         onDiscard={composer.discard}
+                        readCountOf={readCountOf}
+                        readCursors={readCursors}
                     />
                 ) : (
                     <div

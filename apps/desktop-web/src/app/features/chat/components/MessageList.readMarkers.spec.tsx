@@ -53,7 +53,7 @@ const message = (chatNo: number, ownerId: string, extra: Partial<DomainChat> = {
 
 const at = (userId: string, cursor: number): MemberReadCursor => ({ userId, cursor });
 
-// Members the roster below can name: m0 Sunny, m1 레인, bob Bob (from the feed names).
+// Members the roster below can name: m0 is Sunny, m1 is `레인`, bob is Bob (from the feed names).
 const everyoneRead = (): ReadCount => ({ readIds: ['m0', 'm1', 'bob'], unreadIds: [] });
 
 const renderList = (

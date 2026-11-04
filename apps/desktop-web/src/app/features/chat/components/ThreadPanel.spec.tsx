@@ -35,6 +35,10 @@ const composerSend = vi.fn();
 const useComposerSend = vi.fn((_target: unknown) => ({ send: composerSend }));
 const clearTray = vi.fn();
 vi.mock('../../../shared/hooks/useAuthorNames', () => ({ useAuthorNames: () => new Map() }));
+// Read positions are covered in ThreadPanel.readMarkers.spec.tsx; here the room has none to draw.
+vi.mock('../../../shared/hooks/useChannelReadCounts', () => ({
+    useChannelReadCounts: () => ({ readCountOf: () => null, cursors: [] }),
+}));
 vi.mock('../../../shared/hooks/usePanelWidth', () => ({
     usePanelWidth: () => ({ width: 384, minWidth: 280, maxWidth: 640, panelRef: { current: null } }),
 }));

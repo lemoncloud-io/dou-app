@@ -45,11 +45,14 @@ is known to have reached.
 - Not in my notes-to-self channel, and not in a room with fewer than two active members.
 - Not until the first join row has arrived, so a room never flashes markers while it loads.
 - Not on a message no other member was there for — everyone else joined after it.
-- Only in the main feed. The thread panel renders the same `MessageList` without markers.
+- The thread panel draws them too, among the root and its replies. Read positions are per channel, not
+  per thread: a member who has read the main feed past a reply counts as having read it, whether or not
+  they opened the thread, and a member past the last reply is placed on the last reply. The server does
+  not report when a thread was opened, so the panel cannot tell the two apart.
 
 ## How the numbers are counted
 
-`useChannelReadCounts` (in `src/app/shared/hooks/`) gives `ChatPane` two things: `cursors`, the read
+`useChannelReadCounts` (in `src/app/shared/hooks/`) gives `ChatPane` and `ThreadPanel` two things: `cursors`, the read
 position of every other member still in the room, and `readCountOf(chatNo, authorId)`, which answers for
 one message with two lists of member ids — who has read it and who has not. `MessageList` places the
 cursors on the shown messages and asks `readCountOf` only for the messages that carry a marker. The
