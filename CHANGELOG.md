@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-04] - root@0.144.0, @chatic/desktop-web@0.48.0
+
+### Features
+
+- (desktop-web) open appearance settings in a popup from the menu
+
 ## [2026-11-03] - No version updates
 
 ### Features
