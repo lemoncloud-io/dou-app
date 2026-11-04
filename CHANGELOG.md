@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-04] - root@0.147.0, @chatic/desktop-web@0.51.0
+
+### Features
+
+- (desktop-web) show who read each reply in the thread panel
+
 ## [2026-11-04] - root@0.146.0, @chatic/desktop-web@0.50.0
 
 ### Features
