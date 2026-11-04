@@ -1,7 +1,7 @@
 # Read counts
 
-A room shows how far each member has read by putting their face on the message they stopped at, at
-the right end of that message's row. Members who stopped at the same message share one marker: the
+A room shows how far each member has read by putting their face on the message they stopped at, under
+its body and aligned with its text. Members who stopped at the same message share one marker: the
 faces of the first three, the rest as `+N`. Read down the room and the faces trace how far everyone
 has got — the closer to the newest message, the more of the room they have read.
 

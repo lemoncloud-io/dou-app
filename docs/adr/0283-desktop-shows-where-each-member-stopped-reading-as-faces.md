@@ -18,8 +18,8 @@ per person.
 
 ## Decision
 
-1. **Draw the positions, not the counts.** Each member's face sits on the message they stopped at, at the
-   right end of its row. Members who stopped at the same message share one marker: three faces and `+N`.
+1. **Draw the positions, not the counts.** Each member's face sits on the message they stopped at, under
+   its body and aligned with its text. Members who stopped at the same message share one marker: three faces and `+N`.
    Reading down the room, the faces trace how far everyone has got. The counts stop being text.
 2. **Clicking a marker opens the list we already had**, with its `Seen N` and `Not seen M` tabs for that
    message — not a list filtered to the members drawn on it. The counts live there, and in the marker's

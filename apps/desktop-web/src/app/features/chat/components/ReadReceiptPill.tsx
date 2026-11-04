@@ -51,7 +51,9 @@ const PersonList = ({ people, empty }: { people: ReadPerson[]; empty: string }) 
     );
 
 /**
- * The faces of the members who stopped reading at this message, at the right end of its row.
+ * The faces of the members who stopped reading at this message, under its body and aligned with
+ * its text. Not at the row's far edge: on a wide window that leaves the faces a screen away from
+ * the message they belong to.
  * Clicking them opens a card listing who has read the message and who has not, a tab each. It opens
  * on click rather than on hover so the card stays put while the pointer travels to the Not seen tab.
  * The counts are not drawn: the faces are the whole of the row, and the button's name carries the
@@ -66,7 +68,7 @@ export const ReadReceiptPill = ({ faces, readers, nonReaders }: ReadMarker) => {
     const more = faces.length - stacked.length;
 
     return (
-        <div className="mt-1 flex justify-end">
+        <div className="mt-1 flex">
             <Popover>
                 <PopoverTrigger asChild>
                     <button
@@ -91,7 +93,7 @@ export const ReadReceiptPill = ({ faces, readers, nonReaders }: ReadMarker) => {
                     </button>
                 </PopoverTrigger>
                 <PopoverContent
-                    align="end"
+                    align="start"
                     side="top"
                     className="w-64 overflow-hidden p-0"
                     aria-label={t('chat.readCount.listLabel')}
