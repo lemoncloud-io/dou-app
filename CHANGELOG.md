@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-04] - root@0.147.1, @chatic/desktop-web@0.51.1
+
+### Bug Fixes
+
+- (desktop-web) lay read markers over the row corner, not on a line
+
 ## [2026-11-04] - root@0.147.0, @chatic/desktop-web@0.51.0
 
 ### Features
