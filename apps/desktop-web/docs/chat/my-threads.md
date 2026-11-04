@@ -17,7 +17,11 @@ after opening goes on top. The header counts every thread.
 Each card (`useThreadCard`) reads, once it nears the screen, the root and the newest three replies
 from the chat cache of the thread's cloud, the root from the server when the cache lacks it. They are drawn by the
 thread panel's `MessageRow` (`ThreadCardMessages`), so a card names an author by place nickname, with
-their avatar, and shows images and files as the panel does. A root
+their avatar, and shows images and files as the panel does. Reaction chips are folded from the reaction
+events in the channel's newest 200 cached messages, which the card watches (`useCardReactionEvents`)
+rather than reads once: a reaction moves neither the thread's newest reply nor its activity time, so a
+one-off read would keep the chips from before it. My own reaction counts while it is still sending. A
+reaction whose event has left that window is not shown — in a busy channel, often the case for an old root. A root
 from before my join, or one the server says is gone, is a notice in its place, in the thread panel's
 words. Earlier replies are a link to the thread panel; when the cached window is full the link has no
 count, since the thread may start before it. A card that shows its thread on screen for a second marks it seen;

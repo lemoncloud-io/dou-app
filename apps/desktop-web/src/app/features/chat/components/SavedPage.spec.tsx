@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import type { DomainChannel, DomainChat, DomainPlace } from '@chatic/data';
 import { TooltipProvider } from '@chatic/ui-kit/components/ui/tooltip';
@@ -14,7 +14,14 @@ import { SavedPage } from './SavedPage';
 
 const cacheRead = vi.fn();
 const getChat = vi.fn();
-const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheRead, getChat } }));
+// The card watches its channel's cached window for reaction events; `observed` is what that window holds.
+let observed: DomainChat[] = [];
+const unsubscribe = vi.fn();
+const observeList = vi.fn((_query: unknown, callback: (result: { list: DomainChat[] } | null) => void) => {
+    callback({ list: observed });
+    return unsubscribe;
+});
+const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheRead, getChat, observeList } }));
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -99,6 +106,9 @@ beforeEach(() => {
     cacheRead.mockReset().mockResolvedValue(null);
     getChat.mockReset().mockResolvedValue(null);
     getCloudRepositories.mockClear();
+    observed = [];
+    observeList.mockClear();
+    unsubscribe.mockClear();
 });
 
 afterEach(() => {
@@ -210,6 +220,30 @@ describe('SavedPage live cards', () => {
         expect(screen.queryByText('Saved')).toBeNull();
         expect(screen.getAllByRole('button', { name: 'Remove' })).toHaveLength(1);
         expect(getCloudRepositories).toHaveBeenCalledWith('K1');
+    });
+
+    it('shows the reactions on a saved message, and stops watching for them when the page closes', async () => {
+        const rows: Record<string, DomainChat> = { 'C1:5': chat(5), 'C1:6': chat(6, { parentId: '5' }) };
+        cacheRead.mockImplementation(async (id: string) => rows[id] ?? null);
+        observed = [
+            chat(8, {
+                ownerId: 'bo',
+                subType: 'reaction',
+                reaction$: { chatId: 'C1:6', emoji: '🆗', action: 'on' },
+            } as Partial<DomainChat>),
+        ];
+        seed(item('C1:6', { chatNo: 6, parentId: '5', content: 'snap 6' }));
+        renderPage();
+
+        expect(await screen.findByText('message 6')).toBeTruthy();
+        expect(screen.getByLabelText(/^🆗 ·/)).toBeTruthy();
+        expect(observeList).toHaveBeenCalledWith(
+            expect.objectContaining({ channelId: 'C1', includeUnsent: true }),
+            expect.any(Function)
+        );
+
+        cleanup();
+        expect(unsubscribe).toHaveBeenCalled();
     });
 
     it('keeps a saved root and its saved reply in one live card, the root drawn once', async () => {

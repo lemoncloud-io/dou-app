@@ -4,7 +4,7 @@ import type { DomainChannel, DomainChat } from '@chatic/data';
 
 import { isViewerId, resolveDisplay, useAuthorNames, useSiteProfileMap, viewerPlaceProfile } from '../../../shared';
 import { useMessageViewer } from '../hooks/useMessageViewer';
-import { buildMessageRows } from '../utils';
+import { buildMessageRows, foldReactions } from '../utils';
 import { MessageRow } from './MessageRow';
 
 interface ThreadCardMessagesProps {
@@ -14,6 +14,11 @@ interface ThreadCardMessagesProps {
     onDiscard: (message: DomainChat) => void;
     /** Leave out the rows' "Saved" tag — the Saved page, where every row is saved. */
     hideSavedMark?: boolean;
+    /**
+     * The `subType:'reaction'` chats around these messages, unfiltered — the rows fold them into chips.
+     * Left out, the rows show no chips.
+     */
+    reactionEvents?: DomainChat[];
 }
 
 /**
@@ -27,6 +32,7 @@ export const ThreadCardMessages = ({
     onRetry,
     onDiscard,
     hideSavedMark,
+    reactionEvents,
 }: ThreadCardMessagesProps) => {
     const viewer = useMessageViewer(channel);
     const placeProfiles = useSiteProfileMap();
@@ -35,6 +41,10 @@ export const ThreadCardMessages = ({
     const rows = useMemo(
         () => buildMessageRows(messages, viewer, names, 0, false, placeProfiles),
         [messages, viewer, names, placeProfiles]
+    );
+    const reactions = useMemo(
+        () => (reactionEvents ? foldReactions(reactionEvents, viewer) : undefined),
+        [reactionEvents, viewer]
     );
     const reactorName = useMemo(
         () => (userId: string) => {
@@ -53,6 +63,7 @@ export const ThreadCardMessages = ({
                     <MessageRow
                         key={row.group.key}
                         group={row.group}
+                        reactions={reactions}
                         onRetry={onRetry}
                         onDiscard={onDiscard}
                         reactorName={reactorName}

@@ -16,7 +16,13 @@ import { ThreadsPage } from './ThreadsPage';
 const cacheReadList = vi.fn();
 const cacheRead = vi.fn();
 const getChat = vi.fn();
-const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheReadList, cacheRead, getChat } }));
+// The card watches the same window for its reaction events; `observed` is what that window holds.
+let observed: DomainChat[] = [];
+const observeList = vi.fn((_query: unknown, callback: (result: { list: DomainChat[] } | null) => void) => {
+    callback({ list: observed });
+    return () => undefined;
+});
+const getCloudRepositories = vi.fn((_cid: string) => ({ chat: { cacheReadList, cacheRead, getChat, observeList } }));
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
@@ -159,6 +165,8 @@ beforeEach(() => {
     cacheRead.mockReset().mockResolvedValue(null);
     getChat.mockReset().mockResolvedValue(null);
     getCloudRepositories.mockClear();
+    observed = [];
+    observeList.mockClear();
     useSavedItemsStore.setState({ items: {} });
 });
 
@@ -193,11 +201,68 @@ describe('ThreadsPage cards', () => {
         expect(onOpen).toHaveBeenCalledWith('C1', undefined, 'P1', '5');
     });
 
+    it('shows the reactions on a reply in the card', async () => {
+        seed(thread('5'));
+        cacheReadList.mockResolvedValue({
+            list: [
+                chat(5),
+                chat(6, { parentId: '5' }),
+                chat(7, {
+                    parentId: '5',
+                    ownerId: 'ada',
+                    subType: 'reaction',
+                    reaction$: { chatId: 'C1:6', emoji: '🆗', action: 'on' },
+                } as Partial<DomainChat>),
+            ],
+        });
+        observed = (await cacheReadList()).list;
+        renderPage();
+
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 6')).toBeTruthy());
+        // The chip, not the toolbar's quick-reaction button: only the chip is labelled "<emoji> · <reactors>".
+        expect(within(card).getByLabelText(/^🆗 ·/)).toBeTruthy();
+    });
+
+    it('shows a reaction made after the card was read, without reading the card again', async () => {
+        seed(thread('5'));
+        const list = [chat(5), chat(6, { parentId: '5' })];
+        cacheReadList.mockResolvedValue({ list });
+        let emit: ((result: { list: DomainChat[] }) => void) | undefined;
+        observeList.mockImplementationOnce((_query, callback) => {
+            emit = callback;
+            return () => undefined;
+        });
+        renderPage();
+
+        const card = screen.getByRole('article');
+        await waitFor(() => expect(within(card).getByText('message 6')).toBeTruthy());
+        const reads = cacheReadList.mock.calls.length;
+        act(() =>
+            emit?.({
+                list: [
+                    ...list,
+                    chat(7, {
+                        parentId: '5',
+                        ownerId: 'ada',
+                        subType: 'reaction',
+                        reaction$: { chatId: 'C1:6', emoji: '🆗', action: 'on' },
+                    } as Partial<DomainChat>),
+                ],
+            })
+        );
+
+        expect(within(card).getByLabelText(/^🆗 ·/)).toBeTruthy();
+        expect(cacheReadList.mock.calls.length).toBe(reads);
+    });
+
     it('puts a saved tag in front of a saved message, and only that one', async () => {
         seed(thread('5'));
         cacheReadList.mockResolvedValue({ list: [chat(5), chat(6, { parentId: '5' }), chat(7, { parentId: '5' })] });
         useSavedItemsStore.setState({
-            items: { 'C1:6': { id: 'C1:6', channelId: 'C1', chatNo: 6, content: 'message 6', ownerName: 'A', savedAt: 1 } },
+            items: {
+                'C1:6': { id: 'C1:6', channelId: 'C1', chatNo: 6, content: 'message 6', ownerName: 'A', savedAt: 1 },
+            },
         });
         renderPage();
 
