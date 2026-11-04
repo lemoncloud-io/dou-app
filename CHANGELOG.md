@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-04] - root@0.147.4, @chatic/desktop-web@0.51.4
+
+### Bug Fixes
+
+- (desktop-web) center the date pill on its rule
+
 ## [2026-11-04] - root@0.147.3, @chatic/desktop-web@0.51.3
 
 ### Bug Fixes
