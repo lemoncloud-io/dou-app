@@ -50,13 +50,14 @@ vi.mock('./Composer', () => ({ Composer: () => null }));
 // What the room's read counts say, set per test; the panel is only asked to hand it on.
 const readCounts = vi.hoisted(() => ({
     cursors: [] as { userId: string; cursor: number }[],
+    byChatNo: new Map<number, ReadCount>(),
     channelsAsked: [] as unknown[],
 }));
 vi.mock('../../../shared/hooks/useChannelReadCounts', () => ({
     useChannelReadCounts: (channel: unknown) => {
         readCounts.channelsAsked.push(channel);
         return {
-            readCountOf: (): ReadCount => ({ readIds: ['ada'], unreadIds: ['bob'] }),
+            readCountOf: (chatNo: number): ReadCount | null => readCounts.byChatNo.get(chatNo) ?? null,
             cursors: readCounts.cursors,
         };
     },
@@ -100,43 +101,63 @@ const rowOf = (text: string): HTMLElement => {
     if (!row) throw new Error(`no row holds "${text}"`);
     return row;
 };
-const markerIn = (text: string) => within(rowOf(text)).queryByRole('button', { name: /Seen/ });
+const pillIn = (text: string) => within(rowOf(text)).queryByRole('button', { name: /Seen/ });
 
-describe('ThreadPanel read markers', () => {
+describe('ThreadPanel read pills', () => {
     beforeEach(() => {
         messages = THREAD;
         readCounts.cursors = [];
+        readCounts.byChatNo = new Map();
         readCounts.channelsAsked.length = 0;
     });
 
-    it('puts a member’s face on the root or the reply they last read', () => {
-        readCounts.cursors = [at('m0', 10), at('m1', 11)];
+    it('gives each author’s message its own pill with its counts written out', () => {
+        readCounts.byChatNo = new Map([
+            [10, { readIds: ['m0', 'm1'], unreadIds: ['m2'] }],
+            [11, { readIds: ['m0'], unreadIds: ['m1', 'm2'] }],
+            [12, { readIds: ['m0', 'm1', 'm2'], unreadIds: [] }],
+        ]);
         render(<ThreadPanel channel={CHANNEL} rootId="10" members={[]} />, { wrapper });
 
-        expect(markerIn('root')).not.toBeNull();
-        expect(markerIn('first reply')).not.toBeNull();
-        expect(markerIn('second reply')).toBeNull();
+        expect(pillIn('root')?.textContent).toContain('Seen 2 · Not seen 1');
+        expect(pillIn('first reply')?.textContent).toContain('Seen 1 · Not seen 2');
+        expect(pillIn('second reply')?.textContent).toContain('Seen 3');
     });
 
-    it('puts a member who has read past the last reply on the last reply', () => {
-        readCounts.cursors = [at('m0', 90)];
+    it('draws the pill whether or not anyone stopped reading at that message', () => {
+        // Everyone has read past the whole thread: a position marker would sit on the last reply only.
+        readCounts.cursors = [at('m0', 90), at('m1', 90)];
+        readCounts.byChatNo = new Map([
+            [10, { readIds: ['m0', 'm1'], unreadIds: [] }],
+            [11, { readIds: ['m0', 'm1'], unreadIds: [] }],
+            [12, { readIds: ['m0', 'm1'], unreadIds: [] }],
+        ]);
         render(<ThreadPanel channel={CHANNEL} rootId="10" members={[]} />, { wrapper });
 
-        expect(markerIn('second reply')).not.toBeNull();
-        expect(markerIn('root')).toBeNull();
+        expect(pillIn('root')).not.toBeNull();
+        expect(pillIn('first reply')).not.toBeNull();
+        expect(pillIn('second reply')).not.toBeNull();
     });
 
-    it('leaves out a member who has not reached the root', () => {
-        readCounts.cursors = [at('m0', 4)];
+    it('gives replies sent back to back by one author a single pill, on the last of them', () => {
+        messages = [...THREAD, chat(13, { content: 'third reply', ownerId: 'ada', parentId: 'C1:10' })];
+        readCounts.byChatNo = new Map([
+            [12, { readIds: ['m0'], unreadIds: ['m1'] }],
+            [13, { readIds: ['m0'], unreadIds: ['m1'] }],
+        ]);
         render(<ThreadPanel channel={CHANNEL} rootId="10" members={[]} />, { wrapper });
 
-        expect(screen.queryByRole('button', { name: /Seen/ })).toBeNull();
+        expect(screen.getAllByText(/^Seen 1/)).toHaveLength(1);
+        expect(pillIn('third reply')).not.toBeNull();
     });
 
-    it('draws no marker when the room has no cursors to give', () => {
+    it('leaves a message the room has no count for without a pill', () => {
+        readCounts.byChatNo = new Map([[10, { readIds: ['m0'], unreadIds: [] }]]);
         render(<ThreadPanel channel={CHANNEL} rootId="10" members={[]} />, { wrapper });
 
-        expect(screen.queryByRole('button', { name: /Seen/ })).toBeNull();
+        expect(pillIn('root')).not.toBeNull();
+        expect(pillIn('first reply')).toBeNull();
+        expect(pillIn('second reply')).toBeNull();
     });
 
     it('asks for the read counts of the channel the thread belongs to', () => {

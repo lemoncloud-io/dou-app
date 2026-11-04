@@ -186,10 +186,10 @@ describe('MessageList read markers', () => {
         expect(screen.queryByRole('button', { name: /Seen/ })).toBeNull();
     });
 
-    it('draws no marker where no cursors are wired, as in a room that shows none', () => {
-        renderList([message(1, 'ada')]);
+    it('gives every message a counted pill where no cursors are wired, as in a thread', () => {
+        renderList([message(1, 'ada'), message(2, 'bob')]);
 
-        expect(screen.queryByRole('button', { name: /Seen/ })).toBeNull();
+        expect(screen.getAllByText(/^Seen/)).toHaveLength(2);
     });
 
     it('draws no marker when nobody has cursors yet', () => {

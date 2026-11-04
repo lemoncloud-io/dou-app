@@ -1,6 +1,6 @@
 # ADR-0283: Desktop shows where each member stopped reading as faces, not a count under each block
 
-> Status: Accepted · Decided: 2026-11-04 · Implemented: `feat/read-position-avatars`
+> Status: Accepted, partly superseded by [ADR-0284](./0284-desktop-thread-panel-shows-who-read-each-message.md) (decision 3, and where decision 1 puts the faces) · Decided: 2026-11-04 · Implemented: `feat/read-position-avatars`
 > · Scope: `apps/desktop-web/src/app/shared/hooks/useChannelReadCounts.ts`
 > · `apps/desktop-web/src/app/features/chat/utils/readMarkers.ts`
 > · `apps/desktop-web/src/app/features/chat/components/` (`MessageList`, `MessageRow`, `ReadReceiptPill`, `ThreadPanel`)
