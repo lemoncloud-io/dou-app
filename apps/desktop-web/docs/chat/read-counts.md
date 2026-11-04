@@ -5,6 +5,10 @@ at, at the right end of its row. Members who stopped at the same message share o
 of the first three, the rest as `+N`. Read down the room and the faces race towards the newest message
 — the closer to it, the more of the room they have read.
 
+The marker lies over the bottom-right corner of the message rather than taking a line of its own, and a
+message carrying one keeps that corner clear of text. As a line under the body it split a message from its
+thread footer and left a blank band where there was none, and every time a member read on, the rows below it moved.
+
 A main-feed marker is only faces. The counts (`Seen 5 · Not seen 7`, `읽음 5 · 미확인 7`) are not drawn;
 they are the marker's accessible name, so a screen reader still hears them, and the card the marker
 opens shows them as its tab labels.
