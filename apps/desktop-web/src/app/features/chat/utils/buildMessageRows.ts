@@ -111,7 +111,7 @@ const isSameDay = (a: number, b: number): boolean => {
     return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
 };
 
-const startOfDay = (ms: number): number => {
+export const startOfDay = (ms: number): number => {
     const d = new Date(ms);
     d.setHours(0, 0, 0, 0);
     return d.getTime();
@@ -138,7 +138,12 @@ export const buildMessageRows = (
      * "N replies" divider is dropped above the first reply (the first message with a
      * `parentId`). Undefined in the main feed, where no such divider appears.
      */
-    threadReplyCount?: number
+    threadReplyCount?: number,
+    /**
+     * Main feed only: the current time. When the newest message is from an earlier day, the feed
+     * closes with today's divider, so a day that has begun without a message reads as begun.
+     */
+    now?: number
 ): MessageRowItem[] => {
     const rows: MessageRowItem[] = [];
     let currentGroup: MessageGroup | null = null;
@@ -293,5 +298,9 @@ export const buildMessageRows = (
     }
 
     flush();
+    if (now !== undefined && threadReplyCount === undefined && lastTimestamp && !isSameDay(lastTimestamp, now)) {
+        const dayMs = startOfDay(now);
+        rows.push({ kind: 'date', key: `date:${dayMs}:today`, timestamp: dayMs });
+    }
     return rows;
 };

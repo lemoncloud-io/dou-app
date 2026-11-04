@@ -312,3 +312,37 @@ describe('buildMessageRows — grouped join notices', () => {
         expect(kinds(rows)).toEqual(['date', 'system', 'system']);
     });
 });
+
+describe('buildMessageRows — closing day divider', () => {
+    const NEXT_DAY = new Date('2026-08-04T09:00:00Z').getTime();
+    const dayRows = (rows: ReturnType<typeof buildMessageRows>) =>
+        rows.flatMap(row => (row.kind === 'date' ? [row.timestamp] : []));
+    const build = (messages: DomainChat[], today?: number) =>
+        buildMessageRows(messages, VIEWER, undefined, 0, false, {}, undefined, today);
+
+    it("closes the feed with today's divider when the last message is from an earlier day", () => {
+        const rows = build([chat({ id: 'C1:1', chatNo: 1 })], NEXT_DAY);
+
+        expect(kinds(rows)).toEqual(['date', 'group', 'date']);
+        const [first, closing] = dayRows(rows);
+        expect(new Date(closing).getDate()).toBe(new Date(NEXT_DAY).getDate());
+        expect(closing).toBeGreaterThan(first);
+    });
+
+    it('adds nothing when the last message is already from today', () => {
+        const rows = build([chat({ id: 'C1:1', chatNo: 1 })], DAY);
+
+        expect(kinds(rows)).toEqual(['date', 'group']);
+    });
+
+    it('adds nothing for an empty feed, or when no day is given', () => {
+        expect(build([], NEXT_DAY)).toEqual([]);
+        expect(kinds(build([chat({ id: 'C1:1', chatNo: 1 })]))).toEqual(['date', 'group']);
+    });
+
+    it('adds nothing in a thread, where the header carries the day', () => {
+        const rows = buildMessageRows([chat({ id: 'C1:1', chatNo: 1 })], VIEWER, undefined, 0, false, {}, 0, NEXT_DAY);
+
+        expect(rows.filter(row => row.kind === 'date')).toEqual([]);
+    });
+});
