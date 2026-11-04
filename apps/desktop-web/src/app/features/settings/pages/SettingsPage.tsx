@@ -19,7 +19,7 @@ import {
 import { NotificationSnoozeButton } from '../../chat/components/NotificationSnoozeButton';
 import { canApprovePairing } from '../../pairing/utils/devicePairing';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
-import { AppearanceControls, ReportIssueDialog } from '../components';
+import { ReportIssueDialog } from '../components';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 import { QuietHoursMentionSection } from './QuietHoursMentionSection';
@@ -80,12 +80,6 @@ export const SettingsPage = () => {
                         />
                     )}
                 </SettingsRowGroup>
-            </section>
-
-            <section className="mt-8 flex flex-col gap-4">
-                <h2 className="text-overline uppercase text-muted-foreground">{t('settings.appearance')}</h2>
-
-                <AppearanceControls className="rounded-xl border border-border bg-card p-5" />
             </section>
 
             {/* Desktop shell only — renders nothing in a plain browser. */}

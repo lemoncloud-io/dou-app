@@ -49,9 +49,7 @@ const THEME_SWATCH: Record<Theme, string> = {
 
 /**
  * Display mode, shell palette, text size, message density and language: every control writes as it
- * changes. Shared by the Settings page card and the Appearance dialog so the two cannot drift; the
- * caller supplies the surface (`className`). Element ids carry a per-instance prefix, so both can be
- * on screen at once.
+ * changes. The body of the Appearance dialog; `className` is the surface the caller puts it on.
  */
 export const AppearanceControls = ({ className }: { className?: string }) => {
     const { t, i18n } = useTranslation();

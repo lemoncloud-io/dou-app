@@ -1,7 +1,7 @@
 # settings
 
-The Settings page (`src/app/features/settings/`): appearance, language, notifications and the About
-section.
+The Settings page (`src/app/features/settings/`): notifications and the About section, with the Account
+entries on top. Appearance and language are not on the page; they live in the popup below.
 
 In the desktop app, where device pairing is on and the session did not itself come from a pairing,
 the Account entry is followed by **Approve web sign-in**, which opens the approval screen
@@ -11,17 +11,17 @@ this place, so the entry stays here.
 ## Appearance popup
 
 The account menu in the nav rail has an **Appearance** entry, just above Settings. It opens a popup with
-the same controls as the Appearance card below — display mode, theme, text size, message density and
-language — so a change shows on the screen behind it as it is made. It exists for the theme above all:
-picking a palette and looking at the shell used to mean leaving the chat for `/settings` and back.
+display mode, theme, text size, message density and language, so a change shows on the screen behind it
+as it is made. That is the point of it: picking a palette and looking at the shell used to mean leaving
+the chat for `/settings` and back. The Settings page no longer has an Appearance card, so the popup is
+the only place these are set.
 
-- The Settings page keeps its Appearance card; the popup is a second door, not a replacement. Both render
-  `AppearanceControls` (`components/AppearanceControls.tsx`), so the two cannot drift. Ids inside it carry
-  a per-instance prefix, so the page and the popup can be on screen together.
 - `AppearanceDialog` is mounted once at the router (`routes.tsx`), like the shortcuts sheet, and is opened
   through `useAppearanceDialogStore`. `AccountMenu` imports that store file directly, not the settings
   barrel, so the Settings page does not ride into the chat chunk.
-- Nothing is saved on a button: every control writes as it changes, as on the page.
+- The controls are `AppearanceControls` (`components/AppearanceControls.tsx`); the sections below
+  describe them.
+- Nothing is saved on a button: every control writes as it changes.
 
 ## Appearance: display mode and theme
 
