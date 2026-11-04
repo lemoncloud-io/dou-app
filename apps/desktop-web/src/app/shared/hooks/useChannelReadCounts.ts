@@ -16,6 +16,11 @@ export interface ReadCount {
 export interface MemberReadCursor {
     userId: string;
     cursor: number;
+    /**
+     * The room's latest number when they joined, if the row has one. Joining also writes that number
+     * into the cursor, so without it a late joiner reads as having reached everything before them.
+     */
+    joinedNo?: number;
 }
 
 export interface ChannelReadCounts {
@@ -134,7 +139,7 @@ export const useChannelReadCounts = (channel: DomainChannel | undefined): Channe
             showsCounts && userId
                 ? activeMembers
                       .filter(member => member.userId !== userId)
-                      .map(({ userId: memberId, cursor }) => ({ userId: memberId, cursor }))
+                      .map(({ userId: memberId, cursor, joinedNo }) => ({ userId: memberId, cursor, joinedNo }))
                 : [],
         [showsCounts, activeMembers, userId]
     );

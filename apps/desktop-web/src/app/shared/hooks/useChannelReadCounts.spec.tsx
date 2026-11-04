@@ -156,6 +156,13 @@ describe('useChannelReadCounts', () => {
         ]);
     });
 
+    it('carries each member’s joinedNo in cursors, so a marker is not put before they arrived', () => {
+        const { result } = renderHook(() => useChannelReadCounts(GROUP));
+        emitJoins([join('me', 9), join('ada', 9, { joinedNo: 6 })]);
+
+        expect(result.current.cursors).toEqual([{ userId: 'ada', cursor: 9, joinedNo: 6 }]);
+    });
+
     it('takes the further of readNo and chatNo as the cursors entry', () => {
         const { result } = renderHook(() => useChannelReadCounts(GROUP));
         emitJoins([join('me', 2), join('ada', 4, { readNo: 9 })]);

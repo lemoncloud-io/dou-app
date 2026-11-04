@@ -40,6 +40,10 @@ is known to have reached.
 - A member whose read position is below the first message that is loaded is placed nowhere: the
   position points into history the room has not paged in, so it is not guessed onto a row. That member
   is still in the card's Not seen tab.
+- A member is not placed on a message from before they joined. Joining writes the room's latest number
+  into their read position, so a late joiner's position runs past messages they never saw; the card's
+  lists leave them out for those messages, and a face there would open a list without the person it
+  shows. Their face appears on the first message after they joined that their position has reached.
 - I am never drawn. My own position says nothing the reader does not know, and it would add a face to
   every room. I am in the card's lists like everyone else.
 - Not in my notes-to-self channel, and not in a room with fewer than two active members.

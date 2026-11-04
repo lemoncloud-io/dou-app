@@ -135,6 +135,14 @@ describe('MessageList read markers', () => {
         expect(markerIn('message 3')).toBeNull();
     });
 
+    it('puts no face on a message from before the member joined, where the list would not name them', () => {
+        // The member's cursor is past message 2, but they joined after it: the list for that message
+        // never includes them, so a face there would open a list without the person it shows.
+        renderList([message(1, 'ada'), message(2, 'ada')], [{ userId: 'm0', cursor: 9, joinedNo: 5 }]);
+
+        expect(screen.queryByRole('button', { name: /Seen/ })).toBeNull();
+    });
+
     it('leaves out a member whose cursor is below every loaded message', () => {
         renderList([message(5, 'ada'), message(6, 'ada')], [at('m0', 2), at('m1', 6)]);
 
