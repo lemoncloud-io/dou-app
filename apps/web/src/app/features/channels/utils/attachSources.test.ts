@@ -1,5 +1,6 @@
-import { chatAttachmentAccept } from '@chatic/data';
+import { chatAttachmentAccept, judgeChatAttachments } from '@chatic/data';
 
+import { PHONE_SENDS } from '../../../utils';
 import { albumAccept, documentAccept, isAppleTouchWebKit, rejectionKey } from './attachSources';
 
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15';
@@ -47,10 +48,32 @@ describe('page input accept lists', () => {
             expect.arrayContaining(['image/png', '.webp', 'video/mp4', '.mp4', 'application/pdf', '.hwpx'])
         );
         expect(accept).toEqual([
-            ...chatAttachmentAccept(['image', 'video', 'file']).split(','),
+            ...chatAttachmentAccept(['image', 'video', 'file'], PHONE_SENDS).split(','),
             'application/octet-stream',
         ]);
         expect(accept.some(type => type.includes('*'))).toBe(false);
+    });
+
+    // The server's HTML format is sent from desktop only; the phone neither offers nor sends one.
+    it('offers no HTML page from files or the album, on either system', () => {
+        for (const accept of [documentAccept(false), documentAccept(true), albumAccept(false), albumAccept(true)]) {
+            expect(accept.split(',')).not.toEqual(expect.arrayContaining(['text/html']));
+            expect(accept.split(',')).not.toContain('.html');
+            expect(accept.split(',')).not.toContain('.htm');
+        }
+    });
+
+    it('turns an HTML page down in the judgement, however it is typed', () => {
+        for (const type of ['text/html', '', 'application/octet-stream']) {
+            const { accepted, rejected } = judgeChatAttachments(
+                [new File(['x'], 'report.html', { type })],
+                10,
+                PHONE_SENDS
+            );
+            expect(accepted).toHaveLength(0);
+            expect(rejected[0]?.reason).toBe('unsupported');
+        }
+        expect(chatAttachmentAccept(['file']).split(',')).toContain('text/html');
     });
 
     // The four audio formats go from files on either system; the album offers none, and formats the

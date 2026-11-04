@@ -12,7 +12,7 @@ import {
 const MiB = 1024 * 1024;
 
 describe('chatAttachmentFormat', () => {
-    it('takes the seventeen server formats by their type', () => {
+    it('takes the eighteen formats by their type', () => {
         expect(chatAttachmentFormat({ name: 'a.png', type: 'image/png' })).toEqual({
             type: 'image/png',
             kind: 'image',
@@ -27,6 +27,7 @@ describe('chatAttachmentFormat', () => {
             ['a.hwp', 'application/x-hwp'],
             ['a.hwpx', 'application/hwp+zip'],
             ['a.txt', 'text/plain'],
+            ['a.html', 'text/html'],
             ['a.zip', 'application/zip'],
             ['a.m4a', 'audio/mp4'],
             ['a.mp3', 'audio/mpeg'],
@@ -35,6 +36,23 @@ describe('chatAttachmentFormat', () => {
         ]) {
             expect(chatAttachmentFormat({ name, type })).toEqual({ type, kind: 'file', name });
         }
+    });
+
+    it('takes an HTML page as a document under either extension, or read from its name when untyped', () => {
+        expect(chatAttachmentFormat({ name: 'report.html', type: 'text/html' })).toEqual({
+            type: 'text/html',
+            kind: 'file',
+            name: 'report.html',
+        });
+        expect(chatAttachmentFormat({ name: 'old.HTM', type: 'text/html' })?.name).toBe('old.HTM');
+        expect(chatAttachmentFormat({ name: 'saved.html', type: '' })?.type).toBe('text/html');
+        expect(chatAttachmentFormat({ name: 'saved.htm', type: 'application/octet-stream' })?.type).toBe('text/html');
+    });
+
+    it('adds .html to an HTML page named without it, and refuses one named as another format', () => {
+        expect(chatAttachmentFormat({ name: 'export', type: 'text/html' })?.name).toBe('export.html');
+        expect(chatAttachmentFormat({ name: 'page.txt', type: 'text/html' })).toBeNull();
+        expect(chatAttachmentFormat({ name: 'page.html', type: 'text/plain' })).toBeNull();
     });
 
     // Most systems do not know HWP, and the browser hands such a file over with an empty type.
@@ -220,9 +238,11 @@ describe('CHAT_ATTACHMENT_ACCEPT', () => {
                 '.hwpx',
                 '.jpeg',
                 '.zip',
+                'text/html',
+                '.htm',
             ])
         );
-        expect(accept).toHaveLength(17 + 18);
+        expect(accept).toHaveLength(18 + 20);
     });
 });
 

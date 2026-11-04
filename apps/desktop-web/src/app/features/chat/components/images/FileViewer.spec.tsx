@@ -37,6 +37,33 @@ afterEach(() => {
 });
 
 describe('FileViewer', () => {
+    const page = { ...notes, name: 'report.html', contentType: 'text/html' };
+
+    it('draws an HTML page in a frame that runs no script and reaches nothing outside', async () => {
+        vi.mocked(fetchFileBytes).mockResolvedValue(bytes(['<!doctype html><h1>Q3</h1><script>alert(1)</script>']));
+        render(<FileViewer file={page} author={author} onClose={vi.fn()} onSave={vi.fn()} />, { wrapper });
+
+        const frame = (await screen.findByLabelText('report.html', { selector: 'iframe' })) as HTMLIFrameElement;
+        expect(frame.tagName).toBe('IFRAME');
+        expect(frame.getAttribute('sandbox')).toBe('');
+        expect(frame.getAttribute('referrerpolicy')).toBe('no-referrer');
+        expect(frame.getAttribute('srcdoc')).toContain("default-src 'none'");
+        expect(frame.getAttribute('srcdoc')).toContain('<h1>Q3</h1>');
+        expect(document.querySelector('h1')).toBeNull();
+    });
+
+    // Cut short, a page would render broken; a page past the allowance is saved instead.
+    it('does not draw an HTML page past its allowance, and offers to save it', async () => {
+        const onSave = vi.fn();
+        render(
+            <FileViewer file={{ ...page, size: 60 * 1024 * 1024 }} author={author} onClose={vi.fn()} onSave={onSave} />,
+            { wrapper }
+        );
+        expect(await screen.findByText(/too large to show/)).toBeTruthy();
+        expect(fetchFileBytes).not.toHaveBeenCalled();
+        expect(document.querySelector('iframe')).toBeNull();
+    });
+
     it('shows a text file under a header with its sender, time and name', async () => {
         vi.mocked(fetchFileBytes).mockResolvedValue(bytes(['hello\nworld']));
         render(<FileViewer file={notes} author={author} onClose={vi.fn()} onSave={vi.fn()} />, { wrapper });
