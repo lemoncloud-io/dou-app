@@ -119,7 +119,7 @@ interface MessageRowProps {
     hideSavedMark?: boolean;
     /**
      * The members who stopped reading at a message of this block, keyed by that message's chatNo; each
-     * is drawn on it — at the row's right end in the main feed, under the body as a counted pill in a thread. Absent: no marker on any of them.
+     * is drawn on it — over the row's bottom-right corner in the main feed, under the body as a counted pill in a thread. Absent: no marker on any of them.
      */
     readMarkers?: Readonly<Record<number, ReadMarker>>;
 }
@@ -523,6 +523,9 @@ export const MessageRow = memo(
                                     }}
                                     className={cn(
                                         'group/msg relative rounded-md outline-none transition-colors ease-tactile focus-visible:ring-2 focus-visible:ring-ring',
+                                        // Room for the read marker laid over the bottom-right corner, so a
+                                        // line running to the edge does not end under the faces.
+                                        readMarker && !readMarker.counted && 'pr-24',
                                         // A tint around the whole message, tag included: a tag alone between
                                         // two messages reads as belonging to whichever sits above it.
                                         !hideSavedMark && isSavedKey(key) && '-mx-2 bg-destructive/5 px-2 py-1',
@@ -670,7 +673,7 @@ export const MessageRow = memo(
                                             {t('chat.reaction.failed')}
                                         </span>
                                     )}
-                                    {/* Main feed: who stopped reading here, at the right end. Thread: who has read it. */}
+                                    {/* Main feed: who stopped reading here, over the bottom-right corner. Thread: who has read it. */}
                                     {readMarker && <ReadReceiptPill {...readMarker} />}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the

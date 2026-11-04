@@ -22,7 +22,7 @@ export interface ReadMarker {
     nonReaders: ReadPerson[];
     /**
      * Draw the counts beside the faces, under the message body — the thread panel's pill,
-     * where `faces` are the readers. Without it the marker is faces only, at the row's right end.
+     * where `faces` are the readers. Without it the marker is faces only, over the row's bottom-right corner.
      */
     counted?: boolean;
 }
@@ -57,7 +57,7 @@ const PersonList = ({ people, empty }: { people: ReadPerson[]; empty: string }) 
 
 /**
  * Two shapes share one card. In the main feed it is the faces of the members who stopped reading at
- * this message, at the right end of its row — read down the room and the faces race towards the
+ * this message, over the bottom-right corner of its row — read down the room and the faces race towards the
  * newest message. There the counts are not drawn; the button's name carries them for a screen reader.
  * In a thread (`counted`) each author block carries a pill under its last message: the first readers' faces
  * and `Seen N · Not seen M`.
@@ -74,7 +74,9 @@ export const ReadReceiptPill = ({ faces, readers, nonReaders, counted = false }:
     const summary = unread > 0 ? t('chat.readCount.summary', { read, unread }) : t('chat.readCount.allSeen', { read });
 
     return (
-        <div className={counted ? 'mt-1 flex' : 'mt-1 flex justify-end'}>
+        // The main-feed marker lies over the row's bottom-right corner instead of taking a line: in the flow
+        // it split a message from its thread footer and pushed the rows below whenever a member read on.
+        <div className={counted ? 'mt-1 flex' : 'absolute bottom-0 right-0'}>
             <Popover>
                 <PopoverTrigger asChild>
                     <button
