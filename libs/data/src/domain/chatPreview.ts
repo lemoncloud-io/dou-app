@@ -68,13 +68,11 @@ export const isFeedVisible = (chat: Pick<DomainChat, 'parentId' | 'subType'>): b
  * showing a blank line where a message should be. The system-row test is `isNotifiableChat`, the
  * one the push and unread surfaces use, so "which chats are real messages" cannot drift between them.
  *
- * Thread replies DO preview, unlike in the feed. The feed leaves them to the thread page, but the
- * home row is a room's last activity, and a reply is activity: a room whose conversation moved
- * into a thread would otherwise keep showing the message the thread hangs off, however long ago
- * that was. The row marks a reply as one (`lastChatPreview`), so it does not read as a message in
- * the room itself. The native fast path mirrors this rule in SQL, and an app whose mirror still
- * drops replies answers with an older top-level message that passes this check — such an app shows
- * the old preview until it is updated.
+ * Thread replies never do either. The row prints what the room itself shows, and the room's feed
+ * leaves replies to the thread page, so a reply as the preview would name a message the reader
+ * cannot find in the room — tapping the row lands on a feed that does not contain it. The native
+ * fast path mirrors this rule in SQL; an app whose mirror still admits replies answers with a
+ * reply, which fails this check, and that channel falls back to the windowed query.
  *
  * A failed send does not preview either. It never reached the channel — nobody else
  * can see it — and it keeps the sentinel `chatNo: 0` indefinitely, so ranked as newest
@@ -83,7 +81,15 @@ export const isFeedVisible = (chat: Pick<DomainChat, 'parentId' | 'subType'>): b
  * A tombstone (`hidden`) DOES preview — it is still the channel's last message; the
  * row renders the shared deleted-message phrase instead of the body (ADR-0047).
  */
-export const isPreviewableChat = (chat: DomainChat): boolean =>
+export const isPreviewableChat = (chat: DomainChat): boolean => !chat.parentId && isActivityChat(chat);
+
+/**
+ * Whether a chat counts as the room's latest activity: any message a person wrote anywhere in
+ * the room, a thread reply included. It is `isPreviewableChat` without the reply rule, so the two
+ * can only differ by replies. The home row prints the preview but takes its time, and so the
+ * room's place in the list, from this one.
+ */
+export const isActivityChat = (chat: DomainChat): boolean =>
     chat.subType !== 'reaction' && isNotifiableChat(chat) && !chat.isFailed;
 
 /**
@@ -93,9 +99,14 @@ export const isPreviewableChat = (chat: DomainChat): boolean =>
  * Newest is `compareByChatNo`'s order, not the raw number — a just-sent pending row
  * carries the sentinel `chatNo: 0` and would lose every numeric comparison.
  */
-export const pickPreviewChat = (chats: DomainChat[]): DomainChat | undefined =>
+export const pickPreviewChat = (chats: DomainChat[]): DomainChat | undefined => pickNewest(chats, isPreviewableChat);
+
+/** The newest chat in a window that counts as activity (`isActivityChat`) — a thread reply included. */
+export const pickActivityChat = (chats: DomainChat[]): DomainChat | undefined => pickNewest(chats, isActivityChat);
+
+const pickNewest = (chats: DomainChat[], accepts: (chat: DomainChat) => boolean): DomainChat | undefined =>
     chats.reduce<DomainChat | undefined>(
-        (best, chat) => (isPreviewableChat(chat) && (!best || compareByChatNo(best, chat) <= 0) ? chat : best),
+        (best, chat) => (accepts(chat) && (!best || compareByChatNo(best, chat) <= 0) ? chat : best),
         undefined
     );
 
@@ -109,6 +120,12 @@ export const pickPreviewChat = (chats: DomainChat[]): DomainChat | undefined =>
 export interface DomainLastChat {
     channelId: string;
     lastNo: number;
-    /** The newest previewable row, or null when the channel has nothing to preview. */
+    /** The newest previewable row (never a thread reply), or null when the channel has nothing to preview. */
     chat: DomainChat | null;
+    /**
+     * The newest row that counts as activity, a thread reply included, or null when there is none.
+     * It is `chat` or newer. The home row's time and order read it, so a reply moves the room up
+     * the list while the printed line stays on the last message the room shows.
+     */
+    activity: DomainChat | null;
 }

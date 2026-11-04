@@ -367,8 +367,14 @@ export interface LastChatItem {
     channelId: string;
     /** Max chatNo in that channel's cache (regardless of preview eligibility) — the baseline the web's head trigger compares against */
     lastNo: number;
-    /** Latest row that passed the preview rules. null if the channel has no previewable row */
+    /** Latest row that passed the preview rules (never a thread reply). null if the channel has no previewable row */
     item: CacheChatView | null;
+    /**
+     * Latest row that counts as activity — `item`'s rules with thread replies allowed — so it is `item` or
+     * newer. null if none. Absent from an app build that predates it, which the web answers with a
+     * windowed read for that channel.
+     */
+    activityItem?: CacheChatView | null;
 }
 
 /**
