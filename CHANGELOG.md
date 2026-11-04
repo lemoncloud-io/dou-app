@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-04] - No version updates
+
+### Bug Fixes
+
+- (web,data,mobile) print the last top-level message, time rooms by latest activity (ADR-0285)
+
 ## [2026-11-04] - root@0.147.1, @chatic/desktop-web@0.51.1
 
 ### Bug Fixes
