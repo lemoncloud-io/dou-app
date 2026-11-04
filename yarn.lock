@@ -3492,10 +3492,10 @@
   resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.7.0.tgz#cd7f7a3f7925cb806f3f1e4d676487cb1f09c450"
   integrity sha512-biZGh7tUTsyw6LlovmDaIqyeFMILvclMYnAuzDPotD28Zfe1TbGeGAg1njDPw+5TMevhesWTwDaFNV/EflPVaw==
 
-"@lemoncloud/hybrid-shell@^0.5.0":
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/hybrid-shell/-/hybrid-shell-0.5.0.tgz#2b3c92703696503240a15e7b6550cd6f7fe988a9"
-  integrity sha512-6DIK10usuObTk3BXHbVnzr5rA9hDoaH8/7J5iHSbLLMkJuJaxyBG78fzeCzeDxzQ0XQ0tb6SmtEU9aNCst8L+A==
+"@lemoncloud/hybrid-shell@^0.8.0":
+  version "0.8.0"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/hybrid-shell/-/hybrid-shell-0.8.0.tgz#aaf204a5f458b82bf64cd27d663d806082dd1295"
+  integrity sha512-b0KSx5H1aKaHY8X3KiDmmW1r/hhYATOBwXFM5RIp+KVD2NTVPJhDfwEw+JFVt11Vv30/F+oS6ZybUrkJeH9zTQ==
   dependencies:
     jiti "^2.4.2"
     yaml "^2.9.1"
