@@ -24,9 +24,6 @@ vi.mock('../../pairing/utils/devicePairing', () => ({
     canApprovePairing: (isPairedSession: boolean) => pairingEnv.native && !isPairedSession,
 }));
 
-vi.mock('@chatic/theme', () => ({
-    useTheme: () => ({ theme: 'system', setTheme: vi.fn() }),
-}));
 vi.mock('../../../shared', async () => ({
     ...(await vi.importActual<typeof SharedModule>('../../../shared')),
     VersionInfo: () => null,
@@ -45,7 +42,7 @@ vi.mock('../../chat/components/NotificationSnoozeButton', () => ({
 }));
 
 import '../../../../i18n';
-import { useAppearancePrefsStore, useNotificationPrefsStore } from '../../../shared';
+import { useNotificationPrefsStore } from '../../../shared';
 import { SettingsPage } from './SettingsPage';
 
 const renderPage = () =>
@@ -154,36 +151,5 @@ describe('SettingsPage web sign-in approval entry', () => {
         renderWithApproval();
 
         expect(screen.queryByText('Approve web sign-in')).toBeNull();
-    });
-});
-
-describe('SettingsPage appearance', () => {
-    beforeEach(() => {
-        cleanup();
-        localStorage.clear();
-        useAppearancePrefsStore.setState({ fontSize: 'default', density: 'comfy' });
-    });
-
-    it('updates appearance preview live', () => {
-        renderPage();
-        const preview = screen.getByTestId('appearance-preview');
-        expect(preview.getAttribute('data-font-size')).toBe('default');
-        expect(preview.getAttribute('data-density')).toBe('comfy');
-
-        fireEvent.click(screen.getByRole('radio', { name: 'Large' }));
-        fireEvent.click(screen.getByRole('radio', { name: 'Compact' }));
-
-        expect(preview.getAttribute('data-font-size')).toBe('large');
-        expect(preview.getAttribute('data-density')).toBe('compact');
-        expect(document.documentElement.style.fontSize).toBe('17px');
-        expect(document.documentElement.style.getPropertyValue('--message-row-py')).toBe('0.125rem');
-    });
-
-    it('moves the choice with the arrow keys', () => {
-        renderPage();
-
-        fireEvent.keyDown(screen.getByRole('radio', { name: 'Default' }), { key: 'ArrowRight' });
-
-        expect(useAppearancePrefsStore.getState().fontSize).toBe('large');
     });
 });

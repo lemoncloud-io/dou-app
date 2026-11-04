@@ -7,9 +7,9 @@ import { AppearanceControls } from './AppearanceControls';
 
 /**
  * Display mode, theme, text size, density and language in a popup, so a change is seen on the
- * screen behind it as it is made. The same controls as the Settings page's Appearance card, which
- * stays as it was; this is only a second door to them. Mounted once at the router, like the
- * shortcuts sheet, so the account menu can open it from any page.
+ * screen behind it as it is made. The only place these are set: the Settings page no longer has an
+ * Appearance card. Mounted once at the router, like the shortcuts sheet, so the account menu can
+ * open it from any page.
  */
 export const AppearanceDialog = () => {
     const { t } = useTranslation();

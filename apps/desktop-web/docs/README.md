@@ -11,7 +11,7 @@ are in [`docs/adr/`](../../../docs/adr/).
 | [`auth/`](./auth/)         | How a person gets signed in, and what the app refuses to take as a sign-in              |
 | [`chat/`](./chat/)         | The home screen's conversation surfaces: the sidebar lists, 1:1s, the room and composer |
 | [`shell/`](./shell/)       | The frame around the conversation: rails, sidebar drawer, trailing panels, stacking     |
-| [`settings/`](./settings/) | The Settings page: appearance, notifications, About and reporting a problem             |
+| [`settings/`](./settings/) | The Settings page (notifications, About, reporting a problem) and the Appearance popup  |
 | [`account/`](./account/)   | The account hub: the relay profile, owned clouds, and the terms and privacy policy      |
 | [`places/`](./places/)     | One place from outside the rail: its settings page and the bulk channel manager         |
 | [`pairing/`](./pairing/)   | Device pairing: a browser's sign-in code, approving it, and the account's devices       |

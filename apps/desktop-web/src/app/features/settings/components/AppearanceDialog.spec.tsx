@@ -79,4 +79,29 @@ describe('AppearanceDialog', () => {
 
         expect(useAppearanceDialogStore.getState().isOpen).toBe(false);
     });
+
+    it('updates the appearance preview live', () => {
+        render(<AppearanceDialog />);
+        act(() => useAppearanceDialogStore.getState().setOpen(true));
+        const preview = screen.getByTestId('appearance-preview');
+        expect(preview.getAttribute('data-font-size')).toBe('default');
+        expect(preview.getAttribute('data-density')).toBe('comfy');
+
+        fireEvent.click(screen.getByRole('radio', { name: 'Large' }));
+        fireEvent.click(screen.getByRole('radio', { name: 'Compact' }));
+
+        expect(preview.getAttribute('data-font-size')).toBe('large');
+        expect(preview.getAttribute('data-density')).toBe('compact');
+        expect(document.documentElement.style.fontSize).toBe('17px');
+        expect(document.documentElement.style.getPropertyValue('--message-row-py')).toBe('0.125rem');
+    });
+
+    it('moves the choice with the arrow keys', () => {
+        render(<AppearanceDialog />);
+        act(() => useAppearanceDialogStore.getState().setOpen(true));
+
+        fireEvent.keyDown(screen.getByRole('radio', { name: 'Default' }), { key: 'ArrowRight' });
+
+        expect(useAppearancePrefsStore.getState().fontSize).toBe('large');
+    });
 });

@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-
-import type * as SharedModule from '../../../shared';
 
 const toast = vi.hoisted(() => vi.fn());
 
@@ -14,39 +11,22 @@ vi.mock('@chatic/ui-kit/components/ui/use-toast', async importOriginal => ({
 vi.mock('@chatic/theme', () => ({
     useTheme: () => ({ theme: 'light', setTheme: vi.fn() }),
 }));
-vi.mock('../../../shared', async () => ({
-    ...(await vi.importActual<typeof SharedModule>('../../../shared')),
-    VersionInfo: () => null,
-}));
-vi.mock('../hooks', () => ({
-    useDevicePushMute: () => ({
-        isSupported: false,
-        pushEnabled: false,
-        isPending: false,
-        hasFailed: false,
-        setPushEnabled: vi.fn(),
-    }),
-}));
-vi.mock('../../chat/components/NotificationSnoozeButton', () => ({
-    NotificationSnoozeButton: () => null,
-}));
 
 import { derivePaletteTokens, PRESET_COLORS, useAppearancePrefsStore } from '../../../shared';
-import { SettingsPage } from './SettingsPage';
+import { useAppearanceDialogStore } from '../stores/useAppearanceDialogStore';
+import { AppearanceDialog } from './AppearanceDialog';
 
-const renderPage = () =>
-    render(
-        <MemoryRouter initialEntries={['/settings']}>
-            <SettingsPage />
-        </MemoryRouter>
-    );
+const renderPage = () => {
+    useAppearanceDialogStore.setState({ isOpen: true });
+    return render(<AppearanceDialog />);
+};
 
 const themeGroup = () => screen.getByRole('radiogroup', { name: 'Theme' });
 const customCard = () => within(themeGroup()).getByRole('radio', { name: 'Custom' });
 const colourInput = (name: string) => screen.getByLabelText<HTMLInputElement>(name);
 const shellCss = () => document.getElementById('shell-palette')?.textContent ?? '';
 
-describe('SettingsPage custom theme', () => {
+describe('AppearanceDialog custom theme', () => {
     beforeEach(() => {
         localStorage.clear();
         toast.mockReset();
