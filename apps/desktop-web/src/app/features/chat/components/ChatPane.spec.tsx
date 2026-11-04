@@ -22,7 +22,7 @@ vi.mock('../../../shared', async () => ({
     useAuthorNames: () => new Map(),
     useChannelLabels: () => (channel: { name?: string }) => channel.name ?? '',
     useReadReceipts: () => undefined,
-    useChannelReadCounts: () => () => null,
+    useChannelReadCounts: () => ({ readCountOf: () => null, cursors: [] }),
 }));
 vi.mock('../../channels', () => ({
     useChannelActions: () => ({}),

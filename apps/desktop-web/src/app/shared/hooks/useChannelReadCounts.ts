@@ -12,6 +12,22 @@ export interface ReadCount {
     unreadIds: string[];
 }
 
+/** One member's read position: the highest message number they have reached. */
+export interface MemberReadCursor {
+    userId: string;
+    cursor: number;
+}
+
+export interface ChannelReadCounts {
+    /** Who has and has not read one message, its author left out; null where the room shows no count. */
+    readCountOf: (chatNo: number, authorId: string) => ReadCount | null;
+    /**
+     * Where every other active member has read up to — me left out — in roster order. Empty wherever
+     * `readCountOf` shows nothing, and until my own id is known, so I cannot appear as someone else.
+     */
+    cursors: MemberReadCursor[];
+}
+
 /**
  * Who has read each message of the open room, worked out from every member's join row rather than
  * asked of the server: the rows are already observed here, and a list built from them moves the
@@ -36,11 +52,10 @@ export interface ReadCount {
  *
  * Returns `readCountOf(chatNo, authorId)`, or null from it where the room shows no count: my
  * notes-to-self channel, a room of fewer than two members, before any join row has arrived, and a
- * message no other member was there for.
+ * message no other member was there for. Alongside it, `cursors` gives each other member's read
+ * position, which is what places their face on the message they last read.
  */
-export const useChannelReadCounts = (
-    channel: DomainChannel | undefined
-): ((chatNo: number, authorId: string) => ReadCount | null) => {
+export const useChannelReadCounts = (channel: DomainChannel | undefined): ChannelReadCounts => {
     const { join: joinRepository } = runtime.data.useRuntimeRepositories();
     const channelId = channel?.id ?? null;
     const cid = channel ? channel.cid || RELAY_CLOUD_ID : '';
@@ -99,7 +114,7 @@ export const useChannelReadCounts = (
 
     const showsCounts = !!channel && channelKind(channel) !== 'self' && activeMembers.length >= 2;
 
-    return useCallback(
+    const readCountOf = useCallback(
         (chatNo: number, authorId: string): ReadCount | null => {
             if (!showsCounts) return null;
             const readIds: string[] = [];
@@ -113,4 +128,16 @@ export const useChannelReadCounts = (
         },
         [showsCounts, activeMembers]
     );
+
+    const cursors = useMemo(
+        () =>
+            showsCounts && userId
+                ? activeMembers
+                      .filter(member => member.userId !== userId)
+                      .map(({ userId: memberId, cursor }) => ({ userId: memberId, cursor }))
+                : [],
+        [showsCounts, activeMembers, userId]
+    );
+
+    return useMemo(() => ({ readCountOf, cursors }), [readCountOf, cursors]);
 };
