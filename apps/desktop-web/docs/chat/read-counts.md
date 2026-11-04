@@ -1,44 +1,70 @@
 # Read counts
 
-A room shows who has read a message, as a small pill under it: the faces of the first three members
-who read it (the rest as `+N`), then `읽음 5 · 미확인 7` (Seen 5 · Not seen 7). Once every member it was
-meant for has read it, the second half goes and the pill reads `읽음 12`.
+A room shows how far each member has read by putting their face on the message they stopped at, under
+its body and aligned with its text. Members who stopped at the same message share one marker: the
+faces of the first three, the rest as `+N`. Read down the room and the faces trace how far everyone
+has got — the closer to the newest message, the more of the room they have read.
+
+A marker is only faces. The counts (`Seen 5 · Not seen 7`, `읽음 5 · 미확인 7`) are not drawn; they are
+the marker's accessible name, so a screen reader still hears them, and the card the marker opens shows
+them as its tab labels.
 
 ## Who read it
 
-Clicking the pill opens a card above it with two tabs, `읽음 N` and `미확인 M`, each listing those
-members by face and name; Seen is the tab it opens on. It opens on click, not hover: a hover card
-closes as the pointer leaves the pill, so reaching the Not seen tab meant crossing a gap the card
-did not always survive, and the tab could not be clicked. The card stays open until a second click on
-the pill, Escape, or a click or focus move outside it. Enter or Space on the pill opens it from the
-keyboard; either way focus moves into the card so the tabs and lists are reachable. Escape puts focus
-back on the pill; clicking or tabbing elsewhere leaves it where the reader moved it. The component is
-`ReadReceiptPill`.
+Clicking a marker opens a card above it with two tabs, `Seen N` and `Not seen M`, each listing those
+members by face and name; Seen is the tab it opens on. The card is about the message the marker sits
+on, not only about the members drawn on it: Seen lists everyone whose read position has reached that
+message, so a member further down the room is in it too, and Not seen lists those it was meant for who
+have not got there. It opens on click, not hover: a hover card closes as the pointer leaves the marker,
+so reaching the Not seen tab meant crossing a gap the card did not always survive, and the tab could
+not be clicked. The card stays open until a second click on the marker, Escape, or a click or focus
+move outside it. Enter or Space on the marker opens it from the keyboard; either way focus moves into
+the card so the tabs and lists are reachable. Escape puts focus back on the marker; clicking or tabbing
+elsewhere leaves it where the reader moved it. The component is `ReadReceiptPill`.
 
 A member is named the way a message author is: the place nickname first, then the roster's name, my
 own id resolving to me. The face comes from the place profile, else the roster's. A member nothing
 names yet still gets a row, under the `-` placeholder, so the list never disagrees with the count.
 
-## Where the pill appears
+## Where a marker appears
 
-- Under the **last message of each author block**, not under every message. Every earlier message in
-  the block has been read at least as far, so a pill on each would repeat the same story.
-- Only in the main feed. The thread panel renders the same `MessageList` without a count.
+A member's read position is a message number, and it does not have to be one this room shows —
+reactions and system events use up numbers too. `placeReadMarkers` (in `src/app/features/chat/utils/`)
+lowers each position to the nearest shown message at or below it, which is the last message that member
+is known to have reached.
+
+- One marker per message that someone stopped at. A message nobody stopped at has none.
+- A message still being sent, one that failed, and a deleted one carry no marker; their members are
+  placed on the last settled message below. The first two have no server number yet, and a deleted
+  message has nothing left to read.
+- A member whose read position is below the first message that is loaded is placed nowhere: the
+  position points into history the room has not paged in, so it is not guessed onto a row. That member
+  is still in the card's Not seen tab.
+- A member is not placed on a message from before they joined. Joining writes the room's latest number
+  into their read position, so a late joiner's position runs past messages they never saw; the card's
+  lists leave them out for those messages, and a face there would open a list without the person it
+  shows. Their face appears on the first message after they joined that their position has reached.
+- A message's author is not drawn on their own message, as they are on neither list of it. A member
+  whose last read message is their own therefore has no face until they read one of someone else's.
+- I am never drawn. My own position says nothing the reader does not know, and it would add a face to
+  every room. I am in the card's lists like everyone else.
 - Not in my notes-to-self channel, and not in a room with fewer than two active members.
-- Not under a message still being sent, one that failed, or a deleted one: the first two have no
-  server number yet, and a deleted message has nothing left to read.
-- Not until the first join row has arrived, so a room never flashes "0 seen" while it loads.
-- Not under a message no other member was there for — everyone else joined after it — rather than an
-  empty `읽음 0`.
+- Not until the first join row has arrived, so a room never flashes markers while it loads.
+- Not on a message no other member was there for — everyone else joined after it.
+- The thread panel draws them too, among the root and its replies. Read positions are per channel, not
+  per thread: a member who has read the main feed past a reply counts as having read it, whether or not
+  they opened the thread, and a member past the last reply is placed on the last reply. The server does
+  not report when a thread was opened, so the panel cannot tell the two apart.
 
 ## How the numbers are counted
 
-`useChannelReadCounts` (in `src/app/shared/hooks/`) gives `ChatPane` a `readCountOf(chatNo, authorId)`,
-which `MessageList` asks once per author block. It answers with two lists of member ids — who has read
-the message and who has not — and the pill's numbers are their lengths. The lists are worked out here
-from join rows the app already observes, not asked of the server: the server team proposed it that way,
-because every row needed is already on hand and the lists then move the moment a member reads, where an
-API answer is a snapshot that would have to be fetched again.
+`useChannelReadCounts` (in `src/app/shared/hooks/`) gives `ChatPane` and `ThreadPanel` two things: `cursors`, the read
+position of every other member still in the room, and `readCountOf(chatNo, authorId)`, which answers for
+one message with two lists of member ids — who has read it and who has not. `MessageList` places the
+cursors on the shown messages and asks `readCountOf` only for the messages that carry a marker. The
+lists are worked out here from join rows the app already observes, not asked of the server: the server
+team proposed it that way, because every row needed is already on hand and the lists then move the
+moment a member reads, where an API answer is a snapshot that would have to be fetched again.
 
 A message is meant for a member when all three hold:
 
@@ -55,13 +81,14 @@ Of those members, one whose read position has reached the message is **Seen**; t
   server answers, so my count moves at once.
 - A member whose row has not synced yet is on neither list until it lands — never as seen. The total
   grows as rows arrive.
+- `cursors` is empty until my own user id is known, so I can never appear as someone else.
 - The mobile app has neither the author nor the `joinedNo` test: it counts the author as having seen
   their own message, and a member who joined later as having seen everything before them. For the same
   message the desktop's Seen number is lower by one plus the number of those later arrivals.
 
 ## Keeping other members' positions live
 
-The sidebar only keeps **my** join row current, which is all an unread badge needs. Read counts need
+The sidebar only keeps **my** join row current, which is all an unread badge needs. Read markers need
 everybody's, so while a room is open a join sync is registered for every member of it, in the room's
 own cloud. Two gates hold the registration back:
 
@@ -75,5 +102,7 @@ Leaving the room disposes them.
 
 ## Rendering cost
 
-`MessageRow` is memoised with a comparator that compares the two member lists by value. A join update that moves
-one block's count re-renders that block only, not the whole feed.
+`MessageRow` is memoised with a comparator that compares its markers by value, so a join update that
+leaves a row's marker and its lists unchanged does not redraw that row. A member reading on changes the
+rows they left and arrived at, and also the lists of every marker in between — they move from Not seen
+to Seen there — so those redraw too; the rest of the feed does not.

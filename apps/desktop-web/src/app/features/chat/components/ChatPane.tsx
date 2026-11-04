@@ -183,8 +183,8 @@ export const ChatPane = ({
 
     // Report read position while this channel is open + the window is focused.
     useReadReceipts(channelId, messages, channel ? channel.cid || RELAY_CLOUD_ID : '');
-    // How far each member has read, for the count under each author block.
-    const readCountOf = useChannelReadCounts(channel);
+    // How far each member has read: the faces on the message they stopped at, and the list behind them.
+    const { readCountOf, cursors: readCursors } = useChannelReadCounts(channel);
 
     // A notification click asks this channel to open at its latest message (the pinged
     // one) rather than the unread divider. Read the one-shot flag for THIS channel and
@@ -392,6 +392,7 @@ export const ChatPane = ({
                     membersLoading={membersLoading}
                     baselineReadNo={baselineReadNo}
                     readCountOf={readCountOf}
+                    readCursors={readCursors}
                     onRetry={composer.retry}
                     canRetry={composer.canRetry}
                     onDiscard={composer.discard}

@@ -57,7 +57,7 @@ import { EmojiPicker } from './EmojiPicker';
 import { MessageFiles, MessageImages } from './images';
 import { LinkPreviewCard } from './LinkPreviewCard';
 import type { Mentionable } from './MentionAutocomplete';
-import { ReadReceiptPill, type ReadPerson } from './ReadReceiptPill';
+import { ReadReceiptPill, type ReadMarker } from './ReadReceiptPill';
 import { ReactionBar } from './ReactionBar';
 import { BlockKitMessage, blocksToPlainText, resolveChatBlocks } from '@chatic/block-kit';
 
@@ -118,10 +118,10 @@ interface MessageRowProps {
      */
     hideSavedMark?: boolean;
     /**
-     * Who has and has not read the block's last settled message, shown under the message it names.
-     * Absent: no count (thread panel, self channel).
+     * The members who stopped reading at a message of this block, keyed by that message's chatNo; each
+     * is drawn under its message body. Absent: no marker on any of them.
      */
-    readCount?: { chatNo: number; readers: ReadPerson[]; nonReaders: ReadPerson[] };
+    readMarkers?: Readonly<Record<number, ReadMarker>>;
 }
 
 /**
@@ -230,7 +230,7 @@ export const MessageRow = memo(
         highlightChatNo,
         withDayInTime,
         hideSavedMark,
-        readCount,
+        readMarkers,
     }: MessageRowProps) => {
         const { t } = useTranslation();
         // Pointer devices hide the toolbar until hover; touch shows it always, so it is
@@ -469,6 +469,7 @@ export const MessageRow = memo(
                             // to something the row says is gone, with no way to add or remove one
                             // because the toolbar is gone too.
                             const tallies = message.id && !message.hidden ? reactions?.get(message.id) : undefined;
+                            const readMarker = message.chatNo != null ? readMarkers?.[message.chatNo] : undefined;
                             // A row the server has accepted: it has an id to address and is neither
                             // in flight nor failed. Every toolbar action needs exactly this.
                             const isSettled = !!message.id && !isPending && !isFailed;
@@ -669,14 +670,8 @@ export const MessageRow = memo(
                                             {t('chat.reaction.failed')}
                                         </span>
                                     )}
-                                    {/* Under the block's last settled message only — every earlier one
-                                        has been read at least as far. */}
-                                    {readCount && readCount.chatNo === message.chatNo && (
-                                        <ReadReceiptPill
-                                            readers={readCount.readers}
-                                            nonReaders={readCount.nonReaders}
-                                        />
-                                    )}
+                                    {/* The members who stopped reading here, under the message body. */}
+                                    {readMarker && <ReadReceiptPill {...readMarker} />}
                                     {/* Slack-style action toolbar: an elevated pill at a FIXED
                                     far-right position (spatial muscle memory), aligned with the
                                     message's first line so it stays inside the hover band. It
@@ -1048,7 +1043,7 @@ export const MessageRow = memo(
         // one message changed. Everything else compares by identity as before;
         // those two compare only the entries this block actually reads.
         for (const k of Object.keys(next) as (keyof MessageRowProps)[]) {
-            if (k === 'reactions' || k === 'threadMeta' || k === 'group' || k === 'readCount') continue;
+            if (k === 'reactions' || k === 'threadMeta' || k === 'group' || k === 'readMarkers') continue;
             if (prev[k] !== next[k]) return false;
         }
         // The group object is rebuilt on every feed change too; what matters is
@@ -1056,7 +1051,7 @@ export const MessageRow = memo(
         // hands back a new object only for a message that actually changed).
         if (!sameGroup(prev.group, next.group)) return false;
         // A fresh object per render; only its fields matter.
-        if (!sameEntry(prev.readCount, next.readCount)) return false;
+        if (!sameEntry(prev.readMarkers, next.readMarkers)) return false;
         for (const message of next.group.messages) {
             if (message.id && !sameEntry(prev.reactions?.get(message.id), next.reactions?.get(message.id))) {
                 return false;

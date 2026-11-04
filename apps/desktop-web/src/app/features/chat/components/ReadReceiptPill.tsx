@@ -13,12 +13,16 @@ export interface ReadPerson {
     thumbnail?: string;
 }
 
-interface ReadReceiptPillProps {
+export interface ReadMarker {
+    /** The members whose last read message is the one this sits on — the faces drawn. */
+    faces: ReadPerson[];
+    /** Everyone who has read that message, for the list the faces open. */
     readers: ReadPerson[];
+    /** Everyone it was meant for who has not, for the same list. */
     nonReaders: ReadPerson[];
 }
 
-/** Faces drawn in the pill before the rest collapse into "+N". */
+/** Faces drawn before the rest collapse into "+N". */
 const STACK_SIZE = 3;
 const TAB_TRIGGER =
     '-mb-px rounded-none border-b-2 border-transparent px-0 py-2.5 data-[state=active]:border-foreground data-[state=active]:shadow-none';
@@ -47,26 +51,35 @@ const PersonList = ({ people, empty }: { people: ReadPerson[]; empty: string }) 
     );
 
 /**
- * The read count under an author block, with the faces of the first few who read it. Clicking it
- * opens a card listing who has read the message and who has not, a tab each. It opens on click
- * rather than on hover so the card stays put while the pointer travels to the Not seen tab.
+ * The faces of the members who stopped reading at this message, under its body and aligned with
+ * its text. Not at the row's far edge: on a wide window that leaves the faces a screen away from
+ * the message they belong to.
+ * Clicking them opens a card listing who has read the message and who has not, a tab each. It opens
+ * on click rather than on hover so the card stays put while the pointer travels to the Not seen tab.
+ * The counts are not drawn: the faces are the whole of the row, and the button's name carries the
+ * counts for a screen reader.
  */
-export const ReadReceiptPill = ({ readers, nonReaders }: ReadReceiptPillProps) => {
+export const ReadReceiptPill = ({ faces, readers, nonReaders }: ReadMarker) => {
     const { t } = useTranslation();
 
     const read = readers.length;
     const unread = nonReaders.length;
-    const stacked = readers.slice(0, STACK_SIZE);
-    const more = read - stacked.length;
+    const stacked = faces.slice(0, STACK_SIZE);
+    const more = faces.length - stacked.length;
 
     return (
-        <Popover>
-            <PopoverTrigger asChild>
-                <button
-                    type="button"
-                    className="focus-ring mt-1 flex w-fit items-center gap-1.5 rounded-full bg-muted py-1 pl-1 pr-2 text-caption font-medium tabular-nums text-muted-foreground"
-                >
-                    {stacked.length > 0 && (
+        <div className="mt-1 flex">
+            <Popover>
+                <PopoverTrigger asChild>
+                    <button
+                        type="button"
+                        aria-label={
+                            unread > 0
+                                ? t('chat.readCount.summary', { read, unread })
+                                : t('chat.readCount.allSeen', { read })
+                        }
+                        className="focus-ring flex w-fit items-center rounded-full bg-muted p-1 tabular-nums text-muted-foreground"
+                    >
                         <span aria-hidden className="flex items-center -space-x-1.5">
                             {stacked.map(person => (
                                 <Face key={person.id} person={person} className="h-5 w-5 text-nano ring-2 ring-muted" />
@@ -77,37 +90,32 @@ export const ReadReceiptPill = ({ readers, nonReaders }: ReadReceiptPillProps) =
                                 </span>
                             )}
                         </span>
-                    )}
-                    <span className={stacked.length > 0 ? undefined : 'pl-1'}>
-                        {unread > 0
-                            ? t('chat.readCount.summary', { read, unread })
-                            : t('chat.readCount.allSeen', { read })}
-                    </span>
-                </button>
-            </PopoverTrigger>
-            <PopoverContent
-                align="start"
-                side="top"
-                className="w-64 overflow-hidden p-0"
-                aria-label={t('chat.readCount.listLabel')}
-            >
-                <Tabs defaultValue="read">
-                    <TabsList className="flex h-auto w-full justify-start gap-4 rounded-none border-b border-hairline bg-transparent px-4 py-0">
-                        <TabsTrigger value="read" className={TAB_TRIGGER}>
-                            {t('chat.readCount.tabSeen', { count: read })}
-                        </TabsTrigger>
-                        <TabsTrigger value="unread" className={TAB_TRIGGER}>
-                            {t('chat.readCount.tabNotSeen', { count: unread })}
-                        </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="read" className="mt-0">
-                        <PersonList people={readers} empty={t('chat.readCount.noneSeen')} />
-                    </TabsContent>
-                    <TabsContent value="unread" className="mt-0">
-                        <PersonList people={nonReaders} empty={t('chat.readCount.everyoneSeen')} />
-                    </TabsContent>
-                </Tabs>
-            </PopoverContent>
-        </Popover>
+                    </button>
+                </PopoverTrigger>
+                <PopoverContent
+                    align="start"
+                    side="top"
+                    className="w-64 overflow-hidden p-0"
+                    aria-label={t('chat.readCount.listLabel')}
+                >
+                    <Tabs defaultValue="read">
+                        <TabsList className="flex h-auto w-full justify-start gap-4 rounded-none border-b border-hairline bg-transparent px-4 py-0">
+                            <TabsTrigger value="read" className={TAB_TRIGGER}>
+                                {t('chat.readCount.tabSeen', { count: read })}
+                            </TabsTrigger>
+                            <TabsTrigger value="unread" className={TAB_TRIGGER}>
+                                {t('chat.readCount.tabNotSeen', { count: unread })}
+                            </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="read" className="mt-0">
+                            <PersonList people={readers} empty={t('chat.readCount.noneSeen')} />
+                        </TabsContent>
+                        <TabsContent value="unread" className="mt-0">
+                            <PersonList people={nonReaders} empty={t('chat.readCount.everyoneSeen')} />
+                        </TabsContent>
+                    </Tabs>
+                </PopoverContent>
+            </Popover>
+        </div>
     );
 };
