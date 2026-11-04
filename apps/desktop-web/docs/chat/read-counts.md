@@ -44,6 +44,8 @@ is known to have reached.
   into their read position, so a late joiner's position runs past messages they never saw; the card's
   lists leave them out for those messages, and a face there would open a list without the person it
   shows. Their face appears on the first message after they joined that their position has reached.
+- A message's author is not drawn on their own message, as they are on neither list of it. A member
+  whose last read message is their own therefore has no face until they read one of someone else's.
 - I am never drawn. My own position says nothing the reader does not know, and it would add a face to
   every room. I am in the card's lists like everyone else.
 - Not in my notes-to-self channel, and not in a room with fewer than two active members.

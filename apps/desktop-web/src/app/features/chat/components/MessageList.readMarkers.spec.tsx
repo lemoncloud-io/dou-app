@@ -135,6 +135,21 @@ describe('MessageList read markers', () => {
         expect(markerIn('message 3')).toBeNull();
     });
 
+    it('leaves a message’s author off their own message, as the list does', () => {
+        // m0 wrote message 1 and has read to it; m1 stopped there too. Only m1 is a reader of it.
+        renderList([message(1, 'm0')], [at('m0', 1), at('m1', 1)]);
+
+        const marker = markerIn('message 1') as HTMLElement;
+        expect(within(marker).getByText('레')).toBeDefined();
+        expect(within(marker).queryByText('S')).toBeNull();
+    });
+
+    it('draws no marker when the only member at a message is its author', () => {
+        renderList([message(1, 'm0')], [at('m0', 1)]);
+
+        expect(screen.queryByRole('button', { name: /Seen/ })).toBeNull();
+    });
+
     it('puts no face on a message from before the member joined, where the list would not name them', () => {
         // The member's cursor is past message 2, but they joined after it: the list for that message
         // never includes them, so a face there would open a list without the person it shows.

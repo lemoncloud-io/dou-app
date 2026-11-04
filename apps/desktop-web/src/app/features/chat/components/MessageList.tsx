@@ -915,9 +915,10 @@ export const MessageList = ({
                     if (readPlacements && readCountOf) {
                         for (const settled of row.group.messages) {
                             if (!isCountable(settled)) continue;
-                            const members = readPlacements.get(settled.chatNo);
-                            const count = members ? readCountOf(settled.chatNo, settled.ownerId ?? '') : null;
-                            if (!members || !count) continue;
+                            // The author is on neither list of their own message, so no face for them either.
+                            const members = readPlacements.get(settled.chatNo)?.filter(id => id !== settled.ownerId);
+                            const count = members?.length ? readCountOf(settled.chatNo, settled.ownerId ?? '') : null;
+                            if (!members?.length || !count) continue;
                             readMarkers = {
                                 ...readMarkers,
                                 [settled.chatNo]: {
