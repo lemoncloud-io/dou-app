@@ -40,7 +40,7 @@ import { useLastChatSenders } from '../hooks/useLastChatSenders';
 import { isSomeoneElsesSelfChat } from '../../channels/utils/membership';
 import type { ChannelSortMethod } from '../../../stores/preferenceKeys';
 import { ROUTES } from '../../../routes/paths';
-import { useLastChats } from '../../../hooks/useLastChats';
+import { useLastActivities, useLastChats } from '../../../hooks/useLastChats';
 import { readSelectedCloudId } from '../../../hooks/useCloudScope';
 import { useBlurLastMessage, useChannelUnreads, useMyProfile } from '../../../hooks';
 import { divergenceReporter } from '../../../runtime/logging/divergenceReporter';
@@ -93,6 +93,7 @@ const ChannelItem = ({
     mentionOnly,
     myMemberId,
     lastChat,
+    lastActivity,
     lastChatSender,
 }: {
     channel: DomainChannel;
@@ -117,6 +118,11 @@ const ChannelItem = ({
      * (ADR-0057) — not a per-row cache window. Undefined when the channel has nothing to preview.
      */
     lastChat?: DomainChat;
+    /**
+     * The room's latest activity (list-level useLastActivities) — a thread reply included, where
+     * `lastChat` never is. Its time is the one the row prints, and the list is ordered by it.
+     */
+    lastActivity?: DomainChat;
     /** Who wrote `lastChat`, for a group room (list-level useLastChatSenders). Undefined otherwise. */
     lastChatSender?: string;
 }) => {
@@ -165,7 +171,10 @@ const ChannelItem = ({
     // Code in that line gets no badge or monospace: that would complicate the row and tangle with
     // blurLastMessage.
     const preview = lastChatPreview(lastChat, t, lastChatSender);
-    const time = lastChat?.createdAt ? formatTime(lastChat.createdAt) : '';
+    // The time is the room's latest activity, so a thread reply moves it while the line above stays on
+    // the last message the room shows. `lastChat` stands in when no activity is known.
+    const activity = lastActivity ?? lastChat;
+    const time = activity?.createdAt ? formatTime(activity.createdAt) : '';
 
     // An unread last message that calls me leads its line with "@me" — the record decides, as it
     // does for the push and the room's highlight, never the text. Mine never calls me, and once the
@@ -461,6 +470,7 @@ export const ChannelList = ({
     // by the host's useChatSyncRegistration, so rendering a row never makes a network call.
     // Previews are windowed by my join cursor so a re-joined room shows no pre-leave message (ADR-0067).
     const lastChats = useLastChats(channels, joinByChannel);
+    const lastActivities = useLastActivities(channels, joinByChannel);
     // A group row's line names who wrote it, through ONE list-level profile subscription as well.
     const lastChatSenders = useLastChatSenders(sid, channels, lastChats);
 
@@ -537,13 +547,13 @@ export const ChannelList = ({
         () =>
             sortChannels({
                 channels,
-                lastChatByChannel: lastChats,
+                lastChatByChannel: lastActivities,
                 unreadByChannel,
                 sortMethod,
                 pinnedChannelIds,
                 leadsWithSelf,
             }),
-        [channels, lastChats, unreadByChannel, sortMethod, pinnedChannelIds, leadsWithSelf]
+        [channels, lastActivities, unreadByChannel, sortMethod, pinnedChannelIds, leadsWithSelf]
     );
 
     // "그룹방 만들기" is the real action on a cloud; on relay it rides along ONLY as an upsell for
@@ -682,6 +692,7 @@ export const ChannelList = ({
                                 mentionOnly={notifyLevel === 'mention'}
                                 myMemberId={join?.userId}
                                 lastChat={lastChats.get(channel.id)}
+                                lastActivity={lastActivities.get(channel.id)}
                                 lastChatSender={lastChatSenders.get(channel.id)}
                             />
                         </SwipeActionRow>

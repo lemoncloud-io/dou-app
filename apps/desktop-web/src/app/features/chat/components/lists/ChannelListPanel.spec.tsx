@@ -233,9 +233,21 @@ describe('ChannelListPanel', () => {
     it('marks a previewed thread reply, and opens its thread when the row is picked', () => {
         const { onSelect } = renderPanel([channel('general')]);
         const reply = { ...chat('general', 9, 'new domain API mounting', NOW - MIN, 'Aiden'), parentId: '7' };
-        act(() => emit([{ channelId: 'general', lastNo: 9, chat: reply as DomainChat }]));
+        // The shared reading keeps `chat` on the last top-level message; the desktop list prints the
+        // newer `activity`, which is the reply.
+        act(() =>
+            emit([
+                {
+                    channelId: 'general',
+                    lastNo: 9,
+                    chat: chat('general', 7, 'top-level message', NOW - 10 * MIN, 'Ada'),
+                    activity: reply as DomainChat,
+                },
+            ])
+        );
 
         expect(rows()[0]).toContain('[Thread] Aiden: new domain API mounting');
+        expect(rows()[0]).not.toContain('top-level message');
         fireEvent.click(screen.getByText(/new domain API mounting/));
 
         expect(onSelect).toHaveBeenCalledTimes(1);

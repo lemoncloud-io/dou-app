@@ -13,17 +13,17 @@ the last message as `sender: text` and the unread count. A DM row: the person's 
 the last message — prefixed "You:" when it is mine, unprefixed when it is theirs, since a 1:1 has only
 the two senders; my notes-to-self room never prefixes, every message there being mine. A room with nothing cached says "No messages yet". The preview text is
 `messagePreview`, the line an OS banner uses, so an attachment-only message reads as what it carries.
-A thread reply leads with a `[Thread]` mark (`markThreadReply`), in front of the sender, so it does
-not read as a message in the room itself — the same mark web and mobile print.
+The preview is the room's latest message, a thread reply included. Web and mobile print the last
+top-level message and take only the time and order from the latest activity, but the desktop lists keep
+printing the reply: they read the shared `activity` (`useLastChats`), not `chat`. The room's feed leaves
+replies to the thread panel, so a reply leads with a `[Thread]` mark (`markThreadReply`) and opening
+the row opens the thread, below.
 
 ## What picking a row opens
 
-The room — and, when the row's preview is a thread reply, that reply's thread too. The previewable
-rule is shared with web and mobile, and it admits thread replies, so a room whose conversation moved
-into a thread previews the reply. The room's feed leaves replies to the thread panel, so opening only
-the room would show nothing of the line the row printed. The pick names the reply's thread root
-(`usePickConversation`) and the host opens it the way a saved item or a mention click does — inline
-when the room is already open, after the switch otherwise.
+The room — and, when the row's preview is a thread reply, that reply's thread too. The pick names the
+reply's thread root (`usePickConversation`) and the host opens it the way a saved item or a mention click does
+— inline when the room is already open, after the switch otherwise.
 
 ## Who a DM row names
 

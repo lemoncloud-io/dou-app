@@ -1,6 +1,6 @@
 # ADR-0242: A thread reply can stand as a room's home preview
 
-> Status: Accepted · Decided: 2026-10-27
+> Status: Superseded by [ADR-0285](./0285-the-home-line-is-the-last-top-level-message-and-its-time-the-latest-activity.md) · Decided: 2026-10-27
 > Scope: `libs/data/src/domain/chatPreview.ts` (`isPreviewableChat`) ·
 > `apps/web/src/app/features/channels/utils/lastChatPreview.ts` ·
 > `apps/web/src/app/features/home/hooks/useLastChatSenders.ts` ·

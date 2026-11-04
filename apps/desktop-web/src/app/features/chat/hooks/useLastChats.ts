@@ -61,7 +61,7 @@ const pump = (chatRepository: ChatRepository, queue: FreshnessQueue) => {
 };
 
 /**
- * The last previewable message of every channel in a list, from one cache observation
+ * The latest message of every channel in a list, a thread reply included, from one cache observation
  * (`chat.observeLastList`) instead of a subscription per row. The per-row `useLastChat` stays for
  * the Home sidebar, whose rows show a preview only on hover.
  *
@@ -102,7 +102,11 @@ export const useLastChats = (channels: DomainChannel[]): Map<string, DomainChat>
             const lastNo = new Map<string, number>();
             for (const row of result) {
                 lastNo.set(row.channelId, row.lastNo);
-                if (row.chat) last.set(row.channelId, row.chat);
+                // The room's latest activity, a thread reply included: the desktop list prints and
+                // orders by it and opens the reply's thread, so it does not take web's top-level `chat`.
+                // `chat` stands in for an `activity` that is absent.
+                const latest = row.activity ?? row.chat;
+                if (latest) last.set(row.channelId, latest);
             }
             setRows({ last, lastNo });
         });

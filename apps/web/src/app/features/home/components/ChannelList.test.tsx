@@ -41,7 +41,16 @@ jest.mock('../../../hooks/useLastChats', () => ({
     useLastChats: () => ({
         get: (channelId: string) => mockLastChatByChannel?.get(channelId) ?? mockLastChat ?? undefined,
     }),
+    // The room's latest activity: the line's message unless a case seeds a newer one (a thread reply).
+    useLastActivities: () => ({
+        get: (channelId: string) =>
+            mockLastActivityByChannel?.get(channelId) ??
+            mockLastChatByChannel?.get(channelId) ??
+            mockLastChat ??
+            undefined,
+    }),
 }));
+let mockLastActivityByChannel: Map<string, any> | null = null;
 
 // A group row's sender, from the list-level lookup (covered by useLastChatSenders.test.ts). Empty by
 // default, so every other case reads its line without a sender.
@@ -287,6 +296,30 @@ describe('ChannelList self-chat row', () => {
         const titles = screen.getAllByTestId('row-title').map(el => el.textContent);
         expect(titles).toEqual(['B방', 'A방']); // b(last message 200) before a(100)
         mockLastChatByChannel = null;
+    });
+
+    it('orders by the latest activity while the line stays on the last message the room shows', () => {
+        // a's newest message is a thread reply (300); its line is still the older top-level message (100).
+        mockLastChatByChannel = new Map([
+            ['a', { content: 'a의 일반 메시지', createdAtMs: 100 }],
+            ['b', { content: 'b의 마지막', createdAtMs: 200 }],
+        ]);
+        mockLastActivityByChannel = new Map([['a', { content: 'a의 스레드 답글', parentId: 'a:1', createdAtMs: 300 }]]);
+        render(
+            <ChannelList
+                channels={[
+                    makeChannel({ id: 'a', stereo: 'group', memberNo: 1, name: 'A방' }),
+                    makeChannel({ id: 'b', stereo: 'group', memberNo: 1, name: 'B방' }),
+                ]}
+                isLoading={false}
+            />
+        );
+
+        expect(screen.getAllByTestId('row-title').map(el => el.textContent)).toEqual(['A방', 'B방']);
+        expect(screen.getByText('a의 일반 메시지')).toBeInTheDocument();
+        expect(screen.queryByText('a의 스레드 답글')).not.toBeInTheDocument();
+        mockLastChatByChannel = null;
+        mockLastActivityByChannel = null;
     });
 
     // The place's chat-room section holds its group rooms and its 1:1s together: one list, one order.

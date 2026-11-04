@@ -1,7 +1,13 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
 import type { CacheChatView, ChatQueryOptions, LastChatItem } from '@chatic/bridge-messages';
 import type { DomainChat, DomainLastChat, DomainListResult } from '../../domain';
-import { createDomainListResult, isPreviewableChat, pickPreviewChat } from '../../domain';
+import {
+    createDomainListResult,
+    isActivityChat,
+    isPreviewableChat,
+    pickActivityChat,
+    pickPreviewChat,
+} from '../../domain';
 import type { DataContextProvider } from '../../repositories/types';
 import type { ScopedCacheStorage } from '../ports';
 import {
@@ -148,8 +154,23 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
                 // `{ lastNo: 0, item: null }` for a channel with no rows is a valid answer ("no
                 // preview"), so it does not fall back. Only channels missing from the response or
                 // failing revalidation do.
-                if (!row || (row.item && !isPreviewableChat(row.item))) fallbackIds.push(channelId);
-                else byChannel.set(channelId, { channelId, lastNo: row.lastNo ?? 0, chat: row.item ?? null });
+                //
+                // A row without `activityItem` came from an app build that predates it, so the
+                // channel is read through the window rather than guessed at.
+                const valid =
+                    !!row &&
+                    row.activityItem !== undefined &&
+                    (!row.item || isPreviewableChat(row.item)) &&
+                    (!row.activityItem || isActivityChat(row.activityItem));
+                if (!row || !valid) fallbackIds.push(channelId);
+                else {
+                    byChannel.set(channelId, {
+                        channelId,
+                        lastNo: row.lastNo ?? 0,
+                        chat: row.item ?? null,
+                        activity: row.activityItem ?? null,
+                    });
+                }
             }
         } else {
             fallbackIds.push(...validIds);
@@ -160,7 +181,12 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
                 const page = await this.cacheReadList({ channelId, limit: LAST_CHAT_FALLBACK_LOOKBACK }, scope);
                 const list = page?.list ?? [];
                 const lastNo = list.reduce((max, chat) => Math.max(max, chat.chatNo ?? 0), 0);
-                const row: DomainLastChat = { channelId, lastNo, chat: pickPreviewChat(list) ?? null };
+                const row: DomainLastChat = {
+                    channelId,
+                    lastNo,
+                    chat: pickPreviewChat(list) ?? null,
+                    activity: pickActivityChat(list) ?? null,
+                };
                 byChannel.set(channelId, row);
             })
         );
