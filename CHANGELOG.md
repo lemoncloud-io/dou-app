@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-04] - root@0.145.0, @chatic/desktop-web@0.49.0
+
+### Features
+
+- (desktop-web) draw a received HTML page in a permission-less frame
+- (data,web) take an HTML page as an attachment, from desktop only
+
 ## [2026-11-04] - root@0.144.1, @chatic/desktop-web@0.48.1
 
 ### Refactor
