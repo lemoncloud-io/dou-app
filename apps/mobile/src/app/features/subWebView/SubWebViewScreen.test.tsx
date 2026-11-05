@@ -40,7 +40,7 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../hooks', () => ({ useResolvedTheme: () => ({ isDark: false, backgroundColor: '#FFFFFF' }) }));
 jest.mock('../../utils', () => ({ t: (key: string) => key }));
 jest.mock('../../services', () => ({
-    DEFAULT_SUB_WEBVIEW_MANIFEST: { permissions: new Set(), display: 'standard', orientation: 'any' },
+    DEFAULT_SUB_WEBVIEW_MANIFEST: { permissions: new Set(), display: 'fullscreen', orientation: 'any' },
     subWebViewService: { close: (...args: unknown[]) => mockClose(...args) },
     subWebViewManifestStore: { get: (origin: string) => mockManifestGet(origin) },
 }));
@@ -133,6 +133,22 @@ describe('SubWebViewScreen', () => {
         await act(async () => undefined);
 
         expect(mockWebViewProps).toEqual(expect.objectContaining({ permissions: new Set() }));
+    });
+
+    // The bar is opt-in: a page whose manifest says nothing, or is missing, gets only the floating close.
+    it('draws no bar for a page with no manifest, and still offers a way out', async () => {
+        mockManifestGet.mockRejectedValue(new Error('unexpected'));
+        mockExposeHandle = true;
+        const navigation = { goBack: jest.fn(), canGoBack: jest.fn(() => true), setOptions: jest.fn() };
+        const route = {
+            params: { viewId: 'view-1', url: 'https://foo.apps.chatic.io/a', title: 'From web', params: {} },
+        };
+        const view = render(<SubWebViewScreen route={route as any} navigation={navigation as any} />);
+        await act(async () => undefined);
+
+        expect(view.container.textContent).not.toContain('From web');
+        pressClose();
+        expect(mockRequestCloseHandle).toHaveBeenCalledWith('control');
     });
 
     it("hands the view the manifest's permissions", async () => {

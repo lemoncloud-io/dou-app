@@ -2,7 +2,7 @@
 
 A Chatic app is a web page that opens inside the DoU app, over everything else, at
 `https://<name>.apps.chatic.io`. You build it like any web page, and `@lemoncloud/chatic-apps-sdk`
-connects it to the app: closing, the title bar, haptics, sharing, saving data on the device, and more.
+connects it to the app: closing, the title, haptics, sharing, saving data on the device, and more.
 This guide is how to set a project up and what comes out of it. The library's calls, limits and error
 codes are in the package `README.md`; this guide does not repeat them.
 
@@ -68,7 +68,6 @@ async function start() {
         const apps = await connect();
         document.documentElement.dataset.theme = apps.context?.theme ?? 'light';
         apps.onContextChange(context => (document.documentElement.dataset.theme = context.theme));
-        if (apps.inApp) await apps.setTitle('Quiz');
     } catch (error) {
         // `UNSUPPORTED_PROTOCOL` means the app is newer than this library: update the library.
         const needsUpdate = error instanceof ChaticAppsError && error.code === 'UNSUPPORTED_PROTOCOL';
@@ -125,10 +124,13 @@ The manifest names the page and asks for what it needs:
     "manifestVersion": 1,
     "name": "Quiz",
     "permissions": ["share", "userKey"],
-    "display": "standard",
     "orientation": "portrait"
 }
 ```
+
+A page has no bar by default: a small close button floats in the top-right corner, always, and the page
+draws its own header. Add `"display": "standard"` to get the app's bar with the page's title and a
+close button instead.
 
 `manifestVersion` must be `1`; the app ignores a manifest it cannot read. Ask only for the permissions
 the page uses — `clipboard`, `share`, `openUrl`, `userKey` — and see the
@@ -148,8 +150,52 @@ has the detail on each.
 - **Dark mode follows the app's theme**, from `apps.context.theme`, not the phone's.
 - **Share `apps.link({ … })`**, not the page's address, and read what a link carries from
   `location.search` when the page starts.
+- **There is no title bar** unless the manifest asks for one, so the page draws its own header and title.
+  See [Screens and Back](#screens-and-back).
 - **Android back** is yours only while you set `apps.onBack(handler)`; otherwise the app decides.
 - **Errors**: every call can throw `ChaticAppsError`; branch on its `code`, never its `message`.
+
+## Screens and Back
+
+A page with more than one screen — a menu, a game, a settings page — needs its own way back. There is
+no bar and no back arrow to lean on: the only control the app gives is the small close button at the
+top-right corner, which leaves the page. Android has a back key; iOS has none. So the page keeps a
+stack of its screens, draws its own back button, and takes the Android back key only while there is a
+screen to go back to:
+
+```ts
+const screens = ['home'];
+
+// Take Android back while a screen is stacked; give it back at the root, where the app closes the page.
+const sync = () => apps.onBack(screens.length > 1 ? back : null);
+
+function open(name: string) {
+    screens.push(name);
+    sync();
+    render();
+}
+
+function back() {
+    if (screens.length > 1) screens.pop();
+    sync();
+    render();
+}
+
+sync();
+```
+
+Draw a back button in your header whenever `screens.length > 1` and have it call `back()`; at the root
+draw none, since the close button is already there. In React, Vue or Svelte keep `screens` in state and
+call `apps.onBack` from an effect that runs when its length changes. The same pattern closes a dialog:
+treat an open dialog as a screen.
+
+Three things to leave alone: do not set a handler at the root, so Android back still closes the page;
+do not use `onCloseRequest` for navigation — it is for unsaved work; and keep the screens in memory, not
+in the browser's history. A router that pushes entries (hash routes, `pushState`) gives the page a history,
+and with a history Android back at the root walks it instead of closing the page. On iOS the edge swipe
+only walks that history, so an in-memory stack needs the back button above either way.
+
+Keep the top-right corner of every screen clear of your own controls: the close button floats there.
 
 ## For an AI assistant in your project
 

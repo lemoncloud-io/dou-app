@@ -25,8 +25,8 @@ const ORIENTATION: Record<SubWebViewOrientation, NativeStackNavigationOptions['o
 };
 
 /**
- * Chrome only — a bar with the title and a close control over the page, or for a `fullscreen` page a
- * floating close control alone. The page's manifest decides which, its orientation and what its bridge
+ * Chrome only — a floating close control alone by default, or for a `standard` page a bar with the
+ * title and a close control over the page. The page's manifest decides which, its orientation and what its bridge
  * answers, so the page is not loaded until the manifest is in; until then the screen shows only the
  * close control, so even a manifest that never answers cannot keep the user in.
  */

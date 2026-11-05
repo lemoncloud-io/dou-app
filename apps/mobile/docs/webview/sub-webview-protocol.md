@@ -182,7 +182,6 @@ A page declares what it needs in a manifest, served from its own origin at
     "manifestVersion": 1,
     "name": "DoU Quiz",
     "permissions": ["share", "userKey"],
-    "display": "standard",
     "orientation": "portrait"
 }
 ```
@@ -192,7 +191,7 @@ A page declares what it needs in a manifest, served from its own origin at
 | `manifestVersion` | `1`                                                                | No manifest at all         |
 | `name`            | 1–100 characters; the bar's title when nothing else names the page | No title from the manifest |
 | `permissions`     | Any of `clipboard`, `share`, `openUrl`, `userKey`                  | The base set only          |
-| `display`         | `standard` (the bar) or `fullscreen` (see [Layout](#layout))       | `standard`                 |
+| `display`         | `standard` (the bar) or `fullscreen` (see [Layout](#layout))       | `fullscreen` (no bar)      |
 | `orientation`     | `any`, `portrait`, `landscape`                                     | `any`                      |
 
 **Every page gets the base set**: `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle`,
@@ -288,7 +287,7 @@ that succeeded. The main web's client does the same; its reasoning and measureme
 | -------------------------------------------- | ----------------------------------- | ----------------------- |
 | One message from the page, serialized        | **(2.15.0)** 64 KiB (string length) | `TOO_LARGE`, as `ERROR` |
 | `params` (from the opener), `result` (to it) | 16 KiB serialized, JSON only        | `INVALID`               |
-| Title in the bar                             | 1–100 characters after trimming     | `INVALID`               |
+| Title in the bar (`standard` display)        | 1–100 characters after trimming     | `INVALID`               |
 | Share sheet title / message / link           | 100 / 4,000 / 2,048 characters      | `INVALID`               |
 | **(2.18.0)** A storage key                   | 1–200 characters                    | `INVALID`               |
 | **(2.18.0)** One origin's storage, in all    | 1,048,576 characters                | `QUOTA_EXCEEDED`        |
@@ -345,7 +344,7 @@ to stop running soon after the reply, possibly before it is delivered.
 | ------------------- | ----- | --------- |
 | `{ title: string }` | `{}`  | `INVALID` |
 
-The bar shows, in order of precedence: the title set here, the document's `<title>`, the opener's
+When the page shows the bar (`display: standard`), it shows, in order of precedence: the title set here, the document's `<title>`, the opener's
 `title`, the manifest's `name`. A title set here lasts until the next page load in the view.
 
 ### `CopyToClipboard`
@@ -510,7 +509,7 @@ DoU's name. Three requests, in the base set, let a page ask well; none limits it
 | ----------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
 | `OnSubWebViewContextChanged`              | `{ theme, locale }`                | The app's theme or language changed while the view showed                         |
 | `OnBackPressed` **(2.15.0)**              | `{}`                               | Android back, while the page's `SetCanGoBack` claim is `true`                     |
-| `OnSubWebViewCloseRequested` **(2.15.0)** | `{ trigger: 'control' \| 'back' }` | The user asked to close while the guard is on: the bar's control, or Android back |
+| `OnSubWebViewCloseRequested` **(2.15.0)** | `{ trigger: 'control' \| 'back' }` | The user asked to close while the guard is on: the close control, or Android back |
 
 A page learns that a push can come from the request it pairs with: `OnBackPressed` from `SetCanGoBack`
 in the handshake, `OnSubWebViewCloseRequested` from `SetSubWebViewCloseGuard`.
@@ -521,8 +520,9 @@ in the handshake, `OnSubWebViewCloseRequested` from `SetSubWebViewCloseGuard`.
 
 The opener sends `OpenSubWebView { url, title?, params?, appId? }` — `appId` **(2.19.0)** naming the
 app it resolved `url` from — and the shell shows the view full screen,
-reads the page's [manifest](#manifest-2160), and then loads the page under a bar with the title and
-a close control, or under a floating close control alone for a `fullscreen` page. Each page load — the first, a
+reads the page's [manifest](#manifest-2160), and then loads the page under a floating close control
+alone — or, for a page whose manifest sets `display: standard`, under a bar with the title and a close
+control. Each page load — the first, a
 reload, a navigation — gets a fresh host, and the previous load's claims (title, back, close guard)
 are gone: the shell drops them when a load starts, and a request the previous load sends after that
 cannot set them again. A request the previous load left pending may still be answered, into the new
@@ -539,7 +539,7 @@ dropped. Setting a claim again is harmless; `chatic-apps-sdk` does it for the pa
 
 | Reason   | Who                                                              | Guarded **(2.15.0)** |
 | -------- | ---------------------------------------------------------------- | -------------------- |
-| `user`   | The bar's control, or Android back with nothing else to do       | Yes                  |
+| `user`   | The close control, or Android back with nothing else to do       | Yes                  |
 | `page`   | The page, with `FinishSubWebView`                                | No                   |
 | `host`   | The opener, with `CloseSubWebView`                               | No                   |
 | `system` | The shell, before a deep link or a tapped push navigates the app | No                   |
@@ -587,8 +587,11 @@ inset handling; `env(safe-area-inset-*)` is expected to read 0 in the view, whic
 on a device (see the last section). (Before 2.15.0 the shell padded only top and bottom, so in
 landscape a notch could cover the page's side.)
 
-**(2.16.0) A `fullscreen` page has no bar.** The shell draws a floating close control over the
-page's top-right corner instead, always, so a page cannot leave the user without a way out; a page
+**(2.16.0) `display: fullscreen` has no bar, and it is the default.** An app released before the default
+changed shows the bar when the manifest says nothing. No bridge version marks the change and the
+handshake does not report it, so a page cannot tell which default its app has: one that needs the bar,
+or needs none, says so in its manifest rather than relying on the default. The shell draws a floating close control
+over the page's top-right corner instead of the bar, always, so a page cannot leave the user without a way out; a page
 SHOULD keep that corner clear. The padding stays: a page still cannot draw behind the status bar or
 the home indicator, and a full-bleed mode is not part of this protocol.
 

@@ -27,7 +27,11 @@ code. Read the part you need before you write code that depends on it.
 9. Keep the page's state in `apps.storage` as it changes, and at the latest on `visibilitychange` to
    `hidden`; never in `localStorage`. What must follow the user to another phone goes on your own server
    under `apps.getUserKey()`.
-10. Use `apps.onBack(handler)` for in-page dialogs; clear it with `apps.onBack(null)` when they close.
+10. For screens and dialogs inside the page, keep a stack: while it holds more than one screen,
+    `apps.onBack(back)`; at the root, `apps.onBack(null)`, so Android back closes the page. iOS has no
+    back key, so draw a back button that calls the same `back()` whenever there is a screen to go back to.
+    Keep the stack in memory: a router that pushes browser history (hash routes, `pushState`) makes
+    Android back at the root walk that history instead of closing the page.
 11. Use `apps.onCloseRequest` only to protect unsaved work; return `true` to close.
 12. For the camera or microphone, call `apps.permissions.request(kind)` when the user reaches for the
     feature, never at start, then `getUserMedia`. No manifest permission is needed. Do not time the
@@ -42,6 +46,8 @@ code. Read the part you need before you write code that depends on it.
     `/.well-known/chatic-app.json` — and nothing it does not use. A call that needs one fails with
     `NOT_SUPPORTED` without it.
 16. Do not draw for the safe area: the page already lies inside it on every edge.
+17. The page has no title bar unless the manifest sets `"display": "standard"`: draw your own header and
+    title, and keep the top-right corner clear, where the app's close button floats.
 
 ## Before you say it is done
 

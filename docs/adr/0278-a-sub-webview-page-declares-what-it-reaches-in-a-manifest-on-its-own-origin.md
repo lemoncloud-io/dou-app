@@ -38,7 +38,7 @@ it before loading the page, and without it the page gets the base set only.**
   it `NOT_FOUND`, so a page tells a missing permission from an older app the same way it already
   must, from `supportedWebMessages`.
 - **Strict by default.** No manifest, or one the shell cannot read (a redirect off the origin, not
-  version 1, over 16 KiB, no answer in 3 seconds), means the base set and the standard display. Inside
+  version 1, over 16 KiB, no answer in 3 seconds), means the base set and no bar (ADR-0290 changed the default display from `standard`). Inside
   a readable manifest, each field is read on its own and a wrong value is dropped, not the manifest.
 - **Read before the page loads**, so its display, orientation and bridge are settled before the
   page's first script; the screen shows a close control alone meanwhile. Kept per origin in memory

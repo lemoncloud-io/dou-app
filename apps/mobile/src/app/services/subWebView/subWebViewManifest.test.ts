@@ -54,9 +54,27 @@ describe('parseSubWebViewManifest', () => {
 
         expect(manifest).toEqual({
             permissions: new Set(['share']),
-            display: 'standard',
+            display: 'fullscreen',
             orientation: 'any',
         });
+    });
+
+    it('gives a page with no readable manifest the base set, no bar and any orientation', () => {
+        expect(DEFAULT_SUB_WEBVIEW_MANIFEST).toEqual({
+            permissions: new Set(),
+            display: 'fullscreen',
+            orientation: 'any',
+        });
+    });
+
+    // The bar is opt-in: a manifest that says nothing about display gets none.
+    it('shows no bar unless the manifest asks for one', () => {
+        const display = (fields: object) =>
+            parseSubWebViewManifest(JSON.stringify({ manifestVersion: 1, ...fields }))?.display;
+
+        expect(display({})).toBe('fullscreen');
+        expect(display({ display: 'standard' })).toBe('standard');
+        expect(display({ display: 'fullscreen' })).toBe('fullscreen');
     });
 
     it.each([

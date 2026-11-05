@@ -1,7 +1,7 @@
 # The sub WebView
 
 A second WebView the shell shows over the main one, for a page on another origin. The web asks for
-it with `OpenSubWebView`; the shell shows the page full screen under a bar with its title and a close
+it with `OpenSubWebView`; the shell shows the page full screen under a small floating close control — or, for a page whose manifest asks for it, a bar with its title and a close
 control, and tells the web with `OnSubWebViewClosed` when it is gone. The messages and their codes are
 in `@chatic/bridge-messages` (`model/sub-webview.ts`). What a page and the shell say to each other —
 the envelope, versions, errors, timing, every request and push — is specified in
@@ -65,7 +65,7 @@ and what the page's manifest permits (below):
 declares — `clipboard`, `share`, `openUrl`, `userKey` — adds one request; without a manifest, or with
 one the shell cannot read, the page gets the base set only, and `permittedSubBridgeHandlers` leaves
 the rest unregistered, so they answer `NOT_FOUND` as an older app would. The manifest also names the
-page, and sets its display (`fullscreen` drops the bar) and orientation. It is fetched with a
+page, and sets its display (`standard` asks for the bar; the default, `fullscreen`, has none) and orientation. It is fetched with a
 3-second limit, kept in memory per origin for the run of the app, and refreshed behind each later
 open; failures fall back to the defaults and are logged. The strict default is deliberate: pages
 are written by people outside the app's team, who submit a bundle and ask for permissions in its
@@ -339,12 +339,12 @@ sequenceDiagram
     Handler-->>Web: OnSubWebViewClosed { viewId, reason: 'user' }
 ```
 
-| Reason   | Who closed it                                                               |
-| -------- | --------------------------------------------------------------------------- |
-| `user`   | The bar's close control, or Android back with no page to go back to         |
-| `host`   | The web, with `CloseSubWebView`                                             |
-| `system` | The shell, before a deep link or a tapped push navigates the web            |
-| `page`   | The page, with `FinishSubWebView` — the only reason that carries a `result` |
+| Reason   | Who closed it                                                                                  |
+| -------- | ---------------------------------------------------------------------------------------------- |
+| `user`   | The close control (the bar's, or the floating one), or Android back with no page to go back to |
+| `host`   | The web, with `CloseSubWebView`                                                                |
+| `system` | The shell, before a deep link or a tapped push navigates the web                               |
+| `page`   | The page, with `FinishSubWebView` — the only reason that carries a `result`                    |
 
 **A deep link or a tapped push closes the view first.** `useDeepLinkNavigation` closes a showing
 view
@@ -356,12 +356,12 @@ hears why the view went before it hears where to go, and what it opens is not hi
 the page that opened the view is gone. The view is dismissed and no `OnSubWebViewClosed` is sent.
 
 **The user's close can be asked of the page first.** A page with something to lose turns on its close
-guard (`SetSubWebViewCloseGuard`); the bar's control and an Android back press that would close then
+guard (`SetSubWebViewCloseGuard`); the close control and an Android back press that would close then
 push `OnSubWebViewCloseRequested` instead, and the page closes with `FinishSubWebView` or stays. A
 second close within three seconds of the first closes anyway (`subWebViewCloseGuard.ts`), so a page
 that hangs cannot keep the user in. Only `user` closes are guarded; `host`, `system` and `page` are not.
 
-**A `fullscreen` page has no bar but keeps a close control**, floating over its top-right corner,
+**A `fullscreen` page — the default — has no bar but keeps a close control**, floating over its top-right corner,
 so a page cannot leave the user without a way out. Until the manifest is in the screen shows that
 control alone and no page, so even a manifest that never answers leaves the user a way out. The
 manifest's orientation is applied with react-native-screens' `orientation` screen option once the
@@ -369,11 +369,11 @@ manifest is in (not yet checked on a device for a full-screen modal).
 
 **The screen pads every edge by the safe area.** The page lies wholly inside it and needs no insets
 (that `env(safe-area-inset-*)` then reads 0 is not yet checked on a device):
-top and bottom under the bar and above the home indicator, and the sides too, for the notch in
+top and bottom under the status bar (and the page's bar, if it asked for one) and above the home indicator, and the sides too, for the notch in
 landscape. The padding takes the theme background.
 
 **The screen cannot be swiped away.** It is a `fullScreenModal` with gestures off, so every close
-goes through the bar's control or Android back, and the web always hears of it. If the screen leaves
+goes through the close control or Android back, and the web always hears of it. If the screen leaves
 some other way anyway, its unmount closes the view as `user`; once the service has closed it, that
 call answers `NOT_OPEN` and does nothing. The other way round, a close control pressed on a screen
 the

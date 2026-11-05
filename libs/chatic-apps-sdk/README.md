@@ -2,7 +2,7 @@
 
 Build pages that run inside the DoU app. A page on `https://<name>.apps.chatic.io` opens in the app
 over everything else, and talks to the app through this library: close itself and hand back a result,
-title the app's bar, play a haptic, share, copy, open a link outside, keep its own data on the device,
+title the app's bar (when the page asks for one), play a haptic, share, copy, open a link outside, keep its own data on the device,
 get a key to keep the user's data under on a server, take Android's back button, and ask before the
 user closes it. Users reach it in the app only — a link to it never opens it in a browser — but the
 same page runs in a plain browser tab too while you build it, where the library falls back to what the
@@ -32,7 +32,6 @@ import { connect, ChaticAppsError } from '@lemoncloud/chatic-apps-sdk';
 
 try {
     const apps = await connect();
-    if (apps.inApp) await apps.setTitle('Quiz');
     document.documentElement.dataset.theme = apps.context?.theme ?? 'light';
 } catch (error) {
     // `UNSUPPORTED_PROTOCOL`: the app is newer than this library — update the library, and tell the
@@ -95,7 +94,7 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
 | Call                                                          | In the app                                                                                   | In a browser                        | Needs permission |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------- |
 | `finish(result?)`                                             | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener                           | `NOT_IN_APP`                        | —                |
-| `setTitle(title)`                                             | The app's bar shows it (1–100 characters)                                                    | `document.title`                    | —                |
+| `setTitle(title)`                                             | The app's bar shows it, if the page asked for the bar (1–100 characters)                     | `document.title`                    | —                |
 | `haptic(kind)`                                                | `selection`, `impact`, `success`, `warning`, `error`                                         | a short vibration, if any           | —                |
 | `onBack(handler \| null)`                                     | Android back calls `handler` and does nothing else                                           | never called                        | —                |
 | `onCloseRequest(handler \| null)`                             | Asks before the user closes; return `true` to close                                          | never called                        | —                |
@@ -160,8 +159,9 @@ The four calls marked above need a permission your page asks for in a file on it
 
 You ask; an administrator grants them when your page is reviewed, and only what was granted is
 deployed. Without the file your page gets everything else but not these four, which then fail with
-`NOT_SUPPORTED`. `display: "fullscreen"` hides the app's bar (a small close button stays in the
-top-right corner — keep it clear); `orientation` is `any`, `portrait` or `landscape`. The app reads
+`NOT_SUPPORTED`. A page has **no bar by default**: a small close button floats in the top-right corner
+(keep it clear) and the page draws its own header. `display: "standard"` asks for the app's bar, with
+the page's title and a close button; `orientation` is `any`, `portrait` or `landscape`. The app reads
 the file before it shows your page, keeps it for the rest of its run, and fetches a fresh copy behind
 each later open: a change to the file takes effect one open later.
 
