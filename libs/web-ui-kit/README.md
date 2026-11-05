@@ -125,7 +125,7 @@ flowchart TD
 
     C["composites × 60<br/><i>screen blocks — header · overlay · list · chat · media · …</i>"]:::comp
     F["foundations × 38<br/><i>single-purpose — button · input · avatar · badge · …</i>"]:::found
-    R["resources<br/><i>tokens.css · 59 icons · 7 assets</i>"]:::res
+    R["resources<br/><i>tokens.css · 63 icons · 7 assets</i>"]:::res
 
     UK["@chatic/ui-kit<br/><i>3 of 21 primitives</i>"]:::ext
     CN["@chatic/lib/utils<br/><i>cn</i>"]:::ext
@@ -167,8 +167,8 @@ flowchart TD
 libs/web-ui-kit/src/
 ├── index.ts       public barrel — resources, then foundations, then composites
 ├── resources/
-│   ├── styles/tokens.css   123 lines of HSL channels, light + `.dark`
-│   ├── icons/              59 exports: lucide aliases + Figma-exported glyphs
+│   ├── styles/tokens.css   134 lines of HSL channels, light + `.dark`
+│   ├── icons/              63 exports: lucide aliases + Figma-exported glyphs
 │   └── assets/             7 brand images, exported as bundler-resolved URLs
 ├── foundations/   11 groups, 38 components
 │   avatar(7) · button(9) · input(8) · badge(6) · brand(2) ·

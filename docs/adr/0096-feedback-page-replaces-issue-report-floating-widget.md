@@ -1,6 +1,7 @@
 # ADR-0096: Remove the issue-report floating widget and switch to a "Send feedback" page under My Page
 
-> Status: Accepted · Decided: 2026-08-07
+> Status: Accepted · Decided: 2026-08-07 · §7 (the bottom nav's look) superseded by
+> [ADR-0286](./0286-the-bottom-nav-glass-is-a-css-approximation-on-every-platform.md)
 > Related: [ADR-0017](./0017-issue-report-floating-widget.md) (superseded by this decision) ·
 > [ADR-0013](./0013-home-screen-web-ui-kit-migration.md) (web-ui-kit first) ·
 > [ADR-0046](./0046-web-feature-ownership-and-barrel-hygiene.md) (feature ownership · barrel hygiene)
