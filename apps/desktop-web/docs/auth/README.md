@@ -11,6 +11,14 @@ embedded Electron window. The relay returns to the hand-off page, `/auth/oauth-r
 opens `chatic://oauth?provider=&code=&nonce=` (`chatic-dev:` on the dev channel) to wake the app. The
 app exchanges the code and replaces whatever session was on the device.
 
+"Continue with Apple" sits under Google on the Welcome page and takes the same round trip through the
+relay's `/oauth/apple/authorize`; nothing after the browser opens differs by provider. It is shown on
+every platform, not only on a Mac: the relay's web flow works anywhere, which is not true of the mobile
+app's native Apple sign-in. The two buttons share one look — an outline and a mark in the text colour,
+one of the styles Apple allows — at the same size, so neither provider leads. Copy that names the
+provider (the waiting screen, the signed-in toast, the new-account stop) names the one the start
+recorded.
+
 The exchange is signed with that session. It goes to the relay's `verify-oauth-code`, which records the
 Guest Session's user as the new session's link — the same record the mobile sign-in leaves — so the
 account can still enter the clouds the guest was invited to. The endpoint refuses a call with no
@@ -24,9 +32,9 @@ a guest. An account with no email is not a guest: one that signed up with a phon
 The Account card's name, email and user id come from the relay session for the same reason. The
 "This place" card still falls back to the name the cloud knows, which is the one people there see.
 
-Every place that offers the button says, under it, that someone who signed up on mobile with a phone
-number gets a new account from it unless Google is linked to that account. Where phone-number
-sign-in is on, the note sends them to sign in with the number and link Google from the account hub;
+Every place that offers the buttons says, under them, that someone who signed up on mobile with a phone
+number gets a new account from them unless Google or Apple is linked to that account. Where phone-number
+sign-in is on, the note sends them to sign in with the number and link one from the account hub;
 where it is off, it sends them to the mobile app. Sign-in is not linking: signing in with Google while
 signed in to another account opens a session as the Google account's owner (the server keeps it that
 way, as on mobile). Linking is its own button ([Linking Google](#linking-google)). Recovering someone
@@ -36,8 +44,11 @@ The steps, in order:
 
 1. **Register the device**, if there is no session yet (below).
 2. **Record the start** — provider, time and a random nonce — in persistent storage.
-3. **Open the browser** at the relay's authorize URL; the nonce rides its `redirect` address.
-4. **The hand-off page** receives the code and the nonce and puts both on the deeplink.
+3. **Open the browser** at the relay's authorize URL; the nonce and the provider ride its `redirect`
+   address.
+4. **The hand-off page** receives the code and the nonce and puts both on the deeplink, with the
+   provider read off its own address. The provider is put there at the start because a page that
+   finds none falls back to Google, and an Apple code read as Google fails the start's provider check.
 5. **The app takes the deeplink** and exchanges the code only if the start record agrees (next section).
 
 The deeplink carries a relay code and the nonce — never a Google token and never a session,
@@ -253,9 +264,10 @@ the code in it.
 - **A refusal says so.** Nothing is exchanged; the app logs the reason (never the code or the nonce)
   and shows a message that the link was ignored, or that the login expired and should be started again.
 - **The link has to look right.** The scheme and host are compared as a parsed URL, not as a prefix
-  (`chatic://oauth.evil` is not ours), and the provider must be one the flow knows. A link with no
-  provider is refused rather than assumed to be Google. A link with no nonce still parses, so the
-  refusal above is shown to the person instead of the link being dropped silently.
+  (`chatic://oauth.evil` is not ours), and the provider must be one the flow knows — `google` or
+  `apple`, written exactly so. A link with no provider is refused rather than assumed to be Google.
+  A link with no nonce still parses, so the refusal above is shown to the person instead of the link
+  being dropped silently.
 - **The hand-off page stops too.** A page that arrives without a nonce shows the failure screen and
   does not open the app.
 
@@ -372,6 +384,10 @@ used up on its first exchange and bound to a challenge sent when the sign-in sta
 Phone sign-in was held for the same invited-cloud question. On the dev channel a guest who joined a
 cloud by invite signed into an existing account by phone and could still enter the cloud after a
 reload.
+
+Apple sign-in was not held the same way: it reuses Google's round trip, exchange and link record
+unchanged, so the invited-cloud answer carries over. What only a real round trip shows is the relay's
+side — that its Apple sign-in returns to the desktop hand-off page the way it returns to the web.
 
 The invited cloud follows the guest session that signs in, not the account for good: the same account
 signed in later from a fresh guest did not list it. Mobile sign-in leaves the same link record.

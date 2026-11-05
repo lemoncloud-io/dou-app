@@ -7,15 +7,22 @@ import { QrCode, Smartphone } from 'lucide-react';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 
 import { canRequestPairing } from '../../pairing/utils/devicePairing';
-import { AuthCard, GoogleIcon } from '../components';
+import { AppleIcon, AuthCard, GoogleIcon } from '../components';
 import { useGuestLogin } from '../hooks/useGuestLogin';
 import { useAttemptExpired } from '../hooks/useAttemptExpired';
 import { useSocialLogin } from '../hooks/useSocialLogin';
 import { selectAttemptBusy, useOAuthAttemptStore, type OAuthAttempt } from '../stores/useOAuthAttemptStore';
-import { PHONE_BUTTON_CLASS, isPhoneLoginEnabled, isSocialLoginEnabled, phoneSignupNoteKey } from '../utils';
+import {
+    PHONE_BUTTON_CLASS,
+    isPhoneLoginEnabled,
+    isSocialLoginEnabled,
+    oauthProviderName,
+    type OAuthProvider,
+    phoneSignupNoteKey,
+} from '../utils';
 
 /**
- * The Google sign-in is out in the system browser. Said here, with the ways out, rather than leaving
+ * The social sign-in is out in the system browser. Said here, with the ways out, rather than leaving
  * the person on a page that looks like nothing happened: open the browser again, sign in with the
  * phone number instead, or cancel, which undoes the device registration the start made.
  */
@@ -50,7 +57,8 @@ const SocialLoginWaiting = ({ attempt, failed }: { attempt: OAuthAttempt; failed
                       ? 'auth.social.waitingExpired'
                       : attempt.startedAt === undefined
                         ? 'welcome.starting'
-                        : 'auth.social.waitingBody'
+                        : 'auth.social.waitingBody',
+                { provider: oauthProviderName(attempt.provider) }
             )}
         >
             <div className="flex flex-col gap-2">
@@ -97,6 +105,12 @@ export const WelcomePage = () => {
     const attempt = useOAuthAttemptStore(s => (s.attempt?.intent === 'login' ? s.attempt : null));
     const attemptFailed = useOAuthAttemptStore(s => s.failed);
     const isBusy = isSubmitting || isStarting;
+    // Which social button was pressed, so only that one says it is starting. Google until one is.
+    const [pressed, setPressed] = useState<OAuthProvider>('google');
+    const startWith = (provider: OAuthProvider) => {
+        setPressed(provider);
+        void startSocialLogin(provider);
+    };
 
     // From the moment the start begins, retries included: a second start from the buttons below would
     // write a second record over the first one's nonce.
@@ -133,9 +147,9 @@ export const WelcomePage = () => {
                 >
                     {t('welcome.guestNote')}
                 </p>
-                {/* Phone before Google, and weighted above it: someone who signed up on mobile with a
-                    number gets a second, empty account from Google until Google is linked to theirs. The
-                    order steers them; nothing stops someone who signed up with Google. */}
+                {/* Phone before Google and Apple, and weighted above them: someone who signed up on mobile
+                    with a number gets a second, empty account from either until it is linked to theirs. The
+                    order steers them; nothing stops someone who signed up with Google or Apple. */}
                 {isPhoneLoginEnabled() && (
                     <Button
                         variant="secondary"
@@ -153,15 +167,27 @@ export const WelcomePage = () => {
                         <Button
                             variant="outline"
                             size="lg"
-                            onClick={() => void startSocialLogin('google')}
+                            onClick={() => startWith('google')}
                             disabled={isBusy}
                             aria-describedby={noteId}
                         >
                             <GoogleIcon />
-                            {isStarting ? t('welcome.starting') : t('auth.social.google')}
+                            {isStarting && pressed === 'google' ? t('welcome.starting') : t('auth.social.google')}
+                        </Button>
+                        {/* Outline and a mark in the text colour, like Google beside it: one of the
+                            button styles Apple allows, at the same size, so neither provider leads. */}
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={() => startWith('apple')}
+                            disabled={isBusy}
+                            aria-describedby={noteId}
+                        >
+                            <AppleIcon />
+                            {isStarting && pressed === 'apple' ? t('welcome.starting') : t('auth.social.apple')}
                         </Button>
                         {/* Said before the tap: someone who signed up on mobile with a phone number
-                            and never linked Google there gets a new, empty account from this button. */}
+                            and never linked Google or Apple there gets a new, empty account from these. */}
                         <p id={noteId} className="-mt-0.5 break-keep text-center text-caption text-muted-foreground">
                             {t(phoneSignupNoteKey())}
                         </p>

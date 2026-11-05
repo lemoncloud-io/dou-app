@@ -8,11 +8,12 @@ import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { isPlaceholderName, useRelayAccount } from '../../../shared';
 import { useSignOutGuest } from '../hooks/useSignOutGuest';
 import { useSignInNoticeStore } from '../stores/useSignInNoticeStore';
+import { oauthProviderName } from '../utils/oauth';
 import { NewAccountName } from './NewAccountName';
 
 /**
- * Says who a Google sign-in landed as, once, when the signed-in app comes up after it. An existing
- * account gets a toast with its name. A new one gets a stop: the Google had no DoU account, so someone
+ * Says who a social (Google or Apple) sign-in landed as, once, when the signed-in app comes up after it. An existing
+ * account gets a toast with its name. A new one gets a stop: that provider account had no DoU account, so someone
  * who signed up on mobile with a phone number has just made a second account by mistake, and is offered
  * to log out of it before anything is written to it. Otherwise it asks for the new account's name.
  */
@@ -33,7 +34,8 @@ export const SignInNotice = () => {
     // Said once the relay connection is verified as the signed-in account, so the name is its own.
     useEffect(() => {
         if (!notice || notice.isNew || !isRelayVerified || !take()) return;
-        toast({ description: name ? t('auth.social.signedInAs', { name }) : t('auth.social.signedIn') });
+        const provider = oauthProviderName(notice.provider);
+        toast({ description: name ? t('auth.social.signedInAs', { name }) : t('auth.social.signedIn', { provider }) });
     }, [notice, name, isRelayVerified, t, take]);
 
     if (!notice?.isNew) return null;
@@ -51,7 +53,9 @@ export const SignInNotice = () => {
                 onPointerDownOutside={e => e.preventDefault()}
             >
                 <DialogTitle>{t('auth.phone.newAccountTitle')}</DialogTitle>
-                <DialogDescription className="break-keep">{t('auth.social.newAccountBody')}</DialogDescription>
+                <DialogDescription className="break-keep">
+                    {t('auth.social.newAccountBody', { provider: oauthProviderName(notice.provider) })}
+                </DialogDescription>
                 <NewAccountName
                     onDone={close}
                     secondary={

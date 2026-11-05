@@ -6,7 +6,7 @@ const configValues: Record<string, unknown> = {
 };
 vi.mock('@chatic/config', () => ({ config: { get: (key: string) => configValues[key] } }));
 
-import { buildAuthorizeUrl, buildOAuthDeeplink, parseOAuthDeeplink } from './oauth';
+import { buildAuthorizeUrl, buildOAuthDeeplink, oauthProviderName, parseOAuthDeeplink } from './oauth';
 
 describe('parseOAuthDeeplink', () => {
     it.each(['chatic', 'chatic-dev'])('parses a %s:// deeplink', scheme => {
@@ -96,7 +96,45 @@ describe('buildAuthorizeUrl', () => {
 
     it('always carries the nonce on the redirect address', () => {
         expect(redirectOf(buildAuthorizeUrl('google', 'n1'))).toBe(
-            `${window.location.origin}/auth/oauth-response?nonce=n1`
+            `${window.location.origin}/auth/oauth-response?nonce=n1&provider=google`
         );
+    });
+});
+
+describe('Apple sign-in', () => {
+    beforeEach(() => {
+        window.history.replaceState(null, '', '/');
+    });
+
+    it('accepts an apple deeplink', () => {
+        expect(parseOAuthDeeplink('chatic://oauth?provider=apple&code=abc&nonce=n1')).toEqual({
+            provider: 'apple',
+            code: 'abc',
+            nonce: 'n1',
+        });
+    });
+
+    it('still rejects a provider name in another case', () => {
+        expect(parseOAuthDeeplink('chatic://oauth?provider=APPLE&code=abc')).toBeNull();
+    });
+
+    it('sends the browser to the relay apple authorize page', () => {
+        expect(
+            buildAuthorizeUrl('apple', 'n1').startsWith('https://relay.example/oauth/apple/authorize?redirect=')
+        ).toBe(true);
+    });
+
+    // The hand-off page reads the provider off this address. Carried here so an Apple code that comes
+    // back without the relay naming the provider is not read as a Google one and refused.
+    it('carries the provider on the hand-off address', () => {
+        const redirect = new URL(new URL(buildAuthorizeUrl('apple', 'n1')).searchParams.get('redirect') ?? '');
+
+        expect(redirect.searchParams.get('provider')).toBe('apple');
+        expect(redirect.searchParams.get('nonce')).toBe('n1');
+    });
+
+    it('names each provider as its brand writes it', () => {
+        expect(oauthProviderName('google')).toBe('Google');
+        expect(oauthProviderName('apple')).toBe('Apple');
     });
 });

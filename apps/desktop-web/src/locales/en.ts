@@ -50,6 +50,7 @@ export const en = {
     'auth.debug.back': 'Back',
     'auth.debug.link': 'Debug sign-in',
     'auth.social.google': 'Continue with Google',
+    'auth.social.apple': 'Continue with Apple',
     'auth.social.signingIn': 'Signing you in…',
     'auth.social.handoffTitle': 'Almost there',
     'auth.social.handoffBody': 'Opening DoU… If nothing happens, use the button below.',
@@ -64,7 +65,7 @@ export const en = {
     'auth.social.expired': 'That sign-in took too long and has expired. Start again from DoU.',
     'auth.social.waitingTitle': 'Finish signing in in your browser',
     'auth.social.waitingBody':
-        'Complete the Google sign-in in the browser that opened, and DoU picks it up from there.',
+        'Complete the {{provider}} sign-in in the browser that opened, and DoU picks it up from there.',
     'auth.social.waitingInline': 'Waiting for the Google sign-in in your browser.',
     'auth.social.waitingFailed': "The sign-in didn't finish. Try again, or sign in another way.",
     'auth.social.waitingExpired': 'The sign-in took too long. Try again, or sign in another way.',
@@ -73,10 +74,10 @@ export const en = {
     'auth.social.cancel': 'Cancel',
     'auth.social.dismiss': 'Dismiss',
     'auth.social.cancelFailed': "We couldn't clear the guest session. You can log out from the account menu.",
-    'auth.social.signedIn': 'Signed in with Google.',
+    'auth.social.signedIn': 'Signed in with {{provider}}.',
     'auth.social.signedInAs': 'Signed in as {{name}}.',
     'auth.social.newAccountBody':
-        'This Google had no DoU account, so a new one was made. If you signed up on mobile with a phone number, this is not that account: log out and sign in with your number.',
+        'This {{provider}} account had no DoU account, so a new one was made. If you signed up on mobile with a phone number, this is not that account: log out and sign in with your number.',
     'auth.social.notMine': 'Not my account (log out)',
     'auth.newAccount.skip': 'Set it later',
     'auth.newAccount.saveFailed': "We couldn't save the name. You can set it later on the account screen.",
@@ -84,9 +85,9 @@ export const en = {
     'profile.signInGoogle': 'Sign in with Google',
     'profile.signInGoogleHint': 'Use your account across devices. Replaces this guest session.',
     'auth.social.phoneSignupNote':
-        'Signed up on mobile with a phone number? Link Google in the mobile app’s account settings first, or this makes a new account.',
+        'Signed up on mobile with a phone number? Link Google or Apple in the mobile app’s account settings first, or these make a new account.',
     'auth.social.phoneSignupNotePhone':
-        'Signed up on mobile with a phone number? Sign in with that number, then link Google from Account. Until it is linked, Google makes a new account.',
+        'Signed up on mobile with a phone number? Sign in with that number, then link Google or Apple from Account. Until one is linked, these make a new account.',
     'auth.phone.start': 'Sign in with phone number',
     'auth.phone.title': 'Sign in with phone number',
     'auth.phone.subtitle': 'For an account made in the DoU mobile app with a phone number. We text you a code.',
