@@ -102,6 +102,26 @@ describe('NavRail destinations', () => {
         expect(navItem('channels').getAttribute('aria-current')).toBeNull();
     });
 
+    it("draws the active place's logo on the Home tile, keeping the Home label", () => {
+        renderRail({ place: { thumbnail: 'https://cdn.test/lemon.png' } });
+        expect(navItem('home').querySelector('img')?.getAttribute('src')).toBe('https://cdn.test/lemon.png');
+        expect(navItem('home').querySelector('svg')).toBeNull();
+    });
+
+    it('keeps the Home glyph when the place has no logo or there is no place', () => {
+        for (const place of [{}, undefined]) {
+            const { unmount } = renderRail({ place });
+            expect(navItem('home').querySelector('img')).toBeNull();
+            expect(navItem('home').querySelector('svg')).not.toBeNull();
+            unmount();
+        }
+    });
+
+    it('does not put the place logo on the other destinations', () => {
+        renderRail({ place: { thumbnail: 'https://cdn.test/lemon.png' } });
+        expect(navItem('channels').querySelector('img')).toBeNull();
+    });
+
     it('moves the shell to the destination that is clicked', () => {
         renderRail();
         fireEvent.click(navItem('channels'));
