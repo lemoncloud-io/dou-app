@@ -91,14 +91,20 @@ flowchart TD
 `UnifiedLayout` mounts `useHandlePushNavigation()` and `useInAppPushMessage()`. Both need the router
 tree — they rely on `useNavigate`.
 
-**One kind of path is not a route.** A sub WebView page's app link reaches the web as
-`/sub-webview?url=<encoded page URL>`, or — from an app built before that — as the link's own path,
-`/apps/<label>/…`. `usePushNavigate` checks for both first, with `@chatic/shared`'s
-`subWebViewPageUrlOfWebPath` (the bare form mapped with this build's stage), and opens the page with
-`openSubWebView` over whatever the router shows instead of navigating, so closing it returns the user to
-where they were. Only a page on a sub WebView origin is opened: the path can arrive through the app's
-custom scheme from any website. A refusal (`NOT_ALLOWED`, `ALREADY_OPEN`) is logged and the screen
-stays. Being in `usePushNavigate`, the check covers an in-app banner as much as an OS tap.
+**One kind of path is not a route.** A sub WebView page's app link reaches the web as its own path,
+`/apps/<appId>?<query>`, which names an app rather than a page. `usePushNavigate` checks for it first
+(`@chatic/shared`'s `readSubWebViewLinkPath`), resolves the id with `bridge/subWebViewApps.ts` for this
+build's stage, and opens `<the app's origin>/?<query>` with `openSubWebView` — passing the id, which
+the page's share link is built from — over whatever the router shows instead of navigating, so closing
+it returns the user to where they were. The list there is static for now and asynchronous already, so
+the server's list replaces it behind the same call; an id it does not know is logged and nothing opens.
+**A page link opens in the app or not at all**: in an app whose handshake does not list
+`OpenSubWebView` (or a plain browser), the link is logged and dropped, because `openSubWebView`'s
+fallback there is the OS browser or a new tab.
+An app built on the earlier mapping hands `/sub-webview?url=<page URL>` instead, which is opened as
+given, without an id, and only for a page on a sub WebView origin: that path can arrive through the
+app's custom scheme from any website. A refusal (`NOT_ALLOWED`, `ALREADY_OPEN`) is logged and the
+screen stays. Being in `usePushNavigate`, the check covers an in-app banner as much as an OS tap.
 
 **Everything routing-related goes in `usePushNavigate` and nowhere else.** That is the rule the
 diagram exists to make visible: a branch added there applies to an OS tap and an in-app banner tap

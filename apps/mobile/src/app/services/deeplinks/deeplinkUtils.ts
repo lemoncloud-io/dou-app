@@ -5,8 +5,8 @@ import {
     isEncodedInviteUrl,
     isSubWebViewAppLinkAttempt,
     readInviteLink,
-    subWebViewNavigatePath,
-    subWebViewPageUrlOfAppLink,
+    readSubWebViewAppLink,
+    subWebViewLinkPath,
 } from '@chatic/shared';
 
 import type { ILogService } from '../log';
@@ -497,9 +497,6 @@ const buildNativeRouteState = (urlObj: URL, logger?: ILogService): NativeRouteSt
  * Throws for retired /s/{code} shortcodes (surfaced by resolveDeepLink as `invalid`).
  */
 const resolveWebPath = (fullUrl: string): string => {
-    // A sub WebView page's link is not a route: the web opens the page over whatever it shows.
-    const pageUrl = subWebViewPageUrlOfAppLink(fullUrl);
-    if (pageUrl) return subWebViewNavigatePath(pageUrl);
     const converted = convertShortUrlWithEnvsSync(fullUrl).url;
     // Invite conversion already yields a host-less relative path (/?code=...); a passthrough is
     // still a full scheme URL that we reduce to pathname+search+hash without mutating searchParams.
@@ -568,12 +565,24 @@ export const resolveDeepLink = (rawUrl: string, logger?: ILogService): DeepLinkR
 
     logDamagedInviteLink(fullUrl, logger);
 
-    // A link to a page that does not map (`/apps/Quiz`, `/apps/`) is a broken page link, not a route:
-    // the invalid-link screen says so, where passing it through would land on home with no word.
-    if (isSubWebViewAppLinkAttempt(fullUrl) && !subWebViewPageUrlOfAppLink(fullUrl)) {
+    // A page link that does not read (`/apps/Quiz`, `/apps/`, a path after the id) is a broken page
+    // link, not a route: the invalid-link screen says so, where passing it through would land on home
+    // with no word. The custom scheme is read as its https form, so the landing site's launch
+    // (`chatic://apps/<id>?…`) is held to the same shape.
+    const httpsForm = normalizeSchemeForParsing(fullUrl);
+    const pageLink = readSubWebViewAppLink(httpsForm);
+    if (isSubWebViewAppLinkAttempt(httpsForm) && !pageLink) {
         const error = 'Invalid sub WebView page link';
         logger?.warn('DEEPLINK', '[deeplinkUtils] resolveDeepLink invalid page link, dropping', { fullUrl });
         return { kind: 'invalid', error };
+    }
+
+    // A sub WebView page's link is not a route: the web resolves the app it names and opens its page
+    // over whatever it shows. Handed on as the link's own path, ahead of the native-target check: its
+    // query belongs to the page, so a `target` in it is the page's, not the shell's routing marker.
+    // Which page an app id opens is the web's to know, not the shell's.
+    if (pageLink) {
+        return { kind: 'web', path: subWebViewLinkPath(pageLink) };
     }
 
     try {

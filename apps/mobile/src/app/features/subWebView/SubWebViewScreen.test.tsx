@@ -60,7 +60,13 @@ const renderScreen = async (manifest: Record<string, unknown> = MANIFEST) => {
     mockManifestGet.mockResolvedValue(manifest);
     const navigation = { goBack: jest.fn(), canGoBack: jest.fn(() => true), setOptions: jest.fn() };
     const route = {
-        params: { viewId: 'view-1', url: 'https://foo.apps.chatic.io/a', title: 'From web', params: { orderId: 7 } },
+        params: {
+            viewId: 'view-1',
+            url: 'https://foo.apps.chatic.io/a',
+            title: 'From web',
+            params: { orderId: 7 },
+            appId: 'quiz',
+        },
     };
     const view = render(<SubWebViewScreen route={route as any} navigation={navigation as any} />);
     await act(async () => undefined);
@@ -197,10 +203,12 @@ describe('SubWebViewScreen', () => {
         expect(navigation.goBack).toHaveBeenCalledTimes(1);
     });
 
-    it('hands the view its id and params', async () => {
+    it('hands the view its id, params and app id', async () => {
         await renderScreen();
 
-        expect(mockWebViewProps).toEqual(expect.objectContaining({ viewId: 'view-1', params: { orderId: 7 } }));
+        expect(mockWebViewProps).toEqual(
+            expect.objectContaining({ viewId: 'view-1', params: { orderId: 7 }, appId: 'quiz' })
+        );
     });
 
     // The page's own request outranks the document's title, which outranks the web's, which outranks

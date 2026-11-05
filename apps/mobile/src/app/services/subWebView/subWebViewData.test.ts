@@ -1,4 +1,4 @@
-import { fitsSubWebViewData, isSubWebViewParams, SUB_WEBVIEW_DATA_LIMIT } from './subWebViewData';
+import { fitsSubWebViewData, isSubWebViewAppId, isSubWebViewParams, SUB_WEBVIEW_DATA_LIMIT } from './subWebViewData';
 
 describe('fitsSubWebViewData', () => {
     it.each([
@@ -37,5 +37,15 @@ describe('isSubWebViewParams', () => {
         ['a string', 'x'],
     ])('refuses %s', (_label, value) => {
         expect(isSubWebViewParams(value)).toBe(false);
+    });
+});
+
+describe('isSubWebViewAppId', () => {
+    it.each(['quiz', 'dou-raise', 'a1', 'a'.repeat(63)])('takes %s', id => {
+        expect(isSubWebViewAppId(id)).toBe(true);
+    });
+
+    it.each(['', 'Quiz', 'a.b', '-quiz', 'quiz-', 'quiz/level', 'a'.repeat(64), 7, undefined])('refuses %s', id => {
+        expect(isSubWebViewAppId(id)).toBe(false);
     });
 });

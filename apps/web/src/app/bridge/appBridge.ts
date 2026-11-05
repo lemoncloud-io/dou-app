@@ -553,11 +553,12 @@ export const appBridge = {
     openSubWebView(
         url: string,
         title?: string,
-        params?: Payload<'OpenSubWebView'>['params']
+        params?: Payload<'OpenSubWebView'>['params'],
+        appId?: string
     ): Promise<WebMessageResponse<'OpenSubWebView'>> {
         return webClient.request({
             type: 'OpenSubWebView',
-            data: { url, ...(title ? { title } : {}), ...(params ? { params } : {}) },
+            data: { url, ...(title ? { title } : {}), ...(params ? { params } : {}), ...(appId ? { appId } : {}) },
         });
     },
 

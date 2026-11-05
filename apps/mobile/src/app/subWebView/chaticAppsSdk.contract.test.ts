@@ -118,7 +118,7 @@ describe('chatic-apps-sdk against the page host', () => {
         await apps.setTitle('Quiz');
         apps.haptic('success');
         await apps.copy('hello');
-        await expect(apps.share({ message: 'Try it', url: apps.link('/level') })).resolves.toBe('shared');
+        await expect(apps.share({ message: 'Try it', url: apps.link({ level: 3 }) })).resolves.toBe('shared');
         await expect(apps.getUserKey()).resolves.toMatch(/^[0-9a-f]{64}$/);
         await expect(apps.reportError(new Error('boom'))).resolves.toBe(true);
         await apps.storage.setMany({ level: 3, best: { score: 12 } });
@@ -132,7 +132,7 @@ describe('chatic-apps-sdk against the page host', () => {
         expect(deps.haptic.trigger).toHaveBeenCalledWith('success');
         expect(deps.clipboard.setText).toHaveBeenCalledWith('hello');
         expect(deps.openShareSheet).toHaveBeenCalledWith(
-            expect.objectContaining({ message: 'Try it', url: 'https://app.chatic.io/apps/quiz/level' })
+            expect.objectContaining({ message: 'Try it', url: 'https://app.chatic.io/apps/quiz?level=3' })
         );
         expect(deps.logPageError).toHaveBeenCalledWith(expect.objectContaining({ message: 'boom' }));
 

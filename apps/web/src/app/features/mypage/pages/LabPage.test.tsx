@@ -21,7 +21,13 @@ jest.mock('@chatic/web-ui-kit', () => ({
         </button>
     ),
 }));
-jest.mock('../../../bridge', () => ({ openSubWebView: (...args: unknown[]) => openSubWebView(...args) }));
+// The real app list, through the barrel's own name for it.
+jest.mock('../../../bridge', () => ({
+    openSubWebView: (...args: unknown[]) => openSubWebView(...args),
+    resolveSubWebViewAppUrl: jest.requireActual('../../../bridge/subWebViewApps').resolveSubWebViewAppUrl,
+}));
+// `import.meta` is out of reach of the CommonJS transform; the stage is the test's to choose.
+jest.mock('../../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 jest.mock('../../../hooks', () => ({
     useChatInputLockExperiment: () => ({ isEnabled: false, setEnabled: jest.fn() }),
     usePlaceInviteExperiment: () => ({ isEnabled: false, setEnabled: jest.fn() }),
@@ -80,7 +86,7 @@ describe('LabPage — sub WebView pages', () => {
             fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / }));
         });
 
-        expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://dou-raise.apps.chatic.io/' });
+        expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://dou-raise.apps.chatic.io/', appId: 'dou-raise' });
         expect(toast).not.toHaveBeenCalled();
     });
 

@@ -1,22 +1,23 @@
 import {
     isSubWebViewAppLinkAttempt,
+    readSubWebViewAppLink,
+    readSubWebViewLinkPath,
+    subWebViewAppLinkOfId,
     subWebViewAppLinkOfOrigin,
-    subWebViewNavigatePath,
-    subWebViewPageUrlOfAppLink,
+    subWebViewLinkPath,
     subWebViewPageUrlOfNavigatePath,
-    subWebViewPageUrlOfWebPath,
 } from './subWebViewLink';
 
-describe('subWebViewPageUrlOfAppLink', () => {
+describe('readSubWebViewAppLink', () => {
     it.each([
-        ['https://app.chatic.io/apps/quiz', 'https://quiz.apps.chatic.io/'],
-        ['https://app.chatic.io/apps/quiz/', 'https://quiz.apps.chatic.io/'],
-        ['https://app.chatic.io/apps/quiz/level/3?seed=7#top', 'https://quiz.apps.chatic.io/level/3?seed=7#top'],
-        ['https://app.chatic.io/apps/quiz?seed=7', 'https://quiz.apps.chatic.io/?seed=7'],
-        ['https://app-dev.chatic.io/apps/sample', 'https://sample.apps-dev.chatic.io/'],
-        ['https://app-dev.chatic.io/apps/dou-raise/play', 'https://dou-raise.apps-dev.chatic.io/play'],
-    ])('opens %s as %s', (link, page) => {
-        expect(subWebViewPageUrlOfAppLink(link)).toBe(page);
+        ['https://app.chatic.io/apps/quiz', { stage: 'prod', appId: 'quiz', query: '' }],
+        ['https://app.chatic.io/apps/quiz/', { stage: 'prod', appId: 'quiz', query: '' }],
+        ['https://app.chatic.io/apps/quiz?level=3&seed=7', { stage: 'prod', appId: 'quiz', query: '?level=3&seed=7' }],
+        ['https://app.chatic.io/apps/quiz/?seed=7', { stage: 'prod', appId: 'quiz', query: '?seed=7' }],
+        ['https://app.chatic.io/apps/quiz?', { stage: 'prod', appId: 'quiz', query: '' }],
+        ['https://app-dev.chatic.io/apps/dou-raise?x=a%20b', { stage: 'dev', appId: 'dou-raise', query: '?x=a%20b' }],
+    ])('reads %s', (link, target) => {
+        expect(readSubWebViewAppLink(link)).toEqual(target);
     });
 
     it.each([
@@ -24,14 +25,53 @@ describe('subWebViewPageUrlOfAppLink', () => {
         ['userinfo', 'https://evil.example@app.chatic.io/apps/quiz'],
         ['a port', 'https://app.chatic.io:8443/apps/quiz'],
         ['http', 'http://app.chatic.io/apps/quiz'],
-        ['no label', 'https://app.chatic.io/apps/'],
-        ['a label with a dot', 'https://app.chatic.io/apps/a.b/x'],
-        ['an upper-case label', 'https://app.chatic.io/apps/Quiz'],
-        ['a label that ends in a hyphen', 'https://app.chatic.io/apps/quiz-'],
+        ['no id', 'https://app.chatic.io/apps/'],
+        ['an id with a dot', 'https://app.chatic.io/apps/a.b'],
+        ['an upper-case id', 'https://app.chatic.io/apps/Quiz'],
+        ['an id that ends in a hyphen', 'https://app.chatic.io/apps/quiz-'],
+        ['a path after the id', 'https://app.chatic.io/apps/quiz/level/3?seed=7'],
+        ['a fragment', 'https://app.chatic.io/apps/quiz?seed=7#top'],
         ['another path', 'https://app.chatic.io/s?code=x'],
         ['a lookalike prefix', 'https://app.chatic.io/appsx/quiz'],
     ])('is no app link with %s', (_label, link) => {
-        expect(subWebViewPageUrlOfAppLink(link)).toBeNull();
+        expect(readSubWebViewAppLink(link)).toBeNull();
+    });
+});
+
+describe('the web path for a page link', () => {
+    it('carries the id and the query there and back', () => {
+        const target = { appId: 'quiz', query: '?level=3&seed=7' };
+
+        expect(subWebViewLinkPath(target)).toBe('/apps/quiz?level=3&seed=7');
+        expect(readSubWebViewLinkPath(subWebViewLinkPath(target))).toEqual(target);
+    });
+
+    it.each(['/apps/quiz', '/apps/quiz/'])('reads %s with no query', path => {
+        expect(readSubWebViewLinkPath(path)).toEqual({ appId: 'quiz', query: '' });
+    });
+
+    it.each(['/chats/ch_1', '/apps/', '/apps/Quiz', '/appsx/quiz', '/apps/quiz/level?x=1', '/apps/quiz#top'])(
+        'leaves %s a route',
+        path => {
+            expect(readSubWebViewLinkPath(path)).toBeNull();
+        }
+    );
+});
+
+describe('subWebViewAppLinkOfId', () => {
+    it.each([
+        ['prod', 'https://app.chatic.io/apps/quiz'],
+        ['dev', 'https://app-dev.chatic.io/apps/quiz'],
+    ] as const)('links an app for a %s build as %s', (stage, link) => {
+        expect(subWebViewAppLinkOfId('quiz', stage)).toBe(link);
+    });
+
+    it('reads back as the same app', () => {
+        expect(readSubWebViewAppLink(subWebViewAppLinkOfId('dou-raise', 'dev'))).toEqual({
+            stage: 'dev',
+            appId: 'dou-raise',
+            query: '',
+        });
     });
 });
 
@@ -51,19 +91,20 @@ describe('subWebViewAppLinkOfOrigin', () => {
     ])('has no link for %s', origin => {
         expect(subWebViewAppLinkOfOrigin(origin)).toBeNull();
     });
-
-    it('round-trips with the page a link opens', () => {
-        const link = subWebViewAppLinkOfOrigin('https://quiz.apps.chatic.io');
-
-        expect(subWebViewPageUrlOfAppLink(`${link}/level`)).toBe('https://quiz.apps.chatic.io/level');
-    });
 });
 
-describe('the OnNavigate path', () => {
-    it('carries the page URL there and back', () => {
+describe('the path an app before app ids hands over', () => {
+    it('carries the page URL', () => {
         const page = 'https://quiz.apps.chatic.io/level/3?seed=7&x=a b#top';
 
-        expect(subWebViewPageUrlOfNavigatePath(subWebViewNavigatePath(page))).toBe(page);
+        expect(subWebViewPageUrlOfNavigatePath(`/sub-webview?url=${encodeURIComponent(page)}`)).toBe(page);
+    });
+
+    it('reads the first url, as URLSearchParams reads it', () => {
+        const first = 'https://quiz.apps.chatic.io/a';
+        const path = `/sub-webview?url=${encodeURIComponent(first)}&url=${encodeURIComponent('https://other.apps.chatic.io/')}`;
+
+        expect(subWebViewPageUrlOfNavigatePath(path)).toBe(first);
     });
 
     it.each([
@@ -80,22 +121,15 @@ describe('the OnNavigate path', () => {
     });
 });
 
-describe('the first url', () => {
-    it('is the one read, as URLSearchParams reads it', () => {
-        const first = 'https://quiz.apps.chatic.io/a';
-        const path = `/sub-webview?url=${encodeURIComponent(first)}&url=${encodeURIComponent('https://other.apps.chatic.io/')}`;
-
-        expect(subWebViewPageUrlOfNavigatePath(path)).toBe(first);
-    });
-});
-
 describe('isSubWebViewAppLinkAttempt', () => {
-    it.each(['https://app.chatic.io/apps/Quiz', 'https://app.chatic.io/apps/', 'https://app-dev.chatic.io/apps'])(
-        'counts %s as a page link, mapped or not',
-        link => {
-            expect(isSubWebViewAppLinkAttempt(link)).toBe(true);
-        }
-    );
+    it.each([
+        'https://app.chatic.io/apps/Quiz',
+        'https://app.chatic.io/apps/',
+        'https://app.chatic.io/apps/quiz/level',
+        'https://app-dev.chatic.io/apps',
+    ])('counts %s as a page link, well formed or not', link => {
+        expect(isSubWebViewAppLinkAttempt(link)).toBe(true);
+    });
 
     it.each(['https://app.chatic.io/appsx/quiz', 'https://app.chatic.io/s?code=x', 'https://evil.example/apps/quiz'])(
         'leaves %s alone',
@@ -103,24 +137,4 @@ describe('isSubWebViewAppLinkAttempt', () => {
             expect(isSubWebViewAppLinkAttempt(link)).toBe(false);
         }
     );
-});
-
-describe('subWebViewPageUrlOfWebPath', () => {
-    it('reads the path an app hands over', () => {
-        const page = 'https://sample.apps-dev.chatic.io/';
-
-        expect(subWebViewPageUrlOfWebPath(`/sub-webview?url=${encodeURIComponent(page)}`, 'prod')).toBe(page);
-    });
-
-    // An app before the mapping passes the link's path through; the web maps it with its own stage.
-    it.each([
-        ['prod', '/apps/quiz/level?x=1', 'https://quiz.apps.chatic.io/level?x=1'],
-        ['dev', '/apps/sample', 'https://sample.apps-dev.chatic.io/'],
-    ] as const)("maps an old app's %s path %s to %s", (stage, path, page) => {
-        expect(subWebViewPageUrlOfWebPath(path, stage)).toBe(page);
-    });
-
-    it.each(['/chats/ch_1', '/apps/', '/apps/Quiz', '/appsx/quiz'])('leaves %s a route', path => {
-        expect(subWebViewPageUrlOfWebPath(path, 'prod')).toBeNull();
-    });
 });

@@ -38,7 +38,7 @@ describe('openSubWebView', () => {
             via: 'subWebView',
             viewId: 'view-1',
         });
-        expect(requestOpen).toHaveBeenCalledWith(URL_, 'Notice', undefined);
+        expect(requestOpen).toHaveBeenCalledWith(URL_, 'Notice', undefined, undefined);
         expect(openURL).not.toHaveBeenCalled();
     });
 
@@ -48,7 +48,16 @@ describe('openSubWebView', () => {
 
         await openSubWebView({ url: URL_, params: { orderId: 7 } });
 
-        expect(requestOpen).toHaveBeenCalledWith(URL_, undefined, { orderId: 7 });
+        expect(requestOpen).toHaveBeenCalledWith(URL_, undefined, { orderId: 7 }, undefined);
+    });
+
+    it('passes the app id on to the shell', async () => {
+        shellCapabilities.setReport(report(['OpenSubWebView']));
+        requestOpen.mockResolvedValue({ data: { viewId: 'view-1' } });
+
+        await openSubWebView({ url: URL_, appId: 'quiz' });
+
+        expect(requestOpen).toHaveBeenCalledWith(URL_, undefined, undefined, 'quiz');
     });
 
     // An app built before the sub WebView never meets the request: it would answer NOT_FOUND.

@@ -29,3 +29,10 @@ export const fitsSubWebViewData = (value: unknown): boolean => {
 /** A plain JSON object (not an array, not null) that fits the limit. */
 export const isSubWebViewParams = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value) && fitsSubWebViewData(value);
+
+/**
+ * An app id as the web names one in `OpenSubWebView`: one DNS label, lower case — the shape the app
+ * link's `/apps/<appId>` takes, so the share link built from it reads back as the same app.
+ */
+export const isSubWebViewAppId = (value: unknown): value is string =>
+    typeof value === 'string' && /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(value);

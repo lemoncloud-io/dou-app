@@ -4,8 +4,9 @@ Build pages that run inside the DoU app. A page on `https://<name>.apps.chatic.i
 over everything else, and talks to the app through this library: close itself and hand back a result,
 title the app's bar, play a haptic, share, copy, open a link outside, keep its own data on the device,
 get a key to keep the user's data under on a server, take Android's back button, and ask before the
-user closes it. The same page runs in a plain
-browser tab too, where the library falls back to what the browser can do.
+user closes it. Users reach it in the app only — a link to it never opens it in a browser — but the
+same page runs in a plain browser tab too while you build it, where the library falls back to what the
+browser can do.
 
 Published as `@lemoncloud/chatic-apps-sdk`. No runtime dependencies.
 
@@ -77,7 +78,7 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
             // Offer only what this app can do here.
             const share = document.getElementById('share');
             share.hidden = !(apps.supports('share') || !apps.inApp);
-            share.onclick = () => apps.share({ message: `I scored ${score}`, url: apps.link('/') });
+            share.onclick = () => apps.share({ message: `I scored ${score}`, url: apps.link({ score }) });
 
             document.getElementById('done').onclick = async () => {
                 if (apps.inApp) await apps.finish({ score });
@@ -101,7 +102,7 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
 | `share({ title, message, url })`          | The share sheet; waits for the user (see below)                    | Web Share, else copies (`'copied'`) | `share`          |
 | `openUrl(url)`                            | The browser, mail, phone, SMS or a store                           | a new tab                           | `openUrl`        |
 | `getUserKey()`                            | 64 hex characters, the same for this device and site               | `NOT_IN_APP`                        | `userKey`        |
-| `link(path?)`                             | A link that opens this page in the app (see below)                 | the page's own address              | —                |
+| `link(params?)`                           | A link that opens this page in the app (see below)                 | the page's own root                 | —                |
 | `storage.get(key)`, `.set(key, value)`, … | Your page's own storage on the device (see below)                  | `localStorage`, same limits         | —                |
 
 Plus `apps.context` (the app's language, theme, platform and the `params` you were opened with),
@@ -111,10 +112,13 @@ Plus `apps.context` (the app's language, theme, platform and the `params` you we
 - **`share`** resolves `'shared'` or `'dismissed'` on iOS. On Android it resolves `'shared'` as soon as
   the chooser opens, whatever the user then does. It needs a non-blank `message` or a `url`; `url` must
   be `http(s)`; `title`, `message` and `url` are at most 100, 4,000 and 2,048 characters.
-- **`link(path)`** takes a path (`'/level/3?seed=7'`) or a URL on your page's own origin, and gives
-  `https://app.chatic.io/apps/<name>/level/3?seed=7` — a tap opens your page in the app where it is
-  installed, in the browser where it is not. In a browser, or an app before links to pages existed, it
-  gives your page's own address instead.
+- **`link(params)`** takes what the link should carry as an object and gives
+  `https://app.chatic.io/apps/<app id>?level=3&seed=7` for `link({ level: 3, seed: 7 })`. A tap opens
+  your page in the app **at its root** with that query — read it from `location.search`; a link carries
+  no path and no fragment. Where the app is not installed, the tap offers the app's store page, never
+  your page in the browser. The app id is the one your page was registered under, which need not be its
+  subdomain, so never write the link by hand. In a browser, or an app before links to pages existed, it
+  gives your page's own root with the same query.
 - **`storage`** keeps JSON on the device for your site alone: `get(key)`, `getMany(keys)`,
   `set(key, value)`, `setMany(entries)` (all or none), `remove(key or keys)`, `keys()`, `clear()` and
   `usage()`. It survives relaunches and sign-outs and goes with an uninstall; it does not follow the user
@@ -187,7 +191,9 @@ Treat a code not in this table as that call failing, and nothing more.
 - **Save as you go.** The app or the web that opened the page can close it at any time without
   asking. Listen to `document`'s `visibilitychange` and save when it turns `hidden` — the app sends no
   "going to the background" signal.
-- **Share `apps.link(path)`**, not your page's address: a tap on it opens the page in the app.
+- **Share `apps.link(params)`**, not your page's address: a tap on it opens the page in the app.
+  Put what a shared link needs in its query and read it from `location.search` at start; nothing
+  after your page's root survives a link.
 - **The user key is not an account and proves nothing.** It stays the same on one device for your site,
   and differs on every other site. Two people on one phone share it; anyone who learns one can send it.
   Keep game progress under it, not money.
@@ -249,7 +255,8 @@ Paste this list into the prompt along with what the page should do.
    version numbers.
 3. Every call can throw `ChaticAppsError`; branch on `error.code` only, never on `error.message`.
 4. Take the theme and language from `apps.context` and `apps.onContextChange`, not from the OS.
-5. Share links built with `apps.link(path)`.
+5. Share links built with `apps.link({ ... })`, and read what one carries from `location.search` at
+   start. The page is always entered at `/`; do not route on the path.
 6. Keep the page's state in `apps.storage` as it changes, and at the latest on `visibilitychange` to
    `hidden`; never in `localStorage`. What must follow the user to another phone goes on your own server
    under `apps.getUserKey()`.

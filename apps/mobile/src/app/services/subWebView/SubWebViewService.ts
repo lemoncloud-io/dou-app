@@ -2,7 +2,7 @@ import type { SubWebViewCloseReason } from '@chatic/bridge-messages';
 
 import type { ILogService } from '../log';
 import { isAllowedSubWebViewUrl, SUB_WEBVIEW_DOMAINS } from './subWebViewAllowlist';
-import { fitsSubWebViewData, isSubWebViewParams } from './subWebViewData';
+import { fitsSubWebViewData, isSubWebViewAppId, isSubWebViewParams } from './subWebViewData';
 import type {
     ISubWebViewService,
     SubWebViewCloseResult,
@@ -32,11 +32,12 @@ export class SubWebViewService implements ISubWebViewService {
         return this.view;
     }
 
-    open(request: { url: unknown; title?: unknown; params?: unknown }): SubWebViewOpenResult {
-        const { url, title, params } = request;
+    open(request: { url: unknown; title?: unknown; params?: unknown; appId?: unknown }): SubWebViewOpenResult {
+        const { url, title, params, appId } = request;
         if (typeof url !== 'string' || !/^https:\/\//i.test(url)) return { ok: false, code: 'INVALID' };
         if (title !== undefined && typeof title !== 'string') return { ok: false, code: 'INVALID' };
         if (params !== undefined && !isSubWebViewParams(params)) return { ok: false, code: 'INVALID' };
+        if (appId !== undefined && !isSubWebViewAppId(appId)) return { ok: false, code: 'INVALID' };
         if (!isAllowedSubWebViewUrl(url, this.domains)) {
             this.logger.warn('WEBVIEW', '[sub] open refused: origin not allowed', { url });
             return { ok: false, code: 'NOT_ALLOWED' };
@@ -48,6 +49,7 @@ export class SubWebViewService implements ISubWebViewService {
             url,
             ...(title ? { title } : {}),
             params: params ?? {},
+            ...(appId ? { appId } : {}),
         };
         this.view = view;
         this.emit({ type: 'opened', view });

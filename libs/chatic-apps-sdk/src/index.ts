@@ -3,6 +3,7 @@ export {
     type Capability,
     type ChaticApps,
     type ConnectOptions,
+    type LinkParams,
     type ShareContent,
     type ShareOutcome,
 } from './chaticApps';

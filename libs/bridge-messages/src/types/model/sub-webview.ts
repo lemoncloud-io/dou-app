@@ -120,10 +120,11 @@ export type SubWebViewContext = {
     /** What the web passed in `OpenSubWebView`; `{}` when it passed nothing. */
     params: SubWebViewParams;
     /**
-     * The app link that opens this page: `https://app.chatic.io/apps/<label>` for
-     * `https://<label>.apps.chatic.io`. A page shares `appLink` plus its own path, query and fragment,
-     * and a tap opens that page in the app, or in the browser where the app is not installed. Absent
-     * from apps before 2.17.0.
+     * The app link that opens this page: `https://app.chatic.io/apps/<appId>` for the `appId` the web
+     * opened it with. A page shares `appLink` plus a query of its own, and a tap opens the page in
+     * the app with that query, or offers the app where it is not installed. Opened without an
+     * `appId` — by a web before 2.19.0 — the page's label stands in for it. Absent from apps before
+     * 2.17.0.
      */
     appLink?: string;
 };
@@ -136,6 +137,12 @@ export type OpenSubWebViewPayload = {
     title?: string;
     /** Handed to the page as `window.ChaticSubWebView.params`, not in the URL. */
     params?: SubWebViewParams;
+    /**
+     * The app the web resolved `url` from: a page's `appLink` is built from it, so a link the page
+     * shares names the app rather than where the app is hosted. One DNS label (`quiz`, `dou-raise`).
+     * Ignored by apps before 2.19.0, which take the page's label instead.
+     */
+    appId?: string;
 };
 
 /** [Response] The sub WebView is showing. */

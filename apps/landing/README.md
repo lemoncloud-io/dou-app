@@ -74,8 +74,8 @@ Principles 1–6 were written for the public surface and keep their numbers; 1 a
    token, a user or a cache. A screen that needs to know who is reading belongs on the account
    surface if it is about the subscription, and in `apps/web` if it is about using the product.
 2. **The public surface calls no backend of ours.** The only `fetch` in the app is an orphan (see
-   [Traps](#traps)); `/s/*`, `/i` and `/apps/*` redirect the browser and let the destination do the
-   work.
+   [Traps](#traps)); `/s/*`, `/i` and `/apps/*` hand the link to the app (or the web) and let the
+   destination do the work.
 3. **Legal text is imported, never typed.** `src/app/features/policy/consts/index.ts` is a
    two-line re-export of the `@chatic/policy-content` barrel. A paragraph written into a page
    component here is a second copy of a policy, which is the failure that library exists to prevent.
@@ -192,7 +192,7 @@ the table for either side of the gate, which is how the test covers both.
 | `/policy/*`       | redirect to `/policy/terms`                       |
 | `/s/*`            | `DeepLinkPage` — any path under `/s` reaches it   |
 | `/i/*`            | `DeepLinkPage` — the encoded invite link `/i?t=…` |
-| `/apps/*`         | `SubWebViewLinkPage` — on to the sub WebView page |
+| `/apps/*`         | `SubWebViewLinkPage` — the app, else the store    |
 | `/subscription/*` | the account surface — gated, see below            |
 | anything else     | redirect to `/`, dropping the query               |
 
@@ -677,19 +677,19 @@ through `libs/data` and `libs/http`) and `@chatic/config`, with
 surface also imports `@tanstack/react-query`, `@radix-ui/react-dialog`, `clsx` and `tailwind-merge` from
 the workspace root, inside its own chunk. The table is about the public pages.
 
-| Library                   | Reached how               | Used for                                                                            |
-| ------------------------- | ------------------------- | ----------------------------------------------------------------------------------- |
-| `@chatic/policy-content`  | direct, 1 file            | the three policy tables and their types                                             |
-| `@chatic/theme`           | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`                          |
-| `@chatic/assets`          | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`)                         |
-| `@chatic/shared`          | direct, 4 files           | invite-link decoding, the sub WebView link map, the error screen's English defaults |
-| `@chatic/bridges`         | via `theme` and `shared`  | nothing here calls it                                                               |
-| `@chatic/logger`          | transitive, via `bridges` | nothing here calls it                                                               |
-| `@chatic/bridge-messages` | transitive, via `bridges` | nothing here calls it                                                               |
-| `@chatic/ui-kit`          | transitive, via `shared`  | nothing here calls it                                                               |
-| `@chatic/config`          | direct, 1 file            | the account surface's HTTP port configures the session runtime                      |
-| `@chatic/app-runtime`     | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository                       |
-| `@chatic/device-utils`    | transitive, via `shared`  | nothing here calls it                                                               |
+| Library                   | Reached how               | Used for                                                                               |
+| ------------------------- | ------------------------- | -------------------------------------------------------------------------------------- |
+| `@chatic/policy-content`  | direct, 1 file            | the three policy tables and their types                                                |
+| `@chatic/theme`           | direct, 2 files           | `ThemeProvider` in `app.tsx`, the theme toggle in `Header`                             |
+| `@chatic/assets`          | direct, 6 files           | illustrations and icons (also a Vite alias to `assets/src`)                            |
+| `@chatic/shared`          | direct, 4 files           | invite-link decoding, the sub WebView link reader, the error screen's English defaults |
+| `@chatic/bridges`         | via `theme` and `shared`  | nothing here calls it                                                                  |
+| `@chatic/logger`          | transitive, via `bridges` | nothing here calls it                                                                  |
+| `@chatic/bridge-messages` | transitive, via `bridges` | nothing here calls it                                                                  |
+| `@chatic/ui-kit`          | transitive, via `shared`  | nothing here calls it                                                                  |
+| `@chatic/config`          | direct, 1 file            | the account surface's HTTP port configures the session runtime                         |
+| `@chatic/app-runtime`     | direct, 2 files           | the account surface's HTTP port: sign-in, session, repository                          |
+| `@chatic/device-utils`    | transitive, via `shared`  | nothing here calls it                                                                  |
 
 `shared` is a wide barrel and this app takes two pure functions and one table of strings from it; the
 libraries behind it are in the graph for the rest of that barrel. On the theme's side, the bridge chain
@@ -780,7 +780,8 @@ which is scenario 3, with the app present.
 
 ### 3. The same link, opened in a browser
 
-The browser lands on `/s/...` or `/i?t=...` → `DeepLinkPage`. `useDeviceDetect` classifies the
+The browser lands on `/s/...` or `/i?t=...` → `DeepLinkPage`, or on `/apps/<appId>?...` →
+`SubWebViewLinkPage`, which renders `DeepLinkPage` in its app-only mode (below). `useDeviceDetect` classifies the
 device, and the page tries the app **as soon as it loads** where that is safe
 (`utils/appLaunch.ts`, `shouldAutoLaunch`):
 
@@ -794,8 +795,14 @@ device, and the page tries the app **as soon as it loads** where that is safe
   custom scheme the device cannot open with an "invalid address" alert, which an invitee without
   the app would see on every visit, so there the page waits for the "Open app" tap.
 
-Only an invite the app can read (`/i?t=...`, `/s?code=...`) is tried automatically; a retired
-`/s/<code>` short link would open the app onto its "invalid link" screen. A launch shows the store
+Only a link the app can read — an invite (`/i?t=...`, `/s?code=...`) or a sub WebView page link
+(`/apps/<appId>?...`) — is tried automatically; a retired `/s/<code>` short link would open the app
+onto its "invalid link" screen. A page link is **app-only**: the page it names is meant to run in the
+app, so there is no "Continue in browser" and a missing app is offered the store alone. The launch is
+the same custom-scheme one (`chatic://apps/<appId>?...`), which the app reads as the https link.
+`SubWebViewLinkPage` reads the link without its fragment, so the Android fallback's `#app-missing`
+comes back to this page rather than home; any other shape — a path after the id, an upper-case id,
+a host that is not the link host — goes home. A launch shows the store
 dialog after 2.5s only if the page is still in the foreground — a page that went to the background
 handed the user to the app. A tapped launch on
 Android uses the Play Store as its intent fallback instead of this page, since the tap already asked

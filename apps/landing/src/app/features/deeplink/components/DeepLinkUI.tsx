@@ -8,7 +8,8 @@ import type { DeepLinkState } from '../types';
 interface DeepLinkUIProps {
     state: DeepLinkState;
     onLaunchApp: () => void;
-    onContinueBrowser: () => void;
+    /** Leave it out for a link that only the app opens: the page draws no "View in web" then. */
+    onContinueBrowser?: () => void;
 }
 
 /**
@@ -102,12 +103,14 @@ export const DeepLinkUI = ({ state, onLaunchApp, onContinueBrowser }: DeepLinkUI
                 </button>
 
                 {/* "View in web" link */}
-                <button
-                    onClick={onContinueBrowser}
-                    className="text-muted-foreground text-lg font-medium tracking-[0.09px] hover:text-foreground transition-colors"
-                >
-                    {t('deeplink.button.viewInWeb')}
-                </button>
+                {onContinueBrowser && (
+                    <button
+                        onClick={onContinueBrowser}
+                        className="text-muted-foreground text-lg font-medium tracking-[0.09px] hover:text-foreground transition-colors"
+                    >
+                        {t('deeplink.button.viewInWeb')}
+                    </button>
+                )}
             </div>
         </div>
     );
