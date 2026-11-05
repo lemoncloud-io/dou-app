@@ -262,30 +262,9 @@ logged rather than shown, the user key is not the app's, and it proves nothing a
 
 ## For an AI assistant writing a page
 
-Paste this list into the prompt along with what the page should do. `AGENTS.md` in the package holds
-these rules and a few more, for an assistant working in the project.
-
-1. Use `@lemoncloud/chatic-apps-sdk`. Call `await connect()` once at start, inside `try/catch`.
-2. Check `apps.inApp` and `apps.supports(capability)` before offering an app feature; never compare
-   version numbers.
-3. Every call can throw `ChaticAppsError`; branch on `error.code` only, never on `error.message`.
-4. Take the theme and language from `apps.context` and `apps.onContextChange`, not from the OS.
-5. Share links built with `apps.link({ ... })`, and read what one carries from `location.search` at
-   start. The page is always entered at `/`; do not route on the path.
-6. Keep the page's state in `apps.storage` as it changes, and at the latest on `visibilitychange` to
-   `hidden`; never in `localStorage`. What must follow the user to another phone goes on your own server
-   under `apps.getUserKey()`.
-7. Use `apps.onBack(handler)` for in-page dialogs; clear it with `apps.onBack(null)` when they close.
-8. Use `apps.onCloseRequest` only to protect unsaved work; return `true` to close.
-9. No `window.opener`, no popup logins, no file downloads.
-10. Never put the user's data in errors or in `reportError`.
-11. List the permissions the page needs (`clipboard`, `share`, `openUrl`, `userKey`) in
-    `/.well-known/chatic-app.json` — and nothing it does not use.
-12. In development, `installChaticAppsMock({ permissions: [...] })` before `connect()`.
-13. For the camera or microphone, call `apps.permissions.request(kind)` when the user reaches for the
-    feature, never at start, then `getUserMedia`. No manifest permission is needed. Do not time the
-    request out, and send `'blocked'` to `apps.openSettings()`. Treat the request's answer, not
-    `query`'s, as the truth: on Android `query` can read `'prompt'` for a blocked permission.
+`AGENTS.md` in this package holds the rules for an assistant writing a page: the project, the calls
+and the page. Copy it to the top of your project, where an assistant looks for it, or paste it into the
+prompt along with what the page should do. `GUIDE.md` says how to set the project up.
 
 ## For maintainers
 
