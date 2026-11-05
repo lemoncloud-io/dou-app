@@ -48,7 +48,7 @@ import { canStartDmFromProfile, channelKindOf, isRoomOwner, profilePlaceOf } fro
 import type { ClientChatView, DomainChat } from '../types';
 import { copyMessageToClipboard } from '../utils/copyMessageToClipboard';
 import { canOpenMessageActions, hasMessageText } from '../utils/messageActions';
-import { deleteConfirmQuote, messagePlainText } from '../utils/messagePlainText';
+import { chatPlainText, deleteConfirmQuote } from '../utils/messagePlainText';
 import { isSendKey } from '../utils/composerEnter';
 import { resolveChatOwnerName, resolveUserName, type DisplayNameSources } from '../utils/displayName';
 import { buildThread } from '../utils/buildThread';
@@ -607,7 +607,7 @@ export const ThreadPage = () => {
     const handleCopy = async () => {
         // What the message SAYS, not what it is made of — a Block Kit body would otherwise
         // put its payload on the clipboard.
-        const text = messagePlainText(actionMessage?.content);
+        const text = actionMessage ? chatPlainText(actionMessage) : '';
         if (!text || isCopying) return;
         setIsCopying(true);
         try {
@@ -729,7 +729,7 @@ export const ThreadPage = () => {
                         hasMessageText(message) && (
                             <p className="whitespace-pre-wrap break-words text-base leading-normal tracking-[-0.08px] text-foreground">
                                 <MessageText
-                                    text={messagePlainText(message.content)}
+                                    text={chatPlainText(message)}
                                     mentions={mentionMarksFor(message, mentionViewer)}
                                     onMentionClick={person =>
                                         openMemberProfile({ id: person.id, name: person.name, avatar: person.avatar })
@@ -775,7 +775,7 @@ export const ThreadPage = () => {
                 time={formatTime(message.timestamp)}
                 read={{ show: false, isReady: false, readCount: 0, unreadCount: 0 }}
                 onLongPress={() => canOpenMessageActions(message) && setActionMessage(message)}
-                onExpand={() => setExpandedMessage({ content: messagePlainText(message.content) })}
+                onExpand={() => setExpandedMessage({ content: chatPlainText(message) })}
                 onRetry={() => undefined}
                 onDelete={() => undefined}
                 reactions={message.id ? reactions.get(message.id) : undefined}

@@ -557,12 +557,24 @@ describe('ChannelMessageRow', () => {
         });
     });
 
-    // A webhook send arrives as ordinary `stereo: 'user'` chat whose `content` is Block Kit
-    // JSON (docs/specs/block-kit-messages.md §2). Without this branch the row hands that JSON
-    // to MessageText and the reader sees the payload.
+    // A webhook send (`stereo: 'webhook'`) can carry its Block Kit as JSON in `content`. Without
+    // this branch the row hands that JSON to MessageText and the reader sees the payload.
     describe('Block Kit content', () => {
         const blockMessage = (blocks: unknown[]) =>
-            ({ ...message, content: JSON.stringify({ blocks }) }) as unknown as ClientChatView;
+            ({ ...message, stereo: 'webhook', content: JSON.stringify({ blocks }) }) as unknown as ClientChatView;
+
+        // Only an integration's post is a card. A person who pastes a payload wrote that text, and a
+        // card from the composer would look exactly like an alert.
+        it("keeps a person's pasted payload as the text they sent, in a bubble", () => {
+            const pasted = {
+                ...blockMessage([{ type: 'header', text: { type: 'plain_text', text: '배포 실패' } }]),
+                stereo: 'user',
+            } as unknown as ClientChatView;
+            render(<ChannelMessageRow {...baseProps} message={pasted} />);
+
+            expect(screen.getByTestId('bubble')).toBeInTheDocument();
+            expect(screen.queryByRole('heading', { name: '배포 실패' })).not.toBeInTheDocument();
+        });
 
         it('draws the blocks instead of the payload JSON', () => {
             render(
@@ -937,6 +949,19 @@ describe('ChannelMessageRow — opening the sender profile', () => {
                 {...baseProps}
                 message={{ ...message, isOwner: true } as unknown as ClientChatView}
                 onOpenProfile={onOpenProfile}
+            />
+        );
+
+        expect(avatarButton()).not.toBeInTheDocument();
+    });
+
+    // A webhook's sender is not a member; its system account has no profile behind the avatar.
+    it('is inert for a webhook message', () => {
+        render(
+            <ChannelMessageRow
+                {...baseProps}
+                message={{ ...message, stereo: 'webhook' } as unknown as ClientChatView}
+                onOpenProfile={jest.fn()}
             />
         );
 
