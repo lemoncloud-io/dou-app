@@ -39,7 +39,9 @@ export interface FloatingTabBarProps {
  * How a selection change moves: one clock for the label folding and the tab widths it drives, with a
  * fast start and a long settle, so the capsule reads as sliding into place rather than toggling.
  */
-const TAB_EASE = 'duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]';
+// Written as an arbitrary property: an arbitrary `ease` utility is ambiguous between the transition
+// one and tailwindcss-animate's animation one, and Tailwind warns rather than guarantees which.
+const TAB_EASE = 'duration-300 [transition-timing-function:cubic-bezier(0.32,0.72,0,1)]';
 /** The line and filled glyphs cross-fade on the same clock, without the motion curve. */
 const ICON_FADE = 'transition-opacity duration-300 motion-reduce:transition-none';
 

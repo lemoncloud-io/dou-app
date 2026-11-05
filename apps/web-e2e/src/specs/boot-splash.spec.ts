@@ -23,8 +23,13 @@ test('the app is told to lift its splash once the first screen has painted', asy
         const post = native.postMessage;
         native.postMessage = raw => {
             if (String(raw).includes('"type":"FirstScreenReady"')) {
-                (window as unknown as Record<string, string>)['__e2eScreenAtFirstScreenReady'] =
-                    document.getElementById('root')?.innerText ?? '';
+                const root = document.getElementById('root');
+                const record = window as unknown as Record<string, unknown>;
+                record['__e2eScreenAtFirstScreenReady'] = root?.innerText ?? '';
+                // An unselected tab is drawn as its icon alone, so its name is only on the button.
+                record['__e2eTabsAtFirstScreenReady'] = Array.from(root?.querySelectorAll('nav button') ?? []).map(
+                    tab => tab.getAttribute('aria-label') ?? ''
+                );
             }
             post(raw);
         };
@@ -42,11 +47,16 @@ test('the app is told to lift its splash once the first screen has painted', asy
     // The home route's own frame, not a blank provider tree behind a session gate: its tab bar is drawn.
     // Its data may still be loading — a screen showing its own loading state counts as painted
     // (apps/web/docs/shell/boot-cover.md), so nothing about the room list is asserted here.
-    const screen = await page.evaluate(
-        () => (window as unknown as Record<string, string>)['__e2eScreenAtFirstScreenReady']
-    );
+    const { screen, tabs } = await page.evaluate(() => {
+        const record = window as unknown as Record<string, unknown>;
+        return {
+            screen: record['__e2eScreenAtFirstScreenReady'] as string,
+            tabs: record['__e2eTabsAtFirstScreenReady'] as string[],
+        };
+    });
+    // Home's tab is the selected one, so its name is drawn; MY is there as its icon.
     expect(screen).toMatch(/^Chat$/m);
-    expect(screen).toMatch(/^MY$/m);
+    expect(tabs).toEqual([expect.stringMatching(/^Chat\b/), 'MY']);
 });
 
 test('a boot that cannot sign in keeps the splash up until the cap', async ({ page, shell, backend }) => {
