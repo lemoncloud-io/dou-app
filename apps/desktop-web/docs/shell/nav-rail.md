@@ -59,6 +59,11 @@ Both rails are `width.rail` (80px, `tailwind.config.js`). `AppShellSkeleton` dra
 and `usePanelWidth` counts them in its budget (`RAIL_WIDTH`). Change all three together, or the boot
 skeleton jumps and the panels can squeeze the conversation under its floor.
 
+`AppShellSkeleton` is only for the home route, the one route that renders this shell. `RouteFallback`
+picks the placeholder for a suspended route or boot: the shell skeleton on `/`, `PageSkeleton` (a
+`PageShell`-shaped header and cards) on every other signed-in route, the plain loader signed out.
+Settings, Profile and Account have no rails, so the shell skeleton there promised a layout that never arrived.
+
 Below `NARROW_SHELL_WIDTH` the sidebar becomes a drawer that opens beside the docked rails. Below
 `COMPACT_SHELL_WIDTH` the nav rail joins the cloud and place rail inside the drawer, as described in
 [trailing-panels.md](./trailing-panels.md#the-sidebar-drawer).

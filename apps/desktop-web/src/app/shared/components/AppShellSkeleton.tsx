@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Skeleton } from './Skeleton';
 
 /**
- * Full Slack-style shell placeholder shown during app boot / route suspense for
- * authenticated sessions. Mirrors DesktopLayout (rails · sidebar · main) so the
+ * Full Slack-style shell placeholder for the home route only (picked by `RouteFallback`;
+ * other signed-in routes get `PageSkeleton`). Mirrors DesktopLayout (rails · sidebar · main) so the
  * real UI fades in over the same skeleton instead of after a blank screen.
  */
 export const AppShellSkeleton = () => {

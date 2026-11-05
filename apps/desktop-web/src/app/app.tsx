@@ -3,13 +3,12 @@ import { I18nextProvider } from 'react-i18next';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-import { LoadingFallback } from '@chatic/shared';
 import { ThemeProvider } from '@chatic/theme';
 import { runtime } from '@chatic/app-runtime';
 
 import i18n from '../i18n';
 import { DesktopRuntime } from './runtime';
-import { AppErrorBoundary, AppShellSkeleton } from './shared';
+import { AppErrorBoundary, RouteFallback } from './shared';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -29,9 +28,9 @@ const queryClient = new QueryClient({
 export function App() {
     const { isAuthenticated } = runtime.session.useSessionAuth();
 
-    // Authenticated boots land on the chat shell, so show the shell skeleton (not a bare
-    // spinner) for better perceived performance; pre-auth keeps the plain loader.
-    const bootFallback = isAuthenticated ? <AppShellSkeleton /> : <LoadingFallback />;
+    // Outside the Router, so read the address bar: a reload on /settings must not boot into the
+    // home shell's skeleton. Pre-auth keeps the plain loader.
+    const bootFallback = <RouteFallback pathname={window.location.pathname} isAuthenticated={isAuthenticated} />;
 
     return (
         <I18nextProvider i18n={i18n}>

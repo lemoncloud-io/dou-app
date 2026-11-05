@@ -1,8 +1,7 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { Navigate, Route, BrowserRouter as Router, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, BrowserRouter as Router, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import { isNative, webClient } from '@chatic/bridges';
-import { LoadingFallback } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { useInviteLoginPageStore } from './features/auth/stores/useInviteLoginPageStore';
@@ -13,7 +12,7 @@ import { isPhoneLoginEnabled } from './features/auth/utils/phoneLogin';
 import { useQuickSwitcherStore } from './features/chat/stores/useQuickSwitcherStore';
 import { useShortcutsDialogStore } from './features/chat/stores/useShortcutsDialogStore';
 import { useSearchDialogStore } from './features/search/stores/useSearchDialogStore';
-import { AppShellSkeleton, parsePushDeeplink, usePendingOpenStore } from './shared';
+import { RouteFallback, parsePushDeeplink, usePendingOpenStore } from './shared';
 
 /**
  * Desktop notification-open router. Mounted inside the Router (so it can
@@ -100,6 +99,10 @@ const PairingCodePage = lazy(() => import('./features/pairing').then(m => ({ def
 const PairingApprovePage = lazy(() => import('./features/pairing').then(m => ({ default: m.PairingApprovePage })));
 const DevicesPage = lazy(() => import('./features/pairing').then(m => ({ default: m.DevicesPage })));
 
+const LocationFallback = ({ isAuthenticated }: { isAuthenticated: boolean }) => (
+    <RouteFallback pathname={useLocation().pathname} isAuthenticated={isAuthenticated} />
+);
+
 export const AppRouter = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     const inviteAttemptHeld = useInviteLoginPageStore(s => s.held);
@@ -118,10 +121,9 @@ export const AppRouter = () => {
                     <AppearanceDialog />
                 </Suspense>
             )}
-            {/* A signed-out person is on their way to Welcome, not to the chat
-                shell — showing its skeleton promises a workspace they do not have
-                yet. Same branch app.tsx makes for the boot fallback. */}
-            <Suspense fallback={isAuthenticated ? <AppShellSkeleton /> : <LoadingFallback />}>
+            {/* Same branch app.tsx makes for the boot fallback: the chat shell skeleton only for
+                home, a page skeleton for the other signed-in routes, the plain loader signed out. */}
+            <Suspense fallback={<LocationFallback isAuthenticated={isAuthenticated} />}>
                 {/* Social Login deeplink (chatic://oauth) — pre-auth it signs in (router
                     flips branches); in-app (guest linking from Profile) it swaps the
                     session and reloads. */}
