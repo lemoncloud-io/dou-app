@@ -500,8 +500,8 @@ DoU's name. Three requests, in the base set, let a page ask well; none limits it
 - **`RequestSubWebViewPermission` waits for the user**, so a page MUST NOT time it out. A refusal
   answers `prompt`, since the OS may ask again.
 - **The answer is for every page.** The OS prompt names DoU, so what the user allows for one page they
-  have allowed for all; there is no limit per page, and the review every page passes is what judges its
-  use of a device.
+  have allowed for all; there is no limit per page, and the app does not judge a page's use of a device:
+  its author answers for it.
 - A page MAY skip these and call `getUserMedia` directly; it then meets the OS prompt mid-capture.
 
 ## Pushes

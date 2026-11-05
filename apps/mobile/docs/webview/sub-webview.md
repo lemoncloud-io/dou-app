@@ -207,10 +207,9 @@ the load counter is bumped in `onLoadStart` itself, before the state that rebuil
 
 **Device features are left open.** Camera, microphone, file pickers and downloads behave as the
 WebView and the OS make them behave; nothing is switched off for this view, and no manifest
-permission is needed for them. What keeps that safe is not a setting but what may be deployed to the
-allowlisted domains: only pages that passed the app's own content review, which is where a page's use
-of a device is judged and where the administrator who approves it answers for it. What each feature
-does today, given the permissions the app declares:
+permission is needed for them. The app does not limit or judge a page's use of a device: the person who
+makes the page answers for it, and neither a setting nor the review that deploys a page to the
+allowlisted domains is asked to stand in for that. What each feature does today, given the permissions the app declares:
 
 | Feature     | iOS                                                                   | Android                                                                                            |
 | ----------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -224,8 +223,7 @@ Every prompt says "DoU", not the page: to the user, a page's use of a feature is
 microphone was added for voice messages, and a page gets it on the same terms as the camera: nothing
 here refuses an audio capture, and react-native-webview offers no way to refuse audio alone — its iOS
 grant setting answers the camera and the microphone with one value, and its Android client turns an
-audio request into the app's `RECORD_AUDIO`. Whether a page uses the microphone is part of what its
-review checks before it goes on an allowlisted domain. Adding location still needs a purpose string or
+audio request into the app's `RECORD_AUDIO`. Adding location still needs a purpose string or
 permission in the app, so an app release, and is done when a reviewed page needs it.
 
 **Asking first, and the two WebView settings.** `GetSubWebViewPermission` and

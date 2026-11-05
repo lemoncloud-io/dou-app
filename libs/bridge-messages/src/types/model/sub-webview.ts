@@ -338,8 +338,8 @@ export type OnGetSubWebViewStorageInfoPayload = SubWebViewStorageUsage & {
  * A page captures with the WebView's own `getUserMedia`, and the OS asks the user under DoU's name.
  * These requests let a page learn where it stands first and ask when the user reaches for the feature,
  * rather than meet the OS prompt in the middle of a capture. They are in the base set: they reach no
- * more than `getUserMedia` already gives the page, and what may run is decided by the review every
- * page passes before it is deployed to an allowlisted origin.
+ * more than `getUserMedia` already gives the page. The app does not limit a page's use of a device;
+ * its author answers for it.
  *
  * Both fail with `INVALID` for an unknown kind and `UNAVAILABLE` when the device has no such hardware.
  */

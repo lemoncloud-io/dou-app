@@ -32,9 +32,9 @@ library and carrying the patch through every upgrade of it.
 
 ## Decision
 
-**The camera and the microphone stay open to every reviewed page, and the administrator who approves
-a page answers for what it does with them. The app gives pages a way to ask well, and adds nothing
-that limits them.**
+**The camera and the microphone stay open to every page, and the person who makes a page is
+answerable for what it does with them. The app gives pages a way to ask well, and adds nothing that
+limits them — no limit of its own, and no approval step for devices.**
 
 - **Three requests, in the base set** — `GetSubWebViewPermission`, `RequestSubWebViewPermission` and
   `OpenSettings` — go through the `PermissionService` the main web already uses. `query` reports where
@@ -47,8 +47,9 @@ that limits them.**
 - **The sub WebView plays media inline** (`allowsInlineMediaPlayback`) and answers a capture from its
   own host without WebKit asking a second time after the OS, and one from another host with a no
   (`mediaCapturePermissionGrantType="grantIfSameHostElseDeny"`).
-- **No manifest permission and no dialog of DoU's.** A page's use of a device is judged in the review
-  every page passes before it is deployed to an allowlisted origin, as ADR-0265 decided.
+- **No manifest permission, no dialog of DoU's, and no review of a page's use of a device.** The
+  author's responsibility for it is the whole safeguard: the app does not judge it and the review
+  that deploys a page to an allowlisted origin is not asked to.
 - **Out of scope**: location (the app declares no location permission, so it needs an app release and
   a reason the stores accept), contacts, notifications and the photo library.
 
@@ -73,8 +74,9 @@ that limits them.**
   app release for them and for the two iOS WebView settings; until then the handshake does not list
   them and a page falls back to `getUserMedia` alone.
 - **The OS's allowance for DoU is every page's.** Once the user allows the camera for one page, every
-  page on an allowlisted origin that calls `getUserMedia` meets no further prompt. The review is the
-  only check on which pages use it, and the administrator who approves a page answers for that use.
+  page on an allowlisted origin that calls `getUserMedia` meets no further prompt. Nothing in the app
+  checks which pages use it; a page's author answers for that use, and an author who misuses it is
+  dealt with as a matter between DoU and the author, not by the app.
 - The library stays unpatched: nothing to reapply when `react-native-webview` is upgraded.
 - If a limit per page is wanted later, it is this ADR's rejected alternative, and the first step is
   patching the library as described there.
