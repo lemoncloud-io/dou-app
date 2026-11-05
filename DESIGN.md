@@ -35,7 +35,7 @@ Figma variables read from node `187-3` (the desktop palette):
 | `BK_600`                      | `#84888F` | `--description`: timestamps, sub text                            |
 | `BK_700`                      | `#53555B` | `--label` (web), `--dialog-subtitle` (desktop)                   |
 | `BK_800`                      | `#3A3C40` | `--label` (desktop), `--rail-foreground`, `--focus-border` (web) |
-| `BK_900`                      | `#222325` | dark toast text, active tab (web nav)                            |
+| `BK_900`                      | `#222325` | dark toast text                                                  |
 | `Colors/Green`                | `#34C759` | not tokenised                                                    |
 | `Colors/Orange`               | `#FF9500` | `--favorite` (desktop star)                                      |
 | `Colors/Pink`                 | `#FF2D55` | `--badge-unread` (desktop), `--point-pink` (web)                 |
@@ -282,9 +282,12 @@ cannot drift from the shell. Change it in one place or not at all.
   routes are `h-dvh overflow-hidden` and own their scroll.
 - **PageHeader**: 48px minimum, centred 17px title, back chevron left, glass fill
   (`bg-white/[0.32] backdrop-blur-xl`) that owns the top safe-area inset itself.
-- **FloatingTabBar** (`libs/web-ui-kit`): full-width gradient layer with a centred
-  166 × 62 glass pill, two 48px tabs (Chat, My), unread badge on Chat. Active tab
-  `#222325`, inactive `#53555B`. Sits over content; the page pads its bottom.
+- **FloatingTabBar** (`libs/web-ui-kit`, Figma `5780:17209`): a 62px glass pill that hugs
+  its tabs, centred over the column 18px above the safe area. The selected tab is a tinted
+  capsule with its filled icon and name; the others are their line icon alone, 72px each.
+  Glyphs are `--nav-ink` `#1C274C`; unread badge on Chat. The glass is CSS only (frost,
+  saturation, lit rims), the same on iOS and Android — see `apps/web/docs/shell/layout-shell.md`.
+  Sits over content; the page pads its bottom.
 - Safe areas and keyboard come from native-injected variables: `pt-safe-top`,
   `pb-safe-bottom`, `pb-keyboard`.
 

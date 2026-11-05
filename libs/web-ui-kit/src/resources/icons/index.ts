@@ -136,3 +136,6 @@ export {
     IconFileText,
     type FileKindIconProps,
 } from './FileKindIcons';
+// Bottom nav glyphs (Figma 5780:17209): each tab has a line icon and a filled one for its selected
+// state. They fill or stroke `currentColor`; the tab bar colours them with `text-nav-ink`.
+export { IconNavChat, IconNavChatSolid, IconNavMy, IconNavMySolid, type NavIconProps } from './NavIcons';

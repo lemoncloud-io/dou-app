@@ -54,6 +54,7 @@ module.exports = {
                 'avatar-ring': 'hsl(var(--avatar-ring))',
                 'avatar-stroke': 'hsl(var(--avatar-stroke))',
                 'control-surface': 'hsl(var(--control-surface))',
+                'nav-ink': 'hsl(var(--nav-ink))',
                 'glyph-green': 'hsl(var(--glyph-green))',
                 'glyph-indigo': 'hsl(var(--glyph-indigo))',
                 'glyph-cyan': 'hsl(var(--glyph-cyan))',
