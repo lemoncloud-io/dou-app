@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-05] - No version updates
+
+### Features
+
+- (web-ui-kit,web) redraw the bottom nav as a glass pill that hugs its tabs (ADR-0286)
+
+### Other
+
+- test: (web-e2e,web-ui-kit) read the unselected MY tab from its button, not the screen text
+
 ## [2026-11-05] - root@0.147.5, @chatic/web@0.86.4
 
 ### Bug Fixes
