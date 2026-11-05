@@ -389,7 +389,7 @@ export const MessageList = ({
                     colorSeed: isMine ? viewer.cloudUid || viewer.uid || replier.id : replier.id,
                 };
             });
-            view.set(rootKey, { count: meta.count, lastReplyAt: meta.lastReplyAt, repliers });
+            view.set(rootKey, { count: meta.count, lastReplyAt: meta.lastReplyAt, newCount: meta.newCount, repliers });
         }
         return view;
     }, [threadMeta, names, placeProfiles, viewer]);
@@ -512,6 +512,22 @@ export const MessageList = ({
         setSeenUpTo(prev => Math.max(prev, baselineReadNo ?? 0));
     }, [baselineReadNo]);
 
+    // The oldest root in the feed with a reply the reader has not seen — the landing spot when the
+    // feed has no unread divider of its own. Read at the first fill only, like the divider.
+    const newReplyRoot = useMemo(() => {
+        if (!threadMeta) return null;
+        let oldest: number | null = null;
+        for (const message of messages) {
+            if (message.chatNo == null || !threadMeta.get(String(message.chatNo))?.newCount) continue;
+            if (oldest === null || message.chatNo < oldest) oldest = message.chatNo;
+        }
+        return oldest;
+    }, [messages, threadMeta]);
+    // Read through a ref so the effect below does not re-run when it changes: opening a thread moves
+    // it, and a re-run then would spend the pending older-page restore before that page has landed.
+    const newReplyRootRef = useRef(newReplyRoot);
+    newReplyRootRef.current = newReplyRoot;
+
     useLayoutEffect(() => {
         const el = scrollRef.current;
         const grew = messages.length > prevLenRef.current;
@@ -544,11 +560,17 @@ export const MessageList = ({
         // riding the post-mount reflow so it lands ON the bottom, not a row short.
         if (firstFill && !didInitRef.current) {
             didInitRef.current = true;
+            const rootNo = newReplyRootRef.current;
+            const replyRoot = rootNo === null ? null : el.querySelector<HTMLElement>(`[data-chat-no="${rootNo}"]`);
             if (openAtBottomRef.current) {
                 setAtBottom(true);
                 pinToBottom();
             } else if (unreadRef.current) {
                 unreadRef.current.scrollIntoView({ block: 'center' });
+            } else if (replyRoot) {
+                // Nothing new in the feed itself, but the channel was badged for replies: land on
+                // the oldest root that has some, so the badge leads to something on screen.
+                replyRoot.scrollIntoView({ block: 'center' });
             } else {
                 bottomRef.current?.scrollIntoView({ block: 'end' });
             }

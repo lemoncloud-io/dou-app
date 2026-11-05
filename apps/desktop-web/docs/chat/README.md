@@ -35,7 +35,7 @@ stores in `src/app/shared/`.
 - [my-threads.md](./my-threads.md): the device's record of my threads, which the inbox's Threads tab
   reads — which threads it holds, the three ways one gets in, and what it cannot know.
 - [threads.md](./threads.md): how the thread panel gets a root and replies that are older than the loaded
-  window, and what it shows while it cannot.
+  window, what it shows while it cannot, and how a root in the feed marks replies the reader has not seen.
 - [keyboard.md](./keyboard.md): the feed's single tab stop, hover-revealed controls, which layer owns a
   key, focus on open and close, and the next-unread shortcut.
 - [message-editing.md](./message-editing.md): the editor a message opens in, and why the wire string carries no

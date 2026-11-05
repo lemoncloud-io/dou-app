@@ -997,3 +997,58 @@ describe('MessageList webhook sender', () => {
         expect(screen.queryByText('App')).toBeNull();
     });
 });
+
+describe('a channel badged only for thread replies', () => {
+    const replies = (newCount: number) =>
+        new Map<string, ThreadMeta>([
+            ['1', { count: 2, lastReplyAt: 1_700_000_100_000, repliers: [{ id: 'ada' }], newCount }],
+        ]);
+    // Which elements the list scrolled into view on its first fill.
+    const scrolledTo = () =>
+        vi.mocked(Element.prototype.scrollIntoView).mock.contexts.map(el => (el as HTMLElement).dataset.chatNo);
+
+    beforeEach(() => vi.mocked(Element.prototype.scrollIntoView).mockClear());
+
+    const renderFeed = (baselineReadNo: number, newCount: number) =>
+        render(
+            <MessageList
+                messages={[message(1, 'ada', 'parent'), message(2, 'bo', 'later')]}
+                isLoading={false}
+                viewer={VIEWER}
+                names={new Map([['ada', 'Ada']])}
+                baselineReadNo={baselineReadNo}
+                threadMeta={replies(newCount)}
+                onOpenThread={vi.fn()}
+            />,
+            { wrapper }
+        );
+
+    it('says how many replies are new on the root', () => {
+        renderFeed(2, 1);
+
+        expect(screen.getByText('1 new reply')).toBeDefined();
+        expect(screen.getByRole('button', { name: 'Open thread · 2 replies · 1 new reply' })).toBeDefined();
+    });
+
+    // The feed has nothing new of its own, so without this it would open at the bottom and the
+    // badge that brought the reader here would clear over nothing.
+    it('lands on the root with new replies', () => {
+        renderFeed(2, 1);
+
+        expect(scrolledTo()).toContain('1');
+    });
+
+    it('lands on the unread divider instead when the feed has new messages too', () => {
+        renderFeed(1, 1);
+
+        expect(screen.getByText(/new messages/i)).toBeDefined();
+        expect(scrolledTo()).not.toContain('1');
+    });
+
+    it('shows the last reply time and lands at the bottom once nothing is new', () => {
+        renderFeed(2, 0);
+
+        expect(screen.queryByText(/new repl/)).toBeNull();
+        expect(scrolledTo()).not.toContain('1');
+    });
+});

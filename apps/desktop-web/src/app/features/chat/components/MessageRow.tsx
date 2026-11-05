@@ -84,6 +84,8 @@ export interface ThreadReplierView {
 export interface ThreadMetaView {
     count: number;
     lastReplyAt: number;
+    /** Replies the reader has not seen yet — the footer says so in place of the last-reply time. */
+    newCount: number;
     repliers: ThreadReplierView[];
 }
 
@@ -983,7 +985,13 @@ export const MessageRow = memo(
                                         <button
                                             type="button"
                                             onClick={() => onOpenThread(threadRootId(message))}
-                                            aria-label={t('chat.thread.openThread', { count: meta.count })}
+                                            aria-label={[
+                                                t('chat.thread.openThread', { count: meta.count }),
+                                                meta.newCount > 0 &&
+                                                    t('chat.thread.newReplies', { count: meta.newCount }),
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' · ')}
                                             className="group/thread focus-ring tactile -mx-1.5 mt-1 flex w-full max-w-md items-center gap-2 rounded-md border border-transparent px-1.5 py-1 text-left text-caption transition-colors ease-tactile hover:border-hairline hover:bg-elevated hover:shadow-raised"
                                         >
                                             {meta.repliers.length > 0 ? (
@@ -1015,12 +1023,24 @@ export const MessageRow = memo(
                                             <span className="shrink-0 font-semibold tabular-nums text-primary-ink group-hover/thread:underline">
                                                 {t('chat.thread.replyCount', { count: meta.count })}
                                             </span>
-                                            {meta.lastReplyAt > 0 && (
-                                                <span className="truncate text-muted-foreground group-hover/thread:hidden">
-                                                    {t('chat.thread.lastReplyAt', {
-                                                        time: formatTime(meta.lastReplyAt),
-                                                    })}
+                                            {meta.newCount > 0 ? (
+                                                <span className="flex min-w-0 items-center gap-1.5 font-semibold text-foreground group-hover/thread:hidden">
+                                                    <span
+                                                        aria-hidden
+                                                        className="h-2 w-2 shrink-0 rounded-full bg-badge-unread"
+                                                    />
+                                                    <span className="truncate">
+                                                        {t('chat.thread.newReplies', { count: meta.newCount })}
+                                                    </span>
                                                 </span>
+                                            ) : (
+                                                meta.lastReplyAt > 0 && (
+                                                    <span className="truncate text-muted-foreground group-hover/thread:hidden">
+                                                        {t('chat.thread.lastReplyAt', {
+                                                            time: formatTime(meta.lastReplyAt),
+                                                        })}
+                                                    </span>
+                                                )
                                             )}
                                             <span className="hidden truncate text-muted-foreground group-hover/thread:inline">
                                                 {t('chat.thread.view')}

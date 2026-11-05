@@ -40,7 +40,14 @@ import type { ChannelMember } from '../../channels';
 import { useChannelActions, useChannelSettingsStore } from '../../channels';
 import { useSearchDialogStore } from '../../search';
 import { buildMemberNames, buildThreadIndex, foldReactions, isFeedVisible } from '../utils';
-import { useComposerSend, useFileDrop, useImageAttachments, useMentionables, useMessageViewer } from '../hooks';
+import {
+    useComposerSend,
+    useFileDrop,
+    useImageAttachments,
+    useMentionables,
+    useMessageViewer,
+    useNewReplyRule,
+} from '../hooks';
 import { useThreadStore } from '../stores';
 import { ChannelHeaderMenu } from './ChannelHeaderMenu';
 import { ChannelIntro } from './ChannelIntro';
@@ -134,9 +141,6 @@ export const ChatPane = ({
     // Thread replies belong to the panel (ADR 0008) and reaction events are chips, not
     // rows — `isFeedVisible` owns both rules. Deleted messages stay and render as a
     // tombstone, so the filter no longer needs the thread index to decide.
-    // Reply counts come from the full set so a root's "N replies" footer is correct;
-    // replies keep arriving in the cache via chat:create.
-    const threadIndex = useMemo(() => buildThreadIndex(messages), [messages]);
     const topLevel = useMemo(() => messages.filter(isFeedVisible), [messages]);
     // Reactions fold from the UNFILTERED list on purpose: `isFeedVisible` removes exactly
     // the events this reads, so folding `topLevel` would always come back empty.
@@ -158,6 +162,12 @@ export const ChatPane = ({
         baselineRef.current = { id: channelId, no: Math.max(localCursor, serverJoinNo) };
     }
     const baselineReadNo = baselineRef.current.no;
+    // A reply takes a slot in the channel's unread count but stays out of this feed, so its root's
+    // footer is what shows it is new — and where the feed lands when nothing else is.
+    const newReplyRule = useNewReplyRule(channelId, messages, baselineReadNo, viewer);
+    // Reply counts come from the full set so a root's "N replies" footer is correct;
+    // replies keep arriving in the cache via chat:create.
+    const threadIndex = useMemo(() => buildThreadIndex(messages, newReplyRule), [messages, newReplyRule]);
 
     // owner$ is often omitted on other users' messages, so resolve author names
     // from the `user` cache keyed by owner id (useAuthorNames) — that paints a
