@@ -21,7 +21,7 @@ jest.mock('../../../../bridge/shellCapabilities', () => ({
     shellCapabilities: { subscribe: () => () => undefined, supports: () => true },
 }));
 
-const URL_ = 'https://sample.apps-dev.chatic.io/';
+const URL_ = 'https://dou-raise.apps-dev.chatic.io/';
 
 describe('parseParams', () => {
     it('reads an empty field as no params', () => {
@@ -51,7 +51,7 @@ describe('SubWebViewScreen', () => {
     it('starts with the sample page filled in', () => {
         render(<SubWebViewScreen />);
 
-        expect(screen.getByLabelText('URL')).toHaveValue('https://sample.apps-dev.chatic.io/');
+        expect(screen.getByLabelText('URL')).toHaveValue('https://dou-raise.apps-dev.chatic.io/');
     });
 
     it('opens the URL with its params and logs where it went', async () => {

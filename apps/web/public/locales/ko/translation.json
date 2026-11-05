@@ -199,10 +199,6 @@
             "inAppNote": "누르면 앱 위에 서브웹뷰로 열려요. 디버그 모드에서만 보여요.",
             "inAppOpenFailed": "열지 못했어요",
             "inAppPages": {
-                "echo": {
-                    "title": "에코",
-                    "subtitle": "빛·소리·진동으로 나온 순서를 기억하는 퍼즐"
-                },
                 "enhanceDou": {
                     "title": "두유 키우기",
                     "subtitle": "두유를 키워보세요"

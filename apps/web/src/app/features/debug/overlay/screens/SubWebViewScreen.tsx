@@ -24,7 +24,7 @@ interface LogLine {
 const MAX_LOGS = 20;
 
 /** The page deployed for trying the sub WebView in a dev build; editable, so any other page works too. */
-export const SAMPLE_PAGE_URL = 'https://sample.apps-dev.chatic.io/';
+export const DEFAULT_PAGE_URL = 'https://dou-raise.apps-dev.chatic.io/';
 
 /** `undefined` for an empty field, the object for a JSON object, an `Error` for anything else. */
 export const parseParams = (raw: string): SubWebViewParams | undefined | Error => {
@@ -43,7 +43,7 @@ export const SubWebViewScreen = () => {
     const supported = useSyncExternalStore(shellCapabilities.subscribe, () =>
         shellCapabilities.supports('OpenSubWebView')
     );
-    const [url, setUrl] = useState(SAMPLE_PAGE_URL);
+    const [url, setUrl] = useState(DEFAULT_PAGE_URL);
     const [title, setTitle] = useState('');
     const [params, setParams] = useState('');
     const [paramsError, setParamsError] = useState<string | null>(null);

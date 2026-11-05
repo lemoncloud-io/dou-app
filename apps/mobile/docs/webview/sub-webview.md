@@ -411,10 +411,11 @@ an import the other way ties the main WebView to a screen it should only know th
 ## Checking it by hand
 
 Any page deployed on a subdomain of `apps-dev.chatic.io` (or `apps.chatic.io`) will do — nothing else
-opens. `https://sample.apps-dev.chatic.io/` and `https://sample1.apps-dev.chatic.io/` are kept for
-trying it: while debug mode is on — LOCAL and DEV start that way, a store build after the Lab's unlock —
-the web's Lab page (Settings → Lab) lists both under "In-app", and a tap opens one. The allowlist takes
-`apps-dev.chatic.io` in every build, so an unlocked store build opens them too. A page reaches
+opens. The game `https://dou-raise.apps.chatic.io/` is the page kept for trying it: the web's Lab
+page (Settings → Lab) lists it under Experiments for everyone, and a tap opens it. The debug screen's
+URL field starts at its development host, `https://dou-raise.apps-dev.chatic.io/`, and takes any other
+page. The allowlist takes `apps-dev.chatic.io` in every build, so an unlocked store build opens a
+development page too. A page reaches
 `CopyToClipboard`, `OpenShareSheet`, `OpenURL` and `GetSubWebViewUserKey` only when its deployed
 manifest grants them; without one, those four answer `NOT_FOUND`.
 

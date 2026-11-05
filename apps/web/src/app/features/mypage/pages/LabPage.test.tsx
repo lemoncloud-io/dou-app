@@ -67,14 +67,10 @@ describe('LabPage — sub WebView pages', () => {
         expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / })).toBeTruthy();
     });
 
-    it('keeps the echo page in the debug-only card, below the developer tools', () => {
+    it('draws no debug-only card while every page is an experiment', () => {
         render(<LabPage />);
 
-        const pages = screen.getByRole('region', { name: 'mypage.lab.inApp' });
-        expect(within(pages).getByRole('button', { name: /^mypage\.lab\.inAppPages\.echo\.title / })).toBeTruthy();
-        expect(within(pages).queryByRole('button', { name: /enhanceDou/ })).toBeNull();
-        const tools = screen.getByRole('region', { name: 'mypage.lab.developerTools' });
-        expect(tools.compareDocumentPosition(pages) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        expect(screen.queryByRole('region', { name: 'mypage.lab.inApp' })).toBeNull();
     });
 
     it('opens the page tapped in the sub WebView', async () => {
@@ -84,7 +80,7 @@ describe('LabPage — sub WebView pages', () => {
             fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / }));
         });
 
-        expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://sample1.apps-dev.chatic.io/' });
+        expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://dou-raise.apps.chatic.io/' });
         expect(toast).not.toHaveBeenCalled();
     });
 
@@ -93,7 +89,7 @@ describe('LabPage — sub WebView pages', () => {
         render(<LabPage />);
 
         await act(async () => {
-            fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.echo\.title / }));
+            fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / }));
         });
 
         expect(toast).toHaveBeenCalledWith(
@@ -102,11 +98,10 @@ describe('LabPage — sub WebView pages', () => {
     });
 
     // Locked, as a store build is until the flask's unlock, the debug-only card is not drawn at all.
-    it('draws no debug-only card and no echo page while debug mode is off', () => {
+    it('draws no debug-only card while debug mode is off', () => {
         mockDebugMode = false;
         render(<LabPage />);
 
         expect(screen.queryByRole('region', { name: 'mypage.lab.inApp' })).toBeNull();
-        expect(screen.queryByRole('button', { name: /inAppPages\.echo/ })).toBeNull();
     });
 });
