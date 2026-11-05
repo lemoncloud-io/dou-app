@@ -33,6 +33,10 @@ export default defineConfig({
                 }
                 copyFileSync(join(__dirname, 'package.publish.json'), join(__dirname, outDir, 'package.json'));
                 copyFileSync(join(__dirname, 'README.md'), join(__dirname, outDir, 'README.md'));
+                // The guide and the rules for an assistant ship beside the README, under the names a
+                // developer and an assistant look for.
+                copyFileSync(join(__dirname, 'docs/guide/README.md'), join(__dirname, outDir, 'GUIDE.md'));
+                copyFileSync(join(__dirname, 'docs/guide/agent-rules.md'), join(__dirname, outDir, 'AGENTS.md'));
             },
         },
     ],

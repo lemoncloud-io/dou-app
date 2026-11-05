@@ -8,7 +8,9 @@ user closes it. Users reach it in the app only — a link to it never opens it i
 same page runs in a plain browser tab too while you build it, where the library falls back to what the
 browser can do.
 
-Published as `@lemoncloud/chatic-apps-sdk`. No runtime dependencies.
+Published as `@lemoncloud/chatic-apps-sdk`. No runtime dependencies. `GUIDE.md` in the package says how
+to set up a project and what the bundle looks like; `AGENTS.md` holds the rules for an AI assistant
+writing a page.
 
 ## Install
 
@@ -248,7 +250,8 @@ logged rather than shown, the user key is not the app's, and it proves nothing a
 
 ## For an AI assistant writing a page
 
-Paste this list into the prompt along with what the page should do.
+Paste this list into the prompt along with what the page should do. `AGENTS.md` in the package holds
+these rules and a few more, for an assistant working in the project.
 
 1. Use `@lemoncloud/chatic-apps-sdk`. Call `await connect()` once at start, inside `try/catch`.
 2. Check `apps.inApp` and `apps.supports(capability)` before offering an app feature; never compare
