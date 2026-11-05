@@ -2,6 +2,12 @@
 
 ## [2026-11-05] - No version updates
 
+### Documentation
+
+- (chatic-apps-sdk) add a developer guide and rules for an ai assistant, shipped in the package
+
+## [2026-11-05] - No version updates
+
 ### Features
 
 - (mobile,chatic-apps-sdk,bridge-messages) let a sub webview page ask the os for the camera and microphone first (ADR-0289)
