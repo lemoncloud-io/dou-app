@@ -22,7 +22,7 @@ Or, with no bundler, one script that defines `window.ChaticAppsSDK` (pin the ver
 is not in this file):
 
 ```html
-<script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.1.0/chatic-apps-sdk.global.js"></script>
+<script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.2.0/chatic-apps-sdk.global.js"></script>
 ```
 
 ## Start
@@ -55,7 +55,7 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>Quiz</title>
-        <script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.1.0/chatic-apps-sdk.global.js"></script>
+        <script src="https://unpkg.com/@lemoncloud/chatic-apps-sdk@0.2.0/chatic-apps-sdk.global.js"></script>
     </head>
     <body>
         <h1 id="score">0</h1>
