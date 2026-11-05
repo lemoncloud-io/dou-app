@@ -47,6 +47,11 @@ dark mode keeps a lime tint, `bg-primary/[0.24]`), a heavier icon stroke and a b
 unread gets a red dot (`bg-badge-unread`), and its accessible name says so (`nav.unread`), because a dot
 alone is not read out.
 
+The Home tile draws the open place's logo in place of the house glyph, so a user with several places
+sees which one the rail is in. A place without a logo, and the Home cloud (no places), keep the glyph.
+Its label and accessible name stay "Home". The same logo on the place rail would hide that tile's lime
+fill, so a place tile with a logo marks the open place with a ring instead.
+
 ## Width
 
 The sidebar column keeps a width per destination: Home under `chatic.sidebar.width` (286px to

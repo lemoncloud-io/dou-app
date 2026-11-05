@@ -164,7 +164,9 @@ const PlaceTile = ({
                             'flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl font-bold text-rail-foreground transition-colors duration-150 ease-tactile tactile',
                             // The cloud tile's scale (Figma): one glyph large, two a step down.
                             Array.from(tileInitial(name)).length > 1 ? 'text-lead' : 'text-headline',
-                            isActive ? 'bg-primary text-primary-foreground' : 'bg-transparent group-hover:bg-border'
+                            isActive ? 'bg-primary text-primary-foreground' : 'bg-transparent group-hover:bg-border',
+                            // A logo covers the fill, so the open place needs a mark outside it.
+                            isActive && thumbnail && 'ring-2 ring-primary ring-offset-2 ring-offset-rail'
                         )}
                     >
                         {thumbnail ? (

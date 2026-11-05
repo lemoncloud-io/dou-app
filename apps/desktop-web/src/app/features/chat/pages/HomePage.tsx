@@ -896,6 +896,7 @@ export const HomePage = () => {
                     <NavRail
                         items={NAV_ITEMS}
                         unread={{ notifications: hasInboxUnread, channels: hasChannelUnread, dm: hasDmUnread }}
+                        place={isDefaultMode ? undefined : places.find(p => p.id === selectedPlaceId)}
                     />
                 }
                 sidebarWidth={navActive === 'home' ? undefined : NAV_PANEL_WIDTH}
