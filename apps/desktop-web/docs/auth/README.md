@@ -11,8 +11,9 @@ embedded Electron window. The relay returns to the hand-off page, `/auth/oauth-r
 opens `chatic://oauth?provider=&code=&nonce=` (`chatic-dev:` on the dev channel) to wake the app. The
 app exchanges the code and replaces whatever session was on the device.
 
-"Continue with Apple" sits under Google on the Welcome page and takes the same round trip through the
-relay's `/oauth/apple/authorize`; nothing after the browser opens differs by provider. It is shown on
+"Continue with Apple" sits after Google wherever Google is offered — the Welcome page, the Profile
+page and the account hub's guest card — and takes the same round trip through the relay's
+`/oauth/apple/authorize`; nothing after the browser opens differs by provider. It is shown on
 every platform, not only on a Mac: the relay's web flow works anywhere, which is not true of the mobile
 app's native Apple sign-in. The two buttons share one look — an outline and a mark in the text colour,
 one of the styles Apple allows — at the same size, so neither provider leads. Copy that names the

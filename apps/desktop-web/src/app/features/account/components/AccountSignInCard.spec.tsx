@@ -10,7 +10,7 @@ const navigate = vi.hoisted(() => vi.fn());
 const reopen = vi.hoisted(() => vi.fn());
 const cancel = vi.hoisted(() => vi.fn());
 const attempts = vi.hoisted(() => ({
-    attempt: null as { intent: 'login' | 'link'; nonce?: string } | null,
+    attempt: null as { intent: 'login' | 'link'; provider?: string; nonce?: string } | null,
     failed: false,
     linkFailure: null as 'occupied' | 'typeLinked' | 'failed' | null,
     busy: false,
@@ -20,7 +20,9 @@ const verifySocialAccount = vi.hoisted(() => vi.fn());
 const confirmSocialAccount = vi.hoisted(() => vi.fn());
 
 vi.mock('../../auth', () => ({
+    AppleIcon: () => null,
     GoogleIcon: () => null,
+    oauthProviderName: (provider: string) => (provider === 'apple' ? 'Apple' : 'Google'),
     PHONE_BUTTON_CLASS: '',
     isSocialLoginEnabled: () => socialEnabled.value,
     isPhoneLoginEnabled: () => phoneEnabled.value,
@@ -192,12 +194,12 @@ describe('AccountSignInCard', () => {
     });
 
     it('holds the guest Google sign-in while it is out in the browser', () => {
-        attempts.attempt = { intent: 'login' };
+        attempts.attempt = { intent: 'login', provider: 'google' };
         render(<AccountSignInCard account={{ userRole: 'guest' }} />);
 
         const google = screen.getByRole('button', { name: i18n.t('auth.social.google') }) as HTMLButtonElement;
         expect(google.disabled).toBe(true);
-        expect(screen.getByText(i18n.t('auth.social.waitingInline'))).toBeTruthy();
+        expect(screen.getByText(i18n.t('auth.social.waitingInline', { provider: 'Google' }))).toBeTruthy();
     });
 
     it('keeps an occupied Google on the card with its next step, until dismissed', () => {
@@ -218,5 +220,38 @@ describe('AccountSignInCard', () => {
         expect(screen.getByRole('alert').textContent).toBe(
             i18n.t('account.signIn.link.typeLinked') + i18n.t('auth.social.dismiss')
         );
+    });
+
+    describe('Apple guest sign-in', () => {
+        it('offers a guest Apple sign-in after Google, under the same note', () => {
+            render(<AccountSignInCard account={{ userRole: 'guest' }} />);
+
+            const names = screen.getAllByRole('button').map(b => b.textContent);
+            const google = names.findIndex(text => text?.includes(i18n.t('auth.social.google')));
+            const apple = screen.getByRole('button', { name: i18n.t('auth.social.apple') });
+            expect(names.findIndex(text => text?.includes(i18n.t('auth.social.apple')))).toBeGreaterThan(google);
+            expect(document.getElementById(apple.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+                i18n.t('auth.social.phoneSignupNote')
+            );
+            fireEvent.click(apple);
+            expect(start).toHaveBeenCalledWith('apple');
+        });
+
+        it('offers no Apple sign-in when social login is off', () => {
+            socialEnabled.value = false;
+            render(<AccountSignInCard account={{ userRole: 'guest' }} />);
+
+            expect(screen.queryByRole('button', { name: i18n.t('auth.social.apple') })).toBeNull();
+        });
+
+        it('names Apple while the Apple sign-in is out in the browser', () => {
+            attempts.attempt = { intent: 'login', provider: 'apple' };
+            render(<AccountSignInCard account={{ userRole: 'guest' }} />);
+
+            const apple = screen.getByRole('button', { name: i18n.t('auth.social.apple') }) as HTMLButtonElement;
+            expect(apple.disabled).toBe(true);
+            expect(screen.getByRole('status').textContent).toContain('Apple');
+            expect(screen.getByRole('status').textContent).not.toContain('Google');
+        });
     });
 });

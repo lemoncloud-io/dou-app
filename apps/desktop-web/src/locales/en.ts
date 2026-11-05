@@ -66,7 +66,7 @@ export const en = {
     'auth.social.waitingTitle': 'Finish signing in in your browser',
     'auth.social.waitingBody':
         'Complete the {{provider}} sign-in in the browser that opened, and DoU picks it up from there.',
-    'auth.social.waitingInline': 'Waiting for the Google sign-in in your browser.',
+    'auth.social.waitingInline': 'Waiting for the {{provider}} sign-in in your browser.',
     'auth.social.waitingFailed': "The sign-in didn't finish. Try again, or sign in another way.",
     'auth.social.waitingExpired': 'The sign-in took too long. Try again, or sign in another way.',
     'auth.social.reopen': 'Open the browser again',
@@ -82,8 +82,8 @@ export const en = {
     'auth.newAccount.skip': 'Set it later',
     'auth.newAccount.saveFailed': "We couldn't save the name. You can set it later on the account screen.",
     'auth.newAccount.continueWithout': 'Continue without a name',
-    'profile.signInGoogle': 'Sign in with Google',
-    'profile.signInGoogleHint': 'Use your account across devices. Replaces this guest session.',
+    'profile.signIn': 'Sign in to an account',
+    'profile.signInHint': 'Use your account across devices. Replaces this guest session.',
     'auth.social.phoneSignupNote':
         'Signed up on mobile with a phone number? Link Google or Apple in the mobile app’s account settings first, or these make a new account.',
     'auth.social.phoneSignupNotePhone':

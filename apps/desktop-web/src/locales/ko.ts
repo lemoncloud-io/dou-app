@@ -77,7 +77,7 @@ export const ko: EnTranslation = {
     'auth.social.expired': '로그인 시간이 지나 만료됐어요. DoU에서 다시 시작해 주세요.',
     'auth.social.waitingTitle': '브라우저에서 로그인을 마쳐 주세요',
     'auth.social.waitingBody': '열린 브라우저에서 {{provider}} 로그인을 끝내면 DoU로 돌아와요.',
-    'auth.social.waitingInline': '브라우저에서 Google 로그인을 기다리는 중이에요.',
+    'auth.social.waitingInline': '브라우저에서 {{provider}} 로그인을 기다리는 중이에요.',
     'auth.social.waitingFailed': '로그인을 끝내지 못했어요. 다시 시도하거나 다른 방법으로 로그인하세요.',
     'auth.social.waitingExpired': '로그인 시간이 지났어요. 다시 시도하거나 다른 방법으로 로그인하세요.',
     'auth.social.reopen': '브라우저 다시 열기',
@@ -93,8 +93,8 @@ export const ko: EnTranslation = {
     'auth.newAccount.skip': '나중에 정할게요',
     'auth.newAccount.saveFailed': '이름을 저장하지 못했어요. 나중에 계정 화면에서 정할 수 있어요.',
     'auth.newAccount.continueWithout': '이름 없이 계속',
-    'profile.signInGoogle': 'Google로 로그인',
-    'profile.signInGoogleHint': '여러 기기에서 같은 계정을 쓸 수 있어요. 지금의 게스트 세션은 대체돼요.',
+    'profile.signIn': '계정으로 로그인',
+    'profile.signInHint': '여러 기기에서 같은 계정을 쓸 수 있어요. 지금의 게스트 세션은 대체돼요.',
     'auth.social.phoneSignupNote':
         '모바일에서 전화번호로 가입했다면 먼저 모바일 앱의 계정 설정에서 Google 이나 Apple 을 연결하세요. 그러지 않으면 새 계정이 만들어져요.',
     'auth.social.phoneSignupNotePhone':

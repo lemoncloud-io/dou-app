@@ -50,7 +50,9 @@ vi.mock('../../pairing/utils/devicePairing', () => ({ isDevicePairingEnabled: ()
 
 const startSocialLogin = vi.hoisted(() => vi.fn());
 vi.mock('../../auth', () => ({
+    AppleIcon: () => null,
     GoogleIcon: () => null,
+    oauthProviderName: (provider: string) => provider,
     PHONE_BUTTON_CLASS: '',
     isSocialLoginEnabled: () => true,
     isPhoneLoginEnabled: () => true,
