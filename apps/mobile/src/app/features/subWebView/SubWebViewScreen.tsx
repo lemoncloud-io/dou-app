@@ -31,7 +31,7 @@ const ORIENTATION: Record<SubWebViewOrientation, NativeStackNavigationOptions['o
  * close control, so even a manifest that never answers cannot keep the user in.
  */
 export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) => {
-    const { viewId, url, title, params } = route.params;
+    const { viewId, url, title, params, appId } = route.params;
     const [manifest, setManifest] = useState<ResolvedSubWebViewManifest | null>(null);
     const [pageTitle, setPageTitle] = useState<string | undefined>(undefined);
     // A title the page asked for outranks the document's, which outranks the web's, which outranks
@@ -121,6 +121,7 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
                     viewId={viewId}
                     url={url}
                     params={params}
+                    appId={appId}
                     permissions={manifest.permissions}
                     onRequestClose={close}
                     onTitleChange={setPageTitle}

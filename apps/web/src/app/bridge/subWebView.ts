@@ -21,15 +21,19 @@ export type SubWebViewOpening = { via: 'subWebView'; viewId: string } | { via: '
  * `params` reach the page only in the sub WebView, as `window.ChaticSubWebView.params`. The two
  * fallbacks cannot carry them, so a page must also work without them — or the caller should not fall
  * back, which `via` lets it decide after the fact.
+ *
+ * `appId` names the app `url` was resolved from; the shell builds the page's share link from it.
  */
 export const openSubWebView = async ({
     url,
     title,
     params,
+    appId,
 }: {
     url: string;
     title?: string;
     params?: SubWebViewParams;
+    appId?: string;
 }): Promise<SubWebViewOpening> => {
     if (!isNative()) {
         window.open(url, '_blank', 'noopener,noreferrer');
@@ -39,6 +43,6 @@ export const openSubWebView = async ({
         appBridge.openURL(url);
         return { via: 'external' };
     }
-    const response = await appBridge.openSubWebView(url, title, params);
+    const response = await appBridge.openSubWebView(url, title, params, appId);
     return { via: 'subWebView', viewId: response.data.viewId };
 };

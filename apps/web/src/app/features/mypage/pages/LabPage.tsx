@@ -6,9 +6,10 @@ import { config } from '@chatic/config';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 import { IconChevronRight, ListRow, MenuCard, Switch } from '@chatic/web-ui-kit';
 
-import { openSubWebView } from '../../../bridge';
+import { openSubWebView, resolveSubWebViewAppUrl } from '../../../bridge';
 import { useChatInputLockExperiment, usePlaceInviteExperiment } from '../../../hooks';
 import { PageHeader } from '../../../ui/components';
+import { isDevBuild } from '../../../utils/buildEnv';
 import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
 import { IN_APP_PAGES } from '../consts';
 
@@ -30,10 +31,13 @@ export const LabPage = () => {
         config.get<string>('debug.entryCode')
     );
 
-    // In the app the page opens in the sub WebView; an older app or a browser opens it elsewhere.
-    const openPage = async (url: string) => {
+    // In the app the page opens in the sub WebView; an older app or a browser opens it elsewhere. It
+    // is resolved and opened as a page link is, with its app id, so what it shares names the app.
+    const openPage = async (appId: string) => {
         try {
-            await openSubWebView({ url });
+            const url = await resolveSubWebViewAppUrl({ appId, query: '' }, isDevBuild() ? 'dev' : 'prod');
+            if (!url) throw new Error(`No page for ${appId}`);
+            await openSubWebView({ url, appId });
         } catch {
             toast({ title: t('mypage.lab.inAppOpenFailed'), variant: 'destructive' });
         }
@@ -98,7 +102,7 @@ export const LabPage = () => {
                             title={t(page.titleKey)}
                             subtitle={t(page.subtitleKey)}
                             trailing={<IconChevronRight className="size-[18px] text-description" />}
-                            onClick={() => void openPage(page.url)}
+                            onClick={() => void openPage(page.appId)}
                         />
                     ))}
                 </MenuCard>
@@ -125,7 +129,7 @@ export const LabPage = () => {
                                     title={t(page.titleKey)}
                                     subtitle={t(page.subtitleKey)}
                                     trailing={<IconChevronRight className="size-[18px] text-description" />}
-                                    onClick={() => void openPage(page.url)}
+                                    onClick={() => void openPage(page.appId)}
                                 />
                             ))}
                         </MenuCard>

@@ -58,6 +58,14 @@ const mockOpenSubWebView = jest.fn();
 // `import.meta` is out of reach of the CommonJS transform; the stage is the test's to choose.
 jest.mock('../../utils/buildEnv', () => ({ isDevBuild: () => false }));
 jest.mock('../subWebView', () => ({ openSubWebView: (...args: unknown[]) => mockOpenSubWebView(...args) }));
+const mockResolveSubWebViewAppUrl = jest.fn();
+let mockSupportsSubWebView = true;
+jest.mock('../shellCapabilities', () => ({
+    shellCapabilities: { supports: (type: string) => type === 'OpenSubWebView' && mockSupportsSubWebView },
+}));
+jest.mock('../subWebViewApps', () => ({
+    resolveSubWebViewAppUrl: (...args: unknown[]) => mockResolveSubWebViewAppUrl(...args),
+}));
 
 const navigate = jest.fn();
 const switchCloud = jest.fn();
@@ -840,7 +848,10 @@ describe('useHandlePushNavigation', () => {
         const path = `/sub-webview?url=${encodeURIComponent(page)}`;
 
         // The handler still reads the path for a room trace; a page link is not one.
-        beforeEach(() => setResolved({ target: '/', cid: null, sid: null }));
+        beforeEach(() => {
+            mockSupportsSubWebView = true;
+            setResolved({ target: '/', cid: null, sid: null });
+        });
 
         it('opens the page and does not navigate', async () => {
             mockOpenSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'v1' });
@@ -852,13 +863,39 @@ describe('useHandlePushNavigation', () => {
             expect(switchCloud).not.toHaveBeenCalled();
         });
 
-        // An app before the mapping passes the link's path through; the web maps it itself.
-        it("opens an older app's bare /apps/ path with this build's stage", async () => {
+        // The link's own path names an app; the web resolves where it is hosted for this build's stage.
+        it("opens the app a link names, at its root with the link's query", async () => {
+            mockResolveSubWebViewAppUrl.mockResolvedValue('https://quiz.apps.chatic.io/?level=3');
             mockOpenSubWebView.mockResolvedValue({ via: 'subWebView', viewId: 'v1' });
 
-            await invoke('/apps/quiz/level?x=1');
+            await invoke('/apps/quiz?level=3');
 
-            expect(mockOpenSubWebView).toHaveBeenCalledWith({ url: 'https://quiz.apps.chatic.io/level?x=1' });
+            expect(mockResolveSubWebViewAppUrl).toHaveBeenCalledWith({ appId: 'quiz', query: '?level=3' }, 'prod');
+            expect(mockOpenSubWebView).toHaveBeenCalledWith({
+                url: 'https://quiz.apps.chatic.io/?level=3',
+                appId: 'quiz',
+            });
+            expect(navigate).not.toHaveBeenCalled();
+        });
+
+        // The fallback would be the OS browser, where a page link must never open.
+        it('opens nothing in an app without the sub WebView', async () => {
+            mockSupportsSubWebView = false;
+            mockResolveSubWebViewAppUrl.mockResolvedValue('https://quiz.apps.chatic.io/');
+
+            await invoke('/apps/quiz');
+            await invoke(path);
+
+            expect(mockOpenSubWebView).not.toHaveBeenCalled();
+            expect(navigate).not.toHaveBeenCalled();
+        });
+
+        it('opens nothing and stays put for an app it does not know', async () => {
+            mockResolveSubWebViewAppUrl.mockResolvedValue(null);
+
+            await invoke('/apps/unknown');
+
+            expect(mockOpenSubWebView).not.toHaveBeenCalled();
             expect(navigate).not.toHaveBeenCalled();
         });
 

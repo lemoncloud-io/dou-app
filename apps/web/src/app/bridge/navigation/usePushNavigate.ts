@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { RELAY_ORIGIN_CID } from '@chatic/data';
-import { subWebViewPageUrlOfWebPath } from '@chatic/shared';
+import { readSubWebViewLinkPath, subWebViewPageUrlOfNavigatePath } from '@chatic/shared';
 import { useToast } from '@chatic/ui-kit/components/ui/use-toast';
 
 import { ROUTES } from '../../routes/paths';
@@ -18,7 +18,9 @@ import { resolvePushNavigation } from './resolvePushNavigation';
 import { resolveThreadTarget } from './resolveThreadTarget';
 import { channelIdOfRoomPath, roomOpenTrace } from '../../runtime/perf';
 import { isDevBuild } from '../../utils/buildEnv';
+import { shellCapabilities } from '../shellCapabilities';
 import { openSubWebView } from '../subWebView';
+import { resolveSubWebViewAppUrl } from '../subWebViewApps';
 
 /** Upper bound for awaiting the socket handshake before a push-driven cloud/site switch. */
 const HANDSHAKE_WAIT_TIMEOUT_MS = 10_000;
@@ -177,10 +179,30 @@ export const usePushNavigate = (): ((rawPath: string) => Promise<void>) => {
     return useCallback(
         async (rawPath: string) => {
             // A sub WebView page's link is not a route: the page opens over whatever is showing, so
-            // closing it returns the user to where they were. A refusal leaves the screen as it is.
-            const pageUrl = subWebViewPageUrlOfWebPath(rawPath, isDevBuild() ? 'dev' : 'prod');
-            if (pageUrl) {
-                await openSubWebView({ url: pageUrl }).catch(error =>
+            // closing it returns the user to where they were. The link names an app, resolved here to
+            // where it is hosted; an app built before app ids hands over the page's URL instead. An
+            // unknown app or a refusal leaves the screen as it is.
+            const link = readSubWebViewLinkPath(rawPath);
+            const handedPageUrl = link ? null : subWebViewPageUrlOfNavigatePath(rawPath);
+            if (link || handedPageUrl) {
+                // A page link opens in the app or not at all: `openSubWebView` would hand it to the OS
+                // browser in an app without the sub WebView, which is the one place it must not go.
+                if (!shellCapabilities.supports('OpenSubWebView')) {
+                    logger.warn('router.sub_webview_link_unsupported', 'This app cannot show a sub WebView page', {
+                        appId: link?.appId,
+                    });
+                    return;
+                }
+                const pageUrl = link
+                    ? await resolveSubWebViewAppUrl(link, isDevBuild() ? 'dev' : 'prod')
+                    : handedPageUrl;
+                if (!pageUrl) {
+                    logger.warn('router.sub_webview_app_unknown', 'Sub WebView link names no known app', {
+                        appId: link?.appId,
+                    });
+                    return;
+                }
+                await openSubWebView({ url: pageUrl, ...(link ? { appId: link.appId } : {}) }).catch(error =>
                     logger.warn('router.sub_webview_link_refused', 'Sub WebView link not opened', {
                         pageUrl,
                         error,

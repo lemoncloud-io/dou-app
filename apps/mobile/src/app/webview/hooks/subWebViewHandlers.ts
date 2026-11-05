@@ -4,7 +4,8 @@ import type { IAppBridgeHost } from '@chatic/bridges';
 import type { ISubWebViewService } from '../../services';
 
 const ERROR_MESSAGES: Record<SubWebViewErrorCode, string> = {
-    INVALID: 'An https url is required; title must be a string and params a JSON object of at most 16 KiB.',
+    INVALID:
+        'An https url is required; title must be a string, params a JSON object of at most 16 KiB and appId one lower-case label.',
     NOT_ALLOWED: 'The url is not on the sub WebView allowlist.',
     ALREADY_OPEN: 'A sub WebView is already showing.',
     NOT_OPEN: 'No sub WebView with this viewId is showing.',
@@ -23,6 +24,7 @@ export const createSubWebViewHandlers = (service: ISubWebViewService) => {
             url: message.data?.url,
             title: message.data?.title,
             params: message.data?.params,
+            appId: message.data?.appId,
         });
         if (!result.ok) return failure('OnOpenSubWebView' as const, result.code);
         return { type: 'OnOpenSubWebView' as const, success: true, data: { viewId: result.view.viewId } };

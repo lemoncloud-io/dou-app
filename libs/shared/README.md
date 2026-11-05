@@ -215,12 +215,13 @@ libs/shared/src/
 
 Seven things the filenames do not tell you.
 
-- **`utils/subWebViewLink.ts` is the only map between an app link and a sub WebView page**:
-  `https://app.chatic.io/apps/<label>/…` ↔ `https://<label>.apps.chatic.io/…` (and `app-dev` ↔
-  `apps-dev`), plus the `/sub-webview?url=…` path the shell hands the web for one. Landing redirects a
-  browser with it, mobile resolves the link with it and builds a page's `appLink`, and the web reads the
-  path with it — three copies would open three different pages. It parses by hand, not with `URL`,
-  for the reason the invite decoder below gives about React Native.
+- **`utils/subWebViewLink.ts` is the only reader of a sub WebView page link**,
+  `https://app.chatic.io/apps/<appId>?<query>` (and `app-dev`): an app id and a query, no path, no
+  fragment. Landing reads it to decide whether to offer the app, mobile to check it and hand the web
+  `/apps/<appId>?…`, and the web to read that path; mobile also builds a page's `appLink` with it. It
+  maps no id to a page — that is the web's list, and later the server's — and reads the
+  `/sub-webview?url=…` path older apps hand over. It parses by hand, not with `URL`, for the reason
+  the invite decoder below gives about React Native.
 
 - **`utils/inviteLink.ts` is the only decoder of the encoded invite link `/i?t=<base64url(JSON)>`.**
   Landing, mobile, web and desktop-web all call it, because a decoder that drifted would send one link

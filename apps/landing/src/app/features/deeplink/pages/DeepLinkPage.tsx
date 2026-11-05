@@ -6,6 +6,14 @@ import { useDeviceDetect } from '../../../hooks';
 import { useDeepLinkInfo, useAppLauncher, useWebRedirect } from '../hooks';
 import { APP_MISSING_HASH, isInviteLink, shouldAutoLaunch } from '../utils';
 
+interface DeepLinkPageProps {
+    /**
+     * A link only the app opens — a sub WebView page's. It is tried in the app as an invite is, and
+     * the page offers the store, never the browser: the page it names is meant to run in the app.
+     */
+    appOnly?: boolean;
+}
+
 /**
  * Deep link landing page component.
  *
@@ -15,16 +23,16 @@ import { APP_MISSING_HASH, isInviteLink, shouldAutoLaunch } from '../utils';
  *   "Open app" and "View in web" buttons as the fallback
  *   - "Open app" → confirm dialog → launch app
  *   - App not installed → store confirm dialog → go to store
- *   - "View in web" → redirect to web app
+ *   - "View in web" → redirect to web app (not drawn for an `appOnly` link)
  */
-export const DeepLinkPage = (): JSX.Element => {
+export const DeepLinkPage = ({ appOnly = false }: DeepLinkPageProps): JSX.Element => {
     const { t } = useTranslation();
     const deviceType = useDeviceDetect();
     const deepLinkInfo = useDeepLinkInfo();
 
     // The marker means this load is the Android intent fallback: the app was just tried and is missing.
     const autoLaunch =
-        isInviteLink(deepLinkInfo.deepLinkUrl) &&
+        (appOnly || isInviteLink(deepLinkInfo.deepLinkUrl)) &&
         shouldAutoLaunch(deviceType, navigator.userAgent) &&
         window.location.hash !== APP_MISSING_HASH;
 
@@ -43,7 +51,7 @@ export const DeepLinkPage = (): JSX.Element => {
             <DeepLinkUI
                 state={effectiveState}
                 onLaunchApp={showAppConfirmDialog}
-                onContinueBrowser={continueInBrowser}
+                onContinueBrowser={appOnly ? undefined : continueInBrowser}
             />
 
             {/* App confirmation dialog */}

@@ -51,9 +51,10 @@ cloud management, and the policy screens.
   page belongs to [feedback](../feedback/README.md).
 - **The debug panel.** Lab hosts the unlock gesture; [debug](../debug/README.md) owns the gate and
   everything behind it.
-- **The sub WebView pages.** The pages kept on `apps-dev.chatic.io` for trying the sub WebView are
-  `IN_APP_PAGES` in `consts/inAppPages.ts`, games so far but not only games, and a tap opens one with
-  `openSubWebView`. Each names its `surface`: an `experiment` page is a row in Lab's Experiments card
+- **The sub WebView pages.** The pages the Lab opens in the sub WebView are `IN_APP_PAGES` in
+  `consts/inAppPages.ts`, games so far but not only games. Each names an app id, resolved for this
+  build's stage by the same list a page link uses (`bridge/subWebViewApps.ts`), and a tap opens it with
+  `openSubWebView` and that id — so what the page shares names the app. Each names its `surface`: an `experiment` page is a row in Lab's Experiments card
   for everyone (Raise DoU), a `debug` page stays in the "In-app" card that only debug mode draws
   (Echo) — the flask's unlock shows it in a store build too; LOCAL and DEV start unlocked. What the
   sub WebView is, and what it allows, is the phone shell's

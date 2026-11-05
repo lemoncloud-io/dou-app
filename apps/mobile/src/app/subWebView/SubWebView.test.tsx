@@ -53,6 +53,7 @@ jest.mock('../stores', () => ({
     resolveAppLanguage: (preference: string, device: string) => (preference === 'system' ? device : preference),
 }));
 jest.mock('../utils/device', () => ({ getAppLanguage: () => 'en' }));
+jest.mock('react-native-config', () => ({ __esModule: true, default: { VITE_ENV: 'PROD' } }));
 jest.mock('../bridge', () => ({ HapticBridge: { trigger: jest.fn(() => true) } }));
 // The storage file is native; an in-memory one stands in, opened for the origin asked.
 jest.mock('../services/subWebView/subWebViewStorageFile', () => {
@@ -363,6 +364,17 @@ describe('SubWebView', () => {
             params: { orderId: 7 },
             appLink: 'https://app.chatic.io/apps/foo',
         });
+    });
+
+    // The link names the app the web opened the page as, which need not be the page's label.
+    it('builds the share link from the app id the web opened the page as', async () => {
+        renderView({ appId: 'quiz' });
+
+        mockWebViewProps.onMessage(pageMessage(URL_, 'WebAppReady', {}));
+        await settle();
+
+        const reply = JSON.parse(mockPostMessage.mock.calls[0][0]);
+        expect(reply.data.subWebView.appLink).toBe('https://app.chatic.io/apps/quiz');
     });
 
     it('answers a message over 65,536 characters with TOO_LARGE', async () => {

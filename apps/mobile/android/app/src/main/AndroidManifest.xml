@@ -131,10 +131,10 @@
                     android:path="/i" />
             </intent-filter>
             <!--
-                Sub WebView page links, `/apps/<label>/...`: the app opens the page in its sub WebView.
+                Sub WebView page links, `/apps/<appId>?...`: the app opens the page in its sub WebView.
                 The pattern needs the slash after `apps`, so it claims no other page on the host — the
-                landing site has none under `/apps/` but the redirect to the page itself, for a browser
-                without the app. iOS claims `/apps/*` in the same apple-app-site-association.
+                landing site has none under `/apps/` but the page that offers the app or the store, for
+                a browser without the app. iOS claims `/apps/*` in the same apple-app-site-association.
             -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />

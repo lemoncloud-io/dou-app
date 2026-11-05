@@ -44,7 +44,9 @@
 // 2.18.0: a sub WebView page may keep its own storage — GetSubWebViewStorage, SetSubWebViewStorage,
 //         RemoveSubWebViewStorage, ClearSubWebViewStorage, GetSubWebViewStorageInfo — per origin, with
 //         QUOTA_EXCEEDED past 1,048,576 characters.
-export const BRIDGE_VERSION = '2.18.0' as const;
+// 2.19.0: OpenSubWebView takes `appId`, which a page's `appLink` is built from; an app link to a page,
+//         `/apps/<appId>?<query>`, reaches the web as its own path, which the web resolves to a page.
+export const BRIDGE_VERSION = '2.19.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

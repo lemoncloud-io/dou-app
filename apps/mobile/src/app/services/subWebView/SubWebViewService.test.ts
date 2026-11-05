@@ -115,6 +115,26 @@ describe('SubWebViewService', () => {
             });
         });
 
+        it('keeps the app id the web opened the page as', () => {
+            const result = createService().open({ url: 'https://foo.apps.chatic.io/', appId: 'quiz' });
+
+            expect(result).toEqual(
+                expect.objectContaining({ ok: true, view: expect.objectContaining({ appId: 'quiz' }) })
+            );
+        });
+
+        it.each([
+            ['not a string', 7],
+            ['upper case', 'Quiz'],
+            ['more than one label', 'a.b'],
+            ['empty', ''],
+        ])('answers INVALID for an app id that is %s', (_label, appId) => {
+            expect(createService().open({ url: 'https://foo.apps.chatic.io/', appId })).toEqual({
+                ok: false,
+                code: 'INVALID',
+            });
+        });
+
         it('answers ALREADY_OPEN while a view is showing, and keeps the first', () => {
             const service = createService();
             service.open({ url: 'https://foo.apps.chatic.io/a' });

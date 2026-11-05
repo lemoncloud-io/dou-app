@@ -168,14 +168,30 @@ describe('connect, against the mock app', () => {
         await expect(apps.storage.get('')).rejects.toEqual(expect.objectContaining({ code: 'INVALID' }));
     });
 
-    it('builds links from the context, and from the page itself without one', async () => {
+    it("builds links from the context's appLink, with the params as the query", async () => {
         const { apps } = await start({ context: { appLink: 'https://app.chatic.io/apps/quiz' } });
 
-        expect(apps.link('level/3?x=1')).toBe('https://app.chatic.io/apps/quiz/level/3?x=1');
+        expect(apps.link({ level: 3, seed: 'a b', hard: true })).toBe(
+            'https://app.chatic.io/apps/quiz?level=3&seed=a+b&hard=true'
+        );
         expect(apps.link()).toBe('https://app.chatic.io/apps/quiz');
-        // A URL on the page's own origin gives its path; one anywhere else cannot be this page.
-        expect(apps.link(`${location.origin}/level?x=1#top`)).toBe('https://app.chatic.io/apps/quiz/level?x=1#top');
-        expect(() => apps.link('https://evil.example/x')).toThrow(expect.objectContaining({ code: 'INVALID' }));
+        expect(apps.link({})).toBe('https://app.chatic.io/apps/quiz');
+    });
+
+    it.each([
+        ['a path', '/level/3'],
+        ['an array', ['a']],
+        ['null', null],
+    ])('refuses %s, which is no object of params', async (_label, params) => {
+        const { apps } = await start({ context: { appLink: 'https://app.chatic.io/apps/quiz' } });
+
+        expect(() => apps.link(params as never)).toThrow(expect.objectContaining({ code: 'INVALID' }));
+    });
+
+    it("builds links from the page's own root in an app before appLink", async () => {
+        const { apps } = await start({ context: { appLink: undefined } });
+
+        expect(apps.link({ level: 3 })).toBe(`${location.origin}/?level=3`);
     });
 
     it('returns the one connection to a second caller', async () => {
@@ -262,7 +278,7 @@ describe('connect, in a browser tab', () => {
         expect(document.title).toBe('Quiz');
         await expect(apps.finish()).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
         await expect(apps.getUserKey()).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
-        expect(apps.link('/a')).toBe(`${location.origin}/a`);
+        expect(apps.link({ a: 1 })).toBe(`${location.origin}/?a=1`);
     });
 
     it('keeps storage in the browser, under the same calls', async () => {

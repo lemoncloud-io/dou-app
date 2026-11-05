@@ -1,10 +1,11 @@
 import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Linking, Platform, StyleSheet } from 'react-native';
+import Config from 'react-native-config';
 import DeviceInfo from 'react-native-device-info';
 import { WebView, type WebViewMessageEvent, type WebViewNavigation } from 'react-native-webview';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import type { SubWebViewCloseTrigger, SubWebViewContext, SubWebViewPermission } from '@chatic/bridge-messages';
-import { subWebViewAppLinkOfOrigin } from '@chatic/shared';
+import { subWebViewAppLinkOfId, subWebViewAppLinkOfOrigin } from '@chatic/shared';
 
 import { HapticBridge } from '../bridge';
 import { useResolvedTheme } from '../hooks';
@@ -24,6 +25,8 @@ interface SubWebViewProps {
     viewId: string;
     url: string;
     params: Record<string, unknown>;
+    /** The app the web resolved `url` from; the page's share link names it. */
+    appId?: string;
     /** What the page's manifest permits beyond the base set; read once, when the view opens. */
     permissions: ReadonlySet<SubWebViewPermission>;
     /** Close the view as `user`; called once the page's close guard, if any, lets the close through. */
@@ -55,7 +58,7 @@ export interface SubWebViewHandle {
  * domains, not by switching features off.
  */
 export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function SubWebView(
-    { viewId, url, params, permissions, onRequestClose, onTitleChange, onTitleRequest },
+    { viewId, url, params, appId, permissions, onRequestClose, onTitleChange, onTitleRequest },
     ref
 ) {
     const webViewRef = useRef<WebView>(null);
@@ -78,8 +81,13 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
     onTitleRequestRef.current = onTitleRequest;
 
     const openedOrigin = useMemo(() => originOf(url), [url]);
-    // The link a page shares to be opened again; derived from the origin, so a page cannot set it.
-    const appLink = useMemo(() => (openedOrigin ? subWebViewAppLinkOfOrigin(openedOrigin) : null), [openedOrigin]);
+    // The link a page shares to be opened again, naming the app the web opened it as, on the link host
+    // this build's own links use; from a web that names no app, the page's label stands in. Never
+    // from the page, so a page cannot point its link at another.
+    const appLink = useMemo(() => {
+        if (appId) return subWebViewAppLinkOfId(appId, Config.VITE_ENV === 'PROD' ? 'prod' : 'dev');
+        return openedOrigin ? subWebViewAppLinkOfOrigin(openedOrigin) : null;
+    }, [appId, openedOrigin]);
 
     const context = useMemo<SubWebViewContext>(
         () => ({

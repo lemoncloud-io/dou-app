@@ -7,6 +7,8 @@ export interface SubWebViewEntry {
     title?: string;
     /** What the web passed for the page; `{}` when it passed nothing. */
     params: Record<string, unknown>;
+    /** The app the web resolved `url` from, which the page's share link names; absent from an older web. */
+    appId?: string;
 }
 
 export type SubWebViewOpenResult = { ok: true; view: SubWebViewEntry } | { ok: false; code: SubWebViewErrorCode };
@@ -27,8 +29,11 @@ export type SubWebViewEvent =
 export interface ISubWebViewService {
     /** The view that is showing, or `null`. */
     current(): SubWebViewEntry | null;
-    /** Validate `url` against the allowlist and `params` against the data limit, and record a new view. */
-    open(request: { url: unknown; title?: unknown; params?: unknown }): SubWebViewOpenResult;
+    /**
+     * Validate `url` against the allowlist, `params` against the data limit and `appId` as one label,
+     * and record a new view.
+     */
+    open(request: { url: unknown; title?: unknown; params?: unknown; appId?: unknown }): SubWebViewOpenResult;
     /**
      * Close the view named `viewId`; `NOT_OPEN` when it is not the one showing, `INVALID` when
      * `result` is not JSON of at most 16 KiB.

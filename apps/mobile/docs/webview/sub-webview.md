@@ -240,13 +240,16 @@ most often gets wrong:
 
 ### A link back to a page
 
-A page's context carries `appLink`, `https://app.chatic.io/apps/<label>` for
-`https://<label>.apps.chatic.io` — derived from the opened origin, so a page cannot set it. A page
-shares `appLink` plus its own path and query; a tap opens that page in the app where it is installed
-(through the main web, as described in
-[../system/deeplink.md](../system/deeplink.md#sub-webview-page-links)), and in the browser where it is
-not, by way of the landing site's `/apps/*` redirect. A link opens any allowlisted page, whatever
-debug mode or the Lab says: the allowlist and the review are the gate, not where the link came from.
+A page's context carries `appLink`, `https://app.chatic.io/apps/<appId>` for the app id the web
+opened it as (`OpenSubWebView`'s `appId`), on the link host of this build — never from the page, so a
+page cannot point it elsewhere. Opened without an id, by an older web, the page's label stands in. A
+page shares `appLink` plus a query of its own; a tap opens the page in the app, at its root with that
+query, through the main web, which resolves the id — see
+[../system/deeplink.md](../system/deeplink.md#sub-webview-page-links). The shell only checks the link's
+shape: which page an id is, it leaves to the web, so a page can move without its links changing.
+Where the app is not installed, the landing site offers the app and the store, never the page in a
+browser. A link opens any page the web resolves and the allowlist takes, whatever debug mode or the
+Lab says: the allowlist and the review are the gate, not where the link came from.
 
 ## Where it may go
 
@@ -402,8 +405,8 @@ an import the other way ties the main WebView to a screen it should only know th
 | `src/app/subWebView/subWebViewContextScript.ts`        | `window.ChaticSubWebView`, for the opened origin only                   |
 | `src/app/services/subWebView/subWebViewData.ts`        | The 16 KiB data, 64 KiB message and 100-character title limits          |
 | `src/app/services/subWebView/subWebViewManifest.ts`    | Reads, checks and caches a page's manifest                              |
-| `src/app/services/deeplinks/deeplinkUtils.ts`          | Turns a page's app link into the web's `/sub-webview?url=…`             |
-| `libs/shared/src/utils/subWebViewLink.ts`              | Link ↔ page, `appLink`, and that path — shared with web and landing    |
+| `src/app/services/deeplinks/deeplinkUtils.ts`          | Checks a page's app link and hands it to the web as `/apps/<appId>?…`   |
+| `libs/shared/src/utils/subWebViewLink.ts`              | Reads a page link and builds `appLink` — shared with web and landing    |
 | `src/app/subWebView/subWebViewNavigation.ts`           | Load, hand to the OS, or drop                                           |
 | `src/app/features/subWebView/SubWebViewScreen.tsx`     | The manifest, then the bar or the floating close control, orientation   |
 | `src/app/features/subWebView/routeSubWebViewEvents.ts` | Navigates to the screen and back as the service reports                 |
@@ -423,15 +426,15 @@ A page link can be tried without a page sharing one, by handing the OS the link 
 the `app-dev` host):
 
 ```bash
-adb shell am start -a android.intent.action.VIEW -d https://app-dev.chatic.io/apps/sample
+adb shell am start -a android.intent.action.VIEW -d https://app-dev.chatic.io/apps/dou-raise
 ```
 
 ```bash
-xcrun simctl openurl booted https://app-dev.chatic.io/apps/sample
+xcrun simctl openurl booted https://app-dev.chatic.io/apps/dou-raise
 ```
 
 The page opens over whatever the app shows. On the simulator a universal link needs the association
-file deployed and fetched; until then Safari opens the landing redirect, which sends it to the page.
+file deployed and fetched; until then Safari opens the landing page, which offers the app or the store.
 
 Open it from the web's debug panel → **Sub WebView (app)**: a URL, an optional title and `params`, and
 a log of how the view closed, with the `result` the page handed back. A URL off the allowlist answers

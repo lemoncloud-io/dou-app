@@ -44,7 +44,7 @@ export const createCommonRoutes = ({ subscriptionAccount }: CommonRoutesOptions)
         element: <DeepLinkRoutes />,
     },
     {
-        // A sub WebView page's link (`/apps/<label>/…`) opened in a browser: straight on to the page.
+        // A sub WebView page's link (`/apps/<appId>?…`) opened in a browser: the app, else the store.
         path: 'apps/*',
         element: <SubWebViewLinkPage />,
     },

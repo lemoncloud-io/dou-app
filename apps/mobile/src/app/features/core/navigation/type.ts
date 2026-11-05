@@ -4,5 +4,5 @@ export type RootStackParamList = {
     // params: deep link destinations reach the WebView via OnNavigate (see useDeepLinkNavigation).
     Main: undefined;
     // A page on another origin over the main WebView, opened by the web's `OpenSubWebView`.
-    SubWebView: { viewId: string; url: string; title?: string; params: Record<string, unknown> };
+    SubWebView: { viewId: string; url: string; title?: string; params: Record<string, unknown>; appId?: string };
 };

@@ -43,9 +43,12 @@ const REPORT_STACK_LIMIT = 4000;
 export interface ShareContent {
     title?: string;
     message?: string;
-    /** `http(s)` only. Share `apps.link(path)` so a tap opens the page in the app. */
+    /** `http(s)` only. Share `apps.link(params)` so a tap opens the page in the app. */
     url?: string;
 }
+
+/** What a link hands the page it opens, as its query: `{ level: 3 }` opens the page at `/?level=3`. */
+export type LinkParams = Readonly<Record<string, string | number | boolean>>;
 
 /**
  * How a share went. `copied` is this library's fallback in a browser with no share sheet: the link
@@ -107,10 +110,12 @@ export interface ChaticApps {
     /** Hears a theme or language change while the page shows; returns the function that stops it. */
     onContextChange(listener: (context: ChaticAppsContext) => void): () => void;
     /**
-     * A link that opens this page in the app: `appLink` followed by `path` (a path, or a URL on this
-     * page's own origin). In a browser, or an app before `appLink`, this page's own address instead.
+     * A link that opens this page in the app with `params` as its query:
+     * `https://app.chatic.io/apps/<appId>?level=3`. The page is always opened at its root, so read what
+     * a link carries from `location.search`. In a browser, or an app before `appLink`, this page's own
+     * root with the same query instead.
      */
-    link(path?: string): string;
+    link(params?: LinkParams): string;
     /** Stops listening to the app. Pending calls fail with `DISCONNECTED`; the next `connect()` starts afresh. */
     disconnect(): void;
 }
@@ -164,22 +169,22 @@ const notInApp = (what: string) =>
     Promise.reject(new ChaticAppsError('NOT_IN_APP', `${what} needs the app; this page is in a browser.`));
 
 /**
- * `path`, as the part of a link after this page's root. A URL on this page's own origin gives its path,
- * query and fragment; a URL anywhere else is refused, since a link can only open this page.
+ * `params` as a link's query: `''` for none, else `?` and the pairs in the order given. A link carries
+ * a query and nothing else, because the app opens every page at its root.
  */
-const pathOf = (path: string): string => {
-    if (/^[a-z][a-z0-9+.-]*:/i.test(path)) {
-        const origin = typeof location === 'undefined' ? null : location.origin;
-        if (!origin || !path.startsWith(`${origin}/`)) {
-            throw new ChaticAppsError('INVALID', "link() takes a path, or a URL on this page's own origin.");
-        }
-        return path.slice(origin.length);
+const queryOf = (params: LinkParams = {}): string => {
+    // A page without types can still pass the path the earlier `link(path)` took; that is no query.
+    if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+        throw new ChaticAppsError('INVALID', 'link() takes an object of query params, such as { level: 3 }.');
     }
-    return path === '' || path.startsWith('/') ? path : `/${path}`;
+    const search = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) search.append(key, String(value));
+    const query = search.toString();
+    return query ? `?${query}` : '';
 };
 
-/** This page's own origin plus `path`, for a link outside the app. */
-const ownLink = (path: string) => (typeof location === 'undefined' ? path : `${location.origin}${path}`);
+/** This page's own root plus `query`, for a link outside the app. */
+const ownLink = (query: string) => (typeof location === 'undefined' ? `/${query}` : `${location.origin}/${query}`);
 
 let shared: Promise<ChaticApps> | null = null;
 
@@ -369,10 +374,10 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
             contextListeners.add(listener);
             return () => contextListeners.delete(listener);
         },
-        link: (path = '') => {
-            const rest = pathOf(path);
+        link: params => {
+            const query = queryOf(params);
             const appLink = state.context?.appLink;
-            return appLink ? `${appLink}${rest}` : ownLink(rest);
+            return appLink ? `${appLink}${query}` : ownLink(query);
         },
         disconnect: () => {
             cleanups.forEach(cleanup => cleanup());
@@ -441,7 +446,7 @@ const browserApps = (): ChaticApps => {
         onBack: () => undefined,
         onCloseRequest: () => undefined,
         onContextChange: () => () => undefined,
-        link: (path = '') => ownLink(pathOf(path)),
+        link: params => ownLink(queryOf(params)),
         disconnect: () => {
             shared = null;
         },

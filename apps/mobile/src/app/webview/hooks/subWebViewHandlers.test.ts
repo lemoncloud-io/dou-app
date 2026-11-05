@@ -39,6 +39,15 @@ describe('createSubWebViewHandlers', () => {
         expect(service.current()?.params).toEqual({ orderId: 7 });
     });
 
+    it('passes the app id on to the view', async () => {
+        const service = createService();
+        const { handleOpenSubWebView } = createSubWebViewHandlers(service);
+
+        await handleOpenSubWebView(message('OpenSubWebView', { url: 'https://foo.apps.chatic.io/', appId: 'quiz' }));
+
+        expect(service.current()?.appId).toBe('quiz');
+    });
+
     it('answers INVALID rather than throwing for a message with no data', async () => {
         const { handleOpenSubWebView } = createSubWebViewHandlers(createService());
 

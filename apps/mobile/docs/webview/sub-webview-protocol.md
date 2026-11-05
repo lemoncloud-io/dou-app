@@ -237,27 +237,29 @@ and a page cannot widen its permissions at run time.
 
 ## Links to a page (2.17.0)
 
-A page shares a link to itself as the context's `appLink` — `https://app.chatic.io/apps/<label>` for
-`https://<label>.apps.chatic.io`, `https://app-dev.chatic.io/apps/<label>` for the `apps-dev` domain —
-followed by its own path, query and fragment:
+A page shares a link to itself as the context's `appLink` — `https://app.chatic.io/apps/<appId>`,
+naming the app the web opened it as (`app-dev.chatic.io` from a dev build) — followed by a query of
+its own. **(2.19.0)** A link is an app id and a query, nothing else: no path, no fragment.
 
 ```text
-https://app.chatic.io/apps/quiz/level/3?seed=7  →  https://quiz.apps.chatic.io/level/3?seed=7
+https://app.chatic.io/apps/quiz?level=3&seed=7  →  https://<where quiz is hosted>/?level=3&seed=7
 ```
 
-- **Where the app is installed**, the OS opens the link in it, and the app opens the page in a sub
-  WebView over whatever it shows, as the main web would with `OpenSubWebView`: the page gets no
-  `params`, and its manifest applies as on any open.
-- **Where it is not**, the link reaches the landing site, which sends the browser on to the page itself.
-  The page then runs with no bridge (see [Handshake](#handshake)) and SHOULD still work, or say what the
-  app adds.
-- **A page MUST build links from `appLink`**, never from a hard-coded host: the shell derives it from
-  the opened origin, so a page on the dev domain shares dev links. When the context has no `appLink`
-  (an app before 2.17.0) the page shares its own URL instead.
-- An app built before 2.17.0 still opens the page: the web reads the link's bare path too, which
-  is how such an app hands it over once the association file claims `/apps/*`.
-- Only `https` links on the app-link hosts are page links. A link opened in an in-app browser that
-  does not hand links to the OS (a messenger's) stays in that browser and opens the page there.
+- **The page is opened at its root**, with the link's query. It MUST read what a link carries from
+  `location.search`, and MUST NOT depend on a path: none ever reaches it from a link.
+- **Where the app is installed**, the OS opens the link in it, the web resolves the id to the page
+  and opens it in a sub WebView over whatever it shows, as it would with `OpenSubWebView`: the page gets
+  no `params`, and its manifest applies as on any open. Which URL an id opens is the web's to say, so a
+  page can move without its links changing.
+- **Where it is not**, the link reaches the landing site, which tries the app and otherwise offers the
+  store. **It never opens the page in the browser.** A link opened in an in-app browser that does not
+  hand links to the OS (a messenger's) gets the same page, which tries the app from there.
+- **A page MUST build links from `appLink`**, never from a hard-coded host or its own label: the id need
+  not be the label. When the context has no `appLink` (an app before 2.17.0) the page shares its own
+  root with the query instead. Opened without an id — by a web before 2.19.0 — `appLink` takes the
+  page's label for the id.
+- Only `https` links on the app-link hosts, and the app's custom scheme carrying the same path, are page
+  links.
 
 ## Timing
 
@@ -486,7 +488,8 @@ in the handshake, `OnSubWebViewCloseRequested` from `SetSubWebViewCloseGuard`.
 
 ### Opening
 
-The opener sends `OpenSubWebView { url, title?, params? }`; the shell shows the view full screen,
+The opener sends `OpenSubWebView { url, title?, params?, appId? }` — `appId` **(2.19.0)** naming the
+app it resolved `url` from — and the shell shows the view full screen,
 reads the page's [manifest](#manifest-2160), and then loads the page under a bar with the title and
 a close control, or under a floating close control alone for a `fullscreen` page. Each page load — the first, a
 reload, a navigation — gets a fresh host, and the previous load's claims (title, back, close guard)
@@ -621,8 +624,9 @@ tests, but have not been watched on a device:
 - that a focused input near the bottom of the page stays above the keyboard in the padded view on
   Android, which runs edge to edge;
 - **(2.17.0)** that iOS and Android hand an `/apps/…` link to the app (the association file and the
-  intent filter), that a cold-start link opens the page once the web is up, and that the landing
-  redirect reaches the page in a browser;
+  intent filter), and that a cold-start link opens the page once the web is up;
+- **(2.19.0)** that the landing page's custom-scheme launch opens the page in the app, from Safari,
+  Chrome and a messenger's in-app browser, and offers the store where the app is missing;
 - **(2.18.0)** that a page's storage survives an app update and a relaunch, and is gone after an
   uninstall, on both platforms;
 - **(2.16.0)** that a manifest's `orientation` holds a full-screen modal on both platforms (it is

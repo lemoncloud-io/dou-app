@@ -1,6 +1,7 @@
 # ADR-0279: A sub WebView page is linked through the app-link host and opened by the web
 
-> Status: Accepted · Decided: 2026-11-03 · Implemented: `feat/sub-webview-app-link`
+> Status: Accepted · Decided: 2026-11-03 · the link's shape, the shell's mapping and the browser fallback
+> superseded by [ADR-0287](./0287-a-sub-webview-link-names-an-app-the-web-resolves-and-opens-only-in-the-app.md) (2026-11-05) · Implemented: `feat/sub-webview-app-link`
 > · Scope: `libs/shared` (`utils/subWebViewLink.ts`) · `libs/bridge-messages` (`SubWebViewContext.appLink`)
 > · `libs/bridges` (`BRIDGE_VERSION` 2.17.0) · `apps/mobile` (`deeplinkUtils.ts`, `SubWebView.tsx`,
 > `AndroidManifest.xml`) · `apps/web` (`useHandlePushNavigation.ts`) · `apps/landing` (`/apps/*`, the
