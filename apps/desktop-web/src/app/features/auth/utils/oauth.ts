@@ -32,23 +32,24 @@ export const isSocialLoginEnabled = (): boolean => config.get<boolean>('feature.
 const OAUTH_DEEPLINK_SCHEMES = ['chatic:', 'chatic-dev:'];
 const OAUTH_DEEPLINK_HOST = 'oauth';
 
-/** Providers the relay flow is wired for. A deeplink naming anything else is not ours. */
-const OAUTH_PROVIDERS = ['google', 'apple'] as const;
+/**
+ * Providers the relay flow is wired for, with their names as people read them. A deeplink naming
+ * anything else is not ours.
+ */
+const PROVIDER_NAMES = { google: 'Google', apple: 'Apple' } as const;
 
 /** A provider the relay flow is wired for — what a sign-in button may start. */
-export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+export type OAuthProvider = keyof typeof PROVIDER_NAMES;
 
-const PROVIDER_NAMES: Record<OAuthProvider, string> = { google: 'Google', apple: 'Apple' };
+const isOAuthProvider = (provider: string): provider is OAuthProvider =>
+    Object.prototype.hasOwnProperty.call(PROVIDER_NAMES, provider);
 
 /**
  * A provider as people read it, for copy that names the one a sign-in went through. Brand names, so
  * the same in every language; a provider with no entry falls back to its id rather than nothing.
  */
-const isOAuthProvider = (provider: string): provider is OAuthProvider =>
-    (OAUTH_PROVIDERS as readonly string[]).includes(provider);
-
 export const oauthProviderName = (provider: string): string =>
-    (PROVIDER_NAMES as Record<string, string | undefined>)[provider] ?? provider;
+    isOAuthProvider(provider) ? PROVIDER_NAMES[provider] : provider;
 
 // Already lowercased by the registry (`net.socialOauth.endpoint`'s `envDefaultKey` reader lowers
 // this raw name — see `webEnvAdapter.ts`'s `LOWERED_RAW_NAMES`), matching what
@@ -61,11 +62,10 @@ const socialOauthEndpoint = (): string => config.get<string>('net.socialOauth.en
  * back-address and is relied on to come back with the code; a hand-off that returns without it is
  * shown as a failure (see `evaluateOAuthDeeplink`).
  *
- * The provider rides it too. The hand-off page reads the provider off its own address, and one the
- * relay did not name would otherwise be taken for Google — an Apple code then fails the start's
- * provider check. When the relay appends its own `provider`, the page reads the first one, this one.
+ * The provider rides it too: the hand-off page reads it off its own address and takes a missing one
+ * for Google. If the relay appends its own `provider`, the page reads the first, this one.
  */
-export const buildAuthorizeUrl = (provider: string, nonce: string): string => {
+export const buildAuthorizeUrl = (provider: OAuthProvider, nonce: string): string => {
     const handoff = new URL('/auth/oauth-response', window.location.origin);
     handoff.searchParams.set('nonce', nonce);
     handoff.searchParams.set('provider', provider);

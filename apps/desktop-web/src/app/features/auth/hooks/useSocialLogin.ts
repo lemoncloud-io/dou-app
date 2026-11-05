@@ -22,6 +22,7 @@ import {
     saveSignInNotice,
     takeOAuthLoginStart,
     type OAuthDeeplinkPayload,
+    type OAuthProvider,
     type OAuthStartIntent,
 } from '../utils';
 import { useSignOutGuest } from './useSignOutGuest';
@@ -34,7 +35,7 @@ const refusalOf = (check: LinkVerifiedView): LinkFailure =>
  * Record that this app began the round trip, then send the browser to the relay. The record is written
  * before the browser opens: the deeplink can come back before this returns.
  */
-const openAuthorize = (provider: string, intent: OAuthStartIntent, account?: string): void => {
+const openAuthorize = (provider: OAuthProvider, intent: OAuthStartIntent, account?: string): void => {
     const record = createOAuthLoginStart(provider, Date.now(), intent, account);
     saveOAuthLoginStart(record);
     useOAuthAttemptStore.getState().opened(record.startedAt, record.nonce);
@@ -105,7 +106,7 @@ export const useSocialLogin = () => {
     }, []);
 
     const start = useCallback(
-        async (provider: string): Promise<boolean> => {
+        async (provider: OAuthProvider): Promise<boolean> => {
             if (startingRef.current) return false;
             startingRef.current = true;
             setIsStarting(true);
@@ -144,7 +145,7 @@ export const useSocialLogin = () => {
     );
 
     /** Link a provider account to the account signed in here. No device registration: there is a session. */
-    const startLink = useCallback((provider: string): boolean => {
+    const startLink = useCallback((provider: OAuthProvider): boolean => {
         const account = signedInAccountId();
         // One round trip at a time: a second start would overwrite the first one's nonce, and the browser
         // tab already open would come back refused.
