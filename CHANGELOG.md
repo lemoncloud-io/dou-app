@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-05] - root@0.150.0, @chatic/desktop-web@0.54.0
+
+### Features
+
+- (desktop-web) show the open place's logo on the nav rail Home tile
+
 ## [2026-11-05] - No version updates
 
 ### Chores
