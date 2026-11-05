@@ -46,7 +46,10 @@
 //         QUOTA_EXCEEDED past 1,048,576 characters.
 // 2.19.0: OpenSubWebView takes `appId`, which a page's `appLink` is built from; an app link to a page,
 //         `/apps/<appId>?<query>`, reaches the web as its own path, which the web resolves to a page.
-export const BRIDGE_VERSION = '2.19.0' as const;
+// 2.20.0: a sub WebView page may send GetSubWebViewPermission and RequestSubWebViewPermission, to ask
+//         the OS for the camera or the microphone before it captures, and OpenSettings; SETTINGS_ERROR
+//         joins the page error codes.
+export const BRIDGE_VERSION = '2.20.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

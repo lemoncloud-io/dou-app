@@ -55,6 +55,8 @@ import type {
     OnRemoveSubWebViewStoragePayload,
     OnClearSubWebViewStoragePayload,
     OnGetSubWebViewStorageInfoPayload,
+    OnGetSubWebViewPermissionPayload,
+    OnRequestSubWebViewPermissionPayload,
     OnSubWebViewCloseRequestedPayload,
     OnSubWebViewContextChangedPayload,
     OnOpenSubscriptionManagementPayload,
@@ -278,6 +280,8 @@ export type AppMessageDataMap = {
     OnRemoveSubWebViewStorage: OnRemoveSubWebViewStoragePayload;
     OnClearSubWebViewStorage: OnClearSubWebViewStoragePayload;
     OnGetSubWebViewStorageInfo: OnGetSubWebViewStorageInfoPayload;
+    OnGetSubWebViewPermission: OnGetSubWebViewPermissionPayload;
+    OnRequestSubWebViewPermission: OnRequestSubWebViewPermissionPayload;
     // Pushed to a sub WebView page only, by its own host.
     OnSubWebViewContextChanged: OnSubWebViewContextChangedPayload;
     OnSubWebViewCloseRequested: OnSubWebViewCloseRequestedPayload;

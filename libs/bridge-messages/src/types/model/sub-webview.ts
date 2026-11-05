@@ -34,12 +34,22 @@
 
 /**
  * What a page may use beyond the base set, by capability rather than by message name, declared in
- * its manifest. Each maps to one request: `clipboard` → `CopyToClipboard`, `share` →
- * `OpenShareSheet`, `openUrl` → `OpenURL`, `userKey` → `GetSubWebViewUserKey`. A request whose
- * capability the page did not declare is not registered, so its handshake does not list it and the
- * host answers it `NOT_FOUND`.
+ * its manifest. `clipboard` → `CopyToClipboard`, `share` → `OpenShareSheet`, `openUrl` → `OpenURL`,
+ * `userKey` → `GetSubWebViewUserKey`. A request whose capability the page did not declare is not
+ * registered, so its handshake does not list it and the host answers it `NOT_FOUND`.
  */
 export type SubWebViewPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey';
+
+/** A device a page captures from with `getUserMedia`. */
+export type SubWebViewDeviceKind = 'camera' | 'microphone';
+
+/**
+ * Where DoU stands with the OS for one device:
+ * - `granted` — the OS allows DoU to use it: `getUserMedia` for it asks nothing further.
+ * - `prompt` — the OS has not been asked, or was refused and may be asked again.
+ * - `blocked` — the OS will not ask again; only the OS settings can change it (`OpenSettings`).
+ */
+export type SubWebViewDevicePermissionState = 'granted' | 'prompt' | 'blocked';
 
 /** `standard` shows the shell's bar; `fullscreen` hides it and keeps a floating close control. */
 export type SubWebViewDisplay = 'standard' | 'fullscreen';
@@ -85,7 +95,8 @@ export type SubWebViewPageErrorCode =
     | 'CLIPBOARD_WRITE_ERROR'
     | 'SHARE_ERROR'
     | 'UNAVAILABLE'
-    | 'QUOTA_EXCEEDED';
+    | 'QUOTA_EXCEEDED'
+    | 'SETTINGS_ERROR';
 
 /**
  * Why a sub WebView closed:
@@ -321,4 +332,37 @@ export type GetSubWebViewStorageInfoPayload = {
 /** [Response] The page's keys, and its usage. */
 export type OnGetSubWebViewStorageInfoPayload = SubWebViewStorageUsage & {
     keys: string[];
+};
+
+/**
+ * A page captures with the WebView's own `getUserMedia`, and the OS asks the user under DoU's name.
+ * These requests let a page learn where it stands first and ask when the user reaches for the feature,
+ * rather than meet the OS prompt in the middle of a capture. They are in the base set: they reach no
+ * more than `getUserMedia` already gives the page. The app does not limit a page's use of a device;
+ * its author answers for it.
+ *
+ * Both fail with `INVALID` for an unknown kind and `UNAVAILABLE` when the device has no such hardware.
+ */
+
+/** [Request, from a sub WebView page] Where DoU stands with the OS for `kind`, showing nothing. */
+export type GetSubWebViewPermissionPayload = {
+    kind: SubWebViewDeviceKind;
+};
+
+/** [Response] The state for that kind. */
+export type OnGetSubWebViewPermissionPayload = {
+    state: SubWebViewDevicePermissionState;
+};
+
+/**
+ * [Request, from a sub WebView page] Ask the OS for `kind`, showing its prompt if it has not been
+ * answered. Answers once the user has decided.
+ */
+export type RequestSubWebViewPermissionPayload = {
+    kind: SubWebViewDeviceKind;
+};
+
+/** [Response] The state once the user decided; `prompt` means refused this time and may be asked again. */
+export type OnRequestSubWebViewPermissionPayload = {
+    state: SubWebViewDevicePermissionState;
 };

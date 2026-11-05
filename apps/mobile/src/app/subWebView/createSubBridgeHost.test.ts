@@ -27,6 +27,9 @@ const SUBSET: SubWebViewRequestType[] = [
     'RemoveSubWebViewStorage',
     'ClearSubWebViewStorage',
     'GetSubWebViewStorageInfo',
+    'GetSubWebViewPermission',
+    'RequestSubWebViewPermission',
+    'OpenSettings',
 ];
 
 const CONTEXT = {
@@ -57,6 +60,8 @@ const createHost = () => {
             setCloseGuard: jest.fn(),
             logPageError: jest.fn(),
             openStorage: () => new SubWebViewStorage(memoryStorageFile()),
+            permissions: { status: async () => 'DENIED' as const, request: async () => 'GRANTED' as const },
+            openSettings: async () => true,
         }),
         () => CONTEXT
     );

@@ -27,6 +27,8 @@ const MOBILE_UNSUPPORTED = {
     RemoveSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
     ClearSubWebViewStorage: "A sub WebView page's request, answered by that view's own host (subWebView/)",
     GetSubWebViewStorageInfo: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    GetSubWebViewPermission: "A sub WebView page's request, answered by that view's own host (subWebView/)",
+    RequestSubWebViewPermission: "A sub WebView page's request, answered by that view's own host (subWebView/)",
 } satisfies Partial<Record<WebMessageType, string>>;
 
 // Per-handler behaviour for the loopback cases below; every other handler is a bare mock.

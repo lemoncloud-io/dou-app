@@ -9,7 +9,7 @@ import { subWebViewAppLinkOfId, subWebViewAppLinkOfOrigin } from '@chatic/shared
 
 import { HapticBridge } from '../bridge';
 import { useResolvedTheme } from '../hooks';
-import { clipboardService, deviceService, logger, subWebViewService } from '../services';
+import { clipboardService, deviceService, logger, permissionService, subWebViewService } from '../services';
 import { resolveAppLanguage, useLanguageStore } from '../stores';
 import { getAppLanguage } from '../utils/device';
 import { openSubWebViewStorage } from '../services/subWebView/subWebViewStorageFile';
@@ -41,6 +41,7 @@ const openExternal = (url: string) => Linking.openURL(url);
 const openShareSheet = (data: { title?: string; message?: string; url?: string }) => deviceService.openShareSheet(data);
 // The id the main WebView is given as `CHATIC_APP_UNIQUE_DEVICE_ID`; only a key derived from it reaches a page.
 const getDeviceId = () => DeviceInfo.getUniqueIdSync();
+const openSettings = () => deviceService.openSettings();
 
 /** What the screen around the view may ask of it. */
 export interface SubWebViewHandle {
@@ -55,7 +56,8 @@ export interface SubWebViewHandle {
  * is a host of its own that answers only the subset a page may use, and only for the origin the view
  * was opened on. Camera, microphone and file pickers are left to the OS and the WebView's own
  * defaults: what may run here is decided by what is allowed to be deployed to the allowlisted
- * domains, not by switching features off.
+ * domains, not by switching features off. The OS asks the user once under DoU's name; WebKit's own
+ * prompt for the same page would be a second question, so iOS does not show it.
  */
 export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function SubWebView(
     { viewId, url, params, appId, permissions, onRequestClose, onTitleChange, onTitleRequest },
@@ -138,6 +140,8 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
                 if (!storage) logger.warn('WEBVIEW', '[sub] storage could not be opened', { origin: openedOrigin });
                 return storage;
             },
+            permissions: permissionService,
+            openSettings,
         });
         return createSubBridgeHost(
             message => webViewRef.current?.postMessage(message),
@@ -244,6 +248,11 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
             // of opening a window this screen does not manage.
             setSupportMultipleWindows={false}
             allowsBackForwardNavigationGestures
+            // A camera preview in a `<video playsinline>` plays in the page, as in the main WebView;
+            // without it iOS can only play it full screen.
+            allowsInlineMediaPlayback
+            // The page's own host only: a frame from elsewhere inside it is denied, not asked.
+            mediaCapturePermissionGrantType="grantIfSameHostElseDeny"
         />
     );
 });

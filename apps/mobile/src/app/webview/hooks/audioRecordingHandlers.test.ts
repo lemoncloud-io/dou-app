@@ -28,7 +28,11 @@ const createRecorderMock = (): jest.Mocked<IAudioRecorderBridge> => ({
     subscribe: jest.fn(),
 });
 
-const createPermissionsMock = (): jest.Mocked<IPermissionService> => ({ check: jest.fn(), request: jest.fn() });
+const createPermissionsMock = (): jest.Mocked<IPermissionService> => ({
+    check: jest.fn(),
+    status: jest.fn(),
+    request: jest.fn(),
+});
 
 const sent: OnAudioRecordingEndedPayload = {
     reason: 'SENT',

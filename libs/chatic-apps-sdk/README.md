@@ -90,20 +90,21 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
 
 ## What a page can do
 
-| Call                                      | In the app                                                         | In a browser                        | Needs permission |
-| ----------------------------------------- | ------------------------------------------------------------------ | ----------------------------------- | ---------------- |
-| `finish(result?)`                         | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener | `NOT_IN_APP`                        | —                |
-| `setTitle(title)`                         | The app's bar shows it (1–100 characters)                          | `document.title`                    | —                |
-| `haptic(kind)`                            | `selection`, `impact`, `success`, `warning`, `error`               | a short vibration, if any           | —                |
-| `onBack(handler \| null)`                 | Android back calls `handler` and does nothing else                 | never called                        | —                |
-| `onCloseRequest(handler \| null)`         | Asks before the user closes; return `true` to close                | never called                        | —                |
-| `reportError(error)`                      | Into DoU's log, under your origin (20 per page load)               | `console.error`                     | —                |
-| `copy(text)`                              | The clipboard                                                      | the browser's clipboard             | `clipboard`      |
-| `share({ title, message, url })`          | The share sheet; waits for the user (see below)                    | Web Share, else copies (`'copied'`) | `share`          |
-| `openUrl(url)`                            | The browser, mail, phone, SMS or a store                           | a new tab                           | `openUrl`        |
-| `getUserKey()`                            | 64 hex characters, the same for this device and site               | `NOT_IN_APP`                        | `userKey`        |
-| `link(params?)`                           | A link that opens this page in the app (see below)                 | the page's own root                 | —                |
-| `storage.get(key)`, `.set(key, value)`, … | Your page's own storage on the device (see below)                  | `localStorage`, same limits         | —                |
+| Call                                                          | In the app                                                                                   | In a browser                        | Needs permission |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------- |
+| `finish(result?)`                                             | Closes the view; `result` (JSON, ≤ 16 KiB) goes back to the opener                           | `NOT_IN_APP`                        | —                |
+| `setTitle(title)`                                             | The app's bar shows it (1–100 characters)                                                    | `document.title`                    | —                |
+| `haptic(kind)`                                                | `selection`, `impact`, `success`, `warning`, `error`                                         | a short vibration, if any           | —                |
+| `onBack(handler \| null)`                                     | Android back calls `handler` and does nothing else                                           | never called                        | —                |
+| `onCloseRequest(handler \| null)`                             | Asks before the user closes; return `true` to close                                          | never called                        | —                |
+| `reportError(error)`                                          | Into DoU's log, under your origin (20 per page load)                                         | `console.error`                     | —                |
+| `copy(text)`                                                  | The clipboard                                                                                | the browser's clipboard             | `clipboard`      |
+| `share({ title, message, url })`                              | The share sheet; waits for the user (see below)                                              | Web Share, else copies (`'copied'`) | `share`          |
+| `openUrl(url)`                                                | The browser, mail, phone, SMS or a store                                                     | a new tab                           | `openUrl`        |
+| `getUserKey()`                                                | 64 hex characters, the same for this device and site                                         | `NOT_IN_APP`                        | `userKey`        |
+| `link(params?)`                                               | A link that opens this page in the app (see below)                                           | the page's own root                 | —                |
+| `storage.get(key)`, `.set(key, value)`, …                     | Your page's own storage on the device (see below)                                            | `localStorage`, same limits         | —                |
+| `permissions.query(kind)`, `.request(kind)`, `openSettings()` | Where the app stands with the OS for `'camera'` or `'microphone'`, and asking it (see below) | the browser's own permission        | —                |
 
 Plus `apps.context` (the app's language, theme, platform and the `params` you were opened with),
 `apps.onContextChange(listener)` for a theme or language change, `apps.supports(capability)`,
@@ -126,6 +127,16 @@ Plus `apps.context` (the app's language, theme, platform and the `params` you we
   write fails with `QUOTA_EXCEEDED` and changes nothing — keys of 1–200 characters (not `__proto__`),
   and at most 64 KiB in one call (`TOO_LARGE`). A value is written in one call, so one value stays
   under 64 KiB; split anything bigger across keys.
+- **`permissions`** is for the camera and the microphone, which a page uses with the browser's own
+  `getUserMedia` — the OS asks the user the first time, under DoU's name, so the user's answer is for
+  every page, not yours alone. `query(kind)` reports `'granted'`, `'prompt'` (not asked, or refused and
+  may be asked again) or `'blocked'` (the OS will not ask again) without showing anything — on Android
+  it can read `'prompt'` for one the OS will no longer ask for, so trust what `request` answers;
+  `request(kind)` shows the prompt and resolves with the answer; `openSettings()` opens DoU's page in
+  the OS settings, the way back for `'blocked'`. Ask when the user reaches for the feature, not at
+  start, and do not time `request` out: it waits for the user. A page can skip all this and call
+  `getUserMedia`; it then meets the prompt in the middle of the capture. In a browser the same calls
+  read and ask the browser's own permission, and `openSettings()` is `NOT_IN_APP`.
 - **Uncaught errors are reported for you.** `connect()` listens for `error` and `unhandledrejection` and
   sends them to DoU's log. An `Error` sends its message and stack, a string itself, anything else only
   its type. Pass `connect({ reportErrors: false })` to turn it off.
@@ -168,19 +179,20 @@ try {
 }
 ```
 
-| Code                   | Means                                                                                                |
-| ---------------------- | ---------------------------------------------------------------------------------------------------- |
-| `NOT_SUPPORTED`        | Not available: an older app, a permission the page does not hold, or no browser clipboard or storage |
-| `NOT_IN_APP`           | The call needs the app, and the page is in a browser                                                 |
-| `TIMEOUT`              | The app did not answer in 10 seconds (time in the background does not count)                         |
-| `INVALID`              | A value is missing, of the wrong type, or too long                                                   |
-| `TOO_LARGE`            | One call's data is over 65,536 characters                                                            |
-| `LINK_NOT_ALLOWED`     | The link cannot be opened or shared from a page                                                      |
-| `NOT_OPEN`             | `finish` after the view has already closed                                                           |
-| `UNAVAILABLE`          | The device has no id to make a user key from, or the app could not open the page's storage           |
-| `QUOTA_EXCEEDED`       | A storage write would go past 1,048,576 characters; nothing was written                              |
-| `DISCONNECTED`         | The call was waiting when `disconnect()` closed the connection                                       |
-| `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                                      |
+| Code                   | Means                                                                                                                   |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `NOT_SUPPORTED`        | Not available: an older app, a permission the page does not hold, or no browser clipboard or storage                    |
+| `NOT_IN_APP`           | The call needs the app, and the page is in a browser                                                                    |
+| `TIMEOUT`              | The app did not answer in 10 seconds (time in the background does not count)                                            |
+| `INVALID`              | A value is missing, of the wrong type, or too long                                                                      |
+| `TOO_LARGE`            | One call's data is over 65,536 characters                                                                               |
+| `LINK_NOT_ALLOWED`     | The link cannot be opened or shared from a page                                                                         |
+| `NOT_OPEN`             | `finish` after the view has already closed                                                                              |
+| `UNAVAILABLE`          | No device id to make a user key from, the page's storage could not be opened, or the device has no camera or microphone |
+| `SETTINGS_ERROR`       | `openSettings()`: the OS would not open the settings                                                                    |
+| `QUOTA_EXCEEDED`       | A storage write would go past 1,048,576 characters; nothing was written                                                 |
+| `DISCONNECTED`         | The call was waiting when `disconnect()` closed the connection                                                          |
+| `UNSUPPORTED_PROTOCOL` | `connect()` only: the app is newer than this library; update it                                                         |
 
 Treat a code not in this table as that call failing, and nothing more.
 
@@ -267,6 +279,10 @@ Paste this list into the prompt along with what the page should do.
 11. List the permissions the page needs (`clipboard`, `share`, `openUrl`, `userKey`) in
     `/.well-known/chatic-app.json` — and nothing it does not use.
 12. In development, `installChaticAppsMock({ permissions: [...] })` before `connect()`.
+13. For the camera or microphone, call `apps.permissions.request(kind)` when the user reaches for the
+    feature, never at start, then `getUserMedia`. No manifest permission is needed. Do not time the
+    request out, and send `'blocked'` to `apps.openSettings()`. Treat the request's answer, not
+    `query`'s, as the truth: on Android `query` can read `'prompt'` for a blocked permission.
 
 ## For maintainers
 

@@ -1,7 +1,7 @@
 # The sub WebView protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.18.0. What is marked **(2.15.0)**, **(2.16.0)**,
-> **(2.17.0)** or **(2.18.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.20.0. What is marked **(2.15.0)**, **(2.16.0)**,
+> **(2.17.0)**, **(2.18.0)**, **(2.19.0)** or **(2.20.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
 > rather than from a version number.
 
 What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
@@ -196,9 +196,11 @@ A page declares what it needs in a manifest, served from its own origin at
 | `orientation`     | `any`, `portrait`, `landscape`                                     | `any`                      |
 
 **Every page gets the base set**: `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle`,
-`TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, and **(2.18.0)**
-the five [storage](#storage-2180) requests. None of them reaches anything outside the view — storage
-holds only what the page itself put there. **The rest is declared**, one capability per request:
+`TriggerHaptic`, `SetCanGoBack`, `SetSubWebViewCloseGuard`, `ReportSubWebViewError`, **(2.18.0)**
+the five [storage](#storage-2180) requests, and **(2.20.0)** the three [device](#device-permissions-2200)
+requests. None of them reaches more than the page already could: storage holds only what the page
+itself put there, and the device requests only ask the OS what `getUserMedia` would. **The rest is
+declared**, one capability per request:
 
 | Permission  | Unlocks                | Why it is declared                                        |
 | ----------- | ---------------------- | --------------------------------------------------------- |
@@ -297,20 +299,21 @@ Lengths are string lengths (UTF-16 code units), not bytes.
 
 A page MUST treat a code it does not know as a failure of that request and nothing more.
 
-| Code                    | Raised by                                                 | Meaning                                                                                       |
-| ----------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `NOT_FOUND`             | the host                                                  | Not in this host's subset, or not in the page's manifest (2.16.0). Expected from an older app |
-| `INTERNAL_ERROR`        | the host                                                  | A handler failed unexpectedly. Retrying MAY work                                              |
-| `TOO_LARGE`             | the host **(2.15.0)**                                     | The message is over 64 KiB                                                                    |
-| `INVALID`               | most requests                                             | A field is missing, of the wrong type, or over its limit                                      |
-| `INVALID_KIND`          | `TriggerHaptic`                                           | `kind` is not one of the listed values                                                        |
-| `NOT_OPEN`              | `FinishSubWebView`                                        | The view already closed                                                                       |
-| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet`                               | The link is not one this request may open or share                                            |
-| `OPEN_URL_FAILED`       | `OpenURL`                                                 | The OS could not open an allowed link                                                         |
-| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`                                         | The OS refused the write                                                                      |
-| `SHARE_ERROR`           | `OpenShareSheet`                                          | The OS share sheet failed                                                                     |
-| `UNAVAILABLE`           | `GetSubWebViewUserKey`, the storage requests **(2.18.0)** | The device has no id to derive a key from, or the shell could not open the page's storage     |
-| `QUOTA_EXCEEDED`        | `SetSubWebViewStorage`                                    | **(2.18.0)** The write would take the origin's storage past its limit; nothing was written    |
+| Code                    | Raised by                                                                                   | Meaning                                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NOT_FOUND`             | the host                                                                                    | Not in this host's subset, or not in the page's manifest (2.16.0). Expected from an older app                                              |
+| `INTERNAL_ERROR`        | the host                                                                                    | A handler failed unexpectedly. Retrying MAY work                                                                                           |
+| `TOO_LARGE`             | the host **(2.15.0)**                                                                       | The message is over 64 KiB                                                                                                                 |
+| `INVALID`               | most requests                                                                               | A field is missing, of the wrong type, or over its limit                                                                                   |
+| `INVALID_KIND`          | `TriggerHaptic`                                                                             | `kind` is not one of the listed values                                                                                                     |
+| `NOT_OPEN`              | `FinishSubWebView`                                                                          | The view already closed                                                                                                                    |
+| `LINK_NOT_ALLOWED`      | `OpenURL`, `OpenShareSheet`                                                                 | The link is not one this request may open or share                                                                                         |
+| `OPEN_URL_FAILED`       | `OpenURL`                                                                                   | The OS could not open an allowed link                                                                                                      |
+| `CLIPBOARD_WRITE_ERROR` | `CopyToClipboard`                                                                           | The OS refused the write                                                                                                                   |
+| `SHARE_ERROR`           | `OpenShareSheet`                                                                            | The OS share sheet failed                                                                                                                  |
+| `UNAVAILABLE`           | `GetSubWebViewUserKey`, the storage requests **(2.18.0)**, the device requests **(2.20.0)** | No device id to derive a key from; the page's storage could not be opened; or the OS reports the permission unavailable (no such hardware) |
+| `QUOTA_EXCEEDED`        | `SetSubWebViewStorage`                                                                      | **(2.18.0)** The write would take the origin's storage past its limit; nothing was written                                                 |
+| `SETTINGS_ERROR`        | `OpenSettings`                                                                              | **(2.20.0)** The OS would not open the settings                                                                                            |
 
 `INVALID_KIND` is `INVALID` under an older name; it stays, since renaming a code breaks a page that
 reads it. The codes are `SubWebViewPageErrorCode` in `@chatic/bridge-messages` **(2.15.0)**.
@@ -473,6 +476,34 @@ data.
 - The reply to a write is the usage after it, so a page that keeps close to its limit need not ask.
 - Every storage request MAY also fail `UNAVAILABLE`: the shell could not open the store.
 
+### Device permissions (2.20.0)
+
+A page captures with the WebView's own `getUserMedia`, and the OS asks the user the first time, under
+DoU's name. Three requests, in the base set, let a page ask well; none limits it:
+
+| Request                       | Data                                 | Reply                                           | Errors                   |
+| ----------------------------- | ------------------------------------ | ----------------------------------------------- | ------------------------ |
+| `GetSubWebViewPermission`     | `{ kind: 'camera' \| 'microphone' }` | `{ state: 'granted' \| 'prompt' \| 'blocked' }` | `INVALID`, `UNAVAILABLE` |
+| `RequestSubWebViewPermission` | `{ kind: 'camera' \| 'microphone' }` | `{ state }`, once the user decided              | `INVALID`, `UNAVAILABLE` |
+| `OpenSettings`                | `{}`                                 | `{}`                                            | `SETTINGS_ERROR`         |
+
+- **The state is DoU's with the OS, not the page's.** `granted` means `getUserMedia` for that kind asks
+  nothing further; `prompt` means the OS has not been asked, or was refused and may be asked again;
+  `blocked` means it will not ask again, and `OpenSettings` is the user's way back. **The answer to
+  `RequestSubWebViewPermission` is the authority**: on Android the OS does not say a permission is
+  blocked until a request has been refused for good, so a `Get…` can read `prompt` for one it will no
+  longer ask for, and a page MUST route `blocked` from a request to `OpenSettings`. If the OS call itself
+  fails, the request reads `prompt` too.
+- **`UNAVAILABLE` is what the OS reports**, which on iOS includes a device with no camera (the
+  simulator); Android does not report a missing camera or microphone that way.
+- A page that asks twice at once gets one answer: the shell puts the OS prompt up once per kind.
+- **`RequestSubWebViewPermission` waits for the user**, so a page MUST NOT time it out. A refusal
+  answers `prompt`, since the OS may ask again.
+- **The answer is for every page.** The OS prompt names DoU, so what the user allows for one page they
+  have allowed for all; there is no limit per page, and the app does not judge a page's use of a device:
+  its author answers for it.
+- A page MAY skip these and call `getUserMedia` directly; it then meets the OS prompt mid-capture.
+
 ## Pushes
 
 | Push                                      | Data                               | When                                                                              |
@@ -629,6 +660,10 @@ tests, but have not been watched on a device:
   Chrome and a messenger's in-app browser, and offers the store where the app is missing;
 - **(2.18.0)** that a page's storage survives an app update and a relaunch, and is gone after an
   uninstall, on both platforms;
+- **(2.20.0)** that iOS plays a `<video playsinline>` camera preview in the page, that WebKit shows no
+  second prompt after the OS's (`grantIfSameHostElseDeny`), and that `RequestSubWebViewPermission`
+  answers `granted`, `prompt` and `blocked` as described on both platforms, after a refusal and after
+  "don't ask again";
 - **(2.16.0)** that a manifest's `orientation` holds a full-screen modal on both platforms (it is
   react-native-screens' screen option, set once the manifest is in), and that the outcome haptics
   feel distinct on a device.
