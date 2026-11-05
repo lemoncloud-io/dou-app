@@ -1,5 +1,6 @@
 import type {
     OpenShareSheetPayload,
+    SubWebViewDeviceKind,
     SubWebViewPermission,
     SubWebViewRequestType,
     WebMessageData,
@@ -9,7 +10,7 @@ import type { ShareAction } from 'react-native';
 
 import type { IHapticBridge } from '../bridge';
 import { HAPTIC_KINDS } from '../bridge/hapticKinds';
-import type { IClipboardService, ISubWebViewService } from '../services';
+import type { IClipboardService, IPermissionService, ISubWebViewService } from '../services';
 import { SUB_WEBVIEW_TITLE_LIMIT } from '../services/subWebView/subWebViewData';
 import {
     SUB_WEBVIEW_STORAGE_LIMIT,
@@ -55,6 +56,10 @@ export interface SubBridgeDeps {
      * has no origin to keep it under, or its file cannot be opened.
      */
     openStorage: () => Pick<SubWebViewStorage, 'get' | 'set' | 'remove' | 'clear' | 'info'> | null;
+    /** The OS permissions behind the camera and the microphone. */
+    permissions: Pick<IPermissionService, 'status' | 'request'>;
+    /** Opens DoU's own page in the OS settings; `false` when the OS would not. */
+    openSettings: () => Promise<boolean>;
 }
 
 /**
@@ -86,6 +91,10 @@ export const permittedSubBridgeHandlers = (
     return permitted;
 };
 
+const OS_PERMISSION = { camera: 'CAMERA', microphone: 'MICROPHONE' } as const;
+
+const isDeviceKind = (kind: unknown): kind is SubWebViewDeviceKind => kind === 'camera' || kind === 'microphone';
+
 /** What react-native-device-info answers when it has no id to give. */
 const NO_DEVICE_ID = 'unknown';
 
@@ -107,6 +116,9 @@ const optionalText = (value: unknown, limit: number): string | undefined | null 
     if (value == null) return undefined;
     return typeof value === 'string' && value.length <= limit ? value : null;
 };
+
+const DEVICE_KIND_TEXT = 'kind must be camera or microphone.';
+const NO_HARDWARE_TEXT = 'This device has no such hardware.';
 
 const fail = <T extends string>(type: T, code: string, message: string) => ({
     type,
@@ -135,6 +147,9 @@ const storageReply = <T extends string, V>(type: T, result: StorageResult<V> | n
 export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers => {
     // The handlers are built once per page load, so this counts that load's reports.
     let errorReports = 0;
+    // A request in flight per kind: a page that asks twice (a double tap) gets the one answer instead of
+    // putting the OS prompt up twice.
+    const asking = new Map<SubWebViewDeviceKind, Promise<'GRANTED' | 'DENIED' | 'BLOCKED'>>();
     return {
         FinishSubWebView: async message => {
             const closed = deps.service.close(deps.viewId, 'page', message.data?.result);
@@ -291,5 +306,48 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
             storageReply('OnClearSubWebViewStorage', deps.openStorage()?.clear() ?? null),
         GetSubWebViewStorageInfo: async () =>
             storageReply('OnGetSubWebViewStorageInfo', deps.openStorage()?.info() ?? null),
+
+        // Where DoU stands with the OS, read without asking. A denied permission that may still be asked
+        // for reads `prompt`: to a page, "asking would show the OS prompt" is what matters.
+        GetSubWebViewPermission: async message => {
+            const kind = message.data?.kind;
+            if (!isDeviceKind(kind)) return fail('OnGetSubWebViewPermission', 'INVALID', DEVICE_KIND_TEXT);
+            const status = await deps.permissions.status(OS_PERMISSION[kind]);
+            if (status === 'UNAVAILABLE') return fail('OnGetSubWebViewPermission', 'UNAVAILABLE', NO_HARDWARE_TEXT);
+            return {
+                type: 'OnGetSubWebViewPermission',
+                success: true,
+                data: { state: status === 'GRANTED' ? 'granted' : status === 'BLOCKED' ? 'blocked' : 'prompt' },
+            };
+        },
+
+        // The OS prompt, under DoU's name: the page asks when the user reaches for the feature, so the
+        // prompt does not arrive in the middle of a capture.
+        RequestSubWebViewPermission: async message => {
+            const kind = message.data?.kind;
+            if (!isDeviceKind(kind)) return fail('OnRequestSubWebViewPermission', 'INVALID', DEVICE_KIND_TEXT);
+            if ((await deps.permissions.status(OS_PERMISSION[kind])) === 'UNAVAILABLE') {
+                return fail('OnRequestSubWebViewPermission', 'UNAVAILABLE', NO_HARDWARE_TEXT);
+            }
+            let pending = asking.get(kind);
+            if (!pending) {
+                pending = deps.permissions.request(OS_PERMISSION[kind]).finally(() => asking.delete(kind));
+                asking.set(kind, pending);
+            }
+            const result = await pending;
+            return {
+                type: 'OnRequestSubWebViewPermission',
+                success: true,
+                data: { state: result === 'GRANTED' ? 'granted' : result === 'BLOCKED' ? 'blocked' : 'prompt' },
+            };
+        },
+
+        // DoU's own page in the OS settings, where a blocked permission can be turned back on.
+        OpenSettings: async () => {
+            if (!(await deps.openSettings())) {
+                return fail('OnOpenSettings', 'SETTINGS_ERROR', 'Could not open the system settings.');
+            }
+            return { type: 'OnOpenSettings', success: true, data: {} };
+        },
     };
 };

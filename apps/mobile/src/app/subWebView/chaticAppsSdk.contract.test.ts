@@ -28,6 +28,7 @@ const CAPABILITIES = Object.keys({
     closeGuard: true,
     errorReport: true,
     storage: true,
+    permissions: true,
 } satisfies Record<Capability, true>) as Capability[];
 
 const ALL = new Set(['clipboard', 'share', 'openUrl', 'userKey'] as const);
@@ -57,6 +58,11 @@ const setup = (
         setCloseGuard: jest.fn(),
         logPageError: jest.fn(),
         openStorage: () => storage,
+        permissions: {
+            status: jest.fn(async () => 'DENIED' as const),
+            request: jest.fn(async () => 'GRANTED' as const),
+        },
+        openSettings: jest.fn(async () => true),
     };
     let toPage: ((message: string) => void) | undefined;
     const host = createSubBridgeHost(
@@ -157,6 +163,18 @@ describe('chatic-apps-sdk against the page host', () => {
         await expect(apps.storage.set('more', 'x'.repeat(64000))).rejects.toEqual(
             expect.objectContaining({ code: 'QUOTA_EXCEEDED' })
         );
+    });
+
+    it('asks the OS for a device, and opens the settings', async () => {
+        const { transport, deps } = setup(new Set());
+        const apps = await connectOver(transport, { reportErrors: false });
+
+        await expect(apps.permissions.query('camera')).resolves.toBe('prompt');
+        await expect(apps.permissions.request('camera')).resolves.toBe('granted');
+        await apps.openSettings();
+
+        expect(deps.permissions.request).toHaveBeenCalledWith('CAMERA');
+        expect(deps.openSettings).toHaveBeenCalled();
     });
 
     it("claims back and the close guard, and hears the view's pushes", async () => {

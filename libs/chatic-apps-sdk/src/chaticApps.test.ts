@@ -266,6 +266,63 @@ describe('connect, against the mock app', () => {
         );
         delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
     });
+
+    describe('permissions', () => {
+        it('reads prompt before the OS is asked, and asks it on request', async () => {
+            const { apps, mock } = await start();
+
+            expect(apps.supports('permissions')).toBe(true);
+            await expect(apps.permissions.query('camera')).resolves.toBe('prompt');
+            await expect(apps.permissions.request('camera')).resolves.toBe('granted');
+            await expect(apps.permissions.query('camera')).resolves.toBe('granted');
+            expect(mock.devices).toEqual({ camera: 'granted', microphone: 'prompt' });
+        });
+
+        // Each kind stands alone: the camera never brings the microphone with it.
+        it('keeps the two kinds apart', async () => {
+            const { apps } = await start({ deviceAnswers: { microphone: 'blocked' } });
+
+            await expect(apps.permissions.request('camera')).resolves.toBe('granted');
+            await expect(apps.permissions.request('microphone')).resolves.toBe('blocked');
+        });
+
+        it('reads a refusal as prompt, since the OS may ask again', async () => {
+            const { apps } = await start({ deviceAnswers: { camera: 'deny' } });
+
+            await expect(apps.permissions.request('camera')).resolves.toBe('prompt');
+        });
+
+        it('opens the settings', async () => {
+            const { apps } = await start({ deviceAnswers: { camera: 'blocked' } });
+
+            await expect(apps.permissions.request('camera')).resolves.toBe('blocked');
+            await expect(apps.openSettings()).resolves.toBeUndefined();
+        });
+
+        it('fails with UNAVAILABLE for a device the phone does not have', async () => {
+            const { apps } = await start({ deviceAnswers: { camera: 'unavailable' } });
+
+            await expect(apps.permissions.request('camera')).rejects.toEqual(
+                expect.objectContaining({ code: 'UNAVAILABLE' })
+            );
+            await expect(apps.permissions.request('microphone')).resolves.toBe('granted');
+        });
+
+        it('refuses an unknown kind', async () => {
+            const { apps } = await start();
+
+            await expect(apps.permissions.query('location' as never)).rejects.toEqual(
+                expect.objectContaining({ code: 'INVALID' })
+            );
+        });
+
+        // A page with no permissions at all still reaches them: they are in the base set.
+        it('answers a page that holds no permission', async () => {
+            const { apps } = await start({ permissions: [] });
+
+            await expect(apps.permissions.query('microphone')).resolves.toBe('prompt');
+        });
+    });
 });
 
 describe('connect, in a browser tab', () => {
@@ -279,6 +336,76 @@ describe('connect, in a browser tab', () => {
         await expect(apps.finish()).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
         await expect(apps.getUserKey()).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
         expect(apps.link({ a: 1 })).toBe(`${location.origin}/?a=1`);
+    });
+
+    describe('permissions', () => {
+        const setNavigator = (key: string, value: unknown) =>
+            Object.defineProperty(navigator, key, { configurable: true, value });
+
+        afterEach(() => {
+            setNavigator('permissions', undefined);
+            setNavigator('mediaDevices', undefined);
+        });
+
+        it("reads the browser's own state, a browser's denied being blocked", async () => {
+            const query = jest.fn(async ({ name }: { name: string }) => ({
+                state: name === 'camera' ? 'granted' : 'denied',
+            }));
+            setNavigator('permissions', { query });
+            const apps = await connect();
+
+            await expect(apps.permissions.query('camera')).resolves.toBe('granted');
+            await expect(apps.permissions.query('microphone')).resolves.toBe('blocked');
+        });
+
+        it('reads prompt where the browser cannot tell', async () => {
+            const apps = await connect();
+
+            await expect(apps.permissions.query('camera')).resolves.toBe('prompt');
+        });
+
+        it('asks by capturing, and lets the capture go at once', async () => {
+            const stop = jest.fn();
+            const getUserMedia = jest.fn(async () => ({ getTracks: () => [{ stop }] }));
+            setNavigator('mediaDevices', { getUserMedia });
+            const apps = await connect();
+
+            await expect(apps.permissions.request('microphone')).resolves.toBe('granted');
+            expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
+            expect(stop).toHaveBeenCalled();
+        });
+
+        it('reads a refused capture as prompt, and a missing device as UNAVAILABLE', async () => {
+            const getUserMedia = jest
+                .fn()
+                .mockRejectedValueOnce(Object.assign(new Error('no'), { name: 'NotAllowedError' }))
+                .mockRejectedValueOnce(Object.assign(new Error('none'), { name: 'NotFoundError' }));
+            setNavigator('mediaDevices', { getUserMedia });
+            const apps = await connect();
+
+            await expect(apps.permissions.request('camera')).resolves.toBe('prompt');
+            await expect(apps.permissions.request('camera')).rejects.toEqual(
+                expect.objectContaining({ code: 'UNAVAILABLE' })
+            );
+        });
+
+        it('reports a capture that failed for a reason of its own, not as the user saying no', async () => {
+            const getUserMedia = jest
+                .fn()
+                .mockRejectedValue(Object.assign(new Error('busy'), { name: 'NotReadableError' }));
+            setNavigator('mediaDevices', { getUserMedia });
+            const apps = await connect();
+
+            await expect(apps.permissions.request('camera')).rejects.toEqual(
+                expect.objectContaining({ code: 'INTERNAL_ERROR' })
+            );
+        });
+
+        it('cannot open the settings in a browser', async () => {
+            const apps = await connect();
+
+            await expect(apps.openSettings()).rejects.toEqual(expect.objectContaining({ code: 'NOT_IN_APP' }));
+        });
     });
 
     it('keeps storage in the browser, under the same calls', async () => {

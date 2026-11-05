@@ -41,21 +41,24 @@ vocabulary as the main web, through `window.ReactNativeWebView`, to a second `Ap
 (`createSubBridgeHost.ts`) that registers only `SubWebViewRequestType` — and of that, the base set
 and what the page's manifest permits (below):
 
-| Request                   | What the sub WebView's host does                                                                          |
-| ------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `WebAppReady`             | The handshake; lists the base set and the permitted rows of this table. No cache schema: nothing to store |
-| `Ping`                    | Answered by the host itself                                                                               |
-| `FinishSubWebView`        | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web                            |
-| `SetSubWebViewTitle`      | Puts a title (1–100 characters) in the bar, over the document's own                                       |
-| `CopyToClipboard`         | Writes text to the clipboard (permission `clipboard`)                                                     |
-| `TriggerHaptic`           | Plays one short haptic, a tick, a tap or an outcome                                                       |
-| `OpenURL`                 | Opens only what the view would hand to the OS — never the app's own links (`openUrl`)                     |
-| `OpenShareSheet`          | Opens the OS share sheet with a message and an http(s) link — never a file (`share`)                      |
-| `GetSubWebViewUserKey`    | This device's key for the page's origin — never the device id (`userKey`)                                 |
-| `SetCanGoBack`            | The page claims Android back: presses are pushed to it as `OnBackPressed`                                 |
-| `SetSubWebViewCloseGuard` | The user's close is pushed to the page as `OnSubWebViewCloseRequested` first                              |
-| `ReportSubWebViewError`   | Writes the page's error to the app's log under its origin, 20 per page load                               |
-| `GetSubWebViewStorage` …  | The page's own storage: get, set, remove, clear, and what it holds (the five storage requests)            |
+| Request                       | What the sub WebView's host does                                                                          |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `WebAppReady`                 | The handshake; lists the base set and the permitted rows of this table. No cache schema: nothing to store |
+| `Ping`                        | Answered by the host itself                                                                               |
+| `FinishSubWebView`            | Closes this view as `page`, handing `result` (JSON, at most 16 KiB) to the web                            |
+| `SetSubWebViewTitle`          | Puts a title (1–100 characters) in the bar, over the document's own                                       |
+| `CopyToClipboard`             | Writes text to the clipboard (permission `clipboard`)                                                     |
+| `TriggerHaptic`               | Plays one short haptic, a tick, a tap or an outcome                                                       |
+| `OpenURL`                     | Opens only what the view would hand to the OS — never the app's own links (`openUrl`)                     |
+| `OpenShareSheet`              | Opens the OS share sheet with a message and an http(s) link — never a file (`share`)                      |
+| `GetSubWebViewUserKey`        | This device's key for the page's origin — never the device id (`userKey`)                                 |
+| `SetCanGoBack`                | The page claims Android back: presses are pushed to it as `OnBackPressed`                                 |
+| `SetSubWebViewCloseGuard`     | The user's close is pushed to the page as `OnSubWebViewCloseRequested` first                              |
+| `ReportSubWebViewError`       | Writes the page's error to the app's log under its origin, 20 per page load                               |
+| `GetSubWebViewStorage` …      | The page's own storage: get, set, remove, clear, and what it holds (the five storage requests)            |
+| `GetSubWebViewPermission`     | Where DoU stands with the OS for the camera or the microphone, asking nothing                             |
+| `RequestSubWebViewPermission` | Asks the OS for the camera or the microphone, so its prompt does not arrive mid-capture                   |
+| `OpenSettings`                | DoU's page in the OS settings, for a permission the OS will not ask for again                             |
 
 **The page's manifest decides the gated four.** Before it loads the page, the screen reads
 `/.well-known/chatic-app.json` from the opened origin (`subWebViewManifest.ts`). Each permission it
@@ -203,9 +206,11 @@ the load counter is bumped in `onLoadStart` itself, before the state that rebuil
 `SubWebView.test.tsx` pins the context, the origin check and the user agent.
 
 **Device features are left open.** Camera, microphone, file pickers and downloads behave as the
-WebView and the OS make them behave; nothing is switched off for this view. What keeps that safe is
-not a setting but what may be deployed to the allowlisted domains: only pages that passed the app's
-own content review. What each feature does today, given the permissions the app declares:
+WebView and the OS make them behave; nothing is switched off for this view, and no manifest
+permission is needed for them. What keeps that safe is not a setting but what may be deployed to the
+allowlisted domains: only pages that passed the app's own content review, which is where a page's use
+of a device is judged and where the administrator who approves it answers for it. What each feature
+does today, given the permissions the app declares:
 
 | Feature     | iOS                                                                   | Android                                                                                            |
 | ----------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -222,6 +227,21 @@ grant setting answers the camera and the microphone with one value, and its Andr
 audio request into the app's `RECORD_AUDIO`. Whether a page uses the microphone is part of what its
 review checks before it goes on an allowlisted domain. Adding location still needs a purpose string or
 permission in the app, so an app release, and is done when a reviewed page needs it.
+
+**Asking first, and the two WebView settings.** `GetSubWebViewPermission` and
+`RequestSubWebViewPermission` (`subBridgeHandlers.ts`) are in the base set: they go through the
+`PermissionService` the main web already uses, so a page can learn where DoU stands with the OS and ask
+when the user reaches for the feature, instead of meeting the prompt in the middle of a capture. A kind
+the OS refused and may still ask for reads `prompt`; one it will not ask for again reads `blocked`, and
+`OpenSettings` takes the user to DoU's settings page. It also fixes what the table's Android row
+cannot: a `<input capture>` on a device where DoU lacks `CAMERA` opens nothing, so a page that asks
+first gets the permission before it opens one. Two settings keep the OS prompt the only one on iOS:
+`allowsInlineMediaPlayback`, so a `<video playsinline>` preview plays in the page as in the main
+WebView, and `mediaCapturePermissionGrantType="grantIfSameHostElseDeny"`, which answers a capture from
+the page's own host without WebKit asking a second time after the OS, and denies one from a frame on
+another host. A page that was granted nothing separately is not limited either: a page asks for a
+kind, and the OS's answer to DoU is the answer for every page, because the OS prompt names DoU — a
+limit per page would need patching the library (see [ADR-0289](../../../../docs/adr/0289-a-sub-webview-page-asks-the-os-for-the-camera-and-microphone-with-no-limit-of-its-own.md)).
 
 ### For a page's author
 
@@ -421,6 +441,13 @@ page. The allowlist takes `apps-dev.chatic.io` in every build, so an unlocked st
 development page too. A page reaches
 `CopyToClipboard`, `OpenShareSheet`, `OpenURL` and `GetSubWebViewUserKey` only when its deployed
 manifest grants them; without one, those four answer `NOT_FOUND`.
+
+The camera and microphone requests (2.20.0) need no manifest. To try them, open a page that captures
+and have it call `apps.permissions.request('camera')` (`chatic-apps-sdk`), or send
+`RequestSubWebViewPermission` with `{ kind: 'camera' }` from its own script. Expect the OS prompt once,
+under DoU's name; then `getUserMedia` should show a preview inside the page on iOS. Refuse it and ask
+again to see `prompt`; choose "don't ask again" on Android and ask once more to see `blocked`, then
+`OpenSettings`.
 
 A page link can be tried without a page sharing one, by handing the OS the link (a dev build claims
 the `app-dev` host):

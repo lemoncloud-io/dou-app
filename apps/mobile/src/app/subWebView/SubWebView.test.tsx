@@ -46,7 +46,11 @@ jest.mock('../services', () => ({
     logger: { warn: jest.fn() },
     clipboardService: { setText: jest.fn(async () => undefined) },
     subWebViewService: { close: jest.fn(() => ({ ok: true })) },
-    deviceService: { openShareSheet: jest.fn(async () => ({ action: 'sharedAction' })) },
+    deviceService: {
+        openShareSheet: jest.fn(async () => ({ action: 'sharedAction' })),
+        openSettings: jest.fn(async () => true),
+    },
+    permissionService: { status: jest.fn(async () => 'DENIED'), request: jest.fn(async () => 'GRANTED') },
 }));
 jest.mock('../stores', () => ({
     useLanguageStore: (select: (state: { preference: string }) => unknown) => select({ preference: 'ko' }),
@@ -523,5 +527,35 @@ describe('SubWebView', () => {
         });
 
         expect(onTitleChange.mock.calls).toEqual([['Notice']]);
+    });
+});
+
+describe('SubWebView device features', () => {
+    it('plays media inline, as the main WebView does', () => {
+        renderView();
+
+        expect(mockWebViewProps.allowsInlineMediaPlayback).toBe(true);
+    });
+
+    // OS asks once, under DoU's name; WebKit's own prompt for the same page would be a second question.
+    it('answers a capture from its own host without WebKit asking, and from another host with a no', () => {
+        renderView();
+
+        expect(mockWebViewProps.mediaCapturePermissionGrantType).toBe('grantIfSameHostElseDeny');
+    });
+
+    it('answers the device requests for a page with no permissions at all', async () => {
+        renderView({ permissions: new Set() });
+        await settle();
+
+        await act(async () => {
+            await mockWebViewProps.onMessage(pageMessage(URL_, 'GetSubWebViewPermission', { kind: 'camera' }));
+        });
+        await settle();
+
+        const reply = mockPostMessage.mock.calls
+            .map(([raw]) => JSON.parse(raw))
+            .find(r => r.type === 'OnGetSubWebViewPermission');
+        expect(reply).toEqual(expect.objectContaining({ success: true, data: { state: 'prompt' } }));
     });
 });

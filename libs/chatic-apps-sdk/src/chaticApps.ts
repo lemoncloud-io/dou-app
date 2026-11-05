@@ -2,7 +2,7 @@ import { createBridgeClient, type BridgeClient } from './client';
 import { ChaticAppsError } from './errors';
 import { browserStorage, storageOver, type ChaticAppsStorage } from './storage';
 import { isInApp, nativeTransport, type Transport } from './transport';
-import type { ChaticAppsContext, CloseTrigger, HapticKind } from './types';
+import type { ChaticAppsContext, CloseTrigger, DeviceKind, HapticKind, PermissionState } from './types';
 
 /** What the page can do. `supports` answers from the app's handshake; a browser tab has none. */
 export type Capability =
@@ -16,7 +16,8 @@ export type Capability =
     | 'back'
     | 'closeGuard'
     | 'errorReport'
-    | 'storage';
+    | 'storage'
+    | 'permissions';
 
 /** The request behind each capability. */
 const REQUESTS: Record<Capability, string> = {
@@ -31,6 +32,7 @@ const REQUESTS: Record<Capability, string> = {
     closeGuard: 'SetSubWebViewCloseGuard',
     errorReport: 'ReportSubWebViewError',
     storage: 'GetSubWebViewStorage',
+    permissions: 'RequestSubWebViewPermission',
 };
 
 /** The protocol major this library speaks. */
@@ -56,6 +58,23 @@ export type LinkParams = Readonly<Record<string, string | number | boolean>>;
  * opens, whatever the user then does; only iOS reports `dismissed`.
  */
 export type ShareOutcome = 'shared' | 'dismissed' | 'copied';
+
+/**
+ * The camera and the microphone. A page captures with the browser's own `getUserMedia`; the OS asks the
+ * user the first time, under the app's name. These calls let a page learn where it stands and ask when
+ * the user reaches for the feature, rather than meet the prompt in the middle of a capture.
+ */
+export interface ChaticAppsPermissions {
+    /** Where the app stands with the OS for `kind`, showing the user nothing. */
+    query(kind: DeviceKind): Promise<PermissionState>;
+    /**
+     * Asks the OS for `kind` and resolves once the user has answered: `granted`, `blocked` (it will not
+     * ask again; `openSettings()`), or `prompt` when the user refused this time and it may be asked
+     * again. Ask when the user reaches for the feature, not at start: an unexplained question is the
+     * one most often refused.
+     */
+    request(kind: DeviceKind): Promise<PermissionState>;
+}
 
 export interface ConnectOptions {
     /** Default wait for a reply, in milliseconds, while the page is visible. 10 seconds. */
@@ -107,6 +126,10 @@ export interface ChaticApps {
      * every close through. Use it only for something the user would lose.
      */
     onCloseRequest(handler: ((trigger: CloseTrigger) => boolean | Promise<boolean>) | null): void;
+    /** The camera and the microphone. */
+    readonly permissions: ChaticAppsPermissions;
+    /** Opens the app's page in the OS settings, where a `blocked` permission can be turned back on. */
+    openSettings(): Promise<void>;
     /** Hears a theme or language change while the page shows; returns the function that stops it. */
     onContextChange(listener: (context: ChaticAppsContext) => void): () => void;
     /**
@@ -252,10 +275,14 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
     const cleanups: Array<() => void> = [];
 
     const supports = (capability: Capability) => state.supported.has(REQUESTS[capability]);
-    const call = <T>(capability: Capability, data?: object, timeoutMs?: number | null): Promise<T> =>
-        supports(capability)
-            ? client.request<T>(REQUESTS[capability], data, timeoutMs === undefined ? {} : { timeoutMs })
+    // `type` names another request of the same capability: the device requests come together, but each
+    // is checked against what the app listed, so one the app lacks is `NOT_SUPPORTED`, not `NOT_FOUND`.
+    const call = <T>(capability: Capability, data?: object, timeoutMs?: number | null, type?: string): Promise<T> => {
+        const request = type ?? REQUESTS[capability];
+        return state.supported.has(request)
+            ? client.request<T>(request, data, timeoutMs === undefined ? {} : { timeoutMs })
             : Promise.reject(notSupported(capability));
+    };
 
     // The storage requests come together: an app that answers one answers all five.
     const stored = <T>(type: string, data: object) =>
@@ -348,6 +375,15 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
                 reply?.action === 'dismissedAction' ? 'dismissed' : 'shared'
             ),
         getUserKey: () => call<{ key: string }>('userKey').then(reply => reply.key),
+        permissions: {
+            query: kind =>
+                call<{ state: PermissionState }>('permissions', { kind }, undefined, 'GetSubWebViewPermission').then(
+                    reply => reply.state
+                ),
+            // Waits for the user, however long they take.
+            request: kind => call<{ state: PermissionState }>('permissions', { kind }, null).then(reply => reply.state),
+        },
+        openSettings: () => call<void>('permissions', {}, undefined, 'OpenSettings').then(() => undefined),
         reportError: error =>
             supports('errorReport')
                 ? client
@@ -400,6 +436,56 @@ const appApps = (client: BridgeClient, state: AppState, options: ConnectOptions)
     return apps;
 };
 
+/**
+ * The browser's own permissions, so a page runs the same flow in a tab while it is built: the Permissions
+ * API to read, a capture to ask. A browser's `denied` is the app's `blocked` — it will not ask again.
+ * Safari and Firefox give the Permissions API no entry for these, so there a refusal always reads
+ * `prompt`; only Chrome-family browsers report `blocked`.
+ */
+const browserPermissions = (): ChaticAppsPermissions => {
+    const query = async (kind: DeviceKind): Promise<PermissionState> => {
+        try {
+            const status = await navigator.permissions.query({ name: kind as PermissionName });
+            if (status.state === 'granted') return 'granted';
+            return status.state === 'denied' ? 'blocked' : 'prompt';
+        } catch {
+            // No Permissions API, or none for this kind (Firefox has no `camera`): only asking tells.
+            return 'prompt';
+        }
+    };
+    return {
+        query,
+        request: async kind => {
+            if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+                throw new ChaticAppsError('NOT_SUPPORTED', `This browser cannot capture the ${kind}.`);
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(
+                    kind === 'camera' ? { video: true } : { audio: true }
+                );
+                stream.getTracks().forEach(track => track.stop());
+                return 'granted';
+            } catch (error) {
+                const name = (error as { name?: string })?.name;
+                if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+                    throw new ChaticAppsError('UNAVAILABLE', `This device has no ${kind}.`);
+                }
+                // Not an answer from the user: a busy device, an insecure page. Reading it as `prompt`
+                // would have the page ask again, forever.
+                if (
+                    name === 'NotReadableError' ||
+                    name === 'SecurityError' ||
+                    name === 'TypeError' ||
+                    name === 'AbortError'
+                ) {
+                    throw new ChaticAppsError('INTERNAL_ERROR', `The ${kind} could not be used: ${name}.`);
+                }
+                return (await query(kind)) === 'blocked' ? 'blocked' : 'prompt';
+            }
+        },
+    };
+};
+
 /** The same interface for a browser tab: what the browser can stand in for, and `NOT_IN_APP` for the rest. */
 const browserApps = (): ChaticApps => {
     const clipboardWrite = (text: string) =>
@@ -438,6 +524,8 @@ const browserApps = (): ChaticApps => {
             return 'copied';
         },
         getUserKey: () => notInApp('A user key'),
+        permissions: browserPermissions(),
+        openSettings: () => notInApp('Opening the settings'),
         reportError: async error => {
             console.error(error);
             return false;

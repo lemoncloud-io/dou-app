@@ -1,8 +1,11 @@
 import { ruledStore, type StoreFile } from './storage';
-import type { ChaticAppsContext, CloseTrigger, HapticKind } from './types';
+import type { ChaticAppsContext, CloseTrigger, DeviceKind, HapticKind, PermissionState } from './types';
 
 /** A manifest permission, as the page would declare it in `/.well-known/chatic-app.json`. */
 export type MockPermission = 'clipboard' | 'share' | 'openUrl' | 'userKey';
+
+/** How the user answers when the page asks for a device: allows it, refuses it, or the OS blocks it. */
+export type MockDeviceAnswer = 'allow' | 'deny' | 'blocked' | 'unavailable';
 
 export interface MockOptions {
     /** What the page's manifest would grant. None by default, as for a page with no manifest. */
@@ -13,6 +16,12 @@ export interface MockOptions {
     userKey?: string;
     /** Called when the view closes: by the page (`finish`, with its result) or by the user. */
     onClose?: (closed: { by: 'page' | 'user'; result?: unknown }) => void;
+    /**
+     * How the user answers each device the page asks for; `allow` by default, `unavailable` for a device
+     * the phone does not have. A `deny` leaves the device `prompt`, as on Android; iOS reports a refusal as
+     * `blocked`. Only the answer is played: the page's `getUserMedia` still meets the browser's own prompt.
+     */
+    deviceAnswers?: Partial<Record<DeviceKind, MockDeviceAnswer>>;
     /** What the page's storage holds when the mock starts; empty by default. Kept in memory only. */
     storage?: { [key: string]: unknown };
     /** Log each request and reply to the console. On by default. */
@@ -26,6 +35,8 @@ export interface MockController {
     readonly closed: { by: 'page' | 'user'; result?: unknown } | null;
     /** What the page's storage holds now. */
     readonly storage: { [key: string]: unknown };
+    /** Where the app stands with the OS for each device. */
+    readonly devices: Record<DeviceKind, PermissionState>;
     /** Android's back button: to the page if it took back, else back in history, else a close. */
     pressBack(): void;
     /** The user asks to close: to the page if it guards closing (a second ask within 3 s closes). */
@@ -50,6 +61,9 @@ const BASE = [
     'RemoveSubWebViewStorage',
     'ClearSubWebViewStorage',
     'GetSubWebViewStorageInfo',
+    'GetSubWebViewPermission',
+    'RequestSubWebViewPermission',
+    'OpenSettings',
 ];
 const GATED: Record<MockPermission, string> = {
     clipboard: 'CopyToClipboard',
@@ -57,6 +71,7 @@ const GATED: Record<MockPermission, string> = {
     openUrl: 'OpenURL',
     userKey: 'GetSubWebViewUserKey',
 };
+const DEVICE_KINDS: readonly DeviceKind[] = ['camera', 'microphone'];
 const KINDS: readonly HapticKind[] = ['selection', 'impact', 'success', 'warning', 'error'];
 const MESSAGE_LIMIT = 64 * 1024;
 const RESULT_LIMIT = 16 * 1024;
@@ -112,6 +127,8 @@ const mockAppLink = (origin: string): string => {
  */
 export const installChaticAppsMock = (options: MockOptions = {}): MockController => {
     const supported = new Set([...BASE, ...(options.permissions ?? []).map(permission => GATED[permission])]);
+    // Each device starts unasked, as on a fresh install.
+    const devices: Record<DeviceKind, PermissionState> = { camera: 'prompt', microphone: 'prompt' };
     const origin = window.location.origin;
     // The global is a snapshot, as the app's is; a change reaches the page as a push only.
     const context: ChaticAppsContext = {
@@ -196,8 +213,8 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         switch (type) {
             case 'WebAppReady':
                 return ok('OnWebAppReady', refId, {
-                    appVersion: '2.19.0',
-                    protocolVersion: '2.19.0',
+                    appVersion: '2.20.0',
+                    protocolVersion: '2.20.0',
                     supportedWebMessages: [...supported],
                     supportedAppMessages: [],
                     subWebView: { ...context, ...current },
@@ -303,6 +320,26 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
                         : 'Keys are 1 to 200 characters; values must be JSON.'
                 );
             }
+            case 'GetSubWebViewPermission':
+            case 'RequestSubWebViewPermission': {
+                const kind = data.kind as DeviceKind;
+                if (!DEVICE_KINDS.includes(kind)) {
+                    return fail(`On${type}`, refId, 'INVALID', 'kind must be camera or microphone.');
+                }
+                if (options.deviceAnswers?.[kind] === 'unavailable') {
+                    return fail(`On${type}`, refId, 'UNAVAILABLE', 'This device has no such hardware.');
+                }
+                if (type === 'RequestSubWebViewPermission' && devices[kind] === 'prompt') {
+                    const answer = options.deviceAnswers?.[kind] ?? 'allow';
+                    // A refusal leaves the OS willing to ask again, as the app's `prompt` says.
+                    devices[kind] = answer === 'allow' ? 'granted' : answer === 'deny' ? 'prompt' : 'blocked';
+                    log('the user answered', kind, answer);
+                }
+                return ok(`On${type}`, refId, { state: devices[kind] });
+            }
+            case 'OpenSettings':
+                log('settings opened');
+                return ok('OnOpenSettings', refId);
             case 'GetSubWebViewUserKey':
                 return ok('OnGetSubWebViewUserKey', refId, { key: options.userKey ?? mockKey(origin) });
             default:
@@ -326,6 +363,9 @@ export const installChaticAppsMock = (options: MockOptions = {}): MockController
         },
         get storage() {
             return Object.fromEntries([...stored].map(([key, json]) => [key, JSON.parse(json)]));
+        },
+        get devices() {
+            return { ...devices };
         },
         pressBack: () => {
             if (closed) return;

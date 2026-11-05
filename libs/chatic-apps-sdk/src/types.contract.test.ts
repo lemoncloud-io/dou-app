@@ -2,12 +2,23 @@ import type {
     HapticKind as AppHapticKind,
     SubWebViewCloseTrigger,
     SubWebViewContext,
+    SubWebViewDeviceKind,
+    SubWebViewDevicePermissionState,
     SubWebViewPageErrorCode,
     SubWebViewStorageUsage,
     SubWebViewTheme,
 } from '@chatic/bridge-messages';
 
-import type { AppErrorCode, ChaticAppsContext, CloseTrigger, HapticKind, StorageUsage, Theme } from './types';
+import type {
+    AppErrorCode,
+    ChaticAppsContext,
+    CloseTrigger,
+    DeviceKind,
+    HapticKind,
+    PermissionState,
+    StorageUsage,
+    Theme,
+} from './types';
 
 // Exactly equal, both ways: a field added to, removed from or retyped in either side fails to compile,
 // and ts-jest fails this file on a type error.
@@ -20,7 +31,9 @@ const pinned: [
     Equal<Theme, SubWebViewTheme>,
     Equal<AppErrorCode, SubWebViewPageErrorCode>,
     Equal<StorageUsage, SubWebViewStorageUsage>,
-] = [true, true, true, true, true, true];
+    Equal<DeviceKind, SubWebViewDeviceKind>,
+    Equal<PermissionState, SubWebViewDevicePermissionState>,
+] = [true, true, true, true, true, true, true, true];
 
 describe('the public types', () => {
     it("match the app's message definitions exactly", () => {

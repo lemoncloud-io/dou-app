@@ -153,6 +153,8 @@ const DESKTOP_UNSUPPORTED = {
     RemoveSubWebViewStorage: SUB_WEBVIEW,
     ClearSubWebViewStorage: SUB_WEBVIEW,
     GetSubWebViewStorageInfo: SUB_WEBVIEW,
+    GetSubWebViewPermission: SUB_WEBVIEW,
+    RequestSubWebViewPermission: SUB_WEBVIEW,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 /**

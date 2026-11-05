@@ -35,6 +35,11 @@ const setup = () => {
         setCloseGuard: jest.fn(),
         logPageError: jest.fn(),
         openStorage: jest.fn((): SubWebViewStorage | null => storage),
+        permissions: {
+            status: jest.fn(async (): Promise<any> => 'DENIED'),
+            request: jest.fn(async (): Promise<any> => 'GRANTED'),
+        },
+        openSettings: jest.fn(async () => true),
     };
     return { handlers: createSubBridgeHandlers(deps), deps, service, events };
 };
@@ -559,6 +564,9 @@ describe('permittedSubBridgeHandlers', () => {
                 'RemoveSubWebViewStorage',
                 'ClearSubWebViewStorage',
                 'GetSubWebViewStorageInfo',
+                'GetSubWebViewPermission',
+                'RequestSubWebViewPermission',
+                'OpenSettings',
             ].sort()
         );
     });
@@ -567,6 +575,123 @@ describe('permittedSubBridgeHandlers', () => {
         const kept = permittedSubBridgeHandlers(all(), new Set([permission as never]));
 
         expect(kept).toHaveProperty(request);
-        expect(Object.keys(kept)).toHaveLength(12);
+        expect(Object.keys(kept)).toHaveLength(15);
+    });
+});
+
+describe('the device permission handlers', () => {
+    it.each([
+        ['GRANTED', 'granted'],
+        ['DENIED', 'prompt'],
+        ['BLOCKED', 'blocked'],
+    ])('reads the OS status %s as %s, asking nothing', async (status, state) => {
+        const { handlers, deps } = setup();
+        deps.permissions.status.mockResolvedValueOnce(status);
+
+        const reply = await handlers.GetSubWebViewPermission(message({ kind: 'camera' }));
+
+        expect(deps.permissions.status).toHaveBeenCalledWith('CAMERA');
+        expect(deps.permissions.request).not.toHaveBeenCalled();
+        expect(reply).toEqual({ type: 'OnGetSubWebViewPermission', success: true, data: { state } });
+    });
+
+    it('maps the microphone to its own OS permission', async () => {
+        const { handlers, deps } = setup();
+
+        await handlers.GetSubWebViewPermission(message({ kind: 'microphone' }));
+
+        expect(deps.permissions.status).toHaveBeenCalledWith('MICROPHONE');
+    });
+
+    it('fails a query on a device without the hardware', async () => {
+        const { handlers, deps } = setup();
+        deps.permissions.status.mockResolvedValueOnce('UNAVAILABLE');
+
+        const reply = await handlers.GetSubWebViewPermission(message({ kind: 'camera' }));
+
+        expect(reply).toEqual(
+            expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'UNAVAILABLE' }) })
+        );
+    });
+
+    it.each([
+        ['GRANTED', 'granted'],
+        ['DENIED', 'prompt'],
+        ['BLOCKED', 'blocked'],
+    ])('reads the OS answer %s to a request as %s', async (answer, state) => {
+        const { handlers, deps } = setup();
+        deps.permissions.request.mockResolvedValueOnce(answer);
+
+        const reply = await handlers.RequestSubWebViewPermission(message({ kind: 'microphone' }));
+
+        expect(deps.permissions.request).toHaveBeenCalledWith('MICROPHONE');
+        expect(reply).toEqual({ type: 'OnRequestSubWebViewPermission', success: true, data: { state } });
+    });
+
+    it('puts the OS prompt up once for a page that asks twice at the same time', async () => {
+        const { handlers, deps } = setup();
+        let answer: (value: string) => void = () => undefined;
+        deps.permissions.request.mockImplementationOnce(() => new Promise(resolve => (answer = resolve)));
+
+        const first = handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
+        const second = handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        answer('GRANTED');
+
+        await expect(Promise.all([first, second])).resolves.toEqual([
+            expect.objectContaining({ data: { state: 'granted' } }),
+            expect.objectContaining({ data: { state: 'granted' } }),
+        ]);
+        expect(deps.permissions.request).toHaveBeenCalledTimes(1);
+    });
+
+    it('asks again once the first request has been answered', async () => {
+        const { handlers, deps } = setup();
+
+        await handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
+        await handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
+
+        expect(deps.permissions.request).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not ask the OS on a device without the hardware', async () => {
+        const { handlers, deps } = setup();
+        deps.permissions.status.mockResolvedValueOnce('UNAVAILABLE');
+
+        const reply = await handlers.RequestSubWebViewPermission(message({ kind: 'camera' }));
+
+        expect(deps.permissions.request).not.toHaveBeenCalled();
+        expect(reply).toEqual(
+            expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'UNAVAILABLE' }) })
+        );
+    });
+
+    it.each([undefined, 'location', 3, null])('refuses the kind %p as INVALID, in both requests', async kind => {
+        const { handlers, deps } = setup();
+
+        for (const reply of [
+            await handlers.GetSubWebViewPermission(message({ kind })),
+            await handlers.RequestSubWebViewPermission(message({ kind })),
+        ]) {
+            expect(reply).toEqual(
+                expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
+            );
+        }
+        expect(deps.permissions.request).not.toHaveBeenCalled();
+    });
+
+    it('opens the settings, and says so when the OS would not', async () => {
+        const { handlers, deps } = setup();
+
+        await expect(handlers.OpenSettings(message({}))).resolves.toEqual({
+            type: 'OnOpenSettings',
+            success: true,
+            data: {},
+        });
+
+        deps.openSettings.mockResolvedValueOnce(false);
+        await expect(handlers.OpenSettings(message({}))).resolves.toEqual(
+            expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'SETTINGS_ERROR' }) })
+        );
     });
 });

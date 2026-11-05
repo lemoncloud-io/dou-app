@@ -46,4 +46,16 @@ export type AppErrorCode =
     | 'CLIPBOARD_WRITE_ERROR'
     | 'SHARE_ERROR'
     | 'UNAVAILABLE'
-    | 'QUOTA_EXCEEDED';
+    | 'QUOTA_EXCEEDED'
+    | 'SETTINGS_ERROR';
+
+/** A device a page captures from with `getUserMedia`. */
+export type DeviceKind = 'camera' | 'microphone';
+
+/**
+ * Where the app stands with the OS for one device:
+ * - `granted` — `getUserMedia` for it asks nothing further;
+ * - `prompt` — the OS has not been asked, or was refused and may be asked again;
+ * - `blocked` — only the OS settings can change it (`openSettings()`).
+ */
+export type PermissionState = 'granted' | 'prompt' | 'blocked';

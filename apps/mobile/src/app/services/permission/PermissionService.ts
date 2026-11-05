@@ -9,7 +9,8 @@ import {
     type Permission,
     type PermissionStatus as PermissionResult,
 } from 'react-native-permissions';
-import type { AppPermissionType, IPermissionService, RequestedPermissionStatus } from './types';
+import type { AppPermissionType, DevicePermissionType, IPermissionService, RequestedPermissionStatus } from './types';
+import type { PermissionStatus } from '@chatic/bridge-messages';
 import type { ILogService } from '../log';
 
 const PERMISSION_MAP: Record<Exclude<AppPermissionType, 'NOTIFICATIONS'>, Permission | null> = {
@@ -72,6 +73,22 @@ export class PermissionService implements IPermissionService {
         } catch (error) {
             this.logger.error('PERMISSION', `Check failed: ${type}`, error);
             return false;
+        }
+    }
+
+    async status(type: DevicePermissionType): Promise<PermissionStatus> {
+        const permission: Permission | null = PERMISSION_MAP[type];
+        // A platform with no such permission has nothing to ask: `check` reports it granted the same way.
+        if (!permission) return 'GRANTED';
+        try {
+            const result = await check(permission);
+            this.logger.info('PERMISSION', `Status ${type}: ${result}`);
+            if (result === RESULTS.UNAVAILABLE) return 'UNAVAILABLE';
+            return toRequestedStatus(result);
+        } catch (error) {
+            // Read as askable: a request then gives the real answer, where reading it blocked would not.
+            this.logger.error('PERMISSION', `Status failed: ${type}`, error);
+            return 'DENIED';
         }
     }
 

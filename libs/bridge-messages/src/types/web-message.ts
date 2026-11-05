@@ -87,6 +87,8 @@ import type {
     RemoveSubWebViewStoragePayload,
     ClearSubWebViewStoragePayload,
     GetSubWebViewStorageInfoPayload,
+    GetSubWebViewPermissionPayload,
+    RequestSubWebViewPermissionPayload,
     GetContactsPayload,
     FetchAppIconPayload,
     FetchAppIconListPayload,
@@ -269,6 +271,8 @@ export type WebMessagePayloadMap = {
     RemoveSubWebViewStorage: RemoveSubWebViewStoragePayload;
     ClearSubWebViewStorage: ClearSubWebViewStoragePayload;
     GetSubWebViewStorageInfo: GetSubWebViewStorageInfoPayload;
+    GetSubWebViewPermission: GetSubWebViewPermissionPayload;
+    RequestSubWebViewPermission: RequestSubWebViewPermissionPayload;
 };
 
 /** Auto-generates the string union of every possible web message type from the keys of WebMessagePayloadMap. */
@@ -284,6 +288,7 @@ type RequestsIn<T extends WebMessageType> = T;
  * text and a web link; `SetCanGoBack` claims Android back for the page alone). Nothing here reaches
  * the app's own storage, purchases or files: the storage requests reach only the page's own store,
  * and the one identifier, `GetSubWebViewUserKey`, is a one-way key per origin, never the device id.
+ * `OpenSettings` opens DoU's own page in the OS settings, for a device permission the OS has blocked.
  */
 export type SubWebViewRequestType = RequestsIn<
     | 'WebAppReady'
@@ -303,6 +308,9 @@ export type SubWebViewRequestType = RequestsIn<
     | 'RemoveSubWebViewStorage'
     | 'ClearSubWebViewStorage'
     | 'GetSubWebViewStorageInfo'
+    | 'GetSubWebViewPermission'
+    | 'RequestSubWebViewPermission'
+    | 'OpenSettings'
 >;
 
 export type WebDefaultMessage<T extends WebMessageType> = BaseMessage & {
