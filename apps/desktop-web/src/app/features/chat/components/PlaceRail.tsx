@@ -145,6 +145,8 @@ const PlaceTile = ({
     onSelect,
     menu,
 }: PlaceTileProps) => {
+    // A logo covers the tile's fill, so the open place needs a mark outside it.
+    const ringed = isActive && !!thumbnail;
     const tile = (
         <Hint label={name}>
             <button
@@ -165,8 +167,7 @@ const PlaceTile = ({
                             // The cloud tile's scale (Figma): one glyph large, two a step down.
                             Array.from(tileInitial(name)).length > 1 ? 'text-lead' : 'text-headline',
                             isActive ? 'bg-primary text-primary-foreground' : 'bg-transparent group-hover:bg-border',
-                            // A logo covers the fill, so the open place needs a mark outside it.
-                            isActive && thumbnail && 'ring-2 ring-primary ring-offset-2 ring-offset-rail'
+                            ringed && 'ring-2 ring-primary ring-offset-2 ring-offset-rail'
                         )}
                     >
                         {thumbnail ? (
@@ -181,7 +182,14 @@ const PlaceTile = ({
                     messages across rows that only dot, so "12" pointed at nothing a
                     row inside would admit to. */}
                     {unread > 0 && (
-                        <span className="pointer-events-none absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-rail bg-badge-unread" />
+                        <span
+                            className={cn(
+                                'pointer-events-none absolute h-3 w-3 rounded-full border-2 border-rail bg-badge-unread',
+                                // Out past the ring's rounded corner (4px outside the tile) so it covers less of the logo;
+                                // it still overlaps the ring itself.
+                                ringed ? '-right-1.5 -top-1.5' : '-right-0.5 -top-0.5'
+                            )}
+                        />
                     )}
                 </span>
                 <span
