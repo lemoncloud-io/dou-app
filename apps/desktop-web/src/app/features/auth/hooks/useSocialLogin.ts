@@ -16,6 +16,7 @@ import {
     evaluateOAuthDeeplink,
     isAccountMadeSince,
     isUsedOAuthNonce,
+    oauthProviderName,
     rememberUsedOAuthNonce,
     saveOAuthLoginStart,
     saveSignInNotice,
@@ -209,7 +210,7 @@ export const useSocialLogin = () => {
             try {
                 // Checked here, not only on the button: the session may have changed while the browser was
                 // open. The code goes only to the account that pressed the button, never to whoever is
-                // signed in now — on a shared machine that would hand one person's Google to another.
+                // signed in now — on a shared machine that would hand one person's provider account to another.
                 const signedIn = signedInAccountId();
                 if (!signedIn || signedIn !== account) {
                     logger.warn('AUTH', '[useSocialLogin] link deeplink arrived for another session', {
@@ -234,7 +235,11 @@ export const useSocialLogin = () => {
                         social: { provider: linked.provider ?? provider, hint: linked.hint, linkedAt: Date.now() },
                     },
                 });
-                toast({ description: t('account.signIn.link.done') });
+                toast({
+                    description: t('account.signIn.link.done', {
+                        provider: oauthProviderName(linked.provider ?? provider),
+                    }),
+                });
                 completingRef.current = false;
                 return true;
             } catch (error) {

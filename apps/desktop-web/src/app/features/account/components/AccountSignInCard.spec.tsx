@@ -172,12 +172,12 @@ describe('AccountSignInCard', () => {
     });
 
     it('holds the Google link while one is out in the browser, with a way to give up', () => {
-        attempts.attempt = { intent: 'link', nonce: 'n' };
+        attempts.attempt = { intent: 'link', provider: 'google', nonce: 'n' };
         render(<AccountSignInCard account={{ userRole: 'user', link$: { phone: { hint: '1234' } } }} />);
 
         const link = screen.getByRole('button', { name: i18n.t('account.signIn.link.google') }) as HTMLButtonElement;
         expect(link.disabled).toBe(true);
-        expect(screen.getByText(i18n.t('account.signIn.link.waiting'))).toBeTruthy();
+        expect(screen.getByText(i18n.t('account.signIn.link.waiting', { provider: 'Google' }))).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.social.reopen') }));
         fireEvent.click(screen.getByRole('button', { name: i18n.t('auth.social.cancel') }));
         expect(reopen).toHaveBeenCalled();
@@ -252,6 +252,56 @@ describe('AccountSignInCard', () => {
             expect(apple.disabled).toBe(true);
             expect(screen.getByRole('status').textContent).toContain('Apple');
             expect(screen.getByRole('status').textContent).not.toContain('Google');
+        });
+    });
+
+    describe('Link Apple', () => {
+        const numberOnly = { userRole: 'user', link$: { phone: { hint: '1234' } } };
+
+        it('offers a number-only account an Apple link after Google', () => {
+            render(<AccountSignInCard account={numberOnly} />);
+
+            const names = screen.getAllByRole('button').map(b => b.textContent);
+            const google = names.findIndex(text => text?.includes(i18n.t('account.signIn.link.google')));
+            const apple = names.findIndex(text => text?.includes(i18n.t('account.signIn.link.apple')));
+            expect(google).toBeGreaterThanOrEqual(0);
+            expect(apple).toBeGreaterThan(google);
+            fireEvent.click(screen.getByRole('button', { name: i18n.t('account.signIn.link.apple') }));
+            expect(startLink).toHaveBeenCalledWith('apple');
+        });
+
+        it('offers no Apple link once a social account is linked', () => {
+            render(
+                <AccountSignInCard
+                    account={{ userRole: 'user', link$: { social: { provider: 'google', hint: 'a' } } }}
+                />
+            );
+
+            expect(screen.queryByRole('button', { name: i18n.t('account.signIn.link.apple') })).toBeNull();
+        });
+
+        it('shows a linked Apple as Apple', () => {
+            render(<AccountSignInCard account={{ userRole: 'user', link$: { social: { provider: 'apple' } } }} />);
+
+            expect(screen.getByText('Apple')).toBeTruthy();
+        });
+
+        it('names Apple while the Apple link is out in the browser', () => {
+            attempts.attempt = { intent: 'link', provider: 'apple', nonce: 'n' };
+            render(<AccountSignInCard account={numberOnly} />);
+
+            const apple = screen.getByRole('button', {
+                name: i18n.t('account.signIn.link.apple'),
+            }) as HTMLButtonElement;
+            expect(apple.disabled).toBe(true);
+            expect(screen.getByRole('status').textContent).toContain('Apple');
+        });
+
+        it('names neither provider in a link failure, which the store keeps without one', () => {
+            attempts.linkFailure = 'occupied';
+            render(<AccountSignInCard account={numberOnly} />);
+
+            expect(screen.getByRole('alert').textContent).not.toMatch(/Google|Apple/);
         });
     });
 });

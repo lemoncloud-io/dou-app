@@ -38,7 +38,7 @@ number gets a new account from them unless Google or Apple is linked to that acc
 sign-in is on, the note sends them to sign in with the number and link one from the account hub;
 where it is off, it sends them to the mobile app. Sign-in is not linking: signing in with Google while
 signed in to another account opens a session as the Google account's owner (the server keeps it that
-way, as on mobile). Linking is its own button ([Linking Google](#linking-google)). Recovering someone
+way, as on mobile). Linking is its own button ([Linking Google or Apple](#linking-google-or-apple)). Recovering someone
 who already landed in a new account is out of scope.
 
 The steps, in order:
@@ -207,10 +207,10 @@ the next start finds the guest the preview registered and opens the app as that 
 The in-app "Join with invite" dialog is a different path: it already has a session, shows no preview,
 and still goes straight to the exchange.
 
-## Linking Google
+## Linking Google or Apple
 
-A signed-in account (not a guest) with no social account linked gets **Link Google** on the account
-hub ([account](../account/README.md#how-the-account-signs-in)). It runs the same browser round trip
+A signed-in account (not a guest) with no social account linked gets **Link Google** and **Link Apple**
+on the account hub ([account](../account/README.md#how-the-account-signs-in)). It runs the same browser round trip
 as a sign-in, with two differences:
 
 - **No device registration.** There is a session already, and the button is only offered with one.
@@ -222,22 +222,24 @@ as a sign-in, with two differences:
   link is refused (`linkable: false` with a `reason`); confirm answers the same cases with a status.
 
 The session does not change, so nothing reloads. The server's answer (provider and hint) is patched
-into the relay user's `link$`, so the hub shows Google straight away; the next relay verification
+into the relay user's `link$`, so the hub shows the provider straight away; the next relay verification
 reads the profile again. Whether the code arrives by the deeplink or lands in the app window (the
 hand-off page inside the shell), the app goes back to the account hub once the link has run, whatever
 its outcome.
 
 What the person is told:
 
-| Answer                                    | Where              | What                                                                                                                         |
-| ----------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| linked                                    | toast              | Google is now linked                                                                                                         |
-| verify `reason: occupied`, or confirm 409 | sign-in card, kept | that Google already belongs to another DoU account, and that signing in with it opens that account; merging is not available |
-| verify `reason: type-linked`              | sign-in card, kept | this account already has a social account linked                                                                             |
-| anything else                             | sign-in card, kept | the link failed, try again                                                                                                   |
+| Answer                                    | Where              | What                                                                                                                          |
+| ----------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| linked                                    | toast              | the provider (Google or Apple) is now linked                                                                                  |
+| verify `reason: occupied`, or confirm 409 | sign-in card, kept | that account already belongs to another DoU account, and that signing in with it opens that account; merging is not available |
+| verify `reason: type-linked`              | sign-in card, kept | this account already has a social account linked                                                                              |
+| anything else                             | sign-in card, kept | the link failed, try again                                                                                                    |
 
 A refusal stays on the card until dismissed: a toast is gone before someone back from the browser
-looks, and the occupied case needs its next step read.
+looks, and the occupied case needs its next step read. The refusals name no provider: the card keeps
+only the reason, and the button just pressed sits right above it. The toast does name it, from the
+server's answer or else the start.
 
 The intent is read off the record, never off the link, so a link cannot turn a login into a link or
 the other way round. A record written before intents existed, or one whose intent cannot be read, is
