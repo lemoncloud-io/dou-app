@@ -11,6 +11,15 @@ embedded Electron window. The relay returns to the hand-off page, `/auth/oauth-r
 opens `chatic://oauth?provider=&code=&nonce=` (`chatic-dev:` on the dev channel) to wake the app. The
 app exchanges the code and replaces whatever session was on the device.
 
+"Continue with Apple" sits after Google wherever Google is offered — the Welcome page, the Profile
+page and the account hub's guest card — and takes the same round trip through the relay's
+`/oauth/apple/authorize`; nothing after the browser opens differs by provider. It is shown on
+every platform, not only on a Mac: the relay's web flow works anywhere, which is not true of the mobile
+app's native Apple sign-in. The two buttons share one look — an outline and a mark in the text colour,
+one of the styles Apple allows — at the same size, so neither provider leads. Copy that names the
+provider (the waiting screen, the signed-in toast, the new-account stop) names the one the start
+recorded.
+
 The exchange is signed with that session. It goes to the relay's `verify-oauth-code`, which records the
 Guest Session's user as the new session's link — the same record the mobile sign-in leaves — so the
 account can still enter the clouds the guest was invited to. The endpoint refuses a call with no
@@ -24,20 +33,23 @@ a guest. An account with no email is not a guest: one that signed up with a phon
 The Account card's name, email and user id come from the relay session for the same reason. The
 "This place" card still falls back to the name the cloud knows, which is the one people there see.
 
-Every place that offers the button says, under it, that someone who signed up on mobile with a phone
-number gets a new account from it unless Google is linked to that account. Where phone-number
-sign-in is on, the note sends them to sign in with the number and link Google from the account hub;
+Every place that offers the buttons says, under them, that someone who signed up on mobile with a phone
+number gets a new account from them unless Google or Apple is linked to that account. Where phone-number
+sign-in is on, the note sends them to sign in with the number and link one from the account hub;
 where it is off, it sends them to the mobile app. Sign-in is not linking: signing in with Google while
 signed in to another account opens a session as the Google account's owner (the server keeps it that
-way, as on mobile). Linking is its own button ([Linking Google](#linking-google)). Recovering someone
+way, as on mobile). Linking is its own button ([Linking Google or Apple](#linking-google-or-apple)). Recovering someone
 who already landed in a new account is out of scope.
 
 The steps, in order:
 
 1. **Register the device**, if there is no session yet (below).
 2. **Record the start** — provider, time and a random nonce — in persistent storage.
-3. **Open the browser** at the relay's authorize URL; the nonce rides its `redirect` address.
-4. **The hand-off page** receives the code and the nonce and puts both on the deeplink.
+3. **Open the browser** at the relay's authorize URL; the nonce and the provider ride its `redirect`
+   address.
+4. **The hand-off page** receives the code and the nonce and puts both on the deeplink, with the
+   provider read off its own address. The provider is put there at the start because a page that
+   finds none falls back to Google, and an Apple code read as Google fails the start's provider check.
 5. **The app takes the deeplink** and exchanges the code only if the start record agrees (next section).
 
 The deeplink carries a relay code and the nonce — never a Google token and never a session,
@@ -195,10 +207,10 @@ the next start finds the guest the preview registered and opens the app as that 
 The in-app "Join with invite" dialog is a different path: it already has a session, shows no preview,
 and still goes straight to the exchange.
 
-## Linking Google
+## Linking Google or Apple
 
-A signed-in account (not a guest) with no social account linked gets **Link Google** on the account
-hub ([account](../account/README.md#how-the-account-signs-in)). It runs the same browser round trip
+A signed-in account (not a guest) with no social account linked gets **Link Google** and **Link Apple**
+on the account hub ([account](../account/README.md#how-the-account-signs-in)). It runs the same browser round trip
 as a sign-in, with two differences:
 
 - **No device registration.** There is a session already, and the button is only offered with one.
@@ -210,22 +222,24 @@ as a sign-in, with two differences:
   link is refused (`linkable: false` with a `reason`); confirm answers the same cases with a status.
 
 The session does not change, so nothing reloads. The server's answer (provider and hint) is patched
-into the relay user's `link$`, so the hub shows Google straight away; the next relay verification
+into the relay user's `link$`, so the hub shows the provider straight away; the next relay verification
 reads the profile again. Whether the code arrives by the deeplink or lands in the app window (the
 hand-off page inside the shell), the app goes back to the account hub once the link has run, whatever
 its outcome.
 
 What the person is told:
 
-| Answer                                    | Where              | What                                                                                                                         |
-| ----------------------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| linked                                    | toast              | Google is now linked                                                                                                         |
-| verify `reason: occupied`, or confirm 409 | sign-in card, kept | that Google already belongs to another DoU account, and that signing in with it opens that account; merging is not available |
-| verify `reason: type-linked`              | sign-in card, kept | this account already has a social account linked                                                                             |
-| anything else                             | sign-in card, kept | the link failed, try again                                                                                                   |
+| Answer                                    | Where              | What                                                                                                                          |
+| ----------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| linked                                    | toast              | the provider (Google or Apple) is now linked                                                                                  |
+| verify `reason: occupied`, or confirm 409 | sign-in card, kept | that account already belongs to another DoU account, and that signing in with it opens that account; merging is not available |
+| verify `reason: type-linked`              | sign-in card, kept | this account already has a social account linked                                                                              |
+| anything else                             | sign-in card, kept | the link failed, try again                                                                                                    |
 
 A refusal stays on the card until dismissed: a toast is gone before someone back from the browser
-looks, and the occupied case needs its next step read.
+looks, and the occupied case needs its next step read. The refusals name no provider: the card keeps
+only the reason, and the button just pressed sits right above it. The toast does name it, from the
+server's answer or else the start.
 
 The intent is read off the record, never off the link, so a link cannot turn a login into a link or
 the other way round. A record written before intents existed, or one whose intent cannot be read, is
@@ -253,9 +267,10 @@ the code in it.
 - **A refusal says so.** Nothing is exchanged; the app logs the reason (never the code or the nonce)
   and shows a message that the link was ignored, or that the login expired and should be started again.
 - **The link has to look right.** The scheme and host are compared as a parsed URL, not as a prefix
-  (`chatic://oauth.evil` is not ours), and the provider must be one the flow knows. A link with no
-  provider is refused rather than assumed to be Google. A link with no nonce still parses, so the
-  refusal above is shown to the person instead of the link being dropped silently.
+  (`chatic://oauth.evil` is not ours), and the provider must be one the flow knows — `google` or
+  `apple`, written exactly so. A link with no provider is refused rather than assumed to be Google.
+  A link with no nonce still parses, so the refusal above is shown to the person instead of the link
+  being dropped silently.
 - **The hand-off page stops too.** A page that arrives without a nonce shows the failure screen and
   does not open the app.
 
@@ -372,6 +387,10 @@ used up on its first exchange and bound to a challenge sent when the sign-in sta
 Phone sign-in was held for the same invited-cloud question. On the dev channel a guest who joined a
 cloud by invite signed into an existing account by phone and could still enter the cloud after a
 reload.
+
+Apple sign-in was not held the same way: it reuses Google's round trip, exchange and link record
+unchanged, so the invited-cloud answer carries over. What only a real round trip shows is the relay's
+side — that its Apple sign-in returns to the desktop hand-off page the way it returns to the web.
 
 The invited cloud follows the guest session that signs in, not the account for good: the same account
 signed in later from a fresh guest did not list it. Mobile sign-in leaves the same link record.

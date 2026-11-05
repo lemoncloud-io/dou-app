@@ -20,7 +20,7 @@ import {
     useSiteProfileMap,
     useSiteProfiles,
 } from '../../../shared';
-import { GoogleIcon, isSocialLoginEnabled, phoneSignupNoteKey, useSocialLogin } from '../../auth';
+import { AppleIcon, GoogleIcon, isSocialLoginEnabled, phoneSignupNoteKey, useSocialLogin } from '../../auth';
 import { EditPlaceProfileDialog, PlaceChip } from '../components';
 import { useEditPlaceProfileDialogStore } from '../stores';
 
@@ -71,7 +71,7 @@ export const ProfilePage = () => {
     const accountName = useAccountName();
     // The Account card is about the account, so it reads the relay session. The active session's
     // user would be the cloud's inside a cloud: another uid, another name and no email, which drew a
-    // signed-in account as a guest and offered it Google sign-in again.
+    // signed-in account as a guest and offered it social sign-in again.
     const accountUser = runtime.session.getRelaySessionUser() as {
         uid?: string;
         id?: string;
@@ -123,7 +123,7 @@ export const ProfilePage = () => {
     const name = ownName || fallback;
     const email = accountUser?.email || t('profile.notSet');
     const uid = accountUid ?? fallback;
-    // Only a Guest Session is offered Google sign-in, which replaces the session. A signed-in account
+    // Only a Guest Session is offered Google or Apple sign-in, which replaces the session. A signed-in account
     // with no email (a phone sign-up) would land in a new account, so it is not offered one.
     const showSocialLogin = accountUser?.userRole === 'guest' && isSocialLoginEnabled();
     const phoneNoteId = useId();
@@ -225,27 +225,38 @@ export const ProfilePage = () => {
                 {showSocialLogin && (
                     <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
                         <div className="flex min-w-0 flex-col gap-0.5">
-                            <span className="text-callout font-medium text-foreground">
-                                {t('profile.signInGoogle')}
-                            </span>
+                            <span className="text-callout font-medium text-foreground">{t('profile.signIn')}</span>
                             <span className="break-keep text-caption text-muted-foreground">
-                                {t('profile.signInGoogleHint')}
+                                {t('profile.signInHint')}
                             </span>
                             <span id={phoneNoteId} className="break-keep text-caption text-muted-foreground">
                                 {t(phoneSignupNoteKey())}
                             </span>
                         </div>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="shrink-0 gap-2"
-                            onClick={() => void startSocialLogin('google')}
-                            disabled={isStarting}
-                            aria-describedby={phoneNoteId}
-                        >
-                            <GoogleIcon />
-                            {t('auth.social.google')}
-                        </Button>
+                        <div className="flex shrink-0 flex-col gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => void startSocialLogin('google')}
+                                disabled={isStarting}
+                                aria-describedby={phoneNoteId}
+                            >
+                                <GoogleIcon />
+                                {t('auth.social.google')}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => void startSocialLogin('apple')}
+                                disabled={isStarting}
+                                aria-describedby={phoneNoteId}
+                            >
+                                <AppleIcon />
+                                {t('auth.social.apple')}
+                            </Button>
+                        </div>
                     </div>
                 )}
             </section>

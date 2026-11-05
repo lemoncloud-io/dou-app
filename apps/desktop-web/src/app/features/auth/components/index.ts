@@ -1,3 +1,4 @@
+export * from './AppleIcon';
 export * from './AuthCard';
 export * from './JoinWithInviteDialog';
 export * from './GoogleIcon';
