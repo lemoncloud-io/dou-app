@@ -29,15 +29,19 @@ code. Read the part you need before you write code that depends on it.
    under `apps.getUserKey()`.
 10. Use `apps.onBack(handler)` for in-page dialogs; clear it with `apps.onBack(null)` when they close.
 11. Use `apps.onCloseRequest` only to protect unsaved work; return `true` to close.
+12. For the camera or microphone, call `apps.permissions.request(kind)` when the user reaches for the
+    feature, never at start, then `getUserMedia`. No manifest permission is needed. Do not time the
+    request out, and send `'blocked'` to `apps.openSettings()`. Treat the request's answer, not
+    `query`'s, as the truth: on Android `query` can read `'prompt'` for a blocked permission.
 
 ## The page
 
-12. No `window.opener`, no popup logins, no file downloads.
-13. Never put the user's data in errors or in `reportError`.
-14. List the permissions the page needs (`clipboard`, `share`, `openUrl`, `userKey`) in
+13. No `window.opener`, no popup logins, no file downloads.
+14. Never put the user's data in errors or in `reportError`.
+15. List the permissions the page needs (`clipboard`, `share`, `openUrl`, `userKey`) in
     `/.well-known/chatic-app.json` — and nothing it does not use. A call that needs one fails with
     `NOT_SUPPORTED` without it.
-15. Do not draw for the safe area: the page already lies inside it on every edge.
+16. Do not draw for the safe area: the page already lies inside it on every edge.
 
 ## Before you say it is done
 
