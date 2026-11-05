@@ -4,6 +4,12 @@
 
 ### Documentation
 
+- (chatic-apps-sdk) keep the assistant rules in AGENTS.md only, not twice
+
+## [2026-11-05] - No version updates
+
+### Documentation
+
 - (chatic-apps-sdk) add a developer guide and rules for an ai assistant, shipped in the package
 
 ## [2026-11-05] - No version updates
