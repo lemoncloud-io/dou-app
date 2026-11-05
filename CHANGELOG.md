@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-05] - root@0.148.0, @chatic/desktop-web@0.52.0
+
+### Features
+
+- (desktop-web) mark new thread replies on the root and land on it
+
 ## [2026-11-05] - No version updates
 
 ### Features
