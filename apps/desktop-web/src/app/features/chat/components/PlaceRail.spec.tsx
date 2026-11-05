@@ -120,7 +120,7 @@ describe('PlaceRail active place with a logo', () => {
     });
 
     // The ring sits 4px outside the tile; the dot moves out to the ring's corner, off the logo.
-    it('moves the unread dot out to the ring's corner on the open tile only', () => {
+    it('moves the unread dot out to the ring corner on the open tile only', () => {
         renderRail({ places: logoPlaces, selectedPlaceId: 'place-2', unreadByPlace: { 'place-1': 1, 'place-2': 1 } });
         const dotOf = (tile: HTMLElement) => tile.parentElement?.querySelector('.bg-badge-unread') as HTMLElement;
         expect(dotOf(logoOf('Docs')).className).toContain('-right-1.5');
