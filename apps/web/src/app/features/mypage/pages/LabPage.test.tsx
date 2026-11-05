@@ -84,7 +84,7 @@ describe('LabPage — sub WebView pages', () => {
             fireEvent.click(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / }));
         });
 
-        expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://sample1.apps-dev.chatic.io/' });
+        expect(openSubWebView).toHaveBeenCalledWith({ url: 'https://dou-raise.apps.chatic.io/' });
         expect(toast).not.toHaveBeenCalled();
     });
 

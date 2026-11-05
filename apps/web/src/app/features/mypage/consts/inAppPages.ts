@@ -30,7 +30,7 @@ export const IN_APP_PAGES: readonly InAppPage[] = [
         id: 'enhanceDou',
         titleKey: 'mypage.lab.inAppPages.enhanceDou.title',
         subtitleKey: 'mypage.lab.inAppPages.enhanceDou.subtitle',
-        url: 'https://sample1.apps-dev.chatic.io/',
+        url: 'https://dou-raise.apps.chatic.io/',
         surface: 'experiment',
     },
 ];
