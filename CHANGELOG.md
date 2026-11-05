@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-05] - root@0.149.1, @chatic/desktop-web@0.53.1
+
+### Bug Fixes
+
+- (desktop-web) pick the route fallback skeleton by route
+
 ## [2026-11-05] - root@0.149.0, @chatic/desktop-web@0.53.0
 
 ### Features
