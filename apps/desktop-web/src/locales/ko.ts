@@ -276,6 +276,8 @@ export const ko: EnTranslation = {
     'chat.thread.replyCountLoaded_other': '불러온 답글 {{count}}개',
     'chat.thread.openThread_one': '스레드 열기 · 답글 {{count}}개',
     'chat.thread.openThread_other': '스레드 열기 · 답글 {{count}}개',
+    'chat.thread.newReplies_one': '새 답글 {{count}}개',
+    'chat.thread.newReplies_other': '새 답글 {{count}}개',
     'chat.thread.lastReplyAt': '마지막 답글 {{time}}',
     'chat.thread.headerTime': '{{day}} {{time}}',
     'chat.thread.view': '스레드 보기',

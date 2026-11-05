@@ -45,6 +45,7 @@ vi.mock('../hooks', () => ({
     }),
     useFileDrop: () => ({ isDragging: false, dropHandlers: {} }),
     useComposerSend: (target: unknown) => useComposerSend(target),
+    useNewReplyRule: () => ({ readNo: 0, isMine: () => false }),
 }));
 vi.mock('./DesktopLayout', () => ({ useShellSidebar: () => ({ isDrawer: false, open: vi.fn() }) }));
 vi.mock('./MessageList', () => ({ MessageList: () => null }));

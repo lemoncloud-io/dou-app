@@ -266,6 +266,8 @@ export const en = {
     'chat.thread.replyCountLoaded_other': '{{count}} replies loaded',
     'chat.thread.openThread_one': 'Open thread · {{count}} reply',
     'chat.thread.openThread_other': 'Open thread · {{count}} replies',
+    'chat.thread.newReplies_one': '{{count}} new reply',
+    'chat.thread.newReplies_other': '{{count}} new replies',
     'chat.thread.lastReplyAt': 'Last reply at {{time}}',
     'chat.thread.headerTime': '{{day}} at {{time}}',
     'chat.thread.view': 'View thread',

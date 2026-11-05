@@ -17,3 +17,4 @@ export * from './useHeldChannel';
 export * from './useLastChats';
 export * from './useDmIdentities';
 export * from './usePlaceWelcome';
+export * from './useNewReplyRule';
