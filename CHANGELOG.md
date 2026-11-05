@@ -1,5 +1,17 @@
 # Changelog
 
+## [2026-11-05] - root@0.149.0, @chatic/desktop-web@0.53.0
+
+### Features
+
+- (desktop-web) link Apple to an account from the account hub
+- (desktop-web) offer guests Apple sign-in on profile and account hub
+- (desktop-web) sign in with Apple from the welcome page
+
+### Refactor
+
+- (desktop-web) type sign-in providers to the wired set
+
 ## [2026-11-05] - root@0.148.0, @chatic/desktop-web@0.52.0
 
 ### Features
