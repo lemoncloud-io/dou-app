@@ -199,10 +199,6 @@
             "inAppNote": "Opens over the app in a sub WebView. Shown in debug mode only.",
             "inAppOpenFailed": "Could not open it",
             "inAppPages": {
-                "echo": {
-                    "title": "Echo",
-                    "subtitle": "Remember the order of lights, sounds and buzzes"
-                },
                 "enhanceDou": {
                     "title": "Raise DoU",
                     "subtitle": "Raise your DoU"
