@@ -2,6 +2,12 @@
 
 ## [2026-11-05] - No version updates
 
+### Features
+
+- (mobile,chatic-apps-sdk) show no title bar unless the manifest asks for one (ADR-0290)
+
+## [2026-11-05] - No version updates
+
 ### Documentation
 
 - (chatic-apps-sdk) keep the assistant rules in AGENTS.md only, not twice
