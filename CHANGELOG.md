@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-05] - No version updates
+
+### Features
+
+- (mobile,chatic-apps-sdk,bridge-messages) let a sub webview page ask the os for the camera and microphone first (ADR-0289)
+
+### Documentation
+
+- (mobile,bridge-messages) put the camera and microphone on the page author, not the review (ADR-0289)
+
 ## [2026-11-05] - root@0.149.1, @chatic/desktop-web@0.53.1
 
 ### Bug Fixes
