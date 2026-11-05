@@ -4,6 +4,12 @@
 
 ### Features
 
+- (web,mobile,landing,shared) link sub webview pages by app id, in the app only (ADR-0287)
+
+## [2026-11-05] - No version updates
+
+### Features
+
 - (web-ui-kit,web) redraw the bottom nav as a glass pill that hugs its tabs (ADR-0286)
 
 ### Other
