@@ -20,10 +20,10 @@ export interface ResolvedSubWebViewManifest {
     orientation: SubWebViewOrientation;
 }
 
-/** What a page gets with no manifest, or one the shell cannot read: the base set, the bar, any way up. */
+/** What a page gets with no manifest, or one the shell cannot read: the base set, no bar, any way up. */
 export const DEFAULT_SUB_WEBVIEW_MANIFEST: ResolvedSubWebViewManifest = Object.freeze({
     permissions: new Set<SubWebViewPermission>(),
-    display: 'standard',
+    display: 'fullscreen',
     orientation: 'any',
 });
 
@@ -58,7 +58,7 @@ export const parseSubWebViewManifest = (text: string): ResolvedSubWebViewManifes
     return {
         ...(name && name.length <= NAME_LIMIT ? { name } : {}),
         permissions: new Set(permissions),
-        display: oneOf(DISPLAYS, manifest.display, 'standard'),
+        display: oneOf(DISPLAYS, manifest.display, 'fullscreen'),
         orientation: oneOf(ORIENTATIONS, manifest.orientation, 'any'),
     };
 };

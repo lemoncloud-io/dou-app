@@ -51,7 +51,10 @@ export type SubWebViewDeviceKind = 'camera' | 'microphone';
  */
 export type SubWebViewDevicePermissionState = 'granted' | 'prompt' | 'blocked';
 
-/** `standard` shows the shell's bar; `fullscreen` hides it and keeps a floating close control. */
+/**
+ * `fullscreen`, the default, shows no bar and keeps a floating close control; `standard` shows the
+ * shell's bar with the page's title and a close control.
+ */
 export type SubWebViewDisplay = 'standard' | 'fullscreen';
 
 /** The orientation the view is held in; `any` follows the device. */
