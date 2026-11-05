@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-05] - root@0.150.1, @chatic/desktop-web@0.54.1
+
+### Bug Fixes
+
+- (desktop-web) move the place rail unread dot off the open tile logo
+
+### Other
+
+- test: (desktop-web) fix the quote in the unread dot test name
+
 ## [2026-11-05] - root@0.150.0, @chatic/desktop-web@0.54.0
 
 ### Features
