@@ -5,10 +5,11 @@ import { configureDataRuntime, getDataManager, getRepositories } from './data/ru
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { credentialRecovery } from '@chatic/transport';
 import { authRepositorySource, logoutStorageSweeper, credentialRenewers } from '@chatic/auth';
-import { configureSessionStore } from '@chatic/session';
+import { configureSessionStore, sessionMedia } from '@chatic/session';
 import { syncDataGraph } from '@chatic/sync';
 
 import type { HttpRoute } from '@chatic/http';
+import type { SessionStoragePorts } from '@chatic/session';
 import type { DataRuntimeConfig } from './data/runtime';
 
 export interface AppRuntimeConfig {
@@ -18,6 +19,11 @@ export interface AppRuntimeConfig {
      * desktop-web's per-channel chat cap.
      */
     data?: DataRuntimeConfig;
+    /**
+     * The media behind the session's two ports, chosen by the entry point for its environment. Left
+     * out, both are this tab's `sessionStorage` — the browser's answer.
+     */
+    storage?: SessionStoragePorts;
 }
 
 let booted = false;
@@ -58,6 +64,11 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
         logger.warn('WEB_CORE', '[initAppRuntime] called more than once; the runtime is already booted');
     }
     booted = true;
+
+    // The session's media, before anything below can read or sweep the session.
+    if (config.storage) {
+        sessionMedia.configure(config.storage);
+    }
 
     // Honors `?logout=1` — the flag `RelaySession.logout()` leaves on the URL it redirects to.
     // FIRST, because everything below may end up reading a token, and this is what drops the ones

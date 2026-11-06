@@ -256,7 +256,8 @@ Four rules hold.
 apps/*/src/main.tsx
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ data? })            ↓ seven steps, in this order
+  ├─ initAppRuntime({ storage?, data? }) ↓ eight steps, in this order
+  │    ├─ sessionMedia.configure()        the media behind the session's secret and plain ports, if passed
   │    ├─ logoutStorageSweeper.sweep()    honors ?logout=1, drops the signed-out account's keys
   │    ├─ applyPendingSyncCursorReset()   a cache clear on the last page retires every saved sync cursor
   │    ├─ configureSessionStore()         env → relay endpoint RESOLVERS (functions, not values)

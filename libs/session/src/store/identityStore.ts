@@ -1,6 +1,5 @@
-import { storage } from '@chatic/shared';
-
 import { type StorageLike } from './jsonSlot';
+import { plainPort } from './ports';
 import { sessionSignal, type ISessionSignal } from './signal';
 
 const DELEGATOR_ID_KEY = 'chatic-delegator-id';
@@ -23,6 +22,17 @@ const DEVICE_ID_KEY = 'chatic-device-id';
 export interface IIdentityStore {
     getDelegatorId(): string | null;
     setDelegatorId(value: string | null): void;
+    /**
+     * The device id this page persisted, or null before the first one was made. In an app or desktop
+     * shell the shell's own id wins over it (`useDynamicDeviceId`); this is the browser's id, one per
+     * tab session.
+     */
+    getDeviceId(): string | null;
+    /**
+     * The stored device id, or `make()`'s, stored before returning — so every caller in the same
+     * render gets the same id. Announces nothing: no derived session state reads the device id.
+     */
+    getOrMakeDeviceId(make: () => string): string;
     setDeviceId(value: string | null): void;
 }
 
@@ -49,9 +59,21 @@ class IdentityStore implements IIdentityStore {
         this.put(DELEGATOR_ID_KEY, value);
     }
 
+    getDeviceId(): string | null {
+        return this.storage.get(DEVICE_ID_KEY);
+    }
+
+    getOrMakeDeviceId(make: () => string): string {
+        const stored = this.storage.get(DEVICE_ID_KEY);
+        if (stored) return stored;
+        const made = make();
+        this.storage.set(DEVICE_ID_KEY, made);
+        return made;
+    }
+
     setDeviceId(value: string | null): void {
         this.put(DEVICE_ID_KEY, value);
     }
 }
 
-export const identityStore: IIdentityStore = new IdentityStore(storage, sessionSignal);
+export const identityStore: IIdentityStore = new IdentityStore(plainPort, sessionSignal);

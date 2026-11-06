@@ -48,6 +48,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'isInOwnCloudSession',
         'isPairedSession',
         'isRefusedForEndedPairing',
+        'isSessionKey',
         'logoutSession',
         'pairingClientOf',
         'patchRelaySessionUser',

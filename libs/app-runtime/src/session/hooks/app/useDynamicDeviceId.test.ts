@@ -1,9 +1,14 @@
 import { renderHook } from '@testing-library/react';
 
-const mockUseSessionDeviceId = jest.fn();
+const mockStoredDeviceId = { value: null as string | null };
+const mockSetDeviceId = jest.fn();
 
-jest.mock('@chatic/shared', () => ({
-    useSessionDeviceId: (...args: unknown[]) => mockUseSessionDeviceId(...args),
+jest.mock('@chatic/session', () => ({
+    identityStore: {
+        getDeviceId: () => mockStoredDeviceId.value,
+        getOrMakeDeviceId: (make: () => string) => (mockStoredDeviceId.value ??= make()),
+        setDeviceId: (value: string | null) => mockSetDeviceId(value),
+    },
 }));
 
 const { useDynamicDeviceId } = require('./useDynamicDeviceId');
@@ -14,7 +19,7 @@ describe('useDynamicDeviceId — 소켓/푸시 공용 디바이스 id 단일 해
         delete window.CHATIC_APP_DEVICE_ID;
         delete window.CHATIC_APP_UNIQUE_DEVICE_ID;
         delete window.CHATIC_APP_FIREBASE_INSTALLATION_ID;
-        mockUseSessionDeviceId.mockReturnValue({ deviceId: 'session-1' });
+        mockStoredDeviceId.value = 'session-1';
     });
 
     it('신규 앱이 주입한 UNIQUE_DEVICE_ID를 최우선으로 사용한다', () => {
@@ -48,7 +53,19 @@ describe('useDynamicDeviceId — 소켓/푸시 공용 디바이스 id 단일 해
         const { result } = renderHook(() => useDynamicDeviceId());
 
         expect(result.current.deviceId).toBe('session-1');
-        expect(mockUseSessionDeviceId).toHaveBeenCalledWith('chatic-device-id');
+        expect(mockSetDeviceId).not.toHaveBeenCalled();
+    });
+
+    it('gives every caller in the same render one device id on a first visit', () => {
+        mockStoredDeviceId.value = null;
+
+        const { result } = renderHook(() => [useDynamicDeviceId(), useDynamicDeviceId()]);
+        const [first, second] = result.current;
+
+        expect(first.deviceId).toMatch(/^[0-9a-f-]{36}$/);
+        expect(second.deviceId).toBe(first.deviceId);
+        expect(mockStoredDeviceId.value).toBe(first.deviceId);
+        expect(mockSetDeviceId).not.toHaveBeenCalled();
     });
 
     it('빈 문자열로 주입된 DEVICE_ID는 무시하고 세션 id로 폴백한다', () => {

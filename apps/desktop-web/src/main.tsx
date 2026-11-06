@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import { setStorageAdapter } from '@chatic/shared';
+import { asDomStorage, setStorageAdapter, WebMedium } from '@chatic/storage';
 import { runtime } from '@chatic/app-runtime';
 
 import { webConfigPorts } from './app/config/adapters';
@@ -16,10 +16,11 @@ import App from './app/app';
 // `@chatic/web-config`'s import-time self-init with an explicit call (ADR-0079 decisions 1·11).
 config.init(webConfigPorts);
 
-// Session/relay/cloud/identity storage backing, and the lemon transport's own storage
-// (`http/transport.ts`), used to follow `usePersistentWebStorage` — exactly what `isNative()`
-// already answers. Desktop-web is the one client this always resolves `true` for.
-setStorageAdapter(isNative() ? localStorage : sessionStorage);
+// The media this app keeps state in. Inside the desktop shell — which `isNative()` always answers
+// `true` for here — localStorage, so a sign-in survives a relaunch; in a plain tab, sessionStorage.
+// One medium backs both session ports and the app-wide `storage` the rest of the app writes through.
+const plainMedium = isNative() ? WebMedium.local() : WebMedium.session();
+setStorageAdapter(asDomStorage(plainMedium));
 
 // Boot the runtime before render. This is the app's only boot call — the session store and
 // credential recovery used to wire themselves as import side effects (ADR-0070 step-5 follow-up).
@@ -33,11 +34,10 @@ setStorageAdapter(isNative() ? localStorage : sessionStorage);
 // Set HERE and not in the engine: web storage serves every non-native client, so a limit living in
 // libs/app-runtime would also truncate apps/web in a browser and apps/admin-v2.
 // Must run before render — the runtime builds its cache storages once, on first repository access.
-runtime.boot.initAppRuntime({ data: { cache: { maxChatsPerChannel: 1000 } } });
-
-// Desktop persistent storage (localStorage) is decided by `isNative()` above (ADR-0079, replacing
-// `@chatic/web-config`'s `usePersistentWebStorage`), which the lemon transport and the session
-// stores share via the explicit `setStorageAdapter` call — no longer an import side effect.
+runtime.boot.initAppRuntime({
+    storage: { secret: plainMedium, plain: plainMedium },
+    data: { cache: { maxChatsPerChannel: 1000 } },
+});
 
 // Reading preferences go onto the document root before the first paint. The store hydrates
 // localStorage synchronously, so a reader who picked a larger size never sees the default one flash.

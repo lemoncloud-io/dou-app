@@ -1,9 +1,9 @@
 import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
-import { storage } from '@chatic/shared';
 import { msUntilExpiration } from './expiry';
-import { JsonSlot, type StorageLike } from './jsonSlot';
+import { JsonSlot } from './jsonSlot';
+import { plainPort, secretPort, type StoragePortPair } from './ports';
 import { sessionSignal, type ISessionSignal } from './signal';
 
 const CLOUD_DELEGATION_TOKEN_KEY = 'chatic-cloud-delegation-token';
@@ -116,16 +116,21 @@ class CloudStore implements ICloudStore {
     private readonly recent: JsonSlot<string[]>;
     private readonly reclaimed: JsonSlot<Record<string, string>>;
 
+    /** The plain port — the selection keys are read and written on it directly. */
+    private readonly storage: StoragePortPair['plain'];
+
     constructor(
-        private readonly storage: StorageLike,
+        ports: StoragePortPair,
         private readonly signal: ISessionSignal
     ) {
-        this.delegation = new JsonSlot(storage, CLOUD_DELEGATION_TOKEN_KEY);
-        this.token = new JsonSlot(storage, CLOUD_TOKEN_KEY);
-        this.cache = new JsonSlot(storage, CLOUD_TOKEN_CACHE_KEY);
-        this.identities = new JsonSlot(storage, CLOUD_IDENTITIES_KEY);
-        this.recent = new JsonSlot(storage, CLOUD_RECENT_KEY);
-        this.reclaimed = new JsonSlot(storage, CLOUD_RECLAIMED_KEY);
+        this.storage = ports.plain;
+        // The three token slots sign as the user; the rest only say which clouds the account knows.
+        this.delegation = new JsonSlot(ports.secret, CLOUD_DELEGATION_TOKEN_KEY);
+        this.token = new JsonSlot(ports.secret, CLOUD_TOKEN_KEY);
+        this.cache = new JsonSlot(ports.secret, CLOUD_TOKEN_CACHE_KEY);
+        this.identities = new JsonSlot(ports.plain, CLOUD_IDENTITIES_KEY);
+        this.recent = new JsonSlot(ports.plain, CLOUD_RECENT_KEY);
+        this.reclaimed = new JsonSlot(ports.plain, CLOUD_RECLAIMED_KEY);
     }
 
     saveDelegationToken(token: CloudDelegationTokenView): void {
@@ -314,4 +319,4 @@ class CloudStore implements ICloudStore {
     }
 }
 
-export const cloudStore: ICloudStore = new CloudStore(storage, sessionSignal);
+export const cloudStore: ICloudStore = new CloudStore({ secret: secretPort, plain: plainPort }, sessionSignal);

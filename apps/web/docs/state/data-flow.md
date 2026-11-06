@@ -220,9 +220,9 @@ there rather than hand that cache's baseline to another cloud.
 `useSessionLogout` performs a best-effort socket logout and store teardown, then
 `relaySession.clearAndRedirect()` reloads the document at `/?logout=1`. The reload — not a manual
 call — is what clears the react-query cache; there is no `DataManager.destroy()` in this codebase.
-On the next boot, `initAppRuntime` reads the `logout=1` flag and sweeps every `@`-prefixed storage
-key except the i18n language key and `@chatic/config`'s own lane
-(`libs/auth/src/session/logoutStorageSweep.ts`) — because the actor that decides to log
+On the next boot, `initAppRuntime` reads the `logout=1` flag and clears, by name, lemon-web-core's
+credential bundle (`@<project>.*`, the language key kept) and the web log pipeline and telemetry
+policy keys (`libs/auth/src/session/logoutStorageSweep.ts`) — because the actor that decides to log
 out and the code that can safely clear storage run in two different page lifetimes.
 
 Further reading: [libs/app-runtime/docs/session/](../../../../libs/app-runtime/docs/session/README.md).

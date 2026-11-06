@@ -13,8 +13,9 @@ jest.mock('./signal', () => ({
 const mockCells = new Map<string, string>();
 /** Every key written, in order — for the cases that care whether a write happened at all. */
 const mockSets: string[] = [];
-jest.mock('@chatic/shared', () => ({
-    storage: {
+// Both ports share one fake: which port a key lands in is `ports.test.ts`'s subject, not this file's.
+jest.mock('./ports', () => {
+    const port = {
         get: (key: string) => mockCells.get(key) ?? null,
         set: (key: string, value: string) => {
             mockSets.push(key);
@@ -23,8 +24,9 @@ jest.mock('@chatic/shared', () => ({
         remove: (key: string) => {
             mockCells.delete(key);
         },
-    },
-}));
+    };
+    return { secretPort: port, plainPort: port };
+});
 
 const inMs = (ms: number) => new Date(Date.now() + ms).toISOString();
 

@@ -47,6 +47,7 @@
             "@chatic/policy-content": ["libs/policy-content/src/index.ts"],
             "@chatic/session": ["libs/session/src/index.ts"],
             "@chatic/session/*": ["libs/session/src/*"],
+            "@chatic/storage": ["libs/storage/src/index.ts"],
             "@chatic/sync": ["libs/sync/src/index.ts"],
             "@chatic/sync/*": ["libs/sync/src/*"],
             "@chatic/transport": ["libs/transport/src/index.ts"],

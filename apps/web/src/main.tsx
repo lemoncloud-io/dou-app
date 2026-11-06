@@ -6,7 +6,7 @@ import '@lemoncloud/page-transition-core/styles.css';
 
 import { isNative, setupBridgeLogger, webClient } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import { setStorageAdapter } from '@chatic/shared';
+import { asDomStorage, setStorageAdapter, WebMedium } from '@chatic/storage';
 import { runtime } from '@chatic/app-runtime';
 
 import { webConfigPorts } from './app/config/adapters';
@@ -81,12 +81,13 @@ syncThemeFromSharedKey();
 // well before anything renders — is early enough with room to spare.
 config.init(webConfigPorts);
 
-// Session/relay/cloud/identity storage backing — an explicit call replacing the other half of
-// `@chatic/web-config`'s old side effect. `isNative()` is exactly "hosted inside a native or desktop
-// shell" (it checks the same window handles `usePersistentWebStorage` used to), so no separate
-// detector is needed: inside a shell, use localStorage so the session survives a WebView cache wipe;
-// in a plain browser tab, sessionStorage.
-setStorageAdapter(isNative() ? localStorage : sessionStorage);
+// The media this app keeps state in — the other half of `@chatic/web-config`'s old side effect.
+// `isNative()` is exactly "hosted inside a native or desktop shell" (it checks the same window
+// handles `usePersistentWebStorage` used to): inside a shell, localStorage so the session survives a
+// WebView cache wipe; in a plain browser tab, sessionStorage. One medium backs both session ports
+// (handed to `initAppRuntime` below) and the app-wide `storage` the rest of the app writes through.
+const plainMedium = isNative() ? WebMedium.local() : WebMedium.session();
+setStorageAdapter(asDomStorage(plainMedium));
 
 // Boot the runtime. Placed HERE by contract, between two boundaries:
 //   - AFTER the log wiring above, because this call can log (duplicate boot, late data policy).
@@ -100,6 +101,7 @@ setStorageAdapter(isNative() ? localStorage : sessionStorage);
 // cache only on the relay scope, so a cloud partition never receives the default place row
 // (ADR-0094). It must land before the data runtime is lazily created on first repository access.
 runtime.boot.initAppRuntime({
+    storage: { secret: plainMedium, plain: plainMedium },
     data: {
         repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
     },

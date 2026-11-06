@@ -1,4 +1,4 @@
-import { setStorageAdapter } from '@chatic/shared';
+import { sessionMedia } from '@chatic/session/store/ports';
 
 import { alignSessionSite } from '../socket/alignSessionSite';
 import { credentialRenewers } from '../socket/renewers';
@@ -228,11 +228,15 @@ describe('PairedCloudSessions.checkAll', () => {
 
 describe('the wired instance', () => {
     const store = new Map<string, string>();
-    setStorageAdapter({
-        getItem: key => store.get(key) ?? null,
-        setItem: (key, value) => void store.set(key, value),
-        removeItem: key => void store.delete(key),
-    });
+    // One map behind both session ports — these tests are about the list, not which port holds it.
+    const medium = {
+        get: (key: string) => store.get(key) ?? null,
+        set: (key: string, value: string) => void store.set(key, value),
+        remove: (key: string) => void store.delete(key),
+        clear: () => store.clear(),
+        keys: () => [...store.keys()],
+    };
+    sessionMedia.configure({ secret: medium, plain: medium });
     const onTerminalExpiry = jest.fn();
     const switchCloud = jest.fn(async () => undefined);
 

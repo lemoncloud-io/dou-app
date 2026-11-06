@@ -152,12 +152,9 @@ class RelaySession implements IRelaySession {
     }
 
     /**
-     * Writes through `identityStore` only. It used to ALSO write the same `chatic-device-id` key
-     * straight to `localStorage`, which nothing read: the store writes through the `storage` adapter
-     * (sessionStorage on the web, localStorage inside a native/desktop shell) and the reader is
-     * `useDynamicDeviceId` → `useSessionDeviceId('chatic-device-id')`, which reads sessionStorage. So
-     * the raw write landed in a slot with no reader on the web and duplicated the store's write
-     * inside a shell.
+     * Writes through `identityStore` only, which is also where `useDynamicDeviceId` reads the page's
+     * own id back from (the session's plain port). It used to ALSO write the same `chatic-device-id`
+     * key straight to `localStorage`, a slot nothing read.
      *
      * Whether the web's device id SHOULD be per-tab-session is a separate open question (ADR-0076
      * §open question 4) — it is load-bearing because push registration and socket identity must share
@@ -324,7 +321,7 @@ class RelaySession implements IRelaySession {
         // which falls unauthenticated paths back to `/` (see apps/web PublicRoutes).
         //
         // `logout=1` must survive onto the target: the next document's `initAppRuntime` reads it
-        // and wipes the persisted `@`-prefixed storage keys (`logoutStorageSweep.ts`). Sign-out and
+        // and clears the signed-out account's keys by owner (`logoutStorageSweep.ts`). Sign-out and
         // cleanup are two page lifetimes, and this flag is the only thing that crosses between.
         const targetUrl = new URL('/', window.location.origin);
         if (options?.preserveUrl) {

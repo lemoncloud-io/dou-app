@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { setStorageAdapter } from '@chatic/shared';
+import { setStorageAdapter } from '@chatic/storage';
 
 import { NEW_ACCOUNT_CLOCK_SLACK_MS, isAccountMadeSince, saveSignInNotice, takeSignInNotice } from './signInNotice';
 

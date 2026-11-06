@@ -18,6 +18,9 @@
             "path": "../../libs/block-kit/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/storage/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/policy-content/tsconfig.lib.json"
         },
         {
@@ -30,6 +33,9 @@
             "path": "../../libs/bridges/tsconfig.lib.json"
         },
         {
+            "path": "../../libs/shared/tsconfig.lib.json"
+        },
+        {
             "path": "../../libs/config/tsconfig.lib.json"
         },
         {
@@ -37,9 +43,6 @@
         },
         {
             "path": "../../libs/theme/tsconfig.lib.json"
-        },
-        {
-            "path": "../../libs/shared/tsconfig.lib.json"
         }
     ]
 }

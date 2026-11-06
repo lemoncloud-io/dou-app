@@ -27,6 +27,9 @@ export {
     // identity only answers for the committed cloud, so a write or a sync target addressed to another
     // cloud names its uid with this.
     getUidInCloud,
+    // Whether a storage key is one of the session's own. The debug storage screen groups keys by it;
+    // the session declares its keys, so nothing outside keeps a second copy of the list.
+    isSessionKey,
     // The account-profile read/write pair. Kept public because the local cache does not answer this
     // question — its physical key is `${type}:${cid}:${uid}:${id}` and the repositories read it under
     // the live scope, so while a cloud is active the relay `user` row is out of their reach

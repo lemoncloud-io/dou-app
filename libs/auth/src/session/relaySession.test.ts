@@ -397,9 +397,8 @@ describe('session/auth/relaySession', () => {
         relaySession.persistDeviceId('device-42');
 
         expect(mockIdentitySetDeviceId).toHaveBeenCalledWith('device-42');
-        // The raw `localStorage.setItem('chatic-device-id', …)` is gone: nothing read that slot on the
-        // web (the reader is useSessionDeviceId → sessionStorage) and inside a shell it merely
-        // duplicated the store's own write (ADR-0076 A8).
+        // The raw `localStorage.setItem('chatic-device-id', …)` is gone: nothing read that slot — the
+        // reader is useDynamicDeviceId, through the identity store.
         expect(localStorage.getItem('chatic-device-id')).toBeNull();
     });
 });

@@ -76,6 +76,13 @@ session exist), `isStoredSessionExpired()` (has the stored horizon passed) and
 `resetWebTransportInit()` (used by logout). **Neither probe refreshes anything**, which is the
 property that makes them safe to call from a guard.
 
+**lemon-web-core keeps its credential bundle in one medium, built once.** `lemonStorage()` returns it —
+`localStorage` inside an app or desktop shell, `sessionStorage` in a browser, handed to the SDK as
+`asDomStorage(medium)` — and `lemonKeyPrefix()` returns the `@<project>.` prefix every key the SDK
+writes starts with, computed from config without building the SDK. Both exist for `@chatic/auth`'s
+`?logout=1` sweep, which clears the bundle by that prefix: the SDK and the sweep must look at the same
+medium, which is why it is built once here and nowhere else.
+
 `startWebTransportInit()` is the boot — lemon's `init` minus its own refresh, single-flighted. It is
 awaited by `useRelaySessionInit` inside the host, which is the single init driver. It stays on the
 `boot` group only because three desktop-web auth hooks still call it directly.

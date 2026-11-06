@@ -11,7 +11,7 @@
     // dependencies through references, or their sources come in as unlisted files (TS6307).
     "references": [
         {
-            "path": "../shared/tsconfig.lib.json"
+            "path": "../storage/tsconfig.lib.json"
         },
         {
             "path": "../config/tsconfig.lib.json"

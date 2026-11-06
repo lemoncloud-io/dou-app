@@ -51,11 +51,11 @@ jest.mock('./signal', () => ({
     },
 }));
 
-// The real `storage` wraps sessionStorage and adds a project prefix. What's being checked here is the
-// notification, not the key, so an in-memory fake is enough.
+// What's being checked here is the notification, not the key, so an in-memory fake is enough.
 const mockCells = new Map<string, string>();
-jest.mock('@chatic/shared', () => ({
-    storage: {
+// Both ports share one fake: which port a key lands in is `ports.test.ts`'s subject, not this file's.
+jest.mock('./ports', () => {
+    const port = {
         get: (key: string) => mockCells.get(key) ?? null,
         set: (key: string, value: string) => {
             mockCells.set(key, value);
@@ -63,8 +63,9 @@ jest.mock('@chatic/shared', () => ({
         remove: (key: string) => {
             mockCells.delete(key);
         },
-    },
-}));
+    };
+    return { secretPort: port, plainPort: port };
+});
 
 const TOKEN = { Token: { identityToken: 'id-token' } } as never;
 

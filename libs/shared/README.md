@@ -1,7 +1,7 @@
 # @chatic/shared
 
 **One barrel of React-side parts that more than one front end reaches for.** It holds six
-presentational components, seven hook modules, the per-place sidebar preferences, six small helpers
+presentational components, six hook modules, the per-place sidebar preferences, five small helpers
 and two constant tables, and exports all of it from a single entry point that five projects import.
 
 It is a catch-all rather than a layer, and that has a measurable cost. [Scope](#scope) states what the
@@ -70,10 +70,10 @@ components here compose `Button` and `cn` rather than declaring a primitive of t
 ## Scope
 
 **In** — presentational components with no feature knowledge, generic React hooks, the two per-place
-sidebar preferences and their scope key, the swappable session-storage adapter, and small pure
+sidebar preferences and their scope key, and small pure
 helpers over the DOM and over dates, query keys and images.
 
-**Out** — design-system primitives, `Toaster` included (`@chatic/ui-kit`), logging
+**Out** — storage and its media (`@chatic/storage`), design-system primitives, `Toaster` included (`@chatic/ui-kit`), logging
 (`@chatic/bridges`, `logger`), images and logos (`@chatic/assets`), device and platform facts
 (`@chatic/device-utils`), setting keys, lanes and persistence (`@chatic/config`), domain data
 (`@chatic/data`), the HTTP client and its error classification, `throwIfApiError` included
@@ -138,9 +138,9 @@ flowchart TD
     Barrel["src/index.ts<br/><i>the only entry point</i>"]:::grp
 
     Comp["components/ × 6<br/><i>React, DOM</i>"]:::grp
-    Hooks["hooks/ × 7<br/><i>React</i>"]:::grp
+    Hooks["hooks/ × 6<br/><i>React</i>"]:::grp
     Prefs["preferences/ × 3<br/><i>per-place UI settings</i>"]:::pure
-    Utils["utils/ × 6"]:::pure
+    Utils["utils/ × 5"]:::pure
     Const["consts/ · types/"]:::pure
 
     UiKit["@chatic/ui-kit<br/><i>Button · cn</i>"]:::ext
@@ -206,11 +206,11 @@ libs/shared/src/
 ├── index.ts          public barrel — six lines of `export *`
 ├── components/       6 components + index; all React, all DOM
 ├── consts/           STORE_URLS, and ERROR_MESSAGES inline in index.ts
-├── hooks/            7 hook modules + index
+├── hooks/            6 hook modules + index
 ├── phone/            phone-number parsing (libphonenumber-js) + OTP expiry countdown — NOT in the barrel
 ├── preferences/      pinnedChannels · channelOrder · railOrder · placeScope + index
 ├── types/            index.ts and nothing else — four declarations, no reader
-└── utils/            6 single-purpose helpers + index
+└── utils/            5 single-purpose helpers + index
 ```
 
 Seven things the filenames do not tell you.
@@ -263,32 +263,18 @@ Seven things the filenames do not tell you.
 Import from the barrel. Nothing here needs construction or registration.
 
 ```ts
-import { AVATAR_IMAGE, formatDate, placeScopeKey, prepareImage, storage } from '@chatic/shared';
+import { AVATAR_IMAGE, formatDate, placeScopeKey, prepareImage } from '@chatic/shared';
 
 // Per-place preferences: derive the scope first, and let a null scope stay null.
 const scope = placeScopeKey(cloudId, placeId);
 const { pinnedIds, toggle, reorder } = usePinnedChannels(scope);
-
-// Session-scoped storage, through whichever adapter the entry point installed.
-storage.set('relay.lastCloud', cloudId);
 ```
 
 ### Wiring
 
-Two of the exports are process-wide and are set up by each app's entry point, in this order.
-
-```text
-apps/<app>/src/main.tsx
-  ├─ config.init(webConfigPorts)                            @chatic/config — before anything reads a setting
-  ├─ setStorageAdapter(isNative() ? localStorage : sessionStorage)
-  │     ↳ backs `storage`, used by app-runtime's session, relay and push records
-  └─ runtime.boot.initAppRuntime()                          reads the session, so it comes last
-```
-
-`setStorageAdapter` is an explicit call, not an import side effect. Without it, `storage` falls back to
-`sessionStorage` when the global exists and to a no-op adapter when it does not — which is why
-`apps/admin-v2` skips the call deliberately: it never runs inside a native or desktop shell, so
-`isNative()` is always false and the default is already right.
+The swappable storage adapter (`storage`, `setStorageAdapter`) used to live here. It moved to
+[`@chatic/storage`](../storage/README.md), whose subject it is, together with the media each app's
+entry point now picks for it.
 
 The components are mounted by the host, not by this lib:
 

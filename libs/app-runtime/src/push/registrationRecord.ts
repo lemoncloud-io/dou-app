@@ -1,4 +1,4 @@
-import { storage } from '@chatic/shared';
+import { storage } from '@chatic/storage';
 
 /**
  * The identity a push registration belongs to.
@@ -64,8 +64,8 @@ const parseEntry = (raw: string | null): RegistrationEntry | null => {
  * The record stores the TOKEN, not a boolean, so a rotated token still re-registers — the skip is
  * "nothing changed", never "we already did this once".
  *
- * **Two tiers.** The web tier is `@chatic/shared`'s `storage`, which each app's entry swaps to
- * `localStorage` inside a native shell (`setStorageAdapter(isNative() ? localStorage : …)`). It is
+ * **Two tiers.** The web tier is `@chatic/storage`'s `storage`, which each app's entry points at its
+ * plain medium — `localStorage` inside a native or desktop shell, `sessionStorage` in a browser. It is
  * synchronous, which is what lets the foreground-return path decide without a bridge round-trip.
  * The optional native tier survives a webview cache clear; it is asynchronous, so it is hydrated
  * once via {@link hydrate} and then answers from memory. A cleared web tier that the native tier

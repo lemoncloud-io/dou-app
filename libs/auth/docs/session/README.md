@@ -61,9 +61,17 @@ module of its own so the writeback path can record it without reaching the data 
 cloud identity map, the recent-cloud order and the reclaim records, and redirects to `/?logout=1`.
 It performs no server-side logout; notifying the sockets is
 [`logoutSession`](../socket/README.md)'s job, in `socket/`. `logoutStorageSweeper.sweep()` is the other
-half of that flag: on the next document load it wipes the `@`-prefixed storage namespace, preserving
-only the i18n key and `@chatic/config.*`, then drops `chatic-oauth-provider` from both storages.
-Without it, tokens belonging to the account that just signed out survive the redirect.
+half of that flag: on the next document load it clears what each owner names — lemon-web-core's
+credential bundle (`@<project>.*` in the medium the transport handed the SDK, the `.i18nextLng`
+language key kept), the web log pipeline and telemetry policy (`@chatic/web.log.*`,
+`@chatic/web.telemetry.policy*`) from the session's plain medium, and the retired
+`chatic-oauth-provider` from both web storages. Without it, tokens belonging to the account that
+just signed out survive the redirect.
+
+It used to wipe the whole `@` namespace instead, keeping only the language key and the config lane.
+Clearing by name takes exactly the same keys from what the app writes — `logoutStorageSweep.test.ts`
+pins the list against the old rule — and it stops taking whatever else moves in under `@` later, the
+way the config lane once did and had to be carved out.
 
 [`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: three
 apps call `registerUserWithInviteCode` / `fetchInviteInfoWithCode` with positional arguments and the
