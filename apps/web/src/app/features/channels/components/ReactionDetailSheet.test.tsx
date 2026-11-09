@@ -2,8 +2,14 @@ import '@testing-library/jest-dom';
 
 import { fireEvent, render, screen } from '@testing-library/react';
 
+// The `emoji` namespace names 👍 only, so 🎉 stands in for a reaction from outside the curation.
+const mockEmojiNames: Record<string, string> = { '👍': '올린 엄지' };
 jest.mock('react-i18next', () => ({
-    useTranslation: () => ({ t: (k: string) => k, i18n: { language: 'ko' } }),
+    useTranslation: (ns?: string) => ({
+        t: (k: string, options?: { defaultValue?: string }) =>
+            ns === 'emoji' ? (mockEmojiNames[k] ?? options?.defaultValue ?? k) : k,
+        i18n: { language: 'ko' },
+    }),
 }));
 
 jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boolean).join(' ') }));
@@ -140,6 +146,23 @@ describe('ReactionDetailSheet — 이모지별 반응자 목록', () => {
         expect(screen.getByTestId('sheet')).toHaveClass('h-[50vh]');
         // The leftover space is absorbed by the list, not the sheet.
         expect(screen.getByRole('list')).toHaveClass('flex-1', 'overflow-y-auto');
+    });
+
+    it("names the open tab's emoji under the tab row, and follows a tab switch", () => {
+        render(<ReactionDetailSheet {...baseProps} />);
+        expect(screen.getByTestId('reaction-emoji-name')).toHaveTextContent('올린 엄지');
+
+        // 🎉 has no name in the table: the line goes rather than showing a blank or a key.
+        fireEvent.click(screen.getAllByRole('tab')[1]);
+        expect(screen.queryByTestId('reaction-emoji-name')).not.toBeInTheDocument();
+    });
+
+    it('labels a named tab with its name and count, since the glyph is hidden from assistive tech', () => {
+        render(<ReactionDetailSheet {...baseProps} />);
+
+        const [named, unnamed] = screen.getAllByRole('tab');
+        expect(named).toHaveAttribute('aria-label', '올린 엄지 2');
+        expect(unnamed).not.toHaveAttribute('aria-label');
     });
 
     it('닫혀 있으면 아무것도 렌더하지 않는다', () => {

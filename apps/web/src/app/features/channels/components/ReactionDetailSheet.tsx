@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { BottomSheet, DefaultAvatar, ImageAvatar, ReactionChip } from '@chatic/web-ui-kit';
 
+import { emojiNameKey } from '../utils/emoji';
 import type { ReactionTally } from '../utils/foldReactions';
 
 interface ReactionDetailSheetProps {
@@ -35,6 +36,10 @@ interface ReactionDetailSheetProps {
  *
  * `tallies` is the live fold: if someone removes their reaction while this is open the tab's
  * count drops under the reader, and a tab that disappears entirely falls back to the first one.
+ *
+ * The open tab's emoji is named under the tab row — the same CLDR name the picker shows on a hold,
+ * since holding a chip is the room's way of asking about a reaction. A reaction from outside the
+ * curated set (another client's emoji) has no name and gets no line.
  */
 export const ReactionDetailSheet = ({
     open,
@@ -45,6 +50,9 @@ export const ReactionDetailSheet = ({
     avatarOf,
 }: ReactionDetailSheetProps) => {
     const { t } = useTranslation();
+    // Not suspending, as in the picker: until the namespace arrives the sheet just has no name line.
+    const { t: tEmoji } = useTranslation('emoji', { useSuspense: false });
+    const emojiName = (emoji: string) => tEmoji(emojiNameKey(emoji), { defaultValue: '' });
     const [selectedKey, setSelectedKey] = useState(initialKey);
 
     // Re-point at the long-pressed chip each time the sheet is aimed at a new one. Kept in sync
@@ -52,6 +60,7 @@ export const ReactionDetailSheet = ({
     useEffect(() => setSelectedKey(initialKey), [initialKey]);
 
     const active = tallies.find(tally => tally.key === selectedKey) ?? tallies[0];
+    const activeName = active ? emojiName(active.emoji) : '';
 
     return (
         <BottomSheet
@@ -90,10 +99,26 @@ export const ReactionDetailSheet = ({
                                 role="tab"
                                 aria-selected={tally.key === active.key}
                                 aria-pressed={undefined}
+                                // The chip's glyph is hidden from assistive tech, so without a
+                                // label a tab reads as its count alone.
+                                aria-label={
+                                    emojiName(tally.emoji)
+                                        ? `${emojiName(tally.emoji)} ${tally.userIds.length}`
+                                        : undefined
+                                }
                                 onClick={() => setSelectedKey(tally.key)}
                             />
                         ))}
                     </div>
+
+                    {activeName && (
+                        <p
+                            data-testid="reaction-emoji-name"
+                            className="shrink-0 truncate px-4 pb-1 text-[13px] leading-[18px] text-muted-foreground"
+                        >
+                            {activeName}
+                        </p>
+                    )}
 
                     <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 pb-2">
                         {active.userIds.map(userId => {

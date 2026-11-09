@@ -51,6 +51,9 @@ data's licences are in the root `THIRD_PARTY_NOTICES.md`, and ADR-0291 records w
 CLDR.
 An emoji with no name (an old pick still in recents) keeps its glyph as its label and gets no hint.
 
+The same names head the hint on a message's reaction chips (`ReactionBar`): the emoji's name on the
+first line, then who reacted. A reaction from outside the curation shows the reactors alone.
+
 ## Mentions
 
 Picking a member from the `@` list puts a chip in the text and records who was picked on it

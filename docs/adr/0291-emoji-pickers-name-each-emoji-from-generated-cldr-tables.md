@@ -41,6 +41,10 @@ chose it partly to avoid depending on an emoji database.
   MIT; both notices are in `THIRD_PARTY_NOTICES.md`, and the generated TS files name them in a header.
   The JSON files cannot carry a comment, so the notices file lists them.
 
+The same names appear wherever a reaction is asked about: the mobile reactor sheet
+(`ReactionDetailSheet`) names its open tab, and the desktop reaction chip's hint leads with the
+emoji's name before the reactors.
+
 ADR-0093 §7 still holds for the curation: which emoji the pickers offer is our choice, not a
 database's. Only the names come from outside.
 
