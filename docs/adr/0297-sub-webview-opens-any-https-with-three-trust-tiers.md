@@ -63,7 +63,8 @@ decided by one shared rule both shells and both webs call.**
       scoped token, a later decision.
     - `user.isOwner` goes to the hub alone. No other page is told who owns the cloud.
     - The first time a user opens an external host, the web asks before it hands that host the names
-      (the consent is the web's, per host).
+      (the consent is the web's, per account and host, so one person's yes on a shared computer does
+      not send another's names).
 - **The desktop shows it as a modal over the main window**, with the shell's own bar and close
   control (Esc too), one page view per opening in a session per origin that refuses every permission
   request and every device chooser. Only the opened origin loads in the view; any other https URL goes to the OS browser. The
