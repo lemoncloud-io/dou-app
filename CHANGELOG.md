@@ -2,6 +2,12 @@
 
 ## [2026-11-09] - No version updates
 
+### Features
+
+- (web,desktop-web) name an emoji on hover and long press in the pickers (ADR-0291)
+
+## [2026-11-09] - No version updates
+
 ### Bug Fixes
 
 - (mobile,app-runtime,web) keep converting a video through a short trip off the screen
