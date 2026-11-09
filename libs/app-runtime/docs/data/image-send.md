@@ -234,11 +234,13 @@ an `.mp4` picked through the documents picker is converted or checked, and gets 
 picked from the album. The sequence fails the whole message when its `prepare` throws, and a refused
 video must fail alone, so:
 
-- **A refusal fails only that video.** `TOO_LARGE`, `UNSUPPORTED`, `SOURCE`, `SYSTEM` or a timeout
-  leaves the video out of the list the sequence runs on, and it is reported the way a slot whose upload
-  failed is: written as a failed message of its own. `onVideoRefused` is told `too-large` or
-  `unsupported`, so the screen can say why. Whether that message can be retried depends on the
-  refusal (below).
+- **A refusal fails only that video.** `TOO_LARGE`, `UNSUPPORTED`, `SOURCE`, `INVALID`, `SYSTEM` or a
+  timeout leaves the video out of the list the sequence runs on, and it is reported the way a slot whose
+  upload failed is: written as a failed message of its own. `onVideoRefused` is told `too-large`,
+  `unsupported`, or `not-converted` for any other code (`SYSTEM`, a timeout), so the screen can say
+  why — once per reason per send, since videos picked together tend to fail together. `SOURCE` and
+  `INVALID` are not told: the shell has no such file, so there is nothing to send again. Whether that
+  message can be retried depends on the refusal (below).
 - **The result is judged again** with `judgeChatAttachments`, since the shell only estimated its size
   before converting. A result over the limit is refused like a `TOO_LARGE`.
 - **Inside the sequence, `prepare` passes the converted file and its poster through** as the slot's

@@ -234,8 +234,14 @@ extension changed to `.mp4`.
   minutes. The estimate can still be a little short; the
   web checks the result's size again and fails that one video when it is over. When the session gives
   no estimate at all, the export goes ahead and that re-check decides.
-- **A conversion runs in the foreground.** `AVAssetExportSession` has no background time, and iOS may
-  stop it when the app leaves the screen. That ends as `SYSTEM`; the web's retry starts over.
+- **A conversion outlives a short trip away from the screen, not a long one.** The export holds a
+  `UIApplication` background task, so locking the phone or glancing at another app leaves it running
+  through iOS's grace period (about 30 seconds). Cancelling on `didEnterBackground` instead, as it
+  first did, threw away minutes of conversion on every lock — field logs showed the same videos
+  failing again and again that way. When the grace period runs out, the expiration cancels the
+  export, which ends as `SYSTEM`; the web tells the user the video could not be prepared and its
+  retry starts over. Keeping a conversion alive for longer would need `BGContinuedProcessingTask`
+  (iOS 26 only, and a system progress UI of its own), which the conversion does not use.
 - **Android converts what it cannot send as it is.** `PrepareVideo` reads the tracks again and sends
   an `mp4` of one H.264 track and one AAC track or none as it is, at any size (the poster is the only
   work). Everything else goes through Media3's `Transformer` (`VideoExporter`) into an H.264/AAC `mp4`:
