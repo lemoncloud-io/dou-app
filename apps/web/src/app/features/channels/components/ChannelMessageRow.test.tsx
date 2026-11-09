@@ -64,10 +64,6 @@ jest.mock('@chatic/web-ui-kit', () => ({
 
 jest.mock('@chatic/ui-kit', () => ({ cn: (...args: unknown[]) => args.filter(Boolean).join(' ') }));
 
-// Stubbed: the real editor focuses and scrolls itself into view on mount, which jsdom cannot do.
-// These cases only need the row to be in its edit state.
-jest.mock('./MessageEditor', () => ({ MessageEditor: () => <div data-testid="message-editor" /> }));
-
 // Stubbed so the image cases assert what the row decides — whether images are drawn, and in place of
 // the bubble or under it — rather than how the tiles lay themselves out (pinned in the kit's tests).
 // The tile is a real button so the long-press cases can tell a swallowed tap from one that opens the
@@ -835,21 +831,14 @@ describe('ChannelMessageRow — image messages', () => {
             expect(mockOpenTile).toHaveBeenCalledTimes(1);
         });
 
-        // The bubble is the editor then; a sheet from the images would offer Edit again and drop
-        // the draft.
+        // A sheet from the images would offer Edit again, which re-seeds the composer's draft and
+        // drops what was typed.
         it('does not open the sheet from the images of a message being edited', () => {
             const props = {
                 ...baseProps,
                 onLongPress: jest.fn(),
                 message: imageRow({ content: '사진 보내요' }),
-                edit: {
-                    draft: '사진 보내요!',
-                    onDraftChange: jest.fn(),
-                    isSaving: false,
-                    hasFailed: false,
-                    onSave: jest.fn(),
-                    onCancel: jest.fn(),
-                },
+                isEditTarget: true,
             };
             render(<ChannelMessageRow {...props} />);
 
@@ -1051,6 +1040,67 @@ describe('ChannelMessageRow — opening the sender profile', () => {
             render(<ChannelMessageRow {...baseProps} message={mentioning({ mention$: { all: true } })} />);
 
             expect(mark('@레인')).not.toBeInTheDocument();
+        });
+    });
+
+    // The edit is typed in the composer; the row only says it is the one being edited.
+    describe('the message being edited', () => {
+        const mine = { ...message, isOwner: true, updatedAt: 2, createdAt: 1 } as unknown as ClientChatView;
+        let scrollIntoView: jest.Mock;
+        beforeEach(() => {
+            scrollIntoView = jest.fn();
+            Element.prototype.scrollIntoView = scrollIntoView;
+        });
+
+        it('keeps drawing its text in the bubble rather than a field', () => {
+            render(<ChannelMessageRow {...baseProps} message={mine} isEditTarget />);
+
+            expect(screen.getByTestId('bubble')).toHaveTextContent('안녕하세요');
+            expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        });
+
+        it('marks itself so the list shows which message is changing', () => {
+            const { rerender } = render(<ChannelMessageRow {...baseProps} message={mine} />);
+            const trigger = screen.getByTestId('bubble').parentElement as HTMLElement;
+            expect(trigger).not.toHaveAttribute('data-edit-target');
+
+            rerender(<ChannelMessageRow {...baseProps} message={mine} isEditTarget />);
+            expect(trigger).toHaveAttribute('data-edit-target', 'true');
+        });
+
+        // The keyboard the edit raises can bury the message; it is brought back once, not on every
+        // render, which would fight the reader scrolling away.
+        it('brings itself into view once when the edit starts', () => {
+            const { rerender } = render(<ChannelMessageRow {...baseProps} message={mine} />);
+            expect(scrollIntoView).not.toHaveBeenCalled();
+
+            rerender(<ChannelMessageRow {...baseProps} message={mine} isEditTarget />);
+            rerender(<ChannelMessageRow {...baseProps} message={mine} isEditTarget time="오후 1:00" />);
+
+            expect(scrollIntoView).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not open the action sheet from its bubble', () => {
+            jest.useFakeTimers();
+            try {
+                const props = { ...baseProps, onLongPress: jest.fn(), message: mine, isEditTarget: true };
+                render(<ChannelMessageRow {...props} />);
+
+                fireEvent.contextMenu(screen.getByTestId('bubble').parentElement as HTMLElement);
+
+                expect(props.onLongPress).not.toHaveBeenCalled();
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        // "Edited" is a statement about a settled message; this one is mid-change.
+        it('hides the edited marker while it is being edited', () => {
+            const { rerender } = render(<ChannelMessageRow {...baseProps} message={mine} />);
+            expect(screen.getByText('chat.room.edited')).toBeInTheDocument();
+
+            rerender(<ChannelMessageRow {...baseProps} message={mine} isEditTarget />);
+            expect(screen.queryByText('chat.room.edited')).not.toBeInTheDocument();
         });
     });
 });

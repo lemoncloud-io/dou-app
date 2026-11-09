@@ -144,7 +144,8 @@ jest.mock('../hooks', () => ({
     }),
     useMessageEditing: () => ({
         isEditing: false,
-        editStateFor: () => undefined,
+        composer: undefined,
+        isEditTarget: () => false,
         deleteTarget: null,
         discardOpen: false,
         cancelDelete: jest.fn(),

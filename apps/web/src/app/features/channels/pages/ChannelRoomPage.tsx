@@ -21,10 +21,12 @@ import {
     FloatingDateChip,
     ImageAvatar,
     MessageInput,
+    type MessageInputProps,
     SystemNotice,
 } from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
+import { ComposerEditBar } from '../components/ComposerEditBar';
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
 import { useVoiceMessage } from '../hooks/useVoiceMessage';
@@ -344,8 +346,12 @@ export const ChannelRoomPage = () => {
                 : [],
         [isGroupChat, activeMemberIds, userId, nameOfUser, avatarOfUser, t]
     );
+    // Message editing — its draft borrows the composer's field (see the composer below).
+    const editing = useMessageEditing(stableChannelId);
     const mentionComposer = useMentionComposer({
-        enabled: isGroupChat,
+        // Off while a message is being edited: the edit borrows this field, and its text is not a
+        // message being written, so it must not raise the `@` list or leave a query behind.
+        enabled: isGroupChat && !editing.isEditing,
         candidates: mentionCandidates,
         content,
         setContent,
@@ -508,7 +514,6 @@ export const ChannelRoomPage = () => {
     useRoomSyncTrace({ channelId, rawChats });
 
     const { sendMessage, retryMessage, deleteMessage } = useChatMutations();
-    const editing = useMessageEditing(stableChannelId);
     // The Lab's input lock this person put on the room, so nothing goes out of it by accident.
     const inputLock = useChatInputLock(channelId);
     // The composer's lock, shared by the text field and the attach button: a photo sent into an
@@ -664,6 +669,9 @@ export const ChannelRoomPage = () => {
         loadMore,
         inputRef,
         suppressAutoScroll: isJumpPending,
+        // While a message is being edited: opening the edit focuses the composer and grows it, and
+        // either would pin the list to the bottom, away from the message being changed.
+        holdBottomPin: editing.isEditing,
         // Restores the offset stashed by openThread when coming back from a thread.
         channelId: stableChannelId,
         // Growing composer = keyboard up (or a multi-line draft); the only such signal a native
@@ -930,8 +938,45 @@ export const ChannelRoomPage = () => {
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (!isSendKey(e.nativeEvent)) return;
         e.preventDefault();
+        // While a message is being edited the field holds its draft, and the same key saves it.
+        if (editing.composer) {
+            editing.composer.onSave();
+            return;
+        }
         handleSend(content);
     };
+
+    // What the composer's field is told in each mode. Editing: the draft, saved by the send button,
+    // and locked only while the save is in flight — the room's other locks are about sending
+    // something new, and an edit sends nothing new.
+    const composerFieldProps: Omit<MessageInputProps, 'inputRef' | 'onKeyDown'> = editing.composer
+        ? {
+              value: editing.composer.draft,
+              onChange: editing.composer.onDraftChange,
+              onSend: editing.composer.onSave,
+              label: t('chat.room.editMessage'),
+              placeholder: t('chat.room.editMessage'),
+              sendLabel: t('chat.room.editSave'),
+              disabled: editing.composer.isSaving,
+          }
+        : {
+              value: content,
+              onChange: mentionComposer.onChange,
+              onSend: handleSend,
+              sendReady: attach.sendReady,
+              placeholder: inputLock.isLocked ? t('chat.inputLock.placeholder') : t('chat.room.inputPlaceholder'),
+              sendLabel: t('common.send'),
+              // Nobody left to receive it: a message sent into an empty 1:1 would carry an
+              // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 decision 5).
+              disabled: composerLocked,
+              // A locked composer takes no photos either, so the padlock that lifts the lock
+              // stands where the attach button was.
+              leadingSlot: inputLock.isLocked ? (
+                  <ComposerLockButton onClick={unlockInput} label={t('chat.inputLock.unlock')} />
+              ) : (
+                  attach.button
+              ),
+          };
 
     const formatTime = (date: Date) => {
         const hours = date.getHours();
@@ -1455,7 +1500,7 @@ export const ChannelRoomPage = () => {
                                                                     message.id && handleShowReactors(message.id, key)
                                                                 }
                                                                 avatarOf={avatarOfUser}
-                                                                edit={editing.editStateFor(message)}
+                                                                isEditTarget={editing.isEditTarget(message)}
                                                                 threadMeta={threadMeta}
                                                                 unseenReplyCount={unseenReplyCount}
                                                                 formatThreadTime={formatTime}
@@ -1528,39 +1573,29 @@ export const ChannelRoomPage = () => {
                     paddingBottom: COMPOSER_PADDING_BOTTOM,
                 }}
             >
-                {/* Photos picked in the attach panel wait here whenever the panel is not showing them
-                    all — once it has closed, most often — above the field their caption is typed in. Inside the bar, so its measured height — what the list
-                    clears — carries them, and they ride up with the keyboard as the pill does. Always
-                    rendered: the row folds itself away when it empties. */}
-                {attach.strip}
-                {/* Right above the field, inside the measured bar like the strip: it rides up with the
-                    keyboard and the list clears it, and the keyboard stays up while a name is picked. */}
-                <MentionSuggestions candidates={mentionComposer.suggestions} onPick={mentionComposer.pick} />
-                <MessageInput
-                    value={content}
-                    onChange={mentionComposer.onChange}
-                    onSend={handleSend}
-                    sendReady={attach.sendReady}
-                    onKeyDown={handleKeyDown}
-                    inputRef={inputRef}
-                    placeholder={inputLock.isLocked ? t('chat.inputLock.placeholder') : t('chat.room.inputPlaceholder')}
-                    sendLabel={t('common.send')}
-                    // Nobody left to receive it: a message sent into an empty 1:1 would carry an
-                    // unread badge of `1` forever. Lifts the moment the peer is back (ADR-0068 decision 5).
-                    //
-                    // Also locked while a message is being edited: two live fields on one screen
-                    // and there is no telling which one you are typing into.
-                    disabled={composerLocked}
-                    // A locked composer takes no photos either, so the padlock that lifts the lock
-                    // stands where the attach button was.
-                    leadingSlot={
-                        inputLock.isLocked ? (
-                            <ComposerLockButton onClick={unlockInput} label={t('chat.inputLock.unlock')} />
-                        ) : (
-                            attach.button
-                        )
-                    }
-                />
+                {/* While a message is being edited the composer is its editor: the bar says which message
+                    and holds the way out, and the field below holds the draft. The new message typed
+                    before the edit is kept aside, untouched, and comes back when the edit closes. The
+                    edit is text only, so the picked photos and the `@` list step aside with it. */}
+                {editing.composer ? (
+                    <ComposerEditBar edit={editing.composer} inputRef={inputRef} />
+                ) : (
+                    <>
+                        {/* Photos picked in the attach panel wait here whenever the panel is not showing
+                            them all — once it has closed, most often — above the field their caption is
+                            typed in. Inside the bar, so its measured height — what the list clears —
+                            carries them, and they ride up with the keyboard as the pill does. Always
+                            rendered: the row folds itself away when it empties. */}
+                        {attach.strip}
+                        {/* Right above the field, inside the measured bar like the strip: it rides up with the
+                            keyboard and the list clears it, and the keyboard stays up while a name is picked. */}
+                        <MentionSuggestions candidates={mentionComposer.suggestions} onPick={mentionComposer.pick} />
+                    </>
+                )}
+                {/* One field for both modes, so writing and editing share one textarea: the keyboard stays
+                    up as an edit opens and closes, and the listeners bound to the field at mount (the
+                    focus pin, the `@` list) stay attached to the element the person is typing in. */}
+                <MessageInput inputRef={inputRef} onKeyDown={handleKeyDown} {...composerFieldProps} />
             </div>
             {attach.overlays}
             {voice.sheet}

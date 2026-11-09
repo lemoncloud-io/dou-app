@@ -876,6 +876,7 @@
             "editMessage": "Edit message",
             "editSave": "Save",
             "editSaving": "Saving",
+            "editCancel": "Cancel edit",
             "editFailed": "Couldn't save that change. Try saving again.",
             "editDiscardTitle": "Discard your changes?",
             "editDiscardDescription": "What you typed won't be saved.",

@@ -8,9 +8,17 @@ import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import { canModifyMessage, isInJoinWindow } from '@chatic/data';
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
-import { ChatRoomHeader, ComposerLockButton, DefaultAvatar, ImageAvatar, MessageInput } from '@chatic/web-ui-kit';
+import {
+    ChatRoomHeader,
+    ComposerLockButton,
+    DefaultAvatar,
+    ImageAvatar,
+    MessageInput,
+    type MessageInputProps,
+} from '@chatic/web-ui-kit';
 
 import { ChannelMessageRow, type MessageSender } from '../components/ChannelMessageRow';
+import { ComposerEditBar } from '../components/ComposerEditBar';
 import { GapDivider } from '../components/GapDivider';
 import { useChatImageAttach } from '../components/ChatImageAttach';
 import { COMPOSER_PADDING_BOTTOM } from '../hooks/useAttachPanelSlot';
@@ -274,7 +282,7 @@ export const ThreadPage = () => {
     // The newest-reply follow (below) stays off once a jump is asked for: rows still landing — the
     // composer measuring itself, a reply arriving — would otherwise pull the list back down past the
     // reply that was jumped to. A gap divider filling while the reader is up in the list holds it the
-    // same way (`fillThreadGap`). It comes back when the reader returns to the bottom, writes a reply,
+    // same way (`fillThreadGap`), and so does an open message edit. It comes back when the reader returns to the bottom, writes a reply,
     // or the jump gives up, and a move to another thread on this same mounted page starts clean.
     const followHeldRef = useRef(false);
     // What the gap dividers may still ask for by themselves (`THREAD_GAP_AUTO_PAGES`).
@@ -381,7 +389,8 @@ export const ThreadPage = () => {
         [isGroupChat, activeMemberIds, userId, nameOfUser, avatarOfUser, t]
     );
     const mentionComposer = useMentionComposer({
-        enabled: isGroupChat,
+        // The room's rule: off while a message is being edited in this field.
+        enabled: isGroupChat && !editing.isEditing,
         candidates: mentionCandidates,
         content,
         setContent,
@@ -473,6 +482,25 @@ export const ThreadPage = () => {
         if (followHeldRef.current) return;
         listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
     }, [replies.length, composerHeight, hasTrailingGap]);
+
+    // A message edit holds the follow the way a jump does. Opening it grows the composer and closing
+    // it shrinks the composer again, and following either would carry the list away from the message
+    // being changed — to the newest reply, wherever the reader was. The edit closing hands the follow
+    // back only to a reader at the bottom; anyone else gets it back the usual way, by returning there.
+    // Acted on the change alone, so a thread opening (with a jump already holding it) is left be.
+    const wasEditingRef = useRef(editing.isEditing);
+    useEffect(() => {
+        if (wasEditingRef.current === editing.isEditing) return;
+        wasEditingRef.current = editing.isEditing;
+        if (editing.isEditing) {
+            followHeldRef.current = true;
+            return;
+        }
+        const list = listRef.current;
+        if (list && list.scrollHeight - list.scrollTop - list.clientHeight <= FOLLOW_RESUME_PX) {
+            followHeldRef.current = false;
+        }
+    }, [editing.isEditing]);
 
     // A jump that found nothing leaves no reply to stay on, so the thread opens as it always does.
     const resumeFollow = useCallback(() => {
@@ -598,9 +626,44 @@ export const ThreadPage = () => {
             });
     };
 
+    // The room's rule: what the composer's field is told in each mode, the edit locked only while
+    // its save is in flight.
+    const composerFieldProps: Omit<MessageInputProps, 'inputRef' | 'onKeyDown'> = editing.composer
+        ? {
+              value: editing.composer.draft,
+              onChange: editing.composer.onDraftChange,
+              onSend: editing.composer.onSave,
+              label: t('chat.room.editMessage'),
+              placeholder: t('chat.room.editMessage'),
+              sendLabel: t('chat.room.editSave'),
+              disabled: editing.composer.isSaving,
+          }
+        : {
+              value: content,
+              onChange: mentionComposer.onChange,
+              onSend: handleSend,
+              sendReady: attach.sendReady,
+              placeholder: inputLock.isLocked ? t('chat.inputLock.placeholder') : t('chat.thread.inputPlaceholder'),
+              sendLabel: t('common.send'),
+              // Closed when the root is outside my window: a reply needs the root's full id, so
+              // `handleSend` would drop what was typed without saying anything.
+              disabled: rootOutsideJoinWindow || inputLock.isLocked,
+              // The room's rule: the padlock that lifts the lock stands where the attach button was.
+              leadingSlot: inputLock.isLocked ? (
+                  <ComposerLockButton onClick={unlockInput} label={t('chat.inputLock.unlock')} />
+              ) : (
+                  attach.button
+              ),
+          };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (!isSendKey(e.nativeEvent)) return;
         e.preventDefault();
+        // The room's rule: while a message is being edited, the same key saves it.
+        if (editing.composer) {
+            editing.composer.onSave();
+            return;
+        }
         handleSend(content);
     };
 
@@ -784,7 +847,7 @@ export const ThreadPage = () => {
                 nameOf={nameOfUser}
                 onAddReaction={message.chatNo ? () => handleAddReaction(message) : undefined}
                 onShowReactors={key => message.id && setReactorTarget({ messageId: message.id, key })}
-                edit={editing.editStateFor(message)}
+                isEditTarget={editing.isEditTarget(message)}
                 onOpenProfile={openMemberProfile}
             />
         </div>
@@ -887,34 +950,21 @@ export const ThreadPage = () => {
                     paddingBottom: COMPOSER_PADDING_BOTTOM,
                 }}
             >
-                {/* The room's rule: picked photos wait above the field, inside the measured bar. */}
-                {attach.strip}
-                {/* The room's rule: the `@` list right above the field, inside the measured bar. */}
-                <MentionSuggestions candidates={mentionComposer.suggestions} onPick={mentionComposer.pick} />
-                <MessageInput
-                    value={content}
-                    onChange={mentionComposer.onChange}
-                    onSend={handleSend}
-                    sendReady={attach.sendReady}
-                    onKeyDown={handleKeyDown}
-                    inputRef={inputRef}
-                    placeholder={
-                        inputLock.isLocked ? t('chat.inputLock.placeholder') : t('chat.thread.inputPlaceholder')
-                    }
-                    sendLabel={t('common.send')}
-                    // One live field at a time — same rule as the room. Also closed when the root
-                    // is outside my window: a reply needs the root's full id, so `handleSend`
-                    // would drop what was typed without saying anything.
-                    disabled={editing.isEditing || rootOutsideJoinWindow || inputLock.isLocked}
-                    // The room's rule: the padlock that lifts the lock stands where the attach button was.
-                    leadingSlot={
-                        inputLock.isLocked ? (
-                            <ComposerLockButton onClick={unlockInput} label={t('chat.inputLock.unlock')} />
-                        ) : (
-                            attach.button
-                        )
-                    }
-                />
+                {/* The room's rule: while a message is being edited the composer is its editor, and the
+                    reply typed before it waits aside. */}
+                {editing.composer ? (
+                    <ComposerEditBar edit={editing.composer} inputRef={inputRef} />
+                ) : (
+                    <>
+                        {/* The room's rule: picked photos wait above the field, inside the measured bar. */}
+                        {attach.strip}
+                        {/* The room's rule: the `@` list right above the field, inside the measured bar. */}
+                        <MentionSuggestions candidates={mentionComposer.suggestions} onPick={mentionComposer.pick} />
+                    </>
+                )}
+                {/* The room's rule: one field for both modes, so the keyboard and the listeners bound to
+                    the field stay with the element being typed in. */}
+                <MessageInput inputRef={inputRef} onKeyDown={handleKeyDown} {...composerFieldProps} />
             </div>
             {attach.overlays}
             {voice.sheet}

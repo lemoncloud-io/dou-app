@@ -282,7 +282,9 @@ profile map.
   when the reader scrolls back to the bottom, sends a reply, or the jump gives up (the thread then
   opens at its newest reply, as it does without a jump), and a move to another thread on the same
   mounted page starts clean. A gap divider filled from up in the list holds it the same way (see
-  above). The jump does not page before the first cache read: with no rows there
+  above), and so does an open message edit — opening it grows the composer and closing it shrinks it,
+  and following either would carry the list off the message being changed. Closing the edit hands the
+  follow back only to a reader already at the bottom. The jump does not page before the first cache read: with no rows there
   is no cursor, and a page that goes nowhere would still spend its budget.
 - **Widenings in one commit keep the wider one.** The root's widening and the jump's (toward a reply
   below it) can be asked for in the same commit, against the same window. `loadUntil` keeps the
