@@ -168,7 +168,7 @@ dou-app/
 │   ├── shared/              # Common utilities and hooks
 │   └── theme/               # Theme provider (dark/light)
 ├── assets/                  # Shared images, logos, icons
-├── scripts/                 # Build and deployment scripts
+├── scripts/                 # Build, deploy, check and codegen scripts
 ├── docs/                    # ADRs (docs/adr/) and infra config (docs/infra/)
 └── .github/workflows/       # CI/CD pipelines
 ```

@@ -1107,7 +1107,8 @@
             "cannotRetry": "These attachments can't be resent. Please delete them",
             "videoRefused": {
                 "too-large": "Videos can be up to about 4 minutes long",
-                "unsupported": "This video format can't be sent"
+                "unsupported": "This video format can't be sent",
+                "not-converted": "The video couldn't be prepared. Keep the app open and send it again"
             },
             "source": {
                 "title": "Files",

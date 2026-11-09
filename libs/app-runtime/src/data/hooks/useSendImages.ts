@@ -70,10 +70,10 @@ const pendingImages = new Map<string, PendingImages>();
 
 /**
  * Shell files a retry cannot send: the shell has said they are gone (`SOURCE` — it cleared its folder,
- * or the OS cleared the cache), or a video was refused for what it is (`TOO_LARGE`, `UNSUPPORTED`, or
+ * or the OS cleared the cache — or `INVALID`, an address it never handed out), or a video was refused for what it is (`TOO_LARGE`, `UNSUPPORTED`, or
  * its conversion over the limit), which converting it again would only repeat. A row holding one is
  * offered delete, not a retry that can only fail again. A conversion that failed in passing (`SYSTEM`,
- * such as the app leaving the screen mid-way) stays retryable.
+ * such as the app staying off the screen past iOS's grace period) stays retryable.
  */
 const goneShellFiles = new Set<string>();
 const isGone = (source: ChatAttachmentSource) => isShellFileRef(source) && goneShellFiles.has(source.uri);
@@ -92,12 +92,17 @@ export interface PreparedShellVideo {
 
 /**
  * Converts a shell video (and makes its poster) in the shell. It rejects with the shell's `code` —
- * `TOO_LARGE`, `UNSUPPORTED`, `SOURCE` or `SYSTEM` — or a bridge one, a timeout included.
+ * `TOO_LARGE`, `UNSUPPORTED`, `SOURCE`, `INVALID` or `SYSTEM` — or a bridge one, a timeout included.
  */
 export type PrepareVideoPort = (video: ShellFileRef) => Promise<PreparedShellVideo>;
 
-/** Why a shell video was left out of its message before any upload: what the notice tells the user. */
-export type VideoRefusal = 'too-large' | 'unsupported';
+/**
+ * Why a shell video was left out of its message before any upload: what the notice tells the user.
+ * `not-converted` is every other failed conversion — most often iOS stopping the export because the app
+ * stayed off the screen past its grace period. Its row fails like the others, but a failed row alone went unnoticed: the video had
+ * shown no upload progress while it converted, so it never looked like it was sending in the first place.
+ */
+export type VideoRefusal = 'too-large' | 'unsupported' | 'not-converted';
 
 /**
  * A picked file as the server takes it: its format's type, and for a video or document a name ending
@@ -491,9 +496,14 @@ export const useSendImages = ({
     const convertVideos = useCallback(async (entry: PendingImages) => {
         const converted = new Map<number, PreparedShellVideo>();
         const refused: number[] = [];
+        // One notice per reason per send: videos picked together tend to fail together (a lock stops
+        // every conversion still queued), and the same notice repeated says nothing more.
+        const told = new Set<VideoRefusal>();
         const refuse = (index: number, reason?: VideoRefusal) => {
             refused.push(index);
-            if (reason) onVideoRefusedRef.current?.(reason);
+            if (!reason || told.has(reason)) return;
+            told.add(reason);
+            onVideoRefusedRef.current?.(reason);
         };
         for (const [index, source] of entry.files.entries()) {
             // By the format, not the shell's `kind`: an `.mp4` picked as a document is a video too, and
@@ -515,8 +525,22 @@ export const useSendImages = ({
                 converted.set(index, video);
             } catch (error) {
                 const code = codeOf(error);
-                if (code === 'SOURCE' || code === 'TOO_LARGE' || code === 'UNSUPPORTED') goneShellFiles.add(source.uri);
-                refuse(index, code === 'TOO_LARGE' ? 'too-large' : code === 'UNSUPPORTED' ? 'unsupported' : undefined);
+                // `INVALID`: the shell does not recognise the address as a file it picked, which a retry
+                // would only repeat — the same dead end as a lost file.
+                const unsendable = code === 'SOURCE' || code === 'INVALID';
+                if (unsendable || code === 'TOO_LARGE' || code === 'UNSUPPORTED') goneShellFiles.add(source.uri);
+                // A file the shell no longer has says nothing: its row offers only delete, and "send it
+                // again" would point at a file that is not there.
+                refuse(
+                    index,
+                    code === 'TOO_LARGE'
+                        ? 'too-large'
+                        : code === 'UNSUPPORTED'
+                          ? 'unsupported'
+                          : unsendable
+                            ? undefined
+                            : 'not-converted'
+                );
                 log('image message: video not converted', { slot: index, code });
             }
         }

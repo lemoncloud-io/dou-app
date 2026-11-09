@@ -130,6 +130,29 @@ is that the hand learns where it is. Recents are a device-local LRU of 16 in `us
 read by both the quick row and the picker's recents tab, and persisted under a key shared with
 desktop.
 
+**Holding an emoji in `EmojiPickerSheet` names it** — the touch stand-in for desktop's hover hint. After
+the shared long-press threshold a bubble shows the emoji and its name above the finger, and the release
+that follows does **not** pick it, so holding is a safe way to ask "what is this?". Each grid button also
+carries the name as its `aria-label`.
+
+- **A scroll is not a hold.** A touch captures the pointer, so a flick that starts on an emoji sends
+  neither `pointerleave` nor `pointercancel` until the finger lifts. Drift past `MOVE_CANCEL_PX` (the
+  same threshold the message bubble uses, in `longPress.ts`) is what cancels the hold.
+- **The OS long press is a trigger too.** Android's own long press is shorter than ours and arrives as
+  `contextmenu`, which shows the name at once instead of opening a menu.
+- **Only a pointer click is swallowed.** A keyboard or switch-control activation (`detail === 0`) always
+  picks, even when a hold ended without a click and left the flag set.
+- **Closing the sheet clears the hold**, so it does not come back on reopen.
+
+The names are the Unicode CLDR short names (the ones iOS and Android use for emoji search), in the
+app's language, from the `emoji` i18n namespace — `public/locales/{ko,en}/emoji.json`, keyed by the
+emoji with U+FE0F removed (`emojiNameKey`). Those files are **generated**, not written: run
+`yarn generate:emoji-names` after changing the curation in `utils/emoji.ts`, and `emoji.test.ts` fails
+until every curated emoji has a name in both languages. The data's licences are in the root
+`THIRD_PARTY_NOTICES.md`, and ADR-0291 records why the names come from CLDR. The namespace is fetched
+on first use without suspending, so the grid never blanks while it loads; until it arrives a hold
+shows nothing and a release picks as usual.
+
 `ReactionDetailSheet` opens on the tab of the chip that was held, reads the **live** fold, and falls
 back to the first remaining tab if the one being viewed disappears because someone withdrew their
 reaction.

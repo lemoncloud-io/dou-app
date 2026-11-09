@@ -12,7 +12,7 @@
 
 `useSendImages({ cid, channelId, parentId? })` is that hook bound to this shell: `put` is the
 shell's PUT for page files (below), `putShellFile` and `prepareVideo` send and convert the files the
-app keeps (inside the app only), `onVideoRefused` shows why the app would not convert a video, and
+app keeps (inside the app only), `onVideoRefused` shows why the app would not or could not convert a video, and
 `beforeSweep` — also run whenever the app comes back to the front — catches up with the transfers the
 native shell finished while the page was away. `waitForConnection` (`runtime.data.waitForCloudSocket`)
 holds the send for up to ten seconds until the room's socket is back: a pick from an OS picker is
@@ -154,8 +154,13 @@ minute runs about 76MB, so the 300MB limit lands near 3.9 minutes.
 Only a passing failure can be retried. A video refused `TOO_LARGE` or `UNSUPPORTED`, one whose
 converted result fails the page's own size check, and one the app lost (`SOURCE` — from `PrepareVideo`,
 or from the upload's start, where iOS refuses a file that is gone) would only fail again, so its
-message offers delete alone. A conversion that failed in passing (`SYSTEM`, such as the app leaving the
-screen mid-way) stays retryable.
+message offers delete alone. A conversion that failed in passing (`SYSTEM` — such as the app staying off
+the screen past iOS's grace period — or a bridge timeout) stays retryable, and its notice
+(`not-converted`, shown once per send however many videos failed) asks the user to keep the app open
+and send it again. Without that notice the failure went unnoticed: a converting video shows no upload
+progress, so it never looked like it was sending. A file the app no longer has, or never handed out
+(`SOURCE`, `INVALID`), fails without a notice and offers delete alone — "send it again" would point at a
+file that is not there.
 
 **The panel takes the keyboard's place.** `AttachPanel` is not a sheet. It lays itself along the
 bottom of the room's (or the thread's) page container — exactly where the soft keyboard sits, under

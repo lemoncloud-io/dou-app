@@ -3,15 +3,21 @@ import { initReactI18next } from 'react-i18next';
 import i18n from 'i18next';
 
 import { en } from './locales/en';
+import { emojiNames as emojiEn } from './locales/emoji/en';
+import { emojiNames as emojiKo } from './locales/emoji/ko';
 import { ko } from './locales/ko';
 
 // Inline resources, one module per locale. The full desktop app will adopt the
 // shared remote-backed i18n (see apps/web/src/i18n) in a later phase; until then
 // `locales/en.ts` is the source of truth for the key set and every other bundle
 // is typed against it.
+//
+// `emoji` is a separate namespace of CLDR emoji names, keyed by the emoji itself. It is
+// generated rather than written (scripts/generate-emoji-names.js), so it stays out of the
+// hand-kept `translation` bundle and its typing.
 const resources = {
-    en: { translation: en },
-    ko: { translation: ko },
+    en: { translation: en, emoji: emojiEn },
+    ko: { translation: ko, emoji: emojiKo },
 } as const;
 
 /** Locales with a complete bundle, in the order the picker lists them. */
