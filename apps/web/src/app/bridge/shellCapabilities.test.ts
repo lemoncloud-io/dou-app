@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 
 import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 
-import { shellCapabilities, supportsImageExport, useCanExportImages, useCanExportVideos } from './shellCapabilities';
+import { shellCapabilities, supportsImageExport, useCanExportImages } from './shellCapabilities';
 
 const report = (supportedWebMessages: string[]): OnWebAppReadyPayload => ({
     protocolVersion: '2.3.0',
@@ -33,43 +33,5 @@ describe('shellCapabilities', () => {
         act(() => shellCapabilities.setReport(report(['SaveToPhotoLibrary', 'ShareFile'])));
 
         expect(result.current).toBe(true);
-    });
-
-    it('stays off for the session once withdrawn, even if the report is set again', () => {
-        shellCapabilities.setReport(report(['SaveToPhotoLibrary', 'ShareFile']));
-        const { result } = renderHook(() => useCanExportImages());
-
-        act(() => shellCapabilities.withdrawImageExport());
-        expect(result.current).toBe(false);
-
-        act(() => shellCapabilities.setReport(report(['SaveToPhotoLibrary', 'ShareFile'])));
-        expect(result.current).toBe(false);
-    });
-
-    it('allows videos wherever photos are allowed, until a video is refused', () => {
-        const { result } = renderHook(() => ({ images: useCanExportImages(), videos: useCanExportVideos() }));
-        expect(result.current).toEqual({ images: false, videos: false });
-
-        act(() => shellCapabilities.setReport(report(['SaveToPhotoLibrary', 'ShareFile'])));
-        expect(result.current).toEqual({ images: true, videos: true });
-
-        act(() => shellCapabilities.withdrawVideoExport());
-        expect(result.current).toEqual({ images: true, videos: false });
-    });
-
-    it('takes videos away with photos when export as a whole is withdrawn', () => {
-        shellCapabilities.setReport(report(['SaveToPhotoLibrary', 'ShareFile']));
-
-        shellCapabilities.withdrawImageExport();
-
-        expect(shellCapabilities.canExportVideos()).toBe(false);
-    });
-
-    it('forgets a video withdrawal on reset', () => {
-        shellCapabilities.withdrawVideoExport();
-        shellCapabilities.reset();
-        shellCapabilities.setReport(report(['SaveToPhotoLibrary', 'ShareFile']));
-
-        expect(shellCapabilities.canExportVideos()).toBe(true);
     });
 });

@@ -44,7 +44,6 @@ const image = { uploadId: 'u-1', url: 'https://bucket.s3.amazonaws.com/k', name:
 const clip = { uploadId: 'v-1', url: 'https://bucket.s3.amazonaws.com/v', name: 'clip.mp4', kind: 'video' as const };
 const second = { uploadId: 'u-2', url: 'https://bucket.s3.amazonaws.com/k2', name: 'two.jpg', kind: 'image' as const };
 const sending = { uploadId: 'local-2', url: 'blob:https://app/3', kind: 'image' as const };
-const refusedAsFormat = () => Object.assign(new Error('format'), { code: 'UNSUPPORTED_TYPE' });
 /** Every download answers at once with the file, and records its address. */
 const instant =
     (urls: string[]): Start =>
@@ -154,17 +153,6 @@ describe('useImageExports', () => {
         });
         expect(shareFile).not.toHaveBeenCalled();
         expect(toast).not.toHaveBeenCalled();
-    });
-
-    it('hides the actions for the session when the shell answers NOT_FOUND', async () => {
-        capable();
-        nextResult = Promise.resolve({ kind: 'unsupported' });
-        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
-
-        await act(() => result.current.run('save', image));
-
-        expect(result.current.canExport).toBe(false);
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.updateRequired' });
     });
 
     it('starts one export for two taps inside one frame', async () => {
@@ -298,32 +286,6 @@ describe('useImageExports', () => {
         });
     });
 
-    it('allows videos with photos, and hides only the video buttons once a video is refused as a format', async () => {
-        capable();
-        saveToPhotoLibrary.mockRejectedValueOnce(refusedAsFormat());
-        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
-        expect(result.current.canExportItem(clip)).toBe(true);
-
-        await act(() => result.current.run('save', clip));
-
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.videoUpdateRequired' });
-        expect(result.current.canExport).toBe(true);
-        expect(result.current.canExportVideos).toBe(false);
-        expect(result.current.canExportItem(clip)).toBe(false);
-        expect(result.current.canExportItem(image)).toBe(true);
-    });
-
-    it('learns the same from a video refused on share', async () => {
-        capable();
-        shareFile.mockRejectedValueOnce(refusedAsFormat());
-        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
-
-        await act(() => result.current.run('share', clip));
-
-        expect(result.current.canExportVideos).toBe(false);
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.videoUpdateRequired' });
-    });
-
     it('saves a video through the photo library and says it saved a video', async () => {
         capable();
         const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
@@ -334,47 +296,12 @@ describe('useImageExports', () => {
         expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.savedVideo' });
     });
 
-    it('starts nothing on a video once videos were refused', async () => {
-        capable();
-        shellCapabilities.withdrawVideoExport();
-        const urls: string[] = [];
-        start = instant(urls);
-        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
-
-        await act(() => result.current.run('share', clip));
-
-        expect(urls).toEqual([]);
-    });
-
-    it('counts as savable only what is sent, drawn, and of a kind the app takes', () => {
+    it('counts as savable only what is sent and drawn', () => {
         capable();
         const broken = { ...second, broken: true };
         const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
 
         expect(result.current.savable([image, sending, broken, clip])).toEqual([image, clip]);
-
-        act(() => shellCapabilities.withdrawVideoExport());
-
-        expect(result.current.savable([image, sending, broken, clip])).toEqual([image]);
-    });
-
-    it('keeps saving photos after a video is refused mid-run, and says videos need an update', async () => {
-        capable();
-        const urls: string[] = [];
-        start = instant(urls);
-        saveToPhotoLibrary
-            .mockResolvedValueOnce({ data: {} })
-            .mockRejectedValueOnce(refusedAsFormat())
-            .mockResolvedValue({ data: {} });
-        const later = { ...clip, uploadId: 'v-2', url: 'https://bucket.s3.amazonaws.com/v2' };
-        const { result } = renderHook(() => useImageExports({ cid: 'c', chatId: 'm' }));
-
-        await act(() => result.current.runAll([image, clip, later, second]));
-
-        expect(urls).toEqual([image.url, clip.url, second.url]);
-        expect(toast).toHaveBeenCalledTimes(1);
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.export.savedPhotosVideosNeedUpdate:{"n":2}' });
-        expect(result.current.canExportVideos).toBe(false);
     });
 
     it('counts items rather than photos when a save all has a video in it', async () => {

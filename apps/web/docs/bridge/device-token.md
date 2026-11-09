@@ -85,12 +85,9 @@ The record decides whether `reg-dev` is called at all, so it has to outlive the 
 storage — a cache clear would otherwise read as "never registered" and re-register every device it
 touched. The native `pushRegistration` preference is that second copy.
 
-Writes go through the shell's bridge allowlist. An app build whose allowlist predates the key
-refuses the write with `PREF_KEY_NOT_WRITABLE`, and reads are not allowlisted at all, so they come
-back empty. **The web bundle deploys ahead of the app, so a refused mirror is the normal state right
-after a release.** Both outcomes are swallowed; the runtime keeps its web-storage copy and behaves
-exactly as it does without a mirror. Treating either as an error would turn a routine deploy window
-into a flood of reports.
+Writes go through the shell's bridge allowlist, which every app this page runs in has the key on. A
+failed write or read is swallowed all the same; the runtime keeps its web-storage copy and behaves
+exactly as it does without a mirror.
 
 ## Where it is mounted
 

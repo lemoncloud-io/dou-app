@@ -5,7 +5,6 @@ import userEvent from '@testing-library/user-event';
 
 import { BootRecordsScreen } from './BootRecordsScreen';
 import { setDebugLanguageForTests } from '../../i18n';
-import { resetUnsupportedCommands } from '../../hooks';
 
 const fetchBootRecords = jest.fn();
 const clearBootRecords = jest.fn();
@@ -41,7 +40,6 @@ describe('BootRecordsScreen', () => {
         restoreLanguage = setDebugLanguageForTests('en');
         jest.clearAllMocks();
         // Learning is module-scoped, so what one case learns must not leak into the next.
-        resetUnsupportedCommands();
     });
 
     afterEach(() => restoreLanguage());
@@ -80,26 +78,6 @@ describe('BootRecordsScreen', () => {
         render(<BootRecordsScreen />);
 
         expect(await screen.findByText(/No records/)).toBeInTheDocument();
-    });
-
-    // An older app doesn't know this command and answers NOT_FOUND. Saying "there are no
-    // records" at that point would be a lie — not being able to ask is different from asking and
-    // finding nothing.
-    it('앱이 명령을 모르면 버전 차이로 말하고, 기록 없음이라고 하지 않는다', async () => {
-        fetchBootRecords.mockImplementation(() => Promise.reject({ code: 'NOT_FOUND' }));
-        render(<BootRecordsScreen />);
-
-        expect(await screen.findByText(/not supported by this app version/)).toBeInTheDocument();
-        expect(screen.queryByText(/No records/)).not.toBeInTheDocument();
-    });
-
-    // Locking the button is more honest than continuing to offer one that does nothing when pressed.
-    it('명령을 모른다고 배우면 버튼을 잠근다', async () => {
-        fetchBootRecords.mockImplementation(() => Promise.reject({ code: 'NOT_FOUND' }));
-        render(<BootRecordsScreen />);
-        await screen.findByText(/not supported by this app version/);
-
-        expect(screen.getByRole('button', { name: 'Refresh' })).toBeDisabled();
     });
 
     it('일반 실패는 버전 차이와 구분해 적는다', async () => {

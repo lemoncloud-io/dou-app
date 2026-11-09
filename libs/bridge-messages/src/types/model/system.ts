@@ -426,9 +426,8 @@ export type OnWebAppReadyPayload = {
     /** Bridge protocol version to use for the current conversation */
     protocolVersion: string;
     /**
-     * The WebMessages the App has a handler for when it answers. An app whose bridge predates
-     * 2.6.0 lists every WebMessage it was compiled against instead, so a web build still needs its
-     * `NOT_FOUND` fallback for anything it decides from this list.
+     * The WebMessages the App has a handler for when it answers. Every phone shell the web still
+     * runs in (app 0.30.0, bridge 2.9.0, and later) lists its handlers, not the whole vocabulary.
      */
     supportedWebMessages: string[];
     /** The replies paired with `supportedWebMessages`. Pushed events are not listed. */

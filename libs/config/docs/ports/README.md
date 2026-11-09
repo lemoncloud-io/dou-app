@@ -124,8 +124,9 @@ Writes are wrapped in `try`/`catch`: a blocked or full store must not break the 
 
 Values cross the storage boundary as JSON, under `storageKeyFor(key)` — `@chatic/config.<key>`.
 Decoding is total, so anything unreadable comes back as absent and the lane is simply skipped.
-`encodeValue` and `storageKeyFor` are on the barrel so an app writing a one-time legacy migration can
-seed the exact format `hydrateStorage()` reads back, instead of duplicating this encoding.
+`encodeValue` and `storageKeyFor` are on the barrel so an app that seeds a local-lane value before
+`init` — `apps/web` mirrors the theme key other apps on the same browser share — writes the exact
+format `hydrateStorage()` reads back, instead of duplicating this encoding.
 
 ### `IShellKvAdapter` — the shell as an opaque key-value store
 
@@ -196,7 +197,7 @@ failing is what keeps an unwired `persist: 'shell'` key a silent no-op instead o
 1. Create `src/app/config/adapters.ts` exporting a `ConfigRuntimePorts`. Keep the `import.meta.env` read in that file and nowhere else — it is the one file per Vite app allowed to touch it.
 2. Build `env` with `createWebEnvAdapter(read)`. Do not reimplement stage validation or the lowercasing.
 3. Put anything testable in a **separate** file. A module that reads `import.meta.env` is unloadable under the CommonJS test transform, and so is anything importing it — which is why `apps/web` keeps its two callbacks in `configPortCallbacks.ts`.
-4. Call `config.init(ports)` in `main.tsx`, after any legacy migration and before the runtime boot.
+4. Call `config.init(ports)` in `main.tsx`, after anything that seeds a local-lane value and before the runtime boot.
 
 ### What not to do
 
@@ -210,7 +211,7 @@ failing is what keeps an unwired `persist: 'shell'` key a silent no-op instead o
 - **`testing/fixtures.ts` covers all of this.** `ports()` returns `env` plus two `memoryStorage()` instances, and takes overrides; `envAdapter(stage, buildStage, platform)` defaults `buildStage` to `stage`, so a test that wants them to disagree must say so explicitly.
 - **`memoryStorage()` exposes `dump()`** on top of `StorageLike`, which is how the persistence tests assert what landed under which key.
 - **`adapters/webEnvAdapter.spec.ts` is the one place the lowercasing rule is pinned.** Changing that set without changing the test is how a path-bearing endpoint would start being lowercased.
-- **The shell round trip is not tested here.** `ConfigFacade`'s retry and failure reporting are covered in `index.spec.ts` with a fake adapter; the `NOT_FOUND` downgrade to the legacy bridge lives in `apps/web`'s `shellKvAdapter.test.ts`, and the native side in `apps/mobile`'s `ConfigKvService.test.ts`.
+- **The shell round trip is not tested here.** `ConfigFacade`'s retry and failure reporting are covered in `index.spec.ts` with a fake adapter; the shell adapter itself is covered by `apps/web`'s `shellKvAdapter.test.ts`, and the native side in `apps/mobile`'s `ConfigKvService.test.ts`.
 
 ## Further reading
 

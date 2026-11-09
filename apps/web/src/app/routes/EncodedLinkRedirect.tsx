@@ -12,11 +12,9 @@ import { ROUTES } from './paths';
  * handles `/s?code=…`.
  *
  * The web owning this path is not redundant with landing owning it. The mobile WebView hands some
- * links straight through, and a native build that predates the `/i` format has no branch for it at
- * all, so the link arrives here verbatim; without this route it falls to the router's `*` fallback,
- * which redirects to `/` and drops the query string — the invite disappears without a trace. That
- * matters more for `/i` than it did for `/s`: the native side only reaches users through a store
- * release, while this ships with the web bundle every installed app already loads.
+ * links straight through, and a browser can open the web origin with one, so the link arrives here
+ * verbatim; without this route it falls to the router's `*` fallback, which redirects to `/` and drops
+ * the query string — the invite disappears without a trace.
  *
  * A token we cannot read falls back to `/`. There is nothing useful to show for it, and the home
  * screen is the right landing spot.

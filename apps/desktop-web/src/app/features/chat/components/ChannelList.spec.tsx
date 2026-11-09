@@ -558,7 +558,7 @@ describe('ChannelList row context menu (slice 05)', () => {
         menu.useRealActions = false;
         act(() => {
             pinned.ids = [];
-            useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+            useNotificationPrefsStore.setState({ channelNotify: {} });
         });
     });
 
@@ -824,7 +824,7 @@ describe('ChannelList notify level and mention marks', () => {
         cleanup();
         menu.cursors = {};
         act(() => {
-            useNotificationPrefsStore.setState({ channelNotify: {}, mutedChannels: {} });
+            useNotificationPrefsStore.setState({ channelNotify: {} });
             useMentionsStore.setState({ items: {} });
         });
     });

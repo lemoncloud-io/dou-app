@@ -100,7 +100,6 @@ describe('copyTextWithResult', () => {
         expect(writeTextMock).not.toHaveBeenCalled();
     });
 
-    // An older app's NOT_FOUND lands here too — nothing was copied, so failure is correct.
     it('브릿지가 거절하면 실패로 답한다', async () => {
         isNativeMock.mockReturnValue(true);
         copyClipBoardMock.mockRejectedValue(new Error('NOT_FOUND'));

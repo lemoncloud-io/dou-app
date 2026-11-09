@@ -104,10 +104,6 @@ export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> imple
         if (!normalized) return;
 
         await storage.save(normalized.id, normalized);
-        const legacyId = this.buildLegacyProfileId(normalized.sid, normalized.uid);
-        if (legacyId && legacyId !== normalized.id) {
-            await storage.delete(legacyId);
-        }
         this.scheduleItemReemit([normalized.id], scope);
         this.scheduleListReemit(this.getAffectedListPrefixes([existing?.sid, normalized.sid], scope));
     }
@@ -132,16 +128,6 @@ export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> imple
         if (valid.length === 0) return;
 
         await storage.saveAll(valid);
-
-        // Batch the legacy-key cleanup too. Individual `delete` calls pushed the round trips back to N
-        // and were the other half of what made one write cost 2N+1 in total.
-        const legacyIds = valid
-            .map(item => ({ item, legacyId: this.buildLegacyProfileId(item.sid, item.uid) }))
-            .filter(({ item, legacyId }) => !!legacyId && legacyId !== item.id)
-            .map(({ legacyId }) => legacyId);
-        if (legacyIds.length > 0) {
-            await storage.deleteAll(Array.from(new Set(legacyIds)));
-        }
         this.scheduleItemReemit(
             valid.map(item => item.id),
             scope
@@ -233,10 +219,6 @@ export class ProfileLocalDataSource extends BaseLocalDataSource<'profile'> imple
 
     private buildCanonicalProfileId(sid?: string, uid?: string): string {
         return sid && uid ? `${sid}@${uid}` : '';
-    }
-
-    private buildLegacyProfileId(sid?: string, uid?: string): string {
-        return sid && uid ? `${sid}:${uid}` : '';
     }
 
     private getListKey(

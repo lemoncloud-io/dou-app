@@ -32,7 +32,7 @@ grep -rln "@chatic/theme" --include='*.ts' --include='*.tsx' apps libs | grep -v
 `apps/web` did exactly that. It is the key. `vite-ui-theme` is not private to any app: the pre-paint
 scripts in `apps/web`, `apps/desktop-web`, `apps/block-kit-builder` and `apps/testbed` all read it
 directly, `apps/web`'s `setTheme` writes it as an explicit mirror alongside its own `@chatic/config`
-storage, and `legacyPreferenceMigration.ts` reads it back. One shared machine keeps one preference
+storage, and its `themeSharedKeySync.ts` reads it back. One shared machine keeps one preference
 because every writer agrees on that string, and this lib is where the writing half of that agreement
 lives.
 

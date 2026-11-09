@@ -5,7 +5,7 @@ import { fetchShareIntake, type ShareIntake } from '../../../bridge/shareIntake'
 export type ShareIntakeState =
     | { status: 'loading' }
     | { status: 'ready'; intake: ShareIntake }
-    /** No id, an app without share intake, or a share the app no longer holds. */
+    /** No id, or a share the app no longer holds. */
     | { status: 'empty' }
     /** A transient failure — a timeout or the bridge dropping. Worth a retry, not a silent exit. */
     | { status: 'error'; retry: () => void; retrying: boolean };

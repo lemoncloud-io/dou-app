@@ -5,7 +5,6 @@ import type { TelemetryRateQuery } from '@chatic/bridges';
 import {
     BUILT_IN_TELEMETRY_POLICY,
     DEFAULT_PERF_RATE,
-    FIRST_APP_VERSION_WITH_STATISTICS,
     FULL_RATE_PERF_TAGS,
     loadStartingPolicy,
     refreshPolicy,
@@ -81,16 +80,19 @@ describe('the built-in policy', () => {
         expect(parseTelemetryPolicy(BUILT_IN_TELEMETRY_POLICY)).toEqual(BUILT_IN_TELEMETRY_POLICY);
     });
 
-    it('collects on the mobile apps from the first build with a statistics share', () => {
-        const app = { host: 'app', appVersion: FIRST_APP_VERSION_WITH_STATISTICS } as const;
-        expect(rateOf({ ...app, platform: 'ios', stream: 'usage' })).toBe(1);
-        expect(rateOf({ ...app, platform: 'android', stream: 'perf' })).toBe(DEFAULT_PERF_RATE);
-        expect(rateOf({ host: 'app', platform: 'ios', appVersion: '0.30.0', stream: 'perf' })).toBe(DEFAULT_PERF_RATE);
+    it('collects on the mobile apps at or above the version floor', () => {
+        expect(rateOf({ host: 'app', platform: 'ios', appVersion: '0.30.0', stream: 'usage' })).toBe(1);
+        expect(rateOf({ host: 'app', platform: 'android', appVersion: '0.31.2', stream: 'perf' })).toBe(
+            DEFAULT_PERF_RATE
+        );
     });
 
-    it('keeps older app builds and the desktop app off', () => {
-        expect(rateOf({ host: 'app', platform: 'ios', appVersion: '0.29.1', stream: 'usage' })).toBe(0);
-        expect(rateOf({ host: 'app', platform: 'android', stream: 'perf' })).toBe(0);
+    it('keeps an app below the version floor off — it only reaches the update screen', () => {
+        expect(rateOf({ host: 'app', platform: 'ios', appVersion: '0.29.2', stream: 'usage' })).toBe(0);
+        expect(rateOf({ host: 'app', platform: 'android', stream: 'usage' })).toBe(0);
+    });
+
+    it('keeps the desktop app off', () => {
         expect(rateOf({ host: 'app', platform: 'web', appVersion: '9.0.0', stream: 'usage' })).toBe(0);
     });
 
@@ -102,7 +104,7 @@ describe('the built-in policy', () => {
     it('keeps every run of the records with a target', () => {
         for (const tag of FULL_RATE_PERF_TAGS) {
             expect(rateOf({ host: 'browser', platform: 'web', stream: 'perf', tag })).toBe(1);
-            expect(rateOf({ host: 'app', platform: 'ios', appVersion: '0.29.1', stream: 'perf', tag })).toBe(0);
+            expect(rateOf({ host: 'app', platform: 'ios', appVersion: '0.30.0', stream: 'perf', tag })).toBe(1);
         }
     });
 });

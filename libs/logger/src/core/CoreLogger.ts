@@ -82,10 +82,11 @@ export class CoreLogger implements Logger {
      * or its context, so entries that crossed a boundary keep their original
      * occurrence times and labels. (ADR-0097)
      *
-     * The one field that may be filled in is `id`, and only when absent: an
-     * older app relaying entries without one would otherwise be undedupable,
-     * and a resend would store a second document. Backfilling here gives such
-     * an entry a stable key from the moment it enters this runtime.
+     * The one field that may be filled in is `id`, and only when absent: the
+     * native log emitter and the web's pending-report relay hand entries over
+     * without one, and such an entry would otherwise be undedupable, so a
+     * resend would store a second document. Backfilling here gives it a stable
+     * key from the moment it enters this runtime.
      */
     public ingest(entry: LogEntry): void {
         const stamped: LogEntry = entry.id ? entry : { ...entry, id: createLogId() };

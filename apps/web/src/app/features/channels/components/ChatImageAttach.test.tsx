@@ -436,7 +436,6 @@ describe('useChatImageAttach — videos and documents', () => {
         readPhotos: jest.fn(async items => ({ items, refused: [] })),
         prepareVideo: jest.fn(),
         isUnsupported: () => unsupported,
-        reset: jest.fn(),
     });
     const shellVideo = {
         uri: 'file:///c/attach-pick/a/v.mp4',
@@ -502,54 +501,16 @@ describe('useChatImageAttach — videos and documents', () => {
             fireEvent.click(screen.getByRole('button', { name: 'chat.attach.file' }));
         };
 
-        it('tells an app user that an update sends videos', () => {
-            mockNative = true;
-            render(<Harness sendImages={jest.fn()} shellPicker={shellPicker(async () => null, true)} />);
-
-            openSheet();
-
-            expect(screen.getByText('chat.attach.source.videoNeedsUpdate')).toBeInTheDocument();
-        });
-
-        it('tells a browser user that videos go from the app, not to update one', () => {
+        it('tells a browser user that videos go from the app', () => {
             render(<Harness sendImages={jest.fn()} shellPicker={shellPicker(async () => null, true)} />);
 
             openSheet();
 
             expect(screen.getByText('chat.attach.source.videoInApp')).toBeInTheDocument();
-            expect(screen.queryByText('chat.attach.source.videoNeedsUpdate')).not.toBeInTheDocument();
         });
     });
 
-    it('opens the page’s own input in the same tap when the shell answers it has no picker', async () => {
-        const shell = shellPicker(async () => null);
-        render(<Harness sendImages={jest.fn()} shellPicker={shell} now={() => 0} />);
-        const click = jest.spyOn(screen.getByTestId('chat-attach-album') as HTMLInputElement, 'click');
-
-        openSource('chat.attach.source.album');
-        await flush();
-
-        expect(click).toHaveBeenCalledTimes(1);
-    });
-
-    // iOS opens a page input only within about a second of the tap; a late click would do nothing.
-    it('asks for another tap instead of a click the page would no longer be allowed', async () => {
-        let clock = 0;
-        const shell = shellPicker(async () => {
-            clock += INPUT_CLICK_WINDOW_MS + 1;
-            return null;
-        });
-        render(<Harness sendImages={jest.fn()} shellPicker={shell} now={() => clock} />);
-        const click = jest.spyOn(screen.getByTestId('chat-attach-files') as HTMLInputElement, 'click');
-
-        openSource('chat.attach.source.files');
-        await flush();
-
-        expect(click).not.toHaveBeenCalled();
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.tapAgain' });
-    });
-
-    it('opens the page input straight from the tap once the shell is known to have no picker', () => {
+    it('opens the page input straight from the tap in a browser', () => {
         const shell = shellPicker(async () => null, true);
         render(<Harness sendImages={jest.fn()} shellPicker={shell} />);
         const click = jest.spyOn(screen.getByTestId('chat-attach-files') as HTMLInputElement, 'click');
@@ -911,7 +872,6 @@ describe('useChatImageAttach — editing and grouping in the grid', () => {
             readPhotos: jest.fn(async items => ({ items, refused: [] })),
             prepareVideo: jest.fn(),
             isUnsupported: () => false,
-            reset: jest.fn(),
         };
         render(<Harness sendImages={sendImages} shellPicker={shell} />);
 
@@ -1675,7 +1635,6 @@ describe('useChatImageAttach — files waiting above the composer', () => {
         readPhotos: jest.fn(async items => ({ items, refused: [] })),
         prepareVideo: jest.fn(),
         isUnsupported: () => false,
-        reset: jest.fn(),
     });
     const shellDoc = {
         uri: 'file:///c/attach-pick/a/plan.pdf',

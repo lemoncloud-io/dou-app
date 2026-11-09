@@ -65,11 +65,8 @@ const fakeLibrary = (reads: string[]): PhotoLibrary => ({
         return new File([id], `${id}.jpg`, { type: 'image/jpeg' });
     }),
     keepVideo: jest.fn(),
-    videosSupported: jest.fn().mockReturnValue(true),
-    pagesByOffset: jest.fn().mockReturnValue(true),
     manageSelection: jest.fn().mockResolvedValue('granted'),
     isUnsupported: jest.fn().mockReturnValue(false),
-    reset: jest.fn(),
 });
 
 // Every photo is 4:3, so a square crop is a narrower box centred on it.

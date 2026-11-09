@@ -127,7 +127,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
      * (in SQL) is only an optimization — this layer owns the semantics — so when a returned row
      * disagrees with the current `isPreviewableChat` (older semantics baked into the app), that channel
      * alone is redirected to a windowed read. When the fast path returns `null` (IndexedDB, which does
-     * not implement it; an older app; a transient error) every channel is read through the window —
+     * not implement it; a transient error) every channel is read through the window —
      * today's behaviour unchanged is the fallback.
      *
      * `lastNo` is that channel cache's maximum chatNo, regardless of previewability. It is the

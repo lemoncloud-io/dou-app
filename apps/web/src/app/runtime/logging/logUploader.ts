@@ -8,7 +8,8 @@ import {
 } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
 
-import { clearNativeLogQueue, createNativeUploadSource, isNativeUploadQueueUnsupported } from './nativeUploadSource';
+import { isBelowAppVersionFloor, readShellVersion } from '../../features/appUpdate/lib/appVersionFloor';
+import { clearNativeLogQueue, createNativeUploadSource } from './nativeUploadSource';
 import { noteStatisticsDropped, selectTelemetryForUpload } from '../telemetry/telemetryRuntime';
 import { registerLogQueueView } from './logQueueView';
 import { createLogUploadStore, resolveTabId } from './logUploadStore';
@@ -60,12 +61,13 @@ export interface LogUploaderHandle {
 
 export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderHandle => {
     /**
-     * Which side owns the store, decided once.
-     *
-     * Whether the *app* can serve a store is a separate question, learned rather
-     * than known — see `useAppStore` below.
+     * Which side owns the store, decided once: the app's store inside the app,
+     * the page's own queue in a browser. Every entry reaches the app as it is
+     * dispatched, so in a hybrid run the web keeps no copy of its own.
      */
-    const hybrid = isNative();
+    // An app below the version floor boots only as far as the update screen, and may predate the app's
+    // log store; its logs stay in the page's own queue.
+    const hybrid = isNative() && !isBelowAppVersionFloor(readShellVersion());
 
     // Tab-scoped and stable across reloads; a per-load id would leak a key
     // pair on every refresh and strand the previous load's queue.
@@ -102,75 +104,15 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
     // dead tab's key as it reads it, so skipping it would leave orphan keys
     // behind forever. What is loaded is discarded a few lines below.
     queue.restore(store.load());
+    // In a hybrid run the restored entries were relayed to the app as they were
+    // dispatched, so they are duplicates; the write below drops them from disk too.
+    if (hybrid) queue.clear();
 
     const localStore = createQueueLogStore(queue);
     const appStore = createNativeUploadSource();
 
-    /**
-     * Whether the app is serving the store this cycle.
-     *
-     * Hybrid alone is not enough to answer. The messages this reads through
-     * (`FetchLogUploadQueue` and friends) ship with the app, and the web ships
-     * first — so a hybrid run against an app that predates them has no app store
-     * to read, and `nativeUploadSource` learns that from the first `NOT_FOUND`.
-     * Until it does, hybrid is assumed.
-     */
-    const useAppStore = (): boolean => hybrid && !isNativeUploadQueueUnsupported();
-
-    /**
-     * Whether the local queue is still being filled.
-     *
-     * True at boot on every platform, including hybrid. That is a deliberate
-     * softening of "the web stores nothing in a hybrid run": the rule holds once
-     * the app has answered, but it cannot hold *before* that, because the answer
-     * arrives a cycle or more after the first entries are dispatched. Assuming
-     * the app can serve and being wrong would lose exactly the boot window — the
-     * part of a session that explains the rest of it.
-     *
-     * So the web keeps a copy until the app proves it owns the store, then drops
-     * it (`standDownLocalStore`). On an app that cannot serve, this copy is not a
-     * copy at all — it is the only one, and the pipeline runs standalone.
-     */
-    let fillingLocalStore = true;
-
-    /**
-     * Called once the app has answered a read: the copy kept for the boot window
-     * is redundant, because every entry in it was also relayed across as it was
-     * dispatched and is sitting in the app's store.
-     */
-    const standDownLocalStore = (): void => {
-        if (!fillingLocalStore) return;
-        fillingLocalStore = false;
-        queue.clear();
-        persistNow();
-    };
-
-    /**
-     * Routes reads to whichever side owns the store.
-     *
-     * The check is per call rather than once at boot because the answer is
-     * learned, not known — and it only ever moves one way, from "assume the app"
-     * to "the app cannot", so there is no flapping to guard against.
-     */
-    const logStore: LogStoreReader = {
-        peek: async limit => {
-            if (useAppStore()) {
-                const batch = await appStore.peek(limit);
-                // Still true after the call means the app answered rather than
-                // rejecting: it owns the store, so the boot-window copy can go.
-                if (useAppStore()) {
-                    standDownLocalStore();
-                    return batch;
-                }
-                // Otherwise the NOT_FOUND was just learned — fall through and
-                // send what the local queue has been holding since boot.
-            }
-            return localStore.peek(limit);
-        },
-        ack: entries => (useAppStore() ? appStore.ack(entries) : localStore.ack(entries)),
-        clear: () => (useAppStore() ? appStore.clear() : localStore.clear()),
-        size: () => (useAppStore() ? appStore.size() : localStore.size()),
-    };
+    /** Routes reads to whichever side owns the store. */
+    const logStore: LogStoreReader = hybrid ? appStore : localStore;
 
     const scheduler = createLogUploadScheduler({
         store: logStore,
@@ -224,16 +166,13 @@ export const startLogUploader = (options: LogUploaderOptions = {}): LogUploaderH
      * this thin is what lets a fourth listener be added later without reading
      * anyone else's ordering.
      *
-     * It runs in hybrid too, until `standDownLocalStore` stops it. In a hybrid
-     * run against a capable app the entries it keeps are duplicates — every one
-     * of them was relayed across as it was dispatched — and they are discarded
-     * as soon as the app answers a read. Against an app that cannot serve a
-     * store, they are the only copy there is.
+     * It does nothing in a hybrid run: the app's store holds every entry
+     * already.
      */
     const unsubscribeStore = logHub.subscribe((entry: LogEntry) => {
         // An opted-out device collects nothing: not queued, not written.
         if (!isLogCollectionEnabled()) return;
-        if (!fillingLocalStore) return;
+        if (hybrid) return;
 
         queue.push(entry);
         persistSoon();

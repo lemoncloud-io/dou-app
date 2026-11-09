@@ -49,8 +49,6 @@ const en = {
         nativeHoldsCount: (count: number) => `Native holds ${count} ${count === 1 ? 'transfer' : 'transfers'}`,
         acknowledged: (count: number, remaining: string) => `Acknowledged ${count}; native still holds ${remaining}`,
     },
-    /** Appended by `errorOf` when the shell answers `NOT_FOUND` for a command it predates. */
-    noHandlerYet: 'this app build has no file-transfer handler yet',
 };
 
 const ko: typeof en = {
@@ -93,7 +91,6 @@ const ko: typeof en = {
         nativeHoldsCount: (count: number) => `네이티브가 전송 ${count}건을 갖고 있습니다`,
         acknowledged: (count: number, remaining: string) => `${count}건 확인함, 네이티브에 ${remaining}건 남음`,
     },
-    noHandlerYet: '이 앱 빌드에는 아직 파일 전송 핸들러가 없습니다',
 };
 
 export const useUploadTestScreenStrings = defineDebugStrings({ ko, en });

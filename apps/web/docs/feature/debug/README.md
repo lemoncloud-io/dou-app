@@ -215,8 +215,7 @@ What each clear does, and why it stops where it does:
   now" over an emptied store.
 
 The screen is not `requiresShell`: in a browser the web half is all there is, and still worth
-reading. An app build older than the two messages answers `NOT_FOUND`, and the native half says the
-build cannot report instead of offering a button that cannot work.
+reading. A failed summary request shows its error in the native half, and its clear stays off.
 
 ## Usage
 

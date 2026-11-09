@@ -143,29 +143,14 @@ describe('exportFile', () => {
         expect(deps.acknowledge).toHaveBeenCalledWith(['d-2']);
     });
 
-    it('reads NOT_FOUND from SaveFile or OpenFile as an app that needs updating', async () => {
-        const save = makeDeps([fileResult], { save: jest.fn(async () => Promise.reject(failure('NOT_FOUND'))) });
-        await expect(exportFile(input('save'), save.deps)).resolves.toEqual({ kind: 'update-required' });
+    it('reads NOT_FOUND or UNSUPPORTED_TYPE from any use as a plain failure', async () => {
+        for (const code of ['NOT_FOUND', 'UNSUPPORTED_TYPE']) {
+            const save = makeDeps([fileResult], { save: jest.fn(async () => Promise.reject(failure(code))) });
+            await expect(exportFile(input('save'), save.deps)).resolves.toEqual({ kind: 'failed' });
 
-        const open = makeDeps([fileResult], { open: jest.fn(async () => Promise.reject(failure('NOT_FOUND'))) });
-        await expect(exportFile(input('open'), open.deps)).resolves.toEqual({ kind: 'update-required' });
-    });
-
-    it('reads a shell without downloads as an app that needs updating', async () => {
-        const { deps } = makeDeps([{ kind: 'unsupported' }]);
-        await expect(exportFile(input('save'), deps)).resolves.toEqual({ kind: 'update-required' });
-    });
-
-    it('does not read NOT_FOUND from ShareFile as an old app — the handshake listed it', async () => {
-        const { deps } = makeDeps([fileResult], { share: jest.fn(async () => Promise.reject(failure('NOT_FOUND'))) });
-        await expect(exportFile(input('share'), deps)).resolves.toEqual({ kind: 'failed' });
-    });
-
-    it('reads UNSUPPORTED_TYPE from ShareFile as an app built before documents', async () => {
-        const { deps } = makeDeps([fileResult], {
-            share: jest.fn(async () => Promise.reject(failure('UNSUPPORTED_TYPE'))),
-        });
-        await expect(exportFile(input('share'), deps)).resolves.toEqual({ kind: 'share-update-required' });
+            const share = makeDeps([fileResult], { share: jest.fn(async () => Promise.reject(failure(code))) });
+            await expect(exportFile(input('share'), share.deps)).resolves.toEqual({ kind: 'failed' });
+        }
     });
 
     it('reports a refused storage permission from SaveFile', async () => {
@@ -184,15 +169,8 @@ describe('exportFile', () => {
         expect(refused.deps.log).toHaveBeenCalled();
     });
 
-    it('reads INVALID from saving a ZIP archive or an audio file as an app built before the phone kept them, and logs nothing', async () => {
-        for (const name of [
-            'photos.zip',
-            'PHOTOS.ZIP',
-            'voice-20261102-101500.m4a',
-            'song.MP3',
-            'take.wav',
-            'memo.ogg',
-        ]) {
+    it('reads INVALID from saving an audio file as an app built before the phone kept audio, and logs nothing', async () => {
+        for (const name of ['voice-20261102-101500.m4a', 'song.MP3', 'take.wav', 'memo.ogg']) {
             const { deps } = makeDeps([fileResult], { save: jest.fn(async () => Promise.reject(failure('INVALID'))) });
             await expect(exportFile({ ...input('save'), name }, deps)).resolves.toEqual({
                 kind: 'save-update-required',
@@ -203,15 +181,15 @@ describe('exportFile', () => {
         }
     });
 
-    it('keeps INVALID a logged failure for any other name, and for a ZIP archive outside a save', async () => {
-        for (const name of ['report.pdf', 'zip', 'archive.zip.part', 'clip.aac', 'm4a']) {
+    it('keeps INVALID a logged failure for any other name, and for an audio file outside a save', async () => {
+        for (const name of ['report.pdf', 'photos.zip', 'zip', 'archive.zip.part', 'clip.aac', 'm4a']) {
             const { deps } = makeDeps([fileResult], { save: jest.fn(async () => Promise.reject(failure('INVALID'))) });
             await expect(exportFile({ ...input('save'), name }, deps)).resolves.toEqual({ kind: 'failed' });
             expect(deps.log).toHaveBeenCalled();
         }
 
         const { deps } = makeDeps([fileResult], { share: jest.fn(async () => Promise.reject(failure('INVALID'))) });
-        await expect(exportFile({ ...input('share'), name: 'photos.zip' }, deps)).resolves.toEqual({ kind: 'failed' });
+        await expect(exportFile({ ...input('share'), name: 'memo.ogg' }, deps)).resolves.toEqual({ kind: 'failed' });
         expect(deps.log).toHaveBeenCalled();
     });
 

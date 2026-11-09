@@ -98,13 +98,12 @@ Files whose contents the name does not give away:
 
 Nine native bridge calls are made from this feature directly: `getContacts`, `openShareSheet`,
 `openSettings`, `openURL`, `copyClipBoard`, `fetchUrlMetadata`, the viewer's `saveToPhotoLibrary`
-and `shareFile`, and `readVideoFrame` for a received video's first frame (`hooks/useVideoFrames`; an
-app built before it answers `NOT_FOUND`). Attachments reach the shell through the page's `bridge/` modules rather than from the
+and `shareFile`, and `readVideoFrame` for a received video's first frame (`hooks/useVideoFrames`).
+Attachments reach the shell through the page's `bridge/` modules rather than from the
 feature itself ([image-send.md](./image-send.md)): the photo grid through `bridge/photoLibrary.ts`
 (`ListPhotos`, `ReadPhoto`, and `KeepLibraryVideo` for a picked video), the
 app's own picker through `bridge/attachmentPicker.ts` (`PickAttachments`, `PrepareVideo` and
-`ReadAttachment`; an app built before the picker answers `NOT_FOUND`, and the page opens its own file
-input instead), the uploads through `bridge/shellUpload.ts` (the shell's file-transfer messages), and
+`ReadAttachment`; in a browser the page opens its own file input instead), the uploads through `bridge/shellUpload.ts` (the shell's file-transfer messages), and
 the camera entry's permission check through `bridge/cameraAccess.ts` (`RequestPermission`), and a
 voice message through `bridge/audioRecorder.ts` (`StartAudioRecording`, `StopAudioRecording`; the
 attach panel's voice entry is drawn only where the handshake lists them).

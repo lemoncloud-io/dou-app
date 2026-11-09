@@ -42,55 +42,6 @@ const OPERATION_BY_MESSAGE: Record<string, NativeCacheOperation> = {
 };
 
 /**
- * Is an app build installed that doesn't know `FetchManyCacheData`?
- *
- * Since web ships ahead of the app, this can run inside a build with no handler for this
- * message. In that case the host rejects with `NOT_FOUND`, and this remembers that fact so it
- * doesn't even try again afterward. This doesn't rely on a handshake capability report because
- * that arrives asynchronously and may not be there yet at adapter-construction time — learning
- * from a single failure has no race.
- *
- * Module scope is intentional. There's only one installed app, so there's no reason to learn
- * this separately per domain, and since an adapter is created per type, instance scope would
- * mean learning it 9 times.
- */
-let batchReadUnsupported = false;
-
-/** Test seam — resets the learned fallback state. */
-export const resetNativeBatchReadSupport = (): void => {
-    batchReadUnsupported = false;
-};
-
-/**
- * Is an app build installed that doesn't know `FetchLastChatsData` (ADR-0057)?
- *
- * A module-scope learning flag on the same basis as `batchReadUnsupported` — since web ships
- * ahead of the app, once a `NOT_FOUND` is received from a host that doesn't know this message,
- * it isn't tried again afterward, and the caller falls back to a per-channel window read.
- */
-let lastChatsUnsupported = false;
-
-/** Test seam — resets the learned fallback state. */
-export const resetNativeLastChatsSupport = (): void => {
-    lastChatsUnsupported = false;
-};
-
-/**
- * Is an app build installed that doesn't know `ClearCacheDataByChannel` (ADR-0067)?
- *
- * A module-scope learning flag on the same basis as the two above. The fallback's nature
- * differs, though — a failed read can just come back empty-handed, but a delete has to actually
- * happen, so this one really does fall through to `super`'s read-then-delete path to finish
- * the job the same way.
- */
-let clearByChannelUnsupported = false;
-
-/** Test seam — resets the learned fallback state. */
-export const resetNativeClearByChannelSupport = (): void => {
-    clearByChannelUnsupported = false;
-};
-
-/**
  * A cache storage adapter class that communicates over WebBridge with the local DB in the
  * native app environment (SQLite, etc).
  *
@@ -219,43 +170,27 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
      *
      * The default implementation (`BaseDbAdapter.loadMany`) calls `load` N times, which on
      * native means N round trips — merge-saving 50 chat messages meant 50 round trips just to
-     * read the existing rows. This folds it into one `FetchManyCacheData` call.
-     *
-     * On an app build that doesn't know this message, the host rejects with `NOT_FOUND`, which
-     * is detected here to fall back to per-id lookups and remember that fact
-     * (`batchReadUnsupported`). Any other failure is not swallowed and is rethrown as-is —
-     * hiding a timeout or storage error behind the fallback would double the round trips while
-     * also hiding the cause.
+     * read the existing rows. This folds it into one `FetchManyCacheData` call. Every phone
+     * shell the web still runs in answers it, so a failure is rethrown as-is.
      */
     override async loadMany(ids: string[]): Promise<CacheModelOf<TType>[]> {
         if (ids.length === 0) return [];
-        if (batchReadUnsupported) return super.loadMany(ids);
 
         const scope = this.getScope();
         if (!scope) return [];
 
-        try {
-            const response = await this.sendRead({
-                type: 'FetchManyCacheData',
-                data: {
-                    type: this.type,
-                    cid: scope.cid,
-                    uid: scope.uid,
-                    ids,
-                } as Extract<FetchManyCacheDataPayload, { type: TType }>,
-            });
+        const response = await this.sendRead({
+            type: 'FetchManyCacheData',
+            data: {
+                type: this.type,
+                cid: scope.cid,
+                uid: scope.uid,
+                ids,
+            } as Extract<FetchManyCacheDataPayload, { type: TType }>,
+        });
 
-            const data = response?.data as Extract<OnFetchManyCacheDataPayload, { type: TType }> | undefined;
-            return (data?.items ?? []) as CacheModelOf<TType>[];
-        } catch (error) {
-            if ((error as { code?: string })?.code !== 'NOT_FOUND') throw error;
-
-            batchReadUnsupported = true;
-            logger.info('CACHE', '[NativeDBAdapter] batch read unsupported by this app build — falling back', {
-                data: { type: this.type },
-            });
-            return super.loadMany(ids);
-        }
+        const data = response?.data as Extract<OnFetchManyCacheDataPayload, { type: TType }> | undefined;
+        return (data?.items ?? []) as CacheModelOf<TType>[];
     }
 
     async loadAll(options?: CacheQueryOf<TType>): Promise<CacheModelOf<TType>[]> {
@@ -285,17 +220,15 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
      * Reads the latest preview per channel plus the max chatNo in a single round trip
      * (chat-only, ADR-0057).
      *
-     * `null` always means "fall back" — a non-chat type, an older app that doesn't know this
-     * message (learned via a single `NOT_FOUND`), a native processing error (`items: null` —
-     * not learned, applies only to this read), or any other bridge failure (timeout, etc —
-     * also not learned). Why no error is thrown: whenever this lookup fails, the correct answer
+     * `null` always means "fall back" — a non-chat type, a native processing error
+     * (`items: null`), or a bridge failure (timeout, etc). Each applies only to this read. Why
+     * no error is thrown: whenever this lookup fails, the correct answer
      * is always "today's behavior" (a per-channel window read), and it's simpler for the caller
      * (`ChatLocalDataSource`) to make that call in one fallback spot.
      */
     async loadLastPerChannel(channelIds: string[]): Promise<LastChatItem[] | null> {
         if (this.type !== 'chat') return null;
         if (channelIds.length === 0) return [];
-        if (lastChatsUnsupported) return null;
 
         const scope = this.getScope();
         // `[]`, not `null` — `null` means "fall back to a per-channel window read", and that path
@@ -310,13 +243,6 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
             const data = response?.data as OnFetchLastChatsDataPayload | undefined;
             return data?.items ?? null;
         } catch (error) {
-            if ((error as { code?: string })?.code === 'NOT_FOUND') {
-                lastChatsUnsupported = true;
-                logger.info('CACHE', '[NativeDBAdapter] last-chats read unsupported by this app build — falling back', {
-                    data: { type: this.type },
-                });
-                return null;
-            }
             logger.warn('CACHE', '[NativeDBAdapter] last-chats read failed — falling back this read', { error });
             return null;
         }
@@ -371,46 +297,25 @@ export class NativeDBAdapter<TType extends CacheType> extends BaseDbAdapter<TTyp
      * Deletes one channel's rows directly on native (ADR-0067) — a single-condition
      * `channel_id` DELETE, so it's one round trip with zero payload.
      *
-     * An older app that doesn't know this message rejects with `NOT_FOUND`, which is learned
-     * once, falling through to `super`'s read-then-delete path. That path also scopes its read
-     * to `channelId` (see base), so the fallback doesn't pull in the whole table.
-     *
-     * Any other failure (timeout, etc) is not learned and is thrown — unlike a read, a delete
-     * must not silently swallow "it didn't happen this time"; the caller decides how to handle
-     * that failure.
+     * A failure (timeout, etc) is thrown — unlike a read, a delete must not silently swallow
+     * "it didn't happen this time"; the caller decides how to handle that failure.
      *
      * One thing not distinguished here, though, is native answering with **`success: false`
      * instead of a rejection** (a SQL error) — the same is true of this adapter's other write
      * paths. The leftover row is hidden from the screen by `isInJoinWindow`, so the user-visible
-     * result is the same, and firing a fallback at the same DB again would only fail for the
-     * same reason.
+     * result is the same.
      */
     override async clearByChannelId(channelId: string): Promise<void> {
-        if (clearByChannelUnsupported) return super.clearByChannelId(channelId);
-
         const scope = this.getScope();
         if (!scope) return;
-        try {
-            await this.send({
-                type: 'ClearCacheDataByChannel',
-                data: {
-                    type: this.type,
-                    cid: scope.cid,
-                    uid: scope.uid,
-                    channelId,
-                } as Extract<ClearCacheDataByChannelPayload, { type: TType }>,
-            });
-        } catch (error) {
-            if ((error as { code?: string })?.code !== 'NOT_FOUND') throw error;
-            clearByChannelUnsupported = true;
-            logger.info(
-                'CACHE',
-                '[NativeDBAdapter] channel-scoped clear unsupported by this app build — falling back',
-                {
-                    data: { type: this.type },
-                }
-            );
-            await super.clearByChannelId(channelId);
-        }
+        await this.send({
+            type: 'ClearCacheDataByChannel',
+            data: {
+                type: this.type,
+                cid: scope.cid,
+                uid: scope.uid,
+                channelId,
+            } as Extract<ClearCacheDataByChannelPayload, { type: TType }>,
+        });
     }
 }

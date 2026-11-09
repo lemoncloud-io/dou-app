@@ -1,5 +1,5 @@
 import type { OnSaveFilePayload } from '@chatic/bridge-messages';
-import { CHAT_ATTACHMENT_ZIP_TYPE, chatAttachmentFormat } from '@chatic/data';
+import { chatAttachmentFormat } from '@chatic/data';
 
 import type { DownloadProgress, DownloadResult, NativeDownload } from '../../../runtime/transfer';
 
@@ -16,14 +16,9 @@ export type FileExportOutcome =
     | { kind: 'save-dismissed' }
     /** Android 7–9 refused the storage permission `SaveFile` asks for. */
     | { kind: 'permission' }
-    /** The app has no `OpenFile` / `SaveFile` (or no downloads at all): the card shows its update notice. */
-    | { kind: 'update-required' }
-    /** `ShareFile` refused a document — an app built before documents. */
-    | { kind: 'share-update-required' }
     /**
-     * `SaveFile` refused a format older apps do not save — a ZIP archive or an audio file, from an app
-     * built before the phone kept them. Only this card is affected: the same app saves every other
-     * document, so nothing is learned about the shell.
+     * `SaveFile` refused an audio file, from an app built before the phone kept them. Only this card is
+     * affected: the same app saves every other document, so nothing is learned about the shell.
      */
     | { kind: 'save-update-required' }
     /** Stopped on purpose while downloading. Silent. */
@@ -73,25 +68,13 @@ class StepError extends Error {
 }
 
 const fromDownload = (result: Exclude<DownloadResult, { kind: 'file' }>): FileExportOutcome => {
-    switch (result.kind) {
-        case 'unsupported':
-            return { kind: 'update-required' };
-        case 'cancelled':
-            return { kind: 'cancelled' };
-        default:
-            return { kind: 'failed' };
-    }
+    return result.kind === 'cancelled' ? { kind: 'cancelled' } : { kind: 'failed' };
 };
 
 const fromStepError = ({ step, cause }: StepError): FileExportOutcome => {
     switch (codeOf(cause)) {
-        case 'NOT_FOUND':
-            // `ShareFile` is offered only when the handshake lists it, so its `NOT_FOUND` is a plain failure.
-            return step === 'share' ? { kind: 'failed' } : { kind: 'update-required' };
         case 'PERMISSION_DENIED':
             return step === 'save' ? { kind: 'permission' } : { kind: 'failed' };
-        case 'UNSUPPORTED_TYPE':
-            return step === 'share' ? { kind: 'share-update-required' } : { kind: 'failed' };
         case 'TIMEOUT':
             return { kind: 'timed-out' };
         default:
@@ -100,13 +83,11 @@ const fromStepError = ({ step, cause }: StepError): FileExportOutcome => {
 };
 
 /**
- * Whether the name is one an app from before archives and audio refuses to save: a ZIP archive or one
- * of the four audio formats, by its extension and the same rule the upload judged it by.
+ * Whether the name is one an app from before audio refuses to save: one of the four audio formats, by
+ * its extension and the same rule the upload judged it by.
  */
-const isNewlySavedFormat = (name: string): boolean => {
-    const type = chatAttachmentFormat({ name, type: '' })?.type;
-    return type === CHAT_ATTACHMENT_ZIP_TYPE || !!type?.startsWith('audio/');
-};
+const isNewlySavedFormat = (name: string): boolean =>
+    !!chatAttachmentFormat({ name, type: '' })?.type.startsWith('audio/');
 
 const run = async (step: FileUse, call: () => Promise<unknown>): Promise<unknown> => {
     try {
@@ -146,8 +127,8 @@ const handOver = async (use: FileUse, uri: string, name: string, deps: FileExpor
  * - **`SOURCE` from the use, once.** The OS cleared the file — the kept one or a fresh one — so it is
  *   forgotten and the flow runs again from the download.
  * - **`NO_HANDLER` from an open.** Nothing on the device opens the format; the share sheet is offered.
- * - **`INVALID` from saving a `.zip` or an audio file.** An app built before the phone kept them; it is
- *   told to update.
+ * - **`INVALID` from saving an audio file.** An app built before the phone kept audio; it is told to
+ *   update.
  *
  * A download this flow started is acknowledged once its file has been used. Acknowledging drops only
  * the shell's record, never the file, so the kept URI stays good.
@@ -199,9 +180,9 @@ export const exportFile = async (input: FileExportInput, deps: FileExportDeps): 
                 }
             }
             if (codeOf(error.cause) === 'INVALID') {
-                // A shell from before archives and audio were sent from the phone saves only a document's
-                // extension and refuses a `.zip`, `.m4a`, `.mp3`, `.wav` or `.ogg` as `INVALID`. Expected of an
-                // old app, so it is said, not reported as a bug. A URI outside the shell's download folder is
+                // A shell from before audio was sent from the phone saves only a document's extension and
+                // refuses a `.m4a`, `.mp3`, `.wav` or `.ogg` as `INVALID`. Expected of an old app, so it is
+                // said, not reported as a bug. A URI outside the shell's download folder is
                 // `INVALID` too, but this URI is always its own.
                 if (error.step === 'save' && isNewlySavedFormat(name)) return { kind: 'save-update-required' };
                 deps.log?.('file export: the shell refused its own file', { use });

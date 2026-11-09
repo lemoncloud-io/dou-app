@@ -48,10 +48,8 @@ export const readInjectedRunId = (): string | undefined => nativeGlobals().CHATI
  * sid/uid/cid are all tenancy axes and cannot group "one launch".
  *
  * The native shell issues it at app start and injects it, so native and web
- * entries from the same launch share a value. Web deploys ahead of the app,
- * though, so a shell without the injection is expected: the web then issues its
- * own, which keeps web entries groupable at the cost of not matching the
- * native side until the app ships.
+ * entries from the same launch share a value. Without the injection — a
+ * browser tab — the web issues its own, which keeps web entries groupable.
  */
 const resolveRunId = (): string => {
     const injected = readInjectedRunId();

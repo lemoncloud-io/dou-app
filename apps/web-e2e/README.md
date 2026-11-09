@@ -118,6 +118,13 @@ element — earlier than react-native-webview's "before content loaded" injectio
 styles `document.documentElement`. The shell runs it the moment `<html>` exists instead, which is still
 before the page's first script.
 
+### An older app
+
+The fake shell injects a current app version (`FAKE_SHELL_APP_VERSION` in `libs/fake-shell`), at or
+above the web's version floor. `test.use({ shellAppVersion: '0.29.2' })` installs it as an older app
+instead, which is how `app-version-floor.spec.ts` reaches the update screen. Nothing else about the
+shell changes: it still answers what a current app answers.
+
 ### A browser tab
 
 `test.use({ inApp: false })` opens the page as a plain browser tab instead: no shell is installed, so
@@ -188,8 +195,9 @@ written there.
 
 | Spec                                | What it pins                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app-version-floor.spec.ts`         | An app below the version floor (`test.use({ shellAppVersion })`) sees only the update screen, the boot cover lifts for it, and Update sends `OpenStore`; an app at the floor opens as usual.                                                                                                                                                                                                                          |
 | `boot-splash.spec.ts`               | The handshake says `holdsBootSplash`; `FirstScreenReady` is posted only once the home route's frame is drawn, read in the page as it is posted; a boot that cannot sign in holds the splash until the 10s cap and then lifts it.                                                                                                                                                                                      |
-| `attachment-picker.spec.ts`         | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10); the answer waits in the "Files to send" tray, and Send makes it a file message in the room; a file the shell refused is reported and never sent; an app without the picker gets the page's file input, and is not asked again.                                                                                                          |
+| `attachment-picker.spec.ts`         | "Choose from files" asks the shell (`PickAttachments`, `document`, up to 10); the answer waits in the "Files to send" tray, and Send makes it a file message in the room; a file the shell refused is reported and never sent.                                                                                                                                                                                        |
 | `back-navigation.spec.ts`           | On Android, `SetCanGoBack` is true exactly while an overlay is open, a back press closes the overlay before it rewinds a screen, and at the app's first entry a press is not spent; on both, an invite link that launched the app sits one entry above home, and back returns there.                                                                                                                                  |
 | `push-navigation.spec.ts`           | A tap that launched the app opens its room with the splash lifted over the room, not home, and home underneath; a tap while the app is open replaces the room on screen and a repeat tap adds nothing; a tap into a 1:1 the guest has left says so and lands on home, leaving one home entry rather than two.                                                                                                         |
 | `cloud-invite-entry.spec.ts`        | An invite back into the cloud and place already open switches the session into the place before the profile check, and asks for no profile (the same-cloud regression); an invite into a place with no profile asks for one and saves it on that place.                                                                                                                                                               |

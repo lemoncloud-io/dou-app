@@ -2,6 +2,8 @@ import { DEFAULT_TELEMETRY_POLICY, parseTelemetryPolicy } from '@chatic/bridges'
 
 import type { TelemetryPolicy, TelemetryPolicyMatch, TelemetryPolicyRule } from '@chatic/bridges';
 
+import { APP_VERSION_FLOOR } from '../../features/appUpdate/lib/appVersionFloor';
+
 /**
  * Where the sampling policy comes from.
  *
@@ -15,20 +17,15 @@ export type TelemetryPolicySource = () => Promise<unknown>;
 export const disabledTelemetryPolicySource: TelemetryPolicySource = async () => ({ version: 0, enabled: false });
 
 /**
- * The first mobile app version whose native log queue has a statistics share. An older build relays
- * a statistic into a queue that stores it as a plain log and drops its `kind` on a restart, so those
- * builds stay off.
- */
-export const FIRST_APP_VERSION_WITH_STATISTICS = '0.29.2';
-
-/**
- * Where statistics are collected: the two mobile apps from the first build with the share, and the
- * web in a browser tab. The desktop app also runs the web as `host: 'app'` (`platform: 'web'`) on a
- * version line of its own, so it matches none of these and stays off.
+ * Where statistics are collected: the two mobile apps and the web in a browser tab. A mobile app is
+ * held to the version floor: every app at or above it has a statistics share in its native log queue,
+ * and an app below it still boots the web up to the update screen, where its queue would store a
+ * statistic as a plain log. The desktop app also runs the web as `host: 'app'` (`platform: 'web'`) on
+ * a version line of its own, so it matches none of these and stays off.
  */
 const COLLECTED: TelemetryPolicyMatch[] = [
-    { host: 'app', platform: 'ios', minAppVersion: FIRST_APP_VERSION_WITH_STATISTICS },
-    { host: 'app', platform: 'android', minAppVersion: FIRST_APP_VERSION_WITH_STATISTICS },
+    { host: 'app', platform: 'ios', minAppVersion: APP_VERSION_FLOOR },
+    { host: 'app', platform: 'android', minAppVersion: APP_VERSION_FLOOR },
     { host: 'browser' },
 ];
 
@@ -60,7 +57,7 @@ const rulesFor = (where: TelemetryPolicyMatch): TelemetryPolicyRule[] => [
 
 /**
  * The policy the app serves itself until the server serves one. No `defaults`: a run that matches
- * no rule — an older app build, the desktop app — collects nothing.
+ * no rule — the desktop app — collects nothing.
  *
  * A week of `ttlSec`, not an hour: a run starts from the stored policy only while it is that fresh,
  * and an hour would leave most cold starts — a user opening the app once a day — with statistics

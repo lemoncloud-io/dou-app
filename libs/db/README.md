@@ -56,10 +56,10 @@ imports them as runtime functions.
    are equally hard to debug.
 6. **On native, one call is one bridge round trip.** Which method a caller picks _is_ the
    performance. `loadMany` exists for exactly this reason.
-7. **The web deploys before the app shell.** A bridge message the installed shell does not implement
-   comes back `NOT_FOUND`. The adapter learns that once, at module scope, and takes the fallback from
-   then on — it does not wait for a handshake capability report, which arrives after the adapters are
-   already built.
+7. **Every cache message is assumed answered.** The web refuses to run in a phone shell older than
+   app 0.30.0, and every shell from that one on handles `FetchManyCacheData`, `FetchLastChatsData`
+   and `ClearCacheDataByChannel`. So the adapter keeps no "this shell is too old" fallback: a bridge
+   failure is a failure, rethrown (or, for the last-chats read, answered `null` for that one read).
 
 ## Scope
 
@@ -68,7 +68,7 @@ one JSON value per partition and no query interpretation (`WebStorageAdapter`); 
 the shared default implementations (`BaseDbAdapter`); the physical
 IndexedDB connection and schema (`IndexedDBDatabase`); the web `CacheStorage` with its per-channel cap
 and quota recovery (`IndexedDBAdapter`); chat paging (`ChatQueryExecutor`); the bridge `CacheStorage`
-with in-flight read sharing, batch reads and three learned fallbacks (`NativeDBAdapter`); native call
+with in-flight read sharing and batch reads (`NativeDBAdapter`); native call
 instrumentation (`nativeCacheMetrics`); two `IGlobalCacheSearchSource` implementations.
 
 **Out** — the port interfaces and the TTL/scope policy (`@chatic/data`, `local/ports/`); stream
@@ -127,8 +127,8 @@ carries types and four pure functions, and that is the whole of it.
 
 ### A native read
 
-The path worth drawing is the bridge one, because three separate mechanisms meet on it — request
-sharing, instrumentation and the version fallback.
+The path worth drawing is the bridge one, because two separate mechanisms meet on it — request
+sharing and instrumentation.
 
 ```mermaid
 sequenceDiagram
@@ -151,15 +151,13 @@ sequenceDiagram
         N->>M: recordNativeCacheOperation('loadMany', type, elapsedMs)
     end
     N-->>DS: items (order and length NOT matching ids)
-
-    Note over N,S: NOT_FOUND → this shell is too old.<br/>Learn it once, then fall back to load-per-id.
 ```
 
 ### Directories
 
 ```text
 libs/db/src/
-├── index.ts          public barrel — 18 values, 3 types
+├── index.ts          public barrel — 16 values, 3 types
 ├── base/             BaseDbAdapter: scope resolution + the defaults every adapter inherits
 ├── indexeddb/        the web store — IndexedDBDatabase, IndexedDBAdapter, ChatQueryExecutor
 ├── native/           the bridge store — NativeDBAdapter, nativeCacheMetrics
@@ -173,16 +171,12 @@ Ten production files, nine spec files. Several names are not where the filename 
   kept out of `@chatic/data` so that lib does not take a DOM dependency.
 - `TYPE_CID_UID_INDEX`, `CHAT_PAGINATION_INDEX` and `UNSENT_CHAT_NO` are in `IndexedDBDatabase.ts`.
 - `NativeCacheMetricsSource`, the `ICacheMetricsSource` implementation, is in `nativeCacheMetrics.ts`.
-- The three `resetNative*Support` test seams sit beside the module flags they clear, in
-  `NativeDBAdapter.ts`.
 - **There is no `types.ts`.** Every type this lib implements against comes from `@chatic/data`.
 
-The barrel is wider than its use: of its 20 exports, `localFactory` imports 7 — `ChatQueryExecutor`,
+The barrel is wider than its use: of its 19 exports, `localFactory` imports 8 — `ChatQueryExecutor`,
 `IndexedDBAdapter`, `IndexedDBDatabase`, `IndexedDbGlobalSearchSource`, `NativeCacheMetricsSource`,
-`NativeDBAdapter`, `NativeGlobalSearchSource`. The other 13 have no consumer outside this lib. One
-asymmetry to know before you reach for it: `resetNativeBatchReadSupport` and
-`resetNativeLastChatsSupport` are on the barrel, `resetNativeClearByChannelSupport` is not, and the
-specs reach all three by relative import anyway.
+`NativeDBAdapter`, `NativeGlobalSearchSource`, `WebStorageAdapter`. The other 11 have no consumer
+outside this lib.
 
 ## The web store
 
@@ -252,25 +246,13 @@ round trips — merging a 50-message page once cost 51. `loadMany` folds it into
 simply absent. Re-index by id (`BaseLocalDataSource.indexById`). Pairing by position shifts every item
 after the first cache miss onto a stranger's row.
 
-**Three learned fallbacks**, each a module-scoped boolean set by one `NOT_FOUND`:
-
-| Message                   | Flag                        | What happens instead                                            |
-| ------------------------- | --------------------------- | --------------------------------------------------------------- |
-| `FetchManyCacheData`      | `batchReadUnsupported`      | `super.loadMany` — one read per id                              |
-| `FetchLastChatsData`      | `lastChatsUnsupported`      | returns `null`; the caller does a per-channel windowed read     |
-| `ClearCacheDataByChannel` | `clearByChannelUnsupported` | `super.clearByChannelId` — read the channel's rows, delete them |
-
-Module scope is deliberate: one app is installed, so there is nothing to learn per domain, and
-adapters are built per type and per partition — an instance-scoped flag would learn the same fact
-once for every adapter. Only
-`NOT_FOUND` triggers a fallback; a timeout or a storage error is rethrown, because hiding those behind
-a fallback doubles the round trips and buries the cause.
-
-Delete is treated differently from read throughout. A read that cannot run returns empty and the
-caller moves on; a delete that cannot run has to actually happen, so `clearByChannelId` descends into
-the base path and finishes the job. The base path narrows its read by `channelId` for the two domains
-whose query declares it (`chat`, `join`), so clearing one room does not drag the whole table across
-the bridge.
+**No version fallbacks.** Every phone shell the web still runs in (app 0.30.0 and later) answers
+`FetchManyCacheData`, `FetchLastChatsData` and `ClearCacheDataByChannel`, so a failure of any of
+them is rethrown rather than hidden behind a slower path — a fallback would double the round trips
+and bury the cause. The one exception is `loadLastPerChannel`: whenever it fails, the right answer is
+the caller's per-channel windowed read, so it answers `null` for that read and tries again next time.
+A delete is never answered that way; `clearByChannelId` rethrows, because a delete that did not happen
+must not look as if it did.
 
 **Instrumentation.** `nativeCacheMetrics` keeps per-`(operation, type)` count, total and max, plus a
 running op count. A single call over 50ms logs a warning, throttled to one line per key per 3s — the
@@ -380,9 +362,8 @@ lost, which is the state of every build except `apps/desktop-web`.
 ### 4. Leaving a room
 
 `ChatLocalDataSource.clearByChannelId` is the one production caller. On native it is a single
-`ClearCacheDataByChannel` — one round trip, empty payload. On a shell too old to know that message the
-adapter learns it once and falls back to reading the channel's rows and deleting them by id. On web it
-is a range delete on the pagination index.
+`ClearCacheDataByChannel` — one round trip, empty payload. On web it is a range delete on the
+pagination index.
 
 ### 5. Searching across clouds
 
@@ -435,9 +416,7 @@ npx jest --config libs/db/jest.config.js      # every spec in the lib
   `globalCacheSearch.contract.test.ts` usually means a bridge payload shape changed, not that the
   search logic broke.
 - **This lib keeps module state, and a spec that does not clear it leaks into the next one.** The
-  metrics totals need `resetNativeCacheMetrics()`, and each learned fallback flag needs its own seam
-  (`resetNativeBatchReadSupport`, `resetNativeLastChatsSupport`, `resetNativeClearByChannelSupport`)
-  — one `NOT_FOUND` in an earlier test otherwise silently changes which path a later one exercises.
+  metrics totals need `resetNativeCacheMetrics()`.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. Force-delete both
   (`rm -rf libs/db/dist libs/db/out-tsc`) and look again.
 - Downstream: `@chatic/app-runtime` is the only direct dependent; through it a changed barrel

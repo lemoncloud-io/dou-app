@@ -1,5 +1,5 @@
 import { webClient } from '@chatic/bridges';
-import { createShellKvAdapter, resetConfigKvSupport } from './shellKvAdapter';
+import { createShellKvAdapter } from './shellKvAdapter';
 
 jest.mock('@chatic/bridges', () => ({
     webClient: { post: jest.fn(), request: jest.fn() },
@@ -14,7 +14,6 @@ describe('shellKvAdapter — @chatic/config 셸 레인의 브릿지 구현', () 
     beforeEach(() => {
         requestMock.mockClear();
         requestMock.mockResolvedValue({ success: true, data: {} });
-        resetConfigKvSupport();
         delete (window as any).CHATIC_APP_CONFIG_BAG;
     });
 
@@ -46,70 +45,14 @@ describe('shellKvAdapter — @chatic/config 셸 레인의 브릿지 구현', () 
             });
         });
 
-        it('구 셸의 NOT_FOUND를 학습하면 legacy SavePreference로 강등한다', async () => {
-            requestMock.mockRejectedValueOnce(NOT_FOUND);
-            requestMock.mockResolvedValueOnce({ success: true, data: { key: 'theme', success: true } });
+        it('passes any failure through, NOT_FOUND included, with no fallback', async () => {
+            for (const failure of [NOT_FOUND, { code: 'TIMEOUT', message: 'no response' }]) {
+                requestMock.mockClear();
+                requestMock.mockRejectedValueOnce(failure);
 
-            await createShellKvAdapter().write('ui.theme', '"dark"');
-
-            expect(requestMock).toHaveBeenCalledTimes(2);
-            expect(requestMock).toHaveBeenNthCalledWith(1, {
-                type: 'SaveConfigValue',
-                data: { key: 'ui.theme', value: '"dark"' },
-            });
-            expect(requestMock).toHaveBeenNthCalledWith(2, {
-                type: 'SavePreference',
-                data: { key: 'theme', value: 'dark' },
-            });
-        });
-
-        it('ui.onboardingCompleted → isFirstRun은 값을 반전해서 강등한다', async () => {
-            requestMock.mockRejectedValueOnce(NOT_FOUND);
-            requestMock.mockResolvedValueOnce({ success: true, data: {} });
-
-            await createShellKvAdapter().write('ui.onboardingCompleted', 'true');
-
-            expect(requestMock).toHaveBeenNthCalledWith(2, {
-                type: 'SavePreference',
-                data: { key: 'isFirstRun', value: false },
-            });
-        });
-
-        it('legacy로 옮길 수 없는 키는 NOT_FOUND를 그대로 던진다', async () => {
-            requestMock.mockRejectedValueOnce(NOT_FOUND);
-
-            await expect(createShellKvAdapter().write('debug.mockService.mode', '"off"')).rejects.toMatchObject({
-                code: 'NOT_FOUND',
-            });
-            expect(requestMock).toHaveBeenCalledTimes(1);
-        });
-
-        it('NOT_FOUND가 아닌 실패는 강등하지 않고 그대로 던진다', async () => {
-            requestMock.mockRejectedValueOnce({ code: 'TIMEOUT', message: 'no response' });
-
-            await expect(createShellKvAdapter().write('ui.theme', '"dark"')).rejects.toMatchObject({
-                code: 'TIMEOUT',
-            });
-            expect(requestMock).toHaveBeenCalledTimes(1);
-        });
-
-        it('한 번 NOT_FOUND를 학습하면 이후 쓰기는 SaveConfigValue를 다시 시도하지 않는다', async () => {
-            requestMock.mockRejectedValueOnce(NOT_FOUND);
-            requestMock.mockResolvedValueOnce({ success: true, data: {} }); // legacy save for ui.theme
-
-            const shell = createShellKvAdapter();
-            await shell.write('ui.theme', '"dark"');
-            requestMock.mockClear();
-            requestMock.mockResolvedValue({ success: true, data: {} });
-
-            await shell.write('ui.blurLastMessage', 'true');
-
-            // Straight to the legacy call — no repeated SaveConfigValue attempt this session.
-            expect(requestMock).toHaveBeenCalledTimes(1);
-            expect(requestMock).toHaveBeenLastCalledWith({
-                type: 'SavePreference',
-                data: { key: 'blurLastMessage', value: true },
-            });
+                await expect(createShellKvAdapter().write('ui.theme', '"dark"')).rejects.toBe(failure);
+                expect(requestMock).toHaveBeenCalledTimes(1);
+            }
         });
     });
 
@@ -121,26 +64,14 @@ describe('shellKvAdapter — @chatic/config 셸 레인의 브릿지 구현', () 
             expect(requestMock).toHaveBeenLastCalledWith({ type: 'ClearConfigValue', data: { key: 'ui.theme' } });
         });
 
-        it('구 셸의 NOT_FOUND를 학습하면 legacy DeletePreference로 강등한다', async () => {
-            requestMock.mockRejectedValueOnce(NOT_FOUND);
-            requestMock.mockResolvedValueOnce({ success: true, data: { key: 'theme', success: true } });
+        it('passes any failure through, NOT_FOUND included, with no fallback', async () => {
+            for (const failure of [NOT_FOUND, { code: 'TIMEOUT', message: 'no response' }]) {
+                requestMock.mockClear();
+                requestMock.mockRejectedValueOnce(failure);
 
-            await createShellKvAdapter().clear('ui.theme');
-
-            expect(requestMock).toHaveBeenNthCalledWith(2, { type: 'DeletePreference', data: { key: 'theme' } });
-        });
-
-        it('legacy로 옮길 수 없는 키는 조용히 끝난다 — 지울 곳이 없다', async () => {
-            requestMock.mockRejectedValueOnce(NOT_FOUND);
-
-            await expect(createShellKvAdapter().clear('debug.mockService.mode')).resolves.toBeUndefined();
-            expect(requestMock).toHaveBeenCalledTimes(1);
-        });
-
-        it('NOT_FOUND가 아닌 실패는 강등하지 않고 그대로 던진다', async () => {
-            requestMock.mockRejectedValueOnce({ code: 'TIMEOUT', message: 'no response' });
-
-            await expect(createShellKvAdapter().clear('ui.theme')).rejects.toMatchObject({ code: 'TIMEOUT' });
+                await expect(createShellKvAdapter().clear('ui.theme')).rejects.toBe(failure);
+                expect(requestMock).toHaveBeenCalledTimes(1);
+            }
         });
     });
 });

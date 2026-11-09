@@ -5,7 +5,6 @@ import { drawVideoFrame, VIDEO_POSTER } from '@chatic/shared';
 
 import { appBridge } from '../../../bridge/appBridge';
 import { base64ToFile } from '../../../bridge/photoLibrary';
-import { isAppleTouchWebKit } from '../utils/attachSources';
 import { VideoFrames, type VideoFrameRequest } from '../lib/videoFrames';
 
 import { getImageCache } from './useCachedImages';
@@ -40,7 +39,6 @@ export const getVideoFrames = (): VideoFrames =>
     (shared ??= new VideoFrames({
         cache: getImageCache(),
         isNative,
-        isAppleTouch: () => isAppleTouchWebKit(),
         readShellFrame,
         fetch: (url, init) => fetch(url, init),
         drawFrame: source => drawVideoFrame(source),

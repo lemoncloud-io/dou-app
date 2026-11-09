@@ -209,12 +209,9 @@ interface ChatImageAttach {
  * × and Escape (Android back) dismiss the panel, and the pick with it.
  *
  * Two ways to pick photos, and the shell decides which:
- * - **The in-app pick**, in an app that has the photo-library bridge: recent photos in the panel, the
- *   full grid behind "see all" and behind the photos entry. Opening the panel asks the shell once for
- *   the newest photos, and that answer is how the page learns the bridge is there.
- * - **The page's own file input** everywhere else — a browser, and an app built before the bridge.
- *   The app's WebView hands a file input to the OS chooser (the profile and channel photo fields
- *   already rely on it) and it returns real bytes, which that older app's own photo bridge does not.
+ * - **The in-app pick**, in the app: recent photos in the panel, the full grid behind "see all" and
+ *   behind the photos entry. Opening the panel asks the shell once for the newest photos.
+ * - **The page's own file input** in a browser.
  *
  * The camera entry is a capturing file input in every shell. In a browser it opens the camera straight
  * from the tap. Inside the app it first asks the app for the camera permission, because Android's
@@ -222,11 +219,9 @@ interface ChatImageAttach {
  * settings prompt instead, and a grant answered after the tap window asks for another tap.
  *
  * The files entry opens a sheet — choose from the album (photos and videos) or from files
- * (documents). In an app that has the attachment picker both open the OS pickers through the shell,
- * which keeps the videos and documents and hands back their addresses: a large video never passes
- * through the page. Everywhere else they open the page's own inputs, whose files the page uploads
- * itself. The shell is asked at the tap, since the message itself opens its picker, and a shell
- * without one answers in time for the page input to open in the same tap.
+ * (documents). In the app both open the OS pickers through the shell, which keeps the videos and
+ * documents and hands back their addresses: a large video never passes through the page. In a browser
+ * they open the page's own inputs, whose files the page uploads itself. The shell is asked at the tap, since the message itself opens its picker.
  *
  * The voice entry, in an app that records, closes the panel and hands over to the page's recording
  * sheet (`useVoiceMessage`).
@@ -557,17 +552,12 @@ export const useChatImageAttach = ({
             ref.current?.click();
             return;
         }
-        const tappedAt = now();
         shellPicker
             .pick({ source, selectionLimit: room })
             .then(picked => {
-                if (picked) {
-                    if (holds) hold(picked.items, { refusedByShell: picked.refused });
-                    else send(picked.items, { refusedByShell: picked.refused });
-                    return;
-                }
-                if (now() - tappedAt <= INPUT_CLICK_WINDOW_MS) ref.current?.click();
-                else toast({ title: t('chat.attach.tapAgain') });
+                if (!picked) return;
+                if (holds) hold(picked.items, { refusedByShell: picked.refused });
+                else send(picked.items, { refusedByShell: picked.refused });
             })
             .catch(error => {
                 // A second tap while the picker opens or copies: the first one is still under way.
@@ -952,13 +942,7 @@ export const useChatImageAttach = ({
                 labels={{ album: t('chat.attach.source.album'), files: t('chat.attach.source.files') }}
                 // iOS WebKit's own input cannot send videos (it hands them over as QuickTime), so where
                 // the page input is what opens, say what would.
-                notice={
-                    // iOS WebKit's own input gives photos only. Inside the app an update brings the
-                    // picker; a browser never gets one.
-                    appleTouch && shellPicker.isUnsupported()
-                        ? t(isNative() ? 'chat.attach.source.videoNeedsUpdate' : 'chat.attach.source.videoInApp')
-                        : undefined
-                }
+                notice={appleTouch && shellPicker.isUnsupported() ? t('chat.attach.source.videoInApp') : undefined}
             />
             {inGrid && (
                 <PhotoGridSheet

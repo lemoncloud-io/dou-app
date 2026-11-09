@@ -34,7 +34,8 @@ export const useHandlePushNavigation = (): void => {
             logger.info('ROUTER', `Received OnNavigate event from native: ${path}`, { replace });
             // A navigation into a room carries on the trace the native tap started, so it includes
             // the cold boot and handshake this handler waited behind; `handler` marks where that
-            // wait ended. An older app build sends no trace, and the web starts its own here.
+            // wait ended. A navigation the shell did not trace comes without one, and the web starts
+            // its own here.
             const roomChannelId = channelIdOfRoomPath(resolvePushNavigation(path).target);
             if (roomChannelId) {
                 roomOpenTrace.begin(roomChannelId, perfTrace?.entry ?? 'navigate', perfTrace);

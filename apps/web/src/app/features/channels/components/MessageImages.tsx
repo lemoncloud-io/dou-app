@@ -265,7 +265,6 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                                 download: t('chat.attach.fileCard.download', { name }),
                                 cancel: t('chat.attach.fileCard.cancel', { name }),
                                 open: t('chat.attach.fileCard.open', { name }),
-                                unavailable: t('chat.attach.fileCard.unavailable'),
                                 broken: t('chat.attach.fileCard.broken'),
                                 sending: t('chat.attach.sending'),
                             }}
@@ -291,7 +290,7 @@ export const MessageImages = ({ uploads, chatId, cid, align }: MessageImagesProp
                     exports.canExport
                         ? at => {
                               const item = exportables[at];
-                              if (!item || !exports.canExportItem(item)) return null;
+                              if (!item) return null;
                               const savable = exports.savable(exportables);
                               return (
                                   <SaveShareButtons

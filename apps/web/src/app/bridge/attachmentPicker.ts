@@ -13,7 +13,7 @@ import { base64ToFile } from './photoLibrary';
 
 /**
  * The app's own picker for chat videos and documents, and its video conversion — or `null` from
- * `pick` in every shell that has neither, which the attach panel takes as "use the page's own input".
+ * `pick` in a browser, which the attach panel takes as "use the page's own input".
  *
  * Videos and documents stay in the shell: it copies what was picked into its own folder and answers
  * with addresses, which the upload then sends from there. Photos are kept there too, already prepared,
@@ -32,13 +32,10 @@ import { base64ToFile } from './photoLibrary';
  * instead of going up raw; both shells' `ReadAttachment` reads any picked file named as one of the four
  * photo formats. An MP4 needs nothing here: the send tells a video by its format, not by `kind`.
  *
- * The web ships ahead of the app, so this runs inside app builds that have no such picker. Such a shell
- * answers `NOT_FOUND`, and one such answer settles it for the page: there is one installed app. Only
- * `NOT_FOUND` is learned from — a timeout or a transport error is transient. It is asked at the tap, not
- * when the menu opens, because the message itself opens the picker.
+ * It is asked at the tap, not when the menu opens, because the message itself opens the picker.
  */
 export interface AttachmentPicker {
-    /** What was picked, in pick order, or `null` when this shell has no picker. A cancel is an empty pick. */
+    /** What was picked, in pick order, or `null` in a browser. A cancel is an empty pick. */
     pick(input: { source: AttachmentPickSource; selectionLimit: number }): Promise<AttachmentPick | null>;
     /**
      * Reads the photos among `items` that are still in the shell, one at a time, into page files, in
@@ -48,10 +45,8 @@ export interface AttachmentPicker {
     readPhotos(items: ChatAttachmentSource[]): Promise<AttachmentPick>;
     /** The send's `prepareVideo` port: converts a picked video in the shell and makes its poster. */
     prepareVideo: runtime.data.PrepareVideoPort;
-    /** Whether this shell is already known to have no picker. */
+    /** Whether there is no picker here — a browser. */
     isUnsupported(): boolean;
-    /** Test seam — forgets the learned verdict. */
-    reset(): void;
 }
 
 export interface AttachmentPick {
@@ -71,8 +66,6 @@ const READ_ATTACHMENT_TIMEOUT_MS = 2 * 60_000;
 
 /** A 4K minute converts in tens of seconds on a phone; a few minutes of it in several. */
 const PREPARE_VIDEO_TIMEOUT_MS = 10 * 60_000;
-
-const isNotFound = (error: unknown): boolean => (error as { code?: string })?.code === 'NOT_FOUND';
 
 /** A shell-kept item as the send takes it. The share page hands what another app shared over the same way. */
 export const toShellFile = (item: PickedShellAttachment): ShellFileRef => {
@@ -109,14 +102,8 @@ const photoType = (pickedType: string, readType: string): string =>
 const isPhotoFormat = (name: string, type: string): boolean => chatAttachmentFormat({ name, type })?.kind === 'image';
 
 class ShellAttachmentPicker implements AttachmentPicker {
-    private unsupported = false;
-
     isUnsupported(): boolean {
-        return this.unsupported || !isNative();
-    }
-
-    reset(): void {
-        this.unsupported = false;
+        return !isNative();
     }
 
     async pick({
@@ -127,36 +114,28 @@ class ShellAttachmentPicker implements AttachmentPicker {
         selectionLimit: number;
     }): Promise<AttachmentPick | null> {
         if (this.isUnsupported()) return null;
-        try {
-            const { data } = await webClient.request(
-                {
-                    type: 'PickAttachments',
-                    data: { source, selectionLimit, maxBytes: { ...CHAT_ATTACHMENT_MAX_BYTES } },
-                },
-                { timeoutMs: PICK_TIMEOUT_MS }
-            );
-            const items: ChatAttachmentSource[] = [];
-            const refused: RefusedAttachment[] = [...data.refused];
-            // In pick order, and one at a time: at most one photo is ever on the bridge. The album's pick
-            // goes out at once, so its photos are read now; the documents pick waits above the composer,
-            // so its photos stay in the shell, as addresses, until the send reads them (`readPhotos`).
-            for (const item of data.items) {
-                if (item.kind !== 'image' && (source === 'document' || !isPhotoFormat(item.name, item.contentType))) {
-                    items.push(toShellFile(item));
-                    continue;
-                }
-                const photo = await this.readPhoto(item.uri, item.contentType);
-                if (photo) items.push(photo);
-                else refused.push({ name: item.name, kind: 'image', reason: 'unreadable' });
+        const { data } = await webClient.request(
+            {
+                type: 'PickAttachments',
+                data: { source, selectionLimit, maxBytes: { ...CHAT_ATTACHMENT_MAX_BYTES } },
+            },
+            { timeoutMs: PICK_TIMEOUT_MS }
+        );
+        const items: ChatAttachmentSource[] = [];
+        const refused: RefusedAttachment[] = [...data.refused];
+        // In pick order, and one at a time: at most one photo is ever on the bridge. The album's pick
+        // goes out at once, so its photos are read now; the documents pick waits above the composer, so
+        // its photos stay in the shell, as addresses, until the send reads them (`readPhotos`).
+        for (const item of data.items) {
+            if (item.kind !== 'image' && (source === 'document' || !isPhotoFormat(item.name, item.contentType))) {
+                items.push(toShellFile(item));
+                continue;
             }
-            return { items, refused };
-        } catch (error) {
-            if (isNotFound(error)) {
-                this.unsupported = true;
-                return null;
-            }
-            throw error;
+            const photo = await this.readPhoto(item.uri, item.contentType);
+            if (photo) items.push(photo);
+            else refused.push({ name: item.name, kind: 'image', reason: 'unreadable' });
         }
+        return { items, refused };
     }
 
     async readPhotos(items: ChatAttachmentSource[]): Promise<AttachmentPick> {

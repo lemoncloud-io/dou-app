@@ -30,15 +30,15 @@ install — and what a run on a build the policy excludes keeps.
 The server has no policy route yet, so the app serves its own (`BUILT_IN_TELEMETRY_POLICY`,
 `policy.ts`). It collects where a statistic can survive the trip and nowhere else:
 
-| Where                             | Matched as                                         |
-| --------------------------------- | -------------------------------------------------- |
-| iOS and Android apps from 0.29.2  | `host: app`, the platform, `minAppVersion: 0.29.2` |
-| the web in a browser tab          | `host: browser`                                    |
-| older app builds, the desktop app | no rule — nothing collected                        |
+| Where                    | Matched as                  |
+| ------------------------ | --------------------------- |
+| iOS and Android apps     | `host: app`, the platform   |
+| the web in a browser tab | `host: browser`             |
+| the desktop app          | no rule — nothing collected |
 
-0.29.2 is the first app build whose native queue has a statistics share; an older one would store a
-relayed statistic as a plain log. The desktop app runs the web as `host: app` with `platform: web`, on
-a version line of its own, so the mobile minimum leaves it out.
+Every mobile app this web runs in has a statistics share in its native queue (it arrived in 0.29.2,
+below the app version floor), so the rules carry no version bound. The desktop app runs the web as
+`host: app` with `platform: web`, so the two platform rules leave it out.
 
 | Records                                                                                                             | Rate       |
 | ------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -126,7 +126,6 @@ statistics fields, and the forwarder never folds a statistic into a "+N identica
   by `timestamp`.
 - **A session rolls over on `visibilitychange`.** Whether an Android WebView fires it when the app
   goes to the background has not been checked; if it does not, an Android run is one long session.
-- **An app build older than this change keeps the statistics fields in memory** (its `SendLog`
-  handler passes unknown fields on), but its queue has no statistics share and its storage drops
-  `kind` on a restart. The built-in policy leaves those builds out (`minAppVersion`), and any policy
-  that turns them on has to do the same.
+- **An app build before 0.29.2 had no statistics share in its queue** and dropped `kind` on a
+  restart. The app version floor keeps those builds from running this web at all, which is why the
+  built-in policy needs no `minAppVersion`.

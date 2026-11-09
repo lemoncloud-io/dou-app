@@ -1,7 +1,7 @@
 # theme — state, DOM application, and the native sync
 
 Covers `apps/web/src/app/hooks/useTheme.ts`, `runtime/ThemeApplier.tsx` and
-`config/legacyPreferenceMigration.ts`. The value model, default, storage format and web↔native
+`config/themeSharedKeySync.ts`. The value model, default, storage format and web↔native
 contract are owned by [`apps/mobile/docs/system/theme.md`](../../../mobile/docs/system/theme.md) — this document
 covers only the web-internal wiring. The storage/lane mechanism itself is
 [`@chatic/config`](../../../../libs/config/README.md)'s canon; see also [stores.md](../state/stores.md)
@@ -106,7 +106,7 @@ compatible read stays.
   pre-paint scripts in five apps (web, desktop-web, admin-v2, testbed, block-kit-builder) and
   `@chatic/theme`'s `ThemeProvider` (admin-v2, desktop-web, landing) all read and write it directly,
   so renaming and deleting it the way other config keys were migrated would break those five call
-  sites. `config/legacyPreferenceMigration.ts`'s `syncThemeFromSharedKey()` re-syncs
+  sites. `config/themeSharedKeySync.ts`'s `syncThemeFromSharedKey()` re-syncs
   `vite-ui-theme` into `ui.theme`'s namespaced storage on every boot instead, without ever deleting
   the original.
 - The default flip from `'system'` to `'light'` stands (a decision from 2025, affecting only users

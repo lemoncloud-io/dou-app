@@ -12,7 +12,7 @@ export type { IndexedDBAdapterOptions } from './indexeddb/IndexedDBAdapter';
 
 export { WebStorageAdapter } from './webstorage/WebStorageAdapter';
 
-export { NativeDBAdapter, resetNativeBatchReadSupport, resetNativeLastChatsSupport } from './native/NativeDBAdapter';
+export { NativeDBAdapter } from './native/NativeDBAdapter';
 export {
     getNativeCacheMetrics,
     recordNativeCacheOperation,

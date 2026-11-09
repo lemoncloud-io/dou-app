@@ -119,20 +119,6 @@ describe('MessageFileCard', () => {
             expect(onDownload).not.toHaveBeenCalled();
         });
 
-        // A shell that cannot save says why there is no button rather than offering one that fails.
-        it('swaps the button for the notice where downloading is unavailable', () => {
-            render(
-                <MessageFileCard
-                    name="a.pdf"
-                    download="unavailable"
-                    labels={{ unavailable: 'Update the app to download' }}
-                />
-            );
-
-            expect(screen.queryByRole('button', { name: /download|open/i })).not.toBeInTheDocument();
-            expect(screen.getByText('Update the app to download')).toBeInTheDocument();
-        });
-
         it('takes translated button names', () => {
             render(<MessageFileCard name="a.pdf" labels={{ download: '다운로드' }} />);
             expect(screen.getByRole('button', { name: '다운로드' })).toBeInTheDocument();

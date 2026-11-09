@@ -30,11 +30,7 @@ export const OAuthScreen = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            void run(
-                                strings.operationLabels.login(provider),
-                                () => appBridge.oAuthLogin(provider),
-                                'OAuthLogin'
-                            )
+                            void run(strings.operationLabels.login(provider), () => appBridge.oAuthLogin(provider))
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
@@ -43,11 +39,7 @@ export const OAuthScreen = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            void run(
-                                strings.operationLabels.logout(provider),
-                                () => appBridge.oAuthLogout(provider),
-                                'OAuthLogout'
-                            )
+                            void run(strings.operationLabels.logout(provider), () => appBridge.oAuthLogout(provider))
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >

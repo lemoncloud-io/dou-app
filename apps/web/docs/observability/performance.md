@@ -187,8 +187,7 @@ fast but took long to become current.
 ### How it runs
 
 It begins with `chat_room_open`, in `roomOpenTrace.begin` — or natively, for a tap, and is handed over
-as `OnNavigate.perfTrace.syncId` (an app build that predates it sends none, and the web starts it at
-the hand-over). It is published at once as the **active** `chat_room_sync` for the channel (see
+as `OnNavigate.perfTrace.syncId` (a hand-over without it has the web start it at the hand-over). It is published at once as the **active** `chat_room_sync` for the channel (see
 [`@chatic/perf`](../../../../libs/perf/README.md)), because the sync that marks its phases runs in
 `libs/app-runtime`, which cannot reach the web.
 

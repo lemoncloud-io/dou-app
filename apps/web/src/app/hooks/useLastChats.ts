@@ -10,7 +10,7 @@ import type { DomainChannel, DomainChat, DomainJoin, DomainLastChat } from '@cha
  *
  * This is a pure cache observation: instead of subscribing to a 30-row window per channel, it reads
  * through a single `chat.observeLastList` (on newer app versions the whole list is one bridge
- * round-trip; older apps and the browser fall back to the data source doing per-channel windows).
+ * round-trip; the browser falls back to the data source doing per-channel windows).
  * **No network call is made here** — loading recent messages into the cache is managed separately,
  * outside this screen (native's background message loading), and that write re-wakes this
  * observation via the `chats-last` relimit. The list simply mirrors whatever last message the cache

@@ -74,10 +74,4 @@ describe('MessageAudioCard', () => {
         expect(props.onCancel).toHaveBeenCalled();
         expect(screen.queryByRole('button', { name: /chat\.attach\.audio\.menu/ })).not.toBeInTheDocument();
     });
-
-    it('has no menu where it can neither be saved nor shared', () => {
-        render(<MessageAudioCard {...props} name="song.mp3" download="unavailable" />);
-
-        expect(screen.queryByRole('button', { name: /chat\.attach\.audio\.menu/ })).not.toBeInTheDocument();
-    });
 });

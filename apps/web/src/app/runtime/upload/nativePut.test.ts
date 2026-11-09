@@ -121,8 +121,6 @@ describe('createNativeTransfers — videos and documents', () => {
 
         expect(fallback).toHaveBeenCalledWith(target, picked, 'slot-0/original', undefined);
         expect(requests).toEqual([]);
-        // Not a verdict on the shell: the next image still goes native.
-        expect(transfers.usesFallback()).toBe(false);
     });
 
     it('starts a shell file from its own address with its declared length, writing no temp file', async () => {
@@ -141,7 +139,7 @@ describe('createNativeTransfers — videos and documents', () => {
         });
     });
 
-    it('fails a shell file on a shell without the transfer module rather than reach the page PUT', async () => {
+    it('fails a shell file the shell refuses to start rather than reach the page PUT', async () => {
         const { transfers, fallback } = setup({ StartFileTransfer: notFound() });
 
         await expect(transfers.putShellFile(target, shellVideo, 'slot-0/original')).resolves.toEqual({
@@ -232,15 +230,6 @@ describe('createNativeTransfers', () => {
         expect(sent).toEqual([6]);
     });
 
-    it('passes the progress callback on to the page PUT it falls back to', async () => {
-        const { transfers, fallback } = setup({ WriteTempFile: notFound() });
-        const onProgress = jest.fn();
-
-        await transfers.put(target, file, 'slot-0/original', onProgress);
-
-        expect(fallback).toHaveBeenCalledWith(target, file, 'slot-0/original', onProgress);
-    });
-
     it('acknowledges the transfer once it has ended', async () => {
         const { transfers, requests, emit } = setup();
 
@@ -263,38 +252,19 @@ describe('createNativeTransfers', () => {
         expect(transfers.waiting()).toEqual([]);
     });
 
-    it.each(['WriteTempFile', 'StartFileTransfer'])(
-        'falls back to the page PUT when %s is NOT_FOUND, and stays there for the session',
-        async failing => {
-            const { transfers, fallback, bridge } = setup({ [failing]: notFound() });
+    it.each(['INVALID', 'NOT_FOUND'])(
+        'reports a start refused with %s as a system failure and does not fall back',
+        async code => {
+            const refused = Object.assign(new Error('refused'), { code });
+            const { transfers, fallback } = setup({ StartFileTransfer: refused });
 
             await expect(transfers.put(target, file, 'slot-0/original')).resolves.toEqual({
-                kind: 'responded',
-                httpStatus: 200,
+                kind: 'no-response',
+                reason: 'system',
             });
-            const requestsAfterFirst = bridge.request.mock.calls.length;
-            await transfers.put(target, file, 'slot-1/original');
-
-            expect(fallback).toHaveBeenCalledTimes(2);
-            expect(fallback).toHaveBeenCalledWith(target, file, 'slot-0/original', undefined);
-            expect(transfers.usesFallback()).toBe(true);
-            // The second PUT never asked the shell anything.
-            expect(bridge.request.mock.calls.length).toBe(requestsAfterFirst);
-            expect(transfers.waiting()).toEqual([]);
+            expect(fallback).not.toHaveBeenCalled();
         }
     );
-
-    it('reports a refused start as a system failure and does not fall back', async () => {
-        const invalid = Object.assign(new Error('bad request'), { code: 'INVALID' });
-        const { transfers, fallback } = setup({ StartFileTransfer: invalid });
-
-        await expect(transfers.put(target, file, 'slot-0/original')).resolves.toEqual({
-            kind: 'no-response',
-            reason: 'system',
-        });
-        expect(fallback).not.toHaveBeenCalled();
-        expect(transfers.usesFallback()).toBe(false);
-    });
 
     it('reports a temp file the shell could not write as a source failure', async () => {
         const failedWrite = Object.assign(new Error('disk full'), { code: 'SOURCE' });
@@ -456,20 +426,10 @@ describe('syncFileTransfers', () => {
         await expect(result).resolves.toEqual({ kind: 'responded', httpStatus: 200 });
     });
 
-    it('does nothing on a shell without the transfer module', async () => {
+    it('does nothing when the list request fails', async () => {
         const { transfers, bridge } = setup({ ListFileTransfers: notFound() });
 
         await expect(syncFileTransfers(bridge, transfers)).resolves.toBeUndefined();
         expect(bridge.request).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not ask at all once the page uses the fallback', async () => {
-        const { transfers, bridge } = setup({ WriteTempFile: notFound() });
-        await transfers.put(target, file, 'slot-0/original');
-        bridge.request.mockClear();
-
-        await syncFileTransfers(bridge, transfers);
-
-        expect(bridge.request).not.toHaveBeenCalled();
     });
 });

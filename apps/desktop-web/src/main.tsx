@@ -9,14 +9,8 @@ import { runtime } from '@chatic/app-runtime';
 
 import { webConfigPorts } from './app/config/adapters';
 import { applyAppearance, useAppearancePrefsStore } from './app/shared/stores/useAppearancePrefsStore';
-import { migrateLegacyPushMuted } from './app/config/legacyNotificationPrefsMigration';
 
 import App from './app/app';
-
-// One-time carry-over of `pushMuted` out of `useNotificationPrefsStore`'s persisted blob and into
-// `ui.pushMuted` (ADR-0079 "legacy stored-value carryover") — must run before `config.init()` below, whose
-// `hydrateStorage()` is what actually reads the key it writes.
-migrateLegacyPushMuted();
 
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — replaces
 // `@chatic/web-config`'s import-time self-init with an explicit call (ADR-0079 decisions 1·11).

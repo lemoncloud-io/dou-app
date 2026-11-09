@@ -81,11 +81,7 @@ export const CustomZipScreen = () => {
                     type="button"
                     disabled={!url.trim() || status?.allowed === false}
                     onClick={() =>
-                        void run(
-                            strings.operations.applyZip,
-                            () => appBridge.applyCustomZip(url.trim()),
-                            'ApplyCustomZip'
-                        ).then(load)
+                        void run(strings.operations.applyZip, () => appBridge.applyCustomZip(url.trim())).then(load)
                     }
                     className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
                 >
@@ -95,11 +91,7 @@ export const CustomZipScreen = () => {
                     type="button"
                     disabled={!active}
                     onClick={() =>
-                        void run(
-                            strings.operations.revertToDefault,
-                            () => appBridge.disableCustomZip(),
-                            'DisableCustomZip'
-                        ).then(load)
+                        void run(strings.operations.revertToDefault, () => appBridge.disableCustomZip()).then(load)
                     }
                     className="rounded-md border border-border px-2 py-1 text-xs disabled:opacity-50"
                 >

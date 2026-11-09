@@ -15,9 +15,7 @@
 //   `{ canAskAgain: boolean }` — `false` means only the system settings can change it.
 // - `UNSUPPORTED_TYPE`: the file's bytes are not a format the message takes. `SaveToPhotoLibrary`
 //   takes PNG, JPEG, GIF, WebP and MP4; `ShareFile` takes those and the server's documents (PDF, the
-//   ZIP family — DOCX, XLSX, PPTX, HWPX and a plain ZIP archive —, OLE2 for HWP, and text). An app
-//   built before videos and documents answers a video or document this way, which is how the web
-//   learns it cannot. An empty ZIP has no local file header and is refused this way too.
+//   ZIP family — DOCX, XLSX, PPTX, HWPX and a plain ZIP archive —, OLE2 for HWP, and text). An empty ZIP has no local file header and is refused this way too.
 // - `SOURCE`: the file does not exist or cannot be read (the OS may have cleared the cache).
 // - `INVALID`: a missing field, or a URI outside the shell's download folder.
 // - `INTERNAL`: anything else — the photo library or media store refused, or there is no screen to

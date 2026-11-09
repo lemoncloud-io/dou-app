@@ -11,8 +11,8 @@ export interface MessageLinkPreviewProps {
  * Unfurl card for a message's first link — the data-bound half of the preview.
  *
  * Renders nothing until (and unless) there is something to show: a plain browser can't unfurl at
- * all, an older shell has no handler, and plenty of pages carry no og tags. All three end up here
- * as "no card", never as an error or a placeholder.
+ * all, a fetch can fail, and plenty of pages carry no og tags. All three end up here as "no card",
+ * never as an error or a placeholder.
  */
 export const MessageLinkPreview = ({ url }: MessageLinkPreviewProps) => {
     const meta = useUrlMetadata(url);
