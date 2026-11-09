@@ -2,6 +2,8 @@ import { create } from 'zustand';
 
 import type { MyInviteView } from '@lemoncloud/chatic-backend-api';
 
+import { deviceMedium } from '../storage';
+
 /** One remembered issuance: which invite id went to which recipient name. */
 interface SentInviteEntry {
     inviteId: string;
@@ -20,9 +22,8 @@ const STORAGE_KEY = 'dou.relayInvite.sentLog.v2';
 
 /** A corrupt/tampered value degrades to an empty log rather than throwing. */
 const readStoredLog = (): SentInviteLogMap => {
-    if (typeof window === 'undefined') return {};
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = deviceMedium.get(STORAGE_KEY);
         if (!raw) return {};
         const parsed: unknown = JSON.parse(raw);
         if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
@@ -40,9 +41,9 @@ const readStoredLog = (): SentInviteLogMap => {
     }
 };
 
+/** The device medium: outlives the tab, and a full or blocked storage costs the entry, not the send. */
 const persistLog = (log: SentInviteLogMap): void => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(log));
+    deviceMedium.set(STORAGE_KEY, JSON.stringify(log));
 };
 
 interface SentInviteLogState {

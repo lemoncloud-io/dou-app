@@ -2,6 +2,7 @@ import { MemoryMedium } from '@chatic/storage';
 import { sessionMedia } from '@chatic/session/store/ports';
 
 import { logoutStorageSweeper } from './logoutStorageSweep';
+import { signedOutAppKeys } from './signedOutAppKeys.util';
 
 const setUrl = (search: string): void => window.history.replaceState({}, '', `/${search}`);
 
@@ -11,6 +12,8 @@ describe('logoutStorageSweeper', () => {
     beforeEach(() => {
         plain = new MemoryMedium();
         sessionMedia.configure({ secret: new MemoryMedium(), plain });
+        // What apps/web's log and telemetry domains declare at boot.
+        signedOutAppKeys.register(['@chatic/web.log.', '@chatic/web.telemetry.policy']);
         [
             '@chatic/web.log.pending.tab-1',
             '@chatic/web.log.alive',
@@ -28,6 +31,15 @@ describe('logoutStorageSweeper', () => {
         logoutStorageSweeper.sweep();
 
         expect(plain.keys().sort()).toEqual(['@chatic.i18nextLng', '@chatic/config.ui.theme', 'push-reg:v1:u:d:web']);
+    });
+
+    it('takes nothing when no domain declared a prefix — an app without those domains', () => {
+        signedOutAppKeys.register([]);
+        setUrl('?logout=1');
+
+        logoutStorageSweeper.sweep();
+
+        expect(plain.keys()).toHaveLength(6);
     });
 
     it('does nothing without the flag — a plain reload keeps everything', () => {

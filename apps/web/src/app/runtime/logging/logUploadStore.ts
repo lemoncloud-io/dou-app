@@ -2,6 +2,8 @@ import { toWireLogEntry } from '@chatic/bridges';
 
 import type { LogEntry, LogLevel } from '@chatic/bridges';
 
+import { deviceMedium, tabMedium } from '../../storage';
+
 /**
  * Persistence for the unsent upload queue.
  *
@@ -30,7 +32,14 @@ import type { LogEntry, LogLevel } from '@chatic/bridges';
  * the queue can do to the ~5MB origin quota it shares with session tokens.
  */
 
-const KEY_PREFIX = '@chatic/web.log.pending.';
+/**
+ * Every key the log pipeline writes starts with this — the queue, its heartbeats, the tab id and the
+ * crash sentinel. A sign-out takes them from the session's plain medium; the entry point declares the
+ * prefix to the runtime (`initAppRuntime({ signedOutKeyPrefixes })`).
+ */
+export const LOG_KEY_PREFIX = '@chatic/web.log.';
+
+const KEY_PREFIX = `${LOG_KEY_PREFIX}pending.`;
 const HEARTBEAT_PREFIX = '@chatic/web.log.pending.alive.';
 
 /** A queue whose tab has not checked in for this long is considered orphaned. */
@@ -49,7 +58,7 @@ const toEntry = (raw: Partial<LogEntry>): LogEntry => ({
 
 const readJson = (key: string): LogEntry[] => {
     try {
-        const raw = localStorage.getItem(key);
+        const raw = deviceMedium.get(key);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? (parsed as Partial<LogEntry>[]).map(toEntry) : [];
@@ -67,23 +76,13 @@ const TAB_ID_KEY = '@chatic/web.log.pending.tab';
  * that run simply behaves like a fresh tab each load.
  */
 export const resolveTabId = (fallback: string): string => {
-    try {
-        const existing = sessionStorage.getItem(TAB_ID_KEY);
-        if (existing) return existing;
-        sessionStorage.setItem(TAB_ID_KEY, fallback);
-        return fallback;
-    } catch {
-        return fallback;
-    }
+    const existing = tabMedium.get(TAB_ID_KEY);
+    if (existing) return existing;
+    tabMedium.set(TAB_ID_KEY, fallback);
+    return fallback;
 };
 
-const safeRemove = (key: string): void => {
-    try {
-        localStorage.removeItem(key);
-    } catch {
-        /* storage unavailable — nothing to clean up */
-    }
-};
+const safeRemove = (key: string): void => deviceMedium.remove(key);
 
 export interface LogUploadStore {
     /** Entries this tab still owns, plus anything adopted from dead tabs. */
@@ -98,11 +97,8 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
     const heartbeatKey = `${HEARTBEAT_PREFIX}${tabId}`;
 
     const beat = (): void => {
-        try {
-            localStorage.setItem(heartbeatKey, String(Date.now()));
-        } catch {
-            /* quota or private mode — the queue still works in memory */
-        }
+        // Quota or private mode: the device medium drops it, and the queue still works in memory.
+        deviceMedium.set(heartbeatKey, String(Date.now()));
     };
 
     /**
@@ -117,9 +113,8 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
             const dataKeys: string[] = [];
             const heartbeatKeys: string[] = [];
 
-            for (let i = 0; i < localStorage.length; i += 1) {
-                const candidate = localStorage.key(i);
-                if (!candidate?.startsWith(KEY_PREFIX)) continue;
+            for (const candidate of deviceMedium.keys()) {
+                if (!candidate.startsWith(KEY_PREFIX)) continue;
                 if (candidate === key || candidate === heartbeatKey || candidate === TAB_ID_KEY) continue;
 
                 if (candidate.startsWith(HEARTBEAT_PREFIX)) heartbeatKeys.push(candidate);
@@ -127,7 +122,7 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
             }
 
             const isStale = (owner: string): boolean =>
-                now - Number(localStorage.getItem(`${HEARTBEAT_PREFIX}${owner}`) ?? 0) >= ORPHAN_AFTER_MS;
+                now - Number(deviceMedium.get(`${HEARTBEAT_PREFIX}${owner}`) ?? 0) >= ORPHAN_AFTER_MS;
 
             dataKeys.forEach(dataKey => {
                 const owner = dataKey.slice(KEY_PREFIX.length);
@@ -145,7 +140,7 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
             heartbeatKeys.forEach(beatKey => {
                 const owner = beatKey.slice(HEARTBEAT_PREFIX.length);
                 if (!isStale(owner)) return;
-                if (localStorage.getItem(`${KEY_PREFIX}${owner}`)) return;
+                if (deviceMedium.get(`${KEY_PREFIX}${owner}`)) return;
                 safeRemove(beatKey);
             });
         } catch {
@@ -168,10 +163,10 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
         save(entries) {
             try {
                 if (!entries.length) {
-                    localStorage.removeItem(key);
+                    deviceMedium.remove(key);
                     return;
                 }
-                localStorage.setItem(key, JSON.stringify(entries.map(toWireLogEntry)));
+                deviceMedium.set(key, JSON.stringify(entries.map(toWireLogEntry)));
             } catch {
                 // Quota exhaustion must never break logging. The queue keeps
                 // running in memory and its own cap does the trimming.

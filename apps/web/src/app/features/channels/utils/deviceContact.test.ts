@@ -8,6 +8,7 @@ import {
     resolveContactPhone,
     resolveContactSubtitle,
 } from './deviceContact';
+import { seedPhoneCountry } from '../../../../testing/phoneCountry';
 
 /**
  * iOS omits a key entirely where Android sends an empty string, so the fixture takes a PARTIAL
@@ -317,7 +318,7 @@ describe('resolveContactPhone — numbers outside Korea', () => {
 
     it('ignores the country last picked in a phone field', () => {
         // That pick names the last person invited by hand, not the owner's address book.
-        localStorage.setItem('dou.phoneInput.country.v1', 'JP');
+        seedPhoneCountry('JP');
         setLanguage('ko-KR');
         expect(resolveContactPhone(withNumbers('010-1234-5678'))).toBe('+821012345678');
         expect(resolveContactPhone(withNumbers('090-1234-5678'))).toBeNull();

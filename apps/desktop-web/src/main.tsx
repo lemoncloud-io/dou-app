@@ -4,6 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import { BridgeStorageChannel, isNative, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
 import { config } from '@chatic/config';
+import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { asDomStorage, NativeSecureMedium, setStorageAdapter, WebMedium } from '@chatic/storage';
 import { runtime } from '@chatic/app-runtime';
 
@@ -15,6 +16,10 @@ import App from './app/app';
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — replaces
 // `@chatic/web-config`'s import-time self-init with an explicit call (ADR-0079 decisions 1·11).
 config.init(webConfigPorts);
+
+// The phone fields' last-picked country moved from its own key into the `ui.phoneCountry` setting;
+// carried over once, now that the setting can be written.
+migrateLegacyPhoneCountry(WebMedium.local());
 
 // The media this app keeps state in. Inside the desktop shell — which `isNative()` always answers
 // `true` for here — localStorage, so a sign-in survives a relaunch; in a plain tab, sessionStorage.

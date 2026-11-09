@@ -66,10 +66,12 @@ this order, and only then leaves the page:
 1. **The session.** Both relay and cloud stores, the per-cloud token cache, the cloud identity map, the
    recent-cloud order, the reclaim records and the paired clouds — in both of the session's ports.
 2. **lemon-web-core's credentials**, which are in memory (`webTransport.logout()`).
-3. **The app keys a sign-out takes**, by name (`storage/signedOutAppKeys.util.ts`): the web log pipeline
-   (`@chatic/web.log.*`) and the telemetry policy (`@chatic/web.telemetry.policy*`), from the plain
-   medium — `localStorage` in a shell, `sessionStorage` in a browser. The logs carry the account that
-   just left.
+3. **The app keys a sign-out takes**, by prefix, from the plain medium — `localStorage` in a shell,
+   `sessionStorage` in a browser. The prefixes are not this package's: the domains that write those
+   keys declare them, and the app hands them to `initAppRuntime({ signedOutKeyPrefixes })`, which
+   registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
+   (`@chatic/web.log.`) and the telemetry policy (`@chatic/web.telemetry.policy`) — the logs carry the
+   account that just left. An app that declares none has nothing swept.
 4. **The device vault**, where the shell keeps one: emptied, and the shell's confirmation awaited. The
    next document reads the vault before anything else, and a vault still holding the tokens would sign
    the person straight back in. When the shell does not confirm, `chatic-secret-logout-pending` goes

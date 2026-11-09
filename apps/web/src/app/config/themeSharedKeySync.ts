@@ -1,5 +1,7 @@
 import { encodeValue, storageKeyFor } from '@chatic/config';
 
+import type { KeyValueStore } from '@chatic/storage';
+
 /**
  * `vite-ui-theme` is not private to this app — five apps' `index.html` pre-paint scripts and
  * `@chatic/theme`'s `ThemeProvider` (admin-v2/desktop-web/landing) all read and write this exact
@@ -9,14 +11,15 @@ import { encodeValue, storageKeyFor } from '@chatic/config';
  * other apps on the same browser shows up here too. The write-back half of the mirror lives in
  * `useTheme.ts`'s `setTheme`.
  *
+ * `local` is the app's `webLocal` medium — the same `localStorage` config's own `local` port reads.
+ *
  * Must run before `config.init()` — the value it writes is read into the `local` lane by
  * `hydrateStorage()`, which only runs once, inside `init()`.
  */
-export const syncThemeFromSharedKey = (): void => {
-    if (typeof window === 'undefined') return;
+export const syncThemeFromSharedKey = (local: KeyValueStore): void => {
     try {
-        const shared = localStorage.getItem('vite-ui-theme');
-        if (shared !== null) localStorage.setItem(storageKeyFor('ui.theme'), encodeValue(shared));
+        const shared = local.get('vite-ui-theme');
+        if (shared !== null) local.set(storageKeyFor('ui.theme'), encodeValue(shared));
     } catch {
         // Best-effort — the resolver still has window.CHATIC_APP_THEME / defaultValue below it.
     }

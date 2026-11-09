@@ -65,6 +65,7 @@ jest.mock('../../../hooks/useLinkedAccounts', () => ({
 
 import { isDevBuild } from '../../../utils/buildEnv';
 import { PhoneVerifyScreen } from './PhoneVerifyScreen';
+import { seedPhoneCountry } from '../../../../testing/phoneCountry';
 
 const PHONE = '01012345678';
 // What the field displays and what the packet actually carries now differ (ADR-0044 §5 correction —
@@ -78,8 +79,7 @@ const FUTURE_EXPIRY = () => Date.now() + 180_000;
  * wins" path rather than stubbing around it (ADR-0044 §4).
  */
 const seedCountry = (code = 'KR') => {
-    localStorage.clear();
-    localStorage.setItem('dou.phoneInput.country.v1', code);
+    seedPhoneCountry(code);
 };
 
 const setLanguage = (value: string) => {
@@ -620,7 +620,7 @@ describe('PhoneVerifyScreen — 국가 (ADR-0044)', () => {
     afterEach(() => setLanguage('en-US'));
 
     it('국가를 정할 수 없으면 인증 요청이 비활성이고, 에러 문구는 띄우지 않는다 (S4)', () => {
-        localStorage.clear();
+        seedPhoneCountry();
         setLanguage('en'); // no region subtag — nothing to derive a country from
         renderScreen();
 

@@ -75,6 +75,9 @@ const logTagCatalogRule = {
     },
 };
 
+const STORAGE_MESSAGE =
+    'Reach web storage through a medium from @chatic/storage (in apps/web: `deviceMedium`/`tabMedium` from `app/storage`) — see libs/storage/README.md.';
+
 export default [
     ...nx.configs['flat/base'],
     ...nx.configs['flat/typescript'],
@@ -219,6 +222,48 @@ export default [
         plugins: { 'dou-logging': { rules: { 'log-tag-catalog': logTagCatalogRule } } },
         rules: {
             'dou-logging/log-tag-catalog': 'warn',
+        },
+    },
+    {
+        // Web storage is reached only through `@chatic/storage`'s media: a domain declares the medium it
+        // needs and the entry point (`resolveStorageMedia`) chooses it, so no other code may name
+        // `localStorage`/`sessionStorage` itself — and zustand's `persist`, which falls back to
+        // `localStorage` when given no storage, must name one. Scope grows as apps move onto the media:
+        // apps/web and the libs now; desktop-web and `libs/theme` (which desktop-web, admin-v2 and landing
+        // use) next. Tests seed web storage directly and are left out.
+        files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx', 'libs/**/*.ts', 'libs/**/*.tsx'],
+        ignores: [
+            '**/*.spec.ts',
+            '**/*.spec.tsx',
+            '**/*.test.ts',
+            '**/*.test.tsx',
+            '**/testing/**',
+            'libs/storage/**',
+            'libs/chatic-apps-sdk/**',
+            'libs/theme/**',
+        ],
+        rules: {
+            'no-restricted-globals': [
+                'error',
+                { name: 'localStorage', message: STORAGE_MESSAGE },
+                { name: 'sessionStorage', message: STORAGE_MESSAGE },
+            ],
+            'no-restricted-properties': [
+                'error',
+                { object: 'window', property: 'localStorage', message: STORAGE_MESSAGE },
+                { object: 'window', property: 'sessionStorage', message: STORAGE_MESSAGE },
+                { object: 'globalThis', property: 'localStorage', message: STORAGE_MESSAGE },
+                { object: 'globalThis', property: 'sessionStorage', message: STORAGE_MESSAGE },
+            ],
+            'no-restricted-syntax': [
+                'error',
+                {
+                    selector:
+                        "CallExpression[callee.name='persist'][arguments.length>=2] > ObjectExpression:last-child:not(:has(Property[key.name='storage']))",
+                    message:
+                        "Give zustand's `persist` a `storage` — left out, it writes `localStorage` directly. In apps/web: `persistStorageOver(deviceMedium)` from `app/storage`.",
+                },
+            ],
         },
     },
     {

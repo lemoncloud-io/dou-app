@@ -25,9 +25,11 @@ const GROUPS: Record<string, readonly string[]> = {
     // (ADR-0079) — their two consumers read `import.meta.env` directly now, and neither value was a
     // setting.
     boot: [
+        'LATE_VAULT_MARK',
         'initAppRuntime',
         'isNativeApp',
         'prepareSecretStorage',
+        'resolveStorageMedia',
         'setNativeCacheSupport',
         'setSessionStorage',
         'startWebTransportInit',

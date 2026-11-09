@@ -4,6 +4,7 @@ import { MemoryMedium, NativeSecureMedium } from '@chatic/storage';
 import { sessionMedia } from '@chatic/session/store/ports';
 
 import { createCredentialsByProvider, relaySession } from './relaySession';
+import { signedOutAppKeys } from './storage/signedOutAppKeys.util';
 
 const mockExchangeOAuthCode = jest.fn();
 const mockVerifyOAuthCode = jest.fn();
@@ -444,6 +445,7 @@ describe('session/auth/relaySession', () => {
             const plain = new MemoryMedium();
             plain.set('@chatic/web.log.pending.tab-1', '[]');
             sessionMedia.configure({ secret: medium, plain });
+            signedOutAppKeys.register(['@chatic/web.log.']);
 
             await relaySession.clearAndRedirect();
 

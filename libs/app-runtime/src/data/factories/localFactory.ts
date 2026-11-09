@@ -18,10 +18,12 @@ import {
 } from '@chatic/db';
 import { logger, webClient } from '@chatic/bridges';
 import { getRecordedCloudIds, identityStore } from '@chatic/session';
+import { asDomStorage } from '@chatic/storage';
 import { type CacheBackend, resolveCacheBackend } from '../cacheStorageRouting';
 import { InvitedCloudImportStorage } from '../invitedCloudSessionImport';
 import { isNativeApp } from '../../utils/isNativeApp';
 import { isNativeCacheTypeUsable } from '../nativeCacheSupport';
+import { runtimeMedia } from '../../storage/runtimeMedia';
 
 import type { CacheAssemblyOptions } from '../types';
 import { getSyncCursorsValidAfter } from '../syncCursorWatermark';
@@ -61,12 +63,14 @@ const createSessionStorageAdapter = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider
 ): CacheStorage<TType> => {
-    const store = new WebStorageAdapter(sessionStorage, type, contextProvider);
+    // The runtime's `tab` medium, seen as the DOM `Storage` the engine takes: the domain ends with the tab.
+    const tab = asDomStorage(runtimeMedia.tab());
+    const store = new WebStorageAdapter(tab, type, contextProvider);
     if (type !== 'invitecloud') return store;
     return new InvitedCloudImportStorage(
         store as unknown as CacheStorage<'invitecloud'>,
         () => createIndexedDBAdapter('invitecloud', contextProvider),
-        { marker: sessionStorage, getDelegatorId: () => identityStore.getDelegatorId(), getRecordedCloudIds }
+        { marker: tab, getDelegatorId: () => identityStore.getDelegatorId(), getRecordedCloudIds }
     ) as unknown as CacheStorage<TType>;
 };
 

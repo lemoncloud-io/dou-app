@@ -1,3 +1,5 @@
+import { runtimeMedia } from '../storage/runtimeMedia';
+
 /**
  * The instant before which no sync cursor is trusted, and the hand-off that moves it after a cache
  * clear.
@@ -14,28 +16,17 @@
  * because clearing at boot means building the data runtime before the native shell has said which
  * cache types it can store, which would fix the routing wrongly for the whole session.
  *
- * Kept in `localStorage` under a key the logout sweep never clears — a watermark from before a logout
- * is still true about the cursors it covers.
+ * Kept in the runtime's `device` medium (`localStorage`) under a key the logout sweep never clears — a
+ * watermark from before a logout is still true about the cursors it covers. The medium is tolerant, so a
+ * failed write does not throw: the pending request is consumed only once the watermark reads back, and a
+ * full storage leaves it for the next boot to try again.
  */
 const PENDING_KEY = 'chatic.syncCursors.resetPending';
 const VALID_AFTER_KEY = 'chatic.syncCursors.validAfter';
 
-const storage = (): Storage | undefined => {
-    try {
-        return typeof localStorage === 'undefined' ? undefined : localStorage;
-    } catch {
-        return undefined;
-    }
-};
-
 /** Called by the clear: the next boot is to retire every cursor saved before it. */
 export const requestSyncCursorReset = (): void => {
-    try {
-        storage()?.setItem(PENDING_KEY, '1');
-    } catch {
-        // Blocked storage: the cursors the clear itself removed are still gone; only the in-flight
-        // race goes uncovered.
-    }
+    runtimeMedia.device().set(PENDING_KEY, '1');
 };
 
 /**
@@ -43,22 +34,15 @@ export const requestSyncCursorReset = (): void => {
  * watermark and is consumed, so the watermark moves exactly once per clear.
  */
 export const applyPendingSyncCursorReset = (now: number = Date.now()): void => {
-    try {
-        const store = storage();
-        if (store?.getItem(PENDING_KEY) !== '1') return;
-        store.setItem(VALID_AFTER_KEY, String(now));
-        store.removeItem(PENDING_KEY);
-    } catch {
-        // Nothing to do — see `requestSyncCursorReset`.
-    }
+    const store = runtimeMedia.device();
+    if (store.get(PENDING_KEY) !== '1') return;
+    store.set(VALID_AFTER_KEY, String(now));
+    if (store.get(VALID_AFTER_KEY) !== String(now)) return;
+    store.remove(PENDING_KEY);
 };
 
 /** The current watermark, read at call time. 0 when no clear has ever asked for one. */
 export const getSyncCursorsValidAfter = (): number => {
-    try {
-        const value = Number(storage()?.getItem(VALID_AFTER_KEY));
-        return Number.isFinite(value) && value > 0 ? value : 0;
-    } catch {
-        return 0;
-    }
+    const value = Number(runtimeMedia.device().get(VALID_AFTER_KEY));
+    return Number.isFinite(value) && value > 0 ? value : 0;
 };

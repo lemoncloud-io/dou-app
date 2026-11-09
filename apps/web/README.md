@@ -153,10 +153,11 @@ sequenceDiagram
 
     Main->>Main: setupBridgeLogger · attachConsoleListener · attachLogContext
     Main->>Main: startLogUploader (the only log store)
-    Main->>Main: syncThemeFromSharedKey · config.init(webConfigPorts)
-    Main->>Main: plain medium = isNative() ? webLocal : webSession · setStorageAdapter
+    Main->>Main: media = runtime.boot.resolveStorageMedia() · configureAppMedia(device, tab)
+    Main->>Main: syncThemeFromSharedKey · config.init(createWebConfigPorts(media)) · migrateLegacyPhoneCountry
+    Main->>Main: setStorageAdapter(media.plain)
     Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
-    Main->>RT: runtime.boot.initAppRuntime({ storage, data: { repositories } })
+    Main->>RT: runtime.boot.initAppRuntime({ storage, signedOutKeyPrefixes, data: { repositories } })
     Main->>Main: pendingNavigationStore.start()
     Main->>Shell: appBridge.notifyWebAppReady()
     Shell-->>Main: capability report (buffered events flush)
@@ -204,8 +205,14 @@ Files you cannot guess from the name:
   background runners inside it.
 - `app/runtime/useSiteSwitch.ts` — the place (site) switch. The cloud switch lives under
   `features/home`.
-- `app/config/adapters.ts` — `webConfigPorts`, the object `config.init()` is called with in
-  `main.tsx`.
+- `app/config/adapters.ts` — `createWebConfigPorts(media)`, the ports `config.init()` is called with
+  in `main.tsx`.
+- `app/storage/` — the two media this app's features keep their own state in: `deviceMedium` (outlives
+  the tab — drafts, recent emoji, the sent-invite log, the browser's log queue) and `tabMedium` (dies
+  with it — the pending invite channel, the crash sentinel, the debug unlock). `main.tsx` points them
+  at what `runtime.boot.resolveStorageMedia()` built; a zustand `persist` store names one through
+  `persistStorageOver`. No feature names `localStorage`/`sessionStorage` itself — the root ESLint
+  config refuses it, and refuses a `persist` without a `storage`.
 - `app/bridge/appBridge.ts` — the outbound half of the seam; `GlobalBridgeListener.tsx` the inbound.
 - `app/navigation/index.ts` — the whole of what the rest of the app may use from the history-stack
   module. Its header says what the module answers and what deliberately stays outside it; import
@@ -288,11 +295,13 @@ navigate(ROUTES.channels.room(channelId));
 main.tsx
 ├── setupBridgeLogger / attachConsoleListener / attachLogContext   (before anything logs)
 ├── startLogUploader                                               (owns the only log store)
-├── syncThemeFromSharedKey
-├── config.init(webConfigPorts)                                    (before any lazy setting read)
-├── plain medium (isNative() ? webLocal : webSession) → setStorageAdapter
+├── runtime.boot.resolveStorageMedia() → configureAppMedia          (every medium, chosen once)
+├── syncThemeFromSharedKey(media.webLocal)
+├── config.init(createWebConfigPorts(media))                       (before any lazy setting read)
+├── migrateLegacyPhoneCountry(media.webLocal)
+├── setStorageAdapter(media.plain)
 ├── vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage — the rest waits
-├── runtime.boot.initAppRuntime({ storage, ... })                  (before any session read)
+├── runtime.boot.initAppRuntime({ storage, signedOutKeyPrefixes, ... })   (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)
 ├── appBridge.notifyWebAppReady() → runtime.boot.setNativeCacheSupport
@@ -341,7 +350,7 @@ cold start is buffered by `pendingNavigationStore`, which `main.tsx` starts _bef
 
 ### 5. Read or change a setting
 
-Settings live in `@chatic/config`, initialised once in `main.tsx` with `webConfigPorts` from
+Settings live in `@chatic/config`, initialised once in `main.tsx` with `createWebConfigPorts(media)` from
 `app/config/adapters.ts`. Read through `config`; never through `import.meta.env` inside a feature.
 The theme is a setting (`ui.theme`) that `app/runtime/ThemeApplier.tsx` mirrors onto `<html>`.
 
