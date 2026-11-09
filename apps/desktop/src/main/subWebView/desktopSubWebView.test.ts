@@ -560,6 +560,23 @@ describe('the sub view window', () => {
         expect(mocked.shell.openExternal).toHaveBeenCalledWith('https://other.example/');
     });
 
+    it('hands at most three URLs to the OS browser in ten seconds, so a page cannot open tabs in a loop', async () => {
+        const { service, page, logWarn } = setup();
+        service.open({ url: 'https://example.com/' });
+        await flush();
+        const contents = page().webContents;
+        const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+        for (let i = 0; i < 5; i += 1) contents.openHandler({ url: `https://other.example/${i}` });
+        expect(mocked.shell.openExternal).toHaveBeenCalledTimes(3);
+        expect(logWarn).toHaveBeenCalledWith('openExternal dropped: too many in a row', 'https://other.example/3');
+
+        now.mockReturnValue(1_010_000);
+        contents.openHandler({ url: 'https://other.example/later' });
+        expect(mocked.shell.openExternal).toHaveBeenLastCalledWith('https://other.example/later');
+        now.mockRestore();
+    });
+
     it('hears the page’s main frame on the opened origin only', async () => {
         const { service, page } = setup();
         service.open({ url: 'https://apps.chatic.io/' });

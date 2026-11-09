@@ -78,7 +78,17 @@ interface Shown {
     display: SubWebViewDisplay;
     host: IAppBridgeHost | null;
     titles: { requested?: string; document?: string; manifestName?: string };
+    /** When this view last handed URLs to the OS browser, newest last, within the hand-off window. */
+    handOffs: number[];
 }
+
+/**
+ * At most this many URLs go to the OS browser per view in any window of this length. Electron has no
+ * popup blocker, so a page could otherwise open browser tabs in a loop with no click; a person
+ * following links stays far below it.
+ */
+const HAND_OFF_LIMIT = 3;
+const HAND_OFF_WINDOW_MS = 10_000;
 
 /**
  * The body as text, or `null` past `limit` bytes — refused on a declared length that is too long, and
@@ -239,8 +249,15 @@ export const attachDesktopSubWebView = (
             }
         );
 
-    const handOn = (url: string, decision: 'load' | 'external' | 'block') => {
+    const handOn = (current: Shown, url: string, decision: 'load' | 'external' | 'block') => {
         if (decision !== 'external') return;
+        const now = Date.now();
+        current.handOffs = current.handOffs.filter(at => now - at < HAND_OFF_WINDOW_MS);
+        if (current.handOffs.length >= HAND_OFF_LIMIT) {
+            deps.logWarn('openExternal dropped: too many in a row', url);
+            return;
+        }
+        current.handOffs.push(now);
         void shell.openExternal(url).catch(error => deps.logWarn('openExternal failed', error));
     };
 
@@ -258,14 +275,14 @@ export const attachDesktopSubWebView = (
             // Never a second window: the page's own origin opens in place, anything else per the rule.
             // A failed load is reported by `did-fail-load`, which shows the card's error.
             if (decision === 'load') void contents.loadURL(url).catch(() => undefined);
-            else handOn(url, decision);
+            else handOn(current, url, decision);
             return { action: 'deny' };
         });
         const gateTopLevel = (event: Electron.Event, url: string) => {
             const decision = decideDesktopSubWebViewNavigation(url, origin);
             if (decision === 'load') return;
             event.preventDefault();
-            handOn(url, decision);
+            handOn(current, url, decision);
         };
         contents.on('will-navigate', (event, url) => gateTopLevel(event, url));
         // A server redirect fires here for frames too: a frame's goes by the frame rule and never
@@ -313,7 +330,7 @@ export const attachDesktopSubWebView = (
         const chrome = new WebContentsView({
             webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, javascript: true },
         });
-        const current: Shown = { view, chrome, page: null, display: 'standard', host: null, titles: {} };
+        const current: Shown = { view, chrome, page: null, display: 'standard', host: null, titles: {}, handOffs: [] };
         shown = current;
         chrome.setBackgroundColor('#00000000');
         chrome.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

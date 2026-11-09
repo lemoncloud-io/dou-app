@@ -68,7 +68,9 @@ itself when a chooser has no listener, so the choosers are answered rather than 
 
 - Only the opened origin loads. Another https URL — a link, a redirect, `window.open` — goes to the OS
   browser and the view stays; other schemes and DoU's own invite links are dropped
-  (`decideDesktopSubWebViewNavigation`). No second window is ever created.
+  (`decideDesktopSubWebViewNavigation`). No second window is ever created. A view hands at most three
+  URLs to the OS browser in any ten seconds and drops the rest with a warning: Electron has no popup
+  blocker, so a page could otherwise open browser tabs in a loop without a click.
 - Esc and the bar's close control close it as `user`. The main window starting a new page removes it
   without an event (`resetForNewHost`), because the page that opened it is gone. A load failure keeps
   the card and its close control, with a message in place of the page.
