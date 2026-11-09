@@ -49,10 +49,3 @@ export const buildMiniAppLaunchParams = (input: MiniAppLaunchInput, trust: SubWe
             trust === 'firstParty' ? { id: input.user.id, name, isOwner: input.isOwner } : { id: input.user.id, name },
     };
 };
-
-/**
- * Whether the signed-in user owns the selected cloud: a cloud they subscribed to themselves — not
- * the default cloud everyone starts in, and not one they were invited into.
- */
-export const isCloudOwnerOf = (cloud: { isDefaultCloud: boolean; isInvitedCloud: boolean }): boolean =>
-    !cloud.isDefaultCloud && !cloud.isInvitedCloud;

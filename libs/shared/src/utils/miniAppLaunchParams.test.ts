@@ -1,4 +1,4 @@
-import { buildMiniAppLaunchParams, isCloudOwnerOf, MINI_APP_NAME_LIMIT } from './miniAppLaunchParams';
+import { buildMiniAppLaunchParams, MINI_APP_NAME_LIMIT } from './miniAppLaunchParams';
 import type { MiniAppLaunchInput } from './miniAppLaunchParams';
 
 const input = (overrides: Partial<MiniAppLaunchInput> = {}): MiniAppLaunchInput => ({
@@ -77,15 +77,5 @@ describe('buildMiniAppLaunchParams', () => {
         const cut = buildMiniAppLaunchParams(input({ cloud: { id: 'c', name } }), 'reviewed').cloud.name;
         expect(Array.from(cut)).toHaveLength(MINI_APP_NAME_LIMIT);
         expect(cut.endsWith('😀')).toBe(true);
-    });
-});
-
-describe('isCloudOwnerOf', () => {
-    it.each([
-        [{ isDefaultCloud: false, isInvitedCloud: false }, true],
-        [{ isDefaultCloud: true, isInvitedCloud: false }, false],
-        [{ isDefaultCloud: false, isInvitedCloud: true }, false],
-    ])('reads %o as owner %s', (cloud, owner) => {
-        expect(isCloudOwnerOf(cloud)).toBe(owner);
     });
 });
