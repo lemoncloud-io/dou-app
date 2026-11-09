@@ -1107,7 +1107,8 @@
             "cannotRetry": "다시 보낼 수 없는 첨부예요. 삭제해 주세요",
             "videoRefused": {
                 "too-large": "동영상은 약 4분까지 보낼 수 있어요",
-                "unsupported": "이 동영상 형식은 보낼 수 없어요"
+                "unsupported": "이 동영상 형식은 보낼 수 없어요",
+                "not-converted": "동영상을 준비하지 못했어요. 앱을 켜 둔 채로 다시 보내 주세요"
             },
             "source": {
                 "title": "파일",
