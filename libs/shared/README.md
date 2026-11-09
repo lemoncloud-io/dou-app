@@ -140,7 +140,7 @@ flowchart TD
     Comp["components/ × 6<br/><i>React, DOM</i>"]:::grp
     Hooks["hooks/ × 6<br/><i>React</i>"]:::grp
     Prefs["preferences/ × 3<br/><i>per-place UI settings</i>"]:::pure
-    Utils["utils/ × 5"]:::pure
+    Utils["utils/ × 7"]:::pure
     Const["consts/ · types/"]:::pure
 
     UiKit["@chatic/ui-kit<br/><i>Button · cn</i>"]:::ext
@@ -210,10 +210,10 @@ libs/shared/src/
 ├── phone/            phone-number parsing (libphonenumber-js) + OTP expiry countdown — NOT in the barrel
 ├── preferences/      pinnedChannels · channelOrder · railOrder · placeScope + index
 ├── types/            index.ts and nothing else — four declarations, no reader
-└── utils/            5 single-purpose helpers + index
+└── utils/            7 single-purpose helpers + index
 ```
 
-Seven things the filenames do not tell you.
+Eight things the filenames do not tell you.
 
 - **`utils/subWebViewLink.ts` is the only reader of a sub WebView page link**,
   `https://app.chatic.io/apps/<appId>?<query>` (and `app-dev`): an app id and a query, no path, no
@@ -222,6 +222,17 @@ Seven things the filenames do not tell you.
   maps no id to a page — that is the web's list, and later the server's — and reads the
   `/sub-webview?url=…` path older apps hand over. It parses by hand, not with `URL`, for the reason
   the invite decoder below gives about React Native.
+
+- **`utils/subWebViewTrust.ts` is the only place that decides what a sub WebView opens**, and how far
+  the shell trusts it: `firstParty` for the hub (`https://apps.chatic.io`, `https://apps-dev.chatic.io`,
+  exact origin), `reviewed` for one label under those domains (the pages the review pipeline deploys),
+  `external` for any other plain https host, and `null` for anything a parser could read two ways —
+  userinfo, a port, a backslash, whitespace, an IP literal. Both shells check a request against it and
+  both webs check a link an owner saves against it, so the web never stores a link the shell would
+  refuse. It imports nothing, on purpose: the desktop shell's main bundle aliases this one file rather
+  than pulling the whole barrel into Electron's main process. `utils/miniAppLaunchParams.ts` builds the
+  `params` a mini app opens with from it — ids and display names, never a token, and `user.isOwner`
+  for a `firstParty` page only.
 
 - **`utils/inviteLink.ts` is the only decoder of the encoded invite link `/i?t=<base64url(JSON)>`.**
   Landing, mobile, web and desktop-web all call it, because a decoder that drifted would send one link
