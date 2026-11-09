@@ -47,6 +47,8 @@ const EXTERNAL_MANIFEST: ResolvedSubWebViewManifest = Object.freeze({
 export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) => {
     const { viewId, url, title, params, appId, trust } = route.params;
     const external = trust === 'external';
+    // The host alone, never a title the page or the web asked for.
+    const externalTitle = external ? (subWebViewOriginOf(url)?.slice('https://'.length) ?? '') : null;
     const [manifest, setManifest] = useState<ResolvedSubWebViewManifest | null>(external ? EXTERNAL_MANIFEST : null);
     const [pageTitle, setPageTitle] = useState<string | undefined>(undefined);
     // A title the page asked for outranks the document's, which outranks the web's, which outranks
@@ -126,9 +128,7 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
             {manifest && !fullscreen && (
                 <View style={styles.bar}>
                     <Text style={[styles.title, { color: foreground }]} numberOfLines={1}>
-                        {external
-                            ? (subWebViewOriginOf(url)?.slice('https://'.length) ?? '')
-                            : (requestedTitle ?? pageTitle ?? title ?? manifest.name ?? '')}
+                        {externalTitle ?? requestedTitle ?? pageTitle ?? title ?? manifest.name ?? ''}
                     </Text>
                     {closeControl(false)}
                 </View>

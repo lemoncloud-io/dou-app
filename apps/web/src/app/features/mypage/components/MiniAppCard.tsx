@@ -29,6 +29,7 @@ const MiniAppSection = () => {
     if (!launcher.available) return null;
 
     const linkHost = launcher.link ? new URL(launcher.link).host : null;
+    const chevron = <IconChevronRight className="size-[18px] text-description" />;
 
     return (
         <>
@@ -36,14 +37,14 @@ const MiniAppSection = () => {
                 <ListRow
                     title={t('mypage.lab.miniApp.open')}
                     subtitle={linkHost ?? t('mypage.lab.miniApp.openHubHint')}
-                    trailing={<IconChevronRight className="size-[18px] text-description" />}
+                    trailing={chevron}
                     onClick={launcher.open}
                 />
                 {launcher.isOwner && (
                     <ListRow
                         title={t('mypage.lab.miniApp.link')}
                         subtitle={launcher.link ?? t('mypage.lab.miniApp.linkUnset')}
-                        trailing={<IconChevronRight className="size-[18px] text-description" />}
+                        trailing={chevron}
                         onClick={() => launcher.setLinkSettingsOpen(true)}
                     />
                 )}
