@@ -94,6 +94,7 @@ export {
     useIsPairedSession,
     usePairedCloudCheck,
     usePairedCloudIds,
+    usePairedCloudNames,
     usePairingAwareLogout,
     usePairingRequest,
 } from './hooks/pairing';

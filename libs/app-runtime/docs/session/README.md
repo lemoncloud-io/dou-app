@@ -10,7 +10,7 @@ facade group in `session/index.ts`. Every edge runs one way — `hooks → @chat
 
 ```text
 session/                              35 source files, 15 tests
-├── hooks/    34 files · 15 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 5 pairing
+├── hooks/    34 files · 15 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 6 pairing
 └── index.ts                       the `session` facade group
 ```
 
@@ -22,16 +22,16 @@ in [`@chatic/auth`'s session doc](../../../auth/docs/session/README.md).
 
 ### The React surface
 
-| Folder                   | Count | Names                                                                                                                                                             |
-| ------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hooks/session/readers/` | 5     | `useGlobalSession` · `useSessionAuth` · `useSessionIdentity` · `useSessionSelection` · `useRuntimeProfile`                                                        |
-| `hooks/session/actions/` | 5     | `useSiteSwitch` · `useSwitchCloudSession` · `useLogoutCloudSession` · `useSessionLogout` · `useInviteFlow`                                                        |
-| `hooks/auth/`            | 8     | `useLogin` · `useLoginRelaySocial` · `useLoginRelayGuestByDevice` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo` |
-| `hooks/app/`             | 5     | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                |
-| `hooks/pairing/`         | 5     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairingAwareLogout` · `usePairedCloudCheck` — see [The pairing hooks](#the-pairing-hooks)  |
+| Folder                   | Count | Names                                                                                                                                                                                    |
+| ------------------------ | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hooks/session/readers/` | 5     | `useGlobalSession` · `useSessionAuth` · `useSessionIdentity` · `useSessionSelection` · `useRuntimeProfile`                                                                               |
+| `hooks/session/actions/` | 5     | `useSiteSwitch` · `useSwitchCloudSession` · `useLogoutCloudSession` · `useSessionLogout` · `useInviteFlow`                                                                               |
+| `hooks/auth/`            | 8     | `useLogin` · `useLoginRelaySocial` · `useLoginRelayGuestByDevice` · `useRegisterUser` · `useRegisterUserV2` · `useFindAlias` · `useVerifyAlias` · `useInviteInfo`                        |
+| `hooks/app/`             | 5     | `useRelaySessionInit` · `useRelaySessionKeepAlive` · `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                                       |
+| `hooks/pairing/`         | 6     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairedCloudNames` · `usePairingAwareLogout` · `usePairedCloudCheck` — see [The pairing hooks](#the-pairing-hooks) |
 
 The first three readers are `useSyncExternalStore(subscribeSessionSignal, …)`; `useSessionSelection`
-derives from `useGlobalSession`. Twenty of these 23 are on the package barrel; the three that are not
+derives from `useGlobalSession`. Twenty-one of these 24 are on the package barrel; the three that are not
 are `useRegisterUser` (superseded by `useRegisterUserV2`, still reachable in-package) and
 `useRelaySessionInit` / `useRelaySessionKeepAlive`, which belong to the host rather than to an app.
 `useRuntimeProfile` is on the barrel but reached by concrete path, because
@@ -93,7 +93,7 @@ showed up in sessions that sat still.
 ### The pairing hooks
 
 `usePairingRequest` drives the code screen's request-and-poll loop, and `useIsPairedSession` /
-`usePairedCloudIds` read the pairing checks; what they read is
+`usePairedCloudIds` / `usePairedCloudNames` read the pairing checks and the paired clouds' names; what they read is
 [`@chatic/auth`'s pairing doc](../../../auth/docs/pairing/README.md). Two hooks carry policy of their own:
 
 - **`usePairingAwareLogout(onLogout)`** — signing out of an approving app ends the sign-ins it approved:

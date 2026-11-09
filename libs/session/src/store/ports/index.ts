@@ -1,12 +1,18 @@
 import { ForwardingPort } from './forwardingPort';
 import { RawSlot } from './rawSlot';
-import { PAIRED_CLOUDS_KEY } from './sessionKeys';
+import { PAIRED_CLOUD_NAMES_KEY, PAIRED_CLOUDS_KEY } from './sessionKeys';
 import { SessionMedia } from './sessionMedia';
 
 import type { StorageLike } from '../jsonSlot';
 import type { IRawSlot, ISessionMedia } from './types';
 
-export { isSessionKey, PAIRED_CLOUDS_KEY, SECRET_LOGOUT_PENDING_KEY, SESSION_KEYS } from './sessionKeys';
+export {
+    isSessionKey,
+    PAIRED_CLOUD_NAMES_KEY,
+    PAIRED_CLOUDS_KEY,
+    SECRET_LOGOUT_PENDING_KEY,
+    SESSION_KEYS,
+} from './sessionKeys';
 export type { SessionKey } from './sessionKeys';
 export type { IRawSlot, ISessionMedia, PortName, SessionStoragePorts, StoragePortPair } from './types';
 
@@ -18,3 +24,6 @@ export const plainPort: StorageLike = new ForwardingPort(sessionMedia, 'plain');
 
 /** The paired-cloud list's one key, for `@chatic/auth`'s `PairedCloudStore` — not the whole plain port. */
 export const pairedCloudsSlot: IRawSlot = new RawSlot(plainPort, PAIRED_CLOUDS_KEY);
+
+/** The paired clouds' names, the same store's second key. */
+export const pairedCloudNamesSlot: IRawSlot = new RawSlot(plainPort, PAIRED_CLOUD_NAMES_KEY);

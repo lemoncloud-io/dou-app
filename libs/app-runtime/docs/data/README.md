@@ -11,7 +11,7 @@ is [libs/sync](../../../sync/README.md)'s.
 ## Layout
 
 ```text
-data/                              25 source files, 19 tests
+data/                              27 source files, 21 tests
 ├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
@@ -19,6 +19,7 @@ data/                              25 source files, 19 tests
 ├── nativeCacheSupport.ts         what the installed shell says it can store
 ├── cloudChat.ts                  sendChatInCloud · getCloudRepositories · waitForCloudSocket — writes named by cloud
 ├── invitedCloudDurability.ts     the one domain the server cannot re-list
+├── pairedCloudName.ts            syncPairedCloudName — a paired cloud's name, kept outside the cloud cache
 ├── invitedCloudSessionImport.ts  InvitedCloudImportStorage — a tab's one-time copy of its invited clouds out of IndexedDB
 ├── clearLocalCaches.ts           the settings "clear cache" — every known cloud, minus what only this device holds
 ├── syncCursorWatermark.ts        retires the cursors a clear could not reach, on the next boot
@@ -28,7 +29,8 @@ data/                              25 source files, 19 tests
 ├── factories/                    socketFactory · localFactory · httpFactory ·
 │                                 outboxFactory — the state outbox's transport, one outbox for every graph · setStateOutboxObserver
 └── hooks/                        useRuntimeRepositories · useGlobalCacheSearch ·
-                                  useInvitedCloudNameSync · useRegisterDeviceTokenMutation · useSendImages ·
+                                  useInvitedCloudNameSync · usePairedCloudNameSync ·
+                                  useRegisterDeviceTokenMutation · useSendImages ·
                                   imageSendProgress (useImageSendProgress) · queryKeys
 ```
 
@@ -160,13 +162,14 @@ apply it to.
 what every client did before and still does unless it opts in. It only bites on web storage; inside a
 native shell chat always routes to SQLite.
 
-### The four hooks
+### The five hooks
 
 | Hook                               | Returns                                                                  |
 | ---------------------------------- | ------------------------------------------------------------------------ |
 | `useRuntimeRepositories()`         | The repository graph, bound to the current scope                         |
 | `useGlobalCacheSearch()`           | `{ search, resolveContext }` — a search across every cloud's partition   |
 | `useInvitedCloudNameSync()`        | Fills in an invited cloud's name once its socket verifies. Native only   |
+| `usePairedCloudNameSync()`         | Reads a paired cloud's name once per entry. Browser and shells alike     |
 | `useRegisterDeviceTokenMutation()` | The one REST call the runtime still owns — sold through the `push` group |
 
 `cloudsKeys` is the only query key left here, because the runtime is one of the things that
@@ -261,6 +264,27 @@ The gap that remains is real and needs a backend change: a store wiped completel
 OS clearing app data) with no push carrying a cid has no recovery path. That is the price of the
 single-source rule, which is itself deliberate — a second parallel registry diverges, and then two
 answers exist with no way to tell which is right.
+
+### Paired clouds' names
+
+A cloud a guest browser entered through a device pairing ("this cloud only") is neither owned nor
+invited: it is not in the relay catalog, it has no row in the cloud cache, and the approval names only
+its id. Its name is read by `syncPairedCloudName(cloud, cid)`, driven by `usePairedCloudNameSync()` once
+the active cloud is on the paired-cloud list and both its socket and the relay are verified. It runs in
+a plain browser tab too — pairing is a browser feature — and once per entered cloud; a failure is
+silent and waits for the next entry.
+
+- The read is `cloud.getCloud({ id }, { cache: false })`. The relay answers a non-owner, a paired guest
+  included, with a minimal `{ id, name, status }` view.
+- **It never writes the cloud cache.** Every row there is classified `owner` or `invited`. A plain
+  `getCloud` would create an `owner` row for a cloud the cache has never seen — and the screens treat
+  a non-invited cloud as one the user owns; an `invited` row would list the cloud as invited, with a
+  background socket and unread counts attached. A third `cloudType` would have to be ignored by every
+  reader of the cache, native ones included through the bridge's cache model.
+- The name goes into `@chatic/auth`'s `PairedCloudStore` instead, beside the paired-cloud list, in the
+  session key `chatic-paired-cloud-names`. It is dropped with the cloud (an ended pairing, a logout),
+  so it cannot outlive the approval it came with. Screens read it through
+  `runtime.session.usePairedCloudNames()`, below a cached name when one exists.
 
 ### Clearing the cache
 
