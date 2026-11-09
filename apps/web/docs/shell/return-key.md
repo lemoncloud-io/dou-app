@@ -46,7 +46,8 @@ Cells marked `data-return-key-unit` count as one stop. `VerificationCodeInput`'s
 cells use it, so return on any cell finishes the code rather than stepping to the next cell.
 
 The composer is recognised by `data-no-autoscroll`, the marker `MessageInput` already carries for
-the focus auto-scroll. The in-place message editor is a textarea, so it keeps its newline.
+the focus auto-scroll. A message edit is typed into that same composer, so it follows the composer's
+rule: where Enter sends, Enter saves the edit; where it is a newline, it stays one.
 
 ## How it is wired
 

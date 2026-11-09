@@ -123,7 +123,8 @@ jest.mock('../hooks', () => ({
     useReactions: () => ({ toggleReaction: jest.fn(), failedId: null }),
     useMessageEditing: () => ({
         isEditing: false,
-        editStateFor: () => undefined,
+        composer: undefined,
+        isEditTarget: () => false,
         deleteTarget: null,
         cancelDelete: jest.fn(),
         confirmDelete: jest.fn(),

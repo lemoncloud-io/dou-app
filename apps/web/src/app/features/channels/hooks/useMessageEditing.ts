@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { toast } from '@chatic/ui-kit/components/ui/use-toast';
 import { logger } from '@chatic/bridges';
 
 import type { ClientChatView } from '../types';
-import type { MessageEditState } from '../components/ChannelMessageRow';
+import { deleteConfirmQuote } from '../utils/messagePlainText';
+import type { ComposerEditState } from '../components/ComposerEditBar';
 import { useChatMutations } from './useChatMutations';
 
 /**
@@ -59,8 +60,8 @@ export const useMessageEditing = (scopeKey?: string) => {
      * Drops the target when the surface moves to another conversation.
      *
      * The room is routed without a key, so going room → room re-derives this page in place instead
-     * of remounting it. A target left behind then matches no row on the new screen: no editor is
-     * drawn, yet `isEditing` still locks the composer, and there is no control left to clear it.
+     * of remounting it. A target left behind then matches no row on the new screen, yet the
+     * composer would still be editing it — and saving would change a message in the room just left.
      * The delete target has the same problem, and would quote the previous room's message.
      */
     const previousScope = useRef(scopeKey);
@@ -127,30 +128,42 @@ export const useMessageEditing = (scopeKey?: string) => {
         }
     }, [deleteTarget, deleteServerMessage, t]);
 
-    /** The row's edit props for `message`, or undefined when it is not the one being edited. */
-    const editStateFor = useCallback(
-        (message: ClientChatView): MessageEditState | undefined => {
-            if (!editTarget?.id || message.id !== editTarget.id) return undefined;
-            return {
-                draft,
-                onDraftChange: setDraft,
-                isSaving,
-                hasFailed: editFailed,
-                onSave: () => void saveEdit(),
-                onCancel: requestCloseEdit,
-            };
-        },
-        [editTarget, draft, isSaving, editFailed, saveEdit, requestCloseEdit]
+    /**
+     * What the composer draws while it edits instead of writing, or undefined when it is writing.
+     * The edit is typed into the composer's own field — see `ComposerEditBar` for why — so this is
+     * handed to the surface's composer rather than to the edited row.
+     */
+    const composer = useMemo<ComposerEditState | undefined>(() => {
+        if (!editTarget?.id) return undefined;
+        return {
+            targetId: editTarget.id,
+            // Flattened the way every quote of a message is — the delete dialog's, for one — so markup
+            // shows as the text it reads as rather than as its markers.
+            original: deleteConfirmQuote(editTarget.content),
+            draft,
+            onDraftChange: setDraft,
+            isSaving,
+            hasFailed: editFailed,
+            onSave: () => void saveEdit(),
+            onCancel: requestCloseEdit,
+        };
+    }, [editTarget, draft, isSaving, editFailed, saveEdit, requestCloseEdit]);
+
+    /** Whether `message` is the one being edited, so its row can mark itself in the list. */
+    const isEditTarget = useCallback(
+        (message: ClientChatView) => !!editTarget?.id && message.id === editTarget.id,
+        [editTarget]
     );
 
     return {
-        /** Truthy while an editor is open — the surfaces lock their composer against it. */
+        /** Truthy while an edit is open — the surfaces lock their attach panel against it. */
         isEditing: !!editTarget,
         hasUnsavedEdit,
         startEdit,
         requestCloseEdit,
         closeEdit,
-        editStateFor,
+        composer,
+        isEditTarget,
         deleteTarget,
         requestDelete: setDeleteTarget,
         cancelDelete: () => setDeleteTarget(null),

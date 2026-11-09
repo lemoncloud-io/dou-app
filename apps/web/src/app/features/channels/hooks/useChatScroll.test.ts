@@ -85,6 +85,95 @@ describe('useChatScroll', () => {
         expect(container.scrollTo).not.toHaveBeenCalled();
     });
 
+    // The resize and focus pin share one handler. A message edit focuses the composer while it holds
+    // the view on the message being edited, so the pin has to respect the same suppression.
+    describe('the resize and focus pin', () => {
+        const fire = (suppressAutoScroll: boolean, holdBottomPin = false) => {
+            // The frame queue above stands in for rAF; only the 150ms delay is faked here.
+            jest.useFakeTimers({ doNotFake: ['requestAnimationFrame', 'cancelAnimationFrame'] });
+            const textarea = document.createElement('textarea');
+            const inputRef = { current: textarea };
+            const view = renderHook(props => useChatScroll(props), {
+                initialProps: {
+                    messages: [message('m1')],
+                    hasMore: true,
+                    isLoadingMore: false,
+                    loadMore: jest.fn(),
+                    inputRef,
+                    suppressAutoScroll,
+                    holdBottomPin,
+                },
+            });
+            const container = document.createElement('div');
+            container.scrollTo = jest.fn();
+            (view.result.current.containerRef as React.MutableRefObject<HTMLDivElement | null>).current = container;
+            act(() => flushFrames());
+            (container.scrollTo as jest.Mock).mockClear();
+
+            textarea.dispatchEvent(new Event('focus'));
+            act(() => {
+                jest.advanceTimersByTime(150);
+            });
+            act(() => flushFrames());
+            return container;
+        };
+
+        it('pins to the bottom when the field takes focus', () => {
+            expect(fire(false).scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+        });
+
+        it('leaves the view alone when the field takes focus while another owner holds it', () => {
+            expect(fire(true).scrollTo).not.toHaveBeenCalled();
+        });
+
+        it('leaves the view alone when the field takes focus while the pin is held for an edit', () => {
+            expect(fire(false, true).scrollTo).not.toHaveBeenCalled();
+        });
+    });
+
+    // The edit's hold answers the composer only: the field focusing and the composer growing. New rows
+    // are still handled as usual — a reader at the bottom still follows them.
+    describe('the edit hold (holdBottomPin)', () => {
+        const props = (overrides: Record<string, unknown>) => ({
+            messages: [message('m1')],
+            hasMore: true,
+            isLoadingMore: false,
+            loadMore: jest.fn(),
+            inputRef: createRef<HTMLTextAreaElement>(),
+            suppressAutoScroll: false,
+            holdBottomPin: true,
+            composerHeight: 50,
+            ...overrides,
+        });
+        const mount = () => {
+            const view = renderHook(p => useChatScroll(p), { initialProps: props({}) });
+            const container = document.createElement('div');
+            container.scrollTo = jest.fn();
+            (view.result.current.containerRef as React.MutableRefObject<HTMLDivElement | null>).current = container;
+            act(() => flushFrames());
+            (container.scrollTo as jest.Mock).mockClear();
+            return { view, container };
+        };
+
+        it('does not re-pin when the composer grows', () => {
+            const { view, container } = mount();
+
+            view.rerender(props({ composerHeight: 120 }));
+            act(() => flushFrames());
+
+            expect(container.scrollTo).not.toHaveBeenCalled();
+        });
+
+        it('still follows a new latest message for a reader at the bottom', () => {
+            const { view, container } = mount();
+
+            view.rerender(props({ messages: [message('m1'), message('m2')] }));
+            act(() => flushFrames());
+
+            expect(container.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+        });
+    });
+
     it('does not retroactively scroll for messages that landed while suppressed', () => {
         // The jump case: messages arrive during the jump, then the jump finishes and clears the
         // store. Lifting suppression must not scroll for those already-counted messages.

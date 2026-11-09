@@ -876,6 +876,7 @@
             "editMessage": "메시지 수정",
             "editSave": "저장",
             "editSaving": "저장 중",
+            "editCancel": "수정 취소",
             "editFailed": "수정하지 못했습니다. 다시 저장해 주세요",
             "editDiscardTitle": "수정을 취소할까요?",
             "editDiscardDescription": "고친 내용은 저장되지 않습니다.",

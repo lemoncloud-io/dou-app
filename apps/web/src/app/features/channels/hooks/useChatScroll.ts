@@ -21,13 +21,21 @@ interface UseChatScrollParams {
      */
     composerHeight?: number;
     /**
-     * Suppresses the auto-scroll-to-bottom while another owner is positioning the view — today
-     * that is a pending message jump (apps/web/docs/feature/channels/chat-room.md). Without this the
+     * Suppresses the auto-scroll-to-bottom while another owner is positioning the view — a pending
+     * message jump (apps/web/docs/feature/channels/chat-room.md). Without this the
      * two fight and the bottom pin always wins: `scrollToBottom` defers the actual scroll to a
      * `requestAnimationFrame`, which runs AFTER every effect in the flush, so it overwrites the
      * jump's synchronous `scrollIntoView`.
      */
     suppressAutoScroll?: boolean;
+    /**
+     * Holds only the pins that answer the composer — the field taking focus, the viewport resizing,
+     * the composer growing — while leaving the rest alone. A message edit needs exactly that: opening
+     * it focuses the field and grows the composer, and either pin would carry the list away from the
+     * message being changed, but rows still arrive and a reader in history must still be held in
+     * place while they do, which `suppressAutoScroll` would stop as well.
+     */
+    holdBottomPin?: boolean;
     /**
      * Channel whose scroll offset is remembered across visits (see `useScrollRestoration`):
      * restored on mount when one was left behind, stashed again on unmount. Omit to always land
@@ -89,6 +97,7 @@ export const useChatScroll = ({
     inputRef,
     composerHeight = 0,
     suppressAutoScroll = false,
+    holdBottomPin = false,
     channelId,
     readingHistoryRef,
     onReadingRow,
@@ -111,6 +120,9 @@ export const useChatScroll = ({
     // was suppressed, undoing the jump the moment it succeeded.
     const suppressAutoScrollRef = useRef(suppressAutoScroll);
     suppressAutoScrollRef.current = suppressAutoScroll;
+    // Through a ref for the same reason: an edit closing must not itself re-pin the list.
+    const holdBottomPinRef = useRef(holdBottomPin);
+    holdBottomPinRef.current = holdBottomPin;
 
     // Where the reader was before the current commit, recorded on every scroll event and again at the
     // end of every commit that changes the list. Reading the element during the commit instead is wrong
@@ -238,8 +250,13 @@ export const useChatScroll = ({
     }, [messages, captureView]);
 
     // Keep the view pinned to the bottom across viewport changes (keyboard, resize, input focus).
+    // Not while another owner is positioning the view (a jump), nor while the pin is held (an edit,
+    // which focuses this same field and would be carried away from the message being changed).
     useEffect(() => {
-        const handleScrollAdjust = () => setTimeout(() => scrollToBottom(), 150);
+        const handleScrollAdjust = () =>
+            setTimeout(() => {
+                if (!suppressAutoScrollRef.current && !holdBottomPinRef.current) scrollToBottom();
+            }, 150);
         const input = inputRef.current;
 
         window.addEventListener('resize', handleScrollAdjust);
@@ -263,7 +280,7 @@ export const useChatScroll = ({
         if (composerHeight <= previous) return;
         // The composer's first measurement (0 → measured) reads as growth, so this fires on mount
         // too — it must respect a pending jump like the auto-scroll above.
-        if (suppressAutoScrollRef.current || hasPendingRestore()) return;
+        if (suppressAutoScrollRef.current || holdBottomPinRef.current || hasPendingRestore()) return;
 
         const el = containerRef.current;
         if (!el || Math.abs(el.scrollTop) > BOTTOM_PIN_SLACK_PX) return;
