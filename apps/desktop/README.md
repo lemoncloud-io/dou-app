@@ -62,7 +62,9 @@ the window, bar kept). No tier gets more than the base set below.
 **The view.** Two `WebContentsView`s added to the main window: the shell's chrome (a dimmed backdrop,
 the card, the bar with its close control — a local page, `subWebViewChrome.ts`) and the page over it.
 The page view is sandboxed with context isolation and no Node, in a session of its own per origin
-(`persist:sub-webview:<origin>`) that refuses every permission request and cancels downloads.
+(`persist:sub-webview:<origin>`) that refuses every permission request, answers every device chooser
+(Bluetooth, HID, USB, serial) with no device, and cancels downloads. Electron picks the first device
+itself when a chooser has no listener, so the choosers are answered rather than left alone.
 
 - Only the opened origin loads. Another https URL — a link, a redirect, `window.open` — goes to the OS
   browser and the view stays; other schemes and DoU's own invite links are dropped

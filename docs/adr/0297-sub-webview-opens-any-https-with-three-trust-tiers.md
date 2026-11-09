@@ -66,7 +66,7 @@ decided by one shared rule both shells and both webs call.**
       (the consent is the web's, per host).
 - **The desktop shows it as a modal over the main window**, with the shell's own bar and close
   control (Esc too), one page view per opening in a session per origin that refuses every permission
-  request. Only the opened origin loads in the view; any other https URL goes to the OS browser. The
+  request and every device chooser. Only the opened origin loads in the view; any other https URL goes to the OS browser. The
   page host answers `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle` and
   `ReportSubWebViewError` on every tier — device access, storage, sharing, the clipboard and the user
   key come later. A trusted page's manifest gives the bar its name and the display; `standard` is the

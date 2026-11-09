@@ -69,6 +69,7 @@ jest.mock('electron', () => {
             state.sessions.set(name, {
                 setPermissionRequestHandler: jest.fn(),
                 setPermissionCheckHandler: jest.fn(),
+                setDevicePermissionHandler: jest.fn(),
                 on: jest.fn(),
                 fetch: jest.fn(async () => new Response(JSON.stringify(state.manifest))),
             });
@@ -462,6 +463,29 @@ describe('the sub view window', () => {
         // The bar shows the host, even after the page titles itself as something else.
         page().webContents.emit('page-title-updated', {}, 'DoU — Sign in');
         expect(chrome().webContents.executeJavaScript).toHaveBeenLastCalledWith(chromeTitleScript('example.com'));
+    });
+
+    it('hands an external site no device: every chooser is answered with none, and device access is refused', async () => {
+        const { service, page } = setup();
+
+        // An origin no other test opens: a session is prepared once, on its first view.
+        service.open({ url: 'https://devices.example/app' });
+        await flush();
+
+        const ses = mocked.__state.sessions.get('persist:sub-webview:https://devices.example');
+        expect(ses.setDevicePermissionHandler.mock.calls[0][0]({ deviceType: 'usb' })).toBe(false);
+        const listenerOf = (name: string) => ses.on.mock.calls.find((call: any[]) => call[0] === name)?.[1];
+        const answer = (listener: (...args: any[]) => void, ...args: any[]) => {
+            const event = { preventDefault: jest.fn() };
+            const callback = jest.fn();
+            listener(event, ...args, callback);
+            return { prevented: event.preventDefault.mock.calls.length, chose: callback.mock.calls[0] };
+        };
+        expect(answer(listenerOf('select-hid-device'), {})).toEqual({ prevented: 1, chose: [null] });
+        expect(answer(listenerOf('select-usb-device'), {})).toEqual({ prevented: 1, chose: [] });
+        expect(answer(listenerOf('select-serial-port'), [], {})).toEqual({ prevented: 1, chose: [''] });
+        const bluetooth = page().webContents.listeners('select-bluetooth-device')[0];
+        expect(answer(bluetooth, [{ deviceId: 'speaker' }])).toEqual({ prevented: 1, chose: [''] });
     });
 
     it('reads a reviewed page’s manifest from its own origin before showing it, and applies its display', async () => {

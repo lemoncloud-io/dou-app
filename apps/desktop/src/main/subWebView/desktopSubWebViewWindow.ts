@@ -130,6 +130,21 @@ const prepareSession = (partition: string): void => {
     // protocol yet: refused, and reported as refused when a page checks.
     ses.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
     ses.setPermissionCheckHandler(() => false);
+    ses.setDevicePermissionHandler(() => false);
+    // Electron picks the first device itself when a chooser event has no listener, so each one is
+    // answered with "no device".
+    ses.on('select-hid-device', (event, _details, callback) => {
+        event.preventDefault();
+        callback(null);
+    });
+    ses.on('select-usb-device', (event, _details, callback) => {
+        event.preventDefault();
+        callback();
+    });
+    ses.on('select-serial-port', (event, _ports, _webContents, callback) => {
+        event.preventDefault();
+        callback('');
+    });
     ses.on('will-download', (_event, item) => item.cancel());
 };
 
@@ -279,6 +294,11 @@ export const attachDesktopSubWebView = (
         });
         contents.on('render-process-gone', () => showError());
         contents.on('before-input-event', onEscape);
+        // Bluetooth's chooser is per page, not per session; without a listener the first device wins.
+        contents.on('select-bluetooth-device', (event, _devices, callback) => {
+            event.preventDefault();
+            callback('');
+        });
 
         win.contentView.addChildView(page);
         layout();
