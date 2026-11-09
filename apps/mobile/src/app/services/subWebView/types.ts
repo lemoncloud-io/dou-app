@@ -1,4 +1,5 @@
 import type { SubWebViewCloseReason, SubWebViewErrorCode } from '@chatic/bridge-messages';
+import type { SubWebViewTrust } from '@chatic/shared/subWebViewTrust';
 
 /** The sub WebView that is showing. */
 export interface SubWebViewEntry {
@@ -9,6 +10,8 @@ export interface SubWebViewEntry {
     params: Record<string, unknown>;
     /** The app the web resolved `url` from, which the page's share link names; absent from an older web. */
     appId?: string;
+    /** How far the shell trusts the page: whether its manifest is read, and what the bar shows. */
+    trust: SubWebViewTrust;
 }
 
 export type SubWebViewOpenResult = { ok: true; view: SubWebViewEntry } | { ok: false; code: SubWebViewErrorCode };
@@ -30,8 +33,8 @@ export interface ISubWebViewService {
     /** The view that is showing, or `null`. */
     current(): SubWebViewEntry | null;
     /**
-     * Validate `url` against the allowlist, `params` against the data limit and `appId` as one label,
-     * and record a new view.
+     * Validate `url` as one a sub WebView opens, `params` against the data limit and `appId` as one
+     * label, and record a new view with the tier `url` is in.
      */
     open(request: { url: unknown; title?: unknown; params?: unknown; appId?: unknown }): SubWebViewOpenResult;
     /**

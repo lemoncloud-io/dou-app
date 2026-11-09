@@ -7,6 +7,7 @@ import type {
     WebMessageHandlerResponse,
 } from '@chatic/bridge-messages';
 import type { ShareAction } from 'react-native';
+import { subWebViewTrustOf } from '@chatic/shared/subWebViewTrust';
 
 import type { IHapticBridge } from '../bridge';
 import { HAPTIC_KINDS } from '../bridge/hapticKinds';
@@ -197,10 +198,17 @@ export const createSubBridgeHandlers = (deps: SubBridgeDeps): SubBridgeHandlers 
         },
 
         // Only what the sub WebView would itself hand to the OS — web, mail, phone, SMS and the stores.
-        // Never the app's own schemes or links, and never another sub WebView page.
+        // Never the app's own schemes or links, and never the hub or a reviewed page, which open in a
+        // sub WebView of their own rather than in the OS browser.
         OpenURL: async message => {
             const url = message.data?.url;
-            if (typeof url !== 'string' || decideSubWebViewNavigation({ url, isTopFrame: true }) !== 'external') {
+            const trust = subWebViewTrustOf(url);
+            if (
+                typeof url !== 'string' ||
+                trust === 'firstParty' ||
+                trust === 'reviewed' ||
+                decideSubWebViewNavigation({ url, isTopFrame: true }, deps.origin) !== 'external'
+            ) {
                 return fail('OnOpenURL', 'LINK_NOT_ALLOWED', 'This link cannot be opened from a sub WebView page.');
             }
             try {

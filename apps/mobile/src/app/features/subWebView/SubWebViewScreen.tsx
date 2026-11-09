@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { NativeStackNavigationOptions, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SubWebViewOrientation } from '@chatic/bridge-messages';
+import { subWebViewOriginOf } from '@chatic/shared/subWebViewTrust';
 
 import { useResolvedTheme } from '../../hooks';
 import {
@@ -25,14 +26,28 @@ const ORIENTATION: Record<SubWebViewOrientation, NativeStackNavigationOptions['o
 };
 
 /**
+ * What an `external` site — one a cloud's owner chose, under no review — is shown with: the base set,
+ * and the bar. Nothing is read from the site itself, not even its `/.well-known` manifest, so it can
+ * neither claim a permission nor hide DoU's bar and draw what looks like DoU in its place.
+ */
+const EXTERNAL_MANIFEST: ResolvedSubWebViewManifest = Object.freeze({
+    permissions: new Set<never>(),
+    display: 'standard',
+    orientation: 'any',
+});
+
+/**
  * Chrome only — a floating close control alone by default, or for a `standard` page a bar with the
  * title and a close control over the page. The page's manifest decides which, its orientation and what its bridge
  * answers, so the page is not loaded until the manifest is in; until then the screen shows only the
- * close control, so even a manifest that never answers cannot keep the user in.
+ * close control, so even a manifest that never answers cannot keep the user in. An external site has
+ * no manifest to wait for: it loads at once, with the bar titled with its host whatever the page or
+ * the web asks.
  */
 export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) => {
-    const { viewId, url, title, params, appId } = route.params;
-    const [manifest, setManifest] = useState<ResolvedSubWebViewManifest | null>(null);
+    const { viewId, url, title, params, appId, trust } = route.params;
+    const external = trust === 'external';
+    const [manifest, setManifest] = useState<ResolvedSubWebViewManifest | null>(external ? EXTERNAL_MANIFEST : null);
     const [pageTitle, setPageTitle] = useState<string | undefined>(undefined);
     // A title the page asked for outranks the document's, which outranks the web's, which outranks
     // the manifest's name.
@@ -43,6 +58,7 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
     const foreground = isDark ? '#FFFFFF' : '#222325';
 
     useEffect(() => {
+        if (external) return;
         let live = true;
         const origin = originOf(url);
         const pending = origin ? subWebViewManifestStore.get(origin) : Promise.resolve(DEFAULT_SUB_WEBVIEW_MANIFEST);
@@ -58,7 +74,7 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
         return () => {
             live = false;
         };
-    }, [url, navigation]);
+    }, [url, external, navigation]);
 
     const close = useCallback(() => {
         // The service dismisses the screen. If it no longer knows this view, nothing would: leave by
@@ -110,7 +126,9 @@ export const SubWebViewScreen = ({ route, navigation }: SubWebViewScreenProps) =
             {manifest && !fullscreen && (
                 <View style={styles.bar}>
                     <Text style={[styles.title, { color: foreground }]} numberOfLines={1}>
-                        {requestedTitle ?? pageTitle ?? title ?? manifest.name ?? ''}
+                        {external
+                            ? (subWebViewOriginOf(url)?.slice('https://'.length) ?? '')
+                            : (requestedTitle ?? pageTitle ?? title ?? manifest.name ?? '')}
                     </Text>
                     {closeControl(false)}
                 </View>

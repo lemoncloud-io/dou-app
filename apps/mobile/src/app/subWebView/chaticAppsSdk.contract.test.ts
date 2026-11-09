@@ -40,7 +40,6 @@ const setup = (
     const storage = new SubWebViewStorage(memoryStorageFile());
     const service = new SubWebViewService(
         { warn: jest.fn(), error: jest.fn() } as never,
-        ['apps.chatic.io'],
         () => 'view-1'
     );
     service.open({ url: 'https://quiz.apps.chatic.io/' });

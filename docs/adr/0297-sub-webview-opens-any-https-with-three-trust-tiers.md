@@ -1,7 +1,8 @@
 # ADR-0297: A sub WebView opens any https site, in one of three trust tiers
 
 > Status: Accepted · Decided: 2026-11-09 · Implemented: `feat/mini-app-hub-link-desktop` (the desktop
-> shell and the shared rule; the phone shell follows in a later change)
+> shell and the shared rule), `feat/mini-app-hub-link-mobile` (the phone shell and the mobile web's Lab
+> card)
 > · Scope: `libs/shared` (`utils/subWebViewTrust.ts`, `utils/miniAppLaunchParams.ts`) ·
 > `libs/bridge-messages` (`model/sub-webview.ts` — `SubWebViewOpenScope`, `MiniAppLaunchParams`,
 > `platform: 'desktop'`; `model/system.ts` — `subWebViewOpenScope`) · `libs/bridges` (`BRIDGE_VERSION`
@@ -108,8 +109,18 @@ decided by one shared rule both shells and both webs call.**
   SDK follows, and `SDK_BRIDGE_VERSION` with it.
 - The desktop shell answers `OpenSubWebView` and `CloseSubWebView` and pushes `OnSubWebViewClosed`;
   the page-facing requests stay off the main window's host.
-- The phone shell still opens the reviewed pages only and reports no `subWebViewOpenScope`, so on
-  the phone the web keeps the owner's link hidden until the phone adopts the shared rule.
+- The phone shell adopts the same rule and says `anyHttps` too. On the phone an external site is shown
+  with the bar and its host, as on the desktop; only the opened origin loads in the view, so a
+  reviewed page that links to another reviewed page now hands it to the OS browser. An app from
+  before this says nothing, and the web keeps the owner's link hidden there.
+- **Device access is where the shells differ.** The phone leaves the camera, microphone and file
+  pickers open on every tier, as it always has for reviewed pages — an external site's included, so on
+  both platforms a page's capture is granted without a prompt of its own once DoU holds the
+  permission (on iOS the WebView grants a same-host request itself; on Android react-native-webview
+  grants it natively). The desktop refuses every device request. Denying it on the phone was weighed:
+  iOS could (the WebView's grant type `deny`), but Android has no hook for the app, so only a native
+  patch would make it hold. The owner who saved the link answers for the site, as an
+  author answers for a reviewed page; the phone keeps its rule rather than carry a patch.
 - The hub's root origins need DNS, a certificate and hosting of their own: the `*.apps.chatic.io`
   wildcard covers neither the root nor its certificate. Until they exist, opening the hub shows the
   load error in the card.

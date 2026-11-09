@@ -3,7 +3,7 @@ import { pushedEventErrors, pushedEvents } from './appEventContract';
 import { createSubWebViewHandlers, forwardSubWebViewClosed } from './subWebViewHandlers';
 
 const createService = () =>
-    new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any, ['apps.chatic.io'], () => 'view-1');
+    new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any, () => 'view-1');
 
 const message = <T>(type: string, data: T) => ({ type, data }) as any;
 
@@ -19,7 +19,7 @@ describe('createSubWebViewHandlers', () => {
     it("fails OnOpenSubWebView with the service's code", async () => {
         const { handleOpenSubWebView } = createSubWebViewHandlers(createService());
 
-        const reply = await handleOpenSubWebView(message('OpenSubWebView', { url: 'https://evil.example/' }));
+        const reply = await handleOpenSubWebView(message('OpenSubWebView', { url: 'https://user@evil.example/' }));
 
         expect(reply).toEqual({
             type: 'OnOpenSubWebView',

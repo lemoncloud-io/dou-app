@@ -213,8 +213,8 @@ it, is one of three tiers, decided by one shared rule (`libs/shared` `subWebView
 | `reviewed`   | One label under those domains (`https://quiz.apps.chatic.io`)             | read (name, display) | the page's, as on the phone |
 | `external`   | Any other plain https site — a link a cloud's owner registered            | **never fetched**    | **its host, always**        |
 
-- The main window's handshake says `subWebViewOpenScope: 'anyHttps'`. A phone shell that reports no
-  `subWebViewOpenScope` opens the reviewed pages only, as it always has.
+- The main window's handshake says `subWebViewOpenScope: 'anyHttps'`, as the phone shell's does from
+  2.22.0. A shell that reports no `subWebViewOpenScope` opens the reviewed pages only, as it always has.
 - A URL a parser could read two ways is not opened: userinfo, a port, a backslash, whitespace, a
   control character, an IP literal.
 - The page's host answers `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle` and
@@ -235,6 +235,11 @@ it, is one of three tiers, decided by one shared rule (`libs/shared` `subWebView
 A page declares what it needs in a manifest, served from its own origin at
 `/.well-known/chatic-app.json` — for `https://quiz.apps.chatic.io/`, at
 `https://quiz.apps.chatic.io/.well-known/chatic-app.json`:
+
+**(2.22.0)** Only the hub and a reviewed page have one read. On the phone as on the desktop, an
+`external` site — any other https site, a link a cloud's owner saved — is never asked for a manifest:
+it gets the base set, the bar, and its host as the bar's title whatever it sets (the tiers are in
+[the desktop section](#the-desktop-shell-2220)).
 
 ```json
 {
@@ -436,10 +441,11 @@ Needs the `openUrl` permission (2.16.0).
 | ----------------- | ----- | ------------------------------------- |
 | `{ url: string }` | `{}`  | `LINK_NOT_ALLOWED`, `OPEN_URL_FAILED` |
 
-Opens only what the view would itself hand to the OS: an `https` or `http` page off the allowlist,
-`mailto:`, `tel:`, `sms:`, `itms-apps:`, `market:`. The app's own links and schemes, another sub
-WebView page, and anything else answer `LINK_NOT_ALLOWED` — as does a `url` that is not a string.
-To show an allowlisted page, navigate to it.
+Opens only what the view would itself hand to the OS: an `https` or `http` page that is neither the
+hub nor a reviewed page, `mailto:`, `tel:`, `sms:`, `itms-apps:`, `market:`. The app's own links
+and schemes, the hub or a reviewed page (the opened origin included), and anything else answer
+`LINK_NOT_ALLOWED` — as does a `url` that is not a string. **(2.22.0)** Navigating to another origin,
+a reviewed page included, hands it to the OS browser: only the opened origin loads in the view.
 
 ### `OpenShareSheet`
 

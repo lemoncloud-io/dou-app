@@ -6,7 +6,8 @@ import type { ISubWebViewService } from '../../services';
 const ERROR_MESSAGES: Record<SubWebViewErrorCode, string> = {
     INVALID:
         'An https url is required; title must be a string, params a JSON object of at most 16 KiB and appId one lower-case label.',
-    NOT_ALLOWED: 'The url is not on the sub WebView allowlist.',
+    NOT_ALLOWED:
+        'The url is not one a sub WebView opens: a plain https host, with no userinfo, port, IP literal, backslash, whitespace or control character.',
     ALREADY_OPEN: 'A sub WebView is already showing.',
     NOT_OPEN: 'No sub WebView with this viewId is showing.',
 };
