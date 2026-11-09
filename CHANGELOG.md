@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-09] - No version updates
+
+### Bug Fixes
+
+- (mobile,app-runtime,web) keep converting a video through a short trip off the screen
+
 ## [2026-11-05] - root@0.150.1, @chatic/desktop-web@0.54.1
 
 ### Bug Fixes
