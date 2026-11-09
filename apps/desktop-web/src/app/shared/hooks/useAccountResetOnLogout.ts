@@ -10,9 +10,8 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
     'chatic-cloud-push-badges',
     'chatic-notification-prefs',
     'chatic-saved-items',
-    // Legacy favorites key — migrateLegacyFavorites moves it when a place is opened. To stop an id
-    // left over from before migration from leaking into the next account, it must also be cleared on
-    // logout (the new record is handled by config.clear below).
+    // The favorites key older builds wrote (pins are a config row now). Nothing reads it any more, but a
+    // device can still hold one, and its ids must not outlive the account that pinned them.
     'chatic-favorite-channels',
     'chatic-mentions',
     'chatic-my-threads',

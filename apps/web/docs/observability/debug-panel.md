@@ -55,13 +55,9 @@ Three rules hold on every crossing:
    screen's call into `run`, for a command the app replies to, and `fire`, for the handful that
    were already void before this panel existed (`openURL`, `openSettings`, `openShareSheet`,
    `setBadgeCount` in `appBridge.ts`). `fire` never claims success — it reports `"sent (no confirmation)"` so a silent void call is never mistaken for a confirmed one.
-3. **A version gap is expected, not a bug.** The web ships before the app
-   ([`libs/bridge-messages`](../../../../libs/bridge-messages/README.md) states the same rule for every
-   bridge message). When an installed build has no handler yet, the host answers `NOT_FOUND`, and
-   `run` renders `"not supported by this app version"` instead of the raw handler-missing error — then
-   remembers the command in a module-level `Set` so `isUnsupported(command)` can lock that control
-   for the rest of the session. The set is never un-learned; an app build cannot grow a handler
-   without a reload.
+3. **A rejection is reported as it came.** Every command the panel sends is one the oldest app this
+   page runs in already handles, so `run` reports a rejection — `NOT_FOUND` included — as
+   `"failed: <message>"`, with nothing learned or locked.
 
 ## What stays in apps/mobile
 

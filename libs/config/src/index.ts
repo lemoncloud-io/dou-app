@@ -31,8 +31,8 @@ export type { IRemoteConfigAdapter, RemotePayload } from './lanes/RemoteCache';
 export { createWebEnvAdapter } from './adapters/webEnvAdapter';
 export { UNLOCK_KEY } from './resolve/ConfigResolver';
 /**
- * The storage-boundary encoding and the key an override lives under — exported so an app's one-time
- * legacy-value migration (an old ad-hoc storage key renamed into the registry) can seed the exact
+ * The storage-boundary encoding and the key an override lives under — exported so an app that seeds
+ * a local-lane value before `init` (`apps/web` mirrors a theme key other apps share) writes the exact
  * same format `hydrateStorage()` reads back, without guessing at or duplicating this lib's encoding.
  */
 export { encodeValue, storageKeyFor } from './utils/serialize';

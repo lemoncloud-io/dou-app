@@ -20,9 +20,6 @@ import type { ImageCache } from './imageCache';
  *   learned rather than assumed: the first fetch that cannot be made settles it for the session, and
  *   from then on the tile draws the frame with a muted `<video>` of its own (`element`), which needs no
  *   CORS but has no cache other than the browser's.
- *
- * An app from before `ReadVideoFrame` answers `NOT_FOUND`, learned once: Android then uses the
- * `<video>` path, which its WebView draws; iOS stays grey, since its WebView would load nothing.
  */
 export type FrameOutcome =
     /** A JPEG in the image cache; `src` is its object URL. */
@@ -45,8 +42,6 @@ export type ShellFrameReader = (url: string) => Promise<Blob>;
 export interface VideoFramesDeps {
     cache: Pick<ImageCache, 'lookup' | 'put'>;
     isNative: () => boolean;
-    /** iOS and iPadOS WebKit, whose app WebView loads no media before a tap. */
-    isAppleTouch: () => boolean;
     readShellFrame: ShellFrameReader;
     fetch: (url: string, init: RequestInit) => Promise<Response>;
     /** `drawVideoFrame` from `@chatic/shared`. */
@@ -76,11 +71,8 @@ interface Job {
 type Made = { kind: 'image'; src: string } | { kind: 'element' | 'none'; byUpload: boolean };
 
 const idOf = (request: VideoFrameRequest) => `${request.key}\u0000${request.url}`;
-const codeOf = (error: unknown) => (error as { code?: string } | null)?.code;
 
 export class VideoFrames {
-    /** Set by the first `NOT_FOUND`: this app has no `ReadVideoFrame`. */
-    private shellAbsent = false;
     /** Set by the first CORS fetch that could not be made: the bucket sends no CORS headers here. */
     private corsBlocked = false;
     /**
@@ -187,17 +179,13 @@ export class VideoFrames {
     }
 
     private async fromShell(url: string): Promise<Blob | Made> {
-        if (!this.shellAbsent) {
-            try {
-                return await this.deps.readShellFrame(url);
-            } catch (error) {
-                // Anything but NOT_FOUND is about this read — an expired address, the network, a codec —
-                // not the app. The shell cannot tell them apart, so a fresh address gets another try.
-                if (codeOf(error) !== 'NOT_FOUND') return { kind: 'none', byUpload: false };
-                this.shellAbsent = true;
-            }
+        try {
+            return await this.deps.readShellFrame(url);
+        } catch {
+            // An expired address, the network, a codec: the shell cannot tell them apart, so a fresh
+            // address gets another try.
+            return { kind: 'none', byUpload: false };
         }
-        return { kind: this.deps.isAppleTouch() ? 'none' : 'element', byUpload: true };
     }
 
     private async fromBucket(url: string): Promise<Blob | Made> {

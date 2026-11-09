@@ -12,21 +12,9 @@ import { useDebugSharedStrings } from '../i18n/screens/shared';
  * claim a confirmation it never got (decision 10):
  *
  * - `run` — for `webClient.request` commands. The app answers, so the line reports the response, and
- *   a rejection (including an older app that does not know the command) reports the failure.
+ *   a rejection reports the failure.
  * - `fire` — for `webClient.post` commands (`openURL`, `setBadgeCount`, `openSettings`,
  *   `openShareSheet`). Nothing comes back, so the line says so instead of implying success.
- *
- * ## Commands an older app does not know
- *
- * The web ships ahead of the app, so a panel built against a new command runs for a while on builds
- * that have no handler for it. The host answers `NOT_FOUND` in that case, which is NOT a failure of
- * the operation — it means nobody was listening. Reporting the host's raw message (`등록된 핸들러를
- * 찾을 수 없습니다: …`) would send a tester chasing a bug that is really a version gap.
- *
- * So `run` takes the command name, says so plainly, and REMEMBERS: `isUnsupported(command)` lets a
- * screen disable the control instead of offering a button that cannot work. Module scope and
- * one-way, like `shellKvAdapter`'s `configKvUnsupported` and `NativeDBAdapter`'s
- * `batchReadUnsupported` — one installed app cannot gain a handler without a reload.
  */
 export interface DebugOperation {
     /** Last line to show under the buttons; null before anything ran. */
@@ -34,21 +22,10 @@ export interface DebugOperation {
     /**
      * @param label what to call the operation in the result line.
      * @param operation the bridge call.
-     * @param command the message type, when the caller wants NOT_FOUND remembered for it.
      */
-    run: (label: string, operation: () => Promise<unknown>, command?: string) => Promise<void>;
+    run: (label: string, operation: () => Promise<unknown>) => Promise<void>;
     fire: (label: string, operation: () => void) => void;
-    /** Whether this app build already answered NOT_FOUND for that command. */
-    isUnsupported: (command: string) => boolean;
 }
-
-/** Commands this app build has told us it does not know. Never un-learned — see the docblock. */
-const unsupportedCommands = new Set<string>();
-
-/** Test seam: the set is module state, so a suite that learns one must be able to forget it. */
-export const resetUnsupportedCommands = (): void => unsupportedCommands.clear();
-
-const isNotFound = (error: unknown): boolean => (error as { code?: string } | undefined)?.code === 'NOT_FOUND';
 
 /** How much of a response to show — enough to read, short enough not to push the buttons offscreen. */
 const MAX_RESULT_CHARS = 400;
@@ -58,21 +35,13 @@ export const useDebugOperation = (): DebugOperation => {
     const strings = useDebugSharedStrings();
 
     const run = useCallback(
-        async (label: string, operation: () => Promise<unknown>, command?: string) => {
+        async (label: string, operation: () => Promise<unknown>) => {
             setResult(`${label}…`);
             try {
                 const response = (await operation()) as { data?: unknown };
                 const body = response?.data ? JSON.stringify(response.data).slice(0, MAX_RESULT_CHARS) : 'ok';
                 setResult(`${label} → ${body}`);
             } catch (e) {
-                if (isNotFound(e)) {
-                    if (command) unsupportedCommands.add(command);
-                    // `info`, not `warn`: a version gap is expected during the deploy window, and the
-                    // uploader carries this line so the gap is visible in collected logs.
-                    logger.info('APP', `debug command unsupported by this app build: ${command ?? label}`);
-                    setResult(`${label} → ${strings.operation.notSupported}`);
-                    return;
-                }
                 logger.warn('APP', `debug operation failed: ${label}`, e as Error);
                 setResult(`${label} → ${strings.operation.failedPrefix}: ${(e as Error).message}`);
             }
@@ -88,7 +57,5 @@ export const useDebugOperation = (): DebugOperation => {
         [strings]
     );
 
-    const isUnsupported = useCallback((command: string) => unsupportedCommands.has(command), []);
-
-    return { result, run, fire, isUnsupported };
+    return { result, run, fire };
 };

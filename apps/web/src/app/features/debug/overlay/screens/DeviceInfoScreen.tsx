@@ -51,11 +51,7 @@ export const DeviceInfoScreen = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            void run(
-                                strings.operations.camera,
-                                () => appBridge.openCamera({ mediaType: 'photo' }),
-                                'OpenCamera'
-                            )
+                            void run(strings.operations.camera, () => appBridge.openCamera({ mediaType: 'photo' }))
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
@@ -64,10 +60,8 @@ export const DeviceInfoScreen = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            void run(
-                                strings.operations.photoLibrary,
-                                () => appBridge.openPhotoLibrary({ selectionLimit: 1, mediaType: 'photo' }),
-                                'OpenPhotoLibrary'
+                            void run(strings.operations.photoLibrary, () =>
+                                appBridge.openPhotoLibrary({ selectionLimit: 1, mediaType: 'photo' })
                             )
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
@@ -77,10 +71,8 @@ export const DeviceInfoScreen = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            void run(
-                                strings.operations.file,
-                                () => appBridge.openDocument({ allowMultiSelection: true }),
-                                'OpenDocument'
+                            void run(strings.operations.file, () =>
+                                appBridge.openDocument({ allowMultiSelection: true })
                             )
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
@@ -89,9 +81,7 @@ export const DeviceInfoScreen = () => {
                     </button>
                     <button
                         type="button"
-                        onClick={() =>
-                            void run(strings.operations.contacts, () => appBridge.getContacts(), 'GetContacts')
-                        }
+                        onClick={() => void run(strings.operations.contacts, () => appBridge.getContacts())}
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
                         {strings.actions.contacts}
@@ -99,11 +89,7 @@ export const DeviceInfoScreen = () => {
                     <button
                         type="button"
                         onClick={() =>
-                            void run(
-                                strings.operations.nativeClipboard,
-                                () => appBridge.copyToClipboard('debug'),
-                                'CopyToClipboard'
-                            )
+                            void run(strings.operations.nativeClipboard, () => appBridge.copyToClipboard('debug'))
                         }
                         className="rounded-md border border-border px-2 py-1 text-xs"
                     >
@@ -133,9 +119,7 @@ export const DeviceInfoScreen = () => {
                         <button
                             key={permission}
                             type="button"
-                            onClick={() =>
-                                void run(permission, () => appBridge.requestPermission(permission), 'RequestPermission')
-                            }
+                            onClick={() => void run(permission, () => appBridge.requestPermission(permission))}
                             className="rounded-md border border-border px-2 py-1 text-xs"
                         >
                             {permission}

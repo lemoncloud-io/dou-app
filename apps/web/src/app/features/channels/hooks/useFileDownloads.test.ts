@@ -280,30 +280,6 @@ describe('useFileDownloads inside the app', () => {
         expect(result.current.stateOf(doc)).toBe('done');
     });
 
-    it('learns an app without SaveFile from its NOT_FOUND and shows every card unavailable', async () => {
-        answer({ SaveFile: async () => Promise.reject(failure('NOT_FOUND')) });
-        const { result } = render();
-
-        await act(() => result.current.download(doc));
-
-        expect(result.current.stateOf(doc)).toBe('unavailable');
-        expect(result.current.stateOf(other)).toBe('unavailable');
-        expect(toast).not.toHaveBeenCalled();
-
-        await act(() => result.current.download(other));
-        await act(() => result.current.open(other));
-        expect(started).toHaveLength(1);
-    });
-
-    it('learns an app without OpenFile the same way', async () => {
-        answer({ OpenFile: async () => Promise.reject(failure('NOT_FOUND')) });
-        const { result } = render();
-
-        await act(() => result.current.open(doc));
-
-        expect(result.current.stateOf(doc)).toBe('unavailable');
-    });
-
     it('says saving needs storage access when Android refused it, with the settings', async () => {
         answer({ SaveFile: async () => Promise.reject(failure('PERMISSION_DENIED')) });
         const { result } = render();
@@ -328,21 +304,12 @@ describe('useFileDownloads inside the app', () => {
         expect(request).not.toHaveBeenCalled();
     });
 
-    it('asks for an app update when ShareFile refuses a document', async () => {
-        shareFile.mockRejectedValue(failure('UNSUPPORTED_TYPE'));
-        const { result } = render();
-
-        await act(() => result.current.share(doc));
-
-        expect(toast).toHaveBeenCalledWith({ title: 'chat.attach.fileCard.shareUpdateRequired' });
-    });
-
-    it('asks for an app update when an old app refuses to save a ZIP archive, and leaves every other card alone', async () => {
-        const archive: ChatFileSlot = { ...doc, key: 'c/u-3', uploadId: 'u-3', name: 'photos.zip' };
+    it('asks for an app update when an old app refuses to save an audio file, and leaves every other card alone', async () => {
+        const archive: ChatFileSlot = { ...doc, key: 'c/u-3', uploadId: 'u-3', name: 'memo.m4a' };
         answer({
             SaveFile: async () => {
                 const saving = sent('SaveFile').at(-1) as { data: { name: string } };
-                return saving.data.name.endsWith('.zip')
+                return saving.data.name.endsWith('.m4a')
                     ? Promise.reject(failure('INVALID'))
                     : { data: { saved: true, location: 'Download/DoU/report.pdf' } };
             },

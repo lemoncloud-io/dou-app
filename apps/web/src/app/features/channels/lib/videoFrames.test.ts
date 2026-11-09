@@ -1,7 +1,6 @@
 import { FRAME_RANGE, VideoFrames, type VideoFramesDeps } from './videoFrames';
 
 const jpeg = () => new Blob(['jpeg'], { type: 'image/jpeg' });
-const notFound = () => Object.assign(new Error('no handler'), { code: 'NOT_FOUND' });
 
 const setup = (over: Partial<VideoFramesDeps> = {}) => {
     const kept = new Map<string, string>();
@@ -16,7 +15,6 @@ const setup = (over: Partial<VideoFramesDeps> = {}) => {
             }),
         },
         isNative: jest.fn(() => true),
-        isAppleTouch: jest.fn(() => false),
         readShellFrame: jest.fn(async () => jpeg()),
         fetch: jest.fn(
             async () => ({ ok: true, status: 206, blob: async () => new Blob(['mp4']) }) as unknown as Response
@@ -83,25 +81,6 @@ describe('VideoFrames — in the app', () => {
 
         await expect(frames.request(fresh).result).resolves.toMatchObject({ kind: 'image' });
         expect(deps.readShellFrame).toHaveBeenCalledTimes(2);
-    });
-
-    it('lets an older Android app draw the frame in the tile once it says it has no ReadVideoFrame', async () => {
-        const { frames, deps } = setup({ readShellFrame: jest.fn(async () => Promise.reject(notFound())) });
-
-        await expect(frames.request(video(1)).result).resolves.toEqual({ kind: 'element' });
-        await expect(frames.request(video(2)).result).resolves.toEqual({ kind: 'element' });
-        // Learned once for the page.
-        expect(deps.readShellFrame).toHaveBeenCalledTimes(1);
-    });
-
-    // Its WebView loads no media before a tap, so a video element would stay as grey as the panel.
-    it('leaves an older iOS app grey', async () => {
-        const { frames } = setup({
-            readShellFrame: jest.fn(async () => Promise.reject(notFound())),
-            isAppleTouch: jest.fn(() => true),
-        });
-
-        await expect(frames.request(video()).result).resolves.toEqual({ kind: 'none' });
     });
 });
 

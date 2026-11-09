@@ -10,7 +10,7 @@ import { setStorageAdapter } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 
 import { webConfigPorts } from './app/config/adapters';
-import { migrateLegacyPreferences, syncThemeFromSharedKey } from './app/config/legacyPreferenceMigration';
+import { syncThemeFromSharedKey } from './app/config/themeSharedKeySync';
 
 import App from './app/app';
 import { appBridge, pendingNavigationStore } from './app/bridge';
@@ -68,12 +68,10 @@ startLogUploader({
 // published to nobody. Silent when the join is intact (a plain browser always is).
 reportRunIdJoin();
 
-// One-time carry-over of usePreferenceStore's pre-@chatic/config localStorage keys (ADR-0079
-// "migrating legacy stored values") — must run before `config.init()` below, whose `hydrateStorage()` is what
-// actually reads the keys these write. `syncThemeFromSharedKey` is not one-time: `vite-ui-theme` stays
-// the durable, cross-app key (five apps' pre-paint scripts and `@chatic/theme`'s `ThemeProvider` all
-// read/write it directly), re-synced into `ui.theme`'s own storage on every boot.
-migrateLegacyPreferences();
+// `vite-ui-theme` is the durable, cross-app theme key (five apps' pre-paint scripts and
+// `@chatic/theme`'s `ThemeProvider` all read/write it directly); re-synced into `ui.theme`'s own
+// storage on every boot. Must run before `config.init()` below, whose `hydrateStorage()` is what
+// actually reads the key it writes.
 syncThemeFromSharedKey();
 
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — an explicit call
@@ -193,12 +191,12 @@ pendingNavigationStore.start();
 // The reply is a capability report, not an ack: this web build can be newer than the app it runs
 // inside, so what the installed shell can persist locally has to be asked, not assumed. Recording it
 // before render keeps the answer available by the time the data runtime creates its cache storages
-// (an unrecorded answer is treated as a legacy shell, which is the safe reading — see
+// (an unrecorded answer falls back to the fixed set of cache types every supported shell stores — see
 // nativeCacheSupport). Never rejects, so this cannot break boot in a plain browser.
 void appBridge.notifyWebAppReady().then(report => {
     // First, so nothing that follows can leave every trace of this session held unresolved.
     webPerfTraces.resolveWith(report);
-    // Until this lands the viewer shows no save or share — the safe reading for an older app.
+    // Until this lands the viewer shows no save or share: it does not yet know what this shell handles.
     shellCapabilities.setReport(report);
     if (report) runtime.boot.setNativeCacheSupport(report);
 });

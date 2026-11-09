@@ -3,7 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { StorageScreen } from './StorageScreen';
-import { resetUnsupportedCommands } from '../../hooks';
 import { setDebugLanguageForTests } from '../../i18n';
 import type { WebStorageEnv } from '../../lib/webStorage';
 
@@ -59,7 +58,6 @@ describe('StorageScreen', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        resetUnsupportedCommands();
         native = true;
         fetchNativeStorageSummary.mockResolvedValue({ data: summary });
         clearNativeCache.mockResolvedValue({ data: { cleared: ['chats'], kept: ['invite_clouds'], failed: [] } });
@@ -195,11 +193,11 @@ describe('StorageScreen', () => {
         expect(navigate).not.toHaveBeenCalled();
     });
 
-    it('says the app build is too old when it does not know the summary request', async () => {
+    it('shows the error when the summary request fails, and offers no native clear', async () => {
         fetchNativeStorageSummary.mockRejectedValue({ code: 'NOT_FOUND', message: 'no handler' });
         render(<StorageScreen env={env} navigate={navigate} />);
 
-        expect(await screen.findByText(/This app build can't report its storage/)).toBeInTheDocument();
+        expect(await screen.findByText('no handler')).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Clear app cache' })).toBeDisabled();
         expect(screen.getByRole('button', { name: 'Clear both' })).toBeDisabled();
     });

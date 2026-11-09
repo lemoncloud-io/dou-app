@@ -66,7 +66,7 @@ describe('requestUrlMetadata', () => {
         await expect(requestUrlMetadata('https://example.com/a')).resolves.toBeNull();
     });
 
-    it('treats a rejected request as no preview — this is the old-shell NOT_FOUND path', async () => {
+    it('treats a rejected request as no preview', async () => {
         fetchUrlMetadata.mockRejectedValue(new Error('NOT_FOUND'));
 
         await expect(requestUrlMetadata('https://example.com/a')).resolves.toBeNull();

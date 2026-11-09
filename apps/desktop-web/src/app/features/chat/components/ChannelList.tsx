@@ -18,7 +18,6 @@ import {
     lastChatNoOf,
     MobileAppPointer,
     messagePreview,
-    migrateLegacyFavorites,
     channelNotifyMode,
     channelReadNo,
     hasUnreadMentionIn,
@@ -352,12 +351,6 @@ export const ChannelList = ({
     const { pinnedIds, reorder: reorderPinned, toggle: togglePinned } = usePinnedChannels(pinScope);
     // Non-favorite display order comes from `ui.channelOrder` (one array: channels then DMs).
     const { storedIds: storedChannelOrder, set: setStoredChannelOrder } = useChannelOrder(pinScope);
-    // Lazy legacy migration: ids this place confirms move to `ui.pinnedChannels` the first time
-    // its list is on screen; other places' ids stay in the old key until their place loads.
-    useEffect(() => {
-        if (isLoading || !pinScope) return;
-        migrateLegacyFavorites(pinScope, channels.map(c => c.id ?? '').filter(Boolean));
-    }, [pinScope, isLoading, channels]);
     // The drawing order, unfiltered, for the next-unread shortcut (useNextUnreadShortcut).
     // Computed below the early returns, pushed to the store after every render.
     const displayOrderRef = useRef<string[]>([]);

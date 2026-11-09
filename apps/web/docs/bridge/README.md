@@ -56,8 +56,7 @@ registry behind it: `getShellPut()` returns the native sender inside the app and
 `xhrPut` in a browser, and `syncShellTransfers()` catches up with transfers the shell finished while
 the page was away. The native sender lives in `runtime/upload/` and takes the bridge it talks
 through as an argument, so this file stays the only place that hands it `webClient`; `xhrPut` comes
-from `@chatic/data`. The first
-`NOT_FOUND` from a shell built before the transfer module switches the page to `xhrPut` for good.
+from `@chatic/data`, and the native sender also uses it for a page video or document.
 Its consumer and the rest of the story → [feature/channels/image-send.md](../feature/channels/image-send.md).
 
 ## Downloads and capabilities: `shellDownload`, `shellCapabilities`
@@ -68,20 +67,18 @@ up with downloads that ended while the page was away; calls that overlap share o
 `useShellDownloadCatchUp()`, mounted once in `GlobalBridgeListener`, runs it when the handshake
 allows export and on every return to the front. In a browser it does nothing.
 
-`shellCapabilities.ts` keeps what the handshake reply said the installed app can do. Unlike the
-picker, haptics and the upload sender, which each learn from their first `NOT_FOUND`, the viewer's
-save and share must be absent before anyone presses them. So `useCanExportImages()` is true only
-once the reply lists both `SaveToPhotoLibrary` and `ShareFile`, and false until it arrives.
-`withdrawImageExport()` turns it off for the session if a press meets `NOT_FOUND` anyway.
+`shellCapabilities.ts` keeps what the handshake reply said the installed app can do. The viewer's
+save and share must be absent before anyone presses them, so `useCanExportImages()` is true only
+once the reply lists both `SaveToPhotoLibrary` and `ShareFile`, and false until it arrives — and in a
+browser, which gets no reply. `supports(type)` answers the same question for any one message, for the
+features newer than the oldest app this page runs in (the sub WebView, the voice recorder).
 `main.tsx` is the one place that sets the reply. The consumer →
 [feature/channels/image-export.md](../feature/channels/image-export.md).
 
 ## Haptics: `haptics`
 
-`haptics.play(kind)` asks the shell for one short haptic; the page has none of its own on iOS. The
-first call is a `request`: `NOT_FOUND` (an app built before the message) turns it off for the
-session, and a success switches every later call to a one-way `post`, which the shell plays without
-answering. A browser is never asked. What home uses it for →
+`haptics.play(kind)` asks the shell for one short haptic; the page has none of its own on iOS. Every
+call is a one-way `post`, which the shell plays without answering. A browser is never asked. What home uses it for →
 [feature/home/README.md](../feature/home/README.md#haptics).
 
 ## Voice messages: `audioRecorder`
@@ -100,11 +97,11 @@ button and its rules → [feature/channels/image-send.md](../feature/channels/im
 `openSubWebView({ url, title, params, appId })` shows a page from another origin without leaving the app, as far
 as the app it runs in allows, and says where it went:
 
-| Where the page runs                             | What happens                          | Returns                         |
-| ----------------------------------------------- | ------------------------------------- | ------------------------------- |
-| An app whose handshake lists `OpenSubWebView`   | The shell's sub WebView, over the app | `{ via: 'subWebView', viewId }` |
-| An app built before it, or before the handshake | `appBridge.openURL` — the OS browser  | `{ via: 'external' }`           |
-| A plain browser                                 | A new tab                             | `{ via: 'browser' }`            |
+| Where the page runs                           | What happens                          | Returns                         |
+| --------------------------------------------- | ------------------------------------- | ------------------------------- |
+| An app whose handshake lists `OpenSubWebView` | The shell's sub WebView, over the app | `{ via: 'subWebView', viewId }` |
+| An app built before it                        | `appBridge.openURL` — the OS browser  | `{ via: 'external' }`           |
+| A plain browser                               | A new tab                             | `{ via: 'browser' }`            |
 
 `appId` names the app `url` was resolved from (`bridge/subWebViewApps.ts`); the shell builds the
 page's share link from it, so a link the page shares names the app rather than where it is hosted.

@@ -356,9 +356,9 @@ export type OnFetchManyCacheDataPayload = {
  * by the app's SQL, but the web remains the final owner of that semantics — it re-validates the
  * returned rows and, if one fails, falls back to a windowed query for that channel only.
  *
- * If the app doesn't know this message, the host rejects it with `NOT_FOUND` and the web falls
- * back to a per-channel windowed fetch (`NativeDBAdapter.loadLastPerChannel`) — since the web
- * ships ahead of the app, this fallback isn't optional, it's required.
+ * Every phone shell the web still runs in (app 0.30.0 and later) answers it. When a read fails
+ * anyway, the web answers that read with a per-channel windowed fetch
+ * (`NativeDBAdapter.loadLastPerChannel` resolves `null`).
  */
 export type FetchLastChatsDataPayload = CacheBasePayload<'chat'> & { channelIds: string[] };
 
@@ -381,7 +381,7 @@ export interface LastChatItem {
  * [Response] Preview eligibility results for the requested channels.
  *
  * `items: null` signals a native processing error (same convention as sibling handlers) — the web
- * only falls back for that single read and doesn't learn it as unsupported. A channel with no
+ * only falls back for that single read. A channel with no
  * cached rows isn't represented by null but by `{ lastNo: 0, item: null }`.
  */
 export type OnFetchLastChatsDataPayload = CacheBasePayload<'chat'> & {
@@ -466,9 +466,8 @@ export type OnClearCacheDataPayload = {
  *
  * Why this is a separate message instead of adding `channelId` onto `ClearCacheData`: since the
  * web ships ahead of the app, an older app that doesn't know this field simply ignores it and
- * **clears the entire table for that scope**. Making it a new message type turns the same
- * situation into `NOT_FOUND`, and the web learns that once and falls back to a read-then-delete
- * approach.
+ * **clears the entire table for that scope**. A new message type cannot fail that way; every
+ * phone shell the web still runs in (app 0.30.0 and later) handles it.
  */
 export type ClearCacheDataByChannelPayload = {
     [K in CacheType]: CacheBasePayload<K> & { channelId: string };

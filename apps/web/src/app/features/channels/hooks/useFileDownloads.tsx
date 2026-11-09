@@ -34,8 +34,6 @@ const downloading = new Map<string, Downloading>();
 const busy = new Set<string>();
 /** Files the shell downloaded this session: card key → `file://` URI. */
 const kept = new Map<string, string>();
-/** The shell answered `NOT_FOUND` to `OpenFile`/`SaveFile` (or to downloads): an app built before them. */
-let updateRequired = false;
 
 let version = 0;
 const listeners = new Set<() => void>();
@@ -49,12 +47,11 @@ const subscribe = (listener: () => void) => {
 };
 const getVersion = () => version;
 
-/** Test seam — forgets every download, kept file and what was learned about the shell. */
+/** Test seam — forgets every download and kept file. */
 export const resetFileDownloads = (): void => {
     downloading.clear();
     busy.clear();
     kept.clear();
-    updateRequired = false;
     changed();
 };
 
@@ -107,7 +104,7 @@ const actionButton = (label: string, onClick: () => void) => (
     </ToastAction>
 );
 
-/** Speaks for an outcome, and learns from the one that says the app is too old. */
+/** Speaks for an outcome. */
 const report = (context: Context, file: ChatFileSlot, outcome: FileExportOutcome): void => {
     const { t } = context;
     switch (outcome.kind) {
@@ -129,18 +126,8 @@ const report = (context: Context, file: ChatFileSlot, outcome: FileExportOutcome
             });
             return;
         }
-        case 'update-required':
-            // The card's own notice says it; a toast on top would say it twice.
-            if (!updateRequired) {
-                updateRequired = true;
-                changed();
-            }
-            return;
-        case 'share-update-required':
-            toast({ title: t('chat.attach.fileCard.shareUpdateRequired') });
-            return;
         case 'save-update-required':
-            // Unlike `update-required`, not learned for the page: the same app saves every other card.
+            // Not learned for the page: the same app saves every other card.
             toast({ title: t('chat.attach.fileCard.saveNeedsUpdate') });
             return;
         case 'failed':
@@ -217,8 +204,7 @@ type Refresh = ReturnType<typeof useImageAddressRefresh>;
  * cancels — and the page then hands the file on: the button keeps it on the device (`SaveFile`), the
  * card body opens it (`OpenFile`, or the share sheet when nothing opens the format), and the action
  * sheet shares it. The downloaded file is remembered for the session, so the card turns `done` and
- * every later use skips the download. An app without `OpenFile`/`SaveFile` is learned from its first
- * `NOT_FOUND`, and every card then shows the update notice for the page's life.
+ * every later use skips the download.
  */
 export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string }) => {
     const { t } = useTranslation();
@@ -228,7 +214,6 @@ export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string
     const stateOf = useCallback(
         (file: ChatFileSlot): MessageFileDownloadState => {
             if (!isNative()) return downloading.has(file.key) ? 'downloading' : 'idle';
-            if (updateRequired) return 'unavailable';
             if (downloading.has(file.key)) return 'downloading';
             return kept.has(file.key) ? 'done' : 'idle';
         },
@@ -246,7 +231,6 @@ export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string
         async (file: ChatFileSlot) => {
             const context = { cid, chatId, t };
             if (!isNative()) return downloadHere(context, file, refresh);
-            if (updateRequired) return;
             return perform(context, 'save', file);
         },
         [chatId, cid, refresh, t]
@@ -257,7 +241,6 @@ export const useFileDownloads = ({ cid, chatId }: { cid: string; chatId?: string
         async (file: ChatFileSlot) => {
             const context = { cid, chatId, t };
             if (!isNative()) return downloadHere(context, file, refresh);
-            if (updateRequired) return;
             return perform(context, 'open', file);
         },
         [chatId, cid, refresh, t]

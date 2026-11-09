@@ -194,7 +194,7 @@ One file per app assembles the ports, and `main.tsx` calls `init` once.
 
 ```text
 main.tsx
-  ├─ migrateLegacy*()            one-time carry-over into storageKeyFor(<new key>)  ── must be first
+  ├─ syncThemeFromSharedKey()    apps/web only: seeds storageKeyFor('ui.theme')    ── must be first
   ├─ config.init(webConfigPorts) hydrateShell() then hydrateStorage()
   └─ runtime.boot.initAppRuntime()
         └─ attachConfigStateLog()      libs/app-runtime — logs overridden keys, then each change
@@ -204,8 +204,8 @@ Four apps do this: `apps/web`, `apps/desktop-web`, `apps/admin-v2` and `apps/tes
 does **not** — it implements the other side of the shell port instead. Among libs, only
 `libs/app-runtime` and `libs/shared` import this one.
 
-Legacy migrations run **before** `init`, because `init`'s `hydrateStorage()` is what reads their
-output into the local lane. A migration that runs after it writes values nobody will read until the
+Anything that seeds a local-lane value runs **before** `init`, because `init`'s `hydrateStorage()` is
+what reads it into the local lane. A seed that runs after it writes a value nobody will read until the
 next boot.
 
 ## Scenarios
@@ -240,13 +240,12 @@ it — once, then one retry, then `onShellWriteFailed`. It is **also** mirrored 
 source of truth and would otherwise lose the value on reload. On a device the shell lane outranks
 that mirror, so the mirror is invisible; in a browser it is the only copy.
 
-### 5. An old app build does not know the message
+### 5. A shell write that fails
 
-`SaveConfigValue` is answered with `NOT_FOUND` by an app that predates it. The web ships before the
-app, so this is routine rather than exceptional. `apps/web`'s shell adapter learns the answer once
-per session and downgrades to the legacy `SavePreference` bridge — but only for the four keys that
-have a legacy equivalent. A key with nothing to fall back to reaches `onShellWriteFailed`, which is
-the honest outcome.
+Every app the web still runs in answers `SaveConfigValue`: `apps/web` holds phone apps to a minimum
+version, and every version at or above it has the handler. A write the shell refuses or never answers
+reaches `onShellWriteFailed` after its retry, which is the honest outcome — there is no older bridge
+to fall back to any more.
 
 ### 6. The remote lanes, which ship empty
 

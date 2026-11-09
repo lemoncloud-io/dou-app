@@ -179,12 +179,6 @@ export type PendingReportInfo = {
     stack?: string;
     /** Detection time (ms) — used as the payload timestamp, not the time of the proxied send */
     detectedAt: number;
-    /**
-     * @deprecated Reports no longer attach logs — entries are uploaded individually by
-     * the batch uploader. The field is kept because older shell builds still populate
-     * and send it (web does not read it).
-     */
-    logs?: AppLogInfo[];
     /** Platform-specific extra info (isFatal, exit reason, etc.) */
     extra?: unknown;
 };

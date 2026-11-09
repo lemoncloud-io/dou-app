@@ -1115,7 +1115,6 @@
                 "title": "Files",
                 "album": "Choose from album",
                 "files": "Choose from files",
-                "videoNeedsUpdate": "Update the app to send videos",
                 "videoInApp": "Videos can be sent from the DoU app"
             },
             "tapAgain": "Please tap again",
@@ -1126,14 +1125,12 @@
                 "download": "Download {{name}}",
                 "cancel": "Cancel downloading {{name}}",
                 "open": "Open {{name}}",
-                "unavailable": "Update the app to download",
                 "broken": "Can't open",
                 "downloadFailed": "Couldn't download the file",
                 "saved": "File saved",
                 "openAction": "Open",
                 "storagePermission": "Allow storage access to save",
                 "share": "Share file",
-                "shareUpdateRequired": "Update the app to share files",
                 "saveNeedsUpdate": "Update the app to save this file"
             },
             "export": {
@@ -1145,7 +1142,6 @@
                 "unsupportedType": "This format can't be saved",
                 "network": "Check your connection and try again",
                 "failed": "Couldn't save or share the photo",
-                "updateRequired": "Update the app to save and share photos",
                 "saveOne": "Save this photo",
                 "saveAll": "Save all ({{n}})",
                 "cancel": "Cancel",
@@ -1157,15 +1153,13 @@
                 "shareVideo": "Share video",
                 "savedVideo": "Video saved",
                 "failedVideo": "Couldn't save or share the video",
-                "videoUpdateRequired": "Update the app to save and share videos",
                 "saveOneVideo": "Save this video",
                 "saveAllItems": "Save all ({{n}})",
                 "chooseTitleItems": "Save photos and videos",
                 "chooseDescriptionItems": "Save only this one or every photo and video in the message",
                 "saveAllProgress": "Saving {{current}} / {{total}}",
                 "savedAllItems": "Saved {{n}}",
-                "savedSomeItems": "{{saved}} saved · {{failed}} failed",
-                "savedPhotosVideosNeedUpdate": "Saved {{n}} photos · videos can be saved after updating the app"
+                "savedSomeItems": "{{saved}} saved · {{failed}} failed"
             },
             "viewerPlay": "Play video",
             "pickedFiles": "Files to send",
@@ -1984,7 +1978,11 @@
         "title": "A new update is available",
         "description": "Update to the latest version to get the newest features.",
         "later": "Later",
-        "update": "Update"
+        "update": "Update",
+        "required": {
+            "title": "Please update the app",
+            "description": "This version of the app is no longer supported.\nUpdate to the latest version to keep using DoU."
+        }
     },
     "contactInvite": {
         "title": "Invite a Friend",

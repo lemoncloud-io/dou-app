@@ -54,18 +54,14 @@ export const SmsScreen = () => {
                 <button
                     type="button"
                     disabled={recipients.length === 0}
-                    onClick={() =>
-                        void run(strings.operationLabels.sms, () => appBridge.sendSms(recipients, message), 'SendSms')
-                    }
+                    onClick={() => void run(strings.operationLabels.sms, () => appBridge.sendSms(recipients, message))}
                     className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
                 >
                     {strings.openComposeSheet}
                 </button>
                 <button
                     type="button"
-                    onClick={() =>
-                        void run(strings.operationLabels.contacts, () => appBridge.getContacts(), 'GetContacts')
-                    }
+                    onClick={() => void run(strings.operationLabels.contacts, () => appBridge.getContacts())}
                     className="rounded-md border border-border px-2 py-1 text-xs"
                 >
                     {strings.loadContacts}

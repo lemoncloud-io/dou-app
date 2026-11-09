@@ -1,8 +1,9 @@
-# appUpdate — telling someone a newer build exists, once
+# appUpdate — a newer build, and the oldest one the web still runs in
 
-`apps/web/src/app/features/appUpdate` owns one dialog and the status behind it: is there a newer
-store build, and has this person already been told about that exact version. It is an **optional**
-prompt — there is no forced update in this app, and nothing here blocks a screen.
+`apps/web/src/app/features/appUpdate` owns two things. The first is one dialog and the status behind
+it: is there a newer store build, and has this person already been told about that exact version.
+That prompt is **optional** and blocks nothing. The second is the **floor**: the oldest phone app the
+web still runs in, below which the update screen is all there is (§ The floor).
 
 The check itself is not the web's. The shell asks the store and answers over the bridge; this
 feature decides whether to interrupt someone with the answer, and remembers that it did.
@@ -16,12 +17,12 @@ store version counts, Android has no live-version source) are documented in
 
 The split is worth stating once, because both halves have a "version check" in them:
 
-| Question | Answered by |
-| --- | --- |
-| Is there a newer build, and where is its store page? | the shell — an iTunes lookup for iOS, nothing for Android |
-| Should this person see a dialog right now? | here |
-| Should the my-page version row read as up to date? | here, through the same shared status |
-| Is there an alert at launch, before the WebView exists? | the shell, separately — see the doc above |
+| Question                                                | Answered by                                               |
+| ------------------------------------------------------- | --------------------------------------------------------- |
+| Is there a newer build, and where is its store page?    | the shell — an iTunes lookup for iOS, nothing for Android |
+| Should this person see a dialog right now?              | here                                                      |
+| Should the my-page version row read as up to date?      | here, through the same shared status                      |
+| Is there an alert at launch, before the WebView exists? | the shell, separately — see the doc above                 |
 
 So a user can meet two prompts about one update: the shell's boot alert and this dialog. They are
 independent by design, and neither suppresses the other.
@@ -31,7 +32,7 @@ independent by design, and neither suppresses the other.
 ### The bridge round trip is the only source
 
 There is a boot-time injection, `CHATIC_APP_SHOULD_UPDATE`, and this feature deliberately ignores
-it. On a cold start the store lookup resolves *after* the WebView is created, so the injected value
+it. On a cold start the store lookup resolves _after_ the WebView is created, so the injected value
 is always `false`; the follow-up `OnUpdateDeviceInfo` push that would correct it is dropped whenever
 it lands before a `useDeviceInfo()` consumer has populated the device-info store. Only
 `appBridge.checkAppUpdate()` is correct at the moment it is asked.
@@ -69,9 +70,8 @@ trade, not an oversight.
 — `writableBy: ['local']`, `persist: 'local'`, default `''`. It is per device, which is right: being
 told about an update on a phone says nothing about a tablet.
 
-Writes pass `{ lane: 'local' }` explicitly. `legacyPreferenceMigration` folds the older
-`chatic-dismissed-update-version` key into it, so an install that dismissed a version before the
-config registry existed is not asked again on first run.
+Writes pass `{ lane: 'local' }` explicitly. A dismissal stored under the pre-registry
+`chatic-dismissed-update-version` key is not carried over — such an install is simply asked again.
 
 ### The my-page version row reads the same status
 
@@ -83,14 +83,59 @@ is the value that is always `false` on a cold start.
 The row opens the store only when an update is actually pending; otherwise it is inert. That rule,
 and why the row carries no hidden gesture any more, belongs to [mypage](../mypage/README.md).
 
+## The floor
+
+[`lib/appVersionFloor.ts`](../../../src/app/features/appUpdate/lib/appVersionFloor.ts) holds
+`APP_VERSION_FLOOR`, the oldest phone app version the web runs in. `AppVersionFloorGate` wraps
+everything under the app root except the debug overlay: for an iOS or Android shell whose injected
+`CHATIC_APP_CURRENT_VERSION` is below the floor it renders `RequiredUpdateScreen` instead — the reason,
+and an Update button that sends `OpenStore` — and nothing else mounts, no runtime, no socket.
+
+**Why a floor exists.** The web is deployed on its own schedule, and every installed app keeps
+loading the newest web. Without a floor the web had to carry a fallback for every shell ever shipped —
+a probe for a handler, a latch for an old reply, a second path for a missing capability — with no
+moment at which any of them could be known dead. The floor is that moment. **Raising it is what lets
+the fallbacks for the shells below it be deleted**, and nothing else does.
+
+**How it decides.**
+
+- Only `ios` and `android` are held to it. The desktop shell updates itself and loads its own web
+  build; a browser has no app.
+- It compares the app's marketing version, not the bridge version — that is what the stores sell, what
+  a person can see in their store page, and what the shell injects.
+- A shell that injects no version, or one that does not read as `major.minor.patch`, is let through.
+  Every shipped shell injects one, so an unreadable value is a defect, and locking every user out on a
+  defect is the wrong way to find it.
+- It is read once, on the first render. The installed version cannot change while the page lives.
+- The debug overlay is inside the gate too: its screens assume a shell at the floor.
+- `main.tsx` still runs before the gate, so the parts of it that talk to the shell ask the floor
+  themselves: statistics are collected only from apps at or above it (`runtime/telemetry/policy.ts`),
+  traces go to the shell's Firebase only from them (`runtime/perf/webPerfTraces.ts`), and the log
+  uploader keeps a below-floor app's logs in the page's own queue (`runtime/logging/logUploader.ts`).
+  The gate logs once when it turns an app away (`VERSION`) — nothing else of the app runs to say so.
+- `apps/web-e2e/src/specs/app-version-floor.spec.ts` runs the fake shell at a version below the floor.
+
+**The floor is 0.30.0** (bridge 2.9.0): the handshake that lists the shell's handlers, the photo
+library with videos and paging, the attachment picker, haptics, saving and sharing files, and the
+share intake are there in every app the web runs in. Fallbacks for capabilities newer than that —
+the sub WebView (bridge 2.10.0 on), the voice recorder (2.13.0) — stay until the floor passes them.
+
+**Raising it.** Pick a version the stores have served long enough that nobody is stuck on an older
+one (the installed-version spread is in admin-v2), change `APP_VERSION_FLOOR`, then delete the
+fallbacks it makes dead in the same change — `libs/bridges/src/version.ts` says which bridge version
+brought each capability. The fake shell reports a current version (`FAKE_SHELL_APP_VERSION`), so the
+web-e2e scenarios run above the floor; keep it at or above it.
+
 ## What not to do
 
 - **Do not read `CHATIC_APP_SHOULD_UPDATE` or `versionInfo.shouldUpdate` to decide anything.** Both
   are the boot injection. Ask the shared status.
 - **Do not add an "already shown" flag.** The dismissed version is the whole of the state.
 - **Do not treat a rejected check as "no update".** Keep the last status.
-- **Do not make this dialog blocking.** A forced update is a different product decision and would
-  need the shell's participation at boot, not a web dialog.
+- **Do not make this dialog blocking.** Blocking is the floor's job, and the floor is a version, not
+  a store answer: the dialog's status is missing on Android and lags on iOS.
+- **Do not add a fallback for a shell below the floor.** Raise nothing silently either: a floor change
+  and the deletions it allows go together.
 - **Do not write the dismissal on any lane but `local`.** A shell-lane write would outrank the
   device's own record on the next boot.
 

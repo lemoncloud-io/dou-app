@@ -353,12 +353,8 @@ shell, through `haptics.play(kind)` in `app/bridge/haptics.ts`. The kinds name a
 `selection` for a row reaching its actions and for each step of the pull-to-refresh gauge, `impact`
 for the gauge filling and the refresh starting.
 
-The web ships ahead of the app, so an installed app older than the message answers `NOT_FOUND`. One
-such answer settles it for the session and nothing more is sent; a browser is never asked. After the
-first answered request every haptic is a one-way post that the shell plays without replying, so a
-gesture never waits on a round trip. Only that first request is ever out at a time: while it is
-unanswered further haptics are dropped, so the run of ticks on a session's first pull sends one
-request rather than eight. The shell honours the device's own touch-feedback setting.
+Every haptic is a one-way post that the shell plays without replying, so a gesture never waits on a
+round trip; a browser is never asked. The shell honours the device's own touch-feedback setting.
 
 ## When an invite lands
 

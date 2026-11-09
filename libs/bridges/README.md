@@ -426,9 +426,9 @@ answers, not what it compiled against. That makes registration order part of the
 registers its handlers before the page can send `WebAppReady` — mobile in the router's mount
 effect, desktop while it creates the window, both long before the page has loaded far enough to
 send anything — and a handler added after a handshake is answered but not advertised until the next
-one. A host from before `2.6.0` names the whole map instead, and a web build has to keep working
-against one: anything it decides from these lists
-still needs its `NOT_FOUND` fallback. `supportedAppMessages` covers replies only; the pushed events
+one. A host from before `2.6.0` names the whole map instead; `apps/web` no longer meets one, because
+its version floor (app 0.30.0, bridge 2.9.0) is above it, but any other web on this contract still
+needs its `NOT_FOUND` fallback for anything it decides from these lists. `supportedAppMessages` covers replies only; the pushed events
 (`OnNavigate`, `OnUpdateStatus`, …) are not listed, as they never were.
 
 ### 3. An event that arrives before anyone is listening
@@ -442,9 +442,8 @@ order.
 
 `AppBridgeHost` answers `NOT_FOUND` with a `traceId`, the `requestType` and the
 `expectedResponseType` it looked up, so the failure can be followed across two log systems. The web
-deploys ahead of the app, so this is an ordinary outcome and not an incident — `@chatic/db` turns
-three specific `NOT_FOUND`s into learned fallbacks, and `apps/desktop-web` swallows others to degrade
-gracefully.
+deploys ahead of the app, so this is an ordinary outcome and not an incident — the web degrades or
+hides the feature, and `apps/desktop-web` swallows the messages the desktop shell leaves out.
 
 Which messages a shell leaves to this answer is a decision, not an accident. Each shell has a
 contract suite beside its handlers — `apps/mobile`'s `useWebMessageRouter.contract.test.ts` and

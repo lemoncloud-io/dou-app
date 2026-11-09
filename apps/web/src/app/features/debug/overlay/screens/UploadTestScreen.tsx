@@ -112,15 +112,11 @@ const formatBytes = (bytes: number) => {
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 };
 
-/**
- * Reads the error code a rejected bridge request carries; `NOT_FOUND` means the installed shell
- * predates these messages. Module-level (not a hook), so the localized suffix is passed in rather
- * than looked up here.
- */
-const errorOf = (e: unknown, noHandlerYet: string) => {
+/** The error code and message a rejected bridge request carries. */
+const errorOf = (e: unknown) => {
     const code = (e as { code?: string })?.code ?? 'UNKNOWN';
     const message = (e as { message?: string })?.message ?? String(e);
-    return code === 'NOT_FOUND' ? `${code} — ${noHandlerYet}` : `${code} — ${message}`;
+    return `${code} — ${message}`;
 };
 
 const summarize = (t: OnFileTransferStatePayload) => {
@@ -226,7 +222,7 @@ export const UploadTestScreen = () => {
             ]);
             addLog('info', strings.logTags.picker, strings.log.stagedCount(documents.length));
         } catch (e) {
-            addLog('error', strings.logTags.picker, errorOf(e, strings.noHandlerYet));
+            addLog('error', strings.logTags.picker, errorOf(e));
         }
     }, [addLog, strings]);
 
@@ -243,7 +239,7 @@ export const UploadTestScreen = () => {
                 ]);
                 addLog('info', strings.logTags.generator, strings.log.stagedNamed(doc.name));
             } catch (e) {
-                addLog('error', strings.logTags.generator, errorOf(e, strings.noHandlerYet));
+                addLog('error', strings.logTags.generator, errorOf(e));
             }
         },
         [addLog, strings]
@@ -266,7 +262,7 @@ export const UploadTestScreen = () => {
             ]);
             addLog('info', strings.logTags.tempFile, strings.log.wroteFromMemory(formatBytes(bytes.length)));
         } catch (e) {
-            addLog('error', strings.logTags.tempFile, errorOf(e, strings.noHandlerYet));
+            addLog('error', strings.logTags.tempFile, errorOf(e));
         }
     }, [addLog, strings]);
 
@@ -294,7 +290,7 @@ export const UploadTestScreen = () => {
                 });
                 addLog('info', strings.logTags.start, `${transferId.slice(0, 8)} ${file.name} → ${scenario}`);
             } catch (e) {
-                addLog('error', strings.logTags.start, `${file.name}: ${errorOf(e, strings.noHandlerYet)}`);
+                addLog('error', strings.logTags.start, `${file.name}: ${errorOf(e)}`);
             }
         }
         setStaged([]);
@@ -305,11 +301,7 @@ export const UploadTestScreen = () => {
             try {
                 await webClient.request({ type: 'CancelFileTransfer', data: { transferId } });
             } catch (e) {
-                addLog(
-                    'warning',
-                    strings.logTags.cancel,
-                    `${transferId.slice(0, 8)}: ${errorOf(e, strings.noHandlerYet)}`
-                );
+                addLog('warning', strings.logTags.cancel, `${transferId.slice(0, 8)}: ${errorOf(e)}`);
             }
         },
         [addLog, strings]
@@ -322,7 +314,7 @@ export const UploadTestScreen = () => {
             held.forEach(upsert);
             addLog('info', strings.logTags.list, strings.log.nativeHoldsCount(held.length));
         } catch (e) {
-            addLog('error', strings.logTags.list, errorOf(e, strings.noHandlerYet));
+            addLog('error', strings.logTags.list, errorOf(e));
         }
     }, [addLog, upsert, strings]);
 
@@ -340,7 +332,7 @@ export const UploadTestScreen = () => {
                 strings.log.acknowledged(ended.length, String(response.data?.remaining ?? '?'))
             );
         } catch (e) {
-            addLog('error', strings.logTags.ack, errorOf(e, strings.noHandlerYet));
+            addLog('error', strings.logTags.ack, errorOf(e));
         }
     }, [transfers, addLog, strings]);
 

@@ -23,19 +23,17 @@ and the first request would otherwise fail. It returns `{ sendImages, retry, can
 
 `bridge/shellUpload.ts` decides once per page, at the bridge seam:
 
-| Shell                                | PUT                                                                                                           |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| browser                              | `xhrPut` (`@chatic/data`) — the page's own `XMLHttpRequest`                                                   |
-| app with the transfer module         | `nativePut` — temp file, `StartFileTransfer`, count `running` bytes, wait for the terminal state, acknowledge |
-| app built before the transfer module | `xhrPut`, after the first request comes back `NOT_FOUND`; remembered for the page                             |
+| Shell   | PUT                                                                                                           |
+| ------- | ------------------------------------------------------------------------------------------------------------- |
+| browser | `xhrPut` (`@chatic/data`) — the page's own `XMLHttpRequest`                                                   |
+| app     | `nativePut` — temp file, `StartFileTransfer`, count `running` bytes, wait for the terminal state, acknowledge |
 
 **Only a photo crosses the bridge.** A page file that is a video or a document goes up by `xhrPut`
 even inside the app: the native path would first copy it to the shell as base64 in one message, and a
 WebView does not survive that for a 300MB file. The picked `File` is handed over as it is, which the
 browser streams from disk. A file the app keeps (`ShellFileRef`, from the app's own picker, below) goes
 through `putShellFile`: `StartFileTransfer` with the shell's own address and the declared size, no temp
-file. It has no page fallback — only an app with the transfer module makes such files — so one that
-reaches an older shell fails its slot.
+file. It has no page fallback: a start the shell refuses fails its slot.
 
 The native path keeps moving bytes with the app in the background. It writes one temp file at a
 time — each write holds a whole photo as base64 in page memory — while the transfers themselves
@@ -61,16 +59,13 @@ sheet (`AttachSourceSheet`), titled "파일", listing from files (documents) and
 (photos and videos). The design also shows a third row, document scan; it is not drawn, since no
 shell can scan a document yet. How photos are picked from the photos entry depends on the shell:
 
-| Shell                                   | Photos                                                                        |
-| --------------------------------------- | ----------------------------------------------------------------------------- |
-| app with the photo-library bridge       | recent photos and videos in the panel, and the in-app grid (`PhotoGridSheet`) |
-| app built before the bridge, or browser | the page's own file input, which the WebView hands to the OS chooser          |
+| Shell   | Photos                                                                        |
+| ------- | ----------------------------------------------------------------------------- |
+| app     | recent photos and videos in the panel, and the in-app grid (`PhotoGridSheet`) |
+| browser | the page's own file input                                                     |
 
-The page learns which by asking: opening the panel requests the newest photos (`ListPhotos`), and an
-app without the handler answers `NOT_FOUND`, which `bridge/photoLibrary.ts` remembers for the page. A
-timeout is not learned from. The older app's own photo bridge is not used as a fallback: it ignores
-what the page asks for and returns a device path the page cannot read, while the file input returns
-real bytes — the profile and channel photo fields already rely on it inside the app.
+Opening the panel requests the newest photos (`ListPhotos`); a failed request leaves the strip empty
+this time and asks again on the next opening.
 
 The camera entry is a capturing file input in every shell. In a browser the tap opens it directly.
 Inside the app the page first asks for the camera permission (`RequestPermission` `CAMERA`,
@@ -101,11 +96,11 @@ that has them (below).
 
 The second sheet's two entries depend on the shell too:
 
-| Shell                                   | Choose from album / Choose from files                                                                                       |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| app with the attachment picker          | `PickAttachments` — the OS photo-and-video picker, or the documents picker, through the app                                 |
-| app built before the picker, or browser | the page's own file input: photos and `mp4`, or every format the server takes (and any file, judged after the pick — below) |
-| …on iOS or iPadOS WebKit                | the album input takes photos only, and the sheet says where videos can be sent from                                         |
+| Shell                    | Choose from album / Choose from files                                                                                       |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| app                      | `PickAttachments` — the OS photo-and-video picker, or the documents picker, through the app                                 |
+| browser                  | the page's own file input: photos and `mp4`, or every format the server takes (and any file, judged after the pick — below) |
+| …on iOS or iPadOS WebKit | the album input takes photos only, and the sheet says where videos can be sent from                                         |
 
 In the app the shell copies what was picked into its own folder and answers with addresses, never
 bytes (`bridge/attachmentPicker.ts`). Photos picked alongside are kept there too, already prepared like
@@ -120,16 +115,12 @@ one at a time, only when the send button is pressed (`readPhotos`). A waiting ph
 memory, and one over the 20MB photo limit is refused when it is picked, by the size the shell reported,
 before any of its bytes cross the bridge.
 
-The page asks at the tap, since the message itself opens the picker. An app without it answers
-`NOT_FOUND` within one round trip, and the page then opens its own input in the same tap — as long as
-the answer came within 800ms, because iOS lets a page open a file input only within about a second of
-the gesture. A slower answer asks for another tap, and from then on the input opens straight away. A
+The page asks at the tap, since the message itself opens the picker. A browser opens its own input
+straight from the tap. A
 `BUSY` answer — a second tap while the picker opens or copies — shows nothing: the first tap is still
 under way. iOS WebKit's own input hands every picked video over as a QuickTime `.mov` after a silent
 conversion of up to minutes, and the server takes only `mp4`, so there it is not offered videos at
-all, and the sheet says so: inside the app, that an update sends videos
-(`chat.attach.source.videoNeedsUpdate`); in a browser, that videos can be sent from the DoU app
-(`chat.attach.source.videoInApp`).
+all, and the sheet says so: that videos can be sent from the DoU app (`chat.attach.source.videoInApp`).
 
 The files input asks for every format the server takes — a ZIP archive and the four audio formats
 (M4A, MP3, WAV, Ogg) included; photos and `mp4` kept among files can go from there too — by type and by
@@ -225,7 +216,7 @@ shell for the newest items (`ListPhotos`, the probe above), and the panel draws 
 comes — 170 ms on an iOS simulator, seconds on an Android emulator. Meanwhile the row stands at its
 full size in skeleton tiles (the kit's `RecentPhotoStrip` `loading`), so "사진", "카메라" and "파일"
 under it are where they will stay; the photos take the tiles' places as they come. Told there is no
-library (an app before the bridge), denied access, an empty library, or a probe that failed this time,
+library, denied access, an empty library, or a probe that failed this time,
 the row closes on the slide's timing and the entries rise with it. A browser never has a library and
 never draws the row.
 
@@ -348,8 +339,7 @@ side, and tells the hook which photos those are (`onVisibleRangeChange`). The ho
 apart: which photo sits at each position (ids, small) and the previews (base64, by id). As each page
 lands, the previews of pages more than two away from the visible ones (`keptPages`) are let go and
 those pages forgotten, so a long scroll holds a few hundred previews rather than every one it passed;
-the positions stay laid out, and a page scrolled back to is asked for again. A list paged by cursor
-(an older app) keeps its previews: its pages cannot be asked for out of order, and they are small.
+the positions stay laid out, and a page scrolled back to is asked for again.
 
 Pages are 60 photos asked for by `offset`, one request at a time, the page nearest the middle of the
 range first: a fast-scroll drag passes many pages, and only the one it stops on is still wanted. The
@@ -358,7 +348,7 @@ as its own request. The shell makes previews one after another, and on Android a
 never made a thumbnail for costs 40–110 ms on an emulator (a page of 60 took up to 7 s), so a first page
 of 60 kept the first screen waiting on 36 photos it does not show. Once everything on screen is in, the
 page past the range in the direction of the scroll is asked for too (`pageAhead`), so a steady scroll
-finds the next stretch there; a cursor list asks for its next page a page's worth before the end. An
+finds the next stretch there. An
 answer that moves nothing on — an offset other than the one asked for, at the same count — does not go
 round again. The first answer carries the album's `total`, so the grid is its full height from the start
 and any stretch of it can be filled directly. A position whose preview has not come — its page not loaded yet,
@@ -371,26 +361,19 @@ both instant under the system's reduced-motion setting (`PreviewImage`). When a 
 remade at the new length and the pages on screen are asked for again; the previews already held are by
 id and stay.
 
-An app from before offsets ignores the field and answers the first page with no `offset` in it. The
-first request is always offset 0, so that answer is still the right page; `bridge/photoLibrary.ts`
-learns from the missing echo once per page load, and the grid pages by cursor from then on, growing as it
-scrolls the way it always did. The handshake's `supportedWebMessages` is not used for this: it arrives
-asynchronously, it lists messages rather than the fields a handler reads, and an app whose bridge
-predates `2.6.0` builds it from the compiled message map rather than the handlers it registered — the
-answer itself is the only reliable witness.
+An answer that echoes no `offset` — Android's answer to a denied list, which is empty — is laid out as
+a plain list instead (`cursor` in the hook), growing with the pages it brings.
 
 **Preview size.** Every list asks for previews at the size the tiles are drawn: the tile's CSS width ×
 `devicePixelRatio`, rounded up to 16 (`thumbSize`; a 390pt phone at three columns asks about 400px). The
 app answers a square crop of that size ([apps/mobile native/photo-library.md](../../../../mobile/docs/native/photo-library.md)),
 except that iOS answers a size above 352px and up to 440px at 352px. That is the rendition Photos keeps of
 every photo: past it, each preview is a decode of the original and a page takes seconds. The panel's
-recent row and the album covers ask for theirs the same way. An app from before the field answers its old
-~256px previews, which draw a little soft and need no fallback.
+recent row and the album covers ask for theirs the same way.
 
 **Fast scroll.** A grid longer than three screens shows a handle on its right edge while it scrolls,
 fading 1.5 s after. Dragging it moves the scroll in proportion — the handle's place on its track is the
-scroll position's place in the content — and, with offsets, the grid fills wherever it lands. With an
-older app the content is only as long as what has loaded, so the handle covers that. It has no date
+scroll position's place in the content — and the grid fills wherever it lands. It has no date
 label: an item carries no date, and a position not yet loaded has none to show. It is pointer-only and
 hidden from assistive tech, since the grid scrolls by every other means.
 
@@ -426,9 +409,7 @@ rest still go. The grid stays open with its send button greyed out as "준비 �
 read — a video stored only in iCloud can take minutes to come down, with no progress to show — then
 closes, and the pending row appears with everything that was read. A send from the composer closes the
 panel at the press, and its row appears the same way, once the pick is read; meanwhile the row of
-thumbnails above the field stays, faded. A `NOT_FOUND` from
-`KeepLibraryVideo` — an app that lists videos but cannot keep one, which no release ships — is learned
-for the page: lists stop asking for videos, and the grid lists afresh without them when it next opens.
+thumbnails above the field stays, faded.
 
 What is picked is judged before anything is sent (`judgeChatAttachments` in `@chatic/data`; the photos
 entry's file input and the camera use its image-only form, `judgeChatImages`): the seventeen formats
@@ -522,8 +503,7 @@ even a fresh address; when the play is refused a large play button takes the nex
 pauses it, rewinds it and detaches its address, so the download stops; closing stops it at once,
 before the viewer has slid away. The player streams from the signed address with range requests,
 so no video is cached or fetched ahead — only its poster is. A player error asks for fresh
-addresses, as a photo's does. Inside an iOS app built before inline playback, the play opens the OS
-full-screen player instead.
+addresses, as a photo's does.
 
 Retry of a failed image row goes to `retry(pendingId)`, not the text path (which would send the row's
 empty `content`). Whether it can is asked at the tap, not while drawing — the file map is not React
@@ -556,8 +536,8 @@ the four tiles a message shows, and only once the message is on screen (`useInVi
    plays. Without the `#t=` fragment the engines measured show only their default grey. This is the
    path for a browser whose fetch could not be made (learned once per page: the bucket sends no CORS
    headers), for a video whose first 2 MiB do not draw (index at the end, a 4K first frame past
-   2 MiB), and for an Android app from before `ReadVideoFrame`. An iOS app from before it stays grey —
-   its WebView would load nothing.
+   2 MiB). In the app a frame the shell could not make leaves the grey panel: the iOS WebView would
+   load nothing for a `<video>` either.
 
 A frame that could not be made is remembered for the page, so a tile that comes back on screen does not
 read the video again. A failure that is the video's own — its first bytes do not draw — is remembered by
@@ -660,20 +640,13 @@ recoveries:
 - **403, once.** The message is read again for the upload's new address and the download runs once
   more; a second 403 is a failure.
 - **`SOURCE`, once.** The OS cleared the file. It is forgotten and downloaded again.
-- **`NOT_FOUND` from `OpenFile` or `SaveFile`.** An app built before them. Nothing tells the page up
-  front — the handshake only lists the photo messages — so it is learned from that first answer, and
-  every card then shows its update notice until the page reloads. A shell with no downloads at all is
-  learned the same way.
 - **`PERMISSION_DENIED`.** Android 7–9 asks for the storage permission on the first save; a refusal
   says saving needs it and offers the settings.
-- **`UNSUPPORTED_TYPE` from `ShareFile`.** An app that shares photos but predates documents: a toast
-  asks for an update.
-- **`INVALID` from `SaveFile` for a `.zip` or an audio file.** An app built before the phone kept a ZIP
-  archive saves only the other formats' extensions, and one built before audio refuses `.m4a`, `.mp3`,
-  `.wav` and `.ogg` the same way. Older apps met this with archives and voice files sent from desktop,
-  where it was said as a failed download; now a toast says an update saves it
-  (`chat.attach.fileCard.saveNeedsUpdate`); nothing is logged, and unlike `NOT_FOUND` nothing is learned
-  for the page — the same app still saves every other card. The file was downloaded all the same, so a
+- **`INVALID` from `SaveFile` for an audio file.** An app built before audio — newer than the app
+  version floor, so still in use — refuses `.m4a`, `.mp3`, `.wav` and `.ogg`, saving only the other
+  formats' extensions. A toast says an update
+  saves it (`chat.attach.fileCard.saveNeedsUpdate`); nothing is logged, and nothing is learned for the
+  page — the same app still saves every other card. The file was downloaded all the same, so a
   document card turns `done`, and pressing it opens the file, or offers the share sheet when nothing on
   the device opens it. An `INVALID` for any other name is the shell refusing a file it handed out
   itself, a bug: it is logged and said as a failure.
@@ -798,8 +771,7 @@ comes up, × on one leaves the keyboard up, a tap on the other opens the editor,
 sends the one left with the text as one message. Pick one from "전체 보기" past the newest 30 and close
 the grid: with the panel still open, the pick shows above the composer too. On a page's first opening
 in the app the recent row should be there from the first frame, in skeleton tiles, with the three
-entries under it not moving when the photos come; in an app built before the photo bridge, the row
-should close and the entries rise.
+entries under it not moving when the photos come.
 
 The send itself and `xhrPut` are tested where they live — see the runtime doc and
 [libs/data docs/uploads](../../../../../libs/data/docs/uploads/README.md).

@@ -53,7 +53,7 @@ export const KEEP_PAGES = 2;
 export interface PhotoPicker {
     /**
      * Whether this shell has the in-app picker: `null` until the first probe answers. False in a
-     * browser and in an app built before the picker, where the page's own file input is used instead.
+     * browser, where the page's own file input is used instead.
      */
     supported: boolean | null;
     access: PhotoLibraryAccess | null;
@@ -74,8 +74,8 @@ export interface PhotoPicker {
     selectAlbum(id: string): void;
 
     /**
-     * How many photos the grid lays out: the album's whole count on an app that pages by offset, what
-     * has loaded so far on one that pages by cursor.
+     * How many photos the grid lays out: the album's whole count, from the first answer — or what has
+     * loaded so far, for an answer that carries no count (Android's denied list).
      */
     count: number;
     /**
@@ -177,8 +177,9 @@ interface Slot {
 
 /**
  * How the current album is laid out. `offset`: the app said how many there are, any page can be asked
- * for, and the grid is that tall from the start. `cursor`: an app from before offsets — pages come in
- * order and the grid grows with them. `none`: the first page has not answered yet.
+ * for, and the grid is that tall from the start. `cursor`: an answer that echoed no offset (Android
+ * answers a denied list that way, empty) — pages come in order and the grid grows with them. `none`:
+ * the first page has not answered yet.
  */
 type Layout = 'none' | 'offset' | 'cursor';
 
@@ -378,14 +379,12 @@ export const offsetRequest = ({
  * this hook only holds what the screen needs of it.
  *
  * The grid is virtual: it reports the range on screen, and pages are asked for to cover it, one request
- * at a time, nearest first. On an app that pages by offset the grid knows the album's length from the
- * first answer and any stretch of it can be filled directly — which is what lets a fast-scroll jump to
- * the far end of a long album without paging through it. An older app pages by cursor and the grid
- * grows as it scrolls, as it always did.
+ * at a time, nearest first. Pages are asked for by offset, so the grid knows the album's length from
+ * the first answer and any stretch of it can be filled directly — which is what lets a fast-scroll jump
+ * to the far end of a long album without paging through it.
  *
- * On a list laid out by offset, previews of pages far from the visible range are let go as new pages
- * land (`keptPages`): a long scroll would otherwise keep every preview it passed. An older app's list
- * keeps them — its pages can only be asked for in order, and its previews are the small ones.
+ * Previews of pages far from the visible range are let go as new pages land (`keptPages`): a long
+ * scroll would otherwise keep every preview it passed.
  *
  * Picked photos can be edited before they are sent. An edit is kept as instructions (crop, quarter
  * turn, mirror) and the photo's bytes are untouched until the send, which draws only the photos whose
@@ -777,10 +776,8 @@ export const usePhotoPicker = ({
 
         let request: { offset?: number; after?: string; limit: number } | undefined;
         if (layoutRef.current === 'none') {
-            // The first page is offset 0 when the app may page by offset: an app that does not still
-            // answers the first page, and the missing echo says which kind it is. Short, for the first
-            // screen's sake (`FIRST_PAGE_SIZE`).
-            request = library.pagesByOffset() ? { offset: 0, limit: FIRST_PAGE_SIZE } : { limit: FIRST_PAGE_SIZE };
+            // Short, for the first screen's sake (`FIRST_PAGE_SIZE`).
+            request = { offset: 0, limit: FIRST_PAGE_SIZE };
         } else if (layoutRef.current === 'offset') {
             request = offsetRequest({
                 range: { ...rangeRef.current, thumbSize },
@@ -1005,12 +1002,6 @@ export const usePhotoPicker = ({
             releasePick();
             gridOpenRef.current = false;
             setGridOpen(false);
-        }
-        // An app that turned out unable to keep a video: what it listed of them cannot be picked again.
-        // The grid lists afresh when it next opens, and the list leaves videos out from now on.
-        if (!library.videosSupported()) {
-            setRecent(previous => previous.filter(item => !isVideo(item)));
-            resetList();
         }
         return editFailed > 0 ? { items, refused, editFailed } : { items, refused };
     }, [library, bake]);

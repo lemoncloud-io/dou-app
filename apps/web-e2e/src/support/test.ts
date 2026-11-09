@@ -23,6 +23,8 @@ export interface E2EOptions {
      * the page finds no bridge and takes its browser paths. Set with `test.use({ inApp: false })`.
      */
     inApp: boolean;
+    /** The installed app's version the fake shell injects. Set with `test.use({ shellAppVersion })`. */
+    shellAppVersion: string | undefined;
 }
 
 /**
@@ -42,6 +44,7 @@ const BROWSER_CONFIG_BAG: Record<string, string> = {
 export const test = base.extend<Fixtures & E2EOptions>({
     shellPlatform: ['ios', { option: true }],
     inApp: [true, { option: true }],
+    shellAppVersion: [undefined, { option: true }],
     // Automatic, so a scenario that never names the relay still cannot reach a real one.
     backend: [
         async ({ page }, use, testInfo) => {
@@ -53,7 +56,7 @@ export const test = base.extend<Fixtures & E2EOptions>({
     ],
     // Automatic too: a scenario that never names the shell still runs inside one, as the app would.
     shell: [
-        async ({ page, shellPlatform, inApp }, use, testInfo) => {
+        async ({ page, shellPlatform, inApp, shellAppVersion }, use, testInfo) => {
             if (!inApp) {
                 // A browser tab has no shell to fake. A browser scenario that names `shell` is asking
                 // for something its page cannot have, and fails on the first use. What the shell lane
@@ -67,7 +70,7 @@ export const test = base.extend<Fixtures & E2EOptions>({
                 await use(undefined as unknown as FakeShell);
                 return;
             }
-            const shell = await FakeShell.install(page, { platform: shellPlatform });
+            const shell = await FakeShell.install(page, { platform: shellPlatform, appVersion: shellAppVersion });
             await use(shell);
             await attachList(testInfo, 'shell-not-found', [...new Set(shell.unhandled)]);
             expect(shell.injectionErrors, "the app's injection script failed inside the fake shell").toEqual([]);

@@ -185,23 +185,20 @@ storage carries that request out.
 `clearByChannelId` does the same job a different way per adapter
 (ADR-0067).
 
-| Adapter                    | How                                                                                                                             |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `IndexedDBAdapter`         | A channel index range cursor                                                                                                    |
-| `NativeDBAdapter`          | The bridge message `ClearCacheDataByChannel` → `DELETE … WHERE cid=? AND uid=? AND channel_id=?` (one round trip, zero payload) |
-| `BaseDbAdapter` (fallback) | `loadAll({ channelId })` → `deleteAll(ids)`                                                                                     |
+| Adapter                   | How                                                                                                                             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `IndexedDBAdapter`        | A channel index range cursor                                                                                                    |
+| `NativeDBAdapter`         | The bridge message `ClearCacheDataByChannel` → `DELETE … WHERE cid=? AND uid=? AND channel_id=?` (one round trip, zero payload) |
+| `BaseDbAdapter` (default) | `loadAll({ channelId })` → `deleteAll(ids)`, for a store with no scoped delete of its own                                       |
 
 Why this was not done by adding a `channelId` field to the existing `ClearCacheData`: web ships ahead of
-the app, so **an older app would ignore the field it does not know and wipe the entire table for that
-scope.** With a new type, the same situation becomes a `NOT_FOUND`, which the adapter learns once
-(`resetNativeClearByChannelSupport` is the test seam) and then drops to the fallback. It is the same
-idiom as `FetchManyCacheData` and `FetchLastChatsData`, but the fallback has a different character — a
-read that fails can come back empty-handed, while a delete's fallback has to actually finish the same
-job.
+the app, so **a shell that did not know the field would have ignored it and wiped the entire table for
+that scope.** A new message type cannot fail that way. Every phone shell the web still runs in (app
+0.30.0 and later) answers it, so `NativeDBAdapter` keeps no fallback for it: a failure (a timeout, say)
+is rethrown as is, because a delete that did not happen must not look as if it did.
 
-The fallback read narrows to the channel for the domains that declared `channelId` as a query (chat and
-join). So emptying one room does not send an entire table across the bridge. A failure that is not
-`NOT_FOUND` (a timeout, say) is not learned from; it is rethrown as is.
+The default read narrows to the channel for the domains that declared `channelId` as a query (chat and
+join). So emptying one room does not send an entire table across the bridge.
 
 ## Adding a cache domain
 

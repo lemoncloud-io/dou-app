@@ -77,7 +77,6 @@ export const MessageAudioCard = ({
             ? formatVideoDuration(time * 1000)
             : `${formatVideoDuration(time * 1000)} / ${formatVideoDuration(duration * 1000)}`;
     const saving = download === 'downloading';
-    const canSave = download !== 'unavailable';
 
     return (
         <div
@@ -145,41 +144,37 @@ export const MessageAudioCard = ({
                     <IconSpinner className="size-5 animate-spin text-foreground" />
                 </button>
             ) : (
-                (canSave || onShare) && (
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button
-                                type="button"
-                                aria-label={t('chat.attach.audio.menu', { name: shown })}
-                                className="flex size-11 shrink-0 items-center justify-center text-description"
-                            >
-                                <IconMore className="size-5" />
-                            </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                            align="end"
-                            sideOffset={4}
-                            className="min-w-0 rounded-2xl border-[0.5px] border-input-border/70 bg-popover/90 p-1.5 shadow-[0_3px_32px_0_rgba(0,0,0,0.08)] backdrop-blur-[4px]"
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            type="button"
+                            aria-label={t('chat.attach.audio.menu', { name: shown })}
+                            className="flex size-11 shrink-0 items-center justify-center text-description"
                         >
-                            {canSave && (
-                                <DropdownMenuItem
-                                    onClick={onSave}
-                                    className="cursor-pointer whitespace-nowrap rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4"
-                                >
-                                    {t('chat.attach.audio.save')}
-                                </DropdownMenuItem>
-                            )}
-                            {onShare && (
-                                <DropdownMenuItem
-                                    onClick={onShare}
-                                    className="cursor-pointer whitespace-nowrap rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4"
-                                >
-                                    {t('chat.attach.fileCard.share')}
-                                </DropdownMenuItem>
-                            )}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                )
+                            <IconMore className="size-5" />
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                        align="end"
+                        sideOffset={4}
+                        className="min-w-0 rounded-2xl border-[0.5px] border-input-border/70 bg-popover/90 p-1.5 shadow-[0_3px_32px_0_rgba(0,0,0,0.08)] backdrop-blur-[4px]"
+                    >
+                        <DropdownMenuItem
+                            onClick={onSave}
+                            className="cursor-pointer whitespace-nowrap rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4"
+                        >
+                            {t('chat.attach.audio.save')}
+                        </DropdownMenuItem>
+                        {onShare && (
+                            <DropdownMenuItem
+                                onClick={onShare}
+                                className="cursor-pointer whitespace-nowrap rounded-[10px] px-3 py-2.5 text-[14px] font-medium leading-4"
+                            >
+                                {t('chat.attach.fileCard.share')}
+                            </DropdownMenuItem>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
             )}
         </div>
     );

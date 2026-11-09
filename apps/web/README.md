@@ -152,7 +152,7 @@ sequenceDiagram
 
     Main->>Main: setupBridgeLogger · attachConsoleListener · attachLogContext
     Main->>Main: startLogUploader (the only log store)
-    Main->>Main: migrateLegacyPreferences · config.init(webConfigPorts)
+    Main->>Main: syncThemeFromSharedKey · config.init(webConfigPorts)
     Main->>Main: setStorageAdapter(isNative() ? localStorage : sessionStorage)
     Main->>RT: runtime.boot.initAppRuntime({ data: { repositories } })
     Main->>Main: pendingNavigationStore.start()
@@ -286,7 +286,7 @@ navigate(ROUTES.channels.room(channelId));
 main.tsx
 ├── setupBridgeLogger / attachConsoleListener / attachLogContext   (before anything logs)
 ├── startLogUploader                                               (owns the only log store)
-├── migrateLegacyPreferences / syncThemeFromSharedKey
+├── syncThemeFromSharedKey
 ├── config.init(webConfigPorts)                                    (before any lazy setting read)
 ├── setStorageAdapter(isNative() ? localStorage : sessionStorage)
 ├── runtime.boot.initAppRuntime(...)                               (before any session read)

@@ -13,7 +13,7 @@ import i18n from '../i18n';
 import { toError } from './utils/errors';
 import { AppRuntime } from './runtime';
 import { GlobalBridgeListener } from './bridge';
-import { AppUpdatePromptHost } from './features/appUpdate';
+import { AppUpdatePromptHost, AppVersionFloorGate } from './features/appUpdate';
 import { ThemeApplier } from './runtime/ThemeApplier';
 import { bootSplash } from './runtime/bootSplash';
 import { DebugOverlayHost } from './features/debug/overlay/DebugOverlayHost';
@@ -118,12 +118,16 @@ export function App() {
                     {/* Theme state lives in @chatic/config's ui.theme; ThemeApplier only mirrors it to <html>. */}
                     <ThemeApplier />
                     <ErrorBoundary FallbackComponent={ErrorFallback} onError={handleError}>
-                        <GlobalBridgeListener />
-                        <AppUpdatePromptHost />
-                        <Suspense fallback={<LoadingFallback />}>
-                            <AppRuntime />
-                        </Suspense>
-                        <DebugOverlayHost />
+                        {/* An app below the floor sees the update screen and nothing else. */}
+                        <AppVersionFloorGate>
+                            <GlobalBridgeListener />
+                            <AppUpdatePromptHost />
+                            <Suspense fallback={<LoadingFallback />}>
+                                <AppRuntime />
+                            </Suspense>
+                            {/* Inside the gate: its screens assume a shell at the floor or above. */}
+                            <DebugOverlayHost />
+                        </AppVersionFloorGate>
                     </ErrorBoundary>
                 </QueryClientProvider>
             </I18nextProvider>

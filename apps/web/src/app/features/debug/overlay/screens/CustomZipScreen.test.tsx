@@ -3,7 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 import { CustomZipScreen } from './CustomZipScreen';
-import { resetUnsupportedCommands } from '../../hooks';
 import { setDebugLanguageForTests } from '../../i18n';
 
 const applyCustomZip = jest.fn();
@@ -27,7 +26,6 @@ describe('CustomZipScreen', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        resetUnsupportedCommands();
         fetchCustomZipStatus.mockImplementation(() => status());
         restoreLanguage = setDebugLanguageForTests('en');
     });
@@ -84,15 +82,5 @@ describe('CustomZipScreen', () => {
         await screen.findByText('Default web');
 
         expect(screen.getByRole('button', { name: 'Turn off' })).toBeDisabled();
-    });
-
-    it('구버전 앱이 명령을 모르면 버전 차이로 말한다', async () => {
-        applyCustomZip.mockRejectedValue({ code: 'NOT_FOUND' });
-        render(<CustomZipScreen />);
-        await userEvent.type(screen.getByPlaceholderText(/web-build\.zip/), 'https://cdn/x.zip');
-
-        await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
-
-        expect(await screen.findByText(/not supported by this app version/)).toBeInTheDocument();
     });
 });

@@ -19,7 +19,6 @@ const setPlatform = (platform?: string) => {
 
 beforeEach(() => {
     jest.clearAllMocks();
-    nativeBadgeReader.reset();
     isNativeMock.mockReturnValue(true);
     setPlatform('ios');
 });
@@ -73,17 +72,7 @@ describe('nativeBadgeReader — 기기가 실제로 보여주는 뱃지', () => 
             await expect(nativeBadgeReader.read()).resolves.toBeNull();
         });
 
-        it('NOT_FOUND를 한 번 받으면 세션 내내 다시 묻지 않는다', async () => {
-            fetchBase.mockRejectedValue({ code: 'NOT_FOUND' });
-
-            await expect(nativeBadgeReader.read()).resolves.toBeNull();
-            await expect(nativeBadgeReader.read()).resolves.toBeNull();
-
-            expect(fetchBase).toHaveBeenCalledTimes(1);
-        });
-
-        // Learning a timeout as a capability verdict would let one slow round trip silence the whole session.
-        it('일시적 실패는 학습하지 않고 다음에 다시 묻는다', async () => {
+        it('asks again after a failed read', async () => {
             fetchBase
                 .mockRejectedValueOnce(new Error('timeout'))
                 .mockResolvedValueOnce({ success: true, data: { base: 2 } });

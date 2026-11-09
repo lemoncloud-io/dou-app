@@ -116,17 +116,14 @@ export const ContactInviteTab = ({
                 const permission = response.data?.permission;
                 setIsWaitingForContacts(false);
                 setContacts(received);
-                // A shell that states the permission is believed, so an empty address book is an
-                // empty list rather than a denial. One built before the field existed says nothing,
-                // and then an empty list is the only sign of a denial left to go on.
-                setPermissionDenied(permission ? permission === 'denied' : received.length === 0);
+                // The shell states the permission, so an empty address book is an empty list rather
+                // than a denial.
+                setPermissionDenied(permission === 'denied');
             })
             .catch(() => {
                 if (cancelled) return;
                 setIsWaitingForContacts(false);
-                // Also a denial, not only a failure: an iOS app built before `permission` existed
-                // answers a refusal with an error, so reading this as anything else would drop those
-                // users onto a blank tab. It also catches a timeout, which lands on the same banner.
+                // A failed read or a timeout lands on the permission banner rather than a blank tab.
                 setPermissionDenied(true);
             });
         return () => {
