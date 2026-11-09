@@ -776,7 +776,7 @@ export const ko: EnTranslation = {
     'settings.miniApp.save': '저장',
     'settings.miniApp.consentTitle': 'DoU 밖의 사이트를 열까요?',
     'settings.miniApp.consentBody':
-        '{{host}}에 내 이름, 이 클라우드와 지금 연 플레이스 정보가 전달돼요. DoU가 운영하는 사이트가 아니에요.',
+        '{{host}}에 내 이름, 이 클라우드에서의 내 ID, 이 클라우드와 지금 연 플레이스 정보가 전달돼요. DoU가 운영하는 사이트가 아니에요.',
     'settings.miniApp.consentAgree': '열기',
     'settings.appearance': '화면',
     'settings.theme': '화면 모드',

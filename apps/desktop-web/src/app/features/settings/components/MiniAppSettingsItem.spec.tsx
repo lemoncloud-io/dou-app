@@ -54,7 +54,9 @@ vi.mock('../../../shared', async () => ({
     }),
     useCurrentPlace: () => ({ place: undefined, placeName: 'Studio', placeId: 'p1' }),
     useAccountName: () => 'Ada',
-    useSiteProfileMap: () => ({ 'uid-c1': { nick: 'Ada in Studio' } }),
+    // c1's nick is a synced row under the cloud id; c2 has only the row my own save wrote, under my
+    // account id.
+    useSiteProfileMap: () => ({ 'uid-c1': { nick: 'Ada in Studio' }, 'uid-session': { nick: 'Ada, saved' } }),
     toastFailure: env.toastFailure,
 }));
 
@@ -131,6 +133,19 @@ describe('MiniAppSettingsItem', () => {
             place: { id: 'p1', name: 'Studio' },
             user: { id: 'uid-c1', name: 'Ada in Studio', isOwner: true },
         });
+    });
+
+    it('names me by the place nick my own save wrote under my account id, and tells a member nothing of ownership', async () => {
+        env.activeCloudId = 'c2';
+        await renderItem();
+
+        fireEvent.click(openButton());
+
+        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(1));
+        expect(env.open).toHaveBeenCalledWith(
+            HUB,
+            expect.objectContaining({ user: { id: 'uid-c2', name: 'Ada, saved', isOwner: false } })
+        );
     });
 
     it('refuses a link the shell would not open, and keeps it per cloud', async () => {

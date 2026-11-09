@@ -19,9 +19,8 @@ import {
 import { NotificationSnoozeButton } from '../../chat/components/NotificationSnoozeButton';
 import { canApprovePairing } from '../../pairing/utils/devicePairing';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
-import { ReportIssueDialog } from '../components';
+import { MiniAppSettingsItem, ReportIssueDialog } from '../components';
 import { useDevicePushMute } from '../hooks';
-import { MiniAppSettingsItem } from '../components/MiniAppSettingsItem';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 import { QuietHoursMentionSection } from './QuietHoursMentionSection';
 

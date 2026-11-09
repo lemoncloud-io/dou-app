@@ -8,7 +8,14 @@ import { runtime } from '@chatic/app-runtime';
 import { logger } from '@chatic/bridges';
 import { buildMiniAppLaunchParams, isOpenableSubWebViewUrl, subWebViewTrustOf } from '@chatic/shared';
 
-import { toastFailure, useAccountName, useClouds, useCurrentPlace, useSiteProfileMap } from '../../../shared';
+import {
+    toastFailure,
+    useAccountName,
+    useClouds,
+    useCurrentPlace,
+    useSiteProfileMap,
+    viewerPlaceProfile,
+} from '../../../shared';
 import { hasMiniAppConsent, readMiniAppLink, writeMiniAppConsent, writeMiniAppLink } from '../utils/miniAppStorage';
 import { onShellSubWebViewClosed, openShellSubWebView, readSubWebViewOpenScope } from '../utils/subWebViewShell';
 
@@ -60,7 +67,8 @@ export const useMiniAppLauncher = () => {
     // My id in THIS cloud, never the committed session's: during a switch that is another cloud's uid,
     // and a page must not get it labelled as this cloud's.
     const uid = runtime.session.useUidInCloud(cloudId ?? '');
-    const placeNick = useSiteProfileMap()[uid ?? '']?.nick;
+    const { userId: accountId } = runtime.session.useSessionIdentity();
+    const placeNick = viewerPlaceProfile({ uid: accountId, name: '', cloudUid: uid }, useSiteProfileMap())?.nick;
     const profileName = useAccountName();
 
     const [link, setLink] = useState<string | null>(null);

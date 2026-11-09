@@ -771,7 +771,7 @@ export const en = {
     'settings.miniApp.save': 'Save',
     'settings.miniApp.consentTitle': 'Open a site outside DoU?',
     'settings.miniApp.consentBody':
-        '{{host}} will receive your name, this cloud and the place you have open. DoU does not run this site.',
+        '{{host}} will receive your name, your id in this cloud, this cloud and the place you have open. DoU does not run this site.',
     'settings.miniApp.consentAgree': 'Open',
     'settings.appearance': 'Appearance',
     'settings.theme': 'Display mode',

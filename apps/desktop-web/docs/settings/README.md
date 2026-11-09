@@ -96,7 +96,8 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
 - **Open mini app.** Everyone in the cloud gets this row. It opens the cloud's link, or DoU's hub when
   there is none (`https://apps.chatic.io/` on a PROD build, `https://apps-dev.chatic.io/` otherwise).
   The page receives `MiniAppLaunchParams` (`@chatic/shared`): the cloud, the open place, my id in
-  this cloud, and my name, which is my place nick, else the cloud profile's name. Only the hub is
+  this cloud, and my name, which is my place nick (under my id in this cloud, else my account id), else
+  the cloud profile's name. Only the hub is
   also told whether I own the cloud. A second press while the request is still out sends nothing. A
   refusal from the shell, or a session that has no id in this cloud yet, is a failure toast.
 - **Mini app link.** The cloud's owner alone gets this row (the cloud tile's `kind === 'owned'`). The
@@ -107,7 +108,7 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
       link.
     - A storage that refuses the write says so in the dialog.
 - **Consent.** The first time a host DoU does not run (`external`) would open, the user is asked
-  whether it may receive their name, the cloud and the place. Declining opens nothing. Agreeing is
+  whether it may receive their name, their id in this cloud, the cloud and the place. Declining opens nothing. Agreeing is
   remembered per host (`dou.miniAppConsent.<host>`). DoU's own pages are not asked about.
 - **Back from the hub.** When the hub view this screen opened closes with
   `result: { action: 'openMiniAppLinkSettings' }`, the link dialog opens, and only for the owner. Any
