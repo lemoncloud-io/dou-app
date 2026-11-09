@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 
-import type { ReactionTally } from '../utils';
+import { type ReactionTally, emojiNameKey } from '../utils';
 import { Hint } from '../../../shared';
 
 interface ReactionBarProps {
@@ -25,14 +25,18 @@ interface ReactionBarProps {
  */
 export const ReactionBar = ({ tallies, nameOf, onToggle }: ReactionBarProps) => {
     const { t } = useTranslation();
+    const { t: tEmoji } = useTranslation('emoji');
     if (tallies.length === 0) return null;
 
     return (
         <div className="mt-1 flex flex-wrap items-center gap-1">
             {tallies.map(tally => {
                 const names = tally.userIds.map(nameOf).filter(Boolean).join(', ');
+                // The emoji's own name heads the hint, as it does in the picker; a reaction from
+                // outside the curated set has none and the hint is the reactors alone.
+                const emojiName = tEmoji(emojiNameKey(tally.emoji), { defaultValue: '' });
                 return (
-                    <Hint key={tally.emoji} label={names}>
+                    <Hint key={tally.emoji} label={emojiName ? `${emojiName}\n${names}` : names}>
                         <button
                             type="button"
                             onClick={() => onToggle(tally.emoji, tally.mine)}

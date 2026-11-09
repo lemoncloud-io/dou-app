@@ -158,7 +158,10 @@ shows nothing and a release picks as usual.
 
 `ReactionDetailSheet` opens on the tab of the chip that was held, reads the **live** fold, and falls
 back to the first remaining tab if the one being viewed disappears because someone withdrew their
-reaction.
+reaction. Under the tab row it names the open tab's emoji, from the same `emoji` namespace the picker
+uses, and each named tab's accessible label is its name and count (the chip hides its glyph from
+assistive tech). A reaction from outside the curation has no name, so the line is left out rather
+than showing a blank.
 
 ## Threads
 
