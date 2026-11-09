@@ -4,6 +4,16 @@
 
 ### Features
 
+- (web,libs) hold phone apps to a version floor and drop the fallbacks below it
+
+### Documentation
+
+- (adr) renumber the version floor decision to ADR-0292
+
+## [2026-11-09] - No version updates
+
+### Features
+
 - (web/channels) edit a message in the composer, not in its bubble (ADR-0292)
 
 ## [2026-11-09] - root@0.150.2, @chatic/web@0.86.5
