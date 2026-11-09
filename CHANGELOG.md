@@ -4,6 +4,16 @@
 
 ### Features
 
+- (storage,auth,mobile,desktop) keep the session tokens in the shells' device vault (ADR-0293)
+
+### Refactor
+
+- (storage,session,auth) split session storage into secret and plain ports over storage media
+
+## [2026-11-09] - No version updates
+
+### Features
+
 - (web,libs) hold phone apps to a version floor and drop the fallbacks below it
 
 ### Documentation
