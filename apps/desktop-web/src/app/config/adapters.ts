@@ -1,4 +1,7 @@
 import { createWebEnvAdapter, type ConfigRuntimePorts } from '@chatic/config';
+import { asDomStorage } from '@chatic/storage';
+
+import type { KeyValueStore } from '@chatic/storage';
 
 /**
  * Wires `@chatic/config` to this app's own `import.meta.env` and injected `window.CHATIC_APP_*`
@@ -13,7 +16,15 @@ const read = (name: string): string | undefined => {
     return (window as unknown as Record<string, string | undefined>)[name];
 };
 
-export const webConfigPorts: ConfigRuntimePorts = {
+/**
+ * The ports `config.init()` is called with. The two storage ports are the app's web media, built by
+ * `resolveStorageMedia()` in `main.tsx` like every other medium; the config lib takes them in the DOM
+ * `Storage` shape because it imports nothing.
+ */
+export const createWebConfigPorts = (media: {
+    webLocal: KeyValueStore;
+    webSession: KeyValueStore;
+}): ConfigRuntimePorts => ({
     env: createWebEnvAdapter(read),
-    storage: { local: localStorage, session: sessionStorage },
-};
+    storage: { local: asDomStorage(media.webLocal), session: asDomStorage(media.webSession) },
+});

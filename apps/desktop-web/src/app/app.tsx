@@ -9,6 +9,7 @@ import { runtime } from '@chatic/app-runtime';
 import i18n from '../i18n';
 import { DesktopRuntime } from './runtime';
 import { AppErrorBoundary, RouteFallback } from './shared';
+import { deviceMedium } from './storage';
 
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -35,7 +36,7 @@ export function App() {
     return (
         <I18nextProvider i18n={i18n}>
             <QueryClientProvider client={queryClient}>
-                <ThemeProvider defaultTheme="system">
+                <ThemeProvider defaultTheme="system" storage={deviceMedium}>
                     <AppErrorBoundary>
                         <Suspense fallback={bootFallback}>
                             <DesktopRuntime />

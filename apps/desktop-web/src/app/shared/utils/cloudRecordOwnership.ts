@@ -1,5 +1,6 @@
 import type { ICloudRepository } from '@chatic/data';
 
+import { deviceMedium } from '../../storage';
 import { useJoinedCloudsStore } from '../stores/useJoinedCloudsStore';
 
 /**
@@ -29,7 +30,7 @@ const replaceOwner = (acceptedBy: readonly string[] | undefined, from: string, t
  *   uid, not its own, and the invited clouds it joined would otherwise be lost to it.
  */
 export const reconcileCloudRecordOwners = async (cloud: ICloudRepository, accountId: string): Promise<void> => {
-    const previous = localStorage.getItem(CLOUD_RECORD_OWNER_KEY);
+    const previous = deviceMedium.get(CLOUD_RECORD_OWNER_KEY);
     const moveFrom = previous && previous !== accountId ? previous : null;
 
     const rows = (await cloud.cacheReadList())?.list ?? [];
@@ -41,5 +42,5 @@ export const reconcileCloudRecordOwners = async (cloud: ICloudRepository, accoun
     }
     useJoinedCloudsStore.getState().reconcileOwners(accountId, moveFrom);
 
-    localStorage.setItem(CLOUD_RECORD_OWNER_KEY, accountId);
+    deviceMedium.set(CLOUD_RECORD_OWNER_KEY, accountId);
 };

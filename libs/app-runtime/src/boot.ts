@@ -36,9 +36,9 @@ export { isNativeApp } from './utils/isNativeApp';
 export { prepareSecretStorage, setSessionStorage } from './sessionStorageBoot';
 // The one place an app's media are chosen and built. An entry point calls it once and hands the result
 // out — to `prepareSecretStorage`, to `initAppRuntime({ storage })`, to its config ports and its own
-// features — instead of constructing media itself. apps/web uses it; desktop-web is next. `LATE_VAULT_MARK` is the tab mark it reads and that
+// features — instead of constructing media itself. apps/web and apps/desktop-web use it. `LATE_VAULT_MARK` is the tab mark it reads and that
 // apps/web writes when a shell turns out to keep a vault only after its handshake.
-export { LATE_VAULT_MARK, resolveStorageMedia } from './storage/resolveStorageMedia';
+export { LATE_VAULT_MARK, readStorageEnvironment, resolveStorageMedia } from './storage/resolveStorageMedia';
 export type { StorageEnvironment, StorageMedia } from './storage/resolveStorageMedia';
 export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
 export type { SessionStoragePorts } from '@chatic/session';

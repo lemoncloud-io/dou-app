@@ -1,11 +1,14 @@
 import { type MiniAppLink, parseMiniAppLinks } from '@chatic/shared';
 
+import { deviceMedium } from '../../../storage';
+
 /**
- * Where a cloud's mini apps and the per-host consent are kept: this device's `localStorage`, under
- * keys of their own. Device-only on purpose — the links have no server field yet, so they show only on
+ * Where a cloud's mini apps and the per-host consent are kept: the app's device medium (`localStorage`),
+ * under keys of their own. Device-only on purpose — the links have no server field yet, so they show only on
  * the computer the owner saved them on, to whoever opens that cloud there.
  *
- * Every access is guarded: a full or blocked storage costs the value, never the settings screen.
+ * The device medium is tolerant: a full or blocked storage costs the value, never the settings screen.
+ * A list write is read back, so a refused one can still be reported to the screen.
  */
 const linksKey = (cloudId: string) => `dou.miniAppLinks.${cloudId}`;
 // Per account as well as per host: on a shared computer one person's yes must not send another's names.
@@ -13,32 +16,25 @@ const consentKey = (accountId: string, host: string) => `dou.miniAppConsent.${ac
 
 /** The mini apps saved for `cloudId`, in the owner's order — without any the shell would no longer open. */
 export const readMiniAppLinks = (cloudId: string): MiniAppLink[] => {
-    try {
-        return parseMiniAppLinks(window.localStorage.getItem(linksKey(cloudId)));
-    } catch {
-        return [];
-    }
+    return parseMiniAppLinks(deviceMedium.get(linksKey(cloudId)));
 };
 
 /** Save the whole list for `cloudId`; an empty list removes the key. `false` when the storage refused. */
 export const writeMiniAppLinks = (cloudId: string, links: readonly MiniAppLink[]): boolean => {
-    try {
-        if (links.length === 0) window.localStorage.removeItem(linksKey(cloudId));
-        else window.localStorage.setItem(linksKey(cloudId), JSON.stringify(links));
-        return true;
-    } catch {
-        return false;
+    const key = linksKey(cloudId);
+    if (links.length === 0) {
+        deviceMedium.remove(key);
+        return deviceMedium.get(key) === null;
     }
+    const value = JSON.stringify(links);
+    deviceMedium.set(key, value);
+    return deviceMedium.get(key) === value;
 };
 
 /** Whether the account `accountId` already agreed to hand `host` its names. */
 export const hasMiniAppConsent = (accountId: string | null, host: string): boolean => {
     if (!accountId) return false;
-    try {
-        return window.localStorage.getItem(consentKey(accountId, host)) === '1';
-    } catch {
-        return false;
-    }
+    return deviceMedium.get(consentKey(accountId, host)) === '1';
 };
 
 /**
@@ -47,9 +43,6 @@ export const hasMiniAppConsent = (accountId: string | null, host: string): boole
  */
 export const writeMiniAppConsent = (accountId: string | null, host: string): void => {
     if (!accountId) return;
-    try {
-        window.localStorage.setItem(consentKey(accountId, host), '1');
-    } catch {
-        // Asked again next time; nothing else depends on it.
-    }
+    // A dropped write means the question comes back next time; nothing else depends on it.
+    deviceMedium.set(consentKey(accountId, host), '1');
 };

@@ -9,12 +9,13 @@ knows about a domain.
 
 - **`@chatic/app-runtime`'s `resolveStorageMedia`** is where an app's media are chosen and built —
   the session's `secret` and `plain`, the vault, and the `device`/`tab` media for everything else.
-  `apps/web` calls it once in its entry point and hands the result out (`initAppRuntime({ storage })`,
-  its config ports, its own `app/storage/`). `apps/desktop-web` and `apps/admin` still build their
-  media in their entry points; `apps/desktop-web` moves onto the resolver next.
-- **Everything else in apps/web and the libs** reaches web storage only through a medium — the root
-  ESLint config refuses `localStorage`/`sessionStorage` there, and a zustand `persist` without a
-  `storage`. This package, the mini-app SDK and `libs/theme` are left out of that rule.
+  `apps/web` and `apps/desktop-web` call it once in their entry points and hand the result out
+  (`initAppRuntime({ storage })`, their config ports, their own `app/storage/`). `apps/admin` still
+  builds its media in its entry point.
+- **Everything else in apps/web, apps/desktop-web and the libs** reaches web storage only through a
+  medium — the root ESLint config refuses `localStorage`/`sessionStorage` there, and a zustand
+  `persist` without a `storage`. This package and the mini-app SDK are left out of that rule; so are
+  the browser-only apps (admin, landing, block-kit-builder).
 - **`@chatic/session`** declares its ports in terms of `KeyValueStore`, and defaults to a
   `webSession` medium until an entry point configures it.
 - **`@chatic/transport`** hands lemon-web-core its credential medium as a DOM `Storage`, and
@@ -73,6 +74,7 @@ never wait.
 | `NativeSecureMedium`  | `nativeSecure` | the device vault an app or desktop shell keeps — iOS Keychain, Android Keystore, Electron `safeStorage` |
 | `DomStorageAdapter`   | —              | any medium seen as a DOM `Storage` (`asDomStorage(medium)`), for code that only takes that shape        |
 | `TolerantMedium`      | —              | wraps a medium so a failed read is absent and a failed write a no-op — for convenience state            |
+| `SwitchableMedium`    | —              | forwards to whichever medium it points at — for state wired at import time, before the entry point runs |
 
 **A web medium reads the storage itself on every call**, not a copy taken at construction. The web
 storage is already synchronous, so a copy would buy nothing, and it would go stale the moment

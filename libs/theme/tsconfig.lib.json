@@ -10,6 +10,9 @@
     "references": [
         {
             "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../storage/tsconfig.lib.json"
         }
     ],
     "exclude": ["src/**/*.spec.ts", "src/**/*.spec.tsx"]

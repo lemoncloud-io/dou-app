@@ -255,7 +255,7 @@ Four rules hold.
 
 ```text
 apps/*/src/main.tsx
-  ├─ resolveStorageMedia()                every medium the app keeps state in, chosen once (apps/web; desktop-web and admin still build theirs)
+  ├─ resolveStorageMedia()                every medium the app keeps state in, chosen once (apps/web, apps/desktop-web; admin still builds its own)
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs

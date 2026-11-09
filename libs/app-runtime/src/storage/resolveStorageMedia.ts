@@ -61,7 +61,7 @@ const createVault = (): NativeSecureMedium =>
 /**
  * The one place an app's media are chosen and built — the storage counterpart of the cache's
  * `resolveCacheBackend`. An entry point that uses it calls it once and hands the result out instead of
- * constructing media itself (apps/web does; desktop-web is next).
+ * constructing media itself (apps/web and apps/desktop-web do).
  *
  * The rule, by environment:
  *

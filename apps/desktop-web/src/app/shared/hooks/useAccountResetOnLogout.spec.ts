@@ -81,6 +81,15 @@ describe('useAccountResetOnLogout', () => {
         expect(localStorage.getItem('chatic-cloud-records-owner')).toBeNull();
     });
 
+    it("clears the sign-in notice from the session's plain storage, which is sessionStorage in a browser tab", async () => {
+        sessionStorage.setItem('chatic-signin-notice', '{"provider":"google"}');
+
+        const { result } = renderHook(() => useAccountResetOnLogout());
+        await result.current.resetAccount();
+
+        expect(sessionStorage.getItem('chatic-signin-notice')).toBeNull();
+    });
+
     describe('invited clouds', () => {
         const invited = { id: 'cloud-invited', name: 'Friends', cloudType: 'invited' };
         const owned = { id: 'cloud-owned', name: 'Studio', cloudType: 'owner' };

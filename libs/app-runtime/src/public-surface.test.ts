@@ -29,6 +29,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'initAppRuntime',
         'isNativeApp',
         'prepareSecretStorage',
+        'readStorageEnvironment',
         'resolveStorageMedia',
         'setNativeCacheSupport',
         'setSessionStorage',

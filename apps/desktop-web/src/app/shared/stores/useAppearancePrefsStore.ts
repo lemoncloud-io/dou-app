@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { isShellColors, PRESET_COLORS, shellPaletteCss, type ShellColors } from '../theme/shellPalette';
+import { deviceMedium, persistStorageOver } from '../../storage';
 
 export type FontSize = 'small' | 'default' | 'large';
 export type MessageDensity = 'compact' | 'comfy' | 'spacious';
@@ -106,6 +107,7 @@ export const useAppearancePrefsStore = create<AppearancePrefsState>()(
         }),
         {
             name: 'chatic-appearance-prefs',
+            storage: persistStorageOver(deviceMedium),
             // 1: `customPalette` and the `custom` choice. Version 0 data has neither and reads as is.
             version: 1,
             migrate: persisted => persisted as AppearancePrefs,

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { deviceMedium, persistStorageOver } from '../../storage';
 
 interface SelectedChannelState {
     selectedChannelId: string | null;
@@ -31,6 +32,6 @@ export const useSelectedChannelStore = create<SelectedChannelState>()(
             clearIfOpen: channelId =>
                 set(s => (channelId && s.selectedChannelId === channelId ? { selectedChannelId: null } : s)),
         }),
-        { name: 'chatic-selected-channel' }
+        { name: 'chatic-selected-channel', storage: persistStorageOver(deviceMedium) }
     )
 );

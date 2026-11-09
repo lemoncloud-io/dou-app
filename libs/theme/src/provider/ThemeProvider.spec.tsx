@@ -111,4 +111,34 @@ describe('ThemeProvider', () => {
         expect(screen.getByLabelText('theme').textContent).toBe('dark');
         expect(html().contains('dark')).toBe(true);
     });
+
+    it('reads and keeps the choice in the storage it was given, not in localStorage', () => {
+        const kept = new Map<string, string>([['vite-ui-theme', 'dark']]);
+        const storage = {
+            get: (key: string) => kept.get(key) ?? null,
+            set: (key: string, value: string) => void kept.set(key, value),
+        };
+        render(
+            <ThemeProvider defaultTheme="light" storage={storage}>
+                <Probe />
+            </ThemeProvider>
+        );
+        expect(screen.getByLabelText('theme').textContent).toBe('dark');
+
+        fireEvent.click(screen.getByText('light'));
+
+        expect(kept.get('vite-ui-theme')).toBe('light');
+        expect(localStorage.getItem('vite-ui-theme')).toBeNull();
+    });
+
+    it('keeps the shared key in localStorage when given no storage', () => {
+        render(
+            <ThemeProvider defaultTheme="light">
+                <Probe />
+            </ThemeProvider>
+        );
+        fireEvent.click(screen.getByText('dark'));
+
+        expect(localStorage.getItem('vite-ui-theme')).toBe('dark');
+    });
 });
