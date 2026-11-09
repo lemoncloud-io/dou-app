@@ -1,6 +1,6 @@
 # ADR-0093: Add emoji reactions and threads to apps/web — full-screen thread, action sheet, app-local utilities
 
-> Status: Accepted · Decided: 2026-08-05
+> Status: Accepted · Decided: 2026-08-05 · §7 refined by [ADR-0291](./0291-emoji-pickers-name-each-emoji-from-generated-cldr-tables.md) (emoji names from generated CLDR tables)
 > Follows: [ADR-0008](./0008-threads-client-derived-from-parentid.md) (threads derived by the client from `parentId`, with mobile deferred as out of scope) · [ADR-0024](./0024-group-chat-room-figma-redesign.md) · [ADR-0032](./0032-dm-chat-room-screen.md)
 >
 > External contract source: `chatic-sockets-api` `docs/specs/chat-emoji-reaction/` (01-spec.md ·

@@ -16,7 +16,7 @@ import { isMessageEdited } from '@chatic/data';
 import type { ClientChatView } from '../types';
 import type { ReactionTally } from '../utils/foldReactions';
 import type { ThreadMeta } from '../utils/buildThread';
-import { LONG_PRESS_DELAY_MS } from '../utils/longPress';
+import { LONG_PRESS_DELAY_MS, MOVE_CANCEL_PX } from '../utils/longPress';
 import { mentionMarksFor, type MentionPerson, type MentionViewer } from '../utils/mentionHighlight';
 import { extractFirstUrl } from '../utils/messageTokens';
 import { openExternalUrl } from '../utils/openExternalUrl';
@@ -31,8 +31,6 @@ import { ThreadFooter } from './ThreadFooter';
 
 // A message longer than this is truncated in the bubble with a "view all" affordance.
 const MAX_MESSAGE_LENGTH = 200;
-// How far the finger may drift and still count as a hold rather than a scroll — a fingertip's wobble.
-const MOVE_CANCEL_PX = 10;
 // `self-end` so the marker sits on the bubble's last line rather than its vertical middle.
 const EDITED_MARK_CLASS = 'shrink-0 self-end pb-0.5 text-[11px] leading-none text-muted-foreground';
 
