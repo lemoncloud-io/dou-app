@@ -2,6 +2,12 @@
 
 ## [2026-11-09] - No version updates
 
+### Refactor
+
+- (web,app-runtime,storage,auth,config,shared) reach web storage only via media (ADR-0296)
+
+## [2026-11-09] - No version updates
+
 ### Features
 
 - (data,sync,web,desktop-web) handle revision notices; the chat cache only moves forward
