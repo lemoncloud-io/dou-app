@@ -197,6 +197,7 @@ libs/app-runtime/src/
 ├── push/             3 files — device-token registration and its record
 ├── report/           5 files — user issue report + log-batch upload
 ├── config/           1 file — records the effective settings in the logs
+├── storage/          2 files — resolveStorageMedia (an app's media, chosen once) and the runtime's device/tab media
 └── utils/            1 file — isNativeApp
 ```
 
@@ -254,12 +255,15 @@ Four rules hold.
 
 ```text
 apps/*/src/main.tsx
+  ├─ resolveStorageMedia()                every medium the app keeps state in, chosen once (apps/web; desktop-web and admin-v2 still build theirs)
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ storage?, data? }) ↓ nine steps, in this order
+  ├─ initAppRuntime({ storage?, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
   │    ├─ sessionMedia.configure()        the media behind the session's secret and plain ports, if passed
+  │    │  runtimeMedia.configure()        … and the runtime's own device/tab media (cursor watermark, a tab's invited clouds)
   │    ├─ dropLemonLeftovers()            the lemon bundle older builds left in web storage
+  │    ├─ signedOutAppKeys.register()     the key prefixes the app's domains say a sign-out takes
   │    ├─ logoutStorageSweeper.sweep()    honors ?logout=1, drops the signed-out account's keys
   │    ├─ applyPendingSyncCursorReset()   a cache clear on the last page retires every saved sync cursor
   │    ├─ configureSessionStore()         env → relay endpoint RESOLVERS (functions, not values)
@@ -292,6 +296,14 @@ recovery does not, because it owns nothing: it joins the HTTP registry to the so
 the registry imports nothing at runtime precisely so the two sides never meet. Handing the repository
 graph down is the same kind of wiring — the graph sits above the layers that read it ([Layers](#layers)).
 A wiring with no owner belongs to the composition root.
+
+**Choosing the media.** `resolveStorageMedia()` (the `boot` group) is the one place an app's storage
+media are chosen and built — the storage counterpart of the cache's `resolveCacheBackend`. It reads
+three facts once (in a shell, whether the shell listed `nativeSecure`, and the tab's late-vault mark)
+and returns the session's `secret`/`plain`, the vault when there is one, and the `device`/`tab` media
+everything else writes through. `plain` follows the session (localStorage in a shell, sessionStorage
+in a browser); `device` is localStorage everywhere, because a draft or a recent emoji has always
+outlived the tab. The entry point hands the result out and constructs nothing itself.
 
 ## Scenarios
 

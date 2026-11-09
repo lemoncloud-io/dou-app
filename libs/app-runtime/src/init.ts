@@ -3,14 +3,22 @@ import { logger } from '@chatic/bridges';
 import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
+import { runtimeMedia } from './storage/runtimeMedia';
 import { credentialRecovery } from '@chatic/transport';
-import { authRepositorySource, dropLemonLeftovers, logoutStorageSweeper, credentialRenewers } from '@chatic/auth';
+import {
+    authRepositorySource,
+    dropLemonLeftovers,
+    logoutStorageSweeper,
+    credentialRenewers,
+    signedOutAppKeys,
+} from '@chatic/auth';
 import { configureSessionStore, sessionMedia } from '@chatic/session';
 import { syncDataGraph } from '@chatic/sync';
 
 import type { HttpRoute } from '@chatic/http';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { DataRuntimeConfig } from './data/runtime';
+import type { RuntimeMediaPorts } from './storage/runtimeMedia';
 
 export interface AppRuntimeConfig {
     /**
@@ -20,10 +28,20 @@ export interface AppRuntimeConfig {
      */
     data?: DataRuntimeConfig;
     /**
-     * The media behind the session's two ports, chosen by the entry point for its environment. Left
-     * out, both are this tab's `sessionStorage` — the browser's answer.
+     * The media the runtime keeps state in, chosen by the entry point for its environment — normally
+     * straight from `resolveStorageMedia()`. `secret` and `plain` back the session's two ports; left
+     * out, both are this tab's `sessionStorage` — the browser's answer. `device` and `tab` back the
+     * runtime's own non-session state (the sync cursor watermark, a tab's invited clouds); left out,
+     * they are this page's `localStorage` (tolerant) and `sessionStorage` (raw — the invited clouds are
+     * a cache that must hear a failed write).
      */
-    storage?: SessionStoragePorts;
+    storage?: SessionStoragePorts & Partial<RuntimeMediaPorts>;
+    /**
+     * Prefixes of the keys outside the session that a sign-out takes — declared by the app's own
+     * domains that write them (apps/web: its log pipeline and telemetry policy). Swept from the plain
+     * medium at sign-out and once more on the `?logout=1` boot. Left out, a sign-out takes none.
+     */
+    signedOutKeyPrefixes?: readonly string[];
 }
 
 let booted = false;
@@ -67,12 +85,17 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
 
     // The session's media, before anything below can read or sweep the session.
     if (config.storage) {
-        sessionMedia.configure(config.storage);
+        const { secret, plain, device, tab } = config.storage;
+        sessionMedia.configure({ secret, plain });
+        runtimeMedia.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
     }
 
     // lemon-web-core keeps its credentials in memory now; a bundle an older build left in web storage
     // is nobody's, and goes. The plain medium is the web storage lemon used to write in each environment.
     dropLemonLeftovers(sessionMedia.of('plain'));
+
+    // Before the sweep below, which takes what these name.
+    signedOutAppKeys.register(config.signedOutKeyPrefixes ?? []);
 
     // Honors `?logout=1` — the flag `RelaySession.logout()` leaves on the URL it redirects to.
     // FIRST, because everything below may end up reading a token, and this is what drops the ones

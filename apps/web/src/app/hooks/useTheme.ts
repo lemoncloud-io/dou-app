@@ -4,6 +4,7 @@ import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { useConfigValue } from '@chatic/config/react';
 import { appBridge } from '../bridge';
+import { deviceMedium } from '../storage';
 import type { Theme } from '../stores/preferenceKeys';
 
 // ---------------------------------------------------------------------------
@@ -69,11 +70,8 @@ const syncThemeToNativeStore = async (theme: Theme): Promise<void> => {
 export const setTheme = (theme: Theme): void => {
     config.set('ui.theme', theme, { lane: 'shell' });
     void syncThemeToNativeStore(theme);
-    try {
-        localStorage.setItem('vite-ui-theme', theme);
-    } catch {
-        // Best-effort — the @chatic/config write above already landed.
-    }
+    // Best-effort: the device medium swallows a failed write — the @chatic/config write above landed.
+    deviceMedium.set('vite-ui-theme', theme);
 };
 
 /**

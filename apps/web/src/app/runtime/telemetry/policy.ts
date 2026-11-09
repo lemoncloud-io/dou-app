@@ -2,6 +2,8 @@ import { DEFAULT_TELEMETRY_POLICY, parseTelemetryPolicy } from '@chatic/bridges'
 
 import type { TelemetryPolicy, TelemetryPolicyMatch, TelemetryPolicyRule } from '@chatic/bridges';
 
+import { deviceMedium } from '../../storage';
+
 import { APP_VERSION_FLOOR } from '../../features/appUpdate/lib/appVersionFloor';
 
 /**
@@ -75,6 +77,12 @@ export const builtInTelemetryPolicySource: TelemetryPolicySource = async () => B
 
 const STORAGE_KEY = '@chatic/web.telemetry.policy';
 
+/**
+ * The prefix of every key this module writes — the stored policy and the development override. A
+ * sign-out takes them; the entry point declares it to the runtime (`initAppRuntime({ signedOutKeyPrefixes })`).
+ */
+export const TELEMETRY_POLICY_KEY_PREFIX = STORAGE_KEY;
+
 /** How long a stored policy may start a run when the document gave no `ttlSec`. */
 const DEFAULT_TTL_SEC = 3_600;
 
@@ -92,7 +100,7 @@ interface StoredPolicy {
 
 const readJson = (key: string): unknown => {
     try {
-        const text = localStorage.getItem(key);
+        const text = deviceMedium.get(key);
         return text ? JSON.parse(text) : undefined;
     } catch {
         return undefined;
@@ -147,10 +155,8 @@ export const refreshPolicy = async (
     const policy = parseTelemetryPolicy(raw);
     if (!policy) return undefined;
 
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ raw, savedAt: now() } satisfies StoredPolicy));
-    } catch {
-        /* storage full or blocked: the next run starts from the default, which is safe */
-    }
+    // Storage full or blocked: the device medium drops the write, and the next run starts from the
+    // default, which is safe.
+    deviceMedium.set(STORAGE_KEY, JSON.stringify({ raw, savedAt: now() } satisfies StoredPolicy));
     return policy;
 };

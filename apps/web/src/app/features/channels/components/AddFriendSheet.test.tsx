@@ -21,8 +21,7 @@ jest.mock('@chatic/ui-kit/components/ui/sheet', () => ({
 }));
 
 import { AddFriendSheet } from './AddFriendSheet';
-
-const COUNTRY_STORAGE_KEY = 'dou.phoneInput.country.v1';
+import { rememberedPhoneCountry, seedPhoneCountry } from '../../../../testing/phoneCountry';
 
 const fill = (phone = '010-1234-5678') => {
     fireEvent.change(screen.getByPlaceholderText('addFriend.namePlaceholder'), { target: { value: '홍길동' } });
@@ -45,8 +44,7 @@ describe('AddFriendSheet', () => {
         requestLink.mockResolvedValue('https://dou.chatic.io/s?code=abc');
         // Korea as the remembered pick — the production "last explicit pick wins" path, rather than
         // stubbing around jsdom's `en-US`.
-        localStorage.clear();
-        localStorage.setItem(COUNTRY_STORAGE_KEY, 'KR');
+        seedPhoneCountry('KR');
     });
 
     afterEach(() => setLanguage('en-US'));
@@ -105,7 +103,7 @@ describe('AddFriendSheet', () => {
 
             await waitFor(() => expect(requestLink).toHaveBeenCalledWith({ name: '홍길동', phone: '+819012345678' }));
             // The pick is remembered for the next phone field, as the relay invite's field does.
-            expect(localStorage.getItem(COUNTRY_STORAGE_KEY)).toBe('JP');
+            expect(rememberedPhoneCountry()).toBe('JP');
         });
 
         it('moves the picker to the country a pasted + number names, and keeps its local form', () => {
@@ -133,7 +131,7 @@ describe('AddFriendSheet', () => {
         });
 
         it('rejects a Korean mobile while another country is picked', () => {
-            localStorage.setItem(COUNTRY_STORAGE_KEY, 'JP');
+            seedPhoneCountry('JP');
             renderSheet();
             fill('010-1234-5678');
             share();
@@ -143,7 +141,7 @@ describe('AddFriendSheet', () => {
         });
 
         it('opens on the device locale when nothing was picked before', async () => {
-            localStorage.clear();
+            seedPhoneCountry();
             setLanguage('ja-JP');
             renderSheet();
 
@@ -151,7 +149,7 @@ describe('AddFriendSheet', () => {
         });
 
         it('opens on Korea when the locale names no region, so the old Korean-only case needs no pick', async () => {
-            localStorage.clear();
+            seedPhoneCountry();
             setLanguage('ko');
             renderSheet();
             fill('010-1234-5678');

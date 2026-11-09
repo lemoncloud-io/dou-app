@@ -1,5 +1,7 @@
 import {
     isValidMobileNumber,
+    LEGACY_PHONE_COUNTRY_KEY,
+    migrateLegacyPhoneCountry,
     listPhoneCountries,
     phoneCountryDialCode,
     readInternationalInput,
@@ -10,7 +12,37 @@ import {
     toE164,
 } from './phoneNumber';
 
-const COUNTRY_STORAGE_KEY = 'dou.phoneInput.country.v1';
+/** The web medium an entry point passes in, as a plain map. */
+class MemoryMedium {
+    private readonly map = new Map<string, string>();
+    get(key: string): string | null {
+        return this.map.get(key) ?? null;
+    }
+    set(key: string, value: string): void {
+        this.map.set(key, value);
+    }
+    remove(key: string): void {
+        this.map.delete(key);
+    }
+}
+
+// A stand-in for the settings facade: the pick is the `ui.phoneCountry` setting now. Like the real one,
+// it mirrors a `local` write into the storage it was given (`mockLocal`), unless that write is dropped.
+const mockSettings = new Map<string, unknown>();
+const mockSetResult = { ok: true, storageWriteLands: true };
+const mockLocal: { current: MemoryMedium | null } = { current: null };
+jest.mock('@chatic/config', () => ({
+    storageKeyFor: (key: string) => `@chatic/config.${key}`,
+    config: {
+        get: (key: string) => mockSettings.get(key),
+        set: (key: string, value: unknown) => {
+            if (!mockSetResult.ok) return { ok: false, reason: 'notWritable' };
+            mockSettings.set(key, value);
+            if (mockSetResult.storageWriteLands) mockLocal.current?.set(`@chatic/config.${key}`, JSON.stringify(value));
+            return { ok: true };
+        },
+    },
+}));
 
 /** jsdom fixes `navigator.language` at `en-US`; the locale branch needs to move it. */
 const setLanguage = (value: string) => {
@@ -81,7 +113,7 @@ describe('readInternationalInput — 붙여넣은 국제 표기', () => {
 
 describe('resolveDefaultCountry — 기본 국가 3분기', () => {
     afterEach(() => {
-        localStorage.clear();
+        mockSettings.clear();
         setLanguage('en-US');
     });
 
@@ -111,8 +143,68 @@ describe('resolveDefaultCountry — 기본 국가 3분기', () => {
 
     it('ignores a stored value that is not a supported country', () => {
         setLanguage('ko-KR');
-        localStorage.setItem(COUNTRY_STORAGE_KEY, 'ZZ');
+        mockSettings.set('ui.phoneCountry', 'ZZ');
         expect(resolveDefaultCountry()).toBe('KR');
+    });
+
+    it('keeps the pick in the ui.phoneCountry setting', () => {
+        rememberCountry('JP');
+        expect(mockSettings.get('ui.phoneCountry')).toBe('JP');
+    });
+});
+
+describe('migrateLegacyPhoneCountry', () => {
+    let legacy: MemoryMedium;
+    beforeEach(() => {
+        legacy = new MemoryMedium();
+        mockLocal.current = legacy;
+    });
+    afterEach(() => {
+        mockSettings.clear();
+        mockSetResult.ok = true;
+        mockSetResult.storageWriteLands = true;
+        mockLocal.current = null;
+    });
+
+    it('carries a pick from the old key into the setting and drops the old key', () => {
+        legacy.set(LEGACY_PHONE_COUNTRY_KEY, 'JP');
+        migrateLegacyPhoneCountry(legacy);
+        expect(mockSettings.get('ui.phoneCountry')).toBe('JP');
+        expect(legacy.get(LEGACY_PHONE_COUNTRY_KEY)).toBeNull();
+    });
+
+    it('keeps a pick already in the setting and still drops the old key', () => {
+        mockSettings.set('ui.phoneCountry', 'KR');
+        legacy.set(LEGACY_PHONE_COUNTRY_KEY, 'JP');
+        migrateLegacyPhoneCountry(legacy);
+        expect(mockSettings.get('ui.phoneCountry')).toBe('KR');
+        expect(legacy.get(LEGACY_PHONE_COUNTRY_KEY)).toBeNull();
+    });
+
+    it('drops an old value that is not a supported country without writing it', () => {
+        legacy.set(LEGACY_PHONE_COUNTRY_KEY, 'ZZ');
+        migrateLegacyPhoneCountry(legacy);
+        expect(mockSettings.has('ui.phoneCountry')).toBe(false);
+        expect(legacy.get(LEGACY_PHONE_COUNTRY_KEY)).toBeNull();
+    });
+
+    it('leaves the old key for the next boot when the setting did not take the write', () => {
+        mockSetResult.ok = false;
+        legacy.set(LEGACY_PHONE_COUNTRY_KEY, 'JP');
+        migrateLegacyPhoneCountry(legacy);
+        expect(legacy.get(LEGACY_PHONE_COUNTRY_KEY)).toBe('JP');
+    });
+
+    it('leaves the old key when the setting answered ok but its storage write was dropped', () => {
+        mockSetResult.storageWriteLands = false;
+        legacy.set(LEGACY_PHONE_COUNTRY_KEY, 'JP');
+        migrateLegacyPhoneCountry(legacy);
+        expect(legacy.get(LEGACY_PHONE_COUNTRY_KEY)).toBe('JP');
+    });
+
+    it('does nothing when there is no old key', () => {
+        migrateLegacyPhoneCountry(legacy);
+        expect(mockSettings.size).toBe(0);
     });
 });
 

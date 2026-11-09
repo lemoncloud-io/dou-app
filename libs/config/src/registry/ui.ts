@@ -137,6 +137,19 @@ export const uiModule: ConfigRegistryModule = {
         writableBy: ['local'],
         persist: 'local',
     },
+    // The country a phone field opens on — the last one the person picked. `local`, not `shell`: it is a
+    // convenience of this browser or WebView, and the device locale is a fine answer when it is lost.
+    // Empty means "never picked". It moved here from its own `localStorage` key, which each entry point
+    // carries over after `config.init()` (`migrateLegacyPhoneCountry`).
+    'ui.phoneCountry': {
+        title: 'Last picked phone country',
+        description: 'The country a phone number field opens on, as the person last picked it.',
+        type: 'string',
+        defaultValue: '',
+        surface: 'internal',
+        writableBy: ['local'],
+        persist: 'local',
+    },
     'ui.cloudPromoDismissedAt': {
         title: 'Cloud promo dismissed at',
         description: 'When the add-a-cloud promo banner was last dismissed.',

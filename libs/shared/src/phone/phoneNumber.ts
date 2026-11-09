@@ -11,6 +11,8 @@ import {
 // plain string and the final verdict on a value is the server's 400.
 import type { CountryCode } from 'libphonenumber-js';
 
+import { config, storageKeyFor } from '@chatic/config';
+
 /**
  * ISO alpha-2 country of a phone number, as `libphonenumber-js` and the server both spell it.
  *
@@ -28,8 +30,14 @@ export interface PhoneCountryOption {
     dialCode: string;
 }
 
-/** Where the last explicit pick is remembered. Per-device by design — no server slot exists. */
-const COUNTRY_STORAGE_KEY = 'dou.phoneInput.country.v1';
+/**
+ * Where the last explicit pick is remembered: the `ui.phoneCountry` setting. Per-device by design — no
+ * server slot exists, and the setting is `persist: 'local'`.
+ */
+const COUNTRY_SETTING = 'ui.phoneCountry';
+
+/** The key the pick lived under before it became a setting. Read once by `migrateLegacyPhoneCountry`. */
+export const LEGACY_PHONE_COUNTRY_KEY = 'dou.phoneInput.country.v1';
 
 const digitsOf = (value: string): string => value.replace(/\D/g, '');
 
@@ -199,13 +207,8 @@ export const readInternationalInput = (input: string): InternationalPhoneInput |
 };
 
 const readStoredCountry = (): PhoneCountry | null => {
-    if (typeof window === 'undefined') return null;
-    try {
-        const stored = localStorage.getItem(COUNTRY_STORAGE_KEY);
-        return stored && isSupportedCountry(stored) ? stored : null;
-    } catch {
-        return null;
-    }
+    const stored = config.get<string>(COUNTRY_SETTING);
+    return stored && isSupportedCountry(stored) ? stored : null;
 };
 
 /** The device locale's region (`ko-KR` → `KR`), or `null` when the locale names none. */
@@ -232,12 +235,31 @@ export const readLocaleCountry = (): PhoneCountry | null => {
 export const resolveDefaultCountry = (preferred?: PhoneCountry | null): PhoneCountry | null =>
     readStoredCountry() ?? preferred ?? readLocaleCountry();
 
-/** Remembers an explicit pick. A storage-denied browser simply forgets it. */
+/**
+ * Remembers an explicit pick. A storage-denied browser simply forgets it: `config.set` swallows a
+ * failed write, and the picker reopens on the locale next time.
+ */
 export const rememberCountry = (country: PhoneCountry): void => {
-    if (typeof window === 'undefined') return;
-    try {
-        localStorage.setItem(COUNTRY_STORAGE_KEY, country);
-    } catch {
-        // private mode / quota — the picker still works, it just reopens on the locale next time
+    config.set(COUNTRY_SETTING, country, { lane: 'local' });
+};
+
+/**
+ * Carries a pick stored under the old key over into the setting, once, and drops the old key.
+ *
+ * Called by each app's entry point right after `config.init()`, with its `localStorage` medium — the
+ * same storage config's `local` lane writes to; this lib does not reach web storage itself. The old key
+ * goes only once the setting's own stored copy reads back: `config.set` answers `ok` even when its
+ * storage write was dropped (a full quota), and then the next boot tries again.
+ */
+export const migrateLegacyPhoneCountry = (local: {
+    get(key: string): string | null;
+    remove(key: string): void;
+}): void => {
+    const old = local.get(LEGACY_PHONE_COUNTRY_KEY);
+    if (old === null) return;
+    if (!readStoredCountry() && isSupportedCountry(old)) {
+        if (!config.set(COUNTRY_SETTING, old, { lane: 'local' }).ok) return;
+        if (local.get(storageKeyFor(COUNTRY_SETTING)) === null) return;
     }
+    local.remove(LEGACY_PHONE_COUNTRY_KEY);
 };

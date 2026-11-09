@@ -7,6 +7,10 @@ import Backend from 'i18next-xhr-backend';
 
 import { logger } from '@chatic/bridges';
 
+import { asDomStorage } from '@chatic/storage';
+
+import { deviceMedium } from '../app/storage';
+
 import {
     FALLBACK_LANGUAGE,
     SUPPORTED_LANGUAGES,
@@ -42,9 +46,9 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 if (!isDevelopment) {
     const currentPrefix = `i18next_res_${I18N_VERSION}_`;
     const cleanupOldCache = () => {
-        Object.keys(localStorage).forEach(key => {
+        deviceMedium.keys().forEach(key => {
             if (key.startsWith('i18next_res_') && !key.startsWith(currentPrefix)) {
-                localStorage.removeItem(key);
+                deviceMedium.remove(key);
                 logger.info('I18N', `Cleaned up old i18n cache: ${key}`);
             }
         });
@@ -61,27 +65,21 @@ if (!isDevelopment) {
 // to report on first launch was kept forever and the device setting was never looked at again — and on
 // iOS that first report was English for everyone (see `deviceLanguageCandidates`). Only an explicit
 // choice in Settings is remembered now; `system` is resolved from the device on every boot.
-const safeLocalStorage = (): Storage | undefined => {
-    try {
-        return typeof localStorage === 'undefined' ? undefined : localStorage;
-    } catch {
-        return undefined;
-    }
-};
-
+// Best-effort — only the request header reads it, and it is rewritten on the next change. The device
+// medium is the app's `localStorage`, tolerant of a full or blocked one; this module runs at import
+// time, before `main.tsx` configures the media, and the default is that same storage.
 i18n.on('languageChanged', language => {
-    try {
-        safeLocalStorage()?.setItem(LANGUAGE_STORAGE_KEY, language);
-    } catch {
-        // Best-effort — only the request header reads it, and it is rewritten on the next change.
-    }
+    deviceMedium.set(LANGUAGE_STORAGE_KEY, language);
 });
 
 i18n.use(ChainedBackend)
     .use(initReactI18next)
     .init({
         lng: resolveLanguage(
-            readStoredLanguagePreference({ bag: readShellConfigBag(), storage: safeLocalStorage() }),
+            readStoredLanguagePreference({
+                bag: readShellConfigBag(),
+                storage: { getItem: key => deviceMedium.get(key) },
+            }),
             deviceLanguageCandidates()
         ),
         fallbackLng: FALLBACK_LANGUAGE,
@@ -94,6 +92,9 @@ i18n.use(ChainedBackend)
             backends: [LocalStorageBackend, Backend],
             backendOptions: [
                 {
+                    // The translation cache lives in the device medium, not in a web storage the plugin
+                    // picks for itself — the same `localStorage` it defaulted to.
+                    store: asDomStorage(deviceMedium),
                     prefix: `i18next_res_${I18N_VERSION}_`,
                     expirationTime: isDevelopment
                         ? 5 * 60 * 1000 // dev: 5 min

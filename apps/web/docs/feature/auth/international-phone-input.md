@@ -42,8 +42,10 @@ localized, sorted and memoized per language), the dial code, mobile-only validat
 an international-paste parser, and the default-country resolution — the stored pick, else a
 caller's `preferred` country (the desktop passes the one its UI language implies; this app passes
 none), else the locale's region, else `null`. The stored pick and the region are checked with
-`isSupportedCountry`. `rememberCountry` writes
-`dou.phoneInput.country.v1` and swallows a private-mode failure.
+`isSupportedCountry`. `rememberCountry` writes the `ui.phoneCountry` setting (`persist: 'local'`),
+whose failed write `@chatic/config` swallows. The pick used to live under its own key,
+`dou.phoneInput.country.v1`; `migrateLegacyPhoneCountry`, called by each entry point right after
+`config.init()`, carries it over once and drops the old key.
 
 Two behaviours are not obvious from a signature: `isValidMobileNumber` is `false` whenever there is
 no country, so an unfinished field never validates, and `toE164` assumes its caller already ran that
@@ -189,10 +191,10 @@ reissue dialog holds the same value.
 
 ## Notes for implementers and tests
 
-- **The country pick is per device.** There is no server slot for it; `dou.phoneInput.country.v1` in
-  localStorage is the whole of it.
+- **The country pick is per device.** There is no server slot for it; the `ui.phoneCountry` setting,
+  kept in this origin's localStorage by `@chatic/config`, is the whole of it.
 - **The invite log key is E.164** (`dou.relayInvite.sentLog.v2`), and the first read removes the
-  legacy `.v1` key so dead data does not linger. The hook writes localStorage directly — it does not
+  legacy `.v1` key so dead data does not linger. The hook writes the app's `deviceMedium` — it does not
   use zustand `persist`, so there is no `migrate` hook; changing the key **is** the migration, and the
   entries are a local convenience cache, not a record.
 - **A log entry carries no country field**, because the key already holds one. `InviteWaitingPage`

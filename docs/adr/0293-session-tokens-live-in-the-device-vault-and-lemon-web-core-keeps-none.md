@@ -1,6 +1,6 @@
 # ADR-0293: Session tokens live in the device vault, and lemon-web-core keeps none
 
-> Status: Accepted · Decided: 2026-11-06 · Implemented: `feat/client-storage`
+> Status: Accepted, superseded in part by [ADR-0296](./0296-an-apps-storage-media-are-chosen-in-one-place-and-features-reach-web-storage-only-through-them.md) (which code names the keys a sign-out takes) · Decided: 2026-11-06 · Implemented: `feat/client-storage`
 > · Scope: `libs/storage` (new), `libs/session` (ports), `libs/auth` (`session/storage/`, `relaySession`,
 > `relayCredentialProbe`), `libs/transport` (lemon in memory), `libs/bridge-messages` (`StorageGet` ·
 > `StorageSave` · `StorageClear`, bridge 2.21.0), `apps/mobile` (`services/secureStorage`), `apps/desktop`

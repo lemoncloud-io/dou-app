@@ -7,10 +7,14 @@ knows about a domain.
 
 ## Who imports it
 
-- **Each app's entry point** (`apps/web`, `apps/desktop-web`, `apps/admin-v2`) builds the media it
-  uses and hands them to `runtime.boot.initAppRuntime({ storage })`. `apps/web` and
-  `apps/desktop-web` also point `setStorageAdapter` at their plain medium; `apps/admin-v2` keeps its
-  default.
+- **`@chatic/app-runtime`'s `resolveStorageMedia`** is where an app's media are chosen and built —
+  the session's `secret` and `plain`, the vault, and the `device`/`tab` media for everything else.
+  `apps/web` calls it once in its entry point and hands the result out (`initAppRuntime({ storage })`,
+  its config ports, its own `app/storage/`). `apps/desktop-web` and `apps/admin-v2` still build their
+  media in their entry points; `apps/desktop-web` moves onto the resolver next.
+- **Everything else in apps/web and the libs** reaches web storage only through a medium — the root
+  ESLint config refuses `localStorage`/`sessionStorage` there, and a zustand `persist` without a
+  `storage`. This package, the mini-app SDK and `libs/theme` are left out of that rule.
 - **`@chatic/session`** declares its ports in terms of `KeyValueStore`, and defaults to a
   `webSession` medium until an entry point configures it.
 - **`@chatic/transport`** hands lemon-web-core its credential medium as a DOM `Storage`, and
@@ -68,12 +72,18 @@ never wait.
 | `MemoryMedium`        | `memory`       | this page lifetime only                                                                                 |
 | `NativeSecureMedium`  | `nativeSecure` | the device vault an app or desktop shell keeps — iOS Keychain, Android Keystore, Electron `safeStorage` |
 | `DomStorageAdapter`   | —              | any medium seen as a DOM `Storage` (`asDomStorage(medium)`), for code that only takes that shape        |
+| `TolerantMedium`      | —              | wraps a medium so a failed read is absent and a failed write a no-op — for convenience state            |
 
 **A web medium reads the storage itself on every call**, not a copy taken at construction. The web
 storage is already synchronous, so a copy would buy nothing, and it would go stale the moment
 anything else writes the same storage — a debug wipe, a test fixture — answering with a value the
 storage no longer holds. Where the web storage does not exist, or throws on access,
 `WebMedium.over()` hands back a `MemoryMedium` instead, so a caller never has to ask which it got.
+
+**`TolerantMedium` is for state whose loss costs only itself.** Web storage throws on a full quota,
+in some private windows and when blocked. The session must hear that, so `WebMedium` lets it through;
+a composer draft or a log batch must not take its screen down with it, so the `device`/`tab` media an
+app's features use are wrapped in `TolerantMedium`.
 
 ### `nativeSecure`: the device vault
 
@@ -104,11 +114,13 @@ app that never calls it (admin-v2, the landing site, the testbed).
 ## Usage
 
 ```ts
-import { asDomStorage, setStorageAdapter, WebMedium } from '@chatic/storage';
+import { asDomStorage, setStorageAdapter } from '@chatic/storage';
 
-const plain = isNative() ? WebMedium.local() : WebMedium.session();
-setStorageAdapter(asDomStorage(plain));
-runtime.boot.initAppRuntime({ storage: { secret: plain, plain } });
+const media = runtime.boot.resolveStorageMedia();
+setStorageAdapter(asDomStorage(media.plain));
+runtime.boot.initAppRuntime({
+    storage: { secret: media.secret, plain: media.plain, device: media.device, tab: media.tab },
+});
 ```
 
 ### What not to do
@@ -118,6 +130,11 @@ runtime.boot.initAppRuntime({ storage: { secret: plain, plain } });
 - **Do not call `clear()` to drop one domain's keys.** It empties the whole medium — in a shell,
   every key the origin has in `localStorage`. A domain removes its own keys by name.
 - **Do not cache a web medium's values.** See above: a copy goes stale under writes made around it.
+- **Do not construct a medium in a feature.** Take the one the entry point handed out — in apps/web,
+  `deviceMedium`/`tabMedium` from `app/storage`. A `new WebMedium` deep in a feature is a second place
+  deciding where state lives. The exceptions are deliberate and few: the debug storage screen, whose
+  job is to walk the two web storages whole; the defaults a holder serves before its entry point
+  configures it (the same storages); and the logout's clean-up of the tab copy a vault-less run left.
 
 ## How to verify
 

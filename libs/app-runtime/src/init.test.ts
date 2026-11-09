@@ -11,6 +11,7 @@
  * inherited a previous one's would be testing the wrong tree.
  */
 import type * as Session from '@chatic/session';
+import type * as StorageLib from '@chatic/storage';
 import type * as AuthRepository from '@chatic/auth/session/authRepository';
 import type * as SyncDataGraph from '@chatic/sync/dataGraph';
 
@@ -114,6 +115,34 @@ describe('initAppRuntime', () => {
         expect(getSyncCursorsValidAfter()).toBeGreaterThanOrEqual(before);
         expect(localStorage.getItem('chatic.syncCursors.resetPending')).toBeNull();
         localStorage.clear();
+    });
+
+    it("keeps the runtime's own state in the device medium the entry point hands over", async () => {
+        const { MemoryMedium } = jest.requireActual<typeof StorageLib>('@chatic/storage');
+        const device = new MemoryMedium();
+        device.set('chatic.syncCursors.resetPending', '1');
+        const { initAppRuntime } = await load();
+        const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
+
+        initAppRuntime({ storage: { secret: new MemoryMedium(), plain: new MemoryMedium(), device } });
+
+        expect(device.get('chatic.syncCursors.resetPending')).toBeNull();
+        expect(getSyncCursorsValidAfter()).toBeGreaterThan(0);
+        expect(localStorage.length).toBe(0);
+    });
+
+    it('sweeps the signed-out keys the app declared on a document opened by logout', async () => {
+        const { MemoryMedium } = jest.requireActual<typeof StorageLib>('@chatic/storage');
+        const plain = new MemoryMedium();
+        plain.set('@chatic/web.log.pending.tab-1', '[]');
+        plain.set('@chatic/config.ui.theme', '"dark"');
+        window.history.replaceState({}, '', '/?logout=1');
+        const { initAppRuntime } = await load();
+
+        initAppRuntime({ storage: { secret: new MemoryMedium(), plain }, signedOutKeyPrefixes: ['@chatic/web.log.'] });
+
+        expect(plain.keys()).toEqual(['@chatic/config.ui.theme']);
+        window.history.replaceState({}, '', '/');
     });
 
     it('is safe to call twice, and says so — a duplicate boot means two owners', async () => {
