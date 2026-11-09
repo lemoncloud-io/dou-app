@@ -25,14 +25,8 @@
 /** How far the shell trusts a page; `null` from {@link subWebViewTrustOf} means it does not open it. */
 export type SubWebViewTrust = 'firstParty' | 'reviewed' | 'external';
 
-/** The hub's origins, one per stage. Only an exact match is first party. */
-export const SUB_WEBVIEW_FIRST_PARTY_ORIGINS: readonly string[] = [
-    'https://apps.chatic.io',
-    'https://apps-dev.chatic.io',
-];
-
-/** The domains whose one-label subdomains are reviewed pages. */
-export const SUB_WEBVIEW_REVIEWED_DOMAINS: readonly string[] = ['apps.chatic.io', 'apps-dev.chatic.io'];
+/** The hub's hosts, one per stage: an exact match is first party, one label under one is reviewed. */
+const HUB_HOSTS: readonly string[] = ['apps.chatic.io', 'apps-dev.chatic.io'];
 
 // One or more DNS labels joined by dots, with at least one dot, then the end of the host. No
 // userinfo, no port, no percent-encoding and no trailing dot can sit in it, because none of `@`,
@@ -106,7 +100,6 @@ export const isSubWebViewAppId = (value: unknown): value is string =>
 export const subWebViewTrustOf = (url: unknown): SubWebViewTrust | null => {
     const host = hostOf(url);
     if (!host) return null;
-    if (SUB_WEBVIEW_FIRST_PARTY_ORIGINS.includes(`https://${host}`)) return 'firstParty';
-    const dot = host.indexOf('.');
-    return SUB_WEBVIEW_REVIEWED_DOMAINS.includes(host.slice(dot + 1)) ? 'reviewed' : 'external';
+    if (HUB_HOSTS.includes(host)) return 'firstParty';
+    return HUB_HOSTS.includes(host.slice(host.indexOf('.') + 1)) ? 'reviewed' : 'external';
 };

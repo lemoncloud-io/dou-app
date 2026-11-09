@@ -3,8 +3,6 @@ import {
     isOpenableSubWebViewUrl,
     isSubWebViewAppId,
     isSubWebViewParams,
-    SUB_WEBVIEW_FIRST_PARTY_ORIGINS,
-    SUB_WEBVIEW_REVIEWED_DOMAINS,
     subWebViewOriginOf,
     subWebViewTrustOf,
 } from './subWebViewTrust';
@@ -38,6 +36,7 @@ describe('subWebViewTrustOf', () => {
         ['a lookalike of a page', 'https://foo.apps.chatic.io.evil.example/'],
         ['a lookalike label', 'https://evilapps.chatic.io/'],
         ['the web app, which is not under the page domain', 'https://dou.chatic.io/'],
+        ['the bare domain, which is not the whole of chatic.io', 'https://chatic.io/'],
     ])('reads %s as external', (_label, url) => {
         expect(subWebViewTrustOf(url)).toBe('external');
     });
@@ -69,11 +68,6 @@ describe('subWebViewTrustOf', () => {
     ])('refuses %s', (_label, url) => {
         expect(subWebViewTrustOf(url)).toBeNull();
         expect(isOpenableSubWebViewUrl(url)).toBe(false);
-    });
-
-    it('names exactly the two hub origins as firstParty, and not the whole of chatic.io', () => {
-        expect(SUB_WEBVIEW_FIRST_PARTY_ORIGINS).toEqual(['https://apps.chatic.io', 'https://apps-dev.chatic.io']);
-        expect(SUB_WEBVIEW_REVIEWED_DOMAINS).toEqual(['apps.chatic.io', 'apps-dev.chatic.io']);
     });
 });
 

@@ -13,7 +13,7 @@ import { hasMiniAppConsent, readMiniAppLink, writeMiniAppConsent, writeMiniAppLi
 import { onShellSubWebViewClosed, openShellSubWebView, readSubWebViewOpenScope } from '../utils/subWebViewShell';
 
 /** DoU's own hub, opened when the cloud has no link: it greets the user and points an owner to the link. */
-export const miniAppHubUrl = (): string =>
+const miniAppHubUrl = (): string =>
     String(import.meta.env.VITE_ENV ?? '').toUpperCase() === 'PROD'
         ? 'https://apps.chatic.io/'
         : 'https://apps-dev.chatic.io/';

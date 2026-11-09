@@ -2,19 +2,6 @@ import type { MiniAppLaunchParams } from '@chatic/bridge-messages';
 
 import type { SubWebViewTrust } from './subWebViewTrust';
 
-/**
- * Builds the `params` a mini app is opened with: who is looking, in which cloud and place. The shape
- * is the wire type `MiniAppLaunchParams`, which the published page SDK declares too. Ids and display
- * names, and nothing that authenticates — no session token, relay JWT or cloud token, and no key
- * named for one, so a page cannot mistake a field for a credential. A page that needs to act for the
- * user waits for a scoped token, which is a later step.
- *
- * `user.isOwner` goes to the hub alone (`firstParty`). The hub uses it to offer the owner the link
- * settings; a reviewed or external page has no use for it, and telling a third party which visitor
- * owns the cloud is information it was never asked to hold.
- */
-export type { MiniAppLaunchParams };
-
 /** What the web knows when it opens a mini app. */
 export interface MiniAppLaunchInput {
     cloud: { id: string; name: string };
@@ -39,7 +26,18 @@ const nameOf = (value: string | null | undefined): string => {
     return chars.length > MINI_APP_NAME_LIMIT ? chars.slice(0, MINI_APP_NAME_LIMIT).join('') : trimmed;
 };
 
-/** The params for a page of `trust`. The user's name is the place nick, else the cloud profile's. */
+/**
+ * The `params` a page of `trust` is opened with: who is looking, in which cloud and place. The shape
+ * is the wire type `MiniAppLaunchParams`, which the published page SDK declares too. Ids and display
+ * names, and nothing that authenticates — no session token, relay JWT or cloud token, and no key
+ * named for one, so a page cannot mistake a field for a credential. A page that needs to act for the
+ * user waits for a scoped token, which is a later step. The user's name is the place nick, else the
+ * cloud profile's.
+ *
+ * `user.isOwner` goes to the hub alone (`firstParty`). The hub uses it to offer the owner the link
+ * settings; a reviewed or external page has no use for it, and telling a third party which visitor
+ * owns the cloud is information it was never asked to hold.
+ */
 export const buildMiniAppLaunchParams = (input: MiniAppLaunchInput, trust: SubWebViewTrust): MiniAppLaunchParams => {
     const name = nameOf(input.user.placeNick) || nameOf(input.user.profileName);
     return {
