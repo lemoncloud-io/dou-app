@@ -4,6 +4,16 @@
 
 ### Features
 
+- (data,sync,web,desktop-web) handle revision notices; the chat cache only moves forward
+
+### Bug Fixes
+
+- (data) read revision notices without loading the socket client
+
+## [2026-11-09] - No version updates
+
+### Features
+
 - (session,auth,data,app-runtime,web) name a paired cloud by its real name (ADR-0295)
 
 ## [2026-11-09] - No version updates
