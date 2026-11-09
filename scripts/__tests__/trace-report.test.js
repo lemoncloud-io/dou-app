@@ -43,7 +43,7 @@ describe('trace-report', () => {
         });
 
         it('실제 있는 파일은 보고하지 않는다', () => {
-            expect(missingLocally('a (libs/web-core/docs/error-reporting.md:1:0)')).toEqual([]);
+            expect(missingLocally('a (scripts/trace-report.js:1:0)')).toEqual([]);
         });
 
         it('node_modules 프레임은 클릭 대상이 아니라 대상에서 뺀다', () => {
