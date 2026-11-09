@@ -180,6 +180,8 @@ describe('MiniAppSettingsItem', () => {
 
     it('asks before a site DoU does not run first gets the names, and opens it without the owner flag', async () => {
         window.localStorage.setItem('dou.miniAppLink.c1', 'https://shop.example/app');
+        // Another account agreed on this computer: that is not my consent.
+        window.localStorage.setItem('dou.miniAppConsent.uid-other.shop.example', '1');
         await renderItem();
 
         fireEvent.click(openButton());
@@ -193,6 +195,7 @@ describe('MiniAppSettingsItem', () => {
         await waitFor(() => expect(env.open).toHaveBeenCalledTimes(1));
         expect(env.open.mock.calls[0][0]).toBe('https://shop.example/app');
         expect(env.open.mock.calls[0][1].user).toEqual({ id: 'uid-c1', name: 'Ada in Studio' });
+        expect(window.localStorage.getItem('dou.miniAppConsent.uid-session.shop.example')).toBe('1');
 
         fireEvent.click(openButton());
         await waitFor(() => expect(env.open).toHaveBeenCalledTimes(2));

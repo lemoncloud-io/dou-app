@@ -109,7 +109,8 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
     - A storage that refuses the write says so in the dialog.
 - **Consent.** The first time a host DoU does not run (`external`) would open, the user is asked
   whether it may receive their name, their id in this cloud, the cloud and the place. Declining opens nothing. Agreeing is
-  remembered per host (`dou.miniAppConsent.<host>`). DoU's own pages are not asked about.
+  remembered per account and host (`dou.miniAppConsent.<accountId>.<host>`), so on a shared computer one
+  person's yes does not send another's names. DoU's own pages are not asked about.
 - **Back from the hub.** When the hub view this screen opened closes with
   `result: { action: 'openMiniAppLinkSettings' }`, the link dialog opens, and only for the owner. Any
   other view's result is ignored.

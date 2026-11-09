@@ -138,22 +138,22 @@ export const useMiniAppLauncher = () => {
             return;
         }
         // A site DoU does not run is told the user's names only once the user has agreed to it, per host.
-        if (trust === 'external' && !hasMiniAppConsent(new URL(url).host)) {
+        if (trust === 'external' && !hasMiniAppConsent(accountId, new URL(url).host)) {
             setPendingConsent(url);
             return;
         }
         void launch(url, trust);
-    }, [link, launch]);
+    }, [link, launch, accountId]);
 
     const answerConsent = useCallback(
         (agreed: boolean) => {
             const url = pendingConsent;
             setPendingConsent(null);
             if (!agreed || !url) return;
-            writeMiniAppConsent(new URL(url).host);
+            writeMiniAppConsent(accountId, new URL(url).host);
             void launch(url, 'external');
         },
-        [pendingConsent, launch]
+        [pendingConsent, launch, accountId]
     );
 
     /** Save the owner's link, or remove it with an empty value. Checked by the rule the shell opens by. */

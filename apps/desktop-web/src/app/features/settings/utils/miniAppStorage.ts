@@ -8,7 +8,8 @@ import { isOpenableSubWebViewUrl } from '@chatic/shared';
  * Every access is guarded: a full or blocked storage costs the value, never the settings screen.
  */
 const linkKey = (cloudId: string) => `dou.miniAppLink.${cloudId}`;
-const consentKey = (host: string) => `dou.miniAppConsent.${host}`;
+// Per account as well as per host: on a shared computer one person's yes must not send another's names.
+const consentKey = (accountId: string, host: string) => `dou.miniAppConsent.${accountId}.${host}`;
 
 /** The link saved for `cloudId`, or `null` — also for a stored value the shell would no longer open. */
 export const readMiniAppLink = (cloudId: string): string | null => {
@@ -31,22 +32,24 @@ export const writeMiniAppLink = (cloudId: string, url: string | null): boolean =
     }
 };
 
-/** Whether the user already agreed to hand `host` their names. */
-export const hasMiniAppConsent = (host: string): boolean => {
+/** Whether the account `accountId` already agreed to hand `host` its names. */
+export const hasMiniAppConsent = (accountId: string, host: string): boolean => {
+    if (!accountId) return false;
     try {
-        return window.localStorage.getItem(consentKey(host)) === '1';
+        return window.localStorage.getItem(consentKey(accountId, host)) === '1';
     } catch {
         return false;
     }
 };
 
 /**
- * Record the user's agreement for `host`. A storage that refuses is not an error: the page still
- * opens this time, and the question comes back next time.
+ * Record the agreement of `accountId` for `host`. A storage that refuses is not an error: the page
+ * still opens this time, and the question comes back next time.
  */
-export const writeMiniAppConsent = (host: string): void => {
+export const writeMiniAppConsent = (accountId: string, host: string): void => {
+    if (!accountId) return;
     try {
-        window.localStorage.setItem(consentKey(host), '1');
+        window.localStorage.setItem(consentKey(accountId, host), '1');
     } catch {
         // Asked again next time; nothing else depends on it.
     }
