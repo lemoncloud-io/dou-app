@@ -332,8 +332,8 @@ npx jest --config libs/http/jest.config.js   # 14 suites, 95 cases
   global as "cannot tell" rather than as offline, because an offline verdict _suppresses_ credential
   attribution — a wrong one would silently disable it in every non-browser runtime.
 - Downstream: a changed barrel identifier reaches `@chatic/data` and `@chatic/app-runtime` directly
-  (14 import sites), and through them `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-  `apps/testbed`, `libs/db` and `@chatic/mobile`. `.github/workflows/verify.yml` type checks all of
+  (14 import sites), and through them `apps/web`, `apps/desktop-web`, `apps/admin`,
+  `libs/db` and `@chatic/mobile`. `.github/workflows/verify.yml` type checks all of
   those except `@chatic/mobile` — that one is for you to run by hand.
 
 ```bash

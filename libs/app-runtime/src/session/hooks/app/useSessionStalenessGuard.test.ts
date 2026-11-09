@@ -93,7 +93,7 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
         expect(onTeardown).not.toHaveBeenCalled();
     });
 
-    it('missingSessionCountsAsFailure=true면 세션 부재가 teardown으로 이어진다 (admin-v2 판)', async () => {
+    it('missingSessionCountsAsFailure=true면 세션 부재가 teardown으로 이어진다 (admin 판)', async () => {
         mockHasStored.mockReturnValue(false);
         const onTeardown = jest.fn();
 

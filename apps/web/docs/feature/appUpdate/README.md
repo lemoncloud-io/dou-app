@@ -121,7 +121,7 @@ share intake are there in every app the web runs in. Fallbacks for capabilities 
 the sub WebView (bridge 2.10.0 on), the voice recorder (2.13.0) — stay until the floor passes them.
 
 **Raising it.** Pick a version the stores have served long enough that nobody is stuck on an older
-one (the installed-version spread is in admin-v2), change `APP_VERSION_FLOOR`, then delete the
+one (the installed-version spread is in admin), change `APP_VERSION_FLOOR`, then delete the
 fallbacks it makes dead in the same change — `libs/bridges/src/version.ts` says which bridge version
 brought each capability. The fake shell reports a current version (`FAKE_SHELL_APP_VERSION`), so the
 web-e2e scenarios run above the floor; keep it at or above it.

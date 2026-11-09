@@ -186,8 +186,7 @@ a toast.
 | ------------------ | :-: | :-----: | ------------------- | :----: | :-------: |
 | `apps/web`         |  ✓  |    ✓    | ✓ when `isNative()` |   —    |     ✓     |
 | `apps/desktop-web` |  ✓  |    ✓    | —                   |   —    |     —     |
-| `apps/admin-v2`    |  ✓  |    ✓    | —                   |   —    |     —     |
-| `apps/testbed`     |  ✓  |    ✓    | —                   |   —    |     —     |
+| `apps/admin`       |  ✓  |    ✓    | —                   |   —    |     —     |
 
 Only `apps/web` runs inside a native shell, and it wires the port **conditionally**: a plain browser
 tab has no shell to round-trip a write to, and leaving the member unset rather than wired-and-always-

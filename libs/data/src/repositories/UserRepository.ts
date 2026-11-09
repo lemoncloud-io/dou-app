@@ -87,7 +87,7 @@ export interface IUserRepository extends DisposableRepository {
     /**
      * HTTP relay-user listing/profile surface (ADR-0070 decision 5, late stage 2). `IUserHttpDataSource`
      * injection is optional (see libs/data/docs/repositories/README.md). `listRelayUsers` has exactly one
-     * consumer: the admin-v2 user console (`apps/admin-v2/.../users/api/usersQuery.ts`).
+     * consumer: the admin user console (`apps/admin/.../users/api/usersQuery.ts`).
      */
     listRelayUsers(
         params?: Record<string, unknown>,

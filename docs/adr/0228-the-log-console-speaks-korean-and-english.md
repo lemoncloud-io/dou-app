@@ -1,11 +1,11 @@
 # ADR-0228: The log console speaks Korean and English
 
 > Status: Accepted · Decided: 2026-10-26
-> · Scope: `apps/admin-v2/src/app/i18n/**` · `apps/admin-v2/src/app/features/report-logs/**` ·
-> `apps/admin-v2/src/app/layout/**`
+> · Scope: `apps/admin/src/app/i18n/**` · `apps/admin/src/app/features/report-logs/**` ·
+> `apps/admin/src/app/layout/**`
 > · Amends: [ADR-0122](./0122-english-for-tools-i18n-for-what-users-and-qa-read.md) decision 1, for
 > admin-v2's log console and its top nav. The rest of admin-v2 stays English under that decision.
-> · The module doc is [apps/admin-v2/docs/i18n](../../apps/admin-v2/docs/i18n/README.md)
+> · The module doc is [apps/admin/docs/i18n](../../apps/admin/docs/i18n/README.md)
 
 ## Context
 
@@ -27,7 +27,7 @@ readers and keeping it English-only would have meant writing it twice later.
    shares carries the screen, not the sender's language.
 3. **One i18next instance of the app's own, with bundled resources.** It uses the same libraries as
    `apps/web` (`i18next`, `react-i18next`). It does not use their HTTP backend or language detector.
-   Resources are TypeScript files under `apps/admin-v2/src/app/i18n/locales/{ko,en}/`, one per
+   Resources are TypeScript files under `apps/admin/src/app/i18n/locales/{ko,en}/`, one per
    namespace. Each English file is typed as its Korean twin, and a test checks both languages key by
    key, including interpolation slots and the event-name maps.
 4. **What is translated:** screen copy, buttons, empty states, errors, tooltips, the display names

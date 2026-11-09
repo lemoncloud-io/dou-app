@@ -49,13 +49,10 @@
             "path": "./apps/desktop-web"
         },
         {
-            "path": "./apps/testbed"
-        },
-        {
             "path": "./libs/logger"
         },
         {
-            "path": "./apps/admin-v2"
+            "path": "./apps/admin"
         },
         {
             "path": "./libs/auth-sign"

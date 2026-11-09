@@ -105,7 +105,7 @@ Push-device registration does not go through `data`: `libs/app-runtime` calls th
 
 ## The admin console surface
 
-`apps/admin-v2`'s reads hang off `SubscriptionHttpDataSource` (ADR-0101). Two things differ from the
+`apps/admin`'s reads hang off `SubscriptionHttpDataSource` (ADR-0101). Two things differ from the
 normal path.
 
 **① `fetchAdminClouds` rides the subscription bundle rather than the cloud one** — even though clouds

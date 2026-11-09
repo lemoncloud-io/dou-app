@@ -109,7 +109,7 @@ flowchart TD
     classDef app fill:#fff7e6,stroke:#ffd591,stroke-width:2px,color:#873800;
     classDef com fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
 
-    Caller["apps/web · desktop-web · admin-v2"]:::ext
+    Caller["apps/web · desktop-web · admin"]:::ext
     Shell["apps/mobile · apps/desktop<br/><i>registerHandler × N · pushEvent</i>"]:::ext
     Msgs["@chatic/bridge-messages<br/><i>WEB_MESSAGE_RESPONSE_TYPE</i>"]:::ext
     Log["@chatic/logger<br/><i>logHub · LogEntry</i>"]:::ext
@@ -368,7 +368,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 ### Wiring
 
 ```text
-web runtime                             apps/web · apps/desktop-web · apps/admin-v2
+web runtime                             apps/web · apps/desktop-web · apps/admin
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
        ├─ version  BRIDGE_VERSION ('2.21.0')
@@ -557,7 +557,7 @@ npx jest --config libs/bridges/jest.config.js   # 6 suites, 101 cases
 - `setupBridgeLogger` keeps module state — a `handle` that makes it idempotent. A spec that does not
   call `teardown()` leaves the forwarder subscribed to the hub for the next one.
 - Downstream: 260 files across `apps/web`, `libs/app-runtime`, `apps/desktop-web`, `apps/mobile`,
-  `libs/db`, `libs/data`, `apps/admin-v2`, `apps/desktop`, `libs/shared` and `libs/theme` import this
+  `libs/db`, `libs/data`, `apps/admin`, `apps/desktop`, `libs/shared` and `libs/theme` import this
   barrel. `.github/workflows/verify.yml` type checks all of those except `@chatic/mobile`,
   and excludes `web` from the test run — those are the ones to check by hand.
 

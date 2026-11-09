@@ -46,7 +46,7 @@ Add an **admin report log list screen** to admin-v2 as a new feature.
   through
   ``webTransport.buildSignedRequest({ method: 'GET', baseURL: `${DOU_ENDPOINT}/mocks/0/list` })``.
   `DOU_ENDPOINT` comes from `@chatic/web-core` (the same base as `/hello/report`).
-- Feature structure: mirror `socket-lab` — `apps/admin-v2/src/app/features/<feature>/` with `api/`
+- Feature structure: mirror `socket-lab` — `apps/admin/src/app/features/<feature>/` with `api/`
   (the webTransport call plus response mapping), `hooks/` (a react-query `useQuery`), `pages/` and
   `routes/` — registered in `src/app/routes.tsx` and the sidebar navigation.
 - List columns (summary): type (error / issue), title, env, app, time (createdAt). Newest first.

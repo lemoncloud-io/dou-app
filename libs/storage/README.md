@@ -10,7 +10,7 @@ knows about a domain.
 - **`@chatic/app-runtime`'s `resolveStorageMedia`** is where an app's media are chosen and built —
   the session's `secret` and `plain`, the vault, and the `device`/`tab` media for everything else.
   `apps/web` calls it once in its entry point and hands the result out (`initAppRuntime({ storage })`,
-  its config ports, its own `app/storage/`). `apps/desktop-web` and `apps/admin-v2` still build their
+  its config ports, its own `app/storage/`). `apps/desktop-web` and `apps/admin` still build their
   media in their entry points; `apps/desktop-web` moves onto the resolver next.
 - **Everything else in apps/web and the libs** reaches web storage only through a medium — the root
   ESLint config refuses `localStorage`/`sessionStorage` there, and a zustand `persist` without a
@@ -109,7 +109,7 @@ workspace. Whether the shell keeps a vault at all is read from `window.CHATIC_AP
 `storage` (an `IAppStorage`) is what code outside a domain port reads and writes through.
 `setStorageAdapter(adapter)` — the same as `storage.use(adapter)` — points it at the entry point's
 plain medium. Until it is called it is this tab's `sessionStorage`, which is the right answer for an
-app that never calls it (admin-v2, the landing site, the testbed).
+app that never calls it (admin, the landing site).
 
 ## Usage
 

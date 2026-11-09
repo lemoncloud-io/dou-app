@@ -281,7 +281,7 @@ class RelaySession implements IRelaySession {
      *
      * It used to be called `logoutRelaySession`, one of two same-named pairs inside this package: the
      * root barrel published THIS (socket-silent) half while the docs declared the socket half the
-     * public one, and `apps/admin-v2` really did call the silent half. ADR-0070 §context named that
+     * public one, and `apps/admin` really did call the silent half. ADR-0070 §context named that
      * failure mode for the pre-merge `web-core`/`app-runtime` barrels and ADR-0076 decision 7 closes it
      * here — the weak halves lose their global names so the collision cannot be re-created.
      */

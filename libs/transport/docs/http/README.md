@@ -113,10 +113,10 @@ Both exist for the same reason: the implementation sits **upstream** of `http/`,
 would close a ring. Both default to the safe state, and neither lets a failure of its own replace the
 caller's.
 
-| Registry              | Default when nothing is registered                                      | Who registers                               |
-| --------------------- | ----------------------------------------------------------------------- | ------------------------------------------- |
-| `credentialRecovery`  | `false` — no recovery is attempted, and nothing is claimed              | `initAppRuntime`, to the relay renewer      |
-| `authFailureReaction` | **silent** — `onAuthFailure` has already logged and is about to rethrow | an app that wants one; `apps/admin-v2` does |
+| Registry              | Default when nothing is registered                                      | Who registers                            |
+| --------------------- | ----------------------------------------------------------------------- | ---------------------------------------- |
+| `credentialRecovery`  | `false` — no recovery is attempted, and nothing is claimed              | `initAppRuntime`, to the relay renewer   |
+| `authFailureReaction` | **silent** — `onAuthFailure` has already logged and is about to rethrow | an app that wants one; `apps/admin` does |
 
 A thrown recovery or reaction is caught and turned into a warning: the caller asked about their
 request, not about our notification.

@@ -4,7 +4,7 @@
 
 ## Context
 
-`apps/admin-v2`'s Report Logs screen (`features/report-logs`) reads issue reports, batch-uploaded log
+`apps/admin`'s Report Logs screen (`features/report-logs`) reads issue reports, batch-uploaded log
 entries, and now-retired automatic error reports from a single list via `GET /dou-{stage}/mocks/0/list`.
 Putting it to operational use runs into three problems.
 
@@ -32,7 +32,7 @@ it reached the server). Because uploads are batched, arrival is bunched, but ser
 only work on `createdAt`. `bucketReportLogs` currently uses `createdAt`, so the trend graph does not show
 the actual distribution of occurrences.
 
-**Constraint**: this work is `apps/admin-v2` frontend only. `chatic-backend-api` is not touched.
+**Constraint**: this work is `apps/admin` frontend only. `chatic-backend-api` is not touched.
 
 **Target scenarios** (all four are in scope):
 

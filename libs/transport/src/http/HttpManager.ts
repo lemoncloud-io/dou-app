@@ -115,7 +115,7 @@ const createNetworkLogSink = (): HttpLogSink => {
  * Logging and the rethrow stay here because they are the same for every app. The user-facing
  * reaction does not, so it moved behind `authFailureReaction` — the pre-lib
  * `handleAuthError(error, true, message)` behavior (alert + `/auth/logout`) is still what an app
- * that registers nothing gets, which is every app but admin-v2.
+ * that registers nothing gets, which is every app but admin.
  */
 export const onAuthFailure = (error: unknown, message: string): void => {
     logger.error('AUTH', message, { error });

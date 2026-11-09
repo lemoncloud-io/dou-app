@@ -1,8 +1,8 @@
 # ADR-0203: A cloud deploy run can turn off the goods service's Slack notices, but not its failure reports
 
 > Status: Accepted · Decided: 2026-10-14
-> · Scope: `apps/admin-v2/src/app/features/cloud-deployments/`
-> · The module doc is [apps/admin-v2 cloud-deployments](../../apps/admin-v2/docs/cloud-deployments/README.md)
+> · Scope: `apps/admin/src/app/features/cloud-deployments/`
+> · The module doc is [apps/admin cloud-deployments](../../apps/admin/docs/cloud-deployments/README.md)
 > · Related: [ADR-0165 (the cloud deploy console)](./0165-admin-v2-signs-its-own-goods-calls-on-the-relay-host-and-deploys-one-cloud-product-at-a-time.md)
 
 ## Context

@@ -385,7 +385,7 @@ npx tsc -b libs/bridge-messages/tsconfig.json --force     # the whole gate
   not clean orphaned `.d.ts` files. `rm -rf dist/out-tsc` and look again.
 - Downstream: 157 files in nine projects import this barrel — `apps/mobile` (79), `apps/web` (43),
   `libs/db` (9), `libs/data` (9), `libs/bridges` (8), `libs/app-runtime` (6), and one file each in
-  `libs/device-utils`, `apps/desktop` and `apps/desktop-web`. (`apps/admin-v2`, `libs/shared` and
+  `libs/device-utils`, `apps/desktop` and `apps/desktop-web`. (`apps/admin`, `libs/shared` and
   `libs/config` name the package in comments only — `libs/config` declares its own `Stage` and
   `Platform` rather than importing them.) `.github/workflows/verify.yml` type checks all nine except
   `@chatic/mobile` — that one is for you to run by hand.

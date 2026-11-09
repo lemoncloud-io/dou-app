@@ -119,7 +119,7 @@ export type { ApplySessionTokenOptions } from '@chatic/auth';
 // The app-facing relay LOGOUT — the socket half. It notifies the server's socket (`auth.logout`)
 // before the local store teardown, which is why it and not the `session/auth` primitive is the
 // public name (ADR-0076 Decision 7). The cloud half is reached through `useLogoutCloudSession`, so the raw
-// `logoutCloudSession` stays internal (Decision 6); admin-v2's `useRelaySessionGuard` is the one non-React
+// `logoutCloudSession` stays internal (Decision 6); admin's `useRelaySessionGuard` is the one non-React
 // caller of this one.
 export { logoutSession } from '@chatic/auth';
 // The session user's profile, assembled from the user repository + the live session context.
@@ -128,6 +128,6 @@ export type { SessionProfile } from './hooks/session/readers/useRuntimeProfile';
 // What the app does when the SERVER has confirmed the session is over — the credential was
 // re-minted and the request replayed once, and it was still refused. It lives in `@chatic/transport`'s
 // `http/` because that is where the verdict is produced, but an app reaches for it as session policy:
-// admin-v2 registers a banner instead of the default alert + logout redirect.
+// admin registers a banner instead of the default alert + logout redirect.
 export { authFailureReaction } from '@chatic/transport';
 export type { AuthFailureReactionFn, IAuthFailureReaction } from '@chatic/transport';

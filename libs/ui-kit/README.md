@@ -26,7 +26,7 @@ and it is what lets the generator overwrite one file without touching the rest.
 grep -rn "@chatic/ui-kit" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-Five projects import components: `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `libs/web-ui-kit`
+Five projects import components: `apps/web`, `apps/desktop-web`, `apps/admin`, `libs/web-ui-kit`
 and `libs/shared`. Two more — `apps/block-kit-builder` and `libs/block-kit` — reach this module for
 `cn` alone, through the `@chatic/lib/utils` path alias, which resolves to `src/utils/index.ts` here
 and is easy to miss when counting consumers.
@@ -50,7 +50,7 @@ comparison of the two kits is canonical in
 what the rule costs on this side.
 
 The dependency runs **one way: `web-ui-kit` imports `ui-kit`, and `ui-kit` imports no other
-`@chatic` module at all.** That is what keeps `desktop-web` and `admin-v2` free of mobile-web
+`@chatic` module at all.** That is what keeps `desktop-web` and `admin` free of mobile-web
 components, and the grep is the check:
 
 ```bash
@@ -114,7 +114,7 @@ flowchart TD
 
     W["apps/web<br/><i>89 files</i>"]:::ext
     D["apps/desktop-web<br/><i>50 files</i>"]:::ext
-    A["apps/admin-v2<br/><i>6 files</i>"]:::ext
+    A["apps/admin<br/><i>6 files</i>"]:::ext
     K["libs/web-ui-kit<br/><i>5 files</i>"]:::ext
     S["libs/shared<br/><i>4 files</i>"]:::ext
 
@@ -199,30 +199,30 @@ grep -rln "@chatic/ui-kit/components/ui/button'" --include='*.ts' --include='*.t
     | grep -v node_modules | grep -v '^libs/ui-kit/'
 ```
 
-| Module          | Importers | Where                                             | Local edits                                                                   |
-| --------------- | --------: | ------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `use-toast`     |        79 | web 68 · desktop-web 11                           | `TOAST_REMOVE_DELAY` cut to 1s                                                |
-| `button`        |        27 | desktop-web 15 · web 5 · shared 4 · admin-v2 3    | `link` in ink, underlined · 2px focus ring with gap                           |
-| `dialog`        |        24 | web 13 · desktop-web 10 · admin-v2 1              | variants · required `closeLabel` · width cap · focus return · `overlay` scrim |
-| `dropdown-menu` |        15 | web 7 · desktop-web 5 · web-ui-kit 3              | —                                                                             |
-| `avatar`        |        13 | desktop-web 13                                    | —                                                                             |
-| `alert-dialog`  |         9 | web 4 · desktop-web 3 · admin-v2 1 · web-ui-kit 1 | width cap · focus on open and return · `overlay` scrim                        |
-| `input`         |         9 | desktop-web 6 · admin-v2 2 · web 1                | restyled to DoU tokens                                                        |
-| `tooltip`       |         7 | desktop-web 6 · web 1                             | —                                                                             |
-| `label`         |         5 | desktop-web 3 · admin-v2 2                        | —                                                                             |
-| `sheet`         |         5 | web 4 · web-ui-kit 1                              | required `closeLabel` · width cap on bottom · `overlay` scrim                 |
-| `popover`       |         4 | desktop-web 4                                     | —                                                                             |
-| `switch`        |         3 | desktop-web 2 · admin-v2 1                        | 3:1 track, ink edge and thumb when on                                         |
-| `table`         |         3 | admin-v2 3                                        | —                                                                             |
-| `badge`         |         2 | admin-v2 2                                        | —                                                                             |
-| `checkbox`      |         2 | admin-v2 2                                        | —                                                                             |
-| `toaster`       |         2 | web 1 · desktop-web 1                             | rewritten · required region `label`                                           |
-| `card`          |         1 | web 1                                             | —                                                                             |
-| `tabs`          |         1 | desktop-web 1                                     | —                                                                             |
-| `context-menu`  |         1 | desktop-web 1                                     | icon sizing on items                                                          |
-| `skeleton`      |         1 | admin-v2 1                                        | —                                                                             |
-| `textarea`      |         1 | admin-v2 1                                        | —                                                                             |
-| `toast`         |         0 | rendered by `toaster`                             | restyled · viewport moved to top                                              |
+| Module          | Importers | Where                                          | Local edits                                                                   |
+| --------------- | --------: | ---------------------------------------------- | ----------------------------------------------------------------------------- |
+| `use-toast`     |        79 | web 68 · desktop-web 11                        | `TOAST_REMOVE_DELAY` cut to 1s                                                |
+| `button`        |        27 | desktop-web 15 · web 5 · shared 4 · admin 3    | `link` in ink, underlined · 2px focus ring with gap                           |
+| `dialog`        |        24 | web 13 · desktop-web 10 · admin 1              | variants · required `closeLabel` · width cap · focus return · `overlay` scrim |
+| `dropdown-menu` |        15 | web 7 · desktop-web 5 · web-ui-kit 3           | —                                                                             |
+| `avatar`        |        13 | desktop-web 13                                 | —                                                                             |
+| `alert-dialog`  |         9 | web 4 · desktop-web 3 · admin 1 · web-ui-kit 1 | width cap · focus on open and return · `overlay` scrim                        |
+| `input`         |         9 | desktop-web 6 · admin 2 · web 1                | restyled to DoU tokens                                                        |
+| `tooltip`       |         7 | desktop-web 6 · web 1                          | —                                                                             |
+| `label`         |         5 | desktop-web 3 · admin 2                        | —                                                                             |
+| `sheet`         |         5 | web 4 · web-ui-kit 1                           | required `closeLabel` · width cap on bottom · `overlay` scrim                 |
+| `popover`       |         4 | desktop-web 4                                  | —                                                                             |
+| `switch`        |         3 | desktop-web 2 · admin 1                        | 3:1 track, ink edge and thumb when on                                         |
+| `table`         |         3 | admin 3                                        | —                                                                             |
+| `badge`         |         2 | admin 2                                        | —                                                                             |
+| `checkbox`      |         2 | admin 2                                        | —                                                                             |
+| `toaster`       |         2 | web 1 · desktop-web 1                          | rewritten · required region `label`                                           |
+| `card`          |         1 | web 1                                          | —                                                                             |
+| `tabs`          |         1 | desktop-web 1                                  | —                                                                             |
+| `context-menu`  |         1 | desktop-web 1                                  | icon sizing on items                                                          |
+| `skeleton`      |         1 | admin 1                                        | —                                                                             |
+| `textarea`      |         1 | admin 1                                        | —                                                                             |
+| `toast`         |         0 | rendered by `toaster`                          | restyled · viewport moved to top                                              |
 
 **Every primitive has an importer** except `toast`, and `toaster` renders that one. Do not add a
 primitive ahead of the screen that needs it: until then it is a dependency every install pulls and a
@@ -332,11 +332,11 @@ clear those floors on its own ground; `apps/desktop-web` asserts its pairs in
 
 `apps/web`, `apps/desktop-web` and `apps/block-kit-builder` declare the `Input` and toast tokens;
 `apps/desktop-web` also declares `control-border`, and `apps/web` has `primary-ink` but no
-`control-border` — consistent while it renders no `Switch`. `apps/admin-v2` declares the four
+`control-border` — consistent while it renders no `Switch`. `apps/admin` declares the four
 `Input` needs and aliases `control-border` and `primary-ink` onto its own `--input` and
 `--primary`; it does not declare the toast pair — consistent today, because it does not mount
 `Toaster`, and the thing to fix first if it ever does. `overlay` is declared by every host that
-renders a kit overlay: `apps/web` and `apps/desktop-web` had it, `apps/admin-v2` declares it black
+renders a kit overlay: `apps/web` and `apps/desktop-web` had it, `apps/admin` declares it black
 (the scrim it had before the kit read a token), and `libs/web-ui-kit`'s Storybook `tokens.css`
 mirrors `apps/web`'s values.
 
@@ -374,7 +374,7 @@ else needs touching — there is no barrel to update and no test to add.
 ### 2. A component looks wrong in one app
 
 Fix it at the call site with `className`, or move the component to `libs/web-ui-kit` if it is
-DoU-shaped. Editing the primitive changes it for `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
+DoU-shaped. Editing the primitive changes it for `apps/web`, `apps/desktop-web`, `apps/admin`,
 `libs/shared` and `libs/web-ui-kit` at once, and the four you did not test have no test suite here
 to catch it.
 
@@ -422,14 +422,14 @@ elsewhere on close moves it in `onCloseAutoFocus` and calls `preventDefault()`.
   passing it proves nothing. `tsconfig.json` references `tsconfig.lib.json` only; there is no
   `tsconfig.spec.json` because there are no specs.
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves. `rm -rf` and look again.
-- Downstream, a changed identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
+- Downstream, a changed identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin`,
   `libs/web-ui-kit` and `libs/shared`. `.github/workflows/verify.yml` type checks `desktop-web` (50 files, the
   second-largest consumer) along with the others.
 
 ```bash
 npx nx typecheck web
 npx nx typecheck desktop-web
-npx nx typecheck admin-v2
+npx nx typecheck admin
 npx nx typecheck @chatic/web-ui-kit
 npx nx typecheck @chatic/shared
 ```

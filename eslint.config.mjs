@@ -229,7 +229,7 @@ export default [
         // needs and the entry point (`resolveStorageMedia`) chooses it, so no other code may name
         // `localStorage`/`sessionStorage` itself — and zustand's `persist`, which falls back to
         // `localStorage` when given no storage, must name one. Scope grows as apps move onto the media:
-        // apps/web and the libs now; desktop-web and `libs/theme` (which desktop-web, admin-v2 and landing
+        // apps/web and the libs now; desktop-web and `libs/theme` (which desktop-web, admin and landing
         // use) next. Tests seed web storage directly and are left out.
         files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx', 'libs/**/*.ts', 'libs/**/*.tsx'],
         ignores: [

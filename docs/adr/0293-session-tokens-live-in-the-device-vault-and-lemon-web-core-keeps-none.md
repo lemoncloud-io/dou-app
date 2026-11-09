@@ -4,7 +4,7 @@
 > · Scope: `libs/storage` (new), `libs/session` (ports), `libs/auth` (`session/storage/`, `relaySession`,
 > `relayCredentialProbe`), `libs/transport` (lemon in memory), `libs/bridge-messages` (`StorageGet` ·
 > `StorageSave` · `StorageClear`, bridge 2.21.0), `apps/mobile` (`services/secureStorage`), `apps/desktop`
-> (`main/secureStorage`), the entry points of `apps/web` · `apps/desktop-web` · `apps/admin-v2`
+> (`main/secureStorage`), the entry points of `apps/web` · `apps/desktop-web` · `apps/admin`
 > · The behaviour is documented in [libs/auth docs/session](../../libs/auth/docs/session/README.md) and
 > [libs/storage](../../libs/storage/README.md)
 

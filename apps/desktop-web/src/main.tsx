@@ -61,7 +61,7 @@ const startApp = (): void => {
     // refreshList(cursorNo).
     //
     // Set HERE and not in the engine: web storage serves every non-native client, so a limit living in
-    // libs/app-runtime would also truncate apps/web in a browser and apps/admin-v2.
+    // libs/app-runtime would also truncate apps/web in a browser and apps/admin.
     // Must run before render — the runtime builds its cache storages once, on first repository access.
     runtime.boot.initAppRuntime({
         storage: { secret: vault ?? plainMedium, plain: plainMedium },

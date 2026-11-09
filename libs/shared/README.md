@@ -18,7 +18,7 @@ grep -rn "@chatic/shared/" --include='*.ts' --include='*.tsx' apps libs | grep -
 ```
 
 The consumer list is worth knowing because it is not all browsers — `apps/web`, `apps/desktop-web`,
-`apps/admin-v2`, `libs/app-runtime` and `apps/mobile`, which is React Native.
+`apps/admin`, `libs/app-runtime` and `apps/mobile`, which is React Native.
 
 ```bash
 grep -rln "@chatic/shared" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
@@ -132,7 +132,7 @@ flowchart TD
     classDef pure fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    App["apps/web · desktop-web · admin-v2<br/>libs/app-runtime"]:::ext
+    App["apps/web · desktop-web · admin<br/>libs/app-runtime"]:::ext
     RN["apps/mobile<br/><i>React Native — consts and two link helpers</i>"]:::ext
 
     Barrel["src/index.ts<br/><i>the only entry point</i>"]:::grp
@@ -400,8 +400,8 @@ does — it builds `./tsconfig.json` with no argument, and that config reference
   same `.d.ts` paths.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. Force-delete both —
   `rm -rf libs/shared/out-tsc dist/out-tsc` — and look again.
-- Downstream: a changed barrel identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-  `apps/mobile` and `libs/app-runtime`. `.github/workflows/verify.yml` type checks `web`, `admin-v2`,
+- Downstream: a changed barrel identifier reaches `apps/web`, `apps/desktop-web`, `apps/admin`,
+  `apps/mobile` and `libs/app-runtime`. `.github/workflows/verify.yml` type checks `web`, `admin`,
   `desktop-web` and `@chatic/app-runtime`; `@chatic/mobile` is on its exclusion list, so that one
   is for you to run by hand. Its test step excludes `web` alone of this lib's consumers.
 - **`@chatic/mobile` fails its type check either way.** Remember that it reports a

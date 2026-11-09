@@ -4,7 +4,7 @@ import type { KeyValueStore } from '@chatic/storage';
 
 /**
  * `vite-ui-theme` is not private to this app — five apps' `index.html` pre-paint scripts and
- * `@chatic/theme`'s `ThemeProvider` (admin-v2/desktop-web/landing) all read and write this exact
+ * `@chatic/theme`'s `ThemeProvider` (admin/desktop-web/landing) all read and write this exact
  * key directly, deliberately ("a shared machine keeps one preference" — see
  * `apps/block-kit-builder/index.html`). It stays the durable source and `ui.theme`'s own namespaced
  * storage is kept as a mirror of it, re-synced on every boot so a theme change made in one of those

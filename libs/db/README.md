@@ -420,5 +420,5 @@ npx jest --config libs/db/jest.config.js      # every spec in the lib
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. Force-delete both
   (`rm -rf libs/db/dist libs/db/out-tsc`) and look again.
 - Downstream: `@chatic/app-runtime` is the only direct dependent; through it a changed barrel
-  identifier reaches `web`, `desktop-web`, `admin-v2` and `testbed`. `.github/workflows/verify.yml`
-  type checks `@chatic/app-runtime`, `web`, `desktop-web`, `admin-v2` and `testbed`.
+  identifier reaches `web`, `desktop-web` and `admin`. `.github/workflows/verify.yml`
+  type checks `@chatic/app-runtime`, `web`, `desktop-web` and `admin`.

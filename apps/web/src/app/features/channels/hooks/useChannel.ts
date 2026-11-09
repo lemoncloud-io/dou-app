@@ -33,7 +33,7 @@ const CHANNEL_RESOLVE_TIMEOUT_MS = 10_000;
 
 /**
  * Observe a single channel's metadata. Registers channel sync so the engine
- * keeps it fresh (mirrors testbed's `runtime.sync.useChannelSync` + `observeItem`), then maps
+ * keeps it fresh (`runtime.sync.useChannelSync` + `observeItem`), then maps
  * the domain model into the room/settings view-model.
  *
  * **A missing row is not the same as a resolved absence.** `observeItem` notifies straight away with

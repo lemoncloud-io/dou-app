@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-09-29 · Implemented: PR #508 (`fix/desktop-chat-critique`)
 > · Scope: `libs/ui-kit/src/utils/openerFocus.tsx` · `libs/ui-kit/src/components/ui/dialog.tsx` ·
 > `libs/ui-kit/src/components/ui/alert-dialog.tsx` · consumers: apps/desktop-web, apps/web,
-> apps/admin-v2
+> apps/admin
 > · The module doc is [`libs/ui-kit/README.md`](../../libs/ui-kit/README.md)
 
 ## Context

@@ -291,7 +291,7 @@ add a `--config libs/device-utils/jest.config.js` invocation; there is nothing a
 - A stale `dist`/`out-tsc` produces phantom errors after a file moves. `rm -rf dist/out-tsc` and look
   again.
 - Downstream: a changed barrel identifier reaches `apps/web`, `libs/shared` and `apps/mobile` —
-  and through `libs/shared` it reaches `apps/desktop-web` and `apps/admin-v2` as well.
+  and through `libs/shared` it reaches `apps/desktop-web` and `apps/admin` as well.
   `.github/workflows/verify.yml` excludes `@chatic/mobile` from its typecheck step,
   so that one is for you to run by hand.
 - **The `apps/web` suites will not catch a changed hook signature.** All three test files that touch

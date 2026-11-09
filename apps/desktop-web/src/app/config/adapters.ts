@@ -6,7 +6,7 @@ import { createWebEnvAdapter, type ConfigRuntimePorts } from '@chatic/config';
  *
  * `read` is the only platform-specific piece; `createWebEnvAdapter` owns the shared interpretation
  * (stage validation, the shell-injected stage vocabulary, the legacy lowercasing) so web ·
- * desktop-web · admin-v2 · testbed share one tested implementation instead of four.
+ * desktop-web · admin share one tested implementation instead of three.
  */
 const read = (name: string): string | undefined => {
     if (name.startsWith('VITE_')) return (import.meta.env as Record<string, string | undefined>)[name];

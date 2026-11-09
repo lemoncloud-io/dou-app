@@ -36,7 +36,7 @@ Constraints:
 - Report assembly is concentrated in one place, `libs/web-core`
   (`reportError()` / `reportIssue()`). On the consuming side
   (admin-v2), `parseReportLog.ts`
-  (`apps/admin-v2/src/app/features/report-logs/lib/parseReportLog.ts`) parses the bracketed title
+  (`apps/admin/src/app/features/report-logs/lib/parseReportLog.ts`) parses the bracketed title
   `[app] error`, and the payload is `[key: string]: unknown`, so new fields are consumed as they are.
 - An HTTP-centric classifier, `classifyError()` (`libs/web-core/src/transport/error.ts`), already
   exists, but reports do not use it.

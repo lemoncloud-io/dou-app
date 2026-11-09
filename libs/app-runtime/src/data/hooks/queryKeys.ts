@@ -10,7 +10,7 @@ import { createQueryKeys } from '@chatic/shared';
  *
  * `usersKeys`·`subscriptionKeys`·`productPlansKeys` left with their hooks: nothing in this lib
  * invalidates them, so they are now app-owned (`apps/web/src/app/hooks/queryKeys.ts`,
- * `apps/admin-v2/.../users/api/usersQuery.ts`). Same `createQueryKeys` namespaces, so cache
+ * `apps/admin/.../users/api/usersQuery.ts`). Same `createQueryKeys` namespaces, so cache
  * identity is unchanged.
  */
 export const cloudsKeys = createQueryKeys('clouds');

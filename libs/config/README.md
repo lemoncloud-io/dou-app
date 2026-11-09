@@ -64,7 +64,7 @@ flowchart TD
     classDef hold fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    App["app composition root<br/>web · desktop-web · admin-v2 · testbed"]:::ext
+    App["app composition root<br/>web · desktop-web · admin"]:::ext
     UI["UI · libs/app-runtime · libs/shared"]:::ext
 
     Facade["ConfigFacade<br/><i>index.ts — the only public class</i>"]:::resl
@@ -200,7 +200,7 @@ main.tsx
         └─ attachConfigStateLog()      libs/app-runtime — logs overridden keys, then each change
 ```
 
-Four apps do this: `apps/web`, `apps/desktop-web`, `apps/admin-v2` and `apps/testbed`. `apps/mobile`
+Three apps do this: `apps/web`, `apps/desktop-web` and `apps/admin`. `apps/mobile`
 does **not** — it implements the other side of the shell port instead. Among libs, only
 `libs/app-runtime` and `libs/shared` import this one.
 
@@ -278,4 +278,4 @@ npx jest --config libs/config/jest.config.js
 - Jest does not type check — the base sets `isolatedModules`, so ts-jest transpiles. A fixture missing a required member runs green under jest whenever the omitted member happens not to be called, which is why the spec project has to be in the reference list.
 - `registry/allModules.spec.ts` is the invariant test: it asserts the key count, that no two domains declare the same key, that `findPolicyViolations` is empty, that no `title`/`description` is blank, and the surface distribution. Adding a key means updating the count there.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again.
-- Downstream: a changed barrel identifier reaches six projects — `libs/app-runtime`, `libs/shared`, `apps/web`, `apps/admin-v2`, `apps/testbed` and `apps/desktop-web`. `.github/workflows/verify.yml` type checks all six.
+- Downstream: a changed barrel identifier reaches five projects — `libs/app-runtime`, `libs/shared`, `apps/web`, `apps/admin` and `apps/desktop-web`. `.github/workflows/verify.yml` type checks all five.

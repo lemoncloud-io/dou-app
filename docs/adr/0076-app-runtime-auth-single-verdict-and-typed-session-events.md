@@ -1,7 +1,7 @@
 # ADR-0076: Auth state has one verdict — typed session signals · credential renewer · ADR-0070 §0 completed
 
 > Status: **Live** · Written: 2026-09-07 · Implementation complete: 2026-09-07 (§Execution log)
-> Scope: `libs/app-runtime/**` + 4 apps (`apps/web` · `apps/admin-v2` · `apps/testbed` · `apps/desktop-web`)
+> Scope: `libs/app-runtime/**` + 4 apps (`apps/web` · `apps/admin` · `apps/testbed` · `apps/desktop-web`)
 > Related: [ADR-0070](./0070-app-runtime-session-hub.md) (session hub — this document applies its §0
 > principle to the remainder and updates the wording of Decisions 2 and 7) ·
 > [ADR-0036](./0036-data-surface-unification-app-runtime-cleanup.md) ·
@@ -163,7 +163,7 @@ SDK bridge) · `rebuildSessionIdentity` · `clearRelaySession` · `setSessionIde
 
 > **Measurement correction (during phase 2 execution): 31 → 32.** `setSessionAuthenticated` was
 > counted as app-referenced, but that "reference" was nothing but a single **comment line** in
-> `apps/admin-v2`'s OAuthResponsePage. Identifier-frequency-based detection can't screen out
+> `apps/admin`'s OAuthResponsePage. Identifier-frequency-based detection can't screen out
 > comments, and the same trap hid `useRegisterDeviceToken` too (phase 0) — a limitation the 2026-09
 > sweep admitted on its own. What was actually removed is 32. **The measured trajectory of public
 > value exports is `111 → 78 → 77 → 67`** — 111 on develop, phase 2 removed 32 to reach 78 (the same
@@ -187,7 +187,7 @@ collision is still there, inside the merged package.**
 The hooks (`useLogoutCloudSession` · `useSessionLogout`) use the strong version, so the screen path
 is fine. But with public-surface.md declaring the strong version "internal", **the root barrel
 publicly exports the weak version under the same name**, and
-[`apps/admin-v2`'s `useRelaySessionGuard`](../../apps/admin-v2/src/app/hooks/useRelaySessionGuard.ts)
+[`apps/admin`'s `useRelaySessionGuard`](../../apps/admin/src/app/hooks/useRelaySessionGuard.ts)
 actually calls the weak version on teardown — that logout skips both slots' `auth.logout`.
 
 ## Decision
@@ -514,7 +514,7 @@ repo's `clear*` family (`clearSession` · `clearToken` · `clearIdentity` · `cl
 root barrel's public `logoutSession` · `logoutCloudSession` are assigned only to the `socket/auth`
 version that includes the socket notification.
 
-`apps/admin-v2`'s `useRelaySessionGuard` teardown is moved to the strong version — **the one place
+`apps/admin`'s `useRelaySessionGuard` teardown is moved to the strong version — **the one place
 in this ADR where app code changes.**
 
 ### 8. Rename the first of the three scope views to `selected` (a vocabulary update to ADR-0070 Decision 7)

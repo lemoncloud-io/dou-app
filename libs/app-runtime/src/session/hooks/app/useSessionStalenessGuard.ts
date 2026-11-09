@@ -21,10 +21,10 @@ import {
  * sleep or a dropped socket nothing refreshes them, so every signed request 403s while
  * `isAuthenticated` stays true (that flag is session EXISTENCE, not credential validity).
  *
- * apps/web and admin-v2 each invented this independently
+ * apps/web and admin each invented this independently
  * (`useRelayCredentialRefresh` · `useRelaySessionGuard`); desktop-web now has one too
  * (`app/runtime/useRelayCredentialRefresh`, added when a cloud switch surfaced as a bare
- * `Network Error`), and testbed still has none. The probe body was identical in every case; only the
+ * `Network Error`). The probe body was identical in every case; only the
  * policy differed, so policy is what this takes as options (ADR-0070 Step 3 checklist 7).
  *
  * **RELAY ONLY, by design — do not add a cloud branch here.** The name says "session", but every
@@ -34,7 +34,7 @@ import {
  * counterpart is `useCloudCredentialGuard`, which re-issues instead of refreshing; the reasoning
  * lives in `@chatic/auth`'s `session/cloudTokens`. Adding a `kind` option here would put two unrelated recovery
  * strategies behind one switch — and inventing a second relay guard in an app is what this hook was
- * created to stop (admin-v2 had one).
+ * created to stop (admin had one).
  *
  * Two properties are NOT configurable, because they are the reason the guard exists:
  *  - **The probe never refreshes.** `relayCredentialProbe` reads the session and nothing else. The

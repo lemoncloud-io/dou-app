@@ -7,7 +7,7 @@ import type { HttpGatewayExecutor } from './types';
 /** `/users/*` · `/hello/user/*` relay resource wire vocabulary. */
 export interface UserHttpGateway {
     /**
-     * GET {relay}/hello/user/list — admin user listing (admin-v2 is the only consumer). `options.endpoint`
+     * GET {relay}/hello/user/list — admin user listing (admin is the only consumer). `options.endpoint`
      * aims it at another stage's relay, as the other admin calls allow.
      */
     list(params?: Record<string, unknown>, options?: AdminEndpointOptions): Promise<ListResult<UserView>>;

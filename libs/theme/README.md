@@ -20,7 +20,7 @@ grep -rn "@chatic/theme/" --include='*.ts' --include='*.tsx' apps libs | grep -v
 
 Three apps mount it — `apps/landing`, `apps/block-kit-builder` and `apps/desktop-web` — across six
 files. A fourth, `apps/web`, deliberately does not: it has its own `runtime/ThemeApplier.tsx` and
-`app/hooks/useTheme.ts`, API-compatible so consumers only swap the import. `apps/admin-v2` has no
+`app/hooks/useTheme.ts`, API-compatible so consumers only swap the import. `apps/admin` has no
 theme switching at all. The grep below includes `apps/web`'s files, which name this module only in
 comments explaining why they replaced it.
 
@@ -30,7 +30,7 @@ grep -rln "@chatic/theme" --include='*.ts' --include='*.tsx' apps libs | grep -v
 
 **Why this is a library.** Not the seventy lines of React — those would be cheap to copy, and
 `apps/web` did exactly that. It is the key. `vite-ui-theme` is not private to any app: the pre-paint
-scripts in `apps/web`, `apps/desktop-web`, `apps/block-kit-builder` and `apps/testbed` all read it
+scripts in `apps/web`, `apps/desktop-web` and `apps/block-kit-builder` all read it
 directly, `apps/web`'s `setTheme` writes it as an explicit mirror alongside its own `@chatic/config`
 storage, and its `themeSharedKeySync.ts` reads it back. One shared machine keeps one preference
 because every writer agrees on that string, and this lib is where the writing half of that agreement
@@ -87,7 +87,7 @@ flowchart TD
     classDef hook fill:#f6ffed,stroke:#b7eb8f,stroke-width:2px,color:#135200;
     classDef ext fill:#ffffff,stroke:#d9d9d9,stroke-width:2px,color:#595959,stroke-dasharray: 5 5;
 
-    Pre["index.html pre-paint script<br/><i>web · desktop-web · block-kit-builder · testbed</i>"]:::ext
+    Pre["index.html pre-paint script<br/><i>web · desktop-web · block-kit-builder</i>"]:::ext
     LS["localStorage<br/><i>key: vite-ui-theme</i>"]:::ext
 
     Prov["provider/ThemeProvider<br/><i>state · effects · context value</i>"]:::prov

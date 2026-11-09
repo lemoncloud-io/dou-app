@@ -24,9 +24,9 @@ const LOWERED_RAW_NAMES = new Set([
 /**
  * Builds an `IConfigEnvAdapter` from a platform's own raw-value reader.
  *
- * Every Vite app (web · desktop-web · admin-v2 · testbed) reads `import.meta.env`/`window.*` the
+ * Every Vite app (web · desktop-web · admin) reads `import.meta.env`/`window.*` the
  * same way, so this centralizes the interpretation — stage validation, the shell-injected stage
- * mapping, the legacy lowercasing — in one tested place instead of four copies. Each app supplies
+ * mapping, the legacy lowercasing — in one tested place instead of three copies. Each app supplies
  * only `read`, the one piece this lib cannot hold (`import.meta`, ADR-0079 decision 1): a function from
  * a raw name to its value, wherever that app's build keeps it.
  */

@@ -32,7 +32,7 @@ Each is a class with a single exported singleton; the class itself stays private
 | `relayCredentialProbe`   | `hasSession()` · `isCredentialExpired(now?)` — a plain object, no class                                                                                                            |
 
 `loginByOAuthCode` (app-facing as `createCredentialsByProvider`) has two endpoints behind it. By default
-it sends the code to `POST {oauth}/oauth/{provider}/token`, which admin-v2 reaches with no session. With
+it sends the code to `POST {oauth}/oauth/{provider}/token`, which admin reaches with no session. With
 `linkCurrentSession` it sends `{ provider, code }` to `POST {relay}/users/0/verify-oauth-code?token=1`,
 signed with the session already on the device: the backend records that user (a Guest Session) as the
 new session's link, the same record the native social login leaves, and that link is what later lets
