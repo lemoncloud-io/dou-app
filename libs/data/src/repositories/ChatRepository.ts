@@ -1,5 +1,4 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
-import { defaultClassify, readRevisedTargets, revisedIdsOf } from '@lemoncloud/chatic-sockets-lib';
 import type { ChatQueryOptions } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
 import type { ChatMentionBody, ChatSendPayload, DomainChat, DomainLastChat, DomainListResult } from '../domain';
@@ -25,6 +24,7 @@ import {
     type FeedRange,
 } from './feedCoverage';
 import type { DataContext, DataContextProvider } from './types';
+import { isGoneFailure, readRevisedTargets, revisedIdsOf } from './revisionNotices';
 import { BaseRepository, type DisposableRepository } from './types';
 
 export interface ChatRefreshResult {
@@ -363,7 +363,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             const writable = changed.filter((_, index) => !!stillCached[index]);
             if (writable.length) await this.chatLocalDataSource.cacheWriteMany(writable, context);
             settle(new Set(changed.map(row => row.id)));
-            settle(new Set(failed.filter(({ error }) => defaultClassify(error) === 'gone').map(({ id }) => id)));
+            settle(new Set(failed.filter(({ error }) => isGoneFailure(error)).map(({ id }) => id)));
             if (failed.length) {
                 logger.warn('CHAT', '[ChatRepository] could not re-read revised messages', {
                     failed: failed.length,
