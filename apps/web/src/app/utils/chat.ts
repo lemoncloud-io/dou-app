@@ -4,6 +4,7 @@
 // apps/desktop-web keeps its own copy (shared/utils/chatSort.ts) — the two must not drift.
 export {
     compareByChatNo,
+    isEventChat,
     isFeedVisible,
     isNotifiableChat,
     isOwnSystemChat,

@@ -97,6 +97,22 @@ describe('buildThreadIndex', () => {
 });
 
 describe('buildThread', () => {
+    // An event row carrying the root's id is not a reply: a reaction is folded from the raw window, and a
+    // revision notice only says which message changed.
+    it('lists no event rows among the replies', () => {
+        const { replies } = buildThread(
+            [
+                ROOT,
+                chat({ id: 'C1:2', chatNo: 2, parentId: '1' }),
+                chat({ id: 'C1:3', chatNo: 3, parentId: '1', stereo: 'system', subType: 'reaction' }),
+                chat({ id: 'C1:4', chatNo: 4, parentId: '1', stereo: 'system', subType: 'edit' }),
+            ],
+            '1'
+        );
+
+        expect(replies.map(reply => reply.id)).toEqual(['C1:2']);
+    });
+
     it('matches replies by either parentId encoding', () => {
         const { root, replies } = buildThread(
             [

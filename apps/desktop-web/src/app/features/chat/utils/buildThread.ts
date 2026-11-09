@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChat } from '@chatic/data';
 
 import { compareByChatNo } from '../../../shared/utils/chatSort';
 
@@ -89,7 +89,7 @@ export const buildThreadIndex = (messages: DomainChat[], newReplies?: NewReplyRu
         // the same as anywhere else. The footer's job is to say how many rows are
         // behind it, so counting and showing have to agree; skipping them here would
         // put a "2 replies" footer above a thread containing three.
-        if (message.subType === 'reaction') continue;
+        if (isEventChat(message)) continue;
         const key = idToChatNo.get(parentId) ?? parentId;
         const at = replyTime(message);
         const prev = index.get(key) ?? { count: 0, lastReplyAt: 0, repliers: [], newCount: 0 };

@@ -1,4 +1,5 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
+import { defaultClassify, readRevisedTargets, revisedIdsOf } from '@lemoncloud/chatic-sockets-lib';
 import type { ChatQueryOptions } from '@chatic/bridge-messages';
 import { logger } from '@chatic/bridges';
 import type { ChatMentionBody, ChatSendPayload, DomainChat, DomainLastChat, DomainListResult } from '../domain';
@@ -202,6 +203,9 @@ const provenRange = ({
 
 /** Manages local-first chat timelines, pending states, and remote synchronization. */
 export class ChatRepository extends BaseRepository implements IChatRepository {
+    /** Revision notices already acted on this session, by `cid:uid:noticeId` (see `syncRevisedTargets`). */
+    private readonly settledNotices = new Set<string>();
+
     constructor(
         private readonly chatSocketDataSource: IChatSocketDataSource,
         private readonly chatLocalDataSource: IChatLocalDataSource,
@@ -260,6 +264,7 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
         const { cid, uid } = this.getNormalizedContext();
         const scope = feedCoverageScope(cid, uid);
         feedCoverage.forget(key => key.startsWith(scope));
+        this.settledNotices.clear();
         return this.chatLocalDataSource.cacheClear(this.getRepositoryContext());
     }
 
@@ -287,6 +292,8 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
                 ? await this.cachedRowsMissingFrom(query.channelId, proven, domainList, requestContext)
                 : [];
         await this.chatLocalDataSource.cacheWriteMany([...domainList, ...missing], requestContext);
+        // Not awaited: the page is the caller's answer, and the revised messages follow it into the cache.
+        void this.syncRevisedTargets(domainList, requestContext);
         // Recorded after the write, so a reader that sees the range answered for also sees its rows.
         if (proven) {
             const { cid, uid } = this.getNormalizedContext(requestContext);
@@ -300,6 +307,74 @@ export class ChatRepository extends BaseRepository implements IChatRepository {
             readNo: remote.readNo,
             total: remote.total ?? domainList.length,
         };
+    }
+
+    /**
+     * Brings the messages that a page's revision notices point at to their current state.
+     *
+     * The server records each edit or delete as a revision notice (`subType: 'edit'`) on the room's next
+     * chat number. A device that was online got the change itself; one that was not finds the notice
+     * in a page it reads later, and only re-reading the message tells it what changed. The live socket
+     * path does the same inside the sync plan; this covers the pages the app reads itself — opening a
+     * room, a gap, older pages, a re-check, and the per-channel reads behind lists and catch-up.
+     *
+     * Those reads are frequent, and a notice stays on the newest page until newer messages push it out,
+     * so a notice is acted on once per session, not once per page:
+     * - A notice already settled is skipped — its message re-read and written, or not cached here (it
+     *   will arrive current with whatever page brings it), or gone on the server (404/403, nothing to
+     *   read). One whose read failed for any other reason stays open for the next page that holds it.
+     * - A message the same page carries is current already and is not re-read.
+     *
+     * Edit and delete are not told apart: the message's own row says which it now is. A re-read row is
+     * written only if the message is still cached when the answer lands, so a room left or cleared while
+     * the read was in flight does not get a row back.
+     */
+    private async syncRevisedTargets(page: DomainChat[], context: DataContext): Promise<void> {
+        try {
+            const { cid, uid } = this.getNormalizedContext(context);
+            const keyOf = (noticeId: string) => `${cid}:${uid}:${noticeId}`;
+            const open = page.filter(
+                row => row.subType === 'edit' && !!row.id && !this.settledNotices.has(keyOf(row.id))
+            );
+            if (open.length === 0) return;
+            const inPage = new Set(page.map(row => row.id));
+            const settle = (targetIds: Set<string>) => {
+                for (const notice of open) {
+                    if (targetIds.has(notice.edit$?.chatId ?? '')) this.settledNotices.add(keyOf(notice.id));
+                }
+            };
+            const ids = revisedIdsOf(open);
+            settle(new Set(ids.filter(id => inPage.has(id))));
+            const toCheck = ids.filter(id => !inPage.has(id));
+            if (toCheck.length === 0) return;
+
+            const cached = await Promise.all(toCheck.map(id => this.chatLocalDataSource.cacheRead(id, context)));
+            settle(new Set(toCheck.filter((_, index) => !cached[index])));
+            const targets = toCheck.filter((_, index) => !!cached[index]);
+            if (targets.length === 0) return;
+
+            const normalizedContext = this.getNormalizedContext(context);
+            const { changed, failed } = await readRevisedTargets(targets, id =>
+                this.chatSocketDataSource.getChat({ id }, normalizedContext)
+            );
+            const stillCached = await Promise.all(
+                changed.map(row => this.chatLocalDataSource.cacheRead(row.id, context))
+            );
+            const writable = changed.filter((_, index) => !!stillCached[index]);
+            if (writable.length) await this.chatLocalDataSource.cacheWriteMany(writable, context);
+            settle(new Set(changed.map(row => row.id)));
+            settle(new Set(failed.filter(({ error }) => defaultClassify(error) === 'gone').map(({ id }) => id)));
+            if (failed.length) {
+                logger.warn('CHAT', '[ChatRepository] could not re-read revised messages', {
+                    failed: failed.length,
+                    read: changed.length,
+                });
+            }
+        } catch (error) {
+            logger.warn('CHAT', '[ChatRepository] could not bring revised messages up to date', {
+                error: (error as Error)?.name,
+            });
+        }
     }
 
     public uncoveredFeed(channelId: string, low: number, high: number): FeedRange[] {

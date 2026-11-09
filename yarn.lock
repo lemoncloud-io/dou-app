@@ -3473,12 +3473,12 @@
   dependencies:
     lemon-model "^1.1.1"
 
-"@lemoncloud/chatic-socials-api@^0.26.907":
-  version "0.26.907"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-0.26.907.tgz#cba28618c0b0edc00223063c9cb3935d43ddc2cf"
-  integrity sha512-cvzUDIA+r/1t9wPM5ucE7OGiLPb8OlAqDDZSXhvtBc2DzzjTKvYtxIvu0KqQAbnhZsfoDnrpD9v1cNsPuOT7WQ==
+"@lemoncloud/chatic-socials-api@5.26.1103":
+  version "5.26.1103"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-socials-api/-/chatic-socials-api-5.26.1103.tgz#9529c7e25bc6fb6377668575ab49cd1700d19ac5"
+  integrity sha512-ErjbM7KE9ph8620XIyReZck+vvq3TH4U0aoyvQEOlA7UZss3lxeGNWIek7DE+a8V1WS6VHr/rzEWmKyk2yq+rA==
   dependencies:
-    lemon-model "^1.5.1"
+    lemon-model "^5.0.4"
 
 "@lemoncloud/chatic-sockets-api@0.26.909":
   version "0.26.909"
@@ -3487,10 +3487,10 @@
   dependencies:
     lemon-model "^1.5.0"
 
-"@lemoncloud/chatic-sockets-lib@0.7.0":
-  version "0.7.0"
-  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.7.0.tgz#cd7f7a3f7925cb806f3f1e4d676487cb1f09c450"
-  integrity sha512-biZGh7tUTsyw6LlovmDaIqyeFMILvclMYnAuzDPotD28Zfe1TbGeGAg1njDPw+5TMevhesWTwDaFNV/EflPVaw==
+"@lemoncloud/chatic-sockets-lib@0.7.1":
+  version "0.7.1"
+  resolved "https://registry.yarnpkg.com/@lemoncloud/chatic-sockets-lib/-/chatic-sockets-lib-0.7.1.tgz#3d9ca8b26d83773a19651fa02a03c1706ce9fd5f"
+  integrity sha512-AHWz74WhvYJAAjJyQ+/QDSsq3i3XNPhHb3gFnuVz5qZ08aaXSWmVmumqInSwm7Ij3zXP4EcbzFbBqJMA7ln8uQ==
 
 "@lemoncloud/hybrid-shell@^0.8.0":
   version "0.8.0"
@@ -14764,7 +14764,7 @@ lazy-val@^1.0.5:
   resolved "https://registry.yarnpkg.com/lazy-val/-/lazy-val-1.0.5.tgz#6cf3b9f5bc31cee7ee3e369c0832b7583dcd923d"
   integrity sha512-0/BnGCCfyUMkBpeDgWihanIAF9JmZhHBgUhEqzvf+adhNGLoP6TaiI5oF8oyb3I45P+PcnrqihSf01M0l0G5+Q==
 
-lemon-model@1.5.1, lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1, lemon-model@^1.5.0, lemon-model@^1.5.1:
+lemon-model@1.5.1, lemon-model@^1.0.3, lemon-model@^1.0.5, lemon-model@^1.1.1, lemon-model@^1.5.0, lemon-model@^5.0.4:
   version "1.5.1"
   resolved "https://registry.yarnpkg.com/lemon-model/-/lemon-model-1.5.1.tgz#de4f8c5c41ceacf3345268ea545ebec2ee169253"
   integrity sha512-Ie3y3PooWk/Sj1HOAuhzYi5bd1Yr30YDkKU8UYl/tuVOiDTCEw2D6cK6P1p1zLTjMKqCirdWoYdDwQ+ufbHKgg==

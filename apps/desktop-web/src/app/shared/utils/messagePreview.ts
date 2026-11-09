@@ -29,7 +29,11 @@ export const attachmentLabel = ({ kind, count }: { kind: ChatAttachmentKind; cou
  * attachment-only message has no text, so it used to reach these as an empty line ("Raine:" in a
  * banner), and later as "Photo" whatever the file was.
  */
-export const messagePreview = (chat: Pick<DomainChat, 'content' | 'upload$$' | 'uploadIds'>): string => {
+export const messagePreview = (chat: Pick<DomainChat, 'content' | 'upload$$' | 'uploadIds' | 'hidden'>): string => {
+    // A deleted message reads as deleted wherever it is quoted. A server that records deletes empties
+    // the body, which would leave a blank line here; an older one keeps it, which would quote words the
+    // author took back.
+    if (chat.hidden) return i18next.t('sidebar.deletedPreview');
     const text = messagePlainText(chat.content).trim();
     if (text) return text;
     const attachments = chatAttachmentSummary(chat);

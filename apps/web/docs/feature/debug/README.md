@@ -161,7 +161,7 @@ a channel id. The Room screen starts from the room that is open.
   its own, so a cleanup that lands after the next page published cannot blank it.
 - **Two lists, because the room filters.** `rendered` is what the bubbles are drawn from (`messages`
   in the room; the root and its replies in a thread). `rows` is `useChats`' `rawChats`, the feed window
-  before that filter: reaction events, replies and hidden rows are there and nowhere on screen. A
+  before that filter: event rows (reactions, revision notices), replies and hidden rows are there and nowhere on screen. A
   message that never shows up is usually the one being chased, so the list can browse either.
 - **A long-press points the screen at a message.** Whatever opens the action sheet on a message (a
   long-press, or a reaction chip's add button) publishes `roomFocus`,

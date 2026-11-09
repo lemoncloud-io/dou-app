@@ -8,6 +8,9 @@
 > sheet this extends) · [ADR-0047](./0047-web-reaction-and-thread-refinements.md) (the sheet's
 > stable-row-count rule this gives up) · [ADR-0136](./0136-web-a-photo-is-a-message-under-the-long-press.md)
 > (amends §5: without text a message has no Copy, so the fixed rows narrow to a fixed order)
+> · [ADR-0294](./0294-revision-notices-are-events-and-the-cache-only-moves-forward.md) (amends §1–§2:
+> `isMessageEdited` reads `editedAt` first and keeps the inference as a fallback; desktop now reads it from
+> `libs/data` and keeps only its own `canModifyMessage`)
 
 ## Context
 

@@ -41,4 +41,19 @@ describe('isFeedVisible', () => {
     it('drops a deleted reaction event rather than tombstoning it', () => {
         expect(isFeedVisible(chat({ stereo: 'system', subType: 'reaction', hidden: true }))).toBe(false);
     });
+
+    // Written by the server each time a message is edited or deleted. As a feed row it would split one
+    // person's run of messages in two around an empty line.
+    it('drops a revision notice, an edit or a delete alike', () => {
+        expect(isFeedVisible(chat({ stereo: 'system', subType: 'edit', content: '' }))).toBe(false);
+        expect(
+            isFeedVisible(
+                chat({
+                    stereo: 'system',
+                    subType: 'edit',
+                    edit$: { action: 'delete', chatId: 'C1:1' },
+                } as Partial<DomainChat>)
+            )
+        ).toBe(false);
+    });
 });

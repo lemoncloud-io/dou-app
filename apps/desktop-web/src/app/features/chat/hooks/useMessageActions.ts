@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 
 import { runtime } from '@chatic/app-runtime';
 
-import { isEdited } from '../utils';
+import { isMessageEdited } from '@chatic/data';
 
 /**
  * Edit and delete, for whichever message in a group the reader acts on.
@@ -47,11 +47,13 @@ export const useMessageActions = () => {
     const edit = useMutation({
         mutationFn: async ({ id, content }: { id: string; content: string }) => {
             const saved = await chatRepository.updateChat({ id, content });
-            // "(edited)" is inferred from `updatedAt` passing `createdAt`, and the row
-            // written after an edit was observed not to carry the moved timestamp, so
-            // the label only appeared after a reload. Stamp it locally; the next sync
-            // replaces it with the server's value.
-            if (saved && !isEdited(saved)) await chatRepository.cacheWrite({ ...saved, updatedAt: Date.now() });
+            // A server that records edits answers with `editedAt`, and the label follows from it. An
+            // older server's row written after an edit was observed not to carry the moved
+            // timestamp, so "(edited)" — inferred there from `updatedAt` passing `createdAt` — only
+            // appeared after a reload. Stamp it locally for that case; the next sync replaces it with
+            // the server's value. Only `updatedAt` is stamped, not the `updatedAtMs` the cache orders
+            // writes by, so the stamp cannot hold back a later change from the server.
+            if (saved && !isMessageEdited(saved)) await chatRepository.cacheWrite({ ...saved, updatedAt: Date.now() });
             return saved;
         },
     });

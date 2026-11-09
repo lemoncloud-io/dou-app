@@ -277,6 +277,10 @@ notification, and it names what it carries (`shared/utils/messagePreview.ts`): "
 leave a blank line, and the banner read "Raine:" with nothing after it; after that it said "Photo"
 for a PDF too, because the server now stores videos and documents as well.
 
+A deleted message reads "Message deleted" in all of these (`sidebar.deletedPreview`): a server that
+records deletes empties the body, which would leave a blank line, and an older one keeps it, which would
+quote words the author took back.
+
 The kind and count come from `chatAttachmentSummary` in `@chatic/data`. It counts from `upload$$`,
 or from the `uploadIds` a channel head carries. Each upload's kind is its `stereo` (`image`, `video`,
 `audio` or `file`), read by `uploadSlotKind`. A slot still being sent has no `stereo`: a video,

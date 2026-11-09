@@ -179,7 +179,9 @@ procedure for adding a new server call is in
 
 `useChats` subscribes to `chat.observeList({ channelId, limit })`. Subscribing emits the local snapshot
 once — it does not wait for the network. The same hook calls `chat.refreshList`, which requests
-`chat.feed`, and the response is **merged** into local (not overwritten). Once the merge lands, the
+`chat.feed`, and the response is **merged** into local (not overwritten). A row the cache already holds
+a newer copy of (a later server `updatedAt`) is not written at all — a message's state only moves
+forward ([domains.md](./docs/repositories/domains.md#chat)). Once the merge lands, the
 list observers **for that channel** re-emit — the re-emit prefix is per channel, so cursor, limit, sort
 and keyword variants of the same channel all wake together, as does the `chats-last` catch-all the home
 preview uses. The cursor metadata that comes back is input for the next page request only, never a

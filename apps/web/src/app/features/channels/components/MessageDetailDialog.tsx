@@ -7,7 +7,7 @@ import { MessageText } from './MessageText';
 
 export interface MessageDetailDialogProps {
     /** The message being expanded (null = closed). */
-    message: { content: string } | null;
+    message: { content: string; hidden?: boolean } | null;
     onClose: () => void;
 }
 
@@ -38,7 +38,13 @@ export const MessageDetailDialog = ({ message, onClose }: MessageDetailDialogPro
                     <p className="whitespace-pre-wrap break-all text-[15px] leading-[1.55] text-foreground">
                         {/* Full content, so no `truncated` — a URL the bubble had to cut is a
                             complete, tappable link here, and every fence is closed. */}
-                        {message && <MessageText text={message.content} />}
+                        {/* A deleted message has nothing left to show in full. */}
+                        {message &&
+                            (message.hidden ? (
+                                <span className="italic text-muted-foreground">{t('chat.room.deletedMessage')}</span>
+                            ) : (
+                                <MessageText text={message.content} />
+                            ))}
                     </p>
                 </div>
             </DialogContent>
