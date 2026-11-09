@@ -79,13 +79,13 @@ const ConnectionHost = ({
 
 /**
  * The connection host for a chat app: keeps a session-less visitor alive as a guest so the socket
- * and its credentials exist before login. apps/web · apps/desktop-web · apps/testbed.
+ * and its credentials exist before login. apps/web · apps/desktop-web.
  */
 export const RuntimeConnectionHost = (props: RuntimeHostProps) => <ConnectionHost {...props} guestKeepAlive />;
 
 /**
  * The same host WITHOUT background guest login — for a surface that must not have a session until
- * someone signs in (apps/admin-v2). Everything else is identical: same init gate, same socket auth
+ * someone signs in (apps/admin). Everything else is identical: same init gate, same socket auth
  * loop, same in-place re-auth.
  *
  * It used to be a 51-line copy of the host above, differing by one line, and its comment claimed a

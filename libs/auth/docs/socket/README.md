@@ -245,7 +245,7 @@ one cloud's timer and foreground trigger collapse onto one exchange.
 the single entry point for "make the relay credential fresh". It reads the snapshot, returns `false`
 unless `canRefreshThroughSocket(status)`, and otherwise awaits `auth.refresh()`. It takes no
 `SocketKind` — relay is in the name. **There is no HTTP fallback**; `false` means "get a socket
-back", and the caller's answer is a foreground wake pass (`recoverSocketsOnResume`, or `recoverUnverifiedSockets` in admin-v2). A `Coalescer` shares an attempt in
+back", and the caller's answer is a foreground wake pass (`recoverSocketsOnResume`, or `recoverUnverifiedSockets` in admin). A `Coalescer` shares an attempt in
 flight and memoizes a settled answer for 3 seconds; the SDK's own single-flight covers the rest.
 One memoized answer is dropped early: a "the socket is still handshaking" `false` stops answering once
 the relay slot reports verified. That is the moment the staleness guard asks, and a returning
@@ -472,7 +472,7 @@ SDK keep-alive it closes 40–80 s later, and every refetch sent on that foregro
   `connect()` re-arms it, so an error from `getAuthRegistration` is logged and the reconnect runs
   anyway rather than leaving the slot closed.
 
-`recoverUnverifiedSockets` keeps its narrower behaviour for the callers that use it (admin-v2).
+`recoverUnverifiedSockets` keeps its narrower behaviour for the callers that use it (admin).
 
 ## What not to do
 

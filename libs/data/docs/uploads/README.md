@@ -85,7 +85,7 @@ A pick is made of two kinds of source (`ChatAttachmentSource`):
   its name, type and size are still the source's.
 
 The sequence does not look inside either. `SendImagePorts<S>` and `PreparedImageMirror<S>` are
-generic over the source type, `File` by default, so the browser, desktop and testbed shells that only
+generic over the source type, `File` by default, so the browser and desktop shells that only
 ever send page files type their ports as before. A caller that also sends shell files widens `S` to
 `ChatAttachmentSource`, and its `put` then takes both: a shell file's original and poster reach it as
 shell files, and only the native transfer can send them (`ShellFilePutPort`). The guard that fails a

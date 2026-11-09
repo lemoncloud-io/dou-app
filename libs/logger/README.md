@@ -62,7 +62,7 @@ discriminator and the foreign-drop aggregator.
 **Out** — the HTTP call that uploads a batch (`libs/data`'s report repository), queue persistence
 and host wiring (`apps/web`, `apps/mobile`), the web→native relay and the `AppLogInfo` codec
 (`libs/bridges`), the bridge message types (`libs/bridge-messages`), Crashlytics and the native logger
-modules (`apps/mobile`), the admin console that reads the stored logs (`apps/admin-v2`), performance
+modules (`apps/mobile`), the admin console that reads the stored logs (`apps/admin`), performance
 traces (`libs/perf`), and the trigger catalogue itself (kept outside the repo).
 
 ## Structure

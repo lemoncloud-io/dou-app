@@ -30,14 +30,14 @@ jobs:
                   base: 'main'
                   filters: |
                       admin:
-                          - 'apps/admin-v2/src/**'
-                          - 'apps/admin-v2/public/**'
-                          - 'apps/admin-v2/index.html'
-                          - 'apps/admin-v2/vite.config.mts'
-                          - 'apps/admin-v2/project.json'
-                          - 'apps/admin-v2/tsconfig*.json'
-                          - 'apps/admin-v2/tailwind.config.js'
-                          - 'apps/admin-v2/postcss.config.js'
+                          - 'apps/admin/src/**'
+                          - 'apps/admin/public/**'
+                          - 'apps/admin/index.html'
+                          - 'apps/admin/vite.config.mts'
+                          - 'apps/admin/project.json'
+                          - 'apps/admin/tsconfig*.json'
+                          - 'apps/admin/tailwind.config.js'
+                          - 'apps/admin/postcss.config.js'
                           # Shared sources. Every deployable app compiles these in, so a change
                           # confined to one of them has to redeploy the app that carries it.
                           #
@@ -144,7 +144,7 @@ jobs:
                   PROJECTS=()
                   [[ "${{ steps.filter.outputs.web }}" == "true" ]] && PROJECTS+=('"web"')
                   # admin not supported yet — never add it to the deploy matrix.
-                  # [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin-v2"')
+                  # [[ "${{ steps.filter.outputs.admin }}" == "true" ]] && PROJECTS+=('"admin"')
                   [[ "${{ steps.filter.outputs.landing }}" == "true" ]] && PROJECTS+=('"landing"')
                   [[ "${{ steps.filter.outputs.desktopweb }}" == "true" ]] && PROJECTS+=('"desktop-web"')
                   [[ "${{ steps.filter.outputs.blockkitbuilder }}" == "true" ]] && PROJECTS+=('"block-kit-builder"')
@@ -233,7 +233,7 @@ jobs:
               if: ${{ needs.changes.outputs.admin == 'true' }}
               id: get-admin-version
               run: |
-                  ADMIN_VERSION=$(node -p "require('./apps/admin-v2/package.json').version")
+                  ADMIN_VERSION=$(node -p "require('./apps/admin/package.json').version")
                   if ! echo "$ADMIN_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
                     echo "Error: Invalid admin version format: $ADMIN_VERSION"
                     exit 1
@@ -274,7 +274,7 @@ jobs:
                 include:
                     - project: web
                       prefix: WEB
-                    - project: admin-v2
+                    - project: admin
                       prefix: ADMIN
                     # landing reuses WEB_* env secrets too: its account surface signs in to the web app's
                     # relay session, so every address must match the web app's. Only its S3/CloudFront
@@ -331,7 +331,7 @@ jobs:
               # Every VITE_* would resolve empty for the builder, and the step's
               # `grep -v '=$'` then matches no line and exits 1, killing it under
               # `set -e`. The builder has no `import.meta.env` reference to feed.
-              # The VITE_D1_*/VITE_V1_* lines are admin-v2's per-stage targets, one value for every
+              # The VITE_D1_*/VITE_V1_* lines are admin's per-stage targets, one value for every
               # build. Relay, archive and socket are the web app's own servers, so they reuse its
               # DEV/PROD secrets; goods and presence have ADMIN_<STAGE>_* secrets of their own.
               # Other apps get empty values, dropped below.

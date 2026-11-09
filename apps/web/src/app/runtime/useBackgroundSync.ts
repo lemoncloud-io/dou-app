@@ -15,8 +15,8 @@ const BACKGROUND_SYNC_POLL_MS = 60_000;
 
 /**
  * Global background sync — keeps place/channel/profile lists (and the sender's own relay invites)
- * fresh regardless of route. Ported from the testbed ChatHomePage `refreshActiveLists`, but lifted
- * into the runtime layer so polling continues outside the home page.
+ * fresh regardless of route. It lives in the runtime layer rather than the home page so polling
+ * continues outside the home page.
  *
  * Triggers:
  *  1. Rising edge of `isVerified` (false→true) — covers app entry, reconnect, and switch

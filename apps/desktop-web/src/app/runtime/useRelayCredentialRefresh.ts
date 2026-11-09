@@ -5,7 +5,7 @@ import { runtime } from '@chatic/app-runtime';
 /**
  * Re-mints stale relay HTTP signing credentials (lemon-web-core's AWS credential cache).
  *
- * desktop-web had NO caller for this — apps/web (`useRelayCredentialRefresh`) and admin-v2
+ * desktop-web had NO caller for this — apps/web (`useRelayCredentialRefresh`) and admin
  * (`useRelaySessionGuard`) each grew one, and `runtime.session.useSessionStalenessGuard`'s own doc names this app as
  * the gap. The symptom that closed it: a cloud switch reported as a bare `AxiosError: Network Error`
  * with no status. `POST {relay}/users/0/delegate-cloud` is relay-SIGNED HTTP, and API Gateway

@@ -68,7 +68,7 @@ jobs:
               if: ${{ github.event.inputs.deploy_admin_dev == 'true' || github.event.inputs.deploy_admin_prod == 'true' }}
               id: get-admin-version
               run: |
-                  ADMIN_VERSION=$(node -p "require('./apps/admin-v2/package.json').version")
+                  ADMIN_VERSION=$(node -p "require('./apps/admin/package.json').version")
                   if ! echo "$ADMIN_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
                     echo "Error: Invalid admin version format: $ADMIN_VERSION"
                     exit 1
@@ -98,7 +98,7 @@ jobs:
                     - project: web
                       prefix: WEB
                       should_run: ${{ github.event.inputs.deploy_web_dev == 'true' && 'true' || 'false' }}
-                    - project: admin-v2
+                    - project: admin
                       prefix: ADMIN
                       should_run: ${{ github.event.inputs.deploy_admin_dev == 'true' && 'true' || 'false' }}
                     - project: landing
@@ -152,7 +152,7 @@ jobs:
                   aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
             - name: Generate env file
-              # The VITE_D1_*/VITE_V1_* lines are admin-v2's per-stage targets, one value for every
+              # The VITE_D1_*/VITE_V1_* lines are admin's per-stage targets, one value for every
               # build. Relay, archive and socket are the web app's own servers, so they reuse its
               # DEV/PROD secrets; goods and presence have ADMIN_<STAGE>_* secrets of their own.
               # Other apps get empty values, dropped below.
@@ -239,7 +239,7 @@ jobs:
                     - project: web
                       prefix: WEB
                       should_run: ${{ github.event.inputs.deploy_web_prod == 'true' && 'true' || 'false' }}
-                    - project: admin-v2
+                    - project: admin
                       prefix: ADMIN
                       should_run: ${{ github.event.inputs.deploy_admin_prod == 'true' && 'true' || 'false' }}
                     - project: landing
@@ -293,7 +293,7 @@ jobs:
                   aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
 
             - name: Generate env file
-              # The VITE_D1_*/VITE_V1_* lines are admin-v2's per-stage targets, one value for every
+              # The VITE_D1_*/VITE_V1_* lines are admin's per-stage targets, one value for every
               # build. Relay, archive and socket are the web app's own servers, so they reuse its
               # DEV/PROD secrets; goods and presence have ADMIN_<STAGE>_* secrets of their own.
               # Other apps get empty values, dropped below.

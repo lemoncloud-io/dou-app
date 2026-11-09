@@ -27,7 +27,7 @@ out of scope. Simulator and emulator only.
 ## The shared contract
 
 **The env files mean the same thing everywhere.** `.env` is local, `.env.dev` is the dev build,
-`.env.prod` is the prod build — the rule `apps/web`, `apps/desktop` and `apps/admin-v2` already
+`.env.prod` is the prod build — the rule `apps/web`, `apps/desktop` and `apps/admin` already
 follow. `apps/mobile/.env.example` is the local template:
 
 ```bash

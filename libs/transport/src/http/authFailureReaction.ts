@@ -20,7 +20,7 @@ import { logger } from '@chatic/bridges';
  * production caller and is not exported, so no app has ever shown that alert. Now that
  * `HttpClientImpl` does report the verdict, keeping that alert as the default would hand every app
  * a logout behavior it has never had, on any 403 — so the default only logs (in `onAuthFailure`),
- * and a surface that wants to react says so. admin-v2 does.
+ * and a surface that wants to react says so. admin does.
  *
  * Same shape and the same reasoning as `credentialRecovery` next door — a late-bound registry
  * rather than an import, because the implementations live upstream of `http/`.

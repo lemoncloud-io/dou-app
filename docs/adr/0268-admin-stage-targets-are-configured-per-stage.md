@@ -1,7 +1,7 @@
 # ADR-0268: Admin console stage targets are configured per stage, never derived
 
 > Status: Accepted · Decided: 2026-11-02 · Implemented: `feat/admin-stage-endpoints`
-> · Scope: `apps/admin-v2/src/app/config/stageEndpoints.ts`, the stage toggles of the memberships,
+> · Scope: `apps/admin/src/app/config/stageEndpoints.ts`, the stage toggles of the memberships,
 > cloud-deployments, report-logs and socket-lab features, `.github/workflows/deploy-*.yml`,
 > `.github/workflows/force-deploy.yml`
 > · Amended: 2026-11-02 — sign-in is production in every build, and the toggles open on the build's

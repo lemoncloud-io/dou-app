@@ -104,7 +104,7 @@ class RelayRefreshAttempt {
 
 /**
  * THE single entry point for "this session's HTTP credentials look stale — make them fresh"
- * (2026-08 session audit §7 Phase 2-3). Callers (e.g. admin-v2's session guard, the transport's
+ * (2026-08 session audit §7 Phase 2-3). Callers (e.g. admin's session guard, the transport's
  * recover-and-retry) must not fire their own refresh — that is how the second refresh engine and its
  * store divergence happened.
  *

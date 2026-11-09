@@ -7,12 +7,12 @@
 Using admin-v2 (which gained the report log screen in [ADR-0087](0087-admin-v2-report-log-list.md))
 surfaced two auth and session problems, plus a request to widen the log analysis.
 
-**1) The redirect after sign-in fails.** `apps/admin-v2/src/app/features/auth/OAuthResponsePage.tsx`
+**1) The redirect after sign-in fails.** `apps/admin/src/app/features/auth/OAuthResponsePage.tsx`
 calls only `createCredentialsByProvider` and `fetchProfile`. But `createCredentialsByProvider`
 (`libs/web-core/src/transport/authRuntime.ts`) stores the SDK token and builds AWS credentials without
 calling `relayCore.saveRelayToken`, `setSessionAuthenticated(true)` or notify, and `fetchProfile` does
 not change session state either. So `useSessionAuth().isAuthenticated` stays `false` and
-`apps/admin-v2/src/app/components/ProtectedRoute.tsx` sends the user back to `/auth/login`. (On a full
+`apps/admin/src/app/components/ProtectedRoute.tsx` sends the user back to `/auth/login`. (On a full
 reload, `initializeRelaySession` reads the SDK store and recovers, which makes it look like "refreshing
 fixes it".) This is not a timing race: on this path the flag is **never set at all**.
 

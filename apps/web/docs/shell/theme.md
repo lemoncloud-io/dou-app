@@ -9,7 +9,7 @@ for how apps/web wires into that mechanism generally.
 
 Theme is the `ui.theme` registry key of `@chatic/config` (moved 2026-09-09, retiring the old
 `usePreferenceStore`). The shared `@chatic/theme` package (its `ThemeProvider`) is no longer used
-by web — it stays in use by admin-v2, desktop-web and landing only.
+by web — it stays in use by admin, desktop-web and landing only.
 
 ## Value model
 
@@ -104,8 +104,8 @@ compatible read stays.
 ## Migration notes
 
 - **`vite-ui-theme` is mirrored forever, not moved.** This key is not web-only — `index.html`'s
-  pre-paint scripts in five apps (web, desktop-web, admin-v2, testbed, block-kit-builder) and
-  `@chatic/theme`'s `ThemeProvider` (admin-v2, desktop-web, landing) all read and write it directly,
+  pre-paint scripts in four apps (web, desktop-web, admin, block-kit-builder) and
+  `@chatic/theme`'s `ThemeProvider` (admin, desktop-web, landing) all read and write it directly,
   so renaming and deleting it the way other config keys were migrated would break those five call
   sites. `config/themeSharedKeySync.ts`'s `syncThemeFromSharedKey()` re-syncs
   `vite-ui-theme` into `ui.theme`'s namespaced storage on every boot instead, without ever deleting

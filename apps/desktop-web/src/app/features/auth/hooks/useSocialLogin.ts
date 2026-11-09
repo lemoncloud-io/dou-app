@@ -65,7 +65,7 @@ const signedInAccountId = (): string | null => {
  * will-navigate), in a plain browser by direct navigation (admin pattern).
  * `complete` exchanges the relay code for credentials then hydrates the relay
  * session — replacing whatever session (e.g. a Guest Session) was on the device.
- * runtime.session.createCredentialsByProvider commits the session by itself. Unlike admin-v2, the
+ * runtime.session.createCredentialsByProvider commits the session by itself. Unlike admin, the
  * exchange is signed with that Guest Session so the backend links it to the account — what lets the
  * account into the clouds the guest was invited to.
  *

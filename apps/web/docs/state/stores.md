@@ -104,7 +104,7 @@ to how apps/web sits on top of it:
    `shell` lane always wins (the priority order never changes).
 2. **`ui.theme` is the one exception.** Its storage key is not `@chatic/config`'s namespaced key
    (`@chatic/config.ui.theme`) — it is still the legacy `vite-ui-theme`, because five apps
-   (web, desktop-web, admin-v2, testbed, block-kit-builder) read and write that exact key directly
+   (web, desktop-web, admin, block-kit-builder) read and write that exact key directly
    in their pre-paint scripts, and `@chatic/theme`'s `ThemeProvider` does too. `syncThemeFromSharedKey()`
    in `app/config/themeSharedKeySync.ts` re-mirrors `vite-ui-theme` into `ui.theme`'s
    namespaced storage on every boot, and `useTheme.ts`'s `setTheme` writes `vite-ui-theme` directly

@@ -110,14 +110,14 @@ storage screen, through `runtime.session` — asks whether a key is the session'
 copy of the list.
 
 Until `configure` runs, both ports are this tab's `sessionStorage` — the browser's answer, and the
-one the landing site and the testbed keep, since they never configure them. The stores reach the
+one the landing site keeps, since it never configures them. The stores reach the
 ports through forwarding objects, so they can be built at import while the media are chosen at boot.
 
-| Where                                                     | `secret`                   | `plain`          |
-| --------------------------------------------------------- | -------------------------- | ---------------- |
-| `apps/web`, `apps/desktop-web` in a shell with a vault    | `nativeSecure` (the vault) | `localStorage`   |
-| `apps/web` in a phone shell from before the vault         | `localStorage`             | `localStorage`   |
-| a browser, `apps/admin-v2`, the landing site, the testbed | `sessionStorage`           | `sessionStorage` |
+| Where                                                  | `secret`                   | `plain`          |
+| ------------------------------------------------------ | -------------------------- | ---------------- |
+| `apps/web`, `apps/desktop-web` in a shell with a vault | `nativeSecure` (the vault) | `localStorage`   |
+| `apps/web` in a phone shell from before the vault      | `localStorage`             | `localStorage`   |
+| a browser, `apps/admin`, the landing site              | `sessionStorage`           | `sessionStorage` |
 
 `cloudStore` answers for more than the committed cloud. `getCloudTokenOf(cid)` is the store's own
 token while `cid` is committed and the cache entry otherwise; `peekCachedCloudTokens(cid)` reads the

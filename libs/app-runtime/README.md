@@ -19,8 +19,8 @@ inside be rearranged with no blast radius.
 grep -rn "@chatic/app-runtime/" --include='*.ts' --include='*.tsx' apps libs | grep -v node_modules
 ```
 
-Five apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin-v2`,
-`apps/testbed`, and `apps/landing`'s account surface (sign-in and the subscription repository only). The surface itself is locked symbol by symbol by
+Four apps consume it and nothing else does — `apps/web`, `apps/desktop-web`, `apps/admin`,
+and `apps/landing`'s account surface (sign-in and the subscription repository only). The surface itself is locked symbol by symbol by
 [`src/public-surface.test.ts`](./src/public-surface.test.ts): 81 value exports across the seven
 groups, and a test that fails if an eighth group appears or a symbol moves between them.
 
@@ -255,7 +255,7 @@ Four rules hold.
 
 ```text
 apps/*/src/main.tsx
-  ├─ resolveStorageMedia()                every medium the app keeps state in, chosen once (apps/web; desktop-web and admin-v2 still build theirs)
+  ├─ resolveStorageMedia()                every medium the app keeps state in, chosen once (apps/web; desktop-web and admin still build theirs)
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
@@ -411,5 +411,5 @@ cd libs/app-runtime && npx eslint src             # flat config — run it from 
 - Five tests are gates rather than unit tests, and they fail for reasons a reviewer will not expect: `public-surface.test.ts` (the 81 symbols and their groups), `refreshAbsence.test.ts` and `authUpdateAbsence.test.ts` (they walk this package's source and the packages cut from it for a string), `importCycleAbsence.test.ts` (it rebuilds the import graph of each), and `hookPlacement.test.ts` (every exported `use*` sits in a `hooks/` folder).
 - Do not run `yarn install` in a worktree. Node resolution walks up to the parent repo's `node_modules`, so the binaries are already reachable; installing here rewrites `apps/mobile/ios/Podfile.lock` and a leftover symlink poisons the parent on the next install.
 - `.github/workflows/verify.yml` runs `lint`, `typecheck` and `test` for this project on every pull request, so a red gate here is a red CI.
-- Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin-v2`, `apps/testbed` and `libs/data`. That workflow type checks all of them.
+- Downstream: a changed barrel symbol reaches `apps/web`, `apps/desktop-web`, `apps/admin` and `libs/data`. That workflow type checks all of them.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves — downstream projects read a lib's emitted `.d.ts`, not its source, and `tsc -b` does not delete orphans. `rm -rf libs/app-runtime/dist libs/app-runtime/out-tsc` and look again. For the same reason, an app "type error" right after a barrel change is usually an unbuilt lib: build the lib first, then re-run the app alone.

@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-09-28 · Decision 1 amended for admin-v2's log console by
 > [ADR-0228](./0228-the-log-console-speaks-korean-and-english.md)
 > · Scope: every non-comment string literal outside `**/locales/**` and `**/i18n/**` — `apps/web` (debug
-> panel and product features), `apps/desktop-web`, `apps/admin-v2`, `apps/testbed`, `apps/mobile`,
+> panel and product features), `apps/desktop-web`, `apps/admin`, `apps/testbed`, `apps/mobile`,
 > `apps/block-kit-builder`, `libs/config/src/registry`, `libs/shared`, `libs/http`, `libs/bridges`,
 > `libs/block-kit`, `libs/web-ui-kit`, `scripts/`
 > · Amends: [ADR-0080](./0080-debug-panel-shared-model-and-stage-visibility.md) Decision 3 and Delta ③ (the

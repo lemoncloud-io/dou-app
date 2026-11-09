@@ -15,7 +15,7 @@ export interface SwitchPlaceResult {
 
 /**
  * Place switching on the runtime session. switchSite() owns the optimistic sid pre-apply,
- * commit, and rollback-on-failure (see testbed ChatHomePage handleSiteClick), so this hook
+ * commit, and rollback-on-failure, so this hook
  * only forwards the click, auto-selects the first place when none is active yet, and leaves a
  * stored selection whose place has been pruned from the list (see below) — for the first place left,
  * or, when the cloud has none left, by emptying the selection without a switch.

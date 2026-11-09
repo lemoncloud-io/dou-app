@@ -3,7 +3,7 @@
 > Status: Accepted · Decided: 2026-10-26
 > · Scope: `libs/http/src/gateways/report.ts` · `libs/app-runtime/src/http/gateways.ts` ·
 > `libs/config/src/registry/net.ts` (`net.archive.endpoint`) ·
-> `apps/admin-v2/src/app/features/report-logs/api/reportLogApi.ts` · `.github/workflows/deploy-*.yml`
+> `apps/admin/src/app/features/report-logs/api/reportLogApi.ts` · `.github/workflows/deploy-*.yml`
 > · The module docs are [libs/http/README.md](../../libs/http/README.md),
 > [libs/data/docs/remote/http.md](../../libs/data/docs/remote/http.md) and
 > [libs/app-runtime/docs/http/README.md](../../libs/transport/docs/http/README.md)

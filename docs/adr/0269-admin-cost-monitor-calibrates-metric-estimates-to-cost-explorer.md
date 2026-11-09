@@ -1,7 +1,7 @@
 # ADR-0269: The admin cost monitor estimates from metrics and calibrates daily to Cost Explorer
 
 > Status: Accepted · Decided: 2026-11-02 · Implemented: `feat/admin-v2-cost-monitor`
-> · Scope: `apps/admin-v2/src/app/features/cost-monitor/`
+> · Scope: `apps/admin/src/app/features/cost-monitor/`
 
 ## Context
 

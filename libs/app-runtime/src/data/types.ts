@@ -41,7 +41,7 @@ export interface CacheAssemblyOptions {
     /**
      * Caps how many chat rows the web cache keeps per channel. Unset = unbounded, which is what
      * every client did before and still does unless it opts in. Only meaningful where chat is
-     * served from web storage — a plain browser (`apps/web`, `apps/admin-v2`, desktop-web); inside
+     * served from web storage — a plain browser (`apps/web`, `apps/admin`, desktop-web); inside
      * the native WebView chat always routes to native SQLite.
      */
     maxChatsPerChannel?: number;

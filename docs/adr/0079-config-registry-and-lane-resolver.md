@@ -15,7 +15,7 @@
 > **However there is no way back** — desktop-web deploys only by push, has no manual deploy or
 > rollback path, and the repo's CI has no test workflow at all for it (only a build workflow). So this
 > migration is attached last, with more manual verification.
-> `apps/admin-v2` is **conditional** — it has no shell, so shell and server lanes are meaningless there;
+> `apps/admin` is **conditional** — it has no shell, so shell and server lanes are meaningless there;
 > whether it is folded in is decided by open question ⑤.
 > Amendment: [ADR-0080](./0080-debug-panel-shared-model-and-stage-visibility.md) amends decision 3's schema
 > (adds `meta`) and `env.*` (adds `buildStage`) — marked in place at each location.
@@ -841,7 +841,7 @@ graph TD
         WEB["apps/web"]
         DWEB["apps/desktop-web"]
         MOB["apps/mobile (RN)"]
-        ADM["apps/admin-v2 (conditional)"]
+        ADM["apps/admin (conditional)"]
     end
 
     subgraph ports["ConfigRuntimePorts — adapters the app implements"]

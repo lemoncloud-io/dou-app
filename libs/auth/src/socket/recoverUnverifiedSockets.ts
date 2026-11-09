@@ -37,7 +37,7 @@ export const RESUME_PROBE_TIMEOUT_MS = 3_000;
 /**
  * Concurrent passes collapse onto the in-flight run. One coalescer for both entry points: a call that
  * lands while either is running joins that pass, so a resume call joining a plain pass gets no probe.
- * No app calls both — apps/web uses the resume pass, admin-v2 the plain one — and two coalescers
+ * No app calls both — apps/web uses the resume pass, admin the plain one — and two coalescers
  * would let both passes recycle the same slot at once.
  */
 const coalescer = new Coalescer<void>();

@@ -29,16 +29,15 @@
 
 DoU is an Nx monorepo powering a real-time messaging and community platform across **8 applications** and **16 shared libraries** — web, mobile, desktop, and admin interfaces from a single codebase.
 
-| App                   | Description                                              | Stack                              |
-| --------------------- | -------------------------------------------------------- | ---------------------------------- |
-| **Web**               | Main user-facing web app                                 | React 19 + Vite + Tailwind CSS     |
-| **Admin V2**          | Admin dashboard                                          | React 19 + Vite + Tailwind CSS     |
-| **Mobile**            | iOS & Android native app — WebView shell around Web      | React Native 0.83 + WebView bridge |
-| **Landing**           | Marketing site, policy pages & invite-link bounce page   | React 19 + Vite                    |
-| **Desktop**           | Electron shell around Desktop Web                        | Electron + electron-vite           |
-| **Desktop Web**       | Web client rendered inside the Desktop Electron shell    | React 19 + Vite + Tailwind CSS     |
-| **Block Kit Builder** | Visual editor for `@chatic/block-kit` message blocks     | React 19 + Vite + Tailwind CSS     |
-| **Testbed**           | Experimental app for validating data/config/socket flows | React 19 + Vite + Tailwind CSS     |
+| App                   | Description                                            | Stack                              |
+| --------------------- | ------------------------------------------------------ | ---------------------------------- |
+| **Web**               | Main user-facing web app                               | React 19 + Vite + Tailwind CSS     |
+| **Admin**             | Admin dashboard                                        | React 19 + Vite + Tailwind CSS     |
+| **Mobile**            | iOS & Android native app — WebView shell around Web    | React Native 0.83 + WebView bridge |
+| **Landing**           | Marketing site, policy pages & invite-link bounce page | React 19 + Vite                    |
+| **Desktop**           | Electron shell around Desktop Web                      | Electron + electron-vite           |
+| **Desktop Web**       | Web client rendered inside the Desktop Electron shell  | React 19 + Vite + Tailwind CSS     |
+| **Block Kit Builder** | Visual editor for `@chatic/block-kit` message blocks   | React 19 + Vite + Tailwind CSS     |
 
 <details>
 <summary><strong>Table of Contents</strong></summary>
@@ -92,11 +91,10 @@ DoU is an Nx monorepo powering a real-time messaging and community platform acro
 graph TB
     subgraph Apps
         WEB["apps/web<br/>React Web App<br/><i>:5003</i>"]
-        ADMINV2["apps/admin-v2<br/>Admin Dashboard<br/><i>:5001</i>"]
+        ADMIN["apps/admin<br/>Admin Dashboard<br/><i>:5001</i>"]
         LANDING["apps/landing<br/>Landing Page<br/><i>:5004</i>"]
         DESKWEB["apps/desktop-web<br/>Desktop Web Client<br/><i>:5005</i>"]
         BKB["apps/block-kit-builder<br/>Block Kit Builder<br/><i>:5006</i>"]
-        TESTBED["apps/testbed<br/>Experimental App"]
         MOBILE["apps/mobile<br/>React Native shell"]
         DESKTOP["apps/desktop<br/>Electron shell"]
     end
@@ -125,7 +123,7 @@ graph TB
     WEB --> DATA & UIKIT & SHARED & THEME & CONFIG
     WEB --> RUNTIME & BRIDGES & DEVICE
     DESKWEB --> DATA & UIKIT & SHARED & THEME & RUNTIME
-    ADMINV2 --> DATA & UIKIT & SHARED & THEME
+    ADMIN --> DATA & UIKIT & SHARED & THEME
     RUNTIME --> DATA & HTTP & AUTHSIGN
     DATA --> DB & HTTP
 ```
@@ -138,11 +136,10 @@ dou-app/
 │   ├── web/                 # Main web application (port 5003)
 │   ├── web-e2e/             # Playwright E2E of web inside a fake native shell
 │   ├── shell-adapter/       # The app's side of the virtual mobile shell — `yarn local` (port 5007)
-│   ├── admin-v2/            # Admin dashboard (port 5001)
+│   ├── admin/            # Admin dashboard (port 5001)
 │   ├── landing/             # Marketing site & policy pages (port 5004)
 │   ├── desktop-web/         # Web client for the Desktop shell (port 5005)
 │   ├── block-kit-builder/   # Block Kit visual editor (port 5006)
-│   ├── testbed/             # Experimental app for data/config/socket flows
 │   ├── mobile/              # React Native app (iOS + Android)
 │   │   ├── android/
 │   │   ├── ios/
@@ -246,7 +243,7 @@ yarn local                    # http://localhost:5007/__shell/ · dev; --env pro
 yarn web:start                # http://localhost:5003
 
 # Admin dashboard
-yarn admin-v2:start           # http://localhost:5001
+yarn admin:start           # http://localhost:5001
 
 # Landing page
 yarn landing:start            # http://localhost:5004
@@ -256,9 +253,6 @@ yarn desktop-web:start        # http://localhost:5005
 
 # Block Kit Builder
 yarn block-kit-builder:start  # http://localhost:5006
-
-# Testbed (experimental app)
-yarn testbed:start
 
 # Desktop — Electron shell + its web client, in one command
 yarn desktop:start            # deployed desktop-web build
@@ -295,8 +289,8 @@ yarn mobile:verify home/open-room --platform ios
 # Build individual apps
 yarn web:build:dev              # Development build
 yarn web:build:prod             # Production build
-yarn admin-v2:build:dev
-yarn admin-v2:build:prod
+yarn admin:build:dev
+yarn admin:build:prod
 yarn landing:build:dev
 yarn landing:build:prod
 yarn desktop-web:build:dev
@@ -323,8 +317,8 @@ Deployment uses AWS S3 + CloudFront. Required environment variables:
 ```bash
 yarn web:deploy:dev              # Deploy web to dev
 yarn web:deploy:prod             # Deploy web to prod
-yarn admin-v2:deploy:dev
-yarn admin-v2:deploy:prod
+yarn admin:deploy:dev
+yarn admin:deploy:prod
 yarn landing:deploy:dev
 yarn landing:deploy:prod
 yarn desktop-web:deploy:dev
@@ -341,7 +335,7 @@ yarn desktop:package:win:prod
 
 > [!IMPORTANT]
 > `desktop-web` only deploys automatically on push to `develop`/`main` — `force-deploy.yml` (manual
-> redeploy/rollback) covers Web, Admin V2 and Landing only. The Desktop Electron shell loads
+> redeploy/rollback) covers Web, Admin and Landing only. The Desktop Electron shell loads
 > `desktop-web` from a remote URL at runtime, so a `desktop-web` deploy reaches every running Desktop
 > user immediately, and the only way back is a revert commit pushed through the same pipeline.
 
@@ -412,7 +406,7 @@ yarn desktop:package:win:prod
 </details>
 
 <details>
-<summary><strong>Admin V2</strong> (<code>apps/admin-v2/.env</code>)</summary>
+<summary><strong>Admin</strong> (<code>apps/admin/.env</code>)</summary>
 
 | Variable                     | Description                          |
 | ---------------------------- | ------------------------------------ |
@@ -432,12 +426,11 @@ yarn desktop:package:win:prod
 </details>
 
 <details>
-<summary><strong>Desktop Web / Testbed / Block Kit Builder</strong></summary>
+<summary><strong>Desktop Web / Block Kit Builder</strong></summary>
 
-Same shape as Web's `VITE_*` variables (`apps/desktop-web/.env`, `apps/testbed/.env`,
+Same shape as Web's `VITE_*` variables (`apps/desktop-web/.env`,
 `apps/block-kit-builder/.env` — each has its own `.env.example`). `desktop-web` additionally reads
-`VITE_SOC_ENDPOINT`, `VITE_IAP_ENDPOINT` and `VITE_DEBUG_CODE`; `testbed` mirrors Admin V2's
-`VITE_FRONT_ENDPOINT` for cross-linking.
+`VITE_SOC_ENDPOINT`, `VITE_IAP_ENDPOINT` and `VITE_DEBUG_CODE`.
 
 </details>
 
@@ -473,7 +466,7 @@ Android `envConfigFiles`), not by the script. See
 | `verify.yml`            | Pull requests, push to `develop` | Doc links, doc language, code comment language, lint, typecheck & test — only the projects listed as covered; excluded projects are named at the bottom of the file with the reason |
 | `deploy-dev.yml`        | Push to `develop`                | Auto-detect changed apps, build & deploy to dev                                                                                                                                     |
 | `deploy-prod.yml`       | Push to `main`                   | Build, deploy to prod & create a GitHub release                                                                                                                                     |
-| `force-deploy.yml`      | Manual dispatch                  | Force (re)deploy Web / Admin V2 / Landing to dev or prod — no other app                                                                                                             |
+| `force-deploy.yml`      | Manual dispatch                  | Force (re)deploy Web / Admin / Landing to dev or prod — no other app                                                                                                                |
 | `build-desktop.yml`     | Manual dispatch                  | Build unsigned macOS `.dmg` + Windows `.exe` installers, publish to a rolling `desktop-dev` / `desktop-prod` GitHub Release                                                         |
 | `build-desktop-win.yml` | Manual dispatch                  | Windows-only variant of the above                                                                                                                                                   |
 

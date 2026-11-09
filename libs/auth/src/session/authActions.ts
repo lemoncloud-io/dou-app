@@ -7,8 +7,8 @@ import type { IAuthRepository } from '@chatic/data';
  * commands, under the names their call sites already use.
  *
  * This is an adapter, not a data path: two of these (`registerUserWithInviteCode`,
- * `fetchInviteInfoWithCode`) are re-exported from the package barrel and are called by web,
- * desktop-web and testbed with POSITIONAL arguments, while the repository takes an object. Keeping
+ * `fetchInviteInfoWithCode`) are re-exported from the package barrel and are called by web
+ * and desktop-web with POSITIONAL arguments, while the repository takes an object. Keeping
  * that translation in one named place is the whole reason the file exists. The session-material
  * commands used to sit here too and no longer do — they had exactly one consumer, so they live
  * inline in `services.ts` where the repository is now called directly.

@@ -93,7 +93,7 @@ const nameOf = (chat: DomainChat, userMap: Map<string, DomainUser>): string =>
 /**
  * Message stream for a channel. Observes the newest `pageLimit` rows; `loadMore`
  * fetches the next older page by cursor and widens the window so the cache
- * re-emits with the older page included (testbed's paging model). Domain rows
+ * re-emits with the older page included. Domain rows
  * are mapped to `ClientChatView` (owner identity, parsed timestamp, flags),
  * sorted oldest → newest so the last element is the latest message.
  */

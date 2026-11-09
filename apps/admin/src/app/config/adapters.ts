@@ -1,0 +1,19 @@
+import { createWebEnvAdapter, type ConfigRuntimePorts } from '@chatic/config';
+
+/**
+ * Wires `@chatic/config` to this app's own `import.meta.env` and injected `window.CHATIC_APP_*`
+ * globals — the one file per Vite app that `import.meta` is allowed to touch (ADR-0079, decisions 1 and 8).
+ *
+ * `read` is the only platform-specific piece; `createWebEnvAdapter` owns the shared interpretation
+ * (stage validation, the shell-injected stage vocabulary, the legacy lowercasing) so web ·
+ * desktop-web · admin share one tested implementation instead of three.
+ */
+const read = (name: string): string | undefined => {
+    if (name.startsWith('VITE_')) return (import.meta.env as Record<string, string | undefined>)[name];
+    return (window as unknown as Record<string, string | undefined>)[name];
+};
+
+export const webConfigPorts: ConfigRuntimePorts = {
+    env: createWebEnvAdapter(read),
+    storage: { local: localStorage, session: sessionStorage },
+};
