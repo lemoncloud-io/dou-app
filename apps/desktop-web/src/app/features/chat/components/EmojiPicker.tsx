@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { cn } from '@chatic/lib/utils';
 
 import { useRecentEmojiStore } from '../stores';
-import { EMOJI_CATEGORIES } from '../utils';
+import { EMOJI_CATEGORIES, emojiNameKey } from '../utils';
 import { Hint } from '../../../shared';
 
 interface EmojiPickerProps {
@@ -14,10 +14,12 @@ interface EmojiPickerProps {
 /**
  * Category-tabbed emoji grid for the composer popover. Picks are remembered in
  * a device-local LRU ("recently used" tab). No external emoji DB — categories
- * are the curated sets in utils/emoji.ts.
+ * are the curated sets in utils/emoji.ts. Hovering an emoji names it, in the
+ * app's language, from the generated CLDR tables in the `emoji` namespace.
  */
 export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
     const { t } = useTranslation();
+    const { t: tEmoji } = useTranslation('emoji');
     const recent = useRecentEmojiStore(s => s.recent);
     const remember = useRecentEmojiStore(s => s.remember);
     // The popover unmounts on close, so this runs on every open: lead with the recents tab
@@ -80,16 +82,28 @@ export const EmojiPicker = ({ onPick }: EmojiPickerProps) => {
             </div>
             <p className="px-0.5 text-overline uppercase text-muted-foreground">{label}</p>
             <div className="scrollbar-thin grid max-h-56 grid-cols-8 gap-0.5 overflow-y-auto">
-                {emojis.map(emoji => (
-                    <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => pick(emoji)}
-                        className="focus-ring tactile flex h-9 w-9 items-center justify-center rounded-md text-title font-normal transition-colors ease-tactile hover:bg-accent"
-                    >
-                        {emoji}
-                    </button>
-                ))}
+                {emojis.map(emoji => {
+                    // Empty when a name is missing (an emoji added to the curation without
+                    // regenerating the tables): the button then falls back to its glyph alone.
+                    const name = tEmoji(emojiNameKey(emoji), { defaultValue: '' });
+                    const button = (
+                        <button
+                            type="button"
+                            onClick={() => pick(emoji)}
+                            aria-label={name || undefined}
+                            className="focus-ring tactile flex h-9 w-9 items-center justify-center rounded-md text-title font-normal transition-colors ease-tactile hover:bg-accent"
+                        >
+                            {emoji}
+                        </button>
+                    );
+                    return name ? (
+                        <Hint key={emoji} label={name}>
+                            {button}
+                        </Hint>
+                    ) : (
+                        <Fragment key={emoji}>{button}</Fragment>
+                    );
+                })}
             </div>
         </div>
     );

@@ -6,3 +6,10 @@
  * the thumb landed.
  */
 export const LONG_PRESS_DELAY_MS = 450;
+
+/**
+ * How far the finger may drift and still count as a hold rather than a scroll — a fingertip's
+ * wobble. A touch captures the pointer to its target, so a scroll that starts on a hold target
+ * fires neither `pointerleave` nor `pointercancel` until the finger lifts; drift is the only signal.
+ */
+export const MOVE_CANCEL_PX = 10;
