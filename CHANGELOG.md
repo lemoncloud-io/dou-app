@@ -4,6 +4,12 @@
 
 ### Features
 
+- (session,auth,data,app-runtime,web) name a paired cloud by its real name (ADR-0295)
+
+## [2026-11-09] - No version updates
+
+### Features
+
 - (storage,auth,mobile,desktop) keep the session tokens in the shells' device vault (ADR-0293)
 
 ### Refactor
