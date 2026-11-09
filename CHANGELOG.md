@@ -4,6 +4,16 @@
 
 ### Refactor
 
+- (admin,testbed) retire apps/testbed and rename apps/admin-v2 to apps/admin
+
+### Chores
+
+- (nx,scripts) drop config for deleted libs and a stale trace-report fixture
+
+## [2026-11-09] - No version updates
+
+### Refactor
+
 - (web,app-runtime,storage,auth,config,shared) reach web storage only via media (ADR-0296)
 
 ## [2026-11-09] - No version updates
