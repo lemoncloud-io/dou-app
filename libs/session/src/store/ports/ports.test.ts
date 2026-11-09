@@ -7,7 +7,7 @@ import { MemoryMedium } from '@chatic/storage';
 
 import { cloudStore } from '../cloudStore';
 import { identityStore } from '../identityStore';
-import { isSessionKey, pairedCloudsSlot, SESSION_KEYS, sessionMedia } from '.';
+import { isSessionKey, pairedCloudNamesSlot, pairedCloudsSlot, SESSION_KEYS, sessionMedia } from '.';
 import { relayStore } from '../relayStore';
 
 const relayToken = { Token: { identityToken: 'relay-id' } } as never;
@@ -50,10 +50,14 @@ describe('session storage ports', () => {
 
         writeEverything();
 
-        // The paired-cloud list and the logout marker are written by `@chatic/auth`, so they are checked there.
-        const plainWrittenHere = SESSION_KEYS.plain.filter(
-            key => key !== 'chatic-paired-cloud-ids' && key !== 'chatic-secret-logout-pending'
-        );
+        // The paired-cloud list, its names and the logout marker are written by `@chatic/auth`, so they
+        // are checked there.
+        const writtenByAuth: readonly string[] = [
+            'chatic-paired-cloud-ids',
+            'chatic-paired-cloud-names',
+            'chatic-secret-logout-pending',
+        ];
+        const plainWrittenHere = SESSION_KEYS.plain.filter(key => !writtenByAuth.includes(key));
         expect(secret.keys().sort()).toEqual([...SESSION_KEYS.secret].sort());
         expect(plain.keys().sort()).toEqual([...plainWrittenHere].sort());
 
@@ -90,9 +94,22 @@ describe('session storage ports', () => {
         expect(secret.keys()).toEqual([]);
     });
 
+    it('hands out the paired-cloud names key alone, in the plain port', () => {
+        const secret = new MemoryMedium();
+        const plain = new MemoryMedium();
+        sessionMedia.configure({ secret, plain });
+
+        pairedCloudNamesSlot.write('{"c1":"Team"}');
+        expect(plain.keys()).toEqual(['chatic-paired-cloud-names']);
+        pairedCloudNamesSlot.clear();
+        expect(plain.keys()).toEqual([]);
+        expect(secret.keys()).toEqual([]);
+    });
+
     it('recognises its own keys and nothing else', () => {
         expect(isSessionKey('chatic-cloud-token-cache')).toBe(true);
         expect(isSessionKey('chatic-paired-cloud-ids')).toBe(true);
+        expect(isSessionKey('chatic-paired-cloud-names')).toBe(true);
         expect(isSessionKey('chatic-cloud-promo-dismissed-at')).toBe(false);
         expect(isSessionKey('@chatic.access_key_id')).toBe(false);
     });

@@ -119,12 +119,14 @@ export const HomePage = () => {
     // just-edited subscription-cloud name shows immediately, before the catalog refetch catches up.
     const cachedCloudNames = useCachedCloudNames();
     const cachedCloudName = selectedCloudId ? cachedCloudNames[selectedCloudId] : undefined;
-    // A cloud this browser entered through a pairing is in neither list, and its name is cached only if
-    // the browser met it some other way; it is named by its id the way the switch sheet's row is.
+    // A cloud this browser entered through a pairing is in neither list and has no cache row. Its name is
+    // read from inside the cloud and kept beside the paired-cloud list; until that read succeeds it is
+    // named by its id, the way the switch sheet's row is.
     const pairedCloudIds = runtime.session.usePairedCloudIds();
+    const pairedCloudNames = runtime.session.usePairedCloudNames();
     const pairedCloudFallback =
         selectedCloudId && pairedCloudIds.includes(selectedCloudId)
-            ? t('pairing.cloud.unnamed', { id: selectedCloudId.slice(-6) })
+            ? pairedCloudNames[selectedCloudId] || t('pairing.cloud.unnamed', { id: selectedCloudId.slice(-6) })
             : '';
     const cloudName =
         cachedCloudName ??

@@ -94,15 +94,16 @@ The stores do not hold a storage of their own. They hold two **ports** that the 
 ([`@chatic/storage`](../storage/README.md)) backs each port in its environment, passing them to
 `initAppRuntime({ storage })`, which calls `sessionMedia.configure`.
 
-| Port     | Keys                                                                                                                                                                                                                                                |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `secret` | `chatic-relay-token` · `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-cloud-token-cache`                                                                                                                                          |
-| `plain`  | `chatic-relay-selected-site-id` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-cloud-identities` · `chatic-recent-clouds` · `chatic-reclaimed-clouds` · `chatic-delegator-id` · `chatic-device-id` · `chatic-paired-cloud-ids` |
+| Port     | Keys                                                                                                                                                                                                                                                                              |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `secret` | `chatic-relay-token` · `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-cloud-token-cache`                                                                                                                                                                        |
+| `plain`  | `chatic-relay-selected-site-id` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-cloud-identities` · `chatic-recent-clouds` · `chatic-reclaimed-clouds` · `chatic-delegator-id` · `chatic-device-id` · `chatic-paired-cloud-ids` · `chatic-paired-cloud-names` |
 
 The split is by what a value would cost if it leaked: whoever holds a `secret` key signs as the user.
-`chatic-paired-cloud-ids` is written by `@chatic/auth`'s `PairedCloudStore`, but it lives and dies
-with the session, so the session declares it and hands auth that one key (`pairedCloudsSlot`), not
-the plain port — nothing outside may write the session's other keys.
+`chatic-paired-cloud-ids` and `chatic-paired-cloud-names` are written by `@chatic/auth`'s
+`PairedCloudStore`, but they live and die with the session, so the session declares them and hands
+auth those two keys (`pairedCloudsSlot`, `pairedCloudNamesSlot`), not the plain port — nothing outside
+may write the session's other keys.
 `chatic-secret-logout-pending` is in the plain list too: a logout whose vault clear was not confirmed
 leaves it, and the next boot empties the vault before reading it. `SESSION_KEYS` is that table in code, and `isSessionKey(key)` is how anything outside — the debug
 storage screen, through `runtime.session` — asks whether a key is the session's instead of keeping a

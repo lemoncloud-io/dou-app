@@ -5,6 +5,13 @@
 export const PAIRED_CLOUDS_KEY = 'chatic-paired-cloud-ids';
 
 /**
+ * The names of the paired clouds, beside their list and written by the same store. A paired cloud
+ * has no row in the cloud cache (a row there is either owned or invited, and a paired cloud is
+ * neither), so this is the only place its name is kept.
+ */
+export const PAIRED_CLOUD_NAMES_KEY = 'chatic-paired-cloud-names';
+
+/**
  * Left in the plain port when a logout could not confirm that the vault was emptied, so the next boot
  * empties it before anything reads it.
  */
@@ -23,6 +30,7 @@ export const SESSION_KEYS = {
         'chatic-delegator-id',
         'chatic-device-id',
         PAIRED_CLOUDS_KEY,
+        PAIRED_CLOUD_NAMES_KEY,
         SECRET_LOGOUT_PENDING_KEY,
     ],
 } as const;

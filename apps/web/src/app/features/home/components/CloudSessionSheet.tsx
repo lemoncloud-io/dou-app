@@ -84,6 +84,8 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
     // — a relay pairing included — has its catalog and never shows this section.
     const isAccountGuest = useIsAccountGuest();
     const pairedCloudIds = runtime.session.usePairedCloudIds();
+    // A paired cloud's name, read from inside it; a cached name still wins, as everywhere else here.
+    const pairedCloudNames = runtime.session.usePairedCloudNames();
     const pairingEnabled = useDevicePairingEnabled();
     const showPairedClouds = isAccountGuest && (pairingEnabled || pairedCloudIds.length > 0);
 
@@ -312,7 +314,7 @@ export const CloudSessionSheet = ({ open, onOpenChange, onAddCloud, cloudUnread 
                                         <PairedCloudItem
                                             key={cloudId}
                                             cloudId={cloudId}
-                                            name={cachedCloudNames[cloudId]}
+                                            name={cachedCloudNames[cloudId] ?? pairedCloudNames[cloudId]}
                                             isSelected={selectedId === cloudId}
                                             isDisabled={isSwitching}
                                             onSelectCloud={handleSelectCloud}

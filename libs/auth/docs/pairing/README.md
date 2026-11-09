@@ -6,12 +6,12 @@ themselves are `PairingRepository`'s (`@chatic/data`), all signed relay requests
 
 Four files carry most of it, and their names are close, so this is what each one is:
 
-| File                     | What it is                                                                                                                                                                                                                         | Holds state   |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| `pairedSession.ts`       | **The checks.** Is this device signed in through someone else's approval — a secondary device (`isPairedSession`)? Is the relay session a guest (`isRelayGuest`)? Is this guest inside a cloud of its own (`isInOwnCloudSession`)? | no            |
-| `pairedClouds.ts`        | **The list.** `PairedCloudStore`: the ids of the clouds this guest entered through a pairing (`chatic-paired-cloud-ids`)                                                                                                           | the list only |
-| `pairedCloudSessions.ts` | **What acts on the list.** `PairedCloudSessions`: enter a paired cloud, re-issue it, re-check it, end it                                                                                                                           | uses the list |
-| `pairingClient.ts`       | **The device's label.** What a requester tells the approver about itself (`Chrome · macOS`, `iPhone`), and how a device-list row is named (`deviceDisplayName`). Not a network client                                              | no            |
+| File                     | What it is                                                                                                                                                                                                                         | Holds state            |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `pairedSession.ts`       | **The checks.** Is this device signed in through someone else's approval — a secondary device (`isPairedSession`)? Is the relay session a guest (`isRelayGuest`)? Is this guest inside a cloud of its own (`isInOwnCloudSession`)? | no                     |
+| `pairedClouds.ts`        | **The list.** `PairedCloudStore`: the ids of the clouds this guest entered through a pairing (`chatic-paired-cloud-ids`), and their names (`chatic-paired-cloud-names`)                                                            | the list and its names |
+| `pairedCloudSessions.ts` | **What acts on the list.** `PairedCloudSessions`: enter a paired cloud, re-issue it, re-check it, end it                                                                                                                           | uses the list          |
+| `pairingClient.ts`       | **The device's label.** What a requester tells the approver about itself (`Chrome · macOS`, `iPhone`), and how a device-list row is named (`deviceDisplayName`). Not a network client                                              | no                     |
 
 The rest: `pairingRequestFlow.ts` is the code screen's request-and-poll loop, `pairingErrors.ts` names
 the approval side's failures.
@@ -30,6 +30,11 @@ the approval side's failures.
   entered through a pairing. A guest's cloud catalog is empty, so this list is what puts those clouds in
   the switch sheet. It is a plain store with no other dependency, so `isPairedSession` and the relay
   logout can read and clear it without pulling the socket runtime in.
+    - It also keeps each listed cloud's name (`setName`, `names`, `subscribeNames`), read from the relay
+      once the browser is inside the cloud (app-runtime's `syncPairedCloudName`). A paired cloud has no
+      row in the cloud cache — a row there is either owned or invited — so this is the only place its
+      name is kept. A name is kept only for a cloud on the list, and `remove` and `clear` drop it with
+      the cloud.
 - **`PairedCloudSessions`** (`pairedCloudSessions.ts`, one instance `pairedCloudSessions`) is the life of
   a paired cloud, with its collaborators — the list, the identity map, the token exchange, the socket
   re-registration, the place alignment, the credential teardown — passed to its constructor:
@@ -71,7 +76,7 @@ the approval side's failures.
   platform and label, and `iPhone` / `Android` for a phone, whose injected model is only a hardware id.
 
 The hooks over these — `usePairingRequest`, `useIsPairedSession`, `usePairedCloudIds`,
-`usePairingAwareLogout`, `usePairedCloudCheck` — are app-runtime's
+`usePairedCloudNames`, `usePairingAwareLogout`, `usePairedCloudCheck` — are app-runtime's
 ([its session doc](../../../app-runtime/docs/session/README.md#the-pairing-hooks)).
 
 ## Further reading

@@ -72,11 +72,19 @@ describe('PairedCloudStore', () => {
 
     it('keeps its list in the storage it was given, apart from the shared instance', () => {
         let own: string | null = null;
-        const list = new PairedCloudStore({
-            read: () => own,
-            write: raw => void (own = raw),
-            clear: () => void (own = null),
-        });
+        let ownNames: string | null = null;
+        const list = new PairedCloudStore(
+            {
+                read: () => own,
+                write: raw => void (own = raw),
+                clear: () => void (own = null),
+            },
+            {
+                read: () => ownNames,
+                write: raw => void (ownNames = raw),
+                clear: () => void (ownNames = null),
+            }
+        );
         const heard: Array<readonly string[]> = [];
         list.subscribe(ids => heard.push(ids));
 
@@ -85,5 +93,68 @@ describe('PairedCloudStore', () => {
         expect(own).toBe('["1000002"]');
         expect(pairedClouds.list()).toEqual([]);
         expect(heard).toEqual([['1000002']]);
+    });
+});
+
+describe('paired cloud names', () => {
+    it('keeps a name only for a cloud on the list, in its own key', () => {
+        pairedClouds.setName('1000002', 'Ignored');
+        expect(pairedClouds.names()).toEqual({});
+
+        pairedClouds.add('1000002');
+        pairedClouds.setName('1000002', 'Team Cloud');
+
+        expect(pairedClouds.names()).toEqual({ '1000002': 'Team Cloud' });
+        expect(JSON.parse(store.get('chatic-paired-cloud-names') ?? 'null')).toEqual({ '1000002': 'Team Cloud' });
+    });
+
+    it('drops the name with the cloud, and the key when no name is left', () => {
+        pairedClouds.add('1000002');
+        pairedClouds.add('1000004');
+        pairedClouds.setName('1000002', 'Team Cloud');
+        pairedClouds.setName('1000004', 'Other');
+
+        pairedClouds.remove('1000002');
+        expect(pairedClouds.names()).toEqual({ '1000004': 'Other' });
+
+        pairedClouds.clear();
+        expect(pairedClouds.names()).toEqual({});
+        expect(store.has('chatic-paired-cloud-names')).toBe(false);
+    });
+
+    it('tells name subscribers about a name change only once, without touching the list listeners', () => {
+        pairedClouds.add('1000002');
+        const listListener = jest.fn();
+        const namesListener = jest.fn();
+        const offList = pairedClouds.subscribe(listListener);
+        const offNames = pairedClouds.subscribeNames(namesListener);
+
+        pairedClouds.setName('1000002', 'Team Cloud');
+        pairedClouds.setName('1000002', 'Team Cloud');
+        pairedClouds.setName('1000002', '');
+        offList();
+        offNames();
+
+        expect(namesListener.mock.calls).toEqual([[{ '1000002': 'Team Cloud' }]]);
+        expect(listListener).not.toHaveBeenCalled();
+    });
+
+    it('tells name subscribers when the list moves, since the names follow it', () => {
+        const namesListener = jest.fn();
+        const off = pairedClouds.subscribeNames(namesListener);
+
+        pairedClouds.add('1000002');
+        off();
+
+        expect(namesListener).toHaveBeenCalledWith({});
+    });
+
+    it('reads a damaged names value as no names', () => {
+        pairedClouds.add('1000002');
+        store.set('chatic-paired-cloud-names', '[1,2]');
+        expect(pairedClouds.names()).toEqual({});
+
+        store.set('chatic-paired-cloud-names', JSON.stringify({ '1000002': 7 }));
+        expect(pairedClouds.names()).toEqual({});
     });
 });

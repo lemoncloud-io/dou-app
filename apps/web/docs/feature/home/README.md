@@ -140,7 +140,13 @@ has not yet re-minted it — is read again once the relay socket is verified
 (`useCloudCatalogRelayResync`, mounted once under `AppRuntime`), so the name fills in by itself
 instead of waiting for the switcher sheet's open-time refetch. The rule is desktop-web's: one re-read
 each time the socket verifies with a failure standing, and one when a read fails with the socket
-already verified. A re-read that fails again waits for the next verification, a pull, or the sheet. The Place section lists the cloud's
+already verified. A re-read that fails again waits for the next verification, a pull, or the sheet.
+A cloud this browser entered through a device pairing is in neither the catalog nor the cache, so its
+name comes from a third place: `PairedCloudNameRunner` (mounted under `AppRuntime`, in a browser tab as
+well as the shells) reads it from the relay once per entry, after the cloud's socket and the relay are
+verified, and keeps it beside the paired-cloud list (`runtime.session.usePairedCloudNames`). Until that
+read succeeds — or if it fails, silently — the header names the cloud by the end of its id
+(`pairing.cloud.unnamed`). The Place section lists the cloud's
 places, the selected one carrying a badge and the others a dot when they have unread.
 
 **The profile menu** holds "Place settings" and, for the owner of the active cloud place who has
@@ -238,9 +244,10 @@ browser entered through a device pairing (`runtime.session.usePairedCloudIds`, s
 [pairing](../pairing/README.md#a-cloud-approval)). A guest's own catalog is empty, so without this list
 those clouds would not appear anywhere. Its footer, "Add a cloud with another device", opens the code
 screen; the section is shown while the device pairing flag is on or a paired cloud exists, and never to
-an account (a relay pairing included — an account has its catalog). A paired row's name comes from the
-cached cloud names, which fill in once the browser has been inside the cloud; until then it shows the
-end of the cloud id.
+an account (a relay pairing included — an account has its catalog). A paired row's name is a cached
+cloud name if the browser has one, else the name read from inside the cloud
+(`runtime.session.usePairedCloudNames`, the same source as the header); until that read has succeeded
+it shows the end of the cloud id.
 
 A switch refused over a revoked approval signs the browser out with a toast ("the approval was
 revoked"): a 403 on a paired cloud (`forgetRefusedPairedCloud`), or `403 … pairing revoked` on any

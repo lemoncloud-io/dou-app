@@ -19,6 +19,7 @@ import { CloudActivatedRunner, CloudPushMarkRunner, UnreadBadgeRunner } from '..
 import { BackgroundCloudsRunner } from './BackgroundCloudsRunner';
 import { BackgroundSyncRunner } from './BackgroundSyncRunner';
 import { InvitedCloudDurabilityRunner } from './InvitedCloudDurabilityRunner';
+import { PairedCloudNameRunner } from './PairedCloudNameRunner';
 import { MyUserSeedRunner } from './MyUserSeedRunner';
 import { QueueLossRunner } from './QueueLossRunner';
 import { PreferenceLoader } from './PreferenceLoader';
@@ -82,6 +83,7 @@ export const AppRuntime = () => {
                     <CloudActivatedRunner />
                     <MyUserSeedRunner />
                     <InvitedCloudDurabilityRunner />
+                    <PairedCloudNameRunner />
                     <QueueLossRunner />
                     {/* Mirrors the two shared observations out to the debug overlay, which is mounted
                         outside AppRuntime and so cannot consume the providers. Nothing mounts below it

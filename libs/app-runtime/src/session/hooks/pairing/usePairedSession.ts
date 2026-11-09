@@ -23,3 +23,15 @@ export const usePairedCloudIds = (): string[] => {
     const snapshot = useSyncExternalStore(pairedClouds.subscribe, listClouds, listClouds);
     return JSON.parse(snapshot) as string[];
 };
+
+const listNames = (): string => JSON.stringify(pairedClouds.names());
+
+/**
+ * The names read for the paired clouds, by cloud id (`syncPairedCloudName` writes them). A cloud with
+ * no name yet is absent, and the screens name it by its id.
+ */
+export const usePairedCloudNames = (): Record<string, string> => {
+    // Compared as a string for the same reason as the list.
+    const snapshot = useSyncExternalStore(pairedClouds.subscribeNames, listNames, listNames);
+    return JSON.parse(snapshot) as Record<string, string>;
+};
