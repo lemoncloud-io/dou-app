@@ -34,7 +34,7 @@ feedback's, whose screen lives in another feature.
 | `WithdrawalPage`                                                | `/mypage/withdrawal`             | account deletion                                                              |
 | `SettingsPage`                                                  | `/mypage/settings`               | device and app preferences, version, logout                                   |
 | `NotificationSettingsPage`                                      | `/mypage/settings/notifications` | push mute and message preview                                                 |
-| `LabPage`                                                       | `/mypage/settings/lab`           | experiments, dev-only sub WebView pages, and the hidden debug unlock          |
+| `LabPage`                                                       | `/mypage/settings/lab`           | experiments, the mini app card, dev-only sub WebView pages, the debug unlock  |
 | `PolicyListPage` · `TermsPage` · `PrivacyPage` · `LicensesPage` | `/mypage/policy/*`               | the legal text                                                                |
 
 `/mypage` is the only one of these the floating nav appears on: `UnifiedLayout` matches that path
@@ -242,6 +242,35 @@ is no note under the card: what a switch does is the feature's own doc.
 The switch only lets the feature in. Who may use it, and where, is still the feature's own rule —
 turning on Place invite does not give a non-owner the menu entry. The value lives in this device's
 local storage, so another device of the same person starts with it off.
+
+### The mini app card
+
+Below the Experiments card, **Mini app** opens the active cloud's own page in the sub WebView, with
+who is looking (`components/MiniAppCard.tsx`, `hooks/useMiniAppLauncher.ts`). It is the phone's half
+of the feature the desktop web carries in its settings, and behaves the same way:
+
+- **Where it shows.** Only in an app whose handshake says `subWebViewOpenScope: 'anyHttps'`: an older
+  app would refuse an owner's link, and a browser tab has no sub WebView. Never on the Default Cloud
+  (Home), which is the relay's — no owner, no link.
+- **The link.** The cloud's owner sets it (**Mini app link**, a sheet with one field); an invited
+  member gets no such row. It must be an address the shell opens — plain https, no port, no sign-in
+  part, checked by the same shared rule (`isOpenableSubWebViewUrl`). It is kept on this phone only,
+  through the device medium under `dou.miniAppLink.<cloudId>`, so another cloud never shows it and
+  members do not see it until the link moves to the server.
+- **Opening.** The link, or DoU's hub (`https://apps.chatic.io/`, `apps-dev` in a development build)
+  while there is none. The page gets `MiniAppLaunchParams`: the cloud, the open place, and my id _in
+  this cloud_ and name (the place nick, else the cloud profile's name). `isOwner` goes to the hub
+  alone. A second press while the first open is out sends nothing.
+- **A site DoU does not run** is opened only after the user agreed to hand it those names, once per
+  account and host (`dou.miniAppConsent.<accountId>.<host>`). Declined, nothing opens.
+- **Back to the setting.** When the hub closes with `result.action = 'openMiniAppLinkSettings'`, the
+  link sheet opens — for the owner only, and only for the view this card opened on the hub, so a site
+  that closes with the same result does nothing.
+
+Who owns a cloud is read from positive evidence only: the cloud is in the account's owned catalog
+(`useCloudSessionCatalog`). "Not in the invited list" is not used — that list starts empty on each
+mount and fills in later — so the owner's row and `isOwner` stay off until the catalog answers. The tiers, the consent and the params are decided in ADR-0297; what the shell does with each
+tier is [sub-webview.md](../../../../mobile/docs/webview/sub-webview.md#where-it-may-go).
 
 ### UI comes from web-ui-kit, and missing pieces are added there first
 

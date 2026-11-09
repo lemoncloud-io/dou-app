@@ -198,6 +198,25 @@
             "inApp": "In-app",
             "inAppNote": "Opens over the app in a sub WebView. Shown in debug mode only.",
             "inAppOpenFailed": "Could not open it",
+            "miniApp": {
+                "title": "Mini app",
+                "open": "Open mini app",
+                "openHubHint": "This cloud's mini app, or DoU's mini app home until one is set",
+                "openFailed": "Couldn't open the mini app",
+                "openedOutside": "Opened in your browser. Update the app to open it here.",
+                "link": "Mini app link",
+                "linkUnset": "Not set. Add the address of the page this cloud opens.",
+                "linkHint": "The page Open mini app opens in this cloud. Saved on this phone only.",
+                "linkLabel": "Address (https)",
+                "linkInvalid": "Enter an https address without a port or sign-in part.",
+                "linkSaveFailed": "Couldn't save the link on this phone.",
+                "linkSaved": "Mini app link saved",
+                "linkRemoved": "Mini app link removed",
+                "save": "Save",
+                "consentTitle": "Open a site outside DoU?",
+                "consentBody": "{{host}} will receive your name, your id in this cloud, this cloud and the place you have open. DoU does not run this site.",
+                "consentAgree": "Open"
+            },
             "inAppPages": {
                 "enhanceDou": {
                     "title": "Raise DoU",

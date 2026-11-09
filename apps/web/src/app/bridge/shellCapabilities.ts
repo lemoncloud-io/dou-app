@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 
-import type { OnWebAppReadyPayload, WebMessageType } from '@chatic/bridge-messages';
+import type { OnWebAppReadyPayload, SubWebViewOpenScope, WebMessageType } from '@chatic/bridge-messages';
 
 /**
  * Whether the installed app can save and share a chat image: its handshake lists both messages.
@@ -41,6 +41,14 @@ class ShellCapabilities {
         return supportsImageExport(this.report);
     }
 
+    /**
+     * How far the shell's `OpenSubWebView` opens, or `null` when its handshake says nothing — an app
+     * from before the field, which opens the reviewed pages only, and a browser tab.
+     */
+    subWebViewOpenScope(): SubWebViewOpenScope | null {
+        return this.report?.subWebViewOpenScope ?? null;
+    }
+
     subscribe = (listener: Listener): (() => void) => {
         this.listeners.add(listener);
         return () => {
@@ -64,3 +72,11 @@ export const shellCapabilities = new ShellCapabilities();
 /** Re-renders when the handshake arrives. */
 export const useCanExportImages = (): boolean =>
     useSyncExternalStore(shellCapabilities.subscribe, () => shellCapabilities.canExportImages());
+
+/**
+ * How far the shell opens sub WebViews; re-renders when the handshake arrives. Only `anyHttps` lets
+ * the web offer a link a cloud's owner saved: the web ships before the shell, so it asks rather than
+ * assumes.
+ */
+export const useSubWebViewOpenScope = (): SubWebViewOpenScope | null =>
+    useSyncExternalStore(shellCapabilities.subscribe, () => shellCapabilities.subWebViewOpenScope());

@@ -2,7 +2,12 @@ import { act, renderHook } from '@testing-library/react';
 
 import type { OnWebAppReadyPayload } from '@chatic/bridge-messages';
 
-import { shellCapabilities, supportsImageExport, useCanExportImages } from './shellCapabilities';
+import {
+    shellCapabilities,
+    supportsImageExport,
+    useCanExportImages,
+    useSubWebViewOpenScope,
+} from './shellCapabilities';
 
 const report = (supportedWebMessages: string[]): OnWebAppReadyPayload => ({
     protocolVersion: '2.3.0',
@@ -33,5 +38,17 @@ describe('shellCapabilities', () => {
         act(() => shellCapabilities.setReport(report(['SaveToPhotoLibrary', 'ShareFile'])));
 
         expect(result.current).toBe(true);
+    });
+
+    // The web ships before the shell: the owner's mini app link is offered only where the shell says so.
+    it('reports how far the shell opens sub WebViews, and nothing before the handshake', () => {
+        const { result } = renderHook(() => useSubWebViewOpenScope());
+        expect(result.current).toBeNull();
+
+        act(() => shellCapabilities.setReport({ ...report([]), subWebViewOpenScope: 'anyHttps' }));
+        expect(result.current).toBe('anyHttps');
+
+        act(() => shellCapabilities.setReport(report([])));
+        expect(result.current).toBeNull();
     });
 });

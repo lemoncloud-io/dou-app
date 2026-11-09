@@ -28,3 +28,11 @@ export const resolveSubWebViewAppUrl = async (
     const origin = Object.prototype.hasOwnProperty.call(apps, appId) ? apps[appId] : undefined;
     return origin ? `${origin}/${query}` : null;
 };
+
+/**
+ * DoU's mini app hub for `stage`, opened when a cloud has no link of its own: it greets the user and
+ * points an owner to the link setting. The root of the apps domain — the `firstParty` tier — not a
+ * page under it.
+ */
+export const miniAppHubUrl = (stage: SubWebViewStage): string =>
+    stage === 'prod' ? 'https://apps.chatic.io/' : 'https://apps-dev.chatic.io/';
