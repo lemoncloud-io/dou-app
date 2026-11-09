@@ -135,11 +135,14 @@ the shared long-press threshold a bubble shows the emoji and its name above the 
 that follows does **not** pick it, so holding is a safe way to ask "what is this?". Each grid button also
 carries the name as its `aria-label`.
 
-- **A scroll is not a hold.** A touch captures the pointer, so a flick that starts on an emoji sends
-  neither `pointerleave` nor `pointercancel` until the finger lifts. Drift past `MOVE_CANCEL_PX` (the
-  same threshold the message bubble uses, in `longPress.ts`) is what cancels the hold.
-- **The OS long press is a trigger too.** Android's own long press is shorter than ours and arrives as
-  `contextmenu`, which shows the name at once instead of opening a menu.
+- **A scroll is not a hold.** Drift past `MOVE_CANCEL_PX` (the same threshold the message bubble uses,
+  in `longPress.ts`) cancels the hold. Android's WebView also sends `pointercancel` once the grid starts
+  scrolling (measured ~70 ms into a slow drag), but a touch that captured the pointer may send neither
+  `pointerleave` nor `pointercancel` until the finger lifts, so drift is the guard that does not
+  depend on the engine.
+- **The OS long press is a trigger too.** It arrives as `contextmenu`, which shows the name at once
+  instead of opening a menu. On the Android emulator it came ~500 ms after pointer-down, just after the
+  450 ms timer, but its timeout is a system accessibility setting, so it can come first.
 - **Only a pointer click is swallowed.** A keyboard or switch-control activation (`detail === 0`) always
   picks, even when a hold ended without a click and left the flag set.
 - **Closing the sheet clears the hold**, so it does not come back on reopen.

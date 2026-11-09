@@ -104,9 +104,9 @@ export const EmojiPickerSheet = ({ open, onOpenChange, onPick }: EmojiPickerShee
         }
     };
 
-    // The OS's own long press (Android's is shorter than ours) arrives as `contextmenu`, and may
-    // cancel the pointer before our timer would fire — so it is a trigger, not just a menu to stop.
-    // It is also what a mouse right-click sends.
+    // The OS's own long press arrives as `contextmenu`. On the Android emulator it came ~500 ms after
+    // pointer-down, just after our timer, but its timeout is a system setting a user can shorten — so
+    // it is a trigger, not just a menu to stop. It is also what a mouse right-click sends.
     const holdFromContextMenu = (event: ReactMouseEvent<HTMLButtonElement>, emoji: string) => {
         event.preventDefault();
         clearTimer();
