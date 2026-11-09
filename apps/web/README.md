@@ -34,7 +34,8 @@ What the app does **not** own:
 | Settings, environment, feature flags                  | [`@chatic/config`](../../libs/config/README.md)                   |
 | The logging hub, its listeners, its levels            | [`@chatic/logger`](../../libs/logger/README.md)                   |
 | Web design-system components                          | [`@chatic/web-ui-kit`](../../libs/web-ui-kit/README.md)           |
-| Cross-platform primitives, storage adapter, fallbacks | [`@chatic/shared`](../../libs/shared/README.md)                   |
+| Cross-platform primitives, fallbacks                  | [`@chatic/shared`](../../libs/shared/README.md)                   |
+| Storage media and the app-wide storage adapter        | [`@chatic/storage`](../../libs/storage/README.md)                 |
 | Bridge message payload types                          | [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) |
 | HTTP request building and signing                     | [`@chatic/http`](../../libs/http/README.md)                       |
 | Device/platform detection                             | [`@chatic/device-utils`](../../libs/device-utils/README.md)       |
@@ -153,8 +154,9 @@ sequenceDiagram
     Main->>Main: setupBridgeLogger · attachConsoleListener · attachLogContext
     Main->>Main: startLogUploader (the only log store)
     Main->>Main: syncThemeFromSharedKey · config.init(webConfigPorts)
-    Main->>Main: setStorageAdapter(isNative() ? localStorage : sessionStorage)
-    Main->>RT: runtime.boot.initAppRuntime({ data: { repositories } })
+    Main->>Main: plain medium = isNative() ? webLocal : webSession · setStorageAdapter
+    Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
+    Main->>RT: runtime.boot.initAppRuntime({ storage, data: { repositories } })
     Main->>Main: pendingNavigationStore.start()
     Main->>Shell: appBridge.notifyWebAppReady()
     Shell-->>Main: capability report (buffered events flush)
@@ -288,8 +290,9 @@ main.tsx
 ├── startLogUploader                                               (owns the only log store)
 ├── syncThemeFromSharedKey
 ├── config.init(webConfigPorts)                                    (before any lazy setting read)
-├── setStorageAdapter(isNative() ? localStorage : sessionStorage)
-├── runtime.boot.initAppRuntime(...)                               (before any session read)
+├── plain medium (isNative() ? webLocal : webSession) → setStorageAdapter
+├── vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage — the rest waits
+├── runtime.boot.initAppRuntime({ storage, ... })                  (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)
 ├── appBridge.notifyWebAppReady() → runtime.boot.setNativeCacheSupport

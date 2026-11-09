@@ -49,7 +49,10 @@
 // 2.20.0: a sub WebView page may send GetSubWebViewPermission and RequestSubWebViewPermission, to ask
 //         the OS for the camera or the microphone before it captures, and OpenSettings; SETTINGS_ERROR
 //         joins the page error codes.
-export const BRIDGE_VERSION = '2.20.0' as const;
+// 2.21.0: added StorageGet, StorageSave and StorageClear (web -> app) — a storage medium the shell keeps
+//         for the web, the device vault (`nativeSecure`) first; a shell that keeps one lists it in
+//         `window.CHATIC_APP_STORAGE_MEDIA`.
+export const BRIDGE_VERSION = '2.21.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

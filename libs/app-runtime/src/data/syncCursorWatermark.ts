@@ -14,8 +14,8 @@
  * because clearing at boot means building the data runtime before the native shell has said which
  * cache types it can store, which would fix the routing wrongly for the whole session.
  *
- * Kept in `localStorage` outside the `@` namespace the logout sweep clears — a watermark from before a
- * logout is still true about the cursors it covers.
+ * Kept in `localStorage` under a key the logout sweep never clears — a watermark from before a logout
+ * is still true about the cursors it covers.
  */
 const PENDING_KEY = 'chatic.syncCursors.resetPending';
 const VALID_AFTER_KEY = 'chatic.syncCursors.validAfter';

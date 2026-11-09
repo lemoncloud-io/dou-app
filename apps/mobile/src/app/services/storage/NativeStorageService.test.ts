@@ -1,7 +1,7 @@
 import type { IKeyValueStorage, ISqliteDatabase } from '../../database/types';
 import { TABLES } from '../../database/sqlite/tables';
 import type { ILogService } from '../log';
-import { NativeStorageService } from './NativeStorageService';
+import { NativeStorageService, VAULT_SUMMARY_NAME } from './NativeStorageService';
 
 const logService = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() } as unknown as ILogService;
 
@@ -93,9 +93,28 @@ describe('NativeStorageService', () => {
             expect(summary.mmkv).toEqual([
                 { name: 'config:ui.language', count: 1, bytes: 4 },
                 { name: 'theme', count: 1, bytes: 6 },
+                { name: VAULT_SUMMARY_NAME, count: 0, bytes: 0, error: 'unavailable' },
             ]);
             expect(summary.unrecoverableTables).toEqual([TABLES.INVITE_CLOUDS]);
             expect(summary.keptTables).toEqual([TABLES.INVITES]);
+        });
+    });
+
+    describe('summarize — device vault', () => {
+        it('reports the vault key count with no size', async () => {
+            const service = new NativeStorageService(logService, createDatabase({}), createStorage({}), () => 3);
+
+            const summary = await service.summarize();
+
+            expect(summary.mmkv).toEqual([{ name: VAULT_SUMMARY_NAME, count: 3, bytes: 0 }]);
+        });
+
+        it('marks the vault unavailable when it has no count', async () => {
+            const service = new NativeStorageService(logService, createDatabase({}), createStorage({}), () => null);
+
+            const summary = await service.summarize();
+
+            expect(summary.mmkv).toEqual([{ name: VAULT_SUMMARY_NAME, count: 0, bytes: 0, error: 'unavailable' }]);
         });
     });
 

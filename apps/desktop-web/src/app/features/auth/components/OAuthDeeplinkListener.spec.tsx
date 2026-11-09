@@ -43,7 +43,7 @@ vi.mock('@chatic/config', () => ({
     config: { get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined) },
 }));
 
-import { setStorageAdapter } from '@chatic/shared';
+import { setStorageAdapter } from '@chatic/storage';
 
 import i18n from '../../../../i18n';
 import { useSocialLogin } from '../hooks';

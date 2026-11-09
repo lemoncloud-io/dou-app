@@ -76,8 +76,17 @@ export class AppBridgeHost implements IAppBridgeHost {
      * phase — long before the web app can receive events. Treating them as the
      * readiness signal flushes buffered events (e.g. a cold-start OnNavigate) into
      * a page with no listeners, where they are silently lost.
+     *
+     * The storage requests are on the list for the same reason: the web loads the device vault before
+     * its runtime boots and before anything listens, so the first of them arrives well ahead of
+     * `WebAppReady`.
      */
-    private static readonly NON_READINESS_MESSAGE_TYPES = new Set(['SendLog']);
+    private static readonly NON_READINESS_MESSAGE_TYPES = new Set([
+        'SendLog',
+        'StorageGet',
+        'StorageSave',
+        'StorageClear',
+    ]);
 
     private protocol: MessageProtocol;
     private sendToWeb: (message: string) => void;

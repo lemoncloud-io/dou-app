@@ -293,7 +293,7 @@ The detail lives under [`docs/`](./docs/README.md), in seven categories. Each ca
 | [docs/boot/](./docs/boot/README.md)       | Why the WebView mounts early, what is deferred, and the boot timeline that proves it                               |
 | [docs/native/](./docs/native/README.md)   | The three-way native parity contract, and the execution boundary in `services/`                                    |
 | [docs/push/](./docs/push/README.md)       | FCM/APNs registration, notification channels, click routing, and the app icon badge                                |
-| [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, and resumable file upload                                     |
+| [docs/storage/](./docs/storage/README.md) | SQLite and MMKV persistence, the local data sources, the device vault, and resumable file upload                   |
 | [docs/system/](./docs/system/README.md)   | OS-level state shared with the web — theme sync and deep links                                                     |
 | [docs/release/](./docs/release/README.md) | Store builds, the launch-time update check, and running against a local web dev server                             |
 

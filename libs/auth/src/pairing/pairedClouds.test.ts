@@ -1,13 +1,17 @@
-import { setStorageAdapter } from '@chatic/shared';
+import { sessionMedia } from '@chatic/session/store/ports';
 
 import { PairedCloudStore, pairedClouds } from './pairedClouds';
 
 const store = new Map<string, string>();
-setStorageAdapter({
-    getItem: key => store.get(key) ?? null,
-    setItem: (key, value) => void store.set(key, value),
-    removeItem: key => void store.delete(key),
-});
+// One map behind both session ports — these tests are about the list, not which port holds it.
+const medium = {
+    get: (key: string) => store.get(key) ?? null,
+    set: (key: string, value: string) => void store.set(key, value),
+    remove: (key: string) => void store.delete(key),
+    clear: () => store.clear(),
+    keys: () => [...store.keys()],
+};
+sessionMedia.configure({ secret: medium, plain: medium });
 
 beforeEach(() => store.clear());
 
@@ -67,18 +71,18 @@ describe('PairedCloudStore', () => {
     });
 
     it('keeps its list in the storage it was given, apart from the shared instance', () => {
-        const own = new Map<string, string>();
+        let own: string | null = null;
         const list = new PairedCloudStore({
-            get: key => own.get(key) ?? null,
-            set: (key, value) => void own.set(key, value),
-            remove: key => void own.delete(key),
+            read: () => own,
+            write: raw => void (own = raw),
+            clear: () => void (own = null),
         });
         const heard: Array<readonly string[]> = [];
         list.subscribe(ids => heard.push(ids));
 
         list.add('1000002');
 
-        expect(own.get('chatic-paired-cloud-ids')).toBe('["1000002"]');
+        expect(own).toBe('["1000002"]');
         expect(pairedClouds.list()).toEqual([]);
         expect(heard).toEqual([['1000002']]);
     });

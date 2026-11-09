@@ -47,7 +47,7 @@ vi.mock('@chatic/config', () => ({
 }));
 
 import i18n from '../../../../i18n';
-import { setStorageAdapter } from '@chatic/shared';
+import { setStorageAdapter } from '@chatic/storage';
 
 import { OAUTH_LOGIN_START_TTL_MS, saveOAuthLoginStart, takeOAuthLoginStart, takeSignInNotice } from '../utils';
 import { selectAttemptBusy, useOAuthAttemptStore } from '../stores/useOAuthAttemptStore';

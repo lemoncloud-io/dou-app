@@ -1,7 +1,7 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import { storage } from '@chatic/shared';
-import { JsonSlot, type StorageLike } from './jsonSlot';
+import { JsonSlot } from './jsonSlot';
+import { plainPort, secretPort, type StoragePortPair } from './ports';
 import { sessionSignal, type ISessionSignal } from './signal';
 
 /**
@@ -49,11 +49,15 @@ class RelayStore implements IRelayStore {
     private resolveWss: EndpointResolver = notConfigured('wss');
     private readonly token: JsonSlot<UserTokenView>;
 
+    // The token signs as the user, so it goes to the secret port; the selection does not.
+    private readonly storage: StoragePortPair['plain'];
+
     constructor(
-        private readonly storage: StorageLike,
+        ports: StoragePortPair,
         private readonly signal: ISessionSignal
     ) {
-        this.token = new JsonSlot(storage, RELAY_TOKEN_KEY);
+        this.storage = ports.plain;
+        this.token = new JsonSlot(ports.secret, RELAY_TOKEN_KEY);
     }
 
     configureEndpoints(resolvers: { backend: EndpointResolver; wss: EndpointResolver }): void {
@@ -102,4 +106,4 @@ class RelayStore implements IRelayStore {
     }
 }
 
-export const relayStore: IRelayStore = new RelayStore(storage, sessionSignal);
+export const relayStore: IRelayStore = new RelayStore({ secret: secretPort, plain: plainPort }, sessionSignal);

@@ -21,34 +21,34 @@
     "include": ["src/**/*.ts"],
     "references": [
         {
-            "path": "../bridge-messages/tsconfig.lib.json"
+            "path": "../perf/tsconfig.lib.json"
         },
         {
             "path": "../auth-sign/tsconfig.lib.json"
         },
         {
-            "path": "../bridges/tsconfig.lib.json"
-        },
-        {
             "path": "../config/tsconfig.lib.json"
         },
         {
-            "path": "../data/tsconfig.lib.json"
+            "path": "../bridge-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../storage/tsconfig.lib.json"
         },
         {
             "path": "../http/tsconfig.lib.json"
         },
         {
-            "path": "../perf/tsconfig.lib.json"
-        },
-        {
-            "path": "../session/tsconfig.lib.json"
-        },
-        {
-            "path": "../shared/tsconfig.lib.json"
+            "path": "../data/tsconfig.lib.json"
         },
         {
             "path": "../transport/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../session/tsconfig.lib.json"
         }
     ]
 }

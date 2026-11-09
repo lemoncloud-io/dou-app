@@ -30,11 +30,13 @@ the deep form.
 libs/session/src/
 ├── index.ts                 the package barrel
 ├── store/    13 files ·  7 tests  relay · cloud · identity tokens, selection, derived contexts, credential freshness
+│   └── ports/  6 files ·  1 test   the secret and plain ports, their key list, and the media behind them
 └── scope/     3 files ·  1 test   ActiveScope — the three views, and the DataContextProvider
 ```
 
 `store/index.ts` re-exports only `contextStore`, `contexts`, `signal` and `types` — what a reader
-needs. The package barrel adds the raw stores, `configureSessionStore`,
+needs. The package barrel adds the raw stores, `configureSessionStore`, the ports' surface
+(`sessionMedia`, `SESSION_KEYS`, `isSessionKey`, `pairedCloudsSlot`),
 `msUntilExpiration`, `credentialFreshness` and the scope, for the runtime modules that write or
 measure the session.
 
@@ -69,7 +71,8 @@ inside `data`, which is a leaf and cannot import this package.
 
 Each store is a class taking `(storage, signal)` in its constructor — so a test can build one over a
 fake storage — and each is exported only as a singleton alongside its `I*Store` interface. The
-implementation classes are not exported.
+implementation classes are not exported. `relayStore` and `cloudStore` take a pair of storages, one
+per port (below), because each writes both kinds of key.
 
 | Store           | Interface        | Keys                                                                                                                                                                                                                           |
 | --------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -80,9 +83,40 @@ implementation classes are not exported.
 The keys stay in the file of the store that reads and writes them rather than moving to a shared
 `constants.ts`: a storage key is that class's persistence contract, and nothing else may touch it.
 
-`IIdentityStore` has exactly three members — `getDelegatorId`, `setDelegatorId`, `setDeviceId`.
-**There is no `getDeviceId`**: the device id is read back through the derived identity context, not
-off the store.
+`IIdentityStore` has four members — `getDelegatorId`, `setDelegatorId`, `getDeviceId`,
+`setDeviceId`. `getDeviceId` is the page's own id, which app-runtime's `useDynamicDeviceId` reads and
+makes on first use; an app or desktop shell injects an id of its own that wins over it.
+
+### Two ports: secret and plain
+
+The stores do not hold a storage of their own. They hold two **ports** that the session declares in
+[`store/ports/`](./src/store/ports/index.ts), and each app's entry point decides which medium
+([`@chatic/storage`](../storage/README.md)) backs each port in its environment, passing them to
+`initAppRuntime({ storage })`, which calls `sessionMedia.configure`.
+
+| Port     | Keys                                                                                                                                                                                                                                                |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `secret` | `chatic-relay-token` · `chatic-cloud-delegation-token` · `chatic-cloud-token` · `chatic-cloud-token-cache`                                                                                                                                          |
+| `plain`  | `chatic-relay-selected-site-id` · `chatic-selected-cloud-id` · `chatic-selected-place-id` · `chatic-cloud-identities` · `chatic-recent-clouds` · `chatic-reclaimed-clouds` · `chatic-delegator-id` · `chatic-device-id` · `chatic-paired-cloud-ids` |
+
+The split is by what a value would cost if it leaked: whoever holds a `secret` key signs as the user.
+`chatic-paired-cloud-ids` is written by `@chatic/auth`'s `PairedCloudStore`, but it lives and dies
+with the session, so the session declares it and hands auth that one key (`pairedCloudsSlot`), not
+the plain port — nothing outside may write the session's other keys.
+`chatic-secret-logout-pending` is in the plain list too: a logout whose vault clear was not confirmed
+leaves it, and the next boot empties the vault before reading it. `SESSION_KEYS` is that table in code, and `isSessionKey(key)` is how anything outside — the debug
+storage screen, through `runtime.session` — asks whether a key is the session's instead of keeping a
+copy of the list.
+
+Until `configure` runs, both ports are this tab's `sessionStorage` — the browser's answer, and the
+one the landing site and the testbed keep, since they never configure them. The stores reach the
+ports through forwarding objects, so they can be built at import while the media are chosen at boot.
+
+| Where                                                     | `secret`                   | `plain`          |
+| --------------------------------------------------------- | -------------------------- | ---------------- |
+| `apps/web`, `apps/desktop-web` in a shell with a vault    | `nativeSecure` (the vault) | `localStorage`   |
+| `apps/web` in a phone shell from before the vault         | `localStorage`             | `localStorage`   |
+| a browser, `apps/admin-v2`, the landing site, the testbed | `sessionStorage`           | `sessionStorage` |
 
 `cloudStore` answers for more than the committed cloud. `getCloudTokenOf(cid)` is the store's own
 token while `cid` is committed and the cache entry otherwise; `peekCachedCloudTokens(cid)` reads the

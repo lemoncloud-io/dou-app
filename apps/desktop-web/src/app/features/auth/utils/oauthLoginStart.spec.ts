@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { storage } from '@chatic/shared';
+import { storage } from '@chatic/storage';
 
 import {
     OAUTH_LOGIN_START_TTL_MS,

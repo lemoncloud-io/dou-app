@@ -46,8 +46,6 @@ describe('sealLemonTransport', () => {
         const bundle = sealLemonTransport(fake.transport);
 
         await bundle.startInit();
-        await bundle.hasStoredSession();
-        await bundle.isStoredSessionExpired();
 
         expect(fake.init).not.toHaveBeenCalled();
         expect(fake.isAuthenticated).not.toHaveBeenCalled();
@@ -102,16 +100,5 @@ describe('sealLemonTransport', () => {
         await bundle.startInit();
 
         expect(fake.initLemonConfig).toHaveBeenCalledTimes(2);
-    });
-
-    it('the session probes are read-only storage reads', async () => {
-        const fake = createFake();
-        fake.hasCachedToken.mockResolvedValue(true);
-        fake.shouldRefreshToken.mockResolvedValue(true);
-        const bundle = sealLemonTransport(fake.transport);
-
-        await expect(bundle.hasStoredSession()).resolves.toBe(true);
-        await expect(bundle.isStoredSessionExpired()).resolves.toBe(true);
-        expect(fake.buildCredentialsByStorage).not.toHaveBeenCalled();
     });
 });

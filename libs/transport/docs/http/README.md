@@ -69,12 +69,17 @@ The instance is built lazily on first use and read from `@chatic/config` at that
 module load, so importing this module does nothing — which is what keeps the SDK out of test runs
 that do not want it. **Two instances would split the session**, because the lemon token storage lives
 inside the instance, so `@chatic/http` exposes a factory with no module state and this file is its
-only caller.
+only caller. `resetWebTransportInit()` rides alongside it, for logout.
 
-Three things ride alongside it, and all three are read-only: `hasStoredRelaySession()` (does a
-session exist), `isStoredSessionExpired()` (has the stored horizon passed) and
-`resetWebTransportInit()` (used by logout). **Neither probe refreshes anything**, which is the
-property that makes them safe to call from a guard.
+**lemon-web-core is a signer, not a store.** Its credential bundle lives in a memory medium
+(`lemonStorage()`, handed to the SDK as `asDomStorage(medium)`) in every environment, so nothing of
+lemon survives a page. The relay token in the session is the one persisted copy, and
+`RelaySession.initialize()` rebuilds lemon's credentials from it on every boot. Before this, lemon kept
+a second copy of the credential in web storage, with an expiry clock of its own that disagreed with the
+credential's, and the "is there a session" and "has it expired" probes read that copy; both now read
+the session (`@chatic/auth`'s `relayCredentialProbe`). `lemonKeyPrefix()` returns the `@<project>.`
+prefix every key the SDK writes starts with, computed from config without building the SDK — what the
+cleanup of a bundle older builds left in web storage looks for.
 
 `startWebTransportInit()` is the boot — lemon's `init` minus its own refresh, single-flighted. It is
 awaited by `useRelaySessionInit` inside the host, which is the single init driver. It stays on the

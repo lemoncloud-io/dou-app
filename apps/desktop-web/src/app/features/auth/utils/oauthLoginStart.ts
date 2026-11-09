@@ -1,4 +1,4 @@
-import { storage } from '@chatic/shared';
+import { storage } from '@chatic/storage';
 
 import type { OAuthDeeplinkPayload } from './oauth';
 

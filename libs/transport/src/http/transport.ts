@@ -1,6 +1,6 @@
-import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { createLemonWebTransport } from '@chatic/http';
+import { asDomStorage, type KeyValueStore, MemoryMedium } from '@chatic/storage';
 
 import type { SealedWebTransport, SealedWebTransportBundle } from '@chatic/http';
 
@@ -35,22 +35,44 @@ import type { SealedWebTransport, SealedWebTransportBundle } from '@chatic/http'
  * boot will formalize.
  */
 let bundle: SealedWebTransportBundle | null = null;
+let lemonMedium: KeyValueStore | null = null;
+
+/**
+ * The lemon project id, suffixed for a local build. `env.stage` (not `env.buildStage`) on purpose —
+ * this mirrors the injection-aware value `WEB_ENV` always read, and picking a lemon project suffix
+ * for local debugging is not a security decision (contrast `debug.*`'s use of `buildStage`).
+ */
+const lemonProject = (): string => {
+    const stage = config.get<string>('env.stage') ?? 'LOCAL';
+    const project = config.get<string>('env.project') ?? '';
+    return stage === 'LOCAL' ? `${project}_local` : project;
+};
+
+/**
+ * The medium lemon-web-core keeps its credential bundle in: memory, in every environment. lemon is a
+ * signer here, not a store — the relay token in the session is the one persisted copy, and
+ * `RelaySession.initialize()` rebuilds lemon's credentials from it on every page. Built once: the SDK
+ * and anything that clears it must see the same medium.
+ */
+export const lemonStorage = (): KeyValueStore => {
+    lemonMedium ??= new MemoryMedium();
+    return lemonMedium;
+};
+
+/**
+ * The prefix of every key lemon-web-core writes: it names them `@<project>.<name>`, and only the
+ * project is ours. Read without building the SDK. What uses it is the cleanup of the bundle older
+ * builds left in web storage.
+ */
+export const lemonKeyPrefix = (): string => `@${lemonProject()}.`;
 
 const getBundle = (): SealedWebTransportBundle => {
     if (!bundle) {
-        // `env.stage` (not `env.buildStage`) on purpose — this mirrors the injection-aware value
-        // `WEB_ENV` always read, and picking a lemon project suffix for local debugging is not a
-        // security decision (contrast `debug.*`'s use of `buildStage`).
-        const stage = config.get<string>('env.stage') ?? 'LOCAL';
-        const project = config.get<string>('env.project') ?? '';
         bundle = createLemonWebTransport({
-            project: stage === 'LOCAL' ? `${project}_local` : project,
+            project: lemonProject(),
             oAuthEndpoint: config.get<string>('net.oauth.endpoint') ?? '',
             region: config.get<string>('env.region') ?? 'ap-northeast-2',
-            // `usePersistentWebStorage` was always "are we hosted inside a native/desktop shell" —
-            // exactly what `isNative()` already answers (it checks the same window handles plus the
-            // webkit message-handler path), so no separate detector is needed.
-            storage: isNative() ? localStorage : sessionStorage,
+            storage: asDomStorage(lemonStorage()),
         });
     }
     return bundle;
@@ -75,9 +97,3 @@ export const startWebTransportInit = (): Promise<void> => getBundle().startInit(
 
 /** Forces the next `startWebTransportInit()` to run again — used by logout. */
 export const resetWebTransportInit = (): void => getBundle().resetInit();
-
-/** Read-only session-EXISTENCE probe. Never refreshes. */
-export const hasStoredRelaySession = (): Promise<boolean> => getBundle().hasStoredSession();
-
-/** Read-only staleness probe. Never refreshes — the socket `AuthController` owns that. */
-export const isStoredSessionExpired = (): Promise<boolean> => getBundle().isStoredSessionExpired();

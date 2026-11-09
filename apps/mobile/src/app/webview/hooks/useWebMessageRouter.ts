@@ -28,6 +28,7 @@ import {
     useResumeOverlay,
     useCustomZipHandler,
     useNativeStorageHandler,
+    useSecureStorageHandler,
     usePerfHandler,
     useUnfurlHandler,
     useSubWebViewHandler,
@@ -169,6 +170,7 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
     const { handleApplyCustomZip, handleDisableCustomZip, handleFetchCustomZipStatus } = useCustomZipHandler();
     const { handleFetchUrlMetadata } = useUnfurlHandler();
     const { handleFetchNativeStorageSummary, handleClearNativeCache } = useNativeStorageHandler();
+    const { handleStorageGet, handleStorageSave, handleStorageClear } = useSecureStorageHandler();
     const { handleOpenSubWebView, handleCloseSubWebView } = useSubWebViewHandler(bridge);
 
     const {
@@ -246,6 +248,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
         handleFetchCustomZipStatus,
         handleFetchNativeStorageSummary,
         handleClearNativeCache,
+        handleStorageGet,
+        handleStorageSave,
+        handleStorageClear,
         handleStartFileTransfer,
         handleCancelFileTransfer,
         handleListFileTransfers,
@@ -345,6 +350,9 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             handleFetchCustomZipStatus,
             handleFetchNativeStorageSummary,
             handleClearNativeCache,
+            handleStorageGet,
+            handleStorageSave,
+            handleStorageClear,
             handleFetchTestRecord,
             handleFetchAllTestRecords,
             handleSaveTestRecord,
@@ -461,6 +469,10 @@ export const useWebMessageRouter = ({ bridge }: UseWebMessageRouterProps) => {
             FetchCustomZipStatus: message => handlersRef.current.handleFetchCustomZipStatus(message),
             FetchNativeStorageSummary: message => handlersRef.current.handleFetchNativeStorageSummary(message),
             ClearNativeCache: message => handlersRef.current.handleClearNativeCache(message),
+            // The device vault. Main WebView only: the sub WebView's host never registers these.
+            StorageGet: message => handlersRef.current.handleStorageGet(message),
+            StorageSave: message => handlersRef.current.handleStorageSave(message),
+            StorageClear: message => handlersRef.current.handleStorageClear(message),
             SetDebugMode: message => handlersRef.current.handleSetDebugMode(message),
             FetchUrlMetadata: message => handlersRef.current.handleFetchUrlMetadata(message),
             OpenSubWebView: message => handlersRef.current.handleOpenSubWebView(message),

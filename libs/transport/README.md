@@ -64,5 +64,5 @@ npx jest --config libs/transport/jest.config.js
 npx tsc -b libs/transport/tsconfig.json
 ```
 
-The jest config maps `@chatic/assets`, styles and images the way app-runtime's does: the session
-stores read `storage` from the `@chatic/shared` barrel, and that barrel carries React components.
+The jest config maps `@chatic/assets`, styles and images the way app-runtime's does: modules this
+lib reaches still import the `@chatic/shared` barrel, and that barrel carries React components.

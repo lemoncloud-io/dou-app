@@ -231,17 +231,18 @@ bound to the page.
 
 ```text
 libs/bridges/src/
-├── index.ts       barrel — common · web · app · provider · logger · version
+├── index.ts       barrel — common · web · app · provider · logger · version · storage
 ├── provider.ts    webClient: the one WebBridgeClient, timeoutMs 15000
 ├── version.ts     BRIDGE_VERSION · BRIDGE_VERSION_INFO
 ├── common/        JsonProtocol, MessageQueue, isNative, the message/adapter types
 ├── web/           WebBridgeClient + adapters/ (NativeBridgeAdapter, InMemoryAdapter)
 ├── app/           AppBridgeHost + IAppBridgeHost
-└── logger/        the web→native relay, and the @chatic/logger re-export
+├── logger/        the web→native relay, and the @chatic/logger re-export
+└── storage/       BridgeStorageChannel (StorageGet · StorageSave · StorageClear), shellKeepsStorageMedium
 ```
 
-22 production files, 6 spec files, 3,833 lines. The barrel exports 14 runtime values of its own — 5
-classes and 9 constants — plus 12 interfaces, 6 type aliases, and everything `@chatic/logger`
+26 production files, 7 spec files, 4,116 lines. The barrel exports 16 runtime values of its own — 6
+classes, 9 constants and a function — plus 13 interfaces, 6 type aliases, and everything `@chatic/logger`
 exports.
 
 Names you would not find by guessing at a filename:
@@ -370,7 +371,7 @@ is what these samples measure, before anything is built to prevent it (ADR-0167)
 web runtime                             apps/web · apps/desktop-web · apps/admin-v2
   └─ webClient                          libs/bridges/src/provider.ts — module singleton
        ├─ new NativeBridgeAdapter()     binds window+document 'message' on first subscribe
-       ├─ version  BRIDGE_VERSION ('2.20.0')
+       ├─ version  BRIDGE_VERSION ('2.21.0')
        ├─ timeoutMs 15000               overrides the class default of 10000
        └─ pendingBuffer new MessageQueue()
   └─ setupBridgeLogger()                apps/web/src/main.tsx — no-op unless isNative()
@@ -566,7 +567,7 @@ npx nx run-many -t typecheck --exclude=block-kit-builder,@chatic/mobile,chatic-d
 
 ## Versioning
 
-`BRIDGE_VERSION` in `version.ts` is `2.20.0` and `package.json` says `2.1.0`. They are different
+`BRIDGE_VERSION` in `version.ts` is `2.21.0` and `package.json` says `2.1.0`. They are different
 numbers on purpose: the package version is npm's, and `BRIDGE_VERSION` is the runtime protocol the
 WebView contract speaks. There is one protocol constant; `BRIDGE_VERSION_INFO` carries it twice, as
 `bridgeVersion` and `protocolVersion`, because the web's debug screen prints both rows.

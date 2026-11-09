@@ -67,25 +67,13 @@ export interface SealedWebTransportBundle {
     transport: SealedWebTransport;
     /**
      * `transport.init()` minus its internal refresh, single-flighted. Resolves once the lemon config
-     * keys are seeded and the in-memory credentials are rebuilt from storage.
+     * keys are seeded and, when lemon's store holds a bundle, the in-memory credentials are rebuilt from
+     * it. The app hands lemon a memory store, which is empty on every boot, so in practice the caller
+     * rebuilds the credentials from the session's relay token instead.
      */
     startInit(): Promise<void>;
     /** Test/logout seam — forces the next `startInit()` to run again. */
     resetInit(): void;
-    /**
-     * Read-only: whether a relay session bundle is persisted. This is the boot "am I logged in"
-     * question — session EXISTENCE. Credential validity is deliberately not part of it: stale
-     * credentials recover through the socket refresh writeback (or `requestRelaySessionRefresh`), and
-     * flipping this to false on staleness would bounce a returning user to login over a recoverable
-     * state.
-     */
-    hasStoredSession(): Promise<boolean>;
-    /**
-     * Read-only: whether the persisted credentials are past lemon's refresh horizon. Unlike
-     * `isAuthenticated()` this NEVER fires a refresh — callers that find it true ask the refresh
-     * owner instead (app-runtime `requestRelaySessionRefresh`).
-     */
-    isStoredSessionExpired(): Promise<boolean>;
 }
 
 /**
@@ -134,8 +122,6 @@ export const sealLemonTransport = (transport: LemonWebTransport): SealedWebTrans
             initDone = false;
             pendingInit = null;
         },
-        hasStoredSession: () => transport.getTokenStorage().hasCachedToken(),
-        isStoredSessionExpired: () => transport.getTokenStorage().shouldRefreshToken(),
     };
 };
 

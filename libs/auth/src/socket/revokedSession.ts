@@ -11,7 +11,7 @@ import { relaySession } from '../session/relaySession';
  * switch — is relay-signed, so it 403s too. The session is over; only a new one works.
  *
  * Without this verdict the runtime treats a revoked session as an authenticated one, because
- * `isAuthenticated` is a session-EXISTENCE probe (`hasStoredRelaySession`): the dead token is still
+ * `isAuthenticated` is a session-EXISTENCE probe (`relayCredentialProbe.hasSession`): the dead token is still
  * in the store, so `useRelaySessionKeepAlive` never re-logs in and every screen shows its own
  * generic failure ("Couldn't switch cloud. Try again.") while nothing recovers. The session ends
  * some 30s later anyway, through `RelayCredentialRenewer.onTerminalExpiry`, but with no attribution

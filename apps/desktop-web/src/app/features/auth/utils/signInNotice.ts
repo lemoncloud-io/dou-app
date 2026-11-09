@@ -1,4 +1,4 @@
-import { storage } from '@chatic/shared';
+import { storage } from '@chatic/storage';
 
 /**
  * What the app says once a Google sign-in has landed. A sign-in that replaces a session reloads the

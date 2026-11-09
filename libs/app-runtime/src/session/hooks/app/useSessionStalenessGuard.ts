@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { logger } from '@chatic/bridges';
-import {
-    hasStoredRelaySession,
-    isStoredSessionExpired,
-    RELAY_SLOT,
-    SDK_REFRESH_CYCLE_MS,
-    isLinkKnownDown,
-} from '@chatic/transport';
+import { RELAY_SLOT, SDK_REFRESH_CYCLE_MS, isLinkKnownDown } from '@chatic/transport';
 
 import { useSlotVerified } from '../../../connection/hooks/useSlotVerified';
-import { canRefreshThroughSocket, getAuthStatus, credentialRenewers, Coalescer, Throttle } from '@chatic/auth';
+import {
+    canRefreshThroughSocket,
+    getAuthStatus,
+    credentialRenewers,
+    Coalescer,
+    relayCredentialProbe,
+    Throttle,
+} from '@chatic/auth';
 
 /**
  * Keeps the relay HTTP signing credentials fresh, as one hook instead of two app-local copies.
@@ -36,7 +37,7 @@ import { canRefreshThroughSocket, getAuthStatus, credentialRenewers, Coalescer, 
  * created to stop (admin-v2 had one).
  *
  * Two properties are NOT configurable, because they are the reason the guard exists:
- *  - **The probe never refreshes.** `isStoredSessionExpired` is a read-only storage check. The
+ *  - **The probe never refreshes.** `relayCredentialProbe` reads the session and nothing else. The
  *    tempting `webTransport.isAuthenticated()` fires lemon-web-core's own HTTP refresh — a second
  *    refresh engine that updates only the lemon store and leaves the socket's signing material
  *    stale, which is the signature-error divergence this whole ADR is unwinding.
@@ -76,18 +77,18 @@ export interface SessionStalenessPolicy {
     /** Ran after `consecutiveFailureLimit` definitive failures. Omit to never tear down. */
     onTeardown?: () => Promise<void> | void;
     /**
-     * Refresh ahead of the stored-session expiry horizon when the CREDENTIAL is running out.
+     * Refresh ahead of expiry when the CREDENTIAL is running out.
      *
-     * `isStoredSessionExpired` alone leaves a real hole at boot: the socket handshake's `auth.update`
+     * The expiry check alone leaves a real hole at boot: the socket handshake's `auth.update`
      * reply carries no token (the SDK only emits one from `refresh`/`switch`), so the first writeback
      * lands one refresh cycle after connect — 5 minutes with `AUTH_OPTIONS.refreshIntervalMs`, because
      * the server does not report `expiresIn` yet. Until then relay-signed HTTP runs on whatever the
      * store had, which is exactly the credential that 403s after a long sleep.
      *
      * **It asks the credential now, instead of refreshing blind.** This used to fire on every edge
-     * regardless — the stored probe reads lemon's `expired_time`, which the two clocks make unreliable
-     * (a refresh that updated the token but carried no credential leaves it fresh while the signing
-     * material is dead), so the hole was papered over by never trusting it. The better clock was
+     * regardless — the expiry probe then read lemon's `expired_time`, a second clock that disagreed with
+     * the credential's (a refresh that updated the token but carried no credential left it fresh while
+     * the signing material was dead), so the hole was papered over by never trusting it. The better clock was
      * already in the repo: `credentialFreshness` reads the relay credential's own `Expiration`, the
      * thing that actually signs. Measuring it closes the same hole and stays quiet the rest of the
      * time — a credential minted minutes ago is not refreshed just because the tab came back.
@@ -161,11 +162,14 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
         };
 
         try {
-            if (!(await hasStoredRelaySession())) {
+            if (!relayCredentialProbe.hasSession()) {
                 if (missingSessionCountsAsFailure) await registerFailure();
                 return;
             }
-            const expired = await isStoredSessionExpired();
+            // The relay credential's own clock. lemon-web-core's stored-session clock used to be read
+            // here; lemon keeps nothing between pages any more, and the two clocks disagreed exactly
+            // when a refresh carried a token but no credential. Nothing to measure counts as expired.
+            const expired = relayCredentialProbe.isCredentialExpired();
             // Steady state while the socket writeback keeps the store ahead of expiry — unless the
             // caller opted into a preemptive refresh, which the cooldown keeps to one per minute.
             const now = Date.now();

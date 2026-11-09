@@ -101,6 +101,9 @@
         },
         {
             "path": "./apps/shell-adapter"
+        },
+        {
+            "path": "./libs/storage"
         }
     ]
 }

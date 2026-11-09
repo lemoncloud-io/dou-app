@@ -41,7 +41,6 @@ const mockLoggerWarn = jest.fn();
 jest.mock('@chatic/transport/http/transport', () => ({
     startWebTransportInit: jest.fn(),
     resetWebTransportInit: jest.fn(),
-    hasStoredRelaySession: jest.fn(),
     webTransport: {
         setUseXLemonLanguage: jest.fn(),
         isAuthenticated: jest.fn(),

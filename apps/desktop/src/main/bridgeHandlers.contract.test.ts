@@ -171,6 +171,9 @@ const SAMPLE_REQUESTS: Partial<{ [K in WebMessageType]: WebMessagePayloadMap[K] 
     SetBadgeCount: { count: 3 },
     StartUpdateDownload: {},
     RestartToUpdate: {},
+    StorageGet: { medium: 'nativeSecure' },
+    StorageSave: { medium: 'nativeSecure', set: { token: 'abc' }, remove: ['old'] },
+    StorageClear: { medium: 'nativeSecure' },
 };
 
 const VOCABULARY = Object.keys(WEB_MESSAGE_RESPONSE_TYPE) as WebMessageType[];
@@ -180,6 +183,11 @@ const createDeps = (): jest.Mocked<DesktopBridgeDeps> => ({
     showNotification: jest.fn(),
     awaitFcmToken: jest.fn(() => Promise.resolve('fcm-token')),
     setBadgeCount: jest.fn<boolean, [number, string?]>(() => true),
+    secureStorage: {
+        get: jest.fn(() => Promise.resolve({ status: 'available' as const, values: { token: 'abc' } })),
+        save: jest.fn(() => Promise.resolve(true)),
+        clear: jest.fn(() => Promise.resolve(true)),
+    },
 });
 
 /**
@@ -354,5 +362,69 @@ describe('desktop bridge handlers', () => {
 
         expect(deps.setBadgeCount).toHaveBeenCalledWith(4, 'data:image/png;base64,AA==');
         expect(reply).toEqual(expect.objectContaining({ data: { success: took } }));
+    });
+
+    describe('device vault (nativeSecure)', () => {
+        it('answers StorageGet with the vault snapshot', async () => {
+            const reply = await createShell().send('StorageGet', { medium: 'nativeSecure' });
+
+            expect(reply).toEqual(
+                expect.objectContaining({ success: true, data: { status: 'available', values: { token: 'abc' } } })
+            );
+        });
+
+        it('passes set and remove to the vault and reports whether the write landed', async () => {
+            const deps = createDeps();
+            (deps.secureStorage.save as jest.Mock).mockResolvedValue(false);
+
+            const reply = await createShell(deps).send('StorageSave', {
+                medium: 'nativeSecure',
+                set: { a: '1' },
+                remove: ['b'],
+            });
+
+            expect(deps.secureStorage.save).toHaveBeenCalledWith({ a: '1' }, ['b']);
+            expect(reply).toEqual(expect.objectContaining({ success: true, data: { ok: false } }));
+        });
+
+        it('answers StorageClear once the vault is cleared', async () => {
+            const deps = createDeps();
+
+            const reply = await createShell(deps).send('StorageClear', { medium: 'nativeSecure' });
+
+            expect(deps.secureStorage.clear).toHaveBeenCalled();
+            expect(reply).toEqual(expect.objectContaining({ success: true, data: { ok: true } }));
+        });
+
+        it.each(['StorageGet', 'StorageSave', 'StorageClear'] as const)(
+            'refuses %s for a medium the shell does not keep',
+            async type => {
+                const deps = createDeps();
+
+                const reply = await createShell(deps).send(type, { medium: 'localStorage', set: {}, remove: [] });
+
+                expect(reply).toEqual(
+                    expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
+                );
+                expect(deps.secureStorage.get).not.toHaveBeenCalled();
+                expect(deps.secureStorage.save).not.toHaveBeenCalled();
+                expect(deps.secureStorage.clear).not.toHaveBeenCalled();
+            }
+        );
+
+        it('refuses a StorageSave whose values are not strings', async () => {
+            const deps = createDeps();
+
+            const reply = await createShell(deps).send('StorageSave', {
+                medium: 'nativeSecure',
+                set: { a: 1 },
+                remove: [],
+            });
+
+            expect(reply).toEqual(
+                expect.objectContaining({ success: false, error: expect.objectContaining({ code: 'INVALID' }) })
+            );
+            expect(deps.secureStorage.save).not.toHaveBeenCalled();
+        });
     });
 });

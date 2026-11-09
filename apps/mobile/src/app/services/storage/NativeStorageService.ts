@@ -23,8 +23,18 @@ const KEPT_TABLES: readonly string[] = [TABLES.INVITES];
 
 const CACHE_TABLES: readonly string[] = Object.values(TABLES);
 
+/**
+ * The device vault's row in the summary. The summary has no list of its own for it, so it rides at the
+ * end of the MMKV list under a name the shell never uses as an MMKV key. `count` is the number of keys
+ * in the vault; `bytes` stays 0 so the row says nothing about the values.
+ */
+export const VAULT_SUMMARY_NAME = 'vault:nativeSecure';
+
 export interface INativeStorageService {
-    /** Rows and approximate bytes per SQLite table, and bytes per MMKV key. */
+    /**
+     * Rows and approximate bytes per SQLite table, bytes per MMKV key, and how many keys the device
+     * vault holds — its count only, never a value or a size that hints at one.
+     */
     summarize(): Promise<OnFetchNativeStorageSummaryPayload>;
     /**
      * Empties every SQLite cache table except `KEPT_TABLES`; the invited-cloud table only when asked
@@ -45,7 +55,9 @@ export class NativeStorageService implements INativeStorageService {
     constructor(
         private readonly logService: ILogService,
         private readonly database: ISqliteDatabase,
-        private readonly keyValueStorage: IKeyValueStorage
+        private readonly keyValueStorage: IKeyValueStorage,
+        /** The vault's key count, `null` while it is unavailable. */
+        private readonly vaultKeyCount: () => number | null = () => null
     ) {}
 
     public async summarize(): Promise<OnFetchNativeStorageSummaryPayload> {
@@ -56,7 +68,10 @@ export class NativeStorageService implements INativeStorageService {
         const mmkv = this.keyValueStorage
             .getAllKeys()
             .sort()
-            .map(key => ({ name: key, count: 1, bytes: this.keyValueStorage.getByteLength(key) }));
+            .map(
+                (key): NativeStorageEntry => ({ name: key, count: 1, bytes: this.keyValueStorage.getByteLength(key) })
+            );
+        mmkv.push(this.summarizeVault());
         return { sqlite, mmkv, unrecoverableTables: [...UNRECOVERABLE_TABLES], keptTables: [...KEPT_TABLES] };
     }
 
@@ -79,6 +94,13 @@ export class NativeStorageService implements INativeStorageService {
         }
         this.logService.info('STORAGE', `Native cache cleared: ${result.cleared.join(', ') || 'nothing'}`);
         return result;
+    }
+
+    private summarizeVault(): NativeStorageEntry {
+        const count = this.vaultKeyCount();
+        return count === null
+            ? { name: VAULT_SUMMARY_NAME, count: 0, bytes: 0, error: 'unavailable' }
+            : { name: VAULT_SUMMARY_NAME, count, bytes: 0 };
     }
 
     private async summarizeTable(table: string): Promise<NativeStorageEntry> {

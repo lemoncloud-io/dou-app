@@ -63,8 +63,8 @@ not even reach the socket is not one.
 `forceRefresh` closes a specific hole. The boot handshake's `auth.update` emits no token — the SDK
 emits one only from `refresh` and `switch` — so the first writeback is a whole refresh cycle away,
 and until it lands, relay-signed HTTP is signed with the credential from before the device went to
-sleep. The expiry probe cannot see that window because it reads lemon's `expired_time`, not the
-credential. So the guard measures the signing material itself: it fires only when
+sleep. The expiry probe (`relayCredentialProbe`) answers only "past expiry", not "about to expire",
+so the guard also measures how much is left: it fires only when
 `credentialFreshness.timeToExpiry('relay')` is under one refresh cycle. Firing on every edge
 unconditionally was the earlier behaviour and it refreshed credentials minted seconds earlier,
 colliding with the re-authentication at login. A 60-second cooldown throttles it, and a preemptive
