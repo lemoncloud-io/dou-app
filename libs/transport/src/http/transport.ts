@@ -1,7 +1,6 @@
-import { isNative } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { createLemonWebTransport } from '@chatic/http';
-import { asDomStorage, type KeyValueStore, WebMedium } from '@chatic/storage';
+import { asDomStorage, type KeyValueStore, MemoryMedium } from '@chatic/storage';
 
 import type { SealedWebTransport, SealedWebTransportBundle } from '@chatic/http';
 
@@ -50,19 +49,20 @@ const lemonProject = (): string => {
 };
 
 /**
- * The medium lemon-web-core keeps its credential bundle in. `usePersistentWebStorage` was always
- * "are we hosted inside a native/desktop shell" — exactly what `isNative()` already answers (it
- * checks the same window handles plus the webkit message-handler path), so no separate detector is
- * needed. Built once: the SDK and the logout sweep must see the same medium.
+ * The medium lemon-web-core keeps its credential bundle in: memory, in every environment. lemon is a
+ * signer here, not a store — the relay token in the session is the one persisted copy, and
+ * `RelaySession.initialize()` rebuilds lemon's credentials from it on every page. Built once: the SDK
+ * and anything that clears it must see the same medium.
  */
 export const lemonStorage = (): KeyValueStore => {
-    lemonMedium ??= isNative() ? WebMedium.local() : WebMedium.session();
+    lemonMedium ??= new MemoryMedium();
     return lemonMedium;
 };
 
 /**
  * The prefix of every key lemon-web-core writes: it names them `@<project>.<name>`, and only the
- * project is ours. Read without building the SDK, so a sweep at boot does not construct it early.
+ * project is ours. Read without building the SDK. What uses it is the cleanup of the bundle older
+ * builds left in web storage.
  */
 export const lemonKeyPrefix = (): string => `@${lemonProject()}.`;
 
@@ -97,9 +97,3 @@ export const startWebTransportInit = (): Promise<void> => getBundle().startInit(
 
 /** Forces the next `startWebTransportInit()` to run again — used by logout. */
 export const resetWebTransportInit = (): void => getBundle().resetInit();
-
-/** Read-only session-EXISTENCE probe. Never refreshes. */
-export const hasStoredRelaySession = (): Promise<boolean> => getBundle().hasStoredSession();
-
-/** Read-only staleness probe. Never refreshes — the socket `AuthController` owns that. */
-export const isStoredSessionExpired = (): Promise<boolean> => getBundle().isStoredSessionExpired();

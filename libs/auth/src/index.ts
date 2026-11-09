@@ -13,7 +13,9 @@ export * from './session/authRepository';
 export * from './session/clearSiteSelection';
 export * from './session/cloudSession';
 export * from './session/cloudTokens';
-export * from './session/logoutStorageSweep';
+export * from './session/storage';
+export { relayCredentialProbe } from './session/relayCredentialProbe';
+export type { IRelayCredentialProbe } from './session/types';
 export * from './session/relaySession';
 
 // pairing — signing a device in from another device.

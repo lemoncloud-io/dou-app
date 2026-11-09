@@ -3202,6 +3202,34 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - RNKeychain (10.0.0):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - RNLocalize (3.6.1):
     - boost
     - DoubleConversion
@@ -3455,6 +3483,7 @@ DEPENDENCIES:
   - "RNFBMessaging (from `../../../node_modules/@react-native-firebase/messaging`)"
   - "RNFBPerf (from `../../../node_modules/@react-native-firebase/perf`)"
   - "RNGoogleSignin (from `../../../node_modules/@react-native-google-signin/google-signin`)"
+  - RNKeychain (from `../../../node_modules/react-native-keychain`)
   - RNLocalize (from `../../../node_modules/react-native-localize`)
   - "RNNotifee (from `../../../node_modules/@notifee/react-native`)"
   - RNPermissions (from `../../../node_modules/react-native-permissions`)
@@ -3691,6 +3720,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-firebase/perf"
   RNGoogleSignin:
     :path: "../../../node_modules/@react-native-google-signin/google-signin"
+  RNKeychain:
+    :path: "../../../node_modules/react-native-keychain"
   RNLocalize:
     :path: "../../../node_modules/react-native-localize"
   RNNotifee:
@@ -3828,6 +3859,7 @@ SPEC CHECKSUMS:
   RNFBMessaging: 7af38284ee8cdc96b49e913da3f7cdacc344d8e0
   RNFBPerf: ab770e195d0d01eabe0f5115ae3c7c5b9010cf7e
   RNGoogleSignin: 32eac25be182674a2838c8bf6908c0296fe3bb5d
+  RNKeychain: 76d042fc1dfba47f3945920bc82e0bce9ad1ff55
   RNLocalize: 9988fa71fb84c415902898b35cc6aa5af052731e
   RNNotifee: 5e3b271e8ea7456a36eec994085543c9adca9168
   RNPermissions: 4edfde572a12fecd76968e6e0b2d53096a7d777b

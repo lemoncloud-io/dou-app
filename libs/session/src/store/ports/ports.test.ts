@@ -50,8 +50,10 @@ describe('session storage ports', () => {
 
         writeEverything();
 
-        // The paired-cloud list is written by `@chatic/auth`, so it is checked there.
-        const plainWrittenHere = SESSION_KEYS.plain.filter(key => key !== 'chatic-paired-cloud-ids');
+        // The paired-cloud list and the logout marker are written by `@chatic/auth`, so they are checked there.
+        const plainWrittenHere = SESSION_KEYS.plain.filter(
+            key => key !== 'chatic-paired-cloud-ids' && key !== 'chatic-secret-logout-pending'
+        );
         expect(secret.keys().sort()).toEqual([...SESSION_KEYS.secret].sort());
         expect(plain.keys().sort()).toEqual([...plainWrittenHere].sort());
 

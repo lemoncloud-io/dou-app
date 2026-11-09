@@ -1,2 +1,2 @@
 export { DomStorageAdapter } from './domStorageAdapter';
-export { asDomStorage } from './asDomStorage';
+export { asDomStorage } from './asDomStorage.mapper';

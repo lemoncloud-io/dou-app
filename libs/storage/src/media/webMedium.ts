@@ -1,4 +1,4 @@
-import { globalStorage } from './globalStorage';
+import { globalStorage } from './globalStorage.util';
 import { MemoryMedium } from './memoryMedium';
 
 import type { KeyValueStore } from './types';

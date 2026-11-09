@@ -12,6 +12,7 @@
  */
 
 import { runtime } from '@chatic/app-runtime';
+import { BridgeStorageChannel, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
 
 /** Which part of the app a localStorage key belongs to. */
 export type WebKeyGroup = 'session' | 'config' | 'logs' | 'other';
@@ -46,6 +47,11 @@ export interface WebStorageEnv {
     indexedDB?: Pick<IDBFactory, 'deleteDatabase'> & { databases?: () => Promise<IDBDatabaseInfo[]> };
     caches?: Pick<CacheStorage, 'keys' | 'delete'>;
     estimate?: () => Promise<StorageEstimate>;
+    /**
+     * Empties the device vault, where an app or desktop shell that keeps one holds the session's
+     * tokens. Absent where there is no vault: the tokens are then in the two storages above.
+     */
+    clearVault?: () => Promise<boolean>;
 }
 
 export interface WebDatabasesClearResult {
@@ -74,12 +80,6 @@ const CONFIG_PREFIX = '@chatic/config.';
 const LOG_PREFIX = '@chatic/web.log.';
 /** i18next's language key sits under the SDK's `@` prefix but is a UI choice, not a credential. */
 const LANGUAGE_SUFFIX = '.i18nextLng';
-/**
- * A session key the session no longer writes. A device that still holds one from an older build shows
- * it beside the session, which is where its sign-out removes it from.
- */
-const RETIRED_SESSION_KEYS = new Set(['chatic-oauth-provider']);
-
 /** The IndexedDB cache the browser build uses; listed by name where `databases()` is missing. */
 const KNOWN_INDEXED_DB = 'ChaticWebCacheDB';
 
@@ -94,7 +94,7 @@ export const classifyWebKey = (key: string): WebKeyGroup => {
     if (key.startsWith(CONFIG_PREFIX)) return 'config';
     if (key.startsWith(LOG_PREFIX)) return 'logs';
     if (key.startsWith('@')) return key.endsWith(LANGUAGE_SUFFIX) ? 'other' : 'session';
-    if (runtime.session.isSessionKey(key) || RETIRED_SESSION_KEYS.has(key)) return 'session';
+    if (runtime.session.isSessionKey(key)) return 'session';
     return 'other';
 };
 
@@ -225,6 +225,9 @@ export const browserWebStorageEnv = (): WebStorageEnv => ({
     indexedDB: typeof indexedDB !== 'undefined' ? indexedDB : undefined,
     caches: typeof caches !== 'undefined' ? caches : undefined,
     estimate: navigator.storage?.estimate ? () => navigator.storage.estimate() : undefined,
+    clearVault: shellKeepsStorageMedium('nativeSecure')
+        ? () => new BridgeStorageChannel(webClient, 'nativeSecure').clear()
+        : undefined,
 });
 
 /** `1234` → `1.2 KB`. Decimal units: the numbers are approximate lengths, not disk blocks. */

@@ -28,6 +28,15 @@ export type { DataRepositoriesOptions } from '@chatic/data';
 // routing them through this facade bought nothing.
 export { isNativeApp } from './utils/isNativeApp';
 
+// The session's storage. An entry point builds the media for its environment and passes them to
+// `initAppRuntime({ storage })`; one in an app or desktop shell that keeps a vault first awaits
+// `prepareSecretStorage`, which loads the vault and moves secrets left in web storage into it.
+// `setSessionStorage` swaps the media after boot — for a shell that turned out to keep a vault only
+// once its handshake answered.
+export { prepareSecretStorage, setSessionStorage } from './sessionStorageBoot';
+export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
+export type { SessionStoragePorts } from '@chatic/session';
+
 // Native local-cache capability, reported by the bridge handshake AFTER boot — which is why it is a
 // setter and not a field on `AppRuntimeConfig`. The web ships ahead of the app (see the deploy-order
 // rule), so a domain the installed app cannot store is routed to web storage instead of a silent void.

@@ -73,6 +73,9 @@ import type {
     StopAudioRecordingPayload,
     FetchShareIntakePayload,
     ReleaseShareIntakePayload,
+    StorageClearPayload,
+    StorageGetPayload,
+    StorageSavePayload,
     OpenSettingsPayload,
     OpenStorePayload,
     OpenSubWebViewPayload,
@@ -165,6 +168,9 @@ export type WebMessagePayloadMap = {
     // without it answers `NOT_FOUND`, and the share page has nothing to show.
     FetchShareIntake: FetchShareIntakePayload;
     ReleaseShareIntake: ReleaseShareIntakePayload;
+    StorageGet: StorageGetPayload;
+    StorageSave: StorageSavePayload;
+    StorageClear: StorageClearPayload;
     RequestPermission: RequestPermissionPayload;
     OpenURL: OpenURLPayload;
     SendSms: SendSmsPayload;

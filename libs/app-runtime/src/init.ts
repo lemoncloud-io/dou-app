@@ -4,7 +4,7 @@ import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { credentialRecovery } from '@chatic/transport';
-import { authRepositorySource, logoutStorageSweeper, credentialRenewers } from '@chatic/auth';
+import { authRepositorySource, dropLemonLeftovers, logoutStorageSweeper, credentialRenewers } from '@chatic/auth';
 import { configureSessionStore, sessionMedia } from '@chatic/session';
 import { syncDataGraph } from '@chatic/sync';
 
@@ -69,6 +69,10 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     if (config.storage) {
         sessionMedia.configure(config.storage);
     }
+
+    // lemon-web-core keeps its credentials in memory now; a bundle an older build left in web storage
+    // is nobody's, and goes. The plain medium is the web storage lemon used to write in each environment.
+    dropLemonLeftovers(sessionMedia.of('plain'));
 
     // Honors `?logout=1` — the flag `RelaySession.logout()` leaves on the URL it redirects to.
     // FIRST, because everything below may end up reading a token, and this is what drops the ones

@@ -8,7 +8,10 @@ const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: 
 
 jest.mock('../../hooks', () => ({
     useServices: () => ({
-        versionService: { checkForUpdate: (...args: unknown[]) => mockCheckForUpdate(...args), openStore: (...args: unknown[]) => mockOpenStore(...args) },
+        versionService: {
+            checkForUpdate: (...args: unknown[]) => mockCheckForUpdate(...args),
+            openStore: (...args: unknown[]) => mockOpenStore(...args),
+        },
         logService: mockLogger,
     }),
 }));

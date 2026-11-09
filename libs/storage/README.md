@@ -28,6 +28,7 @@ libs/storage/src/
 ├── media/                      the media themselves
 │   ├── types.ts                MediumName, KeyValueStore
 │   ├── memoryMedium.ts         MemoryMedium
+│   ├── nativeSecure/           NativeSecureMedium — the device vault, loaded once, written back in batches
 │   ├── webMedium.ts            WebMedium — local(), session(), over()
 │   └── globalStorage.ts        reads the localStorage / sessionStorage global without throwing
 ├── dom/                        a medium seen as a DOM Storage
@@ -60,18 +61,38 @@ interface KeyValueStore {
 **Synchronous on purpose.** The session is read on every request and every render, so a read must
 never wait.
 
-| Class                 | Medium       | What it is                                                                                       |
-| --------------------- | ------------ | ------------------------------------------------------------------------------------------------ |
-| `WebMedium.local()`   | `webLocal`   | this origin's `localStorage` — survives a reload and a relaunch                                  |
-| `WebMedium.session()` | `webSession` | this tab's `sessionStorage` — survives a reload, dies with the tab                               |
-| `MemoryMedium`        | `memory`     | this page lifetime only                                                                          |
-| `DomStorageAdapter`   | —            | any medium seen as a DOM `Storage` (`asDomStorage(medium)`), for code that only takes that shape |
+| Class                 | Medium         | What it is                                                                                              |
+| --------------------- | -------------- | ------------------------------------------------------------------------------------------------------- |
+| `WebMedium.local()`   | `webLocal`     | this origin's `localStorage` — survives a reload and a relaunch                                         |
+| `WebMedium.session()` | `webSession`   | this tab's `sessionStorage` — survives a reload, dies with the tab                                      |
+| `MemoryMedium`        | `memory`       | this page lifetime only                                                                                 |
+| `NativeSecureMedium`  | `nativeSecure` | the device vault an app or desktop shell keeps — iOS Keychain, Android Keystore, Electron `safeStorage` |
+| `DomStorageAdapter`   | —              | any medium seen as a DOM `Storage` (`asDomStorage(medium)`), for code that only takes that shape        |
 
 **A web medium reads the storage itself on every call**, not a copy taken at construction. The web
 storage is already synchronous, so a copy would buy nothing, and it would go stale the moment
 anything else writes the same storage — a debug wipe, a test fixture — answering with a value the
 storage no longer holds. Where the web storage does not exist, or throws on access,
 `WebMedium.over()` hands back a `MemoryMedium` instead, so a caller never has to ask which it got.
+
+### `nativeSecure`: the device vault
+
+The vault is behind the bridge, which is asynchronous, so the medium keeps its values in memory.
+`hydrate()` loads them once per page (`StorageGet`) and every read after that answers from memory.
+Writes go to memory at once; the writes of one turn of the event loop travel to the shell as one
+`StorageSave` carrying each key's last value, in order, one request at a time. `flush()` sends what is
+waiting and resolves only once the shell confirmed it — a logout waits on it before leaving the page.
+
+**Unavailable is not empty.** When the vault cannot be read this run, a write is refused, or the shell
+does not answer — five seconds for the read, the bridge's own limit for a write, both counted only while the page is visible — the medium switches to its fallback — the tab's `sessionStorage` —
+for the rest of the run, carrying what it held, and `status` reads `unavailable`. The caller decides
+what that means (`@chatic/auth`'s secret storage boot keeps the person signed in for the run). It never
+falls back to `localStorage`: that is the copy the vault exists to replace.
+
+The medium reaches the shell through a `NativeStorageChannel` the entry point hands it
+(`@chatic/bridges`' `BridgeStorageChannel`), so this package still imports nothing from the
+workspace. Whether the shell keeps a vault at all is read from `window.CHATIC_APP_STORAGE_MEDIA`
+(`shellKeepsStorageMedium`), never from `isNative()`, which is true in every shell.
 
 ### The app-wide `storage`
 

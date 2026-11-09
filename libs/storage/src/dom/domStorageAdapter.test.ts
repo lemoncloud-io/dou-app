@@ -1,4 +1,4 @@
-import { asDomStorage } from './asDomStorage';
+import { asDomStorage } from './asDomStorage.mapper';
 import { MemoryMedium } from '../media/memoryMedium';
 
 describe('asDomStorage', () => {

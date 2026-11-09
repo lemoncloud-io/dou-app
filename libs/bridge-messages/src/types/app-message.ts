@@ -114,6 +114,9 @@ import type {
     OnAudioRecordingEndedPayload,
     OnFetchShareIntakePayload,
     OnReleaseShareIntakePayload,
+    OnStorageClearPayload,
+    OnStorageGetPayload,
+    OnStorageSavePayload,
     OnFileTransferStatePayload,
     OnCopyToClipboardPayload,
     OnTriggerHapticPayload,
@@ -169,6 +172,9 @@ export type AppMessageDataMap = {
     OnAudioRecordingEnded: OnAudioRecordingEndedPayload;
     OnFetchShareIntake: OnFetchShareIntakePayload;
     OnReleaseShareIntake: OnReleaseShareIntakePayload;
+    OnStorageGet: OnStorageGetPayload;
+    OnStorageSave: OnStorageSavePayload;
+    OnStorageClear: OnStorageClearPayload;
     OnRequestPermission: OnRequestPermissionPayload;
     OnOpenURL: OnOpenURLPayload;
     OnNavigate: OnNavigatePayload;

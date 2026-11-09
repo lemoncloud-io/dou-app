@@ -86,7 +86,7 @@ describe('classifyWebKey', () => {
         ['@chatic_dev.i18nextLng', 'other'],
         ['chatic-pinned-channels', 'other'],
         ['chatic-paired-cloud-ids', 'session'],
-        ['chatic-oauth-provider', 'session'],
+        ['chatic-oauth-provider', 'other'],
         // A desktop UI store under a session-like prefix: it is not the session's, so it is not grouped as one.
         ['chatic-selected-channel', 'other'],
         ['anything-else', 'other'],

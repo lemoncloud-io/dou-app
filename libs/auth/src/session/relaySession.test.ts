@@ -1,5 +1,8 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
+import { MemoryMedium, NativeSecureMedium } from '@chatic/storage';
+import { sessionMedia } from '@chatic/session/store/ports';
+
 import { createCredentialsByProvider, relaySession } from './relaySession';
 
 const mockExchangeOAuthCode = jest.fn();
@@ -11,6 +14,10 @@ const mockVerifyNativeAppToken = jest.fn();
 const mockSetUseXLemonLanguage = jest.fn();
 const mockIsAuthenticated = jest.fn();
 const mockHasStoredRelaySession = jest.fn();
+const mockGetRelayToken = jest.fn();
+jest.mock('./relayCredentialProbe', () => ({
+    relayCredentialProbe: { hasSession: () => mockHasStoredRelaySession() },
+}));
 const mockBuildCredentialsByToken = jest.fn();
 const mockLogout = jest.fn();
 const mockStartWebCoreInit = jest.fn();
@@ -67,7 +74,6 @@ jest.mock('./authRepository', () => ({
 jest.mock('@chatic/transport/http/transport', () => ({
     startWebTransportInit: (...args: unknown[]) => mockStartWebCoreInit(...args),
     resetWebTransportInit: jest.fn(),
-    hasStoredRelaySession: (...args: unknown[]) => mockHasStoredRelaySession(...args),
     webTransport: {
         setUseXLemonLanguage: (...args: unknown[]) => mockSetUseXLemonLanguage(...args),
         isAuthenticated: (...args: unknown[]) => mockIsAuthenticated(...args),
@@ -111,7 +117,7 @@ jest.mock('@chatic/session/store/stores', () => ({
     relayStore: {
         clearSelectedSite: jest.fn(),
         saveRelayToken: (...args: unknown[]) => mockRelaySaveRelayToken(...args),
-        getRelayToken: jest.fn(),
+        getRelayToken: (...args: unknown[]) => mockGetRelayToken(...args),
         getIdentityToken: jest.fn(),
     },
 }));
@@ -181,7 +187,7 @@ describe('session/auth/relaySession', () => {
     });
 
     it('initializes relay session and updates runtime state from the read-only session probe', async () => {
-        mockHasStoredRelaySession.mockResolvedValue(true);
+        mockHasStoredRelaySession.mockReturnValue(true);
 
         await relaySession.initialize();
 
@@ -199,7 +205,7 @@ describe('session/auth/relaySession', () => {
     });
 
     it('boot never fires lemon isAuthenticated (its internal refresh is the sealed second engine)', async () => {
-        mockHasStoredRelaySession.mockResolvedValue(true);
+        mockHasStoredRelaySession.mockReturnValue(true);
 
         await relaySession.initialize();
 
@@ -208,8 +214,27 @@ describe('session/auth/relaySession', () => {
         expect(mockIsAuthenticated).not.toHaveBeenCalled();
     });
 
+    it('rebuilds lemon credentials from the stored relay token, since lemon keeps them in memory only', async () => {
+        mockHasStoredRelaySession.mockReturnValue(true);
+        mockGetRelayToken.mockReturnValue({ Token: { identityToken: 'relay-id' } });
+
+        await relaySession.initialize();
+
+        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith({ identityToken: 'relay-id' });
+    });
+
+    it('still finishes the boot when lemon cannot rebuild credentials from the token', async () => {
+        mockHasStoredRelaySession.mockReturnValue(true);
+        mockGetRelayToken.mockReturnValue({ Token: { identityToken: 'no-credential' } });
+        mockBuildCredentialsByToken.mockRejectedValueOnce(new Error('no credential'));
+
+        await relaySession.initialize();
+
+        expect(mockSetSessionIdentityState).toHaveBeenNthCalledWith(2, { isInitialized: true, isAuthenticated: true });
+    });
+
     it('reports unauthenticated when no relay session is stored (guest boot)', async () => {
-        mockHasStoredRelaySession.mockResolvedValue(false);
+        mockHasStoredRelaySession.mockReturnValue(false);
 
         await relaySession.initialize();
 
@@ -391,6 +416,55 @@ describe('session/auth/relaySession', () => {
         // The clouds a guest entered through a pairing go with the session.
         expect(mockPairedCloudsClear).toHaveBeenCalled();
         consoleError.mockRestore();
+    });
+
+    describe('the device vault at logout', () => {
+        const vaultWith = (clearOk: boolean) => {
+            const vault: Record<string, string> = { 'chatic-relay-token': 'r' };
+            const medium = new NativeSecureMedium({
+                fallback: new MemoryMedium(),
+                channel: {
+                    read: async () => ({ status: 'available', values: { ...vault } }),
+                    save: async () => true,
+                    clear: async () => {
+                        if (clearOk) Object.keys(vault).forEach(key => delete vault[key]);
+                        return clearOk;
+                    },
+                },
+            });
+            return { medium, vault };
+        };
+
+        afterEach(() => sessionMedia.configure({ secret: new MemoryMedium(), plain: new MemoryMedium() }));
+
+        it('is emptied, and the shell has confirmed it, before the page leaves', async () => {
+            const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+            const { medium, vault } = vaultWith(true);
+            await medium.hydrate();
+            const plain = new MemoryMedium();
+            plain.set('@chatic/web.log.pending.tab-1', '[]');
+            sessionMedia.configure({ secret: medium, plain });
+
+            await relaySession.clearAndRedirect();
+
+            expect(vault).toEqual({});
+            expect(plain.get('chatic-secret-logout-pending')).toBeNull();
+            expect(plain.get('@chatic/web.log.pending.tab-1')).toBeNull();
+            consoleError.mockRestore();
+        });
+
+        it('leaves the marker for the next boot when the shell does not confirm', async () => {
+            const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+            const { medium } = vaultWith(false);
+            await medium.hydrate();
+            const plain = new MemoryMedium();
+            sessionMedia.configure({ secret: medium, plain });
+
+            await relaySession.clearAndRedirect();
+
+            expect(plain.get('chatic-secret-logout-pending')).toBe('1');
+            consoleError.mockRestore();
+        });
     });
 
     it('persists deviceId through identityStore and writes no raw localStorage copy', () => {

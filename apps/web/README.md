@@ -155,6 +155,7 @@ sequenceDiagram
     Main->>Main: startLogUploader (the only log store)
     Main->>Main: syncThemeFromSharedKey · config.init(webConfigPorts)
     Main->>Main: plain medium = isNative() ? webLocal : webSession · setStorageAdapter
+    Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
     Main->>RT: runtime.boot.initAppRuntime({ storage, data: { repositories } })
     Main->>Main: pendingNavigationStore.start()
     Main->>Shell: appBridge.notifyWebAppReady()
@@ -290,6 +291,7 @@ main.tsx
 ├── syncThemeFromSharedKey
 ├── config.init(webConfigPorts)                                    (before any lazy setting read)
 ├── plain medium (isNative() ? webLocal : webSession) → setStorageAdapter
+├── vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage — the rest waits
 ├── runtime.boot.initAppRuntime({ storage, ... })                  (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)

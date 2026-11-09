@@ -21,13 +21,15 @@ Each is a class with a single exported singleton; the class itself stays private
 `session/` except `credentialFreshness`, a reader of the stores that lives in `@chatic/session`'s
 `store/` ([its README](../../../session/README.md#responsibilities)).
 
-| Singleton              | Methods                                                                                                                                                                            |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `relaySession`         | `initialize` · `persistDeviceId` · `loginGuestByDevice` · `loginUser` · `loginByOAuthCode` · `loginBySocialToken` · `loginByToken` · `clearAndRedirect` · `registerLogoutCallback` |
-| `cloudSession`         | `switchTo` · `clearStores` · `applySelectedSite`                                                                                                                                   |
-| `sessionAuthAdapter`   | `getAuthRegistration(cid)` · `signAuth(cid, target?)` · `commitRefreshedToken(cid, view)` — the relay's cid is `RELAY_CLOUD_ID`                                                    |
-| `credentialFreshness`  | `timeToExpiry(cid, now?)` · `isStale(cid, now?)`                                                                                                                                   |
-| `logoutStorageSweeper` | `sweep()`                                                                                                                                                                          |
+| Singleton                | Methods                                                                                                                                                                            |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `relaySession`           | `initialize` · `persistDeviceId` · `loginGuestByDevice` · `loginUser` · `loginByOAuthCode` · `loginBySocialToken` · `loginByToken` · `clearAndRedirect` · `registerLogoutCallback` |
+| `cloudSession`           | `switchTo` · `clearStores` · `applySelectedSite`                                                                                                                                   |
+| `sessionAuthAdapter`     | `getAuthRegistration(cid)` · `signAuth(cid, target?)` · `commitRefreshedToken(cid, view)` — the relay's cid is `RELAY_CLOUD_ID`                                                    |
+| `credentialFreshness`    | `timeToExpiry(cid, now?)` · `isStale(cid, now?)`                                                                                                                                   |
+| `logoutStorageSweeper`   | `sweep()`                                                                                                                                                                          |
+| `secretStorageMigration` | `prepare({ vault, plain, web, afterLogout })`                                                                                                                                      |
+| `relayCredentialProbe`   | `hasSession()` · `isCredentialExpired(now?)` — a plain object, no class                                                                                                            |
 
 `loginByOAuthCode` (app-facing as `createCredentialsByProvider`) has two endpoints behind it. By default
 it sends the code to `POST {oauth}/oauth/{provider}/token`, which admin-v2 reaches with no session. With
@@ -57,21 +59,73 @@ in memory, which relay user it was asked as (`lastIssuedForOf`), for the owned-c
 record the cloud's uid through [`cloudIdentity.ts`](../../src/session/cloudIdentity.ts), a
 module of its own so the writeback path can record it without reaching the data runtime.
 
-`relaySession.clearAndRedirect()` clears both relay and cloud stores, the per-cloud token cache, the
-cloud identity map, the recent-cloud order and the reclaim records, and redirects to `/?logout=1`.
-It performs no server-side logout; notifying the sockets is
-[`logoutSession`](../socket/README.md)'s job, in `socket/`. `logoutStorageSweeper.sweep()` is the other
-half of that flag: on the next document load it clears what each owner names — lemon-web-core's
-credential bundle (`@<project>.*` in the medium the transport handed the SDK, the `.i18nextLng`
-language key kept), the web log pipeline and telemetry policy (`@chatic/web.log.*`,
-`@chatic/web.telemetry.policy*`) from the session's plain medium, and the retired
-`chatic-oauth-provider` from both web storages. Without it, tokens belonging to the account that
-just signed out survive the redirect.
+`relaySession.clearAndRedirect()` performs no server-side logout; notifying the sockets is
+[`logoutSession`](../socket/README.md)'s job, in `socket/`. It ends the account on this device, in
+this order, and only then leaves the page:
 
-It used to wipe the whole `@` namespace instead, keeping only the language key and the config lane.
-Clearing by name takes exactly the same keys from what the app writes — `logoutStorageSweep.test.ts`
-pins the list against the old rule — and it stops taking whatever else moves in under `@` later, the
-way the config lane once did and had to be carved out.
+1. **The session.** Both relay and cloud stores, the per-cloud token cache, the cloud identity map, the
+   recent-cloud order, the reclaim records and the paired clouds — in both of the session's ports.
+2. **lemon-web-core's credentials**, which are in memory (`webTransport.logout()`).
+3. **The app keys a sign-out takes**, by name (`storage/signedOutAppKeys.util.ts`): the web log pipeline
+   (`@chatic/web.log.*`) and the telemetry policy (`@chatic/web.telemetry.policy*`), from the plain
+   medium — `localStorage` in a shell, `sessionStorage` in a browser. The logs carry the account that
+   just left.
+4. **The device vault**, where the shell keeps one: emptied, and the shell's confirmation awaited. The
+   next document reads the vault before anything else, and a vault still holding the tokens would sign
+   the person straight back in. When the shell does not confirm, `chatic-secret-logout-pending` goes
+   into the plain medium and the next boot empties the vault before reading it.
+5. **`location.replace('/?logout=1')`.**
+
+`logoutStorageSweeper.sweep()` reads that flag on the next document and runs step 3 once more, for a
+log batch written between the clear and the navigation. It used to wipe the whole `@` namespace of the
+session's storage instead, keeping the language key and the config lane; that took lemon's bundle,
+which lemon no longer keeps in web storage, and whatever else later moved in under `@`.
+
+### The device vault at boot
+
+An app or desktop shell that keeps a vault lists it in `window.CHATIC_APP_STORAGE_MEDIA`. Its entry
+point then builds a `nativeSecure` medium for the session's secret port and awaits
+`secretStorageMigration.prepare` (app-facing as `runtime.boot.prepareSecretStorage`) before the runtime
+boots. It loads the vault and moves the four tokens out of the origin's `localStorage`, where they
+lived before, deleting the web copy only once the shell confirmed the vault holds them:
+
+| The vault answered            | Web copy | What happens                                                    |
+| ----------------------------- | -------- | --------------------------------------------------------------- |
+| (a logout, or its marker set) | any      | empty the vault, then read it; delete the web copy; drop marker |
+| unavailable                   | yes      | this run signs in from the copy, held in the tab; keep the copy |
+| unavailable                   | no       | this run keeps the session in the tab                           |
+| values                        | any      | the vault is the truth; delete the web copy                     |
+| empty                         | yes      | write the copy to the vault; delete it once confirmed           |
+| empty                         | no       | signed out                                                      |
+
+**Unavailable is not empty.** A vault that cannot be read this run — locked before the first unlock,
+a failed write, a shell that does not answer the read in five seconds (counted while the page is visible) — switches the medium to the tab's
+`sessionStorage` for the run, so the person stays signed in until the app closes. It never falls back
+to `localStorage`. The one read failure the shell answers as empty is a vault it cannot decrypt (a
+device key that was invalidated, data from another device): it empties it and the person signs in
+again. Every row is decided from what the vault and web storage hold, so a boot that dies half-way does
+the move again next time.
+
+lemon-web-core's old bundle (`@<project>.*`, its language key kept) goes with the web copy, and
+`initAppRuntime` drops it from the plain medium on every boot (`dropLemonLeftovers`) — lemon keeps its
+credentials in memory, so a bundle in web storage is left from an older build.
+
+Two cases are the entry point's (`apps/web/src/main.tsx`), not this migration's. A shell that keeps a
+vault but whose `CHATIC_APP_STORAGE_MEDIA` did not land is found from its handshake (`StorageGet` among
+its handlers); the page marks the tab and reloads once, so the next boot takes the vault from the start
+instead of moving the session in the middle of a run. And a vault that could not be read at launch
+(iOS before the first unlock) is asked again each time the page is shown; once it answers, the page
+reloads onto it.
+
+### Is there a session, and has it expired
+
+`relayCredentialProbe` answers both from the session: a session exists when a relay token is stored,
+and the relay credential has expired when `credentialFreshness` measures nothing left on it — or
+nothing to measure. `relaySession.initialize()` reads the first to decide whether the boot is signed
+in, then rebuilds lemon's in-memory credentials from that token (`buildCredentialsByToken`, which
+throws for a token view without a credential; the boot logs that and goes on).
+`useSessionStalenessGuard` reads both. They used to be asked of lemon's own stored token bundle, whose
+expiry clock disagreed with the credential's exactly when a refresh carried a token but no credential.
 
 [`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: three
 apps call `registerUserWithInviteCode` / `fetchInviteInfoWithCode` with positional arguments and the

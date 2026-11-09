@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
 import { CUSTOM_UI_CHANNEL, type CustomUiStatus } from '../main/customUiContract';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from '../main/loginItemContract';
+import { DESKTOP_STORAGE_MEDIA } from '../main/secureStorage/constants';
 import { utf8ToBase64 } from './base64';
 
 /** IPC channel for App(main) → Web(renderer) bridge messages. */
@@ -39,6 +40,9 @@ const deviceInfo = {
     CHATIC_APP_INSTALLATION_ID: deviceId,
     CHATIC_APP_LATEST_VERSION: appVersion,
     CHATIC_APP_SHOULD_UPDATE: 'false',
+    // The storage media main keeps for the web (the device vault). Set before the page runs, so the
+    // web can choose its storage synchronously at boot.
+    CHATIC_APP_STORAGE_MEDIA: DESKTOP_STORAGE_MEDIA,
 } as const;
 
 /**

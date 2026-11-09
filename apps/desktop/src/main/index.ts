@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 import { AppBridgeHost } from '@chatic/bridges';
@@ -14,6 +15,7 @@ import {
     Notification,
     powerMonitor,
     protocol,
+    safeStorage,
     screen,
     session,
     shell,
@@ -40,6 +42,7 @@ import { grantsPermission } from './permissions';
 import { LOGIN_ITEM_CHANNEL, type LaunchAtLoginState } from './loginItemContract';
 import { startUpdater } from './updater';
 import { pushDeeplink, pushFcmMessage, pushFcmToken } from './shellEvents';
+import { SECURE_STORAGE_FILE, SecureStorage } from './secureStorage';
 import { fromTrustedFrame } from './ipcSenderGate';
 import { initWebUrl, isCustomUiActive, isCustomUiUrl, isTrustedUrl, resolveWebUrl } from './webUrl';
 
@@ -186,6 +189,15 @@ let trayWindow: BrowserWindow | null = null;
 
 // The bridge host of the live window, for menu items built before any window exists.
 let mainHost: AppBridgeHost | null = null;
+
+// The device vault (`nativeSecure`). Constructed here, after the dev channel moved userData, and read
+// in whenReady before the first window — safeStorage is usable only once the app is ready.
+const secureStorage = new SecureStorage({
+    safeStorage,
+    fs: { readFile: path => readFile(path), writeFile, rename, rm },
+    filePath: join(app.getPath('userData'), SECURE_STORAGE_FILE),
+    platform: process.platform,
+});
 
 /**
  * UI deeplinks the renderer understands (see the web's `parseUiDeeplink`). The menu
@@ -750,6 +762,7 @@ const createWindow = (): BrowserWindow => {
         showNotification: params => showOsNotification(host, win, params),
         awaitFcmToken,
         setBadgeCount: (count, overlayIconDataUrl) => setBadgeCount(win, count, overlayIconDataUrl),
+        secureStorage,
     });
 
     // Auto-update the shell (web updates remotely per ADR-0001). Ask-first UX: the
@@ -1086,6 +1099,10 @@ if (!singleInstanceLock) {
         if (customUiBootSource.source === 'override') serveCustomUi(customUiBootSource.root);
         else if (customUiBootSource.source === 'restore') restoreCustomUi();
         if (isCustomUiActive()) console.info('[shell] custom UI active', getActiveCustomUiRoot());
+
+        // Read the device vault into memory before the page can ask for it. Not awaited: a
+        // StorageGet that arrives first waits on this same read.
+        void secureStorage.start();
 
         Menu.setApplicationMenu(buildAppMenu());
         createWindow();

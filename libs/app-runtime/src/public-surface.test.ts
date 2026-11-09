@@ -24,7 +24,15 @@ const GROUPS: Record<string, readonly string[]> = {
     // `ENV`/`LANGUAGE_KEY`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT` retired with `@chatic/web-config`
     // (ADR-0079) — their two consumers read `import.meta.env` directly now, and neither value was a
     // setting.
-    boot: ['initAppRuntime', 'isNativeApp', 'setNativeCacheSupport', 'startWebTransportInit', 'webTransport'],
+    boot: [
+        'initAppRuntime',
+        'isNativeApp',
+        'prepareSecretStorage',
+        'setNativeCacheSupport',
+        'setSessionStorage',
+        'startWebTransportInit',
+        'webTransport',
+    ],
     // Session state · auth. `applySessionToken`/`logoutSession` live in `@chatic/auth`'s socket/ —
     // to a consumer, all three are "session".
     session: [

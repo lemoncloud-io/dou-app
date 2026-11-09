@@ -4,6 +4,12 @@
  */
 export const PAIRED_CLOUDS_KEY = 'chatic-paired-cloud-ids';
 
+/**
+ * Left in the plain port when a logout could not confirm that the vault was emptied, so the next boot
+ * empties it before anything reads it.
+ */
+export const SECRET_LOGOUT_PENDING_KEY = 'chatic-secret-logout-pending';
+
 /** Which port each session key lives in. Nothing else may write these keys. */
 export const SESSION_KEYS = {
     secret: ['chatic-relay-token', 'chatic-cloud-delegation-token', 'chatic-cloud-token', 'chatic-cloud-token-cache'],
@@ -17,6 +23,7 @@ export const SESSION_KEYS = {
         'chatic-delegator-id',
         'chatic-device-id',
         PAIRED_CLOUDS_KEY,
+        SECRET_LOGOUT_PENDING_KEY,
     ],
 } as const;
 

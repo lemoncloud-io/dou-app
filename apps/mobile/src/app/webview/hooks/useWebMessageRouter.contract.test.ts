@@ -143,6 +143,14 @@ describe('mobile bridge contract', () => {
         expect(elsewhere).toEqual([]);
     });
 
+    // The device vault is the main web's alone; the sub WebView's handshake test pins it out of
+    // that host's subset.
+    it('answers the storage medium requests on the main WebView', () => {
+        const registered = new Set(registeredTypes());
+
+        expect(['StorageGet', 'StorageSave', 'StorageClear'].filter(type => !registered.has(type))).toEqual([]);
+    });
+
     it('lists as unsupported only requests that have no handler', () => {
         const registered = new Set(registeredTypes());
 

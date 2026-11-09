@@ -37,7 +37,7 @@ signature ([`@chatic/auth-sign`](../auth-sign/README.md)); the socket transport
 2. **No env read, but construction is allowed.** The contract forbids reading `import.meta`, not
    building the SDK. So `createLemonWebTransport` lives here and takes four plain values
    (`LemonTransportConfig`); the values and the singleton live in
-   `transport/src/http/transport.ts`. Two instances would split the lemon token store, so this lib
+   `transport/src/http/transport.ts`. Two instances would split lemon's in-memory credentials, so this lib
    holds no module state and hands back a factory.
 3. **The refresh-free surface is enforced by absence, not by comments.** `SealedWebTransport` omits
    `init()`, `isAuthenticated()` and `getTokenStorage()` — the three lemon APIs that fire its own
@@ -85,7 +85,7 @@ flowchart TD
     ERR["error/<br/><i>classify · stamp · recover</i>"]
     LOG["log/withNetworkLog"]
     AD["adapters/LemonHttpExecutor"]
-    TR["transport/<br/><i>construct · sealed boot · probes</i>"]
+    TR["transport/<br/><i>construct · sealed boot</i>"]
     PORTS["ports.ts — HttpRuntimePorts"]
 
     DS --> GW
@@ -165,7 +165,7 @@ libs/http/src/
 ├── client.ts                    HttpClient, HttpRequestOptions, createHttpClient, throwIfApiError
 ├── ports.ts                     HttpRoute + HttpRuntimePorts — the whole injection surface
 ├── adapters/lemonWebCore.ts     the 3-method lemon builder surface + LemonHttpExecutor
-├── transport/lemonTransport.ts  SDK construction, the sealed boot, read-only session probes
+├── transport/lemonTransport.ts  SDK construction, the sealed boot
 ├── gateways/                    6 domain gateways + the telemetry-policy port + types.ts + index.ts
 ├── error/                       classify · credentialStale · attribution · recovery (4 files)
 ├── log/networkLog.ts            withNetworkLog + the HttpLogSink contract

@@ -18,8 +18,8 @@ typed message, and a handler hook answers it through a service.
 | `src/app/webview/AppWebView.tsx`                             | Renders the `WebView`, wires the injected runtime scripts, tracks ready state                                |
 | `src/app/webview/hooks/useBaseBridge.ts`                     | Builds the `AppBridgeHost` (`@chatic/bridges`) and its `onMessage` handler                                   |
 | `src/app/webview/hooks/useAppBridge.ts`                      | Thin wrapper exposing `{ bridge, onMessage }` to `MainScreen`                                                |
-| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 31 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
-| `src/app/webview/hooks/*Handler.ts`                          | 32 domain handlers, one per capability group                                                                 |
+| `src/app/webview/hooks/useWebMessageRouter.ts`               | Central message router; dispatches to 32 handler hooks (`useVersionCheckHandler` is mounted by `AppWebView`) |
+| `src/app/webview/hooks/*Handler.ts`                          | 33 domain handlers, one per capability group                                                                 |
 | `src/app/webview/hooks/useWebMessageRouter.contract.test.ts` | The bridge contract: what this shell answers, and what it leaves unsupported                                 |
 | `src/app/webview/utils/injectionScripts.ts`                  | Builds the scripts injected before the WebView loads                                                         |
 
@@ -135,6 +135,11 @@ each registered only when the installed `MediaExport` module has that method
 [../native/audio-recording.md](../native/audio-recording.md)) — the web draws its microphone only
 when the handshake lists them. A handler that exists but fails would take
 that fallback away.
+
+`StorageGet`, `StorageSave` and `StorageClear` (the device vault,
+[../storage/device-vault.md](../storage/device-vault.md)) are registered always, and on this host
+only: the sub WebView's host never answers them, and this one already drops messages from an
+untrusted origin.
 
 ## The bridge contract
 
@@ -305,6 +310,18 @@ instead of surfacing as an opaque "Script error.":
   [../system/theme.md](../system/theme.md)
 - `CHATIC_APP_CONFIG_BAG` — `@chatic/config`'s shell-lane KV bag, so `config.init()` can hydrate
   synchronously before the web's first paint
+- `CHATIC_APP_STORAGE_MEDIA` — the storage media this shell keeps (`['nativeSecure']`). The web
+  decides from this list alone whether to ask for the device vault, so it is set before the page runs;
+  a shell without it keeps none. `AppWebView` passes the same script as both the before-content and
+  the post-load injection, so the list is in both
+
+**A throw skips everything after it in the block, so no snippet may throw on a page that has not
+started yet.** Android can run the before-content injection before the document has a root
+element. The safe-area snippet used to throw there, and the snippets after it were lost: the web
+then booted without the config bag (and showed onboarding to someone who had finished it) and
+without the storage-media list (so it booted on the tab, then reloaded once the shell answered).
+The safe-area snippet now returns early instead, since the post-load injection and the inset effect
+set the variables again, and the storage-media assignment comes first in the block.
 
 All string values are `JSON.stringify`-interpolated rather than quoted directly: an unescaped quote
 or backslash from native data (a localized app name, an odd Android device-model string) would

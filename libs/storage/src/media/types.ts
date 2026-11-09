@@ -6,8 +6,9 @@
  * - `webLocal` — the page's `localStorage`: survives a reload and a relaunch, per origin.
  * - `webSession` — the page's `sessionStorage`: survives a reload, dies with the tab.
  * - `memory` — this page lifetime only.
+ * - `nativeSecure` — the device vault an app or desktop shell keeps, reached over the bridge.
  */
-export type MediumName = 'webLocal' | 'webSession' | 'memory';
+export type MediumName = 'webLocal' | 'webSession' | 'memory' | 'nativeSecure';
 
 /**
  * The one shape every medium has. Synchronous on purpose: the session is read on every request and

@@ -173,6 +173,30 @@ describe('StorageScreen', () => {
         expect(requestSyncCursorReset).not.toHaveBeenCalled();
     });
 
+    it('empties the device vault before the web storages, where the shell keeps one', async () => {
+        const clearVault = jest.fn(async () => true);
+        env.clearVault = clearVault;
+        render(<StorageScreen env={env} navigate={navigate} />);
+        await screen.findByText('chats');
+
+        await clickTwice('Clear web cache');
+
+        await waitFor(() => expect(navigate).toHaveBeenCalledWith('root'));
+        expect(clearVault).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays signed in on the page when the vault refuses the wipe, and leaves the web storages alone', async () => {
+        env.clearVault = jest.fn(async () => false);
+        render(<StorageScreen env={env} navigate={navigate} />);
+        await screen.findByText('chats');
+
+        await clickTwice('Clear web cache');
+
+        expect(await screen.findByText(/device vault was not cleared/)).toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
+        expect(env.localStorage.length).toBe(3);
+    });
+
     it('clears both, native first', async () => {
         render(<StorageScreen env={env} navigate={navigate} />);
         await screen.findByText('chats');

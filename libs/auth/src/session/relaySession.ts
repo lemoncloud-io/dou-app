@@ -7,17 +7,23 @@ import type { IAuthRepository } from '@chatic/data';
 import { config } from '@chatic/config';
 
 import { authRepositorySource } from './authRepository';
-import { hasStoredRelaySession, resetWebTransportInit, startWebTransportInit, webTransport } from '@chatic/transport';
+import { resetWebTransportInit, startWebTransportInit, webTransport } from '@chatic/transport';
 import {
     cloudStore,
     identityStore,
     relayStore,
     clearRelaySession,
+    SECRET_LOGOUT_PENDING_KEY,
+    SESSION_KEYS,
+    sessionMedia,
     sessionSignal,
     setSessionAuthenticated,
     setSessionIdentityState,
 } from '@chatic/session';
 import { pairedClouds } from '../pairing/pairedClouds';
+import { relayCredentialProbe } from './relayCredentialProbe';
+import { dropSignedOutAppKeys } from './storage/signedOutAppKeys.util';
+import { isNativeMedium, WebMedium } from '@chatic/storage';
 // NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
 // session barrel now publishes only the app surface (ADR-0076 decision 6).
 
@@ -122,14 +128,18 @@ class RelaySession implements IRelaySession {
     }
 
     /**
-     * The auth flag is a READ-ONLY session-existence probe (hasStoredRelaySession), not the old
-     * `webTransport.isAuthenticated()` — that call fired lemon-web-core's own HTTP refresh on a stale
-     * boot, a second refresh engine that updated only the lemon store and left relayStore/the socket
-     * SDK's signing material stale (audit §1 "three copies of the token"). Boot now never refreshes: stale
-     * credentials are rebuilt by the socket AuthController's refresh writeback once the socket
-     * re-verifies (or by an explicit requestRelaySessionRefresh). A returning user with expired
-     * credentials therefore boots into the logged-in UI instead of being treated as logged out —
-     * including on an offline boot, where the old refresh probe always failed.
+     * The auth flag is a READ-ONLY session-existence probe — a relay token is stored — not the old
+     * `webTransport.isAuthenticated()`, which fired lemon-web-core's own HTTP refresh on a stale boot: a
+     * second refresh engine that updated only the lemon store and left relayStore and the socket SDK's
+     * signing material stale. Boot never refreshes: stale credentials are rebuilt by the socket
+     * AuthController's refresh writeback once the socket re-verifies (or by an explicit
+     * requestRelaySessionRefresh). A returning user with expired credentials therefore boots into the
+     * logged-in UI instead of being treated as logged out — including on an offline boot.
+     *
+     * lemon-web-core keeps its credentials in memory only, so a new page starts with none: they are
+     * rebuilt here from the stored relay token. `buildCredentialsByToken` throws for a token view
+     * without a credential, and a boot must not fail on that — the request that needs signing recovers
+     * through the socket like any other stale credential.
      */
     async initialize(): Promise<void> {
         setSessionIdentityState({
@@ -140,9 +150,23 @@ class RelaySession implements IRelaySession {
         logger.debug('WEB_CORE', '[initialize] awaiting relay transport init');
         await startWebTransportInit();
         logger.debug('WEB_CORE', '[initialize] relay transport init done, setting language + probing session');
-        const [, isAuthenticated] = await Promise.all([
+        const isAuthenticated = relayCredentialProbe.hasSession();
+        const relayToken = relayStore.getRelayToken()?.Token;
+        await Promise.all([
             webTransport.setUseXLemonLanguage(true, LANGUAGE_KEY),
-            hasStoredRelaySession(),
+            relayToken
+                ? Promise.resolve()
+                      .then(() => webTransport.buildCredentialsByToken(relayToken))
+                      .catch((error: unknown) => {
+                          logger.warn(
+                              'WEB_CORE',
+                              '[initialize] could not rebuild lemon credentials from the relay token',
+                              {
+                                  error,
+                              }
+                          );
+                      })
+                : undefined,
         ]);
 
         setSessionIdentityState({
@@ -315,14 +339,36 @@ class RelaySession implements IRelaySession {
             clearRelaySession();
         });
 
+        // The app keys a sign-out takes: the log pipeline and the telemetry policy.
+        dropSignedOutAppKeys(sessionMedia.of('plain'));
+
+        // The device vault last, and confirmed before the page goes: the next document reads the vault
+        // before anything else, and one that still held the tokens would sign the person back in. The
+        // store clears above already queued the removals; emptying the whole vault also takes anything
+        // a build that kept more there left behind. When the shell does not confirm, the marker makes
+        // the next boot empty it before reading it.
+        const secret = sessionMedia.of('secret');
+        if (isNativeMedium(secret)) {
+            // Tokens a run whose vault was unavailable left in the tab go too; the medium only knows the
+            // ones this page wrote.
+            SESSION_KEYS.secret.forEach(key => WebMedium.session().remove(key));
+            secret.clear();
+            try {
+                await secret.flush();
+            } catch (error) {
+                logger.warn('AUTH', '[logout] the vault did not confirm it was emptied; the next boot will', { error });
+                sessionMedia.of('plain').set(SECRET_LOGOUT_PENDING_KEY, '1');
+            }
+        }
+
         // Land on home directly. `/auth/login` is only a shim that forwards to `/` (see apps/web
         // LoginPage), so routing through it just added a redirect hop. We also do NOT rewind the
         // history stack: back-navigating into an authenticated URL is already handled by the router,
         // which falls unauthenticated paths back to `/` (see apps/web PublicRoutes).
         //
-        // `logout=1` must survive onto the target: the next document's `initAppRuntime` reads it
-        // and clears the signed-out account's keys by owner (`logoutStorageSweep.ts`). Sign-out and
-        // cleanup are two page lifetimes, and this flag is the only thing that crosses between.
+        // `logout=1` must survive onto the target: the next document's boot reads it, empties the vault
+        // once more before reading it, and sweeps the app keys again (`logoutStorageSweep.ts`).
+        // Sign-out and cleanup are two page lifetimes, and this flag is what crosses between.
         const targetUrl = new URL('/', window.location.origin);
         if (options?.preserveUrl) {
             const params = new URLSearchParams(searchBeforeCleanup);

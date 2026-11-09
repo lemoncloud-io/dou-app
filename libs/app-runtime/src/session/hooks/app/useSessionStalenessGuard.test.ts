@@ -7,9 +7,11 @@ const mockIsExpired = jest.fn();
 const mockRequestRefresh = jest.fn();
 const mockVerified = jest.fn();
 
-jest.mock('@chatic/transport/http/transport', () => ({
-    hasStoredRelaySession: (...a: unknown[]) => mockHasStored(...a),
-    isStoredSessionExpired: (...a: unknown[]) => mockIsExpired(...a),
+jest.mock('@chatic/auth/session/relayCredentialProbe', () => ({
+    relayCredentialProbe: {
+        hasSession: (...a: unknown[]) => mockHasStored(...a),
+        isCredentialExpired: (...a: unknown[]) => mockIsExpired(...a),
+    },
 }));
 jest.mock('@chatic/auth/socket/requestRelaySessionRefresh', () => ({
     requestRelaySessionRefresh: (...a: unknown[]) => mockRequestRefresh(...a),
@@ -44,8 +46,8 @@ const runCheck = async (policy = {}) => {
 beforeEach(() => {
     jest.clearAllMocks();
     mockVerified.mockReturnValue(false);
-    mockHasStored.mockResolvedValue(true);
-    mockIsExpired.mockResolvedValue(false);
+    mockHasStored.mockReturnValue(true);
+    mockIsExpired.mockReturnValue(false);
     mockRequestRefresh.mockResolvedValue(true);
     // "Can't measure" is the default — the actual state of a test session with no credential, and in
     // that case the preemptive refresh fires unconditionally as before (the describe below pins that
@@ -65,7 +67,7 @@ describe('useSessionStalenessGuard — 프로브', () => {
     });
 
     it('만료됐으면 requestRelaySessionRefresh로 넘긴다 — 직접 refresh하지 않는다', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
 
         await runCheck();
 
@@ -83,7 +85,7 @@ describe('useSessionStalenessGuard — 프로브', () => {
 
 describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 된다)', () => {
     it('missingSessionCountsAsFailure=false면 세션 부재는 실패가 아니다 (apps/web 판)', async () => {
-        mockHasStored.mockResolvedValue(false);
+        mockHasStored.mockReturnValue(false);
         const onTeardown = jest.fn();
 
         await runCheck({ missingSessionCountsAsFailure: false, consecutiveFailureLimit: 1, onTeardown });
@@ -92,7 +94,7 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
     });
 
     it('missingSessionCountsAsFailure=true면 세션 부재가 teardown으로 이어진다 (admin-v2 판)', async () => {
-        mockHasStored.mockResolvedValue(false);
+        mockHasStored.mockReturnValue(false);
         const onTeardown = jest.fn();
 
         await runCheck({ missingSessionCountsAsFailure: true, consecutiveFailureLimit: 1, onTeardown });
@@ -101,7 +103,7 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
     });
 
     it('연속 실패가 한도에 닿아야 teardown한다 — 일시적 실패 한 번으로는 안 된다', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
         mockRequestRefresh.mockResolvedValue(false);
         const onTeardown = jest.fn();
 
@@ -122,7 +124,7 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
     });
 
     it('중간에 한 번 성공하면 연속 실패가 초기화된다', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
         mockRequestRefresh.mockResolvedValue(false);
         const onTeardown = jest.fn();
 
@@ -146,7 +148,7 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
     });
 
     it('consecutiveFailureLimit=null이면 절대 teardown하지 않는다 (apps/web은 수동 로그아웃만)', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
         mockRequestRefresh.mockResolvedValue(false);
         const onTeardown = jest.fn();
 
@@ -163,7 +165,7 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
     });
 
     it('소켓이 refresh를 나를 수 없는 상태면 실패로 세지 않는다 — 세션이 죽었다는 근거가 아니다', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
         mockRequestRefresh.mockResolvedValue(false);
         mockAuthStatus.mockReturnValue('handshaking');
         const onTeardown = jest.fn();
@@ -181,7 +183,7 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
     });
 
     it('SDK가 terminal expired를 낸 상태도 세지 않는다 — 그 판단은 renewer의 확인 창이 소유한다', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
         mockRequestRefresh.mockResolvedValue(false);
         mockAuthStatus.mockReturnValue('expired');
         const onTeardown = jest.fn();
@@ -192,7 +194,7 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
     });
 
     it('나를 수 있었는데도 거절당하면 그건 실패다', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
         mockRequestRefresh.mockResolvedValue(false);
         mockAuthStatus.mockReturnValue('verified');
         const onTeardown = jest.fn();
@@ -203,7 +205,9 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
     });
 
     it('예외는 실패로 세지 않는다 — 세션이 죽었다는 근거가 아니다', async () => {
-        mockHasStored.mockRejectedValue(new Error('storage race'));
+        mockHasStored.mockImplementation(() => {
+            throw new Error('storage race');
+        });
         const onTeardown = jest.fn();
 
         await runCheck({ consecutiveFailureLimit: 1, onTeardown });
@@ -214,9 +218,9 @@ describe('useSessionStalenessGuard — 정책 (두 앱의 차이가 옵션이 �
 
 describe('useSessionStalenessGuard — forceRefresh (부팅/포그라운드 선제 갱신)', () => {
     // The handshake's auth.update emits no token, so boot runs on the pre-sleep credential until the
-    // SDK's own 5-min timer fires. The expiry probe cannot see that — it only reads expired_time.
+    // SDK's own 5-min timer fires. The expiry probe alone cannot see a credential that is running out.
     it('만료되지 않았어도 refresh를 요청한다', async () => {
-        mockIsExpired.mockResolvedValue(false);
+        mockIsExpired.mockReturnValue(false);
 
         await runCheck({ forceRefresh: true });
 
@@ -224,7 +228,7 @@ describe('useSessionStalenessGuard — forceRefresh (부팅/포그라운드 선�
     });
 
     it('쿨다운 안에서는 두 번째 트리거를 흘려보낸다 (포그라운드 연타 방어)', async () => {
-        mockIsExpired.mockResolvedValue(false);
+        mockIsExpired.mockReturnValue(false);
 
         const { result } = renderHook(() => useSessionStalenessGuard({ intervalMs: null, forceRefresh: true }));
         await act(async () => {
@@ -237,7 +241,7 @@ describe('useSessionStalenessGuard — forceRefresh (부팅/포그라운드 선�
 
     it('쿨다운이 지나면 다시 요청한다', async () => {
         jest.useFakeTimers();
-        mockIsExpired.mockResolvedValue(false);
+        mockIsExpired.mockReturnValue(false);
 
         const { result } = renderHook(() => useSessionStalenessGuard({ intervalMs: null, forceRefresh: true }));
         await act(async () => {
@@ -255,7 +259,7 @@ describe('useSessionStalenessGuard — forceRefresh (부팅/포그라운드 선�
     // A still-valid credential that failed to refresh is not a dead session — most often the socket
     // is simply not authenticated yet. Counting it would log out a perfectly live user.
     it('선제 refresh 실패는 teardown 스트릭에 넣지 않는다', async () => {
-        mockIsExpired.mockResolvedValue(false);
+        mockIsExpired.mockReturnValue(false);
         mockRequestRefresh.mockResolvedValue(false);
         const onTeardown = jest.fn();
 
@@ -266,7 +270,7 @@ describe('useSessionStalenessGuard — forceRefresh (부팅/포그라운드 선�
     });
 
     it('실제로 만료된 상태의 실패는 forceRefresh와 무관하게 그대로 실패로 센다', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
         mockRequestRefresh.mockResolvedValue(false);
         const onTeardown = jest.fn();
 
@@ -277,7 +281,7 @@ describe('useSessionStalenessGuard — forceRefresh (부팅/포그라운드 선�
 
     it('오프라인이면 forceRefresh여도 아무 요청도 하지 않는다', async () => {
         Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
-        mockIsExpired.mockResolvedValue(false);
+        mockIsExpired.mockReturnValue(false);
 
         await runCheck({ forceRefresh: true });
 
@@ -286,8 +290,8 @@ describe('useSessionStalenessGuard — forceRefresh (부팅/포그라운드 선�
     });
 
     it('저장된 세션이 아예 없으면 forceRefresh여도 refresh로 넘어가지 않는다', async () => {
-        mockHasStored.mockResolvedValue(false);
-        mockIsExpired.mockResolvedValue(false);
+        mockHasStored.mockReturnValue(false);
+        mockIsExpired.mockReturnValue(false);
 
         await runCheck({ forceRefresh: true });
 
@@ -298,7 +302,7 @@ describe('useSessionStalenessGuard — forceRefresh (부팅/포그라운드 선�
 describe('useSessionStalenessGuard — 트리거', () => {
     it('intervalMs 주기로 검사한다', async () => {
         jest.useFakeTimers();
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
 
         renderHook(() => useSessionStalenessGuard({ intervalMs: 30_000 }));
         await act(async () => {
@@ -321,7 +325,7 @@ describe('useSessionStalenessGuard — 트리거', () => {
     });
 
     it('checkOnRelayVerified는 상승 에지에서만 검사한다', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
         mockVerified.mockReturnValue(false);
 
         const { rerender } = renderHook(() =>
@@ -384,7 +388,7 @@ describe('useSessionStalenessGuard — forceRefresh는 자격증명을 재고 �
     });
 
     it('실제로 만료된 세션은 자격증명 여유와 무관하게 갱신한다 — 그건 선제가 아니다', async () => {
-        mockIsExpired.mockResolvedValue(true);
+        mockIsExpired.mockReturnValue(true);
         mockTimeToExpiry.mockReturnValue(50 * 60_000);
 
         await runCheck({ forceRefresh: true });

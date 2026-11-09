@@ -62,10 +62,10 @@ export interface AuthSignals {
     /** Below this much remaining life the credential counts as `stale`. */
     readonly marginMs: number;
     /**
-     * lemon-web-core's own stored-session clock (`isStoredSessionExpired`), which is a SEPARATE
-     * clock from the credential's `Expiration` and diverges exactly where it matters — a socket
-     * refresh that updated the token but carried no credential leaves this fresh while the signing
-     * material is dead. `null` means "not measured" (cloud, or a caller that does not probe it).
+     * Whether the staleness guard found the relay credential run out (`relayCredentialProbe`). It
+     * used to be lemon-web-core's own stored-session clock, a second clock that diverged from the
+     * credential's `Expiration`; lemon keeps nothing between pages now, so the guard reads the
+     * credential instead. `null` means "not measured" (cloud, or a caller that does not probe it).
      */
     readonly storedSessionExpired: boolean | null;
 }
@@ -154,10 +154,9 @@ export interface AuthSignalDeps {
     /** Overrides {@link DEFAULT_MARGIN_MS}; a caller with its own policy passes its own. */
     marginMs?: number;
     /**
-     * lemon's stored-session clock, ALREADY AWAITED by the caller. Omitted means "not measured"
-     * (`null`), which never reads as expired. It is not probed here because
-     * `isStoredSessionExpired()` is async and relay-only — making this whole read async for one
-     * caller's input would push `await` into a render path.
+     * The staleness guard's own expiry reading, passed in by that caller. Omitted means "not
+     * measured" (`null`), which never reads as expired. It is the guard's input, not this read's: no
+     * other caller probes it.
      */
     storedSessionExpired?: boolean | null;
 }

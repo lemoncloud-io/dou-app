@@ -137,6 +137,15 @@ export const StorageScreen = ({ env: envProp, navigate = defaultNavigate }: Stor
             });
             return false;
         }
+        // The vault too, where the shell keeps one: the session's tokens are there, not in the two web
+        // storages, and a wipe has to leave the next load signed out. Awaited before the synchronous
+        // part, which must not be split by a wait.
+        if (env.clearVault && !(await env.clearVault())) {
+            await run(t.operations.clearWeb, async () => {
+                throw new Error('the device vault was not cleared');
+            });
+            return false;
+        }
         try {
             const stores = clearWebStores(env);
             // Written after the wipe so it survives it; read by the next boot.

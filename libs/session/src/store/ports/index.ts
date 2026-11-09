@@ -6,7 +6,7 @@ import { SessionMedia } from './sessionMedia';
 import type { StorageLike } from '../jsonSlot';
 import type { IRawSlot, ISessionMedia } from './types';
 
-export { isSessionKey, PAIRED_CLOUDS_KEY, SESSION_KEYS } from './sessionKeys';
+export { isSessionKey, PAIRED_CLOUDS_KEY, SECRET_LOGOUT_PENDING_KEY, SESSION_KEYS } from './sessionKeys';
 export type { SessionKey } from './sessionKeys';
 export type { IRawSlot, ISessionMedia, PortName, SessionStoragePorts, StoragePortPair } from './types';
 

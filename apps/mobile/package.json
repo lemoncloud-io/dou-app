@@ -61,6 +61,7 @@
         "uuid": "*",
         "react-native-mmkv": "*",
         "react-native-image-picker": "*",
+        "react-native-keychain": "*",
         "@react-native-documents/picker": "*",
         "react-native-contacts": "*",
         "react-native-permissions": "*",

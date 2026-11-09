@@ -103,7 +103,8 @@ The split is by what a value would cost if it leaked: whoever holds a `secret` k
 `chatic-paired-cloud-ids` is written by `@chatic/auth`'s `PairedCloudStore`, but it lives and dies
 with the session, so the session declares it and hands auth that one key (`pairedCloudsSlot`), not
 the plain port — nothing outside may write the session's other keys.
-`SESSION_KEYS` is that table in code, and `isSessionKey(key)` is how anything outside — the debug
+`chatic-secret-logout-pending` is in the plain list too: a logout whose vault clear was not confirmed
+leaves it, and the next boot empties the vault before reading it. `SESSION_KEYS` is that table in code, and `isSessionKey(key)` is how anything outside — the debug
 storage screen, through `runtime.session` — asks whether a key is the session's instead of keeping a
 copy of the list.
 
@@ -111,10 +112,11 @@ Until `configure` runs, both ports are this tab's `sessionStorage` — the brows
 one the landing site and the testbed keep, since they never configure them. The stores reach the
 ports through forwarding objects, so they can be built at import while the media are chosen at boot.
 
-| Where                                     | `secret`         | `plain`          |
-| ----------------------------------------- | ---------------- | ---------------- |
-| `apps/web`, `apps/desktop-web` in a shell | `localStorage`   | `localStorage`   |
-| a browser, `apps/admin-v2`                | `sessionStorage` | `sessionStorage` |
+| Where                                                     | `secret`                   | `plain`          |
+| --------------------------------------------------------- | -------------------------- | ---------------- |
+| `apps/web`, `apps/desktop-web` in a shell with a vault    | `nativeSecure` (the vault) | `localStorage`   |
+| `apps/web` in a phone shell from before the vault         | `localStorage`             | `localStorage`   |
+| a browser, `apps/admin-v2`, the landing site, the testbed | `sessionStorage`           | `sessionStorage` |
 
 `cloudStore` answers for more than the committed cloud. `getCloudTokenOf(cid)` is the store's own
 token while `cid` is committed and the cache entry otherwise; `peekCachedCloudTokens(cid)` reads the

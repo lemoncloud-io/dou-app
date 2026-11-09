@@ -10,9 +10,10 @@ messages that carry those bytes across the boundary are in
 [../webview/README.md](../webview/README.md); the service lifecycle around them is in
 [../native/service.md](../native/service.md).
 
-| Document               | Owns                                                                                   |
-| ---------------------- | -------------------------------------------------------------------------------------- |
-| [cache.md](./cache.md) | SQLite and MMKV, the per-domain data sources, and the cache messages the WebView sends |
+| Document                             | Owns                                                                                                          |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| [cache.md](./cache.md)               | SQLite and MMKV, the per-domain data sources, and the cache messages the WebView sends                        |
+| [device-vault.md](./device-vault.md) | The `nativeSecure` medium: one keychain item for the web's secrets, `StorageGet`/`StorageSave`/`StorageClear` |
 
 It is a recovery story: the app is killed at any moment, and what is on disk is what is left.
 

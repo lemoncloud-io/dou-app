@@ -4,9 +4,9 @@ import * as ReactDOM from 'react-dom/client';
 
 import '@lemoncloud/page-transition-core/styles.css';
 
-import { isNative, setupBridgeLogger, webClient } from '@chatic/bridges';
+import { BridgeStorageChannel, isNative, setupBridgeLogger, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import { asDomStorage, setStorageAdapter, WebMedium } from '@chatic/storage';
+import { asDomStorage, NativeSecureMedium, setStorageAdapter, WebMedium } from '@chatic/storage';
 import { runtime } from '@chatic/app-runtime';
 
 import { webConfigPorts } from './app/config/adapters';
@@ -82,143 +82,211 @@ syncThemeFromSharedKey();
 config.init(webConfigPorts);
 
 // The media this app keeps state in — the other half of `@chatic/web-config`'s old side effect.
-// `isNative()` is exactly "hosted inside a native or desktop shell" (it checks the same window
-// handles `usePersistentWebStorage` used to): inside a shell, localStorage so the session survives a
-// WebView cache wipe; in a plain browser tab, sessionStorage. One medium backs both session ports
-// (handed to `initAppRuntime` below) and the app-wide `storage` the rest of the app writes through.
+// Plain state: inside a shell (`isNative()`), localStorage so it survives a WebView cache wipe; in a
+// plain browser tab, sessionStorage. The app-wide `storage` the rest of the app writes through is the
+// same medium.
 const plainMedium = isNative() ? WebMedium.local() : WebMedium.session();
 setStorageAdapter(asDomStorage(plainMedium));
 
-// Boot the runtime. Placed HERE by contract, between two boundaries:
-//   - AFTER the log wiring above, because this call can log (duplicate boot, late data policy).
-//   - BEFORE anything below that can read the session. Nothing currently does before render, and
-//     the relay store throws rather than guessing when its resolvers are missing, so a future line
-//     that moves above this one fails loudly instead of signing requests against an empty host.
-// This replaces the import side effects that used to boot the session store and credential recovery
-// (ADR-0070 step-5 follow-up); it touches no network.
-//
-// Repository policy rides along: the embedded `$site` of user.profile is persisted into the place
-// cache only on the relay scope, so a cloud partition never receives the default place row
-// (ADR-0094). It must land before the data runtime is lazily created on first repository access.
-runtime.boot.initAppRuntime({
-    storage: { secret: plainMedium, plain: plainMedium },
-    data: {
-        repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
-    },
-});
+// The session's secrets — its four tokens. A shell that keeps a device vault says so in what it
+// injected, and that list is the only test: `isNative()` is true in every shell, vault or not. Such a
+// shell holds them in the vault, which is loaded — and anything left in localStorage moved into it —
+// before the runtime boots, so every read after that is synchronous. A shell from before the vault
+// keeps them in localStorage as it always did, and a browser in the tab's sessionStorage.
+const vault =
+    shellKeepsStorageMedium('nativeSecure') || WebMedium.session().get('chatic-shell-vault-confirmed') === '1'
+        ? new NativeSecureMedium({
+              channel: new BridgeStorageChannel(webClient, 'nativeSecure'),
+              // Never localStorage: a run whose vault is unavailable keeps the session in the tab only.
+              fallback: WebMedium.session(),
+          })
+        : null;
+const secretStorageReady: Promise<unknown> = vault
+    ? runtime.boot.prepareSecretStorage({
+          vault,
+          plain: plainMedium,
+          web: WebMedium.local(),
+          tab: WebMedium.session(),
+          afterLogout: new URLSearchParams(window.location.search).get('logout') === '1',
+      })
+    : Promise.resolve();
+// Only for a vault that could not be READ at launch; one whose write failed later reads fine and would
+// reload the page on every return to the foreground.
+if (vault) {
+    void secretStorageReady.then(outcome => {
+        if (outcome === 'unavailable' || outcome === 'unavailable-with-web-copy') watchUnavailableVault(vault);
+    });
+}
 
-// A composer draft is the signed-in person's own unsent text and files: they go at sign-out, so the
-// next account on this device never opens a room onto them.
-runtime.session.registerSessionLogoutCallback(clearComposerDrafts);
-// The same for the rooms whose composer was locked: they are the signed-in person's rooms.
-runtime.session.registerSessionLogoutCallback(clearInputLocks);
+/**
+ * A shell that keeps a vault without having said so before the page ran — it lists `StorageGet` in
+ * its handshake, but `CHATIC_APP_STORAGE_MEDIA` did not land. Moving the session into the vault in the
+ * middle of a run would race token writes and skip the boot's own sign-in decision, so the tab is
+ * marked and reloaded once, and the next boot takes the vault from the start.
+ */
+const LATE_VAULT_MARK = 'chatic-shell-vault-confirmed';
+const adoptLateVault = (): void => {
+    WebMedium.session().set(LATE_VAULT_MARK, '1');
+    window.location.reload();
+};
 
-// Read the previous session's fate — a session that died without a clean
-// pagehide is logged as page-crash (ADR-0097 S7). It carries no buffer: the dead
-// run's entries reach the collector through the batch uploader on their own.
-// Must stay after `startLogUploader`, which owns the only log store.
-const webLogBoot = attachWebCrashSentinel();
-schedulePageCrashReport(webLogBoot);
+/**
+ * A vault the shell could not read at launch — on iOS, before the first unlock — becomes readable
+ * later, and the shell reads it again when the app comes back to the foreground. This run already
+ * fell back to the tab, so when the page is shown again and the vault now answers, the page starts
+ * over on it.
+ */
+const watchUnavailableVault = (medium: NativeSecureMedium): void => {
+    const channel = new BridgeStorageChannel(webClient, 'nativeSecure');
+    const onVisible = async () => {
+        if (document.visibilityState !== 'visible' || medium.status === 'available') return;
+        const read = await channel.read().catch(() => null);
+        if (read?.status !== 'available') return;
+        document.removeEventListener('visibilitychange', onVisible);
+        window.location.reload();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+};
 
-// Drain the reports the native side detected while the web was down (WebView
-// crash, RN exceptions, native crashes) into the log pipeline.
-schedulePendingReportFlush();
+/** Everything after the secrets are loaded — the runtime boot, the collectors and the first render. */
+const startApp = (): void => {
+    // Boot the runtime. Placed HERE by contract, between two boundaries:
+    //   - AFTER the log wiring above, because this call can log (duplicate boot, late data policy).
+    //   - BEFORE anything below that can read the session. Nothing currently does before render, and
+    //     the relay store throws rather than guessing when its resolvers are missing, so a future line
+    //     that moves above this one fails loudly instead of signing requests against an empty host.
+    // This replaces the import side effects that used to boot the session store and credential recovery
+    //; it touches no network.
+    //
+    // Repository policy rides along: the embedded `$site` of user.profile is persisted into the place
+    // cache only on the relay scope, so a cloud partition never receives the default place row
+    //. It must land before the data runtime is lazily created on first repository access.
+    runtime.boot.initAppRuntime({
+        storage: { secret: vault ?? plainMedium, plain: plainMedium },
+        data: {
+            repositories: { user: { persistEmbeddedSite: context => (context.cid ?? 'default') === 'default' } },
+        },
+    });
 
-// Boot/perf collectors first so buffered long tasks and the boot timeline
-// include everything from here on (surfaced in the debug overlay).
-markBoot('main-start');
+    // A composer draft is the signed-in person's own unsent text and files: they go at sign-out, so the
+    // next account on this device never opens a room onto them.
+    runtime.session.registerSessionLogoutCallback(clearComposerDrafts);
+    // The same for the rooms whose composer was locked: they are the signed-in person's rooms.
+    runtime.session.registerSessionLogoutCallback(clearInputLocks);
 
-// The boot cover in index.html lifts when the first screen paints (runtime/bootSplash). The cap is
-// the guarantee that a boot which never gets there still shows whatever it did render — an error,
-// a stalled gate — instead of an endless blank cover. Generous on purpose: it is not a budget, and
-// the native shell lifts its own splash on a shorter cap of its own.
-bootSplash.armCap(10_000);
-initLongTasks();
+    // Read the previous session's fate — a session that died without a clean
+    // pagehide is logged as page-crash. It carries no buffer: the dead
+    // run's entries reach the collector through the batch uploader on their own.
+    // Must stay after `startLogUploader`, which owns the only log store.
+    const webLogBoot = attachWebCrashSentinel();
+    schedulePageCrashReport(webLogBoot);
 
-// Performance traces. Where they go is only known once the WebAppReady reply
-// says whether the installed app records Firebase traces, so until then they
-// are held and replayed (see runtime/perf). An app build without the handlers
-// gets the log pipeline instead, sampled by the injected run id; a plain browser
-// tab has no run id and records nothing. (The other shells never reach here:
-// they have their own entry points and none of them calls this.)
-//
-// Only ordering that matters: this precedes `initWebVitals` below, whose
-// FCP/LCP are recorded through it.
-// Statistics (performance traces, usage events) go through the same pipeline as logs, decided by
-// a sampling policy read here, once, for the whole run. Before the vitals and the first traces, so
-// they are recorded under it; with the default policy nothing is recorded at all. The development
-// override lets a policy be tried before the server serves one; a production build ignores it.
-startTelemetry({
-    context: readLogContext,
-    allowPolicyOverride: import.meta.env.DEV,
-    onReject: import.meta.env.DEV ? rejection => console.warn('[telemetry] refused', rejection) : undefined,
-});
+    // Drain the reports the native side detected while the web was down (WebView
+    // crash, RN exceptions, native crashes) into the log pipeline.
+    schedulePendingReportFlush();
 
-const webPerfTraces = configureWebPerfTraces();
+    // Boot/perf collectors first so buffered long tasks and the boot timeline
+    // include everything from here on (surfaced in the debug overlay).
+    markBoot('main-start');
 
-// Times every bridge request of a sampled run, from here on so the boot burst — the WebAppReady
-// handshake included — is in it. Samples are held with the other traces until the report says
-// where they go, and only a few of them, so they cannot crowd the boot traces out of that hold.
-observeBridgeRequests({ client: webClient, runId: readInjectedRunId(), isHeld: webPerfTraces.isHeld });
+    // The boot cover in index.html lifts when the first screen paints (runtime/bootSplash). The cap is
+    // the guarantee that a boot which never gets there still shows whatever it did render — an error,
+    // a stalled gate — instead of an endless blank cover. Generous on purpose: it is not a budget, and
+    // the native shell lifts its own splash on a shorter cap of its own.
+    bootSplash.armCap(10_000);
+    initLongTasks();
 
-// Times every socket request of a sampled run (a different tenth of runs from the bridge's), per
-// request type, so the server's answer time can be read apart from what the screens add to it.
-observeSocketRequests({
-    manager: runtime.connection.getSocketManager(),
-    runId: readInjectedRunId(),
-    isHeld: webPerfTraces.isHeld,
-});
+    // Performance traces. Where they go is only known once the WebAppReady reply
+    // says whether the installed app records Firebase traces, so until then they
+    // are held and replayed (see runtime/perf). An app build without the handlers
+    // gets the log pipeline instead, sampled by the injected run id; a plain browser
+    // tab has no run id and records nothing. (The other shells never reach here:
+    // they have their own entry points and none of them calls this.)
+    //
+    // Only ordering that matters: this precedes `initWebVitals` below, whose
+    // FCP/LCP are recorded through it.
+    // Statistics (performance traces, usage events) go through the same pipeline as logs, decided by
+    // a sampling policy read here, once, for the whole run. Before the vitals and the first traces, so
+    // they are recorded under it; with the default policy nothing is recorded at all. The development
+    // override lets a policy be tried before the server serves one; a production build ignores it.
+    startTelemetry({
+        context: readLogContext,
+        allowPolicyOverride: import.meta.env.DEV,
+        onReject: import.meta.env.DEV ? rejection => console.warn('[telemetry] refused', rejection) : undefined,
+    });
 
-// Times how each state write (read cursor, notification setting, room name) reaches the server after
-// the screen has already shown it — the local-first writes' only remaining wait. Its own runs again.
-observeStateOutbox({
-    setObserver: runtime.data.setStateOutboxObserver,
-    runId: readInjectedRunId(),
-    isHeld: webPerfTraces.isHeld,
-});
+    const webPerfTraces = configureWebPerfTraces();
 
-// Initialize Web Vitals monitoring
-initWebVitals();
+    // Times every bridge request of a sampled run, from here on so the boot burst — the WebAppReady
+    // handshake included — is in it. Samples are held with the other traces until the report says
+    // where they go, and only a few of them, so they cannot crowd the boot traces out of that hold.
+    observeBridgeRequests({ client: webClient, runId: readInjectedRunId(), isHeld: webPerfTraces.isHeld });
 
-// Capture native OnNavigate events before render: the native bridge buffers the
-// cold-start push tap until the web signals readiness, and the router (with its
-// navigation handler) mounts much later. Subscribing here guarantees the flushed
-// event is held instead of dropped. See pendingNavigationStore.
-pendingNavigationStore.start();
+    // Times every socket request of a sampled run (a different tenth of runs from the bridge's), per
+    // request type, so the server's answer time can be read apart from what the screens add to it.
+    observeSocketRequests({
+        manager: runtime.connection.getSocketManager(),
+        runId: readInjectedRunId(),
+        isHeld: webPerfTraces.isHeld,
+    });
 
-// Complete the bridge handshake only AFTER the capture is armed: the native side
-// flushes its buffered events (cold-start OnNavigate included) on WebAppReady, so
-// this ordering is what makes the flush safe. Log relays (SendLog) deliberately do
-// not count as readiness on the native side — this call is the real signal.
-// The reply is a capability report, not an ack: this web build can be newer than the app it runs
-// inside, so what the installed shell can persist locally has to be asked, not assumed. Recording it
-// before render keeps the answer available by the time the data runtime creates its cache storages
-// (an unrecorded answer falls back to the fixed set of cache types every supported shell stores — see
-// nativeCacheSupport). Never rejects, so this cannot break boot in a plain browser.
-void appBridge.notifyWebAppReady().then(report => {
-    // First, so nothing that follows can leave every trace of this session held unresolved.
-    webPerfTraces.resolveWith(report);
-    // Until this lands the viewer shows no save or share: it does not yet know what this shell handles.
-    shellCapabilities.setReport(report);
-    if (report) runtime.boot.setNativeCacheSupport(report);
-});
+    // Times how each state write (read cursor, notification setting, room name) reaches the server after
+    // the screen has already shown it — the local-first writes' only remaining wait. Its own runs again.
+    observeStateOutbox({
+        setObserver: runtime.data.setStateOutboxObserver,
+        runId: readInjectedRunId(),
+        isHeld: webPerfTraces.isHeld,
+    });
 
-// Force the native debug menu off on every web start — the OTA-controllable kill switch for the
-// native floating debug button (FAB), which is gated on the native `debugModeEnabled` flag. Sent
-// right after WebAppReady so it rides the same buffered flush to a native side that is guaranteed to
-// be listening (a mount-time post can race ahead of the native router and be dropped). Entering the
-// debug menu is a per-session action afterwards (MyPage 10-tap → SetDebugMode(true)).
-// NOTE: there is no stage that escapes this. The old note here claimed non-PROD builds showed the
-// FAB through a compile-time flag the web could not change; that was never true (`__DEV__` gated the
-// console and log sinks, never the panel), and ADR-0080 decision 12 has since deleted the native FAB and
-// every other debug UI from the app. This call is now belt-and-braces: it clears a flag that older
-// installed builds still read.
-appBridge.setDebugMode(false);
+    // Initialize Web Vitals monitoring
+    initWebVitals();
 
-const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
+    // Capture native OnNavigate events before render: the native bridge buffers the
+    // cold-start push tap until the web signals readiness, and the router (with its
+    // navigation handler) mounts much later. Subscribing here guarantees the flushed
+    // event is held instead of dropped. See pendingNavigationStore.
+    pendingNavigationStore.start();
 
-root.render(
-    <StrictMode>
-        <App />
-    </StrictMode>
-);
+    // Complete the bridge handshake only AFTER the capture is armed: the native side
+    // flushes its buffered events (cold-start OnNavigate included) on WebAppReady, so
+    // this ordering is what makes the flush safe. Log relays (SendLog) deliberately do
+    // not count as readiness on the native side — this call is the real signal.
+    // The reply is a capability report, not an ack: this web build can be newer than the app it runs
+    // inside, so what the installed shell can persist locally has to be asked, not assumed. Recording it
+    // before render keeps the answer available by the time the data runtime creates its cache storages
+    // (an unrecorded answer falls back to the fixed set of cache types every supported shell stores — see
+    // nativeCacheSupport). Never rejects, so this cannot break boot in a plain browser.
+    void appBridge.notifyWebAppReady().then(report => {
+        // First, so nothing that follows can leave every trace of this session held unresolved.
+        webPerfTraces.resolveWith(report);
+        // Until this lands the viewer shows no save or share: it does not yet know what this shell handles.
+        shellCapabilities.setReport(report);
+        if (report) runtime.boot.setNativeCacheSupport(report);
+        // A shell that keeps a vault but did not say so before the page ran is found here instead,
+        // and the session moves into its vault for the rest of the run.
+        if (!vault && report?.supportedWebMessages?.includes('StorageGet')) void adoptLateVault();
+    });
+
+    // Force the native debug menu off on every web start — the OTA-controllable kill switch for the
+    // native floating debug button (FAB), which is gated on the native `debugModeEnabled` flag. Sent
+    // right after WebAppReady so it rides the same buffered flush to a native side that is guaranteed to
+    // be listening (a mount-time post can race ahead of the native router and be dropped). Entering the
+    // debug menu is a per-session action afterwards (MyPage 10-tap → SetDebugMode(true)).
+    // NOTE: there is no stage that escapes this. The old note here claimed non-PROD builds showed the
+    // FAB through a compile-time flag the web could not change; that was never true (`__DEV__` gated the
+    // console and log sinks, never the panel), and a later decision deleted the native FAB and
+    // every other debug UI from the app. This call is now belt-and-braces: it clears a flag that older
+    // installed builds still read.
+    appBridge.setDebugMode(false);
+
+    const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
+
+    root.render(
+        <StrictMode>
+            <App />
+        </StrictMode>
+    );
+};
+
+// Never rejects: the vault boot answers every failure with a fallback, never with an error.
+void secretStorageReady.then(startApp);

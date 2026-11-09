@@ -12,7 +12,7 @@ export * from './store';
 export { cloudStore, identityStore, relayStore } from './store/stores';
 export type { CachedCloudTokens } from './store/cloudStore';
 export { configureSessionStore } from './store/configure';
-export { isSessionKey, pairedCloudsSlot, SESSION_KEYS, sessionMedia } from './store/ports';
+export { isSessionKey, pairedCloudsSlot, SECRET_LOGOUT_PENDING_KEY, SESSION_KEYS, sessionMedia } from './store/ports';
 export type { IRawSlot, ISessionMedia, SessionKey, SessionStoragePorts } from './store/ports';
 export type { StorageLike } from './store/jsonSlot';
 
