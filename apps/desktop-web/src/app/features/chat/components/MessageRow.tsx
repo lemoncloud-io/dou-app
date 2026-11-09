@@ -14,7 +14,7 @@ import {
     Trash2,
 } from 'lucide-react';
 
-import { chatAttachmentSummary, type DomainChat } from '@chatic/data';
+import { chatAttachmentSummary, isMessageEdited, type DomainChat } from '@chatic/data';
 import { cn } from '@chatic/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 import {
@@ -33,7 +33,6 @@ import { ConfirmDialog } from '../../channels';
 import {
     canModifyMessage,
     hasMyReaction,
-    isEdited,
     isSendingImages,
     savedAttachmentOf,
     threadRootId,
@@ -490,7 +489,7 @@ export const MessageRow = memo(
                             const showMore = !!content || showSave || canModifyMessage(message, group.isMine);
                             const hasActions = showReactions || showReply || showMore;
                             const isEditing = editingKey === key;
-                            const wasEdited = isEdited(message);
+                            const wasEdited = isMessageEdited(message);
                             // Keep the toolbar up whenever it owns something the reader is
                             // still looking at — the emoji grid, the delete dialog, or the
                             // "Copied" tick that has not timed out yet. All three outlive the

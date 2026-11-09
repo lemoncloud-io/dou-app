@@ -161,10 +161,18 @@ The edit is seeded from `message.content`, **never from what the bubble drew**. 
 truncates at 200 characters, and seeding from the rendered string would destroy everything past the
 cut on the first save. A test pins this.
 
-**Edited marker.** `isMessageEdited` from `@chatic/data` decides it, and it is an inference: the
-server has no edit flag, so what it really detects is that the row was written again. It excludes
-tombstones, unsent rows and missing timestamps. Marking early is deliberately not done — it would
-mean un-marking on failure.
+**Edited marker.** `isMessageEdited` from `@chatic/data` decides it. A server that records edits
+stamps `editedAt` when the text changes, and that is the answer there. An older server has no edit
+flag, and there it is an inference — what it really detects is that the row was written again. It
+excludes tombstones, unsent rows and missing timestamps. Marking early is deliberately not done — it
+would mean un-marking on failure.
+
+**Edits and deletes made while a device was away.** A server that records edits also writes a
+revision notice (`subType: 'edit'`) on the room's next chat number each time a message is edited or
+deleted. The notice is never drawn (`isFeedVisible`); the data layer re-reads the message it points at
+and writes its current state, so a device that was offline sees the edit or the tombstone once it
+catches up. The two paragraphs below describe an older server, which has neither the notice nor
+`editedAt`.
 
 **On the editor's own screen the marker is late, and later than "after the server responds."**
 Measured 2026-09-17 against the dev server: the server does advance `updatedAt` on an edit, but the

@@ -45,12 +45,22 @@ export const compareByChatNo = (a: DomainChat, b: DomainChat): number => {
 export const isNotifiableChat = (chat: Pick<DomainChat, 'stereo'>): boolean => chat.stereo !== 'system';
 
 /**
+ * Whether a chat is an event about another message rather than a message: a reaction toggle
+ * (`reaction`) or a revision notice (`edit`, written by the server each time a message is edited or
+ * deleted). Neither is drawn or counted as a message. A reaction is folded into chips under the
+ * message it points at; a revision only says which message changed (`edit$.chatId`), and the
+ * repository brings that message to its current state instead.
+ */
+export const isEventChat = (chat: Pick<DomainChat, 'subType'>): boolean =>
+    chat.subType === 'reaction' || chat.subType === 'edit';
+
+/**
  * Whether a chat belongs in the main channel feed.
  *
  * Two reasons to hide a row arrived from different directions and, kept apart, they
- * drift: thread replies live on the thread page (ADR 0008/0045), and reaction events
- * are ordinary chats the reader must never see as messages — they are the input to
- * `foldReactions` and appear as chips under the message they point at.
+ * drift: thread replies live on the thread page (ADR 0008/0045), and event rows
+ * (`isEventChat` — reactions and revisions) are ordinary chats the reader must never see as
+ * messages. A revision left in the feed is drawn as an empty notice line.
  *
  * Deleted messages stay. The server's delete is a soft delete — the row survives and
  * comes back on the next sync — and the feed keeps it in place as a tombstone rather
@@ -58,7 +68,7 @@ export const isNotifiableChat = (chat: Pick<DomainChat, 'stereo'>): boolean => c
  * render as a notice line rather than a message.
  */
 export const isFeedVisible = (chat: Pick<DomainChat, 'parentId' | 'subType'>): boolean =>
-    !chat.parentId && chat.subType !== 'reaction';
+    !chat.parentId && !isEventChat(chat);
 
 /**
  * Whether a chat can stand as a channel's one-line preview on the home list.
@@ -90,7 +100,7 @@ export const isPreviewableChat = (chat: DomainChat): boolean => !chat.parentId &
  * room's place in the list, from this one.
  */
 export const isActivityChat = (chat: DomainChat): boolean =>
-    chat.subType !== 'reaction' && isNotifiableChat(chat) && !chat.isFailed;
+    !isEventChat(chat) && isNotifiableChat(chat) && !chat.isFailed;
 
 /**
  * The newest previewable chat in an observed window, or undefined when it holds none

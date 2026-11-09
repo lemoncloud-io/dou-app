@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import type { DomainChannel, DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChannel, type DomainChat } from '@chatic/data';
 import { runtime } from '@chatic/app-runtime';
 
 import { messagePlainText } from '../../../shared';
@@ -27,7 +27,7 @@ export const SEARCH_MAX_CHANNELS = 30;
  * thread rather than scrolling the main feed, which never renders them.
  */
 const isSearchable = (q: string) => (chat: DomainChat) =>
-    chat.subType !== 'reaction' && !chat.hidden && messagePlainText(chat.content).toLowerCase().includes(q);
+    !isEventChat(chat) && !chat.hidden && messagePlainText(chat.content).toLowerCase().includes(q);
 
 /**
  * Local message search over the engine's chat cache (no search endpoint exists

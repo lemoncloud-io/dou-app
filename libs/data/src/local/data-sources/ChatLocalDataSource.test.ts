@@ -36,6 +36,101 @@ describe('ChatLocalDataSource', () => {
         expect(otherChannel?.list.map(item => item.id)).toEqual(['m3']);
     });
 
+    // A message's state only moves forward. A copy the server wrote earlier than the cached one — a
+    // re-read that lands after the live change, or two quick edits answered out of order — is dropped.
+    describe('an older copy of a cached row', () => {
+        const read = async (dataSource: ChatLocalDataSource, id = 'm1') => dataSource.cacheRead(id);
+        const fresh = () => new ChatLocalDataSource(contextProvider as any, createPartitionedMemoryStorage('chat'));
+        const row = (fields: Record<string, unknown>) => ({ id: 'm1', channelId: 'ch-1', chatNo: 1, ...fields }) as any;
+
+        it('is not written over a newer edit', async () => {
+            const dataSource = fresh();
+            await dataSource.cacheWrite(row({ content: 'second', updatedAtMs: 200 }));
+
+            await dataSource.cacheWrite(row({ content: 'first', updatedAtMs: 100 }));
+
+            expect(await read(dataSource)).toMatchObject({ content: 'second', updatedAtMs: 200 });
+        });
+
+        it('does not bring a deleted message back', async () => {
+            const dataSource = fresh();
+            await dataSource.cacheWrite(row({ content: '', hidden: true, updatedAtMs: 300 }));
+
+            await dataSource.cacheWriteMany([row({ content: 'original', hidden: false, updatedAtMs: 100 })]);
+
+            expect(await read(dataSource)).toMatchObject({ content: '', hidden: true });
+        });
+
+        it('drops only the older rows of a batch and writes the rest', async () => {
+            const dataSource = fresh();
+            await dataSource.cacheWriteMany([
+                row({ content: 'new', updatedAtMs: 200 }),
+                { id: 'm2', channelId: 'ch-1', chatNo: 2, content: 'old', updatedAtMs: 100 } as any,
+            ]);
+
+            await dataSource.cacheWriteMany([
+                row({ content: 'stale', updatedAtMs: 150 }),
+                { id: 'm2', channelId: 'ch-1', chatNo: 2, content: 'edited', updatedAtMs: 250 } as any,
+            ]);
+
+            expect(await read(dataSource)).toMatchObject({ content: 'new' });
+            expect(await read(dataSource, 'm2')).toMatchObject({ content: 'edited' });
+        });
+
+        it('writes a copy with the same time, so the same row received twice settles the same', async () => {
+            const dataSource = fresh();
+            await dataSource.cacheWrite(row({ content: 'a', updatedAtMs: 200 }));
+
+            await dataSource.cacheWrite(row({ content: 'a', readCount: 3, updatedAtMs: 200 }));
+
+            expect(await read(dataSource)).toMatchObject({ readCount: 3 });
+        });
+
+        // A row on its way and an inferred delete mark carry no server time; they are written as before.
+        it('compares only when both copies carry the server time', async () => {
+            const dataSource = fresh();
+            await dataSource.cacheWrite(row({ content: 'cached', updatedAtMs: 200 }));
+
+            await dataSource.cacheWriteMany([row({ hidden: true, hiddenByFeed: true })]);
+
+            expect(await read(dataSource)).toMatchObject({ hidden: true, hiddenByFeed: true });
+        });
+
+        // The device's clock is never taken for the server's: a device running ahead would make every later
+        // server copy look older.
+        it('does not stamp the device clock on a row written without a server time', async () => {
+            const dataSource = fresh();
+            await dataSource.cacheWrite(row({ content: 'edited here first' }));
+
+            await dataSource.cacheWrite(row({ content: 'server answer', updatedAtMs: 100 }));
+
+            expect(await read(dataSource)).toMatchObject({ content: 'server answer', updatedAtMs: 100 });
+        });
+
+        it('keeps the cached server time when a copy arrives without one', async () => {
+            const dataSource = fresh();
+            await dataSource.cacheWrite(row({ content: 'a', updatedAtMs: 200 }));
+            await dataSource.cacheWrite(row({ readCount: 2, updatedAtMs: 0 }));
+
+            await dataSource.cacheWrite(row({ content: 'stale', updatedAtMs: 100 }));
+
+            expect(await read(dataSource)).toMatchObject({ content: 'a', updatedAtMs: 200 });
+        });
+
+        // An optimistic edit keeps the cached time, so putting the previous text back after a failed save
+        // compares equal and is written.
+        it('lets a failed edit put the previous text back', async () => {
+            const dataSource = fresh();
+            await dataSource.cacheWrite(row({ content: 'before', updatedAtMs: 200 }));
+            const previous = await read(dataSource);
+            await dataSource.cacheWrite({ ...previous, content: 'after' } as any);
+
+            await dataSource.cacheWrite(previous as any);
+
+            expect(await read(dataSource)).toMatchObject({ content: 'before' });
+        });
+    });
+
     describe('a deleted mark inferred from a feed page (hiddenByFeed)', () => {
         const read = async (dataSource: ChatLocalDataSource) =>
             (await dataSource.cacheReadList({ channelId: 'ch-1', limit: 50 } as any))?.list[0];

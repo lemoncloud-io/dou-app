@@ -181,6 +181,167 @@ describe('ChatRepository', () => {
         expect((await repository.refreshList({ channelId: 'ch-1' } as any)).latestNo).toBe(0);
     });
 
+    // The server records each edit or delete as a revision notice on the room's next number. A page that
+    // brings one makes the repository re-read the message it points at, so a device that was offline
+    // ends up with the edit or the delete it missed.
+    describe('revision notices in a page', () => {
+        const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+        const row = (chatNo: number, over: Partial<DomainChat> = {}) =>
+            ({ id: `ch-1:${chatNo}`, channelId: 'ch-1', chatNo, ...over }) as DomainChat;
+        const revision = (chatNo: number, targetId: string, action: 'update' | 'delete') =>
+            row(chatNo, { stereo: 'system', subType: 'edit', content: '', edit$: { action, chatId: targetId } } as any);
+
+        it('re-reads a cached message an edit points at and writes its current state', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({ list: [revision(9, 'ch-1:4', 'update')], cursorNo: 0 });
+            chatLocalDataSource.cacheRead.mockResolvedValue(row(4, { content: 'before' }));
+            chatSocketDataSource.getChat.mockResolvedValue(row(4, { content: 'after', editedAt: 5 } as any));
+
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(chatSocketDataSource.getChat).toHaveBeenCalledWith({ id: 'ch-1:4' }, expect.anything());
+            expect(chatLocalDataSource.cacheWriteMany).toHaveBeenLastCalledWith(
+                [expect.objectContaining({ id: 'ch-1:4', content: 'after' })],
+                expect.anything()
+            );
+        });
+
+        // Edit and delete are not told apart; the re-read row says which it now is.
+        it('brings a deleted message to its deleted state the same way', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({ list: [revision(9, 'ch-1:4', 'delete')], cursorNo: 0 });
+            chatLocalDataSource.cacheRead.mockResolvedValue(row(4, { content: 'before' }));
+            chatSocketDataSource.getChat.mockResolvedValue(row(4, { content: '', hidden: true }));
+
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(chatLocalDataSource.cacheWriteMany).toHaveBeenLastCalledWith(
+                [expect.objectContaining({ id: 'ch-1:4', hidden: true })],
+                expect.anything()
+            );
+        });
+
+        it('does not read a message the cache does not hold', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({ list: [revision(9, 'ch-1:4', 'update')], cursorNo: 0 });
+            chatLocalDataSource.cacheRead.mockResolvedValue(null);
+
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(chatSocketDataSource.getChat).not.toHaveBeenCalled();
+        });
+
+        it('reads each message once, however many notices point at it', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({
+                list: [revision(10, 'ch-1:4', 'update'), revision(9, 'ch-1:4', 'update'), row(8)],
+                cursorNo: 0,
+            });
+            chatLocalDataSource.cacheRead.mockResolvedValue(row(4));
+            chatSocketDataSource.getChat.mockResolvedValue(row(4, { content: 'latest' }));
+
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(chatSocketDataSource.getChat).toHaveBeenCalledTimes(1);
+        });
+
+        // The page is the caller's answer; a failed re-read waits for the next page that holds the notice.
+        it('answers with the page even when the re-read fails', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({
+                list: [revision(9, 'ch-1:4', 'update'), row(8)],
+                cursorNo: 0,
+                total: 2,
+            });
+            chatLocalDataSource.cacheRead.mockResolvedValue(row(4));
+            chatSocketDataSource.getChat.mockRejectedValue(new Error('500 timeout'));
+
+            const result = await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(result).toMatchObject({ fetchedCount: 2, latestNo: 9 });
+            expect(chatLocalDataSource.cacheWriteMany).toHaveBeenCalledTimes(1);
+        });
+
+        // Lists and catch-up read the newest page of every room; a notice stays on it until newer messages
+        // push it out. Acting on it once per session keeps those reads from re-reading the same message.
+        it('acts on a notice once, however many pages bring it again', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({ list: [revision(9, 'ch-1:4', 'update')], cursorNo: 0 });
+            chatLocalDataSource.cacheRead.mockResolvedValue(row(4));
+            chatSocketDataSource.getChat.mockResolvedValue(row(4, { content: 'after' }));
+
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(chatSocketDataSource.getChat).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not re-read a message the same page already carries', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({
+                list: [revision(9, 'ch-1:4', 'update'), row(4, { content: 'current' })],
+                cursorNo: 0,
+            });
+            chatLocalDataSource.cacheRead.mockResolvedValue(row(4));
+
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(chatSocketDataSource.getChat).not.toHaveBeenCalled();
+        });
+
+        // A message the server no longer has (404) will never read; one that timed out may next time.
+        it('stops asking after a gone answer, and asks again after a transient one', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({
+                list: [revision(10, 'ch-1:5', 'update'), revision(9, 'ch-1:4', 'update')],
+                cursorNo: 0,
+            });
+            chatLocalDataSource.cacheRead.mockImplementation(async (id: string) => row(Number(id.split(':')[1])));
+            chatSocketDataSource.getChat.mockImplementation(async ({ id }: { id: string }) => {
+                throw new Error(id === 'ch-1:5' ? '404 NOT FOUND' : '500 timeout');
+            });
+
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+            chatSocketDataSource.getChat.mockClear();
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(chatSocketDataSource.getChat.mock.calls.map(([input]) => input.id)).toEqual(['ch-1:4']);
+        });
+
+        // Leaving a room clears its cache; a read still in flight must not put a row back into it.
+        it('does not write a re-read message the cache dropped while the read was in flight', async () => {
+            const { repository, chatSocketDataSource, chatLocalDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({ list: [revision(9, 'ch-1:4', 'update')], cursorNo: 0 });
+            chatLocalDataSource.cacheRead.mockResolvedValueOnce(row(4)).mockResolvedValue(null);
+            chatSocketDataSource.getChat.mockResolvedValue(row(4, { content: 'after' }));
+
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(chatLocalDataSource.cacheWriteMany).toHaveBeenCalledTimes(1);
+        });
+
+        it('reads nothing for a page without notices', async () => {
+            const { repository, chatSocketDataSource } = createRepository();
+            chatSocketDataSource.fetchChat.mockResolvedValue({ list: [row(8), row(7)], cursorNo: 0 });
+
+            await repository.refreshList({ channelId: 'ch-1' } as any);
+            await flush();
+
+            expect(chatSocketDataSource.getChat).not.toHaveBeenCalled();
+        });
+    });
+
     describe('what a page answers for', () => {
         beforeEach(() => feedCoverage.clear());
 

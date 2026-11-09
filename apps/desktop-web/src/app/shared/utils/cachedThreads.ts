@@ -1,4 +1,4 @@
-import type { DomainChat } from '@chatic/data';
+import { isEventChat, type DomainChat } from '@chatic/data';
 
 import { messagePreview } from './messagePreview';
 import { threadRootNo, type ThreadReply, type ThreadRoot } from './myThreads';
@@ -18,7 +18,7 @@ export const cachedThreads = (
     const roots = new Map<string, DomainChat>();
     const replies = new Map<string, DomainChat[]>();
     for (const row of rows) {
-        if (row.subType === 'reaction' || !isNotifiableChat(row)) continue;
+        if (isEventChat(row) || !isNotifiableChat(row)) continue;
         if (!row.parentId) {
             if (row.chatNo != null) roots.set(String(row.chatNo), row);
             continue;

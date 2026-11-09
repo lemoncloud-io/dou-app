@@ -316,7 +316,7 @@ see [chat-room.md](./chat-room.md).
 
 ## Notes for implementers and tests
 
-- A reaction event is invisible in the feed but still consumes a `chatNo`, so a burst of them can
+- A reaction event (and likewise a revision notice) is invisible in the feed but still consumes a `chatNo`, so a burst of them can
   fill the newest rows of a window. Surfaces that read "the last real message" widen their window
   instead of filtering after the fact — that is the home list's concern, see
   [../home/README.md](../home/README.md).

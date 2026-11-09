@@ -8,7 +8,7 @@ import {
 } from '@lemoncloud/chatic-sockets-lib';
 import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainProfile } from '@chatic/data';
 import { syncDataGraph } from './dataGraph';
-import type { ChannelView, ProfileView } from '@lemoncloud/chatic-socials-api';
+import type { ChannelView, ChatView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
 import { logger } from '@chatic/bridges';
 
@@ -218,7 +218,9 @@ export const createSyncPlans = (slot: SlotKey): DomainSyncPlan[] => {
         // No onRemove is set — the chat plan is never auto-stopped, and message history is kept for
         // lazy-load/offline use.
         reportStop(
-            new ChatSyncPlan({
+            // Typed by the server's chat view: the plan's own message shape is the loose minimum it
+            // reads (`subType` as any string), which the mappers cannot take.
+            new ChatSyncPlan<ChatView>({
                 // Applied message delta (ascending). Written in one batch for an idempotent merge keyed on chatNo.
                 onApply: (_target, applied) => {
                     if (!applied.length) return;

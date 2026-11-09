@@ -174,8 +174,9 @@ export const useInboxCapture = (): void => {
         if (!isNotifiableChat(chat) || !channel.id) return;
         if (isMine(chat, viewerIn(channel)) || isRead(channel.id, chat.chatNo)) return;
         const kind = arrivalKind(feed, content);
-        // A photo or file sent on its own has no text; its stored line is the attachment label.
-        const preview = content || messagePreview(chat);
+        // A photo or file sent on its own has no text; its stored line is the attachment label. A deleted
+        // message is quoted as deleted, not by the body an older server still keeps on it.
+        const preview = chat.hidden ? messagePreview(chat) : content || messagePreview(chat);
         if (kind && preview) addMessage(feed, kind, preview);
     });
 };

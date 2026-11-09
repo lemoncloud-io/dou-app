@@ -59,6 +59,35 @@ const inferredHiddenAfter = (
     return item.hidden ? { hiddenByFeed: false } : { hidden: false, hiddenByFeed: false };
 };
 
+/**
+ * Whether `item` is an older copy of a row the cache already holds a newer copy of — written by the
+ * server earlier than what is cached. Such a copy is not written: a message's state only moves forward.
+ *
+ * It arrives more often than it sounds. Every message edit or delete is followed by a revision notice,
+ * and a device brings the edited message to its current state by reading it again; that read can land
+ * after the change the server pushed live, and two quick edits can come back in either order. Without
+ * this an edited message could fall back to its previous text, or a deleted one come back.
+ *
+ * Compared only when both sides carry the server's time (`updatedAtMs` above 0); a row still on its way
+ * carries none and is written as before. An equal time is written, so receiving the same row twice
+ * settles to the same state — which is also why the delete marks this device infers (`markMissingHidden`,
+ * built from the cached copy and so carrying its time) are written.
+ */
+const isOlderThanCached = (existing: DomainChat | null | undefined, item: Partial<DomainChat>): boolean => {
+    const cachedAt = existing?.updatedAtMs ?? 0;
+    const incomingAt = item.updatedAtMs ?? 0;
+    return cachedAt > 0 && incomingAt > 0 && incomingAt < cachedAt;
+};
+
+/**
+ * The server time a merged row keeps: the incoming one when it has one, otherwise the cached one, and 0
+ * when neither does. Never the device's clock — a device running ahead would make every later server copy
+ * look older and be dropped by `isOlderThanCached` — and never a missing time (0) over a real one, which
+ * would switch that comparison off for the row.
+ */
+const serverTimeAfter = (existing: DomainChat | null | undefined, item: Partial<DomainChat>): number =>
+    item.updatedAtMs || existing?.updatedAtMs || 0;
+
 /** Stores chat pages locally and re-emits only the channel timelines touched by each write. */
 export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements IChatLocalDataSource {
     constructor(contextProvider: DataContextProvider, storages: ScopedCacheStorage<'chat'>) {
@@ -225,6 +254,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
 
         const storage = this.storage(scope);
         const existing = await storage.load(id);
+        if (isOlderThanCached(existing, item)) return;
         const cid = scope.cid || 'default';
         const merged: DomainChat = {
             ...(existing ?? ({} as DomainChat)),
@@ -237,7 +267,7 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
             isPending: item.isPending ?? existing?.isPending ?? false,
             isFailed: item.isFailed ?? existing?.isFailed ?? false,
             createdAtMs: item.createdAtMs ?? existing?.createdAtMs ?? Date.now(),
-            updatedAtMs: item.updatedAtMs ?? existing?.updatedAtMs ?? Date.now(),
+            updatedAtMs: serverTimeAfter(existing, item),
         };
 
         await storage.save(id, merged);
@@ -256,8 +286,10 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
         const cid = scope.cid || 'default';
         const storage = this.storage(scope);
         const existingById = this.indexById(await storage.loadMany(validItems.map(item => item.id!)));
+        const freshItems = validItems.filter(item => !isOlderThanCached(existingById.get(item.id!), item));
+        if (freshItems.length === 0) return;
 
-        const mergedList = validItems.map(item => {
+        const mergedList = freshItems.map(item => {
             const existing = existingById.get(item.id!);
             return {
                 ...(existing ?? ({} as DomainChat)),
@@ -270,12 +302,12 @@ export class ChatLocalDataSource extends BaseLocalDataSource<'chat'> implements 
                 isPending: item.isPending ?? existing?.isPending ?? false,
                 isFailed: item.isFailed ?? existing?.isFailed ?? false,
                 createdAtMs: item.createdAtMs ?? existing?.createdAtMs ?? Date.now(),
-                updatedAtMs: item.updatedAtMs ?? existing?.updatedAtMs ?? Date.now(),
+                updatedAtMs: serverTimeAfter(existing, item),
             } as DomainChat;
         });
 
         await storage.saveAll(mergedList);
-        this.scheduleItemReemit(validItems.map(item => item.id!).filter(Boolean), scope);
+        this.scheduleItemReemit(freshItems.map(item => item.id!).filter(Boolean), scope);
         this.scheduleListReemit(
             this.getAffectedListPrefixes(
                 mergedList.map(item => item.channelId),

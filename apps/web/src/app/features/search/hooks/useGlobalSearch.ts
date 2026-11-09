@@ -7,6 +7,7 @@ import type { CacheChannelView, CacheChatView, CacheSiteView } from '@chatic/bri
 
 import { useCachedCloudNames } from '../../../hooks/useCachedCloudNames';
 import { useInvitedClouds } from '../../../hooks/useInvitedClouds';
+import { isEventChat } from '../../../utils/chat';
 
 // Inlined rather than importing `@chatic/shared`'s useDebounce: that package's root barrel
 // re-exports ErrorFallback, which pulls in `@chatic/assets` — a mapping Jest's moduleNameMapper
@@ -117,7 +118,7 @@ export const useGlobalSearch = (query: string) => {
                     // feed folds it into a chip rather than drawing it, so opening one could only
                     // end in "couldn't find that message".
                     messages: result.chats
-                        .filter(chat => !chat.hidden && chat.subType !== 'reaction')
+                        .filter(chat => !chat.hidden && !isEventChat(chat))
                         .slice(0, MAX_MESSAGE_RESULTS),
                 });
             })

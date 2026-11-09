@@ -149,7 +149,12 @@ changes that record again. There is no retry queue.
 
 `ChatSyncPlan` is the shape apart. It has `onApply` (a new-message delta, ascending) and `onUpdate`
 (a change to a `chatNo` already resolved — `hidden: true` is a deletion, anything else an edit) and
-deliberately **no `onRemove`**: chat history is kept. Every other plan spreads
+deliberately **no `onRemove`**: chat history is kept. From sockets-lib 0.7.1 the plan also consumes
+revision notices (`subType: 'edit'`): after a catch-up it re-reads the messages they point at and hands
+each to `onUpdate` like any other change, so a device that reconnects gets the edits and deletes it
+missed. The plan is typed by the server's `ChatView`, since its own message shape is a looser minimum
+the mappers cannot take. No plan-level failure policy is set, so the library's classification applies:
+a 404 or 403 drops the read, anything else is read again on the next catch-up. Every other plan spreads
 `resetSnapshotOnConnected: false`, so a reconnect resumes from its baseline instead of refetching
 everything.
 
