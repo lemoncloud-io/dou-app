@@ -1,5 +1,15 @@
 # Changelog
 
+## [2026-11-09] - root@0.150.2, @chatic/web@0.86.5
+
+### Features
+
+- (web,desktop-web) name the reaction in the reactor sheet and the chip hint
+
+### Documentation
+
+- (web) record the measured android long-press timing, not a guess
+
 ## [2026-11-09] - No version updates
 
 ### Features
