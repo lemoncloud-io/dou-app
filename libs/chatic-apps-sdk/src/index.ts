@@ -14,6 +14,7 @@ export type {
     CloseTrigger,
     DeviceKind,
     HapticKind,
+    MiniAppLaunchParams,
     PermissionState,
     StorageUsage,
     Theme,

@@ -1,21 +1,19 @@
+import type { MiniAppLaunchParams } from '@chatic/bridge-messages';
+
 import type { SubWebViewTrust } from './subWebViewTrust';
 
 /**
- * The `params` a mini app is opened with: who is looking, in which cloud and place. Ids and display
+ * Builds the `params` a mini app is opened with: who is looking, in which cloud and place. The shape
+ * is the wire type `MiniAppLaunchParams`, which the published page SDK declares too. Ids and display
  * names, and nothing that authenticates — no session token, relay JWT or cloud token, and no key
- * named for one, so a page cannot mistake a field for a credential. A page that needs to act for
- * the user waits for a scoped token, which is a later step.
+ * named for one, so a page cannot mistake a field for a credential. A page that needs to act for the
+ * user waits for a scoped token, which is a later step.
  *
  * `user.isOwner` goes to the hub alone (`firstParty`). The hub uses it to offer the owner the link
  * settings; a reviewed or external page has no use for it, and telling a third party which visitor
  * owns the cloud is information it was never asked to hold.
  */
-export interface MiniAppLaunchParams {
-    cloud: { id: string; name: string };
-    place: { id: string; name: string } | null;
-    /** `id` is the user's id in this cloud, not a global one: a page sees a different id per cloud. */
-    user: { id: string; name: string; isOwner?: boolean };
-}
+export type { MiniAppLaunchParams };
 
 /** What the web knows when it opens a mini app. */
 export interface MiniAppLaunchInput {

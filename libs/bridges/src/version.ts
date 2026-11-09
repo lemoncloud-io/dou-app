@@ -52,7 +52,11 @@
 // 2.21.0: added StorageGet, StorageSave and StorageClear (web -> app) — a storage medium the shell keeps
 //         for the web, the device vault (`nativeSecure`) first; a shell that keeps one lists it in
 //         `window.CHATIC_APP_STORAGE_MEDIA`.
-export const BRIDGE_VERSION = '2.21.0' as const;
+// 2.22.0: the WebAppReady reply may carry `subWebViewOpenScope` — how far the shell's OpenSubWebView
+//         opens (`anyHttps` on the desktop, which opens any plain https site in the `external` tier);
+//         a sub WebView page's context may say `platform: 'desktop'`; `MiniAppLaunchParams` names the
+//         `params` DoU's own web opens a mini app with.
+export const BRIDGE_VERSION = '2.22.0' as const;
 
 export const BRIDGE_VERSION_INFO = {
     bridgeVersion: BRIDGE_VERSION,

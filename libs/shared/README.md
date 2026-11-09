@@ -227,7 +227,8 @@ Eight things the filenames do not tell you.
   the shell trusts it: `firstParty` for the hub (`https://apps.chatic.io`, `https://apps-dev.chatic.io`,
   exact origin), `reviewed` for one label under those domains (the pages the review pipeline deploys),
   `external` for any other plain https host, and `null` for anything a parser could read two ways —
-  userinfo, a port, a backslash, whitespace, an IP literal. Both shells check a request against it and
+  userinfo, a port, a backslash, whitespace, an IP literal — and the limits on what crosses with it
+  (`params` and `result` at most 16 KiB, a title 100 characters). Both shells check a request against it and
   both webs check a link an owner saves against it, so the web never stores a link the shell would
   refuse. It imports nothing, on purpose: the desktop shell's main bundle aliases this one file rather
   than pulling the whole barrel into Electron's main process. `utils/miniAppLaunchParams.ts` builds the

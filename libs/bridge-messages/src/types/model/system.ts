@@ -2,7 +2,7 @@ import type { ShareAction } from 'react-native';
 
 import type { CacheDomainVersions } from './cache';
 import type { HandedOverPerfTrace } from './perf';
-import type { SubWebViewContext } from './sub-webview';
+import type { SubWebViewContext, SubWebViewOpenScope } from './sub-webview';
 
 /**
  * Detailed info for a device media asset (photo, video)
@@ -468,6 +468,12 @@ export type OnWebAppReadyPayload = {
      * defined after the page's first script. Absent from the main shell and from apps before 2.15.0.
      */
     subWebView?: SubWebViewContext;
+    /**
+     * How far this shell's `OpenSubWebView` opens. Sent by the main window's host only; absent from
+     * shells that predate it, which open the reviewed pages only. The web offers a control that opens
+     * an owner's own link only when this says `anyHttps`.
+     */
+    subWebViewOpenScope?: SubWebViewOpenScope;
 };
 
 /** [Response] Native back-button pressed event payload */

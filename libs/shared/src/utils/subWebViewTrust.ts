@@ -1,7 +1,8 @@
 /**
- * Which URLs a sub WebView may open at all, and how far the shell trusts each one. Both shells and
- * both webs ask this one module, so a link the web lets an owner save is a link the shell will open,
- * and the security boundary is drawn once.
+ * Which URLs a sub WebView may open at all, how far the shell trusts each one, and the limits on what
+ * crosses with it (`params`, `result`, a title). Both shells and both webs ask this one module, so a
+ * link the web lets an owner save is a link the shell will open, and the security boundary is drawn
+ * once.
  *
  * Three tiers:
  * - `firstParty` — the hub, `https://apps.chatic.io` and `https://apps-dev.chatic.io`, by exact
@@ -65,6 +66,41 @@ export const subWebViewOriginOf = (url: unknown): string | null => {
     const host = hostOf(url);
     return host ? `https://${host}` : null;
 };
+
+/** The most a `params` or a `result` may take, serialized: it crosses two bridges and a process. */
+export const SUB_WEBVIEW_DATA_LIMIT = 16 * 1024;
+
+/** The longest title a page may put in the shell's bar. */
+export const SUB_WEBVIEW_TITLE_LIMIT = 100;
+
+/**
+ * The longest message a page may send, as a serialized string's length (65,536 characters). Room for
+ * a 16 KiB `result` several times over; past it the host answers `TOO_LARGE`.
+ */
+export const SUB_WEBVIEW_MESSAGE_LIMIT = 64 * 1024;
+
+/**
+ * Whether `value` is JSON that fits the limit. Measured as the serialized string's length — a
+ * character count, not bytes, which is close enough for a guard and needs no encoder.
+ */
+export const fitsSubWebViewData = (value: unknown): boolean => {
+    if (value === undefined) return true;
+    try {
+        const json = JSON.stringify(value);
+        return json !== undefined && json.length <= SUB_WEBVIEW_DATA_LIMIT;
+    } catch {
+        // A cycle, or a BigInt: not JSON.
+        return false;
+    }
+};
+
+/** A plain JSON object (not an array, not null) that fits the limit. */
+export const isSubWebViewParams = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value) && fitsSubWebViewData(value);
+
+/** An app id as the web names one in `OpenSubWebView`: one DNS label, lower case. */
+export const isSubWebViewAppId = (value: unknown): value is string =>
+    typeof value === 'string' && /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(value);
 
 /** The tier of `url`, or `null` when a sub WebView does not open it. */
 export const subWebViewTrustOf = (url: unknown): SubWebViewTrust | null => {

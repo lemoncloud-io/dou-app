@@ -107,7 +107,8 @@ stand-ins; deployed to your `apps.chatic.io` address, it runs in the app.
 | `storage.get(key)`, `.set(key, value)`, …                     | Your page's own storage on the device (see below)                                            | `localStorage`, same limits         | —                |
 | `permissions.query(kind)`, `.request(kind)`, `openSettings()` | Where the app stands with the OS for `'camera'` or `'microphone'`, and asking it (see below) | the browser's own permission        | —                |
 
-Plus `apps.context` (the app's language, theme, platform and the `params` you were opened with),
+Plus `apps.context` (the app's language, theme, platform — `ios`, `android` or `desktop` — and the
+`params` you were opened with; DoU's own web opens a mini app with `MiniAppLaunchParams`, see below),
 `apps.onContextChange(listener)` for a theme or language change, `apps.supports(capability)`,
 `apps.inApp`, and `apps.disconnect()`.
 
@@ -219,6 +220,22 @@ Treat a code not in this table as that call failing, and nothing more.
 - **You cannot see the error reports.** They go to DoU's log, read by the people who review pages.
   Send errors to your own server too if you want to see them.
 
+## Opened from DoU: `MiniAppLaunchParams`
+
+When DoU itself opens your page — a cloud's owner registered it as the cloud's mini app — `params` has
+this shape (exported as a type):
+
+```ts
+import type { MiniAppLaunchParams } from '@chatic/chatic-apps-sdk';
+
+const params = apps.context?.params as Partial<MiniAppLaunchParams> | undefined;
+// { cloud: { id, name }, place: { id, name } | null, user: { id, name } }
+```
+
+`user.id` is the user's id in that cloud. These are names to show, not proof of who is looking: there
+is no token, and your server must not treat them as a sign-in. `user.isOwner` is sent to DoU's own hub
+only; your page never receives it.
+
 ## What this WebView is like
 
 - **Use `apps.storage`, not the WebView's own**: `localStorage` and IndexedDB work, but go whenever the
@@ -226,7 +243,10 @@ Treat a code not in this table as that call failing, and nothing more.
   `getUserKey()`.
 - **No popups**: `window.open` and `target="_blank"` load in the same view, so a login that answers
   through `window.opener` does not work. Use a redirect login.
-- **Downloads**: a file download is not handled on iOS. Show the content instead.
+- **Downloads**: a file download is not handled on iOS, nor on the desktop. Show the content instead.
+- **On the desktop** (`platform: 'desktop'`) the page opens in a window over DoU with a bar: the
+  base requests only (`finish`, `setTitle`, error reports), no camera or microphone, and a site that is
+  not under `apps.chatic.io` always shows its own address in the bar.
 - **Camera and microphone** work through the browser APIs, under DoU's name: the OS asks the user
   "DoU would like to…". What your page uses is part of its review.
 - **Your own server**: calls to it are ordinary cross-origin requests from `https://<name>.apps.chatic.io`;

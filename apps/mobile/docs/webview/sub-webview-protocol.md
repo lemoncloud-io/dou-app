@@ -1,7 +1,7 @@
 # The sub WebView protocol
 
-> `protocolVersion` 1, `BRIDGE_VERSION` 2.21.0. What is marked **(2.15.0)**, **(2.16.0)**,
-> **(2.17.0)**, **(2.18.0)**, **(2.19.0)** or **(2.20.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
+> `protocolVersion` 1, `BRIDGE_VERSION` 2.22.0. What is marked **(2.15.0)**, **(2.16.0)**,
+> **(2.17.0)**, **(2.18.0)**, **(2.19.0)**, **(2.20.0)** or **(2.22.0)** arrived with that bridge version; an app built before it lacks it, which a page learns from the handshake
 > rather than from a version number.
 
 What a page shown in the sub WebView and the shell say to each other, stated as rules. The shell
@@ -155,21 +155,72 @@ opened origin, and is not answered (see [Timing](#timing)).
 `window.ChaticSubWebView`, and from 2.15.0 the handshake's `subWebView`, is a frozen
 `SubWebViewContext`:
 
-| Field             | Type                 | Meaning                                                                                  |
-| ----------------- | -------------------- | ---------------------------------------------------------------------------------------- |
-| `protocolVersion` | `1`                  | This protocol's major version                                                            |
-| `viewId`          | string               | The view; opaque to the page                                                             |
-| `platform`        | `'ios' \| 'android'` | The OS                                                                                   |
-| `appVersion`      | string               | The app's own version (`0.31.0`)                                                         |
-| `locale`          | string               | The language the user chose in the app (`ko`, `en`)                                      |
-| `theme`           | `'light' \| 'dark'`  | The app's resolved theme, which can differ from the OS's                                 |
-| `params`          | object               | What the opener passed, `{}` when nothing; JSON, at most 16 KiB                          |
-| `appLink`         | string               | **(2.17.0)** The link that opens this page: see [Links to a page](#links-to-a-page-2170) |
+| Field             | Type                              | Meaning                                                                                                  |
+| ----------------- | --------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `protocolVersion` | `1`                               | This protocol's major version                                                                            |
+| `viewId`          | string                            | The view; opaque to the page                                                                             |
+| `platform`        | `'ios' \| 'android' \| 'desktop'` | The OS, or **(2.22.0)** `desktop` for the desktop app (see [The desktop shell](#the-desktop-shell-2220)) |
+| `appVersion`      | string                            | The app's own version (`0.31.0`)                                                                         |
+| `locale`          | string                            | The language the user chose in the app (`ko`, `en`)                                                      |
+| `theme`           | `'light' \| 'dark'`               | The app's resolved theme, which can differ from the OS's                                                 |
+| `params`          | object                            | What the opener passed, `{}` when nothing; JSON, at most 16 KiB                                          |
+| `appLink`         | string                            | **(2.17.0)** The link that opens this page: see [Links to a page](#links-to-a-page-2170)                 |
 
 - It is defined only on the opened origin. A page the view navigated to finds nothing, even on
   another allowlisted origin.
-- It holds nothing that identifies the device, the install or the user. A later change of `theme` or
-  `locale` arrives as `OnSubWebViewContextChanged`; the global keeps its first values.
+- What the shell puts in it identifies nothing — not the device, the install or the user. `params`
+  are the opener's, not the shell's: DoU's own web opens a mini app with
+  [launch params](#launch-params-2220) that name the user within one cloud. A later change of `theme`
+  or `locale` arrives as `OnSubWebViewContextChanged`; the global keeps its first values.
+
+## Launch params (2.22.0)
+
+When DoU's own web opens a mini app — the hub, or the link a cloud's owner registered — `params` is a
+`MiniAppLaunchParams`:
+
+| Field          | Type                     | Meaning                                                                |
+| -------------- | ------------------------ | ---------------------------------------------------------------------- |
+| `cloud`        | `{ id, name }`           | The cloud the user has open                                            |
+| `place`        | `{ id, name }` or `null` | The place the user has open, `null` when none                          |
+| `user.id`      | string                   | The user's id **in that cloud** — another cloud gives another id       |
+| `user.name`    | string                   | The nick in the open place, else the cloud profile's name; may be `''` |
+| `user.isOwner` | boolean, the hub only    | Whether the user owns the cloud. Absent for every page but the hub     |
+
+- It carries nothing that authenticates: no session token, relay token or cloud token, and no key
+  named for one. A page's server MUST NOT treat these values as a sign-in — any page can be opened
+  in a browser tab with whatever `params` its author types.
+- `user.isOwner` is sent to the hub (`https://apps.chatic.io`, `https://apps-dev.chatic.io`) alone,
+  for it to offer the owner the link settings. No other page is told who owns the cloud.
+- Names are cut to 200 characters. A page opened some other way may get other `params`; a page reads
+  them as unknown until they have this shape.
+
+## The desktop shell (2.22.0)
+
+The desktop app shows a sub WebView as a modal over its window. What it opens, and how far it trusts
+it, is one of three tiers, decided by one shared rule (`libs/shared` `subWebViewTrustOf`):
+
+| Tier         | What                                                                      | Manifest             | Bar title                   |
+| ------------ | ------------------------------------------------------------------------- | -------------------- | --------------------------- |
+| `firstParty` | The hub, `https://apps.chatic.io` / `https://apps-dev.chatic.io`, exactly | read (name, display) | the page's, as on the phone |
+| `reviewed`   | One label under those domains (`https://quiz.apps.chatic.io`)             | read (name, display) | the page's, as on the phone |
+| `external`   | Any other plain https site — a link a cloud's owner registered            | **never fetched**    | **its host, always**        |
+
+- The main window's handshake says `subWebViewOpenScope: 'anyHttps'`. A phone shell that reports no
+  `subWebViewOpenScope` opens the reviewed pages only, as it always has.
+- A URL a parser could read two ways is not opened: userinfo, a port, a backslash, whitespace, a
+  control character, an IP literal.
+- The page's host answers `WebAppReady`, `Ping`, `FinishSubWebView`, `SetSubWebViewTitle` and
+  `ReportSubWebViewError`, on every tier, and nothing else — every other request is `NOT_FOUND`,
+  whatever the manifest declares. A manifest gives the bar its fallback name and the display
+  (`standard` by default here; `fullscreen` fills the window and keeps the bar). An external site
+  is always `standard`.
+- Only the opened origin loads in the view. Another https URL — a link, a redirect, `window.open` —
+  goes to the OS browser and the view stays. Other schemes are dropped.
+- Esc and the bar's close control close the view as `user`. There is no close guard and no
+  `OnSubWebViewContextChanged`: the context is the one the view opened with.
+- Each origin gets storage of its own, kept across launches; every device permission is refused.
+- The transport is the phone's, `window.ReactNativeWebView.postMessage` and `message` events on
+  `window`, so a page built with `chatic-apps-sdk` runs unchanged.
 
 ## Manifest (2.16.0)
 

@@ -1,5 +1,8 @@
 import {
+    fitsSubWebViewData,
     isOpenableSubWebViewUrl,
+    isSubWebViewAppId,
+    isSubWebViewParams,
     SUB_WEBVIEW_FIRST_PARTY_ORIGINS,
     SUB_WEBVIEW_REVIEWED_DOMAINS,
     subWebViewOriginOf,
@@ -81,6 +84,30 @@ describe('isOpenableSubWebViewUrl', () => {
             expect(isOpenableSubWebViewUrl(url)).toBe(true);
         }
     );
+});
+
+describe('the data limits', () => {
+    it('takes JSON up to 16 KiB serialized, and nothing that is not JSON', () => {
+        expect(fitsSubWebViewData(undefined)).toBe(true);
+        expect(fitsSubWebViewData({ a: 'x'.repeat(16 * 1024 - 10) })).toBe(true);
+        expect(fitsSubWebViewData({ a: 'x'.repeat(16 * 1024) })).toBe(false);
+        const cycle: Record<string, unknown> = {};
+        cycle.self = cycle;
+        expect(fitsSubWebViewData(cycle)).toBe(false);
+        expect(fitsSubWebViewData(BigInt(1))).toBe(false);
+    });
+
+    it('takes params only as a plain object', () => {
+        expect(isSubWebViewParams({ a: 1 })).toBe(true);
+        expect(isSubWebViewParams([1])).toBe(false);
+        expect(isSubWebViewParams(null)).toBe(false);
+    });
+
+    it('takes an app id as one lower-case label', () => {
+        expect(isSubWebViewAppId('dou-raise')).toBe(true);
+        expect(isSubWebViewAppId('Quiz')).toBe(false);
+        expect(isSubWebViewAppId('a.b')).toBe(false);
+    });
 });
 
 describe('subWebViewOriginOf', () => {

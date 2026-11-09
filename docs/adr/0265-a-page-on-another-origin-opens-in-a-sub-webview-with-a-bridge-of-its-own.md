@@ -85,6 +85,14 @@ screen.** The web asks with `OpenSubWebView { url, title?, params? }` and hears 
 > install or the user: a page may now get an identifier scoped to its own origin, never one it could
 > link to another page, the device or the account. The reasoning is
 > [ADR-0271](./0271-a-sub-webview-page-gets-a-key-per-origin-derived-from-the-device-id.md).
+>
+> **Addendum (2026-11-09) — any https, in three tiers** (`BRIDGE_VERSION` 2.22.0). "Only
+> `*.apps.chatic.io`" becomes the `reviewed` tier of a wider rule: the hub at the root origins is
+> `firstParty`, and any other plain https site a cloud's owner registered opens as `external`, with no
+> manifest and its host in the bar. A shell says how far it opens in its handshake
+> (`subWebViewOpenScope`). DoU's web now passes the user's id in the cloud and display names in
+> `params`; the shell's own context still identifies no one. The reasoning is
+> [ADR-0297](./0297-sub-webview-opens-any-https-with-three-trust-tiers.md).
 
 ## Alternatives
 

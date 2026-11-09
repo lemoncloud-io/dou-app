@@ -1,13 +1,20 @@
 // --- Sub WebView Types ---
 //
 // A second WebView the shell shows over the app's own, for a page on another origin. The web asks
-// for it with a URL; the shell shows it full screen with its own close control and tells the web
-// when it is gone.
+// for it with a URL; the shell shows it with its own close control and tells the web when it is gone.
 //
-// The shell opens only a subdomain of its own allowlisted domains (`*.apps.chatic.io`), which the
-// app's review pipeline alone deploys to — never the web app's own origin, which would boot a second
-// copy of the app beside the first. A link inside the page that leaves the allowlist goes to the OS
-// browser instead, and one into the app's own routing is dropped.
+// What the shell opens, and how far it trusts it, is one of three tiers (the shared
+// `subWebViewTrustOf` decides it for both shells):
+// - `firstParty` — the hub, `https://apps.chatic.io` / `https://apps-dev.chatic.io` by exact origin;
+// - `reviewed` — one label under those domains, which the app's review pipeline alone deploys to;
+// - `external` — any other plain https site, which a cloud owner chose. It gets the base set only:
+//   no manifest is fetched from it, and the bar always shows its host.
+// Never the web app's own origin as a trusted page, which would boot a second copy of the app beside
+// the first. A shell reports how far it opens in the handshake (`subWebViewOpenScope`): a phone shell
+// that predates the tiers opens `reviewed` pages only and reports nothing.
+//
+// A link inside the page that leaves the origin it was opened on goes to the OS browser instead, and
+// one into the app's own routing is dropped.
 //
 // The page talks to the shell through a bridge of its own: a second host that registers only
 // `SubWebViewRequestType` — a few messages from this same vocabulary — and answers only the origin
@@ -23,14 +30,21 @@
 // Failures use the envelope's `error.code`:
 // - `INVALID`: a missing or malformed field, a URL that is not `https`, data over its size limit or
 //   not JSON.
-// - `NOT_ALLOWED`: the URL is not on the shell's allowlist, or could be read two ways (userinfo,
-//   a port, a backslash, whitespace).
+// - `NOT_ALLOWED`: the shell does not open the URL — outside what it opens, or a URL that could be
+//   read two ways (userinfo, a port, a backslash, whitespace, an IP literal).
 // - `ALREADY_OPEN`: a sub WebView is already showing.
 // - `NOT_OPEN`: the view named (or the page's own view) is not showing (it closed already).
 //
 // The web ships before the app: a shell without these handlers answers `NOT_FOUND`, and the web
 // learns that from the handshake's `supportedWebMessages` before it asks. A page learns the same
 // from its own handshake.
+
+/**
+ * How far a shell's `OpenSubWebView` opens, reported in its handshake: `reviewed` — the hub and the
+ * reviewed pages only; `anyHttps` — any plain https site as well, in the `external` tier. Absent from
+ * shells that predate it, which open the reviewed pages only.
+ */
+export type SubWebViewOpenScope = 'reviewed' | 'anyHttps';
 
 /**
  * What a page may use beyond the base set, by capability rather than by message name, declared in
@@ -125,7 +139,7 @@ export type SubWebViewContext = {
     /** This page-facing contract's own version. */
     protocolVersion: 1;
     viewId: string;
-    platform: 'ios' | 'android';
+    platform: 'ios' | 'android' | 'desktop';
     /** The app's version, for a page that needs to know what the app can do. */
     appVersion: string;
     /** The app's language as the user chose it (`ko`, `en`). */
@@ -145,7 +159,7 @@ export type SubWebViewContext = {
 
 /** [Request] Show `url` in a sub WebView over the app. */
 export type OpenSubWebViewPayload = {
-    /** An `https` URL on the shell's allowlist. */
+    /** An `https` URL the shell opens — see `subWebViewOpenScope`. */
     url: string;
     /** What the shell's bar shows until the page has a title of its own. */
     title?: string;
@@ -157,6 +171,18 @@ export type OpenSubWebViewPayload = {
      * Ignored by apps before 2.19.0, which take the page's label instead.
      */
     appId?: string;
+};
+
+/**
+ * The `params` DoU's own web hands a mini app: who is looking, in which cloud and place. Ids and
+ * display names only — nothing that authenticates, and no key named for a token. `user.id` is the
+ * user's id in that cloud, so a page sees a different id per cloud. `user.isOwner` is sent to the
+ * hub (`firstParty`) alone, for it to offer the cloud's owner the link settings.
+ */
+export type MiniAppLaunchParams = {
+    cloud: { id: string; name: string };
+    place: { id: string; name: string } | null;
+    user: { id: string; name: string; isOwner?: boolean };
 };
 
 /** [Response] The sub WebView is showing. */
