@@ -101,6 +101,15 @@
         },
         {
             "path": "./libs/storage"
+        },
+        {
+            "path": "./libs/runtime-core"
+        },
+        {
+            "path": "./libs/runtime-web"
+        },
+        {
+            "path": "./tools/eslint-rules"
         }
     ]
 }

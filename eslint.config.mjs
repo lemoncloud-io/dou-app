@@ -144,6 +144,78 @@ const logTagCatalogRule = {
 // ---------------------------------------------------------------------------------------------------
 const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * The direction the runtime's layers depend in, read from the `nx.tags` in each package's
+ * `package.json`. `libs/runtime-core/README.md` draws the layers and says why each edge points the
+ * way it does; in short:
+ *
+ * - `layer:core-lib` — session, transport, sync, auth, data. Platform-neutral. They know nothing
+ *   above them: no runtime assembly, no adapter, no React surface, and no UI framework at all.
+ * - `layer:runtime-core` — `@chatic/runtime-core`, which collects the ports. It sits on the core
+ *   libs and on nothing else. This is an allow-list, not a deny-list, so a dependency it gains
+ *   later has to be tagged on purpose rather than slipping in untagged.
+ * - `layer:adapter` — the packages that fill the ports for one platform (`@chatic/runtime-web`).
+ *   Nothing in the runtime depends on them; they never reach up into the React surface, and a port
+ *   is not UI, so no React either.
+ * - `layer:react-surface` — `@chatic/app-runtime`, what apps render against. It never imports an
+ *   adapter: which platform fills the ports is the entry point's choice, not the surface's.
+ * - `platform:web` — a package that only runs in a web page. It may not pull React Native in.
+ *
+ * `notDependOnLibsWithTags` also follows the target's own dependencies, so a core lib cannot reach
+ * an adapter through a lib in between. `onlyDependOnLibsWithTags` checks direct dependencies only.
+ */
+const REACT_IMPORTS = ['react', 'react/*', 'react-dom', 'react-dom/*'];
+const REACT_NATIVE_IMPORTS = ['react-native', 'react-native-*', '@react-native*'];
+const UI_FRAMEWORK_IMPORTS = [...REACT_IMPORTS, ...REACT_NATIVE_IMPORTS];
+
+const runtimeLayerConstraints = [
+    {
+        sourceTag: 'layer:core-lib',
+        notDependOnLibsWithTags: ['layer:runtime-core', 'layer:adapter', 'layer:react-surface'],
+        bannedExternalImports: UI_FRAMEWORK_IMPORTS,
+    },
+    {
+        sourceTag: 'layer:runtime-core',
+        onlyDependOnLibsWithTags: ['layer:core-lib'],
+        bannedExternalImports: UI_FRAMEWORK_IMPORTS,
+    },
+    {
+        sourceTag: 'layer:adapter',
+        notDependOnLibsWithTags: ['layer:react-surface'],
+        // React only: the native adapter is made of React Native modules, so which native framework
+        // an adapter may use is its platform tag's call, not this layer's.
+        bannedExternalImports: REACT_IMPORTS,
+    },
+    {
+        sourceTag: 'layer:react-surface',
+        notDependOnLibsWithTags: ['layer:adapter'],
+    },
+    {
+        sourceTag: 'platform:web',
+        bannedExternalImports: REACT_NATIVE_IMPORTS,
+    },
+];
+
+/**
+ * The calls that wire the runtime together, and the one file allowed to make them. Each hands a
+ * package what it runs on and replaces whatever it held before. Not here: what an app sets up for
+ * itself before the runtime (`configurePerfTraces`, `setStorageAdapter`, `setLogContextProvider`)
+ * and the reaction an app registers through `runtime.session` — those are the app's own choices.
+ */
+const RUNTIME_WIRING = {
+    calls: [
+        { object: 'sessionMedia', name: 'configure' },
+        { object: 'runtimeMedia', name: 'configure' },
+        { object: 'signedOutAppKeys', name: 'register' },
+        { name: 'configureSessionStore' },
+        { object: 'credentialRecovery', name: 'register' },
+        { name: 'configureDataRuntime' },
+        { object: 'authRepositorySource', name: 'provide' },
+        { object: 'syncDataGraph', name: 'provide' },
+    ],
+    allowedFiles: ['libs/app-runtime/src/init.ts'],
+};
+
 const STORAGE_MESSAGE =
     "Reach web storage through a medium from @chatic/storage — take the one your app's `app/storage` hands out (`deviceMedium`, `tabMedium`, …); see libs/storage/README.md.";
 
@@ -252,6 +324,7 @@ export default [
                             sourceTag: '*',
                             onlyDependOnLibsWithTags: ['*'],
                         },
+                        ...runtimeLayerConstraints,
                     ],
                 },
             ],
@@ -374,6 +447,17 @@ export default [
         plugins: { 'dou-logging': { rules: { 'log-tag-catalog': logTagCatalogRule } } },
         rules: {
             'dou-logging/log-tag-catalog': 'warn',
+        },
+    },
+    {
+        // The runtime's wiring calls are made in one file, the assembly point; the rule says why.
+        // Every glob starts with `**/`, so no `basePath`. Tests wire packages up on purpose and are
+        // left out.
+        files: ['**/*.ts', '**/*.tsx'],
+        ignores: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx', '**/testing/**', '**/__mocks__/**'],
+        rules: {
+            // tools/eslint-rules/runtime-wiring-call.js
+            '@nx/workspace-runtime-wiring-call': ['error', RUNTIME_WIRING],
         },
     },
     {

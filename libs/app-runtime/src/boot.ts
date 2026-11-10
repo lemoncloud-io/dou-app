@@ -31,9 +31,9 @@ export { isNativeApp } from './utils/isNativeApp';
 // The session's storage. An entry point builds the media for its environment and passes them to
 // `initAppRuntime({ storage })`; one in an app or desktop shell that keeps a vault first awaits
 // `prepareSecretStorage`, which loads the vault and moves secrets left in web storage into it.
-// `setSessionStorage` swaps the media after boot — for a shell that turned out to keep a vault only
-// once its handshake answered.
-export { prepareSecretStorage, setSessionStorage } from './sessionStorageBoot';
+// There is no setter to swap the media after boot: the session's media are wired once, in
+// `initAppRuntime`, and a second wiring anywhere else would silently replace that choice.
+export { prepareSecretStorage } from './sessionStorageBoot';
 // The one place an app's media are chosen and built. An entry point calls it once and hands the result
 // out — to `prepareSecretStorage`, to `initAppRuntime({ storage })`, to its config ports and its own
 // features — instead of constructing media itself. apps/web and apps/desktop-web use it. `LATE_VAULT_MARK` is the tab mark it reads and that

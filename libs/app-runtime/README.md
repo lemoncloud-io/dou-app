@@ -143,6 +143,12 @@ Sync and auth sit side by side: each one's eslint config refuses the other. What
 app layer — every `hooks/` folder, because hooks are React and React stays here, and `utils/`, which is
 one app-layer helper.
 
+The direction is also a tag: the four packages and `@chatic/data` are `layer:core-lib`, this one is
+`layer:react-surface`, and `@nx/enforce-module-boundaries` refuses a core package that reaches up — or
+imports React — and this package importing a platform adapter such as `@chatic/runtime-web`. The tags,
+and the two packages the assembly is moving towards, are in
+[`@chatic/runtime-core`](../runtime-core/README.md#layers).
+
 The repository graph is assembled in `data/`, above the two packages that read it. So it is **handed
 down at boot** instead of imported: `initAppRuntime()` gives `@chatic/auth`'s `authRepositorySource` an
 accessor for the `AuthRepository`, and `@chatic/sync`'s `syncDataGraph` one for the scoped graphs. Both
@@ -296,6 +302,18 @@ recovery does not, because it owns nothing: it joins the HTTP registry to the so
 the registry imports nothing at runtime precisely so the two sides never meet. Handing the repository
 graph down is the same kind of wiring — the graph sits above the layers that read it ([Layers](#layers)).
 A wiring with no owner belongs to the composition root.
+
+**Every wiring call is in `init.ts`, and lint holds it there.** Each of the calls above that hands a
+package something — `sessionMedia.configure`, `runtimeMedia.configure`, `signedOutAppKeys.register`,
+`configureSessionStore`, `credentialRecovery.register`, `configureDataRuntime`,
+`authRepositorySource.provide`, `syncDataGraph.provide` — replaces what the last call set. A second call
+site is therefore not a harmless repeat: whichever runs later silently undoes the boot, and nothing
+in `init.ts` would show it. `@nx/workspace-runtime-wiring-call` reports any of them outside `init.ts`;
+tests are exempt, since they wire packages on purpose. For the same reason the `boot` group has no
+setter that swaps the session's media after boot — it would be a wiring call any file could make
+through `runtime.boot`. What an app sets up for itself before the runtime (`configurePerfTraces`, the
+storage adapter, the log context) and the reaction it registers through
+`runtime.session.authFailureReaction` are the app's own choices and not in the catalogue.
 
 **Choosing the media.** `resolveStorageMedia()` (the `boot` group) is the one place an app's storage
 media are chosen and built — the storage counterpart of the cache's `resolveCacheBackend`. It reads
