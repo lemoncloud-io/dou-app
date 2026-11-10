@@ -24,7 +24,9 @@ export const bootSessionRuntime = (env: (name: string) => string | undefined): v
         env: createWebEnvAdapter(env),
         storage: { local: asDomStorage(localMedium), session: asDomStorage(tabMedium) },
     });
-    runtime.boot.initAppRuntime();
+    // This site runs in a browser tab and nowhere else, so the session lives in this tab's storage, as
+    // every other per-tab state here does.
+    runtime.boot.initAppRuntime({ storage: { secret: tabMedium, plain: tabMedium } });
     runtime.session.authFailureReaction.register(() => undefined);
 };
 

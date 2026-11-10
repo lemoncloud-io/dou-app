@@ -12,6 +12,7 @@
  * testing — a registry left unregistered is the SAFE state, so the thing that can silently break is
  * "boot did not wire it", not the wiring itself.
  */
+import { MemoryMedium } from '@chatic/storage';
 import { credentialRecovery } from '@chatic/transport/http/credentialRecovery';
 import { initAppRuntime } from './init';
 
@@ -45,7 +46,7 @@ describe('부팅 전', () => {
 
 describe('initAppRuntime 이후 — 자격증명 복구 배선', () => {
     beforeAll(() => {
-        initAppRuntime();
+        initAppRuntime({ storage: { secret: new MemoryMedium(), plain: new MemoryMedium() } });
     });
 
     // Hosts with no credential of their own also sign with relay's, so the recovery path is the same.

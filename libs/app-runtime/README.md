@@ -265,8 +265,8 @@ apps/*/src/main.tsx
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ storage?, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
-  │    ├─ sessionMedia.configure()        the media behind the session's secret and plain ports, if passed
+  ├─ initAppRuntime({ storage, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
+  │    ├─ sessionMedia.configure()        the media behind the session's secret and plain ports — required
   │    │  runtimeMedia.configure()        … and the runtime's own device/tab media (cursor watermark, a tab's invited clouds)
   │    ├─ dropLemonLeftovers()            the lemon bundle older builds left in web storage
   │    ├─ signedOutAppKeys.register()     the key prefixes the app's domains say a sign-out takes
