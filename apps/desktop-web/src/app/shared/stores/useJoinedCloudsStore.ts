@@ -4,6 +4,12 @@ import { persist } from 'zustand/middleware';
 export interface JoinedCloud {
     id: string;
     name?: string;
+    /**
+     * The account that joined it (its relay uid). The store is device-wide and survives a sign-out, so
+     * the rail lists only the entries of the account signed in. An entry without one predates the field
+     * and belongs to nobody.
+     */
+    ownerUid?: string;
 }
 
 interface JoinedCloudsState {

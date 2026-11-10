@@ -67,14 +67,30 @@ export const useClouds = () => {
     const { t } = useTranslation();
     const { clouds: rawClouds, isFetchingClouds, isCloudsError, refetchClouds } = useCloudSessionCatalog();
     const { cloud: cloudRepository } = runtime.data.useRuntimeRepositories();
-    const joinedClouds = useJoinedCloudsStore(s => s.joinedClouds);
+    const allJoinedClouds = useJoinedCloudsStore(s => s.joinedClouds);
     const session = runtime.session.useGlobalSession();
-    const [cachedClouds, setCachedClouds] = useState<DomainCloud[]>([]);
+    // The cloud cache's invited rows and the joined-clouds store are device-wide and outlive a sign-out
+    // (the device's guest keeps its grants), so they hold other accounts' clouds too. Only the signed-in
+    // account's are used: a tile for another account's cloud can only 403 on switch.
+    const acceptorId = runtime.data.getAcceptorId();
+    const [allCachedClouds, setCachedClouds] = useState<DomainCloud[]>([]);
     // Fall back to 'default' so the synthesized Home cloud highlights in relay mode —
     // but only once the fetch settled, to avoid briefly highlighting it then un-highlighting.
     const activeCloudId = session.cloud.cloudId || (!isFetchingClouds && rawClouds.length === 0 ? 'default' : null);
 
     useEffect(() => cloudRepository.observeList(result => setCachedClouds(result?.list ?? [])), [cloudRepository]);
+
+    const joinedClouds = useMemo(
+        () =>
+            Object.fromEntries(
+                Object.entries(allJoinedClouds).filter(([, j]) => !!acceptorId && j.ownerUid === acceptorId)
+            ),
+        [allJoinedClouds, acceptorId]
+    );
+    const cachedClouds = useMemo(
+        () => allCachedClouds.filter(c => c.cloudType !== 'invited' || runtime.data.isAcceptedBy(c, acceptorId)),
+        [allCachedClouds, acceptorId]
+    );
 
     const clouds = useMemo<RailCloud[]>(() => {
         const byId = new Map<string, RailCloud>();

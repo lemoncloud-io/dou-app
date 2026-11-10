@@ -108,6 +108,9 @@ export const useInviteLogin = () => {
     /** Exchange the code for the invited cloud and enter it (steps 4-5 of the flow above). */
     const exchange = useCallback(
         async (code: string, backend: string | undefined, info: MyInviteView | null, delegatorId: string) => {
+            // Read before the exchange, which can replace the relay session: the rail looks for the cloud
+            // under the account that is signed in now.
+            const acceptorId = runtime.data.getAcceptorId();
             const tokenView = await runtime.session.registerUserWithInviteCode(code, delegatorId, backend);
 
             // `tokenView.cloudId` is the cloud's AWS account-no; the invite carries no real
@@ -120,6 +123,7 @@ export const useInviteLogin = () => {
                 // resolve its endpoints. Mirrors apps/web useInviteAccept. The name goes in
                 // too: this row is the cloud's only durable record, and without it a rail
                 // rebuilt from the cache can label the tile with nothing but its id.
+                const existing = await cloudRepository.cacheRead(cloudId);
                 await cloudRepository.cacheWrite({
                     id: cloudId,
                     cid: cloudId,
@@ -127,10 +131,12 @@ export const useInviteLogin = () => {
                     backend: info?.$envs?.backend ?? backend ?? undefined,
                     wss: info?.$envs?.wss ?? undefined,
                     cloudType: 'invited',
+                    // Whoever joined it before keeps it; the rail lists it for these accounts only.
+                    acceptedBy: runtime.data.withAcceptor(existing?.acceptedBy, acceptorId),
                 });
                 // Remember the joined cloud so the rail shows it immediately —
                 // the broker cloud list is eventually consistent and may omit it.
-                addJoinedCloud({ id: cloudId, name: info?.cloudName ?? undefined });
+                addJoinedCloud({ id: cloudId, name: info?.cloudName ?? undefined, ownerUid: acceptorId ?? undefined });
                 // Enter the invited cloud — web-core commits the cloud session and
                 // re-authenticates the socket (no manual socket-store writes).
                 await switchCloud(cloudId);

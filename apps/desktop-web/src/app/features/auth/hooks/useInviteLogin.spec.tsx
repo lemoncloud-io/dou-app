@@ -4,14 +4,21 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { loginGuest, registerUserWithInviteCode, getIdentityContext, getActiveSessionUser, fetchInviteCodeInfo } =
-    vi.hoisted(() => ({
-        loginGuest: vi.fn(),
-        registerUserWithInviteCode: vi.fn(),
-        getIdentityContext: vi.fn(),
-        getActiveSessionUser: vi.fn(),
-        fetchInviteCodeInfo: vi.fn(),
-    }));
+const {
+    loginGuest,
+    registerUserWithInviteCode,
+    getIdentityContext,
+    getActiveSessionUser,
+    fetchInviteCodeInfo,
+    cacheWrite,
+} = vi.hoisted(() => ({
+    loginGuest: vi.fn(),
+    registerUserWithInviteCode: vi.fn(),
+    getIdentityContext: vi.fn(),
+    getActiveSessionUser: vi.fn(),
+    fetchInviteCodeInfo: vi.fn(),
+    cacheWrite: vi.fn(),
+}));
 
 vi.mock('../apis', () => ({ fetchInviteCodeInfo }));
 
@@ -27,7 +34,12 @@ vi.mock('@chatic/app-runtime', () => ({
             getActiveSessionUser,
             registerUserWithInviteCode,
         },
-        data: { useRuntimeRepositories: () => ({ cloud: { cacheWrite: vi.fn() } }), cloudsKeys: { all: ['clouds'] } },
+        data: {
+            useRuntimeRepositories: () => ({ cloud: { cacheWrite, cacheRead: vi.fn().mockResolvedValue(null) } }),
+            cloudsKeys: { all: ['clouds'] },
+            getAcceptorId: () => 'account-1',
+            withAcceptor: (_: unknown, id: string) => [id],
+        },
     },
 }));
 vi.mock('@chatic/config', () => ({
@@ -39,6 +51,8 @@ vi.mock('@chatic/config', () => ({
             })[key],
     },
 }));
+
+import { useJoinedCloudsStore } from '../../../shared/stores';
 
 import { useInviteLogin } from './useInviteLogin';
 
@@ -104,6 +118,21 @@ describe('useInviteLogin with an encoded link', () => {
             'delegator-1',
             'https://uzjpiaey7a.execute-api.ap-northeast-2.amazonaws.com/dev'
         );
+    });
+
+    it('records the account that joined on the cached cloud and the joined-clouds entry', async () => {
+        fetchInviteCodeInfo.mockResolvedValue(null);
+        registerUserWithInviteCode.mockResolvedValue({ cloudId: '1000009' });
+        const { result } = renderHook(() => useInviteLogin(), { wrapper });
+
+        await act(async () => {
+            await result.current.login(encodedLink({ c: 'invt:1:abc', a: 'uzjpiaey7a', s: 'dev' }));
+        });
+
+        expect(cacheWrite).toHaveBeenCalledWith(
+            expect.objectContaining({ id: '1000009', cloudType: 'invited', acceptedBy: ['account-1'] })
+        );
+        expect(useJoinedCloudsStore.getState().joinedClouds['1000009']).toMatchObject({ ownerUid: 'account-1' });
     });
 
     it('refuses a relay invite before any guest session is created or the code is sent', async () => {

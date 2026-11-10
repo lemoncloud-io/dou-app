@@ -27,7 +27,12 @@ vi.mock('@chatic/app-runtime', () => ({
             getActiveSessionUser,
             registerUserWithInviteCode,
         },
-        data: { useRuntimeRepositories: () => ({ cloud: { cacheWrite: vi.fn() } }), cloudsKeys: { all: ['clouds'] } },
+        data: {
+            useRuntimeRepositories: () => ({ cloud: { cacheWrite: vi.fn(), cacheRead: vi.fn() } }),
+            cloudsKeys: { all: ['clouds'] },
+            getAcceptorId: () => 'account-1',
+            withAcceptor: (_: unknown, id: string) => [id],
+        },
     },
 }));
 vi.mock('@chatic/config', () => ({

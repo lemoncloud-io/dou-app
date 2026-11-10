@@ -116,6 +116,10 @@ back. It does nothing when the row is already there, and a revoked grant just le
 was. The row comes back without a name, so the row reads as the cloud's id until the cloud is
 entered and its name is fetched over its own socket.
 
+The row and the joined-clouds entry are recorded under the account that joined (`acceptedBy` /
+`ownerUid`), and `useClouds` reads only the signed-in account's; the names of owned tiles are
+read from the same filtered rows. See `docs/auth/README.md`.
+
 Three places name a cloud, and each one recovers it:
 
 - **A push.** `usePushInvitedCloudRecovery` reads the source cloud from the push (`data.cid`, which
