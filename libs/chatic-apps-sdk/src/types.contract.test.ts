@@ -1,5 +1,6 @@
 import type {
     HapticKind as AppHapticKind,
+    MiniAppLaunchParams as AppMiniAppLaunchParams,
     SubWebViewCloseTrigger,
     SubWebViewContext,
     SubWebViewDeviceKind,
@@ -15,6 +16,7 @@ import type {
     CloseTrigger,
     DeviceKind,
     HapticKind,
+    MiniAppLaunchParams,
     PermissionState,
     StorageUsage,
     Theme,
@@ -33,7 +35,8 @@ const pinned: [
     Equal<StorageUsage, SubWebViewStorageUsage>,
     Equal<DeviceKind, SubWebViewDeviceKind>,
     Equal<PermissionState, SubWebViewDevicePermissionState>,
-] = [true, true, true, true, true, true, true, true];
+    Equal<MiniAppLaunchParams, AppMiniAppLaunchParams>,
+] = [true, true, true, true, true, true, true, true, true];
 
 describe('the public types', () => {
     it("match the app's message definitions exactly", () => {

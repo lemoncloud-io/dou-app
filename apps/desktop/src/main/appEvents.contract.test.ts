@@ -33,9 +33,16 @@ const DESKTOP_APP_EVENTS = {
     },
     OnPurchaseSuccess: { notEmitted: STORE_IAP },
     OnPurchaseError: { notEmitted: STORE_IAP },
-    OnSubWebViewClosed: { notEmitted: 'No sub WebView on desktop; OpenSubWebView answers NOT_FOUND' },
-    OnSubWebViewContextChanged: { notEmitted: 'No sub WebView on desktop' },
-    OnSubWebViewCloseRequested: { notEmitted: 'No sub WebView on desktop' },
+    OnSubWebViewClosed: {
+        emittedBy: ['main/subWebView/DesktopSubWebViewService.ts'],
+        test: 'main/subWebView/desktopSubWebView.test.ts',
+    },
+    OnSubWebViewContextChanged: {
+        notEmitted: 'The desktop sub view keeps the theme and language it opened with; the page reads its context once',
+    },
+    OnSubWebViewCloseRequested: {
+        notEmitted: 'The desktop page host has no close guard; SetSubWebViewCloseGuard answers NOT_FOUND there',
+    },
 } satisfies Record<string, Decision>;
 
 const SRC = join(__dirname, '..');

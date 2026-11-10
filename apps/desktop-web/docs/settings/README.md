@@ -1,7 +1,7 @@
 # settings
 
-The Settings page (`src/app/features/settings/`): notifications and the About section, with the Account
-entries on top. Appearance and language are not on the page; they live in the popup below.
+The Settings page (`src/app/features/settings/`): notifications, the mini apps and the About section,
+with the Account entries on top. Appearance and language are not on the page; they live in the popup below.
 
 In the desktop app, where device pairing is on and the session did not itself come from a pairing,
 the Account entry is followed by **Approve web sign-in**, which opens the approval screen
@@ -80,6 +80,51 @@ with a preview of two sample messages that changes as the choice does. Both are 
 `main.tsx` applies the stored values before the first render; the store hydrates localStorage
 synchronously, so the app never paints at the default size first. After that a subscription in the
 store applies each change.
+
+## Mini apps
+
+A section of its own, after Startup (`components/MiniAppSettingsItem.tsx`, `hooks/useMiniAppLauncher.ts`).
+It opens a cloud's mini apps in the desktop shell's sub view, a modal over the app. The shell side is
+in `apps/desktop` (Sub view), and what the page receives is in the sub WebView protocol
+(`apps/mobile/docs/webview/sub-webview-protocol.md`).
+
+- **Where it appears.** Only in a shell whose handshake says `subWebViewOpenScope: 'anyHttps'`. The
+  web ships before the shell, so it asks (`utils/subWebViewShell.ts` sends the one `WebAppReady`
+  desktop-web sends, answered with no side effect) rather than assuming. A plain browser, an older
+  shell and the phone do not show it. Neither does the Default Cloud (Home), which is the relay's and
+  has no owner and no mini apps.
+- **Open mini apps.** Everyone in the cloud gets this one row, and it always opens DoU's hub
+  (`https://apps.chatic.io/` on a PROD build, `https://apps-dev.chatic.io/` otherwise). The hub is the
+  way in: it lists the cloud's mini apps and, when one is chosen, closes with
+  `result: { action: 'openMiniApp', id }`. The web looks that id up in the cloud's list and opens the
+  address it holds there — the hub never hands over an address, and an id the list does not hold opens
+  nothing.
+- **What a page receives.** `MiniAppLaunchParams` (`@chatic/shared`): the cloud, the open place, my id
+  in this cloud, and my name, which is my place nick (under my id in this cloud, else my account id),
+  else the cloud profile's name. Only the hub is also told whether I own the cloud, and the cloud's
+  mini apps (`miniApps`: id, name and host each). A second press while the request is still out sends
+  nothing. A refusal from the shell, or a session that has no id in this cloud yet, is a failure toast.
+- **Adding, editing, removing.** The cloud's owner alone sees the list here: one row per mini app (its
+  name, the host under it) that opens its edit dialog, and an "Add mini app" row (the cloud tile's
+  `kind === 'owned'`). The dialog takes a name and an address, both
+  checked by `checkMiniAppLink` (`@chatic/shared`): a name of 1 to `MINI_APP_LINK_NAME_MAX` (30)
+  characters, and an address that passes `isOpenableSubWebViewUrl`, the rule the shell opens by, so a
+  saved address is never one the shell would refuse. Editing an existing one also offers Remove.
+    - A cloud keeps at most `MINI_APP_LINK_LIMIT` (10). At the limit the add row is gone.
+    - The list is kept on this computer only, in `localStorage` under `dou.miniAppLinks.<cloudId>`, as
+      JSON, read back through `parseMiniAppLinks`, which drops any entry the rules no longer pass.
+      There is no server field yet, so the list shows only on the computer it was saved on — to
+      whoever opens that cloud there, the owner or, on a shared computer, a member signed in to it.
+      Members on their own computers do not see it. Switching clouds shows that cloud's list.
+    - A storage that refuses the write says so in the dialog.
+- **Consent.** The first time a host DoU does not run (`external`) would open, the user is asked
+  whether it may receive their name, their id in this cloud, the cloud and the place. Declining opens nothing. Agreeing is
+  remembered per account and host (`dou.miniAppConsent.<accountId>.<host>`), so on a shared computer one
+  person's yes does not send another's names. DoU's own pages are not asked about.
+- **Back from the hub.** When the hub view this screen opened closes with
+  `result: { action: 'openMiniAppLinkSettings' }`, the add dialog opens, and only for the owner; with
+  `openMiniApp`, the chosen mini app opens (above). Any other view's result, and any other result, is
+  ignored.
 
 ## Documents
 

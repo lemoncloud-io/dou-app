@@ -9,6 +9,7 @@ import {
     type BridgeErrorResponse,
     type CacheDomainVersions,
     type SubWebViewContext,
+    type SubWebViewOpenScope,
     type WebAppReadyPayload,
     type WebMessageData,
     type WebMessageHandlerResponse,
@@ -61,6 +62,12 @@ export interface AppBridgeHostConfig {
      * asks, not as they were when the host was built.
      */
     subWebViewContext?: () => SubWebViewContext;
+    /**
+     * How far this shell's `OpenSubWebView` opens, reported in the handshake as `subWebViewOpenScope`.
+     * Only a main window's host that opens sub WebViews passes it; omitted, the field is left out,
+     * which a web reads as a shell that opens the reviewed pages only.
+     */
+    subWebViewOpenScope?: SubWebViewOpenScope;
     /**
      * The longest message, as a serialized string, this host handles. A longer one is answered
      * `TOO_LARGE` without reaching its handler. Unset means no limit — the main web's own messages
@@ -146,6 +153,7 @@ export class AppBridgeHost implements IAppBridgeHost {
                     ...(supportedCacheTypes ? { supportedCacheTypes } : {}),
                     ...(cacheDomainVersions ? { cacheDomainVersions } : {}),
                     ...(config.subWebViewContext ? { subWebView: config.subWebViewContext() } : {}),
+                    ...(config.subWebViewOpenScope ? { subWebViewOpenScope: config.subWebViewOpenScope } : {}),
                 },
             };
         });

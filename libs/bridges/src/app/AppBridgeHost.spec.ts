@@ -438,6 +438,17 @@ describe('AppBridgeHost handshake capability lists', () => {
         expect(after.supportedWebMessages).toContain('StartPerfTrace');
     });
 
+    it('reports how far it opens sub WebViews only when the shell says so', async () => {
+        const silent = (await handshake(new AppBridgeHost({ sendToWeb: mockSendToWeb }))) as Record<string, unknown>;
+        mockSendToWeb.mockClear();
+        const wide = (await handshake(
+            new AppBridgeHost({ sendToWeb: mockSendToWeb, subWebViewOpenScope: 'anyHttps' })
+        )) as Record<string, unknown>;
+
+        expect('subWebViewOpenScope' in silent).toBe(false);
+        expect(wide.subWebViewOpenScope).toBe('anyHttps');
+    });
+
     it('answers Ping with a Pong carrying the payload back', async () => {
         const host = new AppBridgeHost({ sendToWeb: mockSendToWeb });
 

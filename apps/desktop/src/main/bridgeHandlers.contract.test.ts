@@ -11,7 +11,7 @@ import {
     type ResponseMessage,
 } from '@chatic/bridges';
 
-import { registerHandlers, type DesktopBridgeDeps } from './bridgeHandlers';
+import { DESKTOP_MAIN_HOST_OPTIONS, registerHandlers, type DesktopBridgeDeps } from './bridgeHandlers';
 import { startUpdater } from './updater';
 
 // updater.ts registers the two auto-update handlers and is the one module here that needs electron.
@@ -43,7 +43,9 @@ const PHONE_TOOLING = "The phone shell's boot, resume, perf and debug-panel tool
 const STORE_IAP = 'Store purchases happen on the phones only';
 const SYSTEM_BROWSER_LOGIN = 'Desktop social login runs in the system browser and returns by deeplink';
 const STORE_UPDATE = 'Store update check; desktop updates itself (StartUpdateDownload / RestartToUpdate)';
-const SUB_WEBVIEW = "The phone shell's second WebView; desktop-web never asks for it";
+// The page-facing requests: a sub view page sends them to the sub view's own host, never to the main
+// window's. The desktop page host answers a subset of them (see desktopSubWebView.test.ts).
+const SUB_WEBVIEW_PAGE = "A sub WebView page's request; the main window's host never answers it";
 
 /**
  * Requests in `WEB_MESSAGE_RESPONSE_TYPE` the desktop shell deliberately leaves unregistered. The
@@ -141,20 +143,18 @@ const DESKTOP_UNSUPPORTED = {
     ClearTestRecords: NO_STORE,
     CheckAppUpdate: STORE_UPDATE,
     OpenStore: STORE_UPDATE,
-    OpenSubWebView: SUB_WEBVIEW,
-    CloseSubWebView: SUB_WEBVIEW,
-    FinishSubWebView: SUB_WEBVIEW,
-    SetSubWebViewTitle: SUB_WEBVIEW,
-    GetSubWebViewUserKey: SUB_WEBVIEW,
-    SetSubWebViewCloseGuard: SUB_WEBVIEW,
-    ReportSubWebViewError: SUB_WEBVIEW,
-    GetSubWebViewStorage: SUB_WEBVIEW,
-    SetSubWebViewStorage: SUB_WEBVIEW,
-    RemoveSubWebViewStorage: SUB_WEBVIEW,
-    ClearSubWebViewStorage: SUB_WEBVIEW,
-    GetSubWebViewStorageInfo: SUB_WEBVIEW,
-    GetSubWebViewPermission: SUB_WEBVIEW,
-    RequestSubWebViewPermission: SUB_WEBVIEW,
+    FinishSubWebView: SUB_WEBVIEW_PAGE,
+    SetSubWebViewTitle: SUB_WEBVIEW_PAGE,
+    GetSubWebViewUserKey: SUB_WEBVIEW_PAGE,
+    SetSubWebViewCloseGuard: SUB_WEBVIEW_PAGE,
+    ReportSubWebViewError: SUB_WEBVIEW_PAGE,
+    GetSubWebViewStorage: SUB_WEBVIEW_PAGE,
+    SetSubWebViewStorage: SUB_WEBVIEW_PAGE,
+    RemoveSubWebViewStorage: SUB_WEBVIEW_PAGE,
+    ClearSubWebViewStorage: SUB_WEBVIEW_PAGE,
+    GetSubWebViewStorageInfo: SUB_WEBVIEW_PAGE,
+    GetSubWebViewPermission: SUB_WEBVIEW_PAGE,
+    RequestSubWebViewPermission: SUB_WEBVIEW_PAGE,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 /**
@@ -174,6 +174,8 @@ const SAMPLE_REQUESTS: Partial<{ [K in WebMessageType]: WebMessagePayloadMap[K] 
     StorageGet: { medium: 'nativeSecure' },
     StorageSave: { medium: 'nativeSecure', set: { token: 'abc' }, remove: ['old'] },
     StorageClear: { medium: 'nativeSecure' },
+    OpenSubWebView: { url: 'https://quiz.apps.chatic.io/' },
+    CloseSubWebView: { viewId: 'view-1' },
 };
 
 const VOCABULARY = Object.keys(WEB_MESSAGE_RESPONSE_TYPE) as WebMessageType[];
@@ -187,6 +189,21 @@ const createDeps = (): jest.Mocked<DesktopBridgeDeps> => ({
         get: jest.fn(() => Promise.resolve({ status: 'available' as const, values: { token: 'abc' } })),
         save: jest.fn(() => Promise.resolve(true)),
         clear: jest.fn(() => Promise.resolve(true)),
+    },
+    // A stand-in: what opens and how is the service's, tested in desktopSubWebView.test.ts. Here each
+    // request only has to reach it and come back as its paired reply.
+    subWebView: {
+        open: jest.fn(() => ({
+            ok: true as const,
+            view: {
+                viewId: 'view-1',
+                url: 'https://quiz.apps.chatic.io/',
+                origin: 'https://quiz.apps.chatic.io',
+                trust: 'reviewed' as const,
+                params: {},
+            },
+        })),
+        close: jest.fn(() => ({ ok: true as const })),
     },
 });
 
@@ -202,6 +219,7 @@ const createShell = (deps = createDeps(), deliver?: (raw: string) => void) => {
             replies.push(JsonProtocol.decode(raw) as ResponseMessage);
             deliver?.(raw);
         },
+        ...DESKTOP_MAIN_HOST_OPTIONS,
     });
     registerHandlers(host, deps);
     // startUpdater arms a check loop; the contract only needs what it registers.
@@ -261,7 +279,9 @@ describe('desktop bridge contract', () => {
     // A handler registered anywhere else is invisible to the checks above, so a message already
     // listed as unsupported could gain one without failing them.
     it('registers handlers only in the files this suite loads', () => {
-        const allowed = ['bridgeHandlers.ts', 'updater.ts'];
+        // The sub view's own host registers the page-facing subset; it is a different host, and
+        // desktopSubWebView.test.ts holds it to that subset.
+        const allowed = ['bridgeHandlers.ts', 'updater.ts', 'subWebView/desktopSubBridgeHost.ts'];
         const sources = (dir: string): string[] =>
             readdirSync(dir, { withFileTypes: true }).flatMap(entry =>
                 entry.isDirectory() ? sources(join(dir, entry.name)) : [join(dir, entry.name)]

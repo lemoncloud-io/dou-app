@@ -19,7 +19,7 @@ import {
 import { NotificationSnoozeButton } from '../../chat/components/NotificationSnoozeButton';
 import { canApprovePairing } from '../../pairing/utils/devicePairing';
 import { useOnboardingStore, useShortcutsDialogStore } from '../../chat/stores';
-import { ReportIssueDialog } from '../components';
+import { MiniAppSettingsItem, ReportIssueDialog } from '../components';
 import { useDevicePushMute } from '../hooks';
 import { LaunchAtLoginSection } from './LaunchAtLoginSection';
 import { QuietHoursMentionSection } from './QuietHoursMentionSection';
@@ -84,6 +84,9 @@ export const SettingsPage = () => {
 
             {/* Desktop shell only — renders nothing in a plain browser. */}
             <LaunchAtLoginSection />
+
+            {/* A shell that opens any https page only, and never in the Default Cloud. */}
+            <MiniAppSettingsItem />
 
             <section className="mt-8 flex flex-col gap-4">
                 <h2 className="text-overline uppercase text-muted-foreground">{t('settings.notifications')}</h2>

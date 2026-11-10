@@ -2,7 +2,7 @@ import { ChaticAppsError } from './errors';
 import type { Transport } from './transport';
 
 /** The bridge version this library is written against, sent as each request's `version`. */
-export const SDK_BRIDGE_VERSION = '2.21.0';
+export const SDK_BRIDGE_VERSION = '2.22.0';
 
 /** How long a request waits for its reply by default, while the page is visible. */
 export const DEFAULT_TIMEOUT_MS = 10_000;

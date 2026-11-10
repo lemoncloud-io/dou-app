@@ -279,6 +279,12 @@ page",
 and a new page needs a deploy rather than an app release. The domain itself
 (`https://apps.chatic.io`) is not a page and is refused.
 
+This phone shell opens that tier alone and its handshake says nothing of `subWebViewOpenScope`.
+The desktop shell opens wider — any plain https site, as an `external` tier with less trust — under
+the shared rule in `libs/shared` (`subWebViewTrust.ts`), whose `reviewed` tier is this allowlist,
+case for case; how the desktop shows each tier is
+[the protocol's desktop section](./sub-webview-protocol.md#the-desktop-shell-2220).
+
 It is a subtree on purpose, not `*.chatic.io`. That would take in the web app itself
 (`dou.chatic.io` boots a second copy of the app in the view, and the storage the two WebViews share
 is
