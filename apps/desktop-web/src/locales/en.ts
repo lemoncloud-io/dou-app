@@ -736,7 +736,8 @@ export const en = {
     'policy.list.title': 'Policies',
     'policy.list.openHint': 'The terms and the privacy policy.',
     'settings.notificationsTitle': 'Notifications',
-    'settings.notificationsHint': 'Desktop and device push, quiet hours and snooze.',
+    'settings.notificationsHint':
+        "Desktop and device push, quiet hours and snooze on this device. A place's or cloud's notifications are set from its own settings.",
     'policy.list.terms': 'Terms of service',
     'policy.list.privacy': 'Privacy policy',
     'policy.effectiveDate': 'Effective',

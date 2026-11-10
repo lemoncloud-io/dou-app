@@ -101,7 +101,10 @@ error on screen.
    the new name into the catalog query too, because a refetch right after the write could still
    return the old one. Success and failure are each a toast.
 2. **Places.** An entry to the cloud's places page.
-3. **Release.** A destructive action in its own section, behind a confirmation that names the cloud
+3. **Notifications.** "This cloud's notifications" sets one level for every place of the cloud, the
+   same write as a place level ([notifications](../chat/notifications.md#place-and-cloud-levels)).
+   Only the cloud the session is in offers it; any other cloud shows a line saying to switch first.
+4. **Release.** A destructive action in its own section, behind a confirmation that names the cloud
    and says everything in it goes away for everyone and cannot be undone.
 
 A cloud id the catalog does not list is not owned, or is a stale link: once the catalog has loaded,

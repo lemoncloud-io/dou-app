@@ -24,6 +24,7 @@ entries that act on the place:
 | My profile      | the place the session is in   | opens the place profile dialog: the name and photo the person goes by here |
 | Edit place      | the place's owner (`isOwner`) | opens the edit dialog for the place's name, photo and description          |
 | Manage channels | everyone                      | opens the bulk channel manager                                             |
+| Notifications   | everyone                      | sets one level for every channel of the place                              |
 
 My profile is limited to the active place because its dialog has no place parameter and always edits
 the place the session is in; offered on another place it would edit the wrong one. Edit place is
@@ -35,6 +36,13 @@ both cases what is allowed.
 The two edit buttons only raise a flag in the dialogs' stores, so the page mounts `EditPlaceDialog`
 and `EditPlaceProfileDialog` itself: the home page that mounts them on `/` is not rendered on this
 route, and without its own copies the buttons would open nothing until the person went back Home.
+
+### This place's notifications
+
+The section above Manage channels sets one level (all messages, mentions only, off) for every channel
+of the place, writing each channel's own setting, and counts the channels set differently with a
+link to the channel manager. How the level is written, how a new channel inherits it, and what it
+cannot reach are in [`../chat/notifications.md`](../chat/notifications.md#place-and-cloud-levels).
 
 ## Managing channels
 

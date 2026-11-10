@@ -741,7 +741,8 @@ export const ko: EnTranslation = {
     'policy.list.title': '약관 및 정책',
     'policy.list.openHint': '이용약관과 개인정보처리방침이에요.',
     'settings.notificationsTitle': '알림',
-    'settings.notificationsHint': '데스크톱·기기 푸시와 방해 금지 시간, 알림 일시 중지 설정이에요.',
+    'settings.notificationsHint':
+        '이 기기의 데스크톱·기기 푸시와 방해 금지 시간, 알림 일시 중지 설정이에요. 플레이스·클라우드 알림은 각 설정에서 바꿔요.',
     'policy.list.terms': '이용약관',
     'policy.list.privacy': '개인정보처리방침',
     'policy.effectiveDate': '시행일',
