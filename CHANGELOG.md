@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (storage) call the key-value backings stores, not media
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
 - (session,app-runtime,landing) the session has no default medium (ADR-0302)
 
 ## [2026-11-10] - No version updates
