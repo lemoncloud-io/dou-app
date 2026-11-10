@@ -162,6 +162,25 @@ guest's id (`delegatorId`) and still stands on that guest's invite grants. Two t
   account reset used to wipe both, which emptied the list until a push re-cached one cloud at a time.
   It now keeps both on every logout, as apps/web does, and still clears the rest of the cloud cache
   (owned clouds' names belong to the account).
+- **Kept for the device does not mean listed for every account.** Both records are device-wide, so
+  each names the account it belongs to: the cache row in `acceptedBy` and the joined-clouds entry in
+  `ownerUid`, both the relay uid (`runtime.data.getAcceptorId()`) of the session that joined the
+  cloud. The rail lists only the signed-in account's. Without it, account B signing in after account
+  A saw A's invited clouds (and any cloud a push recovery re-cached under A), and switching into
+  one answered 403 because the server never granted B that cloud. A row or entry with no owner was
+  written before attribution existed and is listed for nobody until it is adopted.
+  `reconcileCloudRecordOwners` (run by `useCloudRecordOwnership` from the signed-in shell, so once
+  per session start or sign-in and never from the rail's render) stamps the signed-in account onto
+  every invited row with no `acceptedBy` and every joined entry with no `ownerUid`. The first
+  account on a device adopts them all, including what several accounts left there before the
+  upgrade; it can drop a stray one with "remove cloud". A record that has an owner is never
+  re-stamped, so a second run, or a second account signing in later, changes nothing.
+  A guest that links to an account in place (Google, Apple or phone sign-in over the live guest
+  session) can come out with a different uid: signing in to an account that already exists answers
+  with that account's uid. The reconcile remembers which uid it last ran for
+  (`chatic-cloud-records-owner`, dropped on every sign-out) and, when the uid changes with no
+  sign-out in between, moves the previous uid's records to the new one. After a sign-out the next
+  account is a different account, and nothing moves.
 
 The join entry reads the role from the relay token (`isRelayGuest`), not from `useRuntimeProfile`:
 inside a cloud the active session is that cloud's user, and its role says nothing about the account.

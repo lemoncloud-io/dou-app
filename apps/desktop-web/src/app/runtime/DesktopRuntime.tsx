@@ -10,6 +10,7 @@ import {
     ConnectionBanner,
     UpdateBanner,
     useClouds,
+    useCloudRecordOwnership,
     useCrossCloudPushBadge,
     useCrossCloudPushNotifications,
     useDesktopBadge,
@@ -82,6 +83,12 @@ const DesktopNotifications = () => {
  * raise toasts/badges/OS banners on the logged-out shell. Unmounting drops the OnReceiveNotification
  * listeners so a logged-out app silently ignores inbound pushes; it re-registers on the next login.
  */
+/** Attributes the device-wide invited-cloud records to the signed-in account (needs a live session). */
+const AuthedCloudRecords = () => {
+    useCloudRecordOwnership();
+    return null;
+};
+
 const AuthedNotifications = () => {
     const { isAuthenticated } = runtime.session.useSessionAuth();
     return isAuthenticated ? <DesktopNotifications /> : null;
@@ -189,6 +196,7 @@ export const DesktopRuntime = () => {
                 <BackgroundSyncRunner />
                 <BackgroundCloudsRunner />
                 <AuthedNotifications />
+                <AuthedCloudRecords />
                 <ShellUnreadSync />
                 {/* The banners are a row in the layout, not fixed overlays. Fixed, they
                     covered the shell's top row, and when both fired the update banner sat

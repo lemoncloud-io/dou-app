@@ -254,11 +254,12 @@ Two functions defend it, both best-effort and both idempotent:
 - `syncInvitedCloudName(cloud, cid)` — a delegation token carries no name, so the authoritative one is read with `cloud.get` once the socket verifies. This is the only source for it. The read goes to the relay, which holds the name the owner set; the invited cloud's own server keeps a copy that renames no longer reach.
 
 A row may carry `acceptedBy`, the device users that accepted the cloud on this device, which apps/web
-reads to keep one device user's invited cloud out of another's list
+and desktop-web read to keep one device user's invited cloud out of another's list
 ([apps/web invite](../../../../apps/web/docs/feature/invite/README.md#accepting-a-cloud-invite)). A
-row this module rebuilds carries none, so it is listed like a row written before the field existed —
-for every device user, including one the cloud was never granted to, whose background socket then
-delegates into it.
+row this module rebuilds (`recoverInvitedCloudIfMissing`) is recorded under the signed-in user
+(`getAcceptorId`: the relay uid, falling back to the `delegatorId`) — the delegation just succeeded
+for that user — so it is not listed for another account on the device. `withAcceptor` and
+`isAcceptedBy` (strict: an unattributed row is nobody's) are the shared helpers.
 
 The gap that remains is real and needs a backend change: a store wiped completely (a reinstall, the
 OS clearing app data) with no push carrying a cid has no recovery path. That is the price of the

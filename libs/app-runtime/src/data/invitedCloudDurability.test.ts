@@ -11,7 +11,12 @@ const mockIssue = jest.fn();
 jest.mock('./runtime', () => ({
     getRepositories: () => ({ auth: { delegateCloud: (...args: unknown[]) => mockIssue(...args) } }),
 }));
-jest.mock('../session', () => ({ useSessionSelection: jest.fn() }));
+const mockRelayUser: { current: { uid: string } | null } = { current: { uid: 'account-b' } };
+jest.mock('../session', () => ({
+    useSessionSelection: jest.fn(),
+    getRelaySessionUser: () => mockRelayUser.current,
+    getIdentityContext: () => ({ delegatorId: null }),
+}));
 
 const createCloud = () => ({
     cacheReadList: jest.fn().mockResolvedValue({ list: [] }),
@@ -61,7 +66,20 @@ describe('invitedCloudDurability', () => {
                 backend: 'https://b',
                 wss: 'wss://w',
                 cloudType: 'invited',
+                acceptedBy: ['account-b'],
             });
+        });
+
+        it('records the signed-in user on a rebuilt row, so another account on the device does not list it', async () => {
+            const cloud = createCloud();
+            cloud.cacheRead.mockResolvedValue(null);
+            mockIssue.mockResolvedValue({ cloudId: 'c1', backend: 'https://b', wss: 'wss://w' });
+            mockRelayUser.current = { uid: 'account-c' };
+
+            await recoverInvitedCloudIfMissing(cloud as any, 'c1');
+
+            expect(cloud.cacheWrite).toHaveBeenCalledWith(expect.objectContaining({ acceptedBy: ['account-c'] }));
+            mockRelayUser.current = { uid: 'account-b' };
         });
 
         it('best-effort: swallows a relay failure', async () => {

@@ -1,5 +1,6 @@
 import { RELAY_CLOUD_ID, type DomainCloud, type ICloudRepository } from '@chatic/data';
 
+import { getAcceptorId, withAcceptor } from './invitedCloudAcceptance';
 import { getRepositories } from './runtime';
 import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
 
@@ -11,12 +12,15 @@ import type { CloudDelegationTokenView } from '@lemoncloud/chatic-backend-api';
  */
 const rehydrateInvitedCloud = async (cloud: ICloudRepository, cloudId: string): Promise<void> => {
     const del: CloudDelegationTokenView = await getRepositories().auth.delegateCloud(cloudId);
+    // The delegation succeeded for the session signed in now, so the row is recorded as that user's.
+    const existing = await cloud.cacheRead(cloudId);
     await cloud.cacheWrite({
         id: cloudId,
         cid: del.cloudId ?? cloudId,
         backend: del.backend,
         wss: del.wss,
         cloudType: 'invited',
+        acceptedBy: withAcceptor(existing?.acceptedBy, getAcceptorId()),
     });
 };
 

@@ -21,7 +21,7 @@ const mockRepositories = {
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
-        data: { useRuntimeRepositories: () => mockRepositories },
+        data: { useRuntimeRepositories: () => mockRepositories, getAcceptorId: () => mockDelegatorId },
         session: { useSessionIdentity: () => ({ delegatorId: mockDelegatorId }) },
     },
 }));

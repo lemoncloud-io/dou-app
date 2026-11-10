@@ -7,7 +7,9 @@ import { renderHook } from '@testing-library/react';
 // hid every invited cloud joined on another profile, including the one the session was inside.
 let catalogClouds: Array<Record<string, unknown>> = [];
 let cachedClouds: Array<Record<string, unknown>> = [];
-let joinedClouds: Record<string, { id: string; name?: string }> = {};
+let joinedClouds: Record<string, { id: string; name?: string; ownerUid?: string }> = {};
+// The relay uid of the account signed in now.
+let signedInUid: string | null = 'me';
 let activeCloudId = '';
 let catalogFailed = false;
 const refetchClouds = vi.fn();
@@ -15,6 +17,10 @@ const refetchClouds = vi.fn();
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
         data: {
+            getAcceptorId: () => signedInUid,
+            // Real logic: it is the rule under test.
+            isAcceptedBy: (cloud: { acceptedBy?: string[] }, id: string | null) =>
+                !!id && !!cloud.acceptedBy?.includes(id),
             useRuntimeRepositories: () => ({
                 cloud: {
                     observeList: (callback: (result: { list: unknown[] } | null) => void) => {
@@ -89,6 +95,7 @@ describe('useClouds', () => {
         joinedClouds = {};
         activeCloudId = '';
         catalogFailed = false;
+        signedInUid = 'me';
     });
 
     // `isCloudsError` had no reader: a failed catalog read dropped every owned cloud from the rail unannounced.
@@ -102,7 +109,7 @@ describe('useClouds', () => {
     });
 
     it('shows an invited cloud held only in the local cache', () => {
-        cachedClouds = [{ id: '1000001', cid: '1000001', name: '넹미', cloudType: 'invited' }];
+        cachedClouds = [{ id: '1000001', cid: '1000001', name: '넹미', cloudType: 'invited', acceptedBy: ['me'] }];
 
         const { result } = renderHook(() => useClouds());
 
@@ -151,7 +158,7 @@ describe('useClouds', () => {
 
     it('keeps the owned entry when the same cloud is also cached as invited', () => {
         catalogClouds = [{ id: '1000004', name: 'Owned', status: 'active' }];
-        cachedClouds = [{ id: '1000004', cid: '1000004', cloudType: 'invited' }];
+        cachedClouds = [{ id: '1000004', cid: '1000004', cloudType: 'invited', acceptedBy: ['me'] }];
 
         const { result } = renderHook(() => useClouds());
 
@@ -164,8 +171,8 @@ describe('useClouds', () => {
             { id: '1000005', name: 'Owned only', status: 'active' },
         ];
         cachedClouds = [
-            { id: '1000004', cid: '1000004', cloudType: 'invited' },
-            { id: '1000006', cid: '1000006', cloudType: 'invited' },
+            { id: '1000004', cid: '1000004', cloudType: 'invited', acceptedBy: ['me'] },
+            { id: '1000006', cid: '1000006', cloudType: 'invited', acceptedBy: ['me'] },
             { id: '1000005', cid: '1000005', name: 'Renamed' },
         ];
 
@@ -176,8 +183,8 @@ describe('useClouds', () => {
 
     it('names a cached invited cloud from the joined-clouds store', () => {
         // The invite-accept flow writes id/cid/backend/wss to the cache but no name; the store has it.
-        cachedClouds = [{ id: '1000001', cid: '1000001', cloudType: 'invited' }];
-        joinedClouds = { '1000001': { id: '1000001', name: '넹미' } };
+        cachedClouds = [{ id: '1000001', cid: '1000001', cloudType: 'invited', acceptedBy: ['me'] }];
+        joinedClouds = { '1000001': { id: '1000001', name: '넹미', ownerUid: 'me' } };
 
         const { result } = renderHook(() => useClouds());
 
@@ -192,6 +199,62 @@ describe('useClouds', () => {
 
         expect(result.current.clouds.map(c => c.id)).toEqual(['default', '1000001']);
         expect(result.current.activeCloudId).toBe('1000001');
+    });
+
+    describe('another account on the same device', () => {
+        // Invited rows and the joined-clouds store are device-wide and survive a sign-out on purpose
+        // (the device's guest still holds the grants), so each record names who it belongs to.
+        it("does not show an invited cloud another account's session cached", () => {
+            signedInUid = 'account-b';
+            cachedClouds = [
+                { id: '1000002', cid: '1000002', name: 'Baboo', cloudType: 'invited', acceptedBy: ['account-a'] },
+            ];
+
+            const { result } = renderHook(() => useClouds());
+
+            expect(result.current.clouds.map(c => c.id)).toEqual(['default']);
+        });
+
+        it('does not show an invited row nobody is recorded for', () => {
+            cachedClouds = [{ id: '1000002', cid: '1000002', name: 'Baboo', cloudType: 'invited' }];
+
+            const { result } = renderHook(() => useClouds());
+
+            expect(result.current.clouds.map(c => c.id)).toEqual(['default']);
+        });
+
+        it("does not show a cloud joined by another account's invite", () => {
+            signedInUid = 'account-c';
+            joinedClouds = { '1000004': { id: '1000004', name: 'test-lemon2', ownerUid: 'account-b' } };
+
+            const { result } = renderHook(() => useClouds());
+
+            expect(result.current.clouds.map(c => c.id)).toEqual(['default']);
+        });
+
+        it("does not name an owned tile from another account's invited row", () => {
+            signedInUid = 'account-b';
+            catalogClouds = [{ id: '1000004', name: 'Catalog name', status: 'active' }];
+            cachedClouds = [
+                { id: '1000004', cid: '1000004', name: 'Stale', cloudType: 'invited', acceptedBy: ['account-a'] },
+            ];
+
+            const { result } = renderHook(() => useClouds());
+
+            expect(result.current.clouds[1]).toMatchObject({ name: 'Catalog name', kind: 'owned' });
+        });
+
+        it('shows the cloud again when the account that joined it signs back in', () => {
+            signedInUid = 'account-a';
+            cachedClouds = [
+                { id: '1000002', cid: '1000002', name: 'Baboo', cloudType: 'invited', acceptedBy: ['account-a'] },
+            ];
+            joinedClouds = { '1000003': { id: '1000003', name: 'Fresh', ownerUid: 'account-a' } };
+
+            const { result } = renderHook(() => useClouds());
+
+            expect(result.current.clouds.map(c => c.id)).toEqual(['default', '1000002', '1000003']);
+        });
     });
 
     // The tile read "Home" in a Korean UI: the name was a literal, not a string of the UI.

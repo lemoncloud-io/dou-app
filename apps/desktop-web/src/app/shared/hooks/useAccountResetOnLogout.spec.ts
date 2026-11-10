@@ -72,6 +72,15 @@ describe('useAccountResetOnLogout', () => {
         removeItemSpy.mockRestore();
     });
 
+    it('forgets which account the cloud records were reconciled for, so the next one is a new account', async () => {
+        localStorage.setItem('chatic-cloud-records-owner', 'account-a');
+
+        const { result } = renderHook(() => useAccountResetOnLogout());
+        await result.current.resetAccount();
+
+        expect(localStorage.getItem('chatic-cloud-records-owner')).toBeNull();
+    });
+
     describe('invited clouds', () => {
         const invited = { id: 'cloud-invited', name: 'Friends', cloudType: 'invited' };
         const owned = { id: 'cloud-owned', name: 'Studio', cloudType: 'owner' };

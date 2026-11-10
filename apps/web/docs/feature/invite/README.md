@@ -130,13 +130,14 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   member who already has a profile for one, then failing the save because the server wrote it to
   the default place.
 - **Who accepted is written on the cached cloud** as `acceptedBy`, the `delegatorId` of every device
-  user that accepted it here, and **`useInvitedClouds` leaves out a row other device users
+  user that accepted it here (read back as `runtime.data.getAcceptorId()`: the relay uid, which is
+  the guest's own for a guest), and **`useInvitedClouds` leaves out a row other device users
   accepted.** Inside a shell the cloud cache is one partition per device, not per user, and a listed
   cloud is one the background sockets delegate into, minting the empty user above. In a plain browser
   tab the cache lives in the tab's `sessionStorage` and ends with the tab, so another tab's guest
   never reaches it; the filter is rarely load-bearing there but stays, because logout does not clear
-  the tab's rows. A row with no `acceptedBy` was written before the field existed (or by desktop-web,
-  which does not write it); it cannot be attributed and is kept, because invited clouds have no server
+  the tab's rows. A row with no `acceptedBy` was written before the field existed; it cannot be attributed and is kept
+  (desktop-web, which now writes the field, treats such a row strictly and lists it for nobody), because invited clouds have no server
   list to refill from. A browser tab imports such a row from IndexedDB only if its session holds a uid
   in that cloud.
 - **An invite into a cloud the account owns is entered as the owner.** The owner opening their own
