@@ -14,16 +14,58 @@ on:
         branches:
             - develop
 
+# Read-only by default; the `base` job adds `actions: read` for its lookup.
+permissions:
+    contents: read
+
 concurrency:
     group: verify-${{ github.ref }}
     cancel-in-progress: true
 
 jobs:
-    verify:
-        # `actions: read` for the step that looks up develop's last successful run.
+    # The commit both jobs below compare against, resolved once so they cannot disagree.
+    #
+    # A pull request is compared with its base branch. A push to develop is compared with the
+    # commit the last successful push run on develop checked, not with the commit just before it:
+    # a run cancelled by the next merge, or a red one, would otherwise drop its commits out of
+    # every later comparison, and a merge that touches some other project would turn develop green
+    # while the broken one is still broken.
+    #
+    # Empty when there is nothing trustworthy to compare with — no successful run yet, a failed
+    # lookup, a base that is not an ancestor of HEAD after a rewritten history — and both jobs then
+    # check everything rather than guess.
+    base:
+        name: resolve the compare base
+        runs-on: ubuntu-latest
         permissions:
             contents: read
             actions: read
+        outputs:
+            sha: ${{ steps.base.outputs.sha }}
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Resolve
+              id: base
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  PR_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+              run: |
+                  if [ -n "$PR_BASE" ]; then
+                      base=$(git rev-parse --verify --quiet "$PR_BASE^{commit}") || base=''
+                  else
+                      base=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/verify.yml/runs?branch=develop&event=push&status=success&per_page=1" \
+                          --jq '.workflow_runs[0].head_sha // empty') || base=''
+                      if [ -n "$base" ] && ! git merge-base --is-ancestor "$base" HEAD 2>/dev/null; then
+                          base=''
+                      fi
+                  fi
+                  echo "sha=$base" >> "$GITHUB_OUTPUT"
+
+    verify:
+        needs: base
         name: doc links · doc language · code comment language · lint · typecheck · test
         runs-on: ubuntu-latest
         steps:
@@ -61,45 +103,32 @@ jobs:
             # its merge makes to develop — and before this both runs checked every project, so a
             # one-file change paid for the whole workspace twice, test the largest share of it.
             #
-            # A pull request is compared with its base branch. A push is compared with the commit
-            # the last successful push run on develop checked, not with the commit just before it:
-            # a run cancelled by the next merge, or a red one, would otherwise drop its commits out
-            # of every later comparison, and a merge that touches some other project would turn
-            # develop green while the broken one is still broken.
+            # The base comes from the `base` job above; it says what is compared with and why.
             #
             # `nx affected` follows project files and their dependents, plus the root files Nx
             # itself understands (nx.json, package.json, the lockfile, tsconfig.base.json). A root
             # file it does not map to a project — a shared eslint, jest or vitest config, a script a
             # target calls, this workflow — would select nothing, so any changed file outside
-            # `apps/` and `libs/` that is not markdown runs every project instead. So does a base
-            # that is missing or not an ancestor of HEAD (no successful run yet, a rewritten
-            # history, a failed lookup), rather than guess. `--no-renames` matches how Nx lists
-            # changed files, so a root config moved under `apps/` still shows its old path here.
+            # `apps/` and `libs/` that is not markdown runs every project instead, and so does an
+            # empty base. `--no-renames` matches how Nx lists changed files, so a root config moved
+            # under `apps/` still shows its old path here.
             #
             # `changed=` on a line of its own, so a failing `git diff` fails this step instead of
             # reading as "nothing changed".
             - name: Which projects to check
               id: scope
               env:
-                  GH_TOKEN: ${{ github.token }}
-                  PR_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+                  BASE: ${{ needs.base.outputs.sha }}
               run: |
-                  if [ -n "$PR_BASE" ]; then
-                      base="$PR_BASE"
-                  else
-                      base=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/verify.yml/runs?branch=develop&event=push&status=success&per_page=1" \
-                          --jq '.workflow_runs[0].head_sha // empty') || base=''
-                  fi
-                  if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null \
-                      || { [ -z "$PR_BASE" ] && ! git merge-base --is-ancestor "$base" HEAD; }; then
+                  if [ -z "$BASE" ]; then
                       echo "nx=run-many" >> "$GITHUB_OUTPUT"
                       exit 0
                   fi
-                  changed=$(git diff --name-only --no-renames "$base"...HEAD)
+                  changed=$(git diff --name-only --no-renames "$BASE"...HEAD)
                   if grep -vE '^(apps|libs)/|\.md$' <<<"$changed" | grep -q .; then
                       echo "nx=run-many" >> "$GITHUB_OUTPUT"
                   else
-                      echo "nx=affected --base=$base --head=HEAD" >> "$GITHUB_OUTPUT"
+                      echo "nx=affected --base=$BASE --head=HEAD" >> "$GITHUB_OUTPUT"
                   fi
 
             # Documents are the one artifact no other step reads. Cheap, needs no build, and green
@@ -182,13 +211,34 @@ jobs:
 
     # `apps/web` in its native (WebView) mode, driven in Chromium and WebKit against a fake native
     # shell and a fake relay (`apps/web-e2e`). A job of its own so it runs beside the gate above
-    # rather than after it, and so its browsers are only installed when there is something to run.
+    # rather than after it.
+    #
+    # One job per browser project, so the two halves of the suite run side by side instead of
+    # sharing two workers in one job.
+    #
+    # Inside Playwright's own image, because the browsers' system libraries are already in it.
+    # Installing them on the runner (`playwright install --with-deps`) went through the runner's apt
+    # mirror, which usually took under a minute but in a quarter of the runs measured took 7 to 17,
+    # at about 140 kB/s. The image tag has to name the same version as `@playwright/test` in
+    # yarn.lock; the first step below fails with both versions when they drift apart.
     #
     # Skipped when `web-e2e` is not affected — the web app, the libs it builds from and the e2e
     # project itself are what move it — and the mobile injection script it loads is unchanged.
     e2e:
-        name: web e2e (fake native shell)
+        needs: base
+        name: web e2e · ${{ matrix.project }}
         runs-on: ubuntu-latest
+        container:
+            image: mcr.microsoft.com/playwright:v1.64.0-noble
+        strategy:
+            fail-fast: false
+            matrix:
+                project: [webkit-ios, chromium-android]
+        # A container job runs `run:` steps with `sh` unless told otherwise, and the steps below use
+        # bash (`<<<`).
+        defaults:
+            run:
+                shell: bash
         steps:
             - uses: actions/checkout@v4
               with:
@@ -204,6 +254,8 @@ jobs:
               id: yarn-cache-dir-path
               run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
 
+            # A key of its own: node_modules installed in this image is not the runner's, and the
+            # two must not overwrite each other.
             - name: Cache dependencies
               id: cache-dependencies
               uses: actions/cache@v4
@@ -211,51 +263,67 @@ jobs:
                   path: |
                       ${{ steps.yarn-cache-dir-path.outputs.dir }}
                       node_modules
-                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+                  key: ${{ runner.os }}-playwright-image-yarn-${{ hashFiles('**/yarn.lock') }}
                   restore-keys: |
-                      ${{ runner.os }}-yarn-
+                      ${{ runner.os }}-playwright-image-yarn-
 
             - name: Install dependencies
               if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
               run: yarn install --frozen-lockfile
 
-            # A pull request is compared with its base branch, a push with the commit before it. A push
-            # with no usable previous commit (a new branch) runs the suite rather than guess.
-            #
+            # The image's own Playwright package is deleted when the image is built, so the check
+            # asks the installed `@playwright/test` where it expects each browser and looks for
+            # those folders under the image's PLAYWRIGHT_BROWSERS_PATH. A browser revision that is
+            # not there means the tag and yarn.lock name different Playwright versions.
+            - name: Image matches @playwright/test
+              run: |
+                  missing=$(npx playwright install --dry-run chromium webkit \
+                      | sed -n 's/^ *Install location: *//p' \
+                      | while read -r dir; do [ -d "$dir" ] || echo "$dir"; done)
+                  if [ -n "$missing" ]; then
+                      installed=$(node -p "require('@playwright/test/package.json').version")
+                      echo "::error::yarn.lock installs Playwright $installed, but the e2e container image lacks its browsers ($(echo $missing)). Set the image tag in verify.yml to v$installed."
+                      exit 1
+                  fi
+
             # The mobile app's injection script counts too: the fake shell loads it by path, so no
             # dependency edge makes `web-e2e` affected by it (apps/web-e2e/README.md § The shell).
+            # So does this workflow: nx maps it to no project, and a change to this job (the image
+            # tag, the matrix) has to be seen running the suite before it merges.
             # `projects=` on a line of its own, so a failing `nx` fails this step instead of reading as
-            # "not affected".
+            # "not affected". An empty base runs the suite rather than guess.
             - name: Is web-e2e affected
               id: affected
               env:
-                  BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+                  BASE: ${{ needs.base.outputs.sha }}
               run: |
-                  if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+                  # The checkout is owned by the runner's user, not this container's root.
+                  git config --global --add safe.directory "$GITHUB_WORKSPACE"
+                  if [ -z "$BASE" ]; then
                       echo "run=true" >> "$GITHUB_OUTPUT"
                       exit 0
                   fi
                   projects=$(npx nx show projects --affected --base="$BASE" --head=HEAD)
-                  changed=$(git diff --name-only "$BASE" HEAD)
+                  changed=$(git diff --name-only --no-renames "$BASE"...HEAD)
                   if grep -qx 'web-e2e' <<<"$projects" \
-                      || grep -qx 'apps/mobile/src/app/webview/utils/injectionScripts.ts' <<<"$changed"; then
+                      || grep -qx 'apps/mobile/src/app/webview/utils/injectionScripts.ts' <<<"$changed" \
+                      || grep -qx '.github/workflows/verify.yml' <<<"$changed"; then
                       echo "run=true" >> "$GITHUB_OUTPUT"
                   else
                       echo "run=false" >> "$GITHUB_OUTPUT"
                   fi
 
-            - name: Install Playwright browsers
-              if: ${{ steps.affected.outputs.run == 'true' }}
-              run: npx playwright install --with-deps chromium webkit
-
             - name: E2E
               if: ${{ steps.affected.outputs.run == 'true' }}
-              run: npx nx run web-e2e:e2e
+              env:
+                  PROJECT: ${{ matrix.project }}
+              # After `--`, so nx hands it to Playwright instead of reading it as an nx project.
+              run: npx nx run web-e2e:e2e -- --project="$PROJECT"
 
             - name: Upload the report
               if: ${{ failure() && steps.affected.outputs.run == 'true' }}
               uses: actions/upload-artifact@v4
               with:
-                  name: web-e2e-report
+                  name: web-e2e-report-${{ matrix.project }}
                   path: dist/.playwright/apps/web-e2e
                   retention-days: 14
