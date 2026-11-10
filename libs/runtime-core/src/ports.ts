@@ -1,3 +1,4 @@
+import type { AuthPlatformPorts } from '@chatic/auth';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { TransportPlatformPorts } from '@chatic/transport';
 
@@ -24,6 +25,8 @@ export interface RuntimePorts {
     storage: SessionStoragePorts;
     /** The network signal, the device's self-description and how a socket is opened. */
     transport: TransportPlatformPorts;
+    /** The address the boot reads the logout flag from, and the way home when a session ends. */
+    auth: AuthPlatformPorts;
 }
 
 /** The keys of `T` a caller may leave out. */

@@ -156,7 +156,7 @@ sequenceDiagram
     Main->>Main: stores = runtime.boot.resolveStorageStores() · configureAppStores(device, tab)
     Main->>Main: syncThemeFromSharedKey · config.init(createWebConfigPorts(stores)) · migrateLegacyPhoneCountry
     Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
-    Main->>RT: runtime.boot.initAppRuntime({ storage, transport: webTransportPorts(), signedOutKeyPrefixes, data: { repositories } })
+    Main->>RT: runtime.boot.initAppRuntime({ storage, transport: webTransportPorts(), auth: webAuthPorts(), signedOutKeyPrefixes, data: { repositories } })
     Main->>Main: pendingNavigationStore.start()
     Main->>Shell: appBridge.notifyWebAppReady()
     Shell-->>Main: capability report (buffered events flush)

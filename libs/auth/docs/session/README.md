@@ -75,12 +75,14 @@ this order, and only then leaves the page:
    next document reads the vault before anything else, and a vault still holding the tokens would sign
    the person straight back in. When the shell does not confirm, `chatic-secret-logout-pending` goes
    into the plain store and the next boot empties the vault before reading it.
-4. **`location.replace('/?logout=1')`.**
+4. **Home, with `logout=1`.** `authPlatform.ports().leaveToHome(params)` — in a page,
+   `location.replace('/?logout=1')`, plus the sign-in parameters of the address it was opened with
+   (`code`, `provider`, `_backend`, `_wss`) when `preserveUrl` is set.
 
 The HTTP transport has nothing of its own to clear: it signs every request from the session's relay
 token, which step 1 removed.
 
-`logoutStorageSweeper.sweep()` reads that flag on the next document and runs step 2 once more, for a
+`logoutStorageSweeper.sweep()` reads that flag (through `authPlatform.ports().currentSearch()`) on the next document and runs step 2 once more, for a
 log batch written between the clear and the navigation. It used to wipe the whole `@` namespace of the
 session's storage instead, keeping the language key and the config lane; that took lemon-web-core's
 bundle, which nothing writes any more, and whatever else later moved in under `@`.

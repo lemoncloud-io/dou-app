@@ -12,7 +12,11 @@ export interface OnlineSignal {
 export interface DeviceEnvironment {
     /** `ios` · `android` from the mobile shell, `desktop` from Electron, absent in a browser. */
     appPlatform?: string;
-    /** The user agent the platform reports, the input for the device's platform and label. */
+    /**
+     * The user agent the platform reports: the input for the device's platform and label, and also the
+     * user agent auth's socket signature is computed over. The server checks that signature against the
+     * handshake's `User-Agent`, so `createSocket` has to send exactly this string.
+     */
     userAgent?: string;
 }
 
@@ -27,6 +31,8 @@ export interface DeviceEnvironment {
  * - `online` — the network signal the link verdict and the offline skips read.
  * - `device` — what the device says about itself; how that becomes a platform and a label stays here.
  * - `createSocket` — opens one WebSocket for a slot, handed to the sockets SDK as its `socketFactory`.
+ *   Its handshake has to send `device().userAgent` as the `User-Agent`, unchanged: the socket
+ *   signature is computed over that string.
  */
 export interface TransportPlatformPorts {
     online: OnlineSignal;

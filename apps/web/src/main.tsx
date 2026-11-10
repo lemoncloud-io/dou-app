@@ -8,7 +8,7 @@ import { BridgeStorageChannel, setupBridgeLogger, webClient } from '@chatic/brid
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/app-runtime';
-import { webTransportPorts } from '@chatic/runtime-web';
+import { webAuthPorts, webTransportPorts } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';
 import { syncThemeFromSharedKey } from './app/config/themeSharedKeySync';
@@ -165,6 +165,7 @@ const startApp = (): void => {
         // so it gets the raw `webSession` rather than the tolerant `tab` the features use.
         storage: { secret: stores.secret, plain: stores.plain, device: stores.device, tab: stores.webSession },
         transport: webTransportPorts(),
+        auth: webAuthPorts(),
         // The keys this app's log pipeline and telemetry policy write: a sign-out takes them.
         signedOutKeyPrefixes: [LOG_KEY_PREFIX, TELEMETRY_POLICY_KEY_PREFIX],
         data: {

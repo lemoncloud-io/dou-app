@@ -43,6 +43,9 @@ export * from './socket/requestRelaySessionRefresh';
 export * from './socket/sessionDelegate';
 export * from './socket/switchSite';
 
+// platform — the address the session ends to and the boot reads, filled by each platform's adapter
+export * from './platform';
+
 // utils — the concurrency guards the renewals use, which the app-layer hooks share.
 export * from './utils/coalescer';
 export * from './utils/throttle';

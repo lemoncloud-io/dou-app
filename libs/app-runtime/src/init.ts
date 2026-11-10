@@ -6,6 +6,7 @@ import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { runtimeStores } from './storage/runtimeStores';
 import { credentialRecovery, transportPlatform } from '@chatic/transport';
 import {
+    authPlatform,
     authRepositorySource,
     dropLemonLeftovers,
     logoutStorageSweeper,
@@ -18,6 +19,7 @@ import { syncDataGraph } from '@chatic/sync';
 import type { HttpRoute } from '@chatic/http';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { TransportPlatformPorts } from '@chatic/transport';
+import type { AuthPlatformPorts } from '@chatic/auth';
 import type { DataRuntimeConfig } from './data/runtime';
 import type { RuntimeStorePorts } from './storage/runtimeStores';
 
@@ -43,6 +45,12 @@ export interface AppRuntimeConfig {
      * to fall back on. A web page passes `webTransportPorts()` from `@chatic/runtime-web`.
      */
     transport: TransportPlatformPorts;
+    /**
+     * The address the boot reads the logout flag from, and the way home when a session ends. Required —
+     * the session's use cases have no platform of their own to fall back on. A web page passes
+     * `webAuthPorts()` from `@chatic/runtime-web`.
+     */
+    auth: AuthPlatformPorts;
     /**
      * Prefixes of the keys outside the session that a sign-out takes — declared by the app's own
      * domains that write them (apps/web: its log pipeline and telemetry policy). Swept from the plain
@@ -96,6 +104,8 @@ export const initAppRuntime = (config: AppRuntimeConfig): void => {
     runtimeStores.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
     // The platform the sockets and the link verdict read, before anything below can open one.
     transportPlatform.configure(config.transport);
+    // The address, before the sweep below reads its logout flag.
+    authPlatform.configure(config.auth);
 
     // The credential bundle an older build's lemon-web-core left in web storage is nobody's, and goes.
     // The plain store is the web storage lemon used to write in each environment.

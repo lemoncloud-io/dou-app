@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
-import { webTransportPorts } from '@chatic/runtime-web';
+import { webAuthPorts, webTransportPorts } from '@chatic/runtime-web';
 
 import { webConfigPorts } from './app/config/adapters';
 import { tabStore } from './app/storage';
@@ -27,6 +27,7 @@ const sessionStore = tabStore;
 runtime.boot.initAppRuntime({
     storage: { secret: sessionStore, plain: sessionStore },
     transport: webTransportPorts(),
+    auth: webAuthPorts(),
 });
 
 // What this console does when the server CONFIRMS the session is over (the credential was re-minted
