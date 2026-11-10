@@ -3,6 +3,8 @@ import unusedImports from 'eslint-plugin-unused-imports';
 import importPlugin from 'eslint-plugin-import';
 import reactHooks from 'eslint-plugin-react-hooks';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * The log areas, read out of `@chatic/logger`'s own list so this file never holds a second copy.
@@ -113,14 +115,125 @@ const logTagCatalogRule = {
     },
 };
 
+// ---------------------------------------------------------------------------------------------------
+// Two ways a block in this file goes quiet without an error. Read both before adding one.
+//
+// 1. A glob that names a repo path needs `basePath: REPO_ROOT`.
+//
+//    ESLint resolves a block's `files` and `ignores` against the directory of the config file it
+//    loaded — not of the file the block is written in. Lint runs per project: the `lint` target is
+//    `eslint .` with the project as its working directory, in CI and in the commit hook alike. A
+//    project with no config of its own loads this file, and `libs/**` means what it says. A project
+//    with its own `eslint.config.mjs` spreads this array into that file, and there the same glob is
+//    read as `libs/<name>/libs/**`: the block reaches no file, and an `ignores` written that way
+//    exempts none. `basePath` pins a block's globs to a directory wherever the array ends up, so
+//    every block below that names `apps/…` or `libs/…` carries it. A block whose globs all start
+//    with `**/` needs nothing.
+//
+// 2. Two restrictions under one rule name have to share one options list.
+//
+//    A later block that gives a rule options for a file replaces the earlier ones; it does not add
+//    to them. `no-restricted-globals`, `-properties` and `-syntax` each hold several unrelated bans, so
+//    a second block naming one of them for an overlapping set of files switches the first ban off
+//    there. Write both lists into the later block — the desktop-web block at the end of this file
+//    does, and so does `webStorageBanAfterReact` for nx's `flat/react` preset, which sets all three.
+//
+// Either way, check a new block where lint really runs — from a project that has its own config:
+//
+//     cd libs/data && npx eslint --print-config src/index.ts
+// ---------------------------------------------------------------------------------------------------
+const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
+
 const STORAGE_MESSAGE =
     'Reach web storage through a medium from @chatic/storage (in apps/web and apps/desktop-web: `deviceMedium`/`tabMedium` from `app/storage`) — see libs/storage/README.md.';
+
+// Web storage is reached only through `@chatic/storage`'s media: a domain declares the medium it
+// needs and the entry point (`resolveStorageMedia`) chooses it, so no other code may name
+// `localStorage`/`sessionStorage` itself — and zustand's `persist`, which falls back to
+// `localStorage` when given no storage, must name one. It covers the apps that run in a shell —
+// apps/web and apps/desktop-web — and every lib; the browser-only apps (admin, landing,
+// block-kit-builder) are outside it. Tests seed web storage directly and are left out.
+const WEB_STORAGE_BAN_SCOPE = {
+    basePath: REPO_ROOT,
+    files: [
+        'apps/web/src/**/*.ts',
+        'apps/web/src/**/*.tsx',
+        'apps/desktop-web/src/**/*.ts',
+        'apps/desktop-web/src/**/*.tsx',
+        'libs/**/*.ts',
+        'libs/**/*.tsx',
+    ],
+    ignores: [
+        '**/*.spec.ts',
+        '**/*.spec.tsx',
+        '**/*.test.ts',
+        '**/*.test.tsx',
+        '**/testing/**',
+        'libs/storage/**',
+        'libs/chatic-apps-sdk/**',
+    ],
+};
+
+const STORAGE_GLOBALS = [
+    { name: 'localStorage', message: STORAGE_MESSAGE },
+    { name: 'sessionStorage', message: STORAGE_MESSAGE },
+];
+
+const STORAGE_PROPERTIES = [
+    { object: 'window', property: 'localStorage', message: STORAGE_MESSAGE },
+    { object: 'window', property: 'sessionStorage', message: STORAGE_MESSAGE },
+    { object: 'globalThis', property: 'localStorage', message: STORAGE_MESSAGE },
+    { object: 'globalThis', property: 'sessionStorage', message: STORAGE_MESSAGE },
+];
+
+const PERSIST_WITHOUT_STORAGE = {
+    selector:
+        "CallExpression[callee.name='persist'][arguments.length>=2] > ObjectExpression:last-child:not(:has(Property[key.name='storage']))",
+    message:
+        "Give zustand's `persist` a `storage` — left out, it writes `localStorage` directly. In apps/web and apps/desktop-web: `persistStorageOver(deviceMedium)` from `app/storage`.",
+};
+
+// Native `title` tooltips wait on the browser (a second or more, restarting on every mouse move) and
+// ignore the app's TooltipProvider — desktop-web hints go through `Hint`.
+const NATIVE_TITLE_TOOLTIP = {
+    selector: "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='title']",
+    message: 'Use `Hint` (apps/desktop-web shared/components) instead of a native `title` tooltip.',
+};
+
+/** What nx's `flat/react` preset lists under one of the `no-restricted-*` rules, severity left off. */
+const reactPresetRestrictions = rule => {
+    const entry = nx.configs['flat/react'].findLast(config => config.rules?.[rule])?.rules[rule];
+    return Array.isArray(entry) ? entry.slice(1) : [];
+};
+
+/**
+ * The web-storage ban for a lib whose config spreads nx's `flat/react` preset after this array.
+ *
+ * The preset sets the same three rules the ban uses (confusing browser globals, `require.ensure`,
+ * `with`), and coming later it replaces the ban's lists with its own. This block holds both, so a
+ * lib that adds it after the preset keeps the preset's restrictions and gets the ban back. One list
+ * has one severity, so the preset's `with` warning is an error in these files. Its scope is the
+ * ban's own, so it does nothing in a project the ban leaves out.
+ */
+export const webStorageBanAfterReact = {
+    ...WEB_STORAGE_BAN_SCOPE,
+    rules: {
+        'no-restricted-globals': ['error', ...reactPresetRestrictions('no-restricted-globals'), ...STORAGE_GLOBALS],
+        'no-restricted-properties': [
+            'error',
+            ...reactPresetRestrictions('no-restricted-properties'),
+            ...STORAGE_PROPERTIES,
+        ],
+        'no-restricted-syntax': ['error', ...reactPresetRestrictions('no-restricted-syntax'), PERSIST_WITHOUT_STORAGE],
+    },
+};
 
 export default [
     ...nx.configs['flat/base'],
     ...nx.configs['flat/typescript'],
     ...nx.configs['flat/javascript'],
     {
+        basePath: REPO_ROOT,
         ignores: ['**/dist', '**/out-tsc', 'apps/desktop/out', '**/vite.config.*.timestamp*', '**/public'],
     },
     {
@@ -174,8 +287,8 @@ export default [
         // `@chatic/data` is a headless data layer whose whole safety story is that apps see the
         // barrel and nothing else — that is what lets the lib be rearranged with no blast radius
         // outside it. The invariant used to be a grep in the lib README; this is the same check,
-        // run on every lint. `libs/data` itself is exempt: inside the lib, relative paths are how
-        // the layers talk.
+        // run on every lint. It holds inside `libs/data` too, where relative paths are how the
+        // layers talk.
         //
         // `@chatic/session`, `@chatic/transport`, `@chatic/sync` and `@chatic/auth` are closed to
         // everything but the runtime modules cut from app-runtime. The session barrel sells the raw
@@ -185,8 +298,12 @@ export default [
         // cases built on them. Apps read all four through `runtime`. A lib config that extends this
         // one and may import one of the packages — transport, sync, auth, app-runtime — sets the rule
         // again for its own files.
+        //
+        // No package is exempt here, `libs/data` and `libs/session` included: each passes the whole
+        // list, its own name among it. An `ignores` for either would open more than its own name —
+        // `@chatic/session`, `auth`, `sync` and `transport` to `libs/data`, the data barrel's inner
+        // paths to `libs/session` — so a package that needs an opening writes it in its own config.
         files: ['**/*.ts', '**/*.tsx'],
-        ignores: ['libs/data/**', 'libs/session/**'],
         rules: {
             '@typescript-eslint/no-restricted-imports': [
                 'error',
@@ -248,6 +365,7 @@ export default [
         // Log tags against the trigger catalogue. Warnings only (see the rule). Tests are left out —
         // their tags are fixtures — and so are the two desktop apps, which are outside this round of
         // tag changes.
+        basePath: REPO_ROOT,
         files: ['apps/**/*.ts', 'apps/**/*.tsx', 'libs/**/*.ts', 'libs/**/*.tsx'],
         ignores: [
             '**/*.spec.ts',
@@ -263,65 +381,30 @@ export default [
         },
     },
     {
-        // Web storage is reached only through `@chatic/storage`'s media: a domain declares the medium it
-        // needs and the entry point (`resolveStorageMedia`) chooses it, so no other code may name
-        // `localStorage`/`sessionStorage` itself — and zustand's `persist`, which falls back to
-        // `localStorage` when given no storage, must name one. It covers the apps that run in a shell —
-        // apps/web and apps/desktop-web — and every lib; the browser-only apps (admin, landing,
-        // block-kit-builder) are outside it. Tests seed web storage directly and are left out.
-        files: [
-            'apps/web/src/**/*.ts',
-            'apps/web/src/**/*.tsx',
-            'apps/desktop-web/src/**/*.ts',
-            'apps/desktop-web/src/**/*.tsx',
-            'libs/**/*.ts',
-            'libs/**/*.tsx',
-        ],
-        ignores: [
-            '**/*.spec.ts',
-            '**/*.spec.tsx',
-            '**/*.test.ts',
-            '**/*.test.tsx',
-            '**/testing/**',
-            'libs/storage/**',
-            'libs/chatic-apps-sdk/**',
-        ],
+        // The web-storage ban — its reasons and its scope are at `WEB_STORAGE_BAN_SCOPE` above.
+        ...WEB_STORAGE_BAN_SCOPE,
         rules: {
-            'no-restricted-globals': [
-                'error',
-                { name: 'localStorage', message: STORAGE_MESSAGE },
-                { name: 'sessionStorage', message: STORAGE_MESSAGE },
-            ],
-            'no-restricted-properties': [
-                'error',
-                { object: 'window', property: 'localStorage', message: STORAGE_MESSAGE },
-                { object: 'window', property: 'sessionStorage', message: STORAGE_MESSAGE },
-                { object: 'globalThis', property: 'localStorage', message: STORAGE_MESSAGE },
-                { object: 'globalThis', property: 'sessionStorage', message: STORAGE_MESSAGE },
-            ],
-            'no-restricted-syntax': [
-                'error',
-                {
-                    selector:
-                        "CallExpression[callee.name='persist'][arguments.length>=2] > ObjectExpression:last-child:not(:has(Property[key.name='storage']))",
-                    message:
-                        "Give zustand's `persist` a `storage` — left out, it writes `localStorage` directly. In apps/web and apps/desktop-web: `persistStorageOver(deviceMedium)` from `app/storage`.",
-                },
-            ],
+            'no-restricted-globals': ['error', ...STORAGE_GLOBALS],
+            'no-restricted-properties': ['error', ...STORAGE_PROPERTIES],
+            'no-restricted-syntax': ['error', PERSIST_WITHOUT_STORAGE],
         },
     },
     {
-        // Native `title` tooltips wait on the browser (a second or more, restarting on every
-        // mouse move) and ignore the app's TooltipProvider — desktop-web hints go through `Hint`.
+        // No native `title` tooltip in desktop-web — every .tsx file, tests included.
+        basePath: REPO_ROOT,
         files: ['apps/desktop-web/src/**/*.tsx'],
         rules: {
-            'no-restricted-syntax': [
-                'error',
-                {
-                    selector: "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='title']",
-                    message: 'Use `Hint` (apps/desktop-web shared/components) instead of a native `title` tooltip.',
-                },
-            ],
+            'no-restricted-syntax': ['error', NATIVE_TITLE_TOOLTIP],
+        },
+    },
+    {
+        // The block above sets `no-restricted-syntax` for files the web-storage ban covers too, which
+        // takes the ban's `persist` check off them. This one puts both back on those files.
+        basePath: REPO_ROOT,
+        files: ['apps/desktop-web/src/**/*.tsx'],
+        ignores: WEB_STORAGE_BAN_SCOPE.ignores,
+        rules: {
+            'no-restricted-syntax': ['error', PERSIST_WITHOUT_STORAGE, NATIVE_TITLE_TOOLTIP],
         },
     },
 ];
