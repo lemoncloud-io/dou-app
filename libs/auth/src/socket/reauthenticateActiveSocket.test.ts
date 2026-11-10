@@ -4,7 +4,8 @@ import type { ISocketManager } from '@chatic/transport/socket/types';
 import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 import type { SocketSessionDelegate } from './types';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 

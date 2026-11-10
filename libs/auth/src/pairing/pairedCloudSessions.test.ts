@@ -15,7 +15,10 @@ import {
 } from './pairedCloudSessions';
 
 // The wired instance pulls the socket runtime in; nothing here reaches it.
-jest.mock('@chatic/bridges', () => ({ logger: { info: jest.fn(), warn: jest.fn() } }));
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
+    logger: { info: jest.fn(), warn: jest.fn() },
+}));
 jest.mock('../socket/alignSessionSite', () => ({ alignSessionSite: jest.fn() }));
 jest.mock('../socket/renewers', () => ({ credentialRenewers: { forSlot: jest.fn() } }));
 jest.mock('../socket/reauthenticateActiveSocket', () => ({ reauthenticateActiveSocket: jest.fn() }));

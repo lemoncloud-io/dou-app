@@ -21,19 +21,19 @@
     "include": ["src/**/*.ts"],
     "references": [
         {
-            "path": "../bridges/tsconfig.lib.json"
+            "path": "../perf/tsconfig.lib.json"
         },
         {
             "path": "../data/tsconfig.lib.json"
-        },
-        {
-            "path": "../perf/tsconfig.lib.json"
         },
         {
             "path": "../session/tsconfig.lib.json"
         },
         {
             "path": "../transport/tsconfig.lib.json"
+        },
+        {
+            "path": "../logger/tsconfig.lib.json"
         }
     ]
 }

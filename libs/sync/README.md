@@ -378,6 +378,7 @@ that finished before it began; it sends its own.
 - **Do not fetch through a gateway and skip `updateLocalSnapshot`.** The next reconnect will refetch everything you just fetched.
 - **Do not put domain knowledge into `SyncManager`.** Chat prime lives in the chat hook precisely because it needs a chat policy and a repository; the manager stays domain-agnostic so a new domain is a plan, not a branch.
 - **Do not remove the grace window** to make a test deterministic. Advance timers past it instead — the window is the fix for a measured write storm.
+- **Do not import `@chatic/bridges`.** The eslint config refuses it, type-only imports included; `logger` comes from `@chatic/logger`. Deciding what to fetch after a reconnect is not a WebView concern, and this package has to be able to run in a runtime that has no bridge.
 
 ## Notes for implementers and tests
 

@@ -1,6 +1,6 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { cloudStore, relayStore, rebuildSessionIdentity } from '@chatic/session';

@@ -1,7 +1,8 @@
 import { handleRevokedRelaySession, isRevokedSessionError, resetRevokedSessionHandling } from './revokedSession';
 import { relaySession } from '../session/relaySession';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 

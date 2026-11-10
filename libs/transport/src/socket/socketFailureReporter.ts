@@ -1,4 +1,4 @@
-import { logger, type ObservationData } from '@chatic/bridges';
+import { logger, type ObservationData } from '@chatic/logger';
 
 import { getSocketErrorCode } from './utils/socketErrorCode';
 

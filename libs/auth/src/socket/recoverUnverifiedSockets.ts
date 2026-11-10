@@ -1,5 +1,5 @@
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import { perfNow } from '@chatic/perf';
 
 import { Coalescer } from '../utils/coalescer';

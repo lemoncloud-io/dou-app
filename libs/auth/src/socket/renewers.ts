@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
 

@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 import { createSyncPlans } from './plans';
@@ -177,7 +177,7 @@ describe('join plan onRemove — 퇴장한 방의 메시지 캐시 정리 (ADR-0
  * `onStopped` — in other words, **a stop is a delete**. That delete already had its own trigger (the
  * suite above), but the reason that called the delete had none.
  *
- * Spies on the real `@chatic/bridges` rather than mocking the module. A partial mock
+ * Spies on the real `@chatic/logger` rather than mocking the module. A partial mock
  * (`{ logger: { error } }`) broke three other suites in this track — anything that indirectly
  * consumes the same module loses its other exports. A spy has no such risk.
  */

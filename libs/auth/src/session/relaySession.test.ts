@@ -40,7 +40,6 @@ const mockSetSessionAuthenticated = jest.fn();
 
 const mockGetCloudSessionSnapshot = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
-const mockIsNative = jest.fn();
 const mockLoggerWarn = jest.fn();
 
 // `data` is this class's only HTTP path — this is the mock seam for every session-material call.
@@ -123,16 +122,13 @@ jest.mock('@chatic/session/store', () => ({
     },
 }));
 
-jest.mock('@chatic/bridges', () => ({
-    isNative: (...args: unknown[]) => mockIsNative(...args),
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: {
         debug: jest.fn(),
         info: jest.fn(),
         error: jest.fn(),
         warn: (...args: unknown[]) => mockLoggerWarn(...args),
-    },
-    webClient: {
-        post: jest.fn(),
     },
 }));
 
@@ -147,7 +143,6 @@ describe('session/auth/relaySession', () => {
         jest.resetAllMocks();
         localStorage.clear();
 
-        mockIsNative.mockReturnValue(false);
         mockGetSelectedCloudId.mockReturnValue('default');
         mockGetSelectedSiteId.mockReturnValue(null);
         mockGetCloudSessionSnapshot.mockReturnValue({

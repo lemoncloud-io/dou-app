@@ -45,7 +45,7 @@
             "path": "../transport/tsconfig.lib.json"
         },
         {
-            "path": "../bridges/tsconfig.lib.json"
+            "path": "../logger/tsconfig.lib.json"
         },
         {
             "path": "../session/tsconfig.lib.json"

@@ -1,6 +1,6 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { cloudStore } from '@chatic/session';
 

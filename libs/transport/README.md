@@ -49,6 +49,11 @@ failure reporter, the error-code ledger and `annotateSocketError`.
    `authFailureReaction`), and an empty registry does nothing.
 4. **`socket/types.ts` holds no values.** The barrel exports it whole, so a value there would ship
    to every runtime module. Values go in `socket/constants.ts`.
+5. **Nothing here imports `@chatic/bridges`.** The eslint config refuses it, type-only imports
+   included, and `logger` comes from `@chatic/logger`. A socket and an HTTP client are not WebView
+   concerns, and this package has to be able to run in a runtime that has no bridge. Nothing
+   bridge-specific reaches it today; anything that ever does would have to arrive through a registry
+   its owner fills, the way rule 3 handles what the runtime above supplies.
 
 ## Documents
 

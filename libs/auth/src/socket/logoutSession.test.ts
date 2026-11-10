@@ -3,7 +3,8 @@ import { relaySession } from '../session/relaySession';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 

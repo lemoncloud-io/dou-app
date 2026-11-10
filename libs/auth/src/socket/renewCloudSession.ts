@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { reissueCloudTokens } from '../session/cloudTokens';
 import { Coalescer } from '../utils/coalescer';

@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { Coalescer } from '../utils/coalescer';
 import { canRefreshThroughSocket, getAuthSnapshot } from './authStatus';

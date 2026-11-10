@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { RESUME_PROBE_TIMEOUT_MS, recoverSocketsOnResume, recoverUnverifiedSockets } from './recoverUnverifiedSockets';
 import { clearResumeKick, noteResumeKick } from '@chatic/transport/socket/socketVerifyTrace';
@@ -15,7 +15,8 @@ jest.mock('@chatic/transport/socket/socketVerifyTrace', () => ({
 const RELAY = RELAY_SLOT;
 const CLOUD = slotKeyOf('cloud-1');
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 

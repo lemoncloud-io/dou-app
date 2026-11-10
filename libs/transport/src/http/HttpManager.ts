@@ -1,6 +1,5 @@
-import { logger } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import { recordTelemetry, redactSensitive, truncate } from '@chatic/logger';
+import { logger, recordTelemetry, redactSensitive, truncate } from '@chatic/logger';
 import {
     apiBackendOf,
     createHttpClient,

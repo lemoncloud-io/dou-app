@@ -5,7 +5,7 @@ import type {
     ChannelStartDmInput,
     ChannelUpdateInput,
 } from '@lemoncloud/chatic-sockets-api/dist/lib/channel/types';
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import {
     dmPlaceOf,
     isCloudDm,

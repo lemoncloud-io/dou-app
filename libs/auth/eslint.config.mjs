@@ -1,4 +1,4 @@
-import baseConfig from '../../eslint.config.mjs';
+import baseConfig, { noBridgesImport } from '../../eslint.config.mjs';
 
 export default [
     ...baseConfig,
@@ -7,6 +7,8 @@ export default [
         // Override or add rules here
         rules: {},
     },
+    // No `@chatic/bridges` in this package — the root config holds the pattern and says why.
+    noBridgesImport,
     // ---------------------------------------------------------------------------------------------
     // `@chatic/session` and `@chatic/transport` are open to this package, through their barrels.
     //

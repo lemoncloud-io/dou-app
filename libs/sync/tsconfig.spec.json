@@ -14,7 +14,7 @@
     // dependencies through references, or their sources come in as unlisted files (TS6307).
     "references": [
         {
-            "path": "../bridges/tsconfig.lib.json"
+            "path": "../logger/tsconfig.lib.json"
         },
         {
             "path": "../data/tsconfig.lib.json"

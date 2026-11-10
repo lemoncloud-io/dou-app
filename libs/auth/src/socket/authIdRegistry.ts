@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { kindOf } from '@chatic/transport';
 import type { SlotKey } from '@chatic/transport';

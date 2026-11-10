@@ -145,7 +145,7 @@ cloud — correct behaviour that leaves the following screen stale with no recor
 foreignDropAggregator.record({ source, cid, socketCid });
 ```
 
-- **It lives here because its consumer already sees this package** — `libs/data`'s repositories reach it through `@chatic/bridges`, so the home costs no new dependency. `libs/app-runtime`'s sync plans used to be a second consumer; a sync target now runs only on its own cloud's socket, so a plan has no foreign frame left to drop, and that label is gone. The price is that a domain word (`cid`) appears in the core; it is carried as an opaque string and nothing here interprets it.
+- **It lives here because its consumer already sees this package** — `libs/data`'s repositories already import `@chatic/logger`, so the home costs no new dependency. `libs/app-runtime`'s sync plans used to be a second consumer; a sync target now runs only on its own cloud's socket, so a plan has no foreign frame left to drop, and that label is gone. The price is that a domain word (`cid`) appears in the core; it is carried as an opaque string and nothing here interprets it.
 - **The window is 5 seconds.** A switch's optimistic window is short, so a longer window separates the entry from the switch that caused it and a shorter one splits one switch across several lines.
 - **Drops are grouped by `source|cid|socketCid`** and reported one `warn`/`CACHE` per group. `source` is a plain label naming the skip site — `channel-refresh`, `channel-sync`, `channel-self`, `channel-start-dm`, `place-refresh` — so the aggregate says _which_ site produced the count.
 - **The timer exists only while drops do.** The first drop opens the window; closing it reports and clears. An always-on interval would charge an idle device for something that is not happening.
@@ -165,6 +165,7 @@ burst that stops abruptly loses its final tally — the cost of keeping the time
 ## Notes for implementers and tests
 
 - A producer that calls the module-level `logger` needs the real one spied on rather than a module mock. The `@chatic/bridges` mocks scattered through the app suites are partial — most carry only `{ logger: { error: jest.fn() } }` — so adding a `logger.warn` or `logger.info` to an existing file makes its suite fail with a `TypeError` in a place that has nothing to do with the change. Check the mock before adding a call.
+- A module mock of `@chatic/logger` itself keeps the real module and overrides only what the suite stubs — usually `logger` alone: `{ ...jest.requireActual('@chatic/logger'), logger: { … } }`. The package exports more than the logger — `foreignDropAggregator`, `recordTelemetry`, `redactSensitive`, `truncate` — and modules in the same import graph call them. A factory that returns only `{ logger }` turns each of those into `undefined`, and the suite fails inside a repository or the HTTP manager, nowhere near the test that was written. A partial `@chatic/bridges` mock never did this to a module that takes those names from `@chatic/logger`, because it replaced a different module.
 - `foreignDropAggregator` is a module singleton with a live timer. A suite must `reset()` it in teardown, or its window closes inside the next test.
 - The aggregator's own spec is the model for the shape: window grouping, one entry per group, and silence when nothing was dropped.
 

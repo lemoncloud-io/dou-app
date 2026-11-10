@@ -37,7 +37,8 @@ jest.mock('../session/cloudTokens', () => ({
     isExchangeInFlight: (cloudId: string) => mockIsExchangeInFlight(cloudId),
     lastIssuedForOf: (cloudId: string) => mockLastIssuedForOf(cloudId),
 }));
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 

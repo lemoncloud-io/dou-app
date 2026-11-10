@@ -4,7 +4,8 @@ import { SocketManager } from '../SocketManager';
 import type { SocketRequestSample } from '../types';
 import { classifySocketClose } from './closeReason';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 

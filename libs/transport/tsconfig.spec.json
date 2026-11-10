@@ -17,9 +17,6 @@
             "path": "../storage/tsconfig.lib.json"
         },
         {
-            "path": "../bridges/tsconfig.lib.json"
-        },
-        {
             "path": "../config/tsconfig.lib.json"
         },
         {

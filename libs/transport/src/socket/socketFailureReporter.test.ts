@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { socketFailureReporter } from './socketFailureReporter';
 import { RELAY_SLOT, slotKeyOf } from './utils/slotKey';

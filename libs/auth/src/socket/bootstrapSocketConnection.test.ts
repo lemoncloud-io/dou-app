@@ -6,7 +6,8 @@ import type { ISocketManager, SocketBindingConfig } from '@chatic/transport/sock
 import { RELAY_SLOT } from '@chatic/transport/socket/utils/slotKey';
 import type { SocketSessionDelegate } from './types';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 // The `socket_verify` observer has its own suite. Stubbed here, so the subscription counts below stay
@@ -259,7 +260,7 @@ describe('bootstrapSocketConnection', () => {
     // requestRelaySessionRefresh has already reported success (this emission is what resolves it). A
     // rejection here used to be an unhandled promise: caller thinks fresh, every signed request 403s.
     it('writeback이 거부돼도 삼키지 않고 에러로 남긴다', async () => {
-        const { logger } = jest.requireMock('@chatic/bridges') as { logger: { error: jest.Mock } };
+        const { logger } = jest.requireMock('@chatic/logger') as { logger: { error: jest.Mock } };
         const auth = makeAuth([]);
         const client = makeClient(auth);
         const manager = makeManager(client, []);

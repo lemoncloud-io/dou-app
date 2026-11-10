@@ -51,6 +51,9 @@ hooks that share them depend on this package anyway.
 4. **Sync is beside this package, not below it.** The eslint config refuses `@chatic/sync`, and sync's
    refuses this package.
 5. **`socket/types.ts` holds no values.** The barrel exports it whole.
+6. **Nothing here imports `@chatic/bridges`.** The eslint config refuses it, type-only imports
+   included, and `logger` comes from `@chatic/logger`. Signing in and keeping a session alive must
+   not need a WebView bridge to exist, so this package can run in a runtime that has none.
 
 ## Documents
 

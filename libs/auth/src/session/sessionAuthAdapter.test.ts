@@ -103,16 +103,13 @@ jest.mock('@chatic/session/store', () => ({
     },
 }));
 
-jest.mock('@chatic/bridges', () => ({
-    isNative: jest.fn(),
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: {
         debug: jest.fn(),
         info: jest.fn(),
         error: jest.fn(),
         warn: (...args: unknown[]) => mockLoggerWarn(...args),
-    },
-    webClient: {
-        post: jest.fn(),
     },
 }));
 
