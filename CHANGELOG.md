@@ -1,5 +1,22 @@
 # Changelog
 
+## [2026-11-10] - root@0.152.0, @chatic/web@0.87.0
+
+### Features
+
+- (web) open a cloud's mini apps through the hub in the Lab
+- (web) add a mini app card to the Lab
+- (mobile) open any https page in a sub webview with trust tiers
+
+### Bug Fixes
+
+- (web) tell the owner why a hub address cannot be a mini app
+- (web) give the Korean mini app hint its singular key
+
+### Refactor
+
+- derive the external title once and share the card chevron
+
 ## [2026-11-10] - root@0.151.1, @chatic/desktop-web@0.55.1
 
 ### Bug Fixes
