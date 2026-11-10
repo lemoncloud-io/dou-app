@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (runtime-core,runtime-web,app-runtime) add runtime packages held by lint (ADR-0301)
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
 - (storage,admin,landing,block-kit-builder) reach web storage only via media in every app
 
 ## [2026-11-10] - No version updates
