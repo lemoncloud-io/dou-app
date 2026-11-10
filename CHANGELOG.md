@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-10] - No version updates
+
+### Refactor
+
+- (http,transport,auth,app-runtime) sign relay requests in-house, drop lemon (ADR-0298)
+- (desktop-web,theme,storage,app-runtime) reach web storage only via media in desktop-web
+
 ## [2026-11-10] - root@0.152.0, @chatic/web@0.87.0
 
 ### Features
