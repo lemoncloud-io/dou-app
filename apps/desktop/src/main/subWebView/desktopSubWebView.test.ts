@@ -616,9 +616,14 @@ describe('the sub view window', () => {
         service.open({ url: 'https://apps.chatic.io/' });
         await flush();
         const contents = page().webContents;
+        // Electron sends the reply the moment `returnValue` is first set; a later assignment never
+        // reaches the renderer. The fake answers with the first value, as the real one does.
         const ask = (event: any) => {
+            const replies: unknown[] = [];
+            Object.defineProperty(event, 'returnValue', { set: (value: unknown) => replies.push(value) });
             mocked.ipcMain.emit(SUB_WEBVIEW_BOOT_CHANNEL, event);
-            return event.returnValue;
+            expect(replies).toHaveLength(1);
+            return replies[0];
         };
 
         const boot = ask(ipcEvent(contents, contents.mainFrame, 'https://apps.chatic.io/'));

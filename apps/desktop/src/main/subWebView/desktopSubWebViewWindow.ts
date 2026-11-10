@@ -416,12 +416,22 @@ export const attachDesktopSubWebView = (
     // the context — the cloud, the place and the user's names — would be readable by any process on
     // the machine, and a 16 KiB `params` could pass Windows' command-line limit. Answered for the page
     // view's main frame only, and only while it is on the opened origin.
-    const onBoot = (event: IpcMainEvent) => {
-        event.returnValue = null;
+    const bootFor = (event: IpcMainEvent) => {
         const page = shown?.page;
-        if (!shown || !page || event.sender !== page.webContents) return;
-        if (!acceptsSubWebViewMessage(senderOf(event), shown.view.origin)) return;
-        event.returnValue = subWebViewBootOf(contextOf(shown.view), shown.view.origin);
+        if (!shown || !page || event.sender !== page.webContents) return null;
+        if (!acceptsSubWebViewMessage(senderOf(event), shown.view.origin)) return null;
+        return subWebViewBootOf(contextOf(shown.view), shown.view.origin);
+    };
+    // Set exactly once: Electron sends the reply on the first assignment and drops any later one, and a
+    // reply never set would hang the page's renderer in `sendSync`.
+    const onBoot = (event: IpcMainEvent) => {
+        let boot: ReturnType<typeof bootFor> = null;
+        try {
+            boot = bootFor(event);
+        } catch (error) {
+            deps.logWarn('sub webview boot failed', String(error));
+        }
+        event.returnValue = boot;
     };
 
     const onMainNavigation = (details: { isMainFrame: boolean; isSameDocument: boolean }) => {
