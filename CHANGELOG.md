@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-10] - root@0.150.4, @chatic/desktop-web@0.54.3
+
+### Bug Fixes
+
+- (desktop-web) let the cloud rail enter a suspended cloud
+
 ## [2026-11-10] - root@0.150.3, @chatic/desktop-web@0.54.2
 
 ### Bug Fixes
