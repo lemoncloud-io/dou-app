@@ -441,21 +441,19 @@ jobs:
                   if-no-files-found: warn
                   retention-days: 90
 
-    notify-slack:
+    notify-dou:
         needs: [changes, version-update, build-and-deploy]
         if: ${{ success() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true' || needs.changes.outputs.blockkitbuilder == 'true') }}
-        name: Notify Slack
+        name: Notify DoU
         runs-on: ubuntu-latest
         permissions:
             contents: write
             pull-requests: write
         steps:
-            - name: Prepare Slack message
-              id: slack-message
+            - name: Prepare deploy message
+              id: deploy-message
               run: |
                   set -e
-                  TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
-                  COMMIT_SHA="${GITHUB_SHA:0:7}"
                   DEPLOY_MESSAGES=()
 
                   if [[ "${{ needs.changes.outputs.web }}" == "true" ]]; then
@@ -490,79 +488,30 @@ jobs:
                     echo "deploy_info<<EOF"
                     echo -e "$DEPLOY_INFO"
                     echo "EOF"
-                    echo "timestamp=${TIMESTAMP}"
-                    echo "commit_sha=${COMMIT_SHA}"
                   } >> $GITHUB_OUTPUT || {
                     echo "deploy_info=⚠️ 배포 메시지 생성 실패" >> $GITHUB_OUTPUT
-                    echo "timestamp=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
-                    echo "commit_sha=error" >> $GITHUB_OUTPUT
                   }
 
-            - name: Post to a Slack channel
-              continue-on-error: true
-              uses: slackapi/slack-github-action@v2.1.1
+            - name: Notify DoU
+              uses: lemoncloud-io/actions/notify-dou@v1
               with:
-                  method: chat.postMessage
-                  token: ${{ secrets.RELEASE_BOT_TOKEN }}
-                  payload: |
-                      channel: ${{ secrets.CHATIC_CHANNEL }}
-                      unfurl_links: false
-                      unfurl_media: false
-                      text: "DoU 개발 배포 알림"
-                      blocks: [
-                         {
-                             "type": "header",
-                             "text": {
-                                 "type": "plain_text",
-                                 "text": ":dou: DoU 개발 환경 배포 완료"
-                             }
-                         },
-                         {
-                             "type": "section",
-                             "text": {
-                                 "type": "mrkdwn",
-                                 "text": ${{ toJSON(steps.slack-message.outputs.deploy_info) }}
-                             }
-                         },
-                         {
-                             "type": "divider"
-                         },
-                         {
-                             "type": "section",
-                             "fields": [
-                                 {
-                                     "type": "mrkdwn",
-                                     "text": "*배포 시각:*\n${{ steps.slack-message.outputs.timestamp }}"
-                                 },
-                                 {
-                                     "type": "mrkdwn",
-                                     "text": "*커밋:*\n<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ steps.slack-message.outputs.commit_sha }}>"
-                                 }
-                             ]
-                         },
-                         {
-                             "type": "context",
-                             "elements": [
-                                 {
-                                     "type": "mrkdwn",
-                                     "text": "by ${{ github.actor }} | <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Actions Run>"
-                                 }
-                             ]
-                         }
-                      ]
+                  url: ${{ secrets.DOU_WEBHOOK_URL }}
+                  token: ${{ secrets.DOU_WEBHOOK_TOKEN }}
+                  channel-id: ${{ secrets.DOU_CHANNEL_ID }}
+                  status: success
+                  stage: dev
+                  text: ${{ steps.deploy-message.outputs.deploy_info }}
 
-    notify-slack-failure:
+    notify-dou-failure:
         needs: [changes, version-update, create-draft-release, build-and-deploy]
         if: ${{ failure() && (needs.changes.outputs.web == 'true' || needs.changes.outputs.admin == 'true' || needs.changes.outputs.landing == 'true' || needs.changes.outputs.desktopweb == 'true') }}
-        name: Notify Slack - Failure
+        name: Notify DoU - Failure
         runs-on: ubuntu-latest
         steps:
-            - name: Prepare Slack message
-              id: slack-message
+            - name: Prepare deploy message
+              id: deploy-message
               run: |
                   set -e
-                  TIMESTAMP=$(TZ=Asia/Seoul date '+%Y-%m-%d %H:%M:%S')
-                  COMMIT_SHA="${GITHUB_SHA:0:7}"
                   DEPLOY_MESSAGES=()
 
                   if [[ "${{ needs.changes.outputs.web }}" == "true" ]]; then
@@ -591,63 +540,16 @@ jobs:
                     echo "deploy_info<<EOF"
                     echo -e "$DEPLOY_INFO"
                     echo "EOF"
-                    echo "timestamp=${TIMESTAMP}"
-                    echo "commit_sha=${COMMIT_SHA}"
                   } >> $GITHUB_OUTPUT || {
                     echo "deploy_info=⚠️ 배포 메시지 생성 실패" >> $GITHUB_OUTPUT
-                    echo "timestamp=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
-                    echo "commit_sha=error" >> $GITHUB_OUTPUT
                   }
 
-            - name: Post failure to Slack
-              continue-on-error: true
-              uses: slackapi/slack-github-action@v2.1.1
+            - name: Notify DoU - failure
+              uses: lemoncloud-io/actions/notify-dou@v1
               with:
-                  method: chat.postMessage
-                  token: ${{ secrets.RELEASE_BOT_TOKEN }}
-                  payload: |
-                      channel: ${{ secrets.CHATIC_CHANNEL }}
-                      unfurl_links: false
-                      unfurl_media: false
-                      text: "DoU 개발 배포 실패"
-                      blocks: [
-                          {
-                              "type": "header",
-                              "text": {
-                                  "type": "plain_text",
-                                  "text": ":x: DoU 개발 환경 배포 실패"
-                              }
-                          },
-                          {
-                              "type": "section",
-                              "text": {
-                                  "type": "mrkdwn",
-                                  "text": ${{ toJSON(steps.slack-message.outputs.deploy_info) }}
-                              }
-                          },
-                          {
-                              "type": "divider"
-                          },
-                          {
-                              "type": "section",
-                              "fields": [
-                                  {
-                                      "type": "mrkdwn",
-                                      "text": "*배포 시각:*\n${{ steps.slack-message.outputs.timestamp }}"
-                                  },
-                                  {
-                                      "type": "mrkdwn",
-                                      "text": "*커밋:*\n<https://github.com/${{ github.repository }}/commit/${{ github.sha }}|${{ steps.slack-message.outputs.commit_sha }}>"
-                                  }
-                              ]
-                          },
-                          {
-                              "type": "context",
-                              "elements": [
-                                  {
-                                      "type": "mrkdwn",
-                                      "text": "by ${{ github.actor }} | <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Failed Actions Run>"
-                                  }
-                              ]
-                          }
-                      ]
+                  url: ${{ secrets.DOU_WEBHOOK_URL }}
+                  token: ${{ secrets.DOU_WEBHOOK_TOKEN }}
+                  channel-id: ${{ secrets.DOU_CHANNEL_ID }}
+                  status: failure
+                  stage: dev
+                  text: ${{ steps.deploy-message.outputs.deploy_info }}

@@ -364,10 +364,10 @@ jobs:
                   if-no-files-found: warn
                   retention-days: 90
 
-    notify-slack:
+    notify-dou:
         needs: [get-versions, deploy-dev, deploy-prod]
         if: ${{ !cancelled() && (github.event.inputs.deploy_web_dev == 'true' || github.event.inputs.deploy_admin_dev == 'true' || github.event.inputs.deploy_landing_dev == 'true' || github.event.inputs.deploy_web_prod == 'true' || github.event.inputs.deploy_admin_prod == 'true' || github.event.inputs.deploy_landing_prod == 'true') }}
-        name: Notify Slack
+        name: Notify DoU
         runs-on: ubuntu-latest
         steps:
             - name: Prepare deployment info
@@ -422,8 +422,8 @@ jobs:
                     echo "prod_count=${PROD_COUNT}"
                   } >> $GITHUB_OUTPUT
 
-            - name: Build Slack blocks
-              id: slack-blocks
+            - name: Build deploy blocks
+              id: deploy-blocks
               run: |
                   set -e
 
@@ -580,23 +580,20 @@ jobs:
                       echo "EOF"
                   } >> $GITHUB_OUTPUT
 
-            - name: Post to Slack
-              continue-on-error: true
-              uses: slackapi/slack-github-action@v2.1.1
+            - name: Notify DoU
+              uses: lemoncloud-io/actions/notify-dou@v1
               with:
-                  method: chat.postMessage
-                  token: ${{ secrets.RELEASE_BOT_TOKEN }}
-                  payload: |
-                      channel: ${{ secrets.CHATIC_CHANNEL }}
-                      text: "DoU 수동 배포 완료"
-                      unfurl_links: false
-                      unfurl_media: false
-                      blocks: ${{ steps.slack-blocks.outputs.blocks }}
+                  url: ${{ secrets.DOU_WEBHOOK_URL }}
+                  token: ${{ secrets.DOU_WEBHOOK_TOKEN }}
+                  channel-id: ${{ secrets.DOU_CHANNEL_ID }}
+                  status: success
+                  stage: manual
+                  blocks: ${{ steps.deploy-blocks.outputs.blocks }}
 
-    notify-slack-failure:
+    notify-dou-failure:
         needs: [deploy-dev, deploy-prod]
         if: ${{ !cancelled() && failure() }}
-        name: Notify Slack - Failure
+        name: Notify DoU - Failure
         runs-on: ubuntu-latest
         steps:
             - name: Determine failed deployments
@@ -804,15 +801,12 @@ jobs:
                       echo "EOF"
                   } >> $GITHUB_OUTPUT
 
-            - name: Post failure to Slack
-              continue-on-error: true
-              uses: slackapi/slack-github-action@v2.1.1
+            - name: Notify DoU - failure
+              uses: lemoncloud-io/actions/notify-dou@v1
               with:
-                  method: chat.postMessage
-                  token: ${{ secrets.RELEASE_BOT_TOKEN }}
-                  payload: |
-                      channel: ${{ secrets.CHATIC_CHANNEL }}
-                      text: "DoU 수동 배포 실패"
-                      unfurl_links: false
-                      unfurl_media: false
-                      blocks: ${{ steps.failure-blocks.outputs.blocks }}
+                  url: ${{ secrets.DOU_WEBHOOK_URL }}
+                  token: ${{ secrets.DOU_WEBHOOK_TOKEN }}
+                  channel-id: ${{ secrets.DOU_CHANNEL_ID }}
+                  status: failure
+                  stage: manual
+                  blocks: ${{ steps.failure-blocks.outputs.blocks }}
