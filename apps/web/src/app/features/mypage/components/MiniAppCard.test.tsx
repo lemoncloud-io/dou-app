@@ -365,6 +365,7 @@ describe('MiniAppCard — editing the list', () => {
         ['a missing name', '  ', 'https://shop.example/', 'mypage.lab.miniApp.nameMissing'],
         ['a name over the limit', 'x'.repeat(31), 'https://shop.example/', 'mypage.lab.miniApp.nameTooLong'],
         ['an address the shell would not open', 'Shop', 'https://shop.example:8443/', 'mypage.lab.miniApp.linkInvalid'],
+        ['an address on the hub itself', 'Hub', 'https://apps.chatic.io/tools', 'mypage.lab.miniApp.linkIsHub'],
     ])('refuses %s', async (_label, name, url, message) => {
         render(<MiniAppCard />);
         await addMiniApp(name, url);

@@ -268,7 +268,8 @@ the desktop web carries in its settings, and behaves the same way:
 - **The owner's list.** Only the owner sees the cloud's mini apps here, as manage rows (the name, then
   "host · Edit") that open the edit sheet, plus **Add mini app** while there is room (up to
   `MINI_APP_LINK_LIMIT` = 10). A mini app needs a name of at most `MINI_APP_LINK_NAME_MAX` = 30
-  characters and an address the shell opens — plain https, no port, no sign-in part. Both are checked
+  characters and an address the shell opens — plain https, no port, no sign-in part, and not on the
+  hub's own host, which would hand that page the hub's `isOwner` and list. Both are checked
   by the shared `checkMiniAppLink`, the same rule the desktop uses, and `parseMiniAppLinks` drops any
   stored entry that no longer passes it. When the hub closes with
   `result.action = 'openMiniAppLinkSettings'`, the add sheet opens, for the owner only.

@@ -216,6 +216,7 @@
                 "nameTooLong": "이름은 {{max}}자까지 쓸 수 있어요.",
                 "linkLabel": "주소 (https)",
                 "linkInvalid": "포트나 로그인 정보 없이 https 주소를 넣어 주세요.",
+                "linkIsHub": "미니앱 홈은 따로 열 수 있어요. 다른 주소를 입력하세요.",
                 "full": "미니앱은 클라우드마다 {{max}}개까지 추가할 수 있어요.",
                 "linkSaveFailed": "이 휴대폰에 저장하지 못했어요.",
                 "linkSaved": "미니앱을 저장했어요",

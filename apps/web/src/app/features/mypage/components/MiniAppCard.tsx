@@ -84,6 +84,7 @@ const saveError: Record<Exclude<MiniAppLinkSave, 'saved'>, { field: 'name' | 'ur
     nameMissing: { field: 'name', key: 'mypage.lab.miniApp.nameMissing' },
     nameTooLong: { field: 'name', key: 'mypage.lab.miniApp.nameTooLong' },
     invalidUrl: { field: 'url', key: 'mypage.lab.miniApp.linkInvalid' },
+    hubUrl: { field: 'url', key: 'mypage.lab.miniApp.linkIsHub' },
     full: { field: 'url', key: 'mypage.lab.miniApp.full' },
     failed: { field: 'url', key: 'mypage.lab.miniApp.linkSaveFailed' },
 };
