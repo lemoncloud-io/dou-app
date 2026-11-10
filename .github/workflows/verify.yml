@@ -234,6 +234,11 @@ jobs:
             fail-fast: false
             matrix:
                 project: [webkit-ios, chromium-android]
+        # A container job runs `run:` steps with `sh` unless told otherwise, and the steps below use
+        # bash (`<<<`).
+        defaults:
+            run:
+                shell: bash
         steps:
             - uses: actions/checkout@v4
               with:
@@ -266,12 +271,18 @@ jobs:
               if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
               run: yarn install --frozen-lockfile
 
+            # The image's own Playwright package is deleted when the image is built, so the check
+            # asks the installed `@playwright/test` where it expects each browser and looks for
+            # those folders under the image's PLAYWRIGHT_BROWSERS_PATH. A browser revision that is
+            # not there means the tag and yarn.lock name different Playwright versions.
             - name: Image matches @playwright/test
               run: |
-                  image=$(node -p "require('/ms-playwright-agent/node_modules/playwright-core/package.json').version")
-                  installed=$(node -p "require('@playwright/test/package.json').version")
-                  if [ "$image" != "$installed" ]; then
-                      echo "::error::The e2e container image is Playwright $image but yarn.lock installs $installed. Update the image tag in verify.yml."
+                  missing=$(npx playwright install --dry-run chromium webkit \
+                      | sed -n 's/^ *Install location: *//p' \
+                      | while read -r dir; do [ -d "$dir" ] || echo "$dir"; done)
+                  if [ -n "$missing" ]; then
+                      installed=$(node -p "require('@playwright/test/package.json').version")
+                      echo "::error::yarn.lock installs Playwright $installed, but the e2e container image lacks its browsers ($(echo $missing)). Set the image tag in verify.yml to v$installed."
                       exit 1
                   fi
 

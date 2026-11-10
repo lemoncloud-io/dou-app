@@ -24,9 +24,11 @@ ADR-0299 also changed how a develop push picks the commit it compares with, but 
 
 - **The `e2e` job runs in `mcr.microsoft.com/playwright:v<version>-noble`.** That image already holds
   the browsers and the system libraries they need, and nothing is installed from apt.
-- **The tag names the same version that `yarn.lock` installs, and a step checks it.** The step
-  compares the image's Playwright version with the installed `@playwright/test` and fails with both
-  versions when they drift apart. Bumping one means bumping the other in the same change.
+- **The tag names the same version that `yarn.lock` installs, and a step checks it.** The image
+  deletes its own Playwright package when it is built, so the step cannot read the image's version.
+  Instead it asks the installed `@playwright/test` which browser revisions it expects, and looks for
+  them in the image. If one is missing, the step fails and names the tag to set. Bumping one means
+  bumping the other in the same change.
 - **One job per browser project** (`webkit-ios`, `chromium-android`), running side by side, with
   `fail-fast: false` so that one browser's failure does not hide the other's result.
 - **A small `base` job resolves the comparison commit once, for both jobs.** It applies ADR-0299's
@@ -51,5 +53,8 @@ ADR-0299 also changed how a develop push picks the commit it compares with, but 
   the image at the start of each of the two jobs.
 - Each of the two jobs restores dependencies and starts its own Vite server. The suite's wall-clock
   time roughly halves, and its runner minutes go up somewhat.
-- A Playwright bump that forgets the image tag fails CI with a message that names both versions.
+- A Playwright bump that forgets the image tag fails CI. The message names the missing browsers and
+  the tag to set.
+- Steps in the container run with bash, set explicitly, because a container job's default shell is
+  `sh`.
 - Both jobs wait on `base`, which is a checkout and one API call.

@@ -244,9 +244,9 @@ What a passing run does **not** say:
   Playwright's container image (`mcr.microsoft.com/playwright:v<version>-noble`), which already holds
   the browsers and their system libraries. Installing those on the runner went through its apt
   mirror and now and then took a quarter of an hour. The image tag in `.github/workflows/verify.yml`
-  names a Playwright version, and the job fails with both versions printed when it no longer matches
-  the `@playwright/test` that `yarn.lock` installs — bumping one means bumping the other in the same
-  change.
+  names a Playwright version. When it no longer matches the `@playwright/test` that `yarn.lock`
+  installs, the browser revisions that version expects are missing from the image, and the job fails
+  naming them and the tag to set. Bumping one means bumping the other in the same change.
 
 ## Adding a scenario
 
