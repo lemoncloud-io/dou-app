@@ -1,5 +1,32 @@
 # Changelog
 
+## [2026-11-10] - root@0.151.0, @chatic/desktop-web@0.55.0
+
+### Features
+
+- (desktop-web) open a cloud's mini apps through the hub
+- (desktop-web) let a cloud owner keep several named mini apps
+- (desktop-web) add a mini app section to settings
+- (desktop) open any https page in a modal sub view with trust tiers
+- (shared) add sub webview trust tiers and mini app launch params
+
+### Bug Fixes
+
+- (desktop-web) let the consent store take a missing account id
+- (desktop) answer the sub view boot request with its one reply
+- (desktop-web) keep mini app consent per account as well as host
+- (desktop) cap how many URLs a sub view hands to the OS browser
+- (desktop-web) name me by either place profile row in mini app params
+- (desktop) answer every device chooser in a sub view with none
+
+### Documentation
+
+- (adr) record mini app consent as per account and host
+
+### Refactor
+
+- (shared) keep the hub hosts in one private list
+
 ## [2026-11-10] - root@0.150.4, @chatic/desktop-web@0.54.3
 
 ### Bug Fixes
