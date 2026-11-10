@@ -18,13 +18,13 @@ const path = require('node:path');
  * - `calls` — the wiring calls. `{ name }` is a function (`configureSessionStore()`, also when
  *   imported under another name or called through a namespace, `session.configureSessionStore()`).
  *   `{ object, name }` is a method on an object whose own
- *   name is `object`, however it was reached (`sessionMedia.configure(…)`,
- *   `runtime.session.sessionMedia.configure(…)`).
+ *   name is `object`, however it was reached (`sessionStores.configure(…)`,
+ *   `runtime.session.sessionStores.configure(…)`).
  * - `allowedFiles` — repository-relative paths of the files that may make them.
  *
  * Tests are not this rule's business: they wire packages up on purpose, and the config that turns
  * the rule on leaves them out. What it does not see: a call through a computed member
- * (`sessionMedia['configure']`), or a wiring function handed around as a value and called under a
+ * (`sessionStores['configure']`), or a wiring function handed around as a value and called under a
  * name the catalogue does not know.
  */
 const REPO_ROOT = path.resolve(__dirname, '..', '..');

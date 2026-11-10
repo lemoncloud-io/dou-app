@@ -28,7 +28,7 @@ app never falls back to a guest session; `ProtectedRoute` gates every screen beh
 admin session, and a silent guest fallback would defeat that gate.
 
 The session lives in this tab's `sessionStorage`, both of its ports: the console never runs inside a
-native or desktop shell, so there is nothing for an entry point to choose. That medium, the config
+native or desktop shell, so there is nothing for an entry point to choose. That store, the config
 lanes' and the language's are built once in `src/app/storage/`; nothing else in the app names a web
 storage, and the root lint rule refuses it.
 

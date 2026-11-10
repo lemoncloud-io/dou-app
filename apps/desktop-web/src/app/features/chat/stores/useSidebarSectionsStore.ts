@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { deviceMedium, persistStorageOver } from '../../../storage';
+import { deviceStore, persistStorageOver } from '../../../storage';
 
 interface SidebarSectionsState {
     /** Section ids the user folded shut (`fav` · `ch` · `dm`). A UI preference, so it outlives logout. */
@@ -20,6 +20,6 @@ export const useSidebarSectionsStore = create<SidebarSectionsState>()(
                     return { collapsed: rest };
                 }),
         }),
-        { name: 'chatic-sidebar-sections', storage: persistStorageOver(deviceMedium) }
+        { name: 'chatic-sidebar-sections', storage: persistStorageOver(deviceStore) }
     )
 );

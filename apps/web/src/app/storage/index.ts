@@ -1,2 +1,2 @@
-export { configureAppMedia, deviceMedium, tabMedium } from './appMedia';
+export { configureAppStores, deviceStore, tabStore } from './appStores';
 export { persistStorageOver } from './persistStorage';

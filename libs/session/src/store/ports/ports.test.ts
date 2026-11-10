@@ -3,12 +3,12 @@
  * stores were split over two ports. A key that drifts to the wrong port is silent — it still saves and
  * reads back — so the only place it shows is here.
  */
-import { MemoryMedium } from '@chatic/storage';
+import { MemoryStore } from '@chatic/storage';
 
 import { cloudStore } from '../cloudStore';
 import { identityStore } from '../identityStore';
-import { isSessionKey, pairedCloudNamesSlot, pairedCloudsSlot, SESSION_KEYS, sessionMedia } from '.';
-import { SessionMedia } from './sessionMedia';
+import { isSessionKey, pairedCloudNamesSlot, pairedCloudsSlot, SESSION_KEYS, sessionStores } from '.';
+import { SessionStores } from './sessionStores';
 import { relayStore } from '../relayStore';
 
 const relayToken = { Token: { identityToken: 'relay-id' } } as never;
@@ -38,16 +38,16 @@ describe('session storage ports', () => {
 
     it('refuses to read or write either port until an entry point configures them, and names the fix', () => {
         // A fresh holder, not the shared one: other cases here configure that one.
-        const unconfigured = new SessionMedia();
+        const unconfigured = new SessionStores();
 
         expect(() => unconfigured.of('secret')).toThrow(/'secret'.*initAppRuntime/);
         expect(() => unconfigured.of('plain')).toThrow(/'plain'.*initAppRuntime/);
     });
 
     it('puts the credentials in the secret port and everything else in the plain port, under the same names', () => {
-        const secret = new MemoryMedium();
-        const plain = new MemoryMedium();
-        sessionMedia.configure({ secret, plain });
+        const secret = new MemoryStore();
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret, plain });
 
         writeEverything();
 
@@ -70,22 +70,22 @@ describe('session storage ports', () => {
         expect(sessionStorage.length).toBe(0);
     });
 
-    it('reads back through the configured media', () => {
-        const secret = new MemoryMedium();
-        const plain = new MemoryMedium();
-        sessionMedia.configure({ secret, plain });
+    it('reads back through the configured stores', () => {
+        const secret = new MemoryStore();
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret, plain });
         secret.set('chatic-relay-token', JSON.stringify(relayToken));
         plain.set('chatic-device-id', 'from-plain');
 
         expect(relayStore.getRelayToken()).toEqual(relayToken);
         expect(identityStore.getDeviceId()).toBe('from-plain');
-        expect(sessionMedia.of('secret')).toBe(secret);
+        expect(sessionStores.of('secret')).toBe(secret);
     });
 
     it('hands out the paired-cloud key alone, in the plain port', () => {
-        const secret = new MemoryMedium();
-        const plain = new MemoryMedium();
-        sessionMedia.configure({ secret, plain });
+        const secret = new MemoryStore();
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret, plain });
 
         pairedCloudsSlot.write('["c1"]');
         expect(plain.keys()).toEqual(['chatic-paired-cloud-ids']);
@@ -96,9 +96,9 @@ describe('session storage ports', () => {
     });
 
     it('hands out the paired-cloud names key alone, in the plain port', () => {
-        const secret = new MemoryMedium();
-        const plain = new MemoryMedium();
-        sessionMedia.configure({ secret, plain });
+        const secret = new MemoryStore();
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret, plain });
 
         pairedCloudNamesSlot.write('{"c1":"Team"}');
         expect(plain.keys()).toEqual(['chatic-paired-cloud-names']);

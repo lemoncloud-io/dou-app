@@ -1,36 +1,36 @@
-import { WebMedium } from './webMedium';
+import { WebStore } from './webStore';
 
-describe('WebMedium', () => {
+describe('WebStore', () => {
     beforeEach(() => {
         localStorage.clear();
         sessionStorage.clear();
     });
 
     it('writes through to the web storage it wraps', () => {
-        const medium = WebMedium.local();
-        medium.set('k', 'v');
+        const store = WebStore.local();
+        store.set('k', 'v');
         expect(localStorage.getItem('k')).toBe('v');
-        medium.remove('k');
+        store.remove('k');
         expect(localStorage.getItem('k')).toBeNull();
     });
 
     it('answers with what the storage holds now, including writes made around it', () => {
-        const medium = WebMedium.session();
+        const store = WebStore.session();
         sessionStorage.setItem('k', 'outside');
-        expect(medium.get('k')).toBe('outside');
-        expect(medium.keys()).toEqual(['k']);
+        expect(store.get('k')).toBe('outside');
+        expect(store.keys()).toEqual(['k']);
     });
 
     it('keeps local and session storage apart', () => {
-        WebMedium.session().set('k', 'session');
+        WebStore.session().set('k', 'session');
         expect(localStorage.getItem('k')).toBeNull();
-        expect(WebMedium.local().get('k')).toBeNull();
+        expect(WebStore.local().get('k')).toBeNull();
     });
 
     it('falls back to memory when there is no web storage', () => {
-        const medium = WebMedium.over(undefined);
-        medium.set('k', 'v');
-        expect(medium.get('k')).toBe('v');
+        const store = WebStore.over(undefined);
+        store.set('k', 'v');
+        expect(store.get('k')).toBe('v');
         expect(localStorage.getItem('k')).toBeNull();
     });
 });

@@ -1,10 +1,10 @@
 import { asDomStorage } from './asDomStorage.mapper';
-import { MemoryMedium } from '../media/memoryMedium';
+import { MemoryStore } from '../stores/memoryStore';
 
 describe('asDomStorage', () => {
-    it('exposes length, key() and the item methods over the medium', () => {
-        const medium = new MemoryMedium();
-        const dom = asDomStorage(medium);
+    it('exposes length, key() and the item methods over the store', () => {
+        const store = new MemoryStore();
+        const dom = asDomStorage(store);
         dom.setItem('a', '1');
         dom.setItem('b', '2');
 
@@ -12,27 +12,27 @@ describe('asDomStorage', () => {
         expect([dom.key(0), dom.key(1)]).toEqual(['a', 'b']);
         expect(dom.key(2)).toBeNull();
         expect(dom.getItem('b')).toBe('2');
-        expect(medium.get('a')).toBe('1');
+        expect(store.get('a')).toBe('1');
     });
 
-    it('reflects writes made on the medium between calls', () => {
-        const medium = new MemoryMedium();
-        const dom = asDomStorage(medium);
-        medium.set('a', '1');
+    it('reflects writes made on the store between calls', () => {
+        const store = new MemoryStore();
+        const dom = asDomStorage(store);
+        store.set('a', '1');
         expect(dom.length).toBe(1);
         dom.removeItem('a');
-        expect(medium.get('a')).toBeNull();
+        expect(store.get('a')).toBeNull();
     });
 
-    it('empties the medium on clear', () => {
-        const medium = new MemoryMedium();
-        medium.set('a', '1');
-        asDomStorage(medium).clear();
-        expect(medium.keys()).toEqual([]);
+    it('empties the store on clear', () => {
+        const store = new MemoryStore();
+        store.set('a', '1');
+        asDomStorage(store).clear();
+        expect(store.keys()).toEqual([]);
     });
 
     it('stores a non-string value as its string form, as localStorage does', () => {
-        const dom = asDomStorage(new MemoryMedium());
+        const dom = asDomStorage(new MemoryStore());
         dom.setItem('n', 42 as unknown as string);
         expect(dom.getItem('n')).toBe('42');
     });

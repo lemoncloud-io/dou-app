@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
-import { sessionMedia } from '@chatic/session';
-import { WebMedium } from '@chatic/storage';
+import { sessionStores } from '@chatic/session';
+import { WebStore } from '@chatic/storage';
 
 import { useRegisterDeviceTokenMutation } from '../../data/hooks';
 import { getRelaySessionUser, useDynamicDeviceId, useSessionAuth } from '../../session';
@@ -47,7 +47,7 @@ beforeEach(() => {
     // The registration record persists in storage on purpose — clear it so each case starts as a
     // fresh install rather than inheriting the previous one's "already registered". The record lives in
     // the session's plain port, put over this tab's sessionStorage so that clearing it is enough.
-    sessionMedia.configure({ secret: WebMedium.session(), plain: WebMedium.session() });
+    sessionStores.configure({ secret: WebStore.session(), plain: WebStore.session() });
     sessionStorage.clear();
     nowMs = 1_000_000;
     jest.spyOn(Date, 'now').mockImplementation(() => nowMs);

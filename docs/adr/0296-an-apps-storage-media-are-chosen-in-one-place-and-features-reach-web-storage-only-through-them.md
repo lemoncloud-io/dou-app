@@ -6,6 +6,8 @@
 > (`signedOutAppKeys`), `libs/config` (`ui.phoneCountry`), `libs/shared` (phone country), `apps/web`
 > (`app/storage/`, entry point, the features that kept state in web storage), `apps/desktop-web` (the same,
 > with its zustand stores), `libs/theme` (`ThemeProvider`'s `storage`), the root ESLint config
+> · Names since renamed (medium → store, `refactor/storage-medium-to-store`): `resolveStorageStores`, the runtime's
+> `device`/`tab` stores, `TolerantStore`, `SwitchableStore`, `sessionStores`. The text below keeps the names of its time.
 > · The behaviour is documented in [libs/storage](../../libs/storage/README.md),
 > [libs/app-runtime](../../libs/app-runtime/README.md), [apps/web](../../apps/web/README.md) and
 > [apps/desktop-web docs/storage](../../apps/desktop-web/docs/storage/README.md)

@@ -42,9 +42,9 @@ vi.mock('@chatic/config', () => ({
     config: { get: (key: string) => (key === 'net.socialOauth.endpoint' ? 'https://relay.example' : undefined) },
 }));
 
-import { WebMedium } from '@chatic/storage';
+import { WebStore } from '@chatic/storage';
 
-import { configureAppMedia } from '../../../storage';
+import { configureAppStores } from '../../../storage';
 
 import i18n from '../../../../i18n';
 import { useSocialLogin } from '../hooks';
@@ -74,8 +74,8 @@ describe('OAuthDeeplinkListener', () => {
         vi.useFakeTimers({ toFake: ['Date'] });
         vi.setSystemTime(NOW);
         // The shell's persistent backing, as main.tsx wires it.
-        // As in the desktop shell, where the session's plain medium is localStorage.
-        configureAppMedia({ device: WebMedium.local(), tab: WebMedium.session(), plain: WebMedium.local() });
+        // As in the desktop shell, where the session's plain store is localStorage.
+        configureAppStores({ device: WebStore.local(), tab: WebStore.session(), plain: WebStore.local() });
         localStorage.clear();
         session.isAuthenticated = false;
         session.createCredentialsByProvider.mockReset().mockResolvedValue(undefined);

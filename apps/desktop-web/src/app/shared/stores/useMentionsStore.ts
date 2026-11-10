@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { isMentionKind, type InboxKind, type InboxSort, type InboxTab } from '../utils/inboxKinds';
-import { deviceMedium, persistStorageOver } from '../../storage';
+import { deviceStore, persistStorageOver } from '../../storage';
 
 /**
  * A message that @-mentioned me, snapshotted at capture time. Snapshot (not a
@@ -201,7 +201,7 @@ export const useMentionsStore = create<MentionsState>()(
         // v0 items carry no cloud. Their place ids repeat in every cloud, so there is no telling which
         // cloud's Notifications they belong to, and listing them anywhere puts one cloud's history
         // in another's. They go; everything captured from v1 on names its cloud.
-        { name: 'chatic-mentions', storage: persistStorageOver(deviceMedium), version: 1, migrate: keepCloudItems }
+        { name: 'chatic-mentions', storage: persistStorageOver(deviceStore), version: 1, migrate: keepCloudItems }
     )
 );
 

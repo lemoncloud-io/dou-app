@@ -2,7 +2,7 @@ import { toWireLogEntry } from '@chatic/bridges';
 
 import type { LogEntry, LogLevel } from '@chatic/bridges';
 
-import { deviceMedium, tabMedium } from '../../storage';
+import { deviceStore, tabStore } from '../../storage';
 
 /**
  * Persistence for the unsent upload queue.
@@ -34,7 +34,7 @@ import { deviceMedium, tabMedium } from '../../storage';
 
 /**
  * Every key the log pipeline writes starts with this — the queue, its heartbeats, the tab id and the
- * crash sentinel. A sign-out takes them from the session's plain medium; the entry point declares the
+ * crash sentinel. A sign-out takes them from the session's plain store; the entry point declares the
  * prefix to the runtime (`initAppRuntime({ signedOutKeyPrefixes })`).
  */
 export const LOG_KEY_PREFIX = '@chatic/web.log.';
@@ -58,7 +58,7 @@ const toEntry = (raw: Partial<LogEntry>): LogEntry => ({
 
 const readJson = (key: string): LogEntry[] => {
     try {
-        const raw = deviceMedium.get(key);
+        const raw = deviceStore.get(key);
         if (!raw) return [];
         const parsed = JSON.parse(raw);
         return Array.isArray(parsed) ? (parsed as Partial<LogEntry>[]).map(toEntry) : [];
@@ -76,13 +76,13 @@ const TAB_ID_KEY = '@chatic/web.log.pending.tab';
  * that run simply behaves like a fresh tab each load.
  */
 export const resolveTabId = (fallback: string): string => {
-    const existing = tabMedium.get(TAB_ID_KEY);
+    const existing = tabStore.get(TAB_ID_KEY);
     if (existing) return existing;
-    tabMedium.set(TAB_ID_KEY, fallback);
+    tabStore.set(TAB_ID_KEY, fallback);
     return fallback;
 };
 
-const safeRemove = (key: string): void => deviceMedium.remove(key);
+const safeRemove = (key: string): void => deviceStore.remove(key);
 
 export interface LogUploadStore {
     /** Entries this tab still owns, plus anything adopted from dead tabs. */
@@ -97,8 +97,8 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
     const heartbeatKey = `${HEARTBEAT_PREFIX}${tabId}`;
 
     const beat = (): void => {
-        // Quota or private mode: the device medium drops it, and the queue still works in memory.
-        deviceMedium.set(heartbeatKey, String(Date.now()));
+        // Quota or private mode: the device store drops it, and the queue still works in memory.
+        deviceStore.set(heartbeatKey, String(Date.now()));
     };
 
     /**
@@ -113,7 +113,7 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
             const dataKeys: string[] = [];
             const heartbeatKeys: string[] = [];
 
-            for (const candidate of deviceMedium.keys()) {
+            for (const candidate of deviceStore.keys()) {
                 if (!candidate.startsWith(KEY_PREFIX)) continue;
                 if (candidate === key || candidate === heartbeatKey || candidate === TAB_ID_KEY) continue;
 
@@ -122,7 +122,7 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
             }
 
             const isStale = (owner: string): boolean =>
-                now - Number(deviceMedium.get(`${HEARTBEAT_PREFIX}${owner}`) ?? 0) >= ORPHAN_AFTER_MS;
+                now - Number(deviceStore.get(`${HEARTBEAT_PREFIX}${owner}`) ?? 0) >= ORPHAN_AFTER_MS;
 
             dataKeys.forEach(dataKey => {
                 const owner = dataKey.slice(KEY_PREFIX.length);
@@ -140,7 +140,7 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
             heartbeatKeys.forEach(beatKey => {
                 const owner = beatKey.slice(HEARTBEAT_PREFIX.length);
                 if (!isStale(owner)) return;
-                if (deviceMedium.get(`${KEY_PREFIX}${owner}`)) return;
+                if (deviceStore.get(`${KEY_PREFIX}${owner}`)) return;
                 safeRemove(beatKey);
             });
         } catch {
@@ -163,10 +163,10 @@ export const createLogUploadStore = (tabId: string): LogUploadStore => {
         save(entries) {
             try {
                 if (!entries.length) {
-                    deviceMedium.remove(key);
+                    deviceStore.remove(key);
                     return;
                 }
-                deviceMedium.set(key, JSON.stringify(entries.map(toWireLogEntry)));
+                deviceStore.set(key, JSON.stringify(entries.map(toWireLogEntry)));
             } catch {
                 // Quota exhaustion must never break logging. The queue keeps
                 // running in memory and its own cap does the trimming.

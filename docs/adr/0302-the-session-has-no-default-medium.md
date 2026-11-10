@@ -5,6 +5,9 @@
 > `apps/landing` (`features/subscription/lib/port/http/runtime.ts`), tests in session, auth and
 > app-runtime that reach a real store
 > · The behaviour is documented in [libs/session § Two ports](../../libs/session/README.md#two-ports-secret-and-plain)
+> · Names since renamed (medium → store, `refactor/storage-medium-to-store`): `sessionStores`
+> (`store/ports/sessionStores.ts`), `MemoryStore`, `WebStore`, the landing site's `tabStore`. The text
+> below keeps the names of its time.
 
 ## Context
 

@@ -19,7 +19,7 @@ import type { SessionStoragePorts } from '@chatic/session';
  * port.
  */
 export interface RuntimePorts {
-    /** The media behind the session's two ports — the credentials and everything else it keeps. */
+    /** The stores behind the session's two ports — the credentials and everything else it keeps. */
     storage: SessionStoragePorts;
 }
 

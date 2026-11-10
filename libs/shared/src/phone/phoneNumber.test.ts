@@ -12,8 +12,8 @@ import {
     toE164,
 } from './phoneNumber';
 
-/** The web medium an entry point passes in, as a plain map. */
-class MemoryMedium {
+/** The web store an entry point passes in, as a plain map. */
+class MemoryStore {
     private readonly map = new Map<string, string>();
     get(key: string): string | null {
         return this.map.get(key) ?? null;
@@ -30,7 +30,7 @@ class MemoryMedium {
 // it mirrors a `local` write into the storage it was given (`mockLocal`), unless that write is dropped.
 const mockSettings = new Map<string, unknown>();
 const mockSetResult = { ok: true, storageWriteLands: true };
-const mockLocal: { current: MemoryMedium | null } = { current: null };
+const mockLocal: { current: MemoryStore | null } = { current: null };
 jest.mock('@chatic/config', () => ({
     storageKeyFor: (key: string) => `@chatic/config.${key}`,
     config: {
@@ -154,9 +154,9 @@ describe('resolveDefaultCountry — 기본 국가 3분기', () => {
 });
 
 describe('migrateLegacyPhoneCountry', () => {
-    let legacy: MemoryMedium;
+    let legacy: MemoryStore;
     beforeEach(() => {
-        legacy = new MemoryMedium();
+        legacy = new MemoryStore();
         mockLocal.current = legacy;
     });
     afterEach(() => {

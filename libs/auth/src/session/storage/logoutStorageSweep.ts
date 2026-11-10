@@ -1,4 +1,4 @@
-import { sessionMedia } from '@chatic/session';
+import { sessionStores } from '@chatic/session';
 
 import { dropSignedOutAppKeys } from './signedOutAppKeys.util';
 
@@ -28,7 +28,7 @@ class LogoutStorageSweeper implements ILogoutStorageSweeper {
 
         try {
             if (new URLSearchParams(window.location.search).get('logout') !== '1') return;
-            dropSignedOutAppKeys(sessionMedia.of('plain'));
+            dropSignedOutAppKeys(sessionStores.of('plain'));
         } catch {
             // Storage access throws in a few browser configurations. A missed sweep leaves a log batch
             // the next upload sends anyway — never a failed boot.

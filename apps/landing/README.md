@@ -224,7 +224,7 @@ apps/landing/
         ├── config/             stage.ts (hostname, import.meta, the subscription gate), links.ts,
         │                       subscriptionServer.ts (the account surface's server addresses, from .env)
         ├── hooks/              useDeviceDetect — the bounce page
-        ├── storage/            the site's web storage media — the only place that names one
+        ├── storage/            the site's web stores — the only place that names one
         └── features/
             ├── home/           sections, Header, Footer, StoreButton
             ├── policy/         4 pages over one PolicyPageLayout; the 3 versioned ones add a VersionSelector

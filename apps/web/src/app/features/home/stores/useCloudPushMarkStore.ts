@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { deviceMedium, persistStorageOver } from '../../../storage';
+import { deviceStore, persistStorageOver } from '../../../storage';
 
 interface CloudPushMarkState {
     /** Clouds with a push received while not active — shown as a dot (ADR-0056). */
@@ -27,6 +27,6 @@ export const useCloudPushMarkStore = create<CloudPushMarkState>()(
                     return { badged: rest };
                 }),
         }),
-        { name: 'chatic.push.cloud-marks', storage: persistStorageOver(deviceMedium) }
+        { name: 'chatic.push.cloud-marks', storage: persistStorageOver(deviceStore) }
     )
 );

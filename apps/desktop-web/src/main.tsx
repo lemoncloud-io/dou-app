@@ -7,37 +7,40 @@ import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/app-runtime';
 
 import { createWebConfigPorts } from './app/config/adapters';
-import { configureAppMedia } from './app/storage';
+import { configureAppStores } from './app/storage';
 import { applyAppearance, useAppearancePrefsStore } from './app/shared/stores/useAppearancePrefsStore';
 
 import App from './app/app';
 
-// Every medium this app keeps state in, chosen and built in one place for this environment: the
+// Every store this app keeps state in, chosen and built in one place for this environment: the
 // session's secret and plain ports, the desktop shell's vault (Electron `safeStorage`) once it says so
-// in what it injected, and the `device`/`tab` media the app's own features and the runtime write
+// in what it injected, and the `device`/`tab` stores the app's own features and the runtime write
 // through. Reads only what the shell injected, so it is safe this early. The late-vault mark is off:
 // only apps/web writes it, after its own mobile handshake; the desktop shell always injects its list.
-const media = runtime.boot.resolveStorageMedia({ ...runtime.boot.readStorageEnvironment(), lateVaultConfirmed: false });
-configureAppMedia({ device: media.device, tab: media.tab, plain: media.plain });
+const stores = runtime.boot.resolveStorageStores({
+    ...runtime.boot.readStorageEnvironment(),
+    lateVaultConfirmed: false,
+});
+configureAppStores({ device: stores.device, tab: stores.tab, plain: stores.plain });
 
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — replaces
 // `@chatic/web-config`'s import-time self-init with an explicit call (ADR-0079 decisions 1·11).
-config.init(createWebConfigPorts(media));
+config.init(createWebConfigPorts(stores));
 
 // The phone fields' last-picked country moved from its own key into the `ui.phoneCountry` setting;
 // carried over once, now that the setting can be written.
-migrateLegacyPhoneCountry(media.webLocal);
+migrateLegacyPhoneCountry(stores.webLocal);
 
-// The session's secrets — its four tokens. When `resolveStorageMedia` chose the vault, it is loaded —
+// The session's secrets — its four tokens. When `resolveStorageStores` chose the vault, it is loaded —
 // and anything left in localStorage moved into it — before the runtime boots. A desktop shell from
 // before the vault updates itself, and keeps them in localStorage until it has.
-const vault = media.vault;
+const vault = stores.vault;
 const secretStorageReady: Promise<unknown> = vault
     ? runtime.boot.prepareSecretStorage({
           vault,
-          plain: media.plain,
-          web: media.webLocal,
-          tab: media.webSession,
+          plain: stores.plain,
+          web: stores.webLocal,
+          tab: stores.webSession,
           afterLogout: new URLSearchParams(window.location.search).get('logout') === '1',
       })
     : Promise.resolve();
@@ -57,14 +60,14 @@ const startApp = (): void => {
     // libs/app-runtime would also truncate apps/web in a browser and apps/admin.
     // Must run before render — the runtime builds its cache storages once, on first repository access.
     runtime.boot.initAppRuntime({
-        // The runtime's `tab` medium holds a cache (a window's invited clouds), which must hear a failed
+        // The runtime's `tab` store holds a cache (a window's invited clouds), which must hear a failed
         // write, so it gets the raw `webSession` rather than the tolerant `tab` the features use.
-        storage: { secret: media.secret, plain: media.plain, device: media.device, tab: media.webSession },
+        storage: { secret: stores.secret, plain: stores.plain, device: stores.device, tab: stores.webSession },
         data: { cache: { maxChatsPerChannel: 1000 } },
     });
 
     // Reading preferences go onto the document root before the first paint. The store hydrates from
-    // the device medium (localStorage) synchronously, so a reader who picked a larger size never sees
+    // the device store (localStorage) synchronously, so a reader who picked a larger size never sees
     // the default one flash.
     applyAppearance(useAppearancePrefsStore.getState());
 

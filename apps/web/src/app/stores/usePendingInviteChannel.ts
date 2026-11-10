@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { persistStorageOver, tabMedium } from '../storage';
+import { persistStorageOver, tabStore } from '../storage';
 
 /**
  * Transient hand-off for the invite-accept flow: the room to open once the accept screen is gone.
@@ -30,7 +30,7 @@ export const usePendingInviteChannel = create<PendingInviteChannelState>()(
         }),
         {
             name: 'chatic.invite.pending-channel',
-            storage: persistStorageOver(tabMedium),
+            storage: persistStorageOver(tabStore),
             partialize: state => ({ channelId: state.channelId }),
         }
     )

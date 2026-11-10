@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { WebMedium } from '@chatic/storage';
+import { WebStore } from '@chatic/storage';
 
-import { configureAppMedia } from '../../../storage';
+import { configureAppStores } from '../../../storage';
 
 import { NEW_ACCOUNT_CLOCK_SLACK_MS, isAccountMadeSince, saveSignInNotice, takeSignInNotice } from './signInNotice';
 
@@ -30,8 +30,8 @@ describe('isAccountMadeSince', () => {
 
 describe('sign-in notice storage', () => {
     beforeEach(() => {
-        // As in the desktop shell, where the session's plain medium is localStorage.
-        configureAppMedia({ device: WebMedium.local(), tab: WebMedium.session(), plain: WebMedium.local() });
+        // As in the desktop shell, where the session's plain store is localStorage.
+        configureAppStores({ device: WebStore.local(), tab: WebStore.session(), plain: WebStore.local() });
         localStorage.clear();
     });
 

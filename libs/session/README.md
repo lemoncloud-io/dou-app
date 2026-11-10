@@ -30,13 +30,13 @@ the deep form.
 libs/session/src/
 ├── index.ts                 the package barrel
 ├── store/    13 files ·  7 tests  relay · cloud · identity tokens, selection, derived contexts, credential freshness
-│   └── ports/  6 files ·  1 test   the secret and plain ports, their key list, and the media behind them
+│   └── ports/  6 files ·  1 test   the secret and plain ports, their key list, and the stores behind them
 └── scope/     3 files ·  1 test   ActiveScope — the three views, and the DataContextProvider
 ```
 
 `store/index.ts` re-exports only `contextStore`, `contexts`, `signal` and `types` — what a reader
 needs. The package barrel adds the raw stores, `configureSessionStore`, the ports' surface
-(`sessionMedia`, `SESSION_KEYS`, `isSessionKey`, `pairedCloudsSlot`),
+(`sessionStores`, `SESSION_KEYS`, `isSessionKey`, `pairedCloudsSlot`),
 `msUntilExpiration`, `credentialFreshness` and the scope, for the runtime modules that write or
 measure the session.
 
@@ -95,9 +95,9 @@ makes on first use; an app or desktop shell injects an id of its own that wins o
 ### Two ports: secret and plain
 
 The stores do not hold a storage of their own. They hold two **ports** that the session declares in
-[`store/ports/`](./src/store/ports/index.ts), and each app's entry point decides which medium
+[`store/ports/`](./src/store/ports/index.ts), and each app's entry point decides which `KeyValueStore`
 ([`@chatic/storage`](../storage/README.md)) backs each port in its environment, passing them to
-`initAppRuntime({ storage })`, which calls `sessionMedia.configure`.
+`initAppRuntime({ storage })`, which calls `sessionStores.configure`.
 
 | Port     | Keys                                                                                                                                                                                                                                                                              |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -114,14 +114,14 @@ leaves it, and the next boot empties the vault before reading it. `SESSION_KEYS`
 storage screen, through `runtime.session` — asks whether a key is the session's instead of keeping a
 copy of the list.
 
-**There is no default medium.** Until `configure` runs, reading either port throws, and the error names
+**There is no default store.** Until `configure` runs, reading either port throws, and the error names
 `initAppRuntime({ storage })`. A default would have to be one platform's storage — this tab's
-`sessionStorage` — and the session runs in more than one place: a runtime never handed its media would
+`sessionStorage` — and the session runs in more than one place: a runtime never handed its stores would
 keep credentials wherever that default landed, and the first sign would be a session that quietly does
-not survive. Every app that boots the runtime names its media, the landing site included, and a test
-that reaches a real store configures memory media (or this tab's storage, when it seeds it) itself.
-The stores reach the ports through forwarding objects, so they can be built at import while the media
-are chosen at boot.
+not survive. Every app that boots the runtime names its stores, the landing site included, and a test
+that reaches a real store configures memory stores (or this tab's storage, when it seeds it) itself.
+The stores reach the ports through forwarding objects, so they can be built at import while the
+`KeyValueStore`s behind the ports are chosen at boot.
 
 | Where                                                  | `secret`                   | `plain`          |
 | ------------------------------------------------------ | -------------------------- | ---------------- |

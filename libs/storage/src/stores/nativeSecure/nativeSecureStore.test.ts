@@ -1,6 +1,6 @@
-import { MemoryMedium } from '../memoryMedium';
-import { isNativeMedium } from './isNativeMedium.util';
-import { NativeSecureMedium } from './nativeSecureMedium';
+import { MemoryStore } from '../memoryStore';
+import { isNativeStore } from './isNativeStore.util';
+import { NativeSecureStore } from './nativeSecureStore';
 
 import type { NativeReadResult, NativeStorageChannel } from './types';
 
@@ -30,28 +30,28 @@ const fakeShell = (read: NativeReadResult | Promise<NativeReadResult> = { status
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 
-describe('NativeSecureMedium', () => {
+describe('NativeSecureStore', () => {
     it('answers from memory once hydrated', async () => {
         const shell = fakeShell({ status: 'available', values: { token: 't1' } });
-        const medium = new NativeSecureMedium({ channel: shell.channel, fallback: new MemoryMedium() });
+        const store = new NativeSecureStore({ channel: shell.channel, fallback: new MemoryStore() });
 
-        const result = await medium.hydrate();
+        const result = await store.hydrate();
 
         expect(result.status).toBe('available');
-        expect(medium.status).toBe('available');
-        expect(medium.get('token')).toBe('t1');
-        expect(medium.keys()).toEqual(['token']);
+        expect(store.status).toBe('available');
+        expect(store.get('token')).toBe('t1');
+        expect(store.keys()).toEqual(['token']);
     });
 
     it('sends the writes of one turn as one save, with the last value of each key', async () => {
         const shell = fakeShell();
-        const medium = new NativeSecureMedium({ channel: shell.channel, fallback: new MemoryMedium() });
-        await medium.hydrate();
+        const store = new NativeSecureStore({ channel: shell.channel, fallback: new MemoryStore() });
+        await store.hydrate();
 
-        medium.set('a', '1');
-        medium.set('a', '2');
-        medium.set('b', '3');
-        medium.remove('b');
+        store.set('a', '1');
+        store.set('a', '2');
+        store.set('b', '3');
+        store.remove('b');
         await settle();
 
         expect(shell.saves).toEqual([{ set: { a: '2' }, remove: ['b'] }]);
@@ -60,45 +60,45 @@ describe('NativeSecureMedium', () => {
 
     it('resolves flush only once the shell confirmed the writes', async () => {
         const shell = fakeShell();
-        const medium = new NativeSecureMedium({ channel: shell.channel, fallback: new MemoryMedium() });
-        await medium.hydrate();
+        const store = new NativeSecureStore({ channel: shell.channel, fallback: new MemoryStore() });
+        await store.hydrate();
 
-        medium.set('token', 't');
-        await medium.flush();
+        store.set('token', 't');
+        await store.flush();
 
         expect(shell.vault).toEqual({ token: 't' });
     });
 
     it('clears the vault on clear, and rejects flush when the shell refuses', async () => {
         const shell = fakeShell({ status: 'available', values: { token: 't' } });
-        const medium = new NativeSecureMedium({ channel: shell.channel, fallback: new MemoryMedium() });
-        await medium.hydrate();
+        const store = new NativeSecureStore({ channel: shell.channel, fallback: new MemoryStore() });
+        await store.hydrate();
 
-        medium.clear();
-        await medium.flush();
+        store.clear();
+        await store.flush();
         expect(shell.clears()).toBe(1);
-        expect(medium.keys()).toEqual([]);
+        expect(store.keys()).toEqual([]);
 
         shell.answers.clear = false;
-        medium.set('token', 'again');
-        medium.clear();
-        await expect(medium.flush()).rejects.toThrow();
+        store.set('token', 'again');
+        store.clear();
+        await expect(store.flush()).rejects.toThrow();
     });
 
     it('falls back for the run when the vault is unavailable, and never reports that as empty data', async () => {
-        const fallback = new MemoryMedium();
+        const fallback = new MemoryStore();
         const shell = fakeShell({ status: 'unavailable', reason: 'locked', values: {} });
-        const medium = new NativeSecureMedium({ channel: shell.channel, fallback });
+        const store = new NativeSecureStore({ channel: shell.channel, fallback });
 
-        const result = await medium.hydrate();
-        medium.set('token', 't');
+        const result = await store.hydrate();
+        store.set('token', 't');
 
         expect(result).toEqual({ status: 'unavailable', reason: 'locked', values: {} });
-        expect(medium.status).toBe('unavailable');
+        expect(store.status).toBe('unavailable');
         expect(fallback.get('token')).toBe('t');
-        expect(medium.get('token')).toBe('t');
+        expect(store.get('token')).toBe('t');
         expect(shell.saves).toEqual([]);
-        await expect(medium.flush()).rejects.toThrow();
+        await expect(store.flush()).rejects.toThrow();
     });
 
     it('reads a shell that never answers as unavailable, not as empty', async () => {
@@ -107,49 +107,49 @@ describe('NativeSecureMedium', () => {
             save: async () => true,
             clear: async () => true,
         };
-        const medium = new NativeSecureMedium({ channel, fallback: new MemoryMedium(), timeoutMs: 10 });
+        const store = new NativeSecureStore({ channel, fallback: new MemoryStore(), timeoutMs: 10 });
 
-        await expect(medium.hydrate()).resolves.toEqual({ status: 'unavailable', reason: 'error', values: {} });
-        expect(medium.status).toBe('unavailable');
+        await expect(store.hydrate()).resolves.toEqual({ status: 'unavailable', reason: 'error', values: {} });
+        expect(store.status).toBe('unavailable');
     });
 
     it('moves what it holds to the fallback when a save is refused, so the run stays signed in', async () => {
-        const fallback = new MemoryMedium();
+        const fallback = new MemoryStore();
         const shell = fakeShell({ status: 'available', values: { relay: 'r' } });
-        const medium = new NativeSecureMedium({ channel: shell.channel, fallback });
-        await medium.hydrate();
+        const store = new NativeSecureStore({ channel: shell.channel, fallback });
+        await store.hydrate();
 
         shell.answers.save = false;
-        medium.set('cloud', 'c');
-        await expect(medium.flush()).rejects.toThrow();
+        store.set('cloud', 'c');
+        await expect(store.flush()).rejects.toThrow();
 
-        expect(medium.status).toBe('unavailable');
+        expect(store.status).toBe('unavailable');
         expect(fallback.get('relay')).toBe('r');
         expect(fallback.get('cloud')).toBe('c');
-        expect(medium.get('cloud')).toBe('c');
+        expect(store.get('cloud')).toBe('c');
     });
 
     it('clears only its own keys from the fallback', async () => {
-        const fallback = new MemoryMedium();
+        const fallback = new MemoryStore();
         fallback.set('someone-else', 'x');
         const shell = fakeShell({ status: 'unavailable', reason: 'error', values: {} });
-        const medium = new NativeSecureMedium({ channel: shell.channel, fallback });
-        await medium.hydrate();
-        medium.set('token', 't');
+        const store = new NativeSecureStore({ channel: shell.channel, fallback });
+        await store.hydrate();
+        store.set('token', 't');
 
-        medium.clear();
+        store.clear();
 
         expect(fallback.keys()).toEqual(['someone-else']);
-        expect(medium.keys()).toEqual([]);
+        expect(store.keys()).toEqual([]);
     });
 });
 
-describe('isNativeMedium', () => {
-    it('tells a medium the shell keeps from a plain one', () => {
+describe('isNativeStore', () => {
+    it('tells a store the shell keeps from a plain one', () => {
         const shell = fakeShell();
-        expect(isNativeMedium(new NativeSecureMedium({ channel: shell.channel, fallback: new MemoryMedium() }))).toBe(
+        expect(isNativeStore(new NativeSecureStore({ channel: shell.channel, fallback: new MemoryStore() }))).toBe(
             true
         );
-        expect(isNativeMedium(new MemoryMedium())).toBe(false);
+        expect(isNativeStore(new MemoryStore())).toBe(false);
     });
 });

@@ -34,10 +34,10 @@ const load = async () => {
     return { ...init, ...store };
 };
 
-/** The session's two ports over fresh memory — the medium every case here is indifferent to. */
+/** The session's two ports over fresh memory — the store every case here is indifferent to. */
 const memoryStorage = () => {
-    const { MemoryMedium } = jest.requireActual<typeof StorageLib>('@chatic/storage');
-    return { secret: new MemoryMedium(), plain: new MemoryMedium() };
+    const { MemoryStore } = jest.requireActual<typeof StorageLib>('@chatic/storage');
+    return { secret: new MemoryStore(), plain: new MemoryStore() };
 };
 
 describe('initAppRuntime', () => {
@@ -123,14 +123,14 @@ describe('initAppRuntime', () => {
         localStorage.clear();
     });
 
-    it("keeps the runtime's own state in the device medium the entry point hands over", async () => {
-        const { MemoryMedium } = jest.requireActual<typeof StorageLib>('@chatic/storage');
-        const device = new MemoryMedium();
+    it("keeps the runtime's own state in the device store the entry point hands over", async () => {
+        const { MemoryStore } = jest.requireActual<typeof StorageLib>('@chatic/storage');
+        const device = new MemoryStore();
         device.set('chatic.syncCursors.resetPending', '1');
         const { initAppRuntime } = await load();
         const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
 
-        initAppRuntime({ storage: { secret: new MemoryMedium(), plain: new MemoryMedium(), device } });
+        initAppRuntime({ storage: { secret: new MemoryStore(), plain: new MemoryStore(), device } });
 
         expect(device.get('chatic.syncCursors.resetPending')).toBeNull();
         expect(getSyncCursorsValidAfter()).toBeGreaterThan(0);
@@ -138,14 +138,14 @@ describe('initAppRuntime', () => {
     });
 
     it('sweeps the signed-out keys the app declared on a document opened by logout', async () => {
-        const { MemoryMedium } = jest.requireActual<typeof StorageLib>('@chatic/storage');
-        const plain = new MemoryMedium();
+        const { MemoryStore } = jest.requireActual<typeof StorageLib>('@chatic/storage');
+        const plain = new MemoryStore();
         plain.set('@chatic/web.log.pending.tab-1', '[]');
         plain.set('@chatic/config.ui.theme', '"dark"');
         window.history.replaceState({}, '', '/?logout=1');
         const { initAppRuntime } = await load();
 
-        initAppRuntime({ storage: { secret: new MemoryMedium(), plain }, signedOutKeyPrefixes: ['@chatic/web.log.'] });
+        initAppRuntime({ storage: { secret: new MemoryStore(), plain }, signedOutKeyPrefixes: ['@chatic/web.log.'] });
 
         expect(plain.keys()).toEqual(['@chatic/config.ui.theme']);
         window.history.replaceState({}, '', '/');

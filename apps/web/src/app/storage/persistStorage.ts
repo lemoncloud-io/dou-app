@@ -6,6 +6,7 @@ import type { KeyValueStore } from '@chatic/storage';
 
 /**
  * The storage a zustand `persist` store writes through. `persist` falls back to `localStorage` when
- * given none, which is a direct web storage write — so every store names its medium with this.
+ * given none, which is a direct web storage write — so every `persist` call names the `KeyValueStore`
+ * it writes to with this.
  */
-export const persistStorageOver = (medium: KeyValueStore) => createJSONStorage(() => asDomStorage(medium));
+export const persistStorageOver = (store: KeyValueStore) => createJSONStorage(() => asDomStorage(store));

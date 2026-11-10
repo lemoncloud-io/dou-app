@@ -13,7 +13,7 @@
 
 import { runtime } from '@chatic/app-runtime';
 import { BridgeStorageChannel, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
-import { asDomStorage, WebMedium } from '@chatic/storage';
+import { asDomStorage, WebStore } from '@chatic/storage';
 
 /** Which part of the app a localStorage key belongs to. */
 export type WebKeyGroup = 'session' | 'config' | 'logs' | 'other';
@@ -225,9 +225,9 @@ export const clearWebStores = (env: WebStorageEnv): WebStoresClearResult => {
 /** The live browser, for the screen. Kept out of the functions above so they stay testable. */
 export const browserWebStorageEnv = (): WebStorageEnv => ({
     // The debug screen walks the two web storages whole — that is its job — but still through the
-    // storage lib's web media, like every other reader in this app.
-    localStorage: asDomStorage(WebMedium.local()),
-    sessionStorage: asDomStorage(WebMedium.session()),
+    // storage lib's web stores, like every other reader in this app.
+    localStorage: asDomStorage(WebStore.local()),
+    sessionStorage: asDomStorage(WebStore.session()),
     indexedDB: typeof indexedDB !== 'undefined' ? indexedDB : undefined,
     caches: typeof caches !== 'undefined' ? caches : undefined,
     estimate: navigator.storage?.estimate ? () => navigator.storage.estimate() : undefined,

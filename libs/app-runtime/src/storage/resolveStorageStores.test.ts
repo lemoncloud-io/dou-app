@@ -1,8 +1,8 @@
-import { TolerantMedium } from '@chatic/storage';
+import { TolerantStore } from '@chatic/storage';
 
-import { LATE_VAULT_MARK, readStorageEnvironment, resolveStorageMedia } from './resolveStorageMedia';
+import { LATE_VAULT_MARK, readStorageEnvironment, resolveStorageStores } from './resolveStorageStores';
 
-import type { NativeSecureMedium } from '@chatic/storage';
+import type { NativeSecureStore } from '@chatic/storage';
 
 const mockIsNative = jest.fn();
 const mockShellKeeps = jest.fn();
@@ -13,10 +13,10 @@ jest.mock('@chatic/bridges', () => ({
     BridgeStorageChannel: jest.fn(),
 }));
 
-const fakeVault = { name: 'vault' } as unknown as NativeSecureMedium;
+const fakeVault = { name: 'vault' } as unknown as NativeSecureStore;
 const vaultFactory = jest.fn(() => fakeVault);
 
-describe('resolveStorageMedia', () => {
+describe('resolveStorageStores', () => {
     beforeEach(() => {
         localStorage.clear();
         sessionStorage.clear();
@@ -24,44 +24,44 @@ describe('resolveStorageMedia', () => {
     });
 
     it('puts the secrets in the vault and the plain state in localStorage inside a shell that keeps one', () => {
-        const media = resolveStorageMedia(
+        const stores = resolveStorageStores(
             { inShell: true, shellKeepsVault: true, lateVaultConfirmed: false },
             vaultFactory
         );
-        expect(media.vault).toBe(fakeVault);
-        expect(media.secret).toBe(fakeVault);
-        media.plain.set('k', 'v');
+        expect(stores.vault).toBe(fakeVault);
+        expect(stores.secret).toBe(fakeVault);
+        stores.plain.set('k', 'v');
         expect(localStorage.getItem('k')).toBe('v');
     });
 
     it('keeps both session ports in localStorage in a shell from before the vault', () => {
-        const media = resolveStorageMedia(
+        const stores = resolveStorageStores(
             { inShell: true, shellKeepsVault: false, lateVaultConfirmed: false },
             vaultFactory
         );
         expect(vaultFactory).not.toHaveBeenCalled();
-        expect(media.vault).toBeNull();
-        expect(media.secret).toBe(media.plain);
-        media.secret.set('k', 'v');
+        expect(stores.vault).toBeNull();
+        expect(stores.secret).toBe(stores.plain);
+        stores.secret.set('k', 'v');
         expect(localStorage.getItem('k')).toBe('v');
     });
 
     it('takes the vault when an earlier load of this tab confirmed it late', () => {
-        const media = resolveStorageMedia(
+        const stores = resolveStorageStores(
             { inShell: true, shellKeepsVault: false, lateVaultConfirmed: true },
             vaultFactory
         );
-        expect(media.vault).toBe(fakeVault);
+        expect(stores.vault).toBe(fakeVault);
     });
 
     it('keeps the session in sessionStorage in a plain browser tab', () => {
-        const media = resolveStorageMedia(
+        const stores = resolveStorageStores(
             { inShell: false, shellKeepsVault: false, lateVaultConfirmed: false },
             vaultFactory
         );
-        expect(media.vault).toBeNull();
-        media.secret.set('s', '1');
-        media.plain.set('p', '1');
+        expect(stores.vault).toBeNull();
+        stores.secret.set('s', '1');
+        stores.plain.set('p', '1');
         expect(sessionStorage.getItem('s')).toBe('1');
         expect(sessionStorage.getItem('p')).toBe('1');
         expect(localStorage.length).toBe(0);
@@ -71,11 +71,11 @@ describe('resolveStorageMedia', () => {
         for (const inShell of [true, false]) {
             localStorage.clear();
             sessionStorage.clear();
-            const media = resolveStorageMedia({ inShell, shellKeepsVault: false, lateVaultConfirmed: false });
-            expect(media.device).toBeInstanceOf(TolerantMedium);
-            expect(media.tab).toBeInstanceOf(TolerantMedium);
-            media.device.set('d', '1');
-            media.tab.set('t', '1');
+            const stores = resolveStorageStores({ inShell, shellKeepsVault: false, lateVaultConfirmed: false });
+            expect(stores.device).toBeInstanceOf(TolerantStore);
+            expect(stores.tab).toBeInstanceOf(TolerantStore);
+            stores.device.set('d', '1');
+            stores.tab.set('t', '1');
             expect(localStorage.getItem('d')).toBe('1');
             expect(sessionStorage.getItem('t')).toBe('1');
         }

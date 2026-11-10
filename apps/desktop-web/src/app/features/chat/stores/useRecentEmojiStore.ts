@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { deviceMedium, persistStorageOver } from '../../../storage';
+import { deviceStore, persistStorageOver } from '../../../storage';
 
 /** How many picks to remember. The picker's "recently used" tab shows all of them. */
 const RECENT_MAX = 16;
@@ -41,6 +41,6 @@ export const useRecentEmojiStore = create<RecentEmojiState>()(
             remember: emoji =>
                 set(state => ({ recent: [emoji, ...state.recent.filter(e => e !== emoji)].slice(0, RECENT_MAX) })),
         }),
-        { name: 'chatic.emoji.recent', storage: persistStorageOver(deviceMedium) }
+        { name: 'chatic.emoji.recent', storage: persistStorageOver(deviceStore) }
     )
 );

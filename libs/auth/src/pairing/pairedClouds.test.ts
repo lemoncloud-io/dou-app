@@ -1,19 +1,19 @@
-import { sessionMedia } from '@chatic/session/store/ports';
+import { sessionStores } from '@chatic/session/store/ports';
 
 import { PairedCloudStore, pairedClouds } from './pairedClouds';
 
-const store = new Map<string, string>();
+const map = new Map<string, string>();
 // One map behind both session ports — these tests are about the list, not which port holds it.
-const medium = {
-    get: (key: string) => store.get(key) ?? null,
-    set: (key: string, value: string) => void store.set(key, value),
-    remove: (key: string) => void store.delete(key),
-    clear: () => store.clear(),
-    keys: () => [...store.keys()],
+const store = {
+    get: (key: string) => map.get(key) ?? null,
+    set: (key: string, value: string) => void map.set(key, value),
+    remove: (key: string) => void map.delete(key),
+    clear: () => map.clear(),
+    keys: () => [...map.keys()],
 };
-sessionMedia.configure({ secret: medium, plain: medium });
+sessionStores.configure({ secret: store, plain: store });
 
-beforeEach(() => store.clear());
+beforeEach(() => map.clear());
 
 describe('pairedClouds', () => {
     it('remembers each cloud once, in the order it was approved', () => {
@@ -33,14 +33,14 @@ describe('pairedClouds', () => {
         expect(pairedClouds.list()).toEqual(['1000004']);
 
         pairedClouds.remove('1000004');
-        expect(store.has('chatic-paired-cloud-ids')).toBe(false);
+        expect(map.has('chatic-paired-cloud-ids')).toBe(false);
     });
 
     it('reads a damaged value as no clouds', () => {
-        store.set('chatic-paired-cloud-ids', '{not json');
+        map.set('chatic-paired-cloud-ids', '{not json');
         expect(pairedClouds.list()).toEqual([]);
 
-        store.set('chatic-paired-cloud-ids', JSON.stringify(['1000002', 7, '']));
+        map.set('chatic-paired-cloud-ids', JSON.stringify(['1000002', 7, '']));
         expect(pairedClouds.list()).toEqual(['1000002']);
     });
 
@@ -105,7 +105,7 @@ describe('paired cloud names', () => {
         pairedClouds.setName('1000002', 'Team Cloud');
 
         expect(pairedClouds.names()).toEqual({ '1000002': 'Team Cloud' });
-        expect(JSON.parse(store.get('chatic-paired-cloud-names') ?? 'null')).toEqual({ '1000002': 'Team Cloud' });
+        expect(JSON.parse(map.get('chatic-paired-cloud-names') ?? 'null')).toEqual({ '1000002': 'Team Cloud' });
     });
 
     it('drops the name with the cloud, and the key when no name is left', () => {
@@ -119,7 +119,7 @@ describe('paired cloud names', () => {
 
         pairedClouds.clear();
         expect(pairedClouds.names()).toEqual({});
-        expect(store.has('chatic-paired-cloud-names')).toBe(false);
+        expect(map.has('chatic-paired-cloud-names')).toBe(false);
     });
 
     it('tells name subscribers about a name change only once, without touching the list listeners', () => {
@@ -151,10 +151,10 @@ describe('paired cloud names', () => {
 
     it('reads a damaged names value as no names', () => {
         pairedClouds.add('1000002');
-        store.set('chatic-paired-cloud-names', '[1,2]');
+        map.set('chatic-paired-cloud-names', '[1,2]');
         expect(pairedClouds.names()).toEqual({});
 
-        store.set('chatic-paired-cloud-names', JSON.stringify({ '1000002': 7 }));
+        map.set('chatic-paired-cloud-names', JSON.stringify({ '1000002': 7 }));
         expect(pairedClouds.names()).toEqual({});
     });
 });

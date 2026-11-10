@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { deviceMedium, persistStorageOver } from '../../storage';
+import { deviceStore, persistStorageOver } from '../../storage';
 
 interface CloudPushBadgeState {
     /** Clouds with a push received while not active — shown as a rail-tile dot. */
@@ -29,6 +29,6 @@ export const useCloudPushBadgeStore = create<CloudPushBadgeState>()(
                     return { badged: rest };
                 }),
         }),
-        { name: 'chatic-cloud-push-badges', storage: persistStorageOver(deviceMedium) }
+        { name: 'chatic-cloud-push-badges', storage: persistStorageOver(deviceStore) }
     )
 );

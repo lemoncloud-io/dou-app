@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { deviceMedium } from '../storage';
+import { deviceStore } from '../storage';
 
 /** How wide the two sized panes are. The message pane takes what is left. */
 export interface PaneSizes {
@@ -42,7 +42,7 @@ export const usePaneSizes = () => {
 
     useEffect(() => {
         try {
-            const stored: unknown = JSON.parse(deviceMedium.get(STORAGE_KEY) ?? 'null');
+            const stored: unknown = JSON.parse(deviceStore.get(STORAGE_KEY) ?? 'null');
             if (isSizes(stored)) setSizes(stored);
         } catch {
             // An unreadable preference is not a reason to refuse to draw.
@@ -52,8 +52,8 @@ export const usePaneSizes = () => {
     const setSize = useCallback((pane: keyof PaneSizes, value: number) => {
         setSizes(current => {
             const next = { ...current, [pane]: value };
-            // The medium drops a write a full or blocked storage refuses; the drag still works for this session.
-            deviceMedium.set(STORAGE_KEY, JSON.stringify(next));
+            // The store drops a write a full or blocked storage refuses; the drag still works for this session.
+            deviceStore.set(STORAGE_KEY, JSON.stringify(next));
             return next;
         });
     }, []);

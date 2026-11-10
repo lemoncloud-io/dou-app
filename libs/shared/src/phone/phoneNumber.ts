@@ -246,7 +246,7 @@ export const rememberCountry = (country: PhoneCountry): void => {
 /**
  * Carries a pick stored under the old key over into the setting, once, and drops the old key.
  *
- * Called by each app's entry point right after `config.init()`, with its `localStorage` medium — the
+ * Called by each app's entry point right after `config.init()`, with its `localStorage` store — the
  * same storage config's `local` lane writes to; this lib does not reach web storage itself. The old key
  * goes only once the setting's own stored copy reads back: `config.set` answers `ok` even when its
  * storage write was dropped (a full quota), and then the next boot tries again.

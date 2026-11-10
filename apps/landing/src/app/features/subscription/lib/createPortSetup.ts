@@ -1,7 +1,7 @@
 import { type ComponentType, type ReactNode } from 'react';
 
 import { subscriptionServer, type SubscriptionServer } from '../../../config/subscriptionServer';
-import { tabMedium } from '../../../storage';
+import { tabStore } from '../../../storage';
 import { createCatalogPort } from './catalogPort';
 import { type CardEntryChannel } from './port/cardEntry';
 import { type PaymentWindowHost } from './port/standInWindow';
@@ -83,7 +83,7 @@ export const serverPortOf = (http: HttpPort): SubscriptionPort => {
 
 const read = (key: string): string | null => {
     try {
-        return tabMedium.get(key);
+        return tabStore.get(key);
     } catch {
         return null;
     }
@@ -91,7 +91,7 @@ const read = (key: string): string | null => {
 
 const save = (key: string, value: string): void => {
     try {
-        tabMedium.set(key, value);
+        tabStore.set(key, value);
     } catch {
         // Without storage the choice lasts for this page load only.
     }

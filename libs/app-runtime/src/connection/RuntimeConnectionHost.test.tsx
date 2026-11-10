@@ -1,5 +1,5 @@
 import { render, waitFor } from '@testing-library/react';
-import { MemoryMedium } from '@chatic/storage';
+import { MemoryStore } from '@chatic/storage';
 
 import { RuntimeAuthHost, RuntimeConnectionHost } from './RuntimeConnectionHost';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
@@ -7,7 +7,7 @@ import { bootstrapSocketConnection } from '@chatic/auth/socket/bootstrapSocketCo
 import { useDynamicDeviceId } from '../session/hooks/app/useDynamicDeviceId';
 import { getSocketSlotContext } from '@chatic/session/store';
 import { useBackgroundReceive } from './hooks/useBackgroundReceive';
-import { sessionMedia } from '@chatic/session/store/ports';
+import { sessionStores } from '@chatic/session/store/ports';
 
 // The boot gate now comes from its concrete module (the session barrel stopped selling it), so it
 // gets its own mock — gate returns ready so children render.
@@ -89,8 +89,8 @@ const cloudSlots = {
  * to pass the prop it would silently get a guest session. That regression has no symptom on
  * screen, so the test is the only line of defense.
  */
-// The host derives its slots from the session's real stores (the recent clouds), which need a medium.
-beforeEach(() => sessionMedia.configure({ secret: new MemoryMedium(), plain: new MemoryMedium() }));
+// The host derives its slots from the session's real stores (the recent clouds), which need a store.
+beforeEach(() => sessionStores.configure({ secret: new MemoryStore(), plain: new MemoryStore() }));
 
 describe('두 호스트의 유일한 차이 — 게스트 keep-alive', () => {
     beforeEach(() => {

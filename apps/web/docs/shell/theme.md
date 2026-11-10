@@ -67,8 +67,8 @@ read the native's own legacy `themeStore` (updated by the mobile `usePreferenceC
 2. `appBridge.savePreferenceConfirmed({ key: 'theme', value: theme })` (native only, confirmed
    with one retry) — the storage native's own UI reads.
 
-On top of that, `deviceMedium.set('vite-ui-theme', theme)` makes a third write, into the app's
-`localStorage` medium —
+On top of that, `deviceStore.set('vite-ui-theme', theme)` makes a third write, into the app's
+`localStorage` store —
 `vite-ui-theme` is not private to web; it is shared by five apps (see below). Each of the three
 channels can fail independently without breaking the others: only the second has no self-healing
 path, which is why it alone gets confirmation + retry — if native owns the status bar and this

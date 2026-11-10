@@ -1,10 +1,10 @@
 import { BridgeStorageChannel, isNative, shellKeepsStorageMedium, webClient } from '@chatic/bridges';
-import { NativeSecureMedium, TolerantMedium, WebMedium } from '@chatic/storage';
+import { NativeSecureStore, TolerantStore, WebStore } from '@chatic/storage';
 
 import type { KeyValueStore } from '@chatic/storage';
 
 /**
- * What the choice of media depends on, read once at boot.
+ * What the choice of stores depends on, read once at boot.
  *
  * - `inShell` — the page runs inside an app or desktop shell (`isNative()`).
  * - `shellKeepsVault` — the shell listed `nativeSecure` in what it injected before the page ran. This,
@@ -24,20 +24,20 @@ export interface StorageEnvironment {
 export const LATE_VAULT_MARK = 'chatic-shell-vault-confirmed';
 
 /**
- * Every medium an app keeps state in, by the role it plays — the only names an entry point hands out.
+ * Every store an app keeps state in, by the role it plays — the only names an entry point hands out.
  *
  * - `secret` · `plain` — the session's two ports.
  * - `vault` — the device vault behind `secret`, when there is one; the entry point loads it before the
- *   runtime boots. `null` when `secret` is a web medium.
+ *   runtime boots. `null` when `secret` is a web store.
  * - `device` · `tab` — everything else an app or the runtime keeps: values that outlive the tab, and
  *   values that do not. Tolerant, because none of it may break a screen.
- * - `webLocal` · `webSession` — the raw web media, for the few boot steps that move data between them
+ * - `webLocal` · `webSession` — the raw web stores, for the few boot steps that move data between them
  *   (the vault migration reads both).
  */
-export interface StorageMedia {
+export interface StorageStores {
     secret: KeyValueStore;
     plain: KeyValueStore;
-    vault: NativeSecureMedium | null;
+    vault: NativeSecureStore | null;
     device: KeyValueStore;
     tab: KeyValueStore;
     webLocal: KeyValueStore;
@@ -48,20 +48,20 @@ export interface StorageMedia {
 export const readStorageEnvironment = (): StorageEnvironment => ({
     inShell: isNative(),
     shellKeepsVault: shellKeepsStorageMedium('nativeSecure'),
-    lateVaultConfirmed: WebMedium.session().get(LATE_VAULT_MARK) === '1',
+    lateVaultConfirmed: WebStore.session().get(LATE_VAULT_MARK) === '1',
 });
 
-const createVault = (): NativeSecureMedium =>
-    new NativeSecureMedium({
+const createVault = (): NativeSecureStore =>
+    new NativeSecureStore({
         channel: new BridgeStorageChannel(webClient, 'nativeSecure'),
         // Never localStorage: a run whose vault is unavailable keeps the session in the tab only.
-        fallback: WebMedium.session(),
+        fallback: WebStore.session(),
     });
 
 /**
- * The one place an app's media are chosen and built — the storage counterpart of the cache's
+ * The one place an app's stores are chosen and built — the storage counterpart of the cache's
  * `resolveCacheBackend`. An entry point that uses it calls it once and hands the result out instead of
- * constructing media itself (apps/web and apps/desktop-web do).
+ * constructing stores itself (apps/web and apps/desktop-web do).
  *
  * The rule, by environment:
  *
@@ -76,20 +76,20 @@ const createVault = (): NativeSecureMedium =>
  * or a recent emoji has always outlived the tab, in a browser too. `device` and `tab` are tolerant, for
  * the features' convenience state; a cache that must hear a failed write takes `webSession` instead.
  */
-export const resolveStorageMedia = (
+export const resolveStorageStores = (
     env: StorageEnvironment = readStorageEnvironment(),
-    vaultFactory: () => NativeSecureMedium = createVault
-): StorageMedia => {
-    const webLocal = WebMedium.local();
-    const webSession = WebMedium.session();
+    vaultFactory: () => NativeSecureStore = createVault
+): StorageStores => {
+    const webLocal = WebStore.local();
+    const webSession = WebStore.session();
     const plain = env.inShell ? webLocal : webSession;
     const vault = env.shellKeepsVault || env.lateVaultConfirmed ? vaultFactory() : null;
     return {
         secret: vault ?? plain,
         plain,
         vault,
-        device: new TolerantMedium(webLocal),
-        tab: new TolerantMedium(webSession),
+        device: new TolerantStore(webLocal),
+        tab: new TolerantStore(webSession),
         webLocal,
         webSession,
     };

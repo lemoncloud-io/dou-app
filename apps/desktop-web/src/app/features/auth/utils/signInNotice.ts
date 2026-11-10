@@ -1,4 +1,4 @@
-import { plainMedium } from '../../../storage';
+import { plainStore } from '../../../storage';
 
 /**
  * What the app says once a Google sign-in has landed. A sign-in that replaces a session reloads the
@@ -31,13 +31,13 @@ export const isAccountMadeSince = (account: unknown, startedAt: number): boolean
 };
 
 export const saveSignInNotice = (notice: SignInNoticeRecord): void => {
-    plainMedium.set(SIGN_IN_NOTICE_KEY, JSON.stringify(notice));
+    plainStore.set(SIGN_IN_NOTICE_KEY, JSON.stringify(notice));
 };
 
 /** Read the notice and delete it in the same call, so it is said once. */
 export const takeSignInNotice = (): SignInNoticeRecord | null => {
-    const raw = plainMedium.get(SIGN_IN_NOTICE_KEY);
-    plainMedium.remove(SIGN_IN_NOTICE_KEY);
+    const raw = plainStore.get(SIGN_IN_NOTICE_KEY);
+    plainStore.remove(SIGN_IN_NOTICE_KEY);
     if (!raw) return null;
     try {
         const parsed = JSON.parse(raw) as Partial<SignInNoticeRecord> | null;

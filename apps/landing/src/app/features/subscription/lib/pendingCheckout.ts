@@ -1,4 +1,4 @@
-import { tabMedium } from '../../../storage';
+import { tabStore } from '../../../storage';
 
 import type { Payer, PlanId } from '../types';
 
@@ -35,7 +35,7 @@ export interface PendingCheckout {
 
 export const savePendingCheckout = (pending: PendingCheckout, now: number = Date.now()): void => {
     try {
-        tabMedium.set(KEY, JSON.stringify({ ...pending, savedAt: now } satisfies Saved));
+        tabStore.set(KEY, JSON.stringify({ ...pending, savedAt: now } satisfies Saved));
     } catch {
         // Without storage a phone's checkout cannot come back; a desktop window never needed it.
     }
@@ -44,7 +44,7 @@ export const savePendingCheckout = (pending: PendingCheckout, now: number = Date
 /** The saved checkout for this plan, if there is a fresh one. Reads only — see `clearPendingCheckout`. */
 export const peekPendingCheckout = (planId: string | null, now: number = Date.now()): PendingCheckout | undefined => {
     try {
-        const raw = tabMedium.get(KEY);
+        const raw = tabStore.get(KEY);
         if (!raw) return undefined;
         const saved = JSON.parse(raw) as Partial<Saved>;
         const fresh = typeof saved.savedAt === 'number' && now - saved.savedAt <= MAX_AGE_MS;
@@ -58,7 +58,7 @@ export const peekPendingCheckout = (planId: string | null, now: number = Date.no
 
 export const clearPendingCheckout = (): void => {
     try {
-        tabMedium.remove(KEY);
+        tabStore.remove(KEY);
     } catch {
         // Nothing to clear.
     }
@@ -73,7 +73,7 @@ const CARD_KEY = 'subscription.pendingCardChange';
  */
 export const savePendingCardChange = (payer: Payer, now: number = Date.now()): void => {
     try {
-        tabMedium.set(CARD_KEY, JSON.stringify({ payer, savedAt: now }));
+        tabStore.set(CARD_KEY, JSON.stringify({ payer, savedAt: now }));
     } catch {
         // Without storage a phone's card change cannot come back; a desktop window never needed it.
     }
@@ -82,8 +82,8 @@ export const savePendingCardChange = (payer: Payer, now: number = Date.now()): v
 /** The payer of a card change that left the page, if a fresh one is waiting. Taken away when read. */
 export const takePendingCardChange = (now: number = Date.now()): Payer | undefined => {
     try {
-        const raw = tabMedium.get(CARD_KEY);
-        tabMedium.remove(CARD_KEY);
+        const raw = tabStore.get(CARD_KEY);
+        tabStore.remove(CARD_KEY);
         if (!raw) return undefined;
         const saved = JSON.parse(raw) as { payer?: Payer; savedAt?: unknown };
         const fresh = typeof saved.savedAt === 'number' && now - saved.savedAt <= MAX_AGE_MS;

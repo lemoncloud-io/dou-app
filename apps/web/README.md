@@ -35,7 +35,7 @@ What the app does **not** own:
 | The logging hub, its listeners, its levels            | [`@chatic/logger`](../../libs/logger/README.md)                   |
 | Web design-system components                          | [`@chatic/web-ui-kit`](../../libs/web-ui-kit/README.md)           |
 | Cross-platform primitives, fallbacks                  | [`@chatic/shared`](../../libs/shared/README.md)                   |
-| Storage media                                         | [`@chatic/storage`](../../libs/storage/README.md)                 |
+| Stores                                                | [`@chatic/storage`](../../libs/storage/README.md)                 |
 | Bridge message payload types                          | [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) |
 | HTTP request building and signing                     | [`@chatic/http`](../../libs/http/README.md)                       |
 | Device/platform detection                             | [`@chatic/device-utils`](../../libs/device-utils/README.md)       |
@@ -153,8 +153,8 @@ sequenceDiagram
 
     Main->>Main: setupBridgeLogger · attachConsoleListener · attachLogContext
     Main->>Main: startLogUploader (the only log store)
-    Main->>Main: media = runtime.boot.resolveStorageMedia() · configureAppMedia(device, tab)
-    Main->>Main: syncThemeFromSharedKey · config.init(createWebConfigPorts(media)) · migrateLegacyPhoneCountry
+    Main->>Main: stores = runtime.boot.resolveStorageStores() · configureAppStores(device, tab)
+    Main->>Main: syncThemeFromSharedKey · config.init(createWebConfigPorts(stores)) · migrateLegacyPhoneCountry
     Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
     Main->>RT: runtime.boot.initAppRuntime({ storage, signedOutKeyPrefixes, data: { repositories } })
     Main->>Main: pendingNavigationStore.start()
@@ -204,12 +204,12 @@ Files you cannot guess from the name:
   background runners inside it.
 - `app/runtime/useSiteSwitch.ts` — the place (site) switch. The cloud switch lives under
   `features/home`.
-- `app/config/adapters.ts` — `createWebConfigPorts(media)`, the ports `config.init()` is called with
+- `app/config/adapters.ts` — `createWebConfigPorts(stores)`, the ports `config.init()` is called with
   in `main.tsx`.
-- `app/storage/` — the two media this app's features keep their own state in: `deviceMedium` (outlives
-  the tab — drafts, recent emoji, the sent-invite log, the browser's log queue) and `tabMedium` (dies
+- `app/storage/` — the two stores this app's features keep their own state in: `deviceStore` (outlives
+  the tab — drafts, recent emoji, the sent-invite log, the browser's log queue) and `tabStore` (dies
   with it — the pending invite channel, the crash sentinel, the debug unlock). `main.tsx` points them
-  at what `runtime.boot.resolveStorageMedia()` built; a zustand `persist` store names one through
+  at what `runtime.boot.resolveStorageStores()` built; a zustand `persist` store names one through
   `persistStorageOver`. No feature names `localStorage`/`sessionStorage` itself — the root ESLint
   config refuses it, and refuses a `persist` without a `storage`.
 - `app/bridge/appBridge.ts` — the outbound half of the seam; `GlobalBridgeListener.tsx` the inbound.
@@ -294,10 +294,10 @@ navigate(ROUTES.channels.room(channelId));
 main.tsx
 ├── setupBridgeLogger / attachConsoleListener / attachLogContext   (before anything logs)
 ├── startLogUploader                                               (owns the only log store)
-├── runtime.boot.resolveStorageMedia() → configureAppMedia          (every medium, chosen once)
-├── syncThemeFromSharedKey(media.webLocal)
-├── config.init(createWebConfigPorts(media))                       (before any lazy setting read)
-├── migrateLegacyPhoneCountry(media.webLocal)
+├── runtime.boot.resolveStorageStores() → configureAppStores        (every store, chosen once)
+├── syncThemeFromSharedKey(stores.webLocal)
+├── config.init(createWebConfigPorts(stores))                       (before any lazy setting read)
+├── migrateLegacyPhoneCountry(stores.webLocal)
 ├── vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage — the rest waits
 ├── runtime.boot.initAppRuntime({ storage, signedOutKeyPrefixes, ... })   (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
@@ -348,7 +348,7 @@ cold start is buffered by `pendingNavigationStore`, which `main.tsx` starts _bef
 
 ### 5. Read or change a setting
 
-Settings live in `@chatic/config`, initialised once in `main.tsx` with `createWebConfigPorts(media)` from
+Settings live in `@chatic/config`, initialised once in `main.tsx` with `createWebConfigPorts(stores)` from
 `app/config/adapters.ts`. Read through `config`; never through `import.meta.env` inside a feature.
 The theme is a setting (`ui.theme`) that `app/runtime/ThemeApplier.tsx` mirrors onto `<html>`.
 

@@ -1,25 +1,25 @@
-import { sessionMedia } from '@chatic/session/store/ports';
+import { sessionStores } from '@chatic/session/store/ports';
 
 import { cloudStore, relayStore } from '@chatic/session/store/stores';
 import { pairedClouds } from './pairedClouds';
 import { isInOwnCloudSession, isPairedSession } from './pairedSession';
 
-const store = new Map<string, string>();
+const map = new Map<string, string>();
 // One map behind both session ports — these tests are about the list, not which port holds it.
-const medium = {
-    get: (key: string) => store.get(key) ?? null,
-    set: (key: string, value: string) => void store.set(key, value),
-    remove: (key: string) => void store.delete(key),
-    clear: () => store.clear(),
-    keys: () => [...store.keys()],
+const store = {
+    get: (key: string) => map.get(key) ?? null,
+    set: (key: string, value: string) => void map.set(key, value),
+    remove: (key: string) => void map.delete(key),
+    clear: () => map.clear(),
+    keys: () => [...map.keys()],
 };
-sessionMedia.configure({ secret: medium, plain: medium });
+sessionStores.configure({ secret: store, plain: store });
 
 const tokenWith = (auth: Record<string, unknown>, userRole = 'guest') =>
     jest.spyOn(relayStore, 'getRelayToken').mockReturnValue({ userRole, $auth: auth } as never);
 
 beforeEach(() => {
-    store.clear();
+    map.clear();
     jest.restoreAllMocks();
 });
 

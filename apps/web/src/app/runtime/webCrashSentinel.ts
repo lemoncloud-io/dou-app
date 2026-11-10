@@ -1,4 +1,4 @@
-import { tabMedium } from '../storage';
+import { tabStore } from '../storage';
 
 const ALIVE_SENTINEL_KEY = '@chatic/web.log.alive';
 
@@ -28,12 +28,12 @@ export interface WebCrashSentinelResult {
  * in the signal.
  */
 export const attachWebCrashSentinel = (): WebCrashSentinelResult => {
-    // The tab medium: the sentinel is about this tab's previous load. It is tolerant, so a storage
+    // The tab store: the sentinel is about this tab's previous load. It is tolerant, so a storage
     // that is unavailable reads as "no mark" — memory-only, and never a reported crash.
-    const crashedLastSession = tabMedium.get(ALIVE_SENTINEL_KEY) === '1';
+    const crashedLastSession = tabStore.get(ALIVE_SENTINEL_KEY) === '1';
 
-    const setAlive = (): void => tabMedium.set(ALIVE_SENTINEL_KEY, '1');
-    const clearAlive = (): void => tabMedium.remove(ALIVE_SENTINEL_KEY);
+    const setAlive = (): void => tabStore.set(ALIVE_SENTINEL_KEY, '1');
+    const clearAlive = (): void => tabStore.remove(ALIVE_SENTINEL_KEY);
     const onVisibilityChange = (): void => {
         if (document.visibilityState === 'hidden') clearAlive();
         else setAlive();

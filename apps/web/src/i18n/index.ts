@@ -9,7 +9,7 @@ import { logger } from '@chatic/bridges';
 
 import { asDomStorage } from '@chatic/storage';
 
-import { deviceMedium } from '../app/storage';
+import { deviceStore } from '../app/storage';
 
 import {
     FALLBACK_LANGUAGE,
@@ -26,9 +26,9 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 if (!isDevelopment) {
     const currentPrefix = `i18next_res_${I18N_VERSION}_`;
     const cleanupOldCache = () => {
-        deviceMedium.keys().forEach(key => {
+        deviceStore.keys().forEach(key => {
             if (key.startsWith('i18next_res_') && !key.startsWith(currentPrefix)) {
-                deviceMedium.remove(key);
+                deviceStore.remove(key);
                 logger.info('I18N', `Cleaned up old i18n cache: ${key}`);
             }
         });
@@ -52,7 +52,7 @@ i18n.use(ChainedBackend)
         lng: resolveLanguage(
             readStoredLanguagePreference({
                 bag: readShellConfigBag(),
-                storage: { getItem: key => deviceMedium.get(key) },
+                storage: { getItem: key => deviceStore.get(key) },
             }),
             deviceLanguageCandidates()
         ),
@@ -66,9 +66,9 @@ i18n.use(ChainedBackend)
             backends: [LocalStorageBackend, Backend],
             backendOptions: [
                 {
-                    // The translation cache lives in the device medium, not in a web storage the plugin
+                    // The translation cache lives in the device store, not in a web storage the plugin
                     // picks for itself — the same `localStorage` it defaulted to.
-                    store: asDomStorage(deviceMedium),
+                    store: asDomStorage(deviceStore),
                     prefix: `i18next_res_${I18N_VERSION}_`,
                     expirationTime: isDevelopment
                         ? 5 * 60 * 1000 // dev: 5 min

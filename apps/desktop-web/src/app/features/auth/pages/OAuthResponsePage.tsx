@@ -8,7 +8,7 @@ import { Button } from '@chatic/ui-kit/components/ui/button';
 import { AuthCard } from '../components';
 import { useSocialLogin } from '../hooks';
 import { buildAppDeeplink, buildOAuthDeeplink } from '../utils';
-import { tabMedium } from '../../../storage';
+import { tabStore } from '../../../storage';
 
 /**
  * OAuth Relay hand-off page. The relay redirects here with `?code=&provider=` after the provider
@@ -56,8 +56,8 @@ export const OAuthResponsePage = () => {
         setDeeplink(url);
         // Once per sign-in: a tab reloaded or restored on this page would otherwise send the used link
         // again, and the app would have to tell it apart from a link it never started. The button stays.
-        if (tabMedium.get(HANDOFF_SENT_KEY) === nonce) return;
-        tabMedium.set(HANDOFF_SENT_KEY, nonce);
+        if (tabStore.get(HANDOFF_SENT_KEY) === nonce) return;
+        tabStore.set(HANDOFF_SENT_KEY, nonce);
         window.location.replace(url);
     }, [isComplete, provider, code, nonce, completeFromHandoff, navigate]);
 

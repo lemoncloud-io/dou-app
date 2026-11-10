@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { deviceMedium, persistStorageOver } from '../../storage';
+import { deviceStore, persistStorageOver } from '../../storage';
 
 export interface JoinedCloud {
     id: string;
@@ -55,6 +55,6 @@ export const useJoinedCloudsStore = create<JoinedCloudsState>()(
                     ),
                 })),
         }),
-        { name: 'chatic-joined-clouds', storage: persistStorageOver(deviceMedium) }
+        { name: 'chatic-joined-clouds', storage: persistStorageOver(deviceStore) }
     )
 );
