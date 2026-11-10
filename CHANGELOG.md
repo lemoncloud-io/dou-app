@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (session,transport,sync,auth,data) take logger from @chatic/logger, not the bridge
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
 - (http,transport,auth,app-runtime) sign relay requests in-house, drop lemon (ADR-0298)
 - (desktop-web,theme,storage,app-runtime) reach web storage only via media in desktop-web
 
