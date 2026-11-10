@@ -142,6 +142,8 @@ describe('session/auth/relaySession', () => {
         // below are re-established afterward.
         jest.resetAllMocks();
         localStorage.clear();
+        // The session has no store of its own; a case that reaches it gets fresh memory.
+        sessionStores.configure({ secret: new MemoryStore(), plain: new MemoryStore() });
 
         mockGetSelectedCloudId.mockReturnValue('default');
         mockGetSelectedSiteId.mockReturnValue(null);

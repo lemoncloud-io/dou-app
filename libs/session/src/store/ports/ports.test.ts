@@ -8,6 +8,7 @@ import { MemoryStore } from '@chatic/storage';
 import { cloudStore } from '../cloudStore';
 import { identityStore } from '../identityStore';
 import { isSessionKey, pairedCloudNamesSlot, pairedCloudsSlot, SESSION_KEYS, sessionStores } from '.';
+import { SessionStores } from './sessionStores';
 import { relayStore } from '../relayStore';
 
 const relayToken = { Token: { identityToken: 'relay-id' } } as never;
@@ -35,12 +36,12 @@ const writeEverything = () => {
 describe('session storage ports', () => {
     beforeEach(() => sessionStorage.clear());
 
-    it('uses this tab sessionStorage for both ports until an entry point configures them', () => {
-        relayStore.saveRelayToken(relayToken);
-        identityStore.setDeviceId('device-1');
+    it('refuses to read or write either port until an entry point configures them, and names the fix', () => {
+        // A fresh holder, not the shared one: other cases here configure that one.
+        const unconfigured = new SessionStores();
 
-        expect(JSON.parse(sessionStorage.getItem('chatic-relay-token') ?? 'null')).toEqual(relayToken);
-        expect(sessionStorage.getItem('chatic-device-id')).toBe('device-1');
+        expect(() => unconfigured.of('secret')).toThrow(/'secret'.*initAppRuntime/);
+        expect(() => unconfigured.of('plain')).toThrow(/'plain'.*initAppRuntime/);
     });
 
     it('puts the credentials in the secret port and everything else in the plain port, under the same names', () => {

@@ -29,7 +29,10 @@ export interface ISessionStores {
      * accumulates.
      */
     configure(ports: SessionStoragePorts): void;
-    /** The store behind `port` now — for the use cases that sweep a whole port. */
+    /**
+     * The store behind `port` now — for the use cases that sweep a whole port. Throws until
+     * `configure` has run: the session has no store of its own to fall back on.
+     */
     of(port: PortName): KeyValueStore;
 }
 
