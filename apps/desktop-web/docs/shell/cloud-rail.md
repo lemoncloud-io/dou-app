@@ -36,9 +36,14 @@ contrast.
 
 A suspended or expired cloud is one its subscription no longer keeps open (`isLapsedCloud`). Only a
 subscription reopens it, and desktop sells none: subscriptions and new clouds are in the DoU mobile
-app. So its row says that under the name, and picking it does not try to switch. It shows a toast
-with the same line and the App Store and Google Play links (`MobileAppPointer`) instead. A switch
-into it used to be refused and then offer Try again, which could never work.
+app. So its row says that under the name, and the dashed chip stays for both.
+
+The two differ on a pick. A suspended cloud is on hold, and the server still accepts a switch into
+it (the mobile app enters one), so picking it starts a normal switch; the server decides, and a
+refusal gets the switch failure toast below. An expired cloud is released (`isExpiredCloud`), so
+picking it does not try to switch. It shows a toast with the same line and the App Store and Google
+Play links (`MobileAppPointer`) instead. A switch into it used to be refused and then offer Try
+again, which could never work. Creating a place and renaming stay off for both.
 
 ## Renaming a cloud
 
