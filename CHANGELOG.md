@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (session,app-runtime,landing) the session has no default medium (ADR-0302)
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
 - (runtime-core,runtime-web,app-runtime) add runtime packages held by lint (ADR-0301)
 
 ## [2026-11-10] - No version updates
