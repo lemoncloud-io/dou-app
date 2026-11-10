@@ -2,6 +2,12 @@
 
 ## [2026-11-10] - No version updates
 
+### Refactor
+
+- (storage,admin,landing,block-kit-builder) reach web storage only via media in every app
+
+## [2026-11-10] - No version updates
+
 ### Bug Fixes
 
 - (lint) apply the root config's repo-path blocks under per-project lint
