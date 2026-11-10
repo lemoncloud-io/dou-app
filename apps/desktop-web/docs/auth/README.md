@@ -168,10 +168,19 @@ guest's id (`delegatorId`) and still stands on that guest's invite grants. Two t
   cloud. The rail lists only the signed-in account's. Without it, account B signing in after account
   A saw A's invited clouds (and any cloud a push recovery re-cached under A), and switching into
   one answered 403 because the server never granted B that cloud. A row or entry with no owner was
-  written before attribution existed; it cannot be attributed and is listed for nobody, so such a
-  cloud returns when the cloud is joined again or a push names it (recovery rebuilds the row under
-  the signed-in user). A guest keeps its own: signing back out to the device's guest lists the
-  clouds that guest joined.
+  written before attribution existed and is listed for nobody until it is adopted.
+  `reconcileCloudRecordOwners` (run by `useCloudRecordOwnership` from the signed-in shell, so once
+  per session start or sign-in and never from the rail's render) stamps the signed-in account onto
+  every invited row with no `acceptedBy` and every joined entry with no `ownerUid`. The first
+  account on a device adopts them all, including what several accounts left there before the
+  upgrade; it can drop a stray one with "remove cloud". A record that has an owner is never
+  re-stamped, so a second run, or a second account signing in later, changes nothing.
+  A guest that links to an account in place (Google, Apple or phone sign-in over the live guest
+  session) can come out with a different uid: signing in to an account that already exists answers
+  with that account's uid. The reconcile remembers which uid it last ran for
+  (`chatic-cloud-records-owner`, dropped on every sign-out) and, when the uid changes with no
+  sign-out in between, moves the previous uid's records to the new one. After a sign-out the next
+  account is a different account, and nothing moves.
 
 The join entry reads the role from the relay token (`isRelayGuest`), not from `useRuntimeProfile`:
 inside a cloud the active session is that cloud's user, and its role says nothing about the account.

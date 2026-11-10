@@ -29,6 +29,7 @@ export * from './useDeletePlace';
 export * from './usePlaceUnreadCounts';
 export * from './useCloudCatalog';
 export * from './useClouds';
+export * from './useCloudRecordOwnership';
 export * from './useInvitedCloudRecovery';
 export * from './usePushInvitedCloudRecovery';
 export * from './useRemoveCloud';

@@ -118,7 +118,8 @@ entered and its name is fetched over its own socket.
 
 The row and the joined-clouds entry are recorded under the account that joined (`acceptedBy` /
 `ownerUid`), and `useClouds` reads only the signed-in account's; the names of owned tiles are
-read from the same filtered rows. See `docs/auth/README.md`.
+read from the same filtered rows. Records with no owner are adopted by the first account to sign in,
+outside the render. See `docs/auth/README.md`.
 
 Three places name a cloud, and each one recovers it:
 

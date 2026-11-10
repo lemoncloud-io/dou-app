@@ -7,7 +7,8 @@ export interface JoinedCloud {
     /**
      * The account that joined it (its relay uid). The store is device-wide and survives a sign-out, so
      * the rail lists only the entries of the account signed in. An entry without one predates the field
-     * and belongs to nobody.
+     * and is listed for nobody until `reconcileCloudRecordOwners` gives it to the first account that
+     * signs in.
      */
     ownerUid?: string;
 }
@@ -18,6 +19,11 @@ interface JoinedCloudsState {
     addJoinedCloud: (cloud: JoinedCloud) => void;
     /** Forget an invite-joined cloud (remove it from the rail). */
     removeJoinedCloud: (cloudId: string) => void;
+    /**
+     * Gives every entry with no owner to `accountId`, and, when `moveFrom` is set, moves that
+     * account's entries to `accountId`. Entries that have another owner are left alone.
+     */
+    reconcileOwners: (accountId: string, moveFrom: string | null) => void;
 }
 
 /**
@@ -36,6 +42,17 @@ export const useJoinedCloudsStore = create<JoinedCloudsState>()(
                     const { [cloudId]: _removed, ...rest } = state.joinedClouds;
                     return { joinedClouds: rest };
                 }),
+            reconcileOwners: (accountId, moveFrom) =>
+                set(state => ({
+                    joinedClouds: Object.fromEntries(
+                        Object.entries(state.joinedClouds).map(([id, joined]) => [
+                            id,
+                            !joined.ownerUid || (moveFrom !== null && joined.ownerUid === moveFrom)
+                                ? { ...joined, ownerUid: accountId }
+                                : joined,
+                        ])
+                    ),
+                })),
         }),
         { name: 'chatic-joined-clouds' }
     )

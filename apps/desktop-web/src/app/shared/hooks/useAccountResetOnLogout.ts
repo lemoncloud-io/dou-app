@@ -4,6 +4,8 @@ import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
 import type { ICloudRepository } from '@chatic/data';
 
+import { CLOUD_RECORD_OWNER_KEY } from '../utils/cloudRecordOwnership';
+
 /** Account/cloud-scoped persist keys — matches each store's persist `name` (single source of truth). */
 const ACCOUNT_SCOPED_STORAGE_KEYS = [
     'chatic-my-cloud-uid',
@@ -22,6 +24,9 @@ const ACCOUNT_SCOPED_STORAGE_KEYS = [
     // What the app says after a Google sign-in, left for the reload. Not yet said when the person logs
     // out, it would greet the next account with the previous one's news.
     'chatic-signin-notice',
+    // Who the invited-cloud records were last reconciled for. A sign-out forgets it, so the next account
+    // is told apart from a guest linking to an account in place.
+    CLOUD_RECORD_OWNER_KEY,
 ] as const;
 
 /** The cloud cache minus its invited rows — those carry the endpoints a later switch needs. */
