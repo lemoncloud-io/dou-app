@@ -18,9 +18,9 @@ export {
     pairedCloudsSlot,
     SECRET_LOGOUT_PENDING_KEY,
     SESSION_KEYS,
-    sessionMedia,
+    sessionStores,
 } from './store/ports';
-export type { IRawSlot, ISessionMedia, SessionKey, SessionStoragePorts } from './store/ports';
+export type { IRawSlot, ISessionStores, SessionKey, SessionStoragePorts } from './store/ports';
 export type { StorageLike } from './store/jsonSlot';
 
 // Readers over the stores that lower layers ask: credential lifetime, and the scope's three views.

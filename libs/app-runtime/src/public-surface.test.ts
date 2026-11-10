@@ -30,7 +30,7 @@ const GROUPS: Record<string, readonly string[]> = {
         'isNativeApp',
         'prepareSecretStorage',
         'readStorageEnvironment',
-        'resolveStorageMedia',
+        'resolveStorageStores',
         'setNativeCacheSupport',
         'webTransport',
     ],

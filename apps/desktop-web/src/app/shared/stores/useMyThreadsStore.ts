@@ -9,7 +9,7 @@ import {
     type ThreadReply,
     type ThreadRoot,
 } from '../utils/myThreads';
-import { deviceMedium, persistStorageOver } from '../../storage';
+import { deviceStore, persistStorageOver } from '../../storage';
 
 interface MyThreadsState {
     threads: MyThreads;
@@ -51,6 +51,6 @@ export const useMyThreadsStore = create<MyThreadsState>()(
                     return { threads, backfilled: { ...state.backfilled, [cid]: true } };
                 }),
         }),
-        { name: 'chatic-my-threads', storage: persistStorageOver(deviceMedium) }
+        { name: 'chatic-my-threads', storage: persistStorageOver(deviceStore) }
     )
 );

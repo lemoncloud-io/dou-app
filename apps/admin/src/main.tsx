@@ -6,7 +6,7 @@ import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
 
 import { webConfigPorts } from './app/config/adapters';
-import { tabMedium } from './app/storage';
+import { tabStore } from './app/storage';
 
 import App from './app/app';
 import { authFailureNotice } from './app/session/authFailureNotice';
@@ -17,13 +17,13 @@ config.init(webConfigPorts);
 
 // admin never runs inside a native or desktop shell, so its session lives in this tab's
 // sessionStorage, both ports.
-const sessionMedium = tabMedium;
+const sessionStore = tabStore;
 
 // Boot the runtime before render. The console reads the session (its admin gate asks for the relay
 // profile), and the session store refuses to resolve endpoints until this call wires them —
 // previously it happened as a side effect of importing the session barrel (a follow-up to ADR-0070 step 5).
 // No data policies: the console uses the default repository and cache assembly.
-runtime.boot.initAppRuntime({ storage: { secret: sessionMedium, plain: sessionMedium } });
+runtime.boot.initAppRuntime({ storage: { secret: sessionStore, plain: sessionStore } });
 
 // What this console does when the server CONFIRMS the session is over (the credential was re-minted
 // and the request replayed once, and it was refused again): raise a banner and leave the screen

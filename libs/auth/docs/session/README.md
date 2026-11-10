@@ -65,7 +65,7 @@ this order, and only then leaves the page:
 
 1. **The session.** Both relay and cloud stores, the per-cloud token cache, the cloud identity map, the
    recent-cloud order, the reclaim records and the paired clouds — in both of the session's ports.
-2. **The app keys a sign-out takes**, by prefix, from the plain medium — `localStorage` in a shell,
+2. **The app keys a sign-out takes**, by prefix, from the plain port's store — `localStorage` in a shell,
    `sessionStorage` in a browser. The prefixes are not this package's: the domains that write those
    keys declare them, and the app hands them to `initAppRuntime({ signedOutKeyPrefixes })`, which
    registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
@@ -74,7 +74,7 @@ this order, and only then leaves the page:
 3. **The device vault**, where the shell keeps one: emptied, and the shell's confirmation awaited. The
    next document reads the vault before anything else, and a vault still holding the tokens would sign
    the person straight back in. When the shell does not confirm, `chatic-secret-logout-pending` goes
-   into the plain medium and the next boot empties the vault before reading it.
+   into the plain store and the next boot empties the vault before reading it.
 4. **`location.replace('/?logout=1')`.**
 
 The HTTP transport has nothing of its own to clear: it signs every request from the session's relay
@@ -88,7 +88,7 @@ bundle, which nothing writes any more, and whatever else later moved in under `@
 ### The device vault at boot
 
 An app or desktop shell that keeps a vault lists it in `window.CHATIC_APP_STORAGE_MEDIA`. Its entry
-point then builds a `nativeSecure` medium for the session's secret port and awaits
+point then builds a `nativeSecure` store for the session's secret port and awaits
 `secretStorageMigration.prepare` (app-facing as `runtime.boot.prepareSecretStorage`) before the runtime
 boots. It loads the vault and moves the four tokens out of the origin's `localStorage`, where they
 lived before, deleting the web copy only once the shell confirmed the vault holds them:
@@ -103,7 +103,7 @@ lived before, deleting the web copy only once the shell confirmed the vault hold
 | empty                         | no       | signed out                                                      |
 
 **Unavailable is not empty.** A vault that cannot be read this run — locked before the first unlock,
-a failed write, a shell that does not answer the read in five seconds (counted while the page is visible) — switches the medium to the tab's
+a failed write, a shell that does not answer the read in five seconds (counted while the page is visible) — switches the store to the tab's
 `sessionStorage` for the run, so the person stays signed in until the app closes. It never falls back
 to `localStorage`. The one read failure the shell answers as empty is a vault it cannot decrypt (a
 device key that was invalidated, data from another device): it empties it and the person signs in
@@ -111,7 +111,7 @@ again. Every row is decided from what the vault and web storage hold, so a boot 
 the move again next time.
 
 lemon-web-core's old bundle (`@<project>.*`, its language key kept) goes with the web copy, and
-`initAppRuntime` drops it from the plain medium on every boot (`dropLemonLeftovers`). Requests are
+`initAppRuntime` drops it from the plain store on every boot (`dropLemonLeftovers`). Requests are
 signed from the session's relay token now and nothing writes under that prefix, so a bundle in web
 storage is left from an older build.
 

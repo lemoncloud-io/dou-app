@@ -1,25 +1,26 @@
 import type { StorageLike } from '../jsonSlot';
-import type { ISessionMedia, PortName } from './types';
+import type { ISessionStores, PortName } from './types';
 
 /**
- * A port the stores hold for their lifetime. It forwards every call to whatever medium backs the port
- * now, so the stores can be built at import while the media are chosen later, at boot.
+ * A port the session's stores hold for their lifetime. It forwards every call to whatever
+ * `KeyValueStore` backs the port now, so the session's stores can be built at import while their
+ * storage is chosen later, at boot.
  */
 export class ForwardingPort implements StorageLike {
     constructor(
-        private readonly media: ISessionMedia,
+        private readonly stores: ISessionStores,
         private readonly port: PortName
     ) {}
 
     get(key: string): string | null {
-        return this.media.of(this.port).get(key);
+        return this.stores.of(this.port).get(key);
     }
 
     set(key: string, value: string): void {
-        this.media.of(this.port).set(key, value);
+        this.stores.of(this.port).set(key, value);
     }
 
     remove(key: string): void {
-        this.media.of(this.port).remove(key);
+        this.stores.of(this.port).remove(key);
     }
 }

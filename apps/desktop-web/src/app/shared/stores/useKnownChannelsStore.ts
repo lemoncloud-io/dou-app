@@ -5,7 +5,7 @@ import { isCloudDm, type DomainChannel } from '@chatic/data';
 
 // The file, not the barrel: the utils barrel reaches back into the stores.
 import { dmCounterpartId } from '../utils/dmDisplay';
-import { deviceMedium, persistStorageOver } from '../../storage';
+import { deviceStore, persistStorageOver } from '../../storage';
 
 /** One channel the user has seen, remembered so the switcher can offer it again. */
 export interface KnownChannel {
@@ -114,7 +114,7 @@ export const useKnownChannelsStore = create<KnownChannelsState>()(
         // a 1:1 now filed under its listing places only adds the optional `peerId`.
         {
             name: 'chatic-known-channels',
-            storage: persistStorageOver(deviceMedium),
+            storage: persistStorageOver(deviceStore),
             version: 2,
             migrate: () => ({ byCloud: {} }),
         }

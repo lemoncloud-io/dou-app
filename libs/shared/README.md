@@ -73,7 +73,7 @@ components here compose `Button` and `cn` rather than declaring a primitive of t
 sidebar preferences and their scope key, and small pure
 helpers over the DOM and over dates, query keys and images.
 
-**Out** — storage and its media (`@chatic/storage`), design-system primitives, `Toaster` included (`@chatic/ui-kit`), logging
+**Out** — storage and its stores (`@chatic/storage`), design-system primitives, `Toaster` included (`@chatic/ui-kit`), logging
 (`@chatic/bridges`, `logger`), images and logos (`@chatic/assets`), device and platform facts
 (`@chatic/device-utils`), setting keys, lanes and persistence (`@chatic/config`), domain data
 (`@chatic/data`), the HTTP client and its error classification, `throwIfApiError` included
@@ -290,7 +290,7 @@ const { pinnedIds, toggle, reorder } = usePinnedChannels(scope);
 
 The swappable storage adapter (`storage`, `setStorageAdapter`) used to live here. It moved to
 [`@chatic/storage`](../storage/README.md) and was later retired: every app now hands its features the
-media its entry point chose.
+stores its entry point chose.
 
 The components are mounted by the host, not by this lib:
 

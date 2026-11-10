@@ -1,7 +1,7 @@
-import type { KeyValueStore } from '../media/types';
+import type { KeyValueStore } from '../stores/types';
 
 /**
- * A medium seen as a DOM `Storage`, for code that only takes that shape — the config lib's storage
+ * A store seen as a DOM `Storage`, for code that only takes that shape — the config lib's storage
  * ports, zustand's `persist`, the i18n translation cache and the landing site's sign-in hand-off.
  *
  * `key(index)` and `length` read a fresh key list each time, so they stay consistent with writes made

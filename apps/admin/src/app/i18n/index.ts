@@ -16,7 +16,7 @@
 import i18next from 'i18next';
 import { initReactI18next, useTranslation } from 'react-i18next';
 
-import { deviceMedium } from '../storage';
+import { deviceStore } from '../storage';
 
 import { NAMESPACES, resources, type Namespace } from './locales';
 
@@ -37,9 +37,9 @@ export const LOCALE_OF: Record<Language, string> = { ko: 'ko-KR', en: 'en-US' };
 
 const isLanguage = (value: unknown): value is Language => (LANGUAGES as readonly unknown[]).includes(value);
 
-/** The medium is tolerant: blocked storage (private mode, blocked site data) reads as nothing stored. */
+/** The store is tolerant: blocked storage (private mode, blocked site data) reads as nothing stored. */
 const readStoredLanguage = (): Language => {
-    const stored = deviceMedium.get(LANGUAGE_STORAGE_KEY);
+    const stored = deviceStore.get(LANGUAGE_STORAGE_KEY);
     return isLanguage(stored) ? stored : DEFAULT_LANGUAGE;
 };
 
@@ -64,7 +64,7 @@ if (typeof document !== 'undefined') document.documentElement.lang = i18n.langua
 export const setLanguage = (language: Language): void => {
     void i18n.changeLanguage(language);
     // A write the storage refuses is dropped: not remembered, but still switched for this visit.
-    deviceMedium.set(LANGUAGE_STORAGE_KEY, language);
+    deviceStore.set(LANGUAGE_STORAGE_KEY, language);
     if (typeof document !== 'undefined') document.documentElement.lang = language;
 };
 

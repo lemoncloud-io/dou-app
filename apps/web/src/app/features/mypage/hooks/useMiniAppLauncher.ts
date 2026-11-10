@@ -18,14 +18,14 @@ import { miniAppHubUrl } from '../../../bridge/subWebViewApps';
 import { useOnSubWebViewClosed } from '../../../bridge/useHandleAppMessage';
 import { useActiveCloudPlaces, useInvitedClouds, useMyProfile } from '../../../hooks';
 import { useCloudSessionCatalog } from '../../../hooks/useCloudCatalog';
-import { deviceMedium } from '../../../storage';
+import { deviceStore } from '../../../storage';
 import { isDevBuild } from '../../../utils/buildEnv';
 import { cloudDisplayName } from '../../../utils/cloudDisplayName';
 
 /**
- * Where a cloud's mini apps and the per-site consent are kept: the device medium, under the keys the
+ * Where a cloud's mini apps and the per-site consent are kept: the device store, under the keys the
  * desktop web uses too. Device-only on purpose — the links have no server field yet, so only the
- * owner who saved them sees them, on this phone. The medium tolerates a full or blocked storage (a read
+ * owner who saved them sees them, on this phone. The store tolerates a full or blocked storage (a read
  * answers `null`, a write is dropped), so a write is read back to know whether it held.
  */
 const linksKey = (cloudId: string) => `dou.miniAppLinks.${cloudId}`;
@@ -34,15 +34,15 @@ const consentKey = (accountId: string, host: string) => `dou.miniAppConsent.${ac
 
 /** The mini apps saved for `cloudId`, in the owner's order — without any the shell would no longer open. */
 const readLinks = (cloudId: string | null): MiniAppLink[] =>
-    cloudId ? parseMiniAppLinks(deviceMedium.get(linksKey(cloudId))) : [];
+    cloudId ? parseMiniAppLinks(deviceStore.get(linksKey(cloudId))) : [];
 
-/** Save the whole list for `cloudId`; an empty list removes the key. `false` when the medium did not keep it. */
+/** Save the whole list for `cloudId`; an empty list removes the key. `false` when the store did not keep it. */
 const writeLinks = (cloudId: string, links: readonly MiniAppLink[]): boolean => {
     const key = linksKey(cloudId);
     const value = links.length === 0 ? null : JSON.stringify(links);
-    if (value === null) deviceMedium.remove(key);
-    else deviceMedium.set(key, value);
-    return deviceMedium.get(key) === value;
+    if (value === null) deviceStore.remove(key);
+    else deviceStore.set(key, value);
+    return deviceStore.get(key) === value;
 };
 
 /**
@@ -53,11 +53,11 @@ const newLinkId = (): string =>
     Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
 
 const hasConsent = (accountId: string | null | undefined, host: string): boolean =>
-    !!accountId && deviceMedium.get(consentKey(accountId, host)) === '1';
+    !!accountId && deviceStore.get(consentKey(accountId, host)) === '1';
 
-// A medium that drops it is not an error: the page still opens this time, and the question comes back.
+// A store that drops it is not an error: the page still opens this time, and the question comes back.
 const writeConsent = (accountId: string | null | undefined, host: string): void => {
-    if (accountId) deviceMedium.set(consentKey(accountId, host), '1');
+    if (accountId) deviceStore.set(consentKey(accountId, host), '1');
 };
 
 /**
@@ -274,7 +274,7 @@ export const useMiniAppLauncher = ({ onOpened }: { onOpened?: (outcome: MiniAppO
         [cloudId, isOwner, editing, links, store]
     );
 
-    /** Remove the mini app being edited. `false` when the medium did not keep the change. */
+    /** Remove the mini app being edited. `false` when the store did not keep the change. */
     const removeLink = useCallback((): boolean => {
         if (!isOwner || editing === null || editing === 'new') return false;
         return store(links.filter(link => link.id !== editing.id));

@@ -11,7 +11,7 @@ export interface NativeReadResult {
 }
 
 /**
- * How the medium reaches the shell. The app's entry point builds one over the bridge; this package
+ * How the store reaches the shell. The app's entry point builds one over the bridge; this package
  * imports no bridge, so a test hands it a fake.
  */
 export interface NativeStorageChannel {
@@ -22,12 +22,12 @@ export interface NativeStorageChannel {
     clear(): Promise<boolean>;
 }
 
-/** A medium the shell keeps. Loaded once per page, then read from memory. */
-export interface NativeMedium extends KeyValueStore {
+/** A store the shell keeps. Loaded once per page, then read from memory. */
+export interface NativeStore extends KeyValueStore {
     /** `unavailable` once a read or a write failed this run; reads and writes then go to the fallback. */
     readonly status: 'available' | 'unavailable';
     /**
-     * Loads the vault into memory. Once per page, before anything reads the medium. Never rejects:
+     * Loads the vault into memory. Once per page, before anything reads the store. Never rejects:
      * a failure or a timeout answers `unavailable`, which is not the same as empty.
      */
     hydrate(): Promise<NativeReadResult>;
@@ -35,12 +35,12 @@ export interface NativeMedium extends KeyValueStore {
     flush(): Promise<void>;
 }
 
-export interface NativeSecureMediumOptions {
+export interface NativeSecureStoreOptions {
     channel: NativeStorageChannel;
     /** Where values go once the vault is unavailable this run — `webSession`, never `localStorage`. */
     fallback: KeyValueStore;
     /**
-     * A limit of the medium's own on any one answer. Left out, the channel's timeout is the only one —
+     * A limit of the store's own on any one answer. Left out, the channel's timeout is the only one —
      * the bridge's holds while the page is hidden, which a plain timer here would not.
      */
     timeoutMs?: number;

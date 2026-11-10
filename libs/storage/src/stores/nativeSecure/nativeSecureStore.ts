@@ -1,8 +1,8 @@
-import { MemoryMedium } from '../memoryMedium';
+import { MemoryStore } from '../memoryStore';
 import { withTimeout } from './withTimeout.util';
 
 import type { KeyValueStore } from '../types';
-import type { NativeMedium, NativeReadResult, NativeSecureMediumOptions, NativeStorageChannel } from './types';
+import type { NativeStore, NativeReadResult, NativeSecureStoreOptions, NativeStorageChannel } from './types';
 
 const UNANSWERED: NativeReadResult = { status: 'unavailable', reason: 'error', values: {} };
 
@@ -14,19 +14,19 @@ const UNANSWERED: NativeReadResult = { status: 'unavailable', reason: 'error', v
  * memory, and writes go to memory at once and to the vault after. The writes of one turn of the event
  * loop travel as one `StorageSave`, carrying the last value of each key.
  *
- * **Unavailable is not empty.** When the vault cannot be read, or a write is refused, the medium
+ * **Unavailable is not empty.** When the vault cannot be read, or a write is refused, the store
  * switches to its fallback — the tab's `sessionStorage` — for the rest of the run, carrying what it
  * held, so the person stays signed in until the app is closed. It never falls back to `localStorage`:
  * that is the copy the vault exists to replace.
  */
-export class NativeSecureMedium implements NativeMedium {
+export class NativeSecureStore implements NativeStore {
     private readonly channel: NativeStorageChannel;
     private readonly fallback: KeyValueStore;
     private readonly timeoutMs: number | undefined;
 
-    private readonly values = new MemoryMedium();
+    private readonly values = new MemoryStore();
     private unavailable = false;
-    /** The keys this medium put in the fallback: the fallback is a whole web storage, shared. */
+    /** The keys this store put in the fallback: the fallback is a whole web storage, shared. */
     private readonly fallbackKeys = new Set<string>();
 
     /** Writes not sent yet: a key's last value, or `null` for a removal. */
@@ -36,7 +36,7 @@ export class NativeSecureMedium implements NativeMedium {
     /** Every send waits for the one before it, so the vault sees writes in the order they were made. */
     private chain: Promise<void> = Promise.resolve();
 
-    constructor({ channel, fallback, timeoutMs }: NativeSecureMediumOptions) {
+    constructor({ channel, fallback, timeoutMs }: NativeSecureStoreOptions) {
         this.channel = channel;
         this.fallback = fallback;
         this.timeoutMs = timeoutMs;
@@ -80,7 +80,7 @@ export class NativeSecureMedium implements NativeMedium {
         this.queue(key, null);
     }
 
-    /** Empties this medium — in the fallback, only the keys it put there. */
+    /** Empties this store — in the fallback, only the keys it put there. */
     clear(): void {
         if (this.unavailable) {
             this.fallbackKeys.forEach(key => this.fallback.remove(key));
@@ -100,7 +100,7 @@ export class NativeSecureMedium implements NativeMedium {
 
     async flush(): Promise<void> {
         if (!this.unavailable) await this.send();
-        // A send already in flight when this was called may be the one that failed, so the medium's
+        // A send already in flight when this was called may be the one that failed, so the store's
         // state after the wait is the answer, not this call's own send.
         if (this.unavailable) throw new Error('the vault is unavailable this run');
     }
@@ -115,7 +115,7 @@ export class NativeSecureMedium implements NativeMedium {
         this.scheduled = true;
         queueMicrotask(() => {
             this.scheduled = false;
-            // A failure here already switched the medium to its fallback; `flush` is how a caller
+            // A failure here already switched the store to its fallback; `flush` is how a caller
             // that has to know hears about it.
             this.send().catch(() => undefined);
         });

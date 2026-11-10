@@ -204,8 +204,8 @@ const runtimeLayerConstraints = [
  */
 const RUNTIME_WIRING = {
     calls: [
-        { object: 'sessionMedia', name: 'configure' },
-        { object: 'runtimeMedia', name: 'configure' },
+        { object: 'sessionStores', name: 'configure' },
+        { object: 'runtimeStores', name: 'configure' },
         { object: 'signedOutAppKeys', name: 'register' },
         { name: 'configureSessionStore' },
         { object: 'credentialRecovery', name: 'register' },
@@ -217,13 +217,13 @@ const RUNTIME_WIRING = {
 };
 
 const STORAGE_MESSAGE =
-    "Reach web storage through a medium from @chatic/storage — take the one your app's `app/storage` hands out (`deviceMedium`, `tabMedium`, …); see libs/storage/README.md.";
+    "Reach web storage through a store from @chatic/storage — take the one your app's `app/storage` hands out (`deviceStore`, `tabStore`, …); see libs/storage/README.md.";
 
-// Web storage is reached only through `@chatic/storage`'s media: a domain declares the medium it
-// needs and the entry point (`resolveStorageMedia`) chooses it, so no other code may name
+// Web storage is reached only through `@chatic/storage`'s stores: a domain declares the store it
+// needs and the entry point (`resolveStorageStores`) chooses it, so no other code may name
 // `localStorage`/`sessionStorage` itself — and zustand's `persist`, which falls back to
 // `localStorage` when given no storage, must name one. It covers every app and every lib; an app that
-// only runs in a browser builds its media once in its own `app/storage`. Tests seed web storage
+// only runs in a browser builds its stores once in its own `app/storage`. Tests seed web storage
 // directly and are left out, and so are the e2e suites and the shell adapter, which stand outside the
 // app and play the browser or the native shell around it.
 const WEB_STORAGE_BAN_SCOPE = {
@@ -258,7 +258,7 @@ const PERSIST_WITHOUT_STORAGE = {
     selector:
         "CallExpression[callee.name='persist'][arguments.length>=2] > ObjectExpression:last-child:not(:has(Property[key.name='storage']))",
     message:
-        "Give zustand's `persist` a `storage` — left out, it writes `localStorage` directly. Use `persistStorageOver(deviceMedium)` from your app's `app/storage`.",
+        "Give zustand's `persist` a `storage` — left out, it writes `localStorage` directly. Use `persistStorageOver(deviceStore)` from your app's `app/storage`.",
 };
 
 // Native `title` tooltips wait on the browser (a second or more, restarting on every mouse move) and

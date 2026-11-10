@@ -1,5 +1,5 @@
-import { sessionMedia } from '@chatic/session';
-import { MemoryMedium } from '@chatic/storage';
+import { sessionStores } from '@chatic/session';
+import { MemoryStore } from '@chatic/storage';
 
 import { PushRegistrationRecord, type RegistrationIdentity } from './registrationRecord';
 
@@ -226,10 +226,10 @@ describe('PushRegistrationRecord — 설치당 1회 등록 기록', () => {
 });
 
 describe('PushRegistrationRecord — where its web copy lives by default', () => {
-    it("writes to the session's plain medium, even one configured after the record was made", () => {
+    it("writes to the session's plain store, even one configured after the record was made", () => {
         const record = new PushRegistrationRecord();
-        const plain = new MemoryMedium();
-        sessionMedia.configure({ secret: new MemoryMedium(), plain });
+        const plain = new MemoryStore();
+        sessionStores.configure({ secret: new MemoryStore(), plain });
 
         record.write(identity, 'tok-1');
 

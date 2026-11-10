@@ -3,7 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import i18n from 'i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-import { deviceMedium } from '../app/storage';
+import { deviceStore } from '../app/storage';
 
 import en from './locales/en.json';
 import ko from './locales/ko.json';
@@ -18,15 +18,15 @@ const syncDocumentLanguage = (language: string) => {
 
 i18n.on('languageChanged', syncDocumentLanguage);
 
-// The language a reader resolved to — or picked in the header — is remembered in the device medium
+// The language a reader resolved to — or picked in the header — is remembered in the device store
 // rather than by the detector's own `localStorage` lookup, so the site names no web storage itself.
 // Same key as before, so a returning reader keeps their language.
 const LANGUAGE_KEY = '@landing.language';
 const languageDetector = new LanguageDetector();
 languageDetector.addDetector({
-    name: 'deviceMedium',
-    lookup: () => deviceMedium.get(LANGUAGE_KEY) ?? undefined,
-    cacheUserLanguage: (language: string) => deviceMedium.set(LANGUAGE_KEY, language),
+    name: 'deviceStore',
+    lookup: () => deviceStore.get(LANGUAGE_KEY) ?? undefined,
+    cacheUserLanguage: (language: string) => deviceStore.set(LANGUAGE_KEY, language),
 });
 
 i18n.use(languageDetector)
@@ -47,8 +47,8 @@ i18n.use(languageDetector)
             // with it in the list, index.html's static `lang` decided the reader's language:
             // `lang="ko"` served Korean to every browser that reports only a regional code, en-US
             // and ja-JP included. Detection now rests on what the browser actually asked for.
-            order: ['deviceMedium', 'navigator'],
-            caches: ['deviceMedium'],
+            order: ['deviceStore', 'navigator'],
+            caches: ['deviceStore'],
         },
     });
 

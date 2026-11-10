@@ -203,7 +203,7 @@ libs/app-runtime/src/
 ├── push/             3 files — device-token registration and its record
 ├── report/           5 files — user issue report + log-batch upload
 ├── config/           1 file — records the effective settings in the logs
-├── storage/          2 files — resolveStorageMedia (an app's media, chosen once) and the runtime's device/tab media
+├── storage/          2 files — resolveStorageStores (an app's stores, chosen once) and the runtime's device/tab stores
 └── utils/            1 file — isNativeApp
 ```
 
@@ -261,13 +261,13 @@ Four rules hold.
 
 ```text
 apps/*/src/main.tsx
-  ├─ resolveStorageMedia()                every medium the app keeps state in, chosen once (apps/web, apps/desktop-web; admin still builds its own)
+  ├─ resolveStorageStores()               every store the app keeps state in, chosen once (apps/web, apps/desktop-web; admin still builds its own)
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
   ├─ initAppRuntime({ storage?, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
-  │    ├─ sessionMedia.configure()        the media behind the session's secret and plain ports, if passed
-  │    │  runtimeMedia.configure()        … and the runtime's own device/tab media (cursor watermark, a tab's invited clouds)
+  │    ├─ sessionStores.configure()       the stores behind the session's secret and plain ports, if passed
+  │    │  runtimeStores.configure()       … and the runtime's own device/tab stores (cursor watermark, a tab's invited clouds)
   │    ├─ dropLemonLeftovers()            the lemon bundle older builds left in web storage
   │    ├─ signedOutAppKeys.register()     the key prefixes the app's domains say a sign-out takes
   │    ├─ logoutStorageSweeper.sweep()    honors ?logout=1, drops the signed-out account's keys
@@ -304,21 +304,21 @@ graph down is the same kind of wiring — the graph sits above the layers that r
 A wiring with no owner belongs to the composition root.
 
 **Every wiring call is in `init.ts`, and lint holds it there.** Each of the calls above that hands a
-package something — `sessionMedia.configure`, `runtimeMedia.configure`, `signedOutAppKeys.register`,
+package something — `sessionStores.configure`, `runtimeStores.configure`, `signedOutAppKeys.register`,
 `configureSessionStore`, `credentialRecovery.register`, `configureDataRuntime`,
 `authRepositorySource.provide`, `syncDataGraph.provide` — replaces what the last call set. A second call
 site is therefore not a harmless repeat: whichever runs later silently undoes the boot, and nothing
 in `init.ts` would show it. `@nx/workspace-runtime-wiring-call` reports any of them outside `init.ts`;
 tests are exempt, since they wire packages on purpose. For the same reason the `boot` group has no
-setter that swaps the session's media after boot — it would be a wiring call any file could make
+setter that swaps the session's stores after boot — it would be a wiring call any file could make
 through `runtime.boot`. What an app sets up for itself before the runtime (`configurePerfTraces`, the
 storage adapter, the log context) and the reaction it registers through
 `runtime.session.authFailureReaction` are the app's own choices and not in the catalogue.
 
-**Choosing the media.** `resolveStorageMedia()` (the `boot` group) is the one place an app's storage
-media are chosen and built — the storage counterpart of the cache's `resolveCacheBackend`. It reads
+**Choosing the stores.** `resolveStorageStores()` (the `boot` group) is the one place an app's storage
+stores are chosen and built — the storage counterpart of the cache's `resolveCacheBackend`. It reads
 three facts once (in a shell, whether the shell listed `nativeSecure`, and the tab's late-vault mark)
-and returns the session's `secret`/`plain`, the vault when there is one, and the `device`/`tab` media
+and returns the session's `secret`/`plain`, the vault when there is one, and the `device`/`tab` stores
 everything else writes through. `plain` follows the session (localStorage in a shell, sessionStorage
 in a browser); `device` is localStorage everywhere, because a draft or a recent emoji has always
 outlived the tab. The entry point hands the result out and constructs nothing itself.

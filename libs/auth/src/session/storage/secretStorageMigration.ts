@@ -54,7 +54,7 @@ class SecretStorageMigration implements ISecretStorageMigration {
         if (read.status === 'unavailable') {
             logger.warn('SESSION', '[secretStorage] the vault is unavailable this run', { reason: read.reason });
             if (webCopy.length === 0) return 'unavailable';
-            // Into the tab's storage (the medium has switched to it), so this run is signed in. The web
+            // Into the tab's storage (the store has switched to it), so this run is signed in. The web
             // copy stays for the next run that reaches the vault.
             webCopy.forEach(([key, value]) => vault.set(key, value));
             return 'unavailable-with-web-copy';
@@ -76,7 +76,7 @@ class SecretStorageMigration implements ISecretStorageMigration {
         try {
             await vault.flush();
         } catch {
-            // The medium moved what it held into the tab for this run; the web copy stays for the next.
+            // The store moved what it held into the tab for this run; the web copy stays for the next.
             logger.warn('SESSION', '[secretStorage] the vault did not confirm the move; the web copy stays');
             return 'migration-refused';
         }

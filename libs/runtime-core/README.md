@@ -72,7 +72,7 @@ adapter from any file rather than its entry point. Each goes when the code it de
 
 ## The wiring calls
 
-The eight calls that wire the core packages together — `sessionMedia.configure`,
+The eight calls that wire the core packages together — `sessionStores.configure`,
 `syncDataGraph.provide` and the rest — are made in one file, the assembly point, and a workspace lint
 rule reports them anywhere else. The catalogue and the allowed file are in the root config; the rule
 is [`tools/eslint-rules`](../../tools/eslint-rules/README.md)'s `runtime-wiring-call`. The assembly

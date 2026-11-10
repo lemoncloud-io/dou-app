@@ -1,7 +1,7 @@
 import { createWebEnvAdapter, type ConfigRuntimePorts } from '@chatic/config';
 import { asDomStorage } from '@chatic/storage';
 
-import { localMedium, tabMedium } from '../storage';
+import { localStore, tabStore } from '../storage';
 
 /**
  * Wires `@chatic/config` to this app's own `import.meta.env` and injected `window.CHATIC_APP_*`
@@ -18,5 +18,5 @@ const read = (name: string): string | undefined => {
 
 export const webConfigPorts: ConfigRuntimePorts = {
     env: createWebEnvAdapter(read),
-    storage: { local: asDomStorage(localMedium), session: asDomStorage(tabMedium) },
+    storage: { local: asDomStorage(localStore), session: asDomStorage(tabStore) },
 };

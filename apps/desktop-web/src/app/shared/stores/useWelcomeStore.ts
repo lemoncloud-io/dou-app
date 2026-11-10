@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { deviceMedium, persistStorageOver } from '../../storage';
+import { deviceStore, persistStorageOver } from '../../storage';
 
 /** The welcome page's state is one person's in one place: Later in a place says nothing about the next. */
 export const welcomeKey = (userId: string, placeId: string): string => `${userId}:${placeId}`;
@@ -25,6 +25,6 @@ export const useWelcomeStore = create<WelcomeState>()(
             markInvited: key =>
                 set(state => (state.invited[key] ? state : { invited: { ...state.invited, [key]: true } })),
         }),
-        { name: 'chatic-welcome', storage: persistStorageOver(deviceMedium) }
+        { name: 'chatic-welcome', storage: persistStorageOver(deviceStore) }
     )
 );

@@ -194,7 +194,7 @@ reissue dialog holds the same value.
 - **The country pick is per device.** There is no server slot for it; the `ui.phoneCountry` setting,
   kept in this origin's localStorage by `@chatic/config`, is the whole of it.
 - **The invite log key is E.164** (`dou.relayInvite.sentLog.v2`), and the first read removes the
-  legacy `.v1` key so dead data does not linger. The hook writes the app's `deviceMedium` — it does not
+  legacy `.v1` key so dead data does not linger. The hook writes the app's `deviceStore` — it does not
   use zustand `persist`, so there is no `migrate` hook; changing the key **is** the migration, and the
   entries are a local convenience cache, not a record.
 - **A log entry carries no country field**, because the key already holds one. `InviteWaitingPage`

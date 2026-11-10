@@ -10,7 +10,7 @@ import type { KeyValueStore } from '@chatic/storage';
  * here before the boot's own `?logout=1` sweep. This module only runs the sweep: it knows no app's
  * key names, so a new domain's keys are that domain's to declare.
  *
- * They are cleared from the session's plain medium — `localStorage` inside a shell, `sessionStorage` in
+ * They are cleared from the session's plain store — `localStorage` inside a shell, `sessionStorage` in
  * a browser — which is the storage a sign-out has always taken them from. A browser's `localStorage`
  * upload queue is not in it, and stays.
  */

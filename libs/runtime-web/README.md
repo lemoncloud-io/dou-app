@@ -2,7 +2,7 @@
 
 **The web adapter: what fills the runtime's ports in a web page.** The browser and the desktop shell
 run the session, the sockets, sync and the data layer in the page. This package will hold the pieces
-that are true of a page and of nothing else — the page's storage media, its `navigator.onLine`, a
+that are true of a page and of nothing else — the page's stores, its `navigator.onLine`, a
 socket opened by the page — and hand them to the runtime as a
 [`RuntimePorts`](../runtime-core/README.md).
 

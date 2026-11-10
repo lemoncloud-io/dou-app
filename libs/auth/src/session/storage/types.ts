@@ -1,9 +1,9 @@
-import type { KeyValueStore, NativeMedium } from '@chatic/storage';
+import type { KeyValueStore, NativeStore } from '@chatic/storage';
 
 export interface SecretStorageBoot {
     /** The device vault, not hydrated yet. */
-    vault: NativeMedium;
-    /** The session's plain medium — where the logout marker lives. */
+    vault: NativeStore;
+    /** The session's plain store — where the logout marker lives. */
     plain: KeyValueStore;
     /** Where the secrets used to live: this origin's `localStorage`. */
     web: KeyValueStore;
@@ -34,7 +34,7 @@ export interface ILogoutStorageSweeper {
 export interface ISecretStorageMigration {
     /**
      * Loads the vault and moves secrets still in web storage into it. Runs once per page, after the
-     * entry point built the media and before anything reads the session. Never rejects.
+     * entry point built the stores and before anything reads the session. Never rejects.
      */
     prepare(boot: SecretStorageBoot): Promise<SecretStorageOutcome>;
 }

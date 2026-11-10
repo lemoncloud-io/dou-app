@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { deviceMedium, persistStorageOver } from '../../storage';
+import { deviceStore, persistStorageOver } from '../../storage';
 
 /** How many recently opened channels the quick switcher can offer. */
 const RECENT_LIMIT = 12;
@@ -52,6 +52,6 @@ export const useLastChannelStore = create<LastChannelState>()(
                         : { placeByCloud: { ...state.placeByCloud, [cloudId]: placeId } }
                 ),
         }),
-        { name: 'chatic-last-channel', storage: persistStorageOver(deviceMedium) }
+        { name: 'chatic-last-channel', storage: persistStorageOver(deviceStore) }
     )
 );

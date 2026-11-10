@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { deviceMedium, persistStorageOver } from '../../../storage';
+import { deviceStore, persistStorageOver } from '../../../storage';
 
 export interface InputLockState {
     /** The rooms whose composer this device has locked, by channel id. A room's threads share its id. */
@@ -33,7 +33,7 @@ export const useInputLockStore = create<InputLockState>()(
         }),
         {
             name: 'chatic.composer.inputLocks',
-            storage: persistStorageOver(deviceMedium),
+            storage: persistStorageOver(deviceStore),
             partialize: state => ({ locked: state.locked }),
         }
     )

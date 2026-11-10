@@ -2,7 +2,7 @@ import { DEFAULT_TELEMETRY_POLICY, parseTelemetryPolicy } from '@chatic/bridges'
 
 import type { TelemetryPolicy, TelemetryPolicyMatch, TelemetryPolicyRule } from '@chatic/bridges';
 
-import { deviceMedium } from '../../storage';
+import { deviceStore } from '../../storage';
 
 import { APP_VERSION_FLOOR } from '../../features/appUpdate/lib/appVersionFloor';
 
@@ -100,7 +100,7 @@ interface StoredPolicy {
 
 const readJson = (key: string): unknown => {
     try {
-        const text = deviceMedium.get(key);
+        const text = deviceStore.get(key);
         return text ? JSON.parse(text) : undefined;
     } catch {
         return undefined;
@@ -155,8 +155,8 @@ export const refreshPolicy = async (
     const policy = parseTelemetryPolicy(raw);
     if (!policy) return undefined;
 
-    // Storage full or blocked: the device medium drops the write, and the next run starts from the
+    // Storage full or blocked: the device store drops the write, and the next run starts from the
     // default, which is safe.
-    deviceMedium.set(STORAGE_KEY, JSON.stringify({ raw, savedAt: now() } satisfies StoredPolicy));
+    deviceStore.set(STORAGE_KEY, JSON.stringify({ raw, savedAt: now() } satisfies StoredPolicy));
     return policy;
 };

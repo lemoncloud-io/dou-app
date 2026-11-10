@@ -4,7 +4,7 @@ import type { StorageLike } from '../jsonSlot';
 
 /**
  * The two kinds of storage the session needs, declared by the session and filled by each app's entry
- * point with whatever medium that environment has.
+ * point with whatever store that environment has.
  *
  * - `secret` holds the credentials: the relay token, the cloud delegation and cloud tokens, and the
  *   per-cloud token cache. Whoever holds these signs as the user.
@@ -21,15 +21,15 @@ export interface SessionStoragePorts {
 
 export type PortName = keyof SessionStoragePorts;
 
-/** Which medium backs each session port, as the entry point configured it. */
-export interface ISessionMedia {
+/** Which store backs each session port, as the entry point configured it. */
+export interface ISessionStores {
     /**
-     * Points the session at its media. Called by `initAppRuntime` with what the entry point passed,
+     * Points the session at its stores. Called by `initAppRuntime` with what the entry point passed,
      * before anything reads the session. Assignment, so a second call (HMR) replaces rather than
      * accumulates.
      */
     configure(ports: SessionStoragePorts): void;
-    /** The medium behind `port` now — for the use cases that sweep a whole port. */
+    /** The store behind `port` now — for the use cases that sweep a whole port. */
     of(port: PortName): KeyValueStore;
 }
 

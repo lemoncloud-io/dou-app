@@ -12,7 +12,7 @@ const options = [
     {
         calls: [
             { name: 'configureSessionStore' },
-            { object: 'sessionMedia', name: 'configure' },
+            { object: 'sessionStores', name: 'configure' },
             { object: 'syncDataGraph', name: 'provide' },
         ],
         allowedFiles: ['libs/app-runtime/src/init.ts'],
@@ -36,8 +36,8 @@ new RuleTester({
             filename: ASSEMBLY,
             options,
             code: `
-                import { configureSessionStore, sessionMedia } from '@chatic/session';
-                sessionMedia.configure(ports);
+                import { configureSessionStore, sessionStores } from '@chatic/session';
+                sessionStores.configure(ports);
                 configureSessionStore();
                 syncDataGraph.provide(getDataManager);
             `,
@@ -46,7 +46,7 @@ new RuleTester({
             name: 'a method of the same name on another object is not a wiring call',
             filename: ELSEWHERE,
             options,
-            code: `config.configure(x); runtimeMedia.provide(y); sessionMedia.of('plain');`,
+            code: `config.configure(x); runtimeStores.provide(y); sessionStores.of('plain');`,
         },
         {
             name: 'reading a wiring function without calling it is not a call',
@@ -58,7 +58,7 @@ new RuleTester({
             name: 'a computed member is out of reach',
             filename: ELSEWHERE,
             options,
-            code: `sessionMedia['configure'](ports);`,
+            code: `sessionStores['configure'](ports);`,
         },
     ],
     invalid: [
@@ -87,15 +87,15 @@ new RuleTester({
             name: 'a method call outside the assembly point',
             filename: ELSEWHERE,
             options,
-            code: `sessionMedia.configure(ports);`,
-            errors: [outside('sessionMedia.configure')],
+            code: `sessionStores.configure(ports);`,
+            errors: [outside('sessionStores.configure')],
         },
         {
             name: 'a method reached through a longer path',
             filename: ELSEWHERE,
             options,
-            code: `runtime.session.sessionMedia.configure(ports);`,
-            errors: [outside('sessionMedia.configure')],
+            code: `runtime.session.sessionStores.configure(ports);`,
+            errors: [outside('sessionStores.configure')],
         },
         {
             name: 'a file with the assembly point name in another package',

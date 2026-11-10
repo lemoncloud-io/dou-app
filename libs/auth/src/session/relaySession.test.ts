@@ -1,7 +1,7 @@
 import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import { MemoryMedium, NativeSecureMedium } from '@chatic/storage';
-import { sessionMedia } from '@chatic/session/store/ports';
+import { MemoryStore, NativeSecureStore } from '@chatic/storage';
+import { sessionStores } from '@chatic/session/store/ports';
 
 import { createCredentialsByProvider, relaySession } from './relaySession';
 import { signedOutAppKeys } from './storage/signedOutAppKeys.util';
@@ -357,8 +357,8 @@ describe('session/auth/relaySession', () => {
     describe('the device vault at logout', () => {
         const vaultWith = (clearOk: boolean) => {
             const vault: Record<string, string> = { 'chatic-relay-token': 'r' };
-            const medium = new NativeSecureMedium({
-                fallback: new MemoryMedium(),
+            const store = new NativeSecureStore({
+                fallback: new MemoryStore(),
                 channel: {
                     read: async () => ({ status: 'available', values: { ...vault } }),
                     save: async () => true,
@@ -368,18 +368,18 @@ describe('session/auth/relaySession', () => {
                     },
                 },
             });
-            return { medium, vault };
+            return { store, vault };
         };
 
-        afterEach(() => sessionMedia.configure({ secret: new MemoryMedium(), plain: new MemoryMedium() }));
+        afterEach(() => sessionStores.configure({ secret: new MemoryStore(), plain: new MemoryStore() }));
 
         it('is emptied, and the shell has confirmed it, before the page leaves', async () => {
             const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-            const { medium, vault } = vaultWith(true);
-            await medium.hydrate();
-            const plain = new MemoryMedium();
+            const { store, vault } = vaultWith(true);
+            await store.hydrate();
+            const plain = new MemoryStore();
             plain.set('@chatic/web.log.pending.tab-1', '[]');
-            sessionMedia.configure({ secret: medium, plain });
+            sessionStores.configure({ secret: store, plain });
             signedOutAppKeys.register(['@chatic/web.log.']);
 
             await relaySession.clearAndRedirect();
@@ -392,10 +392,10 @@ describe('session/auth/relaySession', () => {
 
         it('leaves the marker for the next boot when the shell does not confirm', async () => {
             const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-            const { medium } = vaultWith(false);
-            await medium.hydrate();
-            const plain = new MemoryMedium();
-            sessionMedia.configure({ secret: medium, plain });
+            const { store } = vaultWith(false);
+            await store.hydrate();
+            const plain = new MemoryStore();
+            sessionStores.configure({ secret: store, plain });
 
             await relaySession.clearAndRedirect();
 

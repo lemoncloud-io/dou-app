@@ -2,7 +2,7 @@ import { runtime } from '@chatic/app-runtime';
 import { config, createWebEnvAdapter } from '@chatic/config';
 import { asDomStorage } from '@chatic/storage';
 
-import { localMedium, tabMedium } from '../../../../../storage';
+import { localStore, tabStore } from '../../../../../storage';
 
 import type { SessionAccess, SubscriptionApi } from './createHttpPort';
 
@@ -22,7 +22,7 @@ export const bootSessionRuntime = (env: (name: string) => string | undefined): v
     booted = true;
     config.init({
         env: createWebEnvAdapter(env),
-        storage: { local: asDomStorage(localMedium), session: asDomStorage(tabMedium) },
+        storage: { local: asDomStorage(localStore), session: asDomStorage(tabStore) },
     });
     runtime.boot.initAppRuntime();
     runtime.session.authFailureReaction.register(() => undefined);

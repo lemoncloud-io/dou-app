@@ -13,7 +13,7 @@ import { createWebConfigPorts } from './app/config/adapters';
 import { syncThemeFromSharedKey } from './app/config/themeSharedKeySync';
 
 import App from './app/app';
-import { configureAppMedia } from './app/storage';
+import { configureAppStores } from './app/storage';
 import { appBridge, pendingNavigationStore } from './app/bridge';
 import { shellCapabilities } from './app/bridge/shellCapabilities';
 import { clearComposerDrafts } from './app/features/channels/stores/useComposerDraftStore';
@@ -71,41 +71,41 @@ startLogUploader({
 // published to nobody. Silent when the join is intact (a plain browser always is).
 reportRunIdJoin();
 
-// Every medium this app keeps state in, chosen and built in one place for this environment: the
+// Every store this app keeps state in, chosen and built in one place for this environment: the
 // session's secret and plain ports, the device vault when the shell keeps one, and the `device`/`tab`
-// media the app's own features and the runtime write through. Reads only what the shell injected and
-// the tab's own mark, so it is safe this early; the features take their media from here on.
-const media = runtime.boot.resolveStorageMedia();
-configureAppMedia({ device: media.device, tab: media.tab });
+// stores the app's own features and the runtime write through. Reads only what the shell injected and
+// the tab's own mark, so it is safe this early; the features take their stores from here on.
+const stores = runtime.boot.resolveStorageStores();
+configureAppStores({ device: stores.device, tab: stores.tab });
 
 // `vite-ui-theme` is the durable, cross-app theme key (five apps' pre-paint scripts and
 // `@chatic/theme`'s `ThemeProvider` all read/write it directly); re-synced into `ui.theme`'s own
 // storage on every boot. Must run before `config.init()` below, whose `hydrateStorage()` is what
 // actually reads the key it writes.
-syncThemeFromSharedKey(media.webLocal);
+syncThemeFromSharedKey(stores.webLocal);
 
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — an explicit call
 // instead of `@chatic/web-config`'s former import-time side effect (ADR-0079 decisions 1·11). Everything
 // downstream that reads a setting (`app-runtime`'s HTTP/session code, later this file's own runtime
 // boot) resolves it lazily, well after this line, so placement here — before `initAppRuntime` and
 // well before anything renders — is early enough with room to spare.
-config.init(createWebConfigPorts(media));
+config.init(createWebConfigPorts(stores));
 
 // The phone fields' last-picked country moved from its own key into the `ui.phoneCountry` setting;
 // carried over once, now that the setting can be written.
-migrateLegacyPhoneCountry(media.webLocal);
+migrateLegacyPhoneCountry(stores.webLocal);
 
-// The session's secrets — its four tokens. When `resolveStorageMedia` chose the device vault, it is
+// The session's secrets — its four tokens. When `resolveStorageStores` chose the device vault, it is
 // loaded — and anything left in localStorage moved into it — before the runtime boots, so every read
 // after that is synchronous. A shell from before the vault keeps them in localStorage as it always did,
 // and a browser in the tab's sessionStorage.
-const vault = media.vault;
+const vault = stores.vault;
 const secretStorageReady: Promise<unknown> = vault
     ? runtime.boot.prepareSecretStorage({
           vault,
-          plain: media.plain,
-          web: media.webLocal,
-          tab: media.webSession,
+          plain: stores.plain,
+          web: stores.webLocal,
+          tab: stores.webSession,
           afterLogout: new URLSearchParams(window.location.search).get('logout') === '1',
       })
     : Promise.resolve();
@@ -124,7 +124,7 @@ if (vault) {
  * marked and reloaded once, and the next boot takes the vault from the start.
  */
 const adoptLateVault = (): void => {
-    media.webSession.set(runtime.boot.LATE_VAULT_MARK, '1');
+    stores.webSession.set(runtime.boot.LATE_VAULT_MARK, '1');
     window.location.reload();
 };
 
@@ -134,10 +134,10 @@ const adoptLateVault = (): void => {
  * fell back to the tab, so when the page is shown again and the vault now answers, the page starts
  * over on it.
  */
-const watchUnavailableVault = (medium: NonNullable<typeof vault>): void => {
+const watchUnavailableVault = (store: NonNullable<typeof vault>): void => {
     const channel = new BridgeStorageChannel(webClient, 'nativeSecure');
     const onVisible = async () => {
-        if (document.visibilityState !== 'visible' || medium.status === 'available') return;
+        if (document.visibilityState !== 'visible' || store.status === 'available') return;
         const read = await channel.read().catch(() => null);
         if (read?.status !== 'available') return;
         document.removeEventListener('visibilitychange', onVisible);
@@ -160,9 +160,9 @@ const startApp = (): void => {
     // cache only on the relay scope, so a cloud partition never receives the default place row
     //. It must land before the data runtime is lazily created on first repository access.
     runtime.boot.initAppRuntime({
-        // The runtime's `tab` medium holds a cache (a tab's invited clouds), which must hear a failed write,
+        // The runtime's `tab` store holds a cache (a tab's invited clouds), which must hear a failed write,
         // so it gets the raw `webSession` rather than the tolerant `tab` the features use.
-        storage: { secret: media.secret, plain: media.plain, device: media.device, tab: media.webSession },
+        storage: { secret: stores.secret, plain: stores.plain, device: stores.device, tab: stores.webSession },
         // The keys this app's log pipeline and telemetry policy write: a sign-out takes them.
         signedOutKeyPrefixes: [LOG_KEY_PREFIX, TELEMETRY_POLICY_KEY_PREFIX],
         data: {

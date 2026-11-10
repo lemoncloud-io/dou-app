@@ -14,7 +14,7 @@ import {
     clearRelaySession,
     SECRET_LOGOUT_PENDING_KEY,
     SESSION_KEYS,
-    sessionMedia,
+    sessionStores,
     sessionSignal,
     setSessionAuthenticated,
     setSessionIdentityState,
@@ -22,7 +22,7 @@ import {
 import { pairedClouds } from '../pairing/pairedClouds';
 import { relayCredentialProbe } from './relayCredentialProbe';
 import { dropSignedOutAppKeys } from './storage/signedOutAppKeys.util';
-import { isNativeMedium, WebMedium } from '@chatic/storage';
+import { isNativeStore, WebStore } from '@chatic/storage';
 // NOTE: everything above comes from `../store` (the concrete module), not the session barrel — the
 // session barrel now publishes only the app surface (ADR-0076 decision 6).
 
@@ -312,24 +312,24 @@ class RelaySession implements IRelaySession {
         });
 
         // The app keys a sign-out takes: the log pipeline and the telemetry policy.
-        dropSignedOutAppKeys(sessionMedia.of('plain'));
+        dropSignedOutAppKeys(sessionStores.of('plain'));
 
         // The device vault last, and confirmed before the page goes: the next document reads the vault
         // before anything else, and one that still held the tokens would sign the person back in. The
         // store clears above already queued the removals; emptying the whole vault also takes anything
         // a build that kept more there left behind. When the shell does not confirm, the marker makes
         // the next boot empty it before reading it.
-        const secret = sessionMedia.of('secret');
-        if (isNativeMedium(secret)) {
-            // Tokens a run whose vault was unavailable left in the tab go too; the medium only knows the
+        const secret = sessionStores.of('secret');
+        if (isNativeStore(secret)) {
+            // Tokens a run whose vault was unavailable left in the tab go too; the store only knows the
             // ones this page wrote.
-            SESSION_KEYS.secret.forEach(key => WebMedium.session().remove(key));
+            SESSION_KEYS.secret.forEach(key => WebStore.session().remove(key));
             secret.clear();
             try {
                 await secret.flush();
             } catch (error) {
                 logger.warn('AUTH', '[logout] the vault did not confirm it was emptied; the next boot will', { error });
-                sessionMedia.of('plain').set(SECRET_LOGOUT_PENDING_KEY, '1');
+                sessionStores.of('plain').set(SECRET_LOGOUT_PENDING_KEY, '1');
             }
         }
 

@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 
 import type { KnownBlock } from '@chatic/block-kit';
 
-import { deviceMedium, persistStorageOver } from '../storage';
+import { deviceStore, persistStorageOver } from '../storage';
 import { createBlock, type BlockKind } from './blockFactory';
 
 /** Where the message is kept between visits. */
@@ -197,7 +197,7 @@ export const useBuilderStore = create<BuilderState>()(
         }),
         {
             name: STORAGE_KEY,
-            storage: persistStorageOver(deviceMedium),
+            storage: persistStorageOver(deviceStore),
             // Only the message survives a reload. The history is a record of one
             // sitting; restoring it would offer to undo edits the reader cannot see
             // and, on a long session, would grow the stored value without bound.

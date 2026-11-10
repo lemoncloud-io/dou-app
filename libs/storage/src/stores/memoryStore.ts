@@ -1,7 +1,7 @@
 import type { KeyValueStore } from './types';
 
-/** A medium that lives as long as the page: nothing survives a reload. */
-export class MemoryMedium implements KeyValueStore {
+/** A store that lives as long as the page: nothing survives a reload. */
+export class MemoryStore implements KeyValueStore {
     private readonly values = new Map<string, string>();
 
     get(key: string): string | null {

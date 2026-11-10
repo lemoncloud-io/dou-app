@@ -1,5 +1,5 @@
-import { MemoryMedium } from '@chatic/storage';
-import { sessionMedia } from '@chatic/session/store/ports';
+import { MemoryStore } from '@chatic/storage';
+import { sessionStores } from '@chatic/session/store/ports';
 
 import { logoutStorageSweeper } from './logoutStorageSweep';
 import { signedOutAppKeys } from './signedOutAppKeys.util';
@@ -7,11 +7,11 @@ import { signedOutAppKeys } from './signedOutAppKeys.util';
 const setUrl = (search: string): void => window.history.replaceState({}, '', `/${search}`);
 
 describe('logoutStorageSweeper', () => {
-    let plain: MemoryMedium;
+    let plain: MemoryStore;
 
     beforeEach(() => {
-        plain = new MemoryMedium();
-        sessionMedia.configure({ secret: new MemoryMedium(), plain });
+        plain = new MemoryStore();
+        sessionStores.configure({ secret: new MemoryStore(), plain });
         // What apps/web's log and telemetry domains declare at boot.
         signedOutAppKeys.register(['@chatic/web.log.', '@chatic/web.telemetry.policy']);
         [
@@ -25,7 +25,7 @@ describe('logoutStorageSweeper', () => {
         setUrl('');
     });
 
-    it('takes the app keys a sign-out takes, from the plain medium, on a document opened by logout', () => {
+    it('takes the app keys a sign-out takes, from the plain store, on a document opened by logout', () => {
         setUrl('?logout=1');
 
         logoutStorageSweeper.sweep();
@@ -49,9 +49,9 @@ describe('logoutStorageSweeper', () => {
     });
 
     it('never fails the boot when storage throws', () => {
-        sessionMedia.configure({
-            secret: new MemoryMedium(),
-            plain: Object.assign(new MemoryMedium(), {
+        sessionStores.configure({
+            secret: new MemoryStore(),
+            plain: Object.assign(new MemoryStore(), {
                 keys: () => {
                     throw new Error('SecurityError');
                 },

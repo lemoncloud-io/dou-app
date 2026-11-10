@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent, PointerEvent as ReactPointerEvent } from 'react';
-import { deviceMedium } from '../../storage';
+import { deviceStore } from '../../storage';
 
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 720;
@@ -35,7 +35,7 @@ const otherPanelsWidth = (self: string): number => {
 
 /** The width kept under `key`, else `fallback`. */
 const readPreferred = (key: string, fallback: number): number => {
-    const stored = Number(deviceMedium.get(key));
+    const stored = Number(deviceStore.get(key));
     return Number.isFinite(stored) && stored > 0 ? stored : fallback;
 };
 
@@ -93,7 +93,7 @@ export const usePanelWidth = ({
 
     const persist = useCallback(() => {
         preferredRef.current = widthRef.current;
-        deviceMedium.set(storageKey, String(widthRef.current));
+        deviceStore.set(storageKey, String(widthRef.current));
     }, [storageKey]);
 
     const startResize = useCallback(

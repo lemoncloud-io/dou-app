@@ -23,7 +23,7 @@ import { type CacheBackend, resolveCacheBackend } from '../cacheStorageRouting';
 import { InvitedCloudImportStorage } from '../invitedCloudSessionImport';
 import { isNativeApp } from '../../utils/isNativeApp';
 import { isNativeCacheTypeUsable } from '../nativeCacheSupport';
-import { runtimeMedia } from '../../storage/runtimeMedia';
+import { runtimeStores } from '../../storage/runtimeStores';
 
 import type { CacheAssemblyOptions } from '../types';
 import { getSyncCursorsValidAfter } from '../syncCursorWatermark';
@@ -63,8 +63,8 @@ const createSessionStorageAdapter = <TType extends CacheType>(
     type: TType,
     contextProvider: DataContextProvider
 ): CacheStorage<TType> => {
-    // The runtime's `tab` medium, seen as the DOM `Storage` the engine takes: the domain ends with the tab.
-    const tab = asDomStorage(runtimeMedia.tab());
+    // The runtime's `tab` store, seen as the DOM `Storage` the engine takes: the domain ends with the tab.
+    const tab = asDomStorage(runtimeStores.tab());
     const store = new WebStorageAdapter(tab, type, contextProvider);
     if (type !== 'invitecloud') return store;
     return new InvitedCloudImportStorage(

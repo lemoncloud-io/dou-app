@@ -3,7 +3,7 @@ import { logger } from '@chatic/bridges';
 import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
-import { runtimeMedia } from './storage/runtimeMedia';
+import { runtimeStores } from './storage/runtimeStores';
 import { credentialRecovery } from '@chatic/transport';
 import {
     authRepositorySource,
@@ -12,13 +12,13 @@ import {
     credentialRenewers,
     signedOutAppKeys,
 } from '@chatic/auth';
-import { configureSessionStore, sessionMedia } from '@chatic/session';
+import { configureSessionStore, sessionStores } from '@chatic/session';
 import { syncDataGraph } from '@chatic/sync';
 
 import type { HttpRoute } from '@chatic/http';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { DataRuntimeConfig } from './data/runtime';
-import type { RuntimeMediaPorts } from './storage/runtimeMedia';
+import type { RuntimeStorePorts } from './storage/runtimeStores';
 
 export interface AppRuntimeConfig {
     /**
@@ -28,18 +28,18 @@ export interface AppRuntimeConfig {
      */
     data?: DataRuntimeConfig;
     /**
-     * The media the runtime keeps state in, chosen by the entry point for its environment — normally
-     * straight from `resolveStorageMedia()`. `secret` and `plain` back the session's two ports; left
+     * The stores the runtime keeps state in, chosen by the entry point for its environment — normally
+     * straight from `resolveStorageStores()`. `secret` and `plain` back the session's two ports; left
      * out, both are this tab's `sessionStorage` — the browser's answer. `device` and `tab` back the
      * runtime's own non-session state (the sync cursor watermark, a tab's invited clouds); left out,
      * they are this page's `localStorage` (tolerant) and `sessionStorage` (raw — the invited clouds are
      * a cache that must hear a failed write).
      */
-    storage?: SessionStoragePorts & Partial<RuntimeMediaPorts>;
+    storage?: SessionStoragePorts & Partial<RuntimeStorePorts>;
     /**
      * Prefixes of the keys outside the session that a sign-out takes — declared by the app's own
      * domains that write them (apps/web: its log pipeline and telemetry policy). Swept from the plain
-     * medium at sign-out and once more on the `?logout=1` boot. Left out, a sign-out takes none.
+     * store at sign-out and once more on the `?logout=1` boot. Left out, a sign-out takes none.
      */
     signedOutKeyPrefixes?: readonly string[];
 }
@@ -83,16 +83,16 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
     }
     booted = true;
 
-    // The session's media, before anything below can read or sweep the session.
+    // The session's stores, before anything below can read or sweep the session.
     if (config.storage) {
         const { secret, plain, device, tab } = config.storage;
-        sessionMedia.configure({ secret, plain });
-        runtimeMedia.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
+        sessionStores.configure({ secret, plain });
+        runtimeStores.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
     }
 
     // The credential bundle an older build's lemon-web-core left in web storage is nobody's, and goes.
-    // The plain medium is the web storage lemon used to write in each environment.
-    dropLemonLeftovers(sessionMedia.of('plain'));
+    // The plain store is the web storage lemon used to write in each environment.
+    dropLemonLeftovers(sessionStores.of('plain'));
 
     // Before the sweep below, which takes what these name.
     signedOutAppKeys.register(config.signedOutKeyPrefixes ?? []);

@@ -195,7 +195,7 @@ One file per app assembles the ports, and `main.tsx` calls `init` once.
 ```text
 main.tsx
   ├─ syncThemeFromSharedKey()    apps/web only: seeds storageKeyFor('ui.theme')    ── must be first
-  ├─ config.init(createWebConfigPorts(media)) hydrateShell() then hydrateStorage()
+  ├─ config.init(createWebConfigPorts(stores)) hydrateShell() then hydrateStorage()
   └─ runtime.boot.initAppRuntime()
         └─ attachConfigStateLog()      libs/app-runtime — logs overridden keys, then each change
 ```

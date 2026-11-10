@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { isNative, logger } from '@chatic/bridges';
 import { runtime } from '@chatic/app-runtime';
-import { tabMedium } from '../../storage';
+import { tabStore } from '../../storage';
 
 // After a long sleep the cloud token refresh 400s and the socket sticks at
 // isVerified=false: useCloudTokenRefresh's isAuthError path clears creds and
@@ -21,8 +21,8 @@ const RELOAD_GUARD_MS = 5 * 60_000; // never auto-reload more than once per 5 mi
 // if a reload didn't fix it, it's a genuine expiry, not a stale credential.
 const RELOAD_AT_KEY = 'chatic:wedge-reload-at';
 
-// The tab medium reads a disabled storage as absent — no stamp, so no guard.
-const readReloadAt = (): number => Number(tabMedium.get(RELOAD_AT_KEY)) || 0;
+// The tab store reads a disabled storage as absent — no stamp, so no guard.
+const readReloadAt = (): number => Number(tabStore.get(RELOAD_AT_KEY)) || 0;
 
 /**
  * Self-heal a socket wedged unverified after sleep/wake by reloading the Electron
@@ -42,7 +42,7 @@ export const useSocketWedgeReload = (): void => {
         if (isVerified) {
             hasVerifiedRef.current = true;
             // Recovered — clear the guard so a later sleep episode can recover too.
-            tabMedium.remove(RELOAD_AT_KEY);
+            tabStore.remove(RELOAD_AT_KEY);
             return;
         }
 
@@ -57,7 +57,7 @@ export const useSocketWedgeReload = (): void => {
             if (lastReloadAt && Date.now() - lastReloadAt < RELOAD_GUARD_MS) return;
 
             logger.warn('AUTH', '[wedge-reload] socket unverified past grace after wake — reloading');
-            tabMedium.set(RELOAD_AT_KEY, String(Date.now()));
+            tabStore.set(RELOAD_AT_KEY, String(Date.now()));
             window.location.reload();
         }, WEDGE_GRACE_MS);
 

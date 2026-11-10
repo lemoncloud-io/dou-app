@@ -1,4 +1,4 @@
-import { sessionMedia } from '@chatic/session';
+import { sessionStores } from '@chatic/session';
 
 /**
  * The identity a push registration belongs to.
@@ -40,13 +40,13 @@ interface StorageLike {
 }
 
 /**
- * The session's plain medium, looked up on every call rather than when a record is made: a record made
+ * The session's plain store, looked up on every call rather than when a record is made: a record made
  * before the entry point configured the session would otherwise keep the pre-boot default. It is the
  * entry point's choice from `initAppRuntime` on, which is before any screen that registers renders.
  */
-const plainMedium: StorageLike = {
-    get: key => sessionMedia.of('plain').get(key),
-    set: (key, value) => sessionMedia.of('plain').set(key, value),
+const plainStore: StorageLike = {
+    get: key => sessionStores.of('plain').get(key),
+    set: (key, value) => sessionStores.of('plain').set(key, value),
 };
 
 const parseEntry = (raw: string | null): RegistrationEntry | null => {
@@ -74,7 +74,7 @@ const parseEntry = (raw: string | null): RegistrationEntry | null => {
  * The record stores the TOKEN, not a boolean, so a rotated token still re-registers — the skip is
  * "nothing changed", never "we already did this once".
  *
- * **Two tiers.** The web tier is the session's plain medium, which each app's entry point chooses —
+ * **Two tiers.** The web tier is the session's plain store, which each app's entry point chooses —
  * `localStorage` inside a native or desktop shell, `sessionStorage` in a browser. It is
  * synchronous, which is what lets the foreground-return path decide without a bridge round-trip.
  * The optional native tier survives a webview cache clear; it is asynchronous, so it is hydrated
@@ -100,7 +100,7 @@ export class PushRegistrationRecord {
     private native: RegistrationEntry | null = null;
     private hydration: Promise<void> | null = null;
 
-    constructor(private readonly store: StorageLike = plainMedium) {}
+    constructor(private readonly store: StorageLike = plainStore) {}
 
     private key({ uid, deviceId, platform }: RegistrationIdentity): string {
         return `${PushRegistrationRecord.POLICY_VERSION}:${uid}:${deviceId}:${platform}`;

@@ -28,18 +28,18 @@ export type { DataRepositoriesOptions } from '@chatic/data';
 // routing them through this facade bought nothing.
 export { isNativeApp } from './utils/isNativeApp';
 
-// The session's storage. An entry point builds the media for its environment and passes them to
+// The session's storage. An entry point builds the stores for its environment and passes them to
 // `initAppRuntime({ storage })`; one in an app or desktop shell that keeps a vault first awaits
 // `prepareSecretStorage`, which loads the vault and moves secrets left in web storage into it.
-// There is no setter to swap the media after boot: the session's media are wired once, in
+// There is no setter to swap the stores after boot: the session's stores are wired once, in
 // `initAppRuntime`, and a second wiring anywhere else would silently replace that choice.
 export { prepareSecretStorage } from './sessionStorageBoot';
-// The one place an app's media are chosen and built. An entry point calls it once and hands the result
+// The one place an app's stores are chosen and built. An entry point calls it once and hands the result
 // out — to `prepareSecretStorage`, to `initAppRuntime({ storage })`, to its config ports and its own
-// features — instead of constructing media itself. apps/web and apps/desktop-web use it. `LATE_VAULT_MARK` is the tab mark it reads and that
+// features — instead of constructing stores itself. apps/web and apps/desktop-web use it. `LATE_VAULT_MARK` is the tab mark it reads and that
 // apps/web writes when a shell turns out to keep a vault only after its handshake.
-export { LATE_VAULT_MARK, readStorageEnvironment, resolveStorageMedia } from './storage/resolveStorageMedia';
-export type { StorageEnvironment, StorageMedia } from './storage/resolveStorageMedia';
+export { LATE_VAULT_MARK, readStorageEnvironment, resolveStorageStores } from './storage/resolveStorageStores';
+export type { StorageEnvironment, StorageStores } from './storage/resolveStorageStores';
 export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
 export type { SessionStoragePorts } from '@chatic/session';
 

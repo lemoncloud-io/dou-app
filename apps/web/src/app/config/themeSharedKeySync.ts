@@ -11,7 +11,7 @@ import type { KeyValueStore } from '@chatic/storage';
  * other apps on the same browser shows up here too. The write-back half of the mirror lives in
  * `useTheme.ts`'s `setTheme`.
  *
- * `local` is the app's `webLocal` medium — the same `localStorage` config's own `local` port reads.
+ * `local` is the app's `webLocal` store — the same `localStorage` config's own `local` port reads.
  *
  * Must run before `config.init()` — the value it writes is read into the `local` lane by
  * `hydrateStorage()`, which only runs once, inside `init()`.

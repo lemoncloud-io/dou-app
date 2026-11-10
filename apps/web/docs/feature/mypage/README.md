@@ -273,7 +273,7 @@ the desktop web carries in its settings, and behaves the same way:
   by the shared `checkMiniAppLink`, the same rule the desktop uses, and `parseMiniAppLinks` drops any
   stored entry that no longer passes it. When the hub closes with
   `result.action = 'openMiniAppLinkSettings'`, the add sheet opens, for the owner only.
-- **Where it is kept.** On this phone only, as one JSON list per cloud through the device medium
+- **Where it is kept.** On this phone only, as one JSON list per cloud through the device store
   under `dou.miniAppLinks.<cloudId>` (an empty list removes the key). Another cloud never shows it,
   and members do not see it until the list moves to the server. The list is read while rendering, not
   in an effect, so a press in the commit right after a cloud switch cannot send the previous cloud's

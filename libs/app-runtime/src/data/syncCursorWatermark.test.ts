@@ -1,10 +1,10 @@
-import { MemoryMedium } from '@chatic/storage';
+import { MemoryStore } from '@chatic/storage';
 
-import { runtimeMedia } from '../storage/runtimeMedia';
+import { runtimeStores } from '../storage/runtimeStores';
 import { applyPendingSyncCursorReset, getSyncCursorsValidAfter, requestSyncCursorReset } from './syncCursorWatermark';
 
 beforeEach(() => {
-    runtimeMedia.reset();
+    runtimeStores.reset();
     localStorage.clear();
 });
 
@@ -40,9 +40,9 @@ describe('syncCursorWatermark', () => {
         expect(getSyncCursorsValidAfter()).toBe(0);
     });
 
-    it('keeps the watermark in whatever medium the entry point gave the runtime as `device`', () => {
-        const device = new MemoryMedium();
-        runtimeMedia.configure({ device });
+    it('keeps the watermark in whatever store the entry point gave the runtime as `device`', () => {
+        const device = new MemoryStore();
+        runtimeStores.configure({ device });
 
         requestSyncCursorReset();
         applyPendingSyncCursorReset(7_000);
@@ -53,13 +53,13 @@ describe('syncCursorWatermark', () => {
     });
 
     it('keeps the request for the next boot when the watermark could not be written', () => {
-        const device = new MemoryMedium();
-        // A full storage: the write is dropped, as the tolerant device medium drops it.
+        const device = new MemoryStore();
+        // A full storage: the write is dropped, as the tolerant device store drops it.
         device.set = key => {
             if (key === 'chatic.syncCursors.validAfter') return;
-            MemoryMedium.prototype.set.call(device, key, '1');
+            MemoryStore.prototype.set.call(device, key, '1');
         };
-        runtimeMedia.configure({ device });
+        runtimeStores.configure({ device });
 
         requestSyncCursorReset();
         applyPendingSyncCursorReset(7_000);
