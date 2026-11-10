@@ -1,8 +1,10 @@
 import { useCallback } from 'react';
 
 import { config } from '@chatic/config';
+import { storage } from '@chatic/storage';
 import { runtime } from '@chatic/app-runtime';
 import type { ICloudRepository } from '@chatic/data';
+import { deviceMedium } from '../../storage';
 
 import { CLOUD_RECORD_OWNER_KEY } from '../utils/cloudRecordOwnership';
 
@@ -66,7 +68,13 @@ export const useAccountResetOnLogout = () => {
     const repos = runtime.data.useRuntimeRepositories();
 
     const resetAccount = useCallback(async (): Promise<void> => {
-        ACCOUNT_SCOPED_STORAGE_KEYS.forEach(key => localStorage.removeItem(key));
+        // Most of these live in the device medium; a few (the sign-in notice) are written through the
+        // app-wide `storage`, which is the session's plain medium — sessionStorage in a browser tab. Both
+        // are cleared, so a key goes whichever of the two it was written to.
+        ACCOUNT_SCOPED_STORAGE_KEYS.forEach(key => {
+            deviceMedium.remove(key);
+            storage.remove(key);
+        });
         // Favorites/ordering now live as @chatic/config records — config.clear sweeps both the lane
         // entry (in-memory) and the persisted `@chatic/config.ui.*` key together. removeItem alone
         // would leave the in-memory value alive right up until the reload.

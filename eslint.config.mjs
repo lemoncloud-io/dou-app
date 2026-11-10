@@ -76,7 +76,7 @@ const logTagCatalogRule = {
 };
 
 const STORAGE_MESSAGE =
-    'Reach web storage through a medium from @chatic/storage (in apps/web: `deviceMedium`/`tabMedium` from `app/storage`) — see libs/storage/README.md.';
+    'Reach web storage through a medium from @chatic/storage (in apps/web and apps/desktop-web: `deviceMedium`/`tabMedium` from `app/storage`) — see libs/storage/README.md.';
 
 export default [
     ...nx.configs['flat/base'],
@@ -228,10 +228,17 @@ export default [
         // Web storage is reached only through `@chatic/storage`'s media: a domain declares the medium it
         // needs and the entry point (`resolveStorageMedia`) chooses it, so no other code may name
         // `localStorage`/`sessionStorage` itself — and zustand's `persist`, which falls back to
-        // `localStorage` when given no storage, must name one. Scope grows as apps move onto the media:
-        // apps/web and the libs now; desktop-web and `libs/theme` (which desktop-web, admin and landing
-        // use) next. Tests seed web storage directly and are left out.
-        files: ['apps/web/src/**/*.ts', 'apps/web/src/**/*.tsx', 'libs/**/*.ts', 'libs/**/*.tsx'],
+        // `localStorage` when given no storage, must name one. It covers the apps that run in a shell —
+        // apps/web and apps/desktop-web — and every lib; the browser-only apps (admin, landing,
+        // block-kit-builder) are outside it. Tests seed web storage directly and are left out.
+        files: [
+            'apps/web/src/**/*.ts',
+            'apps/web/src/**/*.tsx',
+            'apps/desktop-web/src/**/*.ts',
+            'apps/desktop-web/src/**/*.tsx',
+            'libs/**/*.ts',
+            'libs/**/*.tsx',
+        ],
         ignores: [
             '**/*.spec.ts',
             '**/*.spec.tsx',
@@ -240,7 +247,6 @@ export default [
             '**/testing/**',
             'libs/storage/**',
             'libs/chatic-apps-sdk/**',
-            'libs/theme/**',
         ],
         rules: {
             'no-restricted-globals': [
@@ -261,7 +267,7 @@ export default [
                     selector:
                         "CallExpression[callee.name='persist'][arguments.length>=2] > ObjectExpression:last-child:not(:has(Property[key.name='storage']))",
                     message:
-                        "Give zustand's `persist` a `storage` — left out, it writes `localStorage` directly. In apps/web: `persistStorageOver(deviceMedium)` from `app/storage`.",
+                        "Give zustand's `persist` a `storage` — left out, it writes `localStorage` directly. In apps/web and apps/desktop-web: `persistStorageOver(deviceMedium)` from `app/storage`.",
                 },
             ],
         },

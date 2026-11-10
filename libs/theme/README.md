@@ -58,6 +58,10 @@ settings with lanes and shell hydration are `@chatic/config`'s.
    `'vite-ui-theme'` and every consumer takes the default. Passing something else does not give you a
    private preference — it desynchronises you from your own `index.html`, which still reads the
    default key before React runs.
+   **The medium it is kept in is a prop too.** `storage` takes the app's medium for state that
+   outlives the window (desktop-web passes its `deviceMedium`); left out, it is this origin's
+   `localStorage` through `@chatic/storage`, tolerant of a full or blocked one. Either way the key lands
+   in `localStorage`, where the pre-paint scripts read it — the prop only decides who writes it.
 4. **Native sync is one-way and unconfirmed.** The provider does `webClient.post`, not `request`, so
    nothing waits for the shell and nothing retries. A shell without a `SavePreference` handler answers
    `NOT_FOUND`, which a post never sees. Treat the native copy as a convenience for the shell, never
@@ -194,7 +198,7 @@ apps/landing            app.tsx       <ThemeProvider defaultTheme="light">
 apps/block-kit-builder  main.tsx      <ThemeProvider defaultTheme="system">
   └─ index.html: no stored value → follow prefers-color-scheme   (agrees with "system")
 
-apps/desktop-web        app.tsx       <ThemeProvider defaultTheme="system">
+apps/desktop-web        app.tsx       <ThemeProvider defaultTheme="system" storage={deviceMedium}>
   └─ index.html: no stored value → follow prefers-color-scheme, and sets theme-color
                                                                    (agrees with "system")
 ```

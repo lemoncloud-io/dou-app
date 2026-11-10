@@ -8,10 +8,9 @@
         // how the spec files went unchecked. ts-jest emits CommonJS for jest on its own; this config
         // only has to be checkable.
         //
-        // `esModuleInterop` stays. `LemonHmacSigner.ts` default-imports two crypto-js submodules and
-        // `LemonHmacSigner.spec.ts` imports the ESM-only `@lemoncloud/lemon-web-core`; without the
-        // interop helpers ts-jest's CommonJS output reaches for `.default` and the calls blow up at
-        // runtime. The base config does not set it, so it is set here, scoped to the tests.
+        // `esModuleInterop` stays. `LemonHmacSigner.ts` default-imports two crypto-js submodules;
+        // without the interop helpers ts-jest's CommonJS output reaches for `.default` and the calls
+        // blow up at runtime. The base config does not set it, so it is set here, scoped to the tests.
         "esModuleInterop": true,
         "types": ["jest", "node"]
     },

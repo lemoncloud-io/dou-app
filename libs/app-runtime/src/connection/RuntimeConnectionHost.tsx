@@ -26,10 +26,9 @@ export interface RuntimeHostProps {
 /**
  * The one connection host. Both exported hosts are this component with one switch flipped.
  *
- * It is the SINGLE web-core init driver: `useRelaySessionInit` runs `initializeRelaySession`
- * (transport + auth) once and gates the whole connection subtree until ready — replacing the old
- * separate `TransportBootstrap`, which independently re-triggered `startWebCoreInit` (a duplicate
- * initialization). The socket session delegate AND the socket slots are owned here, so an app passes
+ * It is the SINGLE session init driver: `useRelaySessionInit` runs `initializeRelaySession` once
+ * and gates the whole connection subtree until ready — replacing the old separate
+ * `TransportBootstrap`, which ran a duplicate initialization. The socket session delegate AND the socket slots are owned here, so an app passes
  * nothing but its children; socket lifecycle + SDK re-auth are handled by `SocketBinder` +
  * `bootstrapSocketConnection` (which wires `onTokenRefresh` → `commitRefreshedToken`, re-minting the
  * AWS/HTTP signing credentials) and `SocketReauthBinder`.

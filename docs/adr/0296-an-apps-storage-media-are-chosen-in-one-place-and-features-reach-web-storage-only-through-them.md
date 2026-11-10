@@ -1,13 +1,14 @@
 # ADR-0296: An app's storage media are chosen in one place, and features reach web storage only through them
 
-> Status: Accepted · Decided: 2026-11-09 · Implemented: `feat/general-storage-ports`
+> Status: Accepted · Decided: 2026-11-09 · Implemented: `feat/general-storage-ports` (apps/web, libs), `feat/desktop-web-storage-ports` (apps/desktop-web, `libs/theme`)
 > · Scope: `libs/app-runtime` (`storage/` — `resolveStorageMedia`, the runtime's `device`/`tab` media;
-> `initAppRuntime({ storage, signedOutKeyPrefixes })`), `libs/storage` (`TolerantMedium`), `libs/auth`
+> `initAppRuntime({ storage, signedOutKeyPrefixes })`), `libs/storage` (`TolerantMedium`, `SwitchableMedium`), `libs/auth`
 > (`signedOutAppKeys`), `libs/config` (`ui.phoneCountry`), `libs/shared` (phone country), `apps/web`
-> (`app/storage/`, entry point, the features that kept state in web storage), `apps/desktop-web` (entry
-> point: the phone-country carry-over only), the root ESLint config
+> (`app/storage/`, entry point, the features that kept state in web storage), `apps/desktop-web` (the same,
+> with its zustand stores), `libs/theme` (`ThemeProvider`'s `storage`), the root ESLint config
 > · The behaviour is documented in [libs/storage](../../libs/storage/README.md),
-> [libs/app-runtime](../../libs/app-runtime/README.md) and [apps/web](../../apps/web/README.md)
+> [libs/app-runtime](../../libs/app-runtime/README.md), [apps/web](../../apps/web/README.md) and
+> [apps/desktop-web docs/storage](../../apps/desktop-web/docs/storage/README.md)
 
 ## Context
 
@@ -91,7 +92,7 @@ in-house request signer, which removes its memory medium altogether.
   and a reader no longer has to search for globals to find a value's storage. A few constructions stay
   outside it on purpose: the debug storage screen walks the two web storages whole, each holder serves
   the same web storages before its entry point configures it, and lemon-web-core's memory medium is
-  still built in `libs/transport` until lemon-web-core itself goes.
+  still built in `libs/transport` until lemon-web-core itself goes (it went with ADR-0298).
 - Adding state is choosing `device` or `tab`; naming a web storage directly fails lint.
 - A full or blocked web storage no longer throws out of the sent-invite log write, which it did before.
 - `libs/shared` reads the phone country from `@chatic/config`; before `config.init()` it falls back to the

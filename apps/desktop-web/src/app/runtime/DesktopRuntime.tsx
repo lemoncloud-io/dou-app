@@ -157,8 +157,8 @@ const ShellUnreadSync = () => {
  */
 export const DesktopRuntime = () => {
     // Ask the socket to re-mint stale relay HTTP signing credentials as soon as it verifies (and on
-    // return from sleep). The sealed transport init no longer refreshes them and the SDK's first
-    // writeback is a refresh cycle (5min) away, so without this every relay-signed request — the
+    // return from sleep). Nothing else refreshes them at boot and the SDK's first writeback is a
+    // refresh cycle (5min) away, so without this every relay-signed request — the
     // cloud switch's `delegate-cloud` first among them — 403s meanwhile, and a 403 with no CORS
     // header reaches the app as a bare `Network Error`.
     useRelayCredentialRefresh();

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import type { ChatAttachmentKind } from '@chatic/data';
+import { deviceMedium, persistStorageOver } from '../../storage';
 
 /** What a saved message carried, snapshotted with it: the Files filter and the card's file tile read it. */
 export interface SavedAttachment {
@@ -68,7 +69,7 @@ export const useSavedItemsStore = create<SavedItemsState>()(
                     return { items: next };
                 }),
         }),
-        { name: 'chatic-saved-items' }
+        { name: 'chatic-saved-items', storage: persistStorageOver(deviceMedium) }
     )
 );
 

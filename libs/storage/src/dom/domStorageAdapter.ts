@@ -1,8 +1,8 @@
 import type { KeyValueStore } from '../media/types';
 
 /**
- * A medium seen as a DOM `Storage`, for code that only takes that shape — lemon-web-core is handed
- * one for its credential bundle, and `setStorageAdapter` takes one.
+ * A medium seen as a DOM `Storage`, for code that only takes that shape — `setStorageAdapter`, the
+ * config lib's storage ports, zustand's `persist` and the i18n translation cache.
  *
  * `key(index)` and `length` read a fresh key list each time, so they stay consistent with writes made
  * between two calls, which is what a caller walking the keys with an index relies on.

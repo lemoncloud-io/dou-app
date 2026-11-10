@@ -2,7 +2,7 @@
 
 **The connections, and nothing that decides when to use them.** `SocketManager` holds one socket
 client per slot — relay, the committed cloud, and a background slot per other joined cloud — behind
-an active facade; `HttpManager` resolves each HTTP route's host, signs through the one lemon transport
+an active facade; `HttpManager` resolves each HTTP route's host, signs through the relay request transport
 and knows when the signing credential has lapsed. It was cut out of `@chatic/app-runtime` as the layer
 above `@chatic/session` (ADR-0253): it reads the session, and nothing in app-runtime.
 
@@ -29,7 +29,7 @@ same way: the barrel in code, a named file in a test that mocks a store.
 libs/transport/src/
 ├── index.ts                   the package barrel
 ├── socket/   14 files · 10 tests   SocketManager, its slots and contract, failure reporting, link state
-└── http/      6 files ·  5 tests   HttpManager, the sealed transport, gateways, two late-bound registries
+└── http/      6 files ·  5 tests   HttpManager, the relay request transport, gateways, two late-bound registries
 ```
 
 The barrel sells the modules the layers above import, whole. A module nothing above imports stays
@@ -55,7 +55,7 @@ failure reporter, the error-code ledger and `annotateSocketError`.
 | Doc                                     | Covers                                                                                                                                             |
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [docs/socket/](./docs/socket/README.md) | `SocketManager`. Slot keys, the active pointer and its escapes, device identity, state, request timing, close reasons, failed requests, link state |
-| [docs/http/](./docs/http/README.md)     | `HttpManager`. The three routes, the sealed transport, the staleness port, the two late-bound registries, gateways and the log sink                |
+| [docs/http/](./docs/http/README.md)     | `HttpManager`. The three routes, the relay request transport, the staleness port, the two late-bound registries, gateways and the log sink         |
 
 ## Testing
 

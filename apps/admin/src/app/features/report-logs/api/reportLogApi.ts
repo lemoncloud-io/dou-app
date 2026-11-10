@@ -271,9 +271,9 @@ export const fetchReportLogs = async ({
 };
 
 /**
- * No `AbortSignal` here on purpose. `SealedWebTransport`'s request builder exposes only
- * `setBody`/`setParams`/`execute` (libs/http `lemonTransport.ts`) — a deliberately narrow
- * surface, and widening it for this screen is outside this change. So cancellation is
+ * No `AbortSignal` here on purpose. The relay transport's request builder exposes only
+ * `setBody`/`setParams`/`execute` (`TransportRequestBuilder`, libs/http `requestTransport.ts`) — a
+ * deliberately narrow surface, and widening it for this screen is outside this change. So cancellation is
  * cooperative instead: `collectCorpus` stops between pages and `useLogCorpus` discards a
  * late response by generation, which costs at most one wasted in-flight page per filter
  * change.

@@ -12,16 +12,11 @@ const mockLoginRelayRequest = jest.fn();
 const mockRegisterDevice = jest.fn();
 const mockVerifyNativeAppToken = jest.fn();
 
-const mockSetUseXLemonLanguage = jest.fn();
-const mockIsAuthenticated = jest.fn();
 const mockHasStoredRelaySession = jest.fn();
 const mockGetRelayToken = jest.fn();
 jest.mock('./relayCredentialProbe', () => ({
     relayCredentialProbe: { hasSession: () => mockHasStoredRelaySession() },
 }));
-const mockBuildCredentialsByToken = jest.fn();
-const mockLogout = jest.fn();
-const mockStartWebCoreInit = jest.fn();
 
 const mockGetSelectedCloudId = jest.fn();
 const mockGetSelectedSiteId = jest.fn();
@@ -68,21 +63,6 @@ jest.mock('./authRepository', () => ({
 // `LANGUAGE_KEY` is a local const in relaySession.ts now (not imported) and `config.clear()`
 // no-ops gracefully when `@chatic/config` is never `init()`d, as it is not in this suite — neither
 // needs a mock (ADR-0079, replacing `@chatic/web-config`).
-
-// Transport + sealed boot control. The instance moved out of `@chatic/web-config` into the
-// transport's `http/transport` assembly point (built by `@chatic/http`), so the mock follows it — the env leaf
-// above keeps only env.
-jest.mock('@chatic/transport/http/transport', () => ({
-    startWebTransportInit: (...args: unknown[]) => mockStartWebCoreInit(...args),
-    resetWebTransportInit: jest.fn(),
-    webTransport: {
-        setUseXLemonLanguage: (...args: unknown[]) => mockSetUseXLemonLanguage(...args),
-        isAuthenticated: (...args: unknown[]) => mockIsAuthenticated(...args),
-        buildCredentialsByToken: (...args: unknown[]) => mockBuildCredentialsByToken(...args),
-        getTokenSignature: jest.fn(),
-        logout: (...args: unknown[]) => mockLogout(...args),
-    },
-}));
 
 // Before the migration, this mock was split across four web-core modules — `./contexts`,
 // `./core`, `./contextStore`, `./utils` — and has now been merged into one; they all sit behind
@@ -168,11 +148,6 @@ describe('session/auth/relaySession', () => {
         localStorage.clear();
 
         mockIsNative.mockReturnValue(false);
-        mockIsAuthenticated.mockResolvedValue(true);
-        mockStartWebCoreInit.mockResolvedValue(undefined);
-        mockSetUseXLemonLanguage.mockResolvedValue(undefined);
-        mockBuildCredentialsByToken.mockResolvedValue(undefined);
-        mockLogout.mockResolvedValue(undefined);
         mockGetSelectedCloudId.mockReturnValue('default');
         mockGetSelectedSiteId.mockReturnValue(null);
         mockGetCloudSessionSnapshot.mockReturnValue({
@@ -196,42 +171,11 @@ describe('session/auth/relaySession', () => {
             isInitialized: false,
             error: null,
         });
-        expect(mockStartWebCoreInit).toHaveBeenCalledTimes(1);
-        expect(mockSetUseXLemonLanguage).toHaveBeenCalledWith(true, 'i18nextLng');
         expect(mockHasStoredRelaySession).toHaveBeenCalledTimes(1);
         expect(mockSetSessionIdentityState).toHaveBeenNthCalledWith(2, {
             isInitialized: true,
             isAuthenticated: true,
         });
-    });
-
-    it('boot never fires lemon isAuthenticated (its internal refresh is the sealed second engine)', async () => {
-        mockHasStoredRelaySession.mockReturnValue(true);
-
-        await relaySession.initialize();
-
-        // audit §7 Phase 2-2: the boot probe is read-only; refresh belongs to the socket
-        // AuthController (or an explicit requestRelaySessionRefresh) — never to boot.
-        expect(mockIsAuthenticated).not.toHaveBeenCalled();
-    });
-
-    it('rebuilds lemon credentials from the stored relay token, since lemon keeps them in memory only', async () => {
-        mockHasStoredRelaySession.mockReturnValue(true);
-        mockGetRelayToken.mockReturnValue({ Token: { identityToken: 'relay-id' } });
-
-        await relaySession.initialize();
-
-        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith({ identityToken: 'relay-id' });
-    });
-
-    it('still finishes the boot when lemon cannot rebuild credentials from the token', async () => {
-        mockHasStoredRelaySession.mockReturnValue(true);
-        mockGetRelayToken.mockReturnValue({ Token: { identityToken: 'no-credential' } });
-        mockBuildCredentialsByToken.mockRejectedValueOnce(new Error('no credential'));
-
-        await relaySession.initialize();
-
-        expect(mockSetSessionIdentityState).toHaveBeenNthCalledWith(2, { isInitialized: true, isAuthenticated: true });
     });
 
     it('reports unauthenticated when no relay session is stored (guest boot)', async () => {
@@ -295,7 +239,6 @@ describe('session/auth/relaySession', () => {
 
         expect(result).toBe(tokenView);
         // Same commit as the HTTP login paths: creds rebuilt, token persisted, session authed.
-        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(tokenView.Token);
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(tokenView);
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
         // No HTTP call happens — the token was already issued over the websocket.
@@ -341,7 +284,6 @@ describe('session/auth/relaySession', () => {
         await createCredentialsByProvider('google', 'code-1');
 
         expect(mockExchangeOAuthCode).toHaveBeenCalledWith({ provider: 'google', code: 'code-1' });
-        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(view.Token);
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(view);
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
     });
@@ -373,7 +315,6 @@ describe('session/auth/relaySession', () => {
 
         expect(mockVerifyOAuthCode).toHaveBeenCalledWith({ provider: 'google', code: 'code-1' });
         expect(mockExchangeOAuthCode).not.toHaveBeenCalled();
-        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(view.Token);
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(view);
         expect(mockSetSessionAuthenticated).toHaveBeenCalledWith(true);
     });
@@ -394,7 +335,6 @@ describe('session/auth/relaySession', () => {
         );
 
         expect(mockRelaySaveRelayToken).not.toHaveBeenCalled();
-        expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
     });
 
     // ⑪ device registration: deviceId persisted through identityStore ONLY

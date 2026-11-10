@@ -36,9 +36,9 @@ export { isNativeApp } from './utils/isNativeApp';
 export { prepareSecretStorage, setSessionStorage } from './sessionStorageBoot';
 // The one place an app's media are chosen and built. An entry point calls it once and hands the result
 // out — to `prepareSecretStorage`, to `initAppRuntime({ storage })`, to its config ports and its own
-// features — instead of constructing media itself. apps/web uses it; desktop-web is next. `LATE_VAULT_MARK` is the tab mark it reads and that
+// features — instead of constructing media itself. apps/web and apps/desktop-web use it. `LATE_VAULT_MARK` is the tab mark it reads and that
 // apps/web writes when a shell turns out to keep a vault only after its handshake.
-export { LATE_VAULT_MARK, resolveStorageMedia } from './storage/resolveStorageMedia';
+export { LATE_VAULT_MARK, readStorageEnvironment, resolveStorageMedia } from './storage/resolveStorageMedia';
 export type { StorageEnvironment, StorageMedia } from './storage/resolveStorageMedia';
 export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
 export type { SessionStoragePorts } from '@chatic/session';
@@ -49,7 +49,6 @@ export type { SessionStoragePorts } from '@chatic/session';
 export { setNativeCacheSupport } from './data/nativeCacheSupport';
 export type { NativeCacheSupport } from './data/nativeCacheSupport';
 
-// The sealed web transport. `startWebTransportInit` is a boot primitive that apps should NOT need:
-// `connection.RuntimeConnectionHost` is the single init driver (see its doc). desktop-web's three
-// auth hooks are the last callers, and it stays here only until they route through the host.
-export { startWebTransportInit, webTransport } from '@chatic/transport';
+// The relay HTTP transport — plain or signed requests; admin reaches the server through it. It needs no
+// boot: each signed request reads the session's relay token at that moment.
+export { webTransport } from '@chatic/transport';

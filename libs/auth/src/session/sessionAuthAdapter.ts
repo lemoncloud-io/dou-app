@@ -3,7 +3,6 @@ import type { UserTokenView } from '@lemoncloud/chatic-backend-api';
 import { logger } from '@chatic/bridges';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
-import { webTransport } from '@chatic/transport';
 import { cloudStore, relayStore, rebuildSessionIdentity } from '@chatic/session';
 import { recordCloudIdentity } from './cloudIdentity';
 import { calcSignature } from './utils/calcSignature';
@@ -111,8 +110,8 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
             return { signature, current };
         }
 
-        // relay: compute the signature over `$auth.id` ourselves instead of reusing
-        // webTransport.getTokenSignature(), which keys on `Token.authId` for the HTTP refresh path.
+        // relay: compute the signature over `$auth.id` — not `Token.authId`, which the old HTTP
+        // refresh path keyed on.
         //
         // **Source of truth is the server's own signer, not this client.** `oauth2-support.ts`'s
         // `_sign`/`validateSignature` read EVERY field off the auth model — `$auth.id`,
@@ -163,9 +162,9 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
      * per-socket writeback routing that unblocks dual sockets (multi-socket-design.md §6-6): a relay
      * refresh arriving while cloud is active must land in the relay store, not the active one.
      *
-     * Asymmetric by design (signing.md §3): relay must also rebuild the lemon-web-core AWS credential
-     * cache, because relay signed HTTP signs from that cache and not from relayStore. A cloud only
-     * persists the merged token — **it has no HTTP signing to keep alive.** Nothing signs with a cloud
+     * Asymmetric by design (signing.md §3): relay signed HTTP signs from the stored relay token on every
+     * request, so relay also warns when a refresh arrived without a credential. A cloud only persists
+     * the merged token — **it has no HTTP signing to keep alive.** Nothing signs with a cloud
      * credential: the one request that did was the cloud HTTP refresh, deleted by ADR-0070, and requests
      * bound for a cloud host are signed the relay way. What the cloud token still owes is the SOCKET
      * signature (`signAuth(cid)`, a lemon HMAC over `authId`/`accountId`/`identityId`), and that reads
@@ -205,21 +204,14 @@ class SessionAuthAdapter implements ISessionAuthAdapter {
                     },
                 });
             }
-            // `credential` is OPTIONAL in the wire contract, and lemon's `buildCredentialsByToken`
-            // throws `.AccessKeyId (string) is required!` when it is absent — which used to take the
-            // store write below down with it, silently: the caller fires this writeback with `void`, so
-            // the rejection surfaced as an unhandled promise and `requestRelaySessionRefresh` had already
-            // resolved `true`. Rebuild the credential cache only when the view actually carries one,
-            // and keep the store write either way (identityToken and the profile fields are still good).
+            // `credential` is OPTIONAL in the wire contract. The store write below keeps the previous
+            // one in that case (`merged` inherits it), and signed HTTP reads the stored token on every
+            // request, so it keeps signing with that previous credential.
             //
-            // Read off `view`, NOT `merged`: merged inherits the previous credential (so the store copy
-            // keeps naming whatever is actually signing), and asking merged here would rebuild lemon's
-            // cache from the credential it already holds — a no-op that also silences the warn below,
-            // which is the only signal that a refresh arrived without signing material.
+            // Read off `view`, NOT `merged`: merged always carries a credential, so asking it would
+            // silence the warn below — the only signal that a refresh arrived without signing material.
             const issued = view.Token.credential;
-            if (issued?.AccessKeyId && issued?.SecretKey) {
-                await webTransport.buildCredentialsByToken(merged.Token);
-            } else {
+            if (!issued?.AccessKeyId || !issued?.SecretKey) {
                 // Signed HTTP keeps signing with the previous credential — which is exactly the state
                 // that 403s once it lapses. Loud, because nothing downstream can detect this.
                 logger.warn('AUTH', '[commitServerRefreshedToken] refresh view carried no AWS credential', {

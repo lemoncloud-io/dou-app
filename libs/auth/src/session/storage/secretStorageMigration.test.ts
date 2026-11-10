@@ -6,7 +6,7 @@ import { secretStorageMigration } from './secretStorageMigration';
 jest.mock('@chatic/bridges', () => ({
     logger: { warn: jest.fn(), info: jest.fn(), debug: jest.fn(), error: jest.fn() },
 }));
-jest.mock('@chatic/transport', () => ({ lemonKeyPrefix: () => '@chatic.' }));
+jest.mock('@chatic/transport', () => ({ legacyLemonKeyPrefix: () => '@chatic.' }));
 
 const RELAY = 'chatic-relay-token';
 const CLOUD = 'chatic-cloud-token';
@@ -71,7 +71,7 @@ describe('secretStorageMigration', () => {
 
         expect(outcome).toBe('migrated');
         expect(vault).toEqual({ [RELAY]: 'r', [CLOUD]: 'c' });
-        expect(web.keys()).toEqual(['@chatic.i18nextLng']);
+        expect(web.keys()).toEqual([]);
         expect(medium.get(RELAY)).toBe('r');
     });
 
@@ -227,11 +227,11 @@ describe('secretStorageMigration and a tab copy an unavailable run left', () => 
 });
 
 describe('dropLemonLeftovers', () => {
-    it('deletes the old lemon bundle and keeps the language key', () => {
+    it('deletes the old lemon bundle and its language key, and leaves other keys', () => {
         const store = webWith({ '@chatic.identity_token': 't', '@chatic.i18nextLng': 'ko', other: 'x' });
 
         dropLemonLeftovers(store);
 
-        expect(store.keys().sort()).toEqual(['@chatic.i18nextLng', 'other']);
+        expect(store.keys().sort()).toEqual(['other']);
     });
 });

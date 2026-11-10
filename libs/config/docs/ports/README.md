@@ -88,8 +88,8 @@ export const webConfigPorts: ConfigRuntimePorts = {
 };
 ```
 
-`apps/web` writes the same thing as a factory, `createWebConfigPorts(media)`, because its storage
-ports are the media its entry point built; the env part is identical.
+`apps/web` and `apps/desktop-web` write the same thing as a factory, `createWebConfigPorts(media)`,
+because their storage ports are the media their entry points built; the env part is identical.
 
 Each app supplies only `read`, a function from a raw name to its value, which is the one piece this
 lib cannot hold (`import.meta`). All four Vite apps write the same four lines of it: `VITE_*` names
@@ -114,8 +114,9 @@ interface StorageLike {
 
 This is not a new type: it is the shape `@chatic/shared`'s `StorageAdapter` already has, taken
 structurally so this lib imports nothing. `localStorage` and `sessionStorage` satisfy it directly.
-`apps/web` passes neither directly: it hands over the two web media its `resolveStorageMedia()` built,
-seen as DOM `Storage` through `@chatic/storage`'s `asDomStorage` (`createWebConfigPorts(media)`).
+`apps/web` and `apps/desktop-web` pass neither directly: each hands over the two web media its
+`resolveStorageMedia()` built, seen as DOM `Storage` through `@chatic/storage`'s `asDomStorage`
+(`createWebConfigPorts(media)`).
 
 A key's `persist` picks which one it lands in, and the **`shell` strategy resolves to the same
 `local` store a `persist: 'local'` key uses**. That looks redundant and is the opposite: the bridge is

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { deviceMedium, tabMedium } from '../../storage';
 
 const STORAGE_KEY = '__dou_debug_mode';
 // Overlay-open lives in sessionStorage (not local): the debug Sync page calls
@@ -6,38 +7,20 @@ const STORAGE_KEY = '__dou_debug_mode';
 // survive a reload — but not a full app restart, where it should start closed.
 const OVERLAY_KEY = '__dou_debug_overlay';
 
-const readInitial = (): boolean => {
-    try {
-        return localStorage.getItem(STORAGE_KEY) === '1';
-    } catch {
-        return false;
-    }
-};
+// Both media are tolerant: a blocked storage reads as off and a dropped write leaves the switch
+// in memory for this run.
+const readInitial = (): boolean => deviceMedium.get(STORAGE_KEY) === '1';
 
 const persist = (enabled: boolean) => {
-    try {
-        if (enabled) localStorage.setItem(STORAGE_KEY, '1');
-        else localStorage.removeItem(STORAGE_KEY);
-    } catch {
-        // ignore storage failures (private mode, etc.)
-    }
+    if (enabled) deviceMedium.set(STORAGE_KEY, '1');
+    else deviceMedium.remove(STORAGE_KEY);
 };
 
-const readOverlayInitial = (): boolean => {
-    try {
-        return sessionStorage.getItem(OVERLAY_KEY) === '1';
-    } catch {
-        return false;
-    }
-};
+const readOverlayInitial = (): boolean => tabMedium.get(OVERLAY_KEY) === '1';
 
 const persistOverlay = (open: boolean) => {
-    try {
-        if (open) sessionStorage.setItem(OVERLAY_KEY, '1');
-        else sessionStorage.removeItem(OVERLAY_KEY);
-    } catch {
-        // ignore storage failures (private mode, etc.)
-    }
+    if (open) tabMedium.set(OVERLAY_KEY, '1');
+    else tabMedium.remove(OVERLAY_KEY);
 };
 
 interface DebugModeState {

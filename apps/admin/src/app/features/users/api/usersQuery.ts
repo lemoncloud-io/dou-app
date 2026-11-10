@@ -5,7 +5,8 @@ import { createQueryKeys } from '@chatic/shared';
 
 import { relayOverrideFor, type ServiceStage } from '../../../config/stageEndpoints';
 
-import type { Params } from '@lemoncloud/lemon-web-core';
+/** Query parameters for a relay request. */
+type Params = Record<string, unknown>;
 
 /**
  * Relay user listing for the console, moved down from `@chatic/app-runtime`'s `data/hooks/user.ts`.

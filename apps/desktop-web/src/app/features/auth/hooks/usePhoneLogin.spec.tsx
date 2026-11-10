@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const rt = vi.hoisted(() => ({
     isAuthenticated: true,
     loginGuest: vi.fn(),
-    startWebTransportInit: vi.fn(),
     sendPhoneCode: vi.fn(),
     confirmPhoneCode: vi.fn(),
     applySessionToken: vi.fn(),
@@ -17,7 +16,6 @@ vi.mock('react-i18next', () => ({ useTranslation: () => ({ i18n: { language: ui.
 vi.mock('@chatic/bridges', () => ({ isNative: () => true, logger: { error: rt.error, warn: vi.fn() } }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
-        boot: { startWebTransportInit: rt.startWebTransportInit },
         connection: {
             RELAY_SLOT: 'relay',
             getSocketManager: () => ({ waitUntilSlotVerified: rt.waitUntilSlotVerified }),
@@ -63,7 +61,6 @@ describe('usePhoneLogin', () => {
         localStorage.clear();
         rt.isAuthenticated = true;
         rt.loginGuest.mockReset().mockResolvedValue(undefined);
-        rt.startWebTransportInit.mockReset().mockResolvedValue(undefined);
         rt.sendPhoneCode.mockReset().mockResolvedValue({ sent: true, expiredAt: Date.now() + 180_000 });
         rt.confirmPhoneCode
             .mockReset()

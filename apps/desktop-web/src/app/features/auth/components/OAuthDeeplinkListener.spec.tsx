@@ -27,7 +27,6 @@ vi.mock('@chatic/bridges', () => ({
 }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
-        boot: { startWebTransportInit: vi.fn().mockResolvedValue(undefined) },
         data: { useRuntimeRepositories: () => ({ auth: {} }) },
         session: {
             getIdentityContext: () => ({ isAuthenticated: session.isAuthenticated }),

@@ -1,5 +1,4 @@
 import { LemonHmacSigner } from './LemonHmacSigner';
-import { calcSignature as lemonCalcSignature } from '@lemoncloud/lemon-web-core';
 
 import type { SignaturePayload } from '../contracts';
 
@@ -22,7 +21,9 @@ const FIXTURE_UA = 'fixture-ua/1.0';
 const RELAY_SIGNATURE = 'lfOFYzXFM4hYKhCfPuDb/0INNosD42VRotuv4VvcTBs=';
 
 // The expected signatures were computed independently with node crypto (HMAC-SHA256, base64), so
-// neither this implementation nor lemon-web-core is the reference these assertions trust.
+// neither this implementation nor lemon-web-core is the reference these assertions trust. While
+// lemon-web-core was a dependency, an equivalence test also checked them against its `calcSignature`;
+// they matched, and they are what the server validates against.
 describe('LemonHmacSigner — fixed signatures', () => {
     it('produces the fixed signature for relay material', () => {
         const result = signer.sign(RELAY_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
@@ -57,34 +58,5 @@ describe('LemonHmacSigner — fixed signatures', () => {
         const cloud = signer.sign(CLOUD_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
 
         expect(relay.signature).not.toBe(cloud.signature);
-    });
-});
-
-describe('LemonHmacSigner — equivalence with lemon-web-core', () => {
-    // lemon-web-core defaults its 2nd and 3rd arguments to `new Date()` and `navigator.userAgent`,
-    // which throws under Node. Both must be passed explicitly for the comparison to run.
-    it('matches calcSignature for relay material', () => {
-        const ours = signer.sign(RELAY_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
-        const theirs = lemonCalcSignature(RELAY_PAYLOAD, FIXTURE_CURRENT, FIXTURE_UA);
-
-        expect(ours.signature).toBe(theirs);
-    });
-
-    it('matches calcSignature for cloud material', () => {
-        const ours = signer.sign(CLOUD_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
-        const theirs = lemonCalcSignature(CLOUD_PAYLOAD, FIXTURE_CURRENT, FIXTURE_UA);
-
-        expect(ours.signature).toBe(theirs);
-    });
-});
-
-describe('LemonHmacSigner — reads no global', () => {
-    it('uses only the userAgent it is given', () => {
-        // The argument differs from any global userAgent, so producing the fixed relay signature
-        // proves only the argument was read. This holds whether or not the runtime has a
-        // `navigator`. purity.spec.ts proves the wider "reads no global" property by source scan.
-        const result = signer.sign(RELAY_PAYLOAD, { current: FIXTURE_CURRENT, userAgent: FIXTURE_UA });
-
-        expect(result.signature).toBe(RELAY_SIGNATURE);
     });
 });

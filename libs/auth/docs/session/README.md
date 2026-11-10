@@ -65,23 +65,25 @@ this order, and only then leaves the page:
 
 1. **The session.** Both relay and cloud stores, the per-cloud token cache, the cloud identity map, the
    recent-cloud order, the reclaim records and the paired clouds — in both of the session's ports.
-2. **lemon-web-core's credentials**, which are in memory (`webTransport.logout()`).
-3. **The app keys a sign-out takes**, by prefix, from the plain medium — `localStorage` in a shell,
+2. **The app keys a sign-out takes**, by prefix, from the plain medium — `localStorage` in a shell,
    `sessionStorage` in a browser. The prefixes are not this package's: the domains that write those
    keys declare them, and the app hands them to `initAppRuntime({ signedOutKeyPrefixes })`, which
    registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
    (`@chatic/web.log.`) and the telemetry policy (`@chatic/web.telemetry.policy`) — the logs carry the
    account that just left. An app that declares none has nothing swept.
-4. **The device vault**, where the shell keeps one: emptied, and the shell's confirmation awaited. The
+3. **The device vault**, where the shell keeps one: emptied, and the shell's confirmation awaited. The
    next document reads the vault before anything else, and a vault still holding the tokens would sign
    the person straight back in. When the shell does not confirm, `chatic-secret-logout-pending` goes
    into the plain medium and the next boot empties the vault before reading it.
-5. **`location.replace('/?logout=1')`.**
+4. **`location.replace('/?logout=1')`.**
 
-`logoutStorageSweeper.sweep()` reads that flag on the next document and runs step 3 once more, for a
+The HTTP transport has nothing of its own to clear: it signs every request from the session's relay
+token, which step 1 removed.
+
+`logoutStorageSweeper.sweep()` reads that flag on the next document and runs step 2 once more, for a
 log batch written between the clear and the navigation. It used to wipe the whole `@` namespace of the
-session's storage instead, keeping the language key and the config lane; that took lemon's bundle,
-which lemon no longer keeps in web storage, and whatever else later moved in under `@`.
+session's storage instead, keeping the language key and the config lane; that took lemon-web-core's
+bundle, which nothing writes any more, and whatever else later moved in under `@`.
 
 ### The device vault at boot
 
@@ -109,8 +111,9 @@ again. Every row is decided from what the vault and web storage hold, so a boot 
 the move again next time.
 
 lemon-web-core's old bundle (`@<project>.*`, its language key kept) goes with the web copy, and
-`initAppRuntime` drops it from the plain medium on every boot (`dropLemonLeftovers`) — lemon keeps its
-credentials in memory, so a bundle in web storage is left from an older build.
+`initAppRuntime` drops it from the plain medium on every boot (`dropLemonLeftovers`). Requests are
+signed from the session's relay token now and nothing writes under that prefix, so a bundle in web
+storage is left from an older build.
 
 Two cases are the entry point's (`apps/web/src/main.tsx`), not this migration's. A shell that keeps a
 vault but whose `CHATIC_APP_STORAGE_MEDIA` did not land is found from its handshake (`StorageGet` among
@@ -124,10 +127,9 @@ reloads onto it.
 `relayCredentialProbe` answers both from the session: a session exists when a relay token is stored,
 and the relay credential has expired when `credentialFreshness` measures nothing left on it — or
 nothing to measure. `relaySession.initialize()` reads the first to decide whether the boot is signed
-in, then rebuilds lemon's in-memory credentials from that token (`buildCredentialsByToken`, which
-throws for a token view without a credential; the boot logs that and goes on).
-`useSessionStalenessGuard` reads both. They used to be asked of lemon's own stored token bundle, whose
-expiry clock disagreed with the credential's exactly when a refresh carried a token but no credential.
+in; nothing is rebuilt from the token, because signed HTTP reads it per request.
+`useSessionStalenessGuard` reads both. They used to be asked of lemon-web-core's own stored token
+bundle, whose expiry clock disagreed with the credential's exactly when a refresh carried a token but no credential.
 
 [`authActions.ts`](../../src/session/authActions.ts) is an adapter, not a naming layer: three
 apps call `registerUserWithInviteCode` / `fetchInviteInfoWithCode` with positional arguments and the

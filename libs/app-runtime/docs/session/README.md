@@ -50,10 +50,9 @@ An app mounts these; they are not automatic.
 **[`useSessionStalenessGuard(policy)`](../../src/session/hooks/app/useSessionStalenessGuard.ts) is
 relay-only, and adding a `kind` option to it would be wrong** — relay and cloud recover by different
 means, and the cloud counterpart exists. Two properties are not configurable because they are the
-reason the hook exists: the probe never refreshes (`webTransport.isAuthenticated()` would fire
-lemon-web-core's own HTTP refresh, a second refresh engine that updates only the lemon store and
-leaves the socket's signing material stale), and renewal always goes through
-`requestRelaySessionRefresh`.
+reason the hook exists: the probe never refreshes (it reads the session's relay token and nothing else; there is no HTTP
+refresh to fire, and a second refresh engine would leave the socket's signing material stale), and
+renewal always goes through `requestRelaySessionRefresh`.
 
 The policy covers `enabled`, `intervalMs` (`null` for edge-driven callers), `checkOnVisible`,
 `checkOnRelayVerified`, `missingSessionCountsAsFailure`, `consecutiveFailureLimit`, `onTeardown` and
