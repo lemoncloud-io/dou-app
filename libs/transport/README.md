@@ -28,6 +28,8 @@ same way: the barrel in code, a named file in a test that mocks a store.
 ```text
 libs/transport/src/
 ├── index.ts                   the package barrel
+├── platform.ts                the ports the platform fills: the online signal, the device, the socket
+├── testing/platform.ts        `fakeTransportPorts()` — a jsdom page's ports, for tests in any package
 ├── socket/   14 files · 10 tests   SocketManager, its slots and contract, failure reporting, link state
 └── http/      6 files ·  5 tests   HttpManager, the relay request transport, gateways, two late-bound registries
 ```
@@ -54,6 +56,31 @@ failure reporter, the error-code ledger and `annotateSocketError`.
    concerns, and this package has to be able to run in a runtime that has no bridge. Nothing
    bridge-specific reaches it today; anything that ever does would have to arrive through a registry
    its owner fills, the way rule 3 handles what the runtime above supplies.
+6. **What the platform answers comes through `transportPlatform`, and there is no default.** Three
+   things here cannot be known without knowing where the code runs, so the platform's adapter fills
+   them (`TransportPlatformPorts`, in [`platform.ts`](./src/platform.ts)) and the runtime's assembly
+   hands them over before the first socket:
+
+    | Port           | Read by                                                                     | In a web page (`@chatic/runtime-web`)                     |
+    | -------------- | --------------------------------------------------------------------------- | --------------------------------------------------------- |
+    | `online`       | `readOnline` / `subscribeOnline`, so the link verdict and the offline skips | `navigator.onLine` and the window's online/offline events |
+    | `device()`     | `resolveSocketDevice`, for the device a socket introduces on `device.save`  | `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`    |
+    | `createSocket` | `SocketManager`, as the SDK's `socketFactory` for every slot                | `new WebSocket(url, protocols)`                           |
+
+    Used before it is configured, `transportPlatform.ports()` throws and names `initAppRuntime`. A
+    page's `WebSocket` and `navigator` do not exist in a native process, or answer wrongly there —
+    React Native's `WebSocket` sends no User-Agent, and the server checks a refreshed token against the
+    handshake's — so a fallback would hide the missing wiring until a device. What a port answers is
+    data; what it means stays here (the platform and label in `devicePlatform.ts`, the link rule in
+    `linkState.ts`).
+
+    Not ports, on purpose: the HTTP client (`createRequestTransport` from `@chatic/http`) is axios over
+    the session's token and runs unchanged under Hermes, and `authFailureReaction` is already a
+    registry the app fills, silent when empty. One browser read does remain below this package:
+    `@chatic/http` reads `navigator.onLine` itself (`utils/browserNetwork.ts`) to stop attributing a
+    failure to the server while the device is offline. It sits under transport, so it cannot read this
+    port; outside a page it answers "not offline" and only loses that attribution. Tests configure
+    `fakeTransportPorts()` from `testing/platform.ts` (a test may name that file by path).
 
 ## Documents
 

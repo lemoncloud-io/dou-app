@@ -1,4 +1,6 @@
 // The IndexedDB adapter opens a real database in its constructor, so a shim must exist first.
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import 'fake-indexeddb/auto';
 
 /**
@@ -112,6 +114,9 @@ const flush = async () => {
     // IndexedDB work resolves through real macrotasks under fake-indexeddb.
     for (let i = 0; i < 5; i += 1) await new Promise(resolve => setTimeout(resolve, 0));
 };
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('background receive — a cloud off screen keeps its own partition current', () => {
     let manager: SocketManager;

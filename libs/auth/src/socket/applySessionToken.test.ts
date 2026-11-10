@@ -1,3 +1,5 @@
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
@@ -140,6 +142,9 @@ const bootRelayManager = (client: ClientSocketV2) => {
     mockedGetSocketManager.mockReturnValue(manager);
     return manager;
 };
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('applySessionToken — verify-hash-alias $token을 relay 세션·소켓에 반영', () => {
     beforeEach(() => {

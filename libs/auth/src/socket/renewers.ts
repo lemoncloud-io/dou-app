@@ -6,7 +6,7 @@ import { Coalescer } from '../utils/coalescer';
 import { credentialFreshness, cloudStore, getCommittedCloudId } from '@chatic/session';
 import { cloudSession } from '../session/cloudSession';
 import { relaySession } from '../session/relaySession';
-import { backgroundClouds, readBrowserOnline, kindOf, RELAY_SLOT } from '@chatic/transport';
+import { backgroundClouds, readOnline, kindOf, RELAY_SLOT } from '@chatic/transport';
 import type { SlotKey } from '@chatic/transport';
 import { getAuthStatus } from './authStatus';
 import { renewCloudSession } from './renewCloudSession';
@@ -94,7 +94,7 @@ const isExpiryResolved = (status: ReturnType<typeof getAuthStatus>): boolean =>
 
 /** Seams for {@link RelayCredentialRenewer}'s terminal-expiry decision — injected only by tests. */
 export interface RelayExpiryDeps {
-    /** `navigator.onLine`, read at decision time rather than captured. */
+    /** The platform's online signal (`readOnline`), read at decision time rather than captured. */
     isOnline?: () => boolean;
     /** The relay slot's status after the confirmation window. */
     readStatus?: () => ReturnType<typeof getAuthStatus>;
@@ -110,7 +110,7 @@ export interface RelayExpiryDeps {
  * link. A latched `false` instead leaves a wedged session unresolved until the shell restarts, which
  * loses nothing.
  */
-const defaultIsOnline = readBrowserOnline;
+const defaultIsOnline = readOnline;
 const defaultWait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 export class RelayCredentialRenewer implements ICredentialRenewer {

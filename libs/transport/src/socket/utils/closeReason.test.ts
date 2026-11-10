@@ -1,3 +1,5 @@
+import { transportPlatform } from '../../platform';
+import { fakeTransportPorts } from '../../testing/platform';
 import type { SocketLike } from '@lemoncloud/chatic-sockets-lib';
 
 import { SocketManager } from '../SocketManager';
@@ -65,6 +67,9 @@ const makeSocket = () => {
     };
     return socket;
 };
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('classifySocketClose', () => {
     it('names the reasons the SDK and the app close with, whoever reports them', () => {

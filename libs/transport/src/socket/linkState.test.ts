@@ -1,3 +1,5 @@
+import { transportPlatform } from '../platform';
+import { fakeTransportPorts } from '../testing/platform';
 import { isLinkDown, isLinkKnownDown } from './linkState';
 
 const mockGetSlotKeys = jest.fn();
@@ -20,6 +22,9 @@ beforeEach(() => {
     mockIsSlotVerified.mockReturnValue(false);
     setBrowserOnline(true);
 });
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('isLinkDown', () => {
     it.each([
@@ -49,6 +54,14 @@ describe('isLinkKnownDown', () => {
         mockIsSlotVerified.mockImplementation((key: string) => key === 'cloud-1');
 
         expect(isLinkKnownDown()).toBe(false);
+    });
+
+    it("reads the platform's online port, whatever the page's navigator says", () => {
+        transportPlatform.configure(
+            fakeTransportPorts({ online: { read: () => false, subscribe: () => () => undefined } })
+        );
+
+        expect(isLinkKnownDown()).toBe(true);
     });
 
     it('reads the link as down when the browser is offline and no slot is bound at all', () => {

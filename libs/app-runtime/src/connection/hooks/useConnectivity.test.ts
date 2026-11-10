@@ -1,3 +1,5 @@
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { act, renderHook } from '@testing-library/react';
 
 import { deriveConnectivity, useConnectivity } from './useConnectivity';
@@ -35,6 +37,9 @@ const setBrowserOnline = (value: boolean) => {
     Object.defineProperty(window.navigator, 'onLine', { configurable: true, value });
     window.dispatchEvent(new Event(value ? 'online' : 'offline'));
 };
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('deriveConnectivity', () => {
     // navigator.onLine is a STRONG NEGATIVE: with no verified socket anywhere, false wins over the

@@ -14,6 +14,7 @@
  */
 import { MemoryStore } from '@chatic/storage';
 import { credentialRecovery } from '@chatic/transport/http/credentialRecovery';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { initAppRuntime } from './init';
 
 const mockRequestSessionRefresh = jest.fn();
@@ -46,7 +47,10 @@ describe('부팅 전', () => {
 
 describe('initAppRuntime 이후 — 자격증명 복구 배선', () => {
     beforeAll(() => {
-        initAppRuntime({ storage: { secret: new MemoryStore(), plain: new MemoryStore() } });
+        initAppRuntime({
+            storage: { secret: new MemoryStore(), plain: new MemoryStore() },
+            transport: fakeTransportPorts(),
+        });
     });
 
     // Hosts with no credential of their own also sign with relay's, so the recovery path is the same.

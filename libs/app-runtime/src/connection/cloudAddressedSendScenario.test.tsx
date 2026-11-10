@@ -9,6 +9,8 @@
  * switch. The control case shows the same switch tearing the socket down under a send made without
  * one.
  */
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { render } from '@testing-library/react';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
@@ -96,6 +98,9 @@ const deriveSlots = (): RuntimeSocketSlots => {
         background: readyBackgroundConfigs('d').map(background => ({ config: background })),
     };
 };
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('a send addressed to its cloud, across a switch', () => {
     let manager: SocketManager;

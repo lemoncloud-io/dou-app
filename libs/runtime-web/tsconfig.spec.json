@@ -1,0 +1,16 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        // Its own subdirectory: spec projects sharing one `dist/out-tsc` root overwrite each other's
+        // declaration output and build info.
+        "outDir": "../../dist/out-tsc/runtime-web-spec",
+        "types": ["jest", "node"]
+    },
+    "include": ["src/**/*.ts", "src/**/*.d.ts"],
+    // The same sibling projects tsconfig.lib.json references.
+    "references": [
+        {
+            "path": "../runtime-core/tsconfig.lib.json"
+        }
+    ]
+}

@@ -14,7 +14,8 @@ export default [
     //
     // The root config closes them to everything else; these two blocks set the same rule again for
     // this package's files, keeping the root's `@chatic/data/*` ban. Tests may also name a file as
-    // `@chatic/<package>/<path>`, so that mocking it reaches that package's own importers.
+    // `@chatic/<package>/<path>`, so that mocking it reaches that package's own importers, or to reach
+    // a shared test fixture kept outside the barrel (`@chatic/transport/testing/platform`).
     // ---------------------------------------------------------------------------------------------
     {
         files: ['src/**/*.ts'],

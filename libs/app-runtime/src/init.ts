@@ -4,7 +4,7 @@ import { attachConfigStateLog } from './config/configStateLog';
 import { configureDataRuntime, getDataManager, getRepositories } from './data/runtime';
 import { applyPendingSyncCursorReset } from './data/syncCursorWatermark';
 import { runtimeStores } from './storage/runtimeStores';
-import { credentialRecovery } from '@chatic/transport';
+import { credentialRecovery, transportPlatform } from '@chatic/transport';
 import {
     authRepositorySource,
     dropLemonLeftovers,
@@ -17,6 +17,7 @@ import { syncDataGraph } from '@chatic/sync';
 
 import type { HttpRoute } from '@chatic/http';
 import type { SessionStoragePorts } from '@chatic/session';
+import type { TransportPlatformPorts } from '@chatic/transport';
 import type { DataRuntimeConfig } from './data/runtime';
 import type { RuntimeStorePorts } from './storage/runtimeStores';
 
@@ -36,6 +37,12 @@ export interface AppRuntimeConfig {
      * a cache that must hear a failed write).
      */
     storage: SessionStoragePorts & Partial<RuntimeStorePorts>;
+    /**
+     * What the sockets and the link verdict take from the platform: the network signal, the device's
+     * self-description and how a socket is opened. Required — the transport has no platform of its own
+     * to fall back on. A web page passes `webTransportPorts()` from `@chatic/runtime-web`.
+     */
+    transport: TransportPlatformPorts;
     /**
      * Prefixes of the keys outside the session that a sign-out takes — declared by the app's own
      * domains that write them (apps/web: its log pipeline and telemetry policy). Swept from the plain
@@ -87,6 +94,8 @@ export const initAppRuntime = (config: AppRuntimeConfig): void => {
     const { secret, plain, device, tab } = config.storage;
     sessionStores.configure({ secret, plain });
     runtimeStores.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
+    // The platform the sockets and the link verdict read, before anything below can open one.
+    transportPlatform.configure(config.transport);
 
     // The credential bundle an older build's lemon-web-core left in web storage is nobody's, and goes.
     // The plain store is the web storage lemon used to write in each environment.

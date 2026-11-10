@@ -209,6 +209,7 @@ const RUNTIME_WIRING = {
         { object: 'signedOutAppKeys', name: 'register' },
         { name: 'configureSessionStore' },
         { object: 'credentialRecovery', name: 'register' },
+        { object: 'transportPlatform', name: 'configure' },
         { name: 'configureDataRuntime' },
         { object: 'authRepositorySource', name: 'provide' },
         { object: 'syncDataGraph', name: 'provide' },

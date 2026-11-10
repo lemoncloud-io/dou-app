@@ -1,8 +1,9 @@
+import { transportPlatform } from '../platform';
 import { getSocketManager } from './runtime';
 
 /** The two observations the link verdict is made from. */
 export interface LinkSignals {
-    /** `navigator.onLine`. */
+    /** The platform's online signal (`navigator.onLine` in a page). */
     isBrowserOnline: boolean;
     /** Whether any bound socket slot — relay or cloud — is connected AND verified. */
     hasVerifiedSocket: boolean;
@@ -27,9 +28,12 @@ export interface LinkSignals {
 export const isLinkDown = ({ isBrowserOnline, hasVerifiedSocket }: LinkSignals): boolean =>
     !isBrowserOnline && !hasVerifiedSocket;
 
-// Outside a DOM there is no signal to read; default to the unreliable positive rather than asserting
-// an offline we cannot observe.
-export const readBrowserOnline = (): boolean => (typeof navigator === 'undefined' ? true : navigator.onLine);
+/** The platform's online signal now, as its adapter reads it. */
+export const readOnline = (): boolean => transportPlatform.ports().online.read();
+
+/** Calls `listener` whenever the platform's online signal may have changed. Returns the unsubscribe. */
+export const subscribeOnline = (listener: () => void): (() => void) =>
+    transportPlatform.ports().online.subscribe(listener);
 
 export const hasAnyVerifiedSocket = (): boolean => {
     const manager = getSocketManager();
@@ -41,4 +45,4 @@ export const hasAnyVerifiedSocket = (): boolean => {
  * The sockets are only consulted when the browser already claims to be offline.
  */
 export const isLinkKnownDown = (): boolean =>
-    !readBrowserOnline() && isLinkDown({ isBrowserOnline: false, hasVerifiedSocket: hasAnyVerifiedSocket() });
+    !readOnline() && isLinkDown({ isBrowserOnline: false, hasVerifiedSocket: hasAnyVerifiedSocket() });

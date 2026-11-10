@@ -1,5 +1,6 @@
 import type { AllRequired, OptionalKeys, RuntimePorts } from './ports';
 import type { SessionStoragePorts } from '@chatic/session';
+import type { TransportPlatformPorts } from '@chatic/transport';
 
 /**
  * What this file checks is checked by the compiler, and the `typecheck` target is what runs it:
@@ -8,20 +9,21 @@ import type { SessionStoragePorts } from '@chatic/session';
  * `expect` calls below prove nothing by themselves — they give each check a name in the report.
  */
 const storage = {} as SessionStoragePorts;
+const transport = {} as TransportPlatformPorts;
 
 const isTrue = <T extends true>(): T => true as T;
 const isFalse = <T extends false>(): T => false as T;
 
 describe('RuntimePorts', () => {
     it('accepts an object that fills every port', () => {
-        const ports: RuntimePorts = { storage };
-        expect(Object.keys(ports)).toEqual(['storage']);
+        const ports: RuntimePorts = { storage, transport };
+        expect(Object.keys(ports)).toEqual(['storage', 'transport']);
     });
 
     it('refuses an object that leaves a port out', () => {
-        // @ts-expect-error — `storage` is missing.
-        const ports: RuntimePorts = {};
-        expect(ports).toEqual({});
+        // @ts-expect-error — `transport` is missing.
+        const ports: RuntimePorts = { storage };
+        expect(ports).toEqual({ storage });
     });
 
     it('declares no optional port', () => {

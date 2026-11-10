@@ -1,4 +1,7 @@
+import { transportPlatform } from '../platform';
+
 import type { DevicePlatform } from '@lemoncloud/chatic-sockets-lib';
+import type { DeviceEnvironment } from '../platform';
 
 /**
  * What a socket says about its device on `device.save`. The server derives the device's kind
@@ -10,29 +13,6 @@ export interface SocketDeviceIdentity {
     platform: Extract<DevicePlatform, 'ios' | 'android' | 'macos' | 'windows' | 'linux' | 'web'>;
     name?: string;
 }
-
-/** The inputs the decision reads — the shell-injected globals and the user agent. */
-export interface DeviceEnvironment {
-    /** `window.CHATIC_APP_PLATFORM`: `ios` · `android` from the mobile shell, `desktop` from Electron, absent in a browser. */
-    appPlatform?: string;
-    userAgent?: string;
-}
-
-type ShellGlobals = { CHATIC_APP_PLATFORM?: string };
-
-/**
- * Reads the globals straight off `window` rather than through device-utils' `deviceInfoStore`: that
- * store is filled by a React hook on mount, and the first socket can be created before it runs. The
- * shells inject these globals before the page's own script, so they are always there to read.
- */
-export const readDeviceEnvironment = (): DeviceEnvironment => {
-    if (typeof window === 'undefined') return {};
-    const globals = window as unknown as ShellGlobals;
-    return {
-        appPlatform: globals.CHATIC_APP_PLATFORM,
-        userAgent: typeof navigator === 'undefined' ? undefined : navigator.userAgent,
-    };
-};
 
 type OsName = 'iOS' | 'Android' | 'ChromeOS' | 'macOS' | 'Windows' | 'Linux';
 
@@ -85,7 +65,9 @@ export const userAgentLabel = (userAgent: string): string | undefined => {
  *   named either: its `CHATIC_APP_DEVICE_MODEL` is Node's `process.platform`, not a model.
  * - anything else — a browser, so `web`, named `<browser> · <OS>` when both are recognised.
  */
-export const resolveSocketDevice = (environment: DeviceEnvironment = readDeviceEnvironment()): SocketDeviceIdentity => {
+export const resolveSocketDevice = (
+    environment: DeviceEnvironment = transportPlatform.ports().device()
+): SocketDeviceIdentity => {
     const { appPlatform } = environment;
     const userAgent = environment.userAgent ?? '';
 

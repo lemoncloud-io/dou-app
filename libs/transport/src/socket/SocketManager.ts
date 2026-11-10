@@ -25,6 +25,7 @@ import type {
 } from './types';
 import { AUTH_OPTIONS, DEFAULT_VERIFY_TIMEOUT_MS, INITIAL_SOCKET_STATE } from './constants';
 import { hasResumeKick } from './socketVerifyTrace';
+import { transportPlatform } from '../platform';
 import { resolveSocketDevice } from './devicePlatform';
 import { socketFailureReporter } from './socketFailureReporter';
 import { annotateSocketError } from './utils/annotateSocketError';
@@ -1021,6 +1022,9 @@ export class SocketManager implements ISocketManager {
                 ...resolveSocketDevice(),
             },
             auth: AUTH_OPTIONS,
+            // The platform opens the socket: a page's `WebSocket`, or a native one that sends the
+            // handshake headers the server checks a refreshed token against.
+            socketFactory: context => transportPlatform.ports().createSocket(context),
         });
     }
 

@@ -177,8 +177,8 @@ The server files the device by its `platform` — `ios` · `android` are mobile,
 `linux` desktop, `web` a browser — and that is what my device list shows. Until this was decided per
 shell, every client sent `web`, so phones and desktops were listed as browsers.
 
-`resolveSocketDevice` decides it from what the shell injected, read straight off `window` when the
-client is created:
+`resolveSocketDevice` decides it from what the platform's `device()` port answers when the client is
+created — in a page, the shell-injected global and the user agent, read straight off `window`:
 
 | Shell                       | `CHATIC_APP_PLATFORM` | `platform` sent                                   | `name` sent                               |
 | --------------------------- | --------------------- | ------------------------------------------------- | ----------------------------------------- |
@@ -186,9 +186,12 @@ client is created:
 | Desktop (Electron)          | `desktop`             | `macos` · `windows` · `linux` from the user agent | none                                      |
 | Browser, or any other value | absent                | `web`                                             | `<browser> · <OS>`, e.g. `Chrome · macOS` |
 
-- It reads the globals, not device-utils' `deviceInfoStore`: the store is filled by a React hook on
-  mount, and the first socket can be created before that hook runs. The shells inject the globals
-  before the page's own script.
+- The web port reads the globals, not device-utils' `deviceInfoStore`: the store is filled by a React
+  hook on mount, and the first socket can be created before that hook runs. The shells inject the
+  globals before the page's own script.
+- The socket itself is opened by the platform too: every client gets the `createSocket` port as its
+  `socketFactory`, read when the SDK opens the socket. A page's is `new WebSocket(url, protocols)`, the
+  same thing the SDK opens when given no factory.
 - **The apps send no name.** The server keeps a sent `name` on every save, overwriting the row's label,
   and neither shell injects anything a person would recognise: the mobile shell's
   `CHATIC_APP_DEVICE_MODEL` is `DeviceInfo.getDeviceId()` — `iPhone17,1` on iOS, the board codename
@@ -397,7 +400,8 @@ offline skips in the credential guards, the background token preparer and the re
 the same answer through `isLinkKnownDown()`. The link is down only when **the browser says offline
 AND no slot — relay or cloud — is verified**.
 
-`navigator.onLine === false` is strong evidence, not proof. Chromium can hold it at `false` for the
+The browser's flag reaches this package as the platform's `online` port (`readOnline`,
+`subscribeOnline`); in a page it is `navigator.onLine`. `navigator.onLine === false` is strong evidence, not proof. Chromium can hold it at `false` for the
 life of the process while requests succeed. This was seen on the macOS desktop shell when it started at
 login before Wi-Fi had joined a network. Read on its own, that value showed a permanent "no network"
 banner and silently stopped every credential renewal. A verified socket is positive proof that packets

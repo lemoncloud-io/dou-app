@@ -25,7 +25,9 @@ adapter that forgot it, not a fallback discovered on a device.
    no neutral default — the only values in reach are one platform's — so there is nothing a default
    could safely be.
 2. **The package that uses a port declares it.** `RuntimePorts.storage` is `@chatic/session`'s own
-   `SessionStoragePorts`; this package names it, it does not redefine it.
+   `SessionStoragePorts` and `RuntimePorts.transport` is `@chatic/transport`'s
+   `TransportPlatformPorts` (the online signal, the device, how a socket is opened); this package names
+   them, it does not redefine them.
 3. **No platform here.** The package compiles without the browser's types or Node's (`lib:
 ["es2022"]`, `types: []` in `tsconfig.lib.json`), its tests run in jest's `node` environment, and
    it imports neither React nor React Native nor `@chatic/bridges`. One gap: React Native's global
@@ -72,7 +74,7 @@ adapter from any file rather than its entry point. Each goes when the code it de
 
 ## The wiring calls
 
-The eight calls that wire the core packages together — `sessionStores.configure`,
+The calls that wire the core packages together — `sessionStores.configure`,
 `syncDataGraph.provide` and the rest — are made in one file, the assembly point, and a workspace lint
 rule reports them anywhere else. The catalogue and the allowed file are in the root config; the rule
 is [`tools/eslint-rules`](../../tools/eslint-rules/README.md)'s `runtime-wiring-call`. The assembly

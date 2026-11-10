@@ -1,4 +1,5 @@
 import type { SessionStoragePorts } from '@chatic/session';
+import type { TransportPlatformPorts } from '@chatic/transport';
 
 /**
  * Everything the runtime takes from the platform it runs on, in one object.
@@ -21,6 +22,8 @@ import type { SessionStoragePorts } from '@chatic/session';
 export interface RuntimePorts {
     /** The stores behind the session's two ports — the credentials and everything else it keeps. */
     storage: SessionStoragePorts;
+    /** The network signal, the device's self-description and how a socket is opened. */
+    transport: TransportPlatformPorts;
 }
 
 /** The keys of `T` a caller may leave out. */

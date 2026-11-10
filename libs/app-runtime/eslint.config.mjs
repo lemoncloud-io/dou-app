@@ -21,7 +21,8 @@ export default [
     // again for this package's files, keeping the root's `@chatic/data/*` ban. Production code takes
     // the barrels only. Tests may also name a file as `@chatic/<package>/<path>`. The reason is the
     // mock: a test that mocks a module must name that file, or the package's internal imports keep
-    // the real one. A test then imports the same file's other symbols by the same path.
+    // the real one. A test then imports the same file's other symbols by the same path, and a shared
+    // test fixture a package keeps outside its barrel (`@chatic/transport/testing/platform`) the same way.
     // ---------------------------------------------------------------------------------------------
     {
         files: ['src/**/*.ts', 'src/**/*.tsx'],

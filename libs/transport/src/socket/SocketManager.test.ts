@@ -1,3 +1,5 @@
+import { transportPlatform } from '../platform';
+import { fakeTransportPorts } from '../testing/platform';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
@@ -48,6 +50,9 @@ const CLOUD = slotKeyOf('cloud-1');
 const onRelay = (config: Omit<SocketBindingConfig, 'cid'>): SocketBindingConfig => ({ ...config, cid: 'default' });
 const onCloud = (config: Omit<SocketBindingConfig, 'cid'>): SocketBindingConfig => ({ ...config, cid: 'cloud-1' });
 const REQUEST_ERROR = { errorCode: 401, message: 'UNAUTHORIZED' };
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('SocketManager request facade', () => {
     beforeEach(() => {
@@ -142,6 +147,40 @@ describe('SocketManager device identity', () => {
         new SocketManager().ensure(onRelay(CONFIG));
 
         expect(mockedCreate.mock.calls[0][0].device).toMatchObject({ id: 'device-1', platform: 'web' });
+    });
+});
+
+/**
+ * The SDK opens each slot's WebSocket through the factory it is handed, so the platform decides how a
+ * socket is opened — a page's `WebSocket`, or a native one that sends the handshake headers.
+ */
+describe('SocketManager socket factory', () => {
+    beforeEach(() => {
+        mockedCreate.mockReset();
+        mockedCreate.mockReturnValue(makeClient());
+    });
+
+    it("opens every slot's socket through the platform's createSocket port", () => {
+        const socket = { readyState: 0 } as never;
+        const createSocket = jest.fn().mockReturnValue(socket);
+        transportPlatform.configure(fakeTransportPorts({ createSocket }));
+
+        new SocketManager().ensure(onRelay(CONFIG));
+        const factory = mockedCreate.mock.calls[0][0].socketFactory;
+
+        expect(factory?.({ url: 'wss://example.test/?v2=', protocols: 'p' })).toBe(socket);
+        expect(createSocket).toHaveBeenCalledWith({ url: 'wss://example.test/?v2=', protocols: 'p' });
+    });
+
+    it('reads the port when the SDK opens the socket, not when the slot is made', () => {
+        new SocketManager().ensure(onRelay(CONFIG));
+        const factory = mockedCreate.mock.calls[0][0].socketFactory;
+        const later = jest.fn().mockReturnValue({ readyState: 0 });
+        transportPlatform.configure(fakeTransportPorts({ createSocket: later }));
+
+        factory?.({ url: 'wss://example.test/' });
+
+        expect(later).toHaveBeenCalledTimes(1);
     });
 });
 
