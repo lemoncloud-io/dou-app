@@ -123,7 +123,7 @@ What an app opens depends on its handshake's `subWebViewOpenScope`, read through
 (`*.apps-dev.chatic.io` in dev), which the app's review pipeline alone deploys to. One that says
 `anyHttps` opens any plain https site as well, in the `external` tier: no manifest, the bar titled
 with its host. The web ships before the app, so a control that opens an arbitrary site — the Lab's
-mini app link ([mypage](../feature/mypage/README.md#the-mini-app-card)) — is drawn only where the
+mini app list ([mypage](../feature/mypage/README.md#the-mini-app-card)) — is drawn only where the
 handshake says `anyHttps`. A push or a page link still reaches only the reviewed pages. The page talks
 only to a host of its own with a few messages, and has none of this app's state; the shell's side,
 and what it allows, is [`apps/mobile/docs/webview/sub-webview.md`](../../../mobile/docs/webview/sub-webview.md).

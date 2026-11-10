@@ -126,7 +126,7 @@ decided by one shared rule both shells and both webs call.**
   load error in the card.
 - An owner keeps a list of links per cloud (each a name and an address, up to ten), not a single one:
   a cloud runs more than one outside service, and a list costs the same rule per entry. The list lives
-  on the device only (the web's storage, per cloud), so it shows only on the computer the owner saved
+  on the device only (the web's storage, per cloud), so it shows only on the computer or phone the owner saved
   it on. Members on their own devices get it when the list moves to the server, a later step.
 - An external site the owner chose runs with fewer features than a reviewed page, on purpose; the
   review is still the way to more.
