@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026-11-10] - root@0.151.1, @chatic/desktop-web@0.55.1
+
+### Bug Fixes
+
+- (desktop-web) keep a cloud's mini app state from leaking across a switch
+
 ## [2026-11-10] - root@0.151.0, @chatic/desktop-web@0.55.0
 
 ### Features
