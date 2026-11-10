@@ -20,6 +20,17 @@ describe('checkMiniAppLink', () => {
             expect(checkMiniAppLink('Carrot', url)).toBe('invalidUrl');
         }
     );
+
+    it.each([['https://apps.chatic.io/'], ['https://apps.chatic.io/other'], ['https://APPS-DEV.chatic.io/x?y=1']])(
+        'refuses the hub host %j, whose page would be told the owner and the list',
+        url => {
+            expect(checkMiniAppLink('Hub', url)).toBe('hubUrl');
+        }
+    );
+
+    it('accepts a reviewed page one label under the hub', () => {
+        expect(checkMiniAppLink('Carrot', 'https://carrot.apps.chatic.io/')).toBeNull();
+    });
 });
 
 describe('parseMiniAppLinks', () => {
@@ -41,6 +52,7 @@ describe('parseMiniAppLinks', () => {
             link('c', ''),
             { id: 'd', name: 'No url' },
             link('a', 'Again'),
+            link('f', 'Hub page', 'https://apps.chatic.io/other'),
             link('e'),
         ]);
         expect(parseMiniAppLinks(stored).map(l => l.id)).toEqual(['a', 'e']);

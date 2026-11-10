@@ -12,6 +12,8 @@ import type * as SharedModule from '../../../shared';
 const env = vi.hoisted(() => ({
     scope: 'anyHttps' as string | null,
     activeCloudId: 'c1' as string | null,
+    // The catalog's say on c2, which can change under an open screen.
+    c2Kind: 'invited' as string,
     noUid: false,
     closed: null as ((closed: OnSubWebViewClosedPayload) => void) | null,
     open: vi.fn(),
@@ -50,7 +52,7 @@ vi.mock('../../../shared', async () => ({
         clouds: [
             { id: 'default', name: 'Home', status: 'active', kind: 'home' },
             { id: 'c1', name: 'Lemon', status: 'active', kind: 'owned' },
-            { id: 'c2', name: 'Friends', status: 'active', kind: 'invited' },
+            { id: 'c2', name: 'Friends', status: 'active', kind: env.c2Kind },
         ],
         activeCloudId: env.activeCloudId,
     }),
@@ -100,6 +102,7 @@ describe('MiniAppSettingsItem', () => {
     beforeEach(() => {
         env.scope = 'anyHttps';
         env.activeCloudId = 'c1';
+        env.c2Kind = 'invited';
         env.noUid = false;
         env.open.mockReset().mockResolvedValue('view-1');
         env.toastFailure.mockReset();
@@ -141,6 +144,13 @@ describe('MiniAppSettingsItem', () => {
         expect(hubButton()).toBeTruthy();
         expect(screen.queryByRole('button', { name: /Carrot/ })).toBeNull();
         expect(addButton()).toBeNull();
+    });
+
+    it('says the hub holds the one mini app a cloud has without counting it', async () => {
+        storeLinks('c1', [CARROT]);
+        await renderItem();
+
+        expect(hubButton().textContent).toContain('Choose it on the mini app home.');
     });
 
     it("hands the hub the cloud's mini apps by name and host", async () => {
@@ -192,6 +202,10 @@ describe('MiniAppSettingsItem', () => {
         expect(await screen.findByText('Enter a name.')).toBeTruthy();
         await fillAndSave('Shop', 'https://shop.example:8443/');
         expect(await screen.findByText('Enter an https address without a port or sign-in part.')).toBeTruthy();
+        await fillAndSave('Hub page', 'https://apps.chatic.io/other');
+        expect(
+            await screen.findByText('The mini app home opens from its own row. Enter another address.')
+        ).toBeTruthy();
         expect(window.localStorage.getItem('dou.miniAppLinks.c1')).toBeNull();
 
         await fillAndSave(' Shop ', 'https://shop.example/app');
@@ -342,6 +356,55 @@ describe('MiniAppSettingsItem', () => {
 
         expect(addButton()).not.toBeNull();
         expect(nameInput()).toBeNull();
+    });
+
+    it("drops a member's request to add, so becoming the owner later opens no dialog", async () => {
+        env.activeCloudId = 'c2';
+        const { rerender } = await renderItem();
+        fireEvent.click(hubButton());
+        await waitFor(() => expect(env.open).toHaveBeenCalled());
+        hubCloses({ action: 'openMiniAppLinkSettings' });
+
+        env.c2Kind = 'owned';
+        rerender(<MiniAppSettingsItem />);
+        await act(async () => undefined);
+
+        expect(addButton()).not.toBeNull();
+        expect(nameInput()).toBeNull();
+    });
+
+    it('ignores a hub that closes after a switch, though the new cloud lists the id it names', async () => {
+        storeLinks('c1', [SHOP]);
+        storeLinks('c2', [SHOP]);
+        window.localStorage.setItem('dou.miniAppConsent.uid-session.shop.example', '1');
+        const { rerender } = await renderItem();
+        fireEvent.click(hubButton());
+        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(1));
+
+        env.activeCloudId = 'c2';
+        rerender(<MiniAppSettingsItem />);
+        await act(async () => undefined);
+        hubCloses({ action: 'openMiniApp', id: 'l2' });
+        await act(async () => undefined);
+
+        expect(env.open).toHaveBeenCalledTimes(1);
+    });
+
+    it("drops a consent still waiting when the cloud changes, so agreeing never sends the new cloud's names", async () => {
+        storeLinks('c2', [SHOP]);
+        env.activeCloudId = 'c2';
+        const { rerender } = await renderItem();
+        fireEvent.click(hubButton());
+        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(1));
+        hubCloses({ action: 'openMiniApp', id: 'l2' });
+        expect(await screen.findByText('Open a site outside DoU?')).toBeTruthy();
+
+        env.activeCloudId = 'c1';
+        rerender(<MiniAppSettingsItem />);
+        await act(async () => undefined);
+
+        await waitFor(() => expect(screen.queryByText('Open a site outside DoU?')).toBeNull());
+        expect(env.open).toHaveBeenCalledTimes(1);
     });
 
     it('takes the owner to adding a mini app when the hub asks, and no one else', async () => {

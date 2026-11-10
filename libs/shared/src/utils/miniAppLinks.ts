@@ -1,4 +1,4 @@
-import { isOpenableSubWebViewUrl } from './subWebViewTrust';
+import { subWebViewTrustOf } from './subWebViewTrust';
 
 /** One mini app a cloud's owner added: the name the settings list shows, and the page it opens. */
 export interface MiniAppLink {
@@ -13,18 +13,24 @@ export const MINI_APP_LINK_LIMIT = 10;
 /** The longest a mini app's name may be, in characters: one settings row, without wrapping. */
 export const MINI_APP_LINK_NAME_MAX = 30;
 
-export type MiniAppLinkProblem = 'nameMissing' | 'nameTooLong' | 'invalidUrl';
+export type MiniAppLinkProblem = 'nameMissing' | 'nameTooLong' | 'invalidUrl' | 'hubUrl';
 
 /**
  * What is wrong with a mini app an owner is about to save, or `null` when nothing is. The name is
  * counted on code points, so an emoji counts once. The address is checked by the rule the shells
  * open by, so a saved link is never one a shell would refuse.
+ *
+ * An address on the hub's own hosts (`firstParty`, any path) is refused: a page there would be told
+ * whether the user owns the cloud and handed the cloud's list, and its close result would be read as
+ * the hub's. The hub is reached through its own row, never as a mini app.
  */
 export const checkMiniAppLink = (name: string, url: string): MiniAppLinkProblem | null => {
     const trimmed = name.trim();
     if (!trimmed) return 'nameMissing';
     if (Array.from(trimmed).length > MINI_APP_LINK_NAME_MAX) return 'nameTooLong';
-    if (!isOpenableSubWebViewUrl(url.trim())) return 'invalidUrl';
+    const trust = subWebViewTrustOf(url.trim());
+    if (!trust) return 'invalidUrl';
+    if (trust === 'firstParty') return 'hubUrl';
     return null;
 };
 

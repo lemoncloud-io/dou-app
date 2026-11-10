@@ -235,7 +235,8 @@ Eight things the filenames do not tell you.
   `params` a mini app opens with from it — ids and display names, never a token, and `user.isOwner`
   and the cloud's mini app list (`miniApps`, name and host) for a `firstParty` page only. `utils/miniAppLinks.ts` holds the rules for the mini apps an owner adds
   to a cloud, so both webs keep the same list: `checkMiniAppLink` (a name of 1–30 characters, an
-  address that rule opens), `MINI_APP_LINK_LIMIT` (10 per cloud), and `parseMiniAppLinks`, which reads
+  address that rule opens and that is not on the hub's own hosts, `hubUrl` — a page there would get the
+  owner flag and the list), `MINI_APP_LINK_LIMIT` (10 per cloud), and `parseMiniAppLinks`, which reads
   a stored list back and drops any entry the rules no longer pass.
 
 - **`utils/inviteLink.ts` is the only decoder of the encoded invite link `/i?t=<base64url(JSON)>`.**
