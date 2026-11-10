@@ -11,6 +11,16 @@ export interface QuietHours {
     end: string;
 }
 
+/**
+ * The level a person chose for a whole place, and the channels of that place this device had
+ * already seen when it last applied the level. A channel not in `known` is new to this device and
+ * inherits `mode` once; a known channel set differently afterwards is a deliberate exception.
+ */
+export interface PlaceNotifyPref {
+    mode: ChannelNotifyMode;
+    known: string[];
+}
+
 interface NotificationPrefsState {
     /** Global switch for OS notifications (desktop shell only). */
     desktopEnabled: boolean;
@@ -31,11 +41,20 @@ interface NotificationPrefsState {
      * turned on: existing quiet-hours users get no new banners on update.
      */
     mentionBreaksQuietHours: boolean;
+    /**
+     * `placeNotifyKey(cloudId, placeId)` → the place-level choice. Device-local: the server has no
+     * place field, so the level itself reaches the server only as each channel's join.notify.
+     */
+    placeNotify: Record<string, PlaceNotifyPref>;
     setDesktopEnabled: (enabled: boolean) => void;
     setChannelNotify: (channelId: string, mode: ChannelNotifyMode) => void;
     setSnooze: (untilMs: number | null) => void;
     setQuietHours: (quietHours: QuietHours | null) => void;
     setMentionBreaksQuietHours: (enabled: boolean) => void;
+    /** Remember `mode` for the place, with the channel ids it was applied to. */
+    setPlaceNotify: (key: string, mode: ChannelNotifyMode, known: string[]) => void;
+    /** Add channel ids to a place's known set (after they inherited its level). */
+    addPlaceKnown: (key: string, channelIds: string[]) => void;
 }
 
 const GROUP_NOTIFY_MODES: readonly ChannelNotifyMode[] = ['all', 'mention', 'none'];
@@ -100,10 +119,24 @@ export const useNotificationPrefsStore = create<NotificationPrefsState>()(
             snoozeUntil: null,
             quietHours: null,
             mentionBreaksQuietHours: false,
+            placeNotify: {},
             setDesktopEnabled: enabled => set({ desktopEnabled: enabled }),
             setSnooze: untilMs => set({ snoozeUntil: untilMs }),
             setQuietHours: quietHours => set({ quietHours }),
             setMentionBreaksQuietHours: enabled => set({ mentionBreaksQuietHours: enabled }),
+            setPlaceNotify: (key, mode, known) =>
+                set(state => ({ placeNotify: { ...state.placeNotify, [key]: { mode, known: [...new Set(known)] } } })),
+            addPlaceKnown: (key, channelIds) =>
+                set(state => {
+                    const pref = state.placeNotify[key];
+                    if (!pref) return {};
+                    return {
+                        placeNotify: {
+                            ...state.placeNotify,
+                            [key]: { ...pref, known: [...new Set([...pref.known, ...channelIds])] },
+                        },
+                    };
+                }),
             setChannelNotify: (channelId, mode) =>
                 set(state => {
                     // Keep the legacy mute map coherent for anything still reading it.

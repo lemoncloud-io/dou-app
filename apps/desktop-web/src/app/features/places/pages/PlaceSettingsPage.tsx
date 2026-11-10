@@ -5,7 +5,14 @@ import { ChevronLeft, MapPin } from 'lucide-react';
 import { Button } from '@chatic/ui-kit/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@chatic/ui-kit/components/ui/avatar';
 
-import { PageSkeleton, formatLongDate, useAuthorNames, usePlaces } from '../../../shared';
+import {
+    NotifyLevelSection,
+    PageSkeleton,
+    formatLongDate,
+    useAuthorNames,
+    usePlaceNotify,
+    usePlaces,
+} from '../../../shared';
 import { runtime } from '@chatic/app-runtime';
 import { EditPlaceDialog } from '../../chat/components/EditPlaceDialog';
 import { useEditPlaceDialogStore } from '../../chat/stores/useEditPlaceDialogStore';
@@ -26,6 +33,7 @@ export const PlaceSettingsPage = () => {
     const { selectedSiteId } = runtime.session.useSessionSelection();
     const openMyProfile = useEditPlaceProfileDialogStore(s => s.open);
     const openEditPlace = useEditPlaceDialogStore(s => s.open);
+    const notify = usePlaceNotify(placeId);
 
     const place = places.find(row => row.id === placeId);
     const ownerNames = useAuthorNames(place?.ownerId ? [place.ownerId] : []);
@@ -137,6 +145,15 @@ export const PlaceSettingsPage = () => {
                             </Button>
                         </div>
                     )}
+
+                    <NotifyLevelSection
+                        title={t('place.settings.notify.title')}
+                        hint={t('place.settings.notify.hint')}
+                        mode={notify.mode}
+                        onSelect={notify.setMode}
+                        exceptions={notify.exceptions}
+                        onOpenExceptions={() => navigate(`/places/${place.id}/channels`)}
+                    />
 
                     <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5">
                         <div className="flex min-w-0 flex-col gap-0.5">

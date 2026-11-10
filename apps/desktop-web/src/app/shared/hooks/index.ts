@@ -10,6 +10,7 @@ export * from './useChatMutations';
 export * from './useChatOutbox';
 export * from './useChannelMutations';
 export * from './useChannelNotifyChange';
+export * from './usePlaceNotify';
 export * from './useDesktopInviteMutations';
 export * from './useInviteCountdown';
 export * from './useRelayAccount';
