@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (transport,runtime-web,app-runtime) open the transport's platform as ports
+
+## [2026-11-10] - No version updates
+
+### Refactor
+
 - (storage) call the key-value backings stores, not media
 
 ## [2026-11-10] - No version updates
