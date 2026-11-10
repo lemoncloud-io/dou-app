@@ -20,6 +20,44 @@ const LOG_AREAS = (() => {
 const LOG_LEVELS = new Set(['debug', 'info', 'warn', 'error']);
 
 /**
+ * Keeps a package off `@chatic/bridges`. The configs of session, transport, sync, auth and data
+ * add `noBridgesImport` to their own list.
+ *
+ * Those five hold the session, the sockets, sync and the data layer, and none of that is specific to
+ * a WebView. `@chatic/bridges` is the transport across the WebView boundary — the web-side client,
+ * the shell-side host and the `webClient` singleton — so an import of it ties the package to that
+ * boundary. Nothing they need lives there: `logger`, the one name they still took from it, is only
+ * re-exported from `@chatic/logger`.
+ *
+ * `noBridgesImport` belongs in a package's own config and does nothing in this file's list. Its
+ * globs carry no package path, and a flat config resolves them against the directory lint runs in,
+ * which for a project's lint target is that project.
+ *
+ * This is the core `no-restricted-imports`, not the `@typescript-eslint` one the bans around it use,
+ * and that is deliberate: a flat config replaces a rule's options when a later block sets the rule
+ * again, so a second rule name is what lets this ban sit on top of a package's existing list rather
+ * than having to be copied into every copy of it. A block that sets the core rule for a narrower
+ * set of files has to carry `bridgesImportPattern` itself, for the same reason.
+ *
+ * It reads static imports and re-exports, type-only ones included, in every TypeScript file of the
+ * package — its jest setup as well as `src/`. A dynamic `import()` is not covered, and neither is
+ * `jest.mock('@chatic/bridges')`, so a test can still stub the package for a module that reaches it
+ * indirectly.
+ */
+export const bridgesImportPattern = {
+    group: ['@chatic/bridges', '@chatic/bridges/*'],
+    message:
+        'This package stays off the WebView bridge. Import `logger` from @chatic/logger; anything bridge-specific has to arrive through a port its owner fills.',
+};
+
+export const noBridgesImport = {
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+        'no-restricted-imports': ['error', { patterns: [bridgesImportPattern] }],
+    },
+};
+
+/**
  * Warns about a tag the trigger catalogue does not have: a tag is one event, `<area>.<event>`.
  *
  * A warning, not an error — call sites move to event tags one area at a time, and until they do the

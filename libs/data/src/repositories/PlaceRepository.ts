@@ -1,5 +1,5 @@
 import type { UserMySiteInput } from '@lemoncloud/chatic-sockets-api';
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import type { DomainListResult, DomainPlace } from '../domain';
 import type { IPlaceLocalDataSource, LocalDataSourceContextOverride } from '../local/data-sources';
 import type {

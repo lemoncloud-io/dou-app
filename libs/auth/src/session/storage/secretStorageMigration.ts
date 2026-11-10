@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import { SECRET_LOGOUT_PENDING_KEY, SESSION_KEYS } from '@chatic/session';
 
 import type { KeyValueStore } from '@chatic/storage';

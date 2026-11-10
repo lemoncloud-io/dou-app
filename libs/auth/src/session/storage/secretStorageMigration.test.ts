@@ -3,7 +3,8 @@ import { MemoryMedium, NativeSecureMedium, type NativeReadResult } from '@chatic
 import { dropLemonLeftovers } from './lemonLeftovers.util';
 import { secretStorageMigration } from './secretStorageMigration';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { warn: jest.fn(), info: jest.fn(), debug: jest.fn(), error: jest.fn() },
 }));
 jest.mock('@chatic/transport', () => ({ legacyLemonKeyPrefix: () => '@chatic.' }));

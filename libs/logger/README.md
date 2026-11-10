@@ -26,6 +26,13 @@ grep -rn "@chatic/logger/" --include='*.ts' --include='*.tsx' apps libs | grep -
 through that package rather than declaring a second dependency. An import of `logger` from
 `@chatic/bridges` and one from `@chatic/logger` are the same object.
 
+Five packages are closed to that route: the eslint configs of `libs/session`, `libs/transport`,
+`libs/sync`, `libs/auth` and `libs/data` refuse `@chatic/bridges` outright, and the four of them that
+log import `@chatic/logger` by name (session does not log). They hold the session and the
+communication with the servers, and that has to be able to run in a runtime with no WebView bridge
+in it. Logging was the only thing any of them still took from the bridge package, so the rule costs
+them nothing — and it keeps a second reason to depend on the bridge from growing in unnoticed.
+
 This lib **does not own where an entry ends up.** It has no transport, no persistence and no
 platform sink. Signing and POSTing a batch belongs to the report repository in `libs/data`; keeping
 the queue on disk belongs to `apps/web` (localStorage) and `apps/mobile` (MMKV); mirroring entries
@@ -277,5 +284,5 @@ npx jest --config libs/logger/jest.config.js
 - **The two type checks are separate on purpose.** `tsconfig.lib.json` excludes `*.spec.ts`, and jest does not type check at all — the base sets `isolatedModules`, so ts-jest transpiles and a fixture that has drifted from the type it imitates surfaces as `… is not a function` at runtime. `npx tsc -b libs/logger/tsconfig.json` runs both, because `tsconfig.json` references both projects.
 - `tsconfig.spec.json` must not set `module: "commonjs"`. The base sets `moduleResolution: bundler`, which rejects it with TS5095 — the config then cannot compile at all, which is how these tests went years without a check.
 - Every directory has specs except the barrels: 5 in `core`, 6 in `redaction`, 3 in `serialization`, 5 in `upload`, 4 in `sampling`, 1 each in `sinks` and `observation`, plus `runtime.spec.ts`. The commands above are what answers whether they pass, not this sentence.
-- Downstream: a changed barrel identifier reaches `libs/bridges`, `libs/data`, `libs/http` and `libs/app-runtime` directly, and through `libs/bridges`' re-export it reaches `apps/web`, `apps/desktop-web` and `apps/mobile` as well (`apps/desktop` aliases the package in its electron-vite config). `.github/workflows/verify.yml` type checks every one of those except `desktop-web` and `@chatic/mobile`, so those two are the ones to run by hand.
+- Downstream: a changed barrel identifier reaches `libs/bridges`, `libs/transport`, `libs/sync`, `libs/auth`, `libs/data`, `libs/http`, `libs/perf` and `libs/app-runtime` directly, and through `libs/bridges`' re-export it reaches `apps/web`, `apps/desktop-web` and `apps/mobile` as well (`apps/desktop` aliases the package in its electron-vite config). `.github/workflows/verify.yml` type checks every one of those except `@chatic/mobile`, so that is the one to run by hand.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again. The lib and spec projects emit to different directories (`dist/out-tsc` and `dist/out-tsc/logger-spec`) so they cannot overwrite each other's declarations.

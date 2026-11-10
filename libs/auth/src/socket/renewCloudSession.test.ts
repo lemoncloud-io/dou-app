@@ -22,7 +22,8 @@ jest.mock('./reauthDelegate', () => ({
 jest.mock('@chatic/transport/socket/runtime', () => ({
     getSocketManager: (...args: unknown[]) => mockGetSocketManager(...args),
 }));
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: {
         debug: jest.fn(),
         info: jest.fn(),

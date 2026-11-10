@@ -1,6 +1,6 @@
 import type { ChatFeedInput } from '@lemoncloud/chatic-sockets-api';
 import type { ChatQueryOptions } from '@chatic/bridge-messages';
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import type { ChatMentionBody, ChatSendPayload, DomainChat, DomainLastChat, DomainListResult } from '../domain';
 import { channelIdOfChatId, toMentionBody, toMentionRecord } from '../domain';
 import type { IChatLocalDataSource } from '../local/data-sources';

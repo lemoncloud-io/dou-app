@@ -8,7 +8,7 @@ import {
     createClientSocketV2,
 } from '@lemoncloud/chatic-sockets-lib';
 
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import { pageHideCount, perfNow } from '@chatic/perf';
 import type {
     ISocketManager,

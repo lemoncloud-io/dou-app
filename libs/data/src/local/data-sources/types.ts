@@ -1,5 +1,5 @@
 import type { CacheType } from '@chatic/bridge-messages';
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import type { DataContext, DataContextProvider } from '../../repositories/types';
 import type { CacheStorage, ScopedCacheStorage } from '../ports';

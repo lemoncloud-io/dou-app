@@ -5,7 +5,8 @@ import { cloudStore } from '@chatic/session/store/stores';
 import { getSocketManager } from '@chatic/transport/socket/runtime';
 import { isSiteSwitchInFlight } from './switchSite';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 jest.mock('@chatic/data', () => ({ RELAY_CLOUD_ID: 'default' }));

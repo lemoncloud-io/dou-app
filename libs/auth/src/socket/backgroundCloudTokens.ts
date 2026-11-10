@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { SDK_REFRESH_CYCLE_MS } from '@chatic/transport';
 

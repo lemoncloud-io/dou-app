@@ -10,7 +10,7 @@ import { toDomainChannel, toDomainChat, toDomainJoin, toDomainPlace, toDomainPro
 import { syncDataGraph } from './dataGraph';
 import type { ChannelView, ChatView, ProfileView } from '@lemoncloud/chatic-socials-api';
 import type { MySiteView } from '@lemoncloud/chatic-backend-api';
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import type { SlotKey } from '@chatic/transport';
 import { clearRefusedChannel, recordRefusedChannel } from './refusedChannels';

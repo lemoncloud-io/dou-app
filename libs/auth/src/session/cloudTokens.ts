@@ -1,6 +1,6 @@
 import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { authRepositorySource } from './authRepository';
 import { cloudStore, msUntilExpiration, getUidInCloud, rebuildSessionIdentity, sessionSignal } from '@chatic/session';

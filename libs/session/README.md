@@ -55,6 +55,11 @@ captured after module load and still be picked up, because every access re-resol
 `initAppRuntime()` runs them, `relayStore.getBackend()` and `getWss()` **throw**, with a message
 naming that function. A loud failure beats a request going out to an empty host.
 
+**Nothing in this package imports `@chatic/bridges`**, and the same eslint config refuses it in
+every file, `store/configure.ts` and type-only imports included. Who is signed in is not a WebView
+concern: the package has to be able to run in a runtime that has no bridge, and a logger, should one
+be needed here, comes from `@chatic/logger`.
+
 **`credentialFreshness` sits in `store/`, not with the use cases in app-runtime.** It answers "how long is left on this
 server's credential" by reading the stores and nothing else, and the HTTP transport and the socket
 auth status both ask it. Both sit below the use cases in app-runtime, so the reader lives here,

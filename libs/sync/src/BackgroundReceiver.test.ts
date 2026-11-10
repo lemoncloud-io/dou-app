@@ -1,10 +1,11 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import type { ISocketManager, SlotKey } from '@chatic/transport/socket/types';
 import { BackgroundReceiver } from './BackgroundReceiver';
 import type { BackgroundReceiveRepositories, BackgroundReceiverDeps } from './types';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 // The defaults reach the data runtime and the session store; every test injects its own instead.

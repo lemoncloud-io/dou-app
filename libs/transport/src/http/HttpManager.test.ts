@@ -1,14 +1,11 @@
 import { createHttpManager } from './HttpManager';
-import { logger } from '@chatic/bridges';
-import { setTelemetryRecorder } from '@chatic/logger';
+import { logger, setTelemetryRecorder } from '@chatic/logger';
 
-jest.mock('@chatic/bridges', () => ({
-    logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
-}));
 jest.mock('@chatic/logger', () => {
     // The statistics slot is the real one: it is what the api_request tests drive.
     const actual = jest.requireActual('@chatic/logger');
     return {
+        logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
         redactSensitive: jest.fn(value => value),
         truncate: jest.fn(value => value),
         recordTelemetry: actual.recordTelemetry,
@@ -60,7 +57,7 @@ describe('createHttpManager — endpoint 해석', () => {
 });
 
 describe('createHttpManager — network log sink', () => {
-    it('redacts fields through @chatic/logger before handing them to the bridges logger', async () => {
+    it('redacts fields before handing them to the logger', async () => {
         const client = createHttpManager(lemonSurface as never);
 
         await client.executeSignedRelayRequest({ method: 'GET', baseURL: 'https://relay.test/x', params: { q: 1 } });

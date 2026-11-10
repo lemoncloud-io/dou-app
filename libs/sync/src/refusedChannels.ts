@@ -18,7 +18,7 @@
  * this socket was told, not a stored permission.
  */
 
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 /** Channel ids the server refused, newest write wins. */
 const refused = new Set<string>();

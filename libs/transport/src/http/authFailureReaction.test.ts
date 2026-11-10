@@ -5,7 +5,8 @@
 import { authFailureReaction } from './authFailureReaction';
 
 const mockWarn = jest.fn();
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: (...a: unknown[]) => mockWarn(...(a as [])), error: jest.fn() },
 }));
 

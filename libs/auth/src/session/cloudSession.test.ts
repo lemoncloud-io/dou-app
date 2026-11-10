@@ -33,7 +33,6 @@ const mockGetCloudSessionSnapshot = jest.fn();
 const mockNotifySessionStateChanged = jest.fn();
 /** Counts `sessionSignal.batch` — one logical use-case must be one batch (ADR-0076 decision 2). */
 const mockBatch = jest.fn();
-const mockIsNative = jest.fn();
 
 // `data` is this class's only HTTP path — this is the mock seam for every session-material call.
 // The argument shape is validated exactly as the repository contract has it (an object). The
@@ -115,16 +114,13 @@ jest.mock('@chatic/session/store', () => ({
     },
 }));
 
-jest.mock('@chatic/bridges', () => ({
-    isNative: (...args: unknown[]) => mockIsNative(...args),
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: {
         debug: jest.fn(),
         info: jest.fn(),
         error: jest.fn(),
         warn: jest.fn(),
-    },
-    webClient: {
-        post: jest.fn(),
     },
 }));
 
@@ -136,7 +132,6 @@ describe('session/auth/cloudSession', () => {
         jest.resetAllMocks();
         localStorage.clear();
 
-        mockIsNative.mockReturnValue(false);
         mockGetSelectedCloudId.mockReturnValue('default');
         mockGetSelectedSiteId.mockReturnValue(null);
         mockGetCloudSessionSnapshot.mockReturnValue({

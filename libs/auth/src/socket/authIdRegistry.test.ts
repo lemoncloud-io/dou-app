@@ -1,7 +1,8 @@
 import { authIdRegistry } from './authIdRegistry';
 import { RELAY_SLOT, slotKeyOf } from '@chatic/transport/socket/utils/slotKey';
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
 }));
 
@@ -77,7 +78,7 @@ describe('authIdRegistry', () => {
     });
 
     it('warns with both ids so the drift is measurable in production', () => {
-        const { logger } = jest.requireMock('@chatic/bridges') as { logger: { warn: jest.Mock } };
+        const { logger } = jest.requireMock('@chatic/logger') as { logger: { warn: jest.Mock } };
         authIdRegistry.record(RELAY, 'old-auth');
 
         authIdRegistry.resync(RELAY, makeAuth(), { token: 'tok', authId: 'new-auth' }, sign);

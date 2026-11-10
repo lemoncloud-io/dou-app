@@ -1,6 +1,6 @@
-import { logger } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { createRequestTransport } from '@chatic/http';
+import { logger } from '@chatic/logger';
 import { relayStore } from '@chatic/session';
 
 import type { RequestTransport, SigningCredential } from '@chatic/http';

@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import { relaySession, type LogoutOptions } from '../session/relaySession';
 
 import { getSocketManager, kindOf } from '@chatic/transport';

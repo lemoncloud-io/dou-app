@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { Throttle } from '../utils/throttle';
 import { authIdRegistry } from './authIdRegistry';

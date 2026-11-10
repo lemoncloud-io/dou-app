@@ -1,7 +1,7 @@
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import { SocketManager } from './SocketManager';
 import { clearResumeKick, noteResumeKick } from './socketVerifyTrace';
@@ -16,7 +16,8 @@ jest.mock('@lemoncloud/chatic-sockets-lib', () => ({
     createClientSocketV2: jest.fn(),
 }));
 
-jest.mock('@chatic/bridges', () => ({
+jest.mock('@chatic/logger', () => ({
+    ...jest.requireActual('@chatic/logger'),
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
