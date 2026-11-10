@@ -1,4 +1,4 @@
-import { storage } from '@chatic/storage';
+import { plainMedium } from '../../../storage';
 
 /**
  * What the app says once a Google sign-in has landed. A sign-in that replaces a session reloads the
@@ -31,13 +31,13 @@ export const isAccountMadeSince = (account: unknown, startedAt: number): boolean
 };
 
 export const saveSignInNotice = (notice: SignInNoticeRecord): void => {
-    storage.set(SIGN_IN_NOTICE_KEY, JSON.stringify(notice));
+    plainMedium.set(SIGN_IN_NOTICE_KEY, JSON.stringify(notice));
 };
 
 /** Read the notice and delete it in the same call, so it is said once. */
 export const takeSignInNotice = (): SignInNoticeRecord | null => {
-    const raw = storage.get(SIGN_IN_NOTICE_KEY);
-    storage.remove(SIGN_IN_NOTICE_KEY);
+    const raw = plainMedium.get(SIGN_IN_NOTICE_KEY);
+    plainMedium.remove(SIGN_IN_NOTICE_KEY);
     if (!raw) return null;
     try {
         const parsed = JSON.parse(raw) as Partial<SignInNoticeRecord> | null;

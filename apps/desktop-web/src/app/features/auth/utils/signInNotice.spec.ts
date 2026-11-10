@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { setStorageAdapter } from '@chatic/storage';
+import { WebMedium } from '@chatic/storage';
+
+import { configureAppMedia } from '../../../storage';
 
 import { NEW_ACCOUNT_CLOCK_SLACK_MS, isAccountMadeSince, saveSignInNotice, takeSignInNotice } from './signInNotice';
 
@@ -28,7 +30,8 @@ describe('isAccountMadeSince', () => {
 
 describe('sign-in notice storage', () => {
     beforeEach(() => {
-        setStorageAdapter(localStorage);
+        // As in the desktop shell, where the session's plain medium is localStorage.
+        configureAppMedia({ device: WebMedium.local(), tab: WebMedium.session(), plain: WebMedium.local() });
         localStorage.clear();
     });
 

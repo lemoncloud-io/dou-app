@@ -4,9 +4,9 @@ import * as ReactDOM from 'react-dom/client';
 
 import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
-import { WebMedium } from '@chatic/storage';
 
 import { webConfigPorts } from './app/config/adapters';
+import { tabMedium } from './app/storage';
 
 import App from './app/app';
 import { authFailureNotice } from './app/session/authFailureNotice';
@@ -16,9 +16,8 @@ import { authFailureNotice } from './app/session/authFailureNotice';
 config.init(webConfigPorts);
 
 // admin never runs inside a native or desktop shell, so its session lives in this tab's
-// sessionStorage, both ports. The app-wide `storage` already defaults to the same storage, so it is
-// left as it is.
-const sessionMedium = WebMedium.session();
+// sessionStorage, both ports.
+const sessionMedium = tabMedium;
 
 // Boot the runtime before render. The console reads the session (its admin gate asks for the relay
 // profile), and the session store refuses to resolve endpoints until this call wires them —

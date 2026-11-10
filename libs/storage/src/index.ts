@@ -3,8 +3,6 @@
 //
 //   media/  the media themselves — memory, and the page's two web storages
 //   dom/    a medium seen as a DOM `Storage`, for code that only takes that shape
-//   app/    the app-wide storage for state that belongs to no domain port
 
 export * from './media';
 export * from './dom';
-export * from './app';

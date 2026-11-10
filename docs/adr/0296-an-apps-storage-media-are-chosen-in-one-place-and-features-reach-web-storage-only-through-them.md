@@ -1,6 +1,6 @@
 # ADR-0296: An app's storage media are chosen in one place, and features reach web storage only through them
 
-> Status: Accepted · Decided: 2026-11-09 · Implemented: `feat/general-storage-ports` (apps/web, libs), `feat/desktop-web-storage-ports` (apps/desktop-web, `libs/theme`)
+> Status: Accepted · Decided: 2026-11-09 · Implemented: `feat/general-storage-ports` (apps/web, libs), `feat/desktop-web-storage-ports` (apps/desktop-web, `libs/theme`), `refactor/storage-media-all-apps` (admin, landing, block-kit-builder; the app-wide `storage` retired)
 > · Scope: `libs/app-runtime` (`storage/` — `resolveStorageMedia`, the runtime's `device`/`tab` media;
 > `initAppRuntime({ storage, signedOutKeyPrefixes })`), `libs/storage` (`TolerantMedium`, `SwitchableMedium`), `libs/auth`
 > (`signedOutAppKeys`), `libs/config` (`ui.phoneCountry`), `libs/shared` (phone country), `apps/web`
@@ -102,4 +102,21 @@ in-house request signer, which removes its memory medium altogether.
 - ADR-0293's note that a key a sign-out should take "must be named in `signedOutAppKeys.util.ts`" no
   longer holds: it is declared by its domain and passed at boot. An app that declares none has nothing
   swept, which is what desktop-web and admin-v2 need — they write none of those keys.
-- desktop-web still builds its media in its entry point and is outside the lint rule until it moves.
+- desktop-web still builds its media in its entry point and is outside the lint rule until it moves
+  (see the update below).
+
+## Update — 2026-11-10: every app, and no app-wide `storage`
+
+desktop-web moved onto its own `device`/`tab` media and the lint rule. The browser-only apps — admin,
+landing and block-kit-builder — followed: with no environment to choose between, each builds its media
+once in its own `src/app/storage/`, and the rule now covers every app's `src` and every lib. The e2e
+suites and the shell adapter stay outside it, as tests do: they stand outside an app and play the
+browser or the native shell around it.
+
+The app-wide `storage` singleton in `libs/storage` (`storage`, `setStorageAdapter`) was retired with
+them. It was pointed at the session's `plain` medium by apps/web and desktop-web and left at
+`sessionStorage` everywhere else, so it was a medium nobody chose by name. Its last users now say which
+medium they mean: desktop-web's Google sign-in start, its used nonces and the sign-in notice take
+`plainMedium` from its `app/storage` (the session's `plain`, so they stay where they were), and the
+push registration record in `libs/app-runtime` reads the session's `plain` medium through
+`sessionMedia`.

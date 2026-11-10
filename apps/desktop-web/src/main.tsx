@@ -4,7 +4,6 @@ import * as ReactDOM from 'react-dom/client';
 
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
-import { asDomStorage, setStorageAdapter } from '@chatic/storage';
 import { runtime } from '@chatic/app-runtime';
 
 import { createWebConfigPorts } from './app/config/adapters';
@@ -19,7 +18,7 @@ import App from './app/app';
 // through. Reads only what the shell injected, so it is safe this early. The late-vault mark is off:
 // only apps/web writes it, after its own mobile handshake; the desktop shell always injects its list.
 const media = runtime.boot.resolveStorageMedia({ ...runtime.boot.readStorageEnvironment(), lateVaultConfirmed: false });
-configureAppMedia({ device: media.device, tab: media.tab });
+configureAppMedia({ device: media.device, tab: media.tab, plain: media.plain });
 
 // Wires `@chatic/config` to this build's `import.meta.env`/injected globals — replaces
 // `@chatic/web-config`'s import-time self-init with an explicit call (ADR-0079 decisions 1·11).
@@ -28,9 +27,6 @@ config.init(createWebConfigPorts(media));
 // The phone fields' last-picked country moved from its own key into the `ui.phoneCountry` setting;
 // carried over once, now that the setting can be written.
 migrateLegacyPhoneCountry(media.webLocal);
-
-// The app-wide `storage` the rest of the app writes through is the session's plain medium.
-setStorageAdapter(asDomStorage(media.plain));
 
 // The session's secrets — its four tokens. When `resolveStorageMedia` chose the vault, it is loaded —
 // and anything left in localStorage moved into it — before the runtime boots. A desktop shell from

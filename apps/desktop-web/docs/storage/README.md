@@ -13,11 +13,12 @@ Everything this app keeps between loads goes through a medium from `@chatic/stor
 | the session         | `secret` — the shell's `safeStorage` vault when it says it keeps one, else `localStorage` in the shell, `sessionStorage` in a browser tab; `plain` — `localStorage` in the shell, `sessionStorage` in a browser tab |
 | `@chatic/config`    | its `local`/`session` ports, through `createWebConfigPorts(media)`                                                                                                                                                  |
 | the runtime         | `device` for the sync cursor watermark, the raw `webSession` for a window's invited-cloud cache                                                                                                                     |
-| this app's features | `deviceMedium` and `tabMedium` from `src/app/storage/`                                                                                                                                                              |
+| this app's features | `deviceMedium`, `tabMedium` and `plainMedium` from `src/app/storage/`                                                                                                                                               |
 
-The features' media are the same in the shell and in a browser tab.
+`deviceMedium` and `tabMedium` are the same in the shell and in a browser tab; `plainMedium` is the
+session's `plain` and follows it.
 
-## The features' two media
+## The features' three media
 
 - **`deviceMedium`** — outlives the window (`localStorage`): panel widths, the sidebar sections,
   reading and notification preferences, the mention inbox, my threads, saved items, the last and the
@@ -26,14 +27,19 @@ The features' media are the same in the shell and in a browser tab.
   debug sync baseline.
 - **`tabMedium`** — dies with the window (`sessionStorage`): the debug overlay toggle, the
   socket-wedge reload stamp, the sign-in hand-off mark.
+- **`plainMedium`** — the session's `plain`: `localStorage` in the shell, `sessionStorage` in a browser
+  tab. For what travels with a sign-in: the Google sign-in start a relaunch from the deeplink must find,
+  the nonces it already used, and the sign-in notice the signed-in window shows once.
 
-Both are tolerant: a full or blocked storage costs the value, not the screen. Both are switchable, so
-a zustand store or the i18n module created at import time still writes where `main.tsx` pointed them.
+`deviceMedium` and `tabMedium` are tolerant: a full or blocked storage costs the value, not the screen.
+`plainMedium` is not, like the session port it stands for. All three are switchable, so a zustand store
+or the i18n module created at import time still writes where `main.tsx` pointed them.
 Key names did not change when the app moved onto them, so nothing stored before was lost.
 
 ## Adding state
 
-Pick `deviceMedium` or `tabMedium` and import it from `src/app/storage`. For a zustand store, pass
+Pick `deviceMedium` or `tabMedium` — `plainMedium` only for state that belongs with a sign-in — and
+import it from `src/app/storage`. For a zustand store, pass
 `storage: persistStorageOver(deviceMedium)`. A value that is a setting belongs in `@chatic/config`
 instead; a value an account should not leave behind on sign-out needs its key added to
 `useAccountResetOnLogout`'s list.

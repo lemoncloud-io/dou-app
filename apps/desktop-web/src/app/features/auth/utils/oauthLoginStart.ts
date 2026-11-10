@@ -1,4 +1,4 @@
-import { storage } from '@chatic/storage';
+import { plainMedium } from '../../../storage';
 
 import type { OAuthDeeplinkPayload } from './oauth';
 
@@ -35,7 +35,7 @@ export interface OAuthLoginStart {
 export const OAUTH_LOGIN_START_TTL_MS = 10 * 60 * 1000;
 
 /**
- * Persistent storage (localStorage in the shell, see `setStorageAdapter` in main.tsx): a start is
+ * The session's plain medium (`plainMedium` — localStorage in the shell): a start is
  * often followed by the app quitting and being relaunched by the deeplink.
  */
 const OAUTH_LOGIN_START_KEY = 'chatic-oauth-login-start';
@@ -87,7 +87,7 @@ export const evaluateOAuthDeeplink = (
 };
 
 export const saveOAuthLoginStart = (start: OAuthLoginStart): void => {
-    storage.set(OAUTH_LOGIN_START_KEY, JSON.stringify(start));
+    plainMedium.set(OAUTH_LOGIN_START_KEY, JSON.stringify(start));
 };
 
 const isLoginStart = (
@@ -108,8 +108,8 @@ const isLoginStart = (
  * that deeplink's fate — accepted, rejected or expired — so a replayed link finds nothing.
  */
 export const takeOAuthLoginStart = (): OAuthLoginStart | null => {
-    const raw = storage.get(OAUTH_LOGIN_START_KEY);
-    storage.remove(OAUTH_LOGIN_START_KEY);
+    const raw = plainMedium.get(OAUTH_LOGIN_START_KEY);
+    plainMedium.remove(OAUTH_LOGIN_START_KEY);
     if (!raw) return null;
     try {
         const parsed: unknown = JSON.parse(raw);
@@ -139,7 +139,7 @@ const USED_NONCES_KEPT = 5;
 
 const readUsedNonces = (): string[] => {
     try {
-        const parsed: unknown = JSON.parse(storage.get(OAUTH_USED_NONCES_KEY) ?? '[]');
+        const parsed: unknown = JSON.parse(plainMedium.get(OAUTH_USED_NONCES_KEY) ?? '[]');
         return Array.isArray(parsed) ? parsed.filter((n): n is string => typeof n === 'string') : [];
     } catch {
         return [];
@@ -148,7 +148,7 @@ const readUsedNonces = (): string[] => {
 
 export const rememberUsedOAuthNonce = (nonce: string): void => {
     const kept = [nonce, ...readUsedNonces().filter(n => n !== nonce)].slice(0, USED_NONCES_KEPT);
-    storage.set(OAUTH_USED_NONCES_KEY, JSON.stringify(kept));
+    plainMedium.set(OAUTH_USED_NONCES_KEY, JSON.stringify(kept));
 };
 
 export const isUsedOAuthNonce = (nonce: string | undefined): boolean =>
