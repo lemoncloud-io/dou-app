@@ -15,7 +15,6 @@ const setup = () => {
     const storage = new SubWebViewStorage(memoryStorageFile());
     const service = new SubWebViewService(
         { warn: jest.fn(), error: jest.fn() } as any,
-        ['apps.chatic.io'],
         () => 'view-1'
     );
     service.open({ url: 'https://foo.apps.chatic.io/' });
@@ -182,7 +181,8 @@ describe('createSubBridgeHandlers', () => {
             expect(deps.openExternal).toHaveBeenCalledWith(url);
         });
 
-        // Unlike the main web's OpenURL: never the app's own routing, never another sub WebView page.
+        // Unlike the main web's OpenURL: never the app's own routing, never another sub WebView page —
+        // the hub included.
         it.each([
             'chatic://s/home',
             'https://app.chatic.io/s/abc',
@@ -190,6 +190,8 @@ describe('createSubBridgeHandlers', () => {
             'https://app.chatic.io:443/i',
             'intent://x#Intent;end',
             'https://bar.apps.chatic.io/',
+            'https://apps.chatic.io/',
+            'https://apps-dev.chatic.io/',
         ])('refuses %s', async url => {
             const { handlers, deps } = setup();
 

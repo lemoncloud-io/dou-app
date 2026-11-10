@@ -2,7 +2,7 @@ import { SubWebViewService } from '../../services/subWebView/SubWebViewService';
 import { routeSubWebViewEvents } from './routeSubWebViewEvents';
 
 const createService = () =>
-    new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any, ['apps.chatic.io'], () => 'view-1');
+    new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any, () => 'view-1');
 
 const createNavigation = (currentRoute: { name: string; params?: unknown } | undefined) => ({
     navigate: jest.fn(),
@@ -24,6 +24,7 @@ describe('routeSubWebViewEvents', () => {
             url: 'https://foo.apps.chatic.io/a',
             title: 'Notice',
             params: {},
+            trust: 'reviewed',
         });
     });
 

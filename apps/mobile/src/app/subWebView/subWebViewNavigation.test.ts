@@ -1,7 +1,9 @@
 import { decideSubWebViewNavigation } from './subWebViewNavigation';
 
-const top = (url: string) => decideSubWebViewNavigation({ url, isTopFrame: true });
-const frame = (url: string) => decideSubWebViewNavigation({ url, isTopFrame: false });
+// The view these navigations happen in was opened on this origin.
+const OPENED = 'https://foo.apps.chatic.io';
+const top = (url: string) => decideSubWebViewNavigation({ url, isTopFrame: true }, OPENED);
+const frame = (url: string) => decideSubWebViewNavigation({ url, isTopFrame: false }, OPENED);
 
 describe('decideSubWebViewNavigation', () => {
     describe('a top-level navigation', () => {
@@ -92,7 +94,7 @@ describe('decideSubWebViewNavigation', () => {
 
     // Android reports top-frame loads only and leaves the flag out.
     it('checks a request with no isTopFrame as a top-level one', () => {
-        expect(decideSubWebViewNavigation({ url: 'chatic://s' })).toBe('block');
-        expect(decideSubWebViewNavigation({ url: 'https://www.naver.com/' })).toBe('external');
+        expect(decideSubWebViewNavigation({ url: 'chatic://s' }, OPENED)).toBe('block');
+        expect(decideSubWebViewNavigation({ url: 'https://www.naver.com/' }, OPENED)).toBe('external');
     });
 });

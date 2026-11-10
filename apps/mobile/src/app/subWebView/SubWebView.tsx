@@ -197,15 +197,18 @@ export const SubWebView = forwardRef<SubWebViewHandle, SubWebViewProps>(function
         [host, openedOrigin]
     );
 
-    const onShouldStartLoadWithRequest = useCallback((request: ShouldStartLoadRequest) => {
-        const decision = decideSubWebViewNavigation(request);
-        if (decision === 'external') {
-            Linking.openURL(request.url).catch(e => logger.warn('WEBVIEW', '[sub] external open failed', e));
-        } else if (decision === 'block') {
-            logger.warn('WEBVIEW', '[sub] navigation blocked', { url: request.url });
-        }
-        return decision === 'load';
-    }, []);
+    const onShouldStartLoadWithRequest = useCallback(
+        (request: ShouldStartLoadRequest) => {
+            const decision = decideSubWebViewNavigation(request, openedOrigin);
+            if (decision === 'external') {
+                Linking.openURL(request.url).catch(e => logger.warn('WEBVIEW', '[sub] external open failed', e));
+            } else if (decision === 'block') {
+                logger.warn('WEBVIEW', '[sub] navigation blocked', { url: request.url });
+            }
+            return decision === 'load';
+        },
+        [openedOrigin]
+    );
 
     // A new document: a fresh host for it, and the last page's title and claims no longer apply.
     const onLoadStart = useCallback(() => {

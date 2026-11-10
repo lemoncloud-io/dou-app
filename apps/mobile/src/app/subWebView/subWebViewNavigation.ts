@@ -1,4 +1,4 @@
-import { isAllowedSubWebViewUrl } from '../services/subWebView/subWebViewAllowlist';
+import { subWebViewOriginOf } from '@chatic/shared/subWebViewTrust';
 
 /** What the sub WebView does with a navigation: load it, hand it to the OS, or drop it. */
 export type SubWebViewNavigationDecision = 'load' | 'external' | 'block';
@@ -29,16 +29,20 @@ const schemeOf = (url: string) => /^([a-z][a-z\d+\-.]*):/i.exec(url)?.[1]?.toLow
 /**
  * Decides a navigation the sub WebView is about to start, and what its `OpenURL` may open. A request
  * with no `isTopFrame` — Android reports none — is checked as a top-level one, the stricter of the two.
+ *
+ * Only `openedOrigin`, the origin the view was opened on, loads at the top level: the tier the shell
+ * gave the page is the tier of that origin, so any other https site — a reviewed page included — goes
+ * to the OS and the view stays.
  */
-export const decideSubWebViewNavigation = (request: {
-    url: string;
-    isTopFrame?: boolean;
-}): SubWebViewNavigationDecision => {
+export const decideSubWebViewNavigation = (
+    request: { url: string; isTopFrame?: boolean },
+    openedOrigin: string | null
+): SubWebViewNavigationDecision => {
     const { url } = request;
     const scheme = schemeOf(url);
     if (request.isTopFrame === false) return scheme && FRAME_SCHEMES.includes(scheme) ? 'load' : 'block';
 
-    if (url === 'about:blank' || isAllowedSubWebViewUrl(url)) return 'load';
+    if (url === 'about:blank' || (openedOrigin !== null && subWebViewOriginOf(url) === openedOrigin)) return 'load';
     if ((scheme === 'https' || scheme === 'http') && AMBIGUOUS_WEB_URL.test(url)) return 'block';
     if (DEEP_LINK_PATTERN.test(url)) return 'block';
     return scheme && EXTERNAL_SCHEMES.includes(scheme) ? 'external' : 'block';

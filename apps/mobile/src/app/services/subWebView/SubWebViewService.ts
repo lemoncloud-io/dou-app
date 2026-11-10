@@ -1,7 +1,8 @@
 import type { SubWebViewCloseReason } from '@chatic/bridge-messages';
 
+import { subWebViewTrustOf } from '@chatic/shared/subWebViewTrust';
+
 import type { ILogService } from '../log';
-import { isAllowedSubWebViewUrl, SUB_WEBVIEW_DOMAINS } from './subWebViewAllowlist';
 import { fitsSubWebViewData, isSubWebViewAppId, isSubWebViewParams } from './subWebViewData';
 import type {
     ISubWebViewService,
@@ -24,7 +25,6 @@ export class SubWebViewService implements ISubWebViewService {
 
     constructor(
         private readonly logger: ILogService,
-        private readonly domains: readonly string[] = SUB_WEBVIEW_DOMAINS,
         private readonly nextViewId: () => string = defaultViewId
     ) {}
 
@@ -38,8 +38,11 @@ export class SubWebViewService implements ISubWebViewService {
         if (title !== undefined && typeof title !== 'string') return { ok: false, code: 'INVALID' };
         if (params !== undefined && !isSubWebViewParams(params)) return { ok: false, code: 'INVALID' };
         if (appId !== undefined && !isSubWebViewAppId(appId)) return { ok: false, code: 'INVALID' };
-        if (!isAllowedSubWebViewUrl(url, this.domains)) {
-            this.logger.warn('WEBVIEW', '[sub] open refused: origin not allowed', { url });
+        // Any plain https site opens; how far it is trusted is its tier. Refused is only what a
+        // parser could read two ways — userinfo, a port, a backslash, whitespace, an IP literal.
+        const trust = subWebViewTrustOf(url);
+        if (!trust) {
+            this.logger.warn('WEBVIEW', '[sub] open refused: not a url a sub WebView opens', { url });
             return { ok: false, code: 'NOT_ALLOWED' };
         }
         if (this.view) return { ok: false, code: 'ALREADY_OPEN' };
@@ -50,6 +53,7 @@ export class SubWebViewService implements ISubWebViewService {
             ...(title ? { title } : {}),
             params: params ?? {},
             ...(appId ? { appId } : {}),
+            trust,
         };
         this.view = view;
         this.emit({ type: 'opened', view });

@@ -118,13 +118,17 @@ carries what it handed back). Handle an unknown reason too: an app released late
 `params` (JSON, at most 16 KiB) reach the page only in the sub WebView, as
 `window.ChaticSubWebView.params`; the two fallbacks cannot carry them.
 
-Only pages under `*.apps.chatic.io` (`*.apps-dev.chatic.io` in dev), which the app's review pipeline
-alone deploys to, can be opened — never this web app's own origin, and not an arbitrary site. The
-page talks only to a host of its own with a few messages, and has none of this app's state; the
-shell's side, and what it allows, is
-[`apps/mobile/docs/webview/sub-webview.md`](../../../mobile/docs/webview/sub-webview.md).
+What an app opens depends on its handshake's `subWebViewOpenScope`, read through
+`useSubWebViewOpenScope()`. An app that says nothing opens only the pages under `*.apps.chatic.io`
+(`*.apps-dev.chatic.io` in dev), which the app's review pipeline alone deploys to. One that says
+`anyHttps` opens any plain https site as well, in the `external` tier: no manifest, the bar titled
+with its host. The web ships before the app, so a control that opens an arbitrary site — the Lab's
+mini app list ([mypage](../feature/mypage/README.md#the-mini-app-card)) — is drawn only where the
+handshake says `anyHttps`. A push or a page link still reaches only the reviewed pages. The page talks
+only to a host of its own with a few messages, and has none of this app's state; the shell's side,
+and what it allows, is [`apps/mobile/docs/webview/sub-webview.md`](../../../mobile/docs/webview/sub-webview.md).
 An app link to a page (`app.chatic.io/apps/<appId>?…`) opens one too, through `OnNavigate` — see
-[push-navigation.md](./push-navigation.md). No product screen opens one yet. The debug panel's
+[push-navigation.md](./push-navigation.md). The Lab opens one for its pages and its mini app card. The debug panel's
 **Sub WebView (app)** screen opens one and logs how
 it closed; the Bridge screen's `OpenSubWebView` preset sends the same request but shows no close event.
 

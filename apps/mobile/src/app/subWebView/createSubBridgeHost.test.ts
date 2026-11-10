@@ -48,7 +48,7 @@ const createHost = () => {
         message => sent.push(message),
         createSubBridgeHandlers({
             viewId: 'view-1',
-            service: new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any, ['apps.chatic.io']),
+            service: new SubWebViewService({ warn: jest.fn(), error: jest.fn() } as any),
             clipboard: { setText: jest.fn(async () => undefined) },
             haptic: { trigger: jest.fn(() => true) },
             openExternal: jest.fn(async () => undefined),

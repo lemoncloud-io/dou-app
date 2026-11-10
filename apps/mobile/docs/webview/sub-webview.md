@@ -60,8 +60,9 @@ and what the page's manifest permits (below):
 | `RequestSubWebViewPermission` | Asks the OS for the camera or the microphone, so its prompt does not arrive mid-capture                   |
 | `OpenSettings`                | DoU's page in the OS settings, for a permission the OS will not ask for again                             |
 
-**The page's manifest decides the gated four.** Before it loads the page, the screen reads
-`/.well-known/chatic-app.json` from the opened origin (`subWebViewManifest.ts`). Each permission it
+**The page's manifest decides the gated four.** Before it loads a hub or reviewed page, the screen
+reads `/.well-known/chatic-app.json` from the opened origin — never from an `external` site, which
+always gets the base set and the bar (see [Where it may go](#where-it-may-go)) (`subWebViewManifest.ts`). Each permission it
 declares — `clipboard`, `share`, `openUrl`, `userKey` — adds one request; without a manifest, or with
 one the shell cannot read, the page gets the base set only, and `permittedSubBridgeHandlers` leaves
 the rest unregistered, so they answer `NOT_FOUND` as an older app would. The manifest also names the
@@ -209,7 +210,8 @@ the load counter is bumped in `onLoadStart` itself, before the state that rebuil
 WebView and the OS make them behave; nothing is switched off for this view, and no manifest
 permission is needed for them. The app does not limit or judge a page's use of a device: the person who
 makes the page answers for it, and neither a setting nor the review that deploys a page to the
-allowlisted domains is asked to stand in for that. What each feature does today, given the permissions the app declares:
+allowlisted domains is asked to stand in for that. The same holds for an `external` site — a link a
+cloud's owner saved, which no review saw: its owner answers for it. What each feature does today, given the permissions the app declares:
 
 | Feature     | iOS                                                                   | Android                                                                                            |
 | ----------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -271,19 +273,39 @@ Lab says: the allowlist and the review are the gate, not where the link came fro
 
 ## Where it may go
 
-**The allowlist** is `SUB_WEBVIEW_DOMAINS` in `services/subWebView/subWebViewAllowlist.ts`: the
-subdomains of `apps.chatic.io` and `apps-dev.chatic.io`, one label deep
-(`https://foo.apps.chatic.io`).
-The app's review pipeline is the only thing that deploys there, so the pattern means "a reviewed
-page",
-and a new page needs a deploy rather than an app release. The domain itself
-(`https://apps.chatic.io`) is not a page and is refused.
+**A sub WebView opens any plain https site, in one of three tiers**, decided by the rule both shells
+and both webs share (`libs/shared` `subWebViewTrust.ts`, `subWebViewTrustOf`).
+`SubWebViewService.open` records the tier on the view, and the screen shows each one differently:
 
-This phone shell opens that tier alone and its handshake says nothing of `subWebViewOpenScope`.
-The desktop shell opens wider — any plain https site, as an `external` tier with less trust — under
-the shared rule in `libs/shared` (`subWebViewTrust.ts`), whose `reviewed` tier is this allowlist,
-case for case; how the desktop shows each tier is
-[the protocol's desktop section](./sub-webview-protocol.md#the-desktop-shell-2220).
+| Tier         | What                                                                      | Manifest          | Bar                                    |
+| ------------ | ------------------------------------------------------------------------- | ----------------- | -------------------------------------- |
+| `firstParty` | The hub, `https://apps.chatic.io` / `https://apps-dev.chatic.io`, exactly | read and applied  | as the manifest says                   |
+| `reviewed`   | One label under those domains (`https://foo.apps.chatic.io`)              | read and applied  | as the manifest says                   |
+| `external`   | Any other plain https site — a link a cloud's owner saved                 | **never fetched** | **always shown, titled with the host** |
+
+The `reviewed` tier is what this shell's allowlist always was (`SUB_WEBVIEW_DOMAINS`,
+`isAllowedSubWebViewUrl` in `services/subWebView/subWebViewAllowlist.ts`, now a delegate of the shared
+rule). The app's review pipeline is the only thing that deploys there, so the pattern means "a
+reviewed page", and a new page needs a deploy rather than an app release.
+
+An `external` site was never reviewed, so it gets no manifest permission. No request goes to its
+`/.well-known` — a manifest there would be the author's word alone — so it claims no permission, and
+`GetSubWebViewUserKey`, `CopyToClipboard`, `OpenShareSheet` and `OpenURL` answer `NOT_FOUND`. Device
+features are a different matter: they are left open on every tier, an external site's included (see
+[Device features are left open](#what-the-page-gets-and-what-it-does-not) — on both platforms the camera and microphone are
+granted to the page without a prompt of its own once DoU holds the permission; the only question the
+user sees is the OS's first one, under DoU's name). That is a decision, not an oversight: the cloud's
+owner chose the link and answers for it, as a page's author does. The desktop shell refuses every
+device request instead, so the two shells differ here. Its
+display is `standard`: the bar is always there and shows the site's host, ahead of any title the
+page sets or the web passes, so a third party under DoU's chrome cannot name itself DoU or draw a
+full-screen copy of it. It loads at once, with no manifest to wait for.
+
+The main WebView's handshake says `subWebViewOpenScope: 'anyHttps'`. The web ships before the
+shell, so it offers an owner's own link only where the handshake says so; an app that predates this
+says nothing and opens the reviewed pages alone. A push or a deep link still reaches only the
+reviewed pages — the wider scope is for a link the owner saved, opened by the web. How the desktop
+shows the same tiers is [the protocol's desktop section](./sub-webview-protocol.md#the-desktop-shell-2220).
 
 It is a subtree on purpose, not `*.chatic.io`. That would take in the web app itself
 (`dou.chatic.io` boots a second copy of the app in the view, and the storage the two WebViews share
@@ -293,10 +315,10 @@ kept apart by origin alone), the deep-link domain the main WebView's bridge trus
 every internal tool, and every subdomain created later — including one whose DNS record outlived its
 service and that someone else now serves.
 
-**A URL that parsers could read two ways is refused**: userinfo, a port, a backslash (Android reads
-it
-as `/`, so `https://evil.example\@foo.apps.chatic.io` would load `evil.example`), whitespace and
-control characters. `SubWebViewService.test.ts` holds these cases.
+**A URL that parsers could read two ways is refused** as `NOT_ALLOWED`: userinfo, a port, a
+backslash (Android reads it as `/`, so `https://evil.example\@foo.apps.chatic.io` would load
+`evil.example`), whitespace, control characters and an IP literal. `SubWebViewService.test.ts` and
+`subWebViewTrustTiers.test.ts` hold these cases.
 
 **Inside the page**, every navigation is decided by `decideSubWebViewNavigation`. The view's
 `originWhitelist` is `['*']` so that every one of them reaches it: react-native-webview checks that
@@ -304,15 +326,17 @@ list first and hands whatever fails it straight to the OS, the app's own schemes
 
 | Navigation                                                                           | Top level      | Inside a frame |
 | ------------------------------------------------------------------------------------ | -------------- | -------------- |
-| An allowlisted page, `about:blank`                                                   | Loads          | Loads          |
-| Any other `https`                                                                    | The OS browser | Loads          |
+| The origin the view was opened on, `about:blank`                                     | Loads          | Loads          |
+| Any other `https`, a reviewed page included                                          | The OS browser | Loads          |
 | `http`                                                                               | The OS browser | Dropped        |
 | `mailto:`, `tel:`, `sms:`, `itms-apps:`, `market:`                                   | The OS         | Dropped        |
 | The app's links: `chatic://`, `chatic-dev://`, `app(-dev).chatic.io/i`, `/s`, `/s/*` | Dropped        | Dropped        |
 | `intent:`, `javascript:`, `file:`                                                    | Dropped        | Dropped        |
 | `data:`, `blob:`                                                                     | Dropped        | Loads          |
 
-A request with no `isTopFrame` — Android reports none — is decided as a top-level one. The app's own
+Only the opened origin loads because the tier belongs to it: an external site that linked to another
+site, or a reviewed page to another reviewed page, would otherwise carry the view into an origin the
+shell never judged. A request with no `isTopFrame` — Android reports none — is decided as a top-level one. The app's own
 links are dropped because the web that opened the view owns the app's routing; a page under it must
 not drive it. Loaded in the view, the universal-link paths would show the invite bounce page, and
 handed to the OS they would re-enter the app on Android. `target=_blank` and `window.open` load in
@@ -415,7 +439,7 @@ an import the other way ties the main WebView to a screen it should only know th
 | File                                                   | Role                                                                    |
 | ------------------------------------------------------ | ----------------------------------------------------------------------- |
 | `src/app/services/subWebView/SubWebViewService.ts`     | Validates, records the view, reports opened/closed                      |
-| `src/app/services/subWebView/subWebViewAllowlist.ts`   | `SUB_WEBVIEW_DOMAINS`, `isAllowedSubWebViewUrl`                         |
+| `src/app/services/subWebView/subWebViewAllowlist.ts`   | `SUB_WEBVIEW_DOMAINS`, `isAllowedSubWebViewUrl` (the `reviewed` tier)   |
 | `src/app/webview/hooks/subWebViewHandlers.ts`          | `OpenSubWebView` / `CloseSubWebView`, and the `OnSubWebViewClosed` push |
 | `src/app/subWebView/SubWebView.tsx`                    | The second WebView: its context, its host, the origin check             |
 | `src/app/subWebView/createSubBridgeHost.ts`            | The sub WebView's own `AppBridgeHost`, with the subset only             |
@@ -468,8 +492,8 @@ The page opens over whatever the app shows. On the simulator a universal link ne
 file deployed and fetched; until then Safari opens the landing page, which offers the app or the store.
 
 Open it from the web's debug panel → **Sub WebView (app)**: a URL, an optional title and `params`, and
-a log of how the view closed, with the `result` the page handed back. A URL off the allowlist answers
-`NOT_ALLOWED`. The screen hears the close only while it is the one showing in the panel: switch to
+a log of how the view closed, with the `result` the page handed back. A URL a sub WebView does not
+open (userinfo, a port, an IP literal, …) answers `NOT_ALLOWED`. The screen hears the close only while it is the one showing in the panel: switch to
 another screen while the view is open and that close is not logged. The Bridge screen's
 `OpenSubWebView` preset sends the same request but shows no close event.
 

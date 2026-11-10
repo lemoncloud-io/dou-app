@@ -1,4 +1,4 @@
-import { resolveSubWebViewAppUrl } from './subWebViewApps';
+import { miniAppHubUrl, resolveSubWebViewAppUrl } from './subWebViewApps';
 
 describe('resolveSubWebViewAppUrl', () => {
     it("opens a known app at its root with the link's query", async () => {
@@ -21,5 +21,15 @@ describe('resolveSubWebViewAppUrl', () => {
 
     it.each(['quiz', 'constructor', 'toString'])('has no page for %s', async appId => {
         await expect(resolveSubWebViewAppUrl({ appId, query: '' }, 'prod')).resolves.toBeNull();
+    });
+});
+
+describe('miniAppHubUrl', () => {
+    // The root of the apps domain, the hub's own first-party origin, not a page under it.
+    it.each([
+        ['prod', 'https://apps.chatic.io/'],
+        ['dev', 'https://apps-dev.chatic.io/'],
+    ] as const)('is the %s hub', (stage, url) => {
+        expect(miniAppHubUrl(stage)).toBe(url);
     });
 });

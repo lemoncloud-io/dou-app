@@ -2,13 +2,11 @@ import { SubWebViewService } from './SubWebViewService';
 import { isAllowedSubWebViewUrl, SUB_WEBVIEW_DOMAINS } from './subWebViewAllowlist';
 import type { SubWebViewEvent } from './types';
 
-const DOMAINS = ['apps.chatic.io'];
-
 const createLogger = () => ({ warn: jest.fn(), error: jest.fn() }) as any;
 
 const createService = (logger = createLogger()) => {
     let n = 0;
-    return new SubWebViewService(logger, DOMAINS, () => `view-${++n}`);
+    return new SubWebViewService(logger, () => `view-${++n}`);
 };
 
 const record = (service: SubWebViewService) => {
@@ -68,7 +66,13 @@ describe('SubWebViewService', () => {
 
             const result = service.open({ url: 'https://foo.apps.chatic.io/a', title: 'Notice' });
 
-            const view = { viewId: 'view-1', url: 'https://foo.apps.chatic.io/a', title: 'Notice', params: {} };
+            const view = {
+                viewId: 'view-1',
+                url: 'https://foo.apps.chatic.io/a',
+                title: 'Notice',
+                params: {},
+                trust: 'reviewed',
+            };
             expect(result).toEqual({ ok: true, view });
             expect(service.current()).toEqual(view);
             expect(events).toEqual([{ type: 'opened', view }]);
@@ -84,12 +88,13 @@ describe('SubWebViewService', () => {
             expect(service.current()).toBeNull();
         });
 
-        it('answers NOT_ALLOWED for an origin off the allowlist, and logs it', () => {
+        // Any plain https site opens now, each in its tier; only a url a parser could read two ways is refused.
+        it('answers NOT_ALLOWED for a url a sub WebView does not open, and logs it', () => {
             const logger = createLogger();
             const service = createService(logger);
             const events = record(service);
 
-            expect(service.open({ url: 'https://evil.example/' })).toEqual({ ok: false, code: 'NOT_ALLOWED' });
+            expect(service.open({ url: 'https://user@evil.example/' })).toEqual({ ok: false, code: 'NOT_ALLOWED' });
             expect(events).toEqual([]);
             expect(logger.warn).toHaveBeenCalledTimes(1);
         });

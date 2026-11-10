@@ -11,6 +11,7 @@ import { useChatInputLockExperiment, usePlaceInviteExperiment } from '../../../h
 import { PageHeader } from '../../../ui/components';
 import { isDevBuild } from '../../../utils/buildEnv';
 import { DebugUnlockDialog, debugOverlayActions, useDebugMode, useDebugUnlock } from '../../debug';
+import { MiniAppCard } from '../components/MiniAppCard';
 import { IN_APP_PAGES } from '../consts';
 
 /**
@@ -106,6 +107,9 @@ export const LabPage = () => {
                         />
                     ))}
                 </MenuCard>
+
+                {/* Only where the app opens any https page, and never on the relay home. */}
+                <MiniAppCard />
 
                 {isDebugMode && (
                     <MenuCard title={t('mypage.lab.developerTools')}>

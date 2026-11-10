@@ -33,6 +33,8 @@ jest.mock('../../../hooks', () => ({
     usePlaceInviteExperiment: () => ({ isEnabled: false, setEnabled: jest.fn() }),
 }));
 jest.mock('../../../ui/components', () => ({ PageHeader: () => null }));
+// The card's own behaviour is MiniAppCard.test.tsx's; here it only has to be placed.
+jest.mock('../components/MiniAppCard', () => ({ MiniAppCard: () => <section aria-label="mini app card" /> }));
 // The real list, without the policy content the barrel also carries.
 jest.mock('../consts', () => jest.requireActual('../consts/inAppPages'));
 jest.mock('../../debug', () => ({
@@ -71,6 +73,12 @@ describe('LabPage — sub WebView pages', () => {
         render(<LabPage />);
 
         expect(screen.getByRole('button', { name: /^mypage\.lab\.inAppPages\.enhanceDou\.title / })).toBeTruthy();
+    });
+
+    it('carries the mini app card', () => {
+        render(<LabPage />);
+
+        expect(screen.getByRole('region', { name: 'mini app card' })).toBeTruthy();
     });
 
     it('draws no debug-only card while every page is an experiment', () => {
