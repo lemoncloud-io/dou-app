@@ -15,7 +15,7 @@ fallback that never fires because the old-app answer was never exercised.
 ## Run it
 
 ```bash
-yarn web:e2e:install   # once per machine: Chromium and WebKit (CI adds --with-deps)
+yarn web:e2e:install   # once per machine: Chromium and WebKit (CI uses Playwright's image instead)
 yarn web:e2e           # the suite, as CI runs it (= npx nx run web-e2e:e2e)
 yarn web:e2e:ui        # Playwright's UI mode: pick, run and step through scenarios
 yarn web:e2e:headed    # the suite in visible browser windows
@@ -237,9 +237,16 @@ What a passing run does **not** say:
   the right address, not what is there — the website's routes, and which of them a production host
   opens, are the landing app's to test.
 - **CI runs the suite only when `web-e2e` is affected** — the web app, the libs it builds from, or this
-  project — or when the mobile injection script changes. That file is named in the workflow by path,
+  project — or when the mobile injection script or `.github/workflows/verify.yml` changes. That file is named in the workflow by path,
   because there is deliberately no dependency edge to `@chatic/mobile` (see "The shell"); anything
   else of the mobile app's that a scenario assumes does not trigger it.
+- **CI runs each project in a job of its own**, `webkit-ios` and `chromium-android` side by side, in
+  Playwright's container image (`mcr.microsoft.com/playwright:v<version>-noble`), which already holds
+  the browsers and their system libraries. Installing those on the runner went through its apt
+  mirror and now and then took a quarter of an hour. The image tag in `.github/workflows/verify.yml`
+  names a Playwright version, and the job fails with both versions printed when it no longer matches
+  the `@playwright/test` that `yarn.lock` installs — bumping one means bumping the other in the same
+  change.
 
 ## Adding a scenario
 
