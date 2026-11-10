@@ -35,7 +35,7 @@ What the app does **not** own:
 | The logging hub, its listeners, its levels            | [`@chatic/logger`](../../libs/logger/README.md)                   |
 | Web design-system components                          | [`@chatic/web-ui-kit`](../../libs/web-ui-kit/README.md)           |
 | Cross-platform primitives, fallbacks                  | [`@chatic/shared`](../../libs/shared/README.md)                   |
-| Storage media and the app-wide storage adapter        | [`@chatic/storage`](../../libs/storage/README.md)                 |
+| Storage media                                         | [`@chatic/storage`](../../libs/storage/README.md)                 |
 | Bridge message payload types                          | [`@chatic/bridge-messages`](../../libs/bridge-messages/README.md) |
 | HTTP request building and signing                     | [`@chatic/http`](../../libs/http/README.md)                       |
 | Device/platform detection                             | [`@chatic/device-utils`](../../libs/device-utils/README.md)       |
@@ -155,7 +155,6 @@ sequenceDiagram
     Main->>Main: startLogUploader (the only log store)
     Main->>Main: media = runtime.boot.resolveStorageMedia() · configureAppMedia(device, tab)
     Main->>Main: syncThemeFromSharedKey · config.init(createWebConfigPorts(media)) · migrateLegacyPhoneCountry
-    Main->>Main: setStorageAdapter(media.plain)
     Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
     Main->>RT: runtime.boot.initAppRuntime({ storage, signedOutKeyPrefixes, data: { repositories } })
     Main->>Main: pendingNavigationStore.start()
@@ -299,7 +298,6 @@ main.tsx
 ├── syncThemeFromSharedKey(media.webLocal)
 ├── config.init(createWebConfigPorts(media))                       (before any lazy setting read)
 ├── migrateLegacyPhoneCountry(media.webLocal)
-├── setStorageAdapter(media.plain)
 ├── vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage — the rest waits
 ├── runtime.boot.initAppRuntime({ storage, signedOutKeyPrefixes, ... })   (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)

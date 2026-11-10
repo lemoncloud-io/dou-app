@@ -289,8 +289,8 @@ const { pinnedIds, toggle, reorder } = usePinnedChannels(scope);
 ### Wiring
 
 The swappable storage adapter (`storage`, `setStorageAdapter`) used to live here. It moved to
-[`@chatic/storage`](../storage/README.md), whose subject it is, together with the media each app's
-entry point now picks for it.
+[`@chatic/storage`](../storage/README.md) and was later retired: every app now hands its features the
+media its entry point chose.
 
 The components are mounted by the host, not by this lib:
 

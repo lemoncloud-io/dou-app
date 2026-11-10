@@ -7,7 +7,6 @@ import '@lemoncloud/page-transition-core/styles.css';
 import { BridgeStorageChannel, setupBridgeLogger, webClient } from '@chatic/bridges';
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
-import { asDomStorage, setStorageAdapter } from '@chatic/storage';
 import { runtime } from '@chatic/app-runtime';
 
 import { createWebConfigPorts } from './app/config/adapters';
@@ -95,9 +94,6 @@ config.init(createWebConfigPorts(media));
 // The phone fields' last-picked country moved from its own key into the `ui.phoneCountry` setting;
 // carried over once, now that the setting can be written.
 migrateLegacyPhoneCountry(media.webLocal);
-
-// The app-wide `storage` the rest of the app writes through is the session's plain medium.
-setStorageAdapter(asDomStorage(media.plain));
 
 // The session's secrets — its four tokens. When `resolveStorageMedia` chose the device vault, it is
 // loaded — and anything left in localStorage moved into it — before the runtime boots, so every read

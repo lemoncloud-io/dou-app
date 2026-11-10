@@ -1,3 +1,6 @@
+import { asDomStorage } from '@chatic/storage';
+
+import { tabMedium } from '../../../../../storage';
 import { createHttpPort } from './createHttpPort';
 import { portOneWindow } from './portOneWindow';
 import { bootSessionRuntime, relaySession, subscriptionApi } from './runtime';
@@ -32,7 +35,7 @@ export const createLiveHttpPort = (
         paymentWindow:
             sandbox?.paymentWindow ??
             (request => (request.issue.provider === 'stripe' ? stripeWindow(request) : portOneWindow(request))),
-        storage: sessionStorage,
+        storage: asDomStorage(tabMedium),
         sandbox,
     });
 };

@@ -447,9 +447,9 @@ export interface ConfigRuntimePorts {
 `Stage`/`Platform` are, conversely, **duplicated** — importing `app-messages` would tie config to the
 entire bridge contract; the reasoning and drift defense are owned by decision 14.
 
-It matters that `storage` is not a new type — [`StorageAdapter`](../../libs/storage/src/app/types.ts)
-(`getItem`/`setItem`/`removeItem`) is already the repo's storage interface, and config asks only for
-**its shape**. It does not import `@chatic/shared`, taking it as a structural type instead, so decision
+It matters that `storage` is not a new type — `StorageAdapter` (`getItem`/`setItem`/`removeItem`;
+retired with the app-wide storage in ADR-0296) was then the repo's storage interface, and config asks
+only for **its shape**. It does not import `@chatic/shared`, taking it as a structural type instead, so decision
 1's "zero dependencies" holds.
 
 App entry points plug in the adapters. The web adapter reads `import.meta.env`+`window.*`, the RN

@@ -45,7 +45,9 @@ vi.mock('@chatic/config', () => ({
 }));
 
 import i18n from '../../../../i18n';
-import { setStorageAdapter } from '@chatic/storage';
+import { WebMedium } from '@chatic/storage';
+
+import { configureAppMedia } from '../../../storage';
 
 import { OAUTH_LOGIN_START_TTL_MS, saveOAuthLoginStart, takeOAuthLoginStart, takeSignInNotice } from '../utils';
 import { selectAttemptBusy, useOAuthAttemptStore } from '../stores/useOAuthAttemptStore';
@@ -61,7 +63,8 @@ describe('useSocialLogin.start', () => {
 
     beforeEach(() => {
         // The shell's persistent backing, as main.tsx wires it.
-        setStorageAdapter(localStorage);
+        // As in the desktop shell, where the session's plain medium is localStorage.
+        configureAppMedia({ device: WebMedium.local(), tab: WebMedium.session(), plain: WebMedium.local() });
         localStorage.clear();
         open.mockReset();
         session.isAuthenticated = false;

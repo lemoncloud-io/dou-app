@@ -10,18 +10,18 @@ knows about a domain.
 - **`@chatic/app-runtime`'s `resolveStorageMedia`** is where an app's media are chosen and built —
   the session's `secret` and `plain`, the vault, and the `device`/`tab` media for everything else.
   `apps/web` and `apps/desktop-web` call it once in their entry points and hand the result out
-  (`initAppRuntime({ storage })`, their config ports, their own `app/storage/`). `apps/admin` still
-  builds its media in its entry point.
-- **Everything else in apps/web, apps/desktop-web and the libs** reaches web storage only through a
-  medium — the root ESLint config refuses `localStorage`/`sessionStorage` there, and a zustand
-  `persist` without a `storage`. This package and the mini-app SDK are left out of that rule; so are
-  the browser-only apps (admin, landing, block-kit-builder).
+  (`initAppRuntime({ storage })`, their config ports, their own `app/storage/`).
+- **The browser-only apps** — admin, landing, block-kit-builder — have no environment to choose
+  between, so each builds its media once in its own `src/app/storage/` and hands them out from there.
+- **Everything else in the apps and the libs** reaches web storage only through a medium — the root
+  ESLint config refuses `localStorage`/`sessionStorage` there, and a zustand `persist` without a
+  `storage`. This package and the mini-app SDK are left out of that rule; so are tests, the e2e suites
+  and the shell adapter, which stand outside an app and play the browser or the shell around it.
 - **`@chatic/session`** declares its ports in terms of `KeyValueStore`, and defaults to a
   `webSession` medium until an entry point configures it.
 - **`@chatic/auth`**'s logout sweep and its boot clean-up of an old lemon-web-core bundle walk the
-  plain medium's keys.
-- **Anything that keeps app-wide state outside a domain port** (push registration records, the
-  desktop sign-in hand-off) reads and writes through `storage`.
+  plain medium's keys, and **`@chatic/app-runtime`**'s push registration record keeps its web copy
+  there.
 
 It imports nothing from the workspace.
 
@@ -29,21 +29,18 @@ It imports nothing from the workspace.
 
 ```text
 libs/storage/src/
-├── index.ts                    the barrel — re-exports the three folders
+├── index.ts                    the barrel — re-exports the two folders
 ├── media/                      the media themselves
 │   ├── types.ts                MediumName, KeyValueStore
 │   ├── memoryMedium.ts         MemoryMedium
 │   ├── nativeSecure/           NativeSecureMedium — the device vault, loaded once, written back in batches
 │   ├── webMedium.ts            WebMedium — local(), session(), over()
-│   └── globalStorage.ts        reads the localStorage / sessionStorage global without throwing
-├── dom/                        a medium seen as a DOM Storage
-│   ├── domStorageAdapter.ts    DomStorageAdapter
-│   └── asDomStorage.ts         the factory over it
-└── app/                        the app-wide storage for state that belongs to no domain port
-    ├── types.ts                StorageAdapter, IAppStorage
-    ├── appStorage.ts           AppStorage — swappable, sessionStorage until told otherwise
-    ├── noopAdapter.ts          what AppStorage starts on where there is no sessionStorage
-    └── storage.ts              the `storage` singleton and `setStorageAdapter`
+│   ├── tolerantMedium.ts       TolerantMedium — a failed read is absent, a failed write a no-op
+│   ├── switchableMedium.ts     SwitchableMedium — forwards to whichever medium it points at
+│   └── globalStorage.util.ts   reads the localStorage / sessionStorage global without throwing
+└── dom/                        a medium seen as a DOM Storage
+    ├── domStorageAdapter.ts    DomStorageAdapter
+    └── asDomStorage.mapper.ts  the factory over it
 ```
 
 A folder per concern, each with its own `index.ts`; interfaces in that folder's `types.ts`, one class
@@ -106,20 +103,19 @@ The medium reaches the shell through a `NativeStorageChannel` the entry point ha
 workspace. Whether the shell keeps a vault at all is read from `window.CHATIC_APP_STORAGE_MEDIA`
 (`shellKeepsStorageMedium`), never from `isNative()`, which is true in every shell.
 
-### The app-wide `storage`
+### No app-wide storage
 
-`storage` (an `IAppStorage`) is what code outside a domain port reads and writes through.
-`setStorageAdapter(adapter)` — the same as `storage.use(adapter)` — points it at the entry point's
-plain medium. Until it is called it is this tab's `sessionStorage`, which is the right answer for an
-app that never calls it (admin, the landing site).
+There used to be a swappable `storage` singleton for state that belonged to no domain port, pointed at
+the session's plain medium by each entry point. It was a second way to reach a medium that nobody
+chose by name, and an app that never pointed it anywhere silently got `sessionStorage`. It is gone:
+state that has no port of its own takes a medium its app hands out — in desktop-web, `plainMedium`
+for what travels with a sign-in — and a lib reads the session's plain medium through `sessionMedia`.
 
 ## Usage
 
 ```ts
-import { asDomStorage, setStorageAdapter } from '@chatic/storage';
-
 const media = runtime.boot.resolveStorageMedia();
-setStorageAdapter(asDomStorage(media.plain));
+configureAppMedia({ device: media.device, tab: media.tab });
 runtime.boot.initAppRuntime({
     storage: { secret: media.secret, plain: media.plain, device: media.device, tab: media.tab },
 });
@@ -132,8 +128,8 @@ runtime.boot.initAppRuntime({
 - **Do not call `clear()` to drop one domain's keys.** It empties the whole medium — in a shell,
   every key the origin has in `localStorage`. A domain removes its own keys by name.
 - **Do not cache a web medium's values.** See above: a copy goes stale under writes made around it.
-- **Do not construct a medium in a feature.** Take the one the entry point handed out — in apps/web,
-  `deviceMedium`/`tabMedium` from `app/storage`. A `new WebMedium` deep in a feature is a second place
+- **Do not construct a medium in a feature.** Take the one your app hands out from its `app/storage` —
+  `deviceMedium`/`tabMedium` and the like. A `new WebMedium` deep in a feature is a second place
   deciding where state lives. The exceptions are deliberate and few: the debug storage screen, whose
   job is to walk the two web storages whole; the defaults a holder serves before its entry point
   configures it (the same storages); and the logout's clean-up of the tab copy a vault-less run left.

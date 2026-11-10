@@ -27,6 +27,11 @@ Sign-in is explicit and required — see [auth/](docs/auth/README.md). Unlike th
 app never falls back to a guest session; `ProtectedRoute` gates every screen behind an authenticated
 admin session, and a silent guest fallback would defeat that gate.
 
+The session lives in this tab's `sessionStorage`, both of its ports: the console never runs inside a
+native or desktop shell, so there is nothing for an entry point to choose. That medium, the config
+lanes' and the language's are built once in `src/app/storage/`; nothing else in the app names a web
+storage, and the root lint rule refuses it.
+
 ## Stage endpoints
 
 Every screen except sign-in switches between the dev (`d1`) and production (`v1`) stage at run time —

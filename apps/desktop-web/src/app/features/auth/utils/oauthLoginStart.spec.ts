@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { storage } from '@chatic/storage';
+import { plainMedium } from '../../../storage';
 
 import {
     OAUTH_LOGIN_START_TTL_MS,
@@ -98,7 +98,7 @@ describe('start record storage', () => {
         ['no intent (a record from before intents)', '{"provider":"google","startedAt":1,"nonce":"n"}'],
         ['an unknown intent', '{"provider":"google","startedAt":1,"nonce":"n","intent":"merge"}'],
     ])('reads a record with %s as a login', (_name, raw) => {
-        storage.set('chatic-oauth-login-start', raw);
+        plainMedium.set('chatic-oauth-login-start', raw);
 
         expect(takeOAuthLoginStart()?.intent).toBe('login');
     });
@@ -114,9 +114,9 @@ describe('start record storage', () => {
         '{"provider":"google"}',
         '{"provider":"google","startedAt":"1","nonce":"n"}',
     ])('answers null for a malformed record %s and still deletes it', raw => {
-        storage.set('chatic-oauth-login-start', raw);
+        plainMedium.set('chatic-oauth-login-start', raw);
 
         expect(takeOAuthLoginStart()).toBeNull();
-        expect(storage.get('chatic-oauth-login-start')).toBeNull();
+        expect(plainMedium.get('chatic-oauth-login-start')).toBeNull();
     });
 });

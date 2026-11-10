@@ -16,6 +16,8 @@
 import i18next from 'i18next';
 import { initReactI18next, useTranslation } from 'react-i18next';
 
+import { deviceMedium } from '../storage';
+
 import { NAMESPACES, resources, type Namespace } from './locales';
 
 export const LANGUAGES = ['ko', 'en'] as const;
@@ -35,14 +37,10 @@ export const LOCALE_OF: Record<Language, string> = { ko: 'ko-KR', en: 'en-US' };
 
 const isLanguage = (value: unknown): value is Language => (LANGUAGES as readonly unknown[]).includes(value);
 
-/** Storage can throw (private mode, blocked site data), and the console must still render. */
+/** The medium is tolerant: blocked storage (private mode, blocked site data) reads as nothing stored. */
 const readStoredLanguage = (): Language => {
-    try {
-        const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-        return isLanguage(stored) ? stored : DEFAULT_LANGUAGE;
-    } catch {
-        return DEFAULT_LANGUAGE;
-    }
+    const stored = deviceMedium.get(LANGUAGE_STORAGE_KEY);
+    return isLanguage(stored) ? stored : DEFAULT_LANGUAGE;
 };
 
 export const i18n = i18next.createInstance();
@@ -65,11 +63,8 @@ if (typeof document !== 'undefined') document.documentElement.lang = i18n.langua
 /** Switch language and remember it for this browser. */
 export const setLanguage = (language: Language): void => {
     void i18n.changeLanguage(language);
-    try {
-        window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
-    } catch {
-        // Not remembered, but still switched for this visit.
-    }
+    // A write the storage refuses is dropped: not remembered, but still switched for this visit.
+    deviceMedium.set(LANGUAGE_STORAGE_KEY, language);
     if (typeof document !== 'undefined') document.documentElement.lang = language;
 };
 

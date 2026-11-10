@@ -1,5 +1,8 @@
 import { runtime } from '@chatic/app-runtime';
 import { config, createWebEnvAdapter } from '@chatic/config';
+import { asDomStorage } from '@chatic/storage';
+
+import { localMedium, tabMedium } from '../../../../../storage';
 
 import type { SessionAccess, SubscriptionApi } from './createHttpPort';
 
@@ -17,7 +20,10 @@ let booted = false;
 export const bootSessionRuntime = (env: (name: string) => string | undefined): void => {
     if (booted) return;
     booted = true;
-    config.init({ env: createWebEnvAdapter(env), storage: { local: localStorage, session: sessionStorage } });
+    config.init({
+        env: createWebEnvAdapter(env),
+        storage: { local: asDomStorage(localMedium), session: asDomStorage(tabMedium) },
+    });
     runtime.boot.initAppRuntime();
     runtime.session.authFailureReaction.register(() => undefined);
 };

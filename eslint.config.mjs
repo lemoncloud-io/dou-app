@@ -145,30 +145,26 @@ const logTagCatalogRule = {
 const REPO_ROOT = path.dirname(fileURLToPath(import.meta.url));
 
 const STORAGE_MESSAGE =
-    'Reach web storage through a medium from @chatic/storage (in apps/web and apps/desktop-web: `deviceMedium`/`tabMedium` from `app/storage`) — see libs/storage/README.md.';
+    "Reach web storage through a medium from @chatic/storage — take the one your app's `app/storage` hands out (`deviceMedium`, `tabMedium`, …); see libs/storage/README.md.";
 
 // Web storage is reached only through `@chatic/storage`'s media: a domain declares the medium it
 // needs and the entry point (`resolveStorageMedia`) chooses it, so no other code may name
 // `localStorage`/`sessionStorage` itself — and zustand's `persist`, which falls back to
-// `localStorage` when given no storage, must name one. It covers the apps that run in a shell —
-// apps/web and apps/desktop-web — and every lib; the browser-only apps (admin, landing,
-// block-kit-builder) are outside it. Tests seed web storage directly and are left out.
+// `localStorage` when given no storage, must name one. It covers every app and every lib; an app that
+// only runs in a browser builds its media once in its own `app/storage`. Tests seed web storage
+// directly and are left out, and so are the e2e suites and the shell adapter, which stand outside the
+// app and play the browser or the native shell around it.
 const WEB_STORAGE_BAN_SCOPE = {
     basePath: REPO_ROOT,
-    files: [
-        'apps/web/src/**/*.ts',
-        'apps/web/src/**/*.tsx',
-        'apps/desktop-web/src/**/*.ts',
-        'apps/desktop-web/src/**/*.tsx',
-        'libs/**/*.ts',
-        'libs/**/*.tsx',
-    ],
+    files: ['apps/*/src/**/*.ts', 'apps/*/src/**/*.tsx', 'libs/**/*.ts', 'libs/**/*.tsx'],
     ignores: [
         '**/*.spec.ts',
         '**/*.spec.tsx',
         '**/*.test.ts',
         '**/*.test.tsx',
         '**/testing/**',
+        'apps/*-e2e/**',
+        'apps/shell-adapter/**',
         'libs/storage/**',
         'libs/chatic-apps-sdk/**',
     ],
@@ -190,7 +186,7 @@ const PERSIST_WITHOUT_STORAGE = {
     selector:
         "CallExpression[callee.name='persist'][arguments.length>=2] > ObjectExpression:last-child:not(:has(Property[key.name='storage']))",
     message:
-        "Give zustand's `persist` a `storage` — left out, it writes `localStorage` directly. In apps/web and apps/desktop-web: `persistStorageOver(deviceMedium)` from `app/storage`.",
+        "Give zustand's `persist` a `storage` — left out, it writes `localStorage` directly. Use `persistStorageOver(deviceMedium)` from your app's `app/storage`.",
 };
 
 // Native `title` tooltips wait on the browser (a second or more, restarting on every mouse move) and
