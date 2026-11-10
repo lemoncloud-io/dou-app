@@ -110,7 +110,9 @@ decided by one shared rule both shells and both webs call.**
 - The hub's root origins need DNS, a certificate and hosting of their own: the `*.apps.chatic.io`
   wildcard covers neither the root nor its certificate. Until they exist, opening the hub shows the
   load error in the card.
-- The link lives on the device only (the web's storage, per cloud), so only the owner who saved it
-  sees it there. Members get it when the link moves to the server, a later step.
+- An owner keeps a list of links per cloud (each a name and an address, up to ten), not a single one:
+  a cloud runs more than one outside service, and a list costs the same rule per entry. The list lives
+  on the device only (the web's storage, per cloud), so it shows only on the computer the owner saved
+  it on. Members on their own devices get it when the list moves to the server, a later step.
 - An external site the owner chose runs with fewer features than a reviewed page, on purpose; the
   review is still the way to more.

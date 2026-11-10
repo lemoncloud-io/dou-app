@@ -233,7 +233,10 @@ Eight things the filenames do not tell you.
   refuse. It imports nothing, on purpose: the desktop shell's main bundle aliases this one file rather
   than pulling the whole barrel into Electron's main process. `utils/miniAppLaunchParams.ts` builds the
   `params` a mini app opens with from it — ids and display names, never a token, and `user.isOwner`
-  for a `firstParty` page only.
+  for a `firstParty` page only. `utils/miniAppLinks.ts` holds the rules for the mini apps an owner adds
+  to a cloud, so both webs keep the same list: `checkMiniAppLink` (a name of 1–30 characters, an
+  address that rule opens), `MINI_APP_LINK_LIMIT` (10 per cloud), and `parseMiniAppLinks`, which reads
+  a stored list back and drops any entry the rules no longer pass.
 
 - **`utils/inviteLink.ts` is the only decoder of the encoded invite link `/i?t=<base64url(JSON)>`.**
   Landing, mobile, web and desktop-web all call it, because a decoder that drifted would send one link

@@ -175,7 +175,7 @@ opened origin, and is not answered (see [Timing](#timing)).
 
 ## Launch params (2.22.0)
 
-When DoU's own web opens a mini app — the hub, or the link a cloud's owner registered — `params` is a
+When DoU's own web opens a mini app — the hub, or one of the links a cloud's owner registered — `params` is a
 `MiniAppLaunchParams`:
 
 | Field          | Type                     | Meaning                                                                |

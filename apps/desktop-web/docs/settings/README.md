@@ -1,6 +1,6 @@
 # settings
 
-The Settings page (`src/app/features/settings/`): notifications, the mini app and the About section,
+The Settings page (`src/app/features/settings/`): notifications, the mini apps and the About section,
 with the Account entries on top. Appearance and language are not on the page; they live in the popup below.
 
 In the desktop app, where device pairing is on and the session did not itself come from a pairing,
@@ -81,10 +81,10 @@ with a preview of two sample messages that changes as the choice does. Both are 
 synchronously, so the app never paints at the default size first. After that a subscription in the
 store applies each change.
 
-## Mini app
+## Mini apps
 
 A section of its own, after Startup (`components/MiniAppSettingsItem.tsx`, `hooks/useMiniAppLauncher.ts`).
-It opens the cloud's mini app in the desktop shell's sub view, a modal over the app. The shell side is
+It opens a cloud's mini apps in the desktop shell's sub view, a modal over the app. The shell side is
 in `apps/desktop` (Sub view), and what the page receives is in the sub WebView protocol
 (`apps/mobile/docs/webview/sub-webview-protocol.md`).
 
@@ -92,27 +92,34 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
   web ships before the shell, so it asks (`utils/subWebViewShell.ts` sends the one `WebAppReady`
   desktop-web sends, answered with no side effect) rather than assuming. A plain browser, an older
   shell and the phone do not show it. Neither does the Default Cloud (Home), which is the relay's and
-  has no owner and no link.
-- **Open mini app.** Everyone in the cloud gets this row. It opens the cloud's link, or DoU's hub when
-  there is none (`https://apps.chatic.io/` on a PROD build, `https://apps-dev.chatic.io/` otherwise).
-  The page receives `MiniAppLaunchParams` (`@chatic/shared`): the cloud, the open place, my id in
-  this cloud, and my name, which is my place nick (under my id in this cloud, else my account id), else
-  the cloud profile's name. Only the hub is
-  also told whether I own the cloud. A second press while the request is still out sends nothing. A
-  refusal from the shell, or a session that has no id in this cloud yet, is a failure toast.
-- **Mini app link.** The cloud's owner alone gets this row (the cloud tile's `kind === 'owned'`). The
-  link is checked with `isOpenableSubWebViewUrl`, the rule the shell opens by, so a saved link is never
-  one the shell would refuse. An empty value removes it.
-    - It is kept on this computer only, in `localStorage` under `dou.miniAppLink.<cloudId>`. There is
-      no server field yet, so members do not see the owner's link. Switching clouds shows that cloud's
-      link.
+  has no owner and no mini apps.
+- **The list.** One row per mini app the owner added, in the order they were added: its name, and the
+  address's host under it. Everyone in the cloud can open them. While there are none, the section
+  holds one row instead, DoU's hub (`https://apps.chatic.io/` on a PROD build,
+  `https://apps-dev.chatic.io/` otherwise).
+- **Opening one.** The page receives `MiniAppLaunchParams` (`@chatic/shared`): the cloud, the open
+  place, my id in this cloud, and my name, which is my place nick (under my id in this cloud, else my
+  account id), else the cloud profile's name. Only the hub is also told whether I own the cloud. A
+  second press while the request is still out sends nothing. A refusal from the shell, or a session
+  that has no id in this cloud yet, is a failure toast.
+- **Adding, editing, removing.** The cloud's owner alone gets the "Add mini app" row and an edit button
+  on each row (the cloud tile's `kind === 'owned'`). The dialog takes a name and an address, both
+  checked by `checkMiniAppLink` (`@chatic/shared`): a name of 1 to `MINI_APP_LINK_NAME_MAX` (30)
+  characters, and an address that passes `isOpenableSubWebViewUrl`, the rule the shell opens by, so a
+  saved address is never one the shell would refuse. Editing an existing one also offers Remove.
+    - A cloud keeps at most `MINI_APP_LINK_LIMIT` (10). At the limit the add row is gone.
+    - The list is kept on this computer only, in `localStorage` under `dou.miniAppLinks.<cloudId>`, as
+      JSON, read back through `parseMiniAppLinks`, which drops any entry the rules no longer pass.
+      There is no server field yet, so the list shows only on the computer it was saved on — to
+      whoever opens that cloud there, the owner or, on a shared computer, a member signed in to it.
+      Members on their own computers do not see it. Switching clouds shows that cloud's list.
     - A storage that refuses the write says so in the dialog.
 - **Consent.** The first time a host DoU does not run (`external`) would open, the user is asked
   whether it may receive their name, their id in this cloud, the cloud and the place. Declining opens nothing. Agreeing is
   remembered per account and host (`dou.miniAppConsent.<accountId>.<host>`), so on a shared computer one
   person's yes does not send another's names. DoU's own pages are not asked about.
 - **Back from the hub.** When the hub view this screen opened closes with
-  `result: { action: 'openMiniAppLinkSettings' }`, the link dialog opens, and only for the owner. Any
+  `result: { action: 'openMiniAppLinkSettings' }`, the add dialog opens, and only for the owner. Any
   other view's result is ignored.
 
 ## Documents

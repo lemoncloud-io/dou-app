@@ -1,31 +1,30 @@
-import { isOpenableSubWebViewUrl } from '@chatic/shared';
+import { type MiniAppLink, parseMiniAppLinks } from '@chatic/shared';
 
 /**
- * Where a cloud's mini app link and the per-host consent are kept: this device's `localStorage`, under
- * keys of their own. Device-only on purpose — the link has no server field yet, so only the owner who
- * saved it sees it, on this computer.
+ * Where a cloud's mini apps and the per-host consent are kept: this device's `localStorage`, under
+ * keys of their own. Device-only on purpose — the links have no server field yet, so they show only on
+ * the computer the owner saved them on, to whoever opens that cloud there.
  *
  * Every access is guarded: a full or blocked storage costs the value, never the settings screen.
  */
-const linkKey = (cloudId: string) => `dou.miniAppLink.${cloudId}`;
+const linksKey = (cloudId: string) => `dou.miniAppLinks.${cloudId}`;
 // Per account as well as per host: on a shared computer one person's yes must not send another's names.
 const consentKey = (accountId: string, host: string) => `dou.miniAppConsent.${accountId}.${host}`;
 
-/** The link saved for `cloudId`, or `null` — also for a stored value the shell would no longer open. */
-export const readMiniAppLink = (cloudId: string): string | null => {
+/** The mini apps saved for `cloudId`, in the owner's order — without any the shell would no longer open. */
+export const readMiniAppLinks = (cloudId: string): MiniAppLink[] => {
     try {
-        const stored = window.localStorage.getItem(linkKey(cloudId));
-        return stored && isOpenableSubWebViewUrl(stored) ? stored : null;
+        return parseMiniAppLinks(window.localStorage.getItem(linksKey(cloudId)));
     } catch {
-        return null;
+        return [];
     }
 };
 
-/** Save (`url`) or remove (`null`) the link for `cloudId`. `false` when the storage refused. */
-export const writeMiniAppLink = (cloudId: string, url: string | null): boolean => {
+/** Save the whole list for `cloudId`; an empty list removes the key. `false` when the storage refused. */
+export const writeMiniAppLinks = (cloudId: string, links: readonly MiniAppLink[]): boolean => {
     try {
-        if (url === null) window.localStorage.removeItem(linkKey(cloudId));
-        else window.localStorage.setItem(linkKey(cloudId), url);
+        if (links.length === 0) window.localStorage.removeItem(linksKey(cloudId));
+        else window.localStorage.setItem(linksKey(cloudId), JSON.stringify(links));
         return true;
     } catch {
         return false;
