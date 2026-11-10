@@ -14,6 +14,8 @@ import type * as Session from '@chatic/session';
 import type * as StorageLib from '@chatic/storage';
 import type * as AuthRepository from '@chatic/auth/session/authRepository';
 import type * as SyncDataGraph from '@chatic/sync/dataGraph';
+import type * as TransportLib from '@chatic/transport';
+import type * as TransportTesting from '@chatic/transport/testing/platform';
 
 // The spy is held OUTSIDE the factory (hence the `mock` prefix jest requires) so it survives
 // `resetModules`: the factory re-runs per reload, and a reference captured from the module would
@@ -40,6 +42,10 @@ const memoryStorage = () => {
     return { secret: new MemoryStore(), plain: new MemoryStore() };
 };
 
+/** A jsdom page's transport ports — what every case here is indifferent to. */
+const transport = () =>
+    jest.requireActual<typeof TransportTesting>('@chatic/transport/testing/platform').fakeTransportPorts();
+
 describe('initAppRuntime', () => {
     beforeEach(() => {
         mockWarn.mockClear();
@@ -57,9 +63,21 @@ describe('initAppRuntime', () => {
     it('boots the session store — the same read succeeds afterwards', async () => {
         const { initAppRuntime, getActiveServerContext } = await load();
 
-        initAppRuntime({ storage: memoryStorage() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport() });
 
         expect(() => getActiveServerContext()).not.toThrow();
+    });
+
+    it('hands the transport its platform — before boot, opening a socket or reading the link throws', async () => {
+        const { initAppRuntime } = await load();
+        // The same fresh copy `./init` just loaded, through the package barrel.
+        const { transportPlatform } = jest.requireActual<typeof TransportLib>('@chatic/transport');
+        const ports = transport();
+
+        expect(() => transportPlatform.ports()).toThrow(/initAppRuntime/);
+        initAppRuntime({ storage: memoryStorage(), transport: ports });
+
+        expect(transportPlatform.ports()).toBe(ports);
     });
 
     it('forwards data policies to the data runtime', async () => {
@@ -69,7 +87,7 @@ describe('initAppRuntime', () => {
         const { initAppRuntime } = await import('./init');
 
         const data = { cache: { maxChatsPerChannel: 1000 } };
-        initAppRuntime({ storage: memoryStorage(), data });
+        initAppRuntime({ storage: memoryStorage(), transport: transport(), data });
 
         expect(configureDataRuntime).toHaveBeenCalledWith(data);
     });
@@ -89,7 +107,7 @@ describe('initAppRuntime', () => {
         );
         const { syncDataGraph } = jest.requireActual<typeof SyncDataGraph>('@chatic/sync/dataGraph');
 
-        initAppRuntime({ storage: memoryStorage() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport() });
 
         // Boot only installs the accessors; the graph is still built on first use.
         expect(getRepositories).not.toHaveBeenCalled();
@@ -104,7 +122,7 @@ describe('initAppRuntime', () => {
         jest.doMock('./data/runtime', () => ({ configureDataRuntime }));
         const { initAppRuntime } = await import('./init');
 
-        initAppRuntime({ storage: memoryStorage() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport() });
 
         // Passing `{}` through would trip the runtime's own late-registration warning for nothing.
         expect(configureDataRuntime).not.toHaveBeenCalled();
@@ -116,7 +134,7 @@ describe('initAppRuntime', () => {
         const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
         const before = Date.now();
 
-        initAppRuntime({ storage: memoryStorage() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport() });
 
         expect(getSyncCursorsValidAfter()).toBeGreaterThanOrEqual(before);
         expect(localStorage.getItem('chatic.syncCursors.resetPending')).toBeNull();
@@ -130,7 +148,10 @@ describe('initAppRuntime', () => {
         const { initAppRuntime } = await load();
         const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
 
-        initAppRuntime({ storage: { secret: new MemoryStore(), plain: new MemoryStore(), device } });
+        initAppRuntime({
+            storage: { secret: new MemoryStore(), plain: new MemoryStore(), device },
+            transport: transport(),
+        });
 
         expect(device.get('chatic.syncCursors.resetPending')).toBeNull();
         expect(getSyncCursorsValidAfter()).toBeGreaterThan(0);
@@ -145,7 +166,11 @@ describe('initAppRuntime', () => {
         window.history.replaceState({}, '', '/?logout=1');
         const { initAppRuntime } = await load();
 
-        initAppRuntime({ storage: { secret: new MemoryStore(), plain }, signedOutKeyPrefixes: ['@chatic/web.log.'] });
+        initAppRuntime({
+            storage: { secret: new MemoryStore(), plain },
+            transport: transport(),
+            signedOutKeyPrefixes: ['@chatic/web.log.'],
+        });
 
         expect(plain.keys()).toEqual(['@chatic/config.ui.theme']);
         window.history.replaceState({}, '', '/');
@@ -154,8 +179,8 @@ describe('initAppRuntime', () => {
     it('is safe to call twice, and says so — a duplicate boot means two owners', async () => {
         const { initAppRuntime, getActiveServerContext } = await load();
 
-        initAppRuntime({ storage: memoryStorage() });
-        initAppRuntime({ storage: memoryStorage() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport() });
 
         expect(mockWarn).toHaveBeenCalledWith('WEB_CORE', expect.stringContaining('more than once'));
         // The wiring is assignment, not accumulation: the second call leaves a working runtime.
@@ -165,7 +190,7 @@ describe('initAppRuntime', () => {
     it('does not warn on the first call', async () => {
         const { initAppRuntime } = await load();
 
-        initAppRuntime({ storage: memoryStorage() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport() });
 
         expect(mockWarn).not.toHaveBeenCalled();
     });
@@ -177,7 +202,7 @@ describe('initAppRuntime', () => {
     it('records the config boot state', async () => {
         const { initAppRuntime } = await load();
 
-        initAppRuntime({ storage: memoryStorage() });
+        initAppRuntime({ storage: memoryStorage(), transport: transport() });
 
         expect(mockInfo).toHaveBeenCalledWith('CONFIG', expect.stringContaining('Boot state:'), {
             overrides: [],

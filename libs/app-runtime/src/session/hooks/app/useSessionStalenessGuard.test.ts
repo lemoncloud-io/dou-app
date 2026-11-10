@@ -1,3 +1,5 @@
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { act, renderHook } from '@testing-library/react';
 
 import { useSessionStalenessGuard } from './useSessionStalenessGuard';
@@ -58,6 +60,9 @@ beforeEach(() => {
     mockAuthStatus.mockReturnValue('stale');
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
 });
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('useSessionStalenessGuard — 프로브', () => {
     it('만료되지 않았으면 refresh를 요청하지 않는다 (정상 구간)', async () => {

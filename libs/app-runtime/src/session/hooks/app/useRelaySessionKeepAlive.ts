@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { logger } from '@chatic/bridges';
 
 import { Coalescer, Throttle, relaySession } from '@chatic/auth';
-import { isLinkKnownDown } from '@chatic/transport';
+import { isLinkKnownDown, subscribeOnline } from '@chatic/transport';
 import { useSessionAuth } from '../session';
 import { useDynamicDeviceId } from './useDynamicDeviceId';
 
@@ -41,8 +41,9 @@ export const useRelaySessionKeepAlive = (enabled: boolean): void => {
     const [retryTick, setRetryTick] = useState(0);
 
     // Re-ask on the two edges that can turn a failed attempt into a possible one: the network coming
-    // back, and the app returning to the foreground (a suspended tab may have missed the `online`
-    // event entirely). Only armed while there is nothing to log in for.
+    // back (the platform's online signal, which also fires on going offline — `retry` skips while the
+    // link is down), and the app returning to the foreground (a suspended tab may have missed the
+    // network coming back entirely). Only armed while there is nothing to log in for.
     useEffect(() => {
         if (!enabled || isAuthenticated || typeof window === 'undefined') {
             return;
@@ -56,10 +57,10 @@ export const useRelaySessionKeepAlive = (enabled: boolean): void => {
             if (document.visibilityState === 'visible') retry();
         };
 
-        window.addEventListener('online', retry);
+        const unsubscribeOnline = subscribeOnline(retry);
         document.addEventListener('visibilitychange', onVisibilityChange);
         return () => {
-            window.removeEventListener('online', retry);
+            unsubscribeOnline();
             document.removeEventListener('visibilitychange', onVisibilityChange);
         };
     }, [enabled, isAuthenticated, retryFloor]);

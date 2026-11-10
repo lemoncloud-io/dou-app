@@ -1,4 +1,6 @@
-import { readDeviceEnvironment, resolveSocketDevice } from './devicePlatform';
+import { transportPlatform } from '../platform';
+import { fakeTransportPorts } from '../testing/platform';
+import { resolveSocketDevice } from './devicePlatform';
 
 const UA = {
     macChrome:
@@ -23,6 +25,9 @@ const UA = {
     iosWebView:
         'Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148',
 };
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('resolveSocketDevice', () => {
     describe('mobile shell', () => {
@@ -73,21 +78,10 @@ describe('resolveSocketDevice', () => {
     });
 });
 
-describe('readDeviceEnvironment', () => {
-    const globals = window as unknown as { CHATIC_APP_PLATFORM?: string };
+describe('resolveSocketDevice with no environment given', () => {
+    it("reads the platform's device port", () => {
+        transportPlatform.configure(fakeTransportPorts({ device: () => ({ appPlatform: 'ios' }) }));
 
-    afterEach(() => {
-        delete globals.CHATIC_APP_PLATFORM;
-    });
-
-    it('reads the shell-injected platform and the user agent', () => {
-        globals.CHATIC_APP_PLATFORM = 'android';
-
-        expect(readDeviceEnvironment()).toEqual({ appPlatform: 'android', userAgent: navigator.userAgent });
-    });
-
-    it('reads no platform in a plain browser', () => {
-        expect(readDeviceEnvironment().appPlatform).toBeUndefined();
-        expect(resolveSocketDevice().platform).toBe('web');
+        expect(resolveSocketDevice()).toEqual({ platform: 'ios' });
     });
 });

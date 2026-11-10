@@ -1,3 +1,5 @@
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { RelayCredentialRenewer, credentialRenewers } from './renewers';
@@ -35,6 +37,9 @@ jest.mock('@chatic/transport/socket/runtime', () => ({
  * different things (a wedged signature, or three timeouts on a bad link). These cases lock the
  * separation: only a persisting, online expiry costs the user their session.
  */
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
+
 describe('RelayCredentialRenewer — terminal expiry', () => {
     const build = (
         overrides: Partial<{

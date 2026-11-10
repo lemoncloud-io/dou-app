@@ -18,6 +18,9 @@ export * from './socket/utils/slotKey';
 export * from './socket/utils/closeReason';
 export * from './socket/utils/socketErrorCode';
 
+// platform — the ports the sockets and the link read, filled by each platform's adapter
+export * from './platform';
+
 // http
 export * from './http/transport';
 export * from './http/gateways';

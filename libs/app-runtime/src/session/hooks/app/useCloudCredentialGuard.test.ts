@@ -1,3 +1,5 @@
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { act, renderHook } from '@testing-library/react';
 
 import { RELAY_CLOUD_ID } from '@chatic/data';
@@ -65,6 +67,9 @@ beforeEach(() => {
 afterEach(() => {
     jest.useRealTimers();
 });
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('useCloudCredentialGuard — 판정', () => {
     it('여유가 충분하면 갱신하지 않는다', async () => {

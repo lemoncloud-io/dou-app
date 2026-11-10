@@ -4,6 +4,8 @@
  * `await` — `ensure`. What these cases prove is the connection count: moving between clouds that all
  * hold a slot creates no client and destroys none.
  */
+import { transportPlatform } from '@chatic/transport/platform';
+import { fakeTransportPorts } from '@chatic/transport/testing/platform';
 import { render } from '@testing-library/react';
 import { createClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
 import type { ClientSocketV2 } from '@lemoncloud/chatic-sockets-lib';
@@ -46,6 +48,9 @@ const slot = (cid: string, wssType: 'relay' | 'cloud' = 'cloud') => ({
     config: { url: `wss://${cid}`, deviceId: 'd', wssType, cid } as SocketBindingConfig,
 });
 const relay = slot('default', 'relay');
+
+// The platform the sockets and the link verdict read: a jsdom page, with no socket of its own.
+beforeEach(() => transportPlatform.configure(fakeTransportPorts()));
 
 describe('background slots through the real manager and binder', () => {
     let manager: SocketManager;

@@ -265,9 +265,10 @@ apps/*/src/main.tsx
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ storage, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
+  ├─ initAppRuntime({ storage, transport, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
   │    ├─ sessionStores.configure()       the stores behind the session's secret and plain ports — required
   │    │  runtimeStores.configure()       … and the runtime's own device/tab stores (cursor watermark, a tab's invited clouds)
+  │    │  transportPlatform.configure()   the online signal, the device and the socket factory — required (webTransportPorts() in a page)
   │    ├─ dropLemonLeftovers()            the lemon bundle older builds left in web storage
   │    ├─ signedOutAppKeys.register()     the key prefixes the app's domains say a sign-out takes
   │    ├─ logoutStorageSweeper.sweep()    honors ?logout=1, drops the signed-out account's keys
@@ -305,7 +306,7 @@ A wiring with no owner belongs to the composition root.
 
 **Every wiring call is in `init.ts`, and lint holds it there.** Each of the calls above that hands a
 package something — `sessionStores.configure`, `runtimeStores.configure`, `signedOutAppKeys.register`,
-`configureSessionStore`, `credentialRecovery.register`, `configureDataRuntime`,
+`configureSessionStore`, `credentialRecovery.register`, `transportPlatform.configure`, `configureDataRuntime`,
 `authRepositorySource.provide`, `syncDataGraph.provide` — replaces what the last call set. A second call
 site is therefore not a harmless repeat: whichever runs later silently undoes the boot, and nothing
 in `init.ts` would show it. `@nx/workspace-runtime-wiring-call` reports any of them outside `init.ts`;

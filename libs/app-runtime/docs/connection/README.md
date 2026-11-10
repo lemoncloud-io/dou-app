@@ -191,7 +191,8 @@ it moves **and a reboot is not already happening**, since a reboot re-registers 
 
 `useConnectivity` is a display verdict, not an auth verdict, which is why it was never folded into
 `deriveAuthStatus`: it answers "what do we say", while `AuthStatus` answers "what does the runtime
-do". Its truth table encodes one asymmetry — `navigator.onLine` is a **strong negative** and an
+do". It reads the platform's online signal through `@chatic/transport` (`readOnline`,
+`subscribeOnline`; `navigator.onLine` in a page). Its truth table encodes one asymmetry — that flag is a **strong negative** and an
 **unreliable positive** (`true` only proves an interface is up). So with the browser online, a closed
 socket reads as **reconnecting, not offline**: the fault is ours, and telling the user to check their
 wifi sends them after the wrong thing. Boot (`state === 'idle'`) reads as `online`, because nothing
