@@ -74,7 +74,8 @@ export type MiniAppLinkEditing = MiniAppLink | 'new';
  * - Only the cloud's owner adds, edits and removes; the hub's "add one" result reaches the owner alone.
  * - The hub's "open this one" result is looked up in the list by id, so the hub only ever names a mini
  *   app the list holds, and never hands DoU an address to open.
- * - The list is per cloud, so switching clouds shows that cloud's list, never the previous one's.
+ * - The list is per cloud, so switching clouds shows that cloud's list, never the previous one's, and
+ *   drops what the previous cloud left waiting: its edit dialog, its consent, its hub's result.
  * - One open at a time: a second press while the first request is out sends nothing.
  */
 export const useMiniAppLauncher = () => {
@@ -96,28 +97,33 @@ export const useMiniAppLauncher = () => {
     // open the old cloud's page with the new cloud's params.
     const [stored, setStored] = useState(() => ({ cloudId, links: linksOf(cloudId) }));
     const [editing, setEditing] = useState<MiniAppLinkEditing | null>(null);
+    const [pendingConsent, setPendingConsent] = useState<string | null>(null);
     if (stored.cloudId !== cloudId) {
-        // Another cloud: its own list, and no dialog left open (or asked for) by the previous one.
+        // Another cloud: its own list, and no dialog left open (or asked for) by the previous one. A
+        // consent still waiting is dropped too: agreeing to it now would send this cloud's names to a
+        // site the previous cloud listed.
         setStored({ cloudId, links: linksOf(cloudId) });
         setEditing(null);
+        setPendingConsent(null);
     }
     const links = stored.cloudId === cloudId ? stored.links : linksOf(cloudId);
     const canAdd = isOwner && links.length < MINI_APP_LINK_LIMIT;
 
     const opening = useRef(false);
-    const [pendingConsent, setPendingConsent] = useState<string | null>(null);
 
-    // The hub's result counts only for the view this screen opened on the hub. It is answered with the
-    // list as it is when the hub closes, so the handler reads it through a ref rather than subscribing
-    // again on every change.
-    const openedHub = useRef<string | null>(null);
-    const answerHub = useRef<(request: HubRequest) => void>(() => undefined);
+    // The hub's result counts only for the view this screen opened on the hub, and only while the cloud
+    // it was opened for is still the active one: a hub that closes after a switch named the previous
+    // cloud's mini apps. It is answered with the list as it is when the hub closes, so the handler reads
+    // it through a ref rather than subscribing again on every change.
+    const openedHub = useRef<{ viewId: string; cloudId: string } | null>(null);
+    const answerHub = useRef<(request: HubRequest, hubCloudId: string) => void>(() => undefined);
     useEffect(
         () =>
             onShellSubWebViewClosed(closed => {
-                if (closed.viewId !== openedHub.current) return;
+                const opened = openedHub.current;
+                if (closed.viewId !== opened?.viewId) return;
                 openedHub.current = null;
-                answerHub.current(hubRequestOf(closed.result));
+                answerHub.current(hubRequestOf(closed.result), opened.cloudId);
             }),
         []
     );
@@ -146,7 +152,7 @@ export const useMiniAppLauncher = () => {
                 const viewId = await openShellSubWebView(url, params);
                 // Set on the reply. The shell answers as it adds the view, before the page has loaded,
                 // so the hub cannot close and hand its result back before this runs.
-                openedHub.current = trust === 'firstParty' ? viewId : null;
+                openedHub.current = trust === 'firstParty' ? { viewId, cloudId } : null;
             } catch (error) {
                 logger.warn('BRIDGE', 'mini app did not open', { error });
                 toastFailure(t('settings.miniApp.openFailed'), error);
@@ -178,10 +184,15 @@ export const useMiniAppLauncher = () => {
     );
 
     useEffect(() => {
-        answerHub.current = request => {
+        answerHub.current = (request, hubCloudId) => {
+            if (hubCloudId !== cloudId) {
+                logger.warn('BRIDGE', 'hub result ignored: the cloud changed while it was open', { cloudId });
+                return;
+            }
             if (request?.kind === 'linkSettings') {
-                // `editing` is shown to the owner alone (below), so a member's hub asking for it opens nothing.
-                setEditing('new');
+                // Checked here, not only where the dialog is drawn: a member's request left in state would
+                // pop the add dialog up later, the moment the catalog named them the owner.
+                if (isOwner) setEditing('new');
                 return;
             }
             if (request?.kind === 'open') {
@@ -190,7 +201,7 @@ export const useMiniAppLauncher = () => {
                 else logger.warn('BRIDGE', 'hub asked for a mini app this cloud does not list', { cloudId });
             }
         };
-    }, [links, openPage, cloudId]);
+    }, [links, openPage, cloudId, isOwner]);
 
     const answerConsent = useCallback(
         (agreed: boolean) => {

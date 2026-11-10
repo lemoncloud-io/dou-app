@@ -193,11 +193,12 @@ When DoU's own web opens a mini app — the hub, or one of the links a cloud's o
 - `user.isOwner` and `miniApps` are sent to the hub (`https://apps.chatic.io`,
   `https://apps-dev.chatic.io`) alone: the first for it to offer the owner the link settings, the
   second for it to list the cloud's mini apps. No other page is told who owns the cloud or which
-  other sites it uses.
+  other sites it uses, and no mini app can sit on those hosts: an owner's address there is refused
+  when saved, so a page on them is always the hub.
 - The hub is the way into a cloud's mini apps. It hands its choice back as its `finish` result:
   `{ action: 'openMiniApp', id }` opens the mini app with that id, which the web looks up in its own
   list (so the hub never names an address), and `{ action: 'openMiniAppLinkSettings' }` takes an owner
-  to adding one.
+  to adding one. A result counts only while the cloud the hub was opened for is still the active one.
 - Names are cut to 200 characters. A page opened some other way may get other `params`; a page reads
   them as unknown until they have this shape.
 

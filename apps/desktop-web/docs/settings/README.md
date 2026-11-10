@@ -108,21 +108,26 @@ in `apps/desktop` (Sub view), and what the page receives is in the sub WebView p
   name, the host under it) that opens its edit dialog, and an "Add mini app" row (the cloud tile's
   `kind === 'owned'`). The dialog takes a name and an address, both
   checked by `checkMiniAppLink` (`@chatic/shared`): a name of 1 to `MINI_APP_LINK_NAME_MAX` (30)
-  characters, and an address that passes `isOpenableSubWebViewUrl`, the rule the shell opens by, so a
-  saved address is never one the shell would refuse. Editing an existing one also offers Remove.
+  characters, and an address the shell opens by its trust rule, so a saved address is never one the
+  shell would refuse. An address on the hub's own hosts, any path, is refused with its own message: a
+  page there would be told the owner flag and the list, and its close result read as the hub's.
+  Editing an existing one also offers Remove; while the dialog closes it keeps showing what it edited.
     - A cloud keeps at most `MINI_APP_LINK_LIMIT` (10). At the limit the add row is gone.
     - The list is kept on this computer only, in `localStorage` under `dou.miniAppLinks.<cloudId>`, as
       JSON, read back through `parseMiniAppLinks`, which drops any entry the rules no longer pass.
       There is no server field yet, so the list shows only on the computer it was saved on — to
       whoever opens that cloud there, the owner or, on a shared computer, a member signed in to it.
-      Members on their own computers do not see it. Switching clouds shows that cloud's list.
+      Members on their own computers do not see it. Switching clouds shows that cloud's list, and
+      drops what the previous cloud left waiting: an open dialog, a consent not yet answered, and the
+      result of a hub opened for it.
     - A storage that refuses the write says so in the dialog.
 - **Consent.** The first time a host DoU does not run (`external`) would open, the user is asked
   whether it may receive their name, their id in this cloud, the cloud and the place. Declining opens nothing. Agreeing is
   remembered per account and host (`dou.miniAppConsent.<accountId>.<host>`), so on a shared computer one
   person's yes does not send another's names. DoU's own pages are not asked about.
 - **Back from the hub.** When the hub view this screen opened closes with
-  `result: { action: 'openMiniAppLinkSettings' }`, the add dialog opens, and only for the owner; with
+  `result: { action: 'openMiniAppLinkSettings' }`, the add dialog opens, and only for the owner — a
+  member's request is dropped then, not kept for the day the catalog names them the owner; with
   `openMiniApp`, the chosen mini app opens (above). Any other view's result, and any other result, is
   ignored.
 

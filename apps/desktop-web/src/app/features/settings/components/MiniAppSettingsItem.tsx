@@ -91,6 +91,7 @@ const saveError: Record<Exclude<MiniAppLinkSave, 'saved'>, { field: 'name' | 'ur
     nameMissing: { field: 'name', key: 'settings.miniApp.nameMissing' },
     nameTooLong: { field: 'name', key: 'settings.miniApp.nameTooLong' },
     invalidUrl: { field: 'url', key: 'settings.miniApp.linkInvalid' },
+    hubUrl: { field: 'url', key: 'settings.miniApp.linkIsHub' },
     full: { field: 'url', key: 'settings.miniApp.full' },
     failed: { field: 'url', key: 'settings.miniApp.linkSaveFailed' },
 };
@@ -103,7 +104,12 @@ type MiniAppLinkFormProps = {
 
 const MiniAppLinkDialog = ({ editing, ...props }: { editing: MiniAppLinkEditing | null } & MiniAppLinkFormProps) => {
     const { t } = useTranslation();
-    const existing = editing !== null && editing !== 'new' ? editing : null;
+    // Draw what it last edited while it closes, not a blank add form for the exit animation. The
+    // content unmounts once closed, so the next opening still starts fresh.
+    const [last, setLast] = useState(editing);
+    if (editing !== null && editing !== last) setLast(editing);
+    const shown = editing ?? last;
+    const existing = shown !== null && shown !== 'new' ? shown : null;
     return (
         <Dialog open={editing !== null} onOpenChange={next => !next && props.onClose()}>
             <DialogContent closeLabel={t('common.close')} className="sm:max-w-md">
