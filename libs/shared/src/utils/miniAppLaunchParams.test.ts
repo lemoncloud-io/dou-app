@@ -1,4 +1,5 @@
 import { buildMiniAppLaunchParams, MINI_APP_NAME_LIMIT } from './miniAppLaunchParams';
+import { MINI_APP_LINK_LIMIT, MINI_APP_LINK_NAME_MAX } from './miniAppLinks';
 import type { MiniAppLaunchInput } from './miniAppLaunchParams';
 
 const input = (overrides: Partial<MiniAppLaunchInput> = {}): MiniAppLaunchInput => ({
@@ -15,7 +16,24 @@ describe('buildMiniAppLaunchParams', () => {
             cloud: { id: 'cloud-1', name: 'Lemon' },
             place: { id: 'place-1', name: 'Design' },
             user: { id: 'uid-1', name: 'Louis', isOwner: true },
+            miniApps: [],
         });
+    });
+
+    it("lists the cloud's mini apps to a first-party page by name and host, never the address", () => {
+        const miniApps = [
+            { id: 'a', name: 'Carrot', url: 'https://carrot.example/#download?ref=secret' },
+            { id: 'b', name: 'Shop', url: 'https://shop.example/app' },
+        ];
+        expect(buildMiniAppLaunchParams(input({ miniApps }), 'firstParty').miniApps).toEqual([
+            { id: 'a', name: 'Carrot', host: 'carrot.example' },
+            { id: 'b', name: 'Shop', host: 'shop.example' },
+        ]);
+    });
+
+    it.each(['reviewed', 'external'] as const)("tells a %s page nothing of the cloud's other mini apps", trust => {
+        const miniApps = [{ id: 'a', name: 'Carrot', url: 'https://carrot.example/' }];
+        expect('miniApps' in buildMiniAppLaunchParams(input({ miniApps }), trust)).toBe(false);
     });
 
     it('says isOwner false to a first-party page for a member', () => {
@@ -65,6 +83,11 @@ describe('buildMiniAppLaunchParams', () => {
                 place: { id: 'place-1', name: long },
                 user: { id: 'uid-1', placeNick: long },
                 isOwner: true,
+                miniApps: Array.from({ length: MINI_APP_LINK_LIMIT }, (_, i) => ({
+                    id: `00000000-0000-4000-8000-00000000000${i}`,
+                    name: '\u0001'.repeat(MINI_APP_LINK_NAME_MAX),
+                    url: `https://${'a'.repeat(63)}.${'b'.repeat(63)}.${'c'.repeat(63)}.${'d'.repeat(57)}/`,
+                })),
             },
             'firstParty'
         );

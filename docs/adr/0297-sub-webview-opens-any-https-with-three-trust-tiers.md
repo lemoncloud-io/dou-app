@@ -62,6 +62,9 @@ decided by one shared rule both shells and both webs call.**
     - No token of any kind, and no key named for one. A page that needs to act for the user waits for a
       scoped token, a later decision.
     - `user.isOwner` goes to the hub alone. No other page is told who owns the cloud.
+    - The hub is the way into a cloud's mini apps: it alone gets the cloud's list (`miniApps`, a name
+      and a host each) and hands back the id of the one chosen, which the web opens from its own list.
+      The hub never hands the web an address to open.
     - The first time a user opens an external host, the web asks before it hands that host the names
       (the consent is the web's, per account and host, so one person's yes on a shared computer does
       not send another's names).

@@ -176,13 +176,17 @@ export type OpenSubWebViewPayload = {
 /**
  * The `params` DoU's own web hands a mini app: who is looking, in which cloud and place. Ids and
  * display names only — nothing that authenticates, and no key named for a token. `user.id` is the
- * user's id in that cloud, so a page sees a different id per cloud. `user.isOwner` is sent to the
- * hub (`firstParty`) alone, for it to offer the cloud's owner the link settings.
+ * user's id in that cloud, so a page sees a different id per cloud. `user.isOwner` and `miniApps` are
+ * sent to the hub (`firstParty`) alone: the first for it to offer the cloud's owner the link settings,
+ * the second for it to list the cloud's mini apps. A hub that wants one opened finishes with
+ * `{ action: 'openMiniApp', id }`, and the web opens it.
  */
 export type MiniAppLaunchParams = {
     cloud: { id: string; name: string };
     place: { id: string; name: string } | null;
     user: { id: string; name: string; isOwner?: boolean };
+    /** The cloud's mini apps in the owner's order: a name and the host, never the address itself. */
+    miniApps?: { id: string; name: string; host: string }[];
 };
 
 /** [Response] The sub WebView is showing. */

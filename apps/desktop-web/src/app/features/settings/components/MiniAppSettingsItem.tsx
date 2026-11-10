@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { Pencil } from 'lucide-react';
-
 import type { MiniAppLink } from '@chatic/shared';
 
 import {
@@ -48,27 +46,27 @@ const MiniAppSection = () => {
     const { t } = useTranslation();
     const launcher = useMiniAppLauncher();
     if (!launcher.available) return null;
+    const count = launcher.links.length;
 
     return (
         <section className="mt-8 flex flex-col gap-4">
             <h2 className="text-overline uppercase text-muted-foreground">{t('settings.miniApp')}</h2>
             <SettingsRowGroup>
-                {launcher.links.length === 0 ? (
-                    <SettingsNavRow
-                        label={t('settings.miniApp.openHub')}
-                        hint={t('settings.miniApp.openHubHint')}
-                        onClick={() => launcher.open(null)}
-                    />
-                ) : (
+                {/* The hub is the way in for everyone: it lists this cloud's mini apps and opens the one chosen. */}
+                <SettingsNavRow
+                    label={t('settings.miniApp.open')}
+                    hint={count > 0 ? t('settings.miniApp.openHint', { count }) : t('settings.miniApp.openHubHint')}
+                    onClick={launcher.openHub}
+                />
+                {launcher.isOwner &&
                     launcher.links.map(link => (
-                        <MiniAppRow
+                        <SettingsNavRow
                             key={link.id}
-                            link={link}
-                            onOpen={() => launcher.open(link)}
-                            onEdit={launcher.isOwner ? () => launcher.setEditing(link) : undefined}
+                            label={link.name}
+                            hint={t('settings.miniApp.manageHint', { host: new URL(link.url).host })}
+                            onClick={() => launcher.setEditing(link)}
                         />
-                    ))
-                )}
+                    ))}
                 {launcher.canAdd && (
                     <SettingsNavRow
                         label={t('settings.miniApp.add')}
@@ -86,32 +84,6 @@ const MiniAppSection = () => {
             />
             <MiniAppConsentDialog host={launcher.pendingConsentHost} onAnswer={launcher.answerConsent} />
         </section>
-    );
-};
-
-/**
- * One saved mini app: the row opens it, and the owner gets an edit button beside it. Two sibling
- * buttons rather than one inside the other, which a screen reader could not reach.
- */
-const MiniAppRow = ({ link, onOpen, onEdit }: { link: MiniAppLink; onOpen: () => void; onEdit?: () => void }) => {
-    const { t } = useTranslation();
-    return (
-        <div className="flex items-center">
-            <div className="min-w-0 flex-1">
-                <SettingsNavRow label={link.name} hint={new URL(link.url).host} onClick={onOpen} />
-            </div>
-            {onEdit && (
-                <Button
-                    type="button"
-                    variant="ghost"
-                    className="hit-target mr-3 shrink-0"
-                    aria-label={t('settings.miniApp.edit', { name: link.name })}
-                    onClick={onEdit}
-                >
-                    <Pencil size={16} aria-hidden />
-                </Button>
-            )}
-        </div>
     );
 };
 

@@ -19,20 +19,31 @@ import {
 import { hasMiniAppConsent, readMiniAppLinks, writeMiniAppConsent, writeMiniAppLinks } from '../utils/miniAppStorage';
 import { onShellSubWebViewClosed, openShellSubWebView, readSubWebViewOpenScope } from '../utils/subWebViewShell';
 
-/** DoU's own hub, opened when the cloud has no mini app: it greets the user and points an owner to adding one. */
 /** The active cloud's saved mini apps; none outside a cloud. */
 const linksOf = (cloudId: string | null): MiniAppLink[] => (cloudId ? readMiniAppLinks(cloudId) : []);
 
+/**
+ * DoU's own hub, the way into a cloud's mini apps: it greets the user, lists the cloud's mini apps and
+ * points an owner to adding one.
+ */
 const miniAppHubUrl = (): string =>
     String(import.meta.env.VITE_ENV ?? '').toUpperCase() === 'PROD'
         ? 'https://apps.chatic.io/'
         : 'https://apps-dev.chatic.io/';
 
-/** What the hub hands back to send an owner to the link setting. */
-const OPEN_LINK_SETTINGS = 'openMiniAppLinkSettings';
+/**
+ * What the hub hands back when it closes: send the owner to adding a mini app, or open the one with
+ * this id. Anything else is no request.
+ */
+type HubRequest = { kind: 'linkSettings' } | { kind: 'open'; id: string } | null;
 
-const asksForLinkSettings = (result: unknown): boolean =>
-    !!result && typeof result === 'object' && (result as { action?: unknown }).action === OPEN_LINK_SETTINGS;
+const hubRequestOf = (result: unknown): HubRequest => {
+    if (!result || typeof result !== 'object') return null;
+    const { action, id } = result as { action?: unknown; id?: unknown };
+    if (action === 'openMiniAppLinkSettings') return { kind: 'linkSettings' };
+    if (action === 'openMiniApp' && typeof id === 'string') return { kind: 'open', id };
+    return null;
+};
 
 /** How far the shell opens sub views, once its handshake answers; `null` until then and outside a shell. */
 export const useSubWebViewOpenScope = (): SubWebViewOpenScope | null => {
@@ -55,12 +66,14 @@ export type MiniAppLinkSave = 'saved' | MiniAppLinkProblem | 'full' | 'failed';
 export type MiniAppLinkEditing = MiniAppLink | 'new';
 
 /**
- * The settings' mini apps: the active cloud's list, opening one (or the hub, while the list is empty)
- * with who is looking, the first-open consent for a site DoU does not run, and the hub's way back to
- * adding one.
+ * The settings' mini apps: opening the hub with who is looking and the cloud's list, opening the mini
+ * app the hub hands back (behind the first-open consent for a site DoU does not run), and the owner's
+ * list.
  *
  * - `available` is false in the Default Cloud (Home): it is the relay's, with no owner and no list.
- * - Only the cloud's owner adds, edits and removes; the hub's result reaches the owner alone too.
+ * - Only the cloud's owner adds, edits and removes; the hub's "add one" result reaches the owner alone.
+ * - The hub's "open this one" result is looked up in the list by id, so the hub only ever names a mini
+ *   app the list holds, and never hands DoU an address to open.
  * - The list is per cloud, so switching clouds shows that cloud's list, never the previous one's.
  * - One open at a time: a second press while the first request is out sends nothing.
  */
@@ -94,15 +107,17 @@ export const useMiniAppLauncher = () => {
     const opening = useRef(false);
     const [pendingConsent, setPendingConsent] = useState<string | null>(null);
 
-    // The hub's result reaches the dialog only for the view this screen opened on the hub; the dialog
-    // itself opens for the owner alone (`editing` below).
+    // The hub's result counts only for the view this screen opened on the hub. It is answered with the
+    // list as it is when the hub closes, so the handler reads it through a ref rather than subscribing
+    // again on every change.
     const openedHub = useRef<string | null>(null);
+    const answerHub = useRef<(request: HubRequest) => void>(() => undefined);
     useEffect(
         () =>
             onShellSubWebViewClosed(closed => {
                 if (closed.viewId !== openedHub.current) return;
                 openedHub.current = null;
-                if (asksForLinkSettings(closed.result)) setEditing('new');
+                answerHub.current(hubRequestOf(closed.result));
             }),
         []
     );
@@ -123,6 +138,7 @@ export const useMiniAppLauncher = () => {
                     place: placeId ? { id: placeId, name: placeName } : null,
                     user: { id: uid, placeNick, profileName },
                     isOwner,
+                    miniApps: links,
                 },
                 trust
             );
@@ -138,11 +154,11 @@ export const useMiniAppLauncher = () => {
                 opening.current = false;
             }
         },
-        [cloudId, uid, cloud?.name, placeId, placeName, placeNick, profileName, isOwner, t]
+        [cloudId, uid, cloud?.name, placeId, placeName, placeNick, profileName, isOwner, links, t]
     );
 
     /** Open `link`, or the hub for `null`. */
-    const open = useCallback(
+    const openPage = useCallback(
         (link: MiniAppLink | null) => {
             const url = link?.url ?? miniAppHubUrl();
             const trust = subWebViewTrustOf(url);
@@ -160,6 +176,21 @@ export const useMiniAppLauncher = () => {
         },
         [launch, accountId]
     );
+
+    useEffect(() => {
+        answerHub.current = request => {
+            if (request?.kind === 'linkSettings') {
+                // `editing` is shown to the owner alone (below), so a member's hub asking for it opens nothing.
+                setEditing('new');
+                return;
+            }
+            if (request?.kind === 'open') {
+                const link = links.find(candidate => candidate.id === request.id);
+                if (link) openPage(link);
+                else logger.warn('BRIDGE', 'hub asked for a mini app this cloud does not list', { cloudId });
+            }
+        };
+    }, [links, openPage, cloudId]);
 
     const answerConsent = useCallback(
         (agreed: boolean) => {
@@ -214,7 +245,8 @@ export const useMiniAppLauncher = () => {
         isOwner,
         links,
         canAdd,
-        open,
+        /** Open the hub, which lists this cloud's mini apps. */
+        openHub: () => openPage(null),
         /** The host waiting for the user's consent, or `null`. */
         pendingConsentHost: pendingConsent ? new URL(pendingConsent).host : null,
         answerConsent,

@@ -233,8 +233,8 @@ const params = apps.context?.params as Partial<MiniAppLaunchParams> | undefined;
 ```
 
 `user.id` is the user's id in that cloud. These are names to show, not proof of who is looking: there
-is no token, and your server must not treat them as a sign-in. `user.isOwner` is sent to DoU's own hub
-only; your page never receives it.
+is no token, and your server must not treat them as a sign-in. `user.isOwner` and `miniApps` are sent
+to DoU's own hub only; your page never receives them.
 
 ## What this WebView is like
 

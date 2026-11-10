@@ -80,9 +80,12 @@ const storeLinks = (cloudId: string, links: StoredLink[]) =>
 const storedLinks = (cloudId: string): StoredLink[] =>
     JSON.parse(window.localStorage.getItem(`dou.miniAppLinks.${cloudId}`) ?? '[]');
 
-const hubButton = () => screen.getByRole('button', { name: /DoU mini app home/ });
+const hubButton = () => screen.getByRole('button', { name: /Open mini apps/ });
 const addButton = () => screen.queryByRole('button', { name: /Add mini app/ });
 const nameInput = () => screen.queryByLabelText('Name');
+
+/** The hub this screen opened closes with `result`. */
+const hubCloses = (result: unknown) => act(() => env.closed?.({ viewId: 'view-1', reason: 'page', result }));
 
 const fillAndSave = async (name: string, url: string) => {
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: name } });
@@ -122,23 +125,36 @@ describe('MiniAppSettingsItem', () => {
         expect(screen.queryByText('Mini apps')).toBeNull();
     });
 
-    it('lists every saved mini app by its name and host, with editing for the owner only', async () => {
+    it('gives everyone one way in, the hub, and the owner alone the list to manage', async () => {
         storeLinks('c1', [CARROT, SHOP]);
         storeLinks('c2', [CARROT, SHOP]);
         await renderItem();
 
-        expect(screen.getByRole('button', { name: /Carrot.*carrot\.example/ })).toBeTruthy();
-        expect(screen.getByRole('button', { name: /Shop.*shop\.example/ })).toBeTruthy();
-        expect(screen.queryByRole('button', { name: /DoU mini app home/ })).toBeNull();
-        expect(screen.getByRole('button', { name: 'Edit Carrot' })).toBeTruthy();
+        expect(hubButton().textContent).toContain('Choose one of the 2 on the mini app home.');
+        expect(screen.getByRole('button', { name: /Carrot.*carrot\.example · Edit/ })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /Shop.*shop\.example · Edit/ })).toBeTruthy();
         expect(addButton()).not.toBeNull();
         cleanup();
 
         env.activeCloudId = 'c2';
         await renderItem();
-        expect(screen.getByRole('button', { name: /Carrot/ })).toBeTruthy();
-        expect(screen.queryByRole('button', { name: 'Edit Carrot' })).toBeNull();
+        expect(hubButton()).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /Carrot/ })).toBeNull();
         expect(addButton()).toBeNull();
+    });
+
+    it("hands the hub the cloud's mini apps by name and host", async () => {
+        storeLinks('c1', [CARROT, SHOP]);
+        await renderItem();
+
+        fireEvent.click(hubButton());
+
+        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(1));
+        expect(env.open.mock.calls[0][0]).toBe(HUB);
+        expect(env.open.mock.calls[0][1].miniApps).toEqual([
+            { id: 'l1', name: 'Carrot', host: 'carrot.example' },
+            { id: 'l2', name: 'Shop', host: 'shop.example' },
+        ]);
     });
 
     it('opens the hub with who is looking, the owner flag included, while the cloud has no mini apps', async () => {
@@ -151,6 +167,7 @@ describe('MiniAppSettingsItem', () => {
             cloud: { id: 'c1', name: 'Lemon' },
             place: { id: 'p1', name: 'Studio' },
             user: { id: 'uid-c1', name: 'Ada in Studio', isOwner: true },
+            miniApps: [],
         });
     });
 
@@ -195,12 +212,12 @@ describe('MiniAppSettingsItem', () => {
         storeLinks('c1', [CARROT, SHOP]);
         await renderItem();
 
-        fireEvent.click(screen.getByRole('button', { name: 'Edit Carrot' }));
+        fireEvent.click(screen.getByRole('button', { name: /Carrot/ }));
         expect(((await screen.findByLabelText('Name')) as HTMLInputElement).value).toBe('Carrot');
         await fillAndSave('Carrot app', CARROT.url);
         await waitFor(() => expect(storedLinks('c1')).toEqual([{ ...CARROT, name: 'Carrot app' }, SHOP]));
 
-        fireEvent.click(screen.getByRole('button', { name: 'Edit Shop' }));
+        fireEvent.click(screen.getByRole('button', { name: /Shop/ }));
         fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
         await waitFor(() => expect(storedLinks('c1')).toEqual([{ ...CARROT, name: 'Carrot app' }]));
         expect(screen.queryByRole('button', { name: /Shop/ })).toBeNull();
@@ -230,28 +247,52 @@ describe('MiniAppSettingsItem', () => {
         setItem.mockRestore();
     });
 
-    it('asks before a site DoU does not run first gets the names, and opens it without the owner flag', async () => {
-        storeLinks('c1', [SHOP]);
+    it('opens the mini app the hub hands back, asking first before a site DoU does not run gets the names', async () => {
+        storeLinks('c2', [SHOP]);
+        env.activeCloudId = 'c2';
         // Another account agreed on this computer: that is not my consent.
         window.localStorage.setItem('dou.miniAppConsent.uid-other.shop.example', '1');
         await renderItem();
-        const shopButton = () => screen.getByRole('button', { name: /Shop.*shop\.example/ });
+        const chooseShopInHub = async (times: number) => {
+            fireEvent.click(hubButton());
+            await waitFor(() => expect(env.open).toHaveBeenCalledTimes(times));
+            hubCloses({ action: 'openMiniApp', id: 'l2' });
+        };
 
-        fireEvent.click(shopButton());
+        await chooseShopInHub(1);
         expect(await screen.findByText('Open a site outside DoU?')).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
         await waitFor(() => expect(screen.queryByText('Open a site outside DoU?')).toBeNull());
-        expect(env.open).not.toHaveBeenCalled();
+        expect(env.open).toHaveBeenCalledTimes(1);
 
-        fireEvent.click(shopButton());
+        await chooseShopInHub(2);
         fireEvent.click(await screen.findByRole('button', { name: 'Open' }));
-        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(1));
-        expect(env.open.mock.calls[0][0]).toBe('https://shop.example/app');
-        expect(env.open.mock.calls[0][1].user).toEqual({ id: 'uid-c1', name: 'Ada in Studio' });
+        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(3));
+        expect(env.open.mock.calls[2][0]).toBe('https://shop.example/app');
+        // Neither the owner flag nor the cloud's other mini apps reach a site DoU does not run.
+        expect(env.open.mock.calls[2][1]).toEqual({
+            cloud: { id: 'c2', name: 'Friends' },
+            place: { id: 'p1', name: 'Studio' },
+            user: { id: 'uid-c2', name: 'Ada, saved' },
+        });
         expect(window.localStorage.getItem('dou.miniAppConsent.uid-session.shop.example')).toBe('1');
 
-        fireEvent.click(shopButton());
-        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(2));
+        await chooseShopInHub(4);
+        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(5));
+        expect(screen.queryByText('Open a site outside DoU?')).toBeNull();
+    });
+
+    it('opens nothing for an id the list does not hold, nor for a second result from a hub already closed', async () => {
+        storeLinks('c1', [SHOP]);
+        await renderItem();
+        fireEvent.click(hubButton());
+        await waitFor(() => expect(env.open).toHaveBeenCalledTimes(1));
+
+        hubCloses({ action: 'openMiniApp', id: 'gone' });
+        hubCloses({ action: 'openMiniApp', id: 'l2' });
+
+        await act(async () => undefined);
+        expect(env.open).toHaveBeenCalledTimes(1);
         expect(screen.queryByText('Open a site outside DoU?')).toBeNull();
     });
 

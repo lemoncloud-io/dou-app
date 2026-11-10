@@ -33,14 +33,16 @@ export type ChaticAppsContext = {
 /**
  * The `params` DoU's own web opens a mini app with (`context.params`): who is looking, in which cloud
  * and place. Ids and display names only — nothing that proves who the user is, so a page's server must
- * not treat them as a sign-in. `user.id` is the user's id in that cloud. `user.isOwner` reaches the
- * DoU hub alone; any other page never receives it. A page opened some other way may get other
- * `params`, so read them as unknown until they have this shape.
+ * not treat them as a sign-in. `user.id` is the user's id in that cloud. `user.isOwner` and
+ * `miniApps` reach the DoU hub alone; any other page never receives them. A page opened some other way
+ * may get other `params`, so read them as unknown until they have this shape.
  */
 export type MiniAppLaunchParams = {
     cloud: { id: string; name: string };
     place: { id: string; name: string } | null;
     user: { id: string; name: string; isOwner?: boolean };
+    /** The cloud's mini apps in the owner's order: a name and the host, never the address itself. */
+    miniApps?: { id: string; name: string; host: string }[];
 };
 
 /** What the page's storage holds and may hold, in characters: keys plus values serialized. */

@@ -185,12 +185,19 @@ When DoU's own web opens a mini app — the hub, or one of the links a cloud's o
 | `user.id`      | string                   | The user's id **in that cloud** — another cloud gives another id       |
 | `user.name`    | string                   | The nick in the open place, else the cloud profile's name; may be `''` |
 | `user.isOwner` | boolean, the hub only    | Whether the user owns the cloud. Absent for every page but the hub     |
+| `miniApps`     | array, the hub only      | The cloud's mini apps, `{ id, name, host }` each, in the owner's order |
 
 - It carries nothing that authenticates: no session token, relay token or cloud token, and no key
   named for one. A page's server MUST NOT treat these values as a sign-in — any page can be opened
   in a browser tab with whatever `params` its author types.
-- `user.isOwner` is sent to the hub (`https://apps.chatic.io`, `https://apps-dev.chatic.io`) alone,
-  for it to offer the owner the link settings. No other page is told who owns the cloud.
+- `user.isOwner` and `miniApps` are sent to the hub (`https://apps.chatic.io`,
+  `https://apps-dev.chatic.io`) alone: the first for it to offer the owner the link settings, the
+  second for it to list the cloud's mini apps. No other page is told who owns the cloud or which
+  other sites it uses.
+- The hub is the way into a cloud's mini apps. It hands its choice back as its `finish` result:
+  `{ action: 'openMiniApp', id }` opens the mini app with that id, which the web looks up in its own
+  list (so the hub never names an address), and `{ action: 'openMiniAppLinkSettings' }` takes an owner
+  to adding one.
 - Names are cut to 200 characters. A page opened some other way may get other `params`; a page reads
   them as unknown until they have this shape.
 
