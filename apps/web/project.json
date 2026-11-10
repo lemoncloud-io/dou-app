@@ -31,6 +31,16 @@
                     ]
                 }
             }
+        },
+        "test-mention-relay": {
+            "executor": "nx:run-commands",
+            "cache": true,
+            "options": {
+                "command": "node --test apps/web/dev/mention-relay/relay.test.mjs"
+            }
+        },
+        "test": {
+            "dependsOn": ["test-mention-relay"]
         }
     }
 }

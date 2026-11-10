@@ -473,7 +473,9 @@ the rules. The room and the thread wire it the same way.
   `pointerdown` for a mouse only: on touch, cancelling it would stop the list panning. The thread's bar
   does not cancel them itself.
 - **The rows** are "Everyone" first, then the room's active members other than me, by the name every
-  row in the room draws them by, sorted by that name. A member with no name yet is left out: there is
+  row in the room draws them by, sorted by that name. The optional local
+  [mention relay](../../../src/app/runtime/mention-relay/README.md) can include me for self-mention
+  tests only in its registered public room; normal builds keep the exclusion. A member with no name yet is left out: there is
   nothing to write. The everyone row writes the UI language's word — `@전체` in Korean, `@all` in
   English (`chat.mention.everyoneWord`) — and is found by either word, by its title ("모두에게",
   "Everyone"), and by `channel`, `here` and `everyone`. Readers mark every one of those words in any

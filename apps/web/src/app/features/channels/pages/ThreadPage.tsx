@@ -67,6 +67,17 @@ import { useChromeInsets } from '../../../ui/hooks/useChromeInsets';
 import { useMessageJumpStore } from '../../../stores/useMessageJumpStore';
 import { toCloudId } from '../../../hooks/useCloudScope';
 import { useDebugRoomMirror } from '../../debug';
+import {
+    isMentionRelayEnabled,
+    useMentionRelay,
+    useRelaySelfMention,
+} from '../../../runtime/mention-relay/useMentionRelay';
+import {
+    highestPersistedChatNo,
+    isPublicRelayRoom,
+    relayMembershipOf,
+    viewerIdsOf,
+} from '../../../runtime/mention-relay/relay';
 
 const MAX_INPUT_LENGTH = 5000;
 
@@ -152,6 +163,7 @@ export const ThreadPage = () => {
     // A thread is a view of a channel, so it names people the way the room does — see `profilePlaceOf`.
     const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
     const { channel } = useChannel(channelId || null);
+    const isGroupChat = !!channel && channelKindOf(channel.stereo) === 'group';
     // "Me" is the uid this account has in the thread's own cloud, as in the room: every comparison
     // below is against ids that cloud minted, and during a switch the session uid is another cloud's.
     const threadCid = toCloudId(channel?.cid || selectedCloudId);
@@ -201,6 +213,27 @@ export const ThreadPage = () => {
         gapStatus,
         fillGap,
     } = useChats(chatParams);
+
+    const relayChatNo = isMentionRelayEnabled()
+        ? highestPersistedChatNo(rawChats, { cloudId: threadCid, channelId: stableChannelId })
+        : 0;
+    useMentionRelay({
+        cloudId: threadCid,
+        channelId: stableChannelId,
+        channelName: channel?.name ?? '',
+        roomUserId: userId ?? '',
+        membership: isMentionRelayEnabled()
+            ? relayMembershipOf(joins, { cloudId: threadCid, channelId: stableChannelId }, userId ?? '')
+            : null,
+        viewerIds: viewerIdsOf([userId]),
+        rows: rawChats,
+        ready:
+            isPublicRelayRoom(channel, isGroupChat, channelId) &&
+            !isLoading &&
+            relayChatNo > 0 &&
+            relayChatNo >= (channel?.chatNo ?? 0) &&
+            isFetched(relayChatNo),
+    });
 
     /**
      * Is the root this URL names from before my current membership?
@@ -372,13 +405,13 @@ export const ThreadPage = () => {
     );
 
     // The room's `@` lookup, on the room's terms: a group room's alone, the same rows the room offers.
-    const isGroupChat = !!channel && channelKindOf(channel.stereo) === 'group';
+    const allowRelaySelfMention = useRelaySelfMention(threadCid, stableChannelId, userId);
     const mentionCandidates = useMemo(
         () =>
             isGroupChat
                 ? buildMentionCandidates({
                       memberIds: activeMemberIds,
-                      me: userId,
+                      me: allowRelaySelfMention ? undefined : userId,
                       nameOf: nameOfUser,
                       avatarOf: avatarOfUser,
                       unknownLabel: t('chat.unknownUser'),
@@ -386,7 +419,7 @@ export const ThreadPage = () => {
                       everyoneLabel: t('chat.mention.everyoneWord'),
                   })
                 : [],
-        [isGroupChat, activeMemberIds, userId, nameOfUser, avatarOfUser, t]
+        [isGroupChat, activeMemberIds, userId, allowRelaySelfMention, nameOfUser, avatarOfUser, t]
     );
     const mentionComposer = useMentionComposer({
         // The room's rule: off while a message is being edited in this field.

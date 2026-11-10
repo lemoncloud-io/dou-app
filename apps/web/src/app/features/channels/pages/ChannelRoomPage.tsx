@@ -7,6 +7,17 @@ import { logger } from '@chatic/bridges';
 
 import { useStackNavigate } from '../../../navigation';
 import { pushEntryRegistry } from '../../../runtime/logging/pushEntryRegistry';
+import {
+    isMentionRelayEnabled,
+    useMentionRelay,
+    useRelaySelfMention,
+} from '../../../runtime/mention-relay/useMentionRelay';
+import {
+    highestPersistedChatNo,
+    isPublicRelayRoom,
+    relayMembershipOf,
+    viewerIdsOf,
+} from '../../../runtime/mention-relay/relay';
 import { useNavigateWithTransition } from '@chatic/shared';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChannel } from '@chatic/data';
@@ -331,12 +342,13 @@ export const ChannelRoomPage = () => {
     // The `@` lookup is a group room's alone: a 1:1 always notifies and has one person to call, and a
     // self chat has nobody to call. Members are the active ones other than me, under the name every
     // row in this room draws them by — which is what the text will read after the pick.
+    const allowRelaySelfMention = useRelaySelfMention(roomCid, stableChannelId, userId);
     const mentionCandidates = useMemo(
         () =>
             isGroupChat
                 ? buildMentionCandidates({
                       memberIds: activeMemberIds,
-                      me: userId,
+                      me: allowRelaySelfMention ? undefined : userId,
                       nameOf: nameOfUser,
                       avatarOf: avatarOfUser,
                       unknownLabel: t('chat.unknownUser'),
@@ -344,7 +356,7 @@ export const ChannelRoomPage = () => {
                       everyoneLabel: t('chat.mention.everyoneWord'),
                   })
                 : [],
-        [isGroupChat, activeMemberIds, userId, nameOfUser, avatarOfUser, t]
+        [isGroupChat, activeMemberIds, userId, allowRelaySelfMention, nameOfUser, avatarOfUser, t]
     );
     // Message editing — its draft borrows the composer's field (see the composer below).
     const editing = useMessageEditing(stableChannelId);
@@ -452,6 +464,27 @@ export const ChannelRoomPage = () => {
         fetchThrough,
         isFetched,
     } = useChats(memoizedChatParams);
+
+    const relayChatNo = isMentionRelayEnabled()
+        ? highestPersistedChatNo(rawChats, { cloudId: roomCid, channelId: stableChannelId })
+        : 0;
+    useMentionRelay({
+        cloudId: roomCid,
+        channelId: stableChannelId,
+        channelName: channel?.name ?? '',
+        roomUserId: userId ?? '',
+        membership: isMentionRelayEnabled()
+            ? relayMembershipOf(joins, { cloudId: roomCid, channelId: stableChannelId }, userId ?? '')
+            : null,
+        viewerIds: viewerIdsOf([userId]),
+        rows: rawChats,
+        ready:
+            isPublicRelayRoom(channel, isGroupChat, channelId) &&
+            !isChatLoading &&
+            relayChatNo > 0 &&
+            relayChatNo >= (channel?.chatNo ?? 0) &&
+            isFetched(relayChatNo),
+    });
 
     // Debug mode only: hands what this room holds to the overlay's Room screen.
     useDebugRoomMirror('room', { channelId, channel, rendered: messages, rows: rawChats, focused: actionMessage });

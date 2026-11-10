@@ -8,6 +8,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, searchForWorkspaceRoot } from 'vite';
 import svgr from 'vite-plugin-svgr';
 
+import { mentionRelayPlugin } from './dev/mention-relay/index.mjs';
 import webPkg from './package.json' with { type: 'json' };
 
 const copySharedPublicPlugin = () => {
@@ -102,6 +103,9 @@ export default defineConfig({
         'process.env': {},
         'process.env.I18N_VERSION': JSON.stringify(Date.now().toString()),
         __APP_VERSION__: JSON.stringify(webPkg.version),
+        __DOU_MENTION_RELAY_ENABLED__: JSON.stringify(
+            process.env.NODE_ENV === 'development' && Boolean(process.env.DOU_MENTION_RELAY_CONFIG)
+        ),
         ...(process.env.NODE_ENV === 'development'
             ? {
                   global: 'window',
@@ -139,6 +143,7 @@ export default defineConfig({
     },
 
     plugins: [
+        mentionRelayPlugin(),
         htmlEnvInjectionPlugin(),
         svgr(),
         react(),

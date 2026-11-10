@@ -45,6 +45,15 @@ What the app does **not** own:
 the logger through the `logger` re-export in `@chatic/bridges`. The app imports neither package
 directly, and it should stay that way — the command above says whether it has.
 
+## Local mention notifications
+
+The optional [public mention relay](./dev/mention-relay/README.md) connects the local
+development shell to one explicitly configured Codex thread. It observes the existing
+repository stream, binds one public channel and viewer, and can include self mentions
+for testing. It is disabled by default and excluded from production builds. See the
+[client adapter contract](./src/app/runtime/mention-relay/README.md) for its lifecycle
+and browser limitations.
+
 ## Design principles
 
 1. **The app holds no primitive.** Sessions, sockets, repositories, caches and tokens are obtained
@@ -405,8 +414,8 @@ Then the traps:
   drags in something the test environment cannot load — `app/utils/index.ts` excludes the
   `import.meta.env` readers for exactly this reason.
 - A stale `dist`/`out-tsc` produces phantom errors after a directory moves. `rm -rf` and look again.
-- `.github/workflows/verify.yml` runs `typecheck` for `web` but **excludes `web` from the test
-  step**, with the count of failures recorded in its own trailing comment. Web tests are the ones to
-  run by hand before merging.
+- `.github/workflows/verify.yml` includes `web` in lint, typecheck, and test when it is affected;
+  neither the typecheck exclusions nor the test step exclude it. Run the affected checks locally
+  before merging, and read the workflow when checking another project's coverage.
 - Changing a shared library is a wider change than it looks: `web` is the heaviest consumer of
   `@chatic/app-runtime` and `@chatic/data`. Type check this app after touching either.

@@ -4,12 +4,19 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import type { ChatGap } from '../hooks/useChats';
 import type { DomainChat } from '../types';
+import { publishRelaySelfMention } from '../../../runtime/mention-relay/selfMentionState';
+
+const mockRelayOffer = jest.fn();
+const relayFlags = globalThis as typeof globalThis & { __DOU_MENTION_RELAY_ENABLED__?: boolean };
+jest.mock('../../../runtime/mention-relay/devRelay', () => ({
+    offerMentionRelay: (...args: unknown[]) => mockRelayOffer(...args),
+}));
 
 let mockLocationState: unknown = null;
 let mockChats: DomainChat[] = [];
 let mockIsLoading = false;
 let mockChannel: Record<string, unknown> | null = { id: 'ch1', stereo: 'group' };
-let mockMyJoin: { joinedNo?: number } | null = null;
+let mockMyJoin: { cid?: string; channelId?: string; userId?: string; joined?: number; joinedNo?: number } | null = null;
 // The room's roster, for the `@` lookup: who is active, and the names they are drawn by.
 let mockActiveMemberIds: string[] = [];
 // The place whose profiles name the thread's people, as the page asks for them.
@@ -203,7 +210,7 @@ jest.mock('../hooks', () => ({
     useChannel: () => ({ channel: mockChannel }),
     // The room and the thread are two screens of the same channel, so they share the same single join observation.
     useChannelJoins: () => ({
-        joins: [],
+        joins: mockMyJoin ? [mockMyJoin] : [],
         myJoin: mockMyJoin,
         activeMemberIds: mockActiveMemberIds,
         cursorByUser: new Map(),
@@ -275,6 +282,9 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+    delete relayFlags.__DOU_MENTION_RELAY_ENABLED__;
+    publishRelaySelfMention(null);
+    mockRelayOffer.mockReset();
     mockFooterHeight = 0;
     mockThreadEditing = false;
     mockLocationState = null;
@@ -1357,5 +1367,87 @@ describe('ThreadPage — the follow during a message edit', () => {
         rerender(<ThreadPage />);
 
         expect(scrollTo).toHaveBeenLastCalledWith({ top: 900 });
+    });
+});
+
+describe('ThreadPage — local public mention relay', () => {
+    const scope = { cloudId: 'cloud-a', channelId: 'ch1', channelName: 'public', viewerIds: ['me'] };
+    const field = () => screen.getByTestId('composer-input') as HTMLTextAreaElement;
+    beforeEach(() => {
+        mockAttachReady = false;
+        mockSendPicked.mockReset().mockReturnValue(false);
+        mockChannel = { id: 'ch1', name: 'public', stereo: 'public', cid: 'cloud-a', chatNo: 9 };
+        mockChats = [
+            chat({ cid: 'cloud-a', channelId: 'ch1' }),
+            chat({ id: 'ch1:9', cid: 'cloud-a', channelId: 'ch1', chatNo: 9, parentId: '7', content: 'reply' }),
+        ];
+        mockMyJoin = { cid: 'cloud-a', channelId: 'ch1', userId: 'me', joined: 1, joinedNo: 0 };
+        mockActiveMemberIds = ['me'];
+        mockMembers = [{ id: 'me', name: 'Me' }];
+    });
+    afterEach(() => {
+        delete relayFlags.__DOU_MENTION_RELAY_ENABLED__;
+        act(() => publishRelaySelfMention(null));
+    });
+
+    it('offers the confirmed channel snapshot from a direct thread load with only its cloud uid', async () => {
+        relayFlags.__DOU_MENTION_RELAY_ENABLED__ = true;
+        render(<ThreadPage />);
+        await act(async () => undefined);
+        expect(mockRelayOffer).toHaveBeenCalledWith(
+            expect.objectContaining({
+                ...scope,
+                ready: true,
+                roomUserId: 'me',
+                membership: { joinedNo: 0 },
+                rows: mockChats,
+            })
+        );
+        expect(mockSendMessage).not.toHaveBeenCalled();
+    });
+
+    it.each(['loading', 'unfetched', 'behind-head', 'dm', 'other-name'])(
+        'does not arm a thread while %s',
+        async condition => {
+            relayFlags.__DOU_MENTION_RELAY_ENABLED__ = true;
+            if (condition === 'loading') mockIsLoading = true;
+            if (condition === 'unfetched') mockIsFetched.mockReturnValue(false);
+            if (condition === 'behind-head') mockChannel = { ...mockChannel, chatNo: 10 };
+            if (condition === 'dm') mockChannel = { ...mockChannel, stereo: 'dm' };
+            if (condition === 'other-name') mockChannel = { ...mockChannel, name: 'private' };
+            render(<ThreadPage />);
+            await act(async () => undefined);
+            expect(mockRelayOffer).not.toHaveBeenCalled();
+        }
+    );
+
+    it('keeps ordinary builds inactive and excludes self even when a local scope exists', async () => {
+        publishRelaySelfMention(scope);
+        render(<ThreadPage />);
+        fireEvent.change(field(), { target: { value: '@me' } });
+        await act(async () => undefined);
+        expect(screen.queryByRole('option', { name: 'Me' })).toBeNull();
+        expect(mockRelayOffer).not.toHaveBeenCalled();
+    });
+
+    it('offers self only after exact-scope registration and sends the pick under the same root', async () => {
+        relayFlags.__DOU_MENTION_RELAY_ENABLED__ = true;
+        render(<ThreadPage />);
+        fireEvent.change(field(), { target: { value: '@me' } });
+        expect(screen.queryByRole('option', { name: 'Me' })).toBeNull();
+        act(() => publishRelaySelfMention({ ...scope, channelId: 'other-channel' }));
+        expect(screen.queryByRole('option', { name: 'Me' })).toBeNull();
+        act(() => publishRelaySelfMention(scope));
+        expect(field().value).toBe('@me');
+        fireEvent.click(screen.getByRole('option', { name: 'Me' }));
+        await act(async () => {
+            fireEvent.click(screen.getByTestId('send-typed'));
+        });
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-a', {
+            channelId: 'ch1',
+            content: '@Me',
+            parentId: 'ch1:7',
+            mention: { userIds: ['me'] },
+        });
     });
 });

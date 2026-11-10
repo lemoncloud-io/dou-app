@@ -1,5 +1,7 @@
 module.exports = {
     testEnvironment: 'jsdom',
+    // The local Node middleware suite runs through web:test-mention-relay before this target.
+    testPathIgnorePatterns: ['/node_modules/', '<rootDir>/dev/mention-relay/'],
     setupFiles: ['<rootDir>/jest.setup.ts'],
     // `uuid` ships ESM-only; the session hooks that moved into `@chatic/app-runtime` (ADR-0070 step 3)
     // pull it in via `useDynamicDeviceId`, so it must be transformed rather than required as CJS.
