@@ -201,6 +201,7 @@
             "miniApp": {
                 "title": "미니앱",
                 "open": "미니앱 열기",
+                "openHint_one": "미니앱 홈에서 골라 열어요.",
                 "openHint_other": "미니앱 홈에서 {{count}}개 중 하나를 골라 열어요.",
                 "openHubHint": "아직 추가된 미니앱이 없어요. 미니앱 홈을 열어요.",
                 "openFailed": "미니앱을 열지 못했어요",
