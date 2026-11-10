@@ -34,6 +34,12 @@ const load = async () => {
     return { ...init, ...store };
 };
 
+/** The session's two ports over fresh memory — the medium every case here is indifferent to. */
+const memoryStorage = () => {
+    const { MemoryMedium } = jest.requireActual<typeof StorageLib>('@chatic/storage');
+    return { secret: new MemoryMedium(), plain: new MemoryMedium() };
+};
+
 describe('initAppRuntime', () => {
     beforeEach(() => {
         mockWarn.mockClear();
@@ -51,7 +57,7 @@ describe('initAppRuntime', () => {
     it('boots the session store — the same read succeeds afterwards', async () => {
         const { initAppRuntime, getActiveServerContext } = await load();
 
-        initAppRuntime();
+        initAppRuntime({ storage: memoryStorage() });
 
         expect(() => getActiveServerContext()).not.toThrow();
     });
@@ -63,7 +69,7 @@ describe('initAppRuntime', () => {
         const { initAppRuntime } = await import('./init');
 
         const data = { cache: { maxChatsPerChannel: 1000 } };
-        initAppRuntime({ data });
+        initAppRuntime({ storage: memoryStorage(), data });
 
         expect(configureDataRuntime).toHaveBeenCalledWith(data);
     });
@@ -83,7 +89,7 @@ describe('initAppRuntime', () => {
         );
         const { syncDataGraph } = jest.requireActual<typeof SyncDataGraph>('@chatic/sync/dataGraph');
 
-        initAppRuntime();
+        initAppRuntime({ storage: memoryStorage() });
 
         // Boot only installs the accessors; the graph is still built on first use.
         expect(getRepositories).not.toHaveBeenCalled();
@@ -98,7 +104,7 @@ describe('initAppRuntime', () => {
         jest.doMock('./data/runtime', () => ({ configureDataRuntime }));
         const { initAppRuntime } = await import('./init');
 
-        initAppRuntime();
+        initAppRuntime({ storage: memoryStorage() });
 
         // Passing `{}` through would trip the runtime's own late-registration warning for nothing.
         expect(configureDataRuntime).not.toHaveBeenCalled();
@@ -110,7 +116,7 @@ describe('initAppRuntime', () => {
         const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
         const before = Date.now();
 
-        initAppRuntime();
+        initAppRuntime({ storage: memoryStorage() });
 
         expect(getSyncCursorsValidAfter()).toBeGreaterThanOrEqual(before);
         expect(localStorage.getItem('chatic.syncCursors.resetPending')).toBeNull();
@@ -148,8 +154,8 @@ describe('initAppRuntime', () => {
     it('is safe to call twice, and says so — a duplicate boot means two owners', async () => {
         const { initAppRuntime, getActiveServerContext } = await load();
 
-        initAppRuntime();
-        initAppRuntime();
+        initAppRuntime({ storage: memoryStorage() });
+        initAppRuntime({ storage: memoryStorage() });
 
         expect(mockWarn).toHaveBeenCalledWith('WEB_CORE', expect.stringContaining('more than once'));
         // The wiring is assignment, not accumulation: the second call leaves a working runtime.
@@ -159,7 +165,7 @@ describe('initAppRuntime', () => {
     it('does not warn on the first call', async () => {
         const { initAppRuntime } = await load();
 
-        initAppRuntime();
+        initAppRuntime({ storage: memoryStorage() });
 
         expect(mockWarn).not.toHaveBeenCalled();
     });
@@ -171,7 +177,7 @@ describe('initAppRuntime', () => {
     it('records the config boot state', async () => {
         const { initAppRuntime } = await load();
 
-        initAppRuntime();
+        initAppRuntime({ storage: memoryStorage() });
 
         expect(mockInfo).toHaveBeenCalledWith('CONFIG', expect.stringContaining('Boot state:'), {
             overrides: [],

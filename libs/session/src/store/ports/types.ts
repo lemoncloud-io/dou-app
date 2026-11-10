@@ -29,7 +29,10 @@ export interface ISessionMedia {
      * accumulates.
      */
     configure(ports: SessionStoragePorts): void;
-    /** The medium behind `port` now — for the use cases that sweep a whole port. */
+    /**
+     * The medium behind `port` now — for the use cases that sweep a whole port. Throws until
+     * `configure` has run: the session has no medium of its own to fall back on.
+     */
     of(port: PortName): KeyValueStore;
 }
 

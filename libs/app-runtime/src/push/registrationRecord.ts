@@ -40,9 +40,9 @@ interface StorageLike {
 }
 
 /**
- * The session's plain medium, looked up on every call rather than when a record is made: a record made
- * before the entry point configured the session would otherwise keep the pre-boot default. It is the
- * entry point's choice from `initAppRuntime` on, which is before any screen that registers renders.
+ * The session's plain medium, looked up on every call rather than when a record is made: the medium
+ * exists only from `initAppRuntime` on, and asking for it before then throws. Boot comes before any
+ * screen that registers renders, so a call always finds the entry point's choice.
  */
 const plainMedium: StorageLike = {
     get: key => sessionMedia.of('plain').get(key),

@@ -114,9 +114,14 @@ leaves it, and the next boot empties the vault before reading it. `SESSION_KEYS`
 storage screen, through `runtime.session` — asks whether a key is the session's instead of keeping a
 copy of the list.
 
-Until `configure` runs, both ports are this tab's `sessionStorage` — the browser's answer, and the
-one the landing site keeps, since it never configures them. The stores reach the
-ports through forwarding objects, so they can be built at import while the media are chosen at boot.
+**There is no default medium.** Until `configure` runs, reading either port throws, and the error names
+`initAppRuntime({ storage })`. A default would have to be one platform's storage — this tab's
+`sessionStorage` — and the session runs in more than one place: a runtime never handed its media would
+keep credentials wherever that default landed, and the first sign would be a session that quietly does
+not survive. Every app that boots the runtime names its media, the landing site included, and a test
+that reaches a real store configures memory media (or this tab's storage, when it seeds it) itself.
+The stores reach the ports through forwarding objects, so they can be built at import while the media
+are chosen at boot.
 
 | Where                                                  | `secret`                   | `plain`          |
 | ------------------------------------------------------ | -------------------------- | ---------------- |

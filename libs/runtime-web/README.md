@@ -6,9 +6,11 @@ that are true of a page and of nothing else — the page's storage media, its `n
 socket opened by the page — and hand them to the runtime as a
 [`RuntimePorts`](../runtime-core/README.md).
 
-It is empty today. The web's choices still live where they always have — the defaults in
-`@chatic/session` and `@chatic/app-runtime` — and move here one port at a time, each with the step that
-turns its wiring into a port. Nothing imports this package yet.
+It is empty today. Each web app already chooses its storage media in one place of its own (apps/web
+and apps/desktop-web through `resolveStorageMedia()`, admin and the landing site in their own media
+module), and the session has no default left to move. The runtime's own device/tab defaults in
+`@chatic/app-runtime`, and the sockets', HTTP's and device signals' browser answers, move here one port
+at a time, each with the step that turns its wiring into a port. Nothing imports this package yet.
 
 ## Rules
 

@@ -29,13 +29,13 @@ export interface AppRuntimeConfig {
     data?: DataRuntimeConfig;
     /**
      * The media the runtime keeps state in, chosen by the entry point for its environment — normally
-     * straight from `resolveStorageMedia()`. `secret` and `plain` back the session's two ports; left
-     * out, both are this tab's `sessionStorage` — the browser's answer. `device` and `tab` back the
+     * straight from `resolveStorageMedia()`. `secret` and `plain` back the session's two ports, and are
+     * required: the session has no medium of its own to fall back on. `device` and `tab` back the
      * runtime's own non-session state (the sync cursor watermark, a tab's invited clouds); left out,
      * they are this page's `localStorage` (tolerant) and `sessionStorage` (raw — the invited clouds are
      * a cache that must hear a failed write).
      */
-    storage?: SessionStoragePorts & Partial<RuntimeMediaPorts>;
+    storage: SessionStoragePorts & Partial<RuntimeMediaPorts>;
     /**
      * Prefixes of the keys outside the session that a sign-out takes — declared by the app's own
      * domains that write them (apps/web: its log pipeline and telemetry policy). Swept from the plain
@@ -77,18 +77,16 @@ let booted = false;
  * still reported: a duplicate boot means two entry paths believe they own it, which is how the
  * pre-ADR-0070 tree ended up initializing the transport twice.
  */
-export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
+export const initAppRuntime = (config: AppRuntimeConfig): void => {
     if (booted) {
         logger.warn('WEB_CORE', '[initAppRuntime] called more than once; the runtime is already booted');
     }
     booted = true;
 
     // The session's media, before anything below can read or sweep the session.
-    if (config.storage) {
-        const { secret, plain, device, tab } = config.storage;
-        sessionMedia.configure({ secret, plain });
-        runtimeMedia.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
-    }
+    const { secret, plain, device, tab } = config.storage;
+    sessionMedia.configure({ secret, plain });
+    runtimeMedia.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
 
     // The credential bundle an older build's lemon-web-core left in web storage is nobody's, and goes.
     // The plain medium is the web storage lemon used to write in each environment.
