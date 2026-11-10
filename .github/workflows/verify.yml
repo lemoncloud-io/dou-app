@@ -20,10 +20,17 @@ concurrency:
 
 jobs:
     verify:
+        # `actions: read` for the step that looks up develop's last successful run.
+        permissions:
+            contents: read
+            actions: read
         name: doc links · doc language · code comment language · lint · typecheck · test
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+              with:
+                  # `nx affected` compares against the base commit, so it needs history.
+                  fetch-depth: 0
 
             - name: Setup Node.js
               uses: actions/setup-node@v4
@@ -49,6 +56,52 @@ jobs:
               if: ${{ steps.cache-dependencies.outputs.cache-hit != 'true' }}
               run: yarn install --frozen-lockfile
 
+            # Lint, typecheck and test below run for the projects this change reaches, not for all
+            # of them. The gate runs twice per change — on the pull request and again on the push
+            # its merge makes to develop — and before this both runs checked every project, so a
+            # one-file change paid for the whole workspace twice, test the largest share of it.
+            #
+            # A pull request is compared with its base branch. A push is compared with the commit
+            # the last successful push run on develop checked, not with the commit just before it:
+            # a run cancelled by the next merge, or a red one, would otherwise drop its commits out
+            # of every later comparison, and a merge that touches some other project would turn
+            # develop green while the broken one is still broken.
+            #
+            # `nx affected` follows project files and their dependents, plus the root files Nx
+            # itself understands (nx.json, package.json, the lockfile, tsconfig.base.json). A root
+            # file it does not map to a project — a shared eslint, jest or vitest config, a script a
+            # target calls, this workflow — would select nothing, so any changed file outside
+            # `apps/` and `libs/` that is not markdown runs every project instead. So does a base
+            # that is missing or not an ancestor of HEAD (no successful run yet, a rewritten
+            # history, a failed lookup), rather than guess. `--no-renames` matches how Nx lists
+            # changed files, so a root config moved under `apps/` still shows its old path here.
+            #
+            # `changed=` on a line of its own, so a failing `git diff` fails this step instead of
+            # reading as "nothing changed".
+            - name: Which projects to check
+              id: scope
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  PR_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+              run: |
+                  if [ -n "$PR_BASE" ]; then
+                      base="$PR_BASE"
+                  else
+                      base=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/verify.yml/runs?branch=develop&event=push&status=success&per_page=1" \
+                          --jq '.workflow_runs[0].head_sha // empty') || base=''
+                  fi
+                  if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null \
+                      || { [ -z "$PR_BASE" ] && ! git merge-base --is-ancestor "$base" HEAD; }; then
+                      echo "nx=run-many" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  changed=$(git diff --name-only --no-renames "$base"...HEAD)
+                  if grep -vE '^(apps|libs)/|\.md$' <<<"$changed" | grep -q .; then
+                      echo "nx=run-many" >> "$GITHUB_OUTPUT"
+                  else
+                      echo "nx=affected --base=$base --head=HEAD" >> "$GITHUB_OUTPUT"
+                  fi
+
             # Documents are the one artifact no other step reads. Cheap, needs no build, and green
             # across every tracked markdown file, so it runs first and fails fast.
             - name: Doc links
@@ -67,17 +120,22 @@ jobs:
             - name: Internal paths
               run: yarn check:internal-paths
 
-            # Green across all 26 projects, so no exclusions here.
+            # Green across every project, so no exclusions here.
             - name: Lint
-              run: npx nx run-many -t lint
+              env:
+                  NX_SCOPE: ${{ steps.scope.outputs.nx }}
+              # Unquoted on purpose, so the scope splits into words.
+              run: npx nx $NX_SCOPE -t lint
 
             # `--exclude` and not an allowlist: a project's dependencies are typechecked whether or
             # not they are selected, so excluding the red ones only works while nothing green
             # depends on them. That is why a project can be clean on its own and still have to sit
             # on this list until whatever it pulls goes green — which is how `web` came off it.
             - name: Typecheck
+              env:
+                  NX_SCOPE: ${{ steps.scope.outputs.nx }}
               run: >
-                  npx nx run-many -t typecheck
+                  npx nx $NX_SCOPE -t typecheck
                   --exclude=block-kit-builder,@chatic/mobile,chatic-deferred-link-cleanup
 
             # `libs/db` and `libs/app-runtime` ran through a separate step until the root
@@ -86,7 +144,9 @@ jobs:
             # `run-many` skipped them silently. They are covered by the line below now, and so is
             # `@chatic/bridges`, whose `yarn test` could not resolve jest for the same reason.
             - name: Test
-              run: npx nx run-many -t test
+              env:
+                  NX_SCOPE: ${{ steps.scope.outputs.nx }}
+              run: npx nx $NX_SCOPE -t test
 
             # Left out of the gate, with the reason. Measured 2026-09-14 (dated per row where a row was re-measured).
             #

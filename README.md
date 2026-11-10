@@ -473,7 +473,10 @@ Android `envConfigFiles`), not by the script. See
 `deploy-dev`/`deploy-prod` auto-detect which apps changed and only build/deploy the affected ones —
 this is the only path that ships `desktop-web` (see the note in
 [Building & Deployment](#building--deployment)). `verify.yml` was added later than the rest; before
-it, nothing in CI ran a type check or a test. Its second job, `e2e`, runs the web app in a real browser
+it, nothing in CI ran a type check or a test. Its lint, typecheck and test steps cover only the
+projects the change affects (`nx affected` against the PR's base, or on a push against the commit the
+last successful `develop` run checked), and fall back to every project when the change touches a file outside `apps/` and `libs/`
+that is not markdown — a root config Nx cannot map to a project. Its second job, `e2e`, runs the web app in a real browser
 inside a fake native shell ([apps/web-e2e](./apps/web-e2e/README.md)) when `web-e2e` is affected.
 
 ## Code Quality
