@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const toast = vi.hoisted(() => vi.fn());
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast }));
@@ -16,6 +16,8 @@ const cloud = (id: string, kind: RailCloud['kind'] = 'owned', status?: string): 
 const t = (key: string) => key;
 
 describe('selectRailCloud', () => {
+    beforeEach(() => toast.mockClear());
+
     it('switches to the cloud the reader is not in', () => {
         const onSelect = vi.fn();
         selectRailCloud(cloud('b'), 'a', onSelect, t);
@@ -28,9 +30,17 @@ describe('selectRailCloud', () => {
         expect(onSelect).not.toHaveBeenCalled();
     });
 
-    it.each(['suspended', 'expired'])('does not try to enter a %s cloud, which only a subscription reopens', status => {
+    // A held cloud still opens: the server decides, and a refusal gets the switch flow's own toast.
+    it('starts a switch into a suspended cloud', () => {
         const onSelect = vi.fn();
-        selectRailCloud(cloud('b', 'owned', status), 'a', onSelect, t);
+        selectRailCloud(cloud('b', 'owned', 'suspended'), 'a', onSelect, t);
+        expect(onSelect).toHaveBeenCalledWith('b');
+        expect(toast).not.toHaveBeenCalled();
+    });
+
+    it('does not try to enter an expired cloud, which is released', () => {
+        const onSelect = vi.fn();
+        selectRailCloud(cloud('b', 'owned', 'expired'), 'a', onSelect, t);
         expect(onSelect).not.toHaveBeenCalled();
         expect(toast).toHaveBeenCalled();
     });

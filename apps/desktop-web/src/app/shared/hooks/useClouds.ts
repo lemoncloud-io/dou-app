@@ -19,11 +19,18 @@ export interface RailCloud {
 
 /**
  * A cloud its subscription no longer keeps open: the membership lapsed or was blocked, and the
- * server suspends or expires the cloud. Switching into one cannot succeed, and the only way back
- * is a subscription, which is bought in the mobile app.
+ * server suspends or expires the cloud. The only way back is a subscription, which is bought in
+ * the mobile app. A suspended cloud is on hold but can still be entered (see `isExpiredCloud`);
+ * what it cannot do is take new places.
  */
 export const isLapsedCloud = (cloud: Pick<RailCloud, 'status'>): boolean =>
     cloud.status === 'suspended' || cloud.status === 'expired';
+
+/**
+ * A cloud the server has released. Switching into one cannot succeed, so the rail does not try.
+ * A suspended cloud is not this: the server accepts a switch into it, so the pick goes through.
+ */
+export const isExpiredCloud = (cloud: Pick<RailCloud, 'status'>): boolean => cloud.status === 'expired';
 
 /**
  * Whether a place can be made from where the session is. Three things have to hold.
