@@ -2,6 +2,12 @@
 
 ## [2026-11-10] - No version updates
 
+### Bug Fixes
+
+- (lint) apply the root config's repo-path blocks under per-project lint
+
+## [2026-11-10] - No version updates
+
 ### Refactor
 
 - (session,transport,sync,auth,data) take logger from @chatic/logger, not the bridge
