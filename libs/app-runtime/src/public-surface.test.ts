@@ -32,7 +32,6 @@ const GROUPS: Record<string, readonly string[]> = {
         'readStorageEnvironment',
         'resolveStorageMedia',
         'setNativeCacheSupport',
-        'setSessionStorage',
         'webTransport',
     ],
     // Session state · auth. `applySessionToken`/`logoutSession` live in `@chatic/auth`'s socket/ —
