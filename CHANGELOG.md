@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026-11-10] - root@0.150.3, @chatic/desktop-web@0.54.2
+
+### Bug Fixes
+
+- (desktop-web) adopt legacy cloud records and follow guest links
+- (desktop-web) list only the signed-in account's invited clouds
+
 ## [2026-11-09] - No version updates
 
 ### Refactor
