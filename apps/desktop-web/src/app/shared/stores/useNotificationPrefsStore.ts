@@ -51,7 +51,7 @@ interface NotificationPrefsState {
     setSnooze: (untilMs: number | null) => void;
     setQuietHours: (quietHours: QuietHours | null) => void;
     setMentionBreaksQuietHours: (enabled: boolean) => void;
-    /** Remember `mode` for the place, with the channel ids it was applied to. */
+    /** Remember `mode` for the place, adding the channel ids it was applied to. */
     setPlaceNotify: (key: string, mode: ChannelNotifyMode, known: string[]) => void;
     /** Add channel ids to a place's known set (after they inherited its level). */
     addPlaceKnown: (key: string, channelIds: string[]) => void;
@@ -124,8 +124,15 @@ export const useNotificationPrefsStore = create<NotificationPrefsState>()(
             setSnooze: untilMs => set({ snoozeUntil: untilMs }),
             setQuietHours: quietHours => set({ quietHours }),
             setMentionBreaksQuietHours: enabled => set({ mentionBreaksQuietHours: enabled }),
+            // Known ids accumulate: a channel that was not loaded this time is still known, and a
+            // level the person set on it stays an exception rather than being inherited over.
             setPlaceNotify: (key, mode, known) =>
-                set(state => ({ placeNotify: { ...state.placeNotify, [key]: { mode, known: [...new Set(known)] } } })),
+                set(state => ({
+                    placeNotify: {
+                        ...state.placeNotify,
+                        [key]: { mode, known: [...new Set([...(state.placeNotify[key]?.known ?? []), ...known])] },
+                    },
+                })),
             addPlaceKnown: (key, channelIds) =>
                 set(state => {
                     const pref = state.placeNotify[key];

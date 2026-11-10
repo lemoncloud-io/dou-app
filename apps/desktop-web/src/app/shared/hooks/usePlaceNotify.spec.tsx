@@ -108,6 +108,15 @@ describe('usePlaceNotify', () => {
         expect(written().map(payload => (payload as { channelId: string }).channelId)).toEqual(['G2', 'D1']);
     });
 
+    it('keeps channels it did not see this time as known', async () => {
+        useNotificationPrefsStore.setState({ placeNotify: { 'c1:p1': { mode: 'all', known: ['OLD'] } } });
+        const { result } = renderHook(() => usePlaceNotify('p1'));
+
+        await act(async () => result.current.setMode('none'));
+
+        expect(useNotificationPrefsStore.getState().placeNotify['c1:p1'].known).toEqual(['OLD', 'G1', 'G2', 'D1']);
+    });
+
     it('counts the channels set differently from the place', () => {
         useNotificationPrefsStore.setState({
             channelNotify: { G1: 'all' },

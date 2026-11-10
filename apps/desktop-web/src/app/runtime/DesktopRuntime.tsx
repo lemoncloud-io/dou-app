@@ -15,6 +15,7 @@ import {
     useCrossCloudPushNotifications,
     useDesktopBadge,
     useDesktopNotifications,
+    usePlaceNotifyInheritance,
     useDeviceTokenRegistration,
     useInboxCapture,
     useMyThreadsCapture,
@@ -44,6 +45,8 @@ startSocketFrameLog();
 /** Mounts desktop OS-notification wiring inside the runtime host (needs engine repositories). */
 const DesktopNotifications = () => {
     useDesktopNotifications();
+    // A channel first seen in a place with a chosen notification level takes that level.
+    usePlaceNotifyInheritance();
     // Realtime place-profile sync — re-pull on the server's profile.sync broadcast so a
     // peer's nick/photo edit surfaces live (v2 dropped the engine's realtime profile:sync path).
     useRealtimeProfileSync();
