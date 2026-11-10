@@ -17,7 +17,6 @@ vi.mock('../apis', () => ({ fetchInviteCodeInfo }));
 
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
-        boot: { startWebTransportInit: vi.fn() },
         session: {
             useDynamicDeviceId: () => ({ deviceId: 'device-1' }),
             useLoginRelayGuestByDevice: () => ({ mutateAsync: loginGuest }),

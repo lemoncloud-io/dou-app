@@ -90,8 +90,8 @@ export const initAppRuntime = (config: AppRuntimeConfig = {}): void => {
         runtimeMedia.configure({ ...(device ? { device } : {}), ...(tab ? { tab } : {}) });
     }
 
-    // lemon-web-core keeps its credentials in memory now; a bundle an older build left in web storage
-    // is nobody's, and goes. The plain medium is the web storage lemon used to write in each environment.
+    // The credential bundle an older build's lemon-web-core left in web storage is nobody's, and goes.
+    // The plain medium is the web storage lemon used to write in each environment.
     dropLemonLeftovers(sessionMedia.of('plain'));
 
     // Before the sweep below, which takes what these name.

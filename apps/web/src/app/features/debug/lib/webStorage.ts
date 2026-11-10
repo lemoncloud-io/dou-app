@@ -79,7 +79,10 @@ const CONFIG_PREFIX = '@chatic/config.';
  * and they are no copy of server data, the same reason the shell's log queue is never cleared.
  */
 const LOG_PREFIX = '@chatic/web.log.';
-/** i18next's language key sits under the SDK's `@` prefix but is a UI choice, not a credential. */
+/**
+ * The language key older builds wrote under the old SDK's `@` prefix. Nothing writes it now; it is still
+ * grouped apart so a device that has one does not show it as a credential.
+ */
 const LANGUAGE_SUFFIX = '.i18nextLng';
 /** The IndexedDB cache the browser build uses; listed by name where `databases()` is missing. */
 const KNOWN_INDEXED_DB = 'ChaticWebCacheDB';
@@ -88,8 +91,8 @@ const KNOWN_INDEXED_DB = 'ChaticWebCacheDB';
  * The session's keys are the session's to name — the relay and cloud tokens, the per-cloud token
  * cache, the selection and the identities beside them — so this asks it instead of keeping a copy of
  * the list that would drift. A stale entry in any of these decides which cloud and account the app
- * resumes as. The rest of the `@` namespace is lemon-web-core's credential bundle (`@<project>.*`),
- * once the config lane, the log pipeline and the language key are taken out.
+ * resumes as. The rest of the `@` namespace is the credential bundle older builds' lemon-web-core left
+ * (`@<project>.*`), once the config lane, the log pipeline and the language key are taken out.
  */
 export const classifyWebKey = (key: string): WebKeyGroup => {
     if (key.startsWith(CONFIG_PREFIX)) return 'config';

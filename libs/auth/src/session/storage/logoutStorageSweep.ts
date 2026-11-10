@@ -8,8 +8,7 @@ import type { ILogoutStorageSweeper } from './types';
  * The other half of `RelaySession.logout()` — the reader of its `?logout=1` flag.
  *
  * Logout redirects to `/?logout=1` and the tab reloads, so the sign-out and the cleanup happen in
- * two different page lifetimes. The logout already cleared the session, lemon's in-memory credentials
- * and the app keys a sign-out takes before it left; this runs the last of those once more on the new
+ * two different page lifetimes. The logout already cleared the session and the app keys a sign-out takes before it left; this runs the last of those once more on the new
  * document, because the log pipeline can write a batch between that clear and the navigation.
  *
  * The device vault is not this sweep's: the secret storage boot empties it on `?logout=1` before it
@@ -17,7 +16,7 @@ import type { ILogoutStorageSweeper } from './types';
  * than this runs.
  *
  * It used to clear the whole `@` namespace of the session's storage, keeping only the config lane and
- * the language key. That took lemon-web-core's credential bundle, which lemon keeps in memory now,
+ * the language key. That took lemon-web-core's credential bundle, which nothing writes any more,
  * and whatever else moved in under `@` later; the app's own keys are now named instead
  * (`signedOutAppKeys.util.ts`).
  *

@@ -1,6 +1,6 @@
-import { createAsyncDelay } from '@lemoncloud/lemon-web-core';
-
 import { classifyError } from '../error/classify';
+
+const delayFor = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 export const withTimeout = <T>(promise: Promise<T>, ms: number, context = 'Operation'): Promise<T> => {
     return new Promise<T>((resolve, reject) => {
@@ -84,7 +84,7 @@ export const withRetry = async <T>(
                 delay,
                 message: classification.message,
             });
-            await createAsyncDelay(delay);
+            await delayFor(delay);
         }
     }
 

@@ -54,16 +54,13 @@ type WithAuth = { $auth?: { id?: string } };
  *  - `identityToken` — a refresh view may omit it (the SDK falls back to the token it already
  *    holds), but relay REQUIRES it: signed HTTP sends it as `x-lemon-identity` and the next register
  *    reads it back through `getIdentityToken()`.
- *  - `identityPoolId` — routinely omitted, and this merge feeds BOTH stores (relayStore here, and
- *    lemon's own store via `buildCredentialsByToken`, which calls `saveOAuthToken` internally and
- *    overwrites the field with `''`). Without this line the pool id is lost from every copy after the
- *    first socket refresh, and the relay HTTP refresh's `identityPoolId` inheritance silently becomes
- *    a no-op. Pre-existing defect, surfaced by ADR-0070 Step 3 checklist 5.
- *  - `credential` — this copy is the only record of WHICH credential is currently signing. When the
- *    view carries none the caller leaves lemon's cache on the PREVIOUS credential, so dropping the
- *    field here would make the store disagree with the signer, and the credential clock (which reads
- *    it to tell a signature rejection from a network outage) would report "cannot measure" for
- *    exactly that window.
+ *  - `identityPoolId` — routinely omitted. Without this line the pool id is lost from the stored
+ *    token after the first socket refresh, and the relay HTTP refresh's `identityPoolId` inheritance
+ *    silently becomes a no-op. Pre-existing defect, surfaced by ADR-0070 Step 3 checklist 5.
+ *  - `credential` — signed HTTP reads the credential from this stored token on every request. When a
+ *    view carries none, keeping the previous one keeps requests signed until it lapses; dropping it
+ *    would send them unsigned at once, and the credential clock (which reads it to tell a signature
+ *    rejection from a network outage) would report "cannot measure".
  */
 export const mergeRefreshedRelayToken = (
     stored: UserTokenView | null,

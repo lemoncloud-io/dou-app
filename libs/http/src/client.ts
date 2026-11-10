@@ -1,11 +1,11 @@
-import { LemonHttpExecutor } from './adapters/lemonWebCore';
+import { HttpExecutor } from './adapters/requestExecutor';
 import { isBypassed } from './policy/bypass';
 import { CredentialFailureAttributor } from './error/attribution';
 import { classifyError } from './error/classify';
 import { PortCredentialRecoverer } from './error/recovery';
 import { withNetworkLog } from './log/networkLog';
 
-import type { LemonRequestSurface } from './adapters/lemonWebCore';
+import type { RequestSurface } from './adapters/requestExecutor';
 import type { BypassRule } from './policy/bypass';
 import type { IFailureAttributor, SigningContext } from './error/attribution';
 import type { ICredentialRecoverer } from './error/recovery';
@@ -62,7 +62,7 @@ export interface HttpClient {
 }
 
 /**
- * The request executors, wired to the injected lemon surface and `HttpRuntimePorts` (endpoints,
+ * The request executors, wired to the injected request surface and `HttpRuntimePorts` (endpoints,
  * logging, credential staleness/recovery, auth-failure reaction). Constructed only by
  * `createHttpClient` below — consumers hold the `HttpClient` interface, never this class
  * (ADR-0070 decision 0).
@@ -75,29 +75,29 @@ class HttpClientImpl implements HttpClient {
     private static readonly RELAY_UNSIGNED: SigningContext = { route: 'relay', signed: false };
     private static readonly RELAY_SIGNED: SigningContext = { route: 'relay', signed: true };
 
-    private readonly lemonUnsigned: Executor;
-    private readonly lemonSigned: Executor;
+    private readonly unsignedExecutor: Executor;
+    private readonly signedExecutor: Executor;
 
     constructor(
-        lemonSurface: LemonRequestSurface,
+        requestSurface: RequestSurface,
         private readonly ports: HttpRuntimePorts,
         private readonly attributor: IFailureAttributor = new CredentialFailureAttributor(ports),
         private readonly recoverer: ICredentialRecoverer = new PortCredentialRecoverer(ports)
     ) {
-        this.lemonUnsigned = new LemonHttpExecutor(lemonSurface, false);
-        this.lemonSigned = new LemonHttpExecutor(lemonSurface, true);
+        this.unsignedExecutor = new HttpExecutor(requestSurface, false);
+        this.signedExecutor = new HttpExecutor(requestSurface, true);
     }
 
     executeRelayRequest<TResponse, TBody = unknown, TParams = Record<string, unknown>>(
         req: HttpRequestOptions<TBody, TParams>
     ): Promise<TResponse> {
-        return this.run<TResponse, TBody, TParams>(req, this.lemonUnsigned, HttpClientImpl.RELAY_UNSIGNED);
+        return this.run<TResponse, TBody, TParams>(req, this.unsignedExecutor, HttpClientImpl.RELAY_UNSIGNED);
     }
 
     executeSignedRelayRequest<TResponse, TBody = unknown, TParams = Record<string, unknown>>(
         req: HttpRequestOptions<TBody, TParams>
     ): Promise<TResponse> {
-        return this.run<TResponse, TBody, TParams>(req, this.lemonSigned, HttpClientImpl.RELAY_SIGNED);
+        return this.run<TResponse, TBody, TParams>(req, this.signedExecutor, HttpClientImpl.RELAY_SIGNED);
     }
 
     resolveEndpoint(route: HttpRoute): string {
@@ -193,5 +193,5 @@ class HttpClientImpl implements HttpClient {
  * Assembles the client. `HttpManager` (app-runtime) is the only intended caller — it owns the port
  * implementations, this owns the request mechanics.
  */
-export const createHttpClient = (lemonSurface: LemonRequestSurface, ports: HttpRuntimePorts): HttpClient =>
-    new HttpClientImpl(lemonSurface, ports);
+export const createHttpClient = (requestSurface: RequestSurface, ports: HttpRuntimePorts): HttpClient =>
+    new HttpClientImpl(requestSurface, ports);

@@ -220,8 +220,7 @@ there rather than hand that cache's baseline to another cloud.
 `useSessionLogout` performs a best-effort socket logout and store teardown, then
 `relaySession.clearAndRedirect()` reloads the document at `/?logout=1`. The reload — not a manual
 call — is what clears the react-query cache; there is no `DataManager.destroy()` in this codebase.
-Before it leaves, it also clears lemon-web-core's in-memory credentials, the web log pipeline and
-telemetry policy keys, and — inside a shell that keeps a device vault — empties the vault and waits for
+Before it leaves, it also clears the web log pipeline and telemetry policy keys, and — inside a shell that keeps a device vault — empties the vault and waits for
 the shell to confirm it. On the next boot the vault is emptied once more before it is read, and
 `initAppRuntime` reads the `logout=1` flag and sweeps the log keys again
 (`libs/auth/src/session/storage/logoutStorageSweep.ts`) — because the actor that decides to log out and the

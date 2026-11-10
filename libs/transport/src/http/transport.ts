@@ -1,46 +1,34 @@
+import { logger } from '@chatic/bridges';
 import { config } from '@chatic/config';
-import { createLemonWebTransport } from '@chatic/http';
-import { asDomStorage, type KeyValueStore, MemoryMedium } from '@chatic/storage';
+import { createRequestTransport } from '@chatic/http';
+import { relayStore } from '@chatic/session';
 
-import type { SealedWebTransport, SealedWebTransportBundle } from '@chatic/http';
+import type { RequestTransport, SigningCredential } from '@chatic/http';
 
 /**
- * The runtime's ONE lemon transport — assembled here, built in `@chatic/http`, configured from
- * `@chatic/config`.
+ * The runtime's relay HTTP transport — built in `@chatic/http`, bound here to the session and config.
  *
- * Ownership used to sit in `web-config` because the instance needs four env-derived inputs and
- * web-config was the only leaf both `web-core` and this lib could bite. That made the repo's env
- * leaf hold a live SDK instance, a token store and a module-load boot. The split now follows the
- * dependency rule instead of the import graph: `@chatic/http` owns construction and boot policy
- * (it reads no env), this file owns the values and the singleton (it is the assembly point, the
- * same role it plays for `HttpManager` next door in `factory.ts`). The four inputs come from
- * `@chatic/config` now (ADR-0079) — read lazily inside `getBundle()`, not at module load, so this
- * file stays inert until something actually calls it.
- *
- * **Two instances would split the session.** The lemon token storage lives inside the instance, so
- * a second one means two stores. That is why `@chatic/http` exposes a factory and holds no module
- * state, and why this module is the only caller of it.
- *
- * **The ordering contract moved, not disappeared.** The four values below are only read once
- * `getBundle()` first runs, well after the app's entry point has called `config.init(...)` — see
- * that entry point's own ordering comment. Nothing here fires early like `web-config`'s import-time
- * side effects did.
- *
- * **Construction is lazy, and the boot is no longer implicit.** web-config's module fired
- * `startWebTransportInit()` at import time; every app instead reaches the boot through
- * `initializeRelaySession()` (via `useRelaySessionInit`), which awaits it before gating its subtree,
- * and the boot is single-flighted, so the import-time head start was only ever a few milliseconds of
- * overlap with the call that already awaits it. Dropping it makes importing this module inert —
- * which is what keeps the SDK out of test runs and what Step 5's explicit `initAppRuntime(config)`
- * boot will formalize.
+ * It keeps nothing: each signed request reads the relay token's credential and identity token from
+ * the session at that moment (`relayStore`), so there is one copy of the credential — the session's —
+ * and a token the socket renewed is used by the very next request. The region comes from
+ * `@chatic/config`, read per request as well, so this module is inert until something sends.
  */
-let bundle: SealedWebTransportBundle | null = null;
-let lemonMedium: KeyValueStore | null = null;
+let transport: RequestTransport | null = null;
+
+/** The relay token's AWS credential, as the signer takes it. */
+const relayCredential = (): SigningCredential | null => {
+    const credential = relayStore.getRelayToken()?.Token?.credential;
+    if (!credential?.AccessKeyId || !credential.SecretKey) return null;
+    return {
+        accessKey: credential.AccessKeyId,
+        secretKey: credential.SecretKey,
+        sessionToken: credential.SessionToken,
+    };
+};
 
 /**
  * The lemon project id, suffixed for a local build. `env.stage` (not `env.buildStage`) on purpose —
- * this mirrors the injection-aware value `WEB_ENV` always read, and picking a lemon project suffix
- * for local debugging is not a security decision (contrast `debug.*`'s use of `buildStage`).
+ * picking a project suffix for local debugging is not a security decision.
  */
 const lemonProject = (): string => {
     const stage = config.get<string>('env.stage') ?? 'LOCAL';
@@ -49,51 +37,26 @@ const lemonProject = (): string => {
 };
 
 /**
- * The medium lemon-web-core keeps its credential bundle in: memory, in every environment. lemon is a
- * signer here, not a store — the relay token in the session is the one persisted copy, and
- * `RelaySession.initialize()` rebuilds lemon's credentials from it on every page. Built once: the SDK
- * and anything that clears it must see the same medium.
+ * The prefix of every key lemon-web-core used to write: `@<project>.<name>`. Nothing writes there any
+ * more; the logout and boot clean-up of a bundle an older build left in web storage still looks for it.
  */
-export const lemonStorage = (): KeyValueStore => {
-    lemonMedium ??= new MemoryMedium();
-    return lemonMedium;
+export const legacyLemonKeyPrefix = (): string => `@${lemonProject()}.`;
+
+const getTransport = (): RequestTransport => {
+    transport ??= createRequestTransport({
+        credential: relayCredential,
+        identityToken: () => relayStore.getRelayToken()?.Token?.identityToken ?? null,
+        region: () => config.get<string>('env.region') ?? 'ap-northeast-2',
+        // Debug, not warn: lemon-web-core told only the console, and a signed call made before sign-in
+        // would otherwise fill the uploaded log. A refusal that follows is classified and logged on its own.
+        onUnsigned: () =>
+            logger.debug('HTTP', '[transport] no relay credential — the signed request goes out unsigned'),
+    });
+    return transport;
 };
 
-/**
- * The prefix of every key lemon-web-core writes: it names them `@<project>.<name>`, and only the
- * project is ours. Read without building the SDK. What uses it is the cleanup of the bundle older
- * builds left in web storage.
- */
-export const lemonKeyPrefix = (): string => `@${lemonProject()}.`;
-
-const getBundle = (): SealedWebTransportBundle => {
-    if (!bundle) {
-        bundle = createLemonWebTransport({
-            project: lemonProject(),
-            oAuthEndpoint: config.get<string>('net.oauth.endpoint') ?? '',
-            region: config.get<string>('env.region') ?? 'ap-northeast-2',
-            storage: asDomStorage(lemonStorage()),
-        });
-    }
-    return bundle;
+/** The relay transport. Written out rather than re-exported so the instance is built on first use. */
+export const webTransport: RequestTransport = {
+    buildRequest: requestConfig => getTransport().buildRequest(requestConfig),
+    buildSignedRequest: requestConfig => getTransport().buildSignedRequest(requestConfig),
 };
-
-/**
- * Forwards to the lazily built instance. Written out rather than proxied so the surface stays the
- * one `@chatic/http` sealed — `init`/`isAuthenticated`/`getTokenStorage` are absent here because
- * they are absent there (ADR-0070 Decision 2, invariant 3).
- */
-export const webTransport: SealedWebTransport = {
-    logout: () => getBundle().transport.logout(),
-    setUseXLemonLanguage: (enabled, key) => getBundle().transport.setUseXLemonLanguage(enabled, key),
-    buildRequest: config => getBundle().transport.buildRequest(config),
-    buildSignedRequest: config => getBundle().transport.buildSignedRequest(config),
-    buildCredentialsByToken: token => getBundle().transport.buildCredentialsByToken(token),
-    getTokenSignature: () => getBundle().transport.getTokenSignature(),
-};
-
-/** `init()` minus lemon's own refresh, single-flighted. Awaited by `initializeRelaySession()`. */
-export const startWebTransportInit = (): Promise<void> => getBundle().startInit();
-
-/** Forces the next `startWebTransportInit()` to run again — used by logout. */
-export const resetWebTransportInit = (): void => getBundle().resetInit();

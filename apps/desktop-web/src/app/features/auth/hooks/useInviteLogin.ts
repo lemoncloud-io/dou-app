@@ -89,7 +89,6 @@ export const useInviteLogin = () => {
     const ensureGuest = useCallback(async (): Promise<
         { delegatorId: string; createdGuest: boolean } | InviteLoginError
     > => {
-        await runtime.boot.startWebTransportInit();
         let delegatorId = runtime.session.getIdentityContext().delegatorId;
         let createdGuest = false;
         if (!delegatorId) {

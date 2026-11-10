@@ -16,10 +16,9 @@ import type { SocketState } from './types';
  *  - refreshIntervalMs 5min — the FALLBACK cadence used only when the socket auth response omits
  *    `expiresIn` (dev/prod currently do — §11/§6-12). The SDK schedules refresh at `expiresIn * 0.8`
  *    when present, else this interval. The 30min default is too slow: it can let the relay AWS
- *    credential (or lemon-web-core's `expired_time` = Expiration − 5min) lapse before the socket
- *    refreshes, so signed HTTP starts 403ing while the socket still reports `authenticated`. 5min
- *    stays well under the ~1h credential lifetime (and lemon's expired_time), so the socket refresh
- *    writeback keeps credentials fresh and lemon never self-refreshes (§6-12). The real fix is the
+ *    credential lapse before the socket refreshes, so signed HTTP starts 403ing while the socket still
+ *    reports `authenticated`. 5min stays well under the ~1h credential lifetime, so the socket refresh
+ *    writeback keeps the credential fresh (§6-12). The real fix is the
  *    server reporting `expiresIn`, which makes this fallback moot.
  */
 export const AUTH_OPTIONS = { refreshRatio: 0.8, maxFailures: 3, refreshIntervalMs: 5 * 60 * 1000 } as const;

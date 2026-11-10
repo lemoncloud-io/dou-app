@@ -17,8 +17,8 @@ knows about a domain.
   `storage`. This package, the mini-app SDK and `libs/theme` are left out of that rule.
 - **`@chatic/session`** declares its ports in terms of `KeyValueStore`, and defaults to a
   `webSession` medium until an entry point configures it.
-- **`@chatic/transport`** hands lemon-web-core its credential medium as a DOM `Storage`, and
-  **`@chatic/auth`**'s logout sweep walks that medium's keys.
+- **`@chatic/auth`**'s logout sweep and its boot clean-up of an old lemon-web-core bundle walk the
+  plain medium's keys.
 - **Anything that keeps app-wide state outside a domain port** (push registration records, the
   desktop sign-in hand-off) reads and writes through `storage`.
 
@@ -65,14 +65,14 @@ interface KeyValueStore {
 **Synchronous on purpose.** The session is read on every request and every render, so a read must
 never wait.
 
-| Class                 | Medium         | What it is                                                                                              |
-| --------------------- | -------------- | ------------------------------------------------------------------------------------------------------- |
-| `WebMedium.local()`   | `webLocal`     | this origin's `localStorage` — survives a reload and a relaunch                                         |
-| `WebMedium.session()` | `webSession`   | this tab's `sessionStorage` — survives a reload, dies with the tab                                      |
-| `MemoryMedium`        | `memory`       | this page lifetime only                                                                                 |
-| `NativeSecureMedium`  | `nativeSecure` | the device vault an app or desktop shell keeps — iOS Keychain, Android Keystore, Electron `safeStorage` |
-| `DomStorageAdapter`   | —              | any medium seen as a DOM `Storage` (`asDomStorage(medium)`), for code that only takes that shape        |
-| `TolerantMedium`      | —              | wraps a medium so a failed read is absent and a failed write a no-op — for convenience state            |
+| Class                 | Medium         | What it is                                                                                                   |
+| --------------------- | -------------- | ------------------------------------------------------------------------------------------------------------ |
+| `WebMedium.local()`   | `webLocal`     | this origin's `localStorage` — survives a reload and a relaunch                                              |
+| `WebMedium.session()` | `webSession`   | this tab's `sessionStorage` — survives a reload, dies with the tab                                           |
+| `MemoryMedium`        | `memory`       | this page lifetime only — no app assembly picks it; it backs tests, the vault's cache and the fallback below |
+| `NativeSecureMedium`  | `nativeSecure` | the device vault an app or desktop shell keeps — iOS Keychain, Android Keystore, Electron `safeStorage`      |
+| `DomStorageAdapter`   | —              | any medium seen as a DOM `Storage` (`asDomStorage(medium)`), for code that only takes that shape             |
+| `TolerantMedium`      | —              | wraps a medium so a failed read is absent and a failed write a no-op — for convenience state                 |
 
 **A web medium reads the storage itself on every call**, not a copy taken at construction. The web
 storage is already synchronous, so a copy would buy nothing, and it would go stale the moment

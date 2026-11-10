@@ -91,7 +91,7 @@ in-house request signer, which removes its memory medium altogether.
   and a reader no longer has to search for globals to find a value's storage. A few constructions stay
   outside it on purpose: the debug storage screen walks the two web storages whole, each holder serves
   the same web storages before its entry point configures it, and lemon-web-core's memory medium is
-  still built in `libs/transport` until lemon-web-core itself goes.
+  still built in `libs/transport` until lemon-web-core itself goes (it went with ADR-0298).
 - Adding state is choosing `device` or `tab`; naming a web storage directly fails lint.
 - A full or blocked web storage no longer throws out of the sent-invite log write, which it did before.
 - `libs/shared` reads the phone country from `@chatic/config`; before `config.init()` it falls back to the

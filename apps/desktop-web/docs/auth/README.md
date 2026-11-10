@@ -9,8 +9,8 @@ The session's four tokens are in the desktop shell's vault — Electron `safeSto
 file under the app's `userData` — once the shell lists `nativeSecure` in
 `window.CHATIC_APP_STORAGE_MEDIA`. `main.tsx` loads the vault before the runtime boots, and moves tokens
 an older build left in `localStorage` into it, deleting that copy only once the shell confirmed the
-write. The rest of the session (the selection, the ids) stays in `localStorage`, and lemon-web-core's
-credentials are in memory only, rebuilt from the relay token at boot. A desktop shell from before the
+write. The rest of the session (the selection, the ids) stays in `localStorage`. There is no second copy of
+the credential: signed HTTP reads it from the relay token on every request. A desktop shell from before the
 vault keeps the tokens in `localStorage` until it updates itself. The rules — what happens when the
 vault cannot be read, and the logout order — are in
 [libs/auth docs/session](../../../../libs/auth/docs/session/README.md#the-device-vault-at-boot).

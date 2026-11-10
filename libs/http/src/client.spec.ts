@@ -1,6 +1,6 @@
 import { createHttpClient } from './client';
 
-import type { LemonRequestBuilder, LemonRequestSurface } from './adapters/lemonWebCore';
+import type { RequestBuilder, RequestSurface } from './adapters/requestExecutor';
 import type { HttpRuntimePorts } from './ports';
 
 // The 200-body `error` convention vs a record's own `error` column. Every relay call funnels
@@ -8,7 +8,7 @@ import type { HttpRuntimePorts } from './ports';
 // caller that declares `allowRecordError` gets the body handed back untouched.
 
 const execute = jest.fn();
-const builder: LemonRequestBuilder = {
+const builder: RequestBuilder = {
     setBody: jest.fn(() => builder),
     setParams: jest.fn(() => builder),
     execute,
@@ -16,7 +16,7 @@ const builder: LemonRequestBuilder = {
 
 // `jest.Mocked<T>` pins each mock's ARGUMENT tuple to the interface's, so a zero-arg implementation
 // does not satisfy it — the mock has to declare the config it ignores.
-const lemonSurface: jest.Mocked<LemonRequestSurface> = {
+const lemonSurface: jest.Mocked<RequestSurface> = {
     buildRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
     buildSignedRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
 };

@@ -49,7 +49,6 @@ export type { SessionStoragePorts } from '@chatic/session';
 export { setNativeCacheSupport } from './data/nativeCacheSupport';
 export type { NativeCacheSupport } from './data/nativeCacheSupport';
 
-// The sealed web transport. `startWebTransportInit` is a boot primitive that apps should NOT need:
-// `connection.RuntimeConnectionHost` is the single init driver (see its doc). desktop-web's three
-// auth hooks are the last callers, and it stays here only until they route through the host.
-export { startWebTransportInit, webTransport } from '@chatic/transport';
+// The relay HTTP transport — plain or signed requests; admin reaches the server through it. It needs no
+// boot: each signed request reads the session's relay token at that moment.
+export { webTransport } from '@chatic/transport';

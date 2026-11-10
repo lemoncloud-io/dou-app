@@ -8,6 +8,5 @@ import { runtime } from '@chatic/app-runtime';
  */
 export const ensureDeviceSession = async (register: () => Promise<unknown>): Promise<void> => {
     if (runtime.session.getIdentityContext().isAuthenticated) return;
-    await runtime.boot.startWebTransportInit();
     await register();
 };
