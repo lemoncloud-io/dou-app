@@ -12,10 +12,13 @@ import { useChannels } from './useChannels';
 /**
  * The one writer for a place-level notification choice, shared by the place page, the cloud page
  * and the inheritance runner. There is no place field on the server, so the choice is written as
- * each channel's own level: the local pref at once, and `join.notify` through the join outbox,
- * which is what the server reads when it pushes to a closed app and what other devices follow.
- * The level is also remembered on this device with the channels it reached, so a channel seen
- * later inherits it. One toast covers a batch in which the server refused any write.
+ * each channel's own level: the local pref at once, and `join.notify` through the join outbox — the
+ * server's per-member record, which other devices follow. The level is also remembered on this
+ * device with the channels it reached, so a channel seen later inherits it.
+ *
+ * Applying resolves, once the server half has settled, to the first refusal if there was one. A
+ * caller that writes several places as one batch passes `announce: false` and announces the batch
+ * itself, so a refused batch raises one toast, not one per place.
  */
 export const usePlaceNotifyApply = () => {
     const { t } = useTranslation();
@@ -23,7 +26,12 @@ export const usePlaceNotifyApply = () => {
     const myUid = runtime.session.useSessionIdentity().userId ?? null;
 
     return useCallback(
-        (key: string, channels: readonly DomainChannel[], mode: ChannelNotifyMode, { remember = true } = {}) => {
+        (
+            key: string,
+            channels: readonly DomainChannel[],
+            mode: ChannelNotifyMode,
+            { remember = true, announce = true } = {}
+        ): Promise<PromiseRejectedResult | undefined> => {
             const store = useNotificationPrefsStore.getState();
             const ids = placeNotifyTargets(channels).map(channel => channel.id ?? '');
             if (remember) store.setPlaceNotify(key, mode, ids);
@@ -34,9 +42,10 @@ export const usePlaceNotifyApply = () => {
                 store.setChannelNotify(write.channelId, write.notify);
                 return setChannelNotify(write);
             });
-            void Promise.allSettled(delivered).then(results => {
-                const refused = results.find(result => result.status === 'rejected');
-                if (refused) toastFailure(t('place.settings.notify.failed'), refused.reason);
+            return Promise.allSettled(delivered).then(results => {
+                const refused = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+                if (refused && announce) toastFailure(t('place.settings.notify.failed'), refused.reason);
+                return refused;
             });
         },
         [myUid, setChannelNotify, t]
@@ -60,7 +69,7 @@ export const usePlaceNotify = (placeId: string | undefined) => {
 
     const setMode = useCallback(
         (mode: ChannelNotifyMode) => {
-            if (key) apply(key, channels, mode);
+            if (key) void apply(key, channels, mode);
         },
         [apply, channels, key]
     );

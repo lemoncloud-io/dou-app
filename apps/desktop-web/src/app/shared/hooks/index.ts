@@ -12,6 +12,7 @@ export * from './useChannelMutations';
 export * from './useChannelNotifyChange';
 export * from './usePlaceNotify';
 export * from './usePlaceNotifyInheritance';
+export * from './useCloudNotify';
 export * from './useDesktopInviteMutations';
 export * from './useInviteCountdown';
 export * from './useRelayAccount';

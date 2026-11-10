@@ -41,7 +41,7 @@ export const usePlaceNotifyInheritance = () => {
                 if (!pref) return;
                 const known = new Set(pref.known);
                 const fresh = placeNotifyTargets(channels).filter(channel => !known.has(channel.id ?? ''));
-                if (fresh.length > 0) applyRef.current(key, fresh, pref.mode, { remember: false });
+                if (fresh.length > 0) void applyRef.current(key, fresh, pref.mode, { remember: false });
             });
         });
         return () => {
