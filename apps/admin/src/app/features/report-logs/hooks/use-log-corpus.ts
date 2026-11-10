@@ -20,7 +20,7 @@
  * - **Correct discarding of late responses.** A key change makes it a different query, so
  *   a page still in flight for the old axes cannot land in the new corpus. That replaced a
  *   hand-written generation counter, which existed only because the transport cannot be
- *   aborted (`SealedWebTransport` takes no axios config — see `fetchReportLogs`).
+ *   aborted (the relay transport's builder takes no axios config — see `fetchReportLogs`).
  * - **Request dedupe** across the probe and the walk, and `retry` from the app's client.
  *
  * What still has to be written here:

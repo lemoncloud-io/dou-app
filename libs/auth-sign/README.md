@@ -30,9 +30,9 @@ arguments and returns a string.
 It exists to keep a cycle from forming (ADR-0070). The formula's natural home looks like
 `@chatic/http`, since the other signature in the repo — AWS SigV4 — lives there. But the consumer of
 this one is the socket auth path, so putting it in `@chatic/http` makes wiring a socket's sign
-callback drag the HTTP lib, and the `@lemoncloud/lemon-web-core` adapter behind it, into socket
+callback drag the HTTP lib, and the request stack behind it (`axios`, the SigV4 signer), into socket
 authentication. If the signer is ever extracted into the sockets SDK, that becomes
-`chatic-sockets-lib → @chatic/http → lemon-web-core`: a socket library depending on an HTTP stack.
+`chatic-sockets-lib → @chatic/http → axios`: a socket library depending on an HTTP stack.
 
 A leaf that holds only the formula is harmless from either side.
 
@@ -51,7 +51,7 @@ A leaf that holds only the formula is harmless from either side.
    because the lib is shared: a consumer that wants to swap the algorithm implements the interface
    rather than editing this lib.
 5. **The 4th `data` slot is always `''`.** This is a property of the formula, not a caller
-   convention — `lemon-web-core`'s own `calcSignature` hardcodes it too — so `SignaturePayload` has
+   convention — `lemon-web-core`'s own `calcSignature` hardcoded it too — so `SignaturePayload` has
    no field for it: the three HMAC keys are the whole payload.
 6. **The injected `userAgent` must be the one the transport actually sends.** The server verifies
    against the UA it received, so an arbitrary constant fails verification. On the web that means
@@ -129,7 +129,7 @@ libs/auth-sign/src/
 ├── purity.spec.ts        the dependency and global-access gates (rules 1 and 3)
 └── hmac/
     ├── LemonHmacSigner.ts       the formula
-    └── LemonHmacSigner.spec.ts  fixtures, lemon-web-core equivalence
+    └── LemonHmacSigner.spec.ts  fixtures
 ```
 
 There is no `types.ts` and no factory. `contracts.ts` holds all four exported types, and consumers
@@ -212,16 +212,15 @@ npx tsc -b libs/auth-sign/tsconfig.json --force   # lib and specs — both proje
 npx jest --config libs/auth-sign/jest.config.js   # 12 tests across 2 spec files
 ```
 
-The suite has three parts, and they prove different things.
+The suite has two parts, and they prove different things.
 
 - **Fixtures** pin the exact signature string for a relay material set and a cloud one, as literals
   rather than snapshots. The literals were computed independently with Node's own `crypto` module —
   neither this implementation nor `lemon-web-core` was used as the reference — so a change to the
   formula turns them red instead of quietly re-baselining.
-- **The `lemon-web-core` equivalence test** asserts the same inputs give the same output as that
-  package's exported `calcSignature`. It is a canary: if a lemon upgrade moves the formula, the
-  server contract moved with it. It is also the one intentional `@lemoncloud/*` import in this lib,
-  which is why `purity.spec.ts` scans non-spec files only.
+  While `lemon-web-core` was a dependency, an equivalence test also checked them against that
+  package's `calcSignature`; they matched. The package is gone (ADR-0298), so the literals are the
+  contract now.
 - **`purity.spec.ts`** greps the sources for `@chatic/*` / `@lemoncloud/*` imports and for
   `navigator` / `new Date(`. It strips comments before matching, because the rules are documented in
   prose right next to the fields they protect and would otherwise flag themselves.

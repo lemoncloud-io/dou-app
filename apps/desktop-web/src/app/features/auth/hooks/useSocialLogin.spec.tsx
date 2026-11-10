@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const session = vi.hoisted(() => ({
     isAuthenticated: false,
     loginGuest: vi.fn(),
-    startWebTransportInit: vi.fn(),
     createCredentialsByProvider: vi.fn(),
     toast: vi.fn(),
     warn: vi.fn(),
@@ -21,7 +20,6 @@ vi.mock('@chatic/bridges', () => ({
 }));
 vi.mock('@chatic/app-runtime', () => ({
     runtime: {
-        boot: { startWebTransportInit: session.startWebTransportInit },
         data: {
             useRuntimeRepositories: () => ({
                 auth: {
@@ -73,7 +71,6 @@ describe('useSocialLogin.start', () => {
             .mockReset()
             .mockResolvedValue({ step: 'confirm', linked: true, provider: 'google', hint: 'a***@gmail.com' });
         session.patchRelaySessionUser.mockReset();
-        session.startWebTransportInit.mockReset().mockResolvedValue(undefined);
         session.loginGuest.mockReset().mockResolvedValue(undefined);
         session.createCredentialsByProvider.mockReset().mockRejectedValue(new Error('relay rejected'));
         session.toast.mockReset();

@@ -4,8 +4,6 @@ import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { sessionAuthAdapter } from './sessionAuthAdapter';
 
-const mockBuildCredentialsByToken = jest.fn();
-
 const mockGetDelegationToken = jest.fn();
 const mockSaveCloudToken = jest.fn();
 const mockGetCloudToken = jest.fn();
@@ -29,26 +27,10 @@ const mockRelayGetIdentityToken = jest.fn();
 // Per-server bridge helper deps. mockGetActiveServerContext backs the "routing ignores active
 // context" assertions in the per-server suite.
 const mockGetActiveServerContext = jest.fn();
-const mockGetTokenSignature = jest.fn();
 const mockCalcSignature = jest.fn();
 
 const mockNotifySessionStateChanged = jest.fn();
 const mockLoggerWarn = jest.fn();
-
-// Transport + sealed boot control. The instance moved out of `@chatic/web-config` into the
-// transport's `http/transport` assembly point (built by `@chatic/http`), so the mock follows it — the env leaf
-// above keeps only env.
-jest.mock('@chatic/transport/http/transport', () => ({
-    startWebTransportInit: jest.fn(),
-    resetWebTransportInit: jest.fn(),
-    webTransport: {
-        setUseXLemonLanguage: jest.fn(),
-        isAuthenticated: jest.fn(),
-        buildCredentialsByToken: (...args: unknown[]) => mockBuildCredentialsByToken(...args),
-        getTokenSignature: (...args: unknown[]) => mockGetTokenSignature(...args),
-        logout: jest.fn(),
-    },
-}));
 
 // Before the migration this mock was split across four web-core modules — `./contexts` · `./core` ·
 // `./contextStore` · `./utils`. It's merged into one now that everything sits behind the
@@ -177,7 +159,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         expect(mockGetCloudToken).not.toHaveBeenCalled();
 
         // the HTTP-path signature helper must NOT be consulted for socket registration
-        expect(mockGetTokenSignature).not.toHaveBeenCalled();
         // getActiveServerContext must NOT be consulted — routing is purely the cloud id
         expect(mockGetActiveServerContext).not.toHaveBeenCalled();
     });
@@ -230,7 +211,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
         expect(result.signature).toBe('relay-sig');
         // socket signature must not fall back to the HTTP-path (Token.authId) helper
-        expect(mockGetTokenSignature).not.toHaveBeenCalled();
     });
 
     // The server (`_sign`/`validateSignature`) pulls all signing material from the auth model. The
@@ -315,9 +295,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     });
 
     it('commitServerRefreshedToken(relay)는 view에 identityToken이 있으면 그대로 relay store에 쓴다 (§6-6)', async () => {
-        mockBuildCredentialsByToken.mockResolvedValue(undefined);
         mockRelayGetRelayToken.mockReturnValue(null);
-        // A full credential — the dual-write asserted below only happens when the view carries one.
         const view = {
             id: 'u',
             Token: { identityToken: 'fresh', credential: { AccessKeyId: 'k', SecretKey: 's' } },
@@ -325,8 +303,7 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
 
         await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
-        // relay dual-write, no cloud store touched, and no dependence on the active context
-        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(expect.objectContaining({ identityToken: 'fresh' }));
+        // relay store write, no cloud store touched, and no dependence on the active context
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
             expect.objectContaining({ id: 'u', Token: expect.objectContaining({ identityToken: 'fresh' }) })
         );
@@ -335,7 +312,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
     });
 
     it('commitServerRefreshedToken(relay)는 refresh view가 identityToken을 생략하면 저장된 값을 보존한다', async () => {
-        mockBuildCredentialsByToken.mockResolvedValue(undefined);
         mockRelayGetRelayToken.mockReturnValue({ Token: { identityToken: 'kept', accountId: 'a' } } as UserTokenView);
         // a socket refresh view carrying a fresh credential but NO identityToken
         const view = {
@@ -353,14 +329,10 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
                 }),
             })
         );
-        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(expect.objectContaining({ identityToken: 'kept' }));
     });
 
-    // identityPoolId degraded in BOTH copies before this fix: the merge dropped it from relayStore,
-    // and the same merged Token goes to lemon's store via buildCredentialsByToken → saveOAuthToken,
-    // which writes '' when the field is absent. That made refreshAuthToken's inheritance a no-op.
+    // identityPoolId used to be dropped by the merge, which made refreshAuthToken's inheritance a no-op.
     it('commitServerRefreshedToken(relay)는 refresh view가 identityPoolId를 생략하면 저장된 값을 보존한다', async () => {
-        mockBuildCredentialsByToken.mockResolvedValue(undefined);
         mockRelayGetRelayToken.mockReturnValue({
             Token: { identityToken: 'kept', identityPoolId: 'pool-1' },
         } as UserTokenView);
@@ -374,12 +346,9 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
             expect.objectContaining({ Token: expect.objectContaining({ identityPoolId: 'pool-1' }) })
         );
-        // the lemon copy is written from the same merged Token, so it keeps the pool id too
-        expect(mockBuildCredentialsByToken).toHaveBeenCalledWith(expect.objectContaining({ identityPoolId: 'pool-1' }));
     });
 
     it('commitServerRefreshedToken(relay)는 view가 identityPoolId를 주면 그 값을 쓴다', async () => {
-        mockBuildCredentialsByToken.mockResolvedValue(undefined);
         mockRelayGetRelayToken.mockReturnValue({ Token: { identityPoolId: 'old' } } as UserTokenView);
         const view = { Token: { identityToken: 't', identityPoolId: 'new' } } as unknown as UserTokenView;
 
@@ -390,15 +359,13 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         );
     });
 
-    // `credential` is optional on the wire. lemon's buildCredentialsByToken throws without it, which
-    // used to abort the store write too — and the caller fires this with `void`, so it vanished.
-    it('commitServerRefreshedToken(relay)는 view에 credential이 없으면 캐시 재빌드를 건너뛰고 store는 저장한다', async () => {
+    // `credential` is optional on the wire; the store write must happen either way.
+    it('keeps the store write and warns when a relay refresh view carries no credential', async () => {
         mockRelayGetRelayToken.mockReturnValue({ Token: { identityToken: 'kept' } } as UserTokenView);
         const view = { id: 'u', Token: { identityToken: 'fresh' } } as unknown as UserTokenView;
 
         await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
-        expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
             expect.objectContaining({ Token: expect.objectContaining({ identityToken: 'fresh' }) })
         );
@@ -422,7 +389,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
 
         await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
-        expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
         expect(mockRelaySaveRelayToken).toHaveBeenCalledWith(
             expect.objectContaining({ Token: expect.objectContaining({ credential: previous }) })
         );
@@ -506,7 +472,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
         await sessionAuthAdapter.commitRefreshedToken(RELAY, view);
 
         // lemon throws on the missing SecretKey exactly as it does on a missing AccessKeyId.
-        expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
         expect(mockRelaySaveRelayToken).toHaveBeenCalled();
     });
 
@@ -523,7 +488,6 @@ describe('session/auth/sessionAuthAdapter · per-server bridge helpers', () => {
             expect(mockSaveCloudToken).toHaveBeenCalledWith(
                 expect.objectContaining({ Token: { identityToken: 'new' } })
             );
-            expect(mockBuildCredentialsByToken).not.toHaveBeenCalled();
             expect(mockRebuildSessionIdentity).toHaveBeenCalled();
         });
 

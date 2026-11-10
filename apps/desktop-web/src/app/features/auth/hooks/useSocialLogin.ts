@@ -219,7 +219,6 @@ export const useSocialLogin = () => {
                     });
                     return fail('failed');
                 }
-                await runtime.boot.startWebTransportInit();
                 const tokens = { provider, code };
                 // Verify first: it is the only answer that names why a link is refused. The code is not
                 // single-use, so confirm sends it again.
@@ -269,7 +268,6 @@ export const useSocialLogin = () => {
             // cloud rail) re-bootstraps from the new credentials.
             const wasAuthenticated = runtime.session.getIdentityContext().isAuthenticated;
             try {
-                await runtime.boot.startWebTransportInit();
                 const account = await runtime.session.createCredentialsByProvider(provider, code, {
                     linkCurrentSession: true,
                 });

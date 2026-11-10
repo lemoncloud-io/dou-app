@@ -3,7 +3,7 @@ import { runtime } from '@chatic/app-runtime';
 import { useAppForeground } from '../bridge';
 
 /**
- * Re-mints stale relay HTTP signing credentials (lemon-web-core's AWS credential cache) once the
+ * Re-mints the stale relay HTTP signing credential (the relay token's AWS credential) once the
  * relay socket is up.
  *
  * The probe/refresh body now lives in `@chatic/app-runtime`'s `runtime.session.useSessionStalenessGuard`

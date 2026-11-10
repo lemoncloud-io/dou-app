@@ -7,7 +7,6 @@ import type { IAuthRepository } from '@chatic/data';
 import { config } from '@chatic/config';
 
 import { authRepositorySource } from './authRepository';
-import { resetWebTransportInit, startWebTransportInit, webTransport } from '@chatic/transport';
 import {
     cloudStore,
     identityStore,
@@ -30,9 +29,6 @@ import { isNativeMedium, WebMedium } from '@chatic/storage';
 export interface LogoutOptions {
     preserveUrl?: boolean;
 }
-
-/** i18next's own localStorage key name — not a setting, just where it happens to keep the language. */
-const LANGUAGE_KEY = 'i18nextLng';
 
 /**
  * The RELAY half of the session hub's use-cases (ADR-0076 decision 5) — booting the relay session,
@@ -108,8 +104,9 @@ class RelaySession implements IRelaySession {
     }
 
     /**
-     * Applies a relay token view as the active session: builds AWS credentials, persists the token
-     * (the auth anchor + uid/profile-seed source), and marks the session authenticated. Profile
+     * Applies a relay token view as the active session: persists the token (the auth anchor, the
+     * uid/profile-seed source and the credential every signed HTTP request reads), and marks the
+     * session authenticated. Profile
      * shaping is gone — profile facts are tracked from the token + user cache by app-runtime's
      * useRuntimeProfile.
      *
@@ -119,7 +116,6 @@ class RelaySession implements IRelaySession {
      */
     private async apply(tokenView: UserTokenView): Promise<UserTokenView> {
         if (tokenView.Token) {
-            await webTransport.buildCredentialsByToken(tokenView.Token);
             relayStore.saveRelayToken(tokenView);
         }
 
@@ -136,10 +132,8 @@ class RelaySession implements IRelaySession {
      * requestRelaySessionRefresh). A returning user with expired credentials therefore boots into the
      * logged-in UI instead of being treated as logged out — including on an offline boot.
      *
-     * lemon-web-core keeps its credentials in memory only, so a new page starts with none: they are
-     * rebuilt here from the stored relay token. `buildCredentialsByToken` throws for a token view
-     * without a credential, and a boot must not fail on that — the request that needs signing recovers
-     * through the socket like any other stale credential.
+     * Nothing has to be rebuilt for HTTP: the transport signs every request with the stored relay
+     * token's credential, read at that moment.
      */
     async initialize(): Promise<void> {
         setSessionIdentityState({
@@ -147,27 +141,7 @@ class RelaySession implements IRelaySession {
             error: null,
         });
 
-        logger.debug('WEB_CORE', '[initialize] awaiting relay transport init');
-        await startWebTransportInit();
-        logger.debug('WEB_CORE', '[initialize] relay transport init done, setting language + probing session');
         const isAuthenticated = relayCredentialProbe.hasSession();
-        const relayToken = relayStore.getRelayToken()?.Token;
-        await Promise.all([
-            webTransport.setUseXLemonLanguage(true, LANGUAGE_KEY),
-            relayToken
-                ? Promise.resolve()
-                      .then(() => webTransport.buildCredentialsByToken(relayToken))
-                      .catch((error: unknown) => {
-                          logger.warn(
-                              'WEB_CORE',
-                              '[initialize] could not rebuild lemon credentials from the relay token',
-                              {
-                                  error,
-                              }
-                          );
-                      })
-                : undefined,
-        ]);
 
         setSessionIdentityState({
             isInitialized: true,
@@ -306,7 +280,6 @@ class RelaySession implements IRelaySession {
         // Native OAuth logout is no longer handled here: the OAuth provider is no longer session
         // state. A native shell that needs to sign out of the provider SDK should register that via
         // `registerLogoutCallback` (it owns the provider it logged in with).
-        await webTransport.logout();
 
         // The whole store teardown is ONE observable change (ADR-0076 decision 2). Every write inside
         // announces its own kind — `cloud:token` + `selection` from `clearSession`, `selection` from
@@ -332,7 +305,6 @@ class RelaySession implements IRelaySession {
             // clear (ADR-0079 decision 10 — that override was already dead, nothing read it).
             config.clear('net.relay.backend', { lane: 'local' });
             config.clear('net.relay.wss', { lane: 'local' });
-            resetWebTransportInit();
 
             // Cloud tokens were dropped by the cloudStore calls above; clearRelaySession drops
             // the relay token and rebuilds identity as unauthenticated (uid → null).

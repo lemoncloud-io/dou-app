@@ -1,6 +1,6 @@
 # ADR-0138: The app's language follows the device unless one is chosen
 
-> Status: Accepted · Decided: 2026-09-29 · Implemented: `feat/settings-device-language-and-cache-clear`
+> Status: Accepted, superseded in part by [ADR-0298](./0298-relay-requests-are-signed-in-house-and-lemon-web-core-is-removed.md) (decision 3: the `i18nextLng` key is no longer written — nothing reads it) · Decided: 2026-09-29 · Implemented: `feat/settings-device-language-and-cache-clear`
 > · Scope: `apps/web/src/i18n/**` · `apps/web/src/app/features/mypage/{components/LanguageSelectSheet.tsx,hooks/useLanguagePreference.ts}`
 > · `libs/config/src/registry/ui.ts` (`ui.language`) · `apps/web/src/app/bridge/languageChoice.ts`
 > · `apps/mobile/src/app/{stores/language*.ts,utils/i18n/index.ts,bridge/SharedLanguageBridge.ts}`

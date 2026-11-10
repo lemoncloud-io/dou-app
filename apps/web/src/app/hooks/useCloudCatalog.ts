@@ -7,7 +7,8 @@ import { runtime } from '@chatic/app-runtime';
 import { useIsAccountGuest } from './useMyUser';
 
 import type { DomainCloud, DomainListResult } from '@chatic/data';
-import type { Params } from '@lemoncloud/lemon-web-core';
+/** Query parameters for a relay request. */
+type Params = Record<string, unknown>;
 
 const GUEST_CATALOG: DomainListResult<DomainCloud> = { list: [], meta: { total: 0, source: 'local' } };
 

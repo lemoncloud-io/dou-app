@@ -10,7 +10,7 @@ import {
     type HttpLogSink,
     type HttpRoute,
     type HttpRuntimePorts,
-    type LemonRequestSurface,
+    type RequestSurface,
     type NetworkLogFields,
 } from '@chatic/http';
 
@@ -130,7 +130,7 @@ export const onAuthFailure = (error: unknown, message: string): void => {
  * session stores.
  */
 export const createHttpManager = (
-    lemonSurface: LemonRequestSurface,
+    requestSurface: RequestSurface,
     // Optional so a test can build a manager without a session behind it; omitting it only costs the
     // failure ATTRIBUTION, never the request itself.
     credentials?: CredentialStalenessPort
@@ -143,5 +143,5 @@ export const createHttpManager = (
         onAuthFailure,
     };
 
-    return createHttpClient(lemonSurface, ports);
+    return createHttpClient(requestSurface, ports);
 };

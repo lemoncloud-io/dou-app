@@ -1,4 +1,4 @@
-# http — routes, the sealed transport, and two late-bound registries
+# http — routes, the relay transport, and two late-bound registries
 
 [`libs/http`](../../../http/README.md) owns the executor: building a request, retrying it,
 classifying what came back. This folder owns everything that executor cannot know on its own — which
@@ -13,8 +13,8 @@ It sits in `@chatic/transport`, below everything in app-runtime, which is what l
 ```text
 http/                              6 source files, 5 tests
 ├── HttpManager.ts                route endpoints, the staleness port, the log sink, onAuthFailure
-├── factory.ts                    the composition root — the only file here that imports the session
-├── transport.ts                  the one lemon transport instance, built lazily
+├── factory.ts                    the composition root — the staleness port's session reads
+├── transport.ts                  the relay request transport, bound to the session's relay token
 ├── gateways.ts                   six lazily memoized HTTP gateways
 ├── credentialRecovery.ts         registry: "re-mint this route's credential"
 └── authFailureReaction.ts        registry: "the server refused for good"
@@ -22,8 +22,8 @@ http/                              6 source files, 5 tests
 
 There is **no `http/index.ts`**. The package barrel sells the four modules app-runtime reads —
 `transport`, `gateways`, `credentialRecovery`, `authFailureReaction` — and keeps `HttpManager` and
-`factory` inside. The three symbols apps do see (`webTransport`, `startWebTransportInit`,
-`authFailureReaction`) are re-exported by app-runtime's `boot` and `session` groups.
+`factory` inside. The two symbols apps do see (`webTransport`, `authFailureReaction`) are re-exported by
+app-runtime's `boot` and `session` groups.
 
 `transport.ts` is the one source file here with no test of its own.
 
@@ -56,34 +56,25 @@ package cut from it, this one included, and fails if any code names a refresh en
 was keyed to a path string and stopped matching — silently — the moment the symbols moved, letting a
 violating file pass lint. The absence test has no path to go stale against.
 
-### The sealed transport
+### The relay transport
 
-`webTransport` is written out by hand rather than proxied, with exactly six methods: `logout`,
-`setUseXLemonLanguage`, `buildRequest`, `buildSignedRequest`, `buildCredentialsByToken`,
-`getTokenSignature`. **`init`, `isAuthenticated` and `getTokenStorage` are absent** because they are
-absent from the sealed type in `@chatic/http` — `isAuthenticated()` in particular fires lemon's own
-HTTP refresh, a second refresh engine that updates only lemon's store and leaves the socket's signing
-material behind.
+`webTransport` has two methods, `buildRequest` and `buildSignedRequest`, forwarding to a
+`createRequestTransport` instance from `@chatic/http` that is built on first use — importing this
+module does nothing. The instance keeps nothing either. Its signing ports are bound here to the
+session: `credential()` and `identityToken()` read the relay token from `relayStore` at the moment a
+signed request is sent, and `region()` reads `env.region` from `@chatic/config` the same way. So the
+session's relay token is the only copy of the credential, a token the socket renewed is used by the
+very next request, and there is nothing to rebuild on boot, clear on logout or keep from drifting.
+A signed request made with no relay credential goes out unsigned, and `onUnsigned` logs a warning.
 
-The instance is built lazily on first use and read from `@chatic/config` at that moment, not at
-module load, so importing this module does nothing — which is what keeps the SDK out of test runs
-that do not want it. **Two instances would split the session**, because the lemon token storage lives
-inside the instance, so `@chatic/http` exposes a factory with no module state and this file is its
-only caller. `resetWebTransportInit()` rides alongside it, for logout.
+This replaced lemon-web-core, which kept its own copy of the credential (latterly in memory, earlier
+in web storage with an expiry clock of its own that disagreed with the credential's), needed a boot
+step, and had refresh APIs that updated only its own store. `legacyLemonKeyPrefix()` survives it: it
+returns the `@<project>.` prefix lemon-web-core named its keys with, which the clean-up of a bundle
+older builds left in web storage still looks for.
 
-**lemon-web-core is a signer, not a store.** Its credential bundle lives in a memory medium
-(`lemonStorage()`, handed to the SDK as `asDomStorage(medium)`) in every environment, so nothing of
-lemon survives a page. The relay token in the session is the one persisted copy, and
-`RelaySession.initialize()` rebuilds lemon's credentials from it on every boot. Before this, lemon kept
-a second copy of the credential in web storage, with an expiry clock of its own that disagreed with the
-credential's, and the "is there a session" and "has it expired" probes read that copy; both now read
-the session (`@chatic/auth`'s `relayCredentialProbe`). `lemonKeyPrefix()` returns the `@<project>.`
-prefix every key the SDK writes starts with, computed from config without building the SDK — what the
-cleanup of a bundle older builds left in web storage looks for.
-
-`startWebTransportInit()` is the boot — lemon's `init` minus its own refresh, single-flighted. It is
-awaited by `useRelaySessionInit` inside the host, which is the single init driver. It stays on the
-`boot` group only because three desktop-web auth hooks still call it directly.
+`transport.ts` is the second file under `http/` that imports `@chatic/session` — for the relay token
+the signer reads, not for staleness.
 
 ### The staleness port
 
@@ -173,8 +164,8 @@ of a run are over-represented. The log batch upload bypasses this sink, so measu
 ## Usage
 
 Apps do not call into this package. app-runtime's `data/factories/httpFactory.ts` builds its data
-sources over the gateways, and `@chatic/auth` reaches the transport for one thing —
-`buildCredentialsByToken`, which is a local credential reconstruction rather than a request.
+sources over the gateways, and `@chatic/auth`'s HTTP-side use of this folder is `legacyLemonKeyPrefix()`, for the clean-up of
+lemon-web-core's old keys.
 
 The one app-facing surface is the reaction:
 
@@ -184,10 +175,9 @@ runtime.session.authFailureReaction.register((error, message) => showBanner(mess
 
 ### What not to do
 
-- **Do not import `@chatic/session` from anywhere under `http/` except `factory.ts`.** The staleness port is the one reason this half reads the session, and keeping it to one file keeps the rest of `http/` a leaf.
+- **Do not import `@chatic/session` from anywhere under `http/` except `factory.ts` and `transport.ts`.** The staleness port and the signer's credential are the two reasons this half reads the session, and keeping them to those files keeps the rest of `http/` a leaf.
 - **Do not add a `cloud` route.** A cloud destination is a `baseURL`, and it is relay-signed.
-- **Do not build a second lemon transport.** The token storage lives inside the instance.
-- **Do not use `isAuthenticated()` as a freshness probe.** It refreshes, into the wrong store.
+- **Do not give the transport a credential store or a refresh.** It reads the session's relay token per request; a second copy is what the lemon-web-core era had to keep in step.
 - **Do not make an unregistered registry do something.** `false` and silence are the safe states, and an app that wants a reaction registers one.
 - **Do not restore an alert-and-redirect default.** It would be new behaviour for every app that has never had it.
 - **Do not capture the credential at construction.** Read it per call.

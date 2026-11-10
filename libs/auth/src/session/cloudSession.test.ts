@@ -5,12 +5,6 @@ import { cloudSession } from './cloudSession';
 const mockIssueCloudDelegationToken = jest.fn();
 const mockIssueCloudToken = jest.fn();
 
-const mockSetUseXLemonLanguage = jest.fn();
-const mockIsAuthenticated = jest.fn();
-const mockBuildCredentialsByToken = jest.fn();
-const mockLogout = jest.fn();
-const mockStartWebCoreInit = jest.fn();
-
 const mockSaveDelegationToken = jest.fn();
 const mockSaveCloudToken = jest.fn();
 const mockGetCachedCloudTokens = jest.fn();
@@ -143,11 +137,6 @@ describe('session/auth/cloudSession', () => {
         localStorage.clear();
 
         mockIsNative.mockReturnValue(false);
-        mockIsAuthenticated.mockResolvedValue(true);
-        mockStartWebCoreInit.mockResolvedValue(undefined);
-        mockSetUseXLemonLanguage.mockResolvedValue(undefined);
-        mockBuildCredentialsByToken.mockResolvedValue(undefined);
-        mockLogout.mockResolvedValue(undefined);
         mockGetSelectedCloudId.mockReturnValue('default');
         mockGetSelectedSiteId.mockReturnValue(null);
         mockGetCloudSessionSnapshot.mockReturnValue({

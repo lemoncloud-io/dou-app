@@ -8,7 +8,8 @@ import { useIsAccountGuest } from './useMyUser';
 
 import type { MembershipDropsResult } from '@chatic/data';
 import type { CreateMembershipBody, MembershipDropsBody, MembershipView } from '@lemoncloud/chatic-backend-api';
-import type { Params } from '@lemoncloud/lemon-web-core';
+/** Query parameters for a relay request. */
+type Params = Record<string, unknown>;
 
 /** What the relay answers for a user with no membership — and a guest account never has one. */
 const GUEST_MEMBERSHIP: MembershipView = { isValid: false };

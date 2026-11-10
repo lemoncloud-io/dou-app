@@ -4,8 +4,7 @@ import { join } from 'path';
 /**
  * This lib must stay a platform-neutral leaf: zero `@chatic/*`/`@lemoncloud/*` runtime deps, and no
  * global reads (`navigator`, `new Date(`) — design principles 1 and 3 in libs/auth-sign/README.md.
- * Enforced by absence, not by a runtime check. The lemon-web-core equivalence test in
- * LemonHmacSigner.spec.ts is the one intentional exception, hence non-spec files only.
+ * Enforced by absence, not by a runtime check. Spec files are left out: they may import what they need.
  */
 function nonSpecSourceFiles(dir: string): string[] {
     const files: string[] = [];

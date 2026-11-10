@@ -1,6 +1,6 @@
 import { createHttpClient } from './client';
 
-import type { LemonRequestBuilder, LemonRequestSurface } from './adapters/lemonWebCore';
+import type { RequestBuilder, RequestSurface } from './adapters/requestExecutor';
 import type { HttpRoute, HttpRuntimePorts } from './ports';
 
 /**
@@ -13,13 +13,13 @@ import type { HttpRoute, HttpRuntimePorts } from './ports';
  * refusal, and what must not.
  */
 const execute = jest.fn();
-const builder: LemonRequestBuilder = {
+const builder: RequestBuilder = {
     setBody: jest.fn(() => builder),
     setParams: jest.fn(() => builder),
     execute,
 };
 
-const lemonSurface: jest.Mocked<LemonRequestSurface> = {
+const lemonSurface: jest.Mocked<RequestSurface> = {
     buildRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
     buildSignedRequest: jest.fn((_config: { method: string; baseURL: string }) => builder),
 };

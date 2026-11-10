@@ -77,11 +77,11 @@ helpers over the DOM and over dates, query keys and images.
 (`@chatic/bridges`, `logger`), images and logos (`@chatic/assets`), device and platform facts
 (`@chatic/device-utils`), setting keys, lanes and persistence (`@chatic/config`), domain data
 (`@chatic/data`), the HTTP client and its error classification, `throwIfApiError` included
-(`@chatic/http`), and the transport types the SDK already declares — `ListResult` from
-`@lemoncloud/chatic-backend-api`, `Params` from `@lemoncloud/lemon-web-core`.
+(`@chatic/http`), and the transport types the SDK already declares, such as `ListResult` from
+`@lemoncloud/chatic-backend-api`.
 
 Those four are named rather than left implied because each is the kind of thing that reads as harmless
-on the way in: a `sonner` wrapper, a four-line copy of the HTTP client's error promoter, two interfaces
+on the way in: a `sonner` wrapper, a four-line copy of the HTTP client's error promoter, an interface
 the SDK already declares. A duplicate in a barrel five projects import is not harmless. It is a second
 answer to a settled question, and call sites split between the two answers without anyone deciding to.
 

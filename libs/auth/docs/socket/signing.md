@@ -87,17 +87,17 @@ identity rebuild and no session signal. A refresh can arrive on a slot that was 
 booted and is not any more, and writing it into the store then would hand the committed cloud
 another cloud's token. Either way the cloud identity map records the uid the merged token names.
 
-**relay — merge by rule, then rebuild the AWS credential cache.** `mergeRefreshedRelayToken` spreads
+**relay — merge by rule, then check the AWS credential.** `mergeRefreshedRelayToken` spreads
 the stored view first (a socket refresh view is not guaranteed to be a full user view, and the relay
 token is also the account-profile display source — without the merge a slim refresh blanks the
 profile header mid-session), then the fresh one, then puts four things back by hand.
 
-| Preserved        | Why                                                                                                                                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `$auth`          | Kept, not adopted — see below. Keyed on `.id` being present, so a stored `$auth` with no id still loses to the view                                                                                    |
-| `identityToken`  | A refresh view may omit it, but relay requires it: signed HTTP sends it as `x-lemon-identity` and the next `register` reads it back                                                                    |
-| `identityPoolId` | Routinely omitted, and this merge feeds two stores — lemon's own `saveOAuthToken` overwrites the field with `''`, so without this line the pool id is lost after the first socket refresh              |
-| `credential`     | This copy is the only record of which credential is currently signing. Dropping it makes the store disagree with the signer, and the credential clock reports "cannot measure" for exactly that window |
+| Preserved        | Why                                                                                                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$auth`          | Kept, not adopted — see below. Keyed on `.id` being present, so a stored `$auth` with no id still loses to the view                                                                   |
+| `identityToken`  | A refresh view may omit it, but relay requires it: signed HTTP sends it as `x-lemon-identity` and the next `register` reads it back                                                   |
+| `identityPoolId` | Routinely omitted, so without this line the pool id is lost after the first socket refresh                                                                                            |
+| `credential`     | This copy is the credential signed HTTP reads on every request. Dropping it leaves those requests unsigned, and the credential clock reports "cannot measure" for exactly that window |
 
 **Preserving `$auth` is a workaround for a backend defect, and it should be reverted when the backend
 is fixed.** A site switch makes the backend mint a _child_ auth model and return it as `$auth`, while
@@ -111,14 +111,12 @@ genuinely new session does not come through here at all (`relaySession` writes t
 When the server does return a different `$auth.id`, the merge says so in a warning rather than
 dropping it silently.
 
-The credential rebuild has its own guard. `credential` is optional on the wire, and lemon's
-`buildCredentialsByToken` throws when it is absent — which used to take the store write down with it
-_silently_, because the caller fires the writeback with `void` and the refresh had already reported
-success. So it rebuilds only when the view actually carries an access key, warns loudly when it does
-not (signed HTTP keeps signing with the previous credential, which is exactly the state that 403s
-once it lapses), and writes the store either way. It reads the credential off the **view**, not off
-the merged result — the merged one inherits the previous credential, so asking it would rebuild
-lemon's cache from what it already holds and silence the one warning that matters.
+The credential has its own check. `credential` is optional on the wire; when the view carries no
+access key the merge keeps the previous one, so signed HTTP — which reads the stored token on every
+request — keeps signing with it. That is exactly the state that 403s once it lapses, and nothing
+downstream can detect it, so the writeback warns loudly and writes the store either way. It reads the
+credential off the **view**, not off the merged result — the merged one always carries a credential,
+so asking it would silence the one warning that matters.
 
 Relay and the committed cloud end with `rebuildSessionIdentity()`, which re-derives uid and identity
 from what was just written and emits `identity` only if something actually moved. A non-committed

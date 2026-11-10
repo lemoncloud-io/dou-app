@@ -25,8 +25,8 @@ import type { ISecretStorageMigration, SecretStorageBoot, SecretStorageOutcome }
  * | empty                 | yes      | write the copy into the vault; delete it once confirmed        |
  * | empty                 | no       | signed out                                                     |
  *
- * lemon-web-core's old bundle (`@<project>.*`, the language key kept) goes with the web copy: lemon
- * keeps its credentials in memory now, so whatever is left in web storage is nobody's.
+ * lemon-web-core's old bundle (`@<project>.*`) goes with the web copy: nothing writes it any more, so
+ * whatever is left in web storage is an older build's and nobody's.
  */
 class SecretStorageMigration implements ISecretStorageMigration {
     async prepare({ vault, plain, web, tab, afterLogout }: SecretStorageBoot): Promise<SecretStorageOutcome> {

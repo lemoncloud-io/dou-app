@@ -37,10 +37,9 @@ import {
  * created to stop (admin had one).
  *
  * Two properties are NOT configurable, because they are the reason the guard exists:
- *  - **The probe never refreshes.** `relayCredentialProbe` reads the session and nothing else. The
- *    tempting `webTransport.isAuthenticated()` fires lemon-web-core's own HTTP refresh — a second
- *    refresh engine that updates only the lemon store and leaves the socket's signing material
- *    stale, which is the signature-error divergence this whole ADR is unwinding.
+ *  - **The probe never refreshes.** `relayCredentialProbe` reads the session and nothing else. A
+ *    probe that refreshed on its own would be a second refresh engine beside the socket's, which is
+ *    the signature-error divergence this guard exists to prevent.
  *  - **Refresh goes through `requestRelaySessionRefresh`.** That is the single entry point that prefers
  *    the socket AuthController (the owner, ADR-0070 invariant 1) over any direct HTTP call.
  */
@@ -166,9 +165,8 @@ export const useSessionStalenessGuard = (policy: SessionStalenessPolicy = {}): {
                 if (missingSessionCountsAsFailure) await registerFailure();
                 return;
             }
-            // The relay credential's own clock. lemon-web-core's stored-session clock used to be read
-            // here; lemon keeps nothing between pages any more, and the two clocks disagreed exactly
-            // when a refresh carried a token but no credential. Nothing to measure counts as expired.
+            // The relay credential's own clock — the only one; signed HTTP reads the same credential.
+            // Nothing to measure counts as expired.
             const expired = relayCredentialProbe.isCredentialExpired();
             // Steady state while the socket writeback keeps the store ahead of expiry — unless the
             // caller opted into a preemptive refresh, which the cooldown keeps to one per minute.

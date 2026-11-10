@@ -178,10 +178,9 @@ and cannot be told apart, and on iOS the stored `en` is the bug itself. **Every 
 starts on `system`, and someone who had picked a language other than the device's picks it once
 more.** The decision and its alternatives are ADR-0138.
 
-The key is still written with the language in effect, because `relaySession` points lemon-web-core's
-`x-lemon-language` header at `i18nextLng`. The SDK reads that name under its own prefix and storage
-(`@<project>.i18nextLng`), which matches this key only in a native local build — so in deployed builds
-the header is not sent, which was already true before the change.
+That key is no longer written. Its last reader was lemon-web-core's `x-lemon-language` header, which
+read the name under its own prefix and storage and so was never sent in a deployed build; with that
+SDK gone, nothing reads the key at all. An install that has it keeps a dead value.
 
 ## Out of scope (deliberately)
 
