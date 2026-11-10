@@ -33,7 +33,7 @@ export const writeMiniAppLink = (cloudId: string, url: string | null): boolean =
 };
 
 /** Whether the account `accountId` already agreed to hand `host` its names. */
-export const hasMiniAppConsent = (accountId: string, host: string): boolean => {
+export const hasMiniAppConsent = (accountId: string | null, host: string): boolean => {
     if (!accountId) return false;
     try {
         return window.localStorage.getItem(consentKey(accountId, host)) === '1';
@@ -46,7 +46,7 @@ export const hasMiniAppConsent = (accountId: string, host: string): boolean => {
  * Record the agreement of `accountId` for `host`. A storage that refuses is not an error: the page
  * still opens this time, and the question comes back next time.
  */
-export const writeMiniAppConsent = (accountId: string, host: string): void => {
+export const writeMiniAppConsent = (accountId: string | null, host: string): void => {
     if (!accountId) return;
     try {
         window.localStorage.setItem(consentKey(accountId, host), '1');
