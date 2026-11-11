@@ -472,8 +472,10 @@ the rules. The room and the thread wire it the same way.
   Its rows cancel `mousedown`, so a tap keeps the field focused (in WebKit the focus moves there), and
   `pointerdown` for a mouse only: on touch, cancelling it would stop the list panning. The thread's bar
   does not cancel them itself.
-- **The rows** are "Everyone" first, then the room's active members other than me, by the name every
-  row in the room draws them by, sorted by that name. A member with no name yet is left out: there is
+- **The rows** are "Everyone" first, then the room's active members by the name every row in the room
+  draws them by, sorted by that name, and me last. I am offered so a message can call me too — a note
+  to myself that lands as a mention of me, as the desktop's list allows — and I sort last so a short
+  query's first row is someone else. A member with no name yet is left out: there is
   nothing to write. The everyone row writes the UI language's word — `@전체` in Korean, `@all` in
   English (`chat.mention.everyoneWord`) — and is found by either word, by its title ("모두에게",
   "Everyone"), and by `channel`, `here` and `everyone`. Readers mark every one of those words in any

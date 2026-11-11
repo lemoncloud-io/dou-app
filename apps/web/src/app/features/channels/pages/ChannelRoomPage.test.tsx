@@ -631,7 +631,7 @@ describe('ChannelRoomPage — mentions', () => {
         ];
     });
 
-    it('lists everyone and the other members for an @, and sends the picked one with the text', async () => {
+    it('lists everyone, the other members and then me for an @, and sends the picked one with the text', async () => {
         render(<ChannelRoomPage />);
 
         type('hi @');
@@ -640,6 +640,7 @@ describe('ChannelRoomPage — mentions', () => {
         expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
             'chat.mention.everyone@chat.mention.everyoneWord · chat.mention.everyoneHint',
             'Minsu',
+            'Me',
         ]);
 
         fireEvent.click(screen.getByRole('option', { name: 'Minsu' }));
@@ -653,6 +654,24 @@ describe('ChannelRoomPage — mentions', () => {
             channelId: 'ch1',
             content: 'hi @Minsu',
             mention: { userIds: ['peer'] },
+        });
+    });
+
+    // A message can call its own sender: picking my row sends my uid in the room's cloud.
+    it('sends a mention of me when I pick myself', async () => {
+        render(<ChannelRoomPage />);
+
+        type('@');
+        fireEvent.click(screen.getByRole('option', { name: 'Me' }));
+        expect(field().value).toBe('@Me ');
+
+        await act(async () => {
+            fireEvent.click(screen.getByTestId('send-typed'));
+        });
+        expect(mockSendMessage).toHaveBeenCalledWith('cloud-b', {
+            channelId: 'ch1',
+            content: '@Me',
+            mention: { userIds: ['uid-b'] },
         });
     });
 
