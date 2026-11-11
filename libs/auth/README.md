@@ -31,9 +31,9 @@ libs/auth/src/
 ├── index.ts                    the package barrel
 ├── platform.ts                 the ports the platform fills: the address, and the way home at logout
 ├── testing/platform.ts         `fakeAuthPorts()` — a jsdom page's ports, for tests in any package
-├── session/   11 files · 8 tests   the relay and cloud sessions, token exchange, teardown, the SDK delegate's material
+├── session/   13 files · 9 tests   the relay and cloud sessions, token exchange, teardown, the SDK delegate's material
 ├── pairing/    6 files · 6 tests   device pairing: the request flow, paired clouds, the secondary-device check, errors
-├── socket/    19 files · 17 tests  booting, re-authenticating, renewing and ending the socket slots' sessions
+├── socket/    20 files · 18 tests  booting, re-authenticating, renewing and ending the socket slots' sessions
 └── utils/      2 files · 2 tests   Coalescer · Throttle — the concurrency guards the renewals use
 ```
 

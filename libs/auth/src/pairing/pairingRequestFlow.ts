@@ -26,7 +26,7 @@ export type PairingRequestState =
 export interface PairingRequestFlowDeps {
     request(): Promise<PairingRequestView>;
     claim(pairingId: string): Promise<PairingClaimView>;
-    /** Applies a relay approval's session — `runtime.session.applySessionToken`. Throws when it cannot. */
+    /** Applies a relay approval's session — app-runtime's `usePairingRequest` passes `applySessionToken`. Throws when it cannot. */
     applySession(session: UserTokenView): Promise<void>;
     /** Enters a cloud approval as a guest — the cloud switch, plus remembering the cloud. Throws on failure. */
     enterCloud(cloudId: string): Promise<void>;

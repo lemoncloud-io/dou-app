@@ -138,8 +138,10 @@ is `send` then `confirm`; a link proof is `send`, `verify`, and `confirm` only w
 answered `linkable`.
 
 On `mode: 'login'` the `$token` must be installed before anything else is issued or accepted, or
-those calls answer 403. `applySessionToken` owns that installation —
-[phone-verification.md](./phone-verification.md) covers the ordering.
+those calls answer 403. A login proof therefore does not go through `useLinkAccount().confirm`: it goes
+through `runtime.session.confirmPhoneLogin`, which proves the code and installs the token in one step
+and never hands the token to the screen — [phone-verification.md](./phone-verification.md) covers the
+ordering. `useLinkAccount().confirm` is the `link` proof's.
 
 ### Adding a credential kind
 
@@ -197,7 +199,7 @@ so a stale `dist` invents errors that the source does not contain.
 ## Further reading
 
 - [phone-verification.md](./phone-verification.md) — the two shells that drive this packet, and the
-  `$token` installation on the login path.
+  session switch on the login path.
 - [international-phone-input.md](./international-phone-input.md) — how a number reaches E.164 before
   it is sent.
 - [account](../account/README.md) — the `/mypage/account` card that reads `link$` and links social.

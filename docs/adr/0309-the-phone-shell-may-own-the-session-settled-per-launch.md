@@ -2,7 +2,8 @@
 
 > Status: Accepted · Decided: 2026-11-11 · Implemented: `feat/runtime-bridge-contract` (the contract
 > only — no shell offers yet); `refactor/session-reads-via-engine` (the session snapshot, read through
-> the engine)
+> the engine); `refactor/token-free-login` (the commands: a one-step phone login, invite logins behind
+> handles, login answers without `Token`)
 > · Scope: `libs/bridge-messages/src/types/model/runtime.ts` (`RuntimeHello`, `RuntimeCall`,
 > `RuntimeSubscribe`, `RuntimeUnsubscribe`, `OnRuntimeEvent`, `OnRuntimeSessionChanged`);
 > `libs/bridges/src/version.ts` (bridge 2.23.0) and the copies pinned in `libs/chatic-apps-sdk`

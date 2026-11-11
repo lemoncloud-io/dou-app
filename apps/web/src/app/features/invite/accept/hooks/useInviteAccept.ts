@@ -175,10 +175,12 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
         runningRef.current = true;
         setIsRunning(true);
         const trace = beginInviteAcceptTrace('cloud');
+        // Held until the cloud is entered with it; forgotten on the way out when it never was.
+        let inviteLogin: runtime.session.InviteLogin | null = null;
         try {
-            // The answer is the invitee's own cloud token; the cloud is entered with it (see
-            // `useEnterInvitedCloud` for why a re-issue cannot stand in for it).
-            const inviteToken = await runInviteFlow({ code, backend });
+            // The answer is the invitee's own cloud token, kept by the runtime; the cloud is entered with
+            // it through its handle (see `useEnterInvitedCloud` for why a re-issue cannot stand in for it).
+            inviteLogin = await runInviteFlow({ code, backend });
             trace.mark('login');
 
             // Entered BEFORE the cloud is cached. Caching it lists it, and a listed cloud is what the
@@ -195,7 +197,12 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             // reclaim in `BackgroundCloudsRunner` re-issues the cloud when the catalog arrives.
             step = 'enter-cloud';
             const ownsInvitedCloud = !!info?.cloudId && ownedCloudsRef.current.some(owned => owned.id === info.cloudId);
-            await enterCloud(info, ownsInvitedCloud ? undefined : inviteToken);
+            if (ownsInvitedCloud) {
+                runtime.session.forgetInviteLogin(inviteLogin.handle);
+                await enterCloud(info);
+            } else {
+                await enterCloud(info, inviteLogin);
+            }
             trace.mark('cloud');
 
             // Persist the invited cloud (cloudType:'invited') so it surfaces to useInvitedClouds /
@@ -248,6 +255,8 @@ export const useInviteAccept = ({ params, info }: InviteContext) => {
             enterChannel(info);
             logger.info('INVITE', 'cloud invite accepted; entering channel', { cloudId: info?.cloudId });
         } catch (error) {
+            // A failed accept never enters with this answer; a retry logs in again and gets a new one.
+            if (inviteLogin) runtime.session.forgetInviteLogin(inviteLogin.handle);
             const err = toError(error);
             trace.end('error', { step });
             logger.error('AUTH', `[useInviteAccept] accept failed at step=${step}`, { error: err, data: { step } });

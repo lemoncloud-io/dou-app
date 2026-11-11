@@ -75,7 +75,7 @@ jest.mock('../utils/sendInviteMessage', () => ({
 }));
 // Stubbed like ReinviteDialog: the sheet's own rendering is covered by PhoneVerifySheet.test.tsx and
 // its behaviour by PhoneVerifyScreen.test.tsx (same hook), and the real one pulls
-// @chatic/app-runtime's applySessionToken plus the Radix Sheet primitives.
+// @chatic/app-runtime's confirmPhoneLogin plus the Radix Sheet primitives.
 jest.mock('../../auth/components/PhoneVerifySheet', () => ({
     // `mode` is surfaced because it is this page's decision: a guest opens a session (`login`), a main
     // user without a number hangs one on the session they already have (`link`) — ADR-0042 §3.

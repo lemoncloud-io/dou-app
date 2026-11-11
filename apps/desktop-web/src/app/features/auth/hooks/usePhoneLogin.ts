@@ -53,8 +53,8 @@ export interface PhoneLoginOptions {
 }
 
 /**
- * Phone-number sign-in over `auth.link-account` in `login` mode: send a code, then confirm it, and the
- * confirm's `$token` becomes this device's session. Only the login side of the packet is used here —
+ * Phone-number sign-in over `auth.link-account` in `login` mode: send a code, then confirm it through
+ * `runtime.session.confirmPhoneLogin`, which makes the account this device's session and keeps its token. Only the login side of the packet is used here —
  * linking a number to an account that is already signed in is the mobile app's.
  *
  * - The server takes a login only from a device session, so sending registers the device first when
@@ -64,8 +64,9 @@ export interface PhoneLoginOptions {
  *   proves anyway, and whether the number makes a new account is answered by `confirm` alone.
  * - The proof steps send the number and country the code was sent with, pinned at send time, not
  *   whatever the field holds by then: the server needs the same pair on both.
- * - A confirmed code is spent. When the session switch after it fails, the retry re-applies the
- *   `$token` it returned and never re-checks the code.
+ * - A confirmed code is spent. When the session switch after it fails, the runtime keeps the token and
+ *   the retry (`retryPhoneLogin`) finishes the switch without re-checking the code; leaving the page
+ *   cancels it.
  *
  * The number and the code stay in the request body: nothing here logs them.
  */
@@ -86,7 +87,8 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
     const [busy, setBusy] = useState<Busy>('idle');
     const [phoneError, setPhoneError] = useState<PhoneLoginError | null>(null);
     const [codeError, setCodeError] = useState<PhoneLoginError | null>(null);
-    const [pendingToken, setPendingToken] = useState<{ token: unknown; isNew: boolean } | null>(null);
+    // A confirmed code whose session switch failed. The runtime keeps the token; `retrySwitch` finishes it.
+    const [awaitingSwitch, setAwaitingSwitch] = useState(false);
     // The value last submitted. A ref, not `busy`: a keystroke landing as the last digit goes in must
     // not race the state update into a second confirm, which would spend another of the five attempts.
     const submittedRef = useRef<string | null>(null);
@@ -198,40 +200,45 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         }
     };
 
-    const applyToken = async (token: unknown, isNew: boolean) => {
-        try {
-            await runtime.session.applySessionToken(token);
-            setPendingToken(null);
-            setBusy('idle');
-            onSignedIn({ isNew });
-        } catch (error) {
-            // Signed in on the server, not on this device: keep the token so the retry can finish it.
-            logger.error('AUTH', '[usePhoneLogin] session switch failed after the code was confirmed', { error });
-            setPendingToken({ token, isNew });
-            setCodeError('sessionSwitchFailed');
-            setBusy('idle');
-        }
+    const signedIn = (isNew: boolean) => {
+        setAwaitingSwitch(false);
+        setBusy('idle');
+        onSignedIn({ isNew });
     };
+
+    // Signed in on the server, not on this device: the runtime keeps the token so the retry can finish it.
+    const switchFailed = () => {
+        setAwaitingSwitch(true);
+        setCodeError('sessionSwitchFailed');
+        setBusy('idle');
+    };
+
+    /** The phone login's own failures, apart from a wrong code — both are told by the error's `code`. */
+    const failureOf = (error: unknown): unknown => (error as { code?: unknown } | null)?.code;
 
     const confirm = async (code: string) => {
         if (!sentWith) return;
         setBusy('confirming');
         setCodeError(null);
         try {
-            const result = await auth.confirmPhoneCode(sentWith.phone, code, {
-                mode: 'login',
+            // The check and the session switch as one step; the session token never comes back here.
+            const { isNew } = await runtime.session.confirmPhoneLogin(sentWith.phone, code, {
                 countryCode: sentWith.country,
             });
-            // A login confirm always carries a session token. Without one, applying it would quietly change
-            // nothing and the reload would land back in the guest session, so it is a contract break.
-            if (!('$token' in result) || !result.$token?.Token?.identityToken) {
+            signedIn(isNew);
+        } catch (error) {
+            if (failureOf(error) === runtime.session.PHONE_LOGIN_SWITCH_FAILED) {
+                switchFailed();
+                return;
+            }
+            // A login confirm always carries a session token. Without one the device would stay on its
+            // guest session, so it is a contract break, not a wrong code.
+            if (failureOf(error) === runtime.session.PHONE_LOGIN_NO_TOKEN) {
                 logger.error('AUTH', '[usePhoneLogin] login confirm came back without a token');
                 setCodeError('verifyFailed');
                 setBusy('idle');
                 return;
             }
-            await applyToken(result.$token, result.isNew);
-        } catch (error) {
             const status = socketErrorStatus(error);
             logger.error('AUTH', `[usePhoneLogin] confirm failed (status=${status ?? '-'})`, { error });
             setCodeError(
@@ -260,18 +267,32 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
     // still submits, and the ref keeps one value from being submitted twice.
     useEffect(() => {
         if (otp.length !== PHONE_CODE_LENGTH) return;
-        if (isExpired || pendingToken || submittedRef.current === otp) return;
+        if (isExpired || awaitingSwitch || submittedRef.current === otp) return;
         submittedRef.current = otp;
         void confirm(otp);
     }, [otp]);
 
     const retrySwitch = async () => {
-        if (!pendingToken || isBusy) return;
-        const { token, isNew } = pendingToken;
+        if (!awaitingSwitch || isBusy) return;
         setBusy('confirming');
         setCodeError(null);
-        await applyToken(token, isNew);
+        try {
+            const { isNew } = await runtime.session.retryPhoneLogin();
+            signedIn(isNew);
+        } catch (error) {
+            if (failureOf(error) === runtime.session.PHONE_LOGIN_NOTHING_PENDING) {
+                // Nothing left to finish (a newer confirm replaced it): back to the code, which a resend renews.
+                setAwaitingSwitch(false);
+                setCodeError('verifyFailed');
+                setBusy('idle');
+                return;
+            }
+            switchFailed();
+        }
     };
+
+    // A token the runtime keeps for a retry is not left behind when the page closes.
+    useEffect(() => () => runtime.session.cancelPhoneLogin(), []);
 
     return {
         phone,
@@ -289,11 +310,11 @@ export const usePhoneLogin = ({ onSignedIn }: PhoneLoginOptions) => {
         codeError: codeError ?? (isExpired ? ('codeExpired' as const) : null),
         countdown,
         resend: () => void resend(),
-        canResend: codeSent && !isBusy && !pendingToken && resendIn === 0,
+        canResend: codeSent && !isBusy && !awaitingSwitch && resendIn === 0,
         /** Seconds until Resend opens; 0 once it is open. */
         resendIn,
         busy,
-        isRetry: !!pendingToken,
+        isRetry: awaitingSwitch,
         retrySwitch: () => void retrySwitch(),
     };
 };

@@ -104,9 +104,15 @@ happened in. The profile step and how the place is found are in
 
 **An invited cloud is entered per device, whatever the relay user is.** The invite login sends the
 `delegatorId` — the device user registered on first launch, which a sign-in does not replace — and
-answers with **the invitee's own cloud token**. That answer is what the cloud is entered with
-(`switchCloud(cloudId, { inviteLogin })`), so a guest and an account the guest has since signed in to
-land on the same invitee. Re-issuing through `delegate-cloud` cannot stand in for it, and until
+answers with **the invitee's own cloud token**. That answer is what the cloud is entered with, so a
+guest and an account the guest has since signed in to land on the same invitee. The screen never holds
+it: `runInviteFlow` keeps the answer in the runtime and hands back a handle (`InviteLogin`), and
+`switchCloud(cloudId, { inviteLogin: { handle, backend, wss } })` enters with the answer the handle
+stands for. The runtime forgets the answer once the cloud is entered; a switch that failed on the
+network is retried with the same handle and enters with the same answer. A handle the runtime does not
+hold is refused (`INVITE_LOGIN_UNKNOWN`), never entered the ordinary way. The accept forgets the answer
+(`runtime.session.forgetInviteLogin`) when it will not enter with it: an owner opening their own invite,
+an invite without a cloud, an accept that failed. Re-issuing through `delegate-cloud` cannot stand in for it, and until
 2026-10 it did. That call answers for the relay user as it is now, and two server rules, measured
 against production, made that the wrong user:
 

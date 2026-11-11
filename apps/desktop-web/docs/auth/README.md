@@ -360,9 +360,11 @@ app's phone sign-in uses:
    new device; sent before the handshake ends, the first send failed and only a second press got a text.
 2. **Confirm** — typing the sixth digit confirms. There is no separate verify step: it would only say
    the code is valid, which the confirm proves anyway.
-3. **Switch** — the confirm's `$token` becomes the session, and the app reloads at `/` so the socket,
+3. **Switch** — `runtime.session.confirmPhoneLogin` confirms and makes the account the session in one
+   step, keeping the token in the runtime; the page gets `{ isNew }` and reloads at `/` so the socket,
    caches and cloud rail start over as that account (the same as a Google sign-in that replaces a
-   session).
+   session). A switch that failed after the code was spent is retried with `retryPhoneLogin`, never by
+   proving the code again.
 
 What it refuses and what it says:
 
@@ -378,8 +380,11 @@ What it refuses and what it says:
 - **Errors** are read off the socket status, never the wording: on a first send 429 is the daily cap;
   on a resend 429 is the one-minute cooldown; on the confirm 403 is a wrong code, 429 too many wrong
   codes and 400 an expired code.
-- **A switch that fails after the confirm** keeps the token and offers to finish; the retry re-applies
-  it and never spends the code again.
+- **A switch that fails after the confirm** — the runtime keeps the token and the page offers to finish
+  (`retryPhoneLogin`), never spending the code again. Leaving the page cancels it; a retry with
+  nothing left to finish goes back to the code.
+- **A confirm that comes back without a session token** shows `verifyFailed`: the device would
+  otherwise stay on its guest session.
 
 Around the form:
 

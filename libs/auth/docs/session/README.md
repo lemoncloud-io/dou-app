@@ -31,6 +31,20 @@ Each is a class with a single exported singleton; the class itself stays private
 | `secretStorageMigration` | `prepare({ vault, plain, web, afterLogout })`                                                                                                                                      |
 | `relayCredentialProbe`   | `hasSession()` · `isCredentialExpired(now?)` — a plain object, no class                                                                                                            |
 
+**No login hands a screen its token.** The app-facing logins answer with the account's fields
+(`SessionAccountView`, the token view without `Token` — `withoutToken` in
+[`accountView.ts`](../../src/session/accountView.ts)), or less: `createCredentialsByProvider` and the
+app-runtime login hooks. On the phone the session can belong to another process, and the page then
+must not hold a credential. An invite login's answer is the invitee's own cloud token, so
+`registerUserWithInviteCode` keeps it ([`inviteLogins.ts`](../../src/session/inviteLogins.ts)) and
+answers with an `InviteLogin` — a handle (with a random part, so a stale one names nothing) and the
+cloud the answer names. The cloud switch reads the answer by its handle (`readInviteLogin`) and forgets
+it once the cloud is entered, so a switch retried after a network failure enters with the same answer;
+a handle it does not hold is refused with `INVITE_LOGIN_UNKNOWN` rather than entered the ordinary way,
+which would answer for the relay user rather than the invitee. A screen that will not enter with an
+answer forgets it (`forgetInviteLogin`): the owner opening their own invite, an invite without a cloud,
+an accept that failed, desktop's accept. At most four answers wait; the oldest go first.
+
 `loginByOAuthCode` (app-facing as `createCredentialsByProvider`) has two endpoints behind it. By default
 it sends the code to `POST {oauth}/oauth/{provider}/token`, which admin reaches with no session. With
 `linkCurrentSession` it sends `{ provider, code }` to `POST {relay}/users/0/verify-oauth-code?token=1`,

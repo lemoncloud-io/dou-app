@@ -45,7 +45,7 @@ jest.mock('../hooks', () => ({
     }),
 }));
 // Stubbed like ContactInvitePage.test.tsx does: the sheet's own rendering is covered by
-// PhoneVerifySheet.test.tsx, and the real one pulls @chatic/app-runtime's applySessionToken plus the
+// PhoneVerifySheet.test.tsx, and the real one pulls @chatic/app-runtime's confirmPhoneLogin plus the
 // Radix Sheet primitives. `mode` is surfaced because it is this section's decision (ADR-0042 §3).
 jest.mock('../../auth/components/PhoneVerifySheet', () => ({
     PhoneVerifySheet: ({ mode, onVerified, onClose }: any) => (

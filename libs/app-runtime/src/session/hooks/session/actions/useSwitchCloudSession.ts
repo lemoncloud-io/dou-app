@@ -10,10 +10,14 @@ import {
     reauthenticateActiveSocket,
     createReauthDelegate,
     cloudSession,
+    INVITE_LOGIN_UNKNOWN,
+    forgetInviteLogin,
+    readInviteLogin,
     tokensFromInviteLogin,
 } from '@chatic/auth';
-import type { InviteLoginEntry } from '@chatic/auth';
+
 import { SWITCH_CLOUD_MUTATION_KEY } from '../../mutationKeys';
+import type { InviteLogin } from '@chatic/auth';
 
 /**
  * A switch onto a live background slot commits that slot's tokens as they are, without re-issuing —
@@ -47,7 +51,7 @@ interface SwitchCloudArgs {
      * The invite login this entry follows. Its answer is entered with as it is, instead of a
      * `delegate-cloud` re-issue — see `SwitchCloudOptions.issuedTokens` for why.
      */
-    inviteLogin?: InviteLoginEntry;
+    inviteLogin?: InviteLogin;
 }
 
 const renewIfLapsing = (cloudId: string): void => {
@@ -74,16 +78,33 @@ export const useSwitchCloudSession = () => {
             const hasLiveSlot = getSocketManager()
                 .getSlotKeys()
                 .some(key => key === cloudId);
-            const issuedTokens = inviteLogin ? (tokensFromInviteLogin(cloudId, inviteLogin) ?? undefined) : undefined;
+            // A handle this runtime does not hold is refused, not entered the ordinary way: a re-issue
+            // answers for the relay user as it is now, which after a sign-in is not the invitee the
+            // invite was accepted as. Only an answer that is held but cannot be entered with falls back.
+            const answer = inviteLogin ? readInviteLogin(inviteLogin.handle) : null;
+            if (inviteLogin && !answer) {
+                throw Object.assign(new Error('The invite login this switch names is not held by the runtime'), {
+                    code: INVITE_LOGIN_UNKNOWN,
+                });
+            }
+            const issuedTokens = answer
+                ? (tokensFromInviteLogin(cloudId, {
+                      cloudToken: answer,
+                      backend: inviteLogin?.backend,
+                      wss: inviteLogin?.wss,
+                  }) ?? undefined)
+                : undefined;
             if (inviteLogin && !issuedTokens) {
                 logger.warn('SESSION', '[useSwitchCloudSession] invite login answer not enterable; re-issuing', {
                     data: { cloudId },
                 });
             }
-            const snapshot = await cloudSession.switchTo(cloudId, { hasLiveSlot, issuedTokens });
+            await cloudSession.switchTo(cloudId, { hasLiveSlot, issuedTokens });
+            // In: the answer is the session's now. Forgotten only here, so a switch that failed is
+            // retried with the same handle and enters with the same answer.
+            if (inviteLogin) forgetInviteLogin(inviteLogin.handle);
             if (hasLiveSlot && issuedTokens) await reregisterSlot(cloudId);
             else if (hasLiveSlot) renewIfLapsing(cloudId);
-            return snapshot;
         },
     });
 
@@ -94,13 +115,14 @@ export const useSwitchCloudSession = () => {
 
     return {
         switchCloud: useCallback(
-            async (cloudId: string, options?: { inviteLogin?: InviteLoginEntry }) => {
+            async (cloudId: string, options?: { inviteLogin?: InviteLogin }): Promise<void> => {
                 const trace = startPerfTrace('cloud_switch');
                 try {
-                    const snapshot = await mutateAsync({ cloudId, inviteLogin: options?.inviteLogin });
+                    // Resolves with nothing: what the switch committed is the session's, and the session
+                    // readers show it. Its snapshot carries the cloud's token, which a screen must not hold.
+                    await mutateAsync({ cloudId, inviteLogin: options?.inviteLogin });
                     trace.putAttribute('outcome', 'ok');
                     trace.stop();
-                    return snapshot;
                 } catch (error) {
                     // Recorded rather than skipped: a switch slow enough to fail belongs in the
                     // distribution, and dropping failures biases it optimistic.

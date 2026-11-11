@@ -5,6 +5,7 @@ import { configurePerfTraces, resetPerfTraces } from '@chatic/perf';
 import type { InviteContext } from '../types';
 
 const mockRunInviteFlow = jest.fn();
+const mockForgetInviteLogin = jest.fn();
 const mockEnterCloud = jest.fn();
 const mockEnterSite = jest.fn();
 const mockEnterChannel = jest.fn();
@@ -42,6 +43,7 @@ jest.mock('@chatic/app-runtime', () => ({
         },
         session: {
             useInviteFlow: () => ({ runInviteFlow: mockRunInviteFlow, isInviting: false }),
+            forgetInviteLogin: (...args: unknown[]) => mockForgetInviteLogin(...args),
             // Only the first block sets an identity; the others run without a guest.
             useSessionIdentity: () => mockUseSessionIdentity() ?? {},
         },
@@ -91,14 +93,14 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
     });
 
     it('logs in, enters the cloud with the login answer, then caches it, enters the place and the room', async () => {
-        const inviteToken = { id: 'invitee-1', Token: { identityToken: 'idt' } };
-        mockRunInviteFlow.mockResolvedValue(inviteToken);
+        const inviteLogin = { handle: 'invite-login-1', cloudId: null };
+        mockRunInviteFlow.mockResolvedValue(inviteLogin);
         const context = ctx();
 
         const result = await runAccept(context);
 
         expect(mockRunInviteFlow).toHaveBeenCalledWith({ code: 'invt:1:abc', backend: 'https://cloud.example' });
-        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, inviteToken);
+        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, inviteLogin);
         expect(mockCacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'cloud-1', cloudType: 'invited' }));
         expect(mockEnterSite).toHaveBeenCalled();
         expect(mockEnterChannel).toHaveBeenCalled();
@@ -110,15 +112,27 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
     });
 
     it('enters a cloud the account owns as the owner, not with the invitee token, and still caches it', async () => {
-        mockRunInviteFlow.mockResolvedValue({ id: 'invitee-1', Token: { identityToken: 'idt' } });
+        mockRunInviteFlow.mockResolvedValue({ handle: 'invite-login-1', cloudId: null });
         mockOwnedClouds.mockReturnValue([{ id: 'cloud-1' }]);
         const context = ctx();
 
         await runAccept(context);
 
-        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, undefined);
+        expect(mockEnterCloud).toHaveBeenCalledWith(context.info);
+        // Not entered with: the runtime need not keep the invitee's token.
+        expect(mockForgetInviteLogin).toHaveBeenCalledWith('invite-login-1');
         expect(mockCacheWrite).toHaveBeenCalledWith(expect.objectContaining({ id: 'cloud-1', cloudType: 'invited' }));
         expect(mockEnterChannel).toHaveBeenCalled();
+    });
+
+    it('lets the runtime forget the invite answer when the accept fails after the login', async () => {
+        mockRunInviteFlow.mockResolvedValue({ handle: 'invite-login-1', cloudId: null });
+        mockEnterCloud.mockRejectedValueOnce(new Error('500 SERVER ERROR'));
+        const context = ctx();
+
+        await runAccept(context);
+
+        expect(mockForgetInviteLogin).toHaveBeenCalledWith('invite-login-1');
     });
 
     it('checks ownership against the catalog as it is when the cloud is entered, not when Accept was pressed', async () => {
@@ -135,22 +149,22 @@ describe('useInviteAccept — 초대 수락 흐름', () => {
         mockOwnedClouds.mockReturnValue([{ id: 'cloud-1' }]);
         rerender();
         await act(async () => {
-            finishLogin({ id: 'invitee-1', Token: { identityToken: 'idt' } });
+            finishLogin({ handle: 'invite-login-1', cloudId: null });
             await accepting;
         });
 
-        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, undefined);
+        expect(mockEnterCloud).toHaveBeenCalledWith(context.info);
     });
 
-    it('still enters with the invitee token when the account owns some other cloud', async () => {
-        const inviteToken = { id: 'invitee-1', Token: { identityToken: 'idt' } };
-        mockRunInviteFlow.mockResolvedValue(inviteToken);
+    it("still enters with the invitee's answer when the account owns some other cloud", async () => {
+        const inviteLogin = { handle: 'invite-login-1', cloudId: null };
+        mockRunInviteFlow.mockResolvedValue(inviteLogin);
         mockOwnedClouds.mockReturnValue([{ id: 'cloud-9' }]);
         const context = ctx();
 
         await runAccept(context);
 
-        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, inviteToken);
+        expect(mockEnterCloud).toHaveBeenCalledWith(context.info, inviteLogin);
     });
 
     it('backend도 relay 마커도 없으면 missingServerInfo 토스트를 띄우고 login을 시도하지 않는다', async () => {

@@ -60,7 +60,7 @@ export const LoginPage = () => {
      *
      * The old implementation rewound the whole history stack and did a full-page
      * `location.replace('/')`. Neither is needed: both sign-in paths install the new identity before
-     * this runs (phone via `applySessionToken`, social via `loginRelaySocial` or, for the virtual
+     * this runs (phone via `confirmPhoneLogin`, social via `loginRelaySocial` or, for the virtual
      * shell's relay code, `createCredentialsByProvider`), so a reload fixes nothing and only costs a
      * white flash.
      */
@@ -318,7 +318,7 @@ export const LoginPage = () => {
             </div>
 
             {/* `login`: this is a device session proving a number to become that number's main user, so
-                a `$token` comes back and `usePhoneVerify` installs it before `onVerified` fires. */}
+                the runtime switches the session to it (`confirmPhoneLogin`) before `onVerified` fires. */}
             {isPhoneOpen && (
                 <PhoneVerifySheet mode="login" onVerified={leaveForReturnTo} onClose={() => setIsPhoneOpen(false)} />
             )}

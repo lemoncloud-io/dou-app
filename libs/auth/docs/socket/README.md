@@ -13,8 +13,8 @@ per-cloud token cache, and `cloudStore.getCloudTokenOf(cid)` answers for either.
 slot for a cloud the user is not looking at seed, sign, refresh and renew on its own (ADR-0117).
 
 It is spread over two folders of this package and one of runtime-core, and the split follows
-dependency direction rather than subject: `socket/` holds the wiring and the policy (19 source files,
-17 tests), `session/` holds the material it reads and writes ([docs/session/](../session/README.md)),
+dependency direction rather than subject: `socket/` holds the wiring and the policy (20 source files,
+18 tests), `session/` holds the material it reads and writes ([docs/session/](../session/README.md)),
 and the two guards that _trigger_ renewal are runtime-core classes in its `session/`, which an app
 starts through app-runtime's hooks
 ([runtime-core's session doc](../../../runtime-core/docs/session/README.md#the-credential-guards)). The renewers live
@@ -213,11 +213,21 @@ cloud change does. Otherwise the selection keeps naming a place the socket has l
 `switchSite` into that place returns early as a no-op while every site-scoped call lands on the
 default site.
 
-[`applySessionToken($token, options?)`](../../src/socket/applySessionToken.ts) is the one
-app-facing entry to this path, used by phone verification: it commits the token view, re-authenticates
-the relay slot, and waits up to 10s for `auth.ready()`, then asserts `auth.token` actually became the
-new identity token. It **throws** when `$token.$auth.id` is missing, because relay registration is
-impossible without it and failing at the source beats failing on every later refresh.
+[`applySessionToken($token, options?)`](../../src/socket/applySessionToken.ts) commits a token view,
+re-authenticates the relay slot, and waits up to 10s for `auth.ready()`, then asserts `auth.token`
+actually became the new identity token. It **throws** when `$token.$auth.id` is missing, because relay
+registration is impossible without it and failing at the source beats failing on every later refresh.
+It is no longer app-facing: a screen must not hold the token it takes.
+
+[`phoneLogin.ts`](../../src/socket/phoneLogin.ts) is the app-facing phone login built on it.
+`confirmPhoneLogin(phone, code, { countryCode })` proves the code in login mode and applies the
+`$token` the confirm answers with, answering only `{ isNew }`. It throws what the check throws (the
+socket error's status tells a wrong, spent or expired code), `PHONE_LOGIN_NO_TOKEN` when the confirm
+carried no session token, and `PHONE_LOGIN_SWITCH_FAILED` when the switch failed — the token is then
+kept here, and `retryPhoneLogin()` re-runs the switch without proving the spent code again. One login
+waits at a time: a new confirm replaces it, and `cancelPhoneLogin()` drops it — the phone screens call
+it when they close. A retry with nothing waiting throws `PHONE_LOGIN_NOTHING_PENDING`, and the screen
+goes back to the code.
 
 ## Renewal: two strategies, one renewer per server
 

@@ -10,9 +10,11 @@ interface InviteFlowArgs {
 }
 
 /**
- * Logs in with an invite code using the stored delegatorId (saved during guest login) and returns
- * the resulting token view. This hook only authenticates — cloud/site entry is performed by the
- * consumer from the returned token (cloudId/siteId), keeping the login and navigation steps decoupled.
+ * Logs in with an invite code using the stored delegatorId (saved during guest login). The answer is
+ * the invitee's own cloud token, which the runtime keeps: this answers with an `InviteLogin` — a handle
+ * and the cloud the answer names. This hook only authenticates — the consumer enters the cloud with
+ * `switchCloud(cloudId, { inviteLogin })`, or forgets the handle when it will not
+ * (`runtime.session.forgetInviteLogin`), keeping the login and navigation steps decoupled.
  */
 export const useInviteFlow = () => {
     const { delegatorId } = useSessionIdentity();

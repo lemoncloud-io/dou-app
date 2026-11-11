@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 
 const mockSwitchCloud = jest.fn();
+const mockForgetInviteLogin = jest.fn();
 let mockSelectedCloudId: string | null = null;
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -8,6 +9,7 @@ jest.mock('@chatic/app-runtime', () => ({
         session: {
             useSwitchCloudSession: () => ({ switchCloud: mockSwitchCloud, isPending: false }),
             useSessionSelection: () => ({ selectedCloudId: mockSelectedCloudId }),
+            forgetInviteLogin: (...args: unknown[]) => mockForgetInviteLogin(...args),
         },
     },
 }));
@@ -15,7 +17,7 @@ jest.mock('@chatic/app-runtime', () => ({
 const { useEnterInvitedCloud } = require('./useEnterInvitedCloud');
 
 const info = { cloudId: 'cloud-1', $envs: { backend: 'https://cloud.example', wss: 'wss://cloud.example' } };
-const inviteToken = { id: 'invitee-1', Token: { identityToken: 'idt' } };
+const inviteLogin = { handle: 'invite-login-1', cloudId: 'aws-1' };
 
 const enter = async (...args: unknown[]) => {
     const { result } = renderHook(() => useEnterInvitedCloud());
@@ -31,18 +33,23 @@ describe('useEnterInvitedCloud', () => {
         mockSwitchCloud.mockResolvedValue({ cloudId: 'cloud-1' });
     });
 
-    it('enters with the invite login answer and the invite endpoints', async () => {
-        await enter(info, inviteToken);
+    it("enters with the invite login's handle and the invite endpoints — never a token", async () => {
+        await enter(info, inviteLogin);
 
         expect(mockSwitchCloud).toHaveBeenCalledWith('cloud-1', {
-            inviteLogin: { cloudToken: inviteToken, backend: 'https://cloud.example', wss: 'wss://cloud.example' },
+            inviteLogin: {
+                handle: 'invite-login-1',
+                cloudId: 'aws-1',
+                backend: 'https://cloud.example',
+                wss: 'wss://cloud.example',
+            },
         });
     });
 
     it('still enters a cloud that is already selected when it has an invite answer', async () => {
         mockSelectedCloudId = 'cloud-1';
 
-        await enter(info, inviteToken);
+        await enter(info, inviteLogin);
 
         expect(mockSwitchCloud).toHaveBeenCalledTimes(1);
     });
@@ -55,10 +62,11 @@ describe('useEnterInvitedCloud', () => {
         expect(mockSwitchCloud).not.toHaveBeenCalled();
     });
 
-    it('does nothing for an invite without a cloud', async () => {
-        await enter({}, inviteToken);
+    it('enters nothing for an invite without a cloud, and lets the runtime forget the answer', async () => {
+        await enter({}, inviteLogin);
 
         expect(mockSwitchCloud).not.toHaveBeenCalled();
+        expect(mockForgetInviteLogin).toHaveBeenCalledWith('invite-login-1');
     });
 
     it('retries a switch that got no HTTP answer', async () => {

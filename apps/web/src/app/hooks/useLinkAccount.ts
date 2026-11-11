@@ -20,9 +20,10 @@ export type LinkAccountSendOptions = Omit<PhoneCodeSendOptions, 'mode'> & { mode
  * calls and the two modes carried as an argument.
  *
  * **The request declares intent, not the response.** `mode: 'login'` promotes a device user and comes
- * back with a `$token` that the caller must install (`applySessionToken`) before issuing or accepting
- * anything, or those calls return 403. `mode: 'link'` hangs one more credential on the session that is
- * already a main user and returns no token at all. Callers pick the mode from the session role
+ * back with a `$token` — so a login proof does not confirm here: `runtime.session.confirmPhoneLogin`
+ * confirms it and installs the token, which the screen never sees. This hook's `confirm` takes `link`
+ * only: it hangs one more credential on the session that is already a main user and returns no token
+ * at all. Callers pick the mode from the session role
  * (`isGuest`), which is what keeps the two mismatch errors (main user + login = 400, device + link =
  * 403) out of reach.
  *
@@ -73,8 +74,12 @@ export const useLinkAccount = () => {
             sendMutation.mutateAsync({ phone, opts }),
         verify: (phone: string, otp: string, args: PhoneCodeProveArgs): Promise<PhoneCodeVerifyResult> =>
             verifyMutation.mutateAsync({ phone, otp, ...args }),
-        confirm: (phone: string, otp: string, args: PhoneCodeProveArgs): Promise<PhoneCodeConfirmResult> =>
-            confirmMutation.mutateAsync({ phone, otp, ...args }),
+        // `link` only: a login confirm answers with a session token, which the runtime keeps.
+        confirm: (
+            phone: string,
+            otp: string,
+            args: PhoneCodeProveArgs & { mode: 'link' }
+        ): Promise<PhoneCodeConfirmResult> => confirmMutation.mutateAsync({ phone, otp, ...args }),
         verifySocial: (tokens: SocialAccountTokens): Promise<LinkVerifiedView> =>
             verifySocialMutation.mutateAsync(tokens),
         confirmSocial: (tokens: SocialAccountTokens): Promise<LinkedView> => confirmSocialMutation.mutateAsync(tokens),

@@ -33,14 +33,17 @@ Every hit should be a `runtime.session.*` or `runtime.data.*` call.
    behaviour.
 2. **The request declares the intent.** `mode` (`'login'` | `'link'`) is derived from the session
    role by the caller and passed in. Nothing reads a response to work out what just happened.
-3. **A session switch completes before the caller is told.** `applySessionToken` installs a new
-   identity into the session store _and_ the live relay socket before `onVerified` fires, so the next
-   call does not 403 on a stale identity.
-4. **Errors branch on status codes.** `getSocketErrorCode` is the only input; a server message is not
+3. **A session switch completes before the caller is told.** `runtime.session.confirmPhoneLogin`
+   installs the new identity into the session store _and_ the live relay socket before `onVerified`
+   fires, so the next call does not 403 on a stale identity.
+4. **The screen never holds a session token.** A login command answers with what the screen needs —
+   `{ isNew }`, the account's fields, an invite login's handle — and the token stays in the runtime.
+   On the phone the session can belong to another process, and the page then must not hold one.
+5. **Errors branch on status codes.** `getSocketErrorCode` is the only input; a server message is not
    a contract. Log the raw failure anyway — most of these codes cover more than one condition.
-5. **Credentials live in the request body.** Numbers, codes, OTPs and invite codes never reach a log
+6. **Credentials live in the request body.** Numbers, codes, OTPs and invite codes never reach a log
    line, a URL, a cache key or a query key.
-6. **Login is an interruption, not a destination.** A user sent to login is in the middle of
+7. **Login is an interruption, not a destination.** A user sent to login is in the middle of
    something; finishing returns them to it. One hook enforces that, and a test over the source tree
    enforces the hook.
 
@@ -177,7 +180,7 @@ where they came from, because the history was never rewound.
 ### 5. A guest proves a number
 
 Covered in full by [phone-verification.md](./phone-verification.md): the send, the pinned country,
-the confirm, and the two guards around installing the returned `$token`.
+the confirm, and the two guards around the session switch the runtime makes with the token it keeps.
 
 ## Documents
 
