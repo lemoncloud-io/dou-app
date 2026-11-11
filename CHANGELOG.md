@@ -2,6 +2,12 @@
 
 ## [2026-11-11] - No version updates
 
+### Bug Fixes
+
+- (web,runtime-core) match invited clouds by the guest id too, not the relay uid alone
+
+## [2026-11-11] - No version updates
+
 ### Refactor
 
 - (auth,app-runtime,web,desktop-web) keep session tokens out of the screens' hands
