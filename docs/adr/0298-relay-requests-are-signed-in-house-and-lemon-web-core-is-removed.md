@@ -1,6 +1,6 @@
 # ADR-0298: Relay requests are signed in-house, and lemon-web-core is removed
 
-> Status: Accepted · Decided: 2026-11-09 · Implemented: `feat/request-signer`
+> Status: Accepted · Decided: 2026-11-09 · Implemented: `feat/desktop-web-storage-ports` (its second commit)
 > · Scope: `libs/http` (`signing/sigV4.ts`, `transport/requestTransport.ts`, `adapters/requestExecutor.ts`),
 > `libs/transport` (`http/transport.ts`), `libs/auth` (`relaySession`, `sessionAuthAdapter`,
 > `storage/lemonLeftovers.util.ts`), `libs/app-runtime` (`boot` group), `apps/desktop-web` (auth hooks),
