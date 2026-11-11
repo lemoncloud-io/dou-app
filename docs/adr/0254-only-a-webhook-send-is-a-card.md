@@ -1,4 +1,4 @@
-# ADR-0253: Only a webhook send is a card, and its sender is drawn as a bot
+# ADR-0254: Only a webhook send is a card, and its sender is drawn as a bot
 
 > Status: Accepted · Decided: 2026-10-30 · Implemented: `feat/webhook-card-gating`
 > · Scope: `libs/block-kit/src/resolveChatBlocks.ts` · `libs/data/src/domain/chatSender.ts` ·
