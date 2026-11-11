@@ -198,10 +198,10 @@ adopt it and record a duration that started at an old tap.
 
 The sync for a room entry is one of two fetches:
 
-| Room | Fetch                                                                       | `cache` |
-| ---- | --------------------------------------------------------------------------- | ------- |
-| cold | `usePrimeChat` (`libs/app-runtime`, `useSyncTarget.ts`) — the first page    | `miss`  |
-| warm | `useForegroundChatRefresh` (`features/channels/hooks/`) — the entry refresh | `hit`   |
+| Room | Fetch                                                                        | `cache` |
+| ---- | ---------------------------------------------------------------------------- | ------- |
+| cold | `primeChatRoom` (`libs/runtime-core`), run by `useChatSync` — the first page | `miss`  |
+| warm | `useForegroundChatRefresh` (`features/channels/hooks/`) — the entry refresh  | `hit`   |
 
 On a warm entry whose channel record is already ahead of the cache, `useChannelHeadRefresh` asks for
 the same page and may start it before the entry refresh's cache read returns. It goes through

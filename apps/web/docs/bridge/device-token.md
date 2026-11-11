@@ -3,7 +3,7 @@
 A push can only reach this install once its device token is registered with the broker. The token
 itself is native property: only the shell can ask FCM or APNs for one. This document covers the two
 files in `apps/web` that bridge that gap, and nothing else — **the registration policy is not the
-app's**, it belongs to [`@chatic/app-runtime`](../../../../libs/app-runtime/docs/push/README.md)
+app's**, it belongs to [`@chatic/runtime-core`](../../../../libs/runtime-core/docs/push/README.md)
 and is canonical there.
 
 ## Layout
@@ -61,7 +61,7 @@ Four fields, and each one is a decision:
 - **`stage` is deliberately absent.** A mobile build carries its stage in the flavour's
   `google-services.json`, so the broker's default is the right project. Desktop is the shell where
   omitting it is a bug — the contract for that is in the
-  [app-runtime push doc](../../../../libs/app-runtime/docs/push/README.md).
+  [runtime-core push doc](../../../../libs/runtime-core/docs/push/README.md).
 
 `installId` is not passed either. The runtime resolves device identity itself through
 `useDynamicDeviceId`, the same source the socket side uses, so passing a second one from here would
@@ -101,19 +101,20 @@ that a zero-argument host cannot supply.
 
 ## Notes for implementers
 
-- `POST /users/0/reg-dev` is built by `libs/http`'s `users` gateway and reached through the
-  runtime's mutation. The app never calls it directly — the debug screen's check is the one
-  exception, and it goes through the same runtime mutation so that it confirms the record
-  production actually writes.
+- `POST /users/0/reg-dev` is built by `libs/http`'s `users` gateway, and production reaches it from
+  runtime-core's `PushRegistration`, which calls the gateway directly. The app never calls it
+  itself — the debug screen's check is the one exception, and it calls the same gateway method
+  through `runtime.push.useRegisterDeviceTokenMutation()`, so it confirms the record production
+  actually writes.
 - **There is no read-only "is my device registered" endpoint.** Confirming registration means an
   idempotent re-register and reading `User.endpoint` / `registeredAt` off the response, which can
   update server state. That is what the debug overlay's Push screen does.
 - A delegate whose identity changes every render will not re-subscribe to token changes; the runtime
-  reads `subscribeTokenChange` once on mount.
+  reads `subscribeTokenChange` once, when the registration starts.
 
 ## Further reading
 
-- [app-runtime push](../../../../libs/app-runtime/docs/push/README.md) — the registration policy,
+- [runtime-core push](../../../../libs/runtime-core/docs/push/README.md) — the registration policy,
   the record's two tiers, the triggers, and the endpoint-recovery trade it accepts
 - [notifications](./push-navigation.md) — what happens to a push once it arrives
 - [debug](../feature/debug/README.md) — the overlay screen that checks registration on a real device

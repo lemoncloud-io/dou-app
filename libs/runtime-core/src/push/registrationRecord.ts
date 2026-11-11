@@ -62,14 +62,14 @@ const parseEntry = (raw: string | null): RegistrationEntry | null => {
 };
 
 /**
- * The "this device already registered" record, persisted across launches (ADR-0077).
+ * The "this device already registered" record, persisted across launches.
  *
  * Registration used to run on every launch and every foreground return, always forced. That was a
  * deliberate choice — SNS disables a platform endpoint after a single failed delivery and
  * `CreatePlatformEndpoint` does not revive it, so re-registering was the only client-side recovery.
- * ADR-0077 traded that recovery away for call volume: the record makes registration happen once per
- * install, and the endpoint-recovery paths that remain are listed in
- * `docs/specs/push-device-registration.md` (S8).
+ * Registering once per install traded that recovery away for call volume. A dead endpoint now comes
+ * back only when something else changes: the shell rotates the token, the app is reinstalled, or
+ * `POLICY_VERSION` below is bumped.
  *
  * The record stores the TOKEN, not a boolean, so a rotated token still re-registers — the skip is
  * "nothing changed", never "we already did this once".
@@ -87,8 +87,8 @@ export class PushRegistrationRecord {
     /**
      * Bump to make every device re-register exactly once.
      *
-     * This is the only broad recovery lever the app has: ADR-0077 shipped without a remote kill
-     * switch, so a version bump plus a web deploy is how a bad registration state is swept.
+     * This is the only broad recovery lever the app has: there is no remote kill switch, so a version
+     * bump plus a web deploy is how a bad registration state is swept.
      */
     private static readonly POLICY_VERSION = 'v1';
 

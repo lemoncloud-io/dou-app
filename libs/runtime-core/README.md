@@ -18,7 +18,9 @@ libs/runtime-core/src/
 ├── storage/            the runtime's own `device` store (the sync cursor watermark)
 ├── data/               the repository graph — see docs/data/
 ├── connection/         the connection controller: session → socket slots — see docs/connection/
-└── session/            the session controller, the two credential guards and the foreground port — see docs/session/
+├── session/            the session controller, the two credential guards and the foreground port — see docs/session/
+├── push/               push device-token registration — see docs/push/
+└── sync/               primeChatRoom — a chat room's baseline and first page (app-runtime docs/sync/)
 ```
 
 Apps do not import this package — the root lint refuses it, as it refuses the core packages. They boot it through `@chatic/app-runtime`'s `initAppRuntime`,

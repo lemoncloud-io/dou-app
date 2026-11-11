@@ -204,7 +204,7 @@ libs/app-runtime/src/
 ├── session/          35 files — the React surface (34 under hooks/) and the `session` group; the use cases are @chatic/auth
 ├── socket/           2 files — the `sync` group and its hooks; the manager is @chatic/transport, sync and socket auth are their own packages
 ├── data/             the `data` group and its hooks; the graph itself is @chatic/runtime-core's
-├── push/             3 files — device-token registration and its record
+├── push/             2 files — the hook that starts runtime-core's `PushRegistration`, and the `push` group
 ├── report/           5 files — user issue report + log-batch upload
 ├── storage/          1 file — resolveStorageStores (an app's stores, chosen once)
 └── utils/            1 file — isNativeApp
@@ -417,7 +417,7 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 | [docs/sync/](./docs/sync/README.md)                            | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                                                                             |
 | [docs/data/](./docs/data/README.md)                            | The hooks over the repository graph — the graph itself is [runtime-core docs/data/](../runtime-core/docs/data/README.md)                                                                 |
 | [runtime-web docs/cache/](../runtime-web/docs/cache/README.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it                                                       |
-| [docs/push/](./docs/push/README.md)                            | Device-token registration — the delegate contract, the once-per-install record, the triggers                                                                                             |
+| [docs/push/](./docs/push/README.md)                            | The hook that starts device-token registration — the policy is [runtime-core docs/push/](../runtime-core/docs/push/README.md)                                                            |
 
 The socket manager and the HTTP manager are documented with `@chatic/transport`:
 [transport docs/socket/](../transport/docs/socket/README.md) and [transport docs/http/](../transport/docs/http/README.md).

@@ -15,9 +15,10 @@ const APPLICATION = 'chatic';
 const DEFAULT_PLATFORM = 'desktop';
 
 /**
- * Bridge-side adapter for app-runtime's push registration.
+ * Bridge-side adapter for the runtime's push registration.
  *
- * Registration policy (auth gating, once-per-install dedup, retry) lives in app-runtime — this file
+ * Registration policy (auth gating, once-per-install dedup, retry) lives in runtime-core's
+ * `PushRegistration`, started through `runtime.push` — this file
  * only supplies the shell-specific pieces. It used to carry a second copy of that policy; ADR-0077
  * folded desktop onto the shared hook so both shells register the same way.
  *

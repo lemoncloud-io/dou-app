@@ -30,11 +30,12 @@ const nativeRecordMirror: runtime.push.DeviceTokenDelegate['nativeRecordMirror']
 };
 
 /**
- * Bridge-side adapter for app-runtime's push registration.
+ * Bridge-side adapter for the runtime's push registration.
  *
  * Only the native app shell can resolve an FCM token, so this wires
  * `appBridge.fetchFcmToken()` into the runtime's runtime.push.DeviceTokenDelegate. All
- * registration policy (auth gating, once-per-install dedup, retry) lives in app-runtime — this file
+ * registration policy (auth gating, once-per-install dedup, retry) lives in runtime-core's
+ * `PushRegistration`, started through `runtime.push` — this file
  * only supplies the shell-specific pieces: the token fetch, the window-injected platform identifier,
  * and the native mirror for the registration record. Device identity (deviceId / firebase
  * installation id) is resolved inside the runtime via useDynamicDeviceId, the single source shared
