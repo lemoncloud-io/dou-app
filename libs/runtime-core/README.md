@@ -69,6 +69,15 @@ flowchart TD
 An adapter is not banned React Native by its layer: the native adapter will be made of React Native
 modules, so that is its platform tag's decision.
 
+**No page in the core packages either.** session, transport, sync and auth compile without the DOM's
+types, as this package does (Node's stay, for timers, `URL` and `TextEncoder`), and a root lint block
+refuses the page's globals — `window`, `document`, `navigator`, `location`, `indexedDB`, `WebSocket`,
+`XMLHttpRequest` and the rest of `PAGE_GLOBALS` in `eslint.config.mjs` — in all five, data included.
+`@chatic/data` still compiles with the DOM's types: its IndexedDB port is declared in them, until the
+IndexedDB assembly moves out of the core. The compiler catches the names only a page has; names React
+Native also declares (`WebSocket`, `XMLHttpRequest`, `File`, `fetch`) arrive through
+`@chatic/bridge-messages` and type-check, so for those the lint list is the check.
+
 Not enforced yet, because today's code still does it: the core packages import `@chatic/storage` and
 `@chatic/http`, `@chatic/app-runtime` imports the core packages directly, and an app may import an
 adapter from any file rather than its entry point. Each goes when the code it describes moves.

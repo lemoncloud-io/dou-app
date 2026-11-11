@@ -33,6 +33,7 @@ makes no difference.
 6. **Server payload, server view and local domain model are not assumed to share a shape.** Where the responsibility boundary differs, the type is separate.
 7. **This lib does not choose a cache adapter.** Which domain uses IndexedDB, native SQLite or the tab's sessionStorage is decided by `resolveCacheBackend` in `libs/app-runtime`.
 8. **This lib does not import `@chatic/bridges`.** Its eslint config refuses the package, type-only imports included, and `logger` comes from `@chatic/logger`. Repositories and their storage ports have to be able to run in a runtime with no WebView bridge; a storage adapter that does talk to the bridge is handed in through a port by whoever assembles the graph, as principle 7 already has it.
+9. **This lib reads no page.** The root lint refuses the page's globals here (`window`, `navigator`, `indexedDB`, `XMLHttpRequest`, …), because the data layer runs in the native process too. The page's own upload, `xhrPut`, lives in `@chatic/runtime-web` as an implementation of this lib's `PutPort`. Unlike session, transport, sync and auth, this lib still compiles with the DOM's types: its IndexedDB port is declared in them (`local/ports/indexeddb.ts`), until the IndexedDB assembly moves out of the core.
 
 ## Scope
 

@@ -6,10 +6,11 @@ that are true of a page and of nothing else — the page's stores, its `navigato
 socket opened by the page — and hand them to the runtime as a
 [`RuntimePorts`](../runtime-core/README.md).
 
-| Export                | Fills                    | With                                                                                                                                               |
-| --------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `webTransportPorts()` | `RuntimePorts.transport` | `navigator.onLine` and the window's online/offline events; `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`; `new WebSocket(url, protocols)` |
-| `webAuthPorts()`      | `RuntimePorts.auth`      | `location.search`; `location.replace('/?<params>')` at the end of a session                                                                        |
+| Export                     | Fills                                                 | With                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `webTransportPorts()`      | `RuntimePorts.transport`                              | `navigator.onLine` and the window's online/offline events; `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`; `new WebSocket(url, protocols)` |
+| `webAuthPorts()`           | `RuntimePorts.auth`                                   | `location.search`; `location.replace('/?<params>')` at the end of a session                                                                        |
+| `xhrPut`, `createXhrPut()` | `@chatic/data`'s `PutPort`, handed to `useSendImages` | the page's own `XMLHttpRequest` PUT — the browser's and the desktop app's sender, and the phone app's for a page file                              |
 
 The four apps that boot the runtime — web, desktop-web, admin and the landing site — pass it to
 `initAppRuntime({ transport, auth })` from their entry point. The session's storage is not here: each app

@@ -27,7 +27,8 @@ const toast = vi.fn();
 vi.mock('@chatic/ui-kit/components/ui/use-toast', () => ({ toast: (arg: unknown) => toast(arg) }));
 vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 
-import { xhrPut, type DomainChat } from '@chatic/data';
+import { type DomainChat } from '@chatic/data';
+import { xhrPut } from '@chatic/runtime-web';
 
 import { useComposerSend } from './useComposerSend';
 

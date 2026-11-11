@@ -249,6 +249,33 @@ const STORAGE_GLOBALS = [
     { name: 'sessionStorage', message: STORAGE_MESSAGE },
 ];
 
+/**
+ * The core packages — session, transport, sync, auth, data — run in the native process as well as in a
+ * page, so none of them may read a page's globals: what the platform answers comes in through a port
+ * the platform's adapter fills (`@chatic/runtime-web` in a page). Four of them also compile without
+ * the DOM's types; `@chatic/data` still declares its IndexedDB port in IndexedDB's own types, so for
+ * it this list is the only check. Listed by name, because `no-restricted-globals` has no "everything
+ * a page has"; these are the ones a runtime is tempted by.
+ */
+const CORE_LIB_SOURCES = ['session', 'transport', 'sync', 'auth', 'data'].map(name => `libs/${name}/src/**/*.ts`);
+
+const PAGE_GLOBAL_MESSAGE =
+    'The core packages run outside a page too. Take what the platform answers through a port its adapter fills — see libs/runtime-core/README.md.';
+
+const PAGE_GLOBALS = [
+    'window',
+    'self',
+    'document',
+    'navigator',
+    'location',
+    'history',
+    'indexedDB',
+    'WebSocket',
+    'XMLHttpRequest',
+    'alert',
+    'confirm',
+].map(name => ({ name, message: PAGE_GLOBAL_MESSAGE }));
+
 const STORAGE_PROPERTIES = [
     { object: 'window', property: 'localStorage', message: STORAGE_MESSAGE },
     { object: 'window', property: 'sessionStorage', message: STORAGE_MESSAGE },
@@ -469,6 +496,16 @@ export default [
             'no-restricted-globals': ['error', ...STORAGE_GLOBALS],
             'no-restricted-properties': ['error', ...STORAGE_PROPERTIES],
             'no-restricted-syntax': ['error', PERSIST_WITHOUT_STORAGE],
+        },
+    },
+    {
+        // Page globals in the core packages — see `PAGE_GLOBALS`. After the web-storage ban and carrying
+        // its list too: a later block that sets the same rule replaces its options for these files.
+        basePath: REPO_ROOT,
+        files: CORE_LIB_SOURCES,
+        ignores: WEB_STORAGE_BAN_SCOPE.ignores,
+        rules: {
+            'no-restricted-globals': ['error', ...STORAGE_GLOBALS, ...PAGE_GLOBALS],
         },
     },
     {

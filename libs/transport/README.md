@@ -82,6 +82,10 @@ failure reporter, the error-code ledger and `annotateSocketError`.
     port; outside a page it answers "not offline" and only loses that attribution. Tests configure
     `fakeTransportPorts()` from `testing/platform.ts` (a test may name that file by path).
 
+7. **Nothing here reads a page.** The package compiles without the DOM's types (`lib: ["es2022"]` in
+   `tsconfig.lib.json`) and the root lint refuses the page's globals, because it runs in the native
+   process too; what the platform answers comes through rule 6's ports.
+
 ## Documents
 
 | Doc                                     | Covers                                                                                                                                             |

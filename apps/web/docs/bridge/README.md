@@ -56,7 +56,7 @@ registry behind it: `getShellPut()` returns the native sender inside the app and
 `xhrPut` in a browser, and `syncShellTransfers()` catches up with transfers the shell finished while
 the page was away. The native sender lives in `runtime/upload/` and takes the bridge it talks
 through as an argument, so this file stays the only place that hands it `webClient`; `xhrPut` comes
-from `@chatic/data`, and the native sender also uses it for a page video or document.
+from `@chatic/runtime-web`, and the native sender also uses it for a page video or document.
 Its consumer and the rest of the story → [feature/channels/image-send.md](../feature/channels/image-send.md).
 
 ## Downloads and capabilities: `shellDownload`, `shellCapabilities`
