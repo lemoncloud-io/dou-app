@@ -17,6 +17,7 @@ export * from './notification';
 export * from './perf';
 export * from './photo-library';
 export * from './preference';
+export * from './runtime';
 export * from './share-intake';
 export * from './storage';
 export * from './sub-webview';

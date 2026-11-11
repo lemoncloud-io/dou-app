@@ -21,6 +21,7 @@ libs/runtime-core/src/
 ├── connection/         the connection controller: session → socket slots — see docs/connection/
 ├── session/            the session controller, the two credential guards and the foreground port — see docs/session/
 ├── push/               push device-token registration — see docs/push/
+├── bridge/             the runtime across the bridge: the handshake, the contract version, errors — see docs/bridge/
 └── sync/               primeChatRoom — a chat room's baseline and first page (app-runtime docs/sync/)
 ```
 
@@ -59,6 +60,16 @@ What is **not** in the engine yet: the session's state and commands and the conn
 screens read, the repository graph, the cloud-addressed writes. Those still come straight from the core
 packages (through this barrel). They join the engine with the engine that needs them — a page that does
 not run the core cannot read its stores directly.
+
+## The runtime across the bridge
+
+On the phone the runtime can run in the shell's own process, with the page mirroring it. Which side
+owns the session is settled once per launch: the shell offers before the page runs, the page asks in
+a handshake before it boots, and the shell decides. The page runs its own runtime only on a refusal
+or from a shell that cannot answer; a lost answer means asking again, never a second owner. `src/bridge/` holds what both halves are held to: the contract version they negotiate, the
+handshake's three steps, and how an error crosses with the fields screens read — or says the installed
+app's runtime does not have the method yet. The halves themselves
+are not built yet ([docs/bridge](./docs/bridge/README.md)).
 
 ## Purpose
 

@@ -228,6 +228,27 @@ describe('AppBridgeHost Buffering & Event Flushing', () => {
         expect((JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any).type).toBe('OnStorageGet');
     });
 
+    it('does not take the boot-time runtime handshake as the web being ready, so a cold-start event survives it', async () => {
+        const host = new AppBridgeHost({ sendToWeb: mockSendToWeb, protocol: JsonProtocol });
+        host.registerHandler(
+            'RuntimeHello' as any,
+            async () => ({ type: 'OnRuntimeHello', success: true, data: { sessionOwner: 'web' } }) as any
+        );
+        host.pushEvent({ type: 'OnNavigate', data: { path: '/channels/1/room' } } as any);
+
+        await host.handleMessage(
+            JsonProtocol.encode({
+                type: 'RuntimeHello',
+                refId: 'hello-1',
+                version: BRIDGE_VERSION,
+                data: { contracts: [1] },
+            } as any) as string
+        );
+
+        expect(mockSendToWeb).toHaveBeenCalledTimes(1);
+        expect((JsonProtocol.decode(mockSendToWeb.mock.calls[0][0]) as any).type).toBe('OnRuntimeHello');
+    });
+
     it('SendLog 릴레이는 웹 준비 신호로 취급하지 않아 버퍼를 플러시하지 않는다 (cold start 유실 방지)', async () => {
         const host = new AppBridgeHost({
             sendToWeb: mockSendToWeb,

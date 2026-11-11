@@ -66,6 +66,12 @@ const MOBILE_APP_EVENTS = {
         test: 'app/subWebView/SubWebView.test.tsx',
     },
     OnUpdateStatus: { notEmitted: 'Desktop self-update; the phone updates through the store (CheckAppUpdate)' },
+    OnRuntimeEvent: {
+        notEmitted: 'This shell does not run the runtime yet, so it never owns the session or pushes from it',
+    },
+    OnRuntimeSessionChanged: {
+        notEmitted: 'This shell does not run the runtime yet, so it never owns the session or pushes from it',
+    },
 } satisfies Record<string, Decision>;
 
 const SRC = join(__dirname, '../../..');

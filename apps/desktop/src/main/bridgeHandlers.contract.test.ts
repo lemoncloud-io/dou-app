@@ -43,6 +43,8 @@ const PHONE_TOOLING = "The phone shell's boot, resume, perf and debug-panel tool
 const STORE_IAP = 'Store purchases happen on the phones only';
 const SYSTEM_BROWSER_LOGIN = 'Desktop social login runs in the system browser and returns by deeplink';
 const STORE_UPDATE = 'Store update check; desktop updates itself (StartUpdateDownload / RestartToUpdate)';
+const WEB_OWNS_SESSION =
+    'The desktop shell never owns the session: desktop-web runs its own runtime and is never offered one';
 // The page-facing requests: a sub view page sends them to the sub view's own host, never to the main
 // window's. The desktop page host answers a subset of them (see desktopSubWebView.test.ts).
 const SUB_WEBVIEW_PAGE = "A sub WebView page's request; the main window's host never answers it";
@@ -155,6 +157,10 @@ const DESKTOP_UNSUPPORTED = {
     GetSubWebViewStorageInfo: SUB_WEBVIEW_PAGE,
     GetSubWebViewPermission: SUB_WEBVIEW_PAGE,
     RequestSubWebViewPermission: SUB_WEBVIEW_PAGE,
+    RuntimeHello: WEB_OWNS_SESSION,
+    RuntimeCall: WEB_OWNS_SESSION,
+    RuntimeSubscribe: WEB_OWNS_SESSION,
+    RuntimeUnsubscribe: WEB_OWNS_SESSION,
 } satisfies Partial<Record<WebMessageType, string>>;
 
 /**
