@@ -4,6 +4,12 @@
 
 ### Refactor
 
+- (runtime-core,app-runtime) keep the connections with a controller outside react (ADR-0306)
+
+## [2026-11-11] - No version updates
+
+### Refactor
+
 - (runtime-core,app-runtime) assemble the runtime in runtime-core (ADR-0305)
 
 ## [2026-11-11] - root@0.153.0, @chatic/desktop-web@0.56.0
