@@ -431,8 +431,11 @@ export const ChannelRoomPage = () => {
             limit: 100,
             joinedNo: myJoin?.joinedNo,
             readingHistoryRef,
+            // Only the record of this room: on a switch without a remount, `channel` is the previous
+            // room's for a render.
+            channelChatNo: channel?.id === stableChannelId ? channel.chatNo : undefined,
         }),
-        [stableChannelId, myJoin?.joinedNo]
+        [stableChannelId, myJoin?.joinedNo, channel?.id, channel?.chatNo]
     );
 
     const {

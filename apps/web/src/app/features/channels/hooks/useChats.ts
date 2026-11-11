@@ -6,6 +6,7 @@ import type { DomainChat, DomainUser } from '@chatic/data';
 
 import { isFeedVisible, isOwnSystemChat } from '../../../utils';
 import type { ClientChatView } from '../types';
+import { useChannelHeadRefresh } from './useChannelHeadRefresh';
 import { useForegroundChatRefresh } from './useForegroundChatRefresh';
 
 // Rows asked for per older page. `observeList` returns only the newest `limit` rows (chat_no-descending
@@ -84,6 +85,12 @@ interface UseChatsParams {
      * room stays open. Without it (the thread page), a widened window always keeps its oldest row.
      */
     readingHistoryRef?: { readonly current: boolean };
+    /**
+     * The channel record's newest message number (`channel.chatNo`). When it runs ahead of the cache,
+     * the newest page is fetched — the one way an open room learns of a message whose push it never
+     * got (`useChannelHeadRefresh`).
+     */
+    channelChatNo?: number;
 }
 
 /** Build the uid → display-name map used to resolve a message owner's name. */
@@ -97,7 +104,7 @@ const nameOf = (chat: DomainChat, userMap: Map<string, DomainUser>): string =>
  * are mapped to `ClientChatView` (owner identity, parsed timestamp, flags),
  * sorted oldest → newest so the last element is the latest message.
  */
-export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseChatsParams) => {
+export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef, channelChatNo }: UseChatsParams) => {
     const { chat: chatRepository, user: userRepository } = runtime.data.useRuntimeRepositories();
     const { userId } = runtime.session.useSessionIdentity();
     // `loadMore` goes out on the active socket slot, so it waits for that slot to verify, like the
@@ -117,6 +124,10 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
     useForegroundChatRefresh(channelId);
 
     const [cachedChats, setCachedChats] = useState<DomainChat[]>([]);
+    // The channel the window was last read for. A room that switches channel without remounting renders
+    // once with the previous channel's window before the reset below runs, so "the window has been read"
+    // has to name the channel it was read for.
+    const [windowChannelId, setWindowChannelId] = useState<string | null>(null);
     const [users, setUsers] = useState<DomainUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -164,6 +175,19 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
     // where my CURRENT membership starts. Windowing only `messages` left `rawChats` claiming the
     // conversation began at row 1 for someone who re-joined mid-thread (ADR-0067).
     const chats = useMemo(() => cachedChats.filter(chat => isInJoinWindow(chat, joinedNo)), [cachedChats, joinedNo]);
+
+    // Compared with the channel record before the join window: the record counts every row, and rows
+    // the window hides are still rows the cache holds.
+    const cachedNewestNo = useMemo(
+        () => cachedChats.reduce((max, chat) => (chat.chatNo && chat.chatNo > max ? chat.chatNo : max), 0),
+        [cachedChats]
+    );
+    useChannelHeadRefresh({
+        channelId,
+        channelChatNo,
+        cachedNewestNo,
+        isCacheRead: !isLoading && windowChannelId === channelId,
+    });
 
     // Latest chats snapshot for loadMore — keeps the callback identity stable (a `chats`/`messages`
     // dependency would rebuild loadMore on every live message append, re-attaching scroll listeners).
@@ -215,6 +239,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
     useEffect(() => {
         generationRef.current += 1;
         setCachedChats([]);
+        setWindowChannelId(null);
         setIsLoading(true);
         setHasMore(true);
         setPageLimit(limit);
@@ -242,6 +267,7 @@ export const useChats = ({ channelId, limit, joinedNo, readingHistoryRef }: UseC
         return chatRepository.observeList({ channelId, limit: observeLimit }, result => {
             const list = result?.list ?? [];
             setCachedChats(list);
+            setWindowChannelId(channelId);
             setIsLoading(false);
 
             let newestNo = 0;

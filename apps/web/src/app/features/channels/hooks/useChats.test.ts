@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { runtime } from '@chatic/app-runtime';
 import type { DomainChat, DomainUser } from '@chatic/data';
 
+import { useChannelHeadRefresh } from './useChannelHeadRefresh';
 import { useChats } from './useChats';
 
 jest.mock('@chatic/app-runtime', () => ({
@@ -24,6 +25,8 @@ jest.mock('@chatic/app-runtime', () => ({
 
 // Covered by its own test file; isolate useChats from the foreground-refresh side effects.
 jest.mock('./useForegroundChatRefresh', () => ({ useForegroundChatRefresh: jest.fn() }));
+// Covered by its own test file; here only what useChats hands it is checked.
+jest.mock('./useChannelHeadRefresh', () => ({ useChannelHeadRefresh: jest.fn() }));
 
 const chatObserveList = jest.fn();
 const chatRefreshList = jest.fn();
@@ -972,5 +975,62 @@ describe('useChats — gaps in the cached history', () => {
 
         expect(result.current.isFetched(15)).toBe(true);
         expect(result.current.isFetched(25)).toBe(false);
+    });
+});
+
+describe('useChats — catching up to the channel record', () => {
+    const lastHeadRefresh = () => (useChannelHeadRefresh as jest.Mock).mock.calls.at(-1)?.[0];
+
+    it("hands the channel record's number and the cache's newest number to the head refresh", () => {
+        seedChats([
+            chat({ id: 'a', chatNo: 4, ownerId: 'u1', createdAtMs: 400 }),
+            chat({ id: 'b', chatNo: 6, ownerId: 'u1', createdAtMs: 600 }),
+        ]);
+
+        renderHook(() => useChats({ channelId: 'c1', limit: 100, channelChatNo: 9 }));
+
+        expect(lastHeadRefresh()).toEqual({ channelId: 'c1', channelChatNo: 9, cachedNewestNo: 6, isCacheRead: true });
+    });
+
+    it('counts rows the join window hides, since the cache holds them all the same', () => {
+        // Every cached row predates the re-join: the feed is empty, yet nothing is missing from the cache.
+        seedChats([
+            chat({ id: 'a', chatNo: 3, ownerId: 'u1', createdAtMs: 300 }),
+            chat({ id: 'b', chatNo: 5, ownerId: 'u1', createdAtMs: 500 }),
+        ]);
+
+        renderHook(() => useChats({ channelId: 'c1', limit: 100, joinedNo: 7, channelChatNo: 5 }));
+
+        expect(lastHeadRefresh()).toMatchObject({ cachedNewestNo: 5 });
+    });
+
+    it("does not report the previous room's window as read for the next room", () => {
+        // The first room's window is in the cache; the second room's has not been read yet.
+        chatObserveList.mockImplementation((query: { channelId: string }, cb: (result: unknown) => void) => {
+            if (query.channelId === 'c1') cb({ list: [chat({ id: 'a', chatNo: 4, ownerId: 'u1', createdAtMs: 400 })] });
+            return () => undefined;
+        });
+        const { rerender } = renderHook(
+            (props: { channelId: string }) => useChats({ channelId: props.channelId, limit: 100, channelChatNo: 9 }),
+            { initialProps: { channelId: 'c1' } }
+        );
+        (useChannelHeadRefresh as jest.Mock).mockClear();
+
+        // Switched in place, as a push banner does: the first render still holds c1's rows.
+        rerender({ channelId: 'c2' });
+
+        const forC2 = (useChannelHeadRefresh as jest.Mock).mock.calls
+            .map(([params]) => params)
+            .filter(p => p.channelId === 'c2');
+        expect(forC2.length).toBeGreaterThan(0);
+        expect(forC2.every(p => p.isCacheRead === false)).toBe(true);
+    });
+
+    it('reports the cache as unread until the first emission', () => {
+        chatObserveList.mockImplementation(() => () => undefined);
+
+        renderHook(() => useChats({ channelId: 'c1', limit: 100, channelChatNo: 5 }));
+
+        expect(lastHeadRefresh()).toMatchObject({ cachedNewestNo: 0, isCacheRead: false });
     });
 });

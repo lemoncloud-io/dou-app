@@ -203,6 +203,11 @@ The sync for a room entry is one of two fetches:
 | cold | `usePrimeChat` (`libs/app-runtime`, `useSyncTarget.ts`) — the first page    | `miss`  |
 | warm | `useForegroundChatRefresh` (`features/channels/hooks/`) — the entry refresh | `hit`   |
 
+On a warm entry whose channel record is already ahead of the cache, `useChannelHeadRefresh` asks for
+the same page and may start it before the entry refresh's cache read returns. It goes through
+`fetchRoomFeed` too, with `cache: 'hit'`, so whichever starts first takes the trace and the other
+joins it; the trace reads the same either way.
+
 Both go through `fetchRoomFeed` (`libs/app-runtime`), which marks the phases on the active trace. On
 a list entry the fetch usually starts earlier still, at the tap (`prefetchRoomFeed`, called by
 `ChannelList.tsx`), and the hook that applies joins it. That fetch is the one that takes the trace, so
