@@ -136,7 +136,11 @@ The stores reach the ports through forwarding objects, so they can be built at i
 `cloudStore` answers for more than the committed cloud. `getCloudTokenOf(cid)` is the store's own
 token while `cid` is committed and the cache entry otherwise; `peekCachedCloudTokens(cid)` reads the
 cache with no expiry margin (the served read, `getCachedCloudTokens`, deletes what it refuses to
-serve, and a socket still signing with that token must not lose it); `dropCachedCloudTokens(cid)`
+serve, and a socket still signing with that token must not lose it). The served read measures an
+entry by its identity token's `exp`, not by an AWS credential: cloud servers answer with no credential,
+and judging by one read every entry as lapsed, so each entry into a cloud with no live socket re-issued
+a token that still had weeks left. An entry whose `exp` cannot be read is served as it is.
+`dropCachedCloudTokens(cid)`
 forgets one cloud's entry and `clearCachedCloudTokens()` every cloud's. The identity map —
 `getCloudIdentity` · `setCloudIdentity` · `getCloudIdentities` · `clearCloudIdentities` — records
 which uid this account has in each cloud and outlives the tokens. It is what a reader of another

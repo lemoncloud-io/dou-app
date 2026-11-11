@@ -199,7 +199,12 @@ describe('세션 스토어 — 통지하지 않는 쓰기', () => {
         // there must be no notification: no state actually moved, and the expiry was already an
         // observable fact.
         cloudStore.setCachedCloudTokens('cloud-1', {
-            cloudToken: { Token: { credential: { Expiration: new Date(Date.now() - 1000).toISOString() } } },
+            // An identity token whose `exp` is already past — the clock the cache reads.
+            cloudToken: {
+                Token: {
+                    identityToken: `h.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) - 60 })).toString('base64url')}.s`,
+                },
+            },
             delegationToken: TOKEN,
         } as never);
         mockEmitted.length = 0;

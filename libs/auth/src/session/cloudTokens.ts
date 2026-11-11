@@ -88,7 +88,85 @@ const exchangesInFlight = new Map<string, Promise<IssuedCloudTokens>>();
  */
 const lastIssuedFor = new Map<string, string | null>();
 
+/**
+ * A fresh issue named a different user in a cloud than the one this account is recorded as there, and
+ * was refused. Nothing was written: the cache, the identity map and the session store still name the
+ * recorded user.
+ */
+export class CloudIdentityChangedError extends Error {
+    constructor(
+        readonly cloudId: string,
+        readonly recordedUid: string,
+        readonly issuedUid: string
+    ) {
+        super(`cloud[${cloudId}] re-issue named user[${issuedUid}], not the recorded user[${recordedUid}]`);
+        this.name = 'CloudIdentityChangedError';
+    }
+}
+
+/** The role a cloud token was issued with — top level on the view, or on its `$user`. */
+const roleOfCloudToken = (token: UserTokenView): unknown => {
+    const view = token as { userRole?: unknown; $user?: { userRole?: unknown } };
+    return view.userRole ?? view.$user?.userRole;
+};
+
+/**
+ * Refuses an issue that would move this account to another user inside a cloud it already has a user
+ * in.
+ *
+ * `delegate-cloud` does not hand back the user an invitee accepted as. It picks the relay user the
+ * request comes from (for a signed-in account, the guest this session signed in from), and
+ * the exchange finds or CREATES that user's account in the cloud. When that is not the guest whose
+ * invite login made the invitee, the answer is a new, empty user: no place, no room, every request
+ * refused. Committing it hides every room the invitee had and writes the new uid over the recorded
+ * one, which was the last trace of the right user.
+ *
+ * The one change that is meant to happen is the owner reclaim (`reclaimOwnedClouds`): a device that
+ * held an invitee's token for a cloud the account owns gets the owner back. Only the server can issue
+ * an owner token, so a new user whose token says `owner` is let through.
+ *
+ * With nothing recorded for the cloud (a first entry, or after the account signed out) there is no
+ * user to keep, and any answer is taken.
+ */
+const assertSameCloudIdentity = (cloudId: string, cloudToken: UserTokenView): void => {
+    const recordedUid = cloudStore.getCloudIdentity(cloudId)?.uid;
+    const issuedUid = uidOfCloudToken(cloudToken);
+    if (!recordedUid || !issuedUid || recordedUid === issuedUid) return;
+    if (roleOfCloudToken(cloudToken) === 'owner') return;
+    logger.error('SESSION', '[cloudTokens] cloud re-issue named a different user — refused', {
+        data: { cloudId, recordedUid, issuedUid },
+    });
+    refusals.set(cloudId, { recordedUid, issuedUid });
+    throw new CloudIdentityChangedError(cloudId, recordedUid, issuedUid);
+};
+
+/**
+ * Refusals this page life has seen, by cloud. The server gives the same answer until something on
+ * this device changes who the account is recorded as in the cloud, so asking again would only repeat
+ * the round trip on every renewal tick and background retry. A refusal is answered from here as long
+ * as the recorded uid is still the one it was refused over. Accepting the invite again, a pairing
+ * taking the cloud over, or a sign-out moves or clears that uid, and the next exchange asks the
+ * server again.
+ */
+const refusals = new Map<string, { recordedUid: string; issuedUid: string }>();
+
+/** Test seam — forgets every refusal, as a fresh page life would. */
+export const resetCloudIdentityRefusals = (): void => {
+    refusals.clear();
+};
+
+const throwIfRefusedBefore = (cloudId: string): void => {
+    const refusal = refusals.get(cloudId);
+    if (!refusal) return;
+    if (cloudStore.getCloudIdentity(cloudId)?.uid !== refusal.recordedUid) {
+        refusals.delete(cloudId);
+        return;
+    }
+    throw new CloudIdentityChangedError(cloudId, refusal.recordedUid, refusal.issuedUid);
+};
+
 const exchange = async (cloudId: string): Promise<IssuedCloudTokens> => {
+    throwIfRefusedBefore(cloudId);
     // Read before anything awaits: a sign-in can land while the exchange is on the wire.
     const issuedFor = getUidInCloud(RELAY_CLOUD_ID);
     const delegationToken = await authRepository().delegateCloud(cloudId);
@@ -96,6 +174,7 @@ const exchange = async (cloudId: string): Promise<IssuedCloudTokens> => {
         baseURL: delegationToken.backend as string,
         body: { delegationToken: delegationToken.delegationToken },
     });
+    assertSameCloudIdentity(cloudId, cloudToken);
 
     cloudStore.setCachedCloudTokens(cloudId, { delegationToken, cloudToken });
     recordCloudIdentity(cloudId, cloudToken);

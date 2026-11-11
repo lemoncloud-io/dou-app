@@ -1,7 +1,7 @@
 import type { CloudDelegationTokenView, UserTokenView } from '@lemoncloud/chatic-backend-api';
 import type { AWSCredentials } from '@lemoncloud/chatic-backend-api/dist/modules/auth/oauth2/oauth2-types';
 
-import { msUntilExpiration } from './expiry';
+import { msUntilTokenExpiry } from './expiry';
 import { JsonSlot } from './jsonSlot';
 import { plainPort, secretPort, type StoragePortPair } from './ports';
 import { sessionSignal, type ISessionSignal } from './signal';
@@ -14,8 +14,8 @@ const CLOUD_SELECTED_PLACE_KEY = 'chatic-selected-place-id';
 // token instead of re-issuing them over 2 HTTP round trips, so the cloud identity (uid) — and thus
 // the cid+uid-scoped local cache — is available instantly on switch.
 const CLOUD_TOKEN_CACHE_KEY = 'chatic-cloud-token-cache';
-// Skip a cached cloud token whose AWS credential expires within this margin — the fresh token is
-// re-issued instead so the socket never connects with a credential about to lapse.
+// Skip a cached cloud token whose identity token runs out within this margin: past it the socket could
+// not authenticate with it, so there is nothing left to refresh.
 const CLOUD_TOKEN_CACHE_MARGIN_MS = 60_000;
 // Which uid this account has in each cloud, kept past the token that carried it. A cloud token
 // expires within about an hour, but the cid+uid the local cache partitions under does not change
@@ -55,7 +55,10 @@ export interface ICloudStore {
     getDelegationToken(): CloudDelegationTokenView | null;
     saveCloudToken(token: UserTokenView): void;
     getCloudToken(): UserTokenView | null;
-    /** Cached tokens for `cloudId` when still valid (credential not within the expiry margin), else null. */
+    /**
+     * Cached tokens for `cloudId` unless their identity token runs out within the margin. An entry
+     * whose lifetime cannot be read is returned as it is.
+     */
     getCachedCloudTokens(cloudId: string): CachedCloudTokens | null;
     /**
      * Cached tokens for `cloudId` exactly as stored — no expiry margin, nothing dropped. For signing:
@@ -167,9 +170,15 @@ class CloudStore implements ICloudStore {
         const entry = map?.[cloudId];
         if (!map || !entry) return null;
 
-        // Valid only while the cloud token's AWS credential is still comfortably in-date.
-        const remaining = msUntilExpiration(entry.cloudToken?.Token?.credential?.Expiration, Date.now());
-        if (remaining == null || remaining <= CLOUD_TOKEN_CACHE_MARGIN_MS) {
+        // Measured by the identity token, not by an AWS credential. A cloud server answers with no
+        // credential at all, and an entry judged by one read as lapsed the moment it was written: every
+        // entry into a cloud with no live socket then threw the stored token away and re-issued it
+        // through `delegate-cloud`, which answers for whichever guest the relay session is linked to —
+        // for an invitee, possibly not the user the invite made. The stored token is what the cloud
+        // socket refreshes from, so it is kept for as long as it can still authenticate. One whose
+        // lifetime cannot be read is kept too: there is no clock to refuse it by.
+        const remaining = msUntilTokenExpiry(entry.cloudToken?.Token?.identityToken, Date.now());
+        if (remaining != null && remaining <= CLOUD_TOKEN_CACHE_MARGIN_MS) {
             delete map[cloudId];
             this.cache.write(map);
             return null;

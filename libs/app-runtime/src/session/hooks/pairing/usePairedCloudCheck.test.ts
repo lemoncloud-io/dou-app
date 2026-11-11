@@ -3,11 +3,12 @@ import { act, renderHook } from '@testing-library/react';
 import { usePairedCloudCheck } from './usePairedCloudCheck';
 
 const checkAll = jest.fn();
+const end = jest.fn();
 let paired: string[] = [];
 
 jest.mock('@chatic/auth/pairing/pairedCloudSessions', () => ({
     PAIRED_CLOUD_CHECK_INTERVAL_MS: 600_000,
-    pairedCloudSessions: { checkAll: () => checkAll() },
+    pairedCloudSessions: { checkAll: () => checkAll(), list: () => paired, end: (id: string) => end(id) },
 }));
 const clear = jest.fn();
 let relayGuest = true;
@@ -94,12 +95,17 @@ describe('usePairedCloudCheck', () => {
         await flush();
     });
 
-    it('drops a guest-era list once the device signed in to an account of its own', async () => {
+    it('ends a guest-era list once the device signed in to an account of its own', async () => {
         relayGuest = false;
+        paired = ['1000002', '1000004'];
         renderHook(() => usePairedCloudCheck(jest.fn()));
         await flush();
 
-        expect(clear).toHaveBeenCalled();
+        // `end`, not a bare clear: it also forgets the approver's uid recorded for each cloud, which the
+        // account's own entry would otherwise be refused against as a change of user.
+        expect(end).toHaveBeenCalledWith('1000002');
+        expect(end).toHaveBeenCalledWith('1000004');
+        expect(clear).not.toHaveBeenCalled();
         expect(checkAll).not.toHaveBeenCalled();
     });
 });
