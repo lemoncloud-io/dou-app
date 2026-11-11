@@ -2,6 +2,12 @@
 
 ## [2026-11-11] - No version updates
 
+### Refactor
+
+- (data,runtime-web,app-runtime) open the local cache backend as a platform port
+
+## [2026-11-11] - No version updates
+
 ### Bug Fixes
 
 - (web/channels) catch an open room up to the channel record, not only its push
