@@ -6,7 +6,7 @@ import type { DataContext, DataRepositories } from '@chatic/data';
  *
  * **Why it is handed in.** The graph is assembled in app-runtime's `data/`, a package above this one —
  * it builds its socket data sources from the socket manager this package runs on. Importing it from
- * here would be an upward edge, so `initAppRuntime()` hands the accessor down instead and this file
+ * here would be an upward edge, so `createRuntime()` hands the accessor down instead and this file
  * imports nothing at runtime. `DataManager` satisfies the interface as it is.
  */
 export interface SyncDataGraph {
@@ -35,7 +35,7 @@ class SyncDataGraphSource implements ISyncDataGraphSource {
 
     get(): SyncDataGraph {
         if (!this.accessor) {
-            throw new Error('[sync] no repository graph — initAppRuntime() wires it before any sync runs');
+            throw new Error('[sync] no repository graph — createRuntime() wires it before any sync runs');
         }
         return this.accessor();
     }

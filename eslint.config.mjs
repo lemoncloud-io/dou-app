@@ -441,7 +441,7 @@ export default [
                         {
                             name: '@chatic/runtime-core',
                             message:
-                                'Boot the runtime with `runtime.boot.initAppRuntime` and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web, hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
                         },
                     ],
                     patterns: [
@@ -473,7 +473,7 @@ export default [
                         {
                             group: ['@chatic/runtime-core/*'],
                             message:
-                                'Boot the runtime with `runtime.boot.initAppRuntime` and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
+                                'Build the runtime with `createWebRuntime` from @chatic/runtime-web, hand the engine to `runtime.boot.initAppRuntime`, and read it through `runtime` from @chatic/app-runtime. @chatic/runtime-core is the assembly — see libs/runtime-core/README.md.',
                         },
                     ],
                 },

@@ -1,6 +1,12 @@
 import { renderHook } from '@testing-library/react';
 
 import { useCloudCredentialGuard } from './useCloudCredentialGuard';
+import { coreEngine } from '@chatic/runtime-core/engine';
+import { initAppRuntime, resetRuntimeEngine } from '../../../init';
+
+// The hooks start their work from the engine the entry point hands over; these use the core one.
+beforeEach(() => initAppRuntime(coreEngine));
+afterEach(() => resetRuntimeEngine());
 
 const mockStop = jest.fn();
 const mockStart = jest.fn(() => mockStop);

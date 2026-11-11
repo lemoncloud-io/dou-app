@@ -41,7 +41,7 @@ interface StorageLike {
 
 /**
  * The session's plain store, looked up on every call rather than when a record is made: the store
- * exists only from `initAppRuntime` on, and asking for it before then throws. Boot comes before any
+ * exists only from `createRuntime` on, and asking for it before then throws. Boot comes before any
  * screen that registers renders, so a call always finds the entry point's choice.
  */
 const plainStore: StorageLike = {

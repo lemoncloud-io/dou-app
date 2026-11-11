@@ -67,8 +67,8 @@ directly, and it should stay that way — the command above says whether it has.
 6. **The bridge has one door.** Native messages enter and leave through `app/bridge/` only. A
    feature never posts to the shell itself.
 7. **`main.tsx` is ordered by contract.** Log listeners attach before anything can log,
-   `config.init()` precedes every lazy setting read, and `runtime.boot.initAppRuntime()` precedes
-   every session read. Each boundary in that file carries a comment naming what breaks if a line
+   `config.init()` precedes every lazy setting read, and building the runtime
+   (`runtime.boot.initAppRuntime(createWebRuntime(...))`) precedes every session read. Each boundary in that file carries a comment naming what breaks if a line
    crosses it.
 8. **Source comments and documents are English.**
 
@@ -153,10 +153,10 @@ sequenceDiagram
 
     Main->>Main: setupBridgeLogger · attachConsoleListener · attachLogContext
     Main->>Main: startLogUploader (the only log store)
-    Main->>Main: stores = runtime.boot.resolveStorageStores() · configureAppStores(device, tab)
+    Main->>Main: stores = resolveStorageStores() · configureAppStores(device, tab)
     Main->>Main: syncThemeFromSharedKey · config.init(createWebConfigPorts(stores)) · migrateLegacyPhoneCountry
     Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
-    Main->>RT: runtime.boot.initAppRuntime({ storage, transport: webTransportPorts(), auth: webAuthPorts(), cache: webLocalCachePorts(webSession), foreground: webForegroundPorts(), signedOutKeyPrefixes, data: { repositories } })
+    Main->>RT: runtime.boot.initAppRuntime(createWebRuntime({ storage, cacheTab: webSession, signedOutKeyPrefixes, data: { repositories } }))
     Main->>Main: pendingNavigationStore.start()
     Main->>Shell: appBridge.notifyWebAppReady()
     Shell-->>Main: capability report (buffered events flush)
@@ -209,7 +209,7 @@ Files you cannot guess from the name:
 - `app/storage/` — the two stores this app's features keep their own state in: `deviceStore` (outlives
   the tab — drafts, recent emoji, the sent-invite log, the browser's log queue) and `tabStore` (dies
   with it — the pending invite channel, the crash sentinel, the debug unlock). `main.tsx` points them
-  at what `runtime.boot.resolveStorageStores()` built; a zustand `persist` store names one through
+  at what `resolveStorageStores()` (`@chatic/runtime-web`) built; a zustand `persist` store names one through
   `persistStorageOver`. No feature names `localStorage`/`sessionStorage` itself — the root ESLint
   config refuses it, and refuses a `persist` without a `storage`.
 - `app/bridge/appBridge.ts` — the outbound half of the seam; `GlobalBridgeListener.tsx` the inbound.
@@ -294,12 +294,12 @@ navigate(ROUTES.channels.room(channelId));
 main.tsx
 ├── setupBridgeLogger / attachConsoleListener / attachLogContext   (before anything logs)
 ├── startLogUploader                                               (owns the only log store)
-├── runtime.boot.resolveStorageStores() → configureAppStores        (every store, chosen once)
+├── resolveStorageStores() → configureAppStores                     (every store, chosen once)
 ├── syncThemeFromSharedKey(stores.webLocal)
 ├── config.init(createWebConfigPorts(stores))                       (before any lazy setting read)
 ├── migrateLegacyPhoneCountry(stores.webLocal)
 ├── vault (only when CHATIC_APP_STORAGE_MEDIA lists it) → await prepareSecretStorage — the rest waits
-├── runtime.boot.initAppRuntime({ storage, signedOutKeyPrefixes, ... })   (before any session read)
+├── runtime.boot.initAppRuntime(createWebRuntime({ storage, ... }))  (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)
 ├── appBridge.notifyWebAppReady() → setNativeCacheSupport (@chatic/runtime-web)

@@ -54,7 +54,7 @@ before persisting. Absent, it persists — the previous behaviour, unchanged for
 opt in. The web app opts in during boot, allowing the write only while the context is the `default`
 partition, before the first repository access creates the data runtime.
 
-The path is `initAppRuntime` → `configureDataRuntime` → `DataManager` → `createRepositories`. The
+The path is `createWebRuntime` → `createRuntime` → `configureDataRuntime` → `DataManager` → `createRepositories`. The
 runtime singleton is lazy and builds its repositories once, so a late call cannot apply; it warns
 and is ignored rather than rebuilding shared state underneath live subscribers.
 

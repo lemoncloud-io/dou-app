@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { PushRegistration } from '@chatic/runtime-core';
 import type { DeviceTokenDelegate } from '@chatic/runtime-core';
+
+import { runtimeEngine } from '../../init';
 
 import { useDynamicDeviceId } from '../../session';
 
 export type { DeviceTokenDelegate } from '@chatic/runtime-core';
 
 /**
- * Cross-cloud push registration for native shells — runtime-core's `PushRegistration`, started for as
+ * Cross-cloud push registration for native shells — the engine's push registration, started for as
  * long as the calling component is mounted with a delegate. The once-per-install policy, the triggers
  * and the failure handling are documented there; this hook only starts and stops it.
  *
@@ -30,8 +31,8 @@ export const useDeviceTokenRegistration = (delegate: DeviceTokenDelegate | null)
     const idsRef = useRef(ids);
     idsRef.current = ids;
 
-    const [registration] = useState(
-        () => new PushRegistration({ delegate: () => delegateRef.current, deviceIds: () => idsRef.current })
+    const [registration] = useState(() =>
+        runtimeEngine().pushRegistration({ delegate: () => delegateRef.current, deviceIds: () => idsRef.current })
     );
 
     const hasDelegate = !!delegate;

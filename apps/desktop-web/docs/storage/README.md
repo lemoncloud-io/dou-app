@@ -6,7 +6,7 @@ Everything this app keeps between loads goes through a store from `@chatic/stora
 
 ## Who decides
 
-`main.tsx` calls `runtime.boot.resolveStorageStores()` once and hands the result out:
+`main.tsx` calls `resolveStorageStores()` (`@chatic/runtime-web`) once and hands the result out:
 
 | To                  | What                                                                                                                                                                                                                |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

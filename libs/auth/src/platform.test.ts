@@ -15,7 +15,7 @@ const freshPlatform = (): IAuthPlatform => {
 
 describe('authPlatform', () => {
     it('refuses to hand out ports before any were configured, and names the fix', () => {
-        expect(() => freshPlatform().ports()).toThrow(/initAppRuntime/);
+        expect(() => freshPlatform().ports()).toThrow(/createRuntime/);
     });
 
     it('hands out what was configured, and a second configure replaces it', () => {

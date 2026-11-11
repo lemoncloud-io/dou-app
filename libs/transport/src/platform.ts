@@ -61,7 +61,7 @@ class TransportPlatform implements ITransportPlatform {
         if (!this.configured) {
             throw new Error(
                 '[transport] the platform ports were used before any were configured — the entry point has to ' +
-                    'pass `transport` to initAppRuntime() before a socket is opened or the link is read.'
+                    'pass `transport` to createRuntime() before a socket is opened or the link is read.'
             );
         }
         return this.configured;

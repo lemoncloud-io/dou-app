@@ -83,7 +83,7 @@ describe('createRuntime', () => {
 
         // relayStore's resolvers are unset, and it refuses to guess: an empty host would produce
         // requests against '' instead of a diagnosable failure.
-        expect(() => getActiveServerContext()).toThrow(/initAppRuntime/);
+        expect(() => getActiveServerContext()).toThrow(/createRuntime/);
     });
 
     it('boots the session store — the same read succeeds afterwards', async () => {
@@ -106,7 +106,7 @@ describe('createRuntime', () => {
         const { transportPlatform } = jest.requireActual<typeof TransportLib>('@chatic/transport');
         const ports = transport();
 
-        expect(() => transportPlatform.ports()).toThrow(/initAppRuntime/);
+        expect(() => transportPlatform.ports()).toThrow(/createRuntime/);
         createRuntime({
             storage: memoryStorage(),
             transport: ports,
@@ -124,7 +124,7 @@ describe('createRuntime', () => {
         const currentSearch = jest.fn(() => '');
         const ports = { ...authPorts(), currentSearch };
 
-        expect(() => authPlatform.ports()).toThrow(/initAppRuntime/);
+        expect(() => authPlatform.ports()).toThrow(/createRuntime/);
         createRuntime({
             storage: memoryStorage(),
             transport: transport(),

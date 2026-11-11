@@ -67,7 +67,7 @@ failure reporter, the error-code ledger and `annotateSocketError`.
     | `device()`     | `resolveSocketDevice`, for the device a socket introduces on `device.save`; auth's socket signature, for its user agent | `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`    |
     | `createSocket` | `SocketManager`, as the SDK's `socketFactory` for every slot                                                            | `new WebSocket(url, protocols)`                           |
 
-    Used before it is configured, `transportPlatform.ports()` throws and names `initAppRuntime`. A
+    Used before it is configured, `transportPlatform.ports()` throws and names `createRuntime`. A
     page's `WebSocket` and `navigator` do not exist in a native process, or answer wrongly there —
     React Native's `WebSocket` sends no User-Agent, and the server checks a refreshed token against the
     handshake's — so a fallback would hide the missing wiring until a device. What a port answers is

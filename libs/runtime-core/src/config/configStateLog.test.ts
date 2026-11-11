@@ -149,7 +149,7 @@ describe('attachConfigStateLog', () => {
     });
 
     describe('attaching twice', () => {
-        // HMR and a double `initAppRuntime` both land here. Two live subscriptions would double
+        // HMR and a double `createRuntime` both land here. Two live subscriptions would double
         // every change line, and a replayed history that counts one move twice is wrong history.
         it('replaces the subscription instead of stacking a second one', async () => {
             const attachConfigStateLog = await load();

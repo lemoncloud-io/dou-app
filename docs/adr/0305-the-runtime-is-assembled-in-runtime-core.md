@@ -7,6 +7,12 @@
 > bridge-messages; root `eslint.config.mjs` (`runtimeLayerConstraints`, `RUNTIME_WIRING`)
 > · The behaviour is documented in [libs/runtime-core](../../libs/runtime-core/README.md) and its
 > [docs/data](../../libs/runtime-core/docs/data/README.md)
+>
+> **Amended by [ADR-0308](./0308-the-react-surface-starts-its-work-from-an-engine.md) (2026-11-11):**
+> `initAppRuntime` now takes the engine `createRuntime` returns, and `AppRuntimeConfig` is gone — an app
+> builds the runtime through `createWebRuntime` in `@chatic/runtime-web`; `resolveStorageStores` moved
+> there too. Decision 1's "the public surface does not change" and the consequence that keeps the store
+> choice in app-runtime no longer hold.
 
 ## Context
 

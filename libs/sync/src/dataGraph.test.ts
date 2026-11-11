@@ -6,8 +6,8 @@ const graph = (): SyncDataGraph => ({ getScopedRepositories: jest.fn(), getScope
 describe('syncDataGraph', () => {
     afterEach(() => syncDataGraph.provide(null));
 
-    it('throws a message naming initAppRuntime when nothing was provided', () => {
-        expect(() => syncDataGraph.get()).toThrow(/initAppRuntime/);
+    it('throws a message naming createRuntime when nothing was provided', () => {
+        expect(() => syncDataGraph.get()).toThrow(/createRuntime/);
     });
 
     it('reads through the accessor on every call, so a graph built later is the one returned', () => {
@@ -25,6 +25,6 @@ describe('syncDataGraph', () => {
         syncDataGraph.provide(graph);
         syncDataGraph.provide(null);
 
-        expect(() => syncDataGraph.get()).toThrow(/initAppRuntime/);
+        expect(() => syncDataGraph.get()).toThrow(/createRuntime/);
     });
 });

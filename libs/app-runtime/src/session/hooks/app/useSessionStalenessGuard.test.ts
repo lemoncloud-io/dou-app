@@ -1,20 +1,27 @@
 import { renderHook } from '@testing-library/react';
 
+import type { RuntimeEngine } from '@chatic/runtime-core';
+
 import { useSessionStalenessGuard } from './useSessionStalenessGuard';
+import { initAppRuntime, resetRuntimeEngine } from '../../../init';
 
 const mockStop = jest.fn();
 const mockStart = jest.fn(() => mockStop);
 const mockCheck = jest.fn(() => Promise.resolve());
 const mockSetPolicy = jest.fn();
 const mockConstruct = jest.fn();
-jest.mock('@chatic/runtime-core/session/relayCredentialGuard', () => ({
-    RelayCredentialGuard: jest.fn().mockImplementation((policy: unknown) => {
-        mockConstruct(policy);
-        return { start: mockStart, check: mockCheck, setPolicy: mockSetPolicy };
-    }),
-}));
 
-beforeEach(() => jest.clearAllMocks());
+// A fake engine: what this hook is about is asking the engine for its guard, not making one itself.
+beforeEach(() => {
+    jest.clearAllMocks();
+    initAppRuntime({
+        relayCredentialGuard: (policy: unknown) => {
+            mockConstruct(policy);
+            return { start: mockStart, check: mockCheck, setPolicy: mockSetPolicy };
+        },
+    } as unknown as RuntimeEngine);
+});
+afterEach(() => resetRuntimeEngine());
 
 describe('useSessionStalenessGuard', () => {
     it('starts one guard on mount and stops it on unmount', () => {

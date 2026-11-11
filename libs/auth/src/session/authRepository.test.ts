@@ -5,8 +5,8 @@ import { authRepositorySource } from './authRepository';
 describe('authRepositorySource', () => {
     afterEach(() => authRepositorySource.provide(null));
 
-    it('throws a message naming initAppRuntime when nothing was provided', () => {
-        expect(() => authRepositorySource.get()).toThrow(/initAppRuntime/);
+    it('throws a message naming createRuntime when nothing was provided', () => {
+        expect(() => authRepositorySource.get()).toThrow(/createRuntime/);
     });
 
     it('reads through the accessor on every call, so a graph built later is the one returned', () => {
@@ -24,6 +24,6 @@ describe('authRepositorySource', () => {
         authRepositorySource.provide(() => ({}) as IAuthRepository);
         authRepositorySource.provide(null);
 
-        expect(() => authRepositorySource.get()).toThrow(/initAppRuntime/);
+        expect(() => authRepositorySource.get()).toThrow(/createRuntime/);
     });
 });

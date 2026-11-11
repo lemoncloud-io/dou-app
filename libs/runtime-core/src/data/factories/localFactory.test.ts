@@ -131,7 +131,7 @@ describe('createLocalDataSources route per type', () => {
     it('refuses to assemble before the cache ports were configured, and names the fix', () => {
         jest.isolateModules(() => {
             const fresh = jest.requireActual<typeof LocalFactory>('./localFactory');
-            expect(() => fresh.createLocalDataSources({ contextProvider })).toThrow(/initAppRuntime/);
+            expect(() => fresh.createLocalDataSources({ contextProvider })).toThrow(/createRuntime/);
         });
     });
 });

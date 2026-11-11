@@ -32,7 +32,7 @@ import type { ConfigSnapshot } from '@chatic/config';
  * ## Why it lives here
  *
  * `@chatic/config` imports nothing (ADR-0079 Decision 1), so it cannot reach a logger, and every app
- * that boots the config registry also calls `initAppRuntime` — this lib is the one place that
+ * that boots the config registry also calls `createRuntime` — this lib is the one place that
  * depends on both. Doing it per app would be four copies of the same twelve lines.
  *
  * ## Why the values are not redacted
@@ -53,7 +53,7 @@ const reported = (snapshot: ConfigSnapshot) => ({
 
 /**
  * Held at module scope so a second `attachConfigStateLog()` replaces the subscription instead of
- * stacking a second one — the same "wiring is assignment, not accumulation" rule `initAppRuntime`
+ * stacking a second one — the same "wiring is assignment, not accumulation" rule `createRuntime`
  * states, and what keeps an HMR reload from double-logging every change.
  */
 let detach: (() => void) | undefined;

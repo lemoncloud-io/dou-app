@@ -13,7 +13,8 @@ platform.
 libs/runtime-core/src/
 ├── index.ts            the package barrel — what the React surface reads
 ├── ports.ts            RuntimePorts, every field required
-├── createRuntime.ts    the assembly: every wiring call, in order
+├── createRuntime.ts    the assembly: every wiring call, in order; returns the engine
+├── engine.ts           RuntimeEngine — what the React surface starts its lifecycle work from
 ├── config/             records the effective settings in the logs at boot
 ├── storage/            the runtime's own `device` store (the sync cursor watermark)
 ├── data/               the repository graph — see docs/data/
@@ -23,15 +24,41 @@ libs/runtime-core/src/
 └── sync/               primeChatRoom — a chat room's baseline and first page (app-runtime docs/sync/)
 ```
 
-Apps do not import this package — the root lint refuses it, as it refuses the core packages. They boot it through `@chatic/app-runtime`'s `initAppRuntime`,
-which is `createRuntime` under the name they know, and read it through `runtime`. The graph's React
-hooks stay there too; [docs/data](./docs/data/README.md) covers the graph itself.
+Apps do not import this package — the root lint refuses it, as it refuses the core packages. A web
+app builds the runtime through `createWebRuntime(...)` in `@chatic/runtime-web`, which fills the
+page's ports and calls `createRuntime`, hands the engine it returns to `@chatic/app-runtime`'s
+`initAppRuntime(engine)`, and reads the runtime through `runtime`. The graph's React hooks stay in
+app-runtime; [docs/data](./docs/data/README.md) covers the graph itself.
 
 The connections live here for the same reason: `createConnectionController` keeps the sockets in line
 with the session — the slots, the binders, the background clouds' tokens and receive loops — without
 React, and app-runtime's host only starts and stops it ([docs/connection](./docs/connection/README.md)).
 So does the relay session's own lifecycle: `createSessionController` brings the session up at boot
 and keeps a session-less visitor signed in as a guest ([docs/session](./docs/session/README.md)).
+
+## The engine
+
+`createRuntime(config)` wires the core packages and returns a **`RuntimeEngine`** — what the React
+surface starts its lifecycle work from, instead of making it itself:
+
+| Member                                                          | Makes                                                            |
+| --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `sessionController(options)`                                    | the relay session's boot and the guest keep-alive                |
+| `connectionController(options)`                                 | the sockets kept in line with the session, the background clouds |
+| `relayCredentialGuard(policy)` · `cloudCredentialGuard(policy)` | the two credential guards an app starts with its own policy      |
+| `pushRegistration(options)`                                     | push device-token registration                                   |
+| `primeChatRoom(cid, channelId, options)`                        | a chat room's baseline and first page                            |
+
+The engine `createRuntime` returns is the **core engine**: each member makes the core implementation, in
+this process. The classes behind it are not on the barrel — only their types are — so app-runtime can
+reach them only through the engine it was handed. A runtime that runs elsewhere (the native process,
+with the page mirroring it) supplies the same members backed by that process, and the hooks and hosts
+do not know which engine they were given.
+
+What is **not** in the engine yet: the session's state and commands and the connection state the
+screens read, the repository graph, the cloud-addressed writes. Those still come straight from the core
+packages (through this barrel). They join the engine with the engine that needs them — a page that does
+not run the core cannot read its stores directly.
 
 ## Purpose
 

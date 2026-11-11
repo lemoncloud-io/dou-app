@@ -106,7 +106,7 @@ caller's.
 
 | Registry              | Default when nothing is registered                                      | Who registers                            |
 | --------------------- | ----------------------------------------------------------------------- | ---------------------------------------- |
-| `credentialRecovery`  | `false` — no recovery is attempted, and nothing is claimed              | `initAppRuntime`, to the relay renewer   |
+| `credentialRecovery`  | `false` — no recovery is attempted, and nothing is claimed              | `createRuntime`, to the relay renewer    |
 | `authFailureReaction` | **silent** — `onAuthFailure` has already logged and is about to rethrow | an app that wants one; `apps/admin` does |
 
 A thrown recovery or reaction is caught and turned into a warning: the caller asked about their

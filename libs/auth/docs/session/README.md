@@ -10,10 +10,10 @@ reads them for React — the hooks — is app-runtime's
 **`session/` runs the use cases, and it does not reach the network directly.** Login, token exchange,
 site selection and teardown all go through the `AuthRepository` (ADR-0036). No file here holds a
 gateway. It is not React, so it reads the repository through a synchronous accessor rather than the
-`useRuntimeRepositories` hook — `authRepositorySource.get()`, which `initAppRuntime()` wires. The
+`useRuntimeRepositories` hook — `authRepositorySource.get()`, which `createRuntime()` wires. The
 graph that holds the repository is assembled in app-runtime's `data/`, a package above this one, so it
 is handed down at boot rather than imported; unwired, `get()` throws a message naming
-`initAppRuntime()`.
+`createRuntime()`.
 
 ## The use cases
 
@@ -67,7 +67,7 @@ this order, and only then leaves the page:
    recent-cloud order, the reclaim records and the paired clouds — in both of the session's ports.
 2. **The app keys a sign-out takes**, by prefix, from the plain port's store — `localStorage` in a shell,
    `sessionStorage` in a browser. The prefixes are not this package's: the domains that write those
-   keys declare them, and the app hands them to `initAppRuntime({ signedOutKeyPrefixes })`, which
+   keys declare them, and the app hands them to `createWebRuntime({ signedOutKeyPrefixes })`, whose `createRuntime`
    registers them with `storage/signedOutAppKeys.util.ts`. In apps/web that is the log pipeline
    (`@chatic/web.log.`) and the telemetry policy (`@chatic/web.telemetry.policy`) — the logs carry the
    account that just left. An app that declares none has nothing swept.
@@ -113,7 +113,7 @@ again. Every row is decided from what the vault and web storage hold, so a boot 
 the move again next time.
 
 lemon-web-core's old bundle (`@<project>.*`, its language key kept) goes with the web copy, and
-`initAppRuntime` drops it from the plain store on every boot (`dropLemonLeftovers`). Requests are
+`createRuntime` drops it from the plain store on every boot (`dropLemonLeftovers`). Requests are
 signed from the session's relay token now and nothing writes under that prefix, so a bundle in web
 storage is left from an older build.
 

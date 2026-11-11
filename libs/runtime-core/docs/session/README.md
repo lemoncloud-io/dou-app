@@ -17,7 +17,7 @@ session/
 ├── sessionController.ts      createSessionController — initialize, isReady, the guest keep-alive
 ├── relayCredentialGuard.ts   RelayCredentialGuard — refreshes the relay credential before it lapses
 ├── cloudCredentialGuard.ts   CloudCredentialGuard — re-issues each cloud's tokens before they lapse
-└── foreground.ts             ForegroundSignal and its holder, filled by initAppRuntime({ foreground })
+└── foreground.ts             ForegroundSignal and its holder, filled when the runtime is built
 ```
 
 The connection host starts the session controller; an app starts the two guards with its own policy
@@ -26,7 +26,8 @@ The connection host starts the session controller; an app starts the two guards 
 ## Usage
 
 ```ts
-const session = createSessionController({ deviceId: () => currentDeviceId() });
+// `engine` is the RuntimeEngine createRuntime returned (README § The engine).
+const session = engine.sessionController({ deviceId: () => currentDeviceId() });
 void session.initialize();
 const stopKeepAlive = session.startGuestKeepAlive(); // a chat app only — see below
 session.subscribeReady(() => render(session.isReady()));
@@ -126,8 +127,8 @@ every cloud-signed request 403'd.
 
 `ForegroundSignal { read(), subscribe(listener) }` says whether the app is in front of the user. It is
 a port because only the platform knows: a page reads `document.visibilityState`
-(`webForegroundPorts()` in `@chatic/runtime-web`), a native runtime its app state. The entry point
-passes it to `initAppRuntime({ foreground })`; like every port it is required, and reading it before
+(`createWebRuntime` in `@chatic/runtime-web` fills it), a native runtime its app state. It reaches
+`createRuntime({ foreground })` like every port; it is required, and reading it before
 then throws (`foregroundPlatform.ports()`). It is this package's own type, because its readers are all
 here: the session controller, the two credential guards (`checkOnVisible`), and push registration
 ([docs/push](../push/README.md)). A phone shell's own return to the foreground is a

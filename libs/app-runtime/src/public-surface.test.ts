@@ -24,15 +24,9 @@ const GROUPS: Record<string, readonly string[]> = {
     // `ENV`/`LANGUAGE_KEY`/`PROJECT`/`SOCIAL_OAUTH_ENDPOINT` retired with `@chatic/web-config`
     // (ADR-0079) — their two consumers read `import.meta.env` directly now, and neither value was a
     // setting.
-    boot: [
-        'LATE_VAULT_MARK',
-        'initAppRuntime',
-        'isNativeApp',
-        'prepareSecretStorage',
-        'readStorageEnvironment',
-        'resolveStorageStores',
-        'webTransport',
-    ],
+    // The stores an app keeps state in are chosen in `@chatic/runtime-web` (`resolveStorageStores`), which
+    // also builds the runtime; this group hands the React surface the engine it built.
+    boot: ['initAppRuntime', 'isNativeApp', 'prepareSecretStorage', 'webTransport'],
     // Session state · auth. `applySessionToken`/`logoutSession` live in `@chatic/auth`'s socket/ —
     // to a consumer, all three are "session".
     session: [

@@ -15,10 +15,10 @@ talking to every shell still in use.
 
 ## Who imports it
 
-- **`@chatic/app-runtime`'s `resolveStorageStores`** is where an app's stores are chosen and built —
+- **`@chatic/runtime-web`'s `resolveStorageStores`** is where an app's stores are chosen and built —
   the session's `secret` and `plain`, the vault, and the `device`/`tab` stores for everything else.
   `apps/web` and `apps/desktop-web` call it once in their entry points and hand the result out
-  (`initAppRuntime({ storage })`, their config ports, their own `app/storage/`).
+  (`createWebRuntime({ storage })`, their config ports, their own `app/storage/`).
 - **The browser-only apps** — admin, landing, block-kit-builder — have no environment to choose
   between, so each builds its stores once in its own `src/app/storage/` and hands them out from there.
 - **Everything else in the apps and the libs** reaches web storage only through a store — the root
@@ -122,15 +122,15 @@ for what travels with a sign-in — and a lib reads the session's plain store th
 ## Usage
 
 ```ts
-const stores = runtime.boot.resolveStorageStores();
+// both from @chatic/runtime-web
+const stores = resolveStorageStores();
 configureAppStores({ device: stores.device, tab: stores.tab });
-runtime.boot.initAppRuntime({
-    storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
-    transport: webTransportPorts(), // from @chatic/runtime-web
-    auth: webAuthPorts(), // from @chatic/runtime-web
-    cache: webLocalCachePorts(stores.webSession), // from @chatic/runtime-web: a tab's invited clouds
-    foreground: webForegroundPorts(), // from @chatic/runtime-web
-});
+runtime.boot.initAppRuntime(
+    createWebRuntime({
+        storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
+        cacheTab: stores.webSession, // a tab's invited clouds
+    })
+);
 ```
 
 ### What not to do

@@ -35,7 +35,7 @@ import { deviceStore, tabStore } from '../../storage';
 /**
  * Every key the log pipeline writes starts with this — the queue, its heartbeats, the tab id and the
  * crash sentinel. A sign-out takes them from the session's plain store; the entry point declares the
- * prefix to the runtime (`initAppRuntime({ signedOutKeyPrefixes })`).
+ * prefix to the runtime (`createWebRuntime({ signedOutKeyPrefixes })`).
  */
 export const LOG_KEY_PREFIX = '@chatic/web.log.';
 

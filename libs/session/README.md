@@ -52,7 +52,7 @@ would make the store a participant in the flow it is supposed to merely record.
 exists to keep the exemption to one file: it reads `@chatic/config` at boot and hands `relayStore`
 two endpoint **resolvers**. Functions, not values — a deeplink override (`?_backend=`) can be
 captured after module load and still be picked up, because every access re-resolves. Until
-`initAppRuntime()` runs them, `relayStore.getBackend()` and `getWss()` **throw**, with a message
+`createRuntime()` runs them, `relayStore.getBackend()` and `getWss()` **throw**, with a message
 naming that function. A loud failure beats a request going out to an empty host.
 
 **Nothing in this package imports `@chatic/bridges`**, and the same eslint config refuses it in
@@ -101,7 +101,7 @@ makes on first use; an app or desktop shell injects an id of its own that wins o
 The stores do not hold a storage of their own. They hold two **ports** that the session declares in
 [`store/ports/`](./src/store/ports/index.ts), and each app's entry point decides which `KeyValueStore`
 ([`@chatic/storage`](../storage/README.md)) backs each port in its environment, passing them to
-`initAppRuntime({ storage })`, which calls `sessionStores.configure`.
+`createWebRuntime({ storage })` in a page, whose `createRuntime` calls `sessionStores.configure`.
 
 | Port     | Keys                                                                                                                                                                                                                                                                              |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -119,7 +119,7 @@ storage screen, through `runtime.session` — asks whether a key is the session'
 copy of the list.
 
 **There is no default store.** Until `configure` runs, reading either port throws, and the error names
-`initAppRuntime({ storage })`. A default would have to be one platform's storage — this tab's
+`createRuntime({ storage })`. A default would have to be one platform's storage — this tab's
 `sessionStorage` — and the session runs in more than one place: a runtime never handed its stores would
 keep credentials wherever that default landed, and the first sign would be a session that quietly does
 not survive. Every app that boots the runtime names its stores, the landing site included, and a test
