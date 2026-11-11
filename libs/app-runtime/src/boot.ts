@@ -43,12 +43,6 @@ export type { StorageEnvironment, StorageStores } from './storage/resolveStorage
 export type { SecretStorageBoot, SecretStorageOutcome } from '@chatic/auth';
 export type { SessionStoragePorts } from '@chatic/session';
 
-// Native local-cache capability, reported by the bridge handshake AFTER boot — which is why it is a
-// setter and not a field on `AppRuntimeConfig`. The web ships ahead of the app (see the deploy-order
-// rule), so a domain the installed app cannot store is routed to web storage instead of a silent void.
-export { setNativeCacheSupport } from './data/nativeCacheSupport';
-export type { NativeCacheSupport } from './data/nativeCacheSupport';
-
 // The relay HTTP transport — plain or signed requests; admin reaches the server through it. It needs no
 // boot: each signed request reads the session's relay token at that moment.
 export { webTransport } from '@chatic/transport';

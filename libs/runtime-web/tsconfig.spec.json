@@ -10,6 +10,24 @@
     // The same sibling projects tsconfig.lib.json references.
     "references": [
         {
+            "path": "../storage/tsconfig.lib.json"
+        },
+        {
+            "path": "../session/tsconfig.lib.json"
+        },
+        {
+            "path": "../logger/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridge-messages/tsconfig.lib.json"
+        },
+        {
+            "path": "../bridges/tsconfig.lib.json"
+        },
+        {
+            "path": "../db/tsconfig.lib.json"
+        },
+        {
             "path": "../runtime-core/tsconfig.lib.json"
         },
         {

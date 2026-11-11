@@ -2,7 +2,7 @@
  * Web ships ahead of the app. So "can native store this domain" can't be answered from web's own
  * type union (web always knows more than the app it's running against) — it can only be answered by
  * the handshake report plus the frozen legacy set. This suite pins down that judgment rule —
- * libs/app-runtime/docs/data/cache-contract-versions.md.
+ * libs/runtime-web/docs/cache/README.md.
  */
 import type { CacheType } from '@chatic/bridge-messages';
 
@@ -19,7 +19,7 @@ jest.mock('@chatic/bridges', () => ({
     logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
-// 'invite' (ADR-0052) is the first CacheType added to this repo after the fact, so by definition it's
+// 'invite' is the first CacheType added to this repo after the fact, so by definition it's
 // outside the frozen LEGACY_NATIVE_CACHE_TYPES set and can only be recognized as native through the
 // handshake report — it's a real type that embodies the exact reason this hook exists.
 const FUTURE_TYPE = 'invite';
@@ -118,7 +118,7 @@ describe('도메인 판번호 (세 근거의 최댓값)', () => {
     });
 
     // The global schema number is no longer read for this judgment — the point where the defect of
-    // an unrelated domain's migration bumping the baseline (ADR-0053 defect 2) went away.
+    // an unrelated domain's migration bumping the baseline went away.
     it('전역 cacheSchemaVersion은 판정에 영향을 주지 않는다', () => {
         REQUIRED_DOMAIN_VERSION.invite = 2;
 

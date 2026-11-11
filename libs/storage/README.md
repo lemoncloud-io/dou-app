@@ -125,9 +125,10 @@ for what travels with a sign-in — and a lib reads the session's plain store th
 const stores = runtime.boot.resolveStorageStores();
 configureAppStores({ device: stores.device, tab: stores.tab });
 runtime.boot.initAppRuntime({
-    storage: { secret: stores.secret, plain: stores.plain, device: stores.device, tab: stores.tab },
+    storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
     transport: webTransportPorts(), // from @chatic/runtime-web
     auth: webAuthPorts(), // from @chatic/runtime-web
+    cache: webLocalCachePorts(stores.webSession), // from @chatic/runtime-web: a tab's invited clouds
 });
 ```
 

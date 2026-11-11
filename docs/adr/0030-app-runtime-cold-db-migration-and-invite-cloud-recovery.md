@@ -21,7 +21,7 @@
 >   twice).
 >
 > How storage routing actually behaves now:
-> [cache-storage-routing.md](../../libs/app-runtime/docs/data/cache-storage-routing.md)
+> [runtime-web docs/cache](../../libs/runtime-web/docs/cache/README.md)
 
 ## Context
 

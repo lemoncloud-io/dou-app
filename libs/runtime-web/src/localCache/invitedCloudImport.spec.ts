@@ -1,6 +1,6 @@
 import type { CacheModelOf } from '@chatic/bridge-messages';
 import type { CacheStorage } from '@chatic/data';
-import { INVITED_CLOUD_IMPORT_MARKER_KEY, InvitedCloudImportStorage } from './invitedCloudSessionImport';
+import { INVITED_CLOUD_IMPORT_MARKER_KEY, InvitedCloudImportStorage } from './invitedCloudImport';
 
 jest.mock('@chatic/bridges', () => ({
     ...jest.requireActual('@chatic/bridges'),

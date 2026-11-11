@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import { createStateOutbox, RELAY_CLOUD_ID, STATE_SPECS } from '@chatic/data';
 import type {
     DataRepositories,

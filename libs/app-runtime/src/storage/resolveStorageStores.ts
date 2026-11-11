@@ -59,7 +59,7 @@ const createVault = (): NativeSecureStore =>
     });
 
 /**
- * The one place an app's stores are chosen and built — the storage counterpart of the cache's
+ * The one place an app's stores are chosen and built — the storage counterpart of the web cache's
  * `resolveCacheBackend`. An entry point that uses it calls it once and hands the result out instead of
  * constructing stores itself (apps/web and apps/desktop-web do).
  *

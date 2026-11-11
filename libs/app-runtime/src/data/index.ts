@@ -23,7 +23,7 @@ export type {
 } from './hooks/useSendImages';
 export { useGlobalCacheSearch, globalCacheRefKey } from './hooks/useGlobalCacheSearch';
 
-// Native cache instrumentation read/reset — the debug overlay's only view into `@chatic/db`'s
+// Native cache instrumentation read/reset — the debug overlay's only view into the platform cache's
 // metrics module (ADR-0070 Decision 5); it never imports the engine lib directly.
 export { getCacheMetricsSource } from './factories/localFactory';
 

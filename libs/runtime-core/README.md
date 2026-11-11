@@ -27,7 +27,8 @@ adapter that forgot it, not a fallback discovered on a device.
 2. **The package that uses a port declares it.** `RuntimePorts.storage` is `@chatic/session`'s own
    `SessionStoragePorts` and `RuntimePorts.transport` is `@chatic/transport`'s
    `TransportPlatformPorts` (the online signal, the device, how a socket is opened) and
-   `RuntimePorts.auth` is `@chatic/auth`'s `AuthPlatformPorts` (the address, the way home at logout);
+   `RuntimePorts.auth` is `@chatic/auth`'s `AuthPlatformPorts` (the address, the way home at logout)
+   and `RuntimePorts.cache` is `@chatic/data`'s `LocalCachePorts` (where each cache domain lives);
    this package names them, it does not redefine them.
 3. **No platform here.** The package compiles without the browser's types or Node's (`lib:
 ["es2022"]`, `types: []` in `tsconfig.lib.json`), its tests run in jest's `node` environment, and

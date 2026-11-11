@@ -11,16 +11,14 @@ is [libs/sync](../../../sync/README.md)'s.
 ## Layout
 
 ```text
-data/                              27 source files, 21 tests
+data/                              26 source files, 18 tests
 ├── DataManager.ts                the app graph, plus one scoped graph per cloud on demand
 ├── runtime.ts                    configureDataRuntime · getDataRuntime · getDataManager · getRepositories
 ├── types.ts                      IDataManager · CacheAssemblyOptions
-├── cacheStorageRouting.ts        resolveCacheBackend — the one routing decision
-├── nativeCacheSupport.ts         what the installed shell says it can store
+├── localCachePlatform.ts         the holder of the platform's cache ports, configured at boot
 ├── cloudChat.ts                  sendChatInCloud · getCloudRepositories · waitForCloudSocket — writes named by cloud
 ├── invitedCloudDurability.ts     the one domain the server cannot re-list
 ├── pairedCloudName.ts            syncPairedCloudName — a paired cloud's name, kept outside the cloud cache
-├── invitedCloudSessionImport.ts  InvitedCloudImportStorage — a tab's one-time copy of its invited clouds out of IndexedDB
 ├── clearLocalCaches.ts           the settings "clear cache" — every known cloud, minus what only this device holds
 ├── syncCursorWatermark.ts        retires the cursors a clear could not reach, on the next boot
 ├── outbox.ts                     the offline chat outbox — a machine, not a policy
@@ -34,8 +32,12 @@ data/                              27 source files, 21 tests
                                   imageSendProgress (useImageSendProgress) · queryKeys
 ```
 
-`factories/localFactoryFallback.test.ts` has no source file of its own: it covers the web-fallback
-log inside `localFactory.ts` and lives apart because it needs the bridge mocked.
+Where each domain's rows live is not here. It is the platform's — `LocalCachePorts` in `@chatic/data`,
+filled in a page by `webLocalCachePorts(tab)` from `@chatic/runtime-web`, which holds the routing
+(`resolveCacheBackend`), the shell's capability report (`setNativeCacheSupport`), the IndexedDB and
+bridge adapters and a tab's invited-cloud import; see [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
+The entry point passes the ports to `initAppRuntime({ cache })`, and `localCachePlatform.ports()`
+throws until it has.
 
 ## Responsibilities
 
@@ -138,13 +140,11 @@ Each returns only the interfaces a repository consumes; no gateway instance esca
 
 - **`socketFactory`** builds the socket gateway bundle over a socket client — the active facade by default, one slot's `getScopedClient(key)` for a scoped graph. The auth, invite and cloud gateways are pinned to relay with `getScopedClient(RELAY_SLOT)` whichever client is passed, and `device` is a routed pair (`{ active, relay }`) so the one relay-only device write can name its destination without every caller learning about routing. `upload` rides the passed client like the other cloud domains — an image message's uploads go to the cloud it is sent in. The auth bundle has **no `update` slot** — building an `auth.update` packet is the SDK's job alone.
 - **`httpFactory`** builds five HTTP data sources over the gateways in [transport docs/http/](../../../transport/docs/http/README.md): auth, user, cloud, subscription, report.
-- **`localFactory`** materializes `resolveCacheBackend`'s verdict as an adapter (IndexedDB, the native bridge, or — for invited clouds in a plain tab — `sessionStorage` behind a one-time IndexedDB import) and wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta`. It holds the package's only module-level mutable state, a shared `IndexedDBDatabase`, because a database connection is a physical shared resource.
+- **`localFactory`** wires nine storages — `channel`, `chat`, `inviteCloud`, `invite`, `join`, `profile`, `site`, `user`, `meta` — over the platform's cache ports: it asks `route(type)` once per domain per session, builds each with `storage(type, route, …)`, and hands the routes to `routed()` once, which in a page logs **one line per boot** naming the domains a phone shell could not hold.
 
-`localFactory` also produces two side outputs. It logs **one line per boot** naming the domains a
-native shell could not hold, so "why is this app re-downloading everything" is answerable from the
-client — and nothing at all on a plain browser, where web storage is not a fallback. And it records a
-**routing fingerprint**, which is what stops a sync cursor outliving the storage it described; both
-are in [cache-storage-routing.md](./cache-storage-routing.md).
+`localFactory` also records a **routing fingerprint** from the routes it was given, which is what stops
+a sync cursor outliving the storage it described; see
+[runtime-web docs/cache](../../../runtime-web/docs/cache/README.md).
 
 ### Boot policy
 
@@ -244,7 +244,7 @@ nothing to restore it from.
 
 Where the row lives follows the device user that can enter it. In a plain browser tab that user is the
 tab's guest, kept in `sessionStorage`, so the row is kept there too and ends with the tab
-([cache-storage-routing.md](./cache-storage-routing.md#check-0-invited-clouds-in-a-plain-tab-live-with-the-tabs-guest)
+([runtime-web docs/cache](../../../runtime-web/docs/cache/README.md#check-0-invited-clouds-in-a-plain-tab-live-with-the-tabs-guest)
 has the routing and the one-time import from IndexedDB). Inside the mobile shell it is native SQLite;
 inside the desktop shell, IndexedDB.
 
@@ -322,7 +322,7 @@ belongs to [`libs/data`](../../../data/README.md).
 - **Do not add a direct-gateway escape hatch.** Every read and write goes through a repository, and gateway instances stay inside `data/` and `http/`.
 - **Do not revive `ensure`/`destroy` on `DataManager`.** The scope is derived at read time; a setter that ignores its argument is worse than no setter.
 - **Do not capture `getSocketManager()` at construction.** Resolve it per call.
-- **Do not put a routing branch in a factory, an adapter or an app.** `resolveCacheBackend` is the one decision point, and a second one drifts from it invisibly.
+- **Do not put a routing branch in a factory, an adapter or an app.** The platform's `route()` is the one decision point (`resolveCacheBackend` in a page), and a second one drifts from it invisibly.
 - **Do not call `configureDataRuntime` after first repository access.** It is silently ignored (with a warning), which reads as "my policy does nothing".
 - **Do not send a chat through `useRuntimeRepositories().chat.sendChat`.** It follows the selection, and a switch in flight splits the write across two clouds. Use `sendChatInCloud` with the cloud of the row on screen.
 - **Do not give the chat outbox a retry timer.** One attempt per ready transition is the guarantee, and a timer turns a flapping socket into a send storm. The state outbox may have one because its writes are idempotent and collapsed to one per key ([libs/data outbox](../../../data/docs/outbox/README.md#the-machine)).
@@ -330,16 +330,15 @@ belongs to [`libs/data`](../../../data/README.md).
 
 ## Notes for implementers and tests
 
-- The factories are stateless functions — receive, assemble, return. Module-level mutable state is allowed only for a physical shared resource (the IndexedDB connection) and for the runtime singletons.
-- `createLocalDataSources` accepts an injected `cacheStorageFactory`. Injecting one leaves the routing fingerprint empty, which **disables** the cursor check — fine in a test, but it means a fingerprint test has to use the real factory.
-- `nativeCacheSupport` exports `LOCAL_AUTHORITY_CACHE_TYPES` and `REQUIRED_DOMAIN_VERSION` for its own tests only; neither is on the package barrel, and `REQUIRED_DOMAIN_VERSION` is empty in production.
-- `setNativeCacheSupport` must run before the data runtime is built — `apps/web` calls it from `main.tsx`. A report arriving later cannot move a routing decision that has already been made, and `resetNativeCacheSupport()` is the test seam.
-- `@chatic/data` builds one storage per `(cid, uid)` partition, on first use, so the factory also runs after assembly. `createLocalDataSources` therefore records each type's backend the first time it builds that type and reuses it for every later partition — without that, a partition first reached after a late handshake would put `invite` on SQLite while the rest of the session, and the next boot, read IndexedDB (ADR-0112).
-- `localFactory.test.ts` asserts a full type × environment matrix rather than individual cases, so a routing change cannot slip in as a side effect of something else.
+- The factories are stateless functions — receive, assemble, return. Module-level mutable state is allowed only for the runtime singletons; the one physical shared resource, the IndexedDB connection, lives with the web cache ports in `@chatic/runtime-web`.
+- `createLocalDataSources` accepts an injected `cacheStorageFactory`. Injecting one leaves the routing fingerprint empty and reports no routes, which **disables** the cursor check — fine in a test, but it means a fingerprint test has to go through the ports (`localFactory.test.ts` configures fake ones).
+- `setNativeCacheSupport` (from `@chatic/runtime-web`) must run before the data runtime is built — `apps/web` calls it from `main.tsx`. A report arriving later cannot move a routing decision that has already been made.
+- `@chatic/data` builds one storage per `(cid, uid)` partition, on first use, so the factory also runs after assembly. `createLocalDataSources` therefore asks `route()` the first time it builds a type and reuses the answer for every later partition — without that, a partition first reached after a late handshake would put `invite` on SQLite while the rest of the session, and the next boot, read IndexedDB (ADR-0112).
+- The type × environment routing matrix is asserted where the routing lives, in `@chatic/runtime-web`'s `localCache/routing.spec.ts`.
 
 ## Further reading
 
-- [cache-storage-routing.md](./cache-storage-routing.md) — where a cache type lands, and the version negotiation behind it
+- [runtime-web docs/cache](../../../runtime-web/docs/cache/README.md) — where a cache type lands, and the version negotiation behind it
 - [image-send.md](./image-send.md) — `useSendImages`: the pending row, the file memory, retry, leftovers and upload progress
 - [docs/session/](../session/README.md) — `ActiveScope`, the thing injected into every repository
 - [transport docs/http/](../../../transport/docs/http/README.md) — the gateways `httpFactory` builds over

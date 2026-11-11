@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import type { CacheDomainVersions, CacheType } from '@chatic/bridge-messages';
 
 /**
@@ -11,12 +11,12 @@ export interface NativeCacheSupport {
      * Native SQLite `PRAGMA user_version` target of the running app build.
      *
      * Recorded for logging and debugging only. Routing does NOT read it: a global counter cannot
-     * say anything about one domain, since an unrelated migration moves it too (ADR-0053).
+     * say anything about one domain, since an unrelated migration moves it too.
      */
     schemaVersion: number | null;
     /** CacheTypes that app build reported by name. Read as "contract edition 1" for that domain. */
     types: ReadonlySet<CacheType>;
-    /** Per-domain contract editions the app build reported implementing (ADR-0053). */
+    /** Per-domain contract editions the app build reported implementing. */
     domainVersions: CacheDomainVersions;
 }
 
@@ -74,7 +74,7 @@ type GateableCacheType = Exclude<CacheType, LocalAuthorityCacheType>;
  *
  * Monotonic by construction, so there is no on→off→on transition to get wrong. Local-authority
  * domains are excluded by the KEY TYPE, not by review: for them "route elsewhere until the app
- * catches up" means losing the rows (ADR-0053 decision 3).
+ * catches up" means losing the rows.
  *
  * Exported for this module's own tests only (it is not re-exported from the package barrel) — the
  * map is empty in production, so the version gate would otherwise ship untested until its first use.
@@ -134,7 +134,7 @@ const requiredVersion = (type: CacheType): number => REQUIRED_DOMAIN_VERSION[typ
 /**
  * Whether the running native shell can be trusted to store `type`.
  *
- * False routes that domain to web storage instead (see `localFactory.getCacheStorage`): the app
+ * False routes that domain to web storage instead (see `storage()` in `index.ts`): the app
  * would otherwise take the write into a `default:` arm that answers `null` with `success: true` —
  * a permanently empty cache rather than an error.
  *

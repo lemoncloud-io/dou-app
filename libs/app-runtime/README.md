@@ -199,11 +199,11 @@ libs/app-runtime/src/
 ├── connection/       19 files — the host, SocketBinder, SocketReauthBinder, 11 hooks, 3 utils
 ├── session/          35 files — the React surface (34 under hooks/) and the `session` group; the use cases are @chatic/auth
 ├── socket/           2 files — the `sync` group and its hooks; the manager is @chatic/transport, sync and socket auth are their own packages
-├── data/             24 files — DataManager, 4 factories (one is the state outbox's transport), cache routing, cloud-addressed sends, the chat outbox, the cache-clear sweep and its cursor watermark, 5 hooks
+├── data/             26 files — DataManager, 4 factories (one is the state outbox's transport), the platform cache's holder, cloud-addressed sends, the chat outbox, the cache-clear sweep and its cursor watermark, 5 hooks
 ├── push/             3 files — device-token registration and its record
 ├── report/           5 files — user issue report + log-batch upload
 ├── config/           1 file — records the effective settings in the logs
-├── storage/          2 files — resolveStorageStores (an app's stores, chosen once) and the runtime's device/tab stores
+├── storage/          2 files — resolveStorageStores (an app's stores, chosen once) and the runtime's device store
 └── utils/            1 file — isNativeApp
 ```
 
@@ -265,11 +265,12 @@ apps/*/src/main.tsx
   ├─ config.init(...)                     @chatic/config — first, this lib reads it lazily
   ├─ await prepareSecretStorage(...)      only in a shell that keeps a vault: load it, move web copies in
   ├─ logging + bridge wiring              the log hub must have listeners before anything logs
-  ├─ initAppRuntime({ storage, transport, auth, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
+  ├─ initAppRuntime({ storage, transport, auth, cache, signedOutKeyPrefixes?, data? }) ↓ ten steps, in this order
   │    ├─ sessionStores.configure()       the stores behind the session's secret and plain ports — required
-  │    │  runtimeStores.configure()       … and the runtime's own device/tab stores (cursor watermark, a tab's invited clouds)
+  │    │  runtimeStores.configure()       … and the runtime's own device store (the cursor watermark) — required
   │    │  transportPlatform.configure()   the online signal, the device and the socket factory — required (webTransportPorts() in a page)
   │    │  authPlatform.configure()        the address and the way home at logout — required (webAuthPorts() in a page)
+  │    │  localCachePlatform.configure()  where the cache's rows live — required (webLocalCachePorts(tab) in a page)
   │    ├─ dropLemonLeftovers()            the lemon bundle older builds left in web storage
   │    ├─ signedOutAppKeys.register()     the key prefixes the app's domains say a sign-out takes
   │    ├─ logoutStorageSweeper.sweep()    honors ?logout=1, drops the signed-out account's keys
@@ -307,7 +308,8 @@ A wiring with no owner belongs to the composition root.
 
 **Every wiring call is in `init.ts`, and lint holds it there.** Each of the calls above that hands a
 package something — `sessionStores.configure`, `runtimeStores.configure`, `signedOutAppKeys.register`,
-`configureSessionStore`, `credentialRecovery.register`, `transportPlatform.configure`, `authPlatform.configure`, `configureDataRuntime`,
+`configureSessionStore`, `credentialRecovery.register`, `transportPlatform.configure`, `authPlatform.configure`,
+`localCachePlatform.configure`, `configureDataRuntime`,
 `authRepositorySource.provide`, `syncDataGraph.provide` — replaces what the last call set. A second call
 site is therefore not a harmless repeat: whichever runs later silently undoes the boot, and nothing
 in `init.ts` would show it. `@nx/workspace-runtime-wiring-call` reports any of them outside `init.ts`;
@@ -318,7 +320,7 @@ storage adapter, the log context) and the reaction it registers through
 `runtime.session.authFailureReaction` are the app's own choices and not in the catalogue.
 
 **Choosing the stores.** `resolveStorageStores()` (the `boot` group) is the one place an app's storage
-stores are chosen and built — the storage counterpart of the cache's `resolveCacheBackend`. It reads
+stores are chosen and built — the storage counterpart of the web cache's `resolveCacheBackend`. It reads
 three facts once (in a shell, whether the shell listed `nativeSecure`, and the tab's late-vault mark)
 and returns the session's `secret`/`plain`, the vault when there is one, and the `device`/`tab` stores
 everything else writes through. `plain` follows the session (localStorage in a shell, sessionStorage
@@ -403,14 +405,14 @@ un-revoke it, so it is detected by its error message and ends the session immedi
 
 ## Documents
 
-| Folder                                                                     | What it covers                                                                                                                     |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| [docs/session/](./docs/session/README.md)                                  | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                 |
-| [docs/connection/](./docs/connection/README.md)                            | The host, how the slots are derived, background slots and write holds, the two binders, the connection-state hooks                 |
-| [docs/sync/](./docs/sync/README.md)                                        | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                       |
-| [docs/data/](./docs/data/README.md)                                        | `DataManager` and the four factories, the chat outbox, the state outbox transport, invited-cloud durability                        |
-| [docs/data/cache-storage-routing.md](./docs/data/cache-storage-routing.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it |
-| [docs/push/](./docs/push/README.md)                                        | Device-token registration — the delegate contract, the once-per-install record, the triggers                                       |
+| Folder                                                         | What it covers                                                                                                                     |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [docs/session/](./docs/session/README.md)                      | The React surface over the session: readers, actions, the two credential guards, the pairing hooks                                 |
+| [docs/connection/](./docs/connection/README.md)                | The host, how the slots are derived, background slots and write holds, the two binders, the connection-state hooks                 |
+| [docs/sync/](./docs/sync/README.md)                            | The registration hooks a screen mounts — `useChatSync` and its two siblings — and chat prime                                       |
+| [docs/data/](./docs/data/README.md)                            | `DataManager` and the four factories, the chat outbox, the state outbox transport, invited-cloud durability                        |
+| [runtime-web docs/cache/](../runtime-web/docs/cache/README.md) | Which storage a cache type lands in, and the contract-version negotiation that keeps a web deploy ahead of the app from voiding it |
+| [docs/push/](./docs/push/README.md)                            | Device-token registration — the delegate contract, the once-per-install record, the triggers                                       |
 
 The socket manager and the HTTP manager are documented with `@chatic/transport`:
 [transport docs/socket/](../transport/docs/socket/README.md) and [transport docs/http/](../transport/docs/http/README.md).

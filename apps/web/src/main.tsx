@@ -8,7 +8,7 @@ import { BridgeStorageChannel, setupBridgeLogger, webClient } from '@chatic/brid
 import { config } from '@chatic/config';
 import { migrateLegacyPhoneCountry } from '@chatic/shared/phone';
 import { runtime } from '@chatic/app-runtime';
-import { webAuthPorts, webTransportPorts } from '@chatic/runtime-web';
+import { setNativeCacheSupport, webAuthPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
 
 import { createWebConfigPorts } from './app/config/adapters';
 import { syncThemeFromSharedKey } from './app/config/themeSharedKeySync';
@@ -161,11 +161,12 @@ const startApp = (): void => {
     // cache only on the relay scope, so a cloud partition never receives the default place row
     //. It must land before the data runtime is lazily created on first repository access.
     runtime.boot.initAppRuntime({
-        // The runtime's `tab` store holds a cache (a tab's invited clouds), which must hear a failed write,
-        // so it gets the raw `webSession` rather than the tolerant `tab` the features use.
-        storage: { secret: stores.secret, plain: stores.plain, device: stores.device, tab: stores.webSession },
+        storage: { secret: stores.secret, plain: stores.plain, device: stores.device },
         transport: webTransportPorts(),
         auth: webAuthPorts(),
+        // The cache's tab-lifetime store holds a tab's invited clouds — a cache, which must hear a failed
+        // write, so it gets the raw `webSession` rather than the tolerant `tab` the features use.
+        cache: webLocalCachePorts(stores.webSession),
         // The keys this app's log pipeline and telemetry policy write: a sign-out takes them.
         signedOutKeyPrefixes: [LOG_KEY_PREFIX, TELEMETRY_POLICY_KEY_PREFIX],
         data: {
@@ -266,7 +267,7 @@ const startApp = (): void => {
         webPerfTraces.resolveWith(report);
         // Until this lands the viewer shows no save or share: it does not yet know what this shell handles.
         shellCapabilities.setReport(report);
-        if (report) runtime.boot.setNativeCacheSupport(report);
+        if (report) setNativeCacheSupport(report);
         // A shell that keeps a vault but did not say so before the page ran is found here instead,
         // and the session moves into its vault for the rest of the run.
         if (!vault && report?.supportedWebMessages?.includes('StorageGet')) void adoptLateVault();

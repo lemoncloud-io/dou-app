@@ -13,7 +13,7 @@ import {
 } from './outboxFactory';
 
 const mockWarn = jest.fn();
-jest.mock('@chatic/bridges', () => ({ logger: { warn: (...args: unknown[]) => mockWarn(...args) } }));
+jest.mock('@chatic/logger', () => ({ logger: { warn: (...args: unknown[]) => mockWarn(...args) } }));
 
 const mockSubscribeSlotVerified = jest.fn();
 jest.mock('@chatic/transport/socket/runtime', () => ({

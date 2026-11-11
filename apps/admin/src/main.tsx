@@ -4,10 +4,10 @@ import * as ReactDOM from 'react-dom/client';
 
 import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
-import { webAuthPorts, webTransportPorts } from '@chatic/runtime-web';
+import { webAuthPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
 
 import { webConfigPorts } from './app/config/adapters';
-import { tabStore } from './app/storage';
+import { deviceStore, tabStore } from './app/storage';
 
 import App from './app/app';
 import { authFailureNotice } from './app/session/authFailureNotice';
@@ -25,9 +25,10 @@ const sessionStore = tabStore;
 // previously it happened as a side effect of importing the session barrel (a follow-up to ADR-0070 step 5).
 // No data policies: the console uses the default repository and cache assembly.
 runtime.boot.initAppRuntime({
-    storage: { secret: sessionStore, plain: sessionStore },
+    storage: { secret: sessionStore, plain: sessionStore, device: deviceStore },
     transport: webTransportPorts(),
     auth: webAuthPorts(),
+    cache: webLocalCachePorts(tabStore),
 });
 
 // What this console does when the server CONFIRMS the session is over (the credential was re-minted

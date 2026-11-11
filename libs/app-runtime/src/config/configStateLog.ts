@@ -1,4 +1,4 @@
-import { logger } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 import { config } from '@chatic/config';
 
 import type { ConfigSnapshot } from '@chatic/config';

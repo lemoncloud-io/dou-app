@@ -3,10 +3,8 @@ import { MemoryStore } from '@chatic/storage';
 import { runtimeStores } from '../storage/runtimeStores';
 import { applyPendingSyncCursorReset, getSyncCursorsValidAfter, requestSyncCursorReset } from './syncCursorWatermark';
 
-beforeEach(() => {
-    runtimeStores.reset();
-    localStorage.clear();
-});
+// The runtime's device store, in memory: the watermark is its only reader here.
+beforeEach(() => runtimeStores.configure({ device: new MemoryStore() }));
 
 describe('syncCursorWatermark', () => {
     it('trusts every cursor until a clear has asked for a reset', () => {
@@ -35,7 +33,7 @@ describe('syncCursorWatermark', () => {
     });
 
     it('reads an unreadable stored value as no watermark', () => {
-        localStorage.setItem('chatic.syncCursors.validAfter', 'garbage');
+        runtimeStores.device().set('chatic.syncCursors.validAfter', 'garbage');
 
         expect(getSyncCursorsValidAfter()).toBe(0);
     });

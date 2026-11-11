@@ -156,11 +156,11 @@ sequenceDiagram
     Main->>Main: stores = runtime.boot.resolveStorageStores() · configureAppStores(device, tab)
     Main->>Main: syncThemeFromSharedKey · config.init(createWebConfigPorts(stores)) · migrateLegacyPhoneCountry
     Main->>Shell: StorageGet (only when CHATIC_APP_STORAGE_MEDIA lists nativeSecure) · move web copies in
-    Main->>RT: runtime.boot.initAppRuntime({ storage, transport: webTransportPorts(), auth: webAuthPorts(), signedOutKeyPrefixes, data: { repositories } })
+    Main->>RT: runtime.boot.initAppRuntime({ storage, transport: webTransportPorts(), auth: webAuthPorts(), cache: webLocalCachePorts(webSession), signedOutKeyPrefixes, data: { repositories } })
     Main->>Main: pendingNavigationStore.start()
     Main->>Shell: appBridge.notifyWebAppReady()
     Shell-->>Main: capability report (buffered events flush)
-    Main->>RT: runtime.boot.setNativeCacheSupport(report)
+    Main->>Main: setNativeCacheSupport(report) (@chatic/runtime-web)
     Main->>App: render(<App />)
     App->>RT: runtime.connection.RuntimeConnectionHost gates its subtree
     RT-->>Router: session initialized
@@ -302,7 +302,7 @@ main.tsx
 ├── runtime.boot.initAppRuntime({ storage, signedOutKeyPrefixes, ... })   (before any session read)
 ├── bootSplash.armCap(10_000)                                      (docs/shell/boot-cover.md)
 ├── pendingNavigationStore.start()                                 (before the handshake)
-├── appBridge.notifyWebAppReady() → runtime.boot.setNativeCacheSupport
+├── appBridge.notifyWebAppReady() → setNativeCacheSupport (@chatic/runtime-web)
 └── render(<App />)
     └── app/app.tsx            HelmetProvider · I18nextProvider · QueryClientProvider · ThemeApplier
         ├── GlobalBridgeListener

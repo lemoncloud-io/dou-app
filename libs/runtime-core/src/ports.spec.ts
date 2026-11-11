@@ -1,5 +1,6 @@
 import type { AllRequired, OptionalKeys, RuntimePorts } from './ports';
 import type { AuthPlatformPorts } from '@chatic/auth';
+import type { LocalCachePorts } from '@chatic/data';
 import type { SessionStoragePorts } from '@chatic/session';
 import type { TransportPlatformPorts } from '@chatic/transport';
 
@@ -12,20 +13,21 @@ import type { TransportPlatformPorts } from '@chatic/transport';
 const storage = {} as SessionStoragePorts;
 const transport = {} as TransportPlatformPorts;
 const auth = {} as AuthPlatformPorts;
+const cache = {} as LocalCachePorts;
 
 const isTrue = <T extends true>(): T => true as T;
 const isFalse = <T extends false>(): T => false as T;
 
 describe('RuntimePorts', () => {
     it('accepts an object that fills every port', () => {
-        const ports: RuntimePorts = { storage, transport, auth };
-        expect(Object.keys(ports)).toEqual(['storage', 'transport', 'auth']);
+        const ports: RuntimePorts = { storage, transport, auth, cache };
+        expect(Object.keys(ports)).toEqual(['storage', 'transport', 'auth', 'cache']);
     });
 
     it('refuses an object that leaves a port out', () => {
-        // @ts-expect-error — `auth` is missing.
-        const ports: RuntimePorts = { storage, transport };
-        expect(ports).toEqual({ storage, transport });
+        // @ts-expect-error — `cache` is missing.
+        const ports: RuntimePorts = { storage, transport, auth };
+        expect(ports).toEqual({ storage, transport, auth });
     });
 
     it('declares no optional port', () => {

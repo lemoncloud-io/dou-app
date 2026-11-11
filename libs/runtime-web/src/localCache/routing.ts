@@ -1,7 +1,10 @@
 import type { CacheType } from '@chatic/bridge-messages';
 import { isNative } from '@chatic/bridges';
-import { isNativeApp } from '../utils/isNativeApp';
 import { isNativeCacheTypeUsable } from './nativeCacheSupport';
+
+/** The page runs inside the phone app's WebView — the one shell with SQLite behind its bridge. */
+export const isInPhoneApp = (): boolean =>
+    typeof window !== 'undefined' && !!(window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
 
 /**
  * Which physical store a cache type lands in.
@@ -28,8 +31,8 @@ export type CacheBackend = 'web' | 'native' | 'session';
 const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
 
 /**
- * THE routing decision: answers "where is this cache type stored" in one place, so the factory
- * (`localFactory.getCacheStorage`) stays a pure assembler. Checks, in order:
+ * THE routing decision: answers "where is this cache type stored" in one place, so the ports'
+ * `storage()` (`index.ts`) stays a pure assembler. Checks, in order:
  *
  * 0. `invitecloud` in a plain browser tab → `session`. An invited cloud is entered on the grant of
  *    the guest that accepted the invite, and in a plain tab that guest lives in `sessionStorage` —
@@ -44,13 +47,13 @@ const WEB_PINNED_CACHE_TYPES: ReadonlySet<CacheType> = new Set<CacheType>();
  *    the app, so a type newer than the installed app would otherwise be written into a native
  *    `default:` arm that answers `null` with `success: true` — a permanently empty cache that
  *    looks like a cold miss forever. How the shell reports what it implements, and why one domain
- *    is exempt from this check entirely, is owned by `nativeCacheSupport` (ADR-0053; see
- *    docs/data/cache-contract-versions.md).
+ *    is exempt from this check entirely, is owned by `nativeCacheSupport` (see
+ *    docs/cache/README.md).
  * 4. Otherwise → `native`: a single durable store that survives WebView IndexedDB eviction.
  */
 export const resolveCacheBackend = (type: CacheType): CacheBackend => {
     if (type === 'invitecloud' && !isNative()) return 'session';
-    if (!isNativeApp()) return 'web';
+    if (!isInPhoneApp()) return 'web';
     if (WEB_PINNED_CACHE_TYPES.has(type)) return 'web';
     if (!isNativeCacheTypeUsable(type)) return 'web';
     return 'native';

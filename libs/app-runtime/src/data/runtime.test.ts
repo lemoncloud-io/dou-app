@@ -3,7 +3,7 @@
  * and cache-assembly options, and it only lands before the singleton exists — a late call is
  * ignored, not applied to already-built repositories and storages.
  */
-jest.mock('@chatic/bridges', () => ({ logger: { warn: jest.fn() } }));
+jest.mock('@chatic/logger', () => ({ logger: { warn: jest.fn() } }));
 jest.mock('./DataManager', () => ({
     DataManager: jest.fn().mockImplementation(() => ({ getRepositories: () => ({}) })),
 }));

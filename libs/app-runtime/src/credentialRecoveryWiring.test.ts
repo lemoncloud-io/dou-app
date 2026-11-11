@@ -49,9 +49,10 @@ describe('부팅 전', () => {
 describe('initAppRuntime 이후 — 자격증명 복구 배선', () => {
     beforeAll(() => {
         initAppRuntime({
-            storage: { secret: new MemoryStore(), plain: new MemoryStore() },
+            storage: { secret: new MemoryStore(), plain: new MemoryStore(), device: new MemoryStore() },
             transport: fakeTransportPorts(),
             auth: fakeAuthPorts(),
+            cache: {} as never,
         });
     });
 

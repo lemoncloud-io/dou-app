@@ -6,14 +6,16 @@ that are true of a page and of nothing else — the page's stores, its `navigato
 socket opened by the page — and hand them to the runtime as a
 [`RuntimePorts`](../runtime-core/README.md).
 
-| Export                     | Fills                                                 | With                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `webTransportPorts()`      | `RuntimePorts.transport`                              | `navigator.onLine` and the window's online/offline events; `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`; `new WebSocket(url, protocols)` |
-| `webAuthPorts()`           | `RuntimePorts.auth`                                   | `location.search`; `location.replace('/?<params>')` at the end of a session                                                                        |
-| `xhrPut`, `createXhrPut()` | `@chatic/data`'s `PutPort`, handed to `useSendImages` | the page's own `XMLHttpRequest` PUT — the browser's and the desktop app's sender, and the phone app's for a page file                              |
+| Export                          | Fills                                                       | With                                                                                                                                                                                               |
+| ------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `webTransportPorts()`           | `RuntimePorts.transport`                                    | `navigator.onLine` and the window's online/offline events; `window.CHATIC_APP_PLATFORM` and `navigator.userAgent`; `new WebSocket(url, protocols)`                                                 |
+| `webAuthPorts()`                | `RuntimePorts.auth`                                         | `location.search`; `location.replace('/?<params>')` at the end of a session                                                                                                                        |
+| `xhrPut`, `createXhrPut()`      | `@chatic/data`'s `PutPort`, handed to `useSendImages`       | the page's own `XMLHttpRequest` PUT — the browser's and the desktop app's sender, and the phone app's for a page file                                                                              |
+| `webLocalCachePorts(tab)`       | `RuntimePorts.cache`                                        | each cache domain in IndexedDB, in the phone shell's SQLite across the bridge, or in `tab` (a plain tab's invited clouds) — routing, adapters and search; see [docs/cache](./docs/cache/README.md) |
+| `setNativeCacheSupport(report)` | the phone shell's cache capability, which the routing reads | called by apps/web after the bridge handshake, before the data graph is built                                                                                                                      |
 
 The four apps that boot the runtime — web, desktop-web, admin and the landing site — pass it to
-`initAppRuntime({ transport, auth })` from their entry point. The session's storage is not here: each app
+`initAppRuntime({ transport, auth, cache })` from their entry point. The session's storage is not here: each app
 already chooses its stores in one place of its own (`resolveStorageStores()` in web and desktop-web, a
 stores module in admin and the landing site).
 
@@ -21,7 +23,6 @@ What else still has a browser answer inside a package moves here as its wiring b
 
 - `@chatic/auth` — at logout, the tokens a run without the vault left in the tab's `sessionStorage`
   (`WebStore.session()` in `session/relaySession.ts`); a no-op outside a page.
-- `@chatic/app-runtime` — the runtime's own device/tab stores, which default to the page's storage.
 - `@chatic/http` — its own `navigator.onLine` read for failure attribution; it sits below transport,
   so it cannot read the transport's online port.
 

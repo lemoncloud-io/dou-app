@@ -3,7 +3,8 @@ import { config } from '@chatic/config';
 import { getRepositories } from '../data/runtime';
 import { getActiveSessionUser, getGlobalSessionContext } from '../session';
 import { sanitizeReportUrl } from './reportUrl';
-import { isNative, logger } from '@chatic/bridges';
+import { isNative } from '@chatic/bridges';
+import { logger } from '@chatic/logger';
 
 import type { IssueReportWireBody } from '@chatic/http';
 import type { AppType, IssueReportExtras } from './types';

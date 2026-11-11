@@ -2,8 +2,6 @@ import { RELAY_CLOUD_ID } from '@chatic/data';
 
 import { recoverInvitedCloudIfMissing, syncInvitedCloudName } from './invitedCloudDurability';
 
-jest.mock('./cacheStorageRouting', () => ({ isNativeApp: () => true }));
-
 const mockIssue = jest.fn();
 
 // `delegateCloud` comes from the `auth` repository — data no longer has any reason to reach back into
