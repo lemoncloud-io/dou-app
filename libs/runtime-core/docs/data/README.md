@@ -253,7 +253,9 @@ and desktop-web read to keep one device user's invited cloud out of another's li
 row this module rebuilds (`recoverInvitedCloudIfMissing`) is recorded under the signed-in user
 (`getAcceptorId`: the relay uid, falling back to the `delegatorId`) — the delegation just succeeded
 for that user — so it is not listed for another account on the device. `withAcceptor` and
-`isAcceptedBy` (strict: an unattributed row is nobody's) are the shared helpers.
+`isAcceptedBy` (strict: an unattributed row is nobody's) are the shared helpers. `getAcceptorId` is
+not the id apps/web's accept writes: that one is the device guest's `delegatorId`, which a signed-in
+account keeps while its relay uid differs, so apps/web's list matches a row against both.
 
 The gap that remains is real and needs a backend change: a store wiped completely (a reinstall, the
 OS clearing app data) with no push carrying a cid has no recovery path. That is the price of the

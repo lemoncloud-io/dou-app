@@ -31,18 +31,23 @@ export interface InvitedCloudsResult {
  * are never shown twice.
  *
  * Attribution: inside a shell the cache is shared by every guest the device has had, and a browser
- * tab's rows survive a logout, so a row recorded as accepted by another guest is left out
- * (non-destructive too). Everything downstream — the cloud sheet, the
- * background sockets, unread counts — reads this list, and a cloud left in it would be delegated into
- * by a guest the server never granted it to (see `utils/invitedCloudAcceptance`).
+ * tab's rows survive a logout, so a row recorded as accepted by someone other than this session —
+ * under neither its guest `delegatorId` nor its relay uid — is left out (non-destructive too).
+ * Everything downstream — the cloud sheet, the background sockets, unread counts — reads this list,
+ * and a cloud left in it would be delegated into by a guest the server never granted it to (see
+ * `utils/invitedCloudAcceptance`).
  */
 export const useInvitedClouds = (): InvitedCloudsResult => {
     const { cloud } = runtime.data.useRuntimeRepositories();
     const { clouds: ownedClouds } = useCloudSessionCatalog();
-    // Subscribes to the session; the acceptor id is read off the relay session, which is the guest's own
-    // uid for a guest and the account's uid for a signed-in user — the id rebuilt rows are recorded under.
-    runtime.session.useSessionIdentity();
+    // A row is this session's when either of its two ids is recorded on it. The invite accept records the
+    // device guest (`delegatorId`), and a rebuilt row records the relay session's uid (`getAcceptorId`).
+    // For a guest the two are the same id, but a signed-in account keeps the guest's `delegatorId` while
+    // its relay uid is the account's own, so matching the relay uid alone would miss every row the accept
+    // wrote while the account was signed in.
+    const { delegatorId } = runtime.session.useSessionIdentity();
     const acceptorId = runtime.data.getAcceptorId();
+    const isMine = (c: DomainCloud): boolean => isAcceptedBy(c, delegatorId) || isAcceptedBy(c, acceptorId);
     const [cachedInvited, setCachedInvited] = useState<DomainCloud[]>([]);
 
     useEffect(() => {
@@ -53,7 +58,7 @@ export const useInvitedClouds = (): InvitedCloudsResult => {
 
     // Drop invited rows whose id is present in the owned catalog (now owned by the signed-in account).
     const ownedIds = new Set(ownedClouds.map(c => c.id).filter((id): id is string => !!id));
-    const invitedClouds = cachedInvited.filter(c => (!c.id || !ownedIds.has(c.id)) && isAcceptedBy(c, acceptorId));
+    const invitedClouds = cachedInvited.filter(c => (!c.id || !ownedIds.has(c.id)) && isMine(c));
     const ownedAlsoInvitedIds = cachedInvited.map(c => c.id).filter((id): id is string => !!id && ownedIds.has(id));
 
     return { invitedClouds, hasInvitedClouds: invitedClouds.length > 0, ownedAlsoInvitedIds };

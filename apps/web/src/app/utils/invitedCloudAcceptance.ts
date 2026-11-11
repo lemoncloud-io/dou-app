@@ -30,16 +30,18 @@ export const withAcceptor = (
 };
 
 /**
- * Whether `delegatorId` may treat this invited cloud as its own.
+ * Whether `acceptorId` may treat this invited cloud as its own. `useInvitedClouds` asks it for both
+ * of the session's ids — the guest's `delegatorId` and the relay uid — since rows are recorded
+ * under either.
  *
  * A row with no acceptors predates the field and is kept: invited clouds have no server list to
  * refill from, so hiding one would lose it for the guest it does belong to. A row with acceptors is
- * offered only to one of them — and to nobody while the session has no guest id yet.
+ * offered only to one of them — and to nobody when there is no id to match.
  */
 export const isAcceptedBy = (
     cloud: Pick<DomainCloud, 'acceptedBy'>,
-    delegatorId: string | null | undefined
+    acceptorId: string | null | undefined
 ): boolean => {
     if (!cloud.acceptedBy?.length) return true;
-    return !!delegatorId && cloud.acceptedBy.includes(delegatorId);
+    return !!acceptorId && cloud.acceptedBy.includes(acceptorId);
 };

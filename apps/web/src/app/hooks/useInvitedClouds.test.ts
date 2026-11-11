@@ -7,6 +7,8 @@ import { useInvitedClouds } from './useInvitedClouds';
 let mockCached: DomainCloud[] = [];
 let mockOwned: DomainCloud[] = [];
 let mockDelegatorId: string | null = 'guest-1';
+// The relay session's uid. A guest's equals its delegatorId; a signed-in account's is the account's own.
+let mockAcceptorId: string | null = 'guest-1';
 
 // One repositories object for every render, as the runtime hands out: the hook subscribes per `cloud`,
 // and a fresh one each render would re-subscribe and re-set state forever.
@@ -21,7 +23,7 @@ const mockRepositories = {
 
 jest.mock('@chatic/app-runtime', () => ({
     runtime: {
-        data: { useRuntimeRepositories: () => mockRepositories, getAcceptorId: () => mockDelegatorId },
+        data: { useRuntimeRepositories: () => mockRepositories, getAcceptorId: () => mockAcceptorId },
         session: { useSessionIdentity: () => ({ delegatorId: mockDelegatorId }) },
     },
 }));
@@ -36,6 +38,7 @@ beforeEach(() => {
     mockCached = [];
     mockOwned = [];
     mockDelegatorId = 'guest-1';
+    mockAcceptorId = 'guest-1';
 });
 
 describe('useInvitedClouds', () => {
@@ -74,5 +77,36 @@ describe('useInvitedClouds', () => {
         const { result } = renderHook(() => useInvitedClouds());
 
         expect(result.current.invitedClouds.map(c => c.id)).toEqual(['b']);
+    });
+
+    describe('signed in with an account, whose uid is not the device guest', () => {
+        beforeEach(() => {
+            mockDelegatorId = 'guest-1';
+            mockAcceptorId = 'account-9';
+        });
+
+        it('keeps a row the invite accept recorded under the guest', () => {
+            mockCached = [invited('a', ['guest-1'])];
+
+            const { result } = renderHook(() => useInvitedClouds());
+
+            expect(result.current.invitedClouds.map(c => c.id)).toEqual(['a']);
+        });
+
+        it('keeps a row a rebuild recorded under the account', () => {
+            mockCached = [invited('a', ['account-9'])];
+
+            const { result } = renderHook(() => useInvitedClouds());
+
+            expect(result.current.invitedClouds.map(c => c.id)).toEqual(['a']);
+        });
+
+        it('still leaves out a row recorded for neither', () => {
+            mockCached = [invited('a', ['another-guest']), invited('b', ['guest-1'])];
+
+            const { result } = renderHook(() => useInvitedClouds());
+
+            expect(result.current.invitedClouds.map(c => c.id)).toEqual(['b']);
+        });
     });
 });
