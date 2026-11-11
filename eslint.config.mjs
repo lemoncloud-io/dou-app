@@ -221,6 +221,7 @@ const RUNTIME_WIRING = {
         { object: 'transportPlatform', name: 'configure' },
         { object: 'authPlatform', name: 'configure' },
         { object: 'localCachePlatform', name: 'configure' },
+        { object: 'foregroundPlatform', name: 'configure' },
         { name: 'configureDataRuntime' },
         { object: 'authRepositorySource', name: 'provide' },
         { object: 'syncDataGraph', name: 'provide' },

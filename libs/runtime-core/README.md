@@ -3,7 +3,8 @@
 **The runtime's assembly, and what it takes from the platform it runs on.** The session, the
 sockets, sync and the data layer run in two places: in the web page for the browser and the desktop
 shell, and in the native process for the mobile app. What differs between those places — where the
-session is stored, how a socket is opened, what "online" means, where the cache's rows live — comes
+session is stored, how a socket is opened, what "online" means, where the cache's rows live, whether
+the app is in front of the user — comes
 into the runtime as a **port**. This package holds the type that lists them all, `RuntimePorts`, and
 `createRuntime(config)`, which wires the core packages together from them: the same assembly on every
 platform.
@@ -16,7 +17,8 @@ libs/runtime-core/src/
 ├── config/             records the effective settings in the logs at boot
 ├── storage/            the runtime's own `device` store (the sync cursor watermark)
 ├── data/               the repository graph — see docs/data/
-└── connection/         the connection controller: session → socket slots — see docs/connection/
+├── connection/         the connection controller: session → socket slots — see docs/connection/
+└── session/            the session controller (init, guest keep-alive) and the foreground port — see docs/session/
 ```
 
 Apps do not import this package — the root lint refuses it, as it refuses the core packages. They boot it through `@chatic/app-runtime`'s `initAppRuntime`,
@@ -26,6 +28,8 @@ hooks stay there too; [docs/data](./docs/data/README.md) covers the graph itself
 The connections live here for the same reason: `createConnectionController` keeps the sockets in line
 with the session — the slots, the binders, the background clouds' tokens and receive loops — without
 React, and app-runtime's host only starts and stops it ([docs/connection](./docs/connection/README.md)).
+So does the relay session's own lifecycle: `createSessionController` brings the session up at boot
+and keeps a session-less visitor signed in as a guest ([docs/session](./docs/session/README.md)).
 
 ## Purpose
 
@@ -45,7 +49,9 @@ adapter that forgot it, not a fallback discovered on a device.
    `TransportPlatformPorts` (the online signal, the device, how a socket is opened) and
    `RuntimePorts.auth` is `@chatic/auth`'s `AuthPlatformPorts` (the address, the way home at logout)
    and `RuntimePorts.cache` is `@chatic/data`'s `LocalCachePorts` (where each cache domain lives);
-   this package names them, it does not redefine them.
+   this package names them, it does not redefine them. `RuntimePorts.foreground` (whether the app is
+   in front of the user) is this package's own `ForegroundSignal`, because only its session controller
+   reads it.
 3. **No platform here.** The package compiles without the browser's types or Node's (`lib:
 ["es2022"]`, `types: []` in `tsconfig.lib.json`), its tests run in jest's `node` environment (a test
    whose fixtures play a page says so with a `@jest-environment jsdom` docblock), and

@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom/client';
 
 import { config } from '@chatic/config';
 import { runtime } from '@chatic/app-runtime';
-import { webAuthPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
+import { webAuthPorts, webForegroundPorts, webLocalCachePorts, webTransportPorts } from '@chatic/runtime-web';
 
 import { webConfigPorts } from './app/config/adapters';
 import { deviceStore, tabStore } from './app/storage';
@@ -27,6 +27,7 @@ const sessionStore = tabStore;
 runtime.boot.initAppRuntime({
     storage: { secret: sessionStore, plain: sessionStore, device: deviceStore },
     transport: webTransportPorts(),
+    foreground: webForegroundPorts(),
     auth: webAuthPorts(),
     cache: webLocalCachePorts(tabStore),
 });

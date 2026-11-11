@@ -51,6 +51,9 @@ const memoryStorage = () => {
 };
 
 /** Cache ports that are never reached: boot only hands them over, and builds no storage. */
+/** A foreground that never changes — the assembly only stores it. */
+const foregroundPorts = () => ({ read: () => true, subscribe: () => () => undefined });
+
 const cachePorts = () =>
     ({
         route: () => 'web',
@@ -86,7 +89,13 @@ describe('createRuntime', () => {
     it('boots the session store — the same read succeeds afterwards', async () => {
         const { createRuntime, getActiveServerContext } = await load();
 
-        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({
+            storage: memoryStorage(),
+            transport: transport(),
+            auth: authPorts(),
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
 
         expect(() => getActiveServerContext()).not.toThrow();
     });
@@ -98,7 +107,13 @@ describe('createRuntime', () => {
         const ports = transport();
 
         expect(() => transportPlatform.ports()).toThrow(/initAppRuntime/);
-        createRuntime({ storage: memoryStorage(), transport: ports, auth: authPorts(), cache: cachePorts() });
+        createRuntime({
+            storage: memoryStorage(),
+            transport: ports,
+            auth: authPorts(),
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
 
         expect(transportPlatform.ports()).toBe(ports);
     });
@@ -110,7 +125,13 @@ describe('createRuntime', () => {
         const ports = { ...authPorts(), currentSearch };
 
         expect(() => authPlatform.ports()).toThrow(/initAppRuntime/);
-        createRuntime({ storage: memoryStorage(), transport: transport(), auth: ports, cache: cachePorts() });
+        createRuntime({
+            storage: memoryStorage(),
+            transport: transport(),
+            auth: ports,
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
 
         expect(authPlatform.ports()).toBe(ports);
         // The sweep is what read it, during boot.
@@ -129,6 +150,7 @@ describe('createRuntime', () => {
             transport: transport(),
             auth: authPorts(),
             cache: cachePorts(),
+            foreground: foregroundPorts(),
             data,
         });
 
@@ -150,7 +172,13 @@ describe('createRuntime', () => {
         );
         const { syncDataGraph } = jest.requireActual<typeof SyncDataGraph>('@chatic/sync/dataGraph');
 
-        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({
+            storage: memoryStorage(),
+            transport: transport(),
+            auth: authPorts(),
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
 
         // Boot only installs the accessors; the graph is still built on first use.
         expect(getRepositories).not.toHaveBeenCalled();
@@ -165,7 +193,13 @@ describe('createRuntime', () => {
         jest.doMock('./data/runtime', () => ({ configureDataRuntime }));
         const { createRuntime } = await import('./createRuntime');
 
-        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({
+            storage: memoryStorage(),
+            transport: transport(),
+            auth: authPorts(),
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
 
         // Passing `{}` through would trip the runtime's own late-registration warning for nothing.
         expect(configureDataRuntime).not.toHaveBeenCalled();
@@ -178,7 +212,13 @@ describe('createRuntime', () => {
         const { getSyncCursorsValidAfter } = await import('./data/syncCursorWatermark');
         const before = Date.now();
 
-        createRuntime({ storage, transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({
+            storage,
+            transport: transport(),
+            auth: authPorts(),
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
 
         expect(getSyncCursorsValidAfter()).toBeGreaterThanOrEqual(before);
         expect(storage.device.get('chatic.syncCursors.resetPending')).toBeNull();
@@ -196,6 +236,7 @@ describe('createRuntime', () => {
             transport: transport(),
             auth: authPorts(),
             cache: cachePorts(),
+            foreground: foregroundPorts(),
         });
 
         expect(device.get('chatic.syncCursors.resetPending')).toBeNull();
@@ -216,6 +257,7 @@ describe('createRuntime', () => {
             transport: transport(),
             auth: authPorts(),
             cache: cachePorts(),
+            foreground: foregroundPorts(),
             signedOutKeyPrefixes: ['@chatic/web.log.'],
         });
 
@@ -226,8 +268,20 @@ describe('createRuntime', () => {
     it('is safe to call twice, and says so — a duplicate boot means two owners', async () => {
         const { createRuntime, getActiveServerContext } = await load();
 
-        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
-        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({
+            storage: memoryStorage(),
+            transport: transport(),
+            auth: authPorts(),
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
+        createRuntime({
+            storage: memoryStorage(),
+            transport: transport(),
+            auth: authPorts(),
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
 
         expect(mockWarn).toHaveBeenCalledWith('WEB_CORE', expect.stringContaining('more than once'));
         // The wiring is assignment, not accumulation: the second call leaves a working runtime.
@@ -237,7 +291,13 @@ describe('createRuntime', () => {
     it('does not warn on the first call', async () => {
         const { createRuntime } = await load();
 
-        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({
+            storage: memoryStorage(),
+            transport: transport(),
+            auth: authPorts(),
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
 
         expect(mockWarn).not.toHaveBeenCalled();
     });
@@ -249,7 +309,13 @@ describe('createRuntime', () => {
     it('records the config boot state', async () => {
         const { createRuntime } = await load();
 
-        createRuntime({ storage: memoryStorage(), transport: transport(), auth: authPorts(), cache: cachePorts() });
+        createRuntime({
+            storage: memoryStorage(),
+            transport: transport(),
+            auth: authPorts(),
+            cache: cachePorts(),
+            foreground: foregroundPorts(),
+        });
 
         expect(mockInfo).toHaveBeenCalledWith('CONFIG', expect.stringContaining('Boot state:'), {
             overrides: [],

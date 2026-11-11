@@ -58,6 +58,7 @@ describe('after createRuntime — the credential recovery wiring', () => {
             storage: { secret: new MemoryStore(), plain: new MemoryStore(), device: new MemoryStore() },
             transport: fakeTransportPorts(),
             auth: fakeAuthPorts(),
+            foreground: { read: () => true, subscribe: () => () => undefined },
             cache: {} as never,
         });
     });

@@ -11,7 +11,7 @@ so that the native process can run it too ([runtime-core docs/connection/](../..
 ```text
 connection/
 ├── RuntimeConnectionHost.tsx      both hosts — one component, one switch
-└── hooks/                         useConnectionController · useRuntimeSocketState · useSlotVerified ·
+└── hooks/                         useHostControllers · useRuntimeSocketState · useSlotVerified ·
                                    useCloudVerified · useVerifiedClouds · useConnectivity ·
                                    useBackgroundClouds · useReclaimOwnedClouds
 ```
@@ -24,16 +24,18 @@ connection/
 <runtime.connection.RuntimeConnectionHost>{children}</runtime.connection.RuntimeConnectionHost>
 ```
 
-`RuntimeHostProps` is `{ children? }` — an app passes nothing else. The host makes one connection
-controller (`useConnectionController`) and drives its two halves:
+`RuntimeHostProps` is `{ children? }` — an app passes nothing else. The host makes runtime-core's
+two controllers once (`useHostControllers`) — the session controller and the connection controller —
+and starts them, in this order:
 
-- **The background half starts on mount**, before the session is ready: it keeps the background
+- **The session's init, on mount.** `session.initialize()` brings the relay session up once, and the
+  host renders `null` until `session.isReady()` ([runtime-core docs/session/](../../../runtime-core/docs/session/README.md)).
+- **The guest keep-alive, on mount** — `RuntimeConnectionHost` only, see below.
+- **The connections' background half, on mount**, before the session is ready: it keeps the background
   clouds' tokens ready and their receive loops running, and before a relay session there is nothing
   for it to do.
-- **The socket half starts once the session is ready.** The host is the single init driver:
-  `useRelaySessionInit()` runs session initialization once and the host renders `null` until it
-  resolves. Then it renders a small `ConnectionSockets` child ahead of the app's children, whose
-  effect starts the socket half — so the sockets are binding before any child's effect runs, the
+- **The socket half starts once the session is ready.** The host renders a small `ConnectionSockets`
+  child ahead of the app's children, whose effect starts the socket half — so the sockets are binding before any child's effect runs, the
   order the two binder components it replaced gave them.
 - **Every later pass runs in the same commit as the screens.** `ConnectionSockets` subscribes to the
   controller's due pass with `useSyncExternalStore` and runs it (`flushSockets`) from an effect, which
@@ -41,11 +43,11 @@ controller (`useConnectionController`) and drives its two halves:
   effect reacting to the same switch reads it. Left to the controller's own microtask, the pass would
   run after React had already committed those screens.
 
-Unmounting stops both. The host also calls `useRelaySessionKeepAlive` above the gate.
+Unmounting stops everything it started.
 
-The device id the controller binds with is the one `useDynamicDeviceId` resolves — the shell's
-injected id when there is one, the page's own otherwise. The controller reads it on each pass through
-`resolveDeviceIds`, so an id the shell injects after the host mounted is picked up by the next one.
+The device id both controllers use is the one `useDynamicDeviceId` resolves — the shell's injected id
+when there is one, the page's own otherwise. They read it on each pass through `resolveDeviceIds`, so
+an id the shell injects after the host mounted is picked up by the next one.
 
 `RuntimeAuthHost` is the same component with background guest login switched off, for a console that
 must not silently acquire a session. It is a second named export rather than a prop with a default

@@ -5,7 +5,7 @@
 // was a boot step that no entry point mentioned and that an import reshuffle could move or drop. It
 // now lives in `initAppRuntime`, which is also where the wiring's ordering is stated.
 //
-// `useConnectionController` and `deriveConnectivity` are NOT here: they are the host's own parts, and
+// `useHostControllers` and `deriveConnectivity` are NOT here: they are the host's own parts, and
 // it reaches them by concrete path. The binders and the slot derivation are not even in this package —
 // they are runtime-core's connection controller, which the host starts. This barrel used to
 // `export *` the two binders, which put them on the package's public API by accident.
