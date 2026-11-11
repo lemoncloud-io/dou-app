@@ -227,6 +227,17 @@ read it as `session.getUidInCloud` / `session.useUidInCloud(cid)` wherever they 
 "is this me" for a named cloud — a join id `<channel>@<uid>` built from the session uid is wrong for
 every cloud but the committed one.
 
+`getUidsInClouds()` is the same answer for every cloud at once — the relay, the committed cloud, every
+cloud the token cache holds tokens for (`cloudStore.getCachedCloudIds()`) and every recorded identity.
+It is how the session goes into a single value for a reader that cannot ask per cloud: runtime-core's
+session view, which app-runtime's readers go through.
+
+Two of its sources change without a session signal — the token cache and the recorded identities are
+caches, not session state. `cloudStore.subscribeUidSources(listener)` hears every write to them, so a
+reader that holds uids between signals (that session view) does not keep a uid the cache has moved
+past: a cloud re-issued into the cache for another account, or a paired cloud whose identity was
+dropped. It is not a session signal, and nothing that re-renders listens to it directly.
+
 ### The scope: three views that are supposed to disagree
 
 [`ActiveScope`](./src/scope/ActiveScope.ts) takes three readers in its constructor and

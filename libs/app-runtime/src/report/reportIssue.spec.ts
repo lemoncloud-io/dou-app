@@ -20,7 +20,7 @@ jest.mock('../session', () => ({
     getActiveSessionUser: () => ({ name: 'nick', userRole: 'user' }),
     getGlobalSessionContext: () => ({
         identity: { userId: 'u1', isAuthenticated: true },
-        cloud: { cloudToken: { name: 'cloud-1' }, backend: 'https://relay.test', cloudId: 'c1', siteId: 's1' },
+        cloud: { isActive: true, backend: 'https://relay.test', cloudId: 'c1', siteId: 's1' },
     }),
 }));
 
@@ -67,7 +67,7 @@ describe('reportIssue', () => {
 
         const payload = JSON.parse(submitIssue.mock.calls[0][0].message);
         expect(payload.user).toMatchObject({ uid: 'u1', name: 'nick', role: 'user', isAuthenticated: true });
-        expect(payload.cloud).toMatchObject({ connected: true, cloudId: 'c1', placeId: 's1' });
+        expect(payload.cloud).toMatchObject({ connected: true, cloudId: 'c1', name: 'nick', placeId: 's1' });
         expect(payload.url).toContain('/settings/feedback');
     });
 

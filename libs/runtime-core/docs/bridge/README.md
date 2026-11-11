@@ -68,7 +68,11 @@ and a page newer than the installed app is the normal case. So each side lists e
 still speak (`RUNTIME_CONTRACTS`), and the handshake takes the newest they share
 (`chooseRuntimeContract`).
 
-The snapshot, the commands, the call targets and the events are added to the contract one at a time,
+The session snapshot is in the contract: `SessionSnapshot`
+([docs/session](../session/README.md#the-session-view)) is what the shell's runtime puts in
+`OnRuntimeHello` and `OnRuntimeSessionChanged` (`SessionSnapshotWire`). The bridge vocabulary declares
+those bodies as plain JSON; runtime-core is where the shape is typed. The commands, the call targets and the
+events are added to the contract one at a time,
 each with the change that first moves a screen's reader or command behind the engine — where the core
 engine is a first implementation to check it against.
 

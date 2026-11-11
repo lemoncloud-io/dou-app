@@ -125,6 +125,24 @@ export const getUidInCloud = (cloudId: string): string | null => {
 };
 
 /**
+ * `getUidInCloud` for every cloud it answers for, as one map: the relay, the committed cloud, every
+ * cloud the token cache holds tokens for and every cloud with a recorded identity. A cloud missing
+ * from the map is one `getUidInCloud` answers `null` for. For a reader that cannot ask this store per
+ * cloud — a page mirroring a session that lives in another process gets the session as one value.
+ */
+export const getUidsInClouds = (): Record<string, string> => {
+    const cloudIds = new Set<string>([RELAY_CLOUD_ID, ...cloudStore.getCachedCloudIds(), ...getRecordedCloudIds()]);
+    const committed = cloudStore.getDelegationToken()?.cloudId;
+    if (committed) cloudIds.add(committed);
+    const uids: Record<string, string> = {};
+    for (const cloudId of cloudIds) {
+        const uid = getUidInCloud(cloudId);
+        if (uid) uids[cloudId] = uid;
+    }
+    return uids;
+};
+
+/**
  * Every cloud this account has a recorded uid in — so every cloud whose cache partition this device
  * can name. `recordCloudIdentity` writes one for each cloud a token was ever minted for, and the entry
  * outlives the token, so this reaches clouds that are neither on screen nor in any catalog.

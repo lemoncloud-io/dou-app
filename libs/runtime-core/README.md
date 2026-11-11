@@ -18,8 +18,9 @@ libs/runtime-core/src/
 ├── config/             records the effective settings in the logs at boot
 ├── storage/            the runtime's own `device` store (the sync cursor watermark)
 ├── data/               the repository graph — see docs/data/
+├── testing/            fakes for tests that read through the engine (`testing/sessionView`) — not on the barrel
 ├── connection/         the connection controller: session → socket slots — see docs/connection/
-├── session/            the session controller, the two credential guards and the foreground port — see docs/session/
+├── session/            the session controller, the two credential guards, the foreground port and the session view — see docs/session/
 ├── push/               push device-token registration — see docs/push/
 ├── bridge/             the runtime across the bridge: the handshake, the contract version, errors — see docs/bridge/
 └── sync/               primeChatRoom — a chat room's baseline and first page (app-runtime docs/sync/)
@@ -44,6 +45,7 @@ surface starts its lifecycle work from, instead of making it itself:
 
 | Member                                                          | Makes                                                            |
 | --------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `session`                                                       | the session as screens read it: a snapshot without tokens        |
 | `sessionController(options)`                                    | the relay session's boot and the guest keep-alive                |
 | `connectionController(options)`                                 | the sockets kept in line with the session, the background clouds |
 | `relayCredentialGuard(policy)` · `cloudCredentialGuard(policy)` | the two credential guards an app starts with its own policy      |
@@ -56,8 +58,12 @@ reach them only through the engine it was handed. A runtime that runs elsewhere 
 with the page mirroring it) supplies the same members backed by that process, and the hooks and hosts
 do not know which engine they were given.
 
-What is **not** in the engine yet: the session's state and commands and the connection state the
-screens read, the repository graph, the cloud-addressed writes. Those still come straight from the core
+`session` is the one member that is not a factory: the core engine keeps one session view over this
+process's stores ([docs/session](./docs/session/README.md#the-session-view)), and every session reader
+app-runtime publishes reads through it.
+
+What is **not** in the engine yet: the session's commands and the connection state the screens read,
+the repository graph, the cloud-addressed writes. Those still come straight from the core
 packages (through this barrel). They join the engine with the engine that needs them — a page that does
 not run the core cannot read its stores directly.
 
@@ -101,8 +107,8 @@ adapter that forgot it, not a fallback discovered on a device.
 4. **Only the core packages and the foundation below it.** It may depend on a package tagged
    `layer:core-lib` or `layer:foundation` (logger, config, perf, http, storage, bridge-messages) and on
    nothing else — an allow-list, so taking a new dependency means tagging it on purpose.
-5. **Process-wide, one per launch.** `createRuntime` wires module singletons and returns nothing; a
-   second call replaces the wiring and says so in the log.
+5. **Process-wide, one per launch.** `createRuntime` wires module singletons and returns the core
+   engine; a second call replaces the wiring and says so in the log.
 
 ## Layers
 

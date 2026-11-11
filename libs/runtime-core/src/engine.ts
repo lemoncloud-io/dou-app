@@ -7,6 +7,8 @@ import type { CloudCredentialPolicy } from './session/cloudCredentialGuard';
 import { RelayCredentialGuard } from './session/relayCredentialGuard';
 import type { SessionStalenessPolicy } from './session/relayCredentialGuard';
 import { createSessionController } from './session/sessionController';
+import { createCoreSessionView } from './session/sessionView';
+import type { SessionView } from './session/snapshot';
 import type { SessionController, SessionControllerOptions } from './session/sessionController';
 import { primeChatRoom } from './sync/primeChatRoom';
 import type { ChatPrimeOutcome, PrimeChatRoomOptions } from './sync/primeChatRoom';
@@ -38,10 +40,12 @@ export interface PushRegistrar {
  * this process. A runtime that runs elsewhere (the native process, with the page mirroring it) supplies
  * the same members backed by that process; the surface does not know which it was given.
  *
- * Not in it yet: the session's state and commands and the connection state the screens read. Those
- * still come straight from the core packages; they join the engine with the engine that needs them.
+ * The session's state is in it (`session`), without tokens. Not in it yet: the session's commands and
+ * the connection state the screens read, which still come straight from the core packages.
  */
 export interface RuntimeEngine {
+    /** The session as screens read it — a snapshot without tokens, and its changes. */
+    session: SessionView;
     /** The relay session's boot and the guest keep-alive. */
     sessionController(options: SessionControllerOptions): SessionController;
     /** The sockets kept in line with the session, and the background clouds. */
@@ -57,10 +61,12 @@ export interface RuntimeEngine {
 }
 
 /**
- * The core engine: each member makes the core implementation, in this process. Stateless — the state
- * lives in what each call makes and in the core packages `createRuntime` wired.
+ * The core engine: each member makes the core implementation, in this process. Its one piece of
+ * state is the session view's cache of the last snapshot; the session itself lives in the core
+ * packages `createRuntime` wired, and the rest in what each call makes.
  */
 export const coreEngine: RuntimeEngine = {
+    session: createCoreSessionView(),
     sessionController: options => createSessionController(options),
     connectionController: options => createConnectionController(options),
     relayCredentialGuard: policy => new RelayCredentialGuard(policy),

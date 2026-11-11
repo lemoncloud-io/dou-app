@@ -267,3 +267,46 @@ describe('cloudStore — reclaim records', () => {
         expect(mockSets.length).toBe(writesBefore);
     });
 });
+
+describe('cloudStore.subscribeUidSources — the writes that move a uid without a session signal', () => {
+    it.each([
+        ['caching tokens for a cloud', () => cloudStore.setCachedCloudTokens('cloud-1', tokens('t'))],
+        ['dropping them', () => cloudStore.dropCachedCloudTokens('cloud-1')],
+        ['clearing the cache', () => cloudStore.clearCachedCloudTokens()],
+        ['recording an identity', () => cloudStore.setCloudIdentity('cloud-2', { uid: 'u2' })],
+        ['dropping one', () => cloudStore.dropCloudIdentity('cloud-1')],
+        ['clearing them', () => cloudStore.clearCloudIdentities()],
+    ])('tells its listeners on %s', (_label, write) => {
+        cloudStore.setCachedCloudTokens('cloud-1', tokens('t'));
+        cloudStore.setCloudIdentity('cloud-1', { uid: 'u1' });
+        const listener = jest.fn();
+        const stop = cloudStore.subscribeUidSources(listener);
+
+        write();
+        stop();
+
+        expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('stays quiet for a write that changes nothing', () => {
+        cloudStore.setCloudIdentity('cloud-1', { uid: 'u1' });
+        const listener = jest.fn();
+        const stop = cloudStore.subscribeUidSources(listener);
+
+        cloudStore.setCloudIdentity('cloud-1', { uid: 'u1' });
+        cloudStore.dropCloudIdentity('nowhere');
+        cloudStore.dropCachedCloudTokens('nowhere');
+        stop();
+
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('stops telling a listener once it unsubscribes', () => {
+        const listener = jest.fn();
+        cloudStore.subscribeUidSources(listener)();
+
+        cloudStore.setCloudIdentity('cloud-3', { uid: 'u3' });
+
+        expect(listener).not.toHaveBeenCalled();
+    });
+});

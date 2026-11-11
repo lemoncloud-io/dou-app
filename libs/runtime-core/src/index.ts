@@ -37,6 +37,20 @@ export type { ChatOutbox, ChatOutboxOptions, OutboxEntry, OutboxEnqueueInput } f
 // the connections, kept in line with the session
 export type { ConnectionController, ConnectionControllerOptions } from './connection/connectionController';
 
+// the session as screens read it: a snapshot without tokens
+export type {
+    ActiveServerView,
+    CloudSessionView,
+    IdentityView,
+    PairingView,
+    RelaySessionView,
+    SessionAuthView,
+    SessionContextView,
+    SessionSnapshot,
+    SessionUserView,
+    SessionView,
+} from './session/snapshot';
+
 // the relay session's own lifecycle: boot, and the guest keep-alive
 export type { SessionController, SessionControllerOptions } from './session/sessionController';
 

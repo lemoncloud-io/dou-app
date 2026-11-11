@@ -63,6 +63,8 @@ export interface ICloudStore {
      * margin-checked read that deleted the entry would leave that socket with nothing to sign from.
      */
     peekCachedCloudTokens(cloudId: string): CachedCloudTokens | null;
+    /** The clouds the token cache holds tokens for. */
+    getCachedCloudIds(): string[];
     setCachedCloudTokens(cloudId: string, tokens: CachedCloudTokens): void;
     /** Forgets one cloud's cached tokens. The other clouds' entries, and the identities, stay. */
     dropCachedCloudTokens(cloudId: string): void;
@@ -84,6 +86,14 @@ export interface ICloudStore {
     dropCloudIdentity(cloudId: string): void;
     /** Forgets every cloud identity — the account is changing, and its uids change with it. */
     clearCloudIdentities(): void;
+    /**
+     * Hears every write to the token cache and the recorded identities — the two sources of a cloud's
+     * uid that change without a session signal. Not a session signal: these writes are not session
+     * state, and its listeners re-render screens. For a reader that holds the uids between signals
+     * (runtime-core's session view), so a cloud re-issued for another account does not keep the old
+     * uid. Returns the unsubscribe.
+     */
+    subscribeUidSources(listener: () => void): () => void;
     /** Moves `cloudId` to the front of the recently entered clouds. */
     recordCloudUse(cloudId: string): void;
     /** The clouds this account has entered, most recent first. */
@@ -115,6 +125,7 @@ class CloudStore implements ICloudStore {
     private readonly identities: JsonSlot<Record<string, CloudIdentity>>;
     private readonly recent: JsonSlot<string[]>;
     private readonly reclaimed: JsonSlot<Record<string, string>>;
+    private readonly uidSourceListeners = new Set<() => void>();
 
     /** The plain port — the selection keys are read and written on it directly. */
     private readonly storage: StoragePortPair['plain'];
@@ -170,12 +181,17 @@ class CloudStore implements ICloudStore {
         return this.cache.read()?.[cloudId] ?? null;
     }
 
+    getCachedCloudIds(): string[] {
+        return Object.keys(this.cache.read() ?? {});
+    }
+
     setCachedCloudTokens(cloudId: string, tokens: CachedCloudTokens): void {
         // No signal: this is a pure cache write, not session state. The kinds regulation
         // (ADR-0076 Decision 2) names this the one legitimate exception, and the name says so.
         const map = this.cache.read() ?? {};
         map[cloudId] = tokens;
         this.cache.write(map);
+        this.uidSourcesChanged();
     }
 
     dropCachedCloudTokens(cloudId: string): void {
@@ -184,11 +200,13 @@ class CloudStore implements ICloudStore {
         if (!map || !(cloudId in map)) return;
         delete map[cloudId];
         this.cache.write(map);
+        this.uidSourcesChanged();
     }
 
     clearCachedCloudTokens(): void {
         // No signal, for the same reason as `setCachedCloudTokens`.
         this.cache.clear();
+        this.uidSourcesChanged();
     }
 
     getCloudTokenOf(cloudId: string): UserTokenView | null {
@@ -203,13 +221,14 @@ class CloudStore implements ICloudStore {
     }
 
     setCloudIdentity(cloudId: string, identity: CloudIdentity): void {
-        // No signal: a uid moves only with a new account, which announces itself through the relay
-        // token. Readers of `getUidInCloud` that must follow a cloud being issued its first tokens
-        // listen to the background store, which the issuer invalidates.
+        // No session signal: a uid moves only with a new account, which announces itself through the
+        // relay token. A reader that holds uids between signals hears it through `subscribeUidSources`;
+        // a hook that re-reads on the background store hears the issuer's invalidation.
         const map = this.identities.read() ?? {};
         if (map[cloudId]?.uid === identity.uid) return;
         map[cloudId] = identity;
         this.identities.write(map);
+        this.uidSourcesChanged();
     }
 
     getCloudIdentities(): Record<string, CloudIdentity> {
@@ -223,10 +242,23 @@ class CloudStore implements ICloudStore {
         if (!map || !(cloudId in map)) return;
         delete map[cloudId];
         this.identities.write(map);
+        this.uidSourcesChanged();
     }
 
     clearCloudIdentities(): void {
         this.identities.clear();
+        this.uidSourcesChanged();
+    }
+
+    subscribeUidSources(listener: () => void): () => void {
+        this.uidSourceListeners.add(listener);
+        return () => {
+            this.uidSourceListeners.delete(listener);
+        };
+    }
+
+    private uidSourcesChanged(): void {
+        for (const listener of [...this.uidSourceListeners]) listener();
     }
 
     recordCloudUse(cloudId: string): void {

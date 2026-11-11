@@ -1,16 +1,18 @@
-# session — the React surface over `@chatic/session` and `@chatic/auth`
+# session — the React surface over the session
 
 The session's state lives in [`@chatic/session`](../../../session/README.md), and the use cases that
 write it, device pairing and the socket authentication live in [`@chatic/auth`](../../../auth/README.md).
-This folder holds what React reads them through: the hooks under `session/hooks/`, and the `session`
-facade group in `session/index.ts`. Every edge runs one way — `hooks → @chatic/auth → @chatic/session`
-— never back.
+This folder holds what React reads and drives them through: the hooks under `session/hooks/`, the
+readers in `session/sessionReads.ts`, and the `session` facade group in `session/index.ts`. The readers
+go through the engine (`runtimeEngine().session`, runtime-core) and never touch the stores; the
+commands still run `hooks → @chatic/auth → @chatic/session`. Every edge runs one way, never back.
 
 ## Layout
 
 ```text
-session/                              35 source files, 15 tests
-├── hooks/    34 files · 15 tests  the React surface: 5 app · 8 auth · 5 actions · 5 readers · 6 pairing
+session/                              34 source files, 15 tests
+├── hooks/    32 files · 14 tests  the React surface: app · auth · actions · readers · pairing
+├── sessionReads.ts                the readers and the getters, through `runtimeEngine().session`
 └── index.ts                       the `session` facade group
 ```
 
@@ -30,8 +32,15 @@ in [`@chatic/auth`'s session doc](../../../auth/docs/session/README.md).
 | `hooks/app/`             | 3     | `useDynamicDeviceId` · `useSessionStalenessGuard` · `useCloudCredentialGuard`                                                                                                            |
 | `hooks/pairing/`         | 6     | `usePairingRequest` · `useIsPairedSession` · `usePairedCloudIds` · `usePairedCloudNames` · `usePairingAwareLogout` · `usePairedCloudCheck` — see [The pairing hooks](#the-pairing-hooks) |
 
-The first three readers are `useSyncExternalStore(subscribeSessionSignal, …)`; `useSessionSelection`
-derives from `useGlobalSession`. Twenty-one of these 22 are on the package barrel; the one that is not
+The readers — these hooks, `useUidInCloud`, the three pairing readers, and the synchronous getters
+(`getGlobalSessionContext`, `getIdentityContext`, `getUidInCloud`, `isPairedSession` and the rest) —
+read the session through the engine the entry point handed over (`runtimeEngine().session`, in
+[`sessionReads.ts`](../../src/session/sessionReads.ts)), never the stores. The engine's session is a
+snapshot without a token — on the phone the session may live in another process, and the page then
+has none — so `getGlobalSessionContext()` has no `identityToken`, `delegationToken` or `cloudToken`,
+and an error is its message. The core engine reads this process's stores; what it holds and how it
+keeps each part the same object is [runtime-core docs/session/](../../../runtime-core/docs/session/README.md#the-session-view).
+`useSessionSelection` derives from `useGlobalSession`. Twenty-one of these 22 are on the package barrel; the one that is not
 is `useRegisterUser` (superseded by `useRegisterUserV2`, still reachable in-package). The session's
 init and guest keep-alive are no longer hooks: they are runtime-core's session controller, which the
 connection host starts ([runtime-core docs/session/](../../../runtime-core/docs/session/README.md)).
@@ -86,12 +95,12 @@ Neither ends a session. The relay guard used to take a teardown policy (`onTeard
 ### Reading the session
 
 ```ts
-// In React — subscribes to the signal, re-renders only on the kinds it needs.
+// In React — re-renders when the part it reads changes.
 const { selectedCloudId, selectedSiteId } = runtime.session.useSessionSelection();
 const { userId, isAuthenticated } = runtime.session.useSessionIdentity();
 
-// Outside React — the same derived contexts, read synchronously.
-const { cloud, identity } = getGlobalSessionContext();
+// Outside React — the same snapshot, read synchronously. No token in it.
+const { cloud, identity } = runtime.session.getGlobalSessionContext();
 ```
 
 ### What not to do

@@ -63,7 +63,7 @@ export const StateScreen = () => {
                 <Row label="delegatorId" value={identity.delegatorId} />
                 <Row label="userName" value={facts.userName} />
                 <Row label="userRole" value={facts.userRole} />
-                <Row label="error" value={identity.error?.message ?? null} />
+                <Row label="error" value={identity.error} />
             </Section>
 
             <Section title={t.sections.activeServer}>
@@ -71,7 +71,6 @@ export const StateScreen = () => {
                 <Row label="siteId" value={activeServer.siteId} />
                 <Row label="backend" value={activeServer.backend} />
                 <Row label="wss" value={activeServer.wss} />
-                <Row label="identityToken" value={activeServer.identityToken} />
                 {'cloudId' in activeServer && <Row label="cloudId" value={activeServer.cloudId} />}
             </Section>
 
@@ -80,7 +79,6 @@ export const StateScreen = () => {
                 <Row label="siteId" value={relay.siteId} />
                 <Row label="backend" value={relay.backend} />
                 <Row label="wss" value={relay.wss} />
-                <Row label="identityToken" value={relay.identityToken} />
             </Section>
 
             <Section title={t.sections.cloud}>
@@ -89,7 +87,6 @@ export const StateScreen = () => {
                 <Row label="siteId" value={cloud.siteId} />
                 <Row label="backend" value={cloud.backend} />
                 <Row label="wss" value={cloud.wss} />
-                <Row label="identityToken" value={cloud.identityToken} />
             </Section>
 
             <Section title={t.sections.socket}>

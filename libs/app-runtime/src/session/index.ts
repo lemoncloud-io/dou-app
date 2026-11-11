@@ -14,7 +14,9 @@
 // No second barrel and no subpath export for apps: the one deep path those packages allow is for
 // test mocks.
 
-// --- store readers (session state the app reads) ---------------------------------------------------------
+// --- session readers (session state the app reads) -------------------------------------------------------
+// Through the engine (`./sessionReads`), never the stores: on the phone the session may live in another
+// process. What they return carries no token.
 export {
     getActiveServerContext,
     getActiveSessionUser,
@@ -23,27 +25,28 @@ export {
     getGlobalSessionContext,
     getIdentityContext,
     getRelaySessionUser,
-    // The uid the account has in a named cloud. Every cloud gives it a different one, and the session
-    // identity only answers for the committed cloud, so a write or a sync target addressed to another
-    // cloud names its uid with this.
+    // The uid the account has in a named cloud — see its comment.
     getUidInCloud,
+} from './sessionReads';
+export {
     // Whether a storage key is one of the session's own. The debug storage screen groups keys by it;
     // the session declares its keys, so nothing outside keeps a second copy of the list.
     isSessionKey,
-    // The account-profile read/write pair. Kept public because the local cache does not answer this
-    // question — its physical key is `${type}:${cid}:${uid}:${id}` and the repositories read it under
-    // the live scope, so while a cloud is active the relay `user` row is out of their reach
-    // (apps/web/docs/feature/mypage/README.md). apps/web uses both.
+    // The account-profile write; `getRelaySessionUser` above is its read. Kept public because the
+    // local cache does not answer this question — its physical key is `${type}:${cid}:${uid}:${id}` and
+    // the repositories read it under the live scope, so while a cloud is active the relay `user` row is
+    // out of their reach (apps/web/docs/feature/mypage/README.md). apps/web uses both.
     patchRelaySessionUser,
 } from '@chatic/session';
 export type {
-    ActiveServerContext,
-    CloudContext,
-    CloudSessionSnapshot,
-    GlobalSessionContext,
-    IdentityContext,
-    RelayContext,
-} from '@chatic/session';
+    ActiveServerView,
+    CloudSessionView,
+    IdentityView,
+    RelaySessionView,
+    SessionAuthView,
+    SessionContextView,
+    SessionUserView,
+} from '@chatic/runtime-core';
 
 // --- auth use-cases (non-React) -----------------------------------------------------------------
 export type { LogoutOptions } from '@chatic/auth';
@@ -99,7 +102,7 @@ export {
     usePairingRequest,
 } from './hooks/pairing';
 export type { PairingAwareLogout, PairingRequestOptions } from './hooks/pairing';
-export { isInOwnCloudSession, isPairedSession } from '@chatic/auth';
+export { isInOwnCloudSession, isPairedSession } from './sessionReads';
 export { forgetRefusedPairedCloud, isRefusedForEndedPairing } from '@chatic/auth';
 export { deviceDisplayName, pairingClientOf } from '@chatic/auth';
 export { classifyPairingError } from '@chatic/auth';

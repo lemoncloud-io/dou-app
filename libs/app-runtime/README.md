@@ -83,6 +83,7 @@ flowchart TD
     Host["connection/<br/><i>RuntimeConnectionHost → runtime-core's connection controller</i>"]:::root
 
     Hooks["session/hooks<br/><i>readers · actions · guards</i>"]:::sess
+    View["@chatic/runtime-core · engine.session<br/><i>the session as screens read it, no token</i>"]:::root
     Auth["@chatic/auth<br/><i>login · sign · renew · expiry · pairing</i>"]:::sess
     Store["@chatic/session · store<br/><i>relay · cloud · identity · signal</i>"]:::sess
     Scope["@chatic/session · scope<br/><i>ActiveScope — selected · bound · committed</i>"]:::sess
@@ -103,13 +104,15 @@ flowchart TD
     Host --> SM
     Host --> Auth
     Hooks --> Auth
-    Hooks --> Store
+    Hooks -->|"readers"| View
+    View --> Store
     Auth --> Store
     Auth --> Sign
     Auth -->|"repository"| DM
     Scope --> Store
     Scope -.->|"getBoundCid"| SM
-    Store -.->|"signal"| Hooks
+    Store -.->|"signal"| View
+    View -.->|"snapshot"| Hooks
     SM --> SDK
     SyncM --> SM
     DM --> Scope
@@ -201,7 +204,7 @@ libs/app-runtime/src/
 ├── init.ts           initAppRuntime(engine) — holds the engine the hooks and hosts start their work from
 ├── boot.ts           the `boot` group's barrel; it has no module of its own
 ├── connection/       10 files — the host and 8 hooks; the controller it starts is @chatic/runtime-core's
-├── session/          35 files — the React surface (34 under hooks/) and the `session` group; the use cases are @chatic/auth
+├── session/          34 files — the React surface (32 under hooks/), the readers through the engine (`sessionReads.ts`) and the `session` group; the use cases are @chatic/auth
 ├── socket/           2 files — the `sync` group and its hooks; the manager is @chatic/transport, sync and socket auth are their own packages
 ├── data/             the `data` group and its hooks; the graph itself is @chatic/runtime-core's
 ├── push/             2 files — the hook that starts runtime-core's `PushRegistration`, and the `push` group
@@ -308,7 +311,10 @@ logging wiring, because it logs; **before** anything that can read the session, 
 failure that names `createRuntime()` beats a request going out with an empty host. A hook or host that
 asks for the engine before `initAppRuntime(engine)` throws the same way, and so does a test that renders
 one: it hands over an engine first — `initAppRuntime(coreEngine)` from `@chatic/runtime-core/engine`, or a
-fake one whose members are `jest.fn` when the point is what the surface asks the engine for.
+fake one whose members are `jest.fn` when the point is what the surface asks the engine for. Anything
+that reads the session reads `engine.session`, so a fake engine carries a session view: `fakeSessionView()`
+from `@chatic/runtime-core/testing/sessionView`, as `initAppRuntime({ ...coreEngine, session })`, with
+`session.set(...)` to change it.
 
 Most of the steps delegate to the module that owns the thing being configured. Credential
 recovery does not, because it owns nothing: it joins the HTTP registry to the socket renewers, and
