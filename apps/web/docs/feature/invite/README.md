@@ -136,9 +136,13 @@ answered `403 not a member of channel`. What the pipeline keeps around that entr
   member who already has a profile for one, then failing the save because the server wrote it to
   the default place.
 - **Who accepted is written on the cached cloud** as `acceptedBy`, the `delegatorId` of every device
-  user that accepted it here (read back as `runtime.data.getAcceptorId()`: the relay uid, which is
-  the guest's own for a guest), and **`useInvitedClouds` leaves out a row other device users
-  accepted.** Inside a shell the cloud cache is one partition per device, not per user, and a listed
+  user that accepted it here, and **`useInvitedClouds` leaves out a row other device users
+  accepted.** The list keeps a row that records either of the session's two ids: the `delegatorId`
+  the accept wrote, or `runtime.data.getAcceptorId()` (the relay uid), which a row rebuilt from a
+  push is recorded under. For a guest the two are one id. A signed-in account keeps the device
+  guest's `delegatorId` while its relay uid is the account's own, so matching the relay uid alone
+  would miss every cloud the account accepted while signed in. The phone app runs this same page.
+  Inside a shell the cloud cache is one partition per device, not per user, and a listed
   cloud is one the background sockets delegate into, minting the empty user above. In a plain browser
   tab the cache lives in the tab's `sessionStorage` and ends with the tab, so another tab's guest
   never reaches it; the filter is rarely load-bearing there but stays, because logout does not clear
