@@ -2,6 +2,12 @@
 
 ## [2026-11-11] - No version updates
 
+### Refactor
+
+- (session,transport,sync,auth,data,runtime-web) the core packages read no page (ADR-0304)
+
+## [2026-11-11] - No version updates
+
 ### Features
 
 - (web/channels) offer me last in the @ list, not leave me out
