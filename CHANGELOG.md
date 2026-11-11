@@ -2,6 +2,12 @@
 
 ## [2026-11-11] - No version updates
 
+### Features
+
+- (bridge-messages,bridges,runtime-core) declare the runtime bridge contract (ADR-0309)
+
+## [2026-11-11] - No version updates
+
 ### Refactor
 
 - (runtime-core,runtime-web,app-runtime) start the react surface from an engine (ADR-0308)
